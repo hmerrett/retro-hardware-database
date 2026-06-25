@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="controls">
+  <input id="q" type="search" placeholder="Search name, maker, specs, asset no.">
+  <select id="cat">
+    <option value="">All types</option>
+    {% for c in categories %}<option value="{{ c.key }}">{{ c.label }}</option>{% endfor %}
+  </select>
+  <span class="tag" id="count"></span>
+</div>
+
+<div class="grid" id="grid">
+  {% for a in assets %}
+  <a class="card" href="{{ root }}items/{{ a.asset_id }}/"
+     data-cat="{{ a.cat }}" data-text="{{ a.search_text }}">
+    <div class="thumb">
+      {% if a.image %}
+        <img src="{{ root }}images/{{ a.image }}" alt="{{ a.display_name }}" loading="lazy">
+      {% else %}
+        <span class="noimg">no photo yet</span>
+      {% endif %}
+    </div>
+    <div class="body">
+      <div class="aid">{{ a.asset_id }}</div>
+      <div class="nm">{{ a.display_name }}</div>
+      <span class="chip">{{ a.cat_label }}</span>
+      {% if a.year %}<span class="chip">{{ a.year }}</span>{% endif %}
+      {% if a.parent %}<span class="chip">in {{ a.parent }}</span>{% endif %}
+    </div>
+  </a>
+  {% endfor %}
+</div>
+
+<script>
+  const q = document.getElementById('q');
+  const cat = document.getElementById('cat');
+  const grid = document.getElementById('grid');
+  const count = document.getElementById('count');
+  const cards = Array.from(grid.children);
+  function apply(){
+    const t = q.value.trim().toLowerCase();
+    const c = cat.value;
+    let n = 0;
+    for (const el of cards){
+      const ok = (!t || el.dataset.text.includes(t)) && (!c || el.dataset.cat === c);
+      el.style.display = ok ? '' : 'none';
+      if (ok) n++;
+    }
+    count.textContent = n + ' item' + (n === 1 ? '' : 's');
+  }
+  q.addEventListener('input', apply);
+  cat.addEventListener('change', apply);
+  apply();
+</script>
+{% endblock %}

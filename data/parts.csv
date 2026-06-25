@@ -1,0 +1,10 @@
+asset_id,computer_id,type,manufacturer,model,name,year,specs,condition,location,acquired_date,est_value,image,theretroweb_url,wikipedia_url,summary,notes
+RH-0003,RH-0002,sound,Creative,Sound Blaster 16 Value PnP (CT2940),Sound Blaster 16,1994,"Bus: 16-bit ISA | Chipset: CT2940 | FM: Yamaha OPL-3 | Ports: line-out, mic, MIDI/joystick",Working,,2024-03-02,,,https://theretroweb.com/expansioncards/s/creative-16-bit-audio-card-ct2940,,,CT2940
+RH-0004,RH-0002,motherboard,Unknown (clone),SiS 471 Baby-AT,,1993,"Chipset: SiS 471 | Socket: Socket 3 | Slots: 3x 16-bit ISA + 1x VLB | RAM: 4x 30-pin + 2x 72-pin SIMM",Working,,,,,,,VLB board
+RH-0005,RH-0002,cpu,Intel,i486 DX2-66,486 DX2-66,1992,"Socket: Socket 3 | Speed: 66 MHz | FSB: 33 MHz | L1 cache: 8 KB",Working,,,,,,,
+RH-0006,RH-0002,ram,Mixed,72-pin FPM SIMM,,,"Type: 72-pin FPM | Size: 16 MB (2x 8 MB)",Working,,,,,,,
+RH-0007,RH-0002,gpu,Cirrus Logic,GD-5428 (VLB),,1993,"Bus: VESA Local Bus | Memory: 1 MB | Type: SVGA",Untested,,,,,,,
+RH-0008,RH-0002,storage,SanDisk,CompactFlash 512 MB,,,"Interface: IDE (CF-to-IDE adapter) | Capacity: 512 MB | Role: boot disk",Working,,,,,,,Silent solid-state boot disk
+RH-0009,RH-0002,floppy,Generic,3.5-inch FDD,,,"Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy",Working,,,,,,,
+RH-0010,RH-0001,peripheral,Commodore,1541,Commodore 1541 Disk Drive,1982,"Interface: IEC serial | Media: 5.25-inch floppy | Capacity: 170 KB",Untested,Shelf A,2024-01-15,,,,,,External drive paired with the C64
+RH-0011,,network,3Com,EtherLink III 3C509B,,1994,"Bus: 16-bit ISA | Interface: 10BASE-T / BNC / AUI",Working,Box 3,,,,,,,"Spare, not currently installed"

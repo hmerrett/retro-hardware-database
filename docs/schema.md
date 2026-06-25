@@ -1,0 +1,104 @@
+# Data model
+
+Two tables, one relationship.
+
+```
+computers.csv  (1) ───────< (many)  parts.csv
+   asset_id  ◄──────────────  computer_id
+```
+
+- **computers.csv** — the machines (assemblies). One row per computer.
+- **parts.csv** — every individual hardware item: CPUs, motherboards, cards,
+  RAM, storage, drives, and peripherals. One row per part.
+- A part's **`computer_id`** is a foreign key pointing at a computer's
+  `asset_id`. It means "installed in, or paired with, that machine". Leave it
+  **blank** for a standalone/uninstalled part (a spare in a box, a peripheral
+  not tied to one machine).
+
+The foreign key lives on the part (the "many" side) — standard one-to-many.
+A computer's full build is simply "every part whose `computer_id` is this
+computer".
+
+## Asset numbers
+
+One shared register across **both** tables, e.g. `RH-0001`. Every physical
+object — whole computer or individual part — gets exactly one unique tag, so a
+label/QR is unambiguous. `scripts/` will refuse to build if an id is duplicated
+across the two files. (Prefix/width set in `config.yml`.)
+
+## computers.csv columns
+
+| column | meaning |
+|---|---|
+| `asset_id` | unique tag, e.g. `RH-0001` |
+| `name` | display name (overrides manufacturer+model) |
+| `manufacturer`, `model` | identity (`Custom build` is fine for clones) |
+| `year` | year built / released |
+| `form_factor` | AT / Baby-AT / ATX / desktop / tower / all-in-one … |
+| `chassis` | case description |
+| `os` | installed operating system(s) |
+| `condition`, `location` | your tracking (e.g. `Working`, `Bench`) |
+| `acquired_date`, `est_value` | optional record-keeping |
+| `image` | photo path under `images/` (auto-filled) |
+| `theretroweb_url`, `wikipedia_url` | reference links |
+| `summary` | short description (auto-filled from Wikipedia) |
+| `notes` | anything else |
+
+## parts.csv columns
+
+| column | meaning |
+|---|---|
+| `asset_id` | unique tag, e.g. `RH-0003` |
+| `computer_id` | the computer this part is installed in / paired with — or blank |
+| `type` | see vocabulary below; drives grouping, filtering and labels |
+| `manufacturer`, `model`, `name` | identity |
+| `year` | year of manufacture |
+| `specs` | `Label: value | Label: value` — the type-specific detail (see below) |
+| `condition`, `location` | your tracking |
+| `acquired_date`, `est_value` | optional |
+| `image` | photo path under `images/` (auto-filled) |
+| `theretroweb_url`, `wikipedia_url` | reference links |
+| `summary` | short description (auto-filled) |
+| `notes` | anything else |
+
+### `type` vocabulary
+
+`motherboard`, `cpu`, `ram`, `gpu`, `sound`, `network`, `io`, `storage`,
+`optical`, `floppy`, `psu`, `cooler`, `peripheral`, `other`.
+
+(Free text is allowed, but sticking to these keeps grouping and filtering tidy.
+Add new ones to `TYPE_ORDER` in `scripts/common.py` to control their order.)
+
+### Recommended `specs` keys per type
+
+The `specs` field is deliberately flexible (one column, any keys) so parts of
+different kinds can live in one table. These are conventions, not rules:
+
+- **motherboard** — `Chipset`, `Socket`, `Slots`, `RAM`, `Form factor`
+- **cpu** — `Socket`, `Speed`, `FSB`, `Cores`, `L1/L2 cache`
+- **ram** — `Type` (e.g. 72-pin FPM, EDO, SDRAM), `Size`, `Speed`
+- **gpu** — `Bus` (ISA/VLB/PCI/AGP), `Memory`, `Chipset`, `Type`
+- **sound** — `Bus`, `Chipset`, `FM`, `Ports`
+- **network** — `Bus`, `Interface` (10BASE-T/BNC/AUI), `Chipset`
+- **storage** — `Interface` (IDE/SCSI/MFM/CF/SD), `Capacity`, `Role`
+- **optical / floppy** — `Media`, `Interface`, `Speed`
+- **peripheral** — `Interface`, plus type-appropriate keys (e.g. monitor `Size`,
+  `Tube`; printer `Type`, `Resolution`)
+
+## Reference sources
+
+- **Wikipedia / Wikimedia** — free, used for summaries and photos for common
+  items. See `scripts/enrich.py`.
+- **The Retro Web** (`theretroweb.com`) — community database, great for PC-clone
+  parts (motherboards, CPUs, cards). There is **no public API** and the site is
+  behind Cloudflare, so reliable automated spec-pulling isn't guaranteed and we
+  never bypass their bot protection. The workflow is:
+  1. Paste the part's page URL into `theretroweb_url`.
+  2. Optionally run `python scripts/enrich.py --source theretroweb --only RH-0003`
+     — a single, identifying, rate-limited request that tries to read the spec
+     table and image. If Cloudflare blocks it, it logs that and keeps just the
+     link; fill the specs by hand in that case.
+  Their robots policy allows general access but disallows AI-training crawlers
+  (`ai-train=no`); this personal, link-targeted use respects that. For bulk or
+  sanctioned data access, contact the project (GitHub: `TheRetroWeb`, or their
+  Discord).

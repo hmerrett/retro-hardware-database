@@ -1,0 +1,39 @@
+# Retro Hardware Database — configuration
+# Edit this, then re-run the scripts. Nothing here is secret, so it's safe in a public repo.
+
+site_title: "Retro Hardware Database"
+owner: "Henry"
+
+# The public base URL of your GitHub Pages site.
+# For a project page it is:  https://<your-username>.github.io/<repo-name>/
+# This is what the QR codes encode, so set it correctly BEFORE printing labels.
+base_url: "https://USERNAME.github.io/retro-hardware-database"
+
+# Asset numbering. One shared register across BOTH tables (computers + parts),
+# so every physical object gets a single unique tag, e.g. RH-0001.
+asset_prefix: "RH-"
+asset_pad: 4
+
+# Label settings (6 x 4 by default — change units to "mm" for 152 x 102 mm, etc.)
+label:
+  width: 6
+  height: 4
+  units: "in"        # "in" or "mm"
+  qr_error: "M"      # QR error-correction: L, M, Q, or H
+
+# Enrichment
+enrich:
+  # Wikipedia / Wikimedia (free, no key). Used for summaries + photos.
+  wikipedia_lang: "en"
+  user_agent: "RetroHardwareDB/1.0 (https://github.com/USERNAME/retro-hardware-database)"
+  image_max_px: 1000   # downscale downloaded photos so the repo stays light
+
+  # The Retro Web (https://theretroweb.com) — community hardware database.
+  # No public API; the site is behind Cloudflare. We ALWAYS store the reference
+  # link. Auto-pull of specs is BEST EFFORT and disabled by default: it is
+  # attempted only with `--source theretroweb`, only for rows where you have
+  # pasted a theretroweb_url, one page at a time, with an identifying
+  # user-agent. It does not bypass bot protection — if Cloudflare blocks it,
+  # it skips and keeps the link. See docs/schema.md.
+  theretroweb_user_agent: "RetroHardwareDB/1.0 (personal collection; +https://github.com/USERNAME/retro-hardware-database)"
+  theretroweb_delay_seconds: 3

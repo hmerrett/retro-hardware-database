@@ -1,0 +1,3 @@
+asset_id,name,manufacturer,model,year,form_factor,chassis,os,condition,location,acquired_date,est_value,image,theretroweb_url,wikipedia_url,summary,notes
+RH-0001,Commodore 64,Commodore,C64,1982,Wedge / all-in-one,Breadbin,Commodore BASIC 2.0,Working,Shelf A,2024-01-15,,,,,,6510 / VIC-II / SID integrated on the board
+RH-0002,486 DX2-66 Tower,Custom build,,1994,Baby-AT,Beige mini-tower,MS-DOS 6.22 / Win 3.11,Working,Bench,2024-04-10,,,,,,PC clone build

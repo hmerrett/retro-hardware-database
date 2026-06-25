@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ c.asset_id }} · {{ c.display_name }} — {{ config.site_title }}{% endblock %}
+{% block content %}
+<p class="back"><a href="{{ root }}index.html">← all items</a></p>
+
+<div class="item-head">
+  {% if c.image %}<img src="{{ root }}images/{{ c.image }}" alt="{{ c.display_name }}">{% endif %}
+  <div>
+    <div class="aid">{{ c.asset_id }}</div>
+    <h2>{{ c.display_name }}</h2>
+    <p>
+      <span class="chip">computer</span>
+      {% if c.manufacturer %}<span class="chip">{{ c.manufacturer }}</span>{% endif %}
+      {% if c.year %}<span class="chip">{{ c.year }}</span>{% endif %}
+      {% if c.form_factor %}<span class="chip">{{ c.form_factor }}</span>{% endif %}
+    </p>
+    {% if c.summary %}<p>{{ c.summary }}</p>{% endif %}
+  </div>
+</div>
+
+{% if c.chassis or c.os %}
+<table class="specs">
+  {% if c.form_factor %}<tr><td class="k">Form factor</td><td>{{ c.form_factor }}</td></tr>{% endif %}
+  {% if c.chassis %}<tr><td class="k">Chassis</td><td>{{ c.chassis }}</td></tr>{% endif %}
+  {% if c.os %}<tr><td class="k">Operating system</td><td>{{ c.os }}</td></tr>{% endif %}
+</table>
+{% endif %}
+
+<h3 class="sec">Build — {{ c.parts|length }} part{{ '' if c.parts|length == 1 else 's' }}</h3>
+{% if c.parts %}
+<div class="build">
+  {% for p in c.parts %}
+  <div class="prow">
+    <span class="pt">{{ p.type_label }}</span>
+    <span class="pn"><a href="{{ root }}items/{{ p.asset_id }}/">{{ p.display_name }}</a></span>
+    <span class="pid">{{ p.asset_id }}</span>
+    {% if p.theretroweb_url %}<a class="pid" href="{{ p.theretroweb_url }}">retroweb ↗</a>{% endif %}
+    {% if p.specs %}<span class="pspec">{{ p.specs }}</span>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="meta">No parts recorded yet. Add rows to parts.csv with computer_id = {{ c.asset_id }}.</p>
+{% endif %}
+
+<div class="meta">
+  {% if c.condition %}Condition: {{ c.condition }}{% endif %}
+  {% if c.location %} · Location: {{ c.location }}{% endif %}
+  {% if c.acquired_date %} · Acquired: {{ c.acquired_date }}{% endif %}
+  {% if c.est_value %} · Est. value: {{ c.est_value }}{% endif %}
+</div>
+{% if c.notes %}<p class="meta">Notes: {{ c.notes }}</p>{% endif %}
+
+<div class="refs">
+  {% if c.theretroweb_url %}<a href="{{ c.theretroweb_url }}">The Retro Web ↗</a>{% endif %}
+  {% if c.wikipedia_url %}<a href="{{ c.wikipedia_url }}">Wikipedia ↗</a>{% endif %}
+</div>
+{% endblock %}

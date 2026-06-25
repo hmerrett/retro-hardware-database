@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ p.asset_id }} · {{ p.display_name }} — {{ config.site_title }}{% endblock %}
+{% block content %}
+<p class="back"><a href="{{ root }}index.html">← all items</a></p>
+
+<div class="item-head">
+  {% if p.image %}<img src="{{ root }}images/{{ p.image }}" alt="{{ p.display_name }}">{% endif %}
+  <div>
+    <div class="aid">{{ p.asset_id }}</div>
+    <h2>{{ p.display_name }}</h2>
+    <p>
+      <span class="chip">{{ p.type_label }}</span>
+      {% if p.manufacturer %}<span class="chip">{{ p.manufacturer }}</span>{% endif %}
+      {% if p.year %}<span class="chip">{{ p.year }}</span>{% endif %}
+    </p>
+    {% if p.parent %}
+      <p class="pill">Installed in: <a href="{{ root }}items/{{ p.parent.asset_id }}/">{{ p.parent.display_name }}</a> ({{ p.parent.asset_id }})</p>
+    {% else %}
+      <p class="pill">Standalone — not currently installed</p>
+    {% endif %}
+    {% if p.summary %}<p>{{ p.summary }}</p>{% endif %}
+  </div>
+</div>
+
+{% if p.spec_pairs %}
+<table class="specs">
+  {% for k, v in p.spec_pairs %}
+  <tr><td class="k">{{ k or '—' }}</td><td>{{ v }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<div class="meta">
+  {% if p.condition %}Condition: {{ p.condition }}{% endif %}
+  {% if p.location %} · Location: {{ p.location }}{% endif %}
+  {% if p.acquired_date %} · Acquired: {{ p.acquired_date }}{% endif %}
+  {% if p.est_value %} · Est. value: {{ p.est_value }}{% endif %}
+</div>
+{% if p.notes %}<p class="meta">Notes: {{ p.notes }}</p>{% endif %}
+
+<div class="refs">
+  {% if p.theretroweb_url %}<a href="{{ p.theretroweb_url }}">The Retro Web ↗</a>{% endif %}
+  {% if p.wikipedia_url %}<a href="{{ p.wikipedia_url }}">Wikipedia ↗</a>{% endif %}
+</div>
+{% endblock %}
