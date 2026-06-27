@@ -95,7 +95,8 @@ instead of retyping:
 
 They're added as ordinary `parts.csv` rows (each with its own asset id) but are
 **never** sent to Wikipedia — generic items match junk. Add an amount with
-`key:value` — `ram:16MB`, `hdd:540MB`, `vga:1MB` fill Size/Capacity/Memory.
+`key:value` — `ram:16MB`, `hdd:540MB`, `vga:1MB` fill Size/Capacity/Memory
+(memory is normalised to KB, so 16MB is stored as 16384 KB).
 Columns: `key, type, manufacturer, name, specs`.
 
 ## Reference sources

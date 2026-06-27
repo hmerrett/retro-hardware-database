@@ -73,7 +73,8 @@ straight after and prints the build/label/push commands.
 
 **Generic/common parts** (PSU, RAM, floppy, video — the things every PC has)
 come from presets, so you don't retype them and they're never sent to Wikipedia.
-Add an amount with `key:value` (RAM→Size, storage→Capacity, video→Memory):
+Add an amount with `key:value` (RAM→Size, storage→Capacity, video→Memory);
+memory is normalised to KB (so `16MB` is stored as `16384 KB`):
 
 ```bash
 python scripts/add.py preset --list

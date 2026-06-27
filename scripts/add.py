@@ -7,16 +7,17 @@ to an existing computer. Run it with no arguments for the interactive prompts,
 or pass flags to add in one line.
 
 Examples:
-    python scripts/add.py                         # interactive add
+    python scripts/add.py                         # interactive add (then walks generics)
     python scripts/add.py computer --name "Amiga 1200" --year 1992
     python scripts/add.py part --type cpu --computer RH-0002 --model "i486 DX2-66"
-    python scripts/add.py preset --computer RH-0001 ram:16MB hdd:540MB vga:1MB floppy35
-    python scripts/add.py preset --computer RH-0001 standard
+    python scripts/add.py preset --computer RH-0001          # walk common parts
+    python scripts/add.py preset --computer RH-0001 ram:16MB svga:1MB   # one-shot
     python scripts/add.py update RH-0001          # edit an existing computer or part
 """
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
 import textwrap
@@ -26,15 +27,18 @@ from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
                     load_parts, load_presets, next_asset_id, parse_specs,
                     save_computers, save_parts, type_label)
 
-# A sensible "typical PC" bundle, expanded when the preset key 'standard' is used.
-STANDARD_PC = ["psu", "ram", "io", "floppy35", "hdd", "vga", "kbd", "mouse"]
+# Components walked through (in order) when adding generics to a computer.
+# Deliberately excludes keyboard/mouse.
+GENERIC_WALK = ["ram", "vga", "hdd", "floppy35", "cdrom", "sound", "nic", "io", "psu"]
 
-# For these part types, a single headline amount lives under this spec key,
-# so presets can take "key:amount" (ram:16MB) and we can prompt for it.
+# For these part types, a single headline amount lives under this spec key.
 PRIMARY_SPEC = {"ram": "Size", "storage": "Capacity", "gpu": "Memory"}
-PRIMARY_PROMPT = {"Size": "amount (e.g. 16 MB)",
-                  "Capacity": "capacity (e.g. 540 MB)",
-                  "Memory": "video memory (e.g. 1 MB)"}
+AMOUNT_EG = {"Size": "e.g. 2MB", "Capacity": "e.g. 540MB", "Memory": "e.g. 1MB"}
+
+# Multipliers to normalise a typed amount to KB. Bare numbers are assumed MB.
+_KB_UNITS = {"": 1024, "k": 1, "kb": 1, "m": 1024, "mb": 1024,
+             "g": 1024 * 1024, "gb": 1024 * 1024,
+             "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024}
 
 SPEC_HINTS = {
     "motherboard": "Chipset, Socket, Slots, RAM, Form factor",
@@ -166,7 +170,7 @@ def part_row_interactive(computers):
     return row
 
 
-# --- specs helpers ---------------------------------------------------------
+# --- specs / amount helpers ------------------------------------------------
 
 def split_amount(token):
     """'ram:16MB' -> ('ram', '16MB');  'ram' -> ('ram', '')."""
@@ -174,6 +178,30 @@ def split_amount(token):
         k, v = token.split(":", 1)
         return k.strip(), v.strip()
     return token.strip(), ""
+
+
+def to_kb(text):
+    """'2MB'->2048, '512KB'->512, '1GB'->1048576, '2'->2048 (assumes MB).
+    Returns None if it can't be parsed."""
+    m = re.match(r"^\s*([\d.]+)\s*([a-zA-Z]*)\s*$", text or "")
+    if not m:
+        return None
+    unit = m.group(2).lower()
+    if unit not in _KB_UNITS:
+        return None
+    try:
+        return int(round(float(m.group(1)) * _KB_UNITS[unit]))
+    except ValueError:
+        return None
+
+
+def normalise_amount(spec_key, amt):
+    """Memory amounts (Size/Memory) normalise to KB; others kept as typed."""
+    if spec_key in ("Size", "Memory"):
+        kb = to_kb(amt)
+        if kb is not None:
+            return f"{kb} KB"
+    return amt
 
 
 def merge_spec(specs, key, value):
@@ -197,81 +225,77 @@ def list_presets():
     if not presets:
         print("No presets found (data/presets.csv).")
         return
-    print("Available presets — e.g.  add.py preset --computer RH-0001 ram:16MB vga:1MB floppy35")
+    print("Available presets — e.g.  add.py preset --computer RH-0001 ram:16MB svga:1MB floppy525")
     for k, pr in presets.items():
         amt = PRIMARY_SPEC.get(pr["type"])
         hint = f"   (takes {k}:<{amt.lower()}>)" if amt else ""
         print(f"  {k:<10} {pr['type']:<10} {pr['name']}{hint}")
-    print(f"\n  standard   →  {' '.join(STANDARD_PC)}")
 
 
-def pick_presets_interactive(presets):
-    items = list(presets.items())
-    print("\nGeneric components — pick numbers/keys (space or comma separated):")
-    for i, (k, pr) in enumerate(items, 1):
-        print(f"  {i:>2}. {k:<10} {pr['type']:<10} {pr['name']}")
-    print("   or type 'standard' for a typical PC set")
-    raw = ask("add which?")
-    if not raw:
-        return []
-    keys = []
-    for tok in raw.replace(",", " ").split():
-        if tok.isdigit() and 1 <= int(tok) <= len(items):
-            keys.append(items[int(tok) - 1][0])
+def _add_preset_part(pr, computer_id, config, specs):
+    partial = {"type": pr["type"], "manufacturer": pr.get("manufacturer", "Generic"),
+               "name": pr.get("name", ""), "specs": specs,
+               "computer_id": computer_id, "condition": "Working"}
+    asset_id, row = commit_new("part", partial, config, dry_run=False)
+    print(f"  + {asset_id}  {display_name(row)}" + (f"  ({specs})" if specs else ""))
+    return asset_id
+
+
+def walk_generics(computer_id, config):
+    """Go through the common components one at a time. For RAM/video/disk, ask
+    the amount (blank skips); for the rest, ask yes/no. Memory is stored in KB."""
+    presets = load_presets()
+    added = []
+    for key in GENERIC_WALK:
+        pr = presets.get(key)
+        if not pr:
+            continue
+        spec_key = PRIMARY_SPEC.get(pr["type"])
+        specs = pr.get("specs", "")
+        if spec_key:
+            amt = ask(f"{pr['name']} — amount ({AMOUNT_EG.get(spec_key, '')}), blank to skip")
+            if not amt:
+                continue
+            specs = merge_spec(specs, spec_key, normalise_amount(spec_key, amt))
         else:
-            keys.append(tok)
-    return keys
+            if not ask(f"Add {pr['name']}? (y/N)", "N").lower().startswith("y"):
+                continue
+        added.append(_add_preset_part(pr, computer_id, config, specs))
+    if added:
+        print(f"\nAdded {len(added)} generic part(s).")
+    return added
 
 
-def add_presets(items, computer_id, config, dry_run, prompt_amounts=False):
+def add_presets(items, computer_id, config, dry_run):
+    """Non-interactive one-shot: keys, optionally key:amount (ram:16MB)."""
     presets = load_presets()
     if not presets:
         print("No presets found (data/presets.csv missing or empty).")
         return []
-
-    # Expand 'standard' and carry any "key:amount" amounts.
-    expanded = []
+    seen, added = set(), []
     for tok in items:
         key, amt = split_amount(tok)
-        if key == "standard":
-            expanded.extend((k, "") for k in STANDARD_PC)
-        else:
-            expanded.append((key, amt))
-    seen, ordered = set(), []
-    for key, amt in expanded:
-        if key not in seen:
-            seen.add(key)
-            ordered.append((key, amt))
-
-    added = []
-    for key, amt in ordered:
+        if key in seen:
+            continue
+        seen.add(key)
         pr = presets.get(key)
         if not pr:
             print(f"  ! unknown preset: {key}  (run: add.py preset --list)")
             continue
         specs = pr.get("specs", "")
         spec_key = PRIMARY_SPEC.get(pr["type"])
-        if spec_key:
-            if not amt and prompt_amounts and not dry_run:
-                amt = ask(f"{pr['name']} — {PRIMARY_PROMPT.get(spec_key, spec_key)}")
-            if amt:
-                specs = merge_spec(specs, spec_key, amt)
-        partial = {"type": pr["type"], "manufacturer": pr.get("manufacturer", "Generic"),
-                   "name": pr.get("name", ""), "specs": specs,
-                   "computer_id": computer_id, "condition": "Working"}
-        asset_id, row = commit_new("part", partial, config, dry_run)
-        added.append(asset_id)
-        if not dry_run:
-            print(f"  + {asset_id}  {display_name(row)}" + (f"  ({specs})" if specs else ""))
+        if spec_key and amt:
+            specs = merge_spec(specs, spec_key, normalise_amount(spec_key, amt))
+        if dry_run:
+            print(f"[dry-run] {key} -> type {pr['type']}, specs: {specs}")
+            continue
+        added.append(_add_preset_part(pr, computer_id, config, specs))
     return added
 
 
 def offer_generic(computer_id, config):
-    if ask("Add generic components now (RAM, floppy, VGA, HDD, PSU, …)? (y/N)",
-           "N").lower().startswith("y"):
-        keys = pick_presets_interactive(load_presets())
-        if keys:
-            add_presets(keys, computer_id, config, dry_run=False, prompt_amounts=True)
+    if ask("Add generic components now? (y/N)", "N").lower().startswith("y"):
+        walk_generics(computer_id, config)
 
 
 # --- write / update a row --------------------------------------------------
@@ -379,9 +403,9 @@ def main():
         pp.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
     ppre = sub.add_parser("preset",
-                          help="add generic/common parts from data/presets.csv")
+                          help="add generic parts: walk interactively, or pass keys/key:amount")
     ppre.add_argument("keys", nargs="*",
-                      help="preset keys, optionally key:amount (ram:16MB); 'standard'; blank = picker")
+                      help="preset keys, optionally key:amount (ram:16MB); blank = guided walk")
     ppre.add_argument("--computer", dest="computer_id", default="")
     ppre.add_argument("--list", action="store_true", dest="list",
                       help="list available presets and exit")
@@ -392,12 +416,10 @@ def main():
     args = p.parse_args()
     config = load_config()
 
-    # --- update ------------------------------------------------------------
     if args.kind == "update":
         update_interactive(args.asset_id, config, args.dry_run)
         return
 
-    # --- presets -----------------------------------------------------------
     if args.kind == "preset":
         if args.list:
             list_presets()
@@ -406,17 +428,12 @@ def main():
         if args.keys:
             added = add_presets(args.keys, computer_id, config, args.dry_run)
         else:
-            keys = pick_presets_interactive(load_presets())
-            if not keys:
-                print("Nothing selected.")
-                return
-            added = add_presets(keys, computer_id, config, args.dry_run, prompt_amounts=True)
+            added = walk_generics(computer_id, config)
         if added and not args.dry_run:
             print(f"\nAdded {len(added)} generic part(s) to {computer_id or '(standalone)'}. "
                   "Run build_site.py, then commit & push.")
         return
 
-    # --- add computer / part ----------------------------------------------
     interactive = args.kind is None
     if interactive:
         kind = ask("Add a (c)omputer or (p)art?", "c").lower()
