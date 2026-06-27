@@ -78,6 +78,16 @@ def enrich_wikipedia(session, row, kind, lang, max_px, force):
     if not (need_summary or need_url or need_image):
         return False
 
+    # Generic / unbranded items have no meaningful article — a Wikipedia search
+    # would just match junk (e.g. a "generic 3.5\" floppy" hitting SimCity).
+    generic = {"generic", "unknown", "mixed", "clone", "custom build",
+               "unknown (clone)", "n/a", "none", "noname"}
+    if ((row.get("manufacturer") or "").strip().lower() in generic
+            or display_name(row).strip().lower().startswith("generic")):
+        print(f"  [{row['asset_id']}] skipping Wikipedia (generic/unknown: "
+              f"{display_name(row)})")
+        return False
+
     query = display_name(row)
     print(f"  [{row['asset_id']}] wikipedia: {query}")
     try:

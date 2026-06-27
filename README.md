@@ -69,8 +69,21 @@ python scripts/add.py part --type cpu --computer RH-0002 \
 
 Add the computer first to get its asset number, then add each part with
 `--computer <that id>` (omit it for a standalone spare). It can run enrichment
-straight after and prints the build/label/push commands. Prefer to edit by
-hand? You can still edit the CSVs directly:
+straight after and prints the build/label/push commands.
+
+**Generic/common parts** (PSU, RAM, floppy, video — the things every PC has)
+come from presets, so you don't retype them and they're never sent to Wikipedia:
+
+```bash
+python scripts/add.py preset --list
+python scripts/add.py preset --computer RH-0001 floppy35 vga ram hdd
+python scripts/add.py preset --computer RH-0001 standard   # a typical PC set
+```
+
+Interactive `add.py` also offers to attach a standard generic set right after
+you create a computer. Edit `data/presets.csv` to change or add presets.
+
+Prefer to edit by hand? You can still edit the CSVs directly:
 
 **A computer:** add a row to `data/computers.csv` (asset_id, name, form factor,
 OS, …).

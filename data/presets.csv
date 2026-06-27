@@ -1,0 +1,14 @@
+key,type,manufacturer,name,specs
+psu,psu,Generic,Generic power supply,Form factor: AT
+ram,ram,Generic,Generic RAM,
+vga,gpu,Generic,Generic VGA,Type: VGA
+svga,gpu,Generic,Generic SVGA,Type: SVGA
+io,io,Generic,Multi-I/O card,Bus: ISA | Ports: serial + parallel + IDE + floppy
+floppy35,floppy,Generic,3.5-inch 1.44 MB floppy drive,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy
+floppy525,floppy,Generic,5.25-inch 1.2 MB floppy drive,Media: 5.25-inch 1.2 MB | Interface: 34-pin floppy
+hdd,storage,Generic,Generic hard disk,Interface: IDE
+cdrom,optical,Generic,Generic CD-ROM drive,Interface: IDE
+nic,network,Generic,Generic network card,Bus: ISA | Interface: 10BASE-T
+sound,sound,Generic,Generic sound card,Bus: ISA
+kbd,peripheral,Generic,Generic keyboard,Interface: PS/2
+mouse,peripheral,Generic,Generic mouse,Interface: serial

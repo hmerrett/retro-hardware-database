@@ -85,6 +85,18 @@ different kinds can live in one table. These are conventions, not rules:
 - **peripheral** — `Interface`, plus type-appropriate keys (e.g. monitor `Size`,
   `Tube`; printer `Type`, `Resolution`)
 
+## Generic component presets
+
+`data/presets.csv` is a small library of reusable generic parts (Generic VGA,
+floppy drive, RAM, PSU, keyboard …). Attach them to a computer with the helper
+instead of retyping:
+
+    python scripts/add.py preset --computer RH-0001 floppy35 vga ram   # or: standard
+
+They're added as ordinary `parts.csv` rows (each with its own asset id) but are
+**never** sent to Wikipedia — generic items match junk. Columns:
+`key, type, manufacturer, name, specs`.
+
 ## Reference sources
 
 - **Wikipedia / Wikimedia** — free, used for summaries and photos for common

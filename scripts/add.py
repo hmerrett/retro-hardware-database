@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guided helper for adding a computer or a part.
+"""Guided helper for adding a computer, a part, or generic preset parts.
 
 It assigns the next RH-#### asset number across BOTH tables, writes valid CSV
 (no quoting/escaping for you to get wrong), and — for a part — lets you link it
@@ -11,8 +11,9 @@ Examples:
     python scripts/add.py computer --name "Amiga 1200" --year 1992
     python scripts/add.py part --type cpu --computer RH-0002 \\
         --manufacturer Intel --model "i486 DX2-66" --specs "Socket: 3 | Speed: 66 MHz"
-    python scripts/add.py part --type network --model "3C509B"   # standalone (no computer)
-    python scripts/add.py --dry-run part --type ram --computer RH-0002   # preview only
+    python scripts/add.py preset --list
+    python scripts/add.py preset --computer RH-0001 floppy35 vga ram hdd
+    python scripts/add.py preset --computer RH-0001 standard   # a typical PC set
 """
 from __future__ import annotations
 
@@ -23,8 +24,11 @@ import textwrap
 
 from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
                     display_name, item_url, load_computers, load_config,
-                    load_parts, next_asset_id, save_computers, save_parts,
-                    type_label)
+                    load_parts, load_presets, next_asset_id, save_computers,
+                    save_parts, type_label)
+
+# A sensible "typical PC" bundle, expanded when the preset key 'standard' is used.
+STANDARD_PC = ["psu", "ram", "io", "floppy35", "hdd", "vga", "kbd", "mouse"]
 
 SPEC_HINTS = {
     "motherboard": "Chipset, Socket, Slots, RAM, Form factor",
@@ -70,7 +74,7 @@ def ask_type():
 
 def ask_computer(computers):
     if not computers:
-        print("  (no computers yet — this part will be standalone)")
+        print("  (no computers yet — this will be standalone)")
         return ""
     print("\n  Install in which computer? number, asset_id, or blank for standalone:")
     for i, c in enumerate(computers, 1):
@@ -152,6 +156,70 @@ def part_row_interactive(computers):
     return row
 
 
+# --- presets (generic, reusable parts) -------------------------------------
+
+def resolve_preset_keys(keys):
+    out = []
+    for k in keys:
+        out.extend(STANDARD_PC if k == "standard" else [k])
+    seen = set()
+    return [k for k in out if not (k in seen or seen.add(k))]
+
+
+def list_presets():
+    presets = load_presets()
+    if not presets:
+        print("No presets found (data/presets.csv).")
+        return
+    print("Available presets — e.g.  add.py preset --computer RH-0001 floppy35 vga ram")
+    for k, pr in presets.items():
+        print(f"  {k:<10} {pr['type']:<10} {pr['name']}")
+    print(f"\n  standard   →  {' '.join(STANDARD_PC)}")
+
+
+def pick_presets_interactive(presets):
+    items = list(presets.items())
+    print("\nGeneric components — pick numbers/keys (space or comma separated):")
+    for i, (k, pr) in enumerate(items, 1):
+        print(f"  {i:>2}. {k:<10} {pr['type']:<10} {pr['name']}")
+    print("   or type 'standard' for a typical PC set")
+    raw = ask("add which?")
+    if not raw:
+        return []
+    keys = []
+    for tok in raw.replace(",", " ").split():
+        if tok.isdigit() and 1 <= int(tok) <= len(items):
+            keys.append(items[int(tok) - 1][0])
+        else:
+            keys.append(tok)
+    return keys
+
+
+def add_presets(keys, computer_id, config, dry_run):
+    presets = load_presets()
+    if not presets:
+        print("No presets found (data/presets.csv missing or empty).")
+        return []
+    added = []
+    for k in resolve_preset_keys(keys):
+        pr = presets.get(k)
+        if not pr:
+            print(f"  ! unknown preset: {k}  (run: add.py preset --list)")
+            continue
+        partial = {
+            "type": pr["type"], "manufacturer": pr.get("manufacturer", "Generic"),
+            "name": pr.get("name", ""), "specs": pr.get("specs", ""),
+            "computer_id": computer_id, "condition": "Working",
+        }
+        asset_id, row = commit_new("part", partial, config, dry_run)
+        added.append(asset_id)
+        if not dry_run:
+            print(f"  + {asset_id}  {display_name(row)}")
+    return added
+
+
+# --- write a row -----------------------------------------------------------
+
 def commit_new(kind, partial, config, dry_run):
     computers = load_computers()
     parts = load_parts()
@@ -162,7 +230,6 @@ def commit_new(kind, partial, config, dry_run):
     row.update(partial)
     row["asset_id"] = asset_id
 
-    # Friendly validation
     if kind == "part" and row.get("computer_id"):
         if row["computer_id"] not in {c["asset_id"] for c in computers}:
             print(f"  ! warning: computer_id {row['computer_id']} is not an existing "
@@ -216,11 +283,37 @@ def main():
               "wikipedia_url", "notes"):
         pp.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
+    ppre = sub.add_parser("preset",
+                          help="add generic/common parts from data/presets.csv")
+    ppre.add_argument("keys", nargs="*",
+                      help="preset keys (or 'standard'); blank = interactive picker")
+    ppre.add_argument("--computer", dest="computer_id", default="")
+    ppre.add_argument("--list", action="store_true", dest="list",
+                      help="list available presets and exit")
+
     args = p.parse_args()
     config = load_config()
 
-    # Interactive when no subcommand given.
-    if args.kind is None:
+    # --- preset mode -------------------------------------------------------
+    if args.kind == "preset":
+        if args.list:
+            list_presets()
+            return
+        computer_id = args.computer_id or ask_computer(load_computers())
+        keys = args.keys or pick_presets_interactive(load_presets())
+        if not keys:
+            print("Nothing selected.")
+            return
+        added = add_presets(keys, computer_id, config, args.dry_run)
+        if added and not args.dry_run:
+            print(f"\nAdded {len(added)} generic part(s) to "
+                  f"{computer_id or '(standalone)'}. "
+                  "Run build_site.py, then commit & push.")
+        return
+
+    # --- computer / part ---------------------------------------------------
+    interactive = args.kind is None
+    if interactive:
         kind = ask("Add a (c)omputer or (p)art?", "c").lower()
         kind = "part" if kind.startswith("p") else "computer"
         if kind == "computer":
@@ -243,6 +336,14 @@ def main():
         print(f"  page will be: {item_url(config, asset_id)}")
     if do_enrich:
         run_enrich(asset_id)
+
+    # Offer to bolt on the generic components every PC has.
+    if interactive and kind == "computer":
+        if ask("Add typical generic components now "
+               "(PSU, RAM, floppy, VGA, HDD, keyboard, mouse, I/O)? (y/N)",
+               "N").lower().startswith("y"):
+            add_presets(["standard"], asset_id, config, False)
+
     print("\nNext:")
     print("  python scripts/build_site.py            # refresh the site")
     print(f"  python scripts/make_labels.py {asset_id}   # print its label")

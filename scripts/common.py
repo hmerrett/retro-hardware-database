@@ -174,3 +174,15 @@ def validate(computers: list[dict], parts: list[dict]) -> list[str]:
             warnings.append(
                 f"parts.csv: {p['asset_id']} references unknown computer_id {cid}")
     return warnings
+
+
+# --- presets (generic, reusable components) --------------------------------
+
+PRESETS_PATH = ROOT / "data" / "presets.csv"
+PRESET_COLUMNS = ["key", "type", "manufacturer", "name", "specs"]
+
+
+def load_presets() -> dict:
+    """key -> preset row, from data/presets.csv (empty dict if missing)."""
+    rows = _read(PRESETS_PATH, PRESET_COLUMNS)
+    return {r["key"]: r for r in rows if r.get("key")}
