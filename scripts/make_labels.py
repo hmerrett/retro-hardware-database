@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Generate print-ready 6x4 labels (PDF) for any asset — a whole computer or an
-individual part — with the asset number, key details and a QR code linking to
-that item's page on your GitHub Pages site.
+individual part — with the asset number, labelled details and a QR code linking
+to that item's page on your GitHub Pages site.
 
-A computer's label summarises its build (CPU, RAM, video, sound, storage…)
-pulled from its parts. A part's label shows its own specs.
+A computer's label lists its own attributes (year, form factor, chassis, OS)
+and a build summary (CPU, RAM, video, sound, storage…) pulled from its parts.
+A part's label shows its type, maker and specs.
 
 Output is named after the asset id(s) by default (RH-0002.pdf, or labels.pdf
 for everything); override with -o.
@@ -80,10 +81,14 @@ def wrap_to_width(c, text, font, size, max_w):
 
 
 def computer_lines(comp, parts):
-    """Short build-summary lines for a computer label."""
-    lines = []
-    if comp.get("os"):
-        lines.append(f"OS: {comp['os']}")
+    """Labelled attribute lines + a build summary for a computer label."""
+    lines = ["Type: Computer"]
+    for label, key in (("Manufacturer", "manufacturer"), ("Year", "year"),
+                       ("Form factor", "form_factor"), ("Chassis", "chassis"),
+                       ("OS", "os")):
+        if comp.get(key):
+            lines.append(f"{label}: {comp[key]}")
+
     kids = parts_for(comp["asset_id"], parts)
     by_type = {}
     for p in kids:
@@ -98,19 +103,27 @@ def computer_lines(comp, parts):
         else:
             value = " + ".join(display_name(m) for m in members)
         lines.append(f"{label}: {value}")
-    if not kids:
-        lines.append("No parts recorded")
+
+    if comp.get("condition"):
+        lines.append(f"Condition: {comp['condition']}")
     return lines
 
 
 def part_lines(part):
-    lines = [f"{k}: {v}" if k else v for k, v in parse_specs(part.get("specs", ""))]
+    """Labelled attribute lines + specs for a part label."""
+    lines = [f"Type: {type_label(part.get('type', ''))}"]
+    for label, key in (("Manufacturer", "manufacturer"), ("Year", "year")):
+        if part.get(key):
+            lines.append(f"{label}: {part[key]}")
+    lines += [f"{k}: {v}" if k else v for k, v in parse_specs(part.get("specs", ""))]
     if part.get("computer_id"):
         lines.append(f"Installed in: {part['computer_id']}")
+    if part.get("condition"):
+        lines.append(f"Condition: {part['condition']}")
     return lines
 
 
-def render_label(c, W, H, asset_id, title, sub_bits, lines, url, qr_error):
+def render_label(c, W, H, asset_id, title, lines, url, qr_error):
     margin = 0.22 * inch
     qr_size = min(H - 2 * margin, 2.1 * inch)
     qr_x = W - margin - qr_size
@@ -132,14 +145,8 @@ def render_label(c, W, H, asset_id, title, sub_bits, lines, url, qr_error):
         y -= 17
         c.drawString(margin, y, line)
 
-    bits = [b for b in sub_bits if b]
-    if bits:
-        c.setFont("Helvetica-Oblique", 9.5)
-        y -= 14
-        c.drawString(margin, y, "   ·   ".join(bits))
-
+    y -= 4
     c.setFont("Helvetica", 9.5)
-    y -= 6
     for raw in lines:
         for i, line in enumerate(wrap_to_width(c, "• " + raw, "Helvetica", 9.5, text_w)[:2]):
             if y - 12.5 < bottom:
@@ -191,18 +198,15 @@ def main():
         if aid in comp_by_id:
             comp = comp_by_id[aid]
             title = display_name(comp)
-            sub_bits = ["computer", comp.get("form_factor", ""), comp.get("year", "")]
             lines = computer_lines(comp, parts)
         elif aid in part_by_id:
             part = part_by_id[aid]
             title = display_name(part)
-            sub_bits = [type_label(part.get("type", "")),
-                        part.get("manufacturer", ""), part.get("year", "")]
             lines = part_lines(part)
         else:
             print(f"  ! unknown asset_id: {aid}")
             continue
-        render_label(c, W, H, aid, title, sub_bits, lines, item_url(config, aid), qr_error)
+        render_label(c, W, H, aid, title, lines, item_url(config, aid), qr_error)
         c.showPage()
         printed += 1
 
