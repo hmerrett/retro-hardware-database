@@ -47,6 +47,21 @@ docs/schema.md          the data model + recommended fields per part type
 
 ## Adding things
 
+Easiest: the **guided helper**. It assigns the next `RH-####` across both
+tables, writes valid CSV, and links parts to computers for you:
+
+```bash
+python scripts/add.py                  # interactive prompts
+python scripts/add.py computer --name "Amiga 1200" --year 1992
+python scripts/add.py part --type cpu --computer RH-0002 \
+    --model "i486 DX2-66" --specs "Socket: 3 | Speed: 66 MHz"
+```
+
+Add the computer first to get its asset number, then add each part with
+`--computer <that id>` (omit it for a standalone spare). It can run enrichment
+straight after and prints the build/label/push commands. Prefer to edit by
+hand? You can still edit the CSVs directly:
+
 **A computer:** add a row to `data/computers.csv` (asset_id, name, form factor,
 OS, …).
 
