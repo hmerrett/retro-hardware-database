@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import textwrap
 
 from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
                     display_name, item_url, load_computers, load_config,
@@ -86,46 +87,75 @@ def ask_computer(computers):
 
 # --- build the row ---------------------------------------------------------
 
+# Ordered fields prompted in interactive mode: (key, prompt label, default).
+# The same lists drive both the up-front reminder and the prompts.
+COMPUTER_FIELDS = [
+    ("name", "name (e.g. 'Amiga 1200' or build name)", ""),
+    ("manufacturer", "manufacturer (or 'Custom build')", ""),
+    ("model", "model", ""),
+    ("year", "year", ""),
+    ("form_factor", "form factor (AT/Baby-AT/ATX/desktop/tower/all-in-one)", ""),
+    ("chassis", "chassis / case", ""),
+    ("os", "operating system", ""),
+    ("condition", "condition", "Working"),
+    ("location", "location", ""),
+    ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
+    ("est_value", "est. value", ""),
+    ("theretroweb_url", "theretroweb URL", ""),
+    ("wikipedia_url", "wikipedia URL", ""),
+    ("notes", "notes", ""),
+]
+
+PART_FIELDS = [
+    ("manufacturer", "manufacturer", ""),
+    ("model", "model", ""),
+    ("name", "name (optional; defaults to maker+model)", ""),
+    ("year", "year", ""),
+    ("specs", "specs", ""),
+    ("condition", "condition", "Working"),
+    ("location", "location", ""),
+    ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
+    ("est_value", "est. value", ""),
+    ("theretroweb_url", "theretroweb URL", ""),
+    ("notes", "notes", ""),
+]
+
+
+def _short(label):
+    return label.split(" (")[0].strip()
+
+
+def show_field_list(kind_title, leading, fields):
+    """Print, up front, the fields this entry will ask for (the reminder)."""
+    names = list(leading)
+    for _, label, default in fields:
+        names.append(f"{_short(label)} [{default}]" if default else _short(label))
+    print(f"\nThis {kind_title} entry will ask for, in order "
+          "(Enter skips a field; [x] = default):")
+    print(textwrap.fill(" · ".join(names), width=78,
+                        initial_indent="  ", subsequent_indent="  "))
+
+
+def prompt_fields(fields):
+    return {key: ask(label, default) for key, label, default in fields}
+
+
 def computer_row_interactive():
-    print("\nNew COMPUTER —", "press Enter to skip any field.\n")
-    return {
-        "name": ask("name (e.g. 'Amiga 1200' or build name)"),
-        "manufacturer": ask("manufacturer (or 'Custom build')"),
-        "model": ask("model"),
-        "year": ask("year"),
-        "form_factor": ask("form factor (AT/Baby-AT/ATX/desktop/tower/all-in-one)"),
-        "chassis": ask("chassis / case"),
-        "os": ask("operating system"),
-        "condition": ask("condition", "Working"),
-        "location": ask("location"),
-        "acquired_date": ask("acquired date (YYYY-MM-DD)"),
-        "est_value": ask("est. value"),
-        "theretroweb_url": ask("theretroweb URL"),
-        "wikipedia_url": ask("wikipedia URL"),
-        "notes": ask("notes"),
-    }
+    show_field_list("computer", [], COMPUTER_FIELDS)
+    print()
+    return prompt_fields(COMPUTER_FIELDS)
 
 
 def part_row_interactive(computers):
+    show_field_list("part", ["type", "computer to install in"], PART_FIELDS)
     ptype = ask_type()
     computer_id = ask_computer(computers)
-    print(f"\nNew {type_label(ptype).upper()} part — press Enter to skip any field.")
-    print(f"  specs format: 'Key: value | Key: value'  (suggested: {SPEC_HINTS.get(ptype, 'free text')})\n")
-    return {
-        "computer_id": computer_id,
-        "type": ptype,
-        "manufacturer": ask("manufacturer"),
-        "model": ask("model"),
-        "name": ask("name (optional; defaults to maker+model)"),
-        "year": ask("year"),
-        "specs": ask("specs"),
-        "condition": ask("condition", "Working"),
-        "location": ask("location"),
-        "acquired_date": ask("acquired date (YYYY-MM-DD)"),
-        "est_value": ask("est. value"),
-        "theretroweb_url": ask("theretroweb URL"),
-        "notes": ask("notes"),
-    }
+    print(f"\nNew {type_label(ptype).upper()} — specs format 'Key: value | Key: value' "
+          f"(suggested: {SPEC_HINTS.get(ptype, 'free text')})\n")
+    row = prompt_fields(PART_FIELDS)
+    row["type"] = ptype
+    row["computer_id"] = computer_id
+    return row
 
 
 def commit_new(kind, partial, config, dry_run):
