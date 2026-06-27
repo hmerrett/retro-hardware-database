@@ -45,9 +45,8 @@
 
 <div class="meta">
   {% if c.condition %}Condition: {{ c.condition }}{% endif %}
-  {% if c.location %} · Location: {{ c.location }}{% endif %}
+  {% if c.source %} · Source: {{ c.source }}{% endif %}
   {% if c.acquired_date %} · Acquired: {{ c.acquired_date }}{% endif %}
-  {% if c.est_value %} · Est. value: {{ c.est_value }}{% endif %}
 </div>
 {% if c.notes %}<p class="meta">Notes: {{ c.notes }}</p>{% endif %}
 

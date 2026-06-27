@@ -34,11 +34,11 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `name` | display name (overrides manufacturer+model) |
 | `manufacturer`, `model` | identity (`Custom build` is fine for clones) |
 | `year` | year built / released |
-| `form_factor` | AT / Baby-AT / ATX / desktop / tower / all-in-one … |
-| `chassis` | case description |
+| `form_factor` | the board/spec **standard**: AT / Baby-AT / ATX / proprietary / all-in-one … (physical orientation like desktop/tower belongs in `chassis`) |
+| `chassis` | the physical **case**: desktop, tower, mini-tower, breadbin, brand/model |
 | `os` | installed operating system(s) |
-| `condition`, `location` | your tracking (e.g. `Working`, `Bench`) |
-| `acquired_date`, `est_value` | optional record-keeping |
+| `condition`, `source` | your tracking (e.g. `Working`; where/how you acquired it) |
+| `acquired_date` | optional record-keeping (YYYY-MM-DD) |
 | `image` | photo path under `images/` (auto-filled) |
 | `theretroweb_url`, `wikipedia_url` | reference links |
 | `summary` | short description (auto-filled from Wikipedia) |
@@ -54,8 +54,8 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `manufacturer`, `model`, `name` | identity |
 | `year` | year of manufacture |
 | `specs` | `Label: value | Label: value` — the type-specific detail (see below) |
-| `condition`, `location` | your tracking |
-| `acquired_date`, `est_value` | optional |
+| `condition`, `source` | your tracking; where/how acquired |
+| `acquired_date` | optional (YYYY-MM-DD) |
 | `image` | photo path under `images/` (auto-filled) |
 | `theretroweb_url`, `wikipedia_url` | reference links |
 | `summary` | short description (auto-filled) |

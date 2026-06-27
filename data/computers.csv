@@ -1,1 +1,2 @@
-asset_id,name,manufacturer,model,year,form_factor,chassis,os,condition,location,acquired_date,est_value,image,theretroweb_url,wikipedia_url,summary,notes
+asset_id,name,manufacturer,model,year,form_factor,chassis,os,condition,source,acquired_date,image,theretroweb_url,wikipedia_url,summary,notes
+RH-0001,,IBM,PS/1 Model 2121,1991,proprietary,desktop,,Working,eBay order no. 13-14760-16528,2026-06-13,computers/RH-0001.jpg,,https://en.wikipedia.org/wiki/IBM_PS%2F1,"The PS/1 is a brand for a line of personal computers that marked IBM's return to the home market in 1990, five years after the IBM PCjr. It was replaced by the IBM Aptiva in September 1994.",missing faceplate and drive sleds

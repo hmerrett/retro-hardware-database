@@ -1,1 +1,1 @@
-asset_id,computer_id,type,manufacturer,model,name,year,specs,condition,location,acquired_date,est_value,image,theretroweb_url,wikipedia_url,summary,notes
+asset_id,computer_id,type,manufacturer,model,name,year,specs,condition,source,acquired_date,image,theretroweb_url,wikipedia_url,summary,notes

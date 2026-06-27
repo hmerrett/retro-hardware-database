@@ -24,13 +24,13 @@ IMAGES_DIR = ROOT / "images"
 
 COMPUTER_COLUMNS = [
     "asset_id", "name", "manufacturer", "model", "year", "form_factor",
-    "chassis", "os", "condition", "location", "acquired_date", "est_value",
+    "chassis", "os", "condition", "source", "acquired_date",
     "image", "theretroweb_url", "wikipedia_url", "summary", "notes",
 ]
 
 PART_COLUMNS = [
     "asset_id", "computer_id", "type", "manufacturer", "model", "name",
-    "year", "specs", "condition", "location", "acquired_date", "est_value",
+    "year", "specs", "condition", "source", "acquired_date",
     "image", "theretroweb_url", "wikipedia_url", "summary", "notes",
 ]
 

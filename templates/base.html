@@ -4,10 +4,28 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{{ config.site_title }}{% endblock %}</title>
+<script>
+  // Apply a saved theme choice before paint to avoid a flash of the wrong theme.
+  (function(){try{var t=localStorage.getItem('theme');
+    if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <style>
   :root{
+    color-scheme: light dark;
+    --bg:#f5f5f3; --panel:#ffffff; --ink:#1b1e23; --muted:#5c6470;
+    --accent:#0c8f57; --line:#e0e3e8; --chip:#edeff2; --thumb-bg:#eceef1;
+  }
+  /* Follow the OS when the visitor hasn't chosen — unless they've forced light. */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1115; --panel:#171a21; --ink:#e8eaed; --muted:#9aa4b2;
+      --accent:#36c98d; --line:#2a2f3a; --chip:#222733; --thumb-bg:#0b0d11;
+    }
+  }
+  /* An explicit manual choice always wins. */
+  :root[data-theme="dark"]{
     --bg:#0f1115; --panel:#171a21; --ink:#e8eaed; --muted:#9aa4b2;
-    --accent:#36c98d; --line:#2a2f3a; --chip:#222733;
+    --accent:#36c98d; --line:#2a2f3a; --chip:#222733; --thumb-bg:#0b0d11;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
@@ -15,9 +33,13 @@
   a{color:var(--accent);text-decoration:none}
   a:hover{text-decoration:underline}
   header.site{padding:20px 18px;border-bottom:1px solid var(--line);
-       display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+       display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   header.site h1{font-size:18px;margin:0;letter-spacing:.5px}
   header.site .tag{color:var(--muted);font-size:12px}
+  .theme-toggle{margin-left:auto;background:var(--chip);color:var(--ink);
+       border:1px solid var(--line);border-radius:999px;padding:5px 12px;
+       font:inherit;font-size:12px;cursor:pointer}
+  .theme-toggle:hover{border-color:var(--accent)}
   main{max-width:1000px;margin:0 auto;padding:18px}
   .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
   .controls input,.controls select{background:var(--panel);color:var(--ink);
@@ -27,7 +49,7 @@
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
        overflow:hidden;display:flex;flex-direction:column;color:var(--ink)}
   .card:hover{border-color:var(--accent);text-decoration:none}
-  .card .thumb{aspect-ratio:4/3;background:#0b0d11;display:flex;align-items:center;
+  .card .thumb{aspect-ratio:4/3;background:var(--thumb-bg);display:flex;align-items:center;
        justify-content:center;overflow:hidden}
   .card .thumb img{width:100%;height:100%;object-fit:cover}
   .card .thumb .noimg{color:var(--muted);font-size:12px}
@@ -68,15 +90,36 @@
 <header class="site">
   <h1><a href="{{ root }}index.html" style="color:inherit">{{ config.site_title }}</a></h1>
   <span class="tag">retro computers · cards · peripherals</span>
+  <button id="themeBtn" class="theme-toggle" type="button" onclick="toggleTheme()"
+          aria-label="Toggle light or dark theme">Theme</button>
 </header>
 <main>
 {% block content %}{% endblock %}
 </main>
 <footer>
-  Generated from data/inventory.csv
+  Generated from data/computers.csv + data/parts.csv
   {% if config.base_url and 'USERNAME' not in config.base_url %}
     · <a href="{{ config.base_url }}">{{ config.base_url }}</a>
   {% endif %}
 </footer>
+<script>
+  function effectiveTheme(){
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t) return t;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+           ? 'dark' : 'light';
+  }
+  function setThemeLabel(){
+    var b = document.getElementById('themeBtn');
+    if (b) b.textContent = effectiveTheme() === 'dark' ? 'Light mode' : 'Dark mode';
+  }
+  function toggleTheme(){
+    var next = effectiveTheme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+    setThemeLabel();
+  }
+  setThemeLabel();
+</script>
 </body>
 </html>

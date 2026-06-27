@@ -26,8 +26,6 @@ from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
                     load_parts, next_asset_id, save_computers, save_parts,
                     type_label)
 
-ROOT_SCRIPTS = __file__
-
 SPEC_HINTS = {
     "motherboard": "Chipset, Socket, Slots, RAM, Form factor",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
@@ -85,8 +83,6 @@ def ask_computer(computers):
     return raw  # assume they typed an asset_id
 
 
-# --- build the row ---------------------------------------------------------
-
 # Ordered fields prompted in interactive mode: (key, prompt label, default).
 # The same lists drive both the up-front reminder and the prompts.
 COMPUTER_FIELDS = [
@@ -94,13 +90,12 @@ COMPUTER_FIELDS = [
     ("manufacturer", "manufacturer (or 'Custom build')", ""),
     ("model", "model", ""),
     ("year", "year", ""),
-    ("form_factor", "form factor (AT/Baby-AT/ATX/desktop/tower/all-in-one)", ""),
-    ("chassis", "chassis / case", ""),
+    ("form_factor", "form factor (AT/Baby-AT/ATX/proprietary/all-in-one)", ""),
+    ("chassis", "chassis / case (desktop, tower, mini-tower, …)", ""),
     ("os", "operating system", ""),
     ("condition", "condition", "Working"),
-    ("location", "location", ""),
+    ("source", "source (where/how acquired)", ""),
     ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
-    ("est_value", "est. value", ""),
     ("theretroweb_url", "theretroweb URL", ""),
     ("wikipedia_url", "wikipedia URL", ""),
     ("notes", "notes", ""),
@@ -113,9 +108,8 @@ PART_FIELDS = [
     ("year", "year", ""),
     ("specs", "specs", ""),
     ("condition", "condition", "Working"),
-    ("location", "location", ""),
+    ("source", "source (where/how acquired)", ""),
     ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
-    ("est_value", "est. value", ""),
     ("theretroweb_url", "theretroweb URL", ""),
     ("notes", "notes", ""),
 ]
@@ -209,7 +203,7 @@ def main():
 
     pc = sub.add_parser("computer", help="add a computer (non-interactive)")
     for f in ("name", "manufacturer", "model", "year", "form_factor", "chassis",
-              "os", "condition", "location", "acquired_date", "est_value",
+              "os", "condition", "source", "acquired_date",
               "theretroweb_url", "wikipedia_url", "notes"):
         pc.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
@@ -218,7 +212,7 @@ def main():
     pp.add_argument("--computer", dest="computer_id", default="",
                     help="asset_id of the computer it's installed in (blank = standalone)")
     for f in ("manufacturer", "model", "name", "year", "specs", "condition",
-              "location", "acquired_date", "est_value", "theretroweb_url",
+              "source", "acquired_date", "theretroweb_url",
               "wikipedia_url", "notes"):
         pp.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
