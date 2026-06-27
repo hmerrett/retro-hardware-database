@@ -20,6 +20,9 @@ label:
   height: 4
   units: "in"        # "in" or "mm"
   qr_error: "M"      # QR error-correction: L, M, Q, or H
+  # Optional TTF display font for the asset number + title on labels.
+  # Drop the file at this path; if it's missing, labels fall back to Helvetica.
+  font_path: "assets/fonts/Audiowide-Regular.ttf"
 
 # Enrichment
 enrich:

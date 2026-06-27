@@ -7,8 +7,9 @@ A computer's label lists its own attributes (year, form factor, chassis, OS)
 and a build summary (CPU, RAM, video, sound, storage…) pulled from its parts.
 A part's label shows its type, maker and specs.
 
-Output is named after the asset id(s) by default (RH-0002.pdf, or labels.pdf
-for everything); override with -o.
+The asset number + title use the TTF set in config.yml (label.font_path, e.g.
+Audiowide); if that file is missing they fall back to Helvetica. Output is named
+after the asset id(s) by default (RH-0002.pdf, or labels.pdf for everything).
 
 Usage:
     python scripts/make_labels.py                  # every asset -> labels/labels.pdf
@@ -25,13 +26,13 @@ from pathlib import Path
 import segno
 from reportlab.lib.units import inch, mm
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 from common import (ROOT, display_name, index_by_id, item_url, load_computers,
                     load_config, load_parts, parse_specs, parts_for, type_label)
 
-# For a computer label: which part types to surface, in order, and how to
-# render each as one short line.
 BUILD_ROWS = [
     ("cpu", "CPU"), ("ram", "Memory"), ("gpu", "Video"), ("sound", "Sound"),
     ("storage", "Storage"), ("network", "Network"), ("optical", "Optical"),
@@ -39,6 +40,29 @@ BUILD_ROWS = [
 ]
 SPEC_PICK = {"ram": "Size", "storage": "Capacity", "optical": "Media",
              "floppy": "Media"}
+
+BODY_FONT = "Helvetica"          # spec/body lines (legibility)
+FALLBACK_HEADLINE = "Helvetica-Bold"
+
+
+def register_headline_font(config):
+    """Register the configured TTF for the asset number + title. Returns the
+    font name to use (the custom one, or Helvetica-Bold if unavailable)."""
+    rel = (config.get("label", {}) or {}).get("font_path", "")
+    if not rel:
+        return FALLBACK_HEADLINE
+    path = ROOT / rel
+    if not path.exists():
+        print(f"  note: label font {rel} not found — using Helvetica. "
+              "Drop the TTF there and re-run to use it.")
+        return FALLBACK_HEADLINE
+    try:
+        pdfmetrics.registerFont(TTFont("LabelHeadline", str(path)))
+        print(f"  using label font: {rel}")
+        return "LabelHeadline"
+    except Exception as exc:  # noqa: BLE001
+        print(f"  note: could not load {rel} ({exc}) — using Helvetica.")
+        return FALLBACK_HEADLINE
 
 
 def page_size(config):
@@ -48,7 +72,6 @@ def page_size(config):
 
 
 def default_filename(ids):
-    """Name the PDF after the requested asset id(s)."""
     if not ids:
         return "labels.pdf"
     if len(ids) == 1:
@@ -80,8 +103,14 @@ def wrap_to_width(c, text, font, size, max_w):
     return lines or [""]
 
 
+def fit_size(c, text, font, start, min_size, max_w):
+    size = start
+    while size > min_size and c.stringWidth(text, font, size) > max_w:
+        size -= 1
+    return size
+
+
 def computer_lines(comp, parts):
-    """Labelled attribute lines + a build summary for a computer label."""
     lines = ["Type: Computer"]
     for label, key in (("Manufacturer", "manufacturer"), ("Year", "year"),
                        ("Form factor", "form_factor"), ("Chassis", "chassis"),
@@ -110,7 +139,6 @@ def computer_lines(comp, parts):
 
 
 def part_lines(part):
-    """Labelled attribute lines + specs for a part label."""
     lines = [f"Type: {type_label(part.get('type', ''))}"]
     for label, key in (("Manufacturer", "manufacturer"), ("Year", "year")):
         if part.get(key):
@@ -123,7 +151,7 @@ def part_lines(part):
     return lines
 
 
-def render_label(c, W, H, asset_id, title, lines, url, qr_error):
+def render_label(c, W, H, asset_id, title, lines, url, qr_error, headline_font):
     margin = 0.22 * inch
     qr_size = min(H - 2 * margin, 2.1 * inch)
     qr_x = W - margin - qr_size
@@ -136,19 +164,23 @@ def render_label(c, W, H, asset_id, title, lines, url, qr_error):
                 8, stroke=1, fill=0)
     c.setFillColorRGB(0, 0, 0)
 
-    y = H - margin - 22
-    c.setFont("Helvetica-Bold", 26)
+    # Asset id (display font, shrunk to fit the text column).
+    aid_size = fit_size(c, asset_id, headline_font, 26, 12, text_w)
+    y = H - margin - aid_size + 4
+    c.setFont(headline_font, aid_size)
     c.drawString(margin, y, asset_id)
 
-    c.setFont("Helvetica-Bold", 13)
-    for line in wrap_to_width(c, title, "Helvetica-Bold", 13, text_w)[:2]:
+    # Title (display font, up to 2 wrapped lines).
+    c.setFont(headline_font, 13)
+    for line in wrap_to_width(c, title, headline_font, 13, text_w)[:2]:
         y -= 17
         c.drawString(margin, y, line)
 
+    # Body / specs (plain font for legibility).
     y -= 4
-    c.setFont("Helvetica", 9.5)
+    c.setFont(BODY_FONT, 9.5)
     for raw in lines:
-        for i, line in enumerate(wrap_to_width(c, "• " + raw, "Helvetica", 9.5, text_w)[:2]):
+        for i, line in enumerate(wrap_to_width(c, "• " + raw, BODY_FONT, 9.5, text_w)[:2]):
             if y - 12.5 < bottom:
                 break
             y -= 12.5
@@ -160,7 +192,7 @@ def render_label(c, W, H, asset_id, title, lines, url, qr_error):
     qr_y = (H - qr_size) / 2 + 0.10 * inch
     c.drawImage(qr_reader(url, qr_error), qr_x, qr_y, width=qr_size, height=qr_size,
                 preserveAspectRatio=True, mask="auto")
-    c.setFont("Helvetica", 8)
+    c.setFont(BODY_FONT, 8)
     c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
 
 
@@ -177,6 +209,7 @@ def main():
     parts = load_parts()
     comp_by_id = index_by_id(computers)
     part_by_id = index_by_id(parts)
+    headline_font = register_headline_font(config)
 
     all_ids = sorted([c["asset_id"] for c in computers] + [p["asset_id"] for p in parts])
     ids = args.ids if args.ids else all_ids
@@ -197,16 +230,14 @@ def main():
     for aid in ids:
         if aid in comp_by_id:
             comp = comp_by_id[aid]
-            title = display_name(comp)
-            lines = computer_lines(comp, parts)
+            title, lines = display_name(comp), computer_lines(comp, parts)
         elif aid in part_by_id:
             part = part_by_id[aid]
-            title = display_name(part)
-            lines = part_lines(part)
+            title, lines = display_name(part), part_lines(part)
         else:
             print(f"  ! unknown asset_id: {aid}")
             continue
-        render_label(c, W, H, aid, title, lines, item_url(config, aid), qr_error)
+        render_label(c, W, H, aid, title, lines, item_url(config, aid), qr_error, headline_font)
         c.showPage()
         printed += 1
 
