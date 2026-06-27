@@ -241,9 +241,26 @@ def _add_preset_part(pr, computer_id, config, specs):
     return asset_id
 
 
+def detailed_part(ptype, computer_id, config, seed):
+    """Full part entry for one slot (type + computer fixed), pre-seeded from the
+    preset, with optional enrichment. Used by the walk's 'advanced' option."""
+    print(f"\n  Advanced {type_label(ptype)} — enter the real card's details "
+          "(Enter keeps the suggested value):")
+    seed_row = {"name": seed.get("name", ""), "specs": seed.get("specs", "")}
+    fields = prompt_fields(PART_FIELDS, current=seed_row)
+    fields["type"] = ptype
+    fields["computer_id"] = computer_id
+    asset_id, row = commit_new("part", fields, config, dry_run=False)
+    print(f"  + {asset_id}  {display_name(row)}")
+    if ask("Look up photo + summary on Wikipedia? (y/N)", "N").lower().startswith("y"):
+        run_enrich(asset_id)
+    return asset_id
+
+
 def walk_generics(computer_id, config):
-    """Go through the common components one at a time. For RAM/video/disk, ask
-    the amount (blank skips); for the rest, ask yes/no. Memory is stored in KB."""
+    """Go through the common components one at a time. For RAM/video/disk ask the
+    amount (blank skips); others are yes/no. Type 'a' at any prompt to enter the
+    full details of a real (branded) card for that slot. Memory is stored in KB."""
     presets = load_presets()
     added = []
     for key in GENERIC_WALK:
@@ -251,18 +268,25 @@ def walk_generics(computer_id, config):
         if not pr:
             continue
         spec_key = PRIMARY_SPEC.get(pr["type"])
-        specs = pr.get("specs", "")
         if spec_key:
-            amt = ask(f"{pr['name']} — amount ({AMOUNT_EG.get(spec_key, '')}), blank to skip")
-            if not amt:
+            ans = ask(f"{pr['name']} — amount ({AMOUNT_EG.get(spec_key, '')}), "
+                      "'a' for advanced, blank to skip")
+            if not ans:
                 continue
-            specs = merge_spec(specs, spec_key, normalise_amount(spec_key, amt))
+            if ans.lower() in ("a", "adv", "advanced"):
+                added.append(detailed_part(pr["type"], computer_id, config, pr))
+            else:
+                specs = merge_spec(pr.get("specs", ""), spec_key,
+                                   normalise_amount(spec_key, ans))
+                added.append(_add_preset_part(pr, computer_id, config, specs))
         else:
-            if not ask(f"Add {pr['name']}? (y/N)", "N").lower().startswith("y"):
-                continue
-        added.append(_add_preset_part(pr, computer_id, config, specs))
+            ans = ask(f"Add {pr['name']}? (y / a=advanced / N)", "N").lower()
+            if ans in ("a", "adv", "advanced"):
+                added.append(detailed_part(pr["type"], computer_id, config, pr))
+            elif ans.startswith("y"):
+                added.append(_add_preset_part(pr, computer_id, config, pr.get("specs", "")))
     if added:
-        print(f"\nAdded {len(added)} generic part(s).")
+        print(f"\nAdded {len(added)} part(s).")
     return added
 
 

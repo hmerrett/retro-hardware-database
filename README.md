@@ -84,7 +84,10 @@ python scripts/add.py preset --computer RH-0001 standard   # a typical PC set
 
 Interactive `add.py` offers to attach generic parts (prompting for the amounts)
 right after you create a computer, and `python scripts/add.py update RH-0001`
-edits any existing computer or part. Edit `data/presets.csv` to change presets.
+edits any existing computer or part. At any generic prompt, type **`a`** to
+switch to *advanced* entry — capture a real card's maker, model, specs and an
+optional Wikipedia photo, still linked to that computer. Edit `data/presets.csv`
+to change presets.
 
 Prefer to edit by hand? You can still edit the CSVs directly:
 
