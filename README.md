@@ -38,7 +38,17 @@ docs/schema.md          the data model + recommended fields per part type
 
 ## One-time setup
 
-1. `pip install -r requirements.txt` (Python 3.10+).
+1. Install Python 3.10+ and the dependencies — ideally in a virtual
+   environment (kept out of git by `.gitignore`):
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate        # run this in each new terminal
+   pip install -r requirements.txt
+   ```
+
+   (No venv? Use `pip install -r requirements.txt`, adding
+   `--break-system-packages` if pip reports an "externally-managed environment".)
 2. Create a GitHub repo (public is fine), push this folder.
 3. Repo **Settings → Pages → Source = GitHub Actions**.
 4. In `config.yml`, set `base_url` to your Pages URL
