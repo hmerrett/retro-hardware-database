@@ -72,16 +72,18 @@ Add the computer first to get its asset number, then add each part with
 straight after and prints the build/label/push commands.
 
 **Generic/common parts** (PSU, RAM, floppy, video — the things every PC has)
-come from presets, so you don't retype them and they're never sent to Wikipedia:
+come from presets, so you don't retype them and they're never sent to Wikipedia.
+Add an amount with `key:value` (RAM→Size, storage→Capacity, video→Memory):
 
 ```bash
 python scripts/add.py preset --list
-python scripts/add.py preset --computer RH-0001 floppy35 vga ram hdd
+python scripts/add.py preset --computer RH-0001 ram:16MB hdd:540MB vga:1MB floppy35
 python scripts/add.py preset --computer RH-0001 standard   # a typical PC set
 ```
 
-Interactive `add.py` also offers to attach a standard generic set right after
-you create a computer. Edit `data/presets.csv` to change or add presets.
+Interactive `add.py` offers to attach generic parts (prompting for the amounts)
+right after you create a computer, and `python scripts/add.py update RH-0001`
+edits any existing computer or part. Edit `data/presets.csv` to change presets.
 
 Prefer to edit by hand? You can still edit the CSVs directly:
 
@@ -128,8 +130,9 @@ contact the project (GitHub `TheRetroWeb`, or their Discord).
 ## Printing labels
 
 ```bash
-python scripts/make_labels.py                  # every item -> labels/labels.pdf
-python scripts/make_labels.py RH-0002 RH-0003  # just these
+python scripts/make_labels.py                  # everything -> labels/labels.pdf
+python scripts/make_labels.py RH-0001          # -> labels/RH-0001.pdf
+python scripts/make_labels.py RH-0001 RH-0002  # -> labels/RH-0001_RH-0002.pdf
 ```
 
 A computer's label summarises its build (CPU, RAM, video, sound, storage…)

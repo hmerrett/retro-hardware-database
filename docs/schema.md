@@ -94,8 +94,9 @@ instead of retyping:
     python scripts/add.py preset --computer RH-0001 floppy35 vga ram   # or: standard
 
 They're added as ordinary `parts.csv` rows (each with its own asset id) but are
-**never** sent to Wikipedia — generic items match junk. Columns:
-`key, type, manufacturer, name, specs`.
+**never** sent to Wikipedia — generic items match junk. Add an amount with
+`key:value` — `ram:16MB`, `hdd:540MB`, `vga:1MB` fill Size/Capacity/Memory.
+Columns: `key, type, manufacturer, name, specs`.
 
 ## Reference sources
 

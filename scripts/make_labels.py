@@ -6,9 +6,13 @@ that item's page on your GitHub Pages site.
 A computer's label summarises its build (CPU, RAM, video, sound, storage…)
 pulled from its parts. A part's label shows its own specs.
 
+Output is named after the asset id(s) by default (RH-0002.pdf, or labels.pdf
+for everything); override with -o.
+
 Usage:
     python scripts/make_labels.py                  # every asset -> labels/labels.pdf
-    python scripts/make_labels.py RH-0002 RH-0003  # only these
+    python scripts/make_labels.py RH-0002          # -> labels/RH-0002.pdf
+    python scripts/make_labels.py RH-0002 RH-0003  # -> labels/RH-0002_RH-0003.pdf
     python scripts/make_labels.py -o labels/486.pdf RH-0002
 """
 from __future__ import annotations
@@ -40,6 +44,17 @@ def page_size(config):
     lc = config.get("label", {})
     unit = inch if lc.get("units", "in") == "in" else mm
     return float(lc.get("width", 6)) * unit, float(lc.get("height", 4)) * unit
+
+
+def default_filename(ids):
+    """Name the PDF after the requested asset id(s)."""
+    if not ids:
+        return "labels.pdf"
+    if len(ids) == 1:
+        return f"{ids[0]}.pdf"
+    if len(ids) <= 4:
+        return "_".join(ids) + ".pdf"
+    return f"{ids[0]}_and_{len(ids) - 1}_more.pdf"
 
 
 def qr_reader(data, error="M"):
@@ -108,25 +123,21 @@ def render_label(c, W, H, asset_id, title, sub_bits, lines, url, qr_error):
                 8, stroke=1, fill=0)
     c.setFillColorRGB(0, 0, 0)
 
-    # Asset id (big)
     y = H - margin - 22
     c.setFont("Helvetica-Bold", 26)
     c.drawString(margin, y, asset_id)
 
-    # Title (name), up to 2 lines
     c.setFont("Helvetica-Bold", 13)
     for line in wrap_to_width(c, title, "Helvetica-Bold", 13, text_w)[:2]:
         y -= 17
         c.drawString(margin, y, line)
 
-    # subtitle bits
     bits = [b for b in sub_bits if b]
     if bits:
         c.setFont("Helvetica-Oblique", 9.5)
         y -= 14
         c.drawString(margin, y, "   ·   ".join(bits))
 
-    # body lines (bulleted, wrapped)
     c.setFont("Helvetica", 9.5)
     y -= 6
     for raw in lines:
@@ -139,7 +150,6 @@ def render_label(c, W, H, asset_id, title, sub_bits, lines, url, qr_error):
         if y - 12.5 < bottom:
             break
 
-    # QR
     qr_y = (H - qr_size) / 2 + 0.10 * inch
     c.drawImage(qr_reader(url, qr_error), qr_x, qr_y, width=qr_size, height=qr_size,
                 preserveAspectRatio=True, mask="auto")
@@ -148,9 +158,11 @@ def render_label(c, W, H, asset_id, title, sub_bits, lines, url, qr_error):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__)
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("ids", nargs="*", help="asset_ids to print (default: all)")
-    ap.add_argument("-o", "--out", default=str(ROOT / "labels" / "labels.pdf"))
+    ap.add_argument("-o", "--out", default=None,
+                    help="output PDF path (default: named after the asset id(s))")
     args = ap.parse_args()
 
     config = load_config()
@@ -159,9 +171,7 @@ def main():
     comp_by_id = index_by_id(computers)
     part_by_id = index_by_id(parts)
 
-    # Determine which assets to print, preserving id order.
-    all_ids = [c["asset_id"] for c in computers] + [p["asset_id"] for p in parts]
-    all_ids.sort()
+    all_ids = sorted([c["asset_id"] for c in computers] + [p["asset_id"] for p in parts])
     ids = args.ids if args.ids else all_ids
 
     qr_error = config.get("label", {}).get("qr_error", "M")
@@ -172,7 +182,7 @@ def main():
               "GitHub Pages URL.\n")
 
     W, H = page_size(config)
-    out_path = Path(args.out)
+    out_path = Path(args.out) if args.out else ROOT / "labels" / default_filename(args.ids)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(out_path), pagesize=(W, H))
 
@@ -192,11 +202,13 @@ def main():
         else:
             print(f"  ! unknown asset_id: {aid}")
             continue
-        render_label(c, W, H, aid, title, sub_bits, lines,
-                     item_url(config, aid), qr_error)
+        render_label(c, W, H, aid, title, sub_bits, lines, item_url(config, aid), qr_error)
         c.showPage()
         printed += 1
 
+    if printed == 0:
+        print("No matching items — nothing written.")
+        return
     c.save()
     print(f"Wrote {printed} label(s) -> {out_path}")
 
