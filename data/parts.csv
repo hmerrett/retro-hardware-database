@@ -2,3 +2,7 @@ asset_id,computer_id,type,manufacturer,model,name,year,specs,condition,source,ac
 RH-0002,RH-0001,floppy,Generic,,3.5-inch 1.44 MB floppy drive,,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy,Working,,,,https://theretroweb.com/floppydrives/2816,,,
 RH-0003,RH-0001,ram,Generic,,Generic RAM,,Size: 2048 KB,Working,,,,,,,
 RH-0004,RH-0001,gpu,Generic,,Generic VGA,,Type: VGA | Memory: 256 KB,Working,,,,,,,
+RH-0006,RH-0005,ram,Generic,,Generic RAM,,Size: 640 KB,Working,,,,,,,
+RH-0007,RH-0005,gpu,Generic,,Generic VGA,,Type: VGA | Memory: 256 KB,Working,,,,,,,
+RH-0008,RH-0005,floppy,Generic,,3.5-inch 1.44 MB floppy drive,,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy,Working,,,,,,,
+RH-0009,RH-0005,psu,Generic,,Generic power supply,,Form factor: AT,Working,,,,,,,
