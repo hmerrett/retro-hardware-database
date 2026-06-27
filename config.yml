@@ -7,7 +7,7 @@ owner: "Henry"
 # The public base URL of your GitHub Pages site.
 # For a project page it is:  https://<your-username>.github.io/<repo-name>/
 # This is what the QR codes encode, so set it correctly BEFORE printing labels.
-base_url: "https://USERNAME.github.io/retro-hardware-database"
+base_url: "https://hmerrett.github.io/retro-hardware-database"
 
 # Asset numbering. One shared register across BOTH tables (computers + parts),
 # so every physical object gets a single unique tag, e.g. RH-0001.
@@ -25,7 +25,7 @@ label:
 enrich:
   # Wikipedia / Wikimedia (free, no key). Used for summaries + photos.
   wikipedia_lang: "en"
-  user_agent: "RetroHardwareDB/1.0 (https://github.com/USERNAME/retro-hardware-database)"
+  user_agent: "RetroHardwareDB/1.0 (https://github.com/hmerrett/retro-hardware-database)"
   image_max_px: 1000   # downscale downloaded photos so the repo stays light
 
   # The Retro Web (https://theretroweb.com) — community hardware database.
@@ -35,5 +35,5 @@ enrich:
   # pasted a theretroweb_url, one page at a time, with an identifying
   # user-agent. It does not bypass bot protection — if Cloudflare blocks it,
   # it skips and keeps the link. See docs/schema.md.
-  theretroweb_user_agent: "RetroHardwareDB/1.0 (personal collection; +https://github.com/USERNAME/retro-hardware-database)"
+  theretroweb_user_agent: "RetroHardwareDB/1.0 (personal collection; +https://github.com/hmerrett/retro-hardware-database)"
   theretroweb_delay_seconds: 3
