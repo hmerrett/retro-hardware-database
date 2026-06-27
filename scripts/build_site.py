@@ -68,7 +68,7 @@ def build():
         assets.append({
             "asset_id": c["asset_id"], "cat": "computer", "cat_label": "Computer",
             "display_name": c["display_name"], "image": c.get("image", ""),
-            "year": c.get("year", ""), "parent": "",
+            "year": c.get("year", ""), "parent": "", "generic": False,
             "search_text": " ".join([c["display_name"], c.get("manufacturer", ""),
                                      c.get("model", ""), c.get("os", ""),
                                      c["asset_id"]]).lower(),
@@ -79,6 +79,7 @@ def build():
             "cat_label": p["type_label"], "display_name": p["display_name"],
             "image": p.get("image", ""), "year": p.get("year", ""),
             "parent": p.get("computer_id", ""),
+            "generic": (p.get("manufacturer", "").strip().lower() == "generic"),
             "search_text": " ".join([p["display_name"], p.get("manufacturer", ""),
                                      p.get("model", ""), p.get("specs", ""),
                                      p.get("type", ""), p["asset_id"]]).lower(),

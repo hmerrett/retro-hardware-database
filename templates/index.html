@@ -6,13 +6,15 @@
     <option value="">All types</option>
     {% for c in categories %}<option value="{{ c.key }}">{{ c.label }}</option>{% endfor %}
   </select>
+  <label><input type="checkbox" id="gen"> Show generic parts</label>
   <span class="tag" id="count"></span>
 </div>
 
 <div class="grid" id="grid">
   {% for a in assets %}
   <a class="card" href="{{ root }}items/{{ a.asset_id }}/"
-     data-cat="{{ a.cat }}" data-text="{{ a.search_text }}">
+     data-cat="{{ a.cat }}" data-generic="{{ '1' if a.generic else '' }}"
+     data-text="{{ a.search_text }}">
     <div class="thumb">
       {% if a.image %}
         <img src="{{ root }}images/{{ a.image }}" alt="{{ a.display_name }}" loading="lazy">
@@ -34,22 +36,29 @@
 <script>
   const q = document.getElementById('q');
   const cat = document.getElementById('cat');
+  const gen = document.getElementById('gen');
   const grid = document.getElementById('grid');
   const count = document.getElementById('count');
   const cards = Array.from(grid.children);
   function apply(){
     const t = q.value.trim().toLowerCase();
     const c = cat.value;
-    let n = 0;
+    const showGen = gen.checked;
+    let n = 0, hidden = 0;
     for (const el of cards){
-      const ok = (!t || el.dataset.text.includes(t)) && (!c || el.dataset.cat === c);
+      const isGen = el.dataset.generic === '1';
+      const matchOthers = (!t || el.dataset.text.includes(t)) && (!c || el.dataset.cat === c);
+      const ok = matchOthers && (showGen || !isGen);
       el.style.display = ok ? '' : 'none';
       if (ok) n++;
+      else if (matchOthers && isGen && !showGen) hidden++;
     }
-    count.textContent = n + ' item' + (n === 1 ? '' : 's');
+    count.textContent = n + ' item' + (n === 1 ? '' : 's')
+      + (hidden ? ' · ' + hidden + ' generic hidden' : '');
   }
   q.addEventListener('input', apply);
   cat.addEventListener('change', apply);
+  gen.addEventListener('change', apply);
   apply();
 </script>
 {% endblock %}

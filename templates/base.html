@@ -44,7 +44,10 @@
   .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
   .controls input,.controls select{background:var(--panel);color:var(--ink);
        border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit}
-  .controls input{min-width:240px;flex:1}
+  .controls input[type=search]{min-width:240px;flex:1}
+  .controls label{display:flex;align-items:center;gap:6px;color:var(--muted);
+       font-size:13px;cursor:pointer;white-space:nowrap}
+  .controls label input{accent-color:var(--accent)}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
        overflow:hidden;display:flex;flex-direction:column;color:var(--ink)}
