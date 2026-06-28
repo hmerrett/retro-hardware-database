@@ -251,7 +251,10 @@ def ask_disk_image(current=""):
 
 
 def ask_storage_specs(specs, ask_capacity=True):
-    """Storage prompts: capacity and optional CHS geometry, merged into specs."""
+    """Storage prompts: protocol, capacity and optional CHS geometry, merged in."""
+    proto = ask("protocol (ATA, ATAPI, XTA, RLL, MFM, ESDI, SCSI), blank to skip")
+    if proto:
+        specs = merge_spec(specs, "Protocol", proto)
     if ask_capacity:
         cap = ask("capacity (e.g. 540 MB), blank to skip")
         if cap:
