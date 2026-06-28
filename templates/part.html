@@ -36,6 +36,7 @@
   {% if p.acquired_date %} · Acquired: {{ p.acquired_date }}{% endif %}
 </div>
 {% if p.notes %}<p class="meta">Notes: {{ p.notes }}</p>{% endif %}
+{% if p.disk_image %}<p class="meta">Disk image: {{ p.disk_image }}</p>{% endif %}
 
 <div class="refs">
   {% if p.theretroweb_url %}<a href="{{ p.theretroweb_url }}">The Retro Web ↗</a>{% endif %}

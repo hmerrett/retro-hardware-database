@@ -56,6 +56,7 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `specs` | `Label: value | Label: value` — the type-specific detail (see below) |
 | `condition`, `source` | your tracking; where/how acquired |
 | `acquired_date` | optional (YYYY-MM-DD) |
+| `disk_image` | storage only: filename of the disk image you took when it arrived |
 | `image` | photo path under `images/` (auto-filled) |
 | `theretroweb_url`, `wikipedia_url` | reference links |
 | `summary` | short description (auto-filled) |

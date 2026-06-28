@@ -32,6 +32,7 @@ PART_COLUMNS = [
     "asset_id", "computer_id", "type", "manufacturer", "model", "name",
     "year", "specs", "condition", "source", "acquired_date",
     "image", "theretroweb_url", "wikipedia_url", "summary", "notes",
+    "disk_image",  # storage only: filename of the disk image taken on arrival
 ]
 
 # Controls the order parts are grouped/sorted in (build sheets, filters).

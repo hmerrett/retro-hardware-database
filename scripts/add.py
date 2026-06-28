@@ -167,6 +167,8 @@ def part_row_interactive(computers):
     row = prompt_fields(PART_FIELDS)
     row["type"] = ptype
     row["computer_id"] = computer_id
+    if ptype == "storage":
+        row["disk_image"] = ask_disk_image()
     return row
 
 
@@ -245,10 +247,16 @@ def list_presets():
         print(f"  {k:<10} {pr['type']:<10} {pr['name']}{hint}")
 
 
-def _add_preset_part(pr, computer_id, config, specs):
+def ask_disk_image(current=""):
+    return ask("disk image filename (your image of it as received), blank to skip", current)
+
+
+def _add_preset_part(pr, computer_id, config, specs, extra=None):
     partial = {"type": pr["type"], "manufacturer": pr.get("manufacturer", "Generic"),
                "name": pr.get("name", ""), "specs": specs,
                "computer_id": computer_id, "condition": "Working"}
+    if extra:
+        partial.update(extra)
     asset_id, row = commit_new("part", partial, config, dry_run=False)
     print(f"  + {asset_id}  {display_name(row)}" + (f"  ({specs})" if specs else ""))
     return asset_id
@@ -264,6 +272,8 @@ def detailed_part(ptype, computer_id, config, seed):
     fields = prompt_fields(PART_FIELDS, current=seed_row)
     fields["type"] = ptype
     fields["computer_id"] = computer_id
+    if ptype == "storage":
+        fields["disk_image"] = ask_disk_image()
     asset_id, row = commit_new("part", fields, config, dry_run=False)
     print(f"  + {asset_id}  {display_name(row)}")
     if ask("Look up photo + summary on Wikipedia? (y/N)", "N").lower().startswith("y"):
@@ -292,7 +302,11 @@ def walk_generics(computer_id, config):
             else:
                 specs = merge_spec(pr.get("specs", ""), spec_key,
                                    normalise_amount(spec_key, ans))
-                added.append(_add_preset_part(pr, computer_id, config, specs))
+                extra = None
+                if pr["type"] == "storage":
+                    di = ask_disk_image()
+                    extra = {"disk_image": di} if di else None
+                added.append(_add_preset_part(pr, computer_id, config, specs, extra))
         else:
             ans = ask(f"Add {pr['name']}? (y / a=advanced / N)", "N").lower()
             if ans in ("a", "adv", "advanced"):
@@ -394,6 +408,8 @@ def update_interactive(asset_id, config, dry_run):
         row["type"] = ask_type(row.get("type", "") or "other")
         row["computer_id"] = ask_computer(computers, row.get("computer_id", ""))
         row.update(prompt_fields(PART_FIELDS, current=row))
+        if row.get("type") == "storage":
+            row["disk_image"] = ask_disk_image(row.get("disk_image", ""))
     else:
         show_field_list("computer", [], COMPUTER_FIELDS)
         print()
@@ -445,7 +461,8 @@ def main():
     pp.add_argument("--computer", dest="computer_id", default="",
                     help="asset_id of the computer it's installed in (blank = standalone)")
     for f in ("manufacturer", "model", "name", "year", "specs", "condition",
-              "source", "acquired_date", "theretroweb_url", "wikipedia_url", "notes"):
+              "source", "acquired_date", "theretroweb_url", "wikipedia_url",
+              "notes", "disk_image"):
         pp.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
     ppre = sub.add_parser("preset",
