@@ -142,8 +142,9 @@ python scripts/make_labels.py --auto           # computers: full+small, peripher
 ```
 
 Labels are also generated **automatically** when you add or update a device
-(computers get full + small, peripherals get the small tag), overwriting the
-old PDFs; `--auto` regenerates the whole set on demand.
+(computers get full + small; any real, non-generic part — cards, drives,
+peripherals — gets the small tag), overwriting the old PDFs; `--auto`
+regenerates the whole set on demand.
 
 A computer's label summarises its build (CPU, RAM, video, sound, storage…)
 pulled from its parts; a part's label shows its own specs. Print at 100% /

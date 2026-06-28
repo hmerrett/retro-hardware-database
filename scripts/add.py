@@ -465,7 +465,7 @@ def update_interactive(asset_id, config, dry_run):
     if kind == "computer":
         touched += offer_generic(asset_id, config)
     regenerate_labels(touched)
-    print("\nLabels regenerated. Next: ./publish.sh   (build, commit, push)")
+    print("\nNext: ./publish.sh   (build, commit, push)")
 
 
 def run_enrich(asset_id):
@@ -575,7 +575,7 @@ def main():
         touched += offer_generic(asset_id, config)
 
     regenerate_labels(touched)
-    print("\nLabels generated. Next: ./publish.sh   (build, commit, push)")
+    print("\nNext: ./publish.sh   (build, commit, push)")
 
 
 if __name__ == "__main__":

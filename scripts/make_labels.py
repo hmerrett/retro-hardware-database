@@ -7,8 +7,8 @@ Two sizes:
   * full (default, 6x4 in)  — asset number, title and all the details.
   * small (--small, e.g. 19x51 mm) — just the QR, asset number and make/model.
 
-Automatic set (--auto): computers get BOTH sizes, peripherals get the small
-one, other components get none. `add.py` calls this for you on create/update.
+Automatic set (--auto): computers get BOTH sizes, any real (non-generic) part
+gets the small one, generic filler gets none. `add.py` calls this on create/update.
 
 All text uses the TTF set in config.yml (label.font_path, e.g. Audiowide); if
 that file is missing the label falls back to Helvetica.
@@ -269,12 +269,12 @@ def draw_one(c, W, H, aid, small, config, title, lines, qr_error, hfont, bfont):
 # --- automatic labels ------------------------------------------------------
 
 def auto_plan(aid, comp_by_id, part_by_id):
-    """Which labels a device gets: computers -> full + small; peripherals ->
-    small; everything else -> none. Returns a list of (suffix, small)."""
+    """Which labels a device gets: computers -> full + small; any real (non-
+    generic) part -> small; generic filler -> none. Returns (suffix, small) list."""
     if aid in comp_by_id:
         return [("", False), ("-small", True)]
     p = part_by_id.get(aid)
-    if p and p.get("type") == "peripheral":
+    if p and p.get("manufacturer", "").strip().lower() not in ("", "generic"):
         return [("-small", True)]
     return []
 
@@ -325,7 +325,8 @@ def regenerate(asset_ids, config=None):
 def all_auto_ids():
     computers, parts = load_computers(), load_parts()
     return ([c["asset_id"] for c in computers]
-            + [p["asset_id"] for p in parts if p.get("type") == "peripheral"])
+            + [p["asset_id"] for p in parts
+               if p.get("manufacturer", "").strip().lower() not in ("", "generic")])
 
 
 def main():
@@ -335,7 +336,7 @@ def main():
     ap.add_argument("--small", action="store_true",
                     help="compact QR + number + make/model label (config: label_small)")
     ap.add_argument("--auto", action="store_true",
-                    help="auto set: computers get full+small, peripherals get small")
+                    help="auto set: computers full+small, real (non-generic) parts small")
     ap.add_argument("-o", "--out", default=None,
                     help="output PDF path (default: named after the asset id(s))")
     args = ap.parse_args()
