@@ -144,6 +144,16 @@ A computer's label summarises its build (CPU, RAM, video, sound, storage…)
 pulled from its parts; a part's label shows its own specs. Print at 100% /
 "actual size". Size/units are set in `config.yml` (`label:`).
 
+## Publishing in one step
+
+```bash
+./publish.sh "Add the Amiga 1200"   # message optional
+```
+
+Builds the site (catching errors before you push), commits all changes, and
+pushes; GitHub Actions then redeploys. Uses `.venv` automatically if present,
+so you don't even need to activate it first.
+
 ## Licensing
 
 Code is MIT (`LICENSE`). Your catalogue data and photos are yours; third-party
