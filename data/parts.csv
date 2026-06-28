@@ -18,3 +18,7 @@ RH-0019,,io,Pine Technology,PT-606G,,1995,Interface: ISA,Working,,,,https://ther
 RH-0020,,io,ECS,CI-90,,1991,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/ecs-ci-90,,,,
 RH-0021,,io,Adaptec,AHA-2940,,1997,Interface: PCI,Working,,,,https://theretroweb.com/expansioncards/s/adaptec-aha-2940,,,,
 RH-0022,,storage,Western Digital,Caviar 2635,,1996,Interface: IDE | Capacity: 640MB | CHS: 1240/16/63,Working,,,,https://theretroweb.com/harddrives/1796,,,,/public/_disk_images/WD-Caviar-2635.img
+RH-0023,,io,Silicon Valley Computer,ADP20L,,1991,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/silicon-valley-computer-adp20l,,,,
+RH-0024,,io,TMC/MyComp/MyNix/Megastar,IFSP,,1992,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/tmc-mycomp-mynix-megastar-ifsp-ver-1-x,,,,
+RH-0025,,io,Silicon Valley Computer,ADP20L,,1991,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/silicon-valley-computer-adp20l,,,,
+RH-0026,,io,Pine Technology,PT-628A,,1995,Interface: VLB,Working,,,,https://theretroweb.com/expansioncards/s/pine-pt627b,,,,
