@@ -7,20 +7,20 @@ RH-0007,RH-0005,gpu,Generic,,Generic VGA,,Type: VGA | Memory: 256 KB,Working,,,,
 RH-0008,RH-0005,floppy,Generic,,3.5-inch 1.44 MB floppy drive,,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy,Working,,,,,,,,
 RH-0009,RH-0005,psu,Generic,,Generic power supply,,Form factor: AT,Working,,,,,,,,
 RH-0011,RH-0010,ram,Generic,,Generic RAM,,Size: 16384 KB,Working,,,,,,,,
-RH-0012,RH-0010,storage,Conner,CP30544,,1992,Interface: IDE,Working,ebay 22-14789-40823,2026-06-23,,https://theretroweb.com/harddrives/3012,,,,/public/_disk_images/compaq-luggable-486-66-raw.img
+RH-0012,RH-0010,storage,Conner,CP30544,,1992,Interface: IDE | Protocol: ATA,Working,ebay 22-14789-40823,2026-06-23,,https://theretroweb.com/harddrives/3012,,,,/public/_disk_images/compaq-luggable-486-66-raw.img
 RH-0013,RH-0010,floppy,Generic,,3.5-inch 1.44 MB floppy drive,,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy,Working,,,,,,,,
 RH-0014,,storage,Seagate,ST31276A,,1997,1275MB,Working,,,,https://theretroweb.com/harddrives/50,,,,
 RH-0015,,io,Pine Technology,PT-628B,,1995,"2 x serial, 1 x game, 1 x floppy, 2 x HDD | Interface: VLB",Working,Pete Crossley,2025-01-01,,https://theretroweb.com/expansioncards/s/pine-pt627b,,,Vesa local bus interface,
-RH-0016,,storage,Quantum,Trailblazer TMS850A,,1995,840MB | Interface: IDE | Capacity: 840MB | CHS: 1647/16/63,Working,,,,,,,,/public/_disk_images/TMS850A-SDA1.img
-RH-0017,,storage,Conner,CFA540A,,1994,Interface: IDE | Capacity: 525MB | CHS: 1024/16/63,Working,,,,https://theretroweb.com/harddrives/3086,,,,/public/_disk_images/conner-cfa540a.img
+RH-0016,,storage,Quantum,Trailblazer TMS850A,,1995,840MB | Interface: IDE | Protocol: ATA | Capacity: 840MB | CHS: 1647/16/63,Working,,,,,,,,/public/_disk_images/TMS850A-SDA1.img
+RH-0017,,storage,Conner,CFA540A,,1994,Interface: IDE | Protocol: ATA | Capacity: 525MB | CHS: 1024/16/63,Working,,,,https://theretroweb.com/harddrives/3086,,,,/public/_disk_images/conner-cfa540a.img
 RH-0018,,io,Compaq,000957,,1988,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/compaq-000957-001,,,,
 RH-0019,,io,Pine Technology,PT-606G,,1995,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/pine-technology-pt-606g,,,,
 RH-0020,,io,ECS,CI-90,,1991,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/ecs-ci-90,,,,
 RH-0021,,io,Adaptec,AHA-2940,,1997,Interface: PCI,Working,,,,https://theretroweb.com/expansioncards/s/adaptec-aha-2940,,,,
-RH-0022,,storage,Western Digital,Caviar 2635,,1996,Interface: IDE | Capacity: 640MB | CHS: 1240/16/63,Working,,,,https://theretroweb.com/harddrives/1796,,,,/public/_disk_images/WD-Caviar-2635.img
+RH-0022,,storage,Western Digital,Caviar 2635,,1996,Interface: IDE | Protocol: ATA | Capacity: 640MB | CHS: 1240/16/63,Working,,,,https://theretroweb.com/harddrives/1796,,,,/public/_disk_images/WD-Caviar-2635.img
 RH-0023,,io,Silicon Valley Computer,ADP20L,,1991,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/silicon-valley-computer-adp20l,,,,
 RH-0024,,io,TMC/MyComp/MyNix/Megastar,IFSP,,1992,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/tmc-mycomp-mynix-megastar-ifsp-ver-1-x,,,,
 RH-0025,,io,Silicon Valley Computer,ADP20L,,1991,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/silicon-valley-computer-adp20l,,,,
 RH-0026,,io,Pine Technology,PT-628A,,1995,Interface: VLB,Working,,,,https://theretroweb.com/expansioncards/s/pine-pt627b,,,,
-RH-0027,,storage,Quantum,ProDrive LPS 52A,,1991,Interface: IDE | Capacity: 50MB | CHS: 571/8/17,Working,,,,https://theretroweb.com/harddrives/1437,,,,/public/_disk_images/Quantum-ProDrive-LPS.img
+RH-0027,,storage,Quantum,ProDrive LPS 52A,,1991,Interface: IDE | Protocol: ATA | Capacity: 50MB | CHS: 571/8/17,Working,,,,https://theretroweb.com/harddrives/1437,,,,/public/_disk_images/Quantum-ProDrive-LPS.img
 RH-0028,,storage,Seagate,SRD3080C,,1990,Interface: IDE | Protocol: ATA | Capacity: 80MB | CHS: 822/4/51,Working,,,,,,,Branded Amstrad and Sony,/public/_disk_images/Sony-Seagate-SRD3080C.img
