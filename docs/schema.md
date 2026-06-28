@@ -78,9 +78,10 @@ different kinds can live in one table. These are conventions, not rules:
 - **motherboard** — `Chipset`, `Socket`, `Slots`, `RAM`, `Form factor`
 - **cpu** — `Socket`, `Speed`, `FSB`, `Cores`, `L1/L2 cache`
 - **ram** — `Type` (e.g. 72-pin FPM, EDO, SDRAM), `Size`, `Speed`
-- **gpu** — `Bus` (ISA/VLB/PCI/AGP), `Memory`, `Chipset`, `Type`
-- **sound** — `Bus`, `Chipset`, `FM`, `Ports`
-- **network** — `Bus`, `Interface` (10BASE-T/BNC/AUI), `Chipset`
+- **gpu** — `Interface` (ISA/VLB/PCI/AGP), `Memory`, `Chipset`, `Type`
+- **sound** — `Interface` (bus), `Chipset`, `FM`, `Ports`
+- **network** — `Interface` (ISA/PCI bus), `Connector` (10BASE-T/BNC/AUI), `Chipset`
+- **io** — `Interface` (bus), `Ports`
 - **storage** — `Interface` (IDE/SCSI/MFM/CF/SD), `Capacity`, `CHS` (cylinders/heads/sectors), `Role`
 - **optical / floppy** — `Media`, `Interface`, `Speed`
 - **peripheral** — `Interface` (USB, parallel, serial, PS/2, …), plus

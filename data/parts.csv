@@ -10,4 +10,4 @@ RH-0011,RH-0010,ram,Generic,,Generic RAM,,Size: 16384 KB,Working,,,,,,,,
 RH-0012,RH-0010,storage,Conner,CP30544,,1992,Interface: IDE,Working,ebay 22-14789-40823,2026-06-23,,https://theretroweb.com/harddrives/3012,,,,/public/_disk_images/compaq-luggable-486-66-raw.img
 RH-0013,RH-0010,floppy,Generic,,3.5-inch 1.44 MB floppy drive,,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy,Working,,,,,,,,
 RH-0014,,storage,Seagate,ST31276A,,1997,1275MB,Working,,,,https://theretroweb.com/harddrives/50,,,,
-RH-0015,,io,Pine Technology,PT-628B,,1995,"2 x serial, 1 x game, 1 x floppy, 2 x HDD",Working,Pete Crossley,2025-01-01,,,,,Vesa local bus interface,
+RH-0015,,io,Pine Technology,PT-628B,,1995,"2 x serial, 1 x game, 1 x floppy, 2 x HDD",Working,Pete Crossley,2025-01-01,,https://theretroweb.com/expansioncards/s/pine-pt627b,,,Vesa local bus interface,

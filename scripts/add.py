@@ -44,16 +44,16 @@ SPEC_HINTS = {
     "motherboard": "Chipset, Socket, Slots, RAM, Form factor",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
-    "gpu": "Bus, Memory, Chipset, Type",
-    "sound": "Bus, Chipset, FM, Ports",
-    "network": "Bus, Interface, Chipset",
-    "io": "Bus, Ports",
-    "storage": "Interface, Capacity, Role",
+    "gpu": "Memory, Chipset, Type",
+    "sound": "Chipset, FM, Ports",
+    "network": "Connector, Chipset",
+    "io": "Ports",
+    "storage": "Role (interface/capacity/geometry asked separately)",
     "optical": "Media, Interface, Speed",
     "floppy": "Media, Interface",
     "psu": "Form factor, Wattage, Connectors",
     "cooler": "Type, Socket",
-    "peripheral": "Interface, plus type-specific (Size, Resolution, ...)",
+    "peripheral": "type-specific (Size, Resolution, …)",
     "other": "free text",
 }
 
@@ -167,11 +167,7 @@ def part_row_interactive(computers):
     row = prompt_fields(PART_FIELDS)
     row["type"] = ptype
     row["computer_id"] = computer_id
-    if ptype == "storage":
-        row["specs"] = ask_storage_specs(row.get("specs", ""))
-        row["disk_image"] = ask_disk_image()
-    elif ptype == "peripheral":
-        row["specs"] = ask_peripheral_specs(row.get("specs", ""))
+    apply_type_prompts(row, ptype)
     return row
 
 
@@ -266,12 +262,26 @@ def ask_storage_specs(specs, ask_capacity=True):
     return specs
 
 
-def ask_peripheral_specs(specs):
-    """Peripheral prompt: how it connects, merged into specs as 'Interface'."""
-    iface = ask("interface (e.g. USB, parallel, serial, PS/2, ISA, PCI, VLB), blank to skip")
+CARD_TYPES = ("gpu", "sound", "network", "io")
+
+
+def ask_interface(specs, examples):
+    """Prompt how a part connects, merged into specs as 'Interface'."""
+    iface = ask(f"interface ({examples}), blank to skip")
     if iface:
         specs = merge_spec(specs, "Interface", iface)
     return specs
+
+
+def apply_type_prompts(row, ptype):
+    """Type-specific extra prompts run after the standard part fields."""
+    if ptype in CARD_TYPES or ptype == "peripheral":
+        row["specs"] = ask_interface(row.get("specs", ""),
+                                     "ISA, PCI, VLB, AGP, USB, parallel, serial, PS/2")
+    elif ptype == "storage":
+        row["specs"] = ask_interface(row.get("specs", ""), "IDE, SCSI, MFM, CF, SD")
+        row["specs"] = ask_storage_specs(row.get("specs", ""))
+        row["disk_image"] = ask_disk_image(row.get("disk_image", ""))
 
 
 def _add_preset_part(pr, computer_id, config, specs, extra=None):
@@ -295,11 +305,7 @@ def detailed_part(ptype, computer_id, config, seed):
     fields = prompt_fields(PART_FIELDS, current=seed_row)
     fields["type"] = ptype
     fields["computer_id"] = computer_id
-    if ptype == "storage":
-        fields["specs"] = ask_storage_specs(fields.get("specs", ""))
-        fields["disk_image"] = ask_disk_image()
-    elif ptype == "peripheral":
-        fields["specs"] = ask_peripheral_specs(fields.get("specs", ""))
+    apply_type_prompts(fields, ptype)
     asset_id, row = commit_new("part", fields, config, dry_run=False)
     print(f"  + {asset_id}  {display_name(row)}")
     if ask("Look up photo + summary on Wikipedia? (y/N)", "N").lower().startswith("y"):
@@ -436,11 +442,7 @@ def update_interactive(asset_id, config, dry_run):
         row["type"] = ask_type(row.get("type", "") or "other")
         row["computer_id"] = ask_computer(computers, row.get("computer_id", ""))
         row.update(prompt_fields(PART_FIELDS, current=row))
-        if row.get("type") == "storage":
-            row["specs"] = ask_storage_specs(row.get("specs", ""))
-            row["disk_image"] = ask_disk_image(row.get("disk_image", ""))
-        elif row.get("type") == "peripheral":
-            row["specs"] = ask_peripheral_specs(row.get("specs", ""))
+        apply_type_prompts(row, row.get("type", ""))
     else:
         show_field_list("computer", [], COMPUTER_FIELDS)
         print()

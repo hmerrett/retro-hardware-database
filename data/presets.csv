@@ -7,12 +7,12 @@ cga,gpu,Generic,CGA graphics card,Type: CGA
 ega,gpu,Generic,EGA graphics card,Type: EGA
 mda,gpu,Generic,MDA graphics card,Type: MDA
 hercules,gpu,Generic,Hercules graphics card,Type: Hercules
-io,io,Generic,Multi-I/O card,Bus: ISA | Ports: serial + parallel + IDE + floppy
+io,io,Generic,Multi-I/O card,Interface: ISA | Ports: serial + parallel + IDE + floppy
 floppy35,floppy,Generic,3.5-inch 1.44 MB floppy drive,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy
 floppy525,floppy,Generic,5.25-inch 1.2 MB floppy drive,Media: 5.25-inch 1.2 MB | Interface: 34-pin floppy
 hdd,storage,Generic,Generic hard disk,Interface: IDE
 cdrom,optical,Generic,Generic CD-ROM drive,Interface: IDE
-nic,network,Generic,Generic network card,Bus: ISA | Interface: 10BASE-T
-sound,sound,Generic,Generic sound card,Bus: ISA
+nic,network,Generic,Generic network card,Interface: ISA
+sound,sound,Generic,Generic sound card,Interface: ISA
 kbd,peripheral,Generic,Generic keyboard,Interface: PS/2
 mouse,peripheral,Generic,Generic mouse,Interface: serial
