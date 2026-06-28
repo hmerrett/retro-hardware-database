@@ -81,10 +81,10 @@ different kinds can live in one table. These are conventions, not rules:
 - **gpu** — `Bus` (ISA/VLB/PCI/AGP), `Memory`, `Chipset`, `Type`
 - **sound** — `Bus`, `Chipset`, `FM`, `Ports`
 - **network** — `Bus`, `Interface` (10BASE-T/BNC/AUI), `Chipset`
-- **storage** — `Interface` (IDE/SCSI/MFM/CF/SD), `Capacity`, `Role`
+- **storage** — `Interface` (IDE/SCSI/MFM/CF/SD), `Capacity`, `CHS` (cylinders/heads/sectors), `Role`
 - **optical / floppy** — `Media`, `Interface`, `Speed`
-- **peripheral** — `Interface`, plus type-appropriate keys (e.g. monitor `Size`,
-  `Tube`; printer `Type`, `Resolution`)
+- **peripheral** — `Interface` (USB, parallel, serial, PS/2, …), plus
+  type-appropriate keys (e.g. monitor `Size`, `Tube`; printer `Type`, `Resolution`)
 
 ## Generic component presets
 

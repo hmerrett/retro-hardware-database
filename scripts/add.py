@@ -168,7 +168,10 @@ def part_row_interactive(computers):
     row["type"] = ptype
     row["computer_id"] = computer_id
     if ptype == "storage":
+        row["specs"] = ask_storage_specs(row.get("specs", ""))
         row["disk_image"] = ask_disk_image()
+    elif ptype == "peripheral":
+        row["specs"] = ask_peripheral_specs(row.get("specs", ""))
     return row
 
 
@@ -251,6 +254,26 @@ def ask_disk_image(current=""):
     return ask("disk image filename (your image of it as received), blank to skip", current)
 
 
+def ask_storage_specs(specs, ask_capacity=True):
+    """Storage prompts: capacity and optional CHS geometry, merged into specs."""
+    if ask_capacity:
+        cap = ask("capacity (e.g. 540 MB), blank to skip")
+        if cap:
+            specs = merge_spec(specs, "Capacity", cap)
+    chs = ask("geometry C/H/S — cylinders/heads/sectors (e.g. 1024/16/63), blank to skip")
+    if chs:
+        specs = merge_spec(specs, "CHS", chs)
+    return specs
+
+
+def ask_peripheral_specs(specs):
+    """Peripheral prompt: how it connects, merged into specs as 'Interface'."""
+    iface = ask("interface (e.g. USB, parallel, serial, PS/2, ISA, PCI, VLB), blank to skip")
+    if iface:
+        specs = merge_spec(specs, "Interface", iface)
+    return specs
+
+
 def _add_preset_part(pr, computer_id, config, specs, extra=None):
     partial = {"type": pr["type"], "manufacturer": pr.get("manufacturer", "Generic"),
                "name": pr.get("name", ""), "specs": specs,
@@ -273,7 +296,10 @@ def detailed_part(ptype, computer_id, config, seed):
     fields["type"] = ptype
     fields["computer_id"] = computer_id
     if ptype == "storage":
+        fields["specs"] = ask_storage_specs(fields.get("specs", ""))
         fields["disk_image"] = ask_disk_image()
+    elif ptype == "peripheral":
+        fields["specs"] = ask_peripheral_specs(fields.get("specs", ""))
     asset_id, row = commit_new("part", fields, config, dry_run=False)
     print(f"  + {asset_id}  {display_name(row)}")
     if ask("Look up photo + summary on Wikipedia? (y/N)", "N").lower().startswith("y"):
@@ -304,6 +330,7 @@ def walk_generics(computer_id, config):
                                    normalise_amount(spec_key, ans))
                 extra = None
                 if pr["type"] == "storage":
+                    specs = ask_storage_specs(specs, ask_capacity=False)  # capacity already asked
                     di = ask_disk_image()
                     extra = {"disk_image": di} if di else None
                 added.append(_add_preset_part(pr, computer_id, config, specs, extra))
@@ -410,7 +437,10 @@ def update_interactive(asset_id, config, dry_run):
         row["computer_id"] = ask_computer(computers, row.get("computer_id", ""))
         row.update(prompt_fields(PART_FIELDS, current=row))
         if row.get("type") == "storage":
+            row["specs"] = ask_storage_specs(row.get("specs", ""))
             row["disk_image"] = ask_disk_image(row.get("disk_image", ""))
+        elif row.get("type") == "peripheral":
+            row["specs"] = ask_peripheral_specs(row.get("specs", ""))
     else:
         show_field_list("computer", [], COMPUTER_FIELDS)
         print()
