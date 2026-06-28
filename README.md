@@ -138,7 +138,12 @@ python scripts/make_labels.py                  # everything -> labels/labels.pdf
 python scripts/make_labels.py RH-0001          # -> labels/RH-0001.pdf
 python scripts/make_labels.py RH-0001 RH-0002  # -> labels/RH-0001_RH-0002.pdf
 python scripts/make_labels.py --small RH-0001  # mini QR tag (51x19mm) -> labels/RH-0001-small.pdf
+python scripts/make_labels.py --auto           # computers: full+small, peripherals: small
 ```
+
+Labels are also generated **automatically** when you add or update a device
+(computers get full + small, peripherals get the small tag), overwriting the
+old PDFs; `--auto` regenerates the whole set on demand.
 
 A computer's label summarises its build (CPU, RAM, video, sound, storage…)
 pulled from its parts; a part's label shows its own specs. Print at 100% /

@@ -347,7 +347,8 @@ def add_presets(items, computer_id, config, dry_run):
 
 def offer_generic(computer_id, config):
     if ask("Add generic components now? (y/N)", "N").lower().startswith("y"):
-        walk_generics(computer_id, config)
+        return walk_generics(computer_id, config)
+    return []
 
 
 # --- write / update a row --------------------------------------------------
@@ -428,9 +429,11 @@ def update_interactive(asset_id, config, dry_run):
 
     save_computers(computers) if kind == "computer" else save_parts(parts)
     print(f"\nUpdated {asset_id}: {display_name(row)}")
+    touched = [asset_id]
     if kind == "computer":
-        offer_generic(asset_id, config)
-    print("\nNext: python scripts/build_site.py   then commit & push")
+        touched += offer_generic(asset_id, config)
+    regenerate_labels(touched)
+    print("\nLabels regenerated. Next: ./publish.sh   (build, commit, push)")
 
 
 def run_enrich(asset_id):
@@ -440,6 +443,19 @@ def run_enrich(asset_id):
         subprocess.run([sys.executable, script, "--only", asset_id], check=False)
     except Exception as exc:  # noqa: BLE001
         print(f"  enrichment skipped: {exc}")
+
+
+def regenerate_labels(asset_ids):
+    """Auto-(re)generate labels for these assets (and parent computers, whose
+    build summary may have changed). Computers get full+small, peripherals small."""
+    ids = [a for a in asset_ids if a]
+    if not ids:
+        return
+    try:
+        import make_labels
+        make_labels.regenerate(ids, load_config())
+    except Exception as exc:  # noqa: BLE001
+        print(f"  (label generation skipped: {exc})")
 
 
 def main():
@@ -493,6 +509,7 @@ def main():
         else:
             added = walk_generics(computer_id, config)
         if added and not args.dry_run:
+            regenerate_labels(added)
             print(f"\nAdded {len(added)} generic part(s) to {computer_id or '(standalone)'}. "
                   "Run build_site.py, then commit & push.")
         return
@@ -516,18 +533,17 @@ def main():
     if args.dry_run:
         return
 
+    touched = [asset_id]
     print(f"\nAdded {asset_id}: {display_name(row)}")
     if config.get("base_url") and "USERNAME" not in config.get("base_url", ""):
         print(f"  page will be: {item_url(config, asset_id)}")
     if do_enrich:
         run_enrich(asset_id)
     if interactive and kind == "computer":
-        offer_generic(asset_id, config)
+        touched += offer_generic(asset_id, config)
 
-    print("\nNext:")
-    print("  python scripts/build_site.py            # refresh the site")
-    print(f"  python scripts/make_labels.py {asset_id}   # print its label")
-    print(f"  git add -A && git commit -m \"Add {display_name(row)}\" && git push")
+    regenerate_labels(touched)
+    print("\nLabels generated. Next: ./publish.sh   (build, commit, push)")
 
 
 if __name__ == "__main__":

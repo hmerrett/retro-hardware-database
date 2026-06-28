@@ -7,16 +7,18 @@ Two sizes:
   * full (default, 6x4 in)  — asset number, title and all the details.
   * small (--small, e.g. 19x51 mm) — just the QR, asset number and make/model.
 
+Automatic set (--auto): computers get BOTH sizes, peripherals get the small
+one, other components get none. `add.py` calls this for you on create/update.
+
 All text uses the TTF set in config.yml (label.font_path, e.g. Audiowide); if
-that file is missing the label falls back to Helvetica. Output is named after
-the asset id(s) by default.
+that file is missing the label falls back to Helvetica.
 
 Usage:
     python scripts/make_labels.py                  # full labels, everything
     python scripts/make_labels.py RH-0002          # -> labels/RH-0002.pdf
     python scripts/make_labels.py --small RH-0002  # -> labels/RH-0002-small.pdf
-    python scripts/make_labels.py --small          # small labels for everything
-    python scripts/make_labels.py -o labels/x.pdf RH-0002
+    python scripts/make_labels.py --auto           # auto set for every device
+    python scripts/make_labels.py --auto RH-0010   # auto set for one device
 """
 from __future__ import annotations
 
@@ -34,6 +36,8 @@ from reportlab.pdfgen import canvas
 from common import (ROOT, display_name, index_by_id, item_url, load_computers,
                     load_config, load_parts, parse_specs, parts_for, type_label)
 
+LABELS_DIR = ROOT / "labels"
+
 BUILD_ROWS = [
     ("cpu", "CPU"), ("ram", "Memory"), ("gpu", "Video"), ("sound", "Sound"),
     ("storage", "Storage"), ("network", "Network"), ("optical", "Optical"),
@@ -43,26 +47,35 @@ SPEC_PICK = {"ram": "Size", "storage": "Capacity", "optical": "Media",
              "floppy": "Media"}
 
 
-def register_fonts(config):
+def register_fonts(config, quiet=False):
     rel = (config.get("label", {}) or {}).get("font_path", "")
     if rel:
         path = ROOT / rel
         if path.exists():
             try:
                 pdfmetrics.registerFont(TTFont("LabelFont", str(path)))
-                print(f"  using label font: {rel}")
+                if not quiet:
+                    print(f"  using label font: {rel}")
                 return "LabelFont", "LabelFont"
             except Exception as exc:  # noqa: BLE001
                 print(f"  note: could not load {rel} ({exc}) — using Helvetica.")
-        else:
-            print(f"  note: label font {rel} not found — using Helvetica. "
-                  "Drop the TTF there to use it.")
+        elif not quiet:
+            print(f"  note: label font {rel} not found — using Helvetica.")
     return "Helvetica-Bold", "Helvetica"
 
 
 def page_size(lc):
     unit = inch if lc.get("units", "in") == "in" else mm
     return float(lc.get("width", 6)) * unit, float(lc.get("height", 4)) * unit
+
+
+def label_geom(config, small):
+    if small:
+        lc = config.get("label_small") or {"width": 51, "height": 19, "units": "mm"}
+    else:
+        lc = config.get("label") or {}
+    w, h = page_size(lc)
+    return w, h, lc.get("qr_error", "M")
 
 
 def default_filename(ids, suffix=""):
@@ -189,7 +202,6 @@ def render_label(c, W, H, asset_id, title, lines, url, qr_error, hfont, bfont):
 
 
 def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont):
-    """Compact label: QR + asset number + make/model. Adapts to orientation."""
     m = 1.2 * mm
     c.setLineWidth(0.5)
     c.setStrokeColorRGB(0.7, 0.7, 0.7)
@@ -232,31 +244,116 @@ def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont):
             c.drawCentredString(W / 2, y, line)
 
 
+# --- shared content + drawing ----------------------------------------------
+
+def asset_content(aid, comp_by_id, part_by_id, parts):
+    """(title, lines) for an asset, or None if the id is unknown."""
+    if aid in comp_by_id:
+        c = comp_by_id[aid]
+        return display_name(c), computer_lines(c, parts)
+    if aid in part_by_id:
+        p = part_by_id[aid]
+        return display_name(p), part_lines(p)
+    return None
+
+
+def draw_one(c, W, H, aid, small, config, title, lines, qr_error, hfont, bfont):
+    url = item_url(config, aid)
+    if small:
+        render_small_label(c, W, H, aid, title, url, qr_error, hfont, bfont)
+    else:
+        render_label(c, W, H, aid, title, lines, url, qr_error, hfont, bfont)
+    c.showPage()
+
+
+# --- automatic labels ------------------------------------------------------
+
+def auto_plan(aid, comp_by_id, part_by_id):
+    """Which labels a device gets: computers -> full + small; peripherals ->
+    small; everything else -> none. Returns a list of (suffix, small)."""
+    if aid in comp_by_id:
+        return [("", False), ("-small", True)]
+    p = part_by_id.get(aid)
+    if p and p.get("type") == "peripheral":
+        return [("-small", True)]
+    return []
+
+
+def auto_labels(asset_ids, config=None, announce=True):
+    """Write the automatic label set for the given assets (overwriting). Returns
+    the list of files written."""
+    config = config or load_config()
+    computers, parts = load_computers(), load_parts()
+    comp_by_id, part_by_id = index_by_id(computers), index_by_id(parts)
+    hfont, bfont = register_fonts(config, quiet=True)
+    LABELS_DIR.mkdir(parents=True, exist_ok=True)
+
+    written = []
+    for aid in asset_ids:
+        plan = auto_plan(aid, comp_by_id, part_by_id)
+        if not plan:
+            continue
+        content = asset_content(aid, comp_by_id, part_by_id, parts)
+        if not content:
+            continue
+        title, lines = content
+        for suffix, small in plan:
+            out = LABELS_DIR / f"{aid}{suffix}.pdf"
+            W, H, qr = label_geom(config, small)
+            c = canvas.Canvas(str(out), pagesize=(W, H))
+            draw_one(c, W, H, aid, small, config, title, lines, qr, hfont, bfont)
+            c.save()
+            written.append(out)
+    if announce and written:
+        print("  labels: " + ", ".join(p.name for p in written))
+    return written
+
+
+def regenerate(asset_ids, config=None):
+    """Auto-label the given assets, and any parent computers of changed parts
+    (whose build summary may have changed). Returns files written."""
+    pbi = index_by_id(load_parts())
+    targets = set()
+    for aid in asset_ids:
+        targets.add(aid)
+        p = pbi.get(aid)
+        if p and p.get("computer_id"):
+            targets.add(p["computer_id"])
+    return auto_labels(sorted(targets), config)
+
+
+def all_auto_ids():
+    computers, parts = load_computers(), load_parts()
+    return ([c["asset_id"] for c in computers]
+            + [p["asset_id"] for p in parts if p.get("type") == "peripheral"])
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("ids", nargs="*", help="asset_ids to print (default: all)")
     ap.add_argument("--small", action="store_true",
                     help="compact QR + number + make/model label (config: label_small)")
+    ap.add_argument("--auto", action="store_true",
+                    help="auto set: computers get full+small, peripherals get small")
     ap.add_argument("-o", "--out", default=None,
                     help="output PDF path (default: named after the asset id(s))")
     args = ap.parse_args()
 
     config = load_config()
-    computers = load_computers()
-    parts = load_parts()
-    comp_by_id = index_by_id(computers)
-    part_by_id = index_by_id(parts)
+
+    if args.auto:
+        ids = args.ids if args.ids else all_auto_ids()
+        written = auto_labels(ids, config, announce=False)
+        print(f"Wrote {len(written)} label file(s) -> {LABELS_DIR}")
+        return
+
+    computers, parts = load_computers(), load_parts()
+    comp_by_id, part_by_id = index_by_id(computers), index_by_id(parts)
     hfont, bfont = register_fonts(config)
 
     all_ids = sorted([c["asset_id"] for c in computers] + [p["asset_id"] for p in parts])
     ids = args.ids if args.ids else all_ids
-
-    if args.small:
-        lc = config.get("label_small") or {"width": 51, "height": 19, "units": "mm"}
-    else:
-        lc = config.get("label") or {}
-    qr_error = lc.get("qr_error", "M")
 
     base_url = config.get("base_url") or ""
     if not base_url or "USERNAME" in base_url:
@@ -264,37 +361,28 @@ def main():
         print("         QR codes will not resolve until you set it to your "
               "GitHub Pages URL.\n")
 
-    W, H = page_size(lc)
-    suffix = "-small" if args.small else ""
-    out_path = Path(args.out) if args.out else ROOT / "labels" / default_filename(args.ids, suffix)
+    small = args.small
+    W, H, qr_error = label_geom(config, small)
+    suffix = "-small" if small else ""
+    out_path = Path(args.out) if args.out else LABELS_DIR / default_filename(args.ids, suffix)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(out_path), pagesize=(W, H))
 
     printed = 0
     for aid in ids:
-        if aid in comp_by_id:
-            comp = comp_by_id[aid]
-            title, lines = display_name(comp), computer_lines(comp, parts)
-        elif aid in part_by_id:
-            part = part_by_id[aid]
-            title, lines = display_name(part), part_lines(part)
-        else:
+        content = asset_content(aid, comp_by_id, part_by_id, parts)
+        if not content:
             print(f"  ! unknown asset_id: {aid}")
             continue
-        if args.small:
-            render_small_label(c, W, H, aid, title, item_url(config, aid),
-                               qr_error, hfont, bfont)
-        else:
-            render_label(c, W, H, aid, title, lines, item_url(config, aid),
-                         qr_error, hfont, bfont)
-        c.showPage()
+        title, lines = content
+        draw_one(c, W, H, aid, small, config, title, lines, qr_error, hfont, bfont)
         printed += 1
 
     if printed == 0:
         print("No matching items — nothing written.")
         return
     c.save()
-    print(f"Wrote {printed} {'small ' if args.small else ''}label(s) -> {out_path}")
+    print(f"Wrote {printed} {'small ' if small else ''}label(s) -> {out_path}")
 
 
 if __name__ == "__main__":
