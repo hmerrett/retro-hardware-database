@@ -218,6 +218,19 @@ def merge_spec(specs, key, value):
     return " | ".join(f"{k}: {v}" if k else v for k, v in out)
 
 
+_DATE_RE = re.compile(r"^(\d{4}([-/]\d{1,2}){0,2}|\d{1,2}[-/]\d{1,2}[-/]\d{2,4})$")
+
+
+def date_warning(value):
+    """Gentle heads-up if acquired_date doesn't look like a date (e.g. an eBay
+    order number ran into the field). Non-blocking."""
+    v = (value or "").strip()
+    if v and not _DATE_RE.match(v):
+        return (f"  ! '{v}' doesn't look like a date (e.g. 2026-06-23) — check an "
+                "order number didn't run into the acquired-date field.")
+    return None
+
+
 # --- presets (generic, reusable parts) -------------------------------------
 
 def list_presets():
@@ -340,6 +353,10 @@ def commit_new(kind, partial, config, dry_run):
             print(f"  ! warning: computer_id {row['computer_id']} is not an existing "
                   "computer — saving anyway (fix later or leave blank for standalone).")
 
+    dw = date_warning(row.get("acquired_date", ""))
+    if dw:
+        print(dw)
+
     if dry_run:
         print(f"\n[dry-run] would add to {kind}s.csv as {asset_id}:")
         for c in columns:
@@ -381,6 +398,10 @@ def update_interactive(asset_id, config, dry_run):
         show_field_list("computer", [], COMPUTER_FIELDS)
         print()
         row.update(prompt_fields(COMPUTER_FIELDS, current=row))
+
+    dw = date_warning(row.get("acquired_date", ""))
+    if dw:
+        print(dw)
 
     if dry_run:
         print(f"\n[dry-run] would update {asset_id}:")
