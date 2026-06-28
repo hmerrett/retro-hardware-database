@@ -19,7 +19,7 @@
       {% if a.image %}
         <img src="{{ root }}images/{{ a.image }}" alt="{{ a.display_name }}" loading="lazy">
       {% else %}
-        <span class="noimg">no photo yet</span>
+        <img class="ph" src="{{ root }}{{ a.placeholder }}" alt="{{ a.cat_label }}" loading="lazy">
       {% endif %}
     </div>
     <div class="body">

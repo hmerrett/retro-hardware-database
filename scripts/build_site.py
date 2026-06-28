@@ -18,7 +18,8 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from common import (IMAGES_DIR, ROOT, TYPE_ORDER, display_name, index_by_id,
                     load_computers, load_config, load_parts, parse_specs,
-                    parts_for, type_label, type_sort_key, validate)
+                    parts_for, placeholder_for, type_label, type_sort_key,
+                    validate)
 
 TEMPLATES_DIR = ROOT / "templates"
 SITE_DIR = ROOT / "site"
@@ -39,6 +40,7 @@ def build():
     # Derived fields.
     for c in computers:
         c["display_name"] = display_name(c)
+        c["placeholder"] = placeholder_for("computer")
     computers_by_id = index_by_id(computers)
 
     for p in parts:
@@ -46,6 +48,7 @@ def build():
         p["type_label"] = type_label(p.get("type", ""))
         p["spec_pairs"] = parse_specs(p.get("specs", ""))
         p["parent"] = computers_by_id.get(p.get("computer_id", "")) or None
+        p["placeholder"] = placeholder_for(p.get("type", ""))
     for c in computers:
         c["parts"] = parts_for(c["asset_id"], parts)
 
@@ -61,6 +64,9 @@ def build():
     if IMAGES_DIR.exists():
         shutil.copytree(IMAGES_DIR, SITE_DIR / "images",
                         ignore=shutil.ignore_patterns(".gitkeep"))
+    placeholders = ROOT / "assets" / "placeholders"
+    if placeholders.exists():
+        shutil.copytree(placeholders, SITE_DIR / "placeholders")
 
     # --- index: unified list of computers + parts ---
     assets = []
@@ -69,6 +75,7 @@ def build():
             "asset_id": c["asset_id"], "cat": "computer", "cat_label": "Computer",
             "display_name": c["display_name"], "image": c.get("image", ""),
             "year": c.get("year", ""), "parent": "", "generic": False,
+            "placeholder": c["placeholder"],
             "search_text": " ".join([c["display_name"], c.get("manufacturer", ""),
                                      c.get("model", ""), c.get("os", ""),
                                      c["asset_id"]]).lower(),
@@ -80,6 +87,7 @@ def build():
             "image": p.get("image", ""), "year": p.get("year", ""),
             "parent": p.get("computer_id", ""),
             "generic": (p.get("manufacturer", "").strip().lower() == "generic"),
+            "placeholder": p["placeholder"],
             "search_text": " ".join([p["display_name"], p.get("manufacturer", ""),
                                      p.get("model", ""), p.get("specs", ""),
                                      p.get("type", ""), p["asset_id"]]).lower(),

@@ -4,7 +4,8 @@
 <p class="back"><a href="{{ root }}index.html">← all items</a></p>
 
 <div class="item-head">
-  {% if p.image %}<img src="{{ root }}images/{{ p.image }}" alt="{{ p.display_name }}">{% endif %}
+  {% if p.image %}<img src="{{ root }}images/{{ p.image }}" alt="{{ p.display_name }}">
+  {% else %}<img class="ph-lg" src="{{ root }}{{ p.placeholder }}" alt="{{ p.type_label }}">{% endif %}
   <div>
     <div class="aid">{{ p.asset_id }}</div>
     <h2>{{ p.display_name }}</h2>

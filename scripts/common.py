@@ -141,6 +141,19 @@ def item_url(config: dict, asset_id: str) -> str:
     return f"{base}/items/{asset_id}/"
 
 
+# Placeholder icon (in assets/placeholders/) shown when an item has no photo.
+PLACEHOLDER = {
+    "computer": "computer", "motherboard": "board", "cpu": "chip", "ram": "ram",
+    "gpu": "card", "sound": "card", "network": "card", "io": "card",
+    "storage": "drive", "optical": "disc", "floppy": "floppy", "psu": "psu",
+    "cooler": "fan", "peripheral": "keyboard", "other": "box",
+}
+
+
+def placeholder_for(kind_or_type: str) -> str:
+    return "placeholders/" + PLACEHOLDER.get(kind_or_type, "box") + ".svg"
+
+
 def next_asset_id(config: dict, computers: list[dict], parts: list[dict]) -> str:
     """Next free id across BOTH tables, e.g. RH-0012."""
     prefix = config.get("asset_prefix", "RH-")
