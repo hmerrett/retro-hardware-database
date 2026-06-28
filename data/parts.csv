@@ -27,3 +27,7 @@ RH-0028,,storage,Seagate,SRD3080C,,1990,Interface: IDE | Protocol: ATA | Capacit
 RH-0029,,storage,Maxtor,7040AT,,1991,Interface: IDE | Protocol: ATA | Capacity: 40MB | CHS: 981/5/17,Working,,,,https://theretroweb.com/harddrives/97,,,"ddrescue took a couple of tries, i expect this drive is failing.",/public/_disk_images/Maxtor-7040AT.img
 RH-0030,,storage,Seagate,ST3144A,,1993,Interface: IDE | Protocol: ATA | Capacity: 112MB | CHS: 1001/15/17,Working,Was installed in Pigeon Poo Hyundai from TME Matt,2026-05-09,,https://theretroweb.com/harddrives/68,,,This one has Novell Netware installed.,/public/_disk_images/Seagate-ST3144A-Netware.img
 RH-0031,,storage,Seagate,ST3144A,,1993,Interface: IDE | Protocol: ATA | Capacity: 112MB | CHS: 1001/15/17,Working,Was installed in Pigeon Poo Hyundai from TME Matt,2026-05-09,,https://theretroweb.com/harddrives/68,,,This one has Novell Netware installed on the second partition (SDA2),/public/_disk_images/Seagate-ST3144A-Netware3.img
+RH-0032,,io,Longshine,LCS-6954,,1995,Interface: VLB,Working,,,,https://theretroweb.com/expansioncards/s/longshine-microsystem-inc-lcs-6954,,,missing de9 serial connector,
+RH-0033,,io,Western Digital,WD1003V-MM1,,1989,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/western-digital-wd1003v-mm1,,,,
+RH-0034,,io,Generic,Super IO SIO-19A,,1993,Interface: ISA,Working,,,,,,,,
+RH-0035,,io,Longshine,LCS-6624G,,1994,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/longshine-lcs-6624g-rev-w3,,,,
