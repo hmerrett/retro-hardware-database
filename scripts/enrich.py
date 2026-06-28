@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import io
+import re
 import time
 from urllib.parse import quote
 
@@ -71,6 +72,17 @@ def wiki_summary(session, lang, title):
     return resp.json() if resp.status_code == 200 else None
 
 
+def looks_relevant(name, title):
+    """True if the matched article title shares a significant token (>=3 chars)
+    with the item name — guards against junk matches (e.g. 'ECS CI-90' -> the
+    'Climate inertia' article). If there are no such tokens, don't block."""
+    tokens = {t for t in re.findall(r"[a-z0-9]+", name.lower()) if len(t) >= 3}
+    if not tokens:
+        return True
+    tl = title.lower()
+    return any(t in tl for t in tokens)
+
+
 def enrich_wikipedia(session, row, kind, lang, max_px, force):
     need_summary = force or not row["summary"]
     need_url = force or not row["wikipedia_url"]
@@ -94,6 +106,10 @@ def enrich_wikipedia(session, row, kind, lang, max_px, force):
         title = wiki_search_title(session, lang, query)
         if not title:
             print("      no match")
+            return False
+        if not looks_relevant(query, title):
+            print(f"      '{title}' looks unrelated to '{query}' — skipping "
+                  "(paste a wikipedia_url yourself to override)")
             return False
         data = wiki_summary(session, lang, title)
         if not data:
