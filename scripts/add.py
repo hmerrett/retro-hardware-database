@@ -246,7 +246,8 @@ def detailed_part(ptype, computer_id, config, seed):
     preset, with optional enrichment. Used by the walk's 'advanced' option."""
     print(f"\n  Advanced {type_label(ptype)} — enter the real card's details "
           "(Enter keeps the suggested value):")
-    seed_row = {"name": seed.get("name", ""), "specs": seed.get("specs", "")}
+    # Don't pre-seed the name — leaving it blank makes it default to maker+model.
+    seed_row = {"specs": seed.get("specs", "")}
     fields = prompt_fields(PART_FIELDS, current=seed_row)
     fields["type"] = ptype
     fields["computer_id"] = computer_id

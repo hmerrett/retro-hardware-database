@@ -160,8 +160,9 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html):
     url = row.get("theretroweb_url", "")
     if not url:
         return False
-    need_specs = force or not row["specs"]
-    need_image = force or not row["image"]
+    has_specs = "specs" in row          # computers have no specs column
+    need_specs = has_specs and (force or not row.get("specs", ""))
+    need_image = force or not row.get("image", "")
     if not (need_specs or need_image):
         return False
 
