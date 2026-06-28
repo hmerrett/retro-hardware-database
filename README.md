@@ -137,6 +137,7 @@ contact the project (GitHub `TheRetroWeb`, or their Discord).
 python scripts/make_labels.py                  # everything -> labels/labels.pdf
 python scripts/make_labels.py RH-0001          # -> labels/RH-0001.pdf
 python scripts/make_labels.py RH-0001 RH-0002  # -> labels/RH-0001_RH-0002.pdf
+python scripts/make_labels.py --small RH-0001  # mini QR tag (51x19mm) -> labels/RH-0001-small.pdf
 ```
 
 A computer's label summarises its build (CPU, RAM, video, sound, storage…)

@@ -24,6 +24,14 @@ label:
   # Drop the file at this path; if it's missing, labels fall back to Helvetica.
   font_path: "assets/fonts/Audiowide-Regular.ttf"
 
+# Smaller label: QR + asset number + make/model only (e.g. a 19 x 51 mm Dymo).
+# Used with:  python scripts/make_labels.py --small RH-0001
+label_small:
+  width: 51
+  height: 19
+  units: "mm"
+  qr_error: "M"
+
 # Enrichment
 enrich:
   # Wikipedia / Wikimedia (free, no key). Used for summaries + photos.
