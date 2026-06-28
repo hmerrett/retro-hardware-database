@@ -23,3 +23,4 @@ RH-0024,,io,TMC/MyComp/MyNix/Megastar,IFSP,,1992,Interface: ISA,Working,,,,https
 RH-0025,,io,Silicon Valley Computer,ADP20L,,1991,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/silicon-valley-computer-adp20l,,,,
 RH-0026,,io,Pine Technology,PT-628A,,1995,Interface: VLB,Working,,,,https://theretroweb.com/expansioncards/s/pine-pt627b,,,,
 RH-0027,,storage,Quantum,ProDrive LPS 52A,,1991,Interface: IDE | Capacity: 50MB | CHS: 571/8/17,Working,,,,https://theretroweb.com/harddrives/1437,,,,/public/_disk_images/Quantum-ProDrive-LPS.img
+RH-0028,,storage,Seagate,SRD3080C,,1990,Interface: IDE | Protocol: ATA | Capacity: 80MB | CHS: 822/4/51,Working,,,,,,,Branded Amstrad and Sony,/public/_disk_images/Sony-Seagate-SRD3080C.img
