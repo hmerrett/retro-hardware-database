@@ -131,6 +131,15 @@ Their robots policy allows general access but disallows AI-training crawlers;
 this personal, link-targeted use respects that. For bulk/sanctioned data,
 contact the project (GitHub `TheRetroWeb`, or their Discord).
 
+## Adding your own photos
+
+Drop a photo named after the asset — e.g. `RH-0021.jpg` — into
+`images/computers/` or `images/parts/`, and the site links it automatically (no
+CSV editing). **No cropping needed:** card thumbnails crop to fit and the item
+page shows the whole image, so any aspect ratio works. `./publish.sh` (or
+`python scripts/process_images.py`) downsizes large photos and converts them to
+JPEG so the repo stays small and pages load fast.
+
 ## Printing labels
 
 ```bash

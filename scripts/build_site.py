@@ -23,6 +23,18 @@ from common import (IMAGES_DIR, ROOT, TYPE_ORDER, display_name, index_by_id,
 
 TEMPLATES_DIR = ROOT / "templates"
 SITE_DIR = ROOT / "site"
+IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+
+
+def detect_image(kind, asset_id):
+    """Find a photo dropped in by hand as images/<kind>/<asset_id>.<ext>
+    (so you don't have to edit the CSV). kind is 'computers' or 'parts'."""
+    folder = IMAGES_DIR / kind
+    for ext in IMAGE_EXTS:
+        f = folder / f"{asset_id}{ext}"
+        if f.exists():
+            return f"{kind}/{f.name}"
+    return ""
 
 
 def build():
@@ -41,6 +53,8 @@ def build():
     for c in computers:
         c["display_name"] = display_name(c)
         c["placeholder"] = placeholder_for("computer")
+        if not c.get("image"):
+            c["image"] = detect_image("computers", c["asset_id"])
     computers_by_id = index_by_id(computers)
 
     for p in parts:
@@ -49,6 +63,8 @@ def build():
         p["spec_pairs"] = parse_specs(p.get("specs", ""))
         p["parent"] = computers_by_id.get(p.get("computer_id", "")) or None
         p["placeholder"] = placeholder_for(p.get("type", ""))
+        if not p.get("image"):
+            p["image"] = detect_image("parts", p["asset_id"])
     for c in computers:
         c["parts"] = parts_for(c["asset_id"], parts)
 

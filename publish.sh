@@ -17,6 +17,9 @@ else
   PY="python3"
 fi
 
+echo "==> Optimising images"
+"$PY" scripts/process_images.py
+
 echo "==> Building site"
 "$PY" scripts/build_site.py
 
