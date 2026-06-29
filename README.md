@@ -132,14 +132,14 @@ this personal, link-targeted use respects that. For bulk/sanctioned data,
 contact the project (GitHub `TheRetroWeb`, or their Discord).
 
 Because Cloudflare blocks the plain reader, a best-effort automatic grab of the
-**photo** (and specs) is available via a headless browser. One-time setup
-(about 150 MB browser download):
+**photo** (and specs) is available via a headless browser:
 
 ```bash
 pip install -r requirements-browser.txt
-playwright install chromium
 ```
 
+If you have Google Chrome installed it's driven automatically (no download). If
+not, fetch Playwright's bundled Chromium once with `playwright install chromium`.
 Then, for one card:
 
 ```bash

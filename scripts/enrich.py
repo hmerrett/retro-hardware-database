@@ -184,14 +184,18 @@ def fetch_theretroweb_browser(url, ua=BROWSER_UA, timeout=45):
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        print("      Playwright not installed — run:")
-        print("        pip install -r requirements-browser.txt")
-        print("        playwright install chromium")
+        print("      Playwright not installed — run: pip install -r requirements-browser.txt")
+        print("      (it then drives your installed Google Chrome; no browser download)")
         return None, None
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(
-                args=["--disable-blink-features=AutomationControlled"])
+            launch_args = ["--disable-blink-features=AutomationControlled"]
+            try:
+                # Use the locally-installed Google Chrome — no download needed.
+                browser = pw.chromium.launch(channel="chrome", args=launch_args)
+            except Exception:
+                # Fall back to Playwright's bundled Chromium if Chrome isn't found.
+                browser = pw.chromium.launch(args=launch_args)
             ctx = browser.new_context(user_agent=ua)
             page = ctx.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
