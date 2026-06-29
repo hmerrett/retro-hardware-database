@@ -25,7 +25,7 @@ import argparse
 import io
 import re
 import time
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 import requests
 from PIL import Image
@@ -201,15 +201,20 @@ def fetch_theretroweb_browser(url, ua=BROWSER_UA, timeout=45):
             page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
             page.wait_for_timeout(1800)  # let any Cloudflare / JS settle
             html = page.content()
+            page_url = page.url
             try:
                 img_url = page.get_attribute('meta[property="og:image"]', "content")
             except Exception:  # noqa: BLE001
                 img_url = None
             img_bytes = None
             if img_url:
-                resp = ctx.request.get(img_url, timeout=timeout * 1000)
-                if resp.ok:
-                    img_bytes = resp.body()
+                img_url = urljoin(page_url, img_url)  # resolve relative og:image
+                try:
+                    resp = ctx.request.get(img_url, timeout=timeout * 1000)
+                    if resp.ok:
+                        img_bytes = resp.body()
+                except Exception as exc:  # noqa: BLE001
+                    print(f"      (image fetch failed: {exc})")
             browser.close()
             return html, img_bytes
     except Exception as exc:  # noqa: BLE001
