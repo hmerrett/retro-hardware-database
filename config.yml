@@ -48,3 +48,5 @@ enrich:
   # it skips and keeps the link. See docs/schema.md.
   theretroweb_user_agent: "RetroHardwareDB/1.0 (personal collection; +https://github.com/hmerrett/retro-hardware-database)"
   theretroweb_delay_seconds: 3
+  # User-agent for --browser (headless) Retro Web fetches — looks like Chrome.
+  theretroweb_browser_ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"

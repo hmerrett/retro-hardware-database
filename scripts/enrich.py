@@ -172,12 +172,12 @@ def parse_theretroweb(html):
     return specs, image
 
 
-# A normal-looking browser UA so Cloudflare serves the page to headless Chromium.
-BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+# A current Chrome UA so Cloudflare serves the page to headless Chromium.
+BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 
 
-def fetch_theretroweb_browser(url, timeout=45):
+def fetch_theretroweb_browser(url, ua=BROWSER_UA, timeout=45):
     """Render a Retro Web page in headless Chromium (gets past the Cloudflare JS
     challenge that blocks plain requests). Returns (html, image_bytes); either
     may be None. Requires the optional Playwright dependency."""
@@ -185,12 +185,14 @@ def fetch_theretroweb_browser(url, timeout=45):
         from playwright.sync_api import sync_playwright
     except ImportError:
         print("      Playwright not installed — run:")
-        print("        pip install playwright && playwright install chromium")
+        print("        pip install -r requirements-browser.txt")
+        print("        playwright install chromium")
         return None, None
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch()
-            ctx = browser.new_context(user_agent=BROWSER_UA)
+            browser = pw.chromium.launch(
+                args=["--disable-blink-features=AutomationControlled"])
+            ctx = browser.new_context(user_agent=ua)
             page = ctx.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
             page.wait_for_timeout(1800)  # let any Cloudflare / JS settle
@@ -221,7 +223,7 @@ def _save_image_bytes(data, kind, asset_id, max_px):
 
 
 def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
-                       use_browser=False):
+                       use_browser=False, browser_ua=BROWSER_UA):
     url = row.get("theretroweb_url", "")
     if not url:
         return False
@@ -236,7 +238,7 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
         time.sleep(delay)  # be polite
         img_bytes = None
         if use_browser:
-            html, img_bytes = fetch_theretroweb_browser(url)
+            html, img_bytes = fetch_theretroweb_browser(url, browser_ua)
             if html is None:
                 return False
         else:
@@ -306,6 +308,7 @@ def main():
         "Accept": "text/html,application/xhtml+xml",
     })
     trw_delay = float(enr.get("theretroweb_delay_seconds", 3))
+    browser_ua = enr.get("theretroweb_browser_ua") or BROWSER_UA
 
     computers = load_computers()
     parts = load_parts()
@@ -321,7 +324,7 @@ def main():
         if args.source in ("theretroweb", "all"):
             changed |= enrich_theretroweb(trw_session, row, kind, max_px,
                                           trw_delay, args.force, args.dump_html,
-                                          use_browser=args.browser)
+                                          use_browser=args.browser, browser_ua=browser_ua)
         if changed:
             if kind == "computers":
                 changed_c += 1
