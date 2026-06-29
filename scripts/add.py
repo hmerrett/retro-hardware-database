@@ -311,8 +311,9 @@ def detailed_part(ptype, computer_id, config, seed):
     apply_type_prompts(fields, ptype)
     asset_id, row = commit_new("part", fields, config, dry_run=False)
     print(f"  + {asset_id}  {display_name(row)}")
-    if ask("Look up photo + summary on Wikipedia? (y/N)", "N").lower().startswith("y"):
-        run_enrich(asset_id)
+    if ask("Fetch photo + specs now (Retro Web if linked, else Wikipedia)? (y/N)",
+           "N").lower().startswith("y"):
+        run_enrich(asset_id, "part", row.get("theretroweb_url", ""))
     return asset_id
 
 
@@ -471,11 +472,16 @@ def update_interactive(asset_id, config, dry_run):
     print("\nNext: ./publish.sh   (build, commit, push)")
 
 
-def run_enrich(asset_id):
+def run_enrich(asset_id, kind, theretroweb_url):
     script = __file__.replace("add.py", "enrich.py")
-    print(f"\nLooking up {asset_id} on Wikipedia…")
+    cmd = [sys.executable, script, "--only", asset_id]
+    if kind == "part" and theretroweb_url:
+        cmd += ["--source", "theretroweb", "--browser"]
+        print(f"\nFetching {asset_id} photo + specs from Retro Web (browser)…")
+    else:
+        print(f"\nLooking up {asset_id} on Wikipedia…")
     try:
-        subprocess.run([sys.executable, script, "--only", asset_id], check=False)
+        subprocess.run(cmd, check=False)
     except Exception as exc:  # noqa: BLE001
         print(f"  enrichment skipped: {exc}")
 
@@ -557,7 +563,8 @@ def main():
             partial = computer_row_interactive()
         else:
             partial = part_row_interactive(load_computers())
-        do_enrich = ask("Look up photo + summary on Wikipedia now? (Y/n)", "Y").lower().startswith("y")
+        do_enrich = ask("Look up photo/specs now (Wikipedia, or Retro Web for a linked part)? (Y/n)",
+                        "Y").lower().startswith("y")
     else:
         kind = args.kind
         skip = {"dry_run", "enrich", "kind"}
@@ -573,7 +580,7 @@ def main():
     if config.get("base_url") and "USERNAME" not in config.get("base_url", ""):
         print(f"  page will be: {item_url(config, asset_id)}")
     if do_enrich:
-        run_enrich(asset_id)
+        run_enrich(asset_id, kind, row.get("theretroweb_url", ""))
     if interactive and kind == "computer":
         touched += offer_generic(asset_id, config)
 
