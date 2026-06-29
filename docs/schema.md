@@ -81,7 +81,7 @@ different kinds can live in one table. These are conventions, not rules:
 - **gpu** — `Interface` (ISA/VLB/PCI/AGP), `Memory`, `Chipset`, `Type`
 - **sound** — `Interface` (bus), `Chipset`, `FM`, `Ports`
 - **network** — `Interface` (ISA/PCI bus), `Connector` (10BASE-T/BNC/AUI), `Chipset`
-- **io** — `Interface` (bus), `Ports` (quick entry: letters I=IDE C=SCSI A=SATA F=Floppy S=Serial P=Parallel G=Game, e.g. `IFSSP` → `IDE, Floppy, 2× Serial, Parallel`)
+- **io** — `Interface` (bus), `Ports` (quick entry: letters I=IDE C=SCSI A=SATA M=MFM F=Floppy S=Serial P=Parallel G=Game, e.g. `IFSSP` → `IDE, Floppy, 2× Serial, Parallel`)
 - **storage** — `Interface` (IDE/SCSI/MFM/CF/SD), `Protocol` (ATA/ATAPI/XTA/RLL/MFM/ESDI), `Capacity`, `CHS` (cylinders/heads/sectors), `Role`
 - **optical / floppy** — `Media`, `Interface`, `Speed`
 - **peripheral** — `Interface` (USB, parallel, serial, PS/2, …), plus
