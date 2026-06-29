@@ -274,7 +274,7 @@ def auto_plan(aid, comp_by_id, part_by_id):
     if aid in comp_by_id:
         return [("", False), ("-small", True)]
     p = part_by_id.get(aid)
-    if p and p.get("manufacturer", "").strip().lower() not in ("", "generic"):
+    if p and p.get("manufacturer", "").strip().lower() != "generic":
         return [("-small", True)]
     return []
 
@@ -326,7 +326,7 @@ def all_auto_ids():
     computers, parts = load_computers(), load_parts()
     return ([c["asset_id"] for c in computers]
             + [p["asset_id"] for p in parts
-               if p.get("manufacturer", "").strip().lower() not in ("", "generic")])
+               if p.get("manufacturer", "").strip().lower() != "generic"])
 
 
 def main():
