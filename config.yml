@@ -18,8 +18,10 @@ asset_pad: 4
 label:
   width: 6
   height: 4
-  units: "in"        # "in" or "mm"
-  qr_error: "M"      # QR error-correction: L, M, Q, or H
+  # units: "in" or "mm"
+  units: "in"
+  # QR error-correction: L, M, Q, or H
+  qr_error: "M"
   # Optional TTF display font for the asset number + title on labels.
   # Drop the file at this path; if it's missing, labels fall back to Helvetica.
   font_path: "assets/fonts/Audiowide-Regular.ttf"
@@ -37,7 +39,8 @@ enrich:
   # Wikipedia / Wikimedia (free, no key). Used for summaries + photos.
   wikipedia_lang: "en"
   user_agent: "RetroHardwareDB/1.0 (https://github.com/hmerrett/retro-hardware-database)"
-  image_max_px: 1000   # downscale downloaded photos so the repo stays light
+  # downscale downloaded photos so the repo stays light
+  image_max_px: 1000
 
   # The Retro Web (https://theretroweb.com) — community hardware database.
   # No public API; the site is behind Cloudflare. We ALWAYS store the reference
