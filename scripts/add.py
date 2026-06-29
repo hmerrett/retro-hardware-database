@@ -276,7 +276,7 @@ def ask_interface(specs, examples):
     return specs
 
 
-PORT_CODES = [("I", "IDE"), ("F", "Floppy"), ("S", "Serial"),
+PORT_CODES = [("I", "IDE"), ("C", "SCSI"), ("F", "Floppy"), ("S", "Serial"),
               ("P", "Parallel"), ("G", "Game")]
 
 
@@ -296,7 +296,7 @@ def expand_ports(code):
 
 
 def ask_ports(specs):
-    raw = ask("ports — letters I=IDE F=Floppy S=Serial P=Parallel G=Game "
+    raw = ask("ports — letters I=IDE C=SCSI F=Floppy S=Serial P=Parallel G=Game "
               "(e.g. IFSSP), blank to skip")
     if not raw:
         return specs
