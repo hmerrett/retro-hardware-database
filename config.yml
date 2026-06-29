@@ -53,3 +53,6 @@ enrich:
   theretroweb_delay_seconds: 3
   # User-agent for --browser (headless) Retro Web fetches — looks like Chrome.
   theretroweb_browser_ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+  # SHA1s of Retro Web "please send a picture" holding images to ignore.
+  theretroweb_skip_image_sha1:
+    - "0e07517a48ddafd09fe2834ef5e50d52dbbaeec0"

@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import re
 import time
@@ -222,17 +223,16 @@ def fetch_theretroweb_browser(url, ua=BROWSER_UA, timeout=45):
         return None, None
 
 
-def _save_image_bytes(data, kind, asset_id, max_px):
+def _process_image_bytes(data, max_px):
     img = Image.open(io.BytesIO(data)).convert("RGB")
     img.thumbnail((max_px, max_px))
-    dest, rel = image_dest(kind, asset_id)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    img.save(dest, "JPEG", quality=85)
-    return rel
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=85)
+    return buf.getvalue()
 
 
 def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
-                       use_browser=False, browser_ua=BROWSER_UA):
+                       use_browser=False, browser_ua=BROWSER_UA, skip_hashes=()):
     url = row.get("theretroweb_url", "")
     if not url:
         return False
@@ -271,9 +271,16 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
         if need_image:
             try:
                 if img_bytes:
-                    row["image"] = _save_image_bytes(img_bytes, kind, row["asset_id"], max_px)
-                    print(f"      photo -> images/{row['image']}")
-                    changed = True
+                    proc = _process_image_bytes(img_bytes, max_px)
+                    if hashlib.sha1(proc).hexdigest() in skip_hashes:
+                        print("      Retro Web placeholder image — skipped (keeping our icon)")
+                    else:
+                        dest, rel = image_dest(kind, row["asset_id"])
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        dest.write_bytes(proc)
+                        row["image"] = rel
+                        print(f"      photo -> images/{rel}")
+                        changed = True
                 elif og_image and not use_browser:
                     dest, rel = image_dest(kind, row["asset_id"])
                     download_image(session, og_image, dest, max_px)
@@ -318,6 +325,7 @@ def main():
     })
     trw_delay = float(enr.get("theretroweb_delay_seconds", 3))
     browser_ua = enr.get("theretroweb_browser_ua") or BROWSER_UA
+    skip_hashes = set(enr.get("theretroweb_skip_image_sha1") or [])
 
     computers = load_computers()
     parts = load_parts()
@@ -333,7 +341,8 @@ def main():
         if args.source in ("theretroweb", "all"):
             changed |= enrich_theretroweb(trw_session, row, kind, max_px,
                                           trw_delay, args.force, args.dump_html,
-                                          use_browser=args.browser, browser_ua=browser_ua)
+                                          use_browser=args.browser, browser_ua=browser_ua,
+                                          skip_hashes=skip_hashes)
         if changed:
             if kind == "computers":
                 changed_c += 1

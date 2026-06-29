@@ -7,12 +7,12 @@ RH-0007,RH-0005,gpu,Generic,,Generic VGA,,Type: VGA | Memory: 256 KB,Working,,,,
 RH-0008,RH-0005,floppy,Generic,,3.5-inch 1.44 MB floppy drive,,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy,Working,,,,,,,,
 RH-0009,RH-0005,psu,Generic,,Generic power supply,,Form factor: AT,Working,,,,,,,,
 RH-0011,RH-0010,ram,Generic,,Generic RAM,,Size: 16384 KB,Working,,,,,,,,
-RH-0012,RH-0010,storage,Conner,CP30544,,1992,Interface: IDE | Protocol: ATA,Working,ebay 22-14789-40823,2026-06-23,parts/RH-0012.jpg,https://theretroweb.com/harddrives/3012,,,,/public/_disk_images/compaq-luggable-486-66-raw.img
+RH-0012,RH-0010,storage,Conner,CP30544,,1992,Interface: IDE | Protocol: ATA,Working,ebay 22-14789-40823,2026-06-23,,https://theretroweb.com/harddrives/3012,,,,/public/_disk_images/compaq-luggable-486-66-raw.img
 RH-0013,RH-0010,floppy,Generic,,3.5-inch 1.44 MB floppy drive,,Media: 3.5-inch 1.44 MB | Interface: 34-pin floppy,Working,,,,,,,,
 RH-0014,,storage,Seagate,ST31276A,,1997,Interface: IDE | Protocol: ATA | Capacity: 1275 MB,Working,,,parts/RH-0014.jpg,https://theretroweb.com/harddrives/50,,,,
 RH-0015,,io,Pine Technology,PT-628B,,1995,"2 x serial, 1 x game, 1 x floppy, 2 x HDD | Interface: VLB",Working,Pete Crossley,2025-01-01,parts/RH-0015.jpg,https://theretroweb.com/expansioncards/s/pine-pt627b,,,Vesa local bus interface,
 RH-0016,,storage,Quantum,Trailblazer TMS850A,,1995,840MB | Interface: IDE | Protocol: ATA | Capacity: 840MB | CHS: 1647/16/63,Working,,,,,,,,/public/_disk_images/TMS850A-SDA1.img
-RH-0017,,storage,Conner,CFA540A,,1994,Interface: IDE | Protocol: ATA | Capacity: 525MB | CHS: 1024/16/63,Working,,,parts/RH-0017.jpg,https://theretroweb.com/harddrives/3086,,,,/public/_disk_images/conner-cfa540a.img
+RH-0017,,storage,Conner,CFA540A,,1994,Interface: IDE | Protocol: ATA | Capacity: 525MB | CHS: 1024/16/63,Working,,,,https://theretroweb.com/harddrives/3086,,,,/public/_disk_images/conner-cfa540a.img
 RH-0018,,io,Compaq,000957,,1988,Interface: ISA,Working,,,parts/RH-0018.jpg,https://theretroweb.com/expansioncards/s/compaq-000957-001,,,,
 RH-0019,,io,Pine Technology,PT-606G,,1995,Interface: ISA,Working,,,parts/RH-0019.jpg,https://theretroweb.com/expansioncards/s/pine-technology-pt-606g,,,,
 RH-0020,,io,ECS,CI-90,,1991,Interface: ISA,Working,,,parts/RH-0020.jpg,https://theretroweb.com/expansioncards/s/ecs-ci-90,,,,
@@ -31,3 +31,4 @@ RH-0032,,io,Longshine,LCS-6954,,1995,Interface: VLB,Working,,,parts/RH-0032.jpg,
 RH-0033,,io,Western Digital,WD1003V-MM1,,1989,Interface: ISA,Working,,,parts/RH-0033.jpg,https://theretroweb.com/expansioncards/s/western-digital-wd1003v-mm1,,,,
 RH-0034,,io,Generic,Super IO SIO-19A,,1993,Interface: ISA,Working,,,,,,,,
 RH-0035,,io,Longshine,LCS-6624G,,1994,Interface: ISA,Working,,,parts/RH-0035.jpg,https://theretroweb.com/expansioncards/s/longshine-lcs-6624g-rev-w3,,,,
+RH-0036,,io,Pine Technology,PT-606,,1993,Interface: ISA,Working,,,,https://theretroweb.com/expansioncards/s/pine-technology-pt-606,,,,

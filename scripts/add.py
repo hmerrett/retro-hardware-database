@@ -47,7 +47,7 @@ SPEC_HINTS = {
     "gpu": "Memory, Chipset, Type",
     "sound": "Chipset, FM, Ports",
     "network": "Connector, Chipset",
-    "io": "Ports",
+    "io": "Chipset",
     "storage": "Role (interface/capacity/geometry asked separately)",
     "optical": "Media, Interface, Speed",
     "floppy": "Media, Interface",
@@ -276,11 +276,45 @@ def ask_interface(specs, examples):
     return specs
 
 
+PORT_CODES = [("I", "IDE"), ("F", "Floppy"), ("S", "Serial"),
+              ("P", "Parallel"), ("G", "Game")]
+
+
+def expand_ports(code):
+    """'IFSSP' -> ('IDE, Floppy, 2× Serial, Parallel', [unknown letters]).
+    Order-independent; repeated letters become a count."""
+    from collections import Counter
+    counts = Counter(c for c in code.upper() if c.isalpha())
+    known = {letter for letter, _ in PORT_CODES}
+    out = []
+    for letter, name in PORT_CODES:
+        n = counts.get(letter, 0)
+        if n:
+            out.append(f"{n}× {name}" if n > 1 else name)
+    unknown = sorted(c for c in counts if c not in known)
+    return ", ".join(out), unknown
+
+
+def ask_ports(specs):
+    raw = ask("ports — letters I=IDE F=Floppy S=Serial P=Parallel G=Game "
+              "(e.g. IFSSP), blank to skip")
+    if not raw:
+        return specs
+    longform, unknown = expand_ports(raw)
+    if unknown:
+        print(f"  (ignored unrecognised port letters: {', '.join(unknown)})")
+    if longform:
+        specs = merge_spec(specs, "Ports", longform)
+    return specs
+
+
 def apply_type_prompts(row, ptype):
     """Type-specific extra prompts run after the standard part fields."""
     if ptype in CARD_TYPES or ptype == "peripheral":
         row["specs"] = ask_interface(row.get("specs", ""),
                                      "ISA, PCI, VLB, AGP, USB, parallel, serial, PS/2")
+        if ptype == "io":
+            row["specs"] = ask_ports(row.get("specs", ""))
     elif ptype == "storage":
         row["specs"] = ask_interface(row.get("specs", ""), "IDE, SCSI, MFM, CF, SD")
         row["specs"] = ask_storage_specs(row.get("specs", ""))
