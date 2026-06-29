@@ -1,0 +1,5 @@
+# Optional — only needed for `enrich.py --browser` (headless Retro Web photo grab).
+# Install with:
+#   pip install -r requirements-browser.txt
+#   playwright install chromium
+playwright>=1.40

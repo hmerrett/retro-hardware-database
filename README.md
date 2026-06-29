@@ -131,6 +131,17 @@ Their robots policy allows general access but disallows AI-training crawlers;
 this personal, link-targeted use respects that. For bulk/sanctioned data,
 contact the project (GitHub `TheRetroWeb`, or their Discord).
 
+Because Cloudflare blocks the plain reader, a best-effort automatic grab of the
+**photo** (and specs) is available via a headless browser:
+
+```bash
+pip install -r requirements-browser.txt && playwright install chromium  # one-time, ~150 MB
+python scripts/enrich.py --source theretroweb --browser --only RH-0021
+```
+
+Cloudflare can still block headless browsers; if nothing comes back, just save
+the photo from the page and drop it into `images/parts/<asset_id>.jpg`.
+
 ## Adding your own photos
 
 Drop a photo named after the asset — e.g. `RH-0021.jpg` — into

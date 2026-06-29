@@ -172,7 +172,56 @@ def parse_theretroweb(html):
     return specs, image
 
 
-def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html):
+# A normal-looking browser UA so Cloudflare serves the page to headless Chromium.
+BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+
+def fetch_theretroweb_browser(url, timeout=45):
+    """Render a Retro Web page in headless Chromium (gets past the Cloudflare JS
+    challenge that blocks plain requests). Returns (html, image_bytes); either
+    may be None. Requires the optional Playwright dependency."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("      Playwright not installed — run:")
+        print("        pip install playwright && playwright install chromium")
+        return None, None
+    try:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch()
+            ctx = browser.new_context(user_agent=BROWSER_UA)
+            page = ctx.new_page()
+            page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
+            page.wait_for_timeout(1800)  # let any Cloudflare / JS settle
+            html = page.content()
+            try:
+                img_url = page.get_attribute('meta[property="og:image"]', "content")
+            except Exception:  # noqa: BLE001
+                img_url = None
+            img_bytes = None
+            if img_url:
+                resp = ctx.request.get(img_url, timeout=timeout * 1000)
+                if resp.ok:
+                    img_bytes = resp.body()
+            browser.close()
+            return html, img_bytes
+    except Exception as exc:  # noqa: BLE001
+        print(f"      browser fetch failed: {exc}")
+        return None, None
+
+
+def _save_image_bytes(data, kind, asset_id, max_px):
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    img.thumbnail((max_px, max_px))
+    dest, rel = image_dest(kind, asset_id)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    img.save(dest, "JPEG", quality=85)
+    return rel
+
+
+def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
+                       use_browser=False):
     url = row.get("theretroweb_url", "")
     if not url:
         return False
@@ -182,36 +231,49 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html):
     if not (need_specs or need_image):
         return False
 
-    print(f"  [{row['asset_id']}] theretroweb: {url}")
+    print(f"  [{row['asset_id']}] theretroweb{' (browser)' if use_browser else ''}: {url}")
     try:
         time.sleep(delay)  # be polite
-        resp = session.get(url, timeout=30)
-        html = resp.text or ""
-        if dump_html:
+        img_bytes = None
+        if use_browser:
+            html, img_bytes = fetch_theretroweb_browser(url)
+            if html is None:
+                return False
+        else:
+            resp = session.get(url, timeout=30)
+            html = resp.text or ""
+            if resp.status_code != 200 or not html.strip():
+                print(f"      blocked/empty (status {resp.status_code}) — keeping link only")
+                return False
+        if dump_html and html:
             dump = ROOT / "labels" / f"trw_{row['asset_id']}.html"
             dump.parent.mkdir(parents=True, exist_ok=True)
             dump.write_text(html, encoding="utf-8")
             print(f"      dumped HTML -> {dump}")
-        if resp.status_code != 200 or not html.strip():
-            print(f"      blocked/empty (status {resp.status_code}) — keeping link only")
-            return False
-        specs, image = parse_theretroweb(html)
+
+        specs, og_image = parse_theretroweb(html)
         changed = False
         if need_specs and specs:
             row["specs"] = " | ".join(f"{k}: {v}" for k, v in specs[:12])
             print(f"      specs: {len(specs[:12])} field(s)")
             changed = True
-        if need_image and image:
-            dest, rel = image_dest(kind, row["asset_id"])
+        if need_image:
             try:
-                download_image(session, image, dest, max_px)
-                row["image"] = rel
-                print(f"      photo -> images/{rel}")
-                changed = True
+                if img_bytes:
+                    row["image"] = _save_image_bytes(img_bytes, kind, row["asset_id"], max_px)
+                    print(f"      photo -> images/{row['image']}")
+                    changed = True
+                elif og_image and not use_browser:
+                    dest, rel = image_dest(kind, row["asset_id"])
+                    download_image(session, og_image, dest, max_px)
+                    row["image"] = rel
+                    print(f"      photo -> images/{rel}")
+                    changed = True
             except Exception as exc:  # noqa: BLE001
                 print(f"      image failed: {exc}")
         if not changed:
-            print("      nothing parsed — page may be JS-rendered; fill specs by hand")
+            print("      nothing retrieved — Cloudflare may have blocked it; "
+                  "save the photo into images/ by hand instead")
         return changed
     except Exception as exc:  # noqa: BLE001
         print(f"      error: {exc} — keeping link only")
@@ -226,6 +288,9 @@ def main():
     ap.add_argument("--only", help="only this asset_id")
     ap.add_argument("--dump-html", action="store_true",
                     help="save fetched theretroweb HTML for debugging")
+    ap.add_argument("--browser", action="store_true",
+                    help="render theretroweb via headless Chromium (Playwright) to "
+                         "get past Cloudflare; grabs the photo + specs")
     args = ap.parse_args()
 
     config = load_config()
@@ -255,7 +320,8 @@ def main():
             changed |= enrich_wikipedia(wiki_session, row, kind, lang, max_px, args.force)
         if args.source in ("theretroweb", "all"):
             changed |= enrich_theretroweb(trw_session, row, kind, max_px,
-                                          trw_delay, args.force, args.dump_html)
+                                          trw_delay, args.force, args.dump_html,
+                                          use_browser=args.browser)
         if changed:
             if kind == "computers":
                 changed_c += 1
