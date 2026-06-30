@@ -75,7 +75,7 @@ Add new ones to `TYPE_ORDER` in `scripts/common.py` to control their order.)
 The `specs` field is deliberately flexible (one column, any keys) so parts of
 different kinds can live in one table. These are conventions, not rules:
 
-- **motherboard** — `Chipset`, `Socket`, `Slots`, `RAM`, `Form factor`
+- **motherboard** — `Chipset`, `Socket` (CPU socket/slot), `Form factor`, `RAM slots`, `Slots` (quick entry: `8I`=8-bit ISA `16I`=16-bit ISA `E`=EISA `M`=MCA `VLB` `PCI` `AGP`, e.g. `8I:2 16I:6 VLB:1` → `2× 8-bit ISA, 6× 16-bit ISA, VLB`), `Cache`, `BIOS`
 - **cpu** — `Socket`, `Speed`, `FSB`, `Cores`, `L1/L2 cache`
 - **ram** — `Type` (e.g. 72-pin FPM, EDO, SDRAM), `Size`, `Speed`
 - **gpu** — `Interface` (ISA/VLB/PCI/AGP), `Memory`, `Chipset`, `Type`

@@ -41,7 +41,7 @@ _KB_UNITS = {"": 1024, "k": 1, "kb": 1, "m": 1024, "mb": 1024,
              "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024}
 
 SPEC_HINTS = {
-    "motherboard": "Chipset, Socket, Slots, RAM, Form factor",
+    "motherboard": "Chipset, Socket, Form factor, RAM slots, Slots, Cache, BIOS",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
     "gpu": "Memory, Chipset, Type",
@@ -309,6 +309,73 @@ def ask_ports(specs):
     return specs
 
 
+SLOT_TYPES = [
+    ("8-bit ISA", ("8I", "I8", "8ISA", "8")),
+    ("16-bit ISA", ("16I", "I16", "16ISA", "16")),
+    ("EISA", ("E", "EISA")),
+    ("MCA", ("M", "MCA")),
+    ("VLB", ("V", "VL", "VLB")),
+    ("PCI", ("P", "PCI")),
+    ("AGP", ("A", "AGP")),
+]
+
+
+def expand_slots(raw):
+    """'8I:2 16I:6 VLB' -> ('2× 8-bit ISA, 6× 16-bit ISA, VLB', [unknown]).
+    Tokens are 'key', 'key:n', 'key*n' or 'keyxn'; order-independent."""
+    from collections import Counter
+    alias = {c.upper(): name for name, codes in SLOT_TYPES for c in codes}
+    counts, unknown = Counter(), []
+    for tok in re.split(r"[\s,]+", raw.strip()):
+        if not tok:
+            continue
+        m = re.match(r"^(.+?)\s*[:*xX]\s*(\d+)$", tok)
+        key, n = (m.group(1), int(m.group(2))) if m else (tok, 1)
+        name = alias.get(key.upper())
+        if name:
+            counts[name] += n
+        else:
+            unknown.append(tok)
+    out = [f"{counts[name]}× {name}" if counts[name] > 1 else name
+           for name, _ in SLOT_TYPES if counts.get(name)]
+    return ", ".join(out), unknown
+
+
+def ask_slots(specs):
+    raw = ask("expansion slots — e.g. '8I:2 16I:6 VLB:1 PCI:3'  "
+              "(8I=8-bit ISA 16I=16-bit ISA E=EISA M=MCA VLB PCI AGP), blank to skip")
+    if not raw:
+        return specs
+    longform, unknown = expand_slots(raw)
+    if unknown:
+        print(f"  (ignored unrecognised slot tokens: {', '.join(unknown)})")
+    if longform:
+        specs = merge_spec(specs, "Slots", longform)
+    return specs
+
+
+def ask_motherboard(specs):
+    """Guided motherboard prompts, each merged into specs (blank skips)."""
+    for key, prompt in (
+        ("Chipset", "chipset (e.g. Intel 430FX, OPTi 495, SiS 471), blank to skip"),
+        ("Socket", "CPU socket(s) (e.g. Socket 3, Socket 7, Slot 1; comma-separate several), blank to skip"),
+        ("Form factor", "form factor (AT, Baby-AT, ATX, LPX, NLX, proprietary), blank to skip"),
+        ("RAM slots", "RAM slots (e.g. 8× 30-pin SIMM, 4× 72-pin SIMM, 2× DIMM), blank to skip"),
+    ):
+        val = ask(prompt)
+        if val:
+            specs = merge_spec(specs, key, val)
+    specs = ask_slots(specs)
+    for key, prompt in (
+        ("Cache", "L2 cache (e.g. 256 KB, COAST socket), blank to skip"),
+        ("BIOS", "BIOS (e.g. AMI 1992, Award 4.51, Phoenix), blank to skip"),
+    ):
+        val = ask(prompt)
+        if val:
+            specs = merge_spec(specs, key, val)
+    return specs
+
+
 def apply_type_prompts(row, ptype):
     """Type-specific extra prompts run after the standard part fields."""
     if ptype in CARD_TYPES or ptype == "peripheral":
@@ -316,6 +383,8 @@ def apply_type_prompts(row, ptype):
                                      "ISA, PCI, VLB, AGP, USB, parallel, serial, PS/2")
         if ptype == "io":
             row["specs"] = ask_ports(row.get("specs", ""))
+    elif ptype == "motherboard":
+        row["specs"] = ask_motherboard(row.get("specs", ""))
     elif ptype == "storage":
         row["specs"] = ask_interface(row.get("specs", ""), "IDE, SCSI, MFM, CF, SD")
         row["specs"] = ask_storage_specs(row.get("specs", ""))
