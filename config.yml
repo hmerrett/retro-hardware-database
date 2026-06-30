@@ -34,6 +34,17 @@ label_small:
   units: "mm"
   qr_error: "M"
 
+# Printing — macOS `lp` (CUPS). List your printers with:  lpstat -p
+# Set small_printer to your label printer's name (blank = system default).
+# With enabled and ask both on, you're asked "Print label now?" after you add
+# or update a part; set ask to false to print automatically without asking.
+print:
+  enabled: true
+  ask: true
+  copies: 1
+  small_printer: ""
+  full_printer: ""
+
 # Enrichment
 enrich:
   # Wikipedia / Wikimedia (free, no key). Used for summaries + photos.

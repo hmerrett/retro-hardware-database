@@ -659,6 +659,24 @@ def run_enrich(asset_id, kind, theretroweb_url):
         print(f"  enrichment skipped: {exc}")
 
 
+def maybe_print(written, config):
+    """After add/update, offer to print the small label(s) (config: print)."""
+    pc = config.get("print") or {}
+    if not pc.get("enabled"):
+        return
+    smalls = [p for p in written if str(p).endswith("-small.pdf")]
+    if not smalls:
+        return
+    if pc.get("ask", True):
+        if not sys.stdin.isatty():
+            return
+        if not ask("Print label now? (Y/n)", "Y").lower().startswith("y"):
+            return
+    import make_labels
+    for p in smalls:
+        make_labels.print_label_file(p, config)
+
+
 def regenerate_labels(asset_ids):
     """Auto-(re)generate labels for these assets (and parent computers, whose
     build summary may have changed). Computers get full+small, peripherals small."""
@@ -667,7 +685,9 @@ def regenerate_labels(asset_ids):
         return
     try:
         import make_labels
-        make_labels.regenerate(ids, load_config())
+        config = load_config()
+        written = make_labels.regenerate(ids, config)
+        maybe_print(written, config)
     except Exception as exc:  # noqa: BLE001
         print(f"  (label generation skipped: {exc})")
 

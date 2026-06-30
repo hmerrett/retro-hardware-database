@@ -19,11 +19,13 @@ Usage:
     python scripts/make_labels.py --small RH-0002  # -> labels/RH-0002-small.pdf
     python scripts/make_labels.py --auto           # auto set for every device
     python scripts/make_labels.py --auto RH-0010   # auto set for one device
+    python scripts/make_labels.py --small --print RH-0002   # reprint a tag
 """
 from __future__ import annotations
 
 import argparse
 import io
+import subprocess
 from pathlib import Path
 
 import segno
@@ -326,6 +328,47 @@ def all_auto_ids():
                if p.get("manufacturer", "").strip().lower() != "generic"])
 
 
+def print_pdf(path, printer="", copies=1):
+    """Send a PDF to a printer via macOS/CUPS `lp`. Returns (ok, message)."""
+    cmd = ["lp"]
+    if printer:
+        cmd += ["-d", printer]
+    try:
+        copies = int(copies)
+    except (TypeError, ValueError):
+        copies = 1
+    if copies > 1:
+        cmd += ["-n", str(copies)]
+    cmd.append(str(path))
+    try:
+        res = subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        return False, "no 'lp' command (printing needs macOS/CUPS)"
+    except Exception as exc:  # noqa: BLE001
+        return False, str(exc)
+    if res.returncode == 0:
+        return True, (res.stdout.strip() or "queued")
+    return False, (res.stderr.strip() or f"lp exited {res.returncode}")
+
+
+def printer_for(config, small):
+    pc = config.get("print") or {}
+    return pc.get("small_printer" if small else "full_printer") or ""
+
+
+def print_label_file(path, config):
+    """Print one label PDF, choosing the printer by size (small vs full)."""
+    small = str(path).endswith("-small.pdf")
+    printer = printer_for(config, small)
+    copies = (config.get("print") or {}).get("copies", 1)
+    ok, msg = print_pdf(path, printer, copies)
+    if ok:
+        print(f"  printed {Path(path).name} -> {printer or 'default printer'}")
+    else:
+        print(f"  ! print failed for {Path(path).name}: {msg}")
+    return ok
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -334,6 +377,8 @@ def main():
                     help="compact QR + number + make/model label (config: label_small)")
     ap.add_argument("--auto", action="store_true",
                     help="auto set: computers full+small, real (non-generic) parts small")
+    ap.add_argument("--print", dest="do_print", action="store_true",
+                    help="also send the generated label(s) to the printer (macOS lp)")
     ap.add_argument("-o", "--out", default=None,
                     help="output PDF path (default: named after the asset id(s))")
     args = ap.parse_args()
@@ -344,6 +389,9 @@ def main():
         ids = args.ids if args.ids else all_auto_ids()
         written = auto_labels(ids, config, announce=False)
         print(f"Wrote {len(written)} label file(s) -> {LABELS_DIR}")
+        if args.do_print:
+            for p in written:
+                print_label_file(p, config)
         return
 
     computers, parts = load_computers(), load_parts()
@@ -381,6 +429,8 @@ def main():
         return
     c.save()
     print(f"Wrote {printed} {'small ' if small else ''}label(s) -> {out_path}")
+    if args.do_print:
+        print_label_file(out_path, config)
 
 
 if __name__ == "__main__":
