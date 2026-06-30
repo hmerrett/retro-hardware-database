@@ -685,7 +685,7 @@ def maybe_print(written, config):
         make_labels.print_label_file(p, config)
 
 
-def regenerate_labels(asset_ids):
+def regenerate_labels(asset_ids, offer_print=True):
     """Auto-(re)generate labels for these assets (and parent computers, whose
     build summary may have changed). Computers get full+small, peripherals small."""
     ids = [a for a in asset_ids if a]
@@ -695,7 +695,8 @@ def regenerate_labels(asset_ids):
         import make_labels
         config = load_config()
         written = make_labels.regenerate(ids, config)
-        maybe_print(written, config)
+        if offer_print:
+            maybe_print(written, config)
     except Exception as exc:
         print(f"  (label generation skipped: {exc})")
 
@@ -780,12 +781,18 @@ def main():
     print(f"\nAdded {asset_id}: {display_name(row)}")
     if config.get("base_url") and "USERNAME" not in config.get("base_url", ""):
         print(f"  page will be: {item_url(config, asset_id)}")
+
+    # Make and print the label first, so it can be applied while the slower
+    # web lookup runs.
+    regenerate_labels([asset_id])
+
     if do_enrich:
         run_enrich(asset_id, kind, row.get("theretroweb_url", ""))
     if interactive and kind == "computer":
         touched += offer_generic(asset_id, config)
+        # The build may have changed; refresh labels on disk without reprinting.
+        regenerate_labels(touched, offer_print=False)
 
-    regenerate_labels(touched)
     print("\nNext: ./publish.sh   (build, commit, push)")
 
 
