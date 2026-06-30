@@ -42,7 +42,7 @@ print:
   enabled: true
   ask: true
   copies: 1
-  small_printer: ""
+  small_printer: "DYMO_LabelWriter_450_Turbo"
   full_printer: ""
 
 # Enrichment

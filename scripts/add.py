@@ -688,7 +688,7 @@ def regenerate_labels(asset_ids):
         config = load_config()
         written = make_labels.regenerate(ids, config)
         maybe_print(written, config)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"  (label generation skipped: {exc})")
 
 

@@ -13,13 +13,19 @@ gets the small one, generic filler gets none. `add.py` calls this on create/upda
 All text uses the TTF set in config.yml (label.font_path, e.g. Audiowide); if
 that file is missing the label falls back to Helvetica.
 
-Usage:
-    python scripts/make_labels.py                  # full labels, everything
-    python scripts/make_labels.py RH-0002          # -> labels/RH-0002.pdf
-    python scripts/make_labels.py --small RH-0002  # -> labels/RH-0002-small.pdf
-    python scripts/make_labels.py --auto           # auto set for every device
-    python scripts/make_labels.py --auto RH-0010   # auto set for one device
-    python scripts/make_labels.py --small --print RH-0002   # reprint a tag
+Usage (the description sits above each command):
+    full labels, everything:
+        python scripts/make_labels.py
+    one item, written to labels/RH-0002.pdf:
+        python scripts/make_labels.py RH-0002
+    small tag, written to labels/RH-0002-small.pdf:
+        python scripts/make_labels.py --small RH-0002
+    auto set for every device:
+        python scripts/make_labels.py --auto
+    auto set for one device:
+        python scripts/make_labels.py --auto RH-0010
+    reprint a tag and send it to the printer:
+        python scripts/make_labels.py --small --print RH-0002
 """
 from __future__ import annotations
 
@@ -344,7 +350,7 @@ def print_pdf(path, printer="", copies=1):
         res = subprocess.run(cmd, capture_output=True, text=True)
     except FileNotFoundError:
         return False, "no 'lp' command (printing needs macOS/CUPS)"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return False, str(exc)
     if res.returncode == 0:
         return True, (res.stdout.strip() or "queued")
