@@ -33,6 +33,8 @@ label_small:
   height: 19
   units: "mm"
   qr_error: "M"
+  # rotate the printed label by this many degrees (0/90/180/270); flip to 270 if upside down
+  rotate: 90
 
 # Printing — macOS `lp` (CUPS). List your printers with:  lpstat -p
 # Set small_printer to your label printer's name (blank = system default).

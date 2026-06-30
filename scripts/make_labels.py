@@ -86,6 +86,30 @@ def label_geom(config, small):
     return w, h, lc.get("qr_error", "M")
 
 
+def label_rotation(config, small):
+    lc = (config.get("label_small") if small else config.get("label")) or {}
+    try:
+        return int(lc.get("rotate", 0)) % 360
+    except (TypeError, ValueError):
+        return 0
+
+
+def rotated_page_size(W, H, rot):
+    return (H, W) if rot in (90, 270) else (W, H)
+
+
+def apply_rotation(c, W, H, rot):
+    if rot == 90:
+        c.translate(H, 0)
+        c.rotate(90)
+    elif rot == 270:
+        c.translate(0, W)
+        c.rotate(-90)
+    elif rot == 180:
+        c.translate(W, H)
+        c.rotate(180)
+
+
 def default_filename(ids, suffix=""):
     if not ids:
         return f"labels{suffix}.pdf"
@@ -266,10 +290,13 @@ def asset_content(aid, comp_by_id, part_by_id, parts):
 
 def draw_one(c, W, H, aid, small, config, title, lines, qr_error, hfont, bfont):
     url = item_url(config, aid)
+    c.saveState()
+    apply_rotation(c, W, H, label_rotation(config, small))
     if small:
         render_small_label(c, W, H, aid, title, url, qr_error, hfont, bfont)
     else:
         render_label(c, W, H, aid, title, lines, url, qr_error, hfont, bfont)
+    c.restoreState()
     c.showPage()
 
 
@@ -307,7 +334,8 @@ def auto_labels(asset_ids, config=None, announce=True):
         for suffix, small in plan:
             out = LABELS_DIR / f"{aid}{suffix}.pdf"
             W, H, qr = label_geom(config, small)
-            c = canvas.Canvas(str(out), pagesize=(W, H))
+            rot = label_rotation(config, small)
+            c = canvas.Canvas(str(out), pagesize=rotated_page_size(W, H, rot))
             draw_one(c, W, H, aid, small, config, title, lines, qr, hfont, bfont)
             c.save()
             written.append(out)
@@ -420,7 +448,7 @@ def main():
     suffix = "-small" if small else ""
     out_path = Path(args.out) if args.out else LABELS_DIR / default_filename(args.ids, suffix)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    c = canvas.Canvas(str(out_path), pagesize=(W, H))
+    c = canvas.Canvas(str(out_path), pagesize=rotated_page_size(W, H, label_rotation(config, small)))
 
     printed = 0
     for aid in ids:
