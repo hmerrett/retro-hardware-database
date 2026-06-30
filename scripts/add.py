@@ -57,6 +57,23 @@ SPEC_HINTS = {
     "other": "free text",
 }
 
+# Pick-list vocabularies for fields with known options (numbered entry).
+COMPUTER_FORM_FACTORS = ["AT", "Baby-AT", "ATX", "LPX", "NLX", "proprietary",
+                         "all-in-one"]
+MOBO_FORM_FACTORS = ["AT", "Baby-AT", "ATX", "LPX", "NLX", "proprietary"]
+CONDITIONS = ["Working", "Untested", "Partially working", "Faulty",
+              "For parts/repair", "Restored"]
+CPU_SOCKETS = ["DIP/soldered", "PLCC", "Socket 1", "Socket 2", "Socket 3",
+               "Socket 5", "Socket 7", "Super Socket 7", "Socket 8", "Slot 1"]
+RAM_SLOT_TYPES = ["30-pin SIMM", "72-pin SIMM", "168-pin DIMM", "184-pin DIMM"]
+CARD_INTERFACES = ["ISA", "EISA", "MCA", "VLB", "PCI", "AGP", "USB"]
+STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD"]
+PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
+STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
+
+# Standard fields that should be entered from a numbered pick list.
+FIELD_CHOICES = {"form_factor": COMPUTER_FORM_FACTORS, "condition": CONDITIONS}
+
 
 # --- tiny input helpers ----------------------------------------------------
 
@@ -79,6 +96,30 @@ def ask_type(default=""):
     if raw.isdigit() and 1 <= int(raw) <= len(TYPE_ORDER):
         return TYPE_ORDER[int(raw) - 1]
     return raw.lower()
+
+
+def ask_choice(label, options, default="", multi=False):
+    """Numbered pick list: enter a number (several comma-separated if multi) or
+    type your own value; blank keeps the default. Returns the chosen string."""
+    print(f"  {label}:")
+    for i, opt in enumerate(options, 1):
+        print(f"    {i:>2}. {opt}")
+    hint = "numbers/text, comma-sep" if multi else "number or text"
+    raw = ask(f"choose ({hint})", default)
+    if not raw:
+        return default
+    chosen = []
+    for tok in (raw.split(",") if multi else [raw]):
+        tok = tok.strip()
+        if not tok:
+            continue
+        if tok.isdigit() and 1 <= int(tok) <= len(options):
+            chosen.append(options[int(tok) - 1])
+        else:
+            chosen.append(tok)
+    if not chosen:
+        return default
+    return ", ".join(chosen) if multi else chosen[0]
 
 
 def ask_computer(computers, default=""):
@@ -148,7 +189,10 @@ def prompt_fields(fields, current=None):
     out = {}
     for key, label, default in fields:
         d = (current.get(key) if current else "") or default
-        out[key] = ask(label, d)
+        if key in FIELD_CHOICES:
+            out[key] = ask_choice(_short(label), FIELD_CHOICES[key], d)
+        else:
+            out[key] = ask(label, d)
     return out
 
 
@@ -252,7 +296,7 @@ def ask_disk_image(current=""):
 
 def ask_storage_specs(specs, ask_capacity=True):
     """Storage prompts: protocol, capacity and optional CHS geometry, merged in."""
-    proto = ask("protocol (ATA, ATAPI, XTA, RLL, MFM, ESDI, SCSI), blank to skip")
+    proto = ask_choice("protocol", STORAGE_PROTOCOLS)
     if proto:
         specs = merge_spec(specs, "Protocol", proto)
     if ask_capacity:
@@ -268,9 +312,9 @@ def ask_storage_specs(specs, ask_capacity=True):
 CARD_TYPES = ("gpu", "sound", "network", "io")
 
 
-def ask_interface(specs, examples):
+def ask_interface(specs, options):
     """Prompt how a part connects, merged into specs as 'Interface'."""
-    iface = ask(f"interface ({examples}), blank to skip")
+    iface = ask_choice("interface", options)
     if iface:
         specs = merge_spec(specs, "Interface", iface)
     return specs
@@ -320,10 +364,13 @@ SLOT_TYPES = [
 ]
 
 
-def _format_slot_counts(counts):
-    """Counter{name: n} -> '2× 8-bit ISA, 6× 16-bit ISA' in canonical order."""
+SLOT_NAMES = [name for name, _ in SLOT_TYPES]
+
+
+def _format_counts(counts, order):
+    """Counter{name: n} -> '2× 8-bit ISA, 6× 16-bit ISA' in the given order."""
     return ", ".join(f"{counts[name]}× {name}" if counts[name] > 1 else name
-                     for name, _ in SLOT_TYPES if counts.get(name))
+                     for name in order if counts.get(name))
 
 
 def expand_slots(raw):
@@ -342,19 +389,19 @@ def expand_slots(raw):
             counts[name] += n
         else:
             unknown.append(tok)
-    return _format_slot_counts(counts), unknown
+    return _format_counts(counts, SLOT_NAMES), unknown
 
 
-def walk_slot_counts():
-    """Prompt a count for each slot type in turn (Enter or 0 skips)."""
+def walk_counts(order, header):
+    """Prompt a count for each item in `order` in turn (Enter or 0 skips)."""
     from collections import Counter
     counts = Counter()
-    print("  expansion slots — how many of each? (Enter or 0 to skip)")
-    for name, _ in SLOT_TYPES:
+    print(f"  {header}")
+    for name in order:
         digits = re.sub(r"\D", "", ask(f"  {name}", "0"))
         if digits and int(digits) > 0:
             counts[name] = int(digits)
-    return _format_slot_counts(counts)
+    return _format_counts(counts, order)
 
 
 def ask_slots(specs):
@@ -365,7 +412,8 @@ def ask_slots(specs):
         if unknown:
             print(f"  (ignored unrecognised slot tokens: {', '.join(unknown)})")
     else:
-        longform = walk_slot_counts()
+        longform = walk_counts(SLOT_NAMES,
+                               "expansion slots — how many of each? (Enter or 0 to skip)")
     if longform:
         specs = merge_spec(specs, "Slots", longform)
     return specs
@@ -373,37 +421,41 @@ def ask_slots(specs):
 
 def ask_motherboard(specs):
     """Guided motherboard prompts, each merged into specs (blank skips)."""
-    for key, prompt in (
-        ("Chipset", "chipset (e.g. Intel 430FX, OPTi 495, SiS 471), blank to skip"),
-        ("Socket", "CPU socket(s) (e.g. Socket 3, Socket 7, Slot 1; comma-separate several), blank to skip"),
-        ("Form factor", "form factor (AT, Baby-AT, ATX, LPX, NLX, proprietary), blank to skip"),
-        ("RAM slots", "RAM slots (e.g. 8× 30-pin SIMM, 4× 72-pin SIMM, 2× DIMM), blank to skip"),
-    ):
-        val = ask(prompt)
-        if val:
-            specs = merge_spec(specs, key, val)
+    chip = ask("chipset (e.g. Intel 430FX, OPTi 495, SiS 471), blank to skip")
+    if chip:
+        specs = merge_spec(specs, "Chipset", chip)
+    sock = ask_choice("CPU socket(s)", CPU_SOCKETS, multi=True)
+    if sock:
+        specs = merge_spec(specs, "Socket", sock)
+    ff = ask_choice("form factor", MOBO_FORM_FACTORS)
+    if ff:
+        specs = merge_spec(specs, "Form factor", ff)
+    ram = walk_counts(RAM_SLOT_TYPES,
+                      "RAM slots — how many of each? (Enter or 0 to skip)")
+    if ram:
+        specs = merge_spec(specs, "RAM slots", ram)
     specs = ask_slots(specs)
-    for key, prompt in (
-        ("Cache", "L2 cache (e.g. 256 KB, COAST socket), blank to skip"),
-        ("BIOS", "BIOS (e.g. AMI 1992, Award 4.51, Phoenix), blank to skip"),
-    ):
-        val = ask(prompt)
-        if val:
-            specs = merge_spec(specs, key, val)
+    cache = ask("L2 cache (e.g. 256 KB, COAST socket), blank to skip")
+    if cache:
+        specs = merge_spec(specs, "Cache", cache)
+    bios = ask("BIOS (e.g. AMI 1992, Award 4.51, Phoenix), blank to skip")
+    if bios:
+        specs = merge_spec(specs, "BIOS", bios)
     return specs
 
 
 def apply_type_prompts(row, ptype):
     """Type-specific extra prompts run after the standard part fields."""
-    if ptype in CARD_TYPES or ptype == "peripheral":
-        row["specs"] = ask_interface(row.get("specs", ""),
-                                     "ISA, PCI, VLB, AGP, USB, parallel, serial, PS/2")
+    if ptype in CARD_TYPES:
+        row["specs"] = ask_interface(row.get("specs", ""), CARD_INTERFACES)
         if ptype == "io":
             row["specs"] = ask_ports(row.get("specs", ""))
+    elif ptype == "peripheral":
+        row["specs"] = ask_interface(row.get("specs", ""), PERIPHERAL_INTERFACES)
     elif ptype == "motherboard":
         row["specs"] = ask_motherboard(row.get("specs", ""))
     elif ptype == "storage":
-        row["specs"] = ask_interface(row.get("specs", ""), "IDE, SCSI, MFM, CF, SD")
+        row["specs"] = ask_interface(row.get("specs", ""), STORAGE_INTERFACES)
         row["specs"] = ask_storage_specs(row.get("specs", ""))
         row["disk_image"] = ask_disk_image(row.get("disk_image", ""))
 
