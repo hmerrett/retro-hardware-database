@@ -203,9 +203,6 @@ def render_label(c, W, H, asset_id, title, lines, url, qr_error, hfont, bfont):
 
 def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont):
     m = 1.2 * mm
-    c.setLineWidth(0.5)
-    c.setStrokeColorRGB(0.7, 0.7, 0.7)
-    c.rect(0.5 * mm, 0.5 * mm, W - 1.0 * mm, H - 1.0 * mm, stroke=1, fill=0)
     c.setFillColorRGB(0, 0, 0)
 
     if W >= H:  # landscape: QR left, text right
