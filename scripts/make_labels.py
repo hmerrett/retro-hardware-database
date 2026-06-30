@@ -65,7 +65,7 @@ def register_fonts(config, quiet=False):
                 if not quiet:
                     print(f"  using label font: {rel}")
                 return "LabelFont", "LabelFont"
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 print(f"  note: could not load {rel} ({exc}) — using Helvetica.")
         elif not quiet:
             print(f"  note: label font {rel} not found — using Helvetica.")
@@ -213,7 +213,8 @@ def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont):
     m = 1.2 * mm
     c.setFillColorRGB(0, 0, 0)
 
-    if W >= H:  # landscape: QR left, text right
+    # landscape: QR left, text right
+    if W >= H:
         qr = H - 2 * m
         c.drawImage(qr_reader(url, qr_error), m, m, width=qr, height=qr,
                     preserveAspectRatio=True, mask="auto")
@@ -230,7 +231,8 @@ def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont):
             y -= bsize + 1.5
             c.setFont(bfont, bsize)
             c.drawString(tx, y, line)
-    else:  # portrait: QR top, text below
+    # portrait: QR top, text below
+    else:
         qr = W - 2 * m
         c.drawImage(qr_reader(url, qr_error), m, H - m - qr, width=qr, height=qr,
                     preserveAspectRatio=True, mask="auto")

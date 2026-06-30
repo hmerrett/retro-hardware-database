@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import IMAGES_DIR, load_config  # noqa: E402
+from common import IMAGES_DIR, load_config
 
 SOURCE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff"}
 
@@ -32,19 +32,21 @@ def main():
                 continue
             try:
                 img = Image.open(f)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 print(f"  skip {f.name}: {exc}")
                 continue
             too_big = max(img.size) > max_px
             not_jpeg = f.suffix.lower() not in (".jpg", ".jpeg")
             if not (too_big or not_jpeg):
-                continue  # already a reasonably-sized JPEG
+                # already a reasonably-sized JPEG
+                continue
             img = img.convert("RGB")
             if too_big:
                 img.thumbnail((max_px, max_px))
             dest = f.with_suffix(".jpg")
             img.save(dest, "JPEG", quality=85)
-            if dest != f:  # converted from another format — drop the original
+            # converted from another format — drop the original
+            if dest != f:
                 try:
                     f.unlink()
                 except OSError as exc:

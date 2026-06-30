@@ -12,12 +12,17 @@ Sources:
 
 Only EMPTY fields are filled unless you pass --force.
 
-Usage:
-    python scripts/enrich.py                              # wikipedia, all items
-    python scripts/enrich.py --only RH-0001
-    python scripts/enrich.py --source theretroweb --only RH-0003
-    python scripts/enrich.py --source theretroweb --only RH-0003 --dump-html
-    python scripts/enrich.py --source all --force
+Usage (the description sits above each command):
+    Wikipedia, all items:
+        python scripts/enrich.py
+    Wikipedia, one item:
+        python scripts/enrich.py --only RH-0001
+    The Retro Web, one item:
+        python scripts/enrich.py --source theretroweb --only RH-0003
+    The Retro Web, one item, dumping the fetched HTML:
+        python scripts/enrich.py --source theretroweb --only RH-0003 --dump-html
+    both sources, overwriting existing fields:
+        python scripts/enrich.py --source all --force
 """
 from __future__ import annotations
 
@@ -130,12 +135,12 @@ def enrich_wikipedia(session, row, kind, lang, max_px, force):
                     download_image(session, src, dest, max_px)
                     row["image"] = rel
                     print(f"      photo -> images/{rel}")
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     print(f"      image failed: {exc}")
         print(f"      matched: {title}")
         time.sleep(0.4)
         return True
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"      error: {exc}")
         return False
 
@@ -200,25 +205,27 @@ def fetch_theretroweb_browser(url, ua=BROWSER_UA, timeout=45):
             ctx = browser.new_context(user_agent=ua)
             page = ctx.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout * 1000)
-            page.wait_for_timeout(1800)  # let any Cloudflare / JS settle
+            # let any Cloudflare / JS settle
+            page.wait_for_timeout(1800)
             html = page.content()
             page_url = page.url
             try:
                 img_url = page.get_attribute('meta[property="og:image"]', "content")
-            except Exception:  # noqa: BLE001
+            except Exception:
                 img_url = None
             img_bytes = None
             if img_url:
-                img_url = urljoin(page_url, img_url)  # resolve relative og:image
+                # resolve relative og:image
+                img_url = urljoin(page_url, img_url)
                 try:
                     resp = ctx.request.get(img_url, timeout=timeout * 1000)
                     if resp.ok:
                         img_bytes = resp.body()
-                except Exception as exc:  # noqa: BLE001
+                except Exception as exc:
                     print(f"      (image fetch failed: {exc})")
             browser.close()
             return html, img_bytes
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"      browser fetch failed: {exc}")
         return None, None
 
@@ -236,7 +243,8 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
     url = row.get("theretroweb_url", "")
     if not url:
         return False
-    has_specs = "specs" in row          # computers have no specs column
+    # computers have no specs column
+    has_specs = "specs" in row
     need_specs = has_specs and (force or not row.get("specs", ""))
     need_image = force or not row.get("image", "")
     if not (need_specs or need_image):
@@ -244,7 +252,8 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
 
     print(f"  [{row['asset_id']}] theretroweb{' (browser)' if use_browser else ''}: {url}")
     try:
-        time.sleep(delay)  # be polite
+        # be polite
+        time.sleep(delay)
         img_bytes = None
         if use_browser:
             html, img_bytes = fetch_theretroweb_browser(url, browser_ua)
@@ -287,13 +296,13 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
                     row["image"] = rel
                     print(f"      photo -> images/{rel}")
                     changed = True
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 print(f"      image failed: {exc}")
         if not changed:
             print("      nothing retrieved — Cloudflare may have blocked it; "
                   "save the photo into images/ by hand instead")
         return changed
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"      error: {exc} — keeping link only")
         return False
 

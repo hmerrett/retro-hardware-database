@@ -6,13 +6,19 @@ It assigns the next RH-#### asset number across BOTH tables, writes valid CSV
 to an existing computer. Run it with no arguments for the interactive prompts,
 or pass flags to add in one line.
 
-Examples:
-    python scripts/add.py                         # interactive add (then walks generics)
-    python scripts/add.py computer --name "Amiga 1200" --year 1992
-    python scripts/add.py part --type cpu --computer RH-0002 --model "i486 DX2-66"
-    python scripts/add.py preset --computer RH-0001          # walk common parts
-    python scripts/add.py preset --computer RH-0001 ram:16MB svga:1MB   # one-shot
-    python scripts/add.py update RH-0001          # edit an existing computer or part
+Examples (the description sits above each command):
+    interactive add, then walk through generic parts:
+        python scripts/add.py
+    add a computer in one line:
+        python scripts/add.py computer --name "Amiga 1200" --year 1992
+    add a part linked to a computer:
+        python scripts/add.py part --type cpu --computer RH-0002 --model "i486 DX2-66"
+    attach common preset parts to a computer (walk):
+        python scripts/add.py preset --computer RH-0001
+    attach presets in one shot:
+        python scripts/add.py preset --computer RH-0001 ram:16MB svga:1MB
+    edit an existing computer or part:
+        python scripts/add.py update RH-0001
 """
 from __future__ import annotations
 
@@ -134,7 +140,8 @@ def ask_computer(computers, default=""):
         return ""
     if raw.isdigit() and 1 <= int(raw) <= len(computers):
         return computers[int(raw) - 1]["asset_id"]
-    return raw  # assume they typed an asset_id
+    # assume they typed an asset_id
+    return raw
 
 
 # Ordered fields prompted in interactive mode: (key, prompt label, default).
@@ -513,7 +520,8 @@ def walk_generics(computer_id, config):
                                    normalise_amount(spec_key, ans))
                 extra = None
                 if pr["type"] == "storage":
-                    specs = ask_storage_specs(specs, ask_capacity=False)  # capacity already asked
+                    # capacity already asked
+                    specs = ask_storage_specs(specs, ask_capacity=False)
                     di = ask_disk_image()
                     extra = {"disk_image": di} if di else None
                 added.append(_add_preset_part(pr, computer_id, config, specs, extra))
@@ -655,7 +663,7 @@ def run_enrich(asset_id, kind, theretroweb_url):
         print(f"\nLooking up {asset_id} on Wikipedia…")
     try:
         subprocess.run(cmd, check=False)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"  enrichment skipped: {exc}")
 
 

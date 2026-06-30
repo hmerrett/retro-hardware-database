@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Build the site, commit everything, and push — in one go.
 #
-#   ./publish.sh                    # build + commit (auto message) + push
-#   ./publish.sh "Add Amiga 1200"   # build + commit with your message + push
+# With no argument: build, commit with an auto message, then push.
+#   ./publish.sh
+# With an argument: build, commit with that message, then push.
+#   ./publish.sh "Add Amiga 1200"
 #
 # GitHub Actions then rebuilds and redeploys the live site.
 set -euo pipefail
