@@ -43,7 +43,7 @@ print:
   ask: true
   copies: 1
   small_printer: "DYMO_LabelWriter_450_Turbo"
-  full_printer: ""
+  full_printer: "DYMO_LabelWriter_4XL"
 
 # Enrichment
 enrich:
