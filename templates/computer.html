@@ -4,7 +4,7 @@
 <p class="back"><a href="{{ root }}index.html">← all items</a></p>
 
 <div class="item-head">
-  {% if c.image %}<img src="{{ root }}images/{{ c.image }}" alt="{{ c.display_name }}">
+  {% if c.image %}<img class="zoomable" src="{{ root }}images/{{ c.image }}" alt="{{ c.display_name }}">
   {% else %}<img class="ph-lg" src="{{ root }}{{ c.placeholder }}" alt="computer">{% endif %}
   <div>
     <div class="aid">{{ c.asset_id }}</div>
