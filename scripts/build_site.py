@@ -108,7 +108,9 @@ def build():
                                      p.get("model", ""), p.get("specs", ""),
                                      p.get("type", ""), p["asset_id"]]).lower(),
         })
-    assets.sort(key=lambda a: a["asset_id"])
+    # Default order: items with a photo first, then most recently added first.
+    assets.sort(key=lambda a: a["asset_id"], reverse=True)
+    assets.sort(key=lambda a: 0 if a["image"] else 1)
 
     present_types = {p.get("type", "other") for p in parts}
     categories = [{"key": "computer", "label": "Computers"}]
