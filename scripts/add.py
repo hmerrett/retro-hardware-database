@@ -320,6 +320,12 @@ SLOT_TYPES = [
 ]
 
 
+def _format_slot_counts(counts):
+    """Counter{name: n} -> '2× 8-bit ISA, 6× 16-bit ISA' in canonical order."""
+    return ", ".join(f"{counts[name]}× {name}" if counts[name] > 1 else name
+                     for name, _ in SLOT_TYPES if counts.get(name))
+
+
 def expand_slots(raw):
     """'8I:2 16I:6 VLB' -> ('2× 8-bit ISA, 6× 16-bit ISA, VLB', [unknown]).
     Tokens are 'key', 'key:n', 'key*n' or 'keyxn'; order-independent."""
@@ -336,19 +342,30 @@ def expand_slots(raw):
             counts[name] += n
         else:
             unknown.append(tok)
-    out = [f"{counts[name]}× {name}" if counts[name] > 1 else name
-           for name, _ in SLOT_TYPES if counts.get(name)]
-    return ", ".join(out), unknown
+    return _format_slot_counts(counts), unknown
+
+
+def walk_slot_counts():
+    """Prompt a count for each slot type in turn (Enter or 0 skips)."""
+    from collections import Counter
+    counts = Counter()
+    print("  expansion slots — how many of each? (Enter or 0 to skip)")
+    for name, _ in SLOT_TYPES:
+        digits = re.sub(r"\D", "", ask(f"  {name}", "0"))
+        if digits and int(digits) > 0:
+            counts[name] = int(digits)
+    return _format_slot_counts(counts)
 
 
 def ask_slots(specs):
-    raw = ask("expansion slots — e.g. '8I:2 16I:6 VLB:1 PCI:3'  "
-              "(8I=8-bit ISA 16I=16-bit ISA E=EISA M=MCA VLB PCI AGP), blank to skip")
-    if not raw:
-        return specs
-    longform, unknown = expand_slots(raw)
-    if unknown:
-        print(f"  (ignored unrecognised slot tokens: {', '.join(unknown)})")
+    raw = ask("expansion slots — quick entry like '8I:2 16I:6 VLB:1 PCI:3', "
+              "or Enter to count each in turn")
+    if raw:
+        longform, unknown = expand_slots(raw)
+        if unknown:
+            print(f"  (ignored unrecognised slot tokens: {', '.join(unknown)})")
+    else:
+        longform = walk_slot_counts()
     if longform:
         specs = merge_spec(specs, "Slots", longform)
     return specs
