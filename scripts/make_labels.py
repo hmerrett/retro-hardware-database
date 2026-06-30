@@ -233,42 +233,51 @@ def render_label(c, W, H, asset_id, title, lines, url, qr_error, hfont, bfont):
     c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
 
 
-def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont):
-    m = 1.2 * mm
+def fit_to_lines(c, text, font, start, min_size, width, max_lines):
+    """Largest size (down to min_size) at which the wrapped text fits max_lines."""
+    size = start
+    while size > min_size and len(wrap_to_width(c, text, font, size, width)) > max_lines:
+        size -= 0.5
+    return size
+
+
+def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont, safe=0.0):
+    my = 1.2 * mm
+    mx = my + safe * mm
     c.setFillColorRGB(0, 0, 0)
 
     # landscape: QR left, text right
     if W >= H:
-        qr = H - 2 * m
-        c.drawImage(qr_reader(url, qr_error), m, m, width=qr, height=qr,
+        qr = H - 2 * my
+        c.drawImage(qr_reader(url, qr_error), mx, my, width=qr, height=qr,
                     preserveAspectRatio=True, mask="auto")
-        tx = m + qr + 1.5 * mm
-        tw = W - tx - m
+        tx = mx + qr + 1.5 * mm
+        tw = W - tx - mx
         aid_size = fit_size(c, asset_id, hfont, 11, 5, tw)
-        y = H - m - aid_size
+        y = H - my - aid_size
         c.setFont(hfont, aid_size)
         c.drawString(tx, y, asset_id)
-        bsize = 6.5
+        bsize = fit_to_lines(c, title, bfont, 6.5, 4.5, tw, 3)
         for line in wrap_to_width(c, title, bfont, bsize, tw)[:3]:
-            if y - (bsize + 1.5) < m:
+            if y - (bsize + 1.5) < my:
                 break
             y -= bsize + 1.5
             c.setFont(bfont, bsize)
             c.drawString(tx, y, line)
     # portrait: QR top, text below
     else:
-        qr = W - 2 * m
-        c.drawImage(qr_reader(url, qr_error), m, H - m - qr, width=qr, height=qr,
+        qr = W - 2 * my
+        c.drawImage(qr_reader(url, qr_error), my, H - mx - qr, width=qr, height=qr,
                     preserveAspectRatio=True, mask="auto")
-        tw = W - 2 * m
-        y = H - m - qr - 1.5 * mm
+        tw = W - 2 * my
+        y = H - mx - qr - 1.5 * mm
         aid_size = fit_size(c, asset_id, hfont, 10, 5, tw)
         y -= aid_size
         c.setFont(hfont, aid_size)
         c.drawCentredString(W / 2, y, asset_id)
-        bsize = 6
+        bsize = fit_to_lines(c, title, bfont, 6, 4.5, tw, 3)
         for line in wrap_to_width(c, title, bfont, bsize, tw)[:3]:
-            if y - (bsize + 1.5) < m:
+            if y - (bsize + 1.5) < mx:
                 break
             y -= bsize + 1.5
             c.setFont(bfont, bsize)
@@ -293,7 +302,8 @@ def draw_one(c, W, H, aid, small, config, title, lines, qr_error, hfont, bfont):
     c.saveState()
     apply_rotation(c, W, H, label_rotation(config, small))
     if small:
-        render_small_label(c, W, H, aid, title, url, qr_error, hfont, bfont)
+        safe = float((config.get("label_small") or {}).get("safe_mm", 0) or 0)
+        render_small_label(c, W, H, aid, title, url, qr_error, hfont, bfont, safe)
     else:
         render_label(c, W, H, aid, title, lines, url, qr_error, hfont, bfont)
     c.restoreState()
