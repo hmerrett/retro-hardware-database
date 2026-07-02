@@ -37,6 +37,33 @@ def detect_image(kind, asset_id):
     return ""
 
 
+def detect_images(kind, asset_id, primary=""):
+    """Ordered photo list for an asset: the primary first, then any extras
+    dropped in as images/<kind>/<asset_id>-2.<ext>, -3.<ext>, ... (numeric
+    order first, then any other suffix alphabetically)."""
+    folder = IMAGES_DIR / kind
+    imgs = []
+    if primary:
+        imgs.append(primary)
+    else:
+        primary = detect_image(kind, asset_id)
+        if primary:
+            imgs.append(primary)
+    extras = []
+    if folder.exists():
+        for f in folder.iterdir():
+            if f.suffix.lower() in IMAGE_EXTS and f.stem.startswith(asset_id + "-"):
+                extras.append(f)
+
+    def sort_key(f):
+        suffix = f.stem[len(asset_id) + 1:]
+        return (0, int(suffix), "") if suffix.isdigit() else (1, 0, suffix.lower())
+
+    for f in sorted(extras, key=sort_key):
+        imgs.append(f"{kind}/{f.name}")
+    return imgs
+
+
 def build():
     config = load_config()
     computers = load_computers()
@@ -55,6 +82,9 @@ def build():
         c["placeholder"] = placeholder_for("computer")
         if not c.get("image"):
             c["image"] = detect_image("computers", c["asset_id"])
+        c["images"] = detect_images("computers", c["asset_id"], c.get("image", ""))
+        if not c.get("image") and c["images"]:
+            c["image"] = c["images"][0]
     computers_by_id = index_by_id(computers)
 
     for p in parts:
@@ -65,6 +95,9 @@ def build():
         p["placeholder"] = placeholder_for(p.get("type", ""))
         if not p.get("image"):
             p["image"] = detect_image("parts", p["asset_id"])
+        p["images"] = detect_images("parts", p["asset_id"], p.get("image", ""))
+        if not p.get("image") and p["images"]:
+            p["image"] = p["images"][0]
     for c in computers:
         c["parts"] = parts_for(c["asset_id"], parts)
 

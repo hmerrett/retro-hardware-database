@@ -101,6 +101,21 @@ They're added as ordinary `parts.csv` rows (each with its own asset id) but are
 (memory is normalised to KB, so 16MB is stored as 16384 KB).
 Columns: `key, type, manufacturer, name, specs`.
 
+## Photos
+
+Each item shows one photo by default: `images/<computers|parts>/<asset_id>.jpg`
+(auto-filled by enrichment, or just drop a file in). For **multiple photos**, add
+more files with a numeric suffix:
+
+    images/parts/RH-0088.jpg      (primary — also shown on the index)
+    images/parts/RH-0088-2.jpg
+    images/parts/RH-0088-3.jpg
+
+The item page then shows the primary plus a thumbnail strip; click any photo to
+open the full-size viewer and use the on-screen arrows or arrow keys to move
+between them. Any image format works — `publish.sh` optimises and converts each
+to JPEG.
+
 ## Reference sources
 
 - **Wikipedia / Wikimedia** — free, used for summaries and photos for common

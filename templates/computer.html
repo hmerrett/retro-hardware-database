@@ -4,7 +4,17 @@
 <p class="back"><a href="{{ root }}index.html">← all items</a></p>
 
 <div class="item-head">
-  {% if c.image %}<img class="zoomable" src="{{ root }}images/{{ c.image }}" alt="{{ c.display_name }}">
+  {% if c.images %}
+  <div class="gallery">
+    <img class="zoomable gmain" src="{{ root }}images/{{ c.images[0] }}" alt="{{ c.display_name }}">
+    {% if c.images|length > 1 %}
+    <div class="thumbs">
+      {% for img in c.images %}
+      <img class="gthumb{{ ' on' if loop.first else '' }}" src="{{ root }}images/{{ img }}" alt="{{ c.display_name }} photo {{ loop.index }}">
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
   {% else %}<img class="ph-lg" src="{{ root }}{{ c.placeholder }}" alt="computer">{% endif %}
   <div>
     <div class="aid">{{ c.asset_id }}</div>
