@@ -26,6 +26,7 @@ import argparse
 import re
 import subprocess
 import sys
+from datetime import date
 import textwrap
 
 from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
@@ -653,6 +654,19 @@ def update_interactive(asset_id, config, dry_run):
     print("\nNext: ./publish.sh   (build, commit, push)")
 
 
+def set_disposed(asset_id, value):
+    kind, row, computers, parts = find_asset(asset_id)
+    if not row:
+        print(f"No asset '{asset_id}' found in computers.csv or parts.csv.")
+        return
+    row["disposed"] = value
+    save_computers(computers) if kind == "computer" else save_parts(parts)
+    if value:
+        print(f"Marked {asset_id} disposed ({value}) — hidden from the index by default.")
+    else:
+        print(f"Restored {asset_id} — no longer flagged disposed.")
+
+
 def run_enrich(asset_id, url):
     script = __file__.replace("add.py", "enrich.py")
     cmd = [sys.executable, script, "--only", asset_id]
@@ -735,11 +749,28 @@ def main():
     pud = sub.add_parser("update", help="update an existing computer or part by asset_id")
     pud.add_argument("asset_id")
 
+    pdis = sub.add_parser("dispose",
+                          help="flag an item as disposed of (hidden from the index by default)")
+    pdis.add_argument("asset_id")
+    pdis.add_argument("reason", nargs="?", default="",
+                      help="optional note/date; defaults to today")
+
+    pres = sub.add_parser("restore", help="clear the disposed flag on an item")
+    pres.add_argument("asset_id")
+
     args = p.parse_args()
     config = load_config()
 
     if args.kind == "update":
         update_interactive(args.asset_id, config, args.dry_run)
+        return
+
+    if args.kind == "dispose":
+        set_disposed(args.asset_id, args.reason or date.today().isoformat())
+        return
+
+    if args.kind == "restore":
+        set_disposed(args.asset_id, "")
         return
 
     if args.kind == "preset":

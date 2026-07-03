@@ -25,13 +25,13 @@ IMAGES_DIR = ROOT / "images"
 COMPUTER_COLUMNS = [
     "asset_id", "name", "manufacturer", "model", "year", "form_factor",
     "chassis", "os", "condition", "source", "acquired_date",
-    "image", "url", "summary", "notes",
+    "image", "url", "summary", "notes", "disposed",
 ]
 
 PART_COLUMNS = [
     "asset_id", "computer_id", "type", "manufacturer", "model", "name",
     "year", "specs", "condition", "source", "acquired_date",
-    "image", "url", "summary", "notes",
+    "image", "url", "summary", "notes", "disposed",
     # storage only: filename of the disk image taken on arrival
     "disk_image",
 ]
@@ -143,6 +143,11 @@ def url_label(url: str) -> str:
     """Display label for a reference link, based on its site."""
     return {"wikipedia": "Wikipedia",
             "theretroweb": "The Retro Web"}.get(url_source(url), "Reference")
+
+
+def is_disposed(row) -> bool:
+    """True if this item has been flagged as disposed of (hidden by default)."""
+    return bool((row.get("disposed") or "").strip())
 
 
 def index_by_id(rows: list[dict]) -> dict:

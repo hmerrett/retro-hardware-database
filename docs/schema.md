@@ -43,6 +43,7 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `url` | reference link (Wikipedia, The Retro Web, or another site) |
 | `summary` | short description (auto-filled from Wikipedia) |
 | `notes` | anything else |
+| `disposed` | non-empty = disposed of; hidden from the index by default. The value doubles as your note/date. |
 
 ## parts.csv columns
 
@@ -61,6 +62,7 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `url` | reference link (Wikipedia, The Retro Web, or another site) |
 | `summary` | short description (auto-filled) |
 | `notes` | anything else |
+| `disposed` | non-empty = disposed of; hidden from the index by default. The value doubles as your note/date. |
 
 ### `type` vocabulary
 
@@ -118,6 +120,18 @@ The item page then shows the primary plus a thumbnail strip; click any photo to
 open the full-size viewer and use the on-screen arrows or arrow keys to move
 between them. Any image format works — `publish.sh` optimises and converts each
 to JPEG.
+
+## Disposed items
+
+Flag anything you've sold, scrapped or given away as **disposed** and it drops
+out of the index by default. Its page still exists, and the "Show disposed"
+box on the index brings it back (dimmed). The `disposed` value is free text — a
+date or a short note — and appears as a banner on the item's page.
+
+    # flag it (a blank note defaults to today's date)
+    python scripts/add.py dispose RH-0060 "sold on eBay"
+    # clear the flag again
+    python scripts/add.py restore RH-0060
 
 ## Reference sources
 

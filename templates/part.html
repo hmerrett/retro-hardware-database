@@ -3,6 +3,8 @@
 {% block content %}
 <p class="back"><a href="{{ root }}index.html">← all items</a></p>
 
+{% if p.disposed %}<div class="disposed-banner">Disposed of — {{ p.disposed }}</div>{% endif %}
+
 <div class="item-head">
   {% if p.images %}
   <div class="gallery">
