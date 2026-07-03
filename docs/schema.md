@@ -73,7 +73,10 @@ Add new ones to `TYPE_ORDER` in `scripts/common.py` to control their order.)
 ### Recommended `specs` keys per type
 
 The `specs` field is deliberately flexible (one column, any keys) so parts of
-different kinds can live in one table. These are conventions, not rules:
+different kinds can live in one table. These are conventions, not rules —
+`build_site.py` prints a gentle warning for a key outside these lists, a
+duplicated key, or a URL left in a value, so typos and crossed data get caught
+(`peripheral`/`other` accept any keys):
 
 - **motherboard** — `Chipset`, `Socket` (CPU socket/slot), `Form factor`, `RAM slots`, `Slots` (count each type in turn, or quick entry `8I:2 16I:6 VLB:1` → `2× 8-bit ISA, 6× 16-bit ISA, VLB`; types: 8-bit ISA, 16-bit ISA, EISA, MCA, VLB, PCI, AGP), `Cache`, `BIOS`
 - **cpu** — `Socket`, `Speed`, `FSB`, `Cores`, `L1/L2 cache`

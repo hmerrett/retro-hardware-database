@@ -168,6 +168,26 @@ def next_asset_id(config: dict, computers: list[dict], parts: list[dict]) -> str
     return f"{prefix}{nxt:0{pad}d}"
 
 
+# Expected specs keys per part type. Types not listed (peripheral, other, or
+# any custom type) accept any keys. Used only for gentle build-time warnings —
+# storage stays flexible; this just catches typos and crossed data.
+KNOWN_SPEC_KEYS = {
+    "motherboard": {"Chipset", "Socket", "Form factor", "RAM slots", "Slots",
+                    "Cache", "BIOS"},
+    "cpu": {"Socket", "Speed", "FSB", "Cores", "Cache", "L1/L2 cache", "L2 cache"},
+    "ram": {"Type", "Size", "Speed"},
+    "gpu": {"Interface", "Memory", "Chipset", "Type"},
+    "sound": {"Interface", "Chipset", "FM", "Ports"},
+    "network": {"Interface", "Connector", "Chipset"},
+    "io": {"Interface", "Ports", "Chipset"},
+    "storage": {"Interface", "Protocol", "Capacity", "CHS", "Role"},
+    "optical": {"Media", "Interface", "Speed"},
+    "floppy": {"Media", "Interface", "Speed"},
+    "psu": {"Form factor", "Wattage", "Connectors"},
+    "cooler": {"Type", "Socket"},
+}
+
+
 def validate(computers: list[dict], parts: list[dict]) -> list[str]:
     """Return a list of human-readable integrity warnings (empty = all good)."""
     warnings = []
@@ -184,10 +204,27 @@ def validate(computers: list[dict], parts: list[dict]) -> list[str]:
             seen[aid] = label
     comp_ids = {c["asset_id"] for c in computers}
     for p in parts:
+        aid = p.get("asset_id", "")
         cid = p.get("computer_id", "")
         if cid and cid not in comp_ids:
             warnings.append(
-                f"parts.csv: {p['asset_id']} references unknown computer_id {cid}")
+                f"parts.csv: {aid} references unknown computer_id {cid}")
+        ptype = p.get("type", "")
+        allowed = KNOWN_SPEC_KEYS.get(ptype)
+        seen_keys = set()
+        for k, v in parse_specs(p.get("specs", "")):
+            if v.strip().lower().startswith("http"):
+                warnings.append(
+                    f"parts.csv: {aid} has a link in a spec value — URLs belong "
+                    "in theretroweb_url / wikipedia_url")
+            if not k:
+                continue
+            if k in seen_keys:
+                warnings.append(f"parts.csv: {aid} has duplicate spec key '{k}'")
+            seen_keys.add(k)
+            if allowed is not None and k not in allowed:
+                warnings.append(
+                    f"parts.csv: {aid} unexpected spec key '{k}' for type '{ptype}'")
     return warnings
 
 
