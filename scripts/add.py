@@ -157,8 +157,7 @@ COMPUTER_FIELDS = [
     ("condition", "condition", "Working"),
     ("source", "source (where/how acquired)", ""),
     ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
-    ("theretroweb_url", "theretroweb URL", ""),
-    ("wikipedia_url", "wikipedia URL", ""),
+    ("url", "reference URL (Wikipedia, The Retro Web, …)", ""),
     ("notes", "notes", ""),
 ]
 
@@ -171,7 +170,7 @@ PART_FIELDS = [
     ("condition", "condition", "Working"),
     ("source", "source (where/how acquired)", ""),
     ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
-    ("theretroweb_url", "theretroweb URL", ""),
+    ("url", "reference URL (Wikipedia, The Retro Web, …)", ""),
     ("notes", "notes", ""),
 ]
 
@@ -492,9 +491,9 @@ def detailed_part(ptype, computer_id, config, seed):
     apply_type_prompts(fields, ptype)
     asset_id, row = commit_new("part", fields, config, dry_run=False)
     print(f"  + {asset_id}  {display_name(row)}")
-    if ask("Fetch photo + specs now (Retro Web if linked, else Wikipedia)? (y/N)",
+    if ask("Fetch photo + specs now (from the URL, or Wikipedia by name)? (y/N)",
            "N").lower().startswith("y"):
-        run_enrich(asset_id, "part", row.get("theretroweb_url", ""))
+        run_enrich(asset_id, row.get("url", ""))
     return asset_id
 
 
@@ -654,14 +653,16 @@ def update_interactive(asset_id, config, dry_run):
     print("\nNext: ./publish.sh   (build, commit, push)")
 
 
-def run_enrich(asset_id, kind, theretroweb_url):
+def run_enrich(asset_id, url):
     script = __file__.replace("add.py", "enrich.py")
     cmd = [sys.executable, script, "--only", asset_id]
-    if kind == "part" and theretroweb_url:
-        cmd += ["--source", "theretroweb", "--browser"]
-        print(f"\nFetching {asset_id} photo + specs from Retro Web (browser)…")
-    else:
+    if url and "wikipedia.org" not in url.lower():
+        cmd += ["--browser"]
+        print(f"\nFetching {asset_id} photo from {url} (browser)…")
+    elif url:
         print(f"\nLooking up {asset_id} on Wikipedia…")
+    else:
+        print(f"\nLooking up {asset_id} on Wikipedia (by name)…")
     try:
         subprocess.run(cmd, check=False)
     except Exception as exc:
@@ -712,8 +713,7 @@ def main():
 
     pc = sub.add_parser("computer", help="add a computer (non-interactive)")
     for f in ("name", "manufacturer", "model", "year", "form_factor", "chassis",
-              "os", "condition", "source", "acquired_date",
-              "theretroweb_url", "wikipedia_url", "notes"):
+              "os", "condition", "source", "acquired_date", "url", "notes"):
         pc.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
     pp = sub.add_parser("part", help="add a part (non-interactive)")
@@ -721,8 +721,7 @@ def main():
     pp.add_argument("--computer", dest="computer_id", default="",
                     help="asset_id of the computer it's installed in (blank = standalone)")
     for f in ("manufacturer", "model", "name", "year", "specs", "condition",
-              "source", "acquired_date", "theretroweb_url", "wikipedia_url",
-              "notes", "disk_image"):
+              "source", "acquired_date", "url", "notes", "disk_image"):
         pp.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
     ppre = sub.add_parser("preset",
@@ -766,7 +765,7 @@ def main():
             partial = computer_row_interactive()
         else:
             partial = part_row_interactive(load_computers())
-        do_enrich = ask("Look up photo/specs now (Wikipedia, or Retro Web for a linked part)? (Y/n)",
+        do_enrich = ask("Look up photo/specs now (from the URL, or Wikipedia by name)? (Y/n)",
                         "Y").lower().startswith("y")
     else:
         kind = args.kind
@@ -788,7 +787,7 @@ def main():
     regenerate_labels([asset_id])
 
     if do_enrich:
-        run_enrich(asset_id, kind, row.get("theretroweb_url", ""))
+        run_enrich(asset_id, row.get("url", ""))
     if interactive and kind == "computer":
         touched += offer_generic(asset_id, config)
         # The build may have changed; refresh labels on disk without reprinting.

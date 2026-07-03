@@ -19,7 +19,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from common import (IMAGES_DIR, ROOT, TYPE_ORDER, display_name, index_by_id,
                     load_computers, load_config, load_parts, parse_specs,
                     parts_for, placeholder_for, type_label, type_sort_key,
-                    validate)
+                    url_label, validate)
 
 TEMPLATES_DIR = ROOT / "templates"
 SITE_DIR = ROOT / "site"
@@ -85,6 +85,7 @@ def build():
         c["images"] = detect_images("computers", c["asset_id"], c.get("image", ""))
         if not c.get("image") and c["images"]:
             c["image"] = c["images"][0]
+        c["url_label"] = url_label(c.get("url", ""))
     computers_by_id = index_by_id(computers)
 
     for p in parts:
@@ -98,6 +99,7 @@ def build():
         p["images"] = detect_images("parts", p["asset_id"], p.get("image", ""))
         if not p.get("image") and p["images"]:
             p["image"] = p["images"][0]
+        p["url_label"] = url_label(p.get("url", ""))
     for c in computers:
         c["parts"] = parts_for(c["asset_id"], parts)
 

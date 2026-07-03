@@ -50,7 +50,6 @@
 {% if p.disk_image %}<p class="meta">Disk image: {{ p.disk_image }}</p>{% endif %}
 
 <div class="refs">
-  {% if p.theretroweb_url %}<a href="{{ p.theretroweb_url }}">The Retro Web ↗</a>{% endif %}
-  {% if p.wikipedia_url %}<a href="{{ p.wikipedia_url }}">Wikipedia ↗</a>{% endif %}
+  {% if p.url %}<a href="{{ p.url }}">{{ p.url_label }} ↗</a>{% endif %}
 </div>
 {% endblock %}

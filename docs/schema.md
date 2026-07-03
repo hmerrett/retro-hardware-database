@@ -40,7 +40,7 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `condition`, `source` | your tracking (e.g. `Working`; where/how you acquired it) |
 | `acquired_date` | optional record-keeping (YYYY-MM-DD) |
 | `image` | photo path under `images/` (auto-filled) |
-| `theretroweb_url`, `wikipedia_url` | reference links |
+| `url` | reference link (Wikipedia, The Retro Web, or another site) |
 | `summary` | short description (auto-filled from Wikipedia) |
 | `notes` | anything else |
 
@@ -58,7 +58,7 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `acquired_date` | optional (YYYY-MM-DD) |
 | `disk_image` | storage only: filename of the disk image you took when it arrived |
 | `image` | photo path under `images/` (auto-filled) |
-| `theretroweb_url`, `wikipedia_url` | reference links |
+| `url` | reference link (Wikipedia, The Retro Web, or another site) |
 | `summary` | short description (auto-filled) |
 | `notes` | anything else |
 
@@ -127,11 +127,11 @@ to JPEG.
   parts (motherboards, CPUs, cards). There is **no public API** and the site is
   behind Cloudflare, so reliable automated spec-pulling isn't guaranteed and we
   never bypass their bot protection. The workflow is:
-  1. Paste the part's page URL into `theretroweb_url`.
-  2. Optionally run `python scripts/enrich.py --source theretroweb --only RH-0003`
-     — a single, identifying, rate-limited request that tries to read the spec
-     table and image. If Cloudflare blocks it, it logs that and keeps just the
-     link; fill the specs by hand in that case.
+  1. Paste the part's page URL into `url`.
+  2. Optionally run `python scripts/enrich.py --only RH-0003 --browser`
+     — a single, identifying, rate-limited request (headless Chrome) that tries
+     to read the spec table and image. If Cloudflare blocks it, it logs that and
+     keeps just the link; fill the specs by hand in that case.
   Their robots policy allows general access but disallows AI-training crawlers
   (`ai-train=no`); this personal, link-targeted use respects that. For bulk or
   sanctioned data access, contact the project (GitHub: `TheRetroWeb`, or their

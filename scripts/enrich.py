@@ -1,28 +1,24 @@
 #!/usr/bin/env python3
 """Fill in summaries, photos and (optionally) specs for both tables.
 
-Sources:
-  * wikipedia  (default) — free, no key. Fills summary, wikipedia_url, photo.
-  * theretroweb          — best effort. Only for rows that already have a
-                           theretroweb_url. One identifying, rate-limited
-                           request per item; reads the spec table + image if
-                           the page is returned. Does NOT bypass Cloudflare /
-                           bot protection — if blocked, it logs and keeps just
-                           the link. See docs/schema.md.
-
-Only EMPTY fields are filled unless you pass --force.
+Each item has one `url`. Enrichment looks at where it points:
+  * wikipedia.org   — free API; fills summary and photo (and records the url).
+  * theretroweb.com — best effort; reads the spec table + image, via headless
+                      Chrome (--browser) to get past Cloudflare. Never bypasses
+                      bot protection — if blocked it keeps just the link.
+  * any other site  — best-effort grab of the page's og:image.
+When a row has no url it falls back to searching Wikipedia by the item's name
+and records the page it finds. Only EMPTY fields are filled unless --force.
 
 Usage (the description sits above each command):
-    Wikipedia, all items:
+    everything (uses each item's url; Wikipedia name-search when it has none):
         python scripts/enrich.py
-    Wikipedia, one item:
-        python scripts/enrich.py --only RH-0001
-    The Retro Web, one item:
-        python scripts/enrich.py --source theretroweb --only RH-0003
-    The Retro Web, one item, dumping the fetched HTML:
-        python scripts/enrich.py --source theretroweb --only RH-0003 --dump-html
-    both sources, overwriting existing fields:
-        python scripts/enrich.py --source all --force
+    one item:
+        python scripts/enrich.py --only RH-0003
+    one item via headless Chrome (needed for The Retro Web / Cloudflare sites):
+        python scripts/enrich.py --only RH-0003 --browser
+    overwrite existing fields:
+        python scripts/enrich.py --force
 """
 from __future__ import annotations
 
@@ -31,14 +27,14 @@ import hashlib
 import io
 import re
 import time
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, unquote, urljoin
 
 import requests
 from PIL import Image
 
 from common import (IMAGES_DIR, ROOT, display_name, load_computers,
                     load_config, load_parts, parse_specs, save_computers,
-                    save_parts)
+                    save_parts, url_source)
 
 SEARCH_API = "https://{lang}.wikipedia.org/w/api.php"
 SUMMARY_API = "https://{lang}.wikipedia.org/api/rest_v1/page/summary/{title}"
@@ -89,44 +85,61 @@ def looks_relevant(name, title):
     return any(t in tl for t in tokens)
 
 
-def enrich_wikipedia(session, row, kind, lang, max_px, force):
+def wiki_title_from_url(url):
+    """Extract the article title from a /wiki/Title URL, else None."""
+    m = re.search(r"/wiki/([^?#]+)", url or "")
+    return unquote(m.group(1)).replace("_", " ") if m else None
+
+
+def enrich_wikipedia(session, row, kind, lang, max_px, force, title=None):
+    """Fill summary/url/image from Wikipedia. If `title` is given (from a pasted
+    url) it is used directly; otherwise the item name is searched for."""
     need_summary = force or not row["summary"]
-    need_url = force or not row["wikipedia_url"]
+    need_url = force or not row.get("url")
     need_image = force or not row["image"]
     if not (need_summary or need_url or need_image):
         return False
 
-    # Generic / unbranded items have no meaningful article — a Wikipedia search
-    # would just match junk (e.g. a "generic 3.5\" floppy" hitting SimCity).
-    generic = {"generic", "unknown", "mixed", "clone", "custom build",
-               "unknown (clone)", "n/a", "none", "noname"}
-    if ((row.get("manufacturer") or "").strip().lower() in generic
-            or display_name(row).strip().lower().startswith("generic")):
-        print(f"  [{row['asset_id']}] skipping Wikipedia (generic/unknown: "
-              f"{display_name(row)})")
-        return False
-
-    query = display_name(row)
-    print(f"  [{row['asset_id']}] wikipedia: {query}")
-    try:
-        title = wiki_search_title(session, lang, query)
+    if title is None:
+        # Generic / unbranded items have no meaningful article — a search would
+        # just match junk (e.g. a "generic 3.5\" floppy" hitting SimCity).
+        generic = {"generic", "unknown", "mixed", "clone", "custom build",
+                   "unknown (clone)", "n/a", "none", "noname"}
+        if ((row.get("manufacturer") or "").strip().lower() in generic
+                or display_name(row).strip().lower().startswith("generic")):
+            print(f"  [{row['asset_id']}] skipping Wikipedia (generic/unknown: "
+                  f"{display_name(row)})")
+            return False
+        query = display_name(row)
+        print(f"  [{row['asset_id']}] wikipedia: {query}")
+        try:
+            title = wiki_search_title(session, lang, query)
+        except Exception as exc:
+            print(f"      error: {exc}")
+            return False
         if not title:
             print("      no match")
             return False
         if not looks_relevant(query, title):
             print(f"      '{title}' looks unrelated to '{query}' — skipping "
-                  "(paste a wikipedia_url yourself to override)")
+                  "(paste a url yourself to override)")
             return False
+    else:
+        print(f"  [{row['asset_id']}] wikipedia (from url): {title}")
+
+    try:
         data = wiki_summary(session, lang, title)
         if not data:
             print("      no summary")
             return False
+        changed = False
         if need_summary and data.get("extract"):
             row["summary"] = data["extract"]
+            changed = True
         if need_url:
-            row["wikipedia_url"] = (data.get("content_urls", {})
-                                    .get("desktop", {}).get("page")
-                                    or f"https://{lang}.wikipedia.org/wiki/{quote(title)}")
+            row["url"] = (data.get("content_urls", {}).get("desktop", {}).get("page")
+                          or f"https://{lang}.wikipedia.org/wiki/{quote(title)}")
+            changed = True
         if need_image:
             src = (data.get("originalimage") or data.get("thumbnail") or {}).get("source")
             if src:
@@ -134,12 +147,13 @@ def enrich_wikipedia(session, row, kind, lang, max_px, force):
                 try:
                     download_image(session, src, dest, max_px)
                     row["image"] = rel
+                    changed = True
                     print(f"      photo -> images/{rel}")
                 except Exception as exc:
                     print(f"      image failed: {exc}")
         print(f"      matched: {title}")
         time.sleep(0.4)
-        return True
+        return changed
     except Exception as exc:
         print(f"      error: {exc}")
         return False
@@ -238,9 +252,8 @@ def _process_image_bytes(data, max_px):
     return buf.getvalue()
 
 
-def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
+def enrich_theretroweb(session, row, kind, url, max_px, delay, force, dump_html,
                        use_browser=False, browser_ua=BROWSER_UA, skip_hashes=()):
-    url = row.get("theretroweb_url", "")
     if not url:
         return False
     # computers have no specs column
@@ -307,17 +320,52 @@ def enrich_theretroweb(session, row, kind, max_px, delay, force, dump_html,
         return False
 
 
+def enrich_from_url(session, row, kind, url, max_px, force, use_browser=False,
+                    browser_ua=BROWSER_UA, skip_hashes=()):
+    """Best-effort photo grab from any other recognised site via its og:image."""
+    need_image = force or not row.get("image", "")
+    if not need_image:
+        return False
+    print(f"  [{row['asset_id']}] url image: {url}")
+    try:
+        img_bytes = None
+        if use_browser:
+            _, img_bytes = fetch_theretroweb_browser(url, browser_ua)
+        else:
+            resp = session.get(url, timeout=30)
+            if resp.status_code == 200 and resp.text:
+                _, og = parse_theretroweb(resp.text)
+                if og:
+                    r = session.get(urljoin(url, og), timeout=30)
+                    if r.ok:
+                        img_bytes = r.content
+        if not img_bytes:
+            print("      no og:image found there — keeping link only")
+            return False
+        proc = _process_image_bytes(img_bytes, max_px)
+        if hashlib.sha1(proc).hexdigest() in skip_hashes:
+            print("      placeholder image — skipped (keeping our icon)")
+            return False
+        dest, rel = image_dest(kind, row["asset_id"])
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(proc)
+        row["image"] = rel
+        print(f"      photo -> images/{rel}")
+        return True
+    except Exception as exc:
+        print(f"      error: {exc}")
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--source", choices=["wikipedia", "theretroweb", "all"],
-                    default="wikipedia")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--only", help="only this asset_id")
     ap.add_argument("--dump-html", action="store_true",
-                    help="save fetched theretroweb HTML for debugging")
+                    help="save fetched HTML for debugging")
     ap.add_argument("--browser", action="store_true",
-                    help="render theretroweb via headless Chromium (Playwright) to "
-                         "get past Cloudflare; grabs the photo + specs")
+                    help="render the page via headless Chromium (Playwright) to get "
+                         "past Cloudflare; needed for The Retro Web and some sites")
     args = ap.parse_args()
 
     config = load_config()
@@ -327,8 +375,8 @@ def main():
 
     wiki_session = requests.Session()
     wiki_session.headers.update({"User-Agent": enr.get("user_agent", "RetroHardwareDB/1.0")})
-    trw_session = requests.Session()
-    trw_session.headers.update({
+    web_session = requests.Session()
+    web_session.headers.update({
         "User-Agent": enr.get("theretroweb_user_agent", "RetroHardwareDB/1.0"),
         "Accept": "text/html,application/xhtml+xml",
     })
@@ -344,14 +392,22 @@ def main():
     for kind, row in rows:
         if args.only and row["asset_id"] != args.only:
             continue
+        url = (row.get("url") or "").strip()
+        src = url_source(url)
         changed = False
-        if args.source in ("wikipedia", "all"):
+        if src == "wikipedia":
+            changed |= enrich_wikipedia(wiki_session, row, kind, lang, max_px,
+                                        args.force, title=wiki_title_from_url(url))
+        elif src == "theretroweb":
+            changed |= enrich_theretroweb(web_session, row, kind, url, max_px, trw_delay,
+                                          args.force, args.dump_html, use_browser=args.browser,
+                                          browser_ua=browser_ua, skip_hashes=skip_hashes)
+        elif src == "other":
+            changed |= enrich_from_url(web_session, row, kind, url, max_px, args.force,
+                                       use_browser=args.browser, browser_ua=browser_ua,
+                                       skip_hashes=skip_hashes)
+        else:
             changed |= enrich_wikipedia(wiki_session, row, kind, lang, max_px, args.force)
-        if args.source in ("theretroweb", "all"):
-            changed |= enrich_theretroweb(trw_session, row, kind, max_px,
-                                          trw_delay, args.force, args.dump_html,
-                                          use_browser=args.browser, browser_ua=browser_ua,
-                                          skip_hashes=skip_hashes)
         if changed:
             if kind == "computers":
                 changed_c += 1

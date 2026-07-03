@@ -25,13 +25,13 @@ IMAGES_DIR = ROOT / "images"
 COMPUTER_COLUMNS = [
     "asset_id", "name", "manufacturer", "model", "year", "form_factor",
     "chassis", "os", "condition", "source", "acquired_date",
-    "image", "theretroweb_url", "wikipedia_url", "summary", "notes",
+    "image", "url", "summary", "notes",
 ]
 
 PART_COLUMNS = [
     "asset_id", "computer_id", "type", "manufacturer", "model", "name",
     "year", "specs", "condition", "source", "acquired_date",
-    "image", "theretroweb_url", "wikipedia_url", "summary", "notes",
+    "image", "url", "summary", "notes",
     # storage only: filename of the disk image taken on arrival
     "disk_image",
 ]
@@ -126,6 +126,25 @@ def type_sort_key(t: str) -> int:
         return len(TYPE_ORDER)
 
 
+def url_source(url: str) -> str:
+    """Which recognised site a reference url points at: 'wikipedia',
+    'theretroweb', 'other' (some other site), or '' (no url)."""
+    u = (url or "").lower()
+    if not u:
+        return ""
+    if "wikipedia.org" in u:
+        return "wikipedia"
+    if "theretroweb.com" in u:
+        return "theretroweb"
+    return "other"
+
+
+def url_label(url: str) -> str:
+    """Display label for a reference link, based on its site."""
+    return {"wikipedia": "Wikipedia",
+            "theretroweb": "The Retro Web"}.get(url_source(url), "Reference")
+
+
 def index_by_id(rows: list[dict]) -> dict:
     return {r["asset_id"]: r for r in rows}
 
@@ -215,8 +234,8 @@ def validate(computers: list[dict], parts: list[dict]) -> list[str]:
         for k, v in parse_specs(p.get("specs", "")):
             if v.strip().lower().startswith("http"):
                 warnings.append(
-                    f"parts.csv: {aid} has a link in a spec value — URLs belong "
-                    "in theretroweb_url / wikipedia_url")
+                    f"parts.csv: {aid} has a link in a spec value — put URLs "
+                    "in the url column")
             if not k:
                 continue
             if k in seen_keys:
