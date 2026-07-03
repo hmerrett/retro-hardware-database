@@ -51,10 +51,10 @@ SPEC_HINTS = {
     "motherboard": "Chipset, Socket, Form factor, RAM slots, Slots, Cache, BIOS",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
-    "gpu": "Memory, Chipset, Type",
-    "sound": "Chipset, FM, Ports",
-    "network": "Connector, Chipset",
-    "io": "Chipset",
+    "gpu": "Chip, Memory, Type",
+    "sound": "Chip, FM, Ports",
+    "network": "Chip, Connector",
+    "io": "Chip",
     "storage": "Role (interface/capacity/geometry asked separately)",
     "optical": "Media, Interface, Speed",
     "floppy": "Media, Interface",
@@ -328,6 +328,15 @@ def ask_interface(specs, options):
     return specs
 
 
+def ask_chip(specs):
+    """Prompt the card's main chip (the headline IC), merged in as 'Chip'."""
+    chip = ask("main chip (e.g. Yamaha OPL3, S3 Trident, Cirrus GD5428, "
+               "Realtek RTL8019), blank to skip")
+    if chip:
+        specs = merge_spec(specs, "Chip", chip)
+    return specs
+
+
 PORT_CODES = [("I", "IDE"), ("C", "SCSI"), ("A", "SATA"), ("M", "MFM"),
               ("R", "RLL"), ("F", "Floppy"), ("S", "Serial"), ("P", "Parallel"),
               ("G", "Game")]
@@ -455,6 +464,7 @@ def ask_motherboard(specs):
 def apply_type_prompts(row, ptype):
     """Type-specific extra prompts run after the standard part fields."""
     if ptype in CARD_TYPES:
+        row["specs"] = ask_chip(row.get("specs", ""))
         row["specs"] = ask_interface(row.get("specs", ""), CARD_INTERFACES)
         if ptype == "io":
             row["specs"] = ask_ports(row.get("specs", ""))
