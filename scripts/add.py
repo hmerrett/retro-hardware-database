@@ -72,7 +72,8 @@ CONDITIONS = ["Working", "Untested", "Partially working", "Faulty",
 CPU_SOCKETS = ["DIP/soldered", "PLCC", "Socket 1", "Socket 2", "Socket 3",
                "Socket 5", "Socket 7", "Super Socket 7", "Socket 8", "Slot 1"]
 RAM_SLOT_TYPES = ["30-pin SIMM", "72-pin SIMM", "168-pin DIMM", "184-pin DIMM"]
-CARD_INTERFACES = ["ISA", "EISA", "MCA", "VLB", "PCI", "AGP", "USB"]
+CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "ISA", "EISA", "MCA", "VLB",
+                   "PCI", "AGP", "USB"]
 STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
