@@ -111,5 +111,5 @@ RH-0112,,network,3Com,EtherLink III,,1994,Interface: 16-bit ISA,Working,,,parts/
 RH-0113,,network,3Com,3C905B-TXNM,,1999,Interface: PCI,Working,,,parts/RH-0113.jpg,https://theretroweb.com/expansioncards/s/3com-fast-etherlink-xl-pci-3c905b-tx,,,,
 RH-0114,,network,3Com,3C905-TX,,1997,Interface: PCI,Working,,,parts/RH-0114.jpg,https://theretroweb.com/expansioncards/s/3com-fast-etherlink-xl-pci-3c905b-tx,,,,
 RH-0115,,network,D-Link,DFE-530TX Rev C1,,2004,Interface: PCI,Working,,,parts/RH-0115.jpg,https://theretroweb.com/expansioncards/s/d-link-dfe-530tx-plus-rev-c1,,,,
-RH-0116,,network,D-Link,EZ-3200PCI+,,1997,Interface: PCI,Working,,,,,,,,
+RH-0116,,network,D-Link,EZ-3200PCI+,,1997,Interface: PCI,Working,,,,,,,"binned, no driver availability",
 RH-0117,,network,Intel,EtherExpress ISA 2,,1996,Interface: 16-bit ISA,Working,,,parts/RH-0117.jpg,https://theretroweb.com/expansioncards/s/intel-etherexpress-isa-2-tp-bnc,,,,
