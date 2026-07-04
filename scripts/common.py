@@ -160,14 +160,14 @@ SHOUT_ACRONYMS = {
 }
 def deshout(text: str) -> str:
     """De-shout a value word by word: a whitespace-delimited token that is
-    purely uppercase letters (4+ long) and not a known acronym becomes
-    Capitalised. Tokens with digits, hyphens or mixed case (part numbers like
-    CL-PCIVT6421E or 3C905B-TXNM) are left untouched, as are <=3-letter
-    acronyms and protected ones (SCSI, SATA, …)."""
+    purely uppercase letters (5+ long) and not a known acronym becomes
+    Capitalised. Tokens up to 4 letters (TYPE, IFSP, SCSI), part numbers with
+    digits/hyphens (CL-PCIVT6421E, 3C905B-TXNM) and protected acronyms are all
+    left untouched."""
     out = []
     for tok in re.split(r"(\s+)", text or ""):
         core = tok.strip(".,:;()[]{}/\\\"'")
-        if (core.isalpha() and core.isupper() and len(core) >= 4
+        if (core.isalpha() and core.isupper() and len(core) >= 5
                 and core not in SHOUT_ACRONYMS):
             i = tok.find(core)
             tok = tok[:i] + core[0] + core[1:].lower() + tok[i + len(core):]

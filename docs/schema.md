@@ -64,10 +64,10 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `notes` | anything else |
 | `disposed` | non-empty = disposed of; hidden from the index by default. The value doubles as your note/date. |
 
-`manufacturer` and `model` are auto-tidied on entry: an all-caps word of 4+
-letters is de-shouted to sentence case (`MODEL` → `Model`), while short acronyms,
-protected ones (`SCSI`, `SATA`, `EISA`, …) and part numbers (`CL-PCIVT6421E`,
-`3C905B-TXNM`) are left untouched.
+`manufacturer` and `model` are auto-tidied on entry: an all-caps word of 5+
+letters is de-shouted to sentence case (`MODEL` → `Model`), while tokens up to
+4 letters (`TYPE`, `IFSP`, `SCSI`), protected acronyms and part numbers
+(`CL-PCIVT6421E`, `3C905B-TXNM`) are left untouched.
 
 ### `type` vocabulary
 
