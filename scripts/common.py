@@ -12,6 +12,7 @@ to a computer's asset_id (blank = standalone / not installed).
 from __future__ import annotations
 
 import csv
+import re
 from pathlib import Path
 
 import yaml
@@ -148,6 +149,30 @@ def url_label(url: str) -> str:
 def is_disposed(row) -> bool:
     """True if this item has been flagged as disposed of (hidden by default)."""
     return bool((row.get("disposed") or "").strip())
+
+
+# Hardware acronyms of 4+ letters that must stay upper-case when de-shouting.
+SHOUT_ACRONYMS = {
+    "SCSI", "SATA", "PATA", "EISA", "ESDI", "VESA", "SVGA", "WXGA", "ATAPI",
+    "BIOS", "UEFI", "DRAM", "SRAM", "SDRAM", "VRAM", "SIMM", "DIMM", "RIMM",
+    "SIPP", "COAST", "CMOS", "MIDI", "EPROM", "EEPROM", "PROM", "MCGA",
+    "PLCC", "NTSC", "SECAM", "WLAN", "ASIC",
+}
+def deshout(text: str) -> str:
+    """De-shout a value word by word: a whitespace-delimited token that is
+    purely uppercase letters (4+ long) and not a known acronym becomes
+    Capitalised. Tokens with digits, hyphens or mixed case (part numbers like
+    CL-PCIVT6421E or 3C905B-TXNM) are left untouched, as are <=3-letter
+    acronyms and protected ones (SCSI, SATA, …)."""
+    out = []
+    for tok in re.split(r"(\s+)", text or ""):
+        core = tok.strip(".,:;()[]{}/\\\"'")
+        if (core.isalpha() and core.isupper() and len(core) >= 4
+                and core not in SHOUT_ACRONYMS):
+            i = tok.find(core)
+            tok = tok[:i] + core[0] + core[1:].lower() + tok[i + len(core):]
+        out.append(tok)
+    return "".join(out)
 
 
 def index_by_id(rows: list[dict]) -> dict:

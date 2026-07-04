@@ -30,7 +30,7 @@ from datetime import date
 import textwrap
 
 from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
-                    display_name, item_url, load_computers, load_config,
+                    deshout, display_name, item_url, load_computers, load_config,
                     load_parts, load_presets, next_asset_id, parse_specs,
                     save_computers, save_parts, type_label)
 
@@ -591,6 +591,9 @@ def commit_new(kind, partial, config, dry_run):
     row = {c: "" for c in columns}
     row.update(partial)
     row["asset_id"] = asset_id
+    for f in ("manufacturer", "model"):
+        if row.get(f):
+            row[f] = deshout(row[f])
 
     if kind == "part" and row.get("computer_id"):
         if row["computer_id"] not in {c["asset_id"] for c in computers}:
@@ -647,6 +650,10 @@ def update_interactive(asset_id, config, dry_run):
     dw = date_warning(row.get("acquired_date", ""))
     if dw:
         print(dw)
+
+    for f in ("manufacturer", "model"):
+        if row.get(f):
+            row[f] = deshout(row[f])
 
     if dry_run:
         print(f"\n[dry-run] would update {asset_id}:")
