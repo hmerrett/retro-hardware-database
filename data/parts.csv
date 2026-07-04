@@ -138,3 +138,7 @@ RH-0139,,sound,Yamaha,YMF718-S,,1996,Chip: Yamaha OPL YMF718-S | Interface: 16-b
 RH-0140,,sound,DataExpert,EPC-SYMINI01,,1997,Chip: Yamaha OPL YMF719B-S | Interface: 16-bit ISA,Working,,,parts/RH-0140.jpg,https://theretroweb.com/expansioncards/s/dataexpert-med3700,,,,
 RH-0141,,sound,Zoltrix,Audio Plus 6400 PnP,,1996,Chip: CM18329A | Interface: 16-bit ISA,Working,,,,https://theretroweb.com/expansioncards/s/zoltrix-audio-plus-6400-pnp,,,,
 RH-0142,,sound,Zoltrix,Audio Plus 6400 PnP,,1996,Chip: CM18329A | Interface: 16-bit ISA,Working,,,,https://theretroweb.com/expansioncards/s/zoltrix-audio-plus-6400-pnp,,,,
+RH-0143,,sound,Shuttle,HOT-247,,1996,Chip: Opti 82C931 | Interface: 16-bit ISA,Working,,,parts/RH-0143.jpg,https://theretroweb.com/expansioncards/s/shuttle-hot-247,,,,
+RH-0144,,sound,Shuttle,HOT-239,,1995,Chip: Opti 82C930 | Interface: 16-bit ISA,Working,,,parts/RH-0144.jpg,https://theretroweb.com/expansioncards/s/shuttle-hot-239,,,,
+RH-0145,,sound,Aztech,Sound Galaxy Washington 16,,,Chip: AZT 2316 | Interface: 16-bit ISA,Working,,,parts/RH-0145.jpg,https://theretroweb.com/expansioncards/s/aztech-sound-galaxy-washington-16-2,,,,
+RH-0146,,sound,Aztech,Sound Galaxy Pro 16 II,,1994,Chip: AZT1605 | Interface: 16-bit ISA,Working,,,parts/RH-0146.jpg,https://theretroweb.com/expansioncards/s/aztech-sound-galaxy-pro-16-ii,,,,
