@@ -30,7 +30,8 @@ MS-DOS it is missing — run `DETECT16` or `DET386` directly, or point
 ## The report file
 
 Each detector prompts for the machine's asset id and writes the report to
-`A:\<id>.TXT` (e.g. `A:\RH-0005.TXT`) using HWiNFO's `-r` switch. Boot one machine
+`A:\<id>.TXT` (e.g. `A:\RH-0005.TXT`) using HWiNFO's report switch, `-r A:\<id>.TXT`
+(the filename is a separate argument). Boot one machine
 after another with the same floppy and the reports pile up on the disk. If a build
 ignores `-r` and opens its menu, save the report by hand to that same
 `A:\<id>.TXT`. `-r` can stall mid-scan on some machines — if it hangs, reboot and
