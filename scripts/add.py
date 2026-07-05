@@ -53,7 +53,7 @@ SPEC_HINTS = {
     "motherboard": "Chipset, Socket, Form factor, RAM slots, Slots, Cache, BIOS",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
-    "gpu": "Chip, Memory, Type",
+    "gpu": "Chip, Connector, Memory, Type",
     "sound": "Chip, FM, Ports",
     "network": "Chip, Connector",
     "io": "Chip",
@@ -77,6 +77,8 @@ CPU_SOCKETS = ["DIP/soldered", "PLCC", "Socket 1", "Socket 2", "Socket 3",
 RAM_SLOT_TYPES = ["30-pin SIMM", "72-pin SIMM", "168-pin DIMM", "184-pin DIMM"]
 CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "EISA", "MCA", "VLB",
                    "PCI", "AGP", "PCIe x16", "USB"]
+GPU_CONNECTORS = ["VGA", "DVI", "HDMI", "DisplayPort", "S-Video", "Composite",
+                  "Component", "MDA", "CGA", "EGA"]
 STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
@@ -339,6 +341,14 @@ def ask_chip(specs):
     return specs
 
 
+def ask_connector(specs):
+    """Prompt a video card's output connector(s), merged in as 'Connector'."""
+    conn = ask_choice("connector(s)", GPU_CONNECTORS, multi=True)
+    if conn:
+        specs = merge_spec(specs, "Connector", conn)
+    return specs
+
+
 PORT_CODES = [("I", "IDE"), ("C", "SCSI"), ("A", "SATA"), ("M", "MFM"),
               ("R", "RLL"), ("F", "Floppy"), ("S", "Serial"), ("P", "Parallel"),
               ("G", "Game")]
@@ -471,6 +481,8 @@ def apply_type_prompts(row, ptype):
         row["specs"] = ask_interface(row.get("specs", ""), CARD_INTERFACES)
         if ptype == "io":
             row["specs"] = ask_ports(row.get("specs", ""))
+        elif ptype == "gpu":
+            row["specs"] = ask_connector(row.get("specs", ""))
     elif ptype == "peripheral":
         row["specs"] = ask_interface(row.get("specs", ""), PERIPHERAL_INTERFACES)
     elif ptype == "motherboard":

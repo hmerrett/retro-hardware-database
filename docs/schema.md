@@ -88,7 +88,7 @@ duplicated key, or a URL left in a value, so typos and crossed data get caught
 - **motherboard** — `Chipset`, `Socket` (CPU socket/slot), `Form factor`, `RAM slots`, `Slots` (count each type in turn, or quick entry `8I:2 16I:6 VLB:1` → `2× 8-bit ISA, 6× 16-bit ISA, VLB`; types: 8-bit ISA, 16-bit ISA, EISA, MCA, VLB, PCI, AGP, PCIe x16), `Cache`, `BIOS`
 - **cpu** — `Socket`, `Speed`, `FSB`, `Cores`, `L1/L2 cache`
 - **ram** — `Type` (e.g. 72-pin FPM, EDO, SDRAM), `Size`, `Speed`
-- **gpu** — `Interface` (ISA/VLB/PCI/AGP/PCIe x16), `Chip` (main chip), `Memory`, `Type`
+- **gpu** — `Interface` (ISA/VLB/PCI/AGP/PCIe x16), `Chip` (main chip), `Connector` (VGA/DVI/MDA/CGA/EGA/HDMI…), `Memory`, `Type`
 - **sound** — `Interface` (bus), `Chip` (main chip), `FM`, `Ports`
 - **network** — `Interface` (ISA/PCI bus), `Chip` (main chip), `Connector` (10BASE-T/BNC/AUI)
 - **io** — `Interface` (bus), `Chip` (main chip), `Ports` (quick entry: letters I=IDE C=SCSI A=SATA M=MFM R=RLL F=Floppy S=Serial P=Parallel G=Game, e.g. `IFSSP` → `IDE, Floppy, 2× Serial, Parallel`)

@@ -225,7 +225,7 @@ KNOWN_SPEC_KEYS = {
                     "Cache", "BIOS"},
     "cpu": {"Socket", "Speed", "FSB", "Cores", "Cache", "L1/L2 cache", "L2 cache"},
     "ram": {"Type", "Size", "Speed"},
-    "gpu": {"Interface", "Memory", "Chip", "Chipset", "Type"},
+    "gpu": {"Interface", "Memory", "Chip", "Chipset", "Type", "Connector"},
     "sound": {"Interface", "Chip", "Chipset", "FM", "Ports"},
     "network": {"Interface", "Connector", "Chip", "Chipset"},
     "io": {"Interface", "Ports", "Chip", "Chipset"},
