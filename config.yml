@@ -22,6 +22,8 @@ label:
   units: "in"
   # QR error-correction: L, M, Q, or H
   qr_error: "M"
+  # rotate the printed label by this many degrees (0/90/180/270); flip to 270 if upside down
+  rotate: 90
   # Optional TTF display font for the asset number + title on labels.
   # Drop the file at this path; if it's missing, labels fall back to Helvetica.
   font_path: "assets/fonts/Audiowide-Regular.ttf"
