@@ -380,6 +380,7 @@ SLOT_TYPES = [
     ("VLB", ("V", "VL", "VLB")),
     ("PCI", ("P", "PCI")),
     ("AGP", ("A", "AGP")),
+    ("PCIe x16", ("PCIE16", "X16")),
 ]
 
 
