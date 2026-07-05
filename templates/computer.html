@@ -31,7 +31,7 @@
   </div>
 </div>
 
-{% if c.chassis or c.os %}
+{% if c.form_factor or c.chassis or c.os %}
 <table class="specs">
   {% if c.form_factor %}<tr><td class="k">Form factor</td><td>{{ c.form_factor }}</td></tr>{% endif %}
   {% if c.chassis %}<tr><td class="k">Chassis</td><td>{{ c.chassis }}</td></tr>{% endif %}

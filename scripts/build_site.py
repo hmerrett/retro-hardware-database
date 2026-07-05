@@ -102,6 +102,14 @@ def build():
         p["url_label"] = url_label(p.get("url", ""))
     for c in computers:
         c["parts"] = parts_for(c["asset_id"], parts)
+        # Form factor is a motherboard property — derive it from the linked board.
+        c["form_factor"] = ""
+        for p in c["parts"]:
+            if p.get("type") == "motherboard":
+                ff = dict(p.get("spec_pairs") or []).get("Form factor", "")
+                if ff:
+                    c["form_factor"] = ff
+                    break
 
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATES_DIR)),

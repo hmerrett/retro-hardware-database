@@ -151,13 +151,23 @@ def fit_size(c, text, font, start, min_size, max_w):
 
 def computer_lines(comp, parts):
     lines = ["Type: Computer"]
-    for label, key in (("Manufacturer", "manufacturer"), ("Year", "year"),
-                       ("Form factor", "form_factor"), ("Chassis", "chassis"),
-                       ("OS", "os")):
+    kids = parts_for(comp["asset_id"], parts)
+    form_factor = ""
+    for p in kids:
+        if p.get("type") == "motherboard":
+            form_factor = dict(parse_specs(p.get("specs", ""))).get("Form factor", "")
+            if form_factor:
+                break
+    if comp.get("manufacturer"):
+        lines.append(f"Manufacturer: {comp['manufacturer']}")
+    if comp.get("year"):
+        lines.append(f"Year: {comp['year']}")
+    if form_factor:
+        lines.append(f"Form factor: {form_factor}")
+    for label, key in (("Chassis", "chassis"), ("OS", "os")):
         if comp.get(key):
             lines.append(f"{label}: {comp[key]}")
 
-    kids = parts_for(comp["asset_id"], parts)
     by_type = {}
     for p in kids:
         by_type.setdefault(p.get("type", ""), []).append(p)

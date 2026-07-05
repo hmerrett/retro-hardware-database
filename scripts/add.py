@@ -67,8 +67,6 @@ SPEC_HINTS = {
 }
 
 # Pick-list vocabularies for fields with known options (numbered entry).
-COMPUTER_FORM_FACTORS = ["AT", "Baby-AT", "ATX", "LPX", "NLX", "proprietary",
-                         "all-in-one"]
 MOBO_FORM_FACTORS = ["AT", "Baby-AT", "ATX", "LPX", "NLX", "proprietary"]
 CONDITIONS = ["Working", "Untested", "Partially working", "Faulty",
               "For parts/repair", "Restored"]
@@ -85,7 +83,7 @@ PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 
 # Standard fields that should be entered from a numbered pick list.
-FIELD_CHOICES = {"form_factor": COMPUTER_FORM_FACTORS, "condition": CONDITIONS}
+FIELD_CHOICES = {"condition": CONDITIONS}
 
 
 # --- tiny input helpers ----------------------------------------------------
@@ -159,7 +157,6 @@ COMPUTER_FIELDS = [
     ("manufacturer", "manufacturer (or 'Custom build')", ""),
     ("model", "model", ""),
     ("year", "year", ""),
-    ("form_factor", "form factor (AT/Baby-AT/ATX/proprietary/all-in-one)", ""),
     ("chassis", "chassis / case (desktop, tower, mini-tower, …)", ""),
     ("os", "operating system", ""),
     ("condition", "condition", "Working"),
@@ -598,6 +595,57 @@ def offer_generic(computer_id, config):
     return []
 
 
+def create_motherboard(computer_id, config):
+    """Guided entry of a new motherboard part linked to this computer. Identity
+    fields first (no free-form specs prompt), then the guided motherboard specs."""
+    print("\n  New motherboard — identity, then the guided specs:")
+    fields = prompt_fields([f for f in PART_FIELDS if f[0] != "specs"])
+    fields["type"] = "motherboard"
+    fields["computer_id"] = computer_id
+    apply_type_prompts(fields, "motherboard")
+    asset_id, row = commit_new("part", fields, config, dry_run=False)
+    print(f"  + {asset_id}  {display_name(row)}")
+    if ask("Fetch photo + specs now (from the URL, or Wikipedia by name)? (y/N)",
+           "N").lower().startswith("y"):
+        run_enrich(asset_id, row.get("url", ""))
+    return asset_id
+
+
+def link_or_create_motherboard(computer_id, config):
+    """Give the new computer a motherboard: link an existing board by number or
+    asset id, or leave blank to create one now. Returns touched asset ids."""
+    parts = load_parts()
+    mobos = [p for p in parts if p.get("type") == "motherboard"]
+    unlinked = [m for m in mobos if not m.get("computer_id")]
+    listing = unlinked or mobos
+    print("\n  Motherboard for this computer:")
+    for i, m in enumerate(listing, 1):
+        where = "" if not m.get("computer_id") else f"  (in {m['computer_id']})"
+        print(f"    {i:>2}. {m['asset_id']}  {display_name(m)}{where}")
+    if listing:
+        print("    Enter a number or asset id to LINK an existing board,")
+    print("    or leave blank to CREATE one now.")
+    raw = ask("motherboard (number / asset id / blank = create)")
+    if raw:
+        mid = raw
+        if raw.isdigit() and 1 <= int(raw) <= len(listing):
+            mid = listing[int(raw) - 1]["asset_id"]
+        hit = next((m for m in parts if m["asset_id"] == mid), None)
+        if not hit:
+            print(f"  ! no part {mid} found — skipping.")
+            return []
+        if hit.get("type") != "motherboard":
+            print(f"  ! {mid} is a {hit.get('type') or 'part'}, not a motherboard — skipping.")
+            return []
+        hit["computer_id"] = computer_id
+        save_parts(parts)
+        print(f"  linked {mid} to {computer_id}.")
+        return [mid]
+    if ask("Create the motherboard now? (Y/n)", "Y").lower().startswith("y"):
+        return [create_motherboard(computer_id, config)]
+    return []
+
+
 # --- write / update a row --------------------------------------------------
 
 def commit_new(kind, partial, config, dry_run):
@@ -785,7 +833,7 @@ def main():
     sub = p.add_subparsers(dest="kind")
 
     pc = sub.add_parser("computer", help="add a computer (non-interactive)")
-    for f in ("name", "manufacturer", "model", "year", "form_factor", "chassis",
+    for f in ("name", "manufacturer", "model", "year", "chassis",
               "os", "condition", "source", "acquired_date", "url", "notes"):
         pc.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
@@ -889,6 +937,7 @@ def main():
     if do_enrich:
         run_enrich(asset_id, row.get("url", ""))
     if interactive and kind == "computer":
+        touched += link_or_create_motherboard(asset_id, config)
         touched += offer_generic(asset_id, config)
         # The build may have changed; refresh labels on disk without reprinting.
         regenerate_labels(touched, offer_print=False)

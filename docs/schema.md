@@ -34,8 +34,11 @@ across the two files. (Prefix/width set in `config.yml`.)
 | `name` | display name (overrides manufacturer+model) |
 | `manufacturer`, `model` | identity (`Custom build` is fine for clones) |
 | `year` | year built / released |
-| `form_factor` | the board/spec **standard**: AT / Baby-AT / ATX / proprietary / all-in-one … (physical orientation like desktop/tower belongs in `chassis`) |
 | `chassis` | the physical **case**: desktop, tower, mini-tower, breadbin, brand/model |
+
+Form factor isn't stored on the computer — it's a motherboard property, shown on
+the computer's page from its linked `motherboard` part. `add.py` prompts you to
+link or create that board when you add a computer.
 | `os` | installed operating system(s) |
 | `condition`, `source` | your tracking (e.g. `Working`; where/how you acquired it) |
 | `acquired_date` | optional record-keeping (YYYY-MM-DD) |
@@ -85,7 +88,7 @@ different kinds can live in one table. These are conventions, not rules —
 duplicated key, or a URL left in a value, so typos and crossed data get caught
 (`peripheral`/`other` accept any keys):
 
-- **motherboard** — `Chipset`, `CPU family` (e.g. 486-class, Pentium-class), `Form factor`, `RAM slots`, `Slots` (count each type in turn, or quick entry `8I:2 16I:6 VLB:1` → `2× 8-bit ISA, 6× 16-bit ISA, VLB`; types: 8-bit ISA, 16-bit ISA, EISA, MCA, VLB, PCI, AGP, PCIe x16), `Cache`, `BIOS`
+- **motherboard** — `Chipset`, `CPU family` (e.g. 486-class, Pentium-class), `Form factor` (the computer's form factor is taken from here), `RAM slots`, `Slots` (count each type in turn, or quick entry `8I:2 16I:6 VLB:1` → `2× 8-bit ISA, 6× 16-bit ISA, VLB`; types: 8-bit ISA, 16-bit ISA, EISA, MCA, VLB, PCI, AGP, PCIe x16), `Cache`, `BIOS`
 - **cpu** — `Socket`, `Speed`, `FSB`, `Cores`, `L1/L2 cache`
 - **ram** — `Type` (e.g. 72-pin FPM, EDO, SDRAM), `Size`, `Speed`
 - **video** — `Interface` (ISA/VLB/PCI/AGP/PCIe x16), `Chip` (main chip), `Connector` (VGA/DVI/MDA/CGA/EGA/HDMI…), `Memory`, `Type`

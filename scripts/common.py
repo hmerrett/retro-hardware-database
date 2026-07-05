@@ -24,7 +24,7 @@ PARTS_PATH = ROOT / "data" / "parts.csv"
 IMAGES_DIR = ROOT / "images"
 
 COMPUTER_COLUMNS = [
-    "asset_id", "name", "manufacturer", "model", "year", "form_factor",
+    "asset_id", "name", "manufacturer", "model", "year",
     "chassis", "os", "condition", "source", "acquired_date",
     "image", "url", "summary", "notes", "disposed",
 ]
