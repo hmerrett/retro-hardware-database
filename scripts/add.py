@@ -93,9 +93,11 @@ FIELD_CHOICES = {"form_factor": COMPUTER_FORM_FACTORS, "condition": CONDITIONS}
 def ask(label, default=""):
     suffix = f" [{default}]" if default else ""
     try:
-        val = input(f"  {label}{suffix}: ").strip()
+        val = input(f"  {label}{suffix}: ")
     except EOFError:
         return default
+    # Collapse any line breaks / whitespace runs from a paste into single spaces.
+    val = " ".join(val.split())
     return val or default
 
 
