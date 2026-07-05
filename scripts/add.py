@@ -19,6 +19,8 @@ Examples (the description sits above each command):
         python scripts/add.py preset --computer RH-0001 ram:16MB svga:1MB
     edit an existing computer or part:
         python scripts/add.py update RH-0001
+    clone an item N times (identical copies, new IDs) — e.g. five of the same card:
+        python scripts/add.py dup RH-0132 4
 """
 from __future__ import annotations
 
@@ -684,6 +686,30 @@ def set_disposed(asset_id, value):
         print(f"Restored {asset_id} — no longer flagged disposed.")
 
 
+def duplicate_asset(asset_id, count, config):
+    """Make `count` identical copies of an existing item, each with a fresh
+    asset id (photo shared, disposed flag cleared). For a batch of the same
+    card: enter one, then dup the rest — no re-typing, no re-fetching."""
+    kind, src, computers, parts = find_asset(asset_id)
+    if not src:
+        print(f"No asset '{asset_id}' found in computers.csv or parts.csv.")
+        return
+    columns = COMPUTER_COLUMNS if kind == "computer" else PART_COLUMNS
+    coll = computers if kind == "computer" else parts
+    new_ids = []
+    for _ in range(count):
+        new_id = next_asset_id(config, computers, parts)
+        row = {c: src.get(c, "") for c in columns}
+        row["asset_id"] = new_id
+        row["disposed"] = ""
+        coll.append(row)
+        new_ids.append(new_id)
+    save_computers(computers) if kind == "computer" else save_parts(parts)
+    print(f"\nCloned {asset_id} ({display_name(src)}) -> {', '.join(new_ids)}")
+    regenerate_labels(new_ids)
+    print("\nNext: ./publish.sh   (build, commit, push)")
+
+
 def run_enrich(asset_id, url):
     script = __file__.replace("add.py", "enrich.py")
     cmd = [sys.executable, script, "--only", asset_id]
@@ -775,6 +801,12 @@ def main():
     pres = sub.add_parser("restore", help="clear the disposed flag on an item")
     pres.add_argument("asset_id")
 
+    pdup = sub.add_parser("dup",
+                          help="duplicate an item N times (identical copies, new IDs)")
+    pdup.add_argument("asset_id")
+    pdup.add_argument("count", nargs="?", type=int, default=1,
+                      help="how many copies to make (default 1)")
+
     args = p.parse_args()
     config = load_config()
 
@@ -788,6 +820,10 @@ def main():
 
     if args.kind == "restore":
         set_disposed(args.asset_id, "")
+        return
+
+    if args.kind == "dup":
+        duplicate_asset(args.asset_id, max(1, args.count), config)
         return
 
     if args.kind == "preset":
