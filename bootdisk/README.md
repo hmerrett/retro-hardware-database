@@ -50,10 +50,14 @@ for 386+, or a 360KB MS-DOS boot floppy for the XT/286 machines.
 Give the batch files DOS (CRLF) line endings, then copy everything into the image
 (`mcopy` writes into the FAT filesystem with no mount or root):
 
-    unix2dos bootdisk/*.BAT
+    unix2dos bootdisk/*.BAT bootdisk/FDCONFIG.SYS
     mcopy -o -i boot.img bootdisk/DETECT.BAT bootdisk/DET386.BAT bootdisk/DETECT16.BAT ::/
-    mcopy -o -i boot.img bootdisk/AUTOEXEC.BAT ::/
-    mcopy -o -i boot.img /path/to/HWINFO.EXE /path/to/HWINFO16.EXE ::/
+    mcopy -o -i boot.img bootdisk/AUTOEXEC.BAT bootdisk/FDCONFIG.SYS ::/
+    mcopy -o -i boot.img /path/to/HWINFO.EXE /path/to/HWINFO16.EXE /path/to/HIMEM.EXE ::/
+
+`HIMEM.EXE` (from the FreeDOS base image) plus `FDCONFIG.SYS`'s `DOS=HIGH` push the
+kernel into the HMA. Without them the 386 HWiNFO build runs out of conventional
+(base 640K) memory — so if you strip a base image down, **keep `HIMEM.EXE`**.
 
 No `unix2dos`? `sed -i 's/$/\r/' bootdisk/*.BAT` does the same.
 
