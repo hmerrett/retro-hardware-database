@@ -97,7 +97,7 @@ OS, …).
 **Its parts:** add rows to `data/parts.csv`, each with `computer_id` set to that
 computer's asset_id. "One or more CPUs / cards / storage" is just several rows.
 Leave `computer_id` blank for a spare that isn't installed. Set `type` to one of:
-`motherboard, cpu, ram, gpu, sound, network, io, storage, optical, floppy, psu,
+`motherboard, cpu, ram, video, sound, network, io, storage, optical, floppy, psu,
 cooler, peripheral, other`. Put type-specific detail in `specs` as
 `Key: value | Key: value` (see `docs/schema.md` for recommended keys).
 

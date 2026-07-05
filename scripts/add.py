@@ -41,7 +41,7 @@ from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
 GENERIC_WALK = ["ram", "vga", "hdd", "floppy35", "cdrom", "sound", "nic", "io", "psu"]
 
 # For these part types, a single headline amount lives under this spec key.
-PRIMARY_SPEC = {"ram": "Size", "storage": "Capacity", "gpu": "Memory"}
+PRIMARY_SPEC = {"ram": "Size", "storage": "Capacity", "video": "Memory"}
 AMOUNT_EG = {"Size": "e.g. 2MB", "Capacity": "e.g. 540MB", "Memory": "e.g. 1MB"}
 
 # Multipliers to normalise a typed amount to KB. Bare numbers are assumed MB.
@@ -53,7 +53,7 @@ SPEC_HINTS = {
     "motherboard": "Chipset, CPU family, Form factor, RAM slots, Slots, Cache, BIOS",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
-    "gpu": "Chip, Connector, Memory, Type",
+    "video": "Chip, Connector, Memory, Type",
     "sound": "Chip, FM, Ports",
     "network": "Chip, Connector",
     "io": "Chip",
@@ -78,7 +78,7 @@ CPU_FAMILIES = ["8088-class", "286-class", "386-class", "486-class",
 RAM_SLOT_TYPES = ["30-pin SIMM", "72-pin SIMM", "168-pin DIMM", "184-pin DIMM"]
 CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "EISA", "MCA", "VLB",
                    "PCI", "AGP", "PCIe x16", "USB"]
-GPU_CONNECTORS = ["VGA", "DVI", "HDMI", "DisplayPort", "S-Video", "Composite",
+VIDEO_CONNECTORS = ["VGA", "DVI", "HDMI", "DisplayPort", "S-Video", "Composite",
                   "Component", "MDA", "CGA", "EGA"]
 STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
@@ -324,7 +324,7 @@ def ask_storage_specs(specs, ask_capacity=True):
     return specs
 
 
-CARD_TYPES = ("gpu", "sound", "network", "io")
+CARD_TYPES = ("video", "sound", "network", "io")
 
 
 def ask_interface(specs, options):
@@ -346,7 +346,7 @@ def ask_chip(specs):
 
 def ask_connector(specs):
     """Prompt a video card's output connector(s), merged in as 'Connector'."""
-    conn = ask_choice("connector(s)", GPU_CONNECTORS, multi=True)
+    conn = ask_choice("connector(s)", VIDEO_CONNECTORS, multi=True)
     if conn:
         specs = merge_spec(specs, "Connector", conn)
     return specs
@@ -484,7 +484,7 @@ def apply_type_prompts(row, ptype):
         row["specs"] = ask_interface(row.get("specs", ""), CARD_INTERFACES)
         if ptype == "io":
             row["specs"] = ask_ports(row.get("specs", ""))
-        elif ptype == "gpu":
+        elif ptype == "video":
             row["specs"] = ask_connector(row.get("specs", ""))
     elif ptype == "peripheral":
         row["specs"] = ask_interface(row.get("specs", ""), PERIPHERAL_INTERFACES)

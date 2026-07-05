@@ -100,9 +100,9 @@ def propose(asset_id, comp, det, existing_types):
         r.update(type="ram", name="Detected RAM", specs=f"Size: {det['ram']}",
                  notes="detected via boot report")
         parts_out.append(r)
-    if det.get("video") and "gpu" not in existing_types:
+    if det.get("video") and "video" not in existing_types:
         r = blank_part(asset_id)
-        r.update(type="gpu", name=det["video"], notes="detected via boot report")
+        r.update(type="video", name=det["video"], notes="detected via boot report")
         parts_out.append(r)
     if "storage" not in existing_types:
         for d in det.get("disks", []):

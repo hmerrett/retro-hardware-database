@@ -47,7 +47,7 @@ from common import (ROOT, display_name, index_by_id, item_url, load_computers,
 LABELS_DIR = ROOT / "labels"
 
 BUILD_ROWS = [
-    ("cpu", "CPU"), ("ram", "Memory"), ("gpu", "Video"), ("sound", "Sound"),
+    ("cpu", "CPU"), ("ram", "Memory"), ("video", "Video"), ("sound", "Sound"),
     ("storage", "Storage"), ("network", "Network"), ("optical", "Optical"),
     ("floppy", "Floppy"),
 ]

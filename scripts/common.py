@@ -39,12 +39,12 @@ PART_COLUMNS = [
 
 # Controls the order parts are grouped/sorted in (build sheets, filters).
 TYPE_ORDER = [
-    "motherboard", "cpu", "ram", "gpu", "sound", "network", "io",
+    "motherboard", "cpu", "ram", "video", "sound", "network", "io",
     "storage", "optical", "floppy", "psu", "cooler", "peripheral", "other",
 ]
 
 TYPE_LABELS = {
-    "motherboard": "Motherboard", "cpu": "CPU", "ram": "Memory", "gpu": "Video",
+    "motherboard": "Motherboard", "cpu": "CPU", "ram": "Memory", "video": "Video",
     "sound": "Sound", "network": "Network", "io": "I/O", "storage": "Storage",
     "optical": "Optical drive", "floppy": "Floppy drive", "psu": "Power supply",
     "cooler": "Cooling", "peripheral": "Peripheral", "other": "Other",
@@ -194,7 +194,7 @@ def item_url(config: dict, asset_id: str) -> str:
 # Placeholder icon (in assets/placeholders/) shown when an item has no photo.
 PLACEHOLDER = {
     "computer": "computer", "motherboard": "board", "cpu": "chip", "ram": "ram",
-    "gpu": "card", "sound": "card", "network": "card", "io": "card",
+    "video": "card", "sound": "card", "network": "card", "io": "card",
     "storage": "drive", "optical": "disc", "floppy": "floppy", "psu": "psu",
     "cooler": "fan", "peripheral": "keyboard", "other": "box",
 }
@@ -225,7 +225,7 @@ KNOWN_SPEC_KEYS = {
                     "RAM slots", "Slots", "Cache", "BIOS"},
     "cpu": {"Socket", "Speed", "FSB", "Cores", "Cache", "L1/L2 cache", "L2 cache"},
     "ram": {"Type", "Size", "Speed"},
-    "gpu": {"Interface", "Memory", "Chip", "Chipset", "Type", "Connector"},
+    "video": {"Interface", "Memory", "Chip", "Chipset", "Type", "Connector"},
     "sound": {"Interface", "Chip", "Chipset", "FM", "Ports"},
     "network": {"Interface", "Connector", "Chip", "Chipset"},
     "io": {"Interface", "Ports", "Chip", "Chipset"},
