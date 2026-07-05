@@ -221,8 +221,8 @@ def next_asset_id(config: dict, computers: list[dict], parts: list[dict]) -> str
 # any custom type) accept any keys. Used only for gentle build-time warnings —
 # storage stays flexible; this just catches typos and crossed data.
 KNOWN_SPEC_KEYS = {
-    "motherboard": {"Chipset", "Socket", "Form factor", "RAM slots", "Slots",
-                    "Cache", "BIOS"},
+    "motherboard": {"Chipset", "Socket", "CPU family", "Form factor",
+                    "RAM slots", "Slots", "Cache", "BIOS"},
     "cpu": {"Socket", "Speed", "FSB", "Cores", "Cache", "L1/L2 cache", "L2 cache"},
     "ram": {"Type", "Size", "Speed"},
     "gpu": {"Interface", "Memory", "Chip", "Chipset", "Type", "Connector"},

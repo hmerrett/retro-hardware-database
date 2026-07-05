@@ -50,7 +50,7 @@ _KB_UNITS = {"": 1024, "k": 1, "kb": 1, "m": 1024, "mb": 1024,
              "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024}
 
 SPEC_HINTS = {
-    "motherboard": "Chipset, Socket, Form factor, RAM slots, Slots, Cache, BIOS",
+    "motherboard": "Chipset, CPU family, Form factor, RAM slots, Slots, Cache, BIOS",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
     "gpu": "Chip, Connector, Memory, Type",
@@ -72,8 +72,9 @@ COMPUTER_FORM_FACTORS = ["AT", "Baby-AT", "ATX", "LPX", "NLX", "proprietary",
 MOBO_FORM_FACTORS = ["AT", "Baby-AT", "ATX", "LPX", "NLX", "proprietary"]
 CONDITIONS = ["Working", "Untested", "Partially working", "Faulty",
               "For parts/repair", "Restored"]
-CPU_SOCKETS = ["DIP/soldered", "PLCC", "Socket 1", "Socket 2", "Socket 3",
-               "Socket 5", "Socket 7", "Super Socket 7", "Socket 8", "Slot 1"]
+CPU_FAMILIES = ["8088-class", "286-class", "386-class", "486-class",
+                "Pentium-class", "Pentium Pro-class", "Pentium II/III-class",
+                "Pentium 4-class", "Athlon-class", "Z80"]
 RAM_SLOT_TYPES = ["30-pin SIMM", "72-pin SIMM", "168-pin DIMM", "184-pin DIMM"]
 CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "EISA", "MCA", "VLB",
                    "PCI", "AGP", "PCIe x16", "USB"]
@@ -454,9 +455,9 @@ def ask_motherboard(specs):
     chip = ask("chipset (e.g. Intel 430FX, OPTi 495, SiS 471), blank to skip")
     if chip:
         specs = merge_spec(specs, "Chipset", chip)
-    sock = ask_choice("CPU socket(s)", CPU_SOCKETS, multi=True)
-    if sock:
-        specs = merge_spec(specs, "Socket", sock)
+    fam = ask_choice("CPU family (e.g. 486-class, Pentium-class)", CPU_FAMILIES, multi=True)
+    if fam:
+        specs = merge_spec(specs, "CPU family", fam)
     ff = ask_choice("form factor", MOBO_FORM_FACTORS)
     if ff:
         specs = merge_spec(specs, "Form factor", ff)
