@@ -19,20 +19,22 @@ For this collection: the IBM 5150s (8088) and Amstrad PC2286 (286) need
 ## The files
 
 - `DETECT.BAT` — one-key menu: 3 = 386+, 6 = 286-or-older, defaults to 386 after 5s
-- `DETECT386.BAT` — runs `HWINFO.EXE` directly
-- `DETECT16.BAT` — runs `HWINFO16.EXE` directly
+- `DET386.BAT` — prompts for the asset id, runs `HWINFO.EXE`, writes `A:\<id>.TXT` (8.3-safe name)
+- `DETECT16.BAT` — prompts for the asset id, runs `HWINFO16.EXE`, writes `A:\<id>.TXT`
 - `AUTOEXEC.BAT` — runs `DETECT.BAT` on boot
 
 `DETECT.BAT` relies on `CHOICE`, which ships with FreeDOS and MS-DOS 6+. On older
-MS-DOS it is missing — run `DETECT16` or `DETECT386` directly, or point
+MS-DOS it is missing — run `DETECT16` or `DET386` directly, or point
 `AUTOEXEC.BAT` at `DETECT16` on an XT/286 disk.
 
-## The report switch
+## The report file
 
-The batch files invoke the tool as `HWINFO -rA:\REPORT.TXT`. HWiNFO's DOS report
-switch has varied between builds, so if the program opens its interactive menu
-instead of writing the file, just save the report to `A:\REPORT.TXT` from the
-menu. Confirm the exact switch with `HWINFO /?` on your copy.
+Each detector prompts for the machine's asset id and writes the report to
+`A:\<id>.TXT` (e.g. `A:\RH-0005.TXT`) using HWiNFO's `-r` switch. Boot one machine
+after another with the same floppy and the reports pile up on the disk. If a build
+ignores `-r` and opens its menu, save the report by hand to that same
+`A:\<id>.TXT`. `-r` can stall mid-scan on some machines — if it hangs, reboot and
+press F2 in HWiNFO to save the screen to the file instead.
 
 ## 1. Build the image (Linux)
 
@@ -48,7 +50,7 @@ Give the batch files DOS (CRLF) line endings, then copy everything into the imag
 (`mcopy` writes into the FAT filesystem with no mount or root):
 
     unix2dos bootdisk/*.BAT
-    mcopy -o -i boot.img bootdisk/DETECT.BAT bootdisk/DETECT386.BAT bootdisk/DETECT16.BAT ::/
+    mcopy -o -i boot.img bootdisk/DETECT.BAT bootdisk/DET386.BAT bootdisk/DETECT16.BAT ::/
     mcopy -o -i boot.img bootdisk/AUTOEXEC.BAT ::/
     mcopy -o -i boot.img /path/to/HWINFO.EXE /path/to/HWINFO16.EXE ::/
 
@@ -63,17 +65,20 @@ Drive on the 34-pin ribbon, a correct-capacity disk inserted:
 Match the format to the target drive: `ibm.1440` (3.5" HD), `ibm.720` (3.5" DD),
 `ibm.1200` (5.25" HD), `ibm.360` (5.25" DD / XT). `gw write --help` lists them.
 
-## 3. Run it, then read the report back
+## 3. Run it on each machine, then read the reports back
 
-Boot the retro PC from the floppy; it writes `A:\REPORT.TXT`. Bring the disk back
-to the Greaseweazle and pull the file off (read flux to an image, extract with
-mtools):
+Boot each PC from the floppy, enter its asset id at the prompt, let it write
+`A:\<id>.TXT`, then move the floppy to the next machine. Do as many as you like on
+one disk. Bring it back to the Greaseweazle, read it to an image, and pull every
+report off at once (the importer accepts upper- or lower-case `.TXT`):
 
     gw read --format ibm.1440 back.img
-    mcopy -i back.img ::/REPORT.TXT ../imports/RH-0005.txt
+    mcopy -i back.img "::/RH-*.TXT" ../imports/
 
 ## 4. Import — it proposes, you confirm
 
-    python ../scripts/import_report.py RH-0005
+    python ../scripts/import_report.py
 
-Fills CPU/RAM/disk/video. It can't see ISA cards, so keep cataloguing those by hand.
+runs every report in `imports/`; append an id (e.g. `RH-0005`) to do just one.
+Writes nothing until you confirm. Fills CPU/RAM/disk/video — it can't see ISA
+cards, so keep cataloguing those by hand.

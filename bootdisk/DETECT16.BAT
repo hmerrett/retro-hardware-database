@@ -1,7 +1,15 @@
 @echo off
-echo Running HWiNFO16 (8086/286). Please wait...
-HWINFO16 -rA:\REPORT.TXT
 echo.
-echo Report should now be at A:\REPORT.TXT
-echo If HWiNFO16 opened its menu instead, save the report there to A:\REPORT.TXT
+set /p ID=Enter asset id, eg RH-0005:
+echo.
+echo Running HWiNFO16 (8086/286), writing A:\%ID%.TXT ... please wait.
+HWINFO16 -rA:\%ID%.TXT
+if exist A:\%ID%.TXT goto ok
+echo.
+echo Not auto-saved. In HWiNFO16, save the report by hand to A:\%ID%.TXT
+goto done
+:ok
+echo.
+echo Saved A:\%ID%.TXT
+:done
 pause

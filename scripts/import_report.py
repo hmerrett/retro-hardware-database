@@ -138,9 +138,10 @@ def main():
     for p in parts:
         parts_by_comp.setdefault(p.get("computer_id", ""), []).append(p)
 
-    reports = sorted(IMPORTS_DIR.glob("*.txt"))
+    reports = sorted(p for p in IMPORTS_DIR.iterdir()
+                     if p.is_file() and p.suffix.lower() == ".txt")
     if only:
-        reports = [r for r in reports if r.stem == only]
+        reports = [r for r in reports if r.stem.lower() == only.lower()]
         if not reports:
             print(f"No report imports/{only}.txt")
             return
