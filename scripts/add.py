@@ -812,13 +812,29 @@ def run_enrich(asset_id, url):
         print(f"  enrichment skipped: {exc}")
 
 
+def _label_asset_id(path):
+    """Asset id from a label filename: RH-0204.pdf / RH-0204-small.pdf -> RH-0204."""
+    base = str(path).rsplit("/", 1)[-1]
+    for suffix in ("-small.pdf", ".pdf"):
+        if base.endswith(suffix):
+            return base[:-len(suffix)]
+    return base
+
+
 def maybe_print(written, config):
-    """After add/update, offer to print the small label(s) (config: print)."""
+    """After add/update, offer to print labels: a computer's full (6x4) label on
+    the full printer (4XL), and a part's small label on the small printer."""
     pc = config.get("print") or {}
     if not pc.get("enabled"):
         return
-    smalls = [p for p in written if str(p).endswith("-small.pdf")]
-    if not smalls:
+    # A computer produces a full label; anything that also has a full label
+    # prints the full one, so its own small label is skipped.
+    full_ids = {_label_asset_id(p) for p in written
+                if not str(p).endswith("-small.pdf")}
+    to_print = [p for p in written
+                if not str(p).endswith("-small.pdf")
+                or _label_asset_id(p) not in full_ids]
+    if not to_print:
         return
     if pc.get("ask", True):
         if not sys.stdin.isatty():
@@ -826,7 +842,7 @@ def maybe_print(written, config):
         if not ask("Print label now? (Y/n)", "Y").lower().startswith("y"):
             return
     import make_labels
-    for p in smalls:
+    for p in to_print:
         make_labels.print_label_file(p, config)
 
 
