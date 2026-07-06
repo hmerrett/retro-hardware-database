@@ -38,7 +38,7 @@ from common import (COMPUTER_COLUMNS, PART_COLUMNS, TYPE_LABELS, TYPE_ORDER,
 
 # Components walked through (in order) when adding generics to a computer.
 # Deliberately excludes keyboard/mouse.
-GENERIC_WALK = ["ram", "vga", "hdd", "floppy35", "cdrom", "sound", "nic", "io", "psu"]
+GENERIC_WALK = ["hdd", "floppy35", "cdrom", "sound", "nic", "io", "psu"]
 
 # For these part types, a single headline amount lives under this spec key.
 PRIMARY_SPEC = {"ram": "Size", "storage": "Capacity", "video": "Memory"}
@@ -50,7 +50,7 @@ _KB_UNITS = {"": 1024, "k": 1, "kb": 1, "m": 1024, "mb": 1024,
              "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024}
 
 SPEC_HINTS = {
-    "motherboard": "Chipset, CPU family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard I/O",
+    "motherboard": "Chipset, CPU family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Onboard I/O",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
     "video": "Chip, Connector, Memory, Type",
@@ -159,6 +159,7 @@ COMPUTER_FIELDS = [
     ("year", "year", ""),
     ("chassis", "chassis / case (desktop, tower, mini-tower, …)", ""),
     ("os", "operating system", ""),
+    ("installed_ram", "installed RAM (e.g. 8x1MB 30-pin, or 8MB)", ""),
     ("condition", "condition", "Working"),
     ("source", "source (where/how acquired)", ""),
     ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
@@ -259,6 +260,26 @@ def normalise_amount(spec_key, amt):
         if kb is not None:
             return f"{kb} KB"
     return amt
+
+
+def parse_installed_ram(text):
+    """A computer's installed RAM, tidied. A leading 'N x size' becomes a module
+    count plus a computed total: '8x1MB 30-pin' -> '8× 1MB 30-pin (8 MB)'. Text
+    after the size is kept as the module description. Anything without an 'N x'
+    (e.g. '16MB') is stored as typed."""
+    t = " ".join((text or "").split())
+    if not t:
+        return ""
+    m = re.match(r"(?i)^(\d+)\s*[x×]\s*([\d.]+\s*[kmg]?b?)\s*(.*)$", t)
+    if not m:
+        return t
+    count, size_txt, rest = int(m.group(1)), m.group(2).strip(), m.group(3).strip()
+    label = f"{count}× {size_txt}" + (f" {rest}" if rest else "")
+    kb = to_kb(size_txt)
+    if kb:
+        total = count * kb
+        label += f" ({total // 1024} MB)" if total % 1024 == 0 else f" ({total} KB)"
+    return label
 
 
 def merge_spec(specs, key, value):
@@ -472,6 +493,9 @@ def ask_motherboard(specs):
     bios = ask("BIOS (e.g. AMI 1992, Award 4.51, Phoenix), blank to skip")
     if bios:
         specs = merge_spec(specs, "BIOS", bios)
+    ov = ask("onboard video (e.g. VGA, or VGA C&T 65545), blank to skip")
+    if ov:
+        specs = merge_spec(specs, "Onboard video", ov)
     specs = ask_ports(specs, label="onboard I/O")
     return specs
 
@@ -526,9 +550,9 @@ def detailed_part(ptype, computer_id, config, seed):
 
 
 def walk_generics(computer_id, config):
-    """Go through the common components one at a time. For RAM/video/disk ask the
-    amount (blank skips); others are yes/no. Type 'a' at any prompt to enter the
-    full details of a real (branded) card for that slot. Memory is stored in KB."""
+    """Go through the common components one at a time. For a disk ask the capacity
+    (blank skips); others are yes/no. Type 'a' at any prompt to enter the full
+    details of a real (branded) card for that slot."""
     presets = load_presets()
     added = []
     for key in GENERIC_WALK:
@@ -662,6 +686,8 @@ def commit_new(kind, partial, config, dry_run):
     for f in ("manufacturer", "model"):
         if row.get(f):
             row[f] = deshout(row[f])
+    if kind == "computer" and row.get("installed_ram"):
+        row["installed_ram"] = parse_installed_ram(row["installed_ram"])
 
     if kind == "part" and row.get("computer_id"):
         if row["computer_id"] not in {c["asset_id"] for c in computers}:
@@ -714,6 +740,8 @@ def update_interactive(asset_id, config, dry_run):
         show_field_list("computer", [], COMPUTER_FIELDS)
         print()
         row.update(prompt_fields(COMPUTER_FIELDS, current=row))
+        if row.get("installed_ram"):
+            row["installed_ram"] = parse_installed_ram(row["installed_ram"])
 
     dw = date_warning(row.get("acquired_date", ""))
     if dw:
@@ -836,7 +864,7 @@ def main():
 
     pc = sub.add_parser("computer", help="add a computer (non-interactive)")
     for f in ("name", "manufacturer", "model", "year", "chassis",
-              "os", "condition", "source", "acquired_date", "url", "notes"):
+              "os", "installed_ram", "condition", "source", "acquired_date", "url", "notes"):
         pc.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
     pp = sub.add_parser("part", help="add a part (non-interactive)")

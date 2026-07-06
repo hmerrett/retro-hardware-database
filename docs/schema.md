@@ -40,6 +40,7 @@ Form factor isn't stored on the computer — it's a motherboard property, shown 
 the computer's page from its linked `motherboard` part. `add.py` prompts you to
 link or create that board when you add a computer.
 | `os` | installed operating system(s) |
+| `installed_ram` | RAM fitted, e.g. `8× 1MB 30-pin (8 MB)` — quick entry `8x1MB 30-pin` computes the total. No separate RAM objects. |
 | `condition`, `source` | your tracking (e.g. `Working`; where/how you acquired it) |
 | `acquired_date` | optional record-keeping (YYYY-MM-DD) |
 | `image` | photo path under `images/` (auto-filled) |
@@ -88,7 +89,7 @@ different kinds can live in one table. These are conventions, not rules —
 duplicated key, or a URL left in a value, so typos and crossed data get caught
 (`peripheral`/`other` accept any keys):
 
-- **motherboard** — `Chipset`, `CPU family` (e.g. 486-class, Pentium-class), `Form factor` (the computer's form factor is taken from here), `RAM slots`, `Slots` (count each type in turn, or quick entry `8I:2 16I:6 VLB:1` → `2× 8-bit ISA, 6× 16-bit ISA, VLB`; types: 8-bit ISA, 16-bit ISA, EISA, MCA, VLB, PCI, AGP, PCIe x16), `Cache`, `BIOS`, `Ports` (onboard I/O — same letter quick-entry as io cards: IDE/Floppy/Serial/Parallel/PS-2 keyboard/PS-2 mouse/USB…)
+- **motherboard** — `Chipset`, `CPU family` (e.g. 486-class, Pentium-class), `Form factor` (the computer's form factor is taken from here), `RAM slots`, `Slots` (count each type in turn, or quick entry `8I:2 16I:6 VLB:1` → `2× 8-bit ISA, 6× 16-bit ISA, VLB`; types: 8-bit ISA, 16-bit ISA, EISA, MCA, VLB, PCI, AGP, PCIe x16), `Cache`, `BIOS`, `Onboard video` (e.g. VGA, or VGA C&T 65545), `Ports` (onboard I/O — same letter quick-entry as io cards: IDE/Floppy/Serial/Parallel/PS-2 keyboard/PS-2 mouse/USB…)
 - **cpu** — `Socket`, `Speed`, `FSB`, `Cores`, `L1/L2 cache`
 - **ram** — `Type` (e.g. 72-pin FPM, EDO, SDRAM), `Size`, `Speed`
 - **video** — `Interface` (ISA/VLB/PCI/AGP/PCIe x16), `Chip` (main chip), `Connector` (VGA/DVI/MDA/CGA/EGA/HDMI…), `Memory`, `Type`

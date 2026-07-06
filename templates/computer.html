@@ -31,10 +31,11 @@
   </div>
 </div>
 
-{% if c.form_factor or c.chassis or c.os %}
+{% if c.form_factor or c.chassis or c.os or c.installed_ram %}
 <table class="specs">
   {% if c.form_factor %}<tr><td class="k">Form factor</td><td>{{ c.form_factor }}</td></tr>{% endif %}
   {% if c.chassis %}<tr><td class="k">Chassis</td><td>{{ c.chassis }}</td></tr>{% endif %}
+  {% if c.installed_ram %}<tr><td class="k">Installed RAM</td><td>{{ c.installed_ram }}</td></tr>{% endif %}
   {% if c.os %}<tr><td class="k">Operating system</td><td>{{ c.os }}</td></tr>{% endif %}
 </table>
 {% endif %}

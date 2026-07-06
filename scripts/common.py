@@ -25,7 +25,7 @@ IMAGES_DIR = ROOT / "images"
 
 COMPUTER_COLUMNS = [
     "asset_id", "name", "manufacturer", "model", "year",
-    "chassis", "os", "condition", "source", "acquired_date",
+    "chassis", "os", "installed_ram", "condition", "source", "acquired_date",
     "image", "url", "summary", "notes", "disposed",
 ]
 
@@ -222,7 +222,8 @@ def next_asset_id(config: dict, computers: list[dict], parts: list[dict]) -> str
 # storage stays flexible; this just catches typos and crossed data.
 KNOWN_SPEC_KEYS = {
     "motherboard": {"Chipset", "Socket", "CPU family", "Form factor",
-                    "RAM slots", "Slots", "Cache", "BIOS", "Ports"},
+                    "RAM slots", "Slots", "Cache", "BIOS", "Ports",
+                    "Onboard video"},
     "cpu": {"Socket", "Speed", "FSB", "Cores", "Cache", "L1/L2 cache", "L2 cache"},
     "ram": {"Type", "Size", "Speed"},
     "video": {"Interface", "Memory", "Chip", "Chipset", "Type", "Connector"},
