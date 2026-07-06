@@ -291,6 +291,8 @@ def parse_installed_ram(text):
     if not m:
         return t
     count, size_txt, rest = int(m.group(1)), m.group(2).strip(), m.group(3).strip()
+    # Drop any total(s) we appended before, so re-parsing stays idempotent.
+    rest = re.sub(r"(\s*\(\s*[\d.]+\s*[KMG]?B\s*\))+\s*$", "", rest, flags=re.I).strip()
     label = f"{count}× {size_txt}" + (f" {rest}" if rest else "")
     kb = to_kb(size_txt)
     if kb:
@@ -827,7 +829,10 @@ def update_interactive(asset_id, config, dry_run):
     save_computers(computers) if kind == "computer" else save_parts(parts)
     print(f"\nUpdated {asset_id}: {display_name(row)}")
     touched = [asset_id]
-    regenerate_labels(touched)
+    regenerate_labels([asset_id])
+    if kind == "computer":
+        touched += build_walk(asset_id, config)
+        regenerate_labels(touched, offer_print=False)
     print("\nNext: ./publish.sh   (build, commit, push)")
 
 
