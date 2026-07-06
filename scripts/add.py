@@ -50,7 +50,7 @@ _KB_UNITS = {"": 1024, "k": 1, "kb": 1, "m": 1024, "mb": 1024,
              "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024}
 
 SPEC_HINTS = {
-    "motherboard": "Chipset, CPU family, Form factor, RAM slots, Slots, Cache, BIOS",
+    "motherboard": "Chipset, CPU family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard I/O",
     "cpu": "Socket, Speed, FSB, Cores, Cache",
     "ram": "Type, Size, Speed",
     "video": "Chip, Connector, Memory, Type",
@@ -351,7 +351,8 @@ def ask_connector(specs):
 
 PORT_CODES = [("I", "IDE"), ("C", "SCSI"), ("A", "SATA"), ("M", "MFM"),
               ("R", "RLL"), ("F", "Floppy"), ("S", "Serial"), ("P", "Parallel"),
-              ("G", "Game")]
+              ("G", "Game"), ("K", "PS/2 keyboard"), ("O", "PS/2 mouse"),
+              ("D", "DIN keyboard"), ("U", "USB")]
 
 
 def expand_ports(code):
@@ -369,9 +370,9 @@ def expand_ports(code):
     return ", ".join(out), unknown
 
 
-def ask_ports(specs):
-    raw = ask("ports — letters I=IDE C=SCSI A=SATA M=MFM R=RLL F=Floppy "
-              "S=Serial P=Parallel G=Game (e.g. IFSSP), blank to skip")
+def ask_ports(specs, label="ports"):
+    legend = " ".join(f"{ltr}={name}" for ltr, name in PORT_CODES)
+    raw = ask(f"{label} — letters {legend} (e.g. IFSKO), blank to skip")
     if not raw:
         return specs
     longform, unknown = expand_ports(raw)
@@ -471,6 +472,7 @@ def ask_motherboard(specs):
     bios = ask("BIOS (e.g. AMI 1992, Award 4.51, Phoenix), blank to skip")
     if bios:
         specs = merge_spec(specs, "BIOS", bios)
+    specs = ask_ports(specs, label="onboard I/O")
     return specs
 
 

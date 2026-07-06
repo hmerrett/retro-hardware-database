@@ -222,7 +222,7 @@ def next_asset_id(config: dict, computers: list[dict], parts: list[dict]) -> str
 # storage stays flexible; this just catches typos and crossed data.
 KNOWN_SPEC_KEYS = {
     "motherboard": {"Chipset", "Socket", "CPU family", "Form factor",
-                    "RAM slots", "Slots", "Cache", "BIOS"},
+                    "RAM slots", "Slots", "Cache", "BIOS", "Ports"},
     "cpu": {"Socket", "Speed", "FSB", "Cores", "Cache", "L1/L2 cache", "L2 cache"},
     "ram": {"Type", "Size", "Speed"},
     "video": {"Interface", "Memory", "Chip", "Chipset", "Type", "Connector"},
