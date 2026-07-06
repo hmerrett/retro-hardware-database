@@ -94,6 +94,12 @@ def build():
         p["spec_pairs"] = parse_specs(p.get("specs", ""))
         p["parent"] = computers_by_id.get(p.get("computer_id", "")) or None
         p["placeholder"] = placeholder_for(p.get("type", ""))
+        if p.get("type") == "storage":
+            kind = dict(p.get("spec_pairs") or []).get("Kind", "").lower()
+            if "optical" in kind:
+                p["placeholder"] = placeholder_for("optical")
+            elif "floppy" in kind or "gotek" in kind:
+                p["placeholder"] = placeholder_for("floppy")
         if not p.get("image"):
             p["image"] = detect_image("parts", p["asset_id"])
         p["images"] = detect_images("parts", p["asset_id"], p.get("image", ""))

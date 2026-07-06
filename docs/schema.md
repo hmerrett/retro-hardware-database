@@ -76,10 +76,14 @@ letters is de-shouted to sentence case (`MODEL` → `Model`), while tokens up to
 ### `type` vocabulary
 
 `motherboard`, `cpu`, `ram`, `video`, `sound`, `network`, `io`, `storage`,
-`optical`, `floppy`, `psu`, `cooler`, `peripheral`, `other`.
+`psu`, `cooler`, `peripheral`, `other`.
 
 (Free text is allowed, but sticking to these keeps grouping and filtering tidy.
 Add new ones to `TYPE_ORDER` in `scripts/common.py` to control their order.)
+
+`storage` is the umbrella for all drives/media (its `Kind` says which). To build
+out a machine, `python scripts/add.py build RH-0001` walks each category — CPU,
+storage, cards, PSU — creating as many real parts as needed (nothing generic).
 
 ### Recommended `specs` keys per type
 
@@ -96,8 +100,7 @@ duplicated key, or a URL left in a value, so typos and crossed data get caught
 - **sound** — `Interface` (bus), `Chip` (main chip), `FM`, `Ports`
 - **network** — `Interface` (ISA/PCI bus), `Chip` (main chip), `Connector` (10BASE-T/BNC/AUI)
 - **io** — `Interface` (bus), `Chip` (main chip), `Ports` (quick entry: letters I=IDE C=SCSI A=SATA M=MFM R=RLL F=Floppy S=Serial P=Parallel G=Game K=PS/2 keyboard O=PS/2 mouse D=DIN keyboard U=USB, e.g. `IFSSP` → `IDE, Floppy, 2× Serial, Parallel`)
-- **storage** — `Interface` (IDE/SCSI/MFM/CF/SD), `Protocol` (ATA/ATAPI/XTA/RLL/MFM/ESDI), `Capacity`, `CHS` (cylinders/heads/sectors), `Role`
-- **optical / floppy** — `Media`, `Interface`, `Speed`
+- **storage** — the umbrella for every drive/medium (one part per device): `Kind` (Hard disk / SD-CF card / Tape / Optical / Floppy-Gotek), `Interface` (IDE/SCSI/SATA/USB/34-pin floppy/CF/SD…), `Protocol` (ATA/ATAPI/XTA/RLL/MFM/ESDI), `Capacity`, `CHS` (cylinders/heads/sectors), `Media` (disc/floppy format), `Speed`, `Role`
 - **peripheral** — `Interface` (USB, parallel, serial, PS/2, …), plus
   type-appropriate keys (e.g. monitor `Size`, `Tube`; printer `Type`, `Resolution`)
 

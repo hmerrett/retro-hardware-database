@@ -78,7 +78,9 @@ CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "EISA", "MCA", "VLB",
                    "PCI", "AGP", "PCIe x16", "USB"]
 VIDEO_CONNECTORS = ["VGA", "DVI", "HDMI", "DisplayPort", "S-Video", "Composite",
                   "Component", "MDA", "CGA", "EGA"]
-STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD"]
+STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD",
+                      "USB", "34-pin floppy"]
+STORAGE_KINDS = ["Hard disk", "SD/CF card", "Tape", "Optical", "Floppy/Gotek"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 
@@ -514,6 +516,9 @@ def apply_type_prompts(row, ptype):
     elif ptype == "motherboard":
         row["specs"] = ask_motherboard(row.get("specs", ""))
     elif ptype == "storage":
+        kind = ask_choice("storage kind", STORAGE_KINDS)
+        if kind:
+            row["specs"] = merge_spec(row.get("specs", ""), "Kind", kind)
         row["specs"] = ask_interface(row.get("specs", ""), STORAGE_INTERFACES)
         row["specs"] = ask_storage_specs(row.get("specs", ""))
         row["disk_image"] = ask_disk_image(row.get("disk_image", ""))
@@ -664,6 +669,58 @@ def link_or_create_motherboard(computer_id, config):
     if ask("Create the motherboard now? (Y/n)", "Y").lower().startswith("y"):
         return [create_motherboard(computer_id, config)]
     return []
+
+
+# Guided build: one category at a time; add as many real parts as needed.
+BUILD_STEPS = [
+    ("cpu", "CPU"),
+    ("storage", "storage device (hard disk, SD/CF, tape, optical, floppy/Gotek)"),
+    ("video", "video card"),
+    ("sound", "sound card"),
+    ("network", "network card"),
+    ("io", "I/O card"),
+    ("other", "other expansion card"),
+    ("psu", "power supply"),
+]
+
+
+def create_part_for(ptype, computer_id, config):
+    """Full entry of one real part of a fixed type, attached to the computer."""
+    print(f"\n  New {type_label(ptype)}:")
+    fields = prompt_fields(PART_FIELDS)
+    fields["type"] = ptype
+    fields["computer_id"] = computer_id
+    apply_type_prompts(fields, ptype)
+    asset_id, row = commit_new("part", fields, config, dry_run=False)
+    print(f"  + {asset_id}  {display_name(row)}")
+    regenerate_labels([asset_id], offer_print=False)
+    if ask("Fetch photo + specs now (URL, or Wikipedia by name)? (y/N)",
+           "N").lower().startswith("y"):
+        run_enrich(asset_id, row.get("url", ""))
+    return asset_id
+
+
+def build_walk(computer_id, config, offer=True):
+    """Walk each category, adding as many real (non-generic) parts as needed.
+    Enter/n on a category moves to the next. Each part is its own tagged object."""
+    if offer and not ask("Add this machine's drives and cards now? (Y/n)",
+                         "Y").lower().startswith("y"):
+        return []
+    added = []
+    for ptype, label in BUILD_STEPS:
+        first = True
+        while True:
+            q = f"Add a {label}?" if first else f"Add another {type_label(ptype)}?"
+            if not ask(f"{q} (y/N)", "N").lower().startswith("y"):
+                break
+            added.append(create_part_for(ptype, computer_id, config))
+            first = False
+    if added:
+        import make_labels
+        smalls = [make_labels.LABELS_DIR / f"{aid}-small.pdf" for aid in added]
+        maybe_print(smalls, config)
+        print(f"\n  Added {len(added)} part(s) to {computer_id}.")
+    return added
 
 
 # --- write / update a row --------------------------------------------------
@@ -909,6 +966,10 @@ def main():
     pdup.add_argument("count", nargs="?", type=int, default=1,
                       help="how many copies to make (default 1)")
 
+    pbuild = sub.add_parser("build",
+                            help="add drives and cards to an existing computer")
+    pbuild.add_argument("asset_id")
+
     args = p.parse_args()
     config = load_config()
 
@@ -926,6 +987,16 @@ def main():
 
     if args.kind == "dup":
         duplicate_asset(args.asset_id, max(1, args.count), config)
+        return
+
+    if args.kind == "build":
+        if args.asset_id not in {c["asset_id"] for c in load_computers()}:
+            print(f"No computer '{args.asset_id}' in computers.csv.")
+            return
+        added = build_walk(args.asset_id, config, offer=False)
+        if added:
+            regenerate_labels([args.asset_id] + added, offer_print=False)
+            print("\nNext: ./publish.sh   (build, commit, push)")
         return
 
     if args.kind == "preset":
@@ -976,6 +1047,7 @@ def main():
         run_enrich(asset_id, row.get("url", ""))
     if interactive and kind == "computer":
         touched += link_or_create_motherboard(asset_id, config)
+        touched += build_walk(asset_id, config)
         # The build may have changed; refresh labels on disk without reprinting.
         regenerate_labels(touched, offer_print=False)
 

@@ -40,7 +40,7 @@ PART_COLUMNS = [
 # Controls the order parts are grouped/sorted in (build sheets, filters).
 TYPE_ORDER = [
     "motherboard", "cpu", "ram", "video", "sound", "network", "io",
-    "storage", "optical", "floppy", "psu", "cooler", "peripheral", "other",
+    "storage", "psu", "cooler", "peripheral", "other",
 ]
 
 TYPE_LABELS = {
@@ -230,7 +230,8 @@ KNOWN_SPEC_KEYS = {
     "sound": {"Interface", "Chip", "Chipset", "FM", "Ports"},
     "network": {"Interface", "Connector", "Chip", "Chipset"},
     "io": {"Interface", "Ports", "Chip", "Chipset"},
-    "storage": {"Interface", "Protocol", "Capacity", "CHS", "Role"},
+    "storage": {"Kind", "Interface", "Protocol", "Capacity", "CHS", "Role",
+                "Media", "Speed"},
     "optical": {"Media", "Interface", "Speed"},
     "floppy": {"Media", "Interface", "Speed"},
     "psu": {"Form factor", "Wattage", "Connectors"},
