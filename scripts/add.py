@@ -615,12 +615,6 @@ def add_presets(items, computer_id, config, dry_run):
     return added
 
 
-def offer_generic(computer_id, config):
-    if ask("Add generic components now? (y/N)", "N").lower().startswith("y"):
-        return walk_generics(computer_id, config)
-    return []
-
-
 def create_motherboard(computer_id, config):
     """Guided entry of a new motherboard part linked to this computer. Identity
     fields first (no free-form specs prompt), then the guided motherboard specs."""
@@ -761,8 +755,6 @@ def update_interactive(asset_id, config, dry_run):
     save_computers(computers) if kind == "computer" else save_parts(parts)
     print(f"\nUpdated {asset_id}: {display_name(row)}")
     touched = [asset_id]
-    if kind == "computer":
-        touched += offer_generic(asset_id, config)
     regenerate_labels(touched)
     print("\nNext: ./publish.sh   (build, commit, push)")
 
@@ -968,7 +960,6 @@ def main():
         run_enrich(asset_id, row.get("url", ""))
     if interactive and kind == "computer":
         touched += link_or_create_motherboard(asset_id, config)
-        touched += offer_generic(asset_id, config)
         # The build may have changed; refresh labels on disk without reprinting.
         regenerate_labels(touched, offer_print=False)
 
