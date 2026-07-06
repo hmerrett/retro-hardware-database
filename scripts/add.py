@@ -640,6 +640,14 @@ def add_presets(items, computer_id, config, dry_run):
     return added
 
 
+def offer_part_label(asset_id, config):
+    """Generate this part's label and offer to print just its small label (a
+    computer's full label prints separately, so it isn't reprinted here)."""
+    regenerate_labels([asset_id], offer_print=False)
+    import make_labels
+    maybe_print([make_labels.LABELS_DIR / f"{asset_id}-small.pdf"], config)
+
+
 def create_motherboard(computer_id, config):
     """Guided entry of a new motherboard part linked to this computer. Identity
     fields first (no free-form specs prompt), then the guided motherboard specs."""
@@ -653,6 +661,7 @@ def create_motherboard(computer_id, config):
     if ask("Fetch photo + specs now (from the URL, or Wikipedia by name)? (y/N)",
            "N").lower().startswith("y"):
         run_enrich(asset_id, row.get("url", ""))
+    offer_part_label(asset_id, config)
     return asset_id
 
 
@@ -711,10 +720,10 @@ def create_part_for(ptype, computer_id, config):
     apply_type_prompts(fields, ptype)
     asset_id, row = commit_new("part", fields, config, dry_run=False)
     print(f"  + {asset_id}  {display_name(row)}")
-    regenerate_labels([asset_id], offer_print=False)
     if ask("Fetch photo + specs now (URL, or Wikipedia by name)? (y/N)",
            "N").lower().startswith("y"):
         run_enrich(asset_id, row.get("url", ""))
+    offer_part_label(asset_id, config)
     return asset_id
 
 
@@ -734,9 +743,6 @@ def build_walk(computer_id, config, offer=True):
             added.append(create_part_for(ptype, computer_id, config))
             first = False
     if added:
-        import make_labels
-        smalls = [make_labels.LABELS_DIR / f"{aid}-small.pdf" for aid in added]
-        maybe_print(smalls, config)
         print(f"\n  Added {len(added)} part(s) to {computer_id}.")
     return added
 
