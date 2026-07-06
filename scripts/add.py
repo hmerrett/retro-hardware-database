@@ -193,21 +193,36 @@ def show_field_list(kind_title, leading, fields):
     for _, label, default in fields:
         names.append(f"{_short(label)} [{default}]" if default else _short(label))
     print(f"\nThis {kind_title} entry will ask for, in order "
-          "(Enter skips a field; [x] = default):")
+          "(Enter skips a field; [x] = default; type < to go back a field):")
     print(textwrap.fill(" · ".join(names), width=78,
                         initial_indent="  ", subsequent_indent="  "))
 
 
+BACK_TOKENS = ("<", "<<")
+
+
 def prompt_fields(fields, current=None):
-    """Ask each field. If `current` (a row) is given, its values are the
-    defaults — that's how 'update' keeps existing values on Enter."""
+    """Ask each field in order. Enter '<' at any prompt to step back to the
+    previous field and re-enter it (your last answer is shown as the default).
+    If `current` (a row) is given, its values are the defaults on first pass."""
     out = {}
-    for key, label, default in fields:
-        d = (current.get(key) if current else "") or default
+    i = 0
+    while i < len(fields):
+        key, label, default = fields[i]
+        prior = out[key] if key in out else \
+            ((current.get(key) if current else "") or default)
         if key in FIELD_CHOICES:
-            out[key] = ask_choice(_short(label), FIELD_CHOICES[key], d)
+            val = ask_choice(_short(label), FIELD_CHOICES[key], prior)
         else:
-            out[key] = ask(label, d)
+            val = ask(label, prior)
+        if val in BACK_TOKENS:
+            if i > 0:
+                i -= 1
+            else:
+                print("  (already at the first field)")
+            continue
+        out[key] = val
+        i += 1
     return out
 
 
