@@ -40,7 +40,7 @@ PART_COLUMNS = [
 # Controls the order parts are grouped/sorted in (build sheets, filters).
 TYPE_ORDER = [
     "motherboard", "cpu", "ram", "video", "sound", "network", "io",
-    "storage", "psu", "cooler", "peripheral", "other",
+    "storage", "cooler", "peripheral", "other",
 ]
 
 TYPE_LABELS = {

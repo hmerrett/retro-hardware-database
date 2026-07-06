@@ -347,8 +347,9 @@ def ask_disk_image(current=""):
     return ask("disk image filename (your image of it as received), blank to skip", current)
 
 
-def ask_storage_specs(specs, ask_capacity=True):
-    """Storage prompts: protocol, capacity and optional CHS geometry, merged in."""
+def ask_storage_specs(specs, ask_capacity=True, kind=""):
+    """Storage prompts: protocol, capacity and (spinning disks only) CHS geometry.
+    Floppy/Gotek, optical and tape have no CHS, so it isn't asked for them."""
     proto = ask_choice("protocol", STORAGE_PROTOCOLS)
     if proto:
         specs = merge_spec(specs, "Protocol", proto)
@@ -356,9 +357,10 @@ def ask_storage_specs(specs, ask_capacity=True):
         cap = ask("capacity (e.g. 540 MB), blank to skip")
         if cap:
             specs = merge_spec(specs, "Capacity", cap)
-    chs = ask("geometry C/H/S — cylinders/heads/sectors (e.g. 1024/16/63), blank to skip")
-    if chs:
-        specs = merge_spec(specs, "CHS", chs)
+    if kind not in ("Floppy/Gotek", "Optical", "Tape"):
+        chs = ask("geometry C/H/S — cylinders/heads/sectors (e.g. 1024/16/63), blank to skip")
+        if chs:
+            specs = merge_spec(specs, "CHS", chs)
     return specs
 
 
@@ -538,7 +540,7 @@ def apply_type_prompts(row, ptype):
         if kind:
             row["specs"] = merge_spec(row.get("specs", ""), "Kind", kind)
         row["specs"] = ask_interface(row.get("specs", ""), STORAGE_INTERFACES)
-        row["specs"] = ask_storage_specs(row.get("specs", ""))
+        row["specs"] = ask_storage_specs(row.get("specs", ""), kind=kind)
         row["disk_image"] = ask_disk_image(row.get("disk_image", ""))
 
 
@@ -697,7 +699,6 @@ BUILD_STEPS = [
     ("network", "network card"),
     ("io", "I/O card"),
     ("other", "other expansion card"),
-    ("psu", "power supply"),
 ]
 
 

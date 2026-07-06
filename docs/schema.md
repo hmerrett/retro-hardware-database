@@ -77,7 +77,7 @@ letters is de-shouted to sentence case (`MODEL` → `Model`), while tokens up to
 ### `type` vocabulary
 
 `motherboard`, `cpu`, `ram`, `video`, `sound`, `network`, `io`, `storage`,
-`psu`, `cooler`, `peripheral`, `other`.
+`cooler`, `peripheral`, `other`.
 
 (Free text is allowed, but sticking to these keeps grouping and filtering tidy.
 Add new ones to `TYPE_ORDER` in `scripts/common.py` to control their order.)
