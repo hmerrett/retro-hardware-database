@@ -164,8 +164,8 @@ def computer_lines(comp, parts):
         lines.append(f"Year: {comp['year']}")
     if form_factor:
         lines.append(f"Form factor: {form_factor}")
-    for label, key in (("RAM", "installed_ram"), ("Chassis", "chassis"),
-                       ("OS", "os")):
+    for label, key in (("CPU", "cpu"), ("RAM", "installed_ram"),
+                       ("Chassis", "chassis"), ("OS", "os")):
         if comp.get(key):
             lines.append(f"{label}: {comp[key]}")
 

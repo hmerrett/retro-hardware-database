@@ -40,6 +40,7 @@ Form factor isn't stored on the computer — it's a motherboard property, shown 
 the computer's page from its linked `motherboard` part. `add.py` prompts you to
 link or create that board when you add a computer.
 | `os` | installed operating system(s) |
+| `cpu` | processor(s) fitted, e.g. `Intel 486DX2-66` or `2× Pentium III 500` — an attribute, not a separate part |
 | `installed_ram` | RAM fitted, e.g. `8× 1MB 30-pin (8 MB)` — quick entry `8x1MB 30-pin` computes the total. No separate RAM objects. |
 | `condition`, `source` | your tracking (e.g. `Working`; where/how you acquired it) |
 | `acquired_date` | optional record-keeping (YYYY-MM-DD) |
@@ -81,9 +82,10 @@ letters is de-shouted to sentence case (`MODEL` → `Model`), while tokens up to
 (Free text is allowed, but sticking to these keeps grouping and filtering tidy.
 Add new ones to `TYPE_ORDER` in `scripts/common.py` to control their order.)
 
-`storage` is the umbrella for all drives/media (its `Kind` says which). To build
-out a machine, `python scripts/add.py build RH-0001` walks each category — CPU,
-storage, cards, PSU — creating as many real parts as needed (nothing generic).
+`storage` is the umbrella for all drives/media (its `Kind` says which). CPU and
+RAM live on the computer (`cpu`, `installed_ram`), not as parts. To build out a
+machine, `python scripts/add.py build RH-0001` walks storage, cards and PSU —
+creating as many real parts as needed (nothing generic).
 
 ### Recommended `specs` keys per type
 

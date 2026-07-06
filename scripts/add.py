@@ -161,6 +161,7 @@ COMPUTER_FIELDS = [
     ("year", "year", ""),
     ("chassis", "chassis / case (desktop, tower, mini-tower, …)", ""),
     ("os", "operating system", ""),
+    ("cpu", "CPU (e.g. Intel 486DX2-66, or 2x Pentium III 500)", ""),
     ("installed_ram", "installed RAM (e.g. 8x1MB 30-pin, or 8MB)", ""),
     ("condition", "condition", "Working"),
     ("source", "source (where/how acquired)", ""),
@@ -690,7 +691,6 @@ def link_or_create_motherboard(computer_id, config):
 
 # Guided build: one category at a time; add as many real parts as needed.
 BUILD_STEPS = [
-    ("cpu", "CPU"),
     ("storage", "storage device (hard disk, SD/CF, tape, optical, floppy/Gotek)"),
     ("video", "video card"),
     ("sound", "sound card"),
@@ -949,7 +949,7 @@ def main():
 
     pc = sub.add_parser("computer", help="add a computer (non-interactive)")
     for f in ("name", "manufacturer", "model", "year", "chassis",
-              "os", "installed_ram", "condition", "source", "acquired_date", "url", "notes"):
+              "os", "cpu", "installed_ram", "condition", "source", "acquired_date", "url", "notes"):
         pc.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
     pp = sub.add_parser("part", help="add a part (non-interactive)")
