@@ -165,7 +165,7 @@ def computer_lines(comp, parts):
     if form_factor:
         lines.append(f"Form factor: {form_factor}")
     for label, key in (("CPU", "cpu"), ("RAM", "installed_ram"),
-                       ("Chassis", "chassis"), ("OS", "os")):
+                       ("Drives", "drives"), ("Chassis", "chassis"), ("OS", "os")):
         if comp.get(key):
             lines.append(f"{label}: {comp[key]}")
 

@@ -163,6 +163,7 @@ COMPUTER_FIELDS = [
     ("os", "operating system", ""),
     ("cpu", "CPU (e.g. Intel 486DX2-66, or 2x Pentium III 500)", ""),
     ("installed_ram", "installed RAM (e.g. 8x1MB 30-pin, or 8MB)", ""),
+    ("drives", "drives — floppy/optical/CF-SD; separate with ; (e.g. 3.5in 1.44MB floppy; CD-ROM)", ""),
     ("condition", "condition", "Working"),
     ("source", "source (where/how acquired)", ""),
     ("acquired_date", "acquired date (YYYY-MM-DD)", ""),
@@ -700,15 +701,18 @@ def link_or_create_motherboard(computer_id, config):
     return []
 
 
-# Guided build: one category at a time; add as many real parts as needed.
-BUILD_STEPS = [
-    ("storage", "storage device (hard disk, SD/CF, tape, optical, floppy/Gotek)"),
+# Guided build: expansion-card categories (each its own tagged part).
+CARD_STEPS = [
     ("video", "video card"),
     ("sound", "sound card"),
     ("network", "network card"),
     ("io", "I/O card"),
     ("other", "other expansion card"),
 ]
+
+# Storage kinds that are tagged parts in their own right; the others
+# (floppy/Gotek, optical, SD/CF) are recorded on the computer's Drives field.
+PART_STORAGE_KINDS = ("Hard disk", "Tape")
 
 
 def create_part_for(ptype, computer_id, config):
@@ -727,14 +731,72 @@ def create_part_for(ptype, computer_id, config):
     return asset_id
 
 
+def append_drive(computer_id, desc):
+    """Append a floppy/optical/CF-SD description to the computer's Drives field."""
+    computers = load_computers()
+    for c in computers:
+        if c["asset_id"] == computer_id:
+            cur = (c.get("drives") or "").strip()
+            c["drives"] = f"{cur}; {desc}" if cur else desc
+            save_computers(computers)
+            print(f"  drives += {desc}")
+            return
+
+
+def create_storage_part(computer_id, config, kind):
+    """A mechanical hard disk (or tape) entered as its own tagged part."""
+    print(f"\n  New {kind} — its own tagged part:")
+    fields = prompt_fields([f for f in PART_FIELDS if f[0] != "specs"])
+    fields["type"] = "storage"
+    fields["computer_id"] = computer_id
+    specs = merge_spec("", "Kind", kind)
+    specs = ask_interface(specs, STORAGE_INTERFACES)
+    specs = ask_storage_specs(specs, kind=kind)
+    fields["specs"] = specs
+    fields["disk_image"] = ask_disk_image(fields.get("disk_image", ""))
+    asset_id, row = commit_new("part", fields, config, dry_run=False)
+    print(f"  + {asset_id}  {display_name(row)}")
+    if ask("Fetch photo + specs now (URL, or Wikipedia by name)? (y/N)",
+           "N").lower().startswith("y"):
+        run_enrich(asset_id, row.get("url", ""))
+    offer_part_label(asset_id, config)
+    return asset_id
+
+
+def add_storage_in_build(computer_id, config):
+    """Ask the kind: a hard disk/tape becomes a tagged part; floppy/optical/CF-SD
+    are appended to the computer's Drives field. Returns a part id, or None."""
+    kind = ask_choice("storage kind", STORAGE_KINDS)
+    if not kind:
+        return None
+    if kind in PART_STORAGE_KINDS:
+        return create_storage_part(computer_id, config, kind)
+    desc = ask(f"{kind} — short description (e.g. 3.5in 1.44MB floppy, Sony CDU55; "
+               "blank to skip)")
+    if desc:
+        append_drive(computer_id, desc)
+    return None
+
+
 def build_walk(computer_id, config, offer=True):
-    """Walk each category, adding as many real (non-generic) parts as needed.
-    Enter/n on a category moves to the next. Each part is its own tagged object."""
+    """Build out a machine. Storage: a hard disk/tape becomes its own tagged
+    part; floppy/optical/CF-SD go on the computer's Drives field. Cards are their
+    own parts. Add as many of each as needed; Enter/n moves to the next."""
     if offer and not ask("Add this machine's drives and cards now? (Y/n)",
                          "Y").lower().startswith("y"):
         return []
     added = []
-    for ptype, label in BUILD_STEPS:
+    first = True
+    while True:
+        q = ("Add a storage device (hard disk, SD/CF, tape, optical, floppy/Gotek)?"
+             if first else "Add another storage device?")
+        if not ask(f"{q} (y/N)", "N").lower().startswith("y"):
+            break
+        pid = add_storage_in_build(computer_id, config)
+        if pid:
+            added.append(pid)
+        first = False
+    for ptype, label in CARD_STEPS:
         first = True
         while True:
             q = f"Add a {label}?" if first else f"Add another {type_label(ptype)}?"
@@ -956,7 +1018,7 @@ def main():
 
     pc = sub.add_parser("computer", help="add a computer (non-interactive)")
     for f in ("name", "manufacturer", "model", "year", "chassis",
-              "os", "cpu", "installed_ram", "condition", "source", "acquired_date", "url", "notes"):
+              "os", "cpu", "installed_ram", "drives", "condition", "source", "acquired_date", "url", "notes"):
         pc.add_argument(f"--{f.replace('_', '-')}", dest=f, default="")
 
     pp = sub.add_parser("part", help="add a part (non-interactive)")

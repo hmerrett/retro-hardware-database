@@ -25,7 +25,7 @@ IMAGES_DIR = ROOT / "images"
 
 COMPUTER_COLUMNS = [
     "asset_id", "name", "manufacturer", "model", "year",
-    "chassis", "os", "cpu", "installed_ram", "condition", "source", "acquired_date",
+    "chassis", "os", "cpu", "installed_ram", "drives", "condition", "source", "acquired_date",
     "image", "url", "summary", "notes", "disposed",
 ]
 

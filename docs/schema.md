@@ -42,6 +42,7 @@ link or create that board when you add a computer.
 | `os` | installed operating system(s) |
 | `cpu` | processor(s) fitted, e.g. `Intel 486DX2-66` or `2× Pentium III 500` — an attribute, not a separate part |
 | `installed_ram` | RAM fitted, e.g. `8× 1MB 30-pin (8 MB)` — quick entry `8x1MB 30-pin` computes the total. No separate RAM objects. |
+| `drives` | floppy / optical / CF-SD drives fitted (mechanical hard disks are their own `storage` parts); `;`-separated, e.g. `3.5in 1.44MB floppy; CD-ROM; CF 4GB` |
 | `condition`, `source` | your tracking (e.g. `Working`; where/how you acquired it) |
 | `acquired_date` | optional record-keeping (YYYY-MM-DD) |
 | `image` | photo path under `images/` (auto-filled) |
@@ -82,10 +83,12 @@ letters is de-shouted to sentence case (`MODEL` → `Model`), while tokens up to
 (Free text is allowed, but sticking to these keeps grouping and filtering tidy.
 Add new ones to `TYPE_ORDER` in `scripts/common.py` to control their order.)
 
-`storage` is the umbrella for all drives/media (its `Kind` says which). CPU and
-RAM live on the computer (`cpu`, `installed_ram`), not as parts. To build out a
-machine, `python scripts/add.py build RH-0001` walks storage, cards and PSU —
-creating as many real parts as needed (nothing generic).
+Drives split two ways: **mechanical hard disks (and tape)** are their own tagged
+`storage` parts; **floppy, optical and CF/SD** drives are recorded on the
+computer's `drives` field. CPU and RAM likewise live on the computer (`cpu`,
+`installed_ram`). To build out a machine, `python scripts/add.py build RH-0001`
+walks storage then the expansion-card categories — a hard disk/tape becomes a
+part, floppy/optical/CF-SD go on `drives`, and cards are their own parts.
 
 ### Recommended `specs` keys per type
 
@@ -102,7 +105,7 @@ duplicated key, or a URL left in a value, so typos and crossed data get caught
 - **sound** — `Interface` (bus), `Chip` (main chip), `FM`, `Ports`
 - **network** — `Interface` (ISA/PCI bus), `Chip` (main chip), `Connector` (10BASE-T/BNC/AUI)
 - **io** — `Interface` (bus), `Chip` (main chip), `Ports` (quick entry: letters I=IDE C=SCSI A=SATA M=MFM R=RLL F=Floppy S=Serial P=Parallel G=Game K=PS/2 keyboard O=PS/2 mouse D=DIN keyboard U=USB, e.g. `IFSSP` → `IDE, Floppy, 2× Serial, Parallel`)
-- **storage** — the umbrella for every drive/medium (one part per device): `Kind` (Hard disk / SD-CF card / Tape / Optical / Floppy-Gotek), `Interface` (IDE/SCSI/SATA/USB/34-pin floppy/CF/SD…), `Protocol` (ATA/ATAPI/XTA/RLL/MFM/ESDI), `Capacity`, `CHS` (cylinders/heads/sectors), `Media` (disc/floppy format), `Speed`, `Role`
+- **storage** — a tagged part per mechanical drive: hard disks and tape (and any standalone spare drive). `Kind` (Hard disk / Tape — floppy, optical and CF/SD instead live on the computer's `drives` field), `Interface` (IDE/SCSI/SATA/USB/CF/SD…), `Protocol` (ATA/ATAPI/XTA/RLL/MFM/ESDI), `Capacity`, `CHS` (cylinders/heads/sectors), `Media`, `Speed`, `Role`
 - **peripheral** — `Interface` (USB, parallel, serial, PS/2, …), plus
   type-appropriate keys (e.g. monitor `Size`, `Tube`; printer `Type`, `Resolution`)
 
