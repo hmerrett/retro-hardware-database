@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Import an HWiNFO-for-DOS text report (written by the detector boot disk) and
+"""Import a detector report (HWiNFO on 386+, or MSD on XT/286 machines) and
 PROPOSE updates to its computer, its motherboard and its parts. Nothing is
 written until you confirm. See bootdisk/README.md for the disk side.
 
@@ -71,7 +71,7 @@ def set_spec(specs, key, value):
     return " | ".join(f"{k}: {v}" if k else v for k, v in out)
 
 
-def detect(text):
+def detect_hwinfo(text):
     pairs = parse_pairs(text)
 
     def find(*keys):
@@ -113,6 +113,72 @@ def detect(text):
               if ("model" in k or "drive" in k) and CHS_RE.search(v)]
     d["drives"] = drives
     return d
+
+
+def _is_msd(text):
+    """MSD reports are plain ASCII with these section labels; HWiNFO reports
+    are CP437 box-framed and say 'HWiNFO'."""
+    t = text.lower()
+    if "microsoft diagnostic" in t:
+        return True
+    hits = sum(m in t for m in ("os version", "lpt ports", "com ports",
+                                "disk drives"))
+    return hits >= 2 and "hwinfo" not in t
+
+
+def detect_msd(text):
+    """Parse a Microsoft Diagnostics (MSD /P) report into the same shape as
+    detect_hwinfo. Tolerant of label/spacing differences across MSD versions;
+    calibrate against a real MSD report if a field looks off."""
+    pairs = parse_pairs(text)
+
+    def find(*keys):
+        for want in keys:
+            for k, v in pairs:
+                if want in k:
+                    return v
+        return ""
+
+    def as_int(s):
+        m = re.search(r"\d+", s or "")
+        return int(m.group()) if m else 0
+
+    d = {}
+    for k, v in pairs:            # "Processor:" but not "Math Coprocessor:"
+        if "processor" in k and "co" not in k and has(v):
+            d["cpu"] = clean(v)
+            break
+    if has(find("os version", "operating system", "dos version")):
+        d["os"] = clean(find("os version", "operating system", "dos version"))
+    bios = find("bios manufacturer", "bios name")
+    bdate = find("bios date")
+    if has(bios):
+        d["bios"] = clean(bios + (f" ({clean(bdate)})" if has(bdate) else ""))
+    vtype = find("video adapter type", "video adapter", "adapter type")
+    if has(vtype):
+        d["onboard_video"] = clean(vtype)
+
+    ports = []
+    nlpt = as_int(find("lpt ports")) or sum(
+        1 for k, v in pairs if k in ("lpt1", "lpt2", "lpt3") and has(v))
+    ncom = as_int(find("com ports")) or sum(
+        1 for k, v in pairs if k in ("com1", "com2", "com3", "com4") and has(v))
+    if nlpt:
+        ports.append(f"{nlpt}× Parallel" if nlpt > 1 else "Parallel")
+    if ncom:
+        ports.append(f"{ncom}× Serial" if ncom > 1 else "Serial")
+    if ports:
+        d["ports"] = ", ".join(ports)
+
+    d["drives"] = [clean(v) for k, v in pairs
+                   if ("drive" in k or "disk" in k or "model" in k)
+                   and CHS_RE.search(v)]
+    return d
+
+
+def detect(text):
+    """Dispatch on report format: MSD from the XT/286 disk, else HWiNFO."""
+    return detect_msd(text) if _is_msd(text) else detect_hwinfo(text)
 
 
 def blank_part(computer_id):
