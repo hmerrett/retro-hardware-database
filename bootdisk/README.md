@@ -40,7 +40,7 @@ the config + batch files were embedded — leaving **~590 KB free** for detector
 Already in `dos5.img`:
 
 - `IO.SYS`, `MSDOS.SYS`, `COMMAND.COM` — the bootable MS-DOS 5.0 system (~118 KB)
-- `CONFIG.SYS` — loads HIMEM, `DOS=HIGH,UMB`
+- `CONFIG.SYS` — sets `FILES`/`BUFFERS` (no HIMEM needed — see below)
 - `AUTOEXEC.BAT` — sets `PATH`, prints the `DETECT RH-nnnn` banner
 - `DETECT.BAT` — `DETECT RH-nnnn [3|6]`: picks the detector (CHOICE menu if
   present, else defaults to 386+)
@@ -51,24 +51,22 @@ Still to add (you supply — I can't redistribute these, and **MS-DOS 5.0 ships
 neither MSD nor CHOICE**):
 
 - `HWINFO.EXE` (~197 KB) + `CWSDPMI.EXE` (~33 KB) — from the HWiNFO for DOS v6.x
-  package; the 386+ detector.
+  package; the 386+ detector. CWSDPMI is what gives HWiNFO its memory (it drives
+  the 386's extended RAM itself), so **no HIMEM/XMS is required**.
 - `MSD.EXE` (~155 KB) — Microsoft Diagnostics from a **DOS 6.x** set (runs fine
   under 5.0); the 8088/286 detector.
-- `HIMEM.SYS` (~12 KB) — **uncompressed**. The 5.0 setup disk only had
-  `HIMEM.SY_` (compressed), which was removed; run `EXPAND HIMEM.SY_ HIMEM.SYS`
-  on a DOS box or copy an uncompressed one. Gives 386+ HWiNFO its XMS + base RAM.
+- `HIMEM.SYS` — **not needed** (CWSDPMI covers the 386's memory). Only add it —
+  `DEVICE=A:\HIMEM.SYS` + `DOS=HIGH` in `CONFIG.SYS` — if a memory-tight 386 ever
+  reports "not enough memory".
 - `CHOICE.COM` (~2 KB, optional) — from a DOS 6.x set, only if you want the 3/6
   menu. Without it, `DETECT RH-nnnn` defaults to HWiNFO; pass `6` by hand for a
   286/8088.
 
-Budget: 118 (system) + ~3 (our files) + 197 + 33 + 155 + 12 + 2 ≈ **520 KB of
-~730 KB** — ~210 KB spare.
+Budget: 118 (system) + ~3 (our files) + 197 + 33 + 155 + 2 ≈ **508 KB of
+~730 KB** — ~220 KB spare.
 
 > **`HWINFO16.EXE` is gone** — it needs a 386 too, so it never helped the 16-bit
 > machines. Below a 386 we use MSD instead.
-
-> Until you add `HIMEM.SYS`, boot prints "Bad or missing HIMEM.SYS" and carries
-> on — harmless, but add it for the 386+ path.
 
 ## On the machine
 
@@ -97,7 +95,7 @@ only add the binaries. `mtools` writes into the FAT with no mount:
 
 ```
 mcopy -o -i dos5.img /path/to/HWINFO.EXE /path/to/CWSDPMI.EXE ::/
-mcopy -o -i dos5.img /path/to/MSD.EXE /path/to/HIMEM.SYS ::/
+mcopy -o -i dos5.img /path/to/MSD.EXE ::/
 mcopy -o -i dos5.img /path/to/CHOICE.COM ::/      # optional (enables the 3/6 menu)
 mdir -i dos5.img ::/                              # check the list + free space
 ```

@@ -1,9 +1,6 @@
-DEVICE=A:\HIMEM.SYS
-DOS=HIGH,UMB
-FILES=20
-BUFFERS=20
-LASTDRIVE=E
-REM HIMEM.SYS + DOS=HIGH free conventional memory so the 386+ HWiNFO build
-REM fits under 640K. On a true 8088 there is no HMA: HIMEM just skips (it
-REM prints "requires an 80286" and continues) and DOS=HIGH is ignored -- both
-REM harmless. MSD needs no XMS, so the 8088/286 path is unaffected.
+FILES=15
+BUFFERS=10
+REM No HIMEM/DOS=HIGH needed: HWiNFO's 32-bit build gets its memory from CWSDPMI,
+REM which drives the 386's extended RAM itself (no XMS manager required). MSD
+REM (8088/286) needs no XMS either. If a tight 386 ever says "not enough memory",
+REM add:  DEVICE=A:\HIMEM.SYS  and  DOS=HIGH   (386+ only; HIMEM needs a 286+).
