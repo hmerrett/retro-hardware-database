@@ -42,13 +42,12 @@ Already in `dos5.img`:
 - `IO.SYS`, `MSDOS.SYS`, `COMMAND.COM` — the bootable MS-DOS 5.0 system (~118 KB)
 - `CONFIG.SYS` — sets `FILES`/`BUFFERS` (no HIMEM needed — see below)
 - `AUTOEXEC.BAT` — sets `PATH`, prints the `DETECT RH-nnnn` banner
-- `DETECT.BAT` — `DETECT RH-nnnn [3|6]`: picks the detector (CHOICE menu if
-  present, else defaults to 386+)
+- `DETECT.BAT` — `DETECT RH-nnnn [6]`: runs HWiNFO by default, or MSD if you add `6`
 - `DET386.BAT` — runs `HWINFO -r A:\<id>.TXT`
 - `DETMSD.BAT` — runs `MSD /P A:\<id>.TXT`
 
-Still to add (you supply — I can't redistribute these, and **MS-DOS 5.0 ships
-neither MSD nor CHOICE**):
+Still to add (you supply — I can't redistribute these; note **MS-DOS 5.0 doesn't
+include MSD**, though 6.x does):
 
 - `HWINFO.EXE` (~197 KB) + `CWSDPMI.EXE` (~33 KB) — from the HWiNFO for DOS v6.x
   package; the 386+ detector. CWSDPMI is what gives HWiNFO its memory (it drives
@@ -58,9 +57,8 @@ neither MSD nor CHOICE**):
 - `HIMEM.SYS` — **not needed** (CWSDPMI covers the 386's memory). Only add it —
   `DEVICE=A:\HIMEM.SYS` + `DOS=HIGH` in `CONFIG.SYS` — if a memory-tight 386 ever
   reports "not enough memory".
-- `CHOICE.COM` (~2 KB, optional) — from a DOS 6.x set, only if you want the 3/6
-  menu. Without it, `DETECT RH-nnnn` defaults to HWiNFO; pass `6` by hand for a
-  286/8088.
+- `CHOICE.COM` — **not needed.** The menu was dropped; `DETECT` branches on the
+  `6` argument instead, which works on every DOS version.
 
 Budget: 118 (system) + ~3 (our files) + 197 + 33 + 155 + 2 ≈ **508 KB of
 ~730 KB** — ~220 KB spare.
@@ -76,10 +74,10 @@ Boot the floppy. At the `A:\>` prompt type the asset id from the case label:
 DETECT RH-0005
 ```
 
-With `CHOICE.COM` present it asks **3** (386+, HWiNFO) or **6** (286/8088, MSD),
-defaulting to 3 after 5 s. On plain MS-DOS 5.0 (no CHOICE) it goes straight to
-386+/HWiNFO — so pass `6` by hand on a 286/8088: `DETECT RH-0005 6`. Either way it
-writes `A:\RH-0005.TXT`; move the floppy to the next machine and the reports pile up.
+`DETECT RH-0005` runs HWiNFO (386+). On a 286/8088 add `6` — `DETECT RH-0005 6` —
+to run MSD instead. It writes `A:\RH-0005.TXT`; move the floppy to the next
+machine and the reports pile up. There's no menu: branching on the argument
+behaves identically on MS-DOS 5.0 and 6.22 and needs no `CHOICE.COM`.
 
 Why typed, not prompted: MS-DOS's `COMMAND.COM` has no `SET /P` (that was a
 FreeDOS feature), so the id comes in as a batch argument — no extra utility
@@ -96,7 +94,6 @@ only add the binaries. `mtools` writes into the FAT with no mount:
 ```
 mcopy -o -i dos5.img /path/to/HWINFO.EXE /path/to/CWSDPMI.EXE ::/
 mcopy -o -i dos5.img /path/to/MSD.EXE ::/
-mcopy -o -i dos5.img /path/to/CHOICE.COM ::/      # optional (enables the 3/6 menu)
 mdir -i dos5.img ::/                              # check the list + free space
 ```
 
