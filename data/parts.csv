@@ -222,3 +222,4 @@ RH-0232,,io,Amstrad,MC0109B,,1989,Interface: 8-bit ISA | Ports: IDE,Working,,,,h
 RH-0233,,io,Monotech,XT-CF-Mini,,2026,Interface: 8-bit ISA | Ports: IDE,Faulty,JLC PCB,,,,,,,
 RH-0234,,other,Sigma,REALmagic Hollywood Plus,,1999,,Untested,,,parts/RH-0234.jpg,https://theretroweb.com/expansioncards/s/sigma-designs-hollywood-plus,,,,
 RH-0235,,video,ATI,Small Wonder,,1988,"Chip: ATI18700 | Interface: 8-bit ISA | Connector: MDA, CGA",Working,,,parts/RH-0235.jpg,https://theretroweb.com/expansioncards/s/ati-small-wonder-graphics-solution,,,,
+RH-0236,,io,Compaq,000957,,1988,"Chip: 106601-002 | Interface: 16-bit ISA | Ports: IDE, Floppy, Serial, Parallel",Working,,,parts/RH-0236.jpg,https://theretroweb.com/expansioncards/s/compaq-000957-001,,,,
