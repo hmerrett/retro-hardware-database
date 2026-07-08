@@ -249,12 +249,25 @@ def main():
 
     wrote_c = wrote_p = 0
     for rpt in reports:
-        asset_id = rpt.stem
-        comp = comp_by_id.get(asset_id)
-        if not comp:
-            print(f"\n{rpt.name}: no computer {asset_id} in computers.csv — skipping")
-            continue
         det = detect(rpt.read_text(encoding="utf-8", errors="replace"))
+        asset_id = rpt.stem
+        comp = comp_by_id.get(asset_id) or comp_by_id.get(asset_id.upper())
+        if not comp:
+            # Auto-named report (e.g. SCAN03 from the boot disk's non-interactive
+            # scan) — show what it detected, then attach it to a machine by hand.
+            ident = ", ".join(f"{k.replace('_', ' ')}={det[k]}"
+                              for k in ("cpu", "bios", "os", "onboard_video")
+                              if det.get(k))
+            print(f"\n{rpt.name}: not an asset id — detected {ident or '(nothing)'}")
+            try:
+                ans = input("  attach to which asset id? (RH-xxxx, blank=skip): ").strip()
+            except EOFError:
+                ans = ""
+            comp = comp_by_id.get(ans) or comp_by_id.get(ans.upper())
+            if not comp:
+                print("  skipped.")
+                continue
+            asset_id = comp["asset_id"]
         mobo = mobo_by_comp.get(asset_id)
         cupd, mupd, new_parts = propose(comp, mobo, det)
 

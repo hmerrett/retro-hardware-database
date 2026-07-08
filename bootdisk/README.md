@@ -1,142 +1,120 @@
-# Making the detector boot floppies
+# Making the detector boot floppy
 
-Two floppies, split by CPU, because HWiNFO needs a 386 **and** carries a 226 KB
-device database that won't fit next to everything else on a 720 KB disk, while MSD
-is tiny and runs on an 8088:
+**One 720 KB MS-DOS 6.22 floppy (`dos62.img`) that scans a machine with no typing.**
+Power the PC on with the floppy in the drive; it boots, runs MSD automatically,
+writes the report to the next free `SCANnn.TXT`, and tells you it's done. Switch
+off, move the floppy to the next machine, repeat. Then read the reports off and
+import them (`../imports/README.md`).
 
-- **HWiNFO disk — 1.44 MB — for 386 and newer** (rich detail)
-- **MSD disk — 720 KB (or 360 KB) — for 286 / 8088** (and any DOS PC)
-
-Both carry the *same* batch files; `DETECT` auto-picks the detector. Boot a disk,
-type `DETECT RH-0005`, carry it to the next machine, then read the reports back
-and import them (`../imports/README.md`).
-
-## Why this design (read this first)
-
-The old disk booted from **FreeDOS**, whose kernel needs a **386** — so it
-wouldn't even boot on the 8088 (IBM 5150) or 286 (Amstrad PC2286). And the
-`HWINFO16.EXE` we carried for "8086/286" was mislabelled: the resurrected
-**HWiNFO for DOS v6.x needs a 386** for *both* its binaries. So HWiNFO can never
-run on an XT or 286; that whole sub-386 tier needs a different, lighter tool.
-
-- **Boot layer → MS-DOS 6.22.** Real-mode DOS boots on everything from the 8088
-  up (the actual fix for "won't boot below a 386"), and 6.22 bundles MSD.
-- **Detector at 386+ → HWiNFO** (rich detail; the importer knows its format). It
-  needs `HWINFO.EXE` (197 KB) + `HWINFO.DAT` (226 KB device database) + a DPMI
-  host (`CWSDPMI.EXE`) — ~460 KB, so it rides on a 1.44 MB disk. 386+ machines
-  have HD 3.5" drives anyway.
-- **Detector below a 386 → MSD** (Microsoft Diagnostics). `MSD /P <file>` writes a
-  full report to a named file with no prompts — ~155 KB, needs no XMS, runs on an
-  8088. This is the 720 KB (or 360 KB) disk.
-
-## The two disks
-
-### MSD disk — `dos62.img` (720 KB) — ready to flash
-
-For the 286 and 8088/8086. Stripped MS-DOS 6.22 + MSD + the toolchain; 414 KB
-free. Contents:
-
-- `IO.SYS`, `MSDOS.SYS`, `COMMAND.COM` — bootable MS-DOS 6.22
-- `MSD.EXE` — the detector (ships with 6.22)
-- `CONFIG.SYS` (`FILES`/`BUFFERS`), `AUTOEXEC.BAT` (banner), `DETECT.BAT`,
-  `DET386.BAT`, `DETMSD.BAT`
-
-It has no `HWINFO.EXE`, so `DETECT RH-0005` auto-runs MSD here. It also fits a
-**360 KB 5.25" disk** unchanged — that's the one for the IBM 5150
-(`gw write --format ibm.360 dos62.img`).
-
-### HWiNFO disk — 1.44 MB — build it where `HWINFO.DAT` lives
-
-For 386 and newer. You build this one on the box that has the HWiNFO files (the
-226 KB `HWINFO.DAT` isn't in the repo). It carries the same toolchain plus
-`HWINFO.EXE` + `HWINFO.DAT` + `CWSDPMI.EXE` (and `MSD.EXE` too, as a fallback —
-there's plenty of room on 1.44 MB). With `HWINFO.EXE` present, `DETECT RH-0005`
-auto-runs HWiNFO.
+Boots and runs on everything from an 8088 up (MSD is real-mode and fits ~512 KB).
+The 720 KB image works in any 3.5" drive (720K or 1.44M read it); the 5.25"-only
+**IBM 5150 needs its own 360 KB build** — a different disk format, see Flash.
 
 ## On the machine
 
-Boot the floppy and type the asset id from the case label:
+1. Insert the floppy, power on.
+2. It boots and prints `Scanning this machine…`, runs MSD (~15 s), and saves
+   `A:\SCANnn.TXT` (the first free number: `SCAN01`, then `SCAN02`, …).
+3. It prints `DONE`. Power off and move the floppy to the next PC.
+
+No id to type. DOS batch has no date/time/random variables, so reports are
+auto-numbered; MSD stamps the real date/time and the machine's identity (CPU,
+BIOS) *inside* each report, which is how you tell them apart at import. About 15
+reports fit per disk — read them off and delete them to reuse it. If MSD ever
+hangs mid-scan on a machine, reboot; if it repeats, edit `SCAN.BAT` to use
+`MSD /I /P …` (skips the initial probe).
+
+## Why MSD (and not HWiNFO)
+
+HWiNFO needs a 386, plus a 226 KB device database, plus a DPMI host — ~460 KB that
+forces a 1.44 MB disk, and it can't run on the 8088/286 at all. MSD is ~160 KB,
+runs on an 8088, ships with MS-DOS 6.22, and writes a full report with a single
+non-interactive switch (`MSD /P file`). The trade is detail: MSD reports CPU, OS,
+BIOS, video type and COM/LPT counts, but not chipset or drive CHS. For this
+catalogue that's the right call — simple beats thorough here.
+
+(If you ever want HWiNFO's richer detail on a specific 386+ box, the manual path
+still exists — see the end.)
+
+## What's on `dos62.img`
+
+Stripped MS-DOS 6.22, ready to flash (~412 KB free):
+
+- `IO.SYS`, `MSDOS.SYS`, `COMMAND.COM` — bootable MS-DOS 6.22
+- `MSD.EXE` — the detector (ships with 6.22)
+- `AUTOEXEC.BAT` — runs `SCAN.BAT` on boot
+- `SCAN.BAT` — picks the next free `SCANnn.TXT`, runs `MSD /P` into it
+- `CONFIG.SYS` — `FILES`/`BUFFERS` only
+- `DETECT.BAT` / `DET386.BAT` / `DETMSD.BAT` — the manual/named path (optional)
+
+## Flash it with Greaseweazle
 
 ```
-DETECT RH-0005
+gw write --format ibm.720 dos62.img      # 3.5" 720K disk (1.44M drives read it too)
 ```
 
-`DETECT` auto-picks: **HWiNFO** if `HWINFO.EXE` is on the disk (the 1.44 MB disk),
-else **MSD** (the 720/360 KB disk). Force it if needed: `DETECT RH-0005 3` (HWiNFO)
-or `DETECT RH-0005 6` (MSD). It writes `A:\RH-0005.TXT`; move the floppy on and the
-reports pile up.
+`gw write --help` lists formats. To change the files on the image first:
+`unix2dos bootdisk/*.BAT bootdisk/CONFIG.SYS` then
+`mcopy -o -i dos62.img bootdisk/SCAN.BAT bootdisk/AUTOEXEC.BAT ::/`.
 
-No menu, no `CHOICE`: branching on the argument behaves the same on every DOS
-version. (MS-DOS `COMMAND.COM` has no `SET /P`, so the id is a batch argument, not
-a prompt.) If MSD hangs mid-scan, reboot and run `MSD /I /P A:\RH-0005.TXT`; on
-odd video add `/B` for mono.
-
-## Building the disks (Linux + mtools)
-
-Prereqs: `sudo apt install mtools` and `pip install greaseweazle`. `mcopy` writes
-into the FAT with no mount. If you edit the batch/config files first give them DOS
-line endings: `unix2dos bootdisk/*.BAT bootdisk/CONFIG.SYS`.
-
-**MSD disk** — `dos62.img` is ready; only rebuild it to change files:
+**IBM 5150 (360 KB 5.25") — separate image.** You can't write `dos62.img` to a
+360 KB disk: it's a 720 KB filesystem (737,280 B, 80 cylinders, media `0xF9`),
+while a 360 KB disk is 368,640 B / 40 cylinders / media `0xFD`, and its files
+reach byte 366 KB (past track 40) anyway. Build a 360 KB image from a bootable
+360 KB DOS disk (`FORMAT A: /S` a 360 KB disk on any DOS PC — or the 5150 itself —
+then `gw read --format ibm.360 msd360.img`), strip it to `IO.SYS`/`MSDOS.SYS`/
+`COMMAND.COM`, and:
 
 ```
-mcopy -o -i dos62.img bootdisk/DETECT.BAT bootdisk/DET386.BAT bootdisk/DETMSD.BAT ::/
-mcopy -o -i dos62.img bootdisk/CONFIG.SYS bootdisk/AUTOEXEC.BAT ::/
-mdir -i dos62.img ::/
+mcopy -o -i msd360.img /path/to/MSD.EXE ::/
+mcopy -o -i msd360.img bootdisk/SCAN.BAT bootdisk/AUTOEXEC.BAT bootdisk/CONFIG.SYS ::/
+gw write --format ibm.360 msd360.img
 ```
 
-**HWiNFO disk** — start from a bootable **MS-DOS 6.22 1.44 MB** image (e.g.
-`FORMAT A: /S` a 1.44 disk and `gw read --format ibm.1440` it, or strip a 6.22
-install disk 1). Keep only `IO.SYS`/`MSDOS.SYS`/`COMMAND.COM`, then:
+6.22 + MSD ≈ 300 KB fits a 360 KB disk with room for ~2 reports; a leaner DOS
+(3.3/5.0) leaves more. Drop a bootable 360 KB image in `bootdisk/` and I'll strip
+and populate it the same way I did `dos62.img`.
+
+## Read the reports back, then import
+
+Bring the floppy back, image it, pull the reports off:
 
 ```
-mcopy -o -i hwinfo.img HWINFO.EXE HWINFO.DAT CWSDPMI.EXE MSD.EXE ::/
-mcopy -o -i hwinfo.img bootdisk/DETECT.BAT bootdisk/DET386.BAT bootdisk/DETMSD.BAT ::/
-mcopy -o -i hwinfo.img bootdisk/CONFIG.SYS bootdisk/AUTOEXEC.BAT ::/
-mdir -i hwinfo.img ::/            # ~460 KB used by HWiNFO; 1.44 MB has room to spare
+gw read --format ibm.720 back.img
+mcopy -i back.img "::/SCAN*.TXT" ../imports/
+python ../scripts/import_report.py
 ```
 
-## Flash with Greaseweazle
-
-Drive on the 34-pin ribbon, the right disk inserted:
-
-```
-gw write --format ibm.1440 hwinfo.img     # HWiNFO disk, 386+ (3.5" HD)
-gw write --format ibm.720  dos62.img      # MSD disk, 286/8088 (3.5" DD)
-gw write --format ibm.360  dos62.img      # MSD disk for the 5150 (5.25" DD)
-```
-
-`gw write --help` lists formats (`ibm.1440`, `ibm.720`, `ibm.1200`, `ibm.360`).
-
-## Run each machine, then read the reports back
-
-Boot each PC, `DETECT` its asset id, move on. Bring the floppy back, image it, and
-pull every report off at once (importer takes upper- or lower-case `.TXT`):
+Because the reports are auto-named, the importer shows each one's detected CPU/BIOS
+and asks which machine it belongs to:
 
 ```
-gw read --format ibm.1440 back.img        # match the disk's format
-mcopy -i back.img "::/RH-*.TXT" ../imports/
+SCAN03.txt: not an asset id — detected cpu=80386, bios=IBM (11/02/88), os=MS-DOS 6.22, ...
+  attach to which asset id? (RH-xxxx, blank=skip): RH-0207
 ```
 
-## Import — it proposes, you confirm
-
-```
-python ../scripts/import_report.py            # every report in imports/
-python ../scripts/import_report.py RH-0005    # just one
-```
-
-`import_report.py` reads **both** report formats and auto-detects which: HWiNFO's
-CP437 box report and MSD's plain-ASCII report, mapping both onto the same
-CPU / OS / BIOS / video / ports / drives fields. It only fills blanks and writes
-nothing until you confirm. It can't see ISA cards, so keep cataloguing those by
-hand. MSD gives less detail than HWiNFO (usually no chipset/CHS on these old
-boards) — expect CPU, OS, BIOS, video type and COM/LPT counts.
+Type the asset id (blank to skip) and it proposes the usual updates — it only fills
+blank fields and writes nothing until you confirm. It can't see ISA cards, so keep
+cataloguing those by hand.
 
 > **MSD parsing is verified** against a real MSD 2.11 report (an IBM PS/2 386):
-> CPU, OS, BIOS, video and COM/LPT counts all read correctly. If a label ever
-> differs on another MSD version, the map is in `detect_msd()` in
-> `scripts/import_report.py`.
+> CPU, OS, BIOS, video and COM/LPT counts all read correctly. The field map is
+> `detect_msd()` in `scripts/import_report.py`.
 
-> **`dos5.img`** is a leaner MS-DOS 5.0 MSD disk kept as an alternate (5.0 needs
-> `MSD.EXE` copied in from a 6.x set). `boot.img` is the retired FreeDOS 386-only
-> disk.
+## Optional: the manual / named path
+
+If you'd rather name a report after its asset id at scan time (so the importer
+auto-links it, no attach step), interrupt the auto-scan (Ctrl-C) and type:
+
+```
+DETECT RH-0207            writes A:\RH-0207.TXT (MSD here, HWiNFO if present)
+DETECT RH-0207 3          force HWiNFO   (needs HWINFO.EXE + HWINFO.DAT + CWSDPMI)
+DETECT RH-0207 6          force MSD
+```
+
+`DETECT` auto-picks HWiNFO if `HWINFO.EXE` is on the disk, else MSD. For full
+HWiNFO detail build a 1.44 MB disk with `HWINFO.EXE` + `HWINFO.DAT` + `CWSDPMI.EXE`
+added (they don't fit 720 KB alongside everything else).
+
+> **Other images:** `dos5.img` is a leaner MS-DOS 5.0 base (add `MSD.EXE` from a
+> 6.x set); `boot.img` is the retired FreeDOS 386-only disk.
