@@ -3,4 +3,4 @@ BUFFERS=10
 REM No HIMEM/DOS=HIGH needed: HWiNFO's 32-bit build gets its memory from CWSDPMI,
 REM which drives the 386's extended RAM itself (no XMS manager required). MSD
 REM (8088/286) needs no XMS either. If a tight 386 ever says "not enough memory",
-REM add:  DEVICE=A:\HIMEM.SYS  and  DOS=HIGH   (386+ only; HIMEM needs a 286+).
+REM add:  DEVICE=HIMEM.SYS  and  DOS=HIGH   (386+ only; HIMEM needs a 286+).

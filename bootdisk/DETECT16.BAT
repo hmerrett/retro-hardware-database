@@ -2,14 +2,14 @@
 echo.
 set /p ID=Enter asset id, eg RH-0005:
 echo.
-echo Running HWiNFO16 (8086/286), writing A:\%ID%.TXT ... please wait.
-HWINFO16 -r A:\%ID%.TXT
-if exist A:\%ID%.TXT goto ok
+echo Running HWiNFO16 (8086/286), writing %ID%.TXT ... please wait.
+HWINFO16 -r %ID%.TXT
+if exist %ID%.TXT goto ok
 echo.
-echo Not auto-saved. In HWiNFO16, save the report by hand to A:\%ID%.TXT
+echo Not auto-saved. In HWiNFO16, save the report by hand to %ID%.TXT
 goto done
 :ok
 echo.
-echo Saved A:\%ID%.TXT
+echo Saved %ID%.TXT
 :done
 pause

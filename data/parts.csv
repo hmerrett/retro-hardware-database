@@ -118,7 +118,7 @@ RH-0123,RH-0010,ram,FreddyV,PicoMEM 1,,2026,,Working,Flamelily Retro,,parts/RH-0
 RH-0124,,sound,BTC,1853L,,,ES1869F | Interface: 16-bit ISA,Working,,,parts/RH-0124.jpg,https://theretroweb.com/expansioncards/s/behavior-tech-btc-1853l,,,,
 RH-0125,,sound,Daewoo,ESS AudioDrive,,1993,Chip: ES1869F | Interface: 16-bit ISA,Faulty,,,,,,"damage to capacitors, should be able to fix",,
 RH-0126,,sound,Creative Labs,Vibra 16 CT4180,,1998,Chip: Vibra 16C | Interface: 16-bit ISA,Working,,,parts/RH-0126.jpg,https://theretroweb.com/expansioncards/s/creative-sound-blaster-16-value-pnp-ct4180,,,,
-RH-0127,RH-0010,sound,Creative Labs,Sound Blaster CT4170,,1997,Chip: Vibra 16XV | Interface: 16-bit ISA,Working,,,parts/RH-0127.jpg,https://theretroweb.com/expansioncards/s/creative-soundblaster-16-wavefects-ct4170,,,,
+RH-0127,,sound,Creative Labs,Sound Blaster CT4170,,1997,Chip: Vibra 16XV | Interface: 16-bit ISA,Working,,,parts/RH-0127.jpg,https://theretroweb.com/expansioncards/s/creative-soundblaster-16-wavefects-ct4170,,,,
 RH-0128,,sound,DFI,Mozart 16,,1993,Chip: Oak Mozart OTI601 | Interface: 16-bit ISA,Working,,,parts/RH-0128.jpg,https://theretroweb.com/expansioncards/s/dfi-mozart-16,,,,
 RH-0129,,sound,IPC,ISP-16 R2.0,,1993,Chip: Media Magic | Interface: 16-bit ISA,Working,,,parts/RH-0129.jpg,https://theretroweb.com/expansioncards/s/ipc-isp-16-r2-0,,,,
 RH-0130,,sound,Media Vision,16-BIT Audio CARD,,1993,Chip: MVD121 / MVD201 | Interface: 16-bit ISA,Working,,,,https://theretroweb.com/expansioncards/s/media-vision-technology-inc-16-bit-audio-ca,,,,

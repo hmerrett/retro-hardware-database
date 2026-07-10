@@ -8,7 +8,7 @@ REM HWiNFO, the 720K MSD disk (no HWINFO.EXE) picks MSD automatically.
 if "%1"=="" goto usage
 if "%2"=="6" goto low
 if "%2"=="3" goto hi
-if not exist A:\HWINFO.EXE goto low
+if not exist HWINFO.EXE goto low
 :hi
 call DET386.BAT %1
 goto done
@@ -23,8 +23,8 @@ echo         DETECT RH-nnnn 6      force 286/8088  (MSD)
 goto end
 :done
 echo.
-if exist A:\%1.TXT echo Saved A:\%1.TXT -- move the floppy to the next machine.
-if not exist A:\%1.TXT echo Report NOT saved -- see the messages above.
+if exist %1.TXT echo Saved %1.TXT -- move the floppy to the next machine.
+if not exist %1.TXT echo Report NOT saved -- see the messages above.
 echo.
 pause
 :end

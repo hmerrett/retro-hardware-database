@@ -1,12 +1,12 @@
 @echo off
 REM Called by DETECT.BAT with the asset id as %1. 386 and newer.
-if not exist A:\HWINFO.EXE goto missing
+if not exist HWINFO.EXE goto missing
 echo.
-echo Running HWiNFO (386+), writing A:\%1.TXT ... please wait.
-HWINFO -r A:\%1.TXT
-if exist A:\%1.TXT goto ok
+echo Running HWiNFO (386+), writing %1.TXT ... please wait.
+HWINFO -r %1.TXT
+if exist %1.TXT goto ok
 echo.
-echo Not auto-saved. In HWiNFO press F2 and save by hand to A:\%1.TXT.
+echo Not auto-saved. In HWiNFO press F2 and save by hand to %1.TXT.
 goto done
 :missing
 echo.
