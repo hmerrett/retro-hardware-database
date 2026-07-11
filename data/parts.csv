@@ -218,3 +218,6 @@ RH-0238,RH-0237,motherboard,IBM,PS/2 Model 55SX,,1987,"Chipset: IBM 90X8134 IBM 
 RH-0239,RH-0237,storage,IBM,6128260,,1989,Kind: Hard disk | Interface: ESDI | Protocol: ESDI | Capacity: 120MB | CHS: 115/64/32,Working,eBay order no. 18-14485-02665,2026-04-13,,,,,,
 RH-0241,RH-0240,motherboard,,,386 laptop planar,,"CPU family: 386-class | Form factor: proprietary | BIOS: AMI 0626 (1995) | Onboard video: Cirrus Logic CL-GD5420 VGA | Ports: IDE, Floppy",Working,,,,,,from MSD SCAN01,,
 RH-0242,RH-0240,storage,,,"Fixed disk (~2GB, C:)",,Kind: Hard disk | Interface: IDE | Capacity: 2047MB | CHS: 974/255/63,Working,,,,,,MSD CMOS Type 47; 2GB on a 386 likely a CF card - reclassify to the computer drives field if so,,
+RH-0243,,io,Golstar,Prime 2C,,1994,"Chip: Goldstar Prime 2C | Interface: 16-bit ISA | Ports: IDE, Floppy, 2× Serial, Parallel, Game",Untested,,,,https://theretroweb.com/expansioncards/s/goldstar-gold-star-prime-2c-mkiii,,,,
+RH-0244,,io,Golstar,Prime 2C,,1994,"Chip: Goldstar Prime 2C | Interface: 16-bit ISA | Ports: IDE, Floppy, 2× Serial, Parallel, Game",Untested,,,,https://theretroweb.com/expansioncards/s/goldstar-gold-star-prime-2c-mkiii,,,,
+RH-0245,,video,Western Digital,PVGA1A,,1990,Chip: Paradise PVGA1A | Interface: 8-bit ISA | Connector: VGA,Untested,,,,https://theretroweb.com/expansioncards/s/western-digital-pvga1a-rev-unknown,,,,
