@@ -1,8 +1,13 @@
-name: Build and deploy site
+name: Deploy site
+
+# The site is now built from the REST API on a LAN machine (which GitHub's CI
+# cannot reach) and committed to site/ by tools/publish.sh in the
+# retro-hardware-db-2 repo. This workflow just deploys that committed folder.
 
 on:
   push:
     branches: [main]
+    paths: [site/**, .github/workflows/deploy.yml]
   workflow_dispatch:
 
 permissions:
@@ -15,26 +20,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-      - run: python scripts/build_site.py
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-
   deploy:
-    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
       - id: deployment
         uses: actions/deploy-pages@v4
