@@ -117,6 +117,11 @@
   .photo-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-top: 10px; max-width: 320px; }
   .photo-actions form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0; }
   .photo-actions input[name=note] { padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+  .photo-actions input[type=file] { font-size: 13px; max-width: 100%; }
+  .photo-actions input[type=file]::file-selector-button { font: inherit; font-size: 13px;
+    padding: 3px 8px; margin-right: 8px; border: 1px solid var(--line); border-radius: 7px;
+    background: var(--btn); color: inherit; cursor: pointer; }
+  .photo-actions input[type=file]::file-selector-button:hover { background: var(--btn-hover); }
   .photo-actions .hint { margin: 0; }
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
