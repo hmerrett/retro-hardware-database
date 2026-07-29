@@ -46,6 +46,14 @@
   <button class="btn sm" id="clearcrop" type="button" disabled>Clear selection</button>
 </form>
 
+<form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete"
+      onsubmit="return confirm('Delete this photo? This cannot be undone.')"
+      style="margin-top:18px; border-top:1px solid var(--line); padding-top:14px">
+  <input type="hidden" name="image" value="{{ image }}">
+  <button class="btn sm danger" type="submit">delete this photo</button>
+  <span class="hint" style="margin-left:8px">removes it permanently</span>
+</form>
+
 <script>
 (function () {
   const wrap = document.getElementById('editor');
