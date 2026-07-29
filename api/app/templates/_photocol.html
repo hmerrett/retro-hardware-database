@@ -1,7 +1,11 @@
 {# Photo column shared by computer.html and part.html.
-   Expects: obj, kind ("computers"/"parts"), images, ref_notes, imgerr. #}
+   Expects: obj, kind ("computers"/"parts"), images, ref_marks, imgerr. #}
 {% macro badge(img) %}
-  {% if img in ref_notes %}<span class="ref-badge" title="{{ ref_notes[img] or 'Illustrative image, not this exact unit' }}">reference</span>{% endif %}
+  {% if img in ref_marks %}
+  <span class="ref-badge{{ ' icon' if ref_marks[img].icon else '' }}" title="{{ ref_marks[img].note }}">
+    {% if ref_marks[img].icon %}<img src="/images/{{ ref_marks[img].icon }}" alt="source site">{% else %}ref{% endif %}
+  </span>
+  {% endif %}
 {% endmacro %}
 {% macro ctrls(img, is_primary) %}
   {% if request.state.authed %}
@@ -13,8 +17,8 @@
     {% endif %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference">
       <input type="hidden" name="image" value="{{ img }}">
-      <input type="hidden" name="set" value="{{ '0' if img in ref_notes else '1' }}">
-      <button class="btn sm" type="submit">{{ 'unmark reference' if img in ref_notes else 'mark reference' }}</button>
+      <input type="hidden" name="set" value="{{ '0' if img in ref_marks else '1' }}">
+      <button class="btn sm" type="submit">{{ 'unmark reference' if img in ref_marks else 'mark reference' }}</button>
     </form>
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete" onsubmit="return confirm('Delete this photo? This cannot be undone.')">
       <input type="hidden" name="image" value="{{ img }}"><button class="btn sm danger" type="submit">delete</button>

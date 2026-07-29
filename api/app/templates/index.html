@@ -35,7 +35,7 @@
     <div class="thumb">
       {% if r.image %}<img src="/images/{{ r.image }}" alt="{{ r.name }}" loading="lazy">
       {% else %}<img class="ph" src="/static/{{ r.placeholder }}" alt="{{ r.cat_label }}" loading="lazy">{% endif %}
-      {% if r.ref_photo %}<span class="ref-badge" title="Illustrative image, not this exact unit">reference</span>{% endif %}
+      {% if r.ref_photo %}<span class="ref-badge{{ ' icon' if r.ref_icon else '' }}" title="Illustrative image, not this exact unit">{% if r.ref_icon %}<img src="/images/{{ r.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
     </div>
     <div class="body">
       <div class="aid">{{ r.obj.asset_id }}</div>

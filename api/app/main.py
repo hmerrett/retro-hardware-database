@@ -16,7 +16,8 @@ import secrets
 import shutil
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote
+import json
+from urllib.parse import quote, urlparse
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
@@ -579,14 +580,21 @@ def _fetch_reference_photo(kind, asset_id, url):
         return None
     path, rel = _photo_target(kind, asset_id, ".jpg")
     path.write_bytes(data)
-    # A fetched photo is from the reference source, not necessarily this unit.
-    _mark_reference(rel, True, "Photo from the reference source, may not be this exact unit")
+    # A fetched photo is from the reference source, not necessarily this unit;
+    # record the source so we can show its favicon.
+    _mark_reference(rel, True, "Photo from the reference source, may not be this exact unit", url)
     return rel
 
 
 # A photo can be flagged as a reference / stock image (not a photo of the actual
-# unit) with a small ".ref" sidecar file next to it; its text is an optional
-# note. This needs no schema change and the marker travels with the image.
+# unit) with a small ".ref" sidecar file next to it. The sidecar holds JSON with
+# an optional note and the source URL it was crawled from; from that source we
+# cache the site's favicon and show it in the photo's corner. No schema change,
+# and the marker travels with the image.
+FAVICON_DIR = IMAGES_DIR / "favicons"
+_DEFAULT_REF_NOTE = "Illustrative image, not this exact unit"
+
+
 def _ref_sidecar(rel):
     p = IMAGES_DIR / rel
     return p.with_name(p.name + ".ref")
@@ -596,23 +604,70 @@ def is_reference(rel):
     return bool(rel) and _ref_sidecar(rel).exists()
 
 
-def reference_note(rel):
+def _read_ref(rel):
+    """{'note':.., 'source':..} for a reference image, or None if not flagged.
+    Tolerates the pre-JSON format where the sidecar held a bare note string."""
     try:
-        return _ref_sidecar(rel).read_text(encoding="utf-8").strip()
+        raw = _ref_sidecar(rel).read_text(encoding="utf-8").strip()
     except OSError:
+        return None
+    if raw.startswith("{"):
+        try:
+            d = json.loads(raw)
+            return {"note": d.get("note", ""), "source": d.get("source", "")}
+        except ValueError:
+            pass
+    return {"note": raw, "source": ""}
+
+
+def _favicon_rel(source):
+    """Relative path of the cached favicon for a source URL's host, if present."""
+    host = urlparse(source or "").hostname or ""
+    if host and (FAVICON_DIR / f"{host}.png").exists():
+        return f"favicons/{host}.png"
+    return ""
+
+
+def reference_marks(kind, asset_id):
+    """{rel: {'note':.., 'icon':..}} for the item's flagged reference photos."""
+    out = {}
+    for rel in detect_images(kind, asset_id):
+        info = _read_ref(rel)
+        if info is not None:
+            out[rel] = {"note": info["note"] or _DEFAULT_REF_NOTE,
+                        "icon": _favicon_rel(info["source"])}
+    return out
+
+
+def _favicon_for_rel(rel):
+    """Cached source favicon path for a single image rel, or '' (for index cards)."""
+    info = _read_ref(rel) if rel else None
+    return _favicon_rel(info["source"]) if info else ""
+
+
+def _cache_favicon(source):
+    """Fetch and cache the source site's favicon; return its rel path or ''."""
+    host = urlparse(source or "").hostname or ""
+    if not host:
         return ""
+    dest = FAVICON_DIR / f"{host}.png"
+    if dest.exists():
+        return f"favicons/{host}.png"
+    data = enrich.fetch_favicon(source)
+    if not data:
+        return ""
+    FAVICON_DIR.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+    return f"favicons/{host}.png"
 
 
-def reference_notes(kind, asset_id):
-    """{rel: note} for the item's photos that are flagged reference images."""
-    return {rel: reference_note(rel) for rel in detect_images(kind, asset_id)
-            if is_reference(rel)}
-
-
-def _mark_reference(rel, on, note=""):
+def _mark_reference(rel, on, note="", source=""):
     sc = _ref_sidecar(rel)
     if on:
-        sc.write_text(note or "Illustrative image, not this exact unit", encoding="utf-8")
+        sc.write_text(json.dumps({"note": note or _DEFAULT_REF_NOTE, "source": source}),
+                      encoding="utf-8")
+        if source:
+            _cache_favicon(source)
     elif sc.exists():
         sc.unlink()
 
@@ -722,8 +777,8 @@ def gui_index(request: Request, db: Session = Depends(get_db)):
             "obj": c, "kind": "computer", "cat": "computer",
             "cat_label": "Computer", "parent": "", "year": c.year or "",
             "name": entry.display_name(to_dict(c)),
-            "image": primary_image("computers", c.asset_id),
-            "ref_photo": is_reference(primary_image("computers", c.asset_id)),
+            "image": (cpi := primary_image("computers", c.asset_id)),
+            "ref_photo": is_reference(cpi), "ref_icon": _favicon_for_rel(cpi),
             "placeholder": entry.placeholder_for("computer"),
             "updated": stamps(c.asset_id)[0], "added": stamps(c.asset_id)[1],
             "sub": f"{counts.get(c.asset_id, 0)} part(s)",
@@ -739,8 +794,8 @@ def gui_index(request: Request, db: Session = Depends(get_db)):
             "cat_label": entry.type_label(ptype), "year": p.year or "",
             "parent": p.computer_id if p.computer_id in comp_ids else "",
             "name": entry.display_name(to_dict(p)),
-            "image": primary_image("parts", p.asset_id),
-            "ref_photo": is_reference(primary_image("parts", p.asset_id)),
+            "image": (ppi := primary_image("parts", p.asset_id)),
+            "ref_photo": is_reference(ppi), "ref_icon": _favicon_for_rel(ppi),
             "placeholder": (storage_placeholder(p) if ptype == "storage"
                             else entry.placeholder_for(ptype)),
             "updated": stamps(p.asset_id)[0], "added": stamps(p.asset_id)[1],
@@ -837,7 +892,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "c": c, "parts": [p for p in parts if p is not motherboard],
         "motherboard": motherboard, "free_boards": free_boards,
         "link_candidates": link_candidates, "images": images,
-        "ref_notes": reference_notes("computers", aid),
+        "ref_marks": reference_marks("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
         "log": item_log(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
@@ -992,13 +1047,13 @@ async def gui_computer_photo_delete(aid: str, request: Request,
 @app.post("/computers/{aid}/photo-reference", include_in_schema=False)
 async def gui_computer_photo_reference(aid: str, request: Request,
                                        db: Session = Depends(get_db)):
-    get_or_404(db, Computer, aid)
+    c = get_or_404(db, Computer, aid)
     form = await request.form()
     rel = form.get("image", "")
     if rel not in detect_images("computers", aid):
         raise HTTPException(404, "no such photo for this item")
     on = form.get("set", "1") == "1"
-    _mark_reference(rel, on, (form.get("note", "") or "").strip())
+    _mark_reference(rel, on, (form.get("note", "") or "").strip(), c.url or "")
     add_log(db, aid, "flagged a photo as a reference image" if on
             else "unflagged a reference photo")
     db.commit()
@@ -1198,7 +1253,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
     return templates.TemplateResponse(request, "part.html", {
         "p": p, "parent": parent, "host": host, "children": children,
         "candidates": candidates, "computers": computers,
-        "images": images, "ref_notes": reference_notes("parts", aid),
+        "images": images, "ref_marks": reference_marks("parts", aid),
         "spec_pairs": entry.parse_specs(p.specs), "imgerr": bool(imgerr),
         "log": item_log(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
@@ -1400,13 +1455,13 @@ async def gui_part_photo_delete(aid: str, request: Request,
 @app.post("/parts/{aid}/photo-reference", include_in_schema=False)
 async def gui_part_photo_reference(aid: str, request: Request,
                                    db: Session = Depends(get_db)):
-    get_or_404(db, Part, aid)
+    p = get_or_404(db, Part, aid)
     form = await request.form()
     rel = form.get("image", "")
     if rel not in detect_images("parts", aid):
         raise HTTPException(404, "no such photo for this item")
     on = form.get("set", "1") == "1"
-    _mark_reference(rel, on, (form.get("note", "") or "").strip())
+    _mark_reference(rel, on, (form.get("note", "") or "").strip(), p.url or "")
     add_log(db, aid, "flagged a photo as a reference image" if on
             else "unflagged a reference photo")
     db.commit()

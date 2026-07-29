@@ -60,6 +60,62 @@ def _og_image(client, url):
     return None
 
 
+def _favicon_url(client, url):
+    """Best link to the site's icon: a declared <link rel=icon/apple-touch-icon>,
+    else the conventional /favicon.ico."""
+    try:
+        resp = client.get(url)
+        if resp.status_code < 400:
+            best = None
+            for m in re.finditer(r"<link\b([^>]+)>", resp.text, re.I):
+                attrs = m.group(1)
+                if not re.search(r'rel=["\'][^"\']*icon', attrs, re.I):
+                    continue
+                href = re.search(r'href=["\']([^"\']+)', attrs, re.I)
+                if not href:
+                    continue
+                cand = urljoin(url, href.group(1))
+                # Prefer an apple-touch-icon (usually a clean, larger PNG).
+                if re.search(r"apple-touch", attrs, re.I):
+                    return cand
+                best = best or cand
+            if best:
+                return best
+    except Exception:
+        pass
+    p = urlparse(url)
+    return f"{p.scheme}://{p.hostname}/favicon.ico" if p.scheme and p.hostname else None
+
+
+def fetch_favicon(url):
+    """Return small square PNG bytes of the site's favicon, or None. Used as a
+    provenance marker on reference images, cached locally so nothing hotlinks."""
+    url = (url or "").strip()
+    if not url:
+        return None
+    try:
+        with _client() as client:
+            icon_url = _favicon_url(client, url)
+            if not icon_url:
+                return None
+            resp = client.get(icon_url)
+            if resp.status_code >= 400 or not resp.content:
+                return None
+            img = Image.open(io.BytesIO(resp.content))
+            # For multi-size .ico, pick the largest frame available.
+            sizes = getattr(img, "info", {}).get("sizes")
+            if sizes:
+                img.size = max(sizes)
+                img.load()
+            img = img.convert("RGBA")
+    except Exception:
+        return None
+    img.thumbnail((48, 48))
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
 def fetch_jpeg(url):
     """Return downscaled JPEG bytes for the item's reference URL, or None if
     nothing usable was found."""
