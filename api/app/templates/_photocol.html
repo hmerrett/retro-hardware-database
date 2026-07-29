@@ -15,6 +15,7 @@
       <input type="hidden" name="image" value="{{ img }}"><button class="btn sm" type="submit">make default</button>
     </form>
     {% endif %}
+    <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/edit-photo?image={{ img|urlencode }}">rotate / crop</a>
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference">
       <input type="hidden" name="image" value="{{ img }}">
       <input type="hidden" name="set" value="{{ '0' if img in ref_marks else '1' }}">

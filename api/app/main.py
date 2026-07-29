@@ -797,6 +797,68 @@ def _delete_image(kind, asset_id, rel):
     return was_primary, new_primary
 
 
+def _edit_image(kind, asset_id, rel, fn):
+    """Apply fn(PIL.Image)->PIL.Image to a photo in place (originals are not
+    kept), baking in EXIF orientation, then invalidate its watermark cache."""
+    if rel not in detect_images(kind, asset_id):
+        raise HTTPException(404, "no such photo for this item")
+    from PIL import Image, ImageOps
+    src = IMAGES_DIR / rel
+    with Image.open(src) as im:
+        out = fn(ImageOps.exif_transpose(im))
+        kwargs = {}
+        if src.suffix.lower() in (".jpg", ".jpeg"):
+            out = out.convert("RGB")
+            kwargs = {"quality": 90}
+        out.save(src, **kwargs)
+    _wm_forget(rel)
+
+
+def _rotate_op(direction):
+    from PIL import Image
+    turn = Image.Transpose.ROTATE_270 if direction == "cw" else Image.Transpose.ROTATE_90
+    return lambda im: im.transpose(turn)
+
+
+def _crop_op(x, y, w, h):
+    """Crop to a box given as fractions (0..1) of the image's width/height."""
+    def crop(im):
+        iw, ih = im.size
+        l, t = max(0, round(x * iw)), max(0, round(y * ih))
+        r, b = min(iw, round((x + w) * iw)), min(ih, round((y + h) * ih))
+        if r - l < 8 or b - t < 8:   # ignore a too-small / degenerate selection
+            return im
+        return im.crop((l, t, r, b))
+    return crop
+
+
+def _photo_edit_page(request, db, model, kind, aid, image):
+    obj = get_or_404(db, model, aid)
+    if image not in detect_images(kind, aid):
+        raise HTTPException(404, "no such photo for this item")
+    return templates.TemplateResponse(request, "photo_edit.html",
+                                      {"obj": obj, "kind": kind, "image": image,
+                                       "noindex": True})
+
+
+def _do_photo_rotate(db, model, kind, aid, form):
+    get_or_404(db, model, aid)
+    _edit_image(kind, aid, form.get("image", ""), _rotate_op(form.get("dir", "cw")))
+    add_log(db, aid, "rotated a photo")
+    db.commit()
+
+
+def _do_photo_crop(db, model, kind, aid, form):
+    get_or_404(db, model, aid)
+    try:
+        x, y, w, h = (float(form.get(k, "")) for k in ("x", "y", "w", "h"))
+    except ValueError:
+        raise HTTPException(400, "bad crop box")
+    _edit_image(kind, aid, form.get("image", ""), _crop_op(x, y, w, h))
+    add_log(db, aid, "cropped a photo")
+    db.commit()
+
+
 # --- QR target: one stable /items/<id> URL for either kind ------------------
 
 @app.get("/items/{aid}", include_in_schema=False)
@@ -1134,6 +1196,30 @@ async def gui_computer_photo_reference(aid: str, request: Request,
             else "unflagged a reference photo")
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
+
+
+@app.get("/computers/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)
+def gui_computer_edit_photo(aid: str, request: Request, image: str = "",
+                            db: Session = Depends(get_db)):
+    return _photo_edit_page(request, db, Computer, "computers", aid, image)
+
+
+@app.post("/computers/{aid}/photo-rotate", include_in_schema=False)
+async def gui_computer_photo_rotate(aid: str, request: Request,
+                                    db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_rotate(db, Computer, "computers", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
+                            status_code=303)
+
+
+@app.post("/computers/{aid}/photo-crop", include_in_schema=False)
+async def gui_computer_photo_crop(aid: str, request: Request,
+                                  db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_crop(db, Computer, "computers", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
+                            status_code=303)
 
 
 @app.get("/computers/{aid}/label.pdf", include_in_schema=False)
@@ -1542,6 +1628,30 @@ async def gui_part_photo_reference(aid: str, request: Request,
             else "unflagged a reference photo")
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
+
+
+@app.get("/parts/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)
+def gui_part_edit_photo(aid: str, request: Request, image: str = "",
+                        db: Session = Depends(get_db)):
+    return _photo_edit_page(request, db, Part, "parts", aid, image)
+
+
+@app.post("/parts/{aid}/photo-rotate", include_in_schema=False)
+async def gui_part_photo_rotate(aid: str, request: Request,
+                                db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_rotate(db, Part, "parts", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
+                            status_code=303)
+
+
+@app.post("/parts/{aid}/photo-crop", include_in_schema=False)
+async def gui_part_photo_crop(aid: str, request: Request,
+                              db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_crop(db, Part, "parts", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
+                            status_code=303)
 
 
 @app.get("/parts/{aid}/label.pdf", include_in_schema=False)
