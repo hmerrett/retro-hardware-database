@@ -9,9 +9,10 @@ exactly the same data.
 Runs over the streamable-HTTP transport so it can live as its own always-on
 docker-compose service. Point a client at http://<host>:8001/mcp.
 
-year is an integer and acquired_date an ISO date string (YYYY-MM-DD). Since an
-omitted argument means "leave unchanged", those two can be set but not cleared
-from here; clear them in the GUI.
+year is an integer, acquired_date and disposed_at are ISO date strings
+(YYYY-MM-DD), and disposed is a boolean. Since an omitted argument means "leave
+unchanged", the integer and date fields can be set but not cleared from here;
+clear them in the GUI.
 """
 import os
 
@@ -84,7 +85,9 @@ def create_computer(
     url: str | None = None,
     summary: str | None = None,
     notes: str | None = None,
-    disposed: str | None = None,
+    disposed: bool | None = None,
+    disposed_at: str | None = None,
+    disposed_note: str | None = None,
 ) -> dict:
     """Create a computer. The server assigns the next asset id across both
     tables. CPU, installed_ram and drives (floppy/optical/CF-SD, ';'-separated)
@@ -111,10 +114,13 @@ def update_computer(
     url: str | None = None,
     summary: str | None = None,
     notes: str | None = None,
-    disposed: str | None = None,
+    disposed: bool | None = None,
+    disposed_at: str | None = None,
+    disposed_note: str | None = None,
 ) -> dict:
     """Partial-update a computer: only the fields you pass are changed. Set
-    disposed to a note/date to flag it disposed; pass an empty string to clear."""
+    disposed true to flag it disposed, with disposed_at (ISO date) and
+    disposed_note for when and why; set it false to undo."""
     fields = _clean(locals())
     fields.pop("asset_id")
     return _request("PATCH", f"/api/computers/{asset_id}", json=fields)
@@ -165,7 +171,9 @@ def create_part(
     url: str | None = None,
     summary: str | None = None,
     notes: str | None = None,
-    disposed: str | None = None,
+    disposed: bool | None = None,
+    disposed_at: str | None = None,
+    disposed_note: str | None = None,
     disk_image: str | None = None,
 ) -> dict:
     """Create a part. The server assigns the next asset id. computer_id soft-links
@@ -193,7 +201,9 @@ def update_part(
     url: str | None = None,
     summary: str | None = None,
     notes: str | None = None,
-    disposed: str | None = None,
+    disposed: bool | None = None,
+    disposed_at: str | None = None,
+    disposed_note: str | None = None,
     disk_image: str | None = None,
 ) -> dict:
     """Partial-update a part: only the fields you pass are changed. To move a part

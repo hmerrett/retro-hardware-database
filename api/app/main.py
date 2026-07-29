@@ -14,7 +14,7 @@ import hashlib
 import os
 import secrets
 import shutil
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 import json
 from urllib.parse import quote, urlparse
@@ -40,7 +40,8 @@ app = FastAPI(title="Retro Hardware Database API", version="0.3.0")
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 templates.env.globals.update(
     display_name=entry.display_name, type_label=entry.type_label,
-    parse_specs=entry.parse_specs, TYPE_ORDER=entry.TYPE_ORDER)
+    parse_specs=entry.parse_specs, TYPE_ORDER=entry.TYPE_ORDER,
+    today=lambda: date.today().isoformat())
 
 AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
 AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
@@ -415,6 +416,13 @@ def _short(v, limit=80):
     return v if len(v) <= limit else v[:limit - 1] + "…"
 
 
+def _disposal_log(obj):
+    """The history line for a disposal: when, and why if a reason was given."""
+    when = obj.disposed_at.isoformat() if obj.disposed_at else "date unknown"
+    return f"marked disposed ({when})" + (f": {obj.disposed_note}"
+                                          if obj.disposed_note else "")
+
+
 def _parse_date(raw):
     """A date from a form field. ISO is what <input type="date"> submits; the
     day-first form is accepted too because it is what gets typed by hand.
@@ -433,8 +441,10 @@ def _coerce(field, raw):
     if field == "year":
         v = (raw or "").strip()
         return int(v) if v.isdigit() else None
-    if field == "acquired_date":
+    if field in ("acquired_date", "disposed_at"):
         return _parse_date(raw)
+    if field == "disposed":
+        return (raw or "").strip() not in ("", "0", "false")
     return raw or ""
 
 
@@ -1103,8 +1113,10 @@ async def gui_dispose_computer(aid: str, request: Request,
                                db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     form = await request.form()
-    c.disposed = form.get("note", "") or "disposed"
-    add_log(db, aid, f"marked disposed: {c.disposed}")
+    c.disposed = True
+    c.disposed_at = _parse_date(form.get("date", "")) or date.today()
+    c.disposed_note = form.get("note", "") or ""
+    add_log(db, aid, _disposal_log(c))
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
@@ -1112,7 +1124,9 @@ async def gui_dispose_computer(aid: str, request: Request,
 @app.post("/computers/{aid}/restore", include_in_schema=False)
 def gui_restore_computer(aid: str, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    c.disposed = ""
+    c.disposed = False
+    c.disposed_at = None
+    c.disposed_note = ""
     add_log(db, aid, "restored")
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
@@ -1495,7 +1509,8 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
 # placement, but not the photos (they belong to the original unit), the disposed
 # flag, or the per-unit provenance (source / acquired date / notes) which the
 # copy starts blank.
-DUP_EXCLUDE = {"image", "disposed", "source", "acquired_date", "notes"}
+DUP_EXCLUDE = {"image", "disposed", "disposed_at", "disposed_note", "source",
+               "acquired_date", "notes"}
 
 
 @app.post("/parts/{aid}/duplicate", include_in_schema=False)
@@ -1516,8 +1531,10 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
 async def gui_dispose_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     form = await request.form()
-    p.disposed = form.get("note", "") or "disposed"
-    add_log(db, aid, f"marked disposed: {p.disposed}")
+    p.disposed = True
+    p.disposed_at = _parse_date(form.get("date", "")) or date.today()
+    p.disposed_note = form.get("note", "") or ""
+    add_log(db, aid, _disposal_log(p))
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
@@ -1525,7 +1542,9 @@ async def gui_dispose_part(aid: str, request: Request, db: Session = Depends(get
 @app.post("/parts/{aid}/restore", include_in_schema=False)
 def gui_restore_part(aid: str, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    p.disposed = ""
+    p.disposed = False
+    p.disposed_at = None
+    p.disposed_note = ""
     add_log(db, aid, "restored")
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)

@@ -4,7 +4,7 @@ computer_id links it to a computer's asset_id (NULL = standalone / uninstalled).
 The column set began as a mirror of the flat-file system's CSV schema, where
 everything was a string; quantities and dates are being given real types as the
 data proves clean enough to convert."""
-from sqlalchemy import (Column, Date, DateTime, ForeignKey, Integer,
+from sqlalchemy import (Boolean, Column, Date, DateTime, ForeignKey, Integer,
                         SmallInteger, String, Text)
 
 from .db import Base
@@ -40,7 +40,10 @@ class Computer(Base):
     url = Column(Text, default="")
     summary = Column(Text, default="")
     notes = Column(Text, default="")
-    disposed = Column(String(255), default="")
+    disposed = Column(Boolean, nullable=False, default=False,
+                      server_default="0")
+    disposed_at = Column(Date)
+    disposed_note = Column(Text, default="")
 
 
 class Part(Base):
@@ -61,7 +64,10 @@ class Part(Base):
     url = Column(Text, default="")
     summary = Column(Text, default="")
     notes = Column(Text, default="")
-    disposed = Column(String(255), default="")
+    disposed = Column(Boolean, nullable=False, default=False,
+                      server_default="0")
+    disposed_at = Column(Date)
+    disposed_note = Column(Text, default="")
     disk_image = Column(String(255), default="")
 
 

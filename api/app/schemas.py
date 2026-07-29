@@ -1,7 +1,8 @@
 """Request/response shapes. Fields default to "" (or None for the typed ones) so
 a POST can omit them; PATCH handlers use model_dump(exclude_unset=True) so only
-supplied fields change. year is a plain integer and acquired_date an ISO date;
-both accept null for "not recorded"."""
+supplied fields change. year is a plain integer, acquired_date and disposed_at
+are ISO dates (all three take null for "not recorded"), and disposed is a
+boolean flag whose optional detail lives in disposed_note."""
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict
@@ -24,7 +25,9 @@ class ComputerIn(BaseModel):
     url: str = ""
     summary: str = ""
     notes: str = ""
-    disposed: str = ""
+    disposed: bool = False
+    disposed_at: date | None = None
+    disposed_note: str = ""
 
 
 class ComputerOut(ComputerIn):
@@ -48,7 +51,9 @@ class PartIn(BaseModel):
     url: str = ""
     summary: str = ""
     notes: str = ""
-    disposed: str = ""
+    disposed: bool = False
+    disposed_at: date | None = None
+    disposed_note: str = ""
     disk_image: str = ""
 
 

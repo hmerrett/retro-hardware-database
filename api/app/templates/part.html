@@ -21,7 +21,7 @@
 </div>
 
 {% if p.disposed %}
-<div class="banner">Disposed — {{ p.disposed }}
+<div class="banner">Disposed{% if p.disposed_at %} {{ p.disposed_at }}{% endif %}{% if p.disposed_note %} — {{ p.disposed_note }}{% endif %}
   {% if request.state.authed %}
   <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/restore">
     <button class="btn sm" type="submit">restore</button></form>

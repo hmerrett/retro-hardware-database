@@ -17,7 +17,7 @@
 </div>
 
 {% if c.disposed %}
-<div class="banner">Disposed — {{ c.disposed }}
+<div class="banner">Disposed{% if c.disposed_at %} {{ c.disposed_at }}{% endif %}{% if c.disposed_note %} — {{ c.disposed_note }}{% endif %}
   {% if request.state.authed %}
   <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/restore">
     <button class="btn sm" type="submit">restore</button></form>

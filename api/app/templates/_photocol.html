@@ -64,7 +64,8 @@
     {% if imgerr %}<p class="hint">No image found at the reference URL.</p>{% endif %}
     {% if not obj.disposed %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose">
-      <input name="note" placeholder="disposed note / date">
+      <input name="note" placeholder="why — sold, binned, donated…">
+      <input name="date" type="date" value="{{ today() }}">
       <button class="btn sm" type="submit">mark disposed</button>
     </form>
     {% endif %}
