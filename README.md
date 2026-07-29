@@ -53,17 +53,6 @@ Set the database passwords in `.env`. Optionally set `RHDB_AUTH_USER` and
 labels encode. On the host the GUI is at http://localhost:8000 and the docs at
 `/docs`. In production Caddy serves it over HTTPS; see Access and HTTPS below.
 
-## Import from CSV
-
-`tools/migrate_csv.py` loads `computers.csv` and `parts.csv` into the database,
-preserving asset ids. It upserts by asset id, so it is safe to run repeatedly.
-Run it inside the api container, or against the database with `DATABASE_URL`:
-
-```
-DATABASE_URL=mysql+pymysql://retro:PASS@localhost:3306/retro \
-    python tools/migrate_csv.py --data /path/to/data
-```
-
 ## REST API
 
 | Method | Path | |
@@ -108,10 +97,6 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 export RHDB_API=http://localhost:8000
 ```
 
-- `build_site.py` builds a static copy of the catalogue into `tools/site/`, one
-  page per item at `items/<asset_id>/`. Photos come from the API over HTTP by
-  default; point it at a local directory with `RHDB_IMAGES` or `--images` to
-  build from files.
 - `make_labels.py` produces label PDFs with a QR code for each item. Options:
   `--small`, `--auto` (a full and small label for a computer, a small label for a
   real part), and `--print` (macOS/CUPS `lp`). The QR encodes
@@ -123,17 +108,9 @@ export RHDB_API=http://localhost:8000
   computer, BIOS, chipset, onboard video and ports on its motherboard, and a
   storage part per detected drive. It writes nothing until you confirm.
 
-### Publishing a static site
-
-`tools/publish.sh` builds the catalogue from the API and pushes it to a GitHub
-Pages repository checked out alongside this one, whose workflow deploys the
-committed `site/` folder. The build runs locally because the API is not
-reachable from GitHub's runners.
-
-```
-RHDB_API=http://localhost:8000 ./publish.sh
-RHDB_SITE_REPO=/path/to/pages-repo ./publish.sh   (if not adjacent)
-```
+The catalogue used to be mirrored to GitHub Pages by a static-site builder. The
+app itself is now the published site, so the builder is gone; the old Pages URL
+serves redirect stubs so labels printed against it still resolve.
 
 ## Access and HTTPS
 

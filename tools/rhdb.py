@@ -2,8 +2,8 @@
 
 A drop-in successor to the flat-file system's scripts/common.py: it exposes the
 same helper names, but instead of reading/writing CSVs it talks to the REST API
-(the single source of truth). The site builder, label maker and report importer
-all import from here, so they read/write exactly what the GUI and MCP server do.
+(the single source of truth). The label maker and the report importer both
+import from here, so they read/write exactly what the GUI and MCP server do.
 
 Point it at the API with, in order of precedence: --api on the command line
 (scripts set RHDB_API before importing), the RHDB_API env var, config.yml's
@@ -12,7 +12,6 @@ api_url, else http://localhost:8000.
 from __future__ import annotations
 
 import os
-import re
 from pathlib import Path
 
 import requests
@@ -23,12 +22,6 @@ ROOT = BASE_DIR
 CONFIG_PATH = BASE_DIR / "config.yml"
 
 TIMEOUT = 30
-
-COMPUTER_COLUMNS = [
-    "asset_id", "name", "manufacturer", "model", "year",
-    "chassis", "os", "cpu", "installed_ram", "drives", "condition", "source",
-    "acquired_date", "image", "url", "summary", "notes", "disposed",
-]
 
 PART_COLUMNS = [
     "asset_id", "computer_id", "type", "manufacturer", "model", "name",
@@ -77,19 +70,6 @@ def api_auth():
     return (user, pw) if user and pw else None
 
 
-def configured_images_dir():
-    """A LOCAL photo dir if one is configured (RHDB_IMAGES or config images_dir)
-    and it exists, else None -- in which case build_site pulls photos from the
-    API's image store (the volume the GUI uploads into). A relative path is
-    resolved against the repo root (the parent of tools/)."""
-    raw = os.getenv("RHDB_IMAGES") or load_config().get("images_dir") or ""
-    if not raw:
-        return None
-    p = Path(raw)
-    p = p if p.is_absolute() else (BASE_DIR.parent / p).resolve()
-    return p if p.exists() else None
-
-
 # --- HTTP / data access ----------------------------------------------------
 
 def _request(method, path, **kwargs):
@@ -118,19 +98,6 @@ def update_part(asset_id: str, fields: dict) -> dict:
 
 def create_part(fields: dict) -> dict:
     return _request("POST", "/api/parts", json=fields)
-
-
-def image_manifest() -> list[str]:
-    """Relative paths of every photo in the API's store, e.g.
-    'computers/RH-0001.jpg'."""
-    return _request("GET", "/api/images")
-
-
-def download_image(rel: str, dest: Path) -> None:
-    resp = requests.get(f"{api_base()}/images/{rel}", timeout=TIMEOUT, auth=api_auth())
-    resp.raise_for_status()
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(resp.content)
 
 
 # --- pure helpers (verbatim from the flat-file common.py) ------------------
@@ -170,26 +137,6 @@ def type_sort_key(t: str) -> int:
         return len(TYPE_ORDER)
 
 
-def url_source(url: str) -> str:
-    u = (url or "").lower()
-    if not u:
-        return ""
-    if "wikipedia.org" in u:
-        return "wikipedia"
-    if "theretroweb.com" in u:
-        return "theretroweb"
-    return "other"
-
-
-def url_label(url: str) -> str:
-    return {"wikipedia": "Wikipedia",
-            "theretroweb": "The Retro Web"}.get(url_source(url), "Reference")
-
-
-def is_disposed(row) -> bool:
-    return bool((row.get("disposed") or "").strip())
-
-
 def index_by_id(rows: list[dict]) -> dict:
     return {r["asset_id"]: r for r in rows}
 
@@ -204,88 +151,6 @@ def parts_for(computer_id: str, parts: list[dict]) -> list[dict]:
 def item_url(config: dict, asset_id: str) -> str:
     base = (config.get("base_url") or "").rstrip("/")
     return f"{base}/items/{asset_id}/"
-
-
-PLACEHOLDER = {
-    "computer": "computer", "motherboard": "board", "cpu": "chip", "ram": "ram",
-    "video": "card", "sound": "card", "network": "card", "io": "card",
-    "storage": "drive", "optical": "disc", "floppy": "floppy", "psu": "psu",
-    "cooler": "fan", "peripheral": "keyboard", "other": "box",
-}
-
-
-def placeholder_for(kind_or_type: str) -> str:
-    return "placeholders/" + PLACEHOLDER.get(kind_or_type, "box") + ".svg"
-
-
-KNOWN_SPEC_KEYS = {
-    "motherboard": {"Chipset", "Socket", "CPU family", "Form factor",
-                    "RAM slots", "Slots", "Cache", "BIOS", "Ports",
-                    "Onboard video"},
-    "cpu": {"Socket", "Speed", "FSB", "Cores", "Cache", "L1/L2 cache", "L2 cache"},
-    "ram": {"Type", "Size", "Speed"},
-    "video": {"Interface", "Memory", "Chip", "Chipset", "Type", "Connector"},
-    "sound": {"Interface", "Chip", "Chipset", "FM", "Ports"},
-    "network": {"Interface", "Connector", "Chip", "Chipset"},
-    "io": {"Interface", "Ports", "Chip", "Chipset"},
-    "storage": {"Kind", "Interface", "Protocol", "Capacity", "CHS", "Role",
-                "Media", "Speed"},
-    "optical": {"Media", "Interface", "Speed"},
-    "floppy": {"Media", "Interface", "Speed"},
-    "psu": {"Form factor", "Wattage", "Connectors"},
-    "cooler": {"Type", "Socket"},
-}
-
-
-def validate(computers: list[dict], parts: list[dict]) -> list[str]:
-    """Human-readable integrity warnings (empty = all good). Duplicate ids can't
-    occur with the DB primary key, but dangling computer_id and stray spec keys
-    still can, so the same checks run at build time."""
-    warnings = []
-    comp_ids = {c["asset_id"] for c in computers}
-    for p in parts:
-        aid = p.get("asset_id", "")
-        cid = p.get("computer_id", "")
-        if cid and cid not in comp_ids:
-            warnings.append(
-                f"part {aid} references unknown computer_id {cid}")
-        ptype = p.get("type", "")
-        allowed = KNOWN_SPEC_KEYS.get(ptype)
-        seen_keys = set()
-        for k, v in parse_specs(p.get("specs", "")):
-            if v.strip().lower().startswith("http"):
-                warnings.append(
-                    f"part {aid} has a link in a spec value — put URLs in the "
-                    "url column")
-            if not k:
-                continue
-            if k in seen_keys:
-                warnings.append(f"part {aid} has duplicate spec key '{k}'")
-            seen_keys.add(k)
-            if allowed is not None and k not in allowed:
-                warnings.append(
-                    f"part {aid} unexpected spec key '{k}' for type '{ptype}'")
-    return warnings
-
-
-SHOUT_ACRONYMS = {
-    "SCSI", "SATA", "PATA", "EISA", "ESDI", "VESA", "SVGA", "WXGA", "ATAPI",
-    "BIOS", "UEFI", "DRAM", "SRAM", "SDRAM", "VRAM", "SIMM", "DIMM", "RIMM",
-    "SIPP", "COAST", "CMOS", "MIDI", "EPROM", "EEPROM", "PROM", "MCGA",
-    "PLCC", "NTSC", "SECAM", "WLAN", "ASIC",
-}
-
-
-def deshout(text: str) -> str:
-    out = []
-    for tok in re.split(r"(\s+)", text or ""):
-        core = tok.strip(".,:;()[]{}/\\\"'")
-        if (core.isalpha() and core.isupper() and len(core) >= 5
-                and core not in SHOUT_ACRONYMS):
-            i = tok.find(core)
-            tok = tok[:i] + core[0] + core[1:].lower() + tok[i + len(core):]
-        out.append(tok)
-    return "".join(out)
 
 
 def add_api_arg(parser):

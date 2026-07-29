@@ -321,7 +321,7 @@ def main():
 
     if wrote_c or wrote_p:
         print(f"\nApplied to the API: {wrote_c} computer(s) updated, {wrote_p} "
-              "with motherboard/parts changes. Rebuild with build_site.py.")
+              "with motherboard/parts changes.")
     else:
         print("\nNothing written.")
 

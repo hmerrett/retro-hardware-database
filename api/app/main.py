@@ -543,22 +543,6 @@ def api_item_log(aid: str, db: Session = Depends(get_db)):
              "kind": e.kind, "message": e.message} for e in item_log(db, aid)]
 
 
-# --- images: manifest (for build_site over the network) --------------------
-
-@app.get("/api/images", tags=["images"])
-def api_images():
-    """Every image file in the store, as relative paths like
-    'computers/RH-0001.jpg' -- so build_site can fetch photos over the network."""
-    out = []
-    for sub in ("computers", "parts"):
-        folder = IMAGES_DIR / sub
-        if folder.exists():
-            for f in sorted(folder.iterdir()):
-                if f.is_file() and f.suffix.lower() in IMAGE_EXTS:
-                    out.append(f"{sub}/{f.name}")
-    return out
-
-
 def detect_images(kind, asset_id):
     """Ordered photos for an asset: <asset_id>.<ext> first, then -2, -3, ..."""
     folder = IMAGES_DIR / kind
