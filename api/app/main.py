@@ -346,8 +346,76 @@ def apple_touch_icon():
 
 for sub in ("computers", "parts"):
     (IMAGES_DIR / sub).mkdir(parents=True, exist_ok=True)
-app.mount("/images", StaticFiles(directory=str(IMAGES_DIR)), name="images")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Our own photos are served with a small RHDB watermark composited in a corner,
+# so shared/saved copies carry attribution. Originals on disk are never altered;
+# the watermarked version is cached next to a mtime check. Reference (not-ours)
+# images and favicons are served untouched. Toggle with RHDB_WATERMARK=0.
+WATERMARK = os.getenv("RHDB_WATERMARK", "1").lower() not in ("0", "false", "no", "off")
+WM_SRC = STATIC_DIR / "icon-512.png"
+WM_CACHE = IMAGES_DIR / ".wm"
+
+
+def _make_watermark(src_path: Path, dst_path: Path):
+    from PIL import Image
+    base = Image.open(src_path).convert("RGBA")
+    w, h = base.size
+    mark = Image.open(WM_SRC).convert("RGBA")
+    target = max(28, int(min(w, h) * 0.15))
+    mark.thumbnail((target, target), Image.LANCZOS)
+    mark.putalpha(mark.getchannel("A").point(lambda a: int(a * 0.55)))
+    margin = max(6, int(min(w, h) * 0.03))
+    layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    layer.paste(mark, (w - mark.width - margin, h - mark.height - margin), mark)
+    out = Image.alpha_composite(base, layer)
+    dst_path.parent.mkdir(parents=True, exist_ok=True)
+    if dst_path.suffix.lower() in (".jpg", ".jpeg"):
+        out.convert("RGB").save(dst_path, "JPEG", quality=88)
+    else:
+        out.save(dst_path)
+
+
+def _watermarked_file(rel: str) -> Path:
+    """Path to the cached watermarked copy of an image, regenerated if stale.
+    Falls back to the original on any compositing error."""
+    src = IMAGES_DIR / rel
+    dst = WM_CACHE / rel
+    try:
+        if not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime:
+            _make_watermark(src, dst)
+        return dst
+    except Exception:
+        return src
+
+
+def _wm_forget(rel: str):
+    """Drop an image's cached watermark (on delete / rename) so it regenerates."""
+    try:
+        (WM_CACHE / rel).unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _is_own_photo(rel: str) -> bool:
+    ext = Path(rel).suffix.lower()
+    return (WATERMARK and ext in IMAGE_EXTS
+            and (rel.startswith("computers/") or rel.startswith("parts/"))
+            and not is_reference(rel))
+
+
+@app.get("/images/{path:path}", include_in_schema=False)
+def serve_image(path: str):
+    # Reject traversal, dotfiles/dotdirs (e.g. the .wm cache) and non-images.
+    if any(seg.startswith(".") for seg in path.split("/")):
+        raise HTTPException(404)
+    full = (IMAGES_DIR / path).resolve()
+    if not str(full).startswith(str(IMAGES_DIR.resolve()) + os.sep) or not full.is_file():
+        raise HTTPException(404)
+    if full.suffix.lower() not in IMAGE_EXTS:
+        raise HTTPException(404)
+    served = _watermarked_file(path) if _is_own_photo(path) else full
+    return FileResponse(served, headers={"Cache-Control": "public, max-age=3600"})
 
 
 def get_or_404(db, model, aid):
@@ -670,14 +738,21 @@ def _mark_reference(rel, on, note="", source=""):
             _cache_favicon(source)
     elif sc.exists():
         sc.unlink()
+    _wm_forget(rel)  # reference state changed: rebuild (or drop) the watermark
 
 
 def _move_with_sidecar(src: Path, dst: Path):
-    """Rename an image, carrying its reference-marker sidecar along with it."""
+    """Rename an image, carrying its reference-marker sidecar along with it, and
+    dropping stale watermark caches for both names."""
     src.rename(dst)
     sc = src.with_name(src.name + ".ref")
     if sc.exists():
         sc.rename(dst.with_name(dst.name + ".ref"))
+    for p in (src, dst):
+        try:
+            _wm_forget(str(p.relative_to(IMAGES_DIR)))
+        except ValueError:
+            pass
 
 
 def _set_primary_photo(kind, asset_id, rel):
@@ -713,6 +788,7 @@ def _delete_image(kind, asset_id, rel):
     if sc.exists():
         sc.unlink()
     p.unlink()
+    _wm_forget(rel)
     new_primary = ""
     if was_primary:
         remaining = detect_images(kind, asset_id)
