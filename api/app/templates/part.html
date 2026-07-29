@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_icons.html" as I %}
-{% block title %}{{ p.asset_id }} — Retro Hardware Database{% endblock %}
+{% block title %}{{ og.title }}{% if og.title != p.asset_id %} · {{ p.asset_id }}{% endif %} — Retro Hardware Database{% endblock %}
 {% block content %}
 <p><a href="/">&larr; all</a>{% if parent %} · <a href="/computers/{{ parent.asset_id }}">&larr; {{ parent.asset_id }}</a>{% endif %}</p>
 <div class="flex">
