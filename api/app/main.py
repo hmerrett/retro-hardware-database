@@ -114,7 +114,7 @@ def _og(request: Request, title: str, description: str = "", image_rel: str = No
     og = {"title": title, "url": _abs_url(request, request.url.path),
           "description": " ".join((description or "").split())[:280]}
     if image_rel:
-        og["image"] = _abs_url(request, f"/images/{image_rel}")
+        og["image"] = _abs_url(request, img_url(image_rel))
         og["image_alt"] = title
         size = _image_size(image_rel)
         if size:
@@ -711,6 +711,25 @@ def _favicon_for_rel(rel):
     """Cached source favicon path for a single image rel, or '' (for index cards)."""
     info = _read_ref(rel) if rel else None
     return _favicon_rel(info["source"]) if info else ""
+
+
+def img_url(rel):
+    """/images URL for a photo with a cache-busting ?v= stamp from its mtime, so
+    the browser refetches after an edit or watermark change rather than showing a
+    stale cached copy. Reflects the reference-marker sidecar too (its toggle
+    changes whether the served image is watermarked)."""
+    if not rel:
+        return ""
+    ts = 0
+    for p in (IMAGES_DIR / rel, _ref_sidecar(rel)):
+        try:
+            ts = max(ts, int(p.stat().st_mtime))
+        except OSError:
+            pass
+    return f"/images/{rel}?v={ts}" if ts else f"/images/{rel}"
+
+
+templates.env.globals["img_url"] = img_url
 
 
 def _cache_favicon(source):

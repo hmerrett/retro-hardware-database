@@ -33,7 +33,7 @@
      data-updated="{{ r.updated }}" data-added="{{ r.added }}"
      data-img="{{ '1' if r.image else '0' }}" data-name="{{ r.name|lower }}">
     <div class="thumb">
-      {% if r.image %}<img src="/images/{{ r.image }}" alt="{{ r.name }}" loading="lazy">
+      {% if r.image %}<img src="{{ img_url(r.image) }}" alt="{{ r.name }}" loading="lazy">
       {% else %}<img class="ph" src="/static/{{ r.placeholder }}" alt="{{ r.cat_label }}" loading="lazy">{% endif %}
       {% if r.ref_photo %}<span class="ref-badge{{ ' icon' if r.ref_icon else '' }}" title="Illustrative image, not this exact unit">{% if r.ref_icon %}<img src="/images/{{ r.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
     </div>
