@@ -1,7 +1,11 @@
-"""ORM tables. Mirrors the CSV schema of the flat-file system: one shared asset
-register across computers + parts. A part's computer_id is a soft link to a
-computer's asset_id (blank = standalone / uninstalled)."""
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
+"""ORM tables. One shared asset register across computers + parts. A part's
+computer_id links it to a computer's asset_id (NULL = standalone / uninstalled).
+
+The column set began as a mirror of the flat-file system's CSV schema, where
+everything was a string; quantities and dates are being given real types as the
+data proves clean enough to convert."""
+from sqlalchemy import (Column, Date, DateTime, ForeignKey, Integer,
+                        SmallInteger, String, Text)
 
 from .db import Base
 
@@ -23,7 +27,7 @@ class Computer(Base):
     name = Column(String(255), default="")
     manufacturer = Column(String(255), default="")
     model = Column(String(255), default="")
-    year = Column(String(16), default="")
+    year = Column(SmallInteger)
     chassis = Column(String(64), default="")
     os = Column(String(255), default="")
     cpu = Column(String(255), default="")
@@ -31,7 +35,7 @@ class Computer(Base):
     drives = Column(Text, default="")
     condition = Column(String(64), default="")
     source = Column(String(255), default="")
-    acquired_date = Column(String(32), default="")
+    acquired_date = Column(Date)
     image = Column(String(255), default="")
     url = Column(Text, default="")
     summary = Column(Text, default="")
@@ -48,11 +52,11 @@ class Part(Base):
     manufacturer = Column(String(255), default="")
     model = Column(String(255), default="")
     name = Column(String(255), default="")
-    year = Column(String(16), default="")
+    year = Column(SmallInteger)
     specs = Column(Text, default="")
     condition = Column(String(64), default="")
     source = Column(String(255), default="")
-    acquired_date = Column(String(32), default="")
+    acquired_date = Column(Date)
     image = Column(String(255), default="")
     url = Column(Text, default="")
     summary = Column(Text, default="")

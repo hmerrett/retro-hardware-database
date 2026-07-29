@@ -1,5 +1,9 @@
-"""Request/response shapes. Fields default to "" so a POST can omit them; PATCH
-handlers use model_dump(exclude_unset=True) so only supplied fields change."""
+"""Request/response shapes. Fields default to "" (or None for the typed ones) so
+a POST can omit them; PATCH handlers use model_dump(exclude_unset=True) so only
+supplied fields change. year is a plain integer and acquired_date an ISO date;
+both accept null for "not recorded"."""
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -7,7 +11,7 @@ class ComputerIn(BaseModel):
     name: str = ""
     manufacturer: str = ""
     model: str = ""
-    year: str = ""
+    year: int | None = None
     chassis: str = ""
     os: str = ""
     cpu: str = ""
@@ -15,7 +19,7 @@ class ComputerIn(BaseModel):
     drives: str = ""
     condition: str = ""
     source: str = ""
-    acquired_date: str = ""
+    acquired_date: date | None = None
     image: str = ""
     url: str = ""
     summary: str = ""
@@ -35,11 +39,11 @@ class PartIn(BaseModel):
     manufacturer: str = ""
     model: str = ""
     name: str = ""
-    year: str = ""
+    year: int | None = None
     specs: str = ""
     condition: str = ""
     source: str = ""
-    acquired_date: str = ""
+    acquired_date: date | None = None
     image: str = ""
     url: str = ""
     summary: str = ""

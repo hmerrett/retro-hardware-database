@@ -4,15 +4,15 @@
 <p><a href="javascript:history.back()">&larr; back</a></p>
 <h2>{{ title }}</h2>
 <form class="edit" method="post" action="{{ ('/computers/' + c.asset_id + '/edit') if c else '/computers/new' }}">
-  {% macro fld(key, label, hint='') %}
+  {% macro fld(key, label, hint='', type='text') %}
     <label for="{{ key }}">{{ label }}</label>
-    <input id="{{ key }}" name="{{ key }}" value="{{ (c[key] if c else '') or '' }}">
+    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (c[key] if c else '') or '' }}">
     {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
   {% endmacro %}
   {{ fld('name', 'Name', "display name; overrides manufacturer + model") }}
   {{ fld('manufacturer', 'Manufacturer', "or 'Custom build'") }}
   {{ fld('model', 'Model') }}
-  {{ fld('year', 'Year') }}
+  {{ fld('year', 'Year', type='number') }}
   {{ fld('chassis', 'Chassis / case', "desktop, tower, mini-tower, breadbin…") }}
   {{ fld('os', 'Operating system') }}
   {{ fld('cpu', 'CPU', "an attribute, not a part — e.g. Intel 486DX2-66, or 2x Pentium III 500") }}
@@ -40,7 +40,7 @@
     {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
   </select>
   {{ fld('source', 'Source', "where / how acquired") }}
-  {{ fld('acquired_date', 'Acquired date', "YYYY-MM-DD") }}
+  {{ fld('acquired_date', 'Acquired date', type='date') }}
   {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
   <label for="summary">Summary</label>
   <textarea id="summary" name="summary" style="min-height:110px">{{ (c.summary if c else '') or '' }}</textarea>

@@ -37,7 +37,7 @@
     <label for="name">Name <span class="muted">(optional; defaults to maker + model)</span></label>
     <input id="name" name="name" value="{{ (p.name if p else '') or '' }}">
     <label for="year">Year</label>
-    <input id="year" name="year" value="{{ (p.year if p else '') or '' }}">
+    <input id="year" name="year" type="number" value="{{ (p.year if p else '') or '' }}">
   </fieldset>
 
   <!-- Storage: kind first; floppy/optical/SD-CF route to the computer's drives -->
@@ -150,7 +150,7 @@
     <label for="source">Source</label>
     <input id="source" name="source" value="{{ (p.source if p else '') or '' }}">
     <label for="acquired_date">Acquired date</label>
-    <input id="acquired_date" name="acquired_date" value="{{ (p.acquired_date if p else '') or '' }}" placeholder="YYYY-MM-DD">
+    <input id="acquired_date" name="acquired_date" type="date" value="{{ (p.acquired_date if p else '') or '' }}">
     <label for="url">Reference URL</label>
     <input id="url" name="url" value="{{ (p.url if p else '') or '' }}">
     <label for="summary">Summary</label>

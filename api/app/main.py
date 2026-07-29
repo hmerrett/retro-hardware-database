@@ -409,10 +409,33 @@ def item_log(db, asset_id):
 
 
 def _short(v, limit=80):
-    v = (v or "").strip()
+    v = "" if v is None else str(v).strip()
     if not v:
         return "(empty)"
     return v if len(v) <= limit else v[:limit - 1] + "…"
+
+
+def _parse_date(raw):
+    """A date from a form field. ISO is what <input type="date"> submits; the
+    day-first form is accepted too because it is what gets typed by hand.
+    Anything else, including blank, means not recorded."""
+    v = (raw or "").strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d/%m/%y"):
+        try:
+            return datetime.strptime(v, fmt).date()
+        except ValueError:
+            pass
+    return None
+
+
+def _coerce(field, raw):
+    """A form string as the column's type: blank means not recorded."""
+    if field == "year":
+        v = (raw or "").strip()
+        return int(v) if v.isdigit() else None
+    if field == "acquired_date":
+        return _parse_date(raw)
+    return raw or ""
 
 
 def _field_diffs(old, new, keys, semantic_specs=False):
@@ -997,7 +1020,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
                                    (Part.parent_id == "") | (Part.parent_id.is_(None)))
                            .order_by(Part.type, Part.asset_id).all())
     images = detect_images("computers", aid)
-    blurb = c.summary or _dot(" ".join(x for x in (c.manufacturer, c.model, c.year) if x),
+    blurb = c.summary or _dot(" ".join(x for x in (c.manufacturer, c.model, str(c.year or "")) if x),
                               c.cpu, c.condition)
     # Form factor is a property of the board, shown on the machine -- which is
     # what the part form promises ("the computer's form factor is taken from
@@ -1032,7 +1055,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
     for k in COMPUTER_FIELDS:
         if k not in form:
             continue
-        v = form[k] or ""
+        v = _coerce(k, form[k])
         if k == "installed_ram":
             v = _ram_from_form(form)
         elif k in ("manufacturer", "model"):
@@ -1365,7 +1388,7 @@ async def _part_from_form(form, ptype, extra=()):
             "parent_id": form.get("parent_id", "") or ""}
     for f in ("manufacturer", "model", "name", "year", "condition", "source",
               "acquired_date", "url", "summary", "notes", "disk_image"):
-        data[f] = form.get(f, "") or ""
+        data[f] = _coerce(f, form.get(f, ""))
     for f in ("manufacturer", "model"):
         data[f] = entry.deshout(data[f])
     data["specs"] = _assemble_specs(ptype, form, extra)
@@ -1425,7 +1448,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
             computers = db.query(Computer).order_by(Computer.asset_id).all()
     images = detect_images("parts", aid)
     blurb = p.summary or _dot(entry.type_label(p.type),
-                              " ".join(x for x in (p.manufacturer, p.model, p.year) if x),
+                              " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
                               p.specs)
     return templates.TemplateResponse(request, "part.html", {
         "p": p, "parent": parent, "host": host, "children": children,

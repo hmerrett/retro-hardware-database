@@ -8,6 +8,10 @@ exactly the same data.
 
 Runs over the streamable-HTTP transport so it can live as its own always-on
 docker-compose service. Point a client at http://<host>:8001/mcp.
+
+year is an integer and acquired_date an ISO date string (YYYY-MM-DD). Since an
+omitted argument means "leave unchanged", those two can be set but not cleared
+from here; clear them in the GUI.
 """
 import os
 
@@ -67,7 +71,7 @@ def create_computer(
     name: str | None = None,
     manufacturer: str | None = None,
     model: str | None = None,
-    year: str | None = None,
+    year: int | None = None,
     chassis: str | None = None,
     os: str | None = None,
     cpu: str | None = None,
@@ -94,7 +98,7 @@ def update_computer(
     name: str | None = None,
     manufacturer: str | None = None,
     model: str | None = None,
-    year: str | None = None,
+    year: int | None = None,
     chassis: str | None = None,
     os: str | None = None,
     cpu: str | None = None,
@@ -152,7 +156,7 @@ def create_part(
     manufacturer: str | None = None,
     model: str | None = None,
     name: str | None = None,
-    year: str | None = None,
+    year: int | None = None,
     specs: str | None = None,
     condition: str | None = None,
     source: str | None = None,
@@ -180,7 +184,7 @@ def update_part(
     manufacturer: str | None = None,
     model: str | None = None,
     name: str | None = None,
-    year: str | None = None,
+    year: int | None = None,
     specs: str | None = None,
     condition: str | None = None,
     source: str | None = None,
