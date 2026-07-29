@@ -92,8 +92,14 @@
   .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
   .thumb-item .btn.sm { font-size: 11px; padding: 1px 7px; }
   .photo-primary { position: relative; }
-  .photo-ctrls { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 4px; }
+  .photo-ctrls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
   .photo-ctrls form { margin: 0; }
+  .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+    padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--btn); color: inherit; cursor: pointer; }
+  .iconbtn:hover { background: var(--btn-hover); }
+  .iconbtn svg { width: 16px; height: 16px; display: block; }
+  .iconbtn.on { border-color: var(--accent); color: var(--accent); }
+  .iconbtn.danger:hover { background: #b4530033; border-color: #b45300aa; }
   .btn.danger:hover { background: #b4530033; border-color: #b45300aa; }
   .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
     font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; pointer-events: none; }
