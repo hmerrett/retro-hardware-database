@@ -128,8 +128,8 @@ def update_computer(
 
 @mcp.tool()
 def delete_computer(asset_id: str) -> dict:
-    """Delete a computer by asset id. Its parts are not deleted; they keep their
-    computer_id (fix or clear those separately)."""
+    """Delete a computer by asset id. Its parts are not deleted -- they are
+    unlinked and become standalone."""
     return _request("DELETE", f"/api/computers/{asset_id}")
 
 

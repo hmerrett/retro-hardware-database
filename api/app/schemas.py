@@ -2,10 +2,11 @@
 a POST can omit them; PATCH handlers use model_dump(exclude_unset=True) so only
 supplied fields change. year is a plain integer, acquired_date and disposed_at
 are ISO dates (all three take null for "not recorded"), and disposed is a
-boolean flag whose optional detail lives in disposed_note."""
+boolean flag whose optional detail lives in disposed_note. A part's
+computer_id / parent_id accept "" or null for "standalone"; both store NULL."""
 from datetime import date
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class ComputerIn(BaseModel):
@@ -36,8 +37,8 @@ class ComputerOut(ComputerIn):
 
 
 class PartIn(BaseModel):
-    computer_id: str = ""
-    parent_id: str = ""
+    computer_id: str | None = None
+    parent_id: str | None = None
     type: str = ""
     manufacturer: str = ""
     model: str = ""
@@ -55,6 +56,12 @@ class PartIn(BaseModel):
     disposed_at: date | None = None
     disposed_note: str = ""
     disk_image: str = ""
+
+    @field_validator("computer_id", "parent_id", mode="before")
+    @classmethod
+    def _blank_link_is_none(cls, v):
+        """A blank link means standalone, which the column stores as NULL."""
+        return v or None
 
 
 class PartOut(PartIn):

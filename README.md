@@ -26,10 +26,15 @@ MCP server listen on localhost and are reached through the proxy or on the host.
 
 Two tables share a single asset register (RH-0001, RH-0002, and so on).
 `computers` holds each machine and `parts` holds each component. A part's
-`computer_id` points at the computer it is installed in, or is blank for a
-standalone spare. A computer carries its CPU, installed RAM and
-floppy/optical/CF-SD drives as attributes of the machine; mechanical hard disks,
-tape and expansion cards are parts.
+`computer_id` is a foreign key to the computer it is installed in, and
+`parent_id` to the part it is mounted on; both are NULL for a standalone spare,
+and deleting a machine or a host card unlinks what pointed at it. A computer
+carries its CPU, installed RAM and floppy/optical/CF-SD drives as attributes of
+the machine; mechanical hard disks, tape and expansion cards are parts.
+
+`year` is an integer, `acquired_date` and `disposed_at` are dates, and
+`disposed` is a boolean whose detail lives in `disposed_note` -- the remaining
+columns are text.
 
 Part specifications are stored in dedicated tables rather than a single field.
 Each part type has a table of typed columns: `motherboard_spec`, `cpu_spec`,
@@ -39,7 +44,7 @@ Each part type has a table of typed columns: `motherboard_spec`, `cpu_spec`,
 key/value rows. This keeps specifications queryable, for example finding every
 board with a VLB slot. The `parts.specs` text column holds a `Key: value | ...`
 rendering of the same data, refreshed on every write (see `app/specstruct.py`
-and `sync_part_specs`), and drives the search index and label text.
+and `app/specdb.py`), and drives the search index and label text.
 
 ## Quick start
 

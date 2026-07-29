@@ -11,6 +11,12 @@
 #     | docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb -uroot
 #   docker compose exec -T api tar -xzf - -C /app < backups/images-<stamp>.tgz
 #
+# The dump carries its own CREATE DATABASE + USE, so it always lands on the live
+# database whatever you name on the command line. To inspect a snapshot beside
+# the live data, strip those two lines and load it into a scratch database:
+#   gunzip -c backups/db-<stamp>.sql.gz | grep -vE '^(CREATE DATABASE|USE )' \
+#     | docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb -uroot scratch
+#
 # Note: .env (DB + login passwords) is config, not data -- keep a copy of it too
 # if you want to restore with the same credentials.
 set -euo pipefail

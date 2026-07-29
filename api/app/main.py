@@ -519,14 +519,27 @@ def api_list_parts(computer_id: str | None = None, type: str | None = None,
                    db: Session = Depends(get_db)):
     q = db.query(Part)
     if computer_id is not None:
-        q = q.filter(Part.computer_id == computer_id)
+        q = q.filter(Part.computer_id.is_(None) if computer_id == ""
+                     else Part.computer_id == computer_id)
     if type is not None:
         q = q.filter(Part.type == type)
     return q.order_by(Part.asset_id).all()
 
 
+def _check_links(db, fields):
+    """A part's links must point at something that exists. The foreign keys
+    refuse a bad one anyway; this says which id was wrong."""
+    cid = fields.get("computer_id")
+    if cid and not db.get(Computer, cid):
+        raise HTTPException(404, f"no computer {cid}")
+    pid = fields.get("parent_id")
+    if pid and not db.get(Part, pid):
+        raise HTTPException(404, f"no part {pid}")
+
+
 @app.post("/api/parts", response_model=PartOut, tags=["parts"])
 def api_create_part(data: PartIn, db: Session = Depends(get_db)):
+    _check_links(db, data.model_dump())
     obj = Part(asset_id=next_asset_id(db), **data.model_dump())
     db.add(obj)
     db.flush()
@@ -546,6 +559,7 @@ def api_get_part(aid: str, db: Session = Depends(get_db)):
 def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)):
     obj = get_or_404(db, Part, aid)
     fields = data.model_dump(exclude_unset=True)
+    _check_links(db, fields)
     old = {k: getattr(obj, k) for k in fields}
     for k, v in fields.items():
         setattr(obj, k, v)
@@ -562,8 +576,6 @@ def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)):
 @app.delete("/api/parts/{aid}", tags=["parts"])
 def api_delete_part(aid: str, db: Session = Depends(get_db)):
     obj = get_or_404(db, Part, aid)
-    db.query(Part).filter(Part.parent_id == aid).update(
-        {Part.parent_id: ""}, synchronize_session=False)
     db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
     db.delete(obj)
     db.commit()
@@ -1022,12 +1034,12 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
     if request.state.authed:
         free_boards = (db.query(Part)
                        .filter(Part.type == "motherboard",
-                               (Part.computer_id == "") | (Part.computer_id.is_(None)))
+                               Part.computer_id.is_(None))
                        .order_by(Part.asset_id).all())
         link_candidates = (db.query(Part)
                            .filter(Part.type != "motherboard",
-                                   (Part.computer_id == "") | (Part.computer_id.is_(None)),
-                                   (Part.parent_id == "") | (Part.parent_id.is_(None)))
+                                   Part.computer_id.is_(None),
+                                   Part.parent_id.is_(None))
                            .order_by(Part.type, Part.asset_id).all())
     images = detect_images("computers", aid)
     blurb = c.summary or _dot(" ".join(x for x in (c.manufacturer, c.model, str(c.year or "")) if x),
@@ -1101,7 +1113,7 @@ async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db
     form = await request.form()
     part = get_or_404(db, Part, form.get("part_id", ""))
     part.computer_id = aid
-    part.parent_id = ""
+    part.parent_id = None
     add_log(db, aid, f"linked part {part.asset_id}")
     add_log(db, part.asset_id, f"installed in {aid}")
     db.commit()
@@ -1398,8 +1410,9 @@ def _assemble_specs(ptype, form, extra=()):
 
 
 async def _part_from_form(form, ptype, extra=()):
-    data = {"type": ptype, "computer_id": form.get("computer_id", "") or "",
-            "parent_id": form.get("parent_id", "") or ""}
+    data = {"type": ptype,
+            "computer_id": form.get("computer_id", "") or None,
+            "parent_id": form.get("parent_id", "") or None}
     for f in ("manufacturer", "model", "name", "year", "condition", "source",
               "acquired_date", "url", "summary", "notes", "disk_image"):
         data[f] = _coerce(f, form.get(f, ""))
@@ -1456,7 +1469,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
     if request.state.authed:
         candidates = (db.query(Part)
                       .filter(Part.type == "storage", Part.asset_id != aid,
-                              (Part.parent_id == "") | (Part.parent_id.is_(None)))
+                              Part.parent_id.is_(None))
                       .order_by(Part.asset_id).all())
         if not p.computer_id and not p.parent_id:
             computers = db.query(Computer).order_by(Computer.asset_id).all()
@@ -1598,7 +1611,7 @@ async def gui_unlink_part(aid: str, request: Request, db: Session = Depends(get_
     form = await request.form()
     nxt = form.get("next", "") or f"/parts/{aid}"
     old_cid = p.computer_id
-    p.computer_id = ""
+    p.computer_id = None
     if old_cid:
         add_log(db, aid, f"unlinked from computer {old_cid}")
     db.commit()
@@ -1615,7 +1628,7 @@ async def gui_link_part_to_computer(aid: str, request: Request,
     if cid:
         get_or_404(db, Computer, cid)
         p.computer_id = cid
-        p.parent_id = ""
+        p.parent_id = None
         add_log(db, aid, f"installed in {cid}")
         add_log(db, cid, f"linked part {aid}")
         db.commit()
@@ -1629,7 +1642,7 @@ async def gui_attach_part(aid: str, request: Request, db: Session = Depends(get_
     form = await request.form()
     child = get_or_404(db, Part, form.get("part_id", ""))
     child.parent_id = aid
-    child.computer_id = ""
+    child.computer_id = None
     add_log(db, aid, f"mounted {child.asset_id}")
     add_log(db, child.asset_id, f"mounted on {aid}")
     db.commit()
@@ -1641,7 +1654,7 @@ async def gui_detach_part(aid: str, request: Request, db: Session = Depends(get_
     p = get_or_404(db, Part, aid)
     form = await request.form()
     old_host = p.parent_id
-    p.parent_id = ""
+    p.parent_id = None
     if old_host:
         add_log(db, aid, f"unmounted from {old_host}")
     db.commit()

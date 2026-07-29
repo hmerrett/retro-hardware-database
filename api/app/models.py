@@ -1,5 +1,7 @@
 """ORM tables. One shared asset register across computers + parts. A part's
-computer_id links it to a computer's asset_id (NULL = standalone / uninstalled).
+computer_id links it to a computer's asset_id, and parent_id to the part it is
+mounted on; both are real foreign keys, NULL when the part stands alone. Deleting
+a computer or a host part unlinks what pointed at it rather than orphaning it.
 
 The column set began as a mirror of the flat-file system's CSV schema, where
 everything was a string; quantities and dates are being given real types as the
@@ -43,14 +45,18 @@ class Computer(Base):
     disposed = Column(Boolean, nullable=False, default=False,
                       server_default="0")
     disposed_at = Column(Date)
-    disposed_note = Column(Text, default="")
+    disposed_note = Column(Text, nullable=False, default="", server_default="")
 
 
 class Part(Base):
     __tablename__ = "parts"
     asset_id = Column(String(16), primary_key=True)
-    computer_id = Column(String(16), index=True, default="")
-    parent_id = Column(String(16), index=True, default="")
+    computer_id = Column(String(16),
+                         ForeignKey("computers.asset_id", ondelete="SET NULL"),
+                         index=True)
+    parent_id = Column(String(16),
+                       ForeignKey("parts.asset_id", ondelete="SET NULL"),
+                       index=True)
     type = Column(String(32), default="")
     manufacturer = Column(String(255), default="")
     model = Column(String(255), default="")
@@ -67,7 +73,7 @@ class Part(Base):
     disposed = Column(Boolean, nullable=False, default=False,
                       server_default="0")
     disposed_at = Column(Date)
-    disposed_note = Column(Text, default="")
+    disposed_note = Column(Text, nullable=False, default="", server_default="")
     disk_image = Column(String(255), default="")
 
 
