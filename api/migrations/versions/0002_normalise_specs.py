@@ -6,7 +6,6 @@ Create Date: 2026-07-12
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.orm import Session
 
 revision = "0002_normalise_specs"
 down_revision = "0001_initial"
@@ -106,33 +105,56 @@ def upgrade():
 
 
 def _backfill(bind):
-    """Populate the new tables from each part's existing specs string."""
+    """Populate the new tables from each part's existing specs string.
+
+    Deliberately avoids app.models: a migration is frozen in time, but the ORM
+    keeps moving, so importing it makes this step break the moment a later
+    migration adds a column (parent_id in 0003 did exactly that, leaving a fresh
+    `alembic upgrade head` dead at 0001). Reads `parts` with explicit 0001-era
+    columns and writes through tables reflected from what upgrade() just built,
+    intersecting the parsed keys with the columns that actually exist.
+    """
     from app import specstruct
-    from app.models import (Part, MotherboardSpec, CpuSpec, RamSpec, VideoSpec,
-                            SoundSpec, NetworkSpec, IoSpec, StorageSpec,
-                            PartSlot, PartRamSlot, PartPort, PartAttribute)
-    spec_model = {"motherboard": MotherboardSpec, "cpu": CpuSpec, "ram": RamSpec,
-                  "video": VideoSpec, "sound": SoundSpec, "network": NetworkSpec,
-                  "io": IoSpec, "storage": StorageSpec}
-    sess = Session(bind=bind)
-    for p in sess.query(Part).all():
-        ptype = p.type or "other"
-        st = specstruct.parse(ptype, p.specs or "")
-        model = spec_model.get(ptype)
-        if model:
+    spec_table = {"motherboard": "motherboard_spec", "cpu": "cpu_spec",
+                  "ram": "ram_spec", "video": "video_spec", "sound": "sound_spec",
+                  "network": "network_spec", "io": "io_spec",
+                  "storage": "storage_spec"}
+    meta = sa.MetaData()
+    tables = {n: sa.Table(n, meta, autoload_with=bind)
+              for n in list(spec_table.values())
+              + ["part_slot", "part_ram_slot", "part_port", "part_attribute"]}
+    rows = bind.execute(sa.text("SELECT asset_id, type, specs FROM parts")).all()
+    for asset_id, ptype, specs in rows:
+        ptype = ptype or "other"
+        st = specstruct.parse(ptype, specs or "")
+        name = spec_table.get(ptype)
+        if name:
             cols = dict(st.scalars)
             if ptype == "storage" and st.chs:
                 cols["chs_c"], cols["chs_h"], cols["chs_s"] = st.chs
-            sess.add(model(part_id=p.asset_id, **cols))
-        for bus, n in st.slots:
-            sess.add(PartSlot(part_id=p.asset_id, bus=bus, count=n))
-        for slot_type, n in st.ram_slots:
-            sess.add(PartRamSlot(part_id=p.asset_id, slot_type=slot_type, count=n))
-        for port, n in st.ports:
-            sess.add(PartPort(part_id=p.asset_id, port=port, count=n))
+            # specstruct is the live module and has moved on since 0002 (0005
+            # renamed the quantity columns), so a key it produces may not exist
+            # in the table this migration builds. Refuse rather than drop it: a
+            # database with rows to backfill here predates 0002 and must be
+            # migrated with a checkout from that era.
+            missing = set(cols) - set(tables[name].c.keys())
+            if missing:
+                raise RuntimeError(
+                    f"0002 cannot backfill {name} for {asset_id}: specstruct "
+                    f"produced {sorted(missing)}, which this migration's schema "
+                    "does not have. The live spec model has changed since 0002. "
+                    "Backfill from a checkout contemporary with this revision, "
+                    "or start from an empty database.")
+            bind.execute(tables[name].insert().values(part_id=asset_id, **cols))
+        for tname, col, items in (("part_slot", "bus", st.slots),
+                                  ("part_ram_slot", "slot_type", st.ram_slots),
+                                  ("part_port", "port", st.ports)):
+            for value, n in items:
+                bind.execute(tables[tname].insert().values(
+                    part_id=asset_id, **{col: value}, count=n))
         for k, v in st.attributes:
-            sess.add(PartAttribute(part_id=p.asset_id, akey=k or "", avalue=v))
-    sess.commit()
+            bind.execute(tables["part_attribute"].insert().values(
+                part_id=asset_id, akey=k or "", avalue=v))
 
 
 def downgrade():

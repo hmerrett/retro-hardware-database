@@ -277,9 +277,38 @@ def format_counts(items) -> str:
     return ", ".join(f"{n}× {name}" if n and n > 1 else name for name, n in items)
 
 
+_PORT_ITEM_RE = re.compile(r"^(?:(\d+)\s*[×x]\s*)?(.+)$")
+
+
+def parse_port_list(value: str):
+    """[(port, count), ...] if `value` is already an expanded port list such as
+    'IDE, Floppy, 2× Serial' -- that is, every comma-separated item names a known
+    port. None if it is not, which means it should be read as letter codes."""
+    items = [tok.strip() for tok in (value or "").split(",") if tok.strip()]
+    if not items:
+        return None
+    out = []
+    for tok in items:
+        m = _PORT_ITEM_RE.match(tok)
+        name = m.group(2).strip()
+        if name not in PORT_NAMES:
+            return None
+        out.append((name, int(m.group(1)) if m.group(1) else 1))
+    return out
+
+
 def expand_ports(code: str) -> str:
     """'IFSSP' -> 'IDE, Floppy, 2x Serial, Parallel'. Order-independent; repeated
-    letters become a count; unknown letters are ignored."""
+    letters become a count; unknown letters are ignored.
+
+    Input that is already an expanded list is normalised rather than re-read as
+    letters -- otherwise round-tripping the edit form would count the letters of
+    the port names themselves ('IDE, Floppy, ...' has four A's, inventing
+    '4x SATA') and corrupt the value on every save.
+    """
+    expanded = parse_port_list(code)
+    if expanded is not None:
+        return format_counts(expanded)
     counts = Counter(c for c in (code or "").upper() if c.isalpha())
     out = []
     for letter, name in PORT_CODES:

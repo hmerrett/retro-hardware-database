@@ -21,11 +21,12 @@ from .entry import parse_specs
 # the way in; format() uses the display order below on the way out.
 SCALARS = {
     "motherboard": {"Chipset": "chipset", "CPU family": "cpu_family",
-                    "Form factor": "form_factor", "Cache": "cache",
+                    "Form factor": "form_factor", "Cache": "cache_kb",
                     "BIOS": "bios", "Onboard video": "onboard_video"},
-    "cpu": {"Socket": "socket", "Speed": "speed", "FSB": "fsb", "Cores": "cores",
-            "Cache": "cache", "L2 cache": "cache", "L1/L2 cache": "cache"},
-    "ram": {"Type": "ram_type", "Size": "size_kb", "Speed": "speed"},
+    "cpu": {"Socket": "socket", "Speed": "speed_khz", "FSB": "fsb_khz",
+            "Cores": "cores", "Cache": "cache_kb", "L2 cache": "cache_kb",
+            "L1/L2 cache": "cache_kb"},
+    "ram": {"Type": "ram_type", "Size": "size_kb", "Speed": "speed_ns"},
     "video": {"Chip": "chip", "Chipset": "chip", "Interface": "interface",
               "Connector": "connector", "Memory": "memory_kb", "Type": "video_type"},
     "sound": {"Chip": "chip", "Chipset": "chip", "Interface": "interface",
@@ -34,13 +35,27 @@ SCALARS = {
                 "Connector": "connector"},
     "io": {"Chip": "chip", "Chipset": "chip", "Interface": "interface"},
     "storage": {"Kind": "kind", "Interface": "interface", "Protocol": "protocol",
-                "Capacity": "capacity", "Media": "media", "Speed": "speed",
+                "Capacity": "capacity_kb", "Media": "media", "Speed": "speed_rpm",
                 "Role": "role"},
 }
 
-# Columns holding an integer count of KB (parsed from 'N KB' / 'N MB' / bare).
-KB_COLS = {"size_kb", "memory_kb"}
+# --- numeric columns -------------------------------------------------------
+# Quantities are stored as plain integers in the unit named by the column suffix,
+# so they sort and compare in SQL; format() renders them back to friendly units.
+# Anything that will not parse becomes a verbatim attribute instead (see parse).
+KB_COLS = {"size_kb", "memory_kb", "capacity_kb", "cache_kb"}
+KHZ_COLS = {"speed_khz", "fsb_khz"}
+NS_COLS = {"speed_ns"}
+RPM_COLS = {"speed_rpm"}
 INT_COLS = {"cores"}
+
+# A unitless number means MB for a drive capacity ('44'), but KB everywhere else
+# ('256' cache). Real data relies on this: RH-0247's bare '44' is 44 MB, which
+# its recorded CHS geometry confirms.
+KB_BARE_MB_COLS = {"capacity_kb"}
+# Rendered in the largest exact unit (MB/GB) rather than raw KB, so a 20 GB drive
+# does not display as '20971520 KB'.
+KB_AUTO_COLS = {"capacity_kb"}
 
 # Count-list spec keys, per type -> which Struct list they populate.
 LIST_KEYS = {
@@ -72,6 +87,9 @@ TYPED = set(SCALARS)
 _COUNT_RE = re.compile(r"^\s*(\d+)\s*[×x]\s*(.+?)\s*$")
 _KB_RE = re.compile(r"^\s*([\d.]+)\s*([kKmMgG]?)[bB]?\s*$")
 _CHS_RE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*/\s*(\d+)\s*$")
+_MHZ_RE = re.compile(r"^\s*([\d.]+)\s*(mhz|khz)?\s*$", re.I)
+_NS_RE = re.compile(r"^\s*(\d+)\s*(?:ns)?\s*$", re.I)
+_RPM_RE = re.compile(r"^\s*(\d+)\s*(?:rpm)?\s*$", re.I)
 
 
 class Struct:
@@ -86,16 +104,91 @@ class Struct:
         self.attributes = []
 
 
-def _to_kb(text):
+def _to_kb(text, bare=1):
+    """'2MB'->2048, '20GB'->20971520, '32.4MB'->33178. `bare` is the multiplier
+    applied to a unitless number (see KB_BARE_MB_COLS)."""
     m = _KB_RE.match(text or "")
     if not m:
         return None
     unit = m.group(2).lower()
-    mult = {"": 1, "k": 1, "m": 1024, "g": 1024 * 1024}.get(unit, 1)
+    mult = {"k": 1, "m": 1024, "g": 1024 * 1024}.get(unit, bare)
     try:
         return int(round(float(m.group(1)) * mult))
     except ValueError:
         return None
+
+
+def _to_khz(text):
+    """'25 MHz'->25000, '4.77MHz'->4770, '33'->33000, '1475 kHz'->1475. A unitless
+    number is MHz, which is how clock speeds are actually written."""
+    m = _MHZ_RE.match(text or "")
+    if not m:
+        return None
+    mult = 1 if (m.group(2) or "").lower() == "khz" else 1000
+    try:
+        return int(round(float(m.group(1)) * mult))
+    except ValueError:
+        return None
+
+
+def _simple_int(pattern):
+    def parse(text):
+        m = pattern.match(text or "")
+        return int(m.group(1)) if m else None
+    return parse
+
+
+def _fmt_kb(kb, auto=False):
+    """Render a KB count. With auto, pick the unit a person would have typed.
+
+    Whole MB stays in MB rather than being rounded up to GB, because for this
+    hardware the difference is meaningful: 2096128 KB is the 2047 MB BIOS limit,
+    not '2 GB'. Only a value that is not a whole number of MB is allowed to
+    render as fractional GB (so '1.2GB' comes back as '1.2 GB', not '1228.8 MB').
+    """
+    if not auto:
+        return f"{kb} KB"
+    if kb % (1024 * 1024) == 0:
+        return f"{kb // (1024 * 1024)} GB"
+    if kb % 1024 == 0:
+        return f"{kb // 1024} MB"
+    # Fractional: use the largest unit whose one-decimal form parses back to
+    # exactly this many KB, so rendering is always reversible. Falling through to
+    # KB keeps oddities like 1.44 MB (1475 KB) intact instead of rounding them.
+    for unit, mult in (("GB", 1024 * 1024), ("MB", 1024)):
+        if kb >= mult:
+            text = f"{kb / mult:.1f}"
+            if int(round(float(text) * mult)) == kb:
+                return f"{text} {unit}"
+    return f"{kb} KB"
+
+
+def _fmt_khz(khz):
+    """Render as MHz when that is exactly reversible, else keep kHz -- so a stored
+    speed never drifts by being rounded to the nearest MHz on display."""
+    if khz % 1000 == 0:
+        return f"{khz // 1000} MHz"
+    text = f"{khz / 1000:g}"
+    if int(round(float(text) * 1000)) == khz:
+        return f"{text} MHz"
+    return f"{khz} kHz"
+
+
+def numeric_handler(col):
+    """(parse, format) for a numeric column, or None if the column is free text."""
+    if col in KB_COLS:
+        bare = 1024 if col in KB_BARE_MB_COLS else 1
+        auto = col in KB_AUTO_COLS
+        return (lambda v: _to_kb(v, bare)), (lambda n: _fmt_kb(n, auto))
+    if col in KHZ_COLS:
+        return _to_khz, _fmt_khz
+    if col in NS_COLS:
+        return _simple_int(_NS_RE), (lambda n: f"{n} ns")
+    if col in RPM_COLS:
+        return _simple_int(_RPM_RE), (lambda n: f"{n} rpm")
+    if col in INT_COLS:
+        return _simple_int(re.compile(r"^\s*(\d+)")), str
+    return None
 
 
 def _parse_counts(value):
@@ -140,15 +233,13 @@ def parse(ptype, specs) -> Struct:
                 s.attributes.append((k, v))
         elif k in scalar_map:
             col = scalar_map[k]
-            if col in KB_COLS:
-                kb = _to_kb(v)
-                s.scalars[col] = kb if kb is not None else None
-                if kb is None:
-                    s.attributes.append((k, v))
-            elif col in INT_COLS:
-                m = re.match(r"^\s*(\d+)", v)
-                s.scalars[col] = int(m.group(1)) if m else None
-                if not m:
+            handler = numeric_handler(col)
+            if handler:
+                n = handler[0](v)
+                s.scalars[col] = n
+                if n is None:
+                    # Not a number ('Fake', '20MB (36MB?!)'): keep it verbatim
+                    # rather than dropping it on the floor.
                     s.attributes.append((k, v))
             else:
                 s.scalars[col] = v
@@ -157,8 +248,12 @@ def parse(ptype, specs) -> Struct:
     return s
 
 
-def format(ptype, s) -> str:
-    """Canonical specs string from a Struct (or a mapping produced by main.py)."""
+def pairs(ptype, s):
+    """Canonical ordered (display key, rendered value) pairs for a Struct.
+
+    The single source of display order, shared by format() and by the templates
+    that render a spec table straight from the typed tables.
+    """
     pairs = []
     if ptype in ORDER:
         for key in ORDER[ptype]:
@@ -173,8 +268,14 @@ def format(ptype, s) -> str:
                 col = SCALARS[ptype].get(key)
                 if col and s.scalars.get(col) not in (None, ""):
                     val = s.scalars[col]
-                    if col in KB_COLS:
-                        val = f"{val} KB"
-                    pairs.append((key, str(val)))
+                    handler = numeric_handler(col)
+                    pairs.append((key, handler[1](val)
+                                  if handler and isinstance(val, (int, float))
+                                  else str(val)))
     pairs.extend(s.attributes)
-    return " | ".join(f"{k}: {v}" if k else str(v) for k, v in pairs)
+    return pairs
+
+
+def format(ptype, s) -> str:
+    """Canonical specs string from a Struct (or a mapping produced by main.py)."""
+    return " | ".join(f"{k}: {v}" if k else str(v) for k, v in pairs(ptype, s))

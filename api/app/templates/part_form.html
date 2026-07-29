@@ -20,7 +20,6 @@
 <form class="edit" method="post" action="{{ ('/parts/' + p.asset_id + '/edit') if p else '/parts/new' }}">
   <input type="hidden" name="computer_id" value="{{ computer_id }}">
   <input type="hidden" name="parent_id" value="{{ parent_id }}">
-  <input type="hidden" name="_existing_specs" value="{{ p.specs if p else '' }}">
 
   <fieldset>
     <legend>Type {% if computer_id %}· for {{ computer_id }}{% endif %}</legend>

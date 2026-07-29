@@ -30,6 +30,13 @@ BUILD_ROWS = [("cpu", "CPU"), ("ram", "Memory"), ("video", "Video"),
               ("sound", "Sound"), ("storage", "Storage"), ("network", "Network")]
 SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
 
+
+def _pairs_of(part):
+    """A part's (key, value) spec pairs: the ones the caller read from the typed
+    tables if it attached them, else parsed from the rendered specs string."""
+    pairs = part.get("spec_pairs")
+    return pairs if pairs is not None else parse_specs(part.get("specs", ""))
+
 _font_ready = False
 
 
@@ -110,16 +117,18 @@ def _apply_rotation(c, W, H, rot):
 
 # --- content ---------------------------------------------------------------
 
-def computer_lines(comp, parts):
+def computer_lines(comp, parts, form_factor=""):
+    """Label body for a machine. `form_factor` comes from the linked board's typed
+    column (see main.gui_computer_label); it falls back to the rendered specs
+    string only so a caller that has not looked it up still gets a label."""
     kids = sorted((p for p in parts if p.get("computer_id") == comp["asset_id"]),
                   key=lambda p: p.get("type", ""))
     lines = ["Type: Computer"]
-    form_factor = ""
     for p in kids:
+        if form_factor:
+            break
         if p.get("type") == "motherboard":
-            form_factor = dict(parse_specs(p.get("specs", ""))).get("Form factor", "")
-            if form_factor:
-                break
+            form_factor = dict(_pairs_of(p)).get("Form factor", "")
     if comp.get("manufacturer"):
         lines.append(f"Manufacturer: {comp['manufacturer']}")
     if comp.get("year"):
@@ -138,7 +147,7 @@ def computer_lines(comp, parts):
             continue
         members = by_type[ptype]
         if ptype in SPEC_PICK:
-            specs = dict(parse_specs(members[0].get("specs", "")))
+            specs = dict(_pairs_of(members[0]))
             value = specs.get(SPEC_PICK[ptype]) or display_name(members[0])
         else:
             value = " + ".join(display_name(m) for m in members)
@@ -148,12 +157,14 @@ def computer_lines(comp, parts):
     return lines
 
 
-def part_lines(part):
+def part_lines(part, spec_pairs=None):
     lines = [f"Type: {type_label(part.get('type', ''))}"]
     for label, key in (("Manufacturer", "manufacturer"), ("Year", "year")):
         if part.get(key):
             lines.append(f"{label}: {part[key]}")
-    lines += [f"{k}: {v}" if k else v for k, v in parse_specs(part.get("specs", ""))]
+    if spec_pairs is None:
+        spec_pairs = parse_specs(part.get("specs", ""))
+    lines += [f"{k}: {v}" if k else v for k, v in spec_pairs]
     if part.get("computer_id"):
         lines.append(f"Installed in: {part['computer_id']}")
     if part.get("condition"):
@@ -222,9 +233,12 @@ def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0):
         c.drawString(tx, y, line)
 
 
-def render_pdf(asset, parts, is_computer, small=False) -> bytes:
+def render_pdf(asset, parts, is_computer, small=False, form_factor="",
+               spec_pairs=None) -> bytes:
     """Render one label PDF and return its bytes. `asset` is the computer/part
-    row (dict); `parts` is the full parts list (used for a computer's build)."""
+    row (dict); `parts` is the full parts list (used for a computer's build).
+    `form_factor` and `spec_pairs` come from the typed spec tables when the caller
+    has them, so the label does not re-parse the specs string."""
     hfont, bfont = _fonts()
     spec = SMALL if small else FULL
     title = display_name(asset)
@@ -237,8 +251,8 @@ def render_pdf(asset, parts, is_computer, small=False) -> bytes:
         _render_small(c, spec["w"], spec["h"], asset["asset_id"], title, url,
                       hfont, bfont, spec.get("safe_mm", 0))
     else:
-        lines = (computer_lines(asset, parts) if is_computer
-                 else part_lines(asset))
+        lines = (computer_lines(asset, parts, form_factor) if is_computer
+                 else part_lines(asset, spec_pairs))
         _render_full(c, spec["w"], spec["h"], asset["asset_id"], title, lines,
                      url, hfont, bfont)
     c.restoreState()

@@ -19,7 +19,7 @@ from pathlib import Path
 import json
 from urllib.parse import quote, urlparse
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from fastapi.staticfiles import StaticFiles
@@ -27,48 +27,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import enrich, entry, labels, specstruct
+from . import enrich, entry, labels, specdb, specstruct
 from .db import get_db
 from .ids import next_asset_id
-from .models import (Computer, CpuSpec, IoSpec, LogEntry, MotherboardSpec,
-                     NetworkSpec, Part, PartAttribute, PartPort, PartRamSlot,
-                     PartSlot, RamSpec, SoundSpec, StorageSpec, VideoSpec)
+from .models import Computer, LogEntry, Part
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
-
-# Which typed spec table backs each part type.
-SPEC_MODEL = {
-    "motherboard": MotherboardSpec, "cpu": CpuSpec, "ram": RamSpec,
-    "video": VideoSpec, "sound": SoundSpec, "network": NetworkSpec,
-    "io": IoSpec, "storage": StorageSpec,
-}
-SPEC_TABLES = list(SPEC_MODEL.values()) + [PartSlot, PartRamSlot, PartPort,
-                                           PartAttribute]
-
-
-def sync_part_specs(db, part):
-    """Keep the normalised spec tables in step with a part's specs string, and
-    canonicalise the string itself. Called on every part create/update; the part
-    must already be flushed so its asset_id exists for the FK."""
-    ptype = part.type or "other"
-    st = specstruct.parse(ptype, part.specs or "")
-    part.specs = specstruct.format(ptype, st)
-    aid = part.asset_id
-    for model in SPEC_TABLES:
-        db.query(model).filter(model.part_id == aid).delete(synchronize_session=False)
-    model = SPEC_MODEL.get(ptype)
-    if model:
-        cols = dict(st.scalars)
-        if ptype == "storage" and st.chs:
-            cols["chs_c"], cols["chs_h"], cols["chs_s"] = st.chs
-        db.add(model(part_id=aid, **cols))
-    for bus, n in st.slots:
-        db.add(PartSlot(part_id=aid, bus=bus, count=n))
-    for slot_type, n in st.ram_slots:
-        db.add(PartRamSlot(part_id=aid, slot_type=slot_type, count=n))
-    for port, n in st.ports:
-        db.add(PartPort(part_id=aid, port=port, count=n))
-    for k, v in st.attributes:
-        db.add(PartAttribute(part_id=aid, akey=k or "", avalue=v))
 
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
 # start); no create_all here.
@@ -254,12 +217,15 @@ def gui_logout():
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
 PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
 
-IMAGES_DIR = Path("/app/images")
+# Container paths by default (the `images` volume and the goaccess report mount);
+# overridable so the app can be imported and run outside Docker for local
+# development, which the hardcoded absolute paths used to make impossible.
+IMAGES_DIR = Path(os.getenv("RHDB_IMAGES_DIR", "/app/images"))
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 
 # GoAccess writes a self-contained traffic report here (read-only mount from the
 # shared volume). The route is login-only via the auth gate above.
-STATS_DIR = Path("/app/stats")
+STATS_DIR = Path(os.getenv("RHDB_STATS_DIR", "/app/stats"))
 
 
 @app.get("/stats", response_class=HTMLResponse, include_in_schema=False)
@@ -531,7 +497,7 @@ def api_create_part(data: PartIn, db: Session = Depends(get_db)):
     obj = Part(asset_id=next_asset_id(db), **data.model_dump())
     db.add(obj)
     db.flush()
-    sync_part_specs(db, obj)
+    specdb.write(db, obj)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     db.refresh(obj)
@@ -550,7 +516,7 @@ def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)):
     old = {k: getattr(obj, k) for k in fields}
     for k, v in fields.items():
         setattr(obj, k, v)
-    sync_part_specs(db, obj)
+    specdb.write(db, obj)
     new = {k: getattr(obj, k) for k in fields}
     diff = _field_diffs(old, new, list(fields), semantic_specs=True)
     if diff:
@@ -920,8 +886,12 @@ def gui_index(request: Request, db: Session = Depends(get_db)):
         imgs = detect_images(kind, aid)
         return imgs[0] if imgs else ""
 
+    # One query for every storage part's Kind, rather than re-parsing each specs
+    # string (or a lookup per row) just to choose an icon.
+    kinds = specdb.storage_kinds(db)
+
     def storage_placeholder(p):
-        kind = dict(entry.parse_specs(p.specs or "")).get("Kind", "").lower()
+        kind = (kinds.get(p.asset_id) or "").lower()
         if "optical" in kind:
             return entry.placeholder_for("optical")
         if "floppy" in kind or "gotek" in kind:
@@ -1045,9 +1015,15 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
     images = detect_images("computers", aid)
     blurb = c.summary or _dot(" ".join(x for x in (c.manufacturer, c.model, c.year) if x),
                               c.cpu, c.condition)
+    # Form factor is a property of the board, shown on the machine -- which is
+    # what the part form promises ("the computer's form factor is taken from
+    # here"). Read it from the typed column rather than re-parsing the string.
+    form_factor = (specdb.scalars(db, motherboard).get("form_factor", "")
+                   if motherboard else "")
     return templates.TemplateResponse(request, "computer.html", {
         "c": c, "parts": [p for p in parts if p is not motherboard],
-        "motherboard": motherboard, "free_boards": free_boards,
+        "motherboard": motherboard, "form_factor": form_factor,
+        "free_boards": free_boards,
         "link_candidates": link_candidates, "images": images,
         "ref_marks": reference_marks("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
@@ -1244,28 +1220,50 @@ async def gui_computer_photo_crop(aid: str, request: Request,
 @app.get("/computers/{aid}/label.pdf", include_in_schema=False)
 def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    parts = [to_dict(p) for p in db.query(Part).filter(Part.computer_id == aid).all()]
-    pdf = labels.render_pdf(to_dict(c), parts, is_computer=True, small=bool(small))
+    installed = db.query(Part).filter(Part.computer_id == aid).all()
+    board = next((p for p in installed if p.type == "motherboard"), None)
+    rows = []
+    for p in installed:
+        d = to_dict(p)
+        d["spec_pairs"] = specdb.pairs(db, p)
+        rows.append(d)
+    pdf = labels.render_pdf(
+        to_dict(c), rows, is_computer=True, small=bool(small),
+        form_factor=(specdb.scalars(db, board).get("form_factor", "")
+                     if board else ""))
     return Response(pdf, media_type="application/pdf", headers={
         "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
 
 
 # --- GUI: parts (guided, typed entry) --------------------------------------
 
-def _part_form_ctx(obj, ptype, computer_id, parent_id=""):
-    # Current counts for the motherboard grids, parsed from the existing specs.
+def _part_form_ctx(db, obj, ptype, computer_id, parent_id=""):
+    # Existing values come from the typed tables, not from re-parsing the string.
     mb_slots, mb_ram, mb_ports, mb_cpufams = {}, {}, {}, []
-    if obj and (obj.type or "") == "motherboard":
-        st = specstruct.parse("motherboard", obj.specs or "")
-        mb_slots, mb_ram, mb_ports = dict(st.slots), dict(st.ram_slots), dict(st.ports)
-        mb_cpufams = [x.strip() for x in (st.scalars.get("cpu_family") or "").split(",")
-                      if x.strip()]
+    spec_keys = {}
+    if obj:
+        st = specdb.read(db, obj)
+        # The form's text inputs are keyed by display name, and want the same
+        # rendering the item page shows ('256 KB', not 256).
+        spec_keys = {k: v for k, v in specstruct.pairs(obj.type or "other", st) if k}
+        if (obj.type or "") == "motherboard":
+            mb_slots = dict(st.slots)
+            mb_ram = dict(st.ram_slots)
+            mb_ports = dict(st.ports)
+            mb_cpufams = [x.strip() for x
+                          in (st.scalars.get("cpu_family") or "").split(",")
+                          if x.strip()]
+    # A stored CPU family that is not in the pick list (older rows say '486'
+    # where the vocabulary says '486-class') still needs a checkbox, or saving the
+    # form would silently drop it.
+    cpu_families = list(entry.CPU_FAMILIES)
+    cpu_families += [f for f in mb_cpufams if f not in cpu_families]
     return {
         "p": obj, "ptype": ptype, "computer_id": computer_id, "parent_id": parent_id,
-        "spec_keys": dict(entry.parse_specs(obj.specs)) if obj else {},
+        "spec_keys": spec_keys,
         "conditions": entry.CONDITIONS,
         "vocab": {
-            "form_factors": entry.MOBO_FORM_FACTORS, "cpu_families": entry.CPU_FAMILIES,
+            "form_factors": entry.MOBO_FORM_FACTORS, "cpu_families": cpu_families,
             "ram_slots": entry.RAM_SLOT_TYPES, "card_interfaces": entry.CARD_INTERFACES,
             "video_connectors": entry.VIDEO_CONNECTORS,
             "storage_interfaces": entry.STORAGE_INTERFACES,
@@ -1282,8 +1280,8 @@ def _part_form_ctx(obj, ptype, computer_id, parent_id=""):
 
 @app.get("/parts/new", response_class=HTMLResponse, include_in_schema=False)
 def gui_new_part(request: Request, type: str = "other", computer_id: str = "",
-                 parent_id: str = ""):
-    ctx = _part_form_ctx(None, type, computer_id, parent_id)
+                 parent_id: str = "", db: Session = Depends(get_db)):
+    ctx = _part_form_ctx(db, None, type, computer_id, parent_id)
     ctx["title"] = f"New {entry.type_label(type)}"
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
@@ -1303,7 +1301,22 @@ def _counts_from_form(form, prefix, names):
     return out
 
 
-def _assemble_motherboard_specs(form):
+def _append_unmanaged(specs, extra, managed):
+    """Carry across the spec values the form does not manage. Keyed ones merge by
+    key; keyless ones (bare values from the old CSV import, e.g. 'ES1869F') are
+    appended verbatim -- they have no key to merge on and used to be dropped."""
+    keyless = []
+    for k, v in extra:
+        if not k:
+            keyless.append(v)
+        elif k not in managed:
+            specs = entry.merge_spec(specs, k, v)
+    for v in keyless:
+        specs = f"{specs} | {v}" if specs else v
+    return specs
+
+
+def _assemble_motherboard_specs(form, extra=()):
     """Build a motherboard's specs from the structured grids (slot/RAM/port
     counts and CPU-family checkboxes) plus the plain text fields."""
     pairs = [("Chipset", (form.get("spec_chipset", "") or "").strip()),
@@ -1318,15 +1331,18 @@ def _assemble_motherboard_specs(form):
              ("Onboard video", (form.get("spec_onboard_video", "") or "").strip()),
              ("Ports", entry.format_counts(
                  _counts_from_form(form, "port", entry.PORT_NAMES)))]
-    return entry.build_specs(pairs)
+    return _append_unmanaged(entry.build_specs(pairs), extra,
+                             [k for k, _ in pairs])
 
 
-def _assemble_specs(ptype, form, existing=""):
+def _assemble_specs(ptype, form, extra=()):
     """Build a part's specs string from the typed form fields, running the same
-    quick-entry expanders as add.py. Spec keys the form doesn't manage (rare, on
-    edit) are preserved."""
+    quick-entry expanders the guided flow has always used. `extra` carries the
+    (key, value) pairs the form does not manage -- read from part_attribute, which
+    is where anything unrecognised or unparseable already lives -- so editing a
+    part never silently drops them."""
     if ptype == "motherboard":
-        return _assemble_motherboard_specs(form)
+        return _assemble_motherboard_specs(form, extra)
     managed = {
         "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
                         "Slots", "Cache", "BIOS", "Onboard video", "Ports"],
@@ -1342,11 +1358,7 @@ def _assemble_specs(ptype, form, existing=""):
     # 'other' / 'peripheral' keep a free-text specs box (no data loss).
     if managed is None:
         return " ".join((form.get("specs", "") or "").split())
-    # Preserve any non-managed keys already on the row.
     specs = ""
-    for k, v in entry.parse_specs(existing):
-        if k and k not in managed:
-            specs = entry.merge_spec(specs, k, v)
     for key in managed:
         # spec_ prefix keeps these clear of the part's own columns (a RAM
         # 'Type' spec vs the part type, etc.).
@@ -1361,10 +1373,10 @@ def _assemble_specs(ptype, form, existing=""):
         elif key in ("Size", "Memory"):
             raw = entry.normalise_amount(key, raw)
         specs = entry.merge_spec(specs, key, raw)
-    return specs
+    return _append_unmanaged(specs, extra, managed)
 
 
-async def _part_from_form(form, ptype):
+async def _part_from_form(form, ptype, extra=()):
     data = {"type": ptype, "computer_id": form.get("computer_id", "") or "",
             "parent_id": form.get("parent_id", "") or ""}
     for f in ("manufacturer", "model", "name", "year", "condition", "source",
@@ -1372,7 +1384,7 @@ async def _part_from_form(form, ptype):
         data[f] = form.get(f, "") or ""
     for f in ("manufacturer", "model"):
         data[f] = entry.deshout(data[f])
-    data["specs"] = _assemble_specs(ptype, form, form.get("_existing_specs", ""))
+    data["specs"] = _assemble_specs(ptype, form, extra)
     return data
 
 
@@ -1401,7 +1413,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
     obj = Part(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()
-    sync_part_specs(db, obj)
+    specdb.write(db, obj)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     parent_id = form.get("parent_id", "") or ""
@@ -1435,7 +1447,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
         "p": p, "parent": parent, "host": host, "children": children,
         "candidates": candidates, "computers": computers,
         "images": images, "ref_marks": reference_marks("parts", aid),
-        "spec_pairs": entry.parse_specs(p.specs), "imgerr": bool(imgerr),
+        "spec_pairs": specdb.pairs(db, p), "imgerr": bool(imgerr),
         "log": item_log(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
                          images[0] if images else None)),
@@ -1446,7 +1458,8 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
 @app.get("/parts/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
 def gui_edit_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    ctx = _part_form_ctx(p, p.type or "other", p.computer_id or "", p.parent_id or "")
+    ctx = _part_form_ctx(db, p, p.type or "other", p.computer_id or "",
+                         p.parent_id or "")
     ctx["title"] = f"Edit {aid}"
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
@@ -1456,13 +1469,14 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     p = get_or_404(db, Part, aid)
     form = await request.form()
     ptype = form.get("type", p.type) or "other"
-    data = await _part_from_form(form, ptype)
+    # Unmanaged keys live in part_attribute; carry them across the edit.
+    data = await _part_from_form(form, ptype, specdb.read(db, p).attributes)
     if ptype == "storage" and (form.get("kind", "") or ""):
         data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind"))
     old = {k: getattr(p, k) for k in data}
     for k, v in data.items():
         setattr(p, k, v)
-    sync_part_specs(db, p)
+    specdb.write(db, p)
     diff = _field_diffs(old, {k: getattr(p, k) for k in data}, list(data), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
@@ -1484,7 +1498,7 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
     obj = Part(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()
-    sync_part_specs(db, obj)
+    specdb.write(db, obj)
     add_log(db, obj.asset_id, f"created as a duplicate of {aid}", kind="created")
     add_log(db, aid, f"duplicated to {obj.asset_id}", kind="duplicate")
     db.commit()
@@ -1676,6 +1690,7 @@ async def gui_part_photo_crop(aid: str, request: Request,
 @app.get("/parts/{aid}/label.pdf", include_in_schema=False)
 def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    pdf = labels.render_pdf(to_dict(p), [], is_computer=False, small=bool(small))
+    pdf = labels.render_pdf(to_dict(p), [], is_computer=False, small=bool(small),
+                            spec_pairs=specdb.pairs(db, p))
     return Response(pdf, media_type="application/pdf", headers={
         "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})

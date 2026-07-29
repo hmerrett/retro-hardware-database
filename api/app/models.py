@@ -63,9 +63,15 @@ class Part(Base):
 
 # --- normalised spec tables ------------------------------------------------
 # One typed row per part for each type that has a fixed set of attributes, plus
-# child tables for the genuinely list-shaped motherboard/io fields. These are a
-# normalised projection of parts.specs, kept in sync on every write (see
-# main.sync_part_specs); parts.specs remains the denormalised cache.
+# child tables for the genuinely list-shaped motherboard/io fields. These are the
+# read path for structured spec data (filtering, faceting, form repopulation);
+# parts.specs holds the rendered string for display and for the REST/MCP wire
+# format, refreshed from these on every write (see specdb.write).
+#
+# Quantities are stored as numbers in a fixed small unit named by the column
+# suffix (_kb, _khz, _ns, _rpm) so they sort and compare properly; specstruct
+# renders them back to friendly units for display. A value that will not parse
+# as a number is preserved verbatim as a PartAttribute rather than being lost.
 
 
 class MotherboardSpec(Base):
@@ -74,7 +80,7 @@ class MotherboardSpec(Base):
     chipset = Column(String(255))
     cpu_family = Column(String(255))
     form_factor = Column(String(64))
-    cache = Column(String(64))
+    cache_kb = Column(Integer)
     bios = Column(String(255))
     onboard_video = Column(String(255))
 
@@ -83,10 +89,11 @@ class CpuSpec(Base):
     __tablename__ = "cpu_spec"
     part_id = _part_fk()
     socket = Column(String(64))
-    speed = Column(String(64))
-    fsb = Column(String(64))
+    # kHz, not MHz: the 8088's 4.77 MHz would not survive an integer MHz column.
+    speed_khz = Column(Integer)
+    fsb_khz = Column(Integer)
     cores = Column(Integer)
-    cache = Column(String(64))
+    cache_kb = Column(Integer)
 
 
 class RamSpec(Base):
@@ -94,7 +101,8 @@ class RamSpec(Base):
     part_id = _part_fk()
     ram_type = Column(String(64))
     size_kb = Column(Integer)
-    speed = Column(String(64))
+    # Module access time (70, 60, ...). SDRAM clock speeds belong in ram_type.
+    speed_ns = Column(Integer)
 
 
 class VideoSpec(Base):
@@ -137,12 +145,12 @@ class StorageSpec(Base):
     kind = Column(String(64))
     interface = Column(String(64))
     protocol = Column(String(64))
-    capacity = Column(String(64))
+    capacity_kb = Column(Integer)
     chs_c = Column(Integer)
     chs_h = Column(Integer)
     chs_s = Column(Integer)
     media = Column(String(255))
-    speed = Column(String(64))
+    speed_rpm = Column(Integer)
     role = Column(String(255))
 
 
