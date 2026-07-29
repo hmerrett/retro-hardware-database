@@ -89,8 +89,14 @@
   .toolbar input[type=search], .toolbar input[list], .toolbar select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
   .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
   .thumbs img { width: 150px; height: 110px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
-  .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
   .thumb-item .btn.sm { font-size: 11px; padding: 1px 7px; }
+  .photo-primary { position: relative; }
+  .photo-ctrls { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 4px; }
+  .photo-ctrls form { margin: 0; }
+  .btn.danger:hover { background: #b4530033; border-color: #b45300aa; }
+  .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
+    font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; pointer-events: none; }
   .photo-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-top: 10px; max-width: 320px; }
   .photo-actions form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0; }
   .photo-actions input[name=note] { padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
@@ -119,7 +125,7 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 14px; }
   .card { display: block; background: transparent; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; }
   .card:hover { border-color: var(--accent); }
-  .card .thumb { aspect-ratio: 4 / 3; background: var(--chip); display: flex; align-items: center; justify-content: center; }
+  .card .thumb { aspect-ratio: 4 / 3; background: var(--chip); display: flex; align-items: center; justify-content: center; position: relative; }
   .card .thumb img { width: 100%; height: 100%; object-fit: cover; }
   .card .thumb img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
   .card .body { padding: 9px 11px; }

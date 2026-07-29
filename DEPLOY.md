@@ -1,0 +1,97 @@
+# Deploying db.2600.me
+
+The site runs on a single cloud box under docker-compose. The server holds a
+normal git checkout of this repo, so deploying is: get the new code onto the
+box, then rebuild the containers.
+
+## The normal flow
+
+1. **Make changes anywhere** — edit locally or in a remote session and push to
+   GitHub (`git push`), or edit on the box directly. All changes end up on the
+   `main` branch on GitHub.
+
+2. **On the server**, from the repo root (`/root/retro-hardware-db-2`):
+
+   ```sh
+   ./deploy.sh
+   ```
+
+   That pulls `main`, rebuilds, restarts, and tails the api log. It is safe to
+   run repeatedly.
+
+To get onto the box:
+
+```sh
+ssh root@db.2600.me      # or: ssh root@<server-ip>
+cd /root/retro-hardware-db-2
+```
+
+## What deploy.sh does (and the manual equivalent)
+
+```sh
+git pull --ff-only               # fetch the latest code
+docker compose up -d --build     # rebuild changed images, recreate containers
+docker image prune -f            # tidy up old layers
+```
+
+- Only images whose inputs changed are rebuilt; unchanged services are left
+  running. To rebuild just the app: `docker compose up -d --build api`.
+- **Migrations run automatically**: the api container's entrypoint runs
+  `alembic upgrade head` on start, so a schema change ships with the code with
+  no extra step.
+- **Config-only changes** (e.g. `caddy/Caddyfile`, `docker-compose.yml`) still
+  need `docker compose up -d` to take effect; add `--build` if app code changed.
+
+## Data is safe across deploys
+
+These live in Docker named volumes, not in the image, so rebuilds never touch
+them:
+
+- `dbdata` — the MariaDB database
+- `images` — uploaded photos (and their `.ref` reference markers)
+- `caddy_data` — TLS certificates
+- `goaccess_report`, `caddy_logs` — traffic stats and access logs
+
+## Secrets
+
+`.env` holds the DB and login credentials and is **git-ignored** — it lives only
+on the server and is never committed. If you add a new setting, update `.env` on
+the box by hand; a fresh clone needs its own `.env` (see the keys referenced in
+`docker-compose.yml`: `DB_*`, `RHDB_AUTH_USER`, `RHDB_AUTH_PASSWORD`,
+`RHDB_BASE_URL`).
+
+## Special case: changing the site icon
+
+The favicons/app icons are generated from `api/app/static/app-icon.png`. After
+replacing that master, regenerate the set before rebuilding:
+
+```sh
+docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
+  retro-hardware-db-2-api python /tools/make_icons.py
+./deploy.sh
+```
+
+(The `?v=` cache-buster in the page head updates automatically from the new
+icon, so browsers pick up the change.)
+
+## Checking on it
+
+```sh
+docker compose ps                 # container status
+docker compose logs -f api        # follow app logs
+docker compose logs -f caddy      # TLS / proxy logs
+curl -I https://db.2600.me/       # should return 200
+```
+
+Traffic stats are at <https://db.2600.me/stats> (login required).
+
+## Rolling back
+
+```sh
+git log --oneline -n 10           # find the last good commit
+git checkout <sha>                # or: git revert <bad-sha>
+docker compose up -d --build
+```
+
+The database is not rolled back automatically; if a bad migration shipped, use
+`docker compose exec api alembic downgrade -1`.

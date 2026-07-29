@@ -579,7 +579,50 @@ def _fetch_reference_photo(kind, asset_id, url):
         return None
     path, rel = _photo_target(kind, asset_id, ".jpg")
     path.write_bytes(data)
+    # A fetched photo is from the reference source, not necessarily this unit.
+    _mark_reference(rel, True, "Photo from the reference source, may not be this exact unit")
     return rel
+
+
+# A photo can be flagged as a reference / stock image (not a photo of the actual
+# unit) with a small ".ref" sidecar file next to it; its text is an optional
+# note. This needs no schema change and the marker travels with the image.
+def _ref_sidecar(rel):
+    p = IMAGES_DIR / rel
+    return p.with_name(p.name + ".ref")
+
+
+def is_reference(rel):
+    return bool(rel) and _ref_sidecar(rel).exists()
+
+
+def reference_note(rel):
+    try:
+        return _ref_sidecar(rel).read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def reference_notes(kind, asset_id):
+    """{rel: note} for the item's photos that are flagged reference images."""
+    return {rel: reference_note(rel) for rel in detect_images(kind, asset_id)
+            if is_reference(rel)}
+
+
+def _mark_reference(rel, on, note=""):
+    sc = _ref_sidecar(rel)
+    if on:
+        sc.write_text(note or "Illustrative image, not this exact unit", encoding="utf-8")
+    elif sc.exists():
+        sc.unlink()
+
+
+def _move_with_sidecar(src: Path, dst: Path):
+    """Rename an image, carrying its reference-marker sidecar along with it."""
+    src.rename(dst)
+    sc = src.with_name(src.name + ".ref")
+    if sc.exists():
+        sc.rename(dst.with_name(dst.name + ".ref"))
 
 
 def _set_primary_photo(kind, asset_id, rel):
@@ -597,11 +640,30 @@ def _set_primary_photo(kind, asset_id, rel):
             n = 2
             while (folder / f"{asset_id}-{n}{f.suffix}").exists():
                 n += 1
-            f.rename(folder / f"{asset_id}-{n}{f.suffix}")
+            _move_with_sidecar(f, folder / f"{asset_id}-{n}{f.suffix}")
             break
     new_primary = folder / f"{asset_id}{chosen.suffix}"
-    chosen.rename(new_primary)
+    _move_with_sidecar(chosen, new_primary)
     return f"{kind}/{new_primary.name}"
+
+
+def _delete_image(kind, asset_id, rel):
+    """Delete a photo (and its reference sidecar). If it was the primary, the
+    next remaining photo is promoted. Returns (was_primary, new_primary_rel)."""
+    if rel not in detect_images(kind, asset_id):
+        raise HTTPException(404, "no such photo for this item")
+    p = IMAGES_DIR / rel
+    was_primary = p.stem == asset_id
+    sc = _ref_sidecar(rel)
+    if sc.exists():
+        sc.unlink()
+    p.unlink()
+    new_primary = ""
+    if was_primary:
+        remaining = detect_images(kind, asset_id)
+        if remaining:
+            new_primary = _set_primary_photo(kind, asset_id, remaining[0])
+    return was_primary, new_primary
 
 
 # --- QR target: one stable /items/<id> URL for either kind ------------------
@@ -661,6 +723,7 @@ def gui_index(request: Request, db: Session = Depends(get_db)):
             "cat_label": "Computer", "parent": "", "year": c.year or "",
             "name": entry.display_name(to_dict(c)),
             "image": primary_image("computers", c.asset_id),
+            "ref_photo": is_reference(primary_image("computers", c.asset_id)),
             "placeholder": entry.placeholder_for("computer"),
             "updated": stamps(c.asset_id)[0], "added": stamps(c.asset_id)[1],
             "sub": f"{counts.get(c.asset_id, 0)} part(s)",
@@ -677,6 +740,7 @@ def gui_index(request: Request, db: Session = Depends(get_db)):
             "parent": p.computer_id if p.computer_id in comp_ids else "",
             "name": entry.display_name(to_dict(p)),
             "image": primary_image("parts", p.asset_id),
+            "ref_photo": is_reference(primary_image("parts", p.asset_id)),
             "placeholder": (storage_placeholder(p) if ptype == "storage"
                             else entry.placeholder_for(ptype)),
             "updated": stamps(p.asset_id)[0], "added": stamps(p.asset_id)[1],
@@ -773,6 +837,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "c": c, "parts": [p for p in parts if p is not motherboard],
         "motherboard": motherboard, "free_boards": free_boards,
         "link_candidates": link_candidates, "images": images,
+        "ref_notes": reference_notes("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
         "log": item_log(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
@@ -907,6 +972,35 @@ async def gui_computer_primary(aid: str, request: Request,
     form = await request.form()
     c.image = _set_primary_photo("computers", aid, form.get("image", ""))
     add_log(db, aid, "changed the default photo")
+    db.commit()
+    return RedirectResponse(f"/computers/{aid}", status_code=303)
+
+
+@app.post("/computers/{aid}/photo-delete", include_in_schema=False)
+async def gui_computer_photo_delete(aid: str, request: Request,
+                                    db: Session = Depends(get_db)):
+    c = get_or_404(db, Computer, aid)
+    form = await request.form()
+    was_primary, new_primary = _delete_image("computers", aid, form.get("image", ""))
+    if was_primary:
+        c.image = new_primary or ""
+    add_log(db, aid, "deleted a photo")
+    db.commit()
+    return RedirectResponse(f"/computers/{aid}", status_code=303)
+
+
+@app.post("/computers/{aid}/photo-reference", include_in_schema=False)
+async def gui_computer_photo_reference(aid: str, request: Request,
+                                       db: Session = Depends(get_db)):
+    get_or_404(db, Computer, aid)
+    form = await request.form()
+    rel = form.get("image", "")
+    if rel not in detect_images("computers", aid):
+        raise HTTPException(404, "no such photo for this item")
+    on = form.get("set", "1") == "1"
+    _mark_reference(rel, on, (form.get("note", "") or "").strip())
+    add_log(db, aid, "flagged a photo as a reference image" if on
+            else "unflagged a reference photo")
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
@@ -1104,7 +1198,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
     return templates.TemplateResponse(request, "part.html", {
         "p": p, "parent": parent, "host": host, "children": children,
         "candidates": candidates, "computers": computers,
-        "images": images,
+        "images": images, "ref_notes": reference_notes("parts", aid),
         "spec_pairs": entry.parse_specs(p.specs), "imgerr": bool(imgerr),
         "log": item_log(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
@@ -1286,6 +1380,35 @@ async def gui_part_primary(aid: str, request: Request,
     form = await request.form()
     p.image = _set_primary_photo("parts", aid, form.get("image", ""))
     add_log(db, aid, "changed the default photo")
+    db.commit()
+    return RedirectResponse(f"/parts/{aid}", status_code=303)
+
+
+@app.post("/parts/{aid}/photo-delete", include_in_schema=False)
+async def gui_part_photo_delete(aid: str, request: Request,
+                                db: Session = Depends(get_db)):
+    p = get_or_404(db, Part, aid)
+    form = await request.form()
+    was_primary, new_primary = _delete_image("parts", aid, form.get("image", ""))
+    if was_primary:
+        p.image = new_primary or ""
+    add_log(db, aid, "deleted a photo")
+    db.commit()
+    return RedirectResponse(f"/parts/{aid}", status_code=303)
+
+
+@app.post("/parts/{aid}/photo-reference", include_in_schema=False)
+async def gui_part_photo_reference(aid: str, request: Request,
+                                   db: Session = Depends(get_db)):
+    get_or_404(db, Part, aid)
+    form = await request.form()
+    rel = form.get("image", "")
+    if rel not in detect_images("parts", aid):
+        raise HTTPException(404, "no such photo for this item")
+    on = form.get("set", "1") == "1"
+    _mark_reference(rel, on, (form.get("note", "") or "").strip())
+    add_log(db, aid, "flagged a photo as a reference image" if on
+            else "unflagged a reference photo")
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
