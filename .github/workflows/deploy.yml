@@ -1,8 +1,8 @@
 name: Deploy site
 
-# The site is now built from the REST API on a LAN machine (which GitHub's CI
-# cannot reach) and committed to site/ by tools/publish.sh in the
-# retro-hardware-db-2 repo. This workflow just deploys that committed folder.
+# The catalogue lives at https://db.2600.me now. site/ is a set of redirect
+# stubs that keep every already-printed QR label resolving, so it changes only
+# if those stubs do. This workflow just deploys that committed folder.
 
 on:
   push:

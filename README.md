@@ -1,5 +1,10 @@
 # Retro Hardware Database
 
+> **This project has moved to https://db.2600.me** — a live web app backed by a
+> real database. This repository is the retired flat-file predecessor, kept for
+> its history and because the Pages URL still serves redirects for QR labels
+> printed against it. Everything below describes the old CSV system.
+
 A GitHub-friendly catalogue of retro computers and their parts — built as a
 small **relational** database in plain CSV, published as a static website on
 **GitHub Pages**, with printable **6×4 labels** carrying a QR code that opens
