@@ -1,18 +1,12 @@
 {# Photo column shared by computer.html and part.html.
    Expects: obj, kind ("computers"/"parts"), images, ref_marks, imgerr. #}
+{% import "_icons.html" as I %}
 {% macro badge(img) %}
   {% if img in ref_marks %}
   <span class="ref-badge{{ ' icon' if ref_marks[img].icon else '' }}" title="{{ ref_marks[img].note }}">
     {% if ref_marks[img].icon %}<img src="/images/{{ ref_marks[img].icon }}" alt="source site">{% else %}ref{% endif %}
   </span>
   {% endif %}
-{% endmacro %}
-{% macro ico(name) %}
-{%- if name == 'star' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-{%- elif name == 'crop' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.13 1 6 16a2 2 0 0 0 2 2h15"/><path d="M1 6.13 16 6a2 2 0 0 1 2 2v15"/></svg>
-{%- elif name == 'tag' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-{%- elif name == 'trash' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-{%- endif -%}
 {% endmacro %}
 {% macro ctrls(img, is_primary) %}
   {% if request.state.authed %}
@@ -21,18 +15,18 @@
     {% if not is_primary %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/primary-photo">
       <input type="hidden" name="image" value="{{ img }}">
-      <button class="iconbtn" type="submit" title="Make default photo" aria-label="Make default photo">{{ ico('star') }}</button>
+      <button class="iconbtn" type="submit" title="Make default photo" aria-label="Make default photo">{{ I.ico('star') }}</button>
     </form>
     {% endif %}
-    <a class="iconbtn" href="/{{ kind }}/{{ obj.asset_id }}/edit-photo?image={{ img|urlencode }}" title="Rotate / crop" aria-label="Rotate or crop">{{ ico('crop') }}</a>
+    <a class="iconbtn" href="/{{ kind }}/{{ obj.asset_id }}/edit-photo?image={{ img|urlencode }}" title="Rotate / crop" aria-label="Rotate or crop">{{ I.ico('crop') }}</a>
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference">
       <input type="hidden" name="image" value="{{ img }}">
       <input type="hidden" name="set" value="{{ '0' if marked else '1' }}">
-      <button class="iconbtn{{ ' on' if marked else '' }}" type="submit" title="{{ 'Unmark reference image' if marked else 'Mark as reference image (not this unit)' }}" aria-label="Toggle reference image">{{ ico('tag') }}</button>
+      <button class="iconbtn{{ ' on' if marked else '' }}" type="submit" title="{{ 'Unmark reference image' if marked else 'Mark as reference image (not this unit)' }}" aria-label="Toggle reference image">{{ I.ico('tag') }}</button>
     </form>
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete" onsubmit="return confirm('Delete this photo? This cannot be undone.')">
       <input type="hidden" name="image" value="{{ img }}">
-      <button class="iconbtn danger" type="submit" title="Delete photo" aria-label="Delete photo">{{ ico('trash') }}</button>
+      <button class="iconbtn danger" type="submit" title="Delete photo" aria-label="Delete photo">{{ I.ico('trash') }}</button>
     </form>
   </div>
   {% endif %}

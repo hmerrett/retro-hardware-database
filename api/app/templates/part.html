@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_icons.html" as I %}
 {% block title %}{{ p.asset_id }} — Retro Hardware Database{% endblock %}
 {% block content %}
 <p><a href="/">&larr; all</a>{% if parent %} · <a href="/computers/{{ parent.asset_id }}">&larr; {{ parent.asset_id }}</a>{% endif %}</p>
@@ -8,10 +9,14 @@
   <span class="muted">{{ p.asset_id }}</span>
   <span style="flex:1"></span>
   {% if request.state.authed %}
-    <a class="btn sm" href="/parts/{{ p.asset_id }}/edit">edit</a>
-    <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/duplicate"><button class="btn sm" type="submit" title="Create a second identical part">duplicate</button></form>
-    <a class="btn sm" href="/parts/{{ p.asset_id }}/label.pdf?small=1" target="_blank">small label</a>
-    <a class="btn sm" href="/parts/{{ p.asset_id }}/label.pdf?small=0" target="_blank">full label</a>
+  <span class="hdr-actions">
+    <a class="iconbtn" href="/parts/{{ p.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
+    <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/duplicate">
+      <button class="iconbtn" type="submit" title="Duplicate (create a second identical part)" aria-label="Duplicate">{{ I.ico('copy') }}</button>
+    </form>
+    <a class="iconbtn lbl-s" href="/parts/{{ p.asset_id }}/label.pdf?small=1" target="_blank" title="Small label (PDF)" aria-label="Small label">{{ I.ico('printer') }}</a>
+    <a class="iconbtn lbl-l" href="/parts/{{ p.asset_id }}/label.pdf?small=0" target="_blank" title="Full label (PDF)" aria-label="Full label">{{ I.ico('printer') }}</a>
+  </span>
   {% endif %}
 </div>
 
