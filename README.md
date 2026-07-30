@@ -1,7 +1,7 @@
 # Retro Hardware Database
 
 A catalogue of retro PCs and the parts they are built from. It runs under Docker
-Compose and has four services:
+Compose and has five services:
 
 ```
 docker compose
@@ -13,14 +13,30 @@ docker compose
 │          /api/...     JSON REST API (login required)
 │          /images/...  uploaded photos (volume: images)
 │          /docs        OpenAPI docs (login required)
-└── mcp    MCP server                   (127.0.0.1:8001/mcp)
-           list/get/create/update/delete tools over the REST API
+├── mcp    MCP server                   (127.0.0.1:8001/mcp)
+│          list/get/create/update/delete tools over the REST API
+└── goaccess  traffic report from caddy's access log, rebuilt every minute
+           (volume: goaccess_report, served by the api at /stats)
 ```
 
 Anyone can browse the gallery and item pages at https://db.2600.me without
 logging in. Editing, photo upload, the JSON API and the docs need an HTTP Basic
 login. Only Caddy is exposed to the internet, on ports 80 and 443; the API and
 MCP server listen on localhost and are reached through the proxy or on the host.
+
+## What the GUI does
+
+Beyond browsing and editing: photo upload with rotate/crop and a chosen default
+image; a per-photo "reference image" marker for a picture of the same model
+rather than this exact unit, badged with the source site's favicon; a dated
+history for every asset (automatic change records plus free-text notes);
+printable label PDFs; duplicating an item; marking one disposed and restoring it;
+and a build walk that steps through a machine's motherboard and cards.
+
+Our own photos are watermarked with the site icon as they are served (reference
+images are not). Set `RHDB_WATERMARK=0` to serve everything untouched.
+
+`/stats` (login required) shows the GoAccess traffic report.
 
 ## Data model
 
@@ -135,6 +151,9 @@ certificate for the hostname in `caddy/Caddyfile` (`db.2600.me`) and proxies to
 the app. To use a different hostname, edit the Caddyfile and restart Caddy; DNS
 must point at the host and ports 80 and 443 must be reachable for the ACME
 challenge.
+
+Deployment on a fresh host -- DNS, the firewall, the first `docker compose up`,
+and renewing certificates -- is in [DEPLOY.md](DEPLOY.md).
 
 ## Migrations
 

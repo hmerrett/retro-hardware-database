@@ -23,6 +23,8 @@ services:
       RHDB_BASE_URL: ${RHDB_BASE_URL:-https://db.2600.me}
       RHDB_AUTH_USER: ${RHDB_AUTH_USER:-}
       RHDB_AUTH_PASSWORD: ${RHDB_AUTH_PASSWORD:-}
+      RHDB_SECRET_KEY: ${RHDB_SECRET_KEY:-}
+      RHDB_WATERMARK: ${RHDB_WATERMARK:-1}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
