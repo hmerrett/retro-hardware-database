@@ -1,0 +1,31 @@
+# Runs on the machine that should hold the off-site copy, not on the server.
+#
+#   cp .env.example .env     and fill it in
+#   docker compose run --rm backup check      one-off, proves the setup works
+#   docker compose up -d                      nightly from then on
+services:
+  backup:
+    build: .
+    restart: unless-stopped
+    environment:
+      RHDB_HOST: ${RHDB_HOST:?set RHDB_HOST in .env}
+      RHDB_DIR: ${RHDB_DIR:-/root/retro-hardware-db-2}
+      RHDB_IMAGES: ${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-db-2_images/_data}
+      BACKUP_AT: ${BACKUP_AT:-03:30}
+      TZ: ${TZ:-Europe/London}
+      INCLUDE_ENV: ${INCLUDE_ENV:-1}
+      KEEP_DAILY: ${KEEP_DAILY:-7}
+      KEEP_WEEKLY: ${KEEP_WEEKLY:-5}
+      KEEP_MONTHLY: ${KEEP_MONTHLY:-12}
+      KEEP_YEARLY: ${KEEP_YEARLY:-3}
+      RESTIC_REPOSITORY: /repo
+      RESTIC_PASSWORD_FILE: /run/secrets/restic-password
+      STAGE: /stage
+    volumes:
+      # The backup itself. Point the left-hand side at wherever you keep data.
+      - ${BACKUP_DIR:-./data}/repo:/repo
+      # A mirror of the server, so each night only transfers what changed.
+      - ${BACKUP_DIR:-./data}/stage:/stage
+      # Read-only: the key that reaches the server, and the repository password.
+      - ${SSH_KEY:-./secrets/id_ed25519}:/root/.ssh/id_ed25519:ro
+      - ${RESTIC_PASSWORD_FILE:-./secrets/restic-password}:/run/secrets/restic-password:ro
