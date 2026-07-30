@@ -58,8 +58,9 @@ PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
 
 # Which spec keys each type suggests (drives the guided form fields).
 SPEC_HINTS = {
-    "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots", "Slots",
-                    "Cache", "BIOS", "Onboard video", "Ports"],
+    "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
+                    "Onboard RAM", "Slots", "Cache", "BIOS", "Onboard video",
+                    "Ports"],
     "cpu": ["Socket", "Speed", "FSB", "Cores", "Cache"],
     "ram": ["Type", "Size", "Speed"],
     "video": ["Chip", "Interface", "Connector", "Memory", "Type"],

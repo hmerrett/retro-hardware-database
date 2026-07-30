@@ -96,6 +96,7 @@ class MotherboardSpec(Base):
     chipset = Column(String(255))
     cpu_family = Column(String(255))
     form_factor = Column(String(64))
+    onboard_ram = Column(String(64))
     cache_kb = Column(Integer)
     bios = Column(String(255))
     onboard_video = Column(String(255))

@@ -21,8 +21,9 @@ from .entry import parse_specs
 # the way in; format() uses the display order below on the way out.
 SCALARS = {
     "motherboard": {"Chipset": "chipset", "CPU family": "cpu_family",
-                    "Form factor": "form_factor", "Cache": "cache_kb",
-                    "BIOS": "bios", "Onboard video": "onboard_video"},
+                    "Form factor": "form_factor", "Onboard RAM": "onboard_ram",
+                    "Cache": "cache_kb", "BIOS": "bios",
+                    "Onboard video": "onboard_video"},
     "cpu": {"Socket": "socket", "Speed": "speed_khz", "FSB": "fsb_khz",
             "Cores": "cores", "Cache": "cache_kb", "L2 cache": "cache_kb",
             "L1/L2 cache": "cache_kb"},
@@ -65,8 +66,9 @@ LIST_KEYS = {
 
 # Display order per type for format() (includes list + CHS keys).
 ORDER = {
-    "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots", "Slots",
-                    "Cache", "BIOS", "Onboard video", "Ports"],
+    "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
+                    "Onboard RAM", "Slots", "Cache", "BIOS", "Onboard video",
+                    "Ports"],
     "cpu": ["Socket", "Speed", "FSB", "Cores", "Cache"],
     "ram": ["Type", "Size", "Speed"],
     "video": ["Chip", "Interface", "Connector", "Memory", "Type"],

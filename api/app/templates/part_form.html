@@ -89,6 +89,7 @@
       <label>{{ b }} <input type="number" min="0" name="slot:{{ b }}" value="{{ mb_slots.get(b, '') }}"></label>
       {% endfor %}
     </div>
+    {{ sf('spec_onboard_ram', 'Onboard RAM', 'Onboard RAM', 'RAM soldered or socketed on the board itself, e.g. 64-256KB') }}
     {{ sf('spec_cache', 'Cache', 'Cache', 'e.g. 256 KB, COAST socket') }}
     {{ sf('spec_bios', 'BIOS', 'BIOS', 'e.g. AMI 1992, Award 4.51') }}
     {{ sf('spec_onboard_video', 'Onboard video', 'Onboard video', 'e.g. VGA, or VGA C&T 65545') }}

@@ -1357,6 +1357,7 @@ def _assemble_motherboard_specs(form, extra=()):
              ("Form factor", (form.get("spec_form_factor", "") or "").strip()),
              ("RAM slots", entry.format_counts(
                  _counts_from_form(form, "ram", entry.RAM_SLOT_TYPES))),
+             ("Onboard RAM", (form.get("spec_onboard_ram", "") or "").strip()),
              ("Slots", entry.format_counts(
                  _counts_from_form(form, "slot", entry.SLOT_NAMES))),
              ("Cache", (form.get("spec_cache", "") or "").strip()),
@@ -1378,7 +1379,8 @@ def _assemble_specs(ptype, form, extra=()):
         return _assemble_motherboard_specs(form, extra)
     managed = {
         "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
-                        "Slots", "Cache", "BIOS", "Onboard video", "Ports"],
+                        "Onboard RAM", "Slots", "Cache", "BIOS",
+                        "Onboard video", "Ports"],
         "cpu": ["Socket", "Speed", "FSB", "Cores", "Cache"],
         "ram": ["Type", "Size", "Speed"],
         "video": ["Chip", "Interface", "Connector", "Memory", "Type"],
