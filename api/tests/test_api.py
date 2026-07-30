@@ -323,3 +323,59 @@ class TestHistory:
         aid = part()["asset_id"]
         client.delete(f"/api/parts/{aid}")
         assert client.get(f"/api/items/{aid}/log").json() == []
+
+
+class TestPhotoLookup:
+    """Ordering and grouping of an asset's photos.
+
+    A list page reads each folder once and picks from the result; an item page
+    reads it for one asset. Both go through pick_images, so the ordering is
+    pinned here rather than in two places.
+    """
+
+    @staticmethod
+    def listing(*stems):
+        return [(s, f"{s}.jpg") for s in stems]
+
+    def test_the_bare_asset_id_is_the_primary(self):
+        from app.main import pick_images
+        got = pick_images("parts", "RH-0001",
+                          self.listing("RH-0001-2", "RH-0001"))
+        assert got[0] == "parts/RH-0001.jpg"
+
+    def test_numbered_extras_sort_numerically_not_as_text(self):
+        from app.main import pick_images
+        got = pick_images("parts", "RH-0001",
+                          self.listing("RH-0001-10", "RH-0001-2", "RH-0001"))
+        assert got == ["parts/RH-0001.jpg", "parts/RH-0001-2.jpg",
+                       "parts/RH-0001-10.jpg"]
+
+    def test_a_named_suffix_comes_after_the_numbered_ones(self):
+        from app.main import pick_images
+        got = pick_images("parts", "RH-0001",
+                          self.listing("RH-0001-back", "RH-0001-2"))
+        assert got == ["parts/RH-0001-2.jpg", "parts/RH-0001-back.jpg"]
+
+    def test_another_asset_is_not_picked_up(self):
+        from app.main import pick_images
+        got = pick_images("parts", "RH-0001", self.listing("RH-0002", "RH-00012"))
+        assert got == []
+
+    def test_an_asset_whose_id_is_a_prefix_of_another(self):
+        """RH-0001 must not swallow RH-00019's photo, and the hyphen is what
+        separates an id from a suffix."""
+        from app.main import pick_images
+        got = pick_images("parts", "RH-0001",
+                          self.listing("RH-0001", "RH-00019", "RH-0001-2"))
+        assert got == ["parts/RH-0001.jpg", "parts/RH-0001-2.jpg"]
+
+    def test_the_index_shows_a_photo_it_finds_on_disk(self, client, part, tmp_path):
+        from app import main
+        aid = part()["asset_id"]
+        folder = main.IMAGES_DIR / "parts"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{aid}.jpg").write_bytes(b"not really a jpeg")
+        try:
+            assert f"/images/parts/{aid}.jpg" in client.get("/").text
+        finally:
+            (folder / f"{aid}.jpg").unlink()

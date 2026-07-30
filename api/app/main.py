@@ -626,25 +626,37 @@ def api_item_log(aid: str, db: Session = Depends(get_db)):
              "kind": e.kind, "message": e.message} for e in item_log(db, aid)]
 
 
-def detect_images(kind, asset_id):
-    """Ordered photos for an asset: <asset_id>.<ext> first, then -2, -3, ..."""
+def folder_images(kind):
+    """(stem, filename) for every photo in one of the image folders, in a single
+    pass. A page showing many assets reads the folder once and picks from the
+    result rather than scanning it per row."""
     folder = IMAGES_DIR / kind
     if not folder.exists():
         return []
-    primary, extras = [], []
-    for f in folder.iterdir():
-        if f.suffix.lower() not in IMAGE_EXTS:
-            continue
-        if f.stem == asset_id:
-            primary.append(f"{kind}/{f.name}")
-        elif f.stem.startswith(asset_id + "-"):
-            extras.append(f)
+    return [(f.stem, f.name) for f in folder.iterdir()
+            if f.suffix.lower() in IMAGE_EXTS]
 
-    def sort_key(f):
-        suffix = f.stem[len(asset_id) + 1:]
+
+def pick_images(kind, asset_id, listing):
+    """An asset's photos from a folder listing: <asset_id>.<ext> first, then -2,
+    -3, ..., then any other suffix alphabetically."""
+    primary, extras = [], []
+    for stem, name in listing:
+        if stem == asset_id:
+            primary.append(f"{kind}/{name}")
+        elif stem.startswith(asset_id + "-"):
+            extras.append((stem, name))
+
+    def sort_key(item):
+        suffix = item[0][len(asset_id) + 1:]
         return (0, int(suffix), "") if suffix.isdigit() else (1, 0, suffix.lower())
 
-    return primary + [f"{kind}/{f.name}" for f in sorted(extras, key=sort_key)]
+    return primary + [f"{kind}/{name}" for _stem, name in sorted(extras, key=sort_key)]
+
+
+def detect_images(kind, asset_id):
+    """Ordered photos for one asset."""
+    return pick_images(kind, asset_id, folder_images(kind))
 
 
 def _photo_target(kind, asset_id, ext):
@@ -946,8 +958,12 @@ def gui_index(request: Request, db: Session = Depends(get_db)):
         return (latest.isoformat() if latest else "",
                 first.isoformat() if first else "")
 
+    # Both folders read once for the whole page: scanning per row was the bulk of
+    # this route's time (0.38s of 0.50s across 293 assets).
+    listings = {kind: folder_images(kind) for kind in ("computers", "parts")}
+
     def primary_image(kind, aid):
-        imgs = detect_images(kind, aid)
+        imgs = pick_images(kind, aid, listings[kind])
         return imgs[0] if imgs else ""
 
     # One query for every storage part's Kind, rather than re-parsing each specs
