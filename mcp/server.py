@@ -91,7 +91,8 @@ def create_computer(
 ) -> dict:
     """Create a computer. The server assigns the next asset id across both
     tables. CPU, installed_ram and drives (floppy/optical/CF-SD, ';'-separated)
-    are attributes of the computer, not separate parts."""
+    are attributes of the computer, not separate parts. installed_ram takes a
+    plain amount ('640KB'); the per-module breakdown is entered in the GUI."""
     return _request("POST", "/api/computers", json=_clean(locals()))
 
 

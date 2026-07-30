@@ -34,6 +34,9 @@ class Computer(Base):
     os = Column(String(255), default="")
     cpu = Column(String(255), default="")
     installed_ram = Column(String(255), default="")
+    installed_ram_kb = Column(Integer)
+    installed_ram_note = Column(String(255), nullable=False, default="",
+                                server_default="")
     drives = Column(Text, default="")
     condition = Column(String(64), default="")
     source = Column(String(255), default="")
@@ -201,6 +204,32 @@ class PartAttribute(Base):
     part_id = _part_fk_indexed()
     akey = Column(String(128), default="")
     avalue = Column(Text, default="")
+
+
+def _computer_fk():
+    return Column(String(16), ForeignKey("computers.asset_id", ondelete="CASCADE"),
+                  index=True, nullable=False)
+
+
+class ComputerRamModule(Base):
+    """How many of each SIMM/SIPP module type are fitted in a machine. `module` is
+    the stable slug from entry.RAM_MODULES, never the display label -- the label
+    is free to change without orphaning anyone's data."""
+    __tablename__ = "computer_ram_module"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    computer_id = _computer_fk()
+    module = Column(String(32), nullable=False)
+    count = Column(Integer, default=1)
+
+
+class ComputerRamChip(Base):
+    """How many of each DRAM chip are fitted directly on the board, keyed by part
+    number (4164, 41256, ...)."""
+    __tablename__ = "computer_ram_chip"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    computer_id = _computer_fk()
+    chip = Column(String(32), nullable=False)
+    count = Column(Integer, default=1)
 
 
 class LogEntry(Base):

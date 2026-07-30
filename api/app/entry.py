@@ -145,24 +145,11 @@ def normalise_amount(spec_key: str, amt: str) -> str:
     return amt
 
 
-def parse_installed_ram(text: str) -> str:
-    """A computer's installed RAM, tidied. A leading 'N x size' becomes a module
-    count plus a computed total: '8x1MB 30-pin' -> '8x 1MB 30-pin (8 MB)'. Text
-    without an 'N x' (e.g. '16MB') is kept as typed. Idempotent."""
-    t = " ".join((text or "").split())
-    if not t:
+def fmt_kb(kb) -> str:
+    """A KB count in the unit a person would have typed: whole MB as MB, else KB."""
+    if not kb:
         return ""
-    m = re.match(r"(?i)^(\d+)\s*[x×]\s*([\d.]+\s*[kmg]?b?)\s*(.*)$", t)
-    if not m:
-        return t
-    count, size_txt, rest = int(m.group(1)), m.group(2).strip(), m.group(3).strip()
-    rest = re.sub(r"(\s*\(\s*[\d.]+\s*[KMG]?B\s*\))+\s*$", "", rest, flags=re.I).strip()
-    label = f"{count}× {size_txt}" + (f" {rest}" if rest else "")
-    kb = to_kb(size_txt)
-    if kb:
-        total = count * kb
-        label += f" ({total // 1024} MB)" if total % 1024 == 0 else f" ({total} KB)"
-    return label
+    return f"{kb // 1024} MB" if kb % 1024 == 0 else f"{kb} KB"
 
 
 # Common DRAM chips for machines with RAM soldered/socketed directly on the board
@@ -200,18 +187,7 @@ def format_ram_chips(counts):
         else:
             total_kb += n * kb
     chips = ", ".join(f"{n}× {pn}" for pn, n in counts)
-    total = f"{total_kb // 1024} MB" if total_kb and total_kb % 1024 == 0 else f"{total_kb} KB"
-    return f"{chips} ({total}{' + parity' if parity else ''})"
-
-
-def parse_ram_chips(text):
-    """{chip: count} parsed back out of an installed-ram string of chip tokens."""
-    counts = {}
-    for m in re.finditer(r"(\d+)\s*[×x]\s*(\d{4,6})", text or ""):
-        pn = m.group(2)
-        if pn in RAM_CHIP_KB:
-            counts[pn] = counts.get(pn, 0) + int(m.group(1))
-    return counts
+    return f"{chips} ({fmt_kb(total_kb)}{' + parity' if parity else ''})"
 
 
 # Common memory modules for machines with RAM on SIMMs / SIPPs rather than
@@ -236,30 +212,37 @@ def format_ram_modules(counts):
         return ""
     total_kb = sum(n * RAM_MODULE_KB.get(s, 0) for s, n in counts)
     mods = ", ".join(f"{n}× {RAM_MODULE_LABEL[s]}" for s, n in counts)
-    total = f"{total_kb // 1024} MB" if total_kb and total_kb % 1024 == 0 else f"{total_kb} KB"
-    return f"{mods} ({total})"
+    return f"{mods} ({fmt_kb(total_kb)})"
 
 
-def parse_ram_modules(text):
-    """{slug: count} parsed back out of the module tokens in an installed-ram string."""
-    counts = {}
-    for slug, _kb, label in RAM_MODULES:
-        m = re.search(r"(\d+)\s*[×x]\s*" + re.escape(label) + r"(?![\w-])", text or "")
-        if m:
-            counts[slug] = counts.get(slug, 0) + int(m.group(1))
-    return counts
+def ram_total_kb(modules, chips) -> int:
+    """Usable KB fitted, from [(slug, n)] modules and [(chip, n)] chips. A bank of
+    nine ×1 chips is eight of data plus parity, so only the eight are counted."""
+    total = sum(n * RAM_MODULE_KB.get(slug, 0) for slug, n in modules if n)
+    for pn, n in chips:
+        if not n:
+            continue
+        kb = RAM_CHIP_KB.get(pn, 0)
+        if _chip_width(RAM_CHIP_ORG.get(pn, "")) == 1 and n % 9 == 0:
+            total += (n // 9) * 8 * kb
+        else:
+            total += n * kb
+    return total
 
 
-def split_installed_ram(text):
-    """Separate a stored installed-RAM string into its free text, module counts
-    and direct-chip counts: the ';'-separated segments naming known chips or
-    modules are pulled out, and whatever is left is the free text.
-    -> (free_text, {chip: n}, {module_slug: n})."""
-    chips = parse_ram_chips(text)
-    modules = parse_ram_modules(text)
-    free = [seg.strip() for seg in (text or "").split(";")
-            if seg.strip() and not parse_ram_chips(seg) and not parse_ram_modules(seg)]
-    return "; ".join(free), chips, modules
+def render_installed_ram(modules, chips, total_kb=None, note="") -> str:
+    """A machine's installed RAM for display: the module and chip lists each with
+    their own subtotal, or a bare total where there is no breakdown, plus any
+    free text that is neither."""
+    mods = format_ram_modules(modules)
+    chips_txt = format_ram_chips(chips)
+    out = []
+    if not (mods or chips_txt) and total_kb:
+        out.append(fmt_kb(total_kb))
+    out += [x for x in (mods, chips_txt) if x]
+    if note:
+        out.append(note)
+    return "; ".join(out)
 
 
 # --- quick-entry: ports (io cards + motherboard onboard I/O) ---------------

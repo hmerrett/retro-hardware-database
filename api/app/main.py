@@ -27,7 +27,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import enrich, entry, labels, specdb, specstruct
+from . import enrich, entry, labels, ramdb, specdb, specstruct
 from .db import get_db
 from .ids import next_asset_id
 from .models import Computer, LogEntry, Part
@@ -217,6 +217,11 @@ def gui_logout():
 
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
 PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
+
+# installed_ram and its total are rendered from the memory child tables, so the
+# form loop must not write them and the change log need not repeat the total.
+RAM_DERIVED = {"installed_ram", "installed_ram_kb"}
+COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
 
 # Container paths by default (the `images` volume and the goaccess report mount);
 # overridable so the app can be imported and run outside Docker for local
@@ -468,6 +473,14 @@ def _field_diffs(old, new, keys, semantic_specs=False):
 
 # --- JSON API: computers ---------------------------------------------------
 
+def _ram_from_api(db, computer, text):
+    """installed_ram over the wire is a plain amount ('640KB') or free text, never
+    a module breakdown -- that has its own grids in the GUI. A caller sending one
+    replaces any note and total but leaves the fitted modules and chips alone."""
+    total_kb, note = ramdb.from_string(text)
+    ramdb.write(db, computer, note=note, total_kb=total_kb)
+
+
 @app.get("/api/computers", response_model=list[ComputerOut], tags=["computers"])
 def api_list_computers(db: Session = Depends(get_db)):
     return db.query(Computer).order_by(Computer.asset_id).all()
@@ -475,8 +488,12 @@ def api_list_computers(db: Session = Depends(get_db)):
 
 @app.post("/api/computers", response_model=ComputerOut, tags=["computers"])
 def api_create_computer(data: ComputerIn, db: Session = Depends(get_db)):
-    obj = Computer(asset_id=next_asset_id(db), **data.model_dump())
+    fields = data.model_dump()
+    ram = fields.pop("installed_ram", "")
+    obj = Computer(asset_id=next_asset_id(db), **fields)
     db.add(obj)
+    db.flush()
+    _ram_from_api(db, obj, ram)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     db.refresh(obj)
@@ -492,10 +509,14 @@ def api_get_computer(aid: str, db: Session = Depends(get_db)):
 def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db)):
     obj = get_or_404(db, Computer, aid)
     fields = data.model_dump(exclude_unset=True)
-    old = {k: getattr(obj, k) for k in fields}
+    ram = fields.pop("installed_ram", None)
+    old = {k: getattr(obj, k) for k in fields} | {"installed_ram": obj.installed_ram}
     for k, v in fields.items():
         setattr(obj, k, v)
-    diff = _field_diffs(old, {k: getattr(obj, k) for k in fields}, list(fields))
+    if ram is not None:
+        _ram_from_api(db, obj, ram)
+    new = {k: getattr(obj, k) for k in fields} | {"installed_ram": obj.installed_ram}
+    diff = _field_diffs(old, new, list(fields) + ["installed_ram"])
     if diff:
         add_log(db, aid, diff)
     db.commit()
@@ -985,19 +1006,24 @@ def _grid_counts(form, prefix, items):
 
 
 def _ram_from_form(form):
-    """A computer's installed_ram: the free-text entry, the SIMM/SIPP module
-    grid and the direct-DRAM-chip grid combined, any of which may be empty."""
-    free = entry.parse_installed_ram(form.get("installed_ram", "") or "")
-    mods = entry.format_ram_modules(_grid_counts(form, "rammod", entry.RAM_MODULES))
-    chips = entry.format_ram_chips(_grid_counts(form, "ramchip", entry.RAM_CHIPS))
-    return "; ".join(s for s in (free, mods, chips) if s)
+    """A computer's memory as the form gives it: the SIMM/SIPP module grid, the
+    direct-DRAM-chip grid, and the free-text box read as a total or kept as a
+    note. Nothing is parsed back out of a rendered string."""
+    mods = _grid_counts(form, "rammod", entry.RAM_MODULES)
+    chips = _grid_counts(form, "ramchip", entry.RAM_CHIPS)
+    total_kb, note = ramdb.from_string(form.get("installed_ram", ""))
+    return mods, chips, note, total_kb
 
 
-def _computer_form_ctx(c, title):
-    free, chips, mods = entry.split_installed_ram(c.installed_ram) if c else ("", {}, {})
+def _computer_form_ctx(c, title, db=None):
+    mods, chips = ramdb.read(db, c) if (c is not None and db is not None) else ([], [])
+    free = c.installed_ram_note if c else ""
+    if c is not None and not (mods or chips) and not free and c.installed_ram_kb:
+        free = entry.fmt_kb(c.installed_ram_kb)
     return {"c": c, "conditions": entry.CONDITIONS, "title": title,
-            "ram_modules": entry.RAM_MODULES, "ram_mod_counts": mods,
-            "ram_chips": entry.RAM_CHIPS, "ram_counts": chips, "ram_free": free}
+            "ram_modules": entry.RAM_MODULES, "ram_mod_counts": dict(mods),
+            "ram_chips": entry.RAM_CHIPS, "ram_counts": dict(chips),
+            "ram_free": free}
 
 
 @app.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)
@@ -1009,12 +1035,15 @@ def gui_new_computer(request: Request):
 @app.post("/computers/new", include_in_schema=False)
 async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    data = {k: _coerce(k, form.get(k, "")) for k in COMPUTER_FIELDS}
-    data["installed_ram"] = _ram_from_form(form)
+    data = {k: _coerce(k, form[k]) for k in COMPUTER_FIELDS if k in form}
+    data.pop("installed_ram", None)
     for f in ("manufacturer", "model"):
-        data[f] = entry.deshout(data[f])
+        if f in data:
+            data[f] = entry.deshout(data[f])
     obj = Computer(asset_id=next_asset_id(db), **data)
     db.add(obj)
+    db.flush()
+    ramdb.write(db, obj, *_ram_from_form(form))
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     # Land on the build walk so the next step (motherboard) is front and centre.
@@ -1066,7 +1095,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
 def gui_edit_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     return templates.TemplateResponse(request, "computer_form.html",
-                                      _computer_form_ctx(c, f"Edit {aid}"))
+                                      _computer_form_ctx(c, f"Edit {aid}", db))
 
 
 @app.post("/computers/{aid}/edit", include_in_schema=False)
@@ -1077,13 +1106,16 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
     for k in COMPUTER_FIELDS:
         if k not in form:
             continue
+        if k in RAM_DERIVED:
+            continue
         v = _coerce(k, form[k])
-        if k == "installed_ram":
-            v = _ram_from_form(form)
-        elif k in ("manufacturer", "model"):
+        if k in ("manufacturer", "model"):
             v = entry.deshout(v)
         setattr(c, k, v)
-    diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS}, COMPUTER_FIELDS)
+    mods, chips, note, total_kb = _ram_from_form(form)
+    ramdb.write(db, c, mods, chips, note, total_kb)
+    diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS},
+                        COMPUTER_DIFF_FIELDS)
     if diff:
         add_log(db, aid, diff)
     db.commit()

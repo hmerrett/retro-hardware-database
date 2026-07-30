@@ -3,7 +3,12 @@ a POST can omit them; PATCH handlers use model_dump(exclude_unset=True) so only
 supplied fields change. year is a plain integer, acquired_date and disposed_at
 are ISO dates (all three take null for "not recorded"), and disposed is a
 boolean flag whose optional detail lives in disposed_note. A part's
-computer_id / parent_id accept "" or null for "standalone"; both store NULL."""
+computer_id / parent_id accept "" or null for "standalone"; both store NULL.
+
+A computer's installed_ram is rendered from its fitted modules and chips, so it
+is read-only in that sense: sending one sets the total (or a note when it is not
+an amount) and leaves any breakdown alone. installed_ram_kb is the usable total.
+"""
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -34,6 +39,8 @@ class ComputerIn(BaseModel):
 class ComputerOut(ComputerIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
+    installed_ram_kb: int | None = None
+    installed_ram_note: str = ""
 
 
 class PartIn(BaseModel):
