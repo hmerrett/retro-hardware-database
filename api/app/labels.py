@@ -41,8 +41,7 @@ _font_ready = False
 
 
 def base_url() -> str:
-    return (os.getenv("RHDB_BASE_URL")
-            or "https://hmerrett.github.io/retro-hardware-database").rstrip("/")
+    return (os.getenv("RHDB_BASE_URL") or "https://db.2600.me").rstrip("/")
 
 
 def item_url(asset_id: str) -> str:

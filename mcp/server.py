@@ -89,8 +89,8 @@ def create_computer(
     disposed_at: str | None = None,
     disposed_note: str | None = None,
 ) -> dict:
-    """Create a computer. The server assigns the next asset id across both
-    tables. CPU, installed_ram and drives (floppy/optical/CF-SD, ';'-separated)
+    """Create a computer. The server assigns the asset id from the register shared
+    with parts. CPU, installed_ram and drives (floppy/optical/CF-SD, ';'-separated)
     are attributes of the computer, not separate parts. installed_ram takes a
     plain amount ('640KB'); the per-module breakdown is entered in the GUI."""
     return _request("POST", "/api/computers", json=_clean(locals()))
@@ -159,6 +159,7 @@ def get_part(asset_id: str) -> dict:
 @mcp.tool()
 def create_part(
     computer_id: str | None = None,
+    parent_id: str | None = None,
     type: str | None = None,
     manufacturer: str | None = None,
     model: str | None = None,
@@ -177,8 +178,9 @@ def create_part(
     disposed_note: str | None = None,
     disk_image: str | None = None,
 ) -> dict:
-    """Create a part. The server assigns the next asset id. computer_id soft-links
-    it to a computer (blank = standalone). specs is free text formatted
+    """Create a part. The server assigns the asset id. computer_id installs it in a
+    computer and parent_id mounts it on another part (a disk on a controller card,
+    say); both blank means standalone. specs is free text formatted
     'Key: value | Key: value'. Storage parts are mechanical hard disks and tape
     (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
     family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports."""
@@ -189,6 +191,7 @@ def create_part(
 def update_part(
     asset_id: str,
     computer_id: str | None = None,
+    parent_id: str | None = None,
     type: str | None = None,
     manufacturer: str | None = None,
     model: str | None = None,
@@ -208,7 +211,8 @@ def update_part(
     disk_image: str | None = None,
 ) -> dict:
     """Partial-update a part: only the fields you pass are changed. To move a part
-    to another machine set computer_id; to make it standalone set it to ''."""
+    to another machine set computer_id, to mount it on another part set parent_id,
+    and to make it standalone set either to ''."""
     fields = _clean(locals())
     fields.pop("asset_id")
     return _request("PATCH", f"/api/parts/{asset_id}", json=fields)

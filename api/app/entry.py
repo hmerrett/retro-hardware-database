@@ -21,6 +21,7 @@ TYPE_ORDER = [
 TYPE_LABELS = {
     "motherboard": "Motherboard", "cpu": "CPU", "ram": "Memory", "video": "Video",
     "sound": "Sound", "network": "Network", "io": "I/O", "storage": "Storage",
+    "optical": "Optical drive", "floppy": "Floppy drive", "psu": "Power supply",
     "cooler": "Cooling", "peripheral": "Peripheral", "other": "Other",
 }
 
@@ -55,23 +56,6 @@ STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD",
 STORAGE_KINDS = ["Hard disk", "SD/CF card", "Tape", "Optical", "Floppy/Gotek"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
-
-# Which spec keys each type suggests (drives the guided form fields).
-SPEC_HINTS = {
-    "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
-                    "Onboard RAM", "Slots", "Cache", "BIOS", "Onboard video",
-                    "Ports"],
-    "cpu": ["Socket", "Speed", "FSB", "Cores", "Cache"],
-    "ram": ["Type", "Size", "Speed"],
-    "video": ["Chip", "Interface", "Connector", "Memory", "Type"],
-    "sound": ["Chip", "Interface", "FM", "Ports"],
-    "network": ["Chip", "Interface", "Connector"],
-    "io": ["Chip", "Interface", "Ports"],
-    "storage": ["Kind", "Interface", "Protocol", "Capacity", "CHS", "Media",
-                "Speed", "Role"],
-    "peripheral": ["Interface", "Size", "Resolution"],
-}
-
 
 # --- specs parsing / merging -----------------------------------------------
 

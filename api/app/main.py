@@ -18,6 +18,7 @@ from datetime import date, datetime
 from pathlib import Path
 import json
 from urllib.parse import quote, urlparse
+from xml.sax.saxutils import escape
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
@@ -40,7 +41,6 @@ app = FastAPI(title="Retro Hardware Database API", version="0.3.0")
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 templates.env.globals.update(
     display_name=entry.display_name, type_label=entry.type_label,
-    parse_specs=entry.parse_specs, TYPE_ORDER=entry.TYPE_ORDER,
     today=lambda: date.today().isoformat())
 
 AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
@@ -275,7 +275,6 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
         urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
     for p in db.query(Part.asset_id).order_by(Part.asset_id):
         urls.append((f"{base}/parts/{p.asset_id}", last.get(p.asset_id)))
-    from xml.sax.saxutils import escape
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for loc, ts in urls:
