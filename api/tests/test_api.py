@@ -475,3 +475,60 @@ class TestDuplication:
                    for e in client.get(f"/api/items/{cid}/log").json())
         assert any(f"duplicate of {cid}" in e["message"]
                    for e in client.get(f"/api/items/{copy_id}/log").json())
+
+
+class TestWatermark:
+    """Our own photos are served marked; someone else's are served untouched.
+
+    The size is a visual choice and not pinned here, but which photos get marked
+    at all is behaviour worth keeping.
+    """
+
+    @staticmethod
+    def write_photo(path):
+        from PIL import Image
+        path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (600, 400), (90, 110, 130)).save(path, "JPEG", quality=95)
+
+    def test_our_own_photo_comes_back_marked(self, client, part):
+        from app import main
+        aid = part()["asset_id"]
+        photo = main.IMAGES_DIR / "parts" / f"{aid}.jpg"
+        self.write_photo(photo)
+        try:
+            served = client.get(f"/images/parts/{aid}.jpg").content
+            assert served != photo.read_bytes()
+            assert (main.IMAGES_DIR / ".wm" / "parts" / f"{aid}.jpg").exists()
+        finally:
+            photo.unlink()
+            main._wm_forget(f"parts/{aid}.jpg")
+
+    def test_the_mark_grows_with_the_photo(self, client, part):
+        """It is a proportion of the short edge, not a fixed number of pixels, so
+        it stays legible on a 5712px photo and unobtrusive on a small one."""
+        from PIL import Image
+        from app import main
+        marks = []
+        for size in ((400, 300), (2000, 1500)):
+            mark = Image.open(main.WM_SRC).convert("RGBA")
+            target = max(34, int(min(size) * 0.18))
+            mark.thumbnail((target, target), Image.LANCZOS)
+            marks.append(mark.width)
+        assert marks[1] > marks[0] * 4
+
+    def test_a_reference_photo_is_left_alone(self, client, part):
+        """Someone else's picture of the same model is not ours to sign."""
+        from app import main
+        aid = part()["asset_id"]
+        rel = f"parts/{aid}.jpg"
+        photo = main.IMAGES_DIR / rel
+        self.write_photo(photo)
+        main._ref_sidecar(rel).write_text('{"note": "", "source": ""}', encoding="utf-8")
+        try:
+            assert client.get(f"/images/{rel}").content == photo.read_bytes()
+        finally:
+            main._ref_sidecar(rel).unlink()
+            photo.unlink()
+
+    def test_the_cache_directory_is_not_served(self, client):
+        assert client.get("/images/.wm/parts/anything.jpg").status_code == 404

@@ -332,7 +332,7 @@ def _make_watermark(src_path: Path, dst_path: Path):
     base = Image.open(src_path).convert("RGBA")
     w, h = base.size
     mark = Image.open(WM_SRC).convert("RGBA")
-    target = max(28, int(min(w, h) * 0.15))
+    target = max(34, int(min(w, h) * 0.18))
     mark.thumbnail((target, target), Image.LANCZOS)
     mark.putalpha(mark.getchannel("A").point(lambda a: int(a * 0.55)))
     margin = max(6, int(min(w, h) * 0.03))
