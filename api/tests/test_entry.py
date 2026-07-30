@@ -31,6 +31,34 @@ class TestInstalledRam:
     def test_module_totals_add_up_across_types(self):
         assert entry.ram_total_kb([("30p1m", 4), ("72p2m", 2)], []) == 8192
 
+    def test_parity_chips_of_a_different_type_are_not_capacity(self):
+        """An Amstrad PC1640 carries 4x 4464 for data with 2x 4164 alongside for
+        their parity. Counting a bank's parity chips as data made RH-FTXR read
+        656 KB when the machine has 640, which is what its sibling records."""
+        chips = [("4164", 2), ("4464", 4), ("41256", 18)]
+        assert entry.chip_capacity(chips) == (640, True)
+        assert entry.ram_total_kb([], chips) == 640
+
+    def test_a_bank_is_made_of_chips_of_the_same_depth(self):
+        """64K-deep and 256K-deep chips cannot share a bank, so they are counted
+        as separate ones: 18 bits at each depth is 16 data bits at each."""
+        assert entry.chip_capacity([("4464", 4), ("4164", 2)]) == (128, True)
+        assert entry.chip_capacity([("41256", 18)]) == (512, True)
+
+    def test_two_wide_chips_make_one_byte_wide_bank(self):
+        assert entry.chip_capacity([("4464", 2)]) == (64, False)
+
+    def test_a_bank_without_parity_is_all_data(self):
+        assert entry.chip_capacity([("4164", 8)]) == (64, False)
+
+    def test_the_ninth_chip_adds_no_capacity(self):
+        assert entry.chip_capacity([("4164", 9)])[0] == \
+            entry.chip_capacity([("4164", 8)])[0]
+
+    def test_no_chips_is_no_capacity(self):
+        assert entry.chip_capacity([]) == (0, False)
+        assert entry.chip_capacity([("4164", 0)]) == (0, False)
+
     def test_nine_by_one_chips_are_eight_of_data_plus_parity(self):
         """A byte-wide bank of x1 chips is 8 data chips plus a 9th for parity, so
         nine 32KB chips are 256 KB usable, not 288."""
@@ -44,8 +72,11 @@ class TestInstalledRam:
     def test_eighteen_chips_are_two_parity_banks(self):
         assert entry.ram_total_kb([], [("41256", 18)]) == 512
 
-    def test_wide_chips_are_summed_straight(self):
-        assert entry.ram_total_kb([], [("44256", 9)]) == 9 * 128
+    def test_a_wide_chip_can_carry_parity_too(self):
+        """The old rule only looked for parity among ×1 chips, so nine ×4 chips
+        counted as 1152 KB -- 36 data bits, four and a half bytes wide, which no
+        byte-organised machine is. Thirty-two of those bits are data."""
+        assert entry.ram_total_kb([], [("44256", 9)]) == 1024
 
     def test_a_bare_total_renders_when_there_is_no_breakdown(self):
         assert entry.render_installed_ram([], [], 8192, "") == "8 MB"

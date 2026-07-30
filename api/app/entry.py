@@ -153,23 +153,49 @@ def _chip_width(org):
     return int(m.group(1)) if m else 1
 
 
-def format_ram_chips(counts):
-    """[(chip, n), ...] -> '9× 41256 (256 KB + parity)' with the usable total.
+def _chip_depth(org):
+    """The addressable depth from an organisation string: '64K×4' -> '64K'. Chips of
+    the same depth are what make up a bank together, whatever their width."""
+    return (org or "").split("×")[0].split("x")[0].strip()
 
-    A byte-wide bank of ×1 chips is 8 data chips plus (often) a 9th parity
-    chip, so a count divisible by 9 is treated as 8/9 usable capacity and
-    flagged; anything else is summed straight."""
+
+def chip_capacity(counts):
+    """Usable KB and whether parity is fitted, from [(chip, n), ...].
+
+    A bank is made of chips of the same depth, and is nine bits wide where the
+    ninth is parity. Chips are therefore grouped by depth and the group's total
+    width decides: 18 bits at 64K deep is two banks of 8 data bits plus 2 parity,
+    so 128 KB of the 144 KB fitted is usable.
+
+    Grouping matters because a bank's data and parity are often different chips --
+    an Amstrad PC1640 carries 4x 4464 for data with 2x 4164 alongside for their
+    parity, and counting those two as data overstates the machine by 16 KB.
+    """
+    groups = {}
+    for pn, n in counts:
+        if not n:
+            continue
+        org = RAM_CHIP_ORG.get(pn, "")
+        depth = _chip_depth(org)
+        bits, kb = groups.get(depth, (0, 0))
+        groups[depth] = (bits + n * _chip_width(org),
+                         kb + n * RAM_CHIP_KB.get(pn, 0))
+    total_kb, parity = 0, False
+    for bits, kb in groups.values():
+        if bits % 9 == 0:
+            total_kb += kb * 8 // 9
+            parity = True
+        else:
+            total_kb += kb
+    return total_kb, parity
+
+
+def format_ram_chips(counts):
+    """[(chip, n), ...] -> '9× 41256 (256 KB + parity)' with the usable total."""
     counts = [(pn, n) for pn, n in counts if n]
     if not counts:
         return ""
-    total_kb, parity = 0, False
-    for pn, n in counts:
-        kb = RAM_CHIP_KB.get(pn, 0)
-        if _chip_width(RAM_CHIP_ORG.get(pn, "")) == 1 and n % 9 == 0:
-            total_kb += (n // 9) * 8 * kb
-            parity = True
-        else:
-            total_kb += n * kb
+    total_kb, parity = chip_capacity(counts)
     chips = ", ".join(f"{n}× {pn}" for pn, n in counts)
     return f"{chips} ({fmt_kb(total_kb)}{' + parity' if parity else ''})"
 
@@ -200,18 +226,10 @@ def format_ram_modules(counts):
 
 
 def ram_total_kb(modules, chips) -> int:
-    """Usable KB fitted, from [(slug, n)] modules and [(chip, n)] chips. A bank of
-    nine ×1 chips is eight of data plus parity, so only the eight are counted."""
-    total = sum(n * RAM_MODULE_KB.get(slug, 0) for slug, n in modules if n)
-    for pn, n in chips:
-        if not n:
-            continue
-        kb = RAM_CHIP_KB.get(pn, 0)
-        if _chip_width(RAM_CHIP_ORG.get(pn, "")) == 1 and n % 9 == 0:
-            total += (n // 9) * 8 * kb
-        else:
-            total += n * kb
-    return total
+    """Usable KB fitted, from [(slug, n)] modules and [(chip, n)] chips. Parity
+    chips are not capacity, so chip_capacity discounts them."""
+    return (sum(n * RAM_MODULE_KB.get(slug, 0) for slug, n in modules if n)
+            + chip_capacity(chips)[0])
 
 
 def render_installed_ram(modules, chips, total_kb=None, note="") -> str:
