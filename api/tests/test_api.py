@@ -498,7 +498,7 @@ class TestWatermark:
         try:
             served = client.get(f"/images/parts/{aid}.jpg").content
             assert served != photo.read_bytes()
-            assert (main.IMAGES_DIR / ".wm" / "parts" / f"{aid}.jpg").exists()
+            assert (main.WM_CACHE / "parts" / f"{aid}.jpg").exists()
         finally:
             photo.unlink()
             main._wm_forget(f"parts/{aid}.jpg")
@@ -531,4 +531,15 @@ class TestWatermark:
             photo.unlink()
 
     def test_the_cache_directory_is_not_served(self, client):
+        from app import main
         assert client.get("/images/.wm/parts/anything.jpg").status_code == 404
+        assert client.get(f"/images/.wm/{main.WM_CACHE.name}/parts/x.jpg").status_code == 404
+
+    def test_the_cache_is_keyed_on_the_mark_s_parameters(self):
+        """A cached copy is otherwise only rebuilt when its source photo changes,
+        so changing the size used to leave every existing watermark at the old one.
+        The parameters are in the directory name, so a change misses the cache."""
+        from app import main
+        assert main.WM_CACHE.parent.name == ".wm"
+        assert str(main.WM_SCALE) in main.WM_CACHE.name
+        assert str(main.WM_MIN_PX) in main.WM_CACHE.name

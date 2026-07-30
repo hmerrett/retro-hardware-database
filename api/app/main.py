@@ -324,7 +324,26 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # images and favicons are served untouched. Toggle with RHDB_WATERMARK=0.
 WATERMARK = os.getenv("RHDB_WATERMARK", "1").lower() not in ("0", "false", "no", "off")
 WM_SRC = STATIC_DIR / "icon-512.png"
-WM_CACHE = IMAGES_DIR / ".wm"
+
+# A proportion of the photo's short edge, so the mark stays legible on a 5712px
+# photo and unobtrusive on a small one, with a floor for the very small.
+WM_SCALE = 0.216
+WM_MIN_PX = 41
+WM_OPACITY = 0.55
+WM_MARGIN = 0.03
+
+# The cache lives under a directory named after those numbers. A cached copy is
+# otherwise only rebuilt when its source photo changes, so changing the size here
+# left every existing watermark at the old one until its photo was next edited --
+# twice now. Naming the directory after the parameters means a change simply
+# misses the old cache instead of needing anyone to remember.
+WM_CACHE = IMAGES_DIR / ".wm" / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}"
+
+if WATERMARK:
+    WM_CACHE.mkdir(parents=True, exist_ok=True)
+    for stale in WM_CACHE.parent.iterdir():
+        if stale.is_dir() and stale != WM_CACHE:
+            shutil.rmtree(stale, ignore_errors=True)
 
 
 def _make_watermark(src_path: Path, dst_path: Path):
@@ -332,10 +351,10 @@ def _make_watermark(src_path: Path, dst_path: Path):
     base = Image.open(src_path).convert("RGBA")
     w, h = base.size
     mark = Image.open(WM_SRC).convert("RGBA")
-    target = max(34, int(min(w, h) * 0.18))
+    target = max(WM_MIN_PX, int(min(w, h) * WM_SCALE))
     mark.thumbnail((target, target), Image.LANCZOS)
-    mark.putalpha(mark.getchannel("A").point(lambda a: int(a * 0.55)))
-    margin = max(6, int(min(w, h) * 0.03))
+    mark.putalpha(mark.getchannel("A").point(lambda a: int(a * WM_OPACITY)))
+    margin = max(6, int(min(w, h) * WM_MARGIN))
     layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
     layer.paste(mark, (w - mark.width - margin, h - mark.height - margin), mark)
     out = Image.alpha_composite(base, layer)
