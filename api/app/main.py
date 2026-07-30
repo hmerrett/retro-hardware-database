@@ -1612,12 +1612,13 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
 
-# A duplicate is a second identical unit: copy the descriptive fields, specs and
-# placement, but not the photos (they belong to the original unit), the disposed
-# flag, or the per-unit provenance (source / acquired date / notes) which the
-# copy starts blank.
+# A duplicate is a second identical unit, so it copies what describes the model --
+# the fields, the specs, a machine's fitted memory and drives -- and nothing that
+# belongs to the original object: its photos, its disposal, its provenance
+# (source / acquired date / notes), and where it sits. A second card is a second
+# card, not another card in the same slot, so the copy starts unplaced.
 DUP_EXCLUDE = {"image", "disposed", "disposed_at", "disposed_note", "source",
-               "acquired_date", "notes"}
+               "acquired_date", "notes", "computer_id", "parent_id"}
 
 
 @app.post("/parts/{aid}/duplicate", include_in_schema=False)
@@ -1632,6 +1633,27 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
     add_log(db, aid, f"duplicated to {obj.asset_id}", kind="duplicate")
     db.commit()
     return RedirectResponse(f"/parts/{obj.asset_id}", status_code=303)
+
+
+@app.post("/computers/{aid}/duplicate", include_in_schema=False)
+def gui_duplicate_computer(aid: str, db: Session = Depends(get_db)):
+    """A second machine of the same model. Its memory and drives come across --
+    they describe the build -- but its parts do not: those are tagged objects
+    fitted to the original, and the copy starts as an empty chassis to fill."""
+    src = get_or_404(db, Computer, aid)
+    data = {k: getattr(src, k) for k in COMPUTER_FIELDS
+            if k not in DUP_EXCLUDE and k not in DERIVED_FIELDS}
+    obj = Computer(asset_id=next_asset_id(db), **data)
+    db.add(obj)
+    db.flush()
+    mods, chips = ramdb.read(db, src)
+    ramdb.write(db, obj, mods, chips, src.installed_ram_note or "",
+                src.installed_ram_kb)
+    drivedb.write(db, obj, drivedb.read(db, src), src.drives_note or "")
+    add_log(db, obj.asset_id, f"created as a duplicate of {aid}", kind="created")
+    add_log(db, aid, f"duplicated to {obj.asset_id}", kind="duplicate")
+    db.commit()
+    return RedirectResponse(f"/computers/{obj.asset_id}", status_code=303)
 
 
 @app.post("/parts/{aid}/dispose", include_in_schema=False)

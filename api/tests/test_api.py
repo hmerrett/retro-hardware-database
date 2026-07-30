@@ -379,3 +379,99 @@ class TestPhotoLookup:
             assert f"/images/parts/{aid}.jpg" in client.get("/").text
         finally:
             (folder / f"{aid}.jpg").unlink()
+
+
+class TestDuplication:
+    """A duplicate is a second physical unit of the same model.
+
+    It takes what describes the model and leaves behind what belongs to the
+    original object: its photos, its disposal, its provenance, and where it sits.
+    """
+
+    def test_a_duplicated_part_is_not_in_the_same_machine(self, client, part, computer):
+        cid = computer()["asset_id"]
+        src = part(type="video", model="ET4000", computer_id=cid)["asset_id"]
+        r = client.post(f"/parts/{src}/duplicate", follow_redirects=False)
+        copy = client.get(f"/api/parts/{r.headers['location'].split('/')[-1]}").json()
+        assert copy["computer_id"] is None
+
+    def test_a_duplicated_part_is_not_mounted_on_the_same_host(self, client, part):
+        host = part(type="io")["asset_id"]
+        src = part(type="storage", parent_id=host)["asset_id"]
+        r = client.post(f"/parts/{src}/duplicate", follow_redirects=False)
+        copy = client.get(f"/api/parts/{r.headers['location'].split('/')[-1]}").json()
+        assert copy["parent_id"] is None
+
+    def test_a_duplicated_part_keeps_what_describes_the_model(self, client, part):
+        src = part(type="video", manufacturer="Tseng", model="ET4000", year=1993,
+                   specs="Chip: ET4000 | Interface: VLB", url="https://example.test/x",
+                   condition="Working")
+        r = client.post(f"/parts/{src['asset_id']}/duplicate", follow_redirects=False)
+        copy = client.get(f"/api/parts/{r.headers['location'].split('/')[-1]}").json()
+        for field in ("type", "manufacturer", "model", "year", "specs", "url",
+                      "condition"):
+            assert copy[field] == src[field], field
+
+    def test_a_duplicated_part_drops_what_belongs_to_the_original(self, client, part):
+        src = part(source="eBay", acquired_date="2026-01-05", notes="a bit bent")
+        client.post(f"/parts/{src['asset_id']}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        r = client.post(f"/parts/{src['asset_id']}/duplicate", follow_redirects=False)
+        copy = client.get(f"/api/parts/{r.headers['location'].split('/')[-1]}").json()
+        assert copy["source"] == "" and copy["acquired_date"] is None
+        assert copy["notes"] == "" and copy["disposed"] is False
+
+    def test_a_computer_can_be_duplicated(self, client, computer):
+        src = computer(manufacturer="IBM", model="5170", year=1984, chassis="desktop",
+                       cpu="Intel 80286-6", os="MS DOS 5.0", condition="Working")
+        r = client.post(f"/computers/{src['asset_id']}/duplicate",
+                        follow_redirects=False)
+        assert r.status_code == 303
+        copy = client.get(f"/api/computers/{r.headers['location'].split('/')[-1]}").json()
+        assert copy["asset_id"] != src["asset_id"]
+        for field in ("manufacturer", "model", "year", "chassis", "cpu", "os",
+                      "condition"):
+            assert copy[field] == src[field], field
+
+    def test_a_duplicated_computer_has_none_of_the_original_s_parts(
+            self, client, computer, part):
+        cid = computer()["asset_id"]
+        part(computer_id=cid)
+        part(computer_id=cid, type="video")
+        r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
+        copy_id = r.headers["location"].split("/")[-1]
+        assert client.get("/api/parts", params={"computer_id": copy_id}).json() == []
+        assert len(client.get("/api/parts", params={"computer_id": cid}).json()) == 2
+
+    def test_a_duplicated_computer_keeps_its_memory_and_drives(self, client, computer):
+        cid = computer(drives='2x 5.25" 360K')["asset_id"]
+        client.post(f"/computers/{cid}/edit",
+                    data={"rammod:30p1m": "4", "installed_ram": "",
+                          "drive0_count": "2", "drive0_kind": "floppy",
+                          "drive0_form_factor": '5.25"', "drive0_size": "360K"},
+                    follow_redirects=False)
+        r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
+        copy = client.get(f"/api/computers/{r.headers['location'].split('/')[-1]}").json()
+        assert copy["installed_ram"] == "4× 1MB 30-pin (4 MB)"
+        assert copy["installed_ram_kb"] == 4096
+        assert copy["drives"] == '2× 5.25" 360K floppy'
+
+    def test_a_duplicated_computer_s_memory_survives_editing_it(self, client, computer):
+        """The copy needs its own child rows, not just the rendered strings, or the
+        first save would render them away."""
+        cid = computer()["asset_id"]
+        client.post(f"/computers/{cid}/edit", data={"ramchip:41256": "9"},
+                    follow_redirects=False)
+        r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
+        copy_id = r.headers["location"].split("/")[-1]
+        page = client.get(f"/computers/{copy_id}/edit").text
+        assert 'name="ramchip:41256" value="9"' in page
+
+    def test_both_sides_record_the_duplication(self, client, computer):
+        cid = computer()["asset_id"]
+        r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
+        copy_id = r.headers["location"].split("/")[-1]
+        assert any(f"duplicated to {copy_id}" in e["message"]
+                   for e in client.get(f"/api/items/{cid}/log").json())
+        assert any(f"duplicate of {cid}" in e["message"]
+                   for e in client.get(f"/api/items/{copy_id}/log").json())
