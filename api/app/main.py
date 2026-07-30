@@ -1009,7 +1009,7 @@ def gui_new_computer(request: Request):
 @app.post("/computers/new", include_in_schema=False)
 async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
-    data = {k: (form.get(k, "") or "") for k in COMPUTER_FIELDS}
+    data = {k: _coerce(k, form.get(k, "")) for k in COMPUTER_FIELDS}
     data["installed_ram"] = _ram_from_form(form)
     for f in ("manufacturer", "model"):
         data[f] = entry.deshout(data[f])
