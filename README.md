@@ -188,3 +188,28 @@ The app falls back to SQLite if you set `DATABASE_URL`:
 cd api && pip install -r requirements.txt
 DATABASE_URL=sqlite:///dev.db uvicorn app.main:app --reload
 ```
+
+## Tests
+
+```
+python3 -m venv .venv-test
+.venv-test/bin/pip install -r api/requirements.txt -r api/requirements-dev.txt
+.venv-test/bin/pytest
+.venv-test/bin/ruff check .
+```
+
+`api/tests/` runs the whole app against a throwaway SQLite database, built from
+the models rather than from Alembic -- the migrations are deliberately
+MariaDB-specific. Two halves:
+
+- the pure functions, where silent data corruption lives: `specstruct` (the specs
+  string <-> typed columns), `drivedb` and `ramdb` (a machine's drives and fitted
+  memory), and `entry`'s amount handling and quick-entry expanders. The drive
+  cases are the real notations the collection was recorded in, so a change that
+  mis-reads them fails.
+- the behaviour that has actually broken: typed columns taking form input, a
+  select keeping a value outside its vocabulary, links unlinking rather than
+  dangling when their target is deleted, and derived strings never being written
+  to directly.
+
+Both run in CI (`.github/workflows/ci.yml`) on push and pull request.

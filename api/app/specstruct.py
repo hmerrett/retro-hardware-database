@@ -95,7 +95,7 @@ _RPM_RE = re.compile(r"^\s*(\d+)\s*(?:rpm)?\s*$", re.I)
 
 
 class Struct:
-    __slots__ = ("scalars", "slots", "ram_slots", "ports", "chs", "attributes")
+    __slots__ = ("attributes", "chs", "ports", "ram_slots", "scalars", "slots")
 
     def __init__(self):
         self.scalars = {}
@@ -115,7 +115,7 @@ def _to_kb(text, bare=1):
     unit = m.group(2).lower()
     mult = {"k": 1, "m": 1024, "g": 1024 * 1024}.get(unit, bare)
     try:
-        return int(round(float(m.group(1)) * mult))
+        return round(float(m.group(1)) * mult)
     except ValueError:
         return None
 
@@ -128,7 +128,7 @@ def _to_khz(text):
         return None
     mult = 1 if (m.group(2) or "").lower() == "khz" else 1000
     try:
-        return int(round(float(m.group(1)) * mult))
+        return round(float(m.group(1)) * mult)
     except ValueError:
         return None
 
@@ -160,7 +160,7 @@ def _fmt_kb(kb, auto=False):
     for unit, mult in (("GB", 1024 * 1024), ("MB", 1024)):
         if kb >= mult:
             text = f"{kb / mult:.1f}"
-            if int(round(float(text) * mult)) == kb:
+            if round(float(text) * mult) == kb:
                 return f"{text} {unit}"
     return f"{kb} KB"
 
@@ -171,7 +171,7 @@ def _fmt_khz(khz):
     if khz % 1000 == 0:
         return f"{khz // 1000} MHz"
     text = f"{khz / 1000:g}"
-    if int(round(float(text) * 1000)) == khz:
+    if round(float(text) * 1000) == khz:
         return f"{text} MHz"
     return f"{khz} kHz"
 

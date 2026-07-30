@@ -115,7 +115,7 @@ def to_kb(text: str):
     if unit not in _KB_UNITS:
         return None
     try:
-        return int(round(float(m.group(1)) * _KB_UNITS[unit]))
+        return round(float(m.group(1)) * _KB_UNITS[unit])
     except ValueError:
         return None
 

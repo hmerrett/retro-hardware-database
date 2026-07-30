@@ -23,8 +23,7 @@ SPEC_MODEL = {
     "video": VideoSpec, "sound": SoundSpec, "network": NetworkSpec,
     "io": IoSpec, "storage": StorageSpec,
 }
-SPEC_TABLES = list(SPEC_MODEL.values()) + [PartSlot, PartRamSlot, PartPort,
-                                           PartAttribute]
+SPEC_TABLES = [*list(SPEC_MODEL.values()), PartSlot, PartRamSlot, PartPort, PartAttribute]
 
 # CHS lives in three columns but travels as one tuple on the Struct.
 _CHS_COLS = ("chs_c", "chs_h", "chs_s")
@@ -106,8 +105,7 @@ def scalars(db, part) -> dict:
 def column_by_part(db, model, column) -> dict:
     """{part_id: value} for one typed column across every part, in one query --
     so a list page does not fall into a query per row."""
-    return {pid: value for pid, value in
-            db.query(model.part_id, column).filter(column.isnot(None)).all()}
+    return dict(db.query(model.part_id, column).filter(column.isnot(None)).all())
 
 
 def storage_kinds(db) -> dict:

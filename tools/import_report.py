@@ -184,7 +184,7 @@ def detect(text):
 
 
 def blank_part(computer_id):
-    row = {c: "" for c in PART_COLUMNS}
+    row = dict.fromkeys(PART_COLUMNS, "")
     row["computer_id"] = computer_id
     row["condition"] = "Working"
     return row
@@ -200,7 +200,7 @@ def propose(comp, mobo, det):
 
     mupd = {}
     if mobo is not None:
-        ms = {k: v for k, v in parse_specs(mobo.get("specs", ""))}
+        ms = dict(parse_specs(mobo.get("specs", "")))
         for spec, key in (("Onboard video", "onboard_video"), ("BIOS", "bios"),
                           ("Chipset", "chipset"), ("Ports", "ports")):
             if det.get(key) and not ms.get(spec):

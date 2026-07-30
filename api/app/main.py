@@ -14,7 +14,7 @@ import hashlib
 import os
 import secrets
 import shutil
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 import json
 from urllib.parse import quote, urlparse
@@ -33,6 +33,7 @@ from .db import get_db
 from .ids import next_asset_id
 from .models import Computer, LogEntry, Part
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
+import contextlib
 
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
 # start); no create_all here.
@@ -73,7 +74,7 @@ def _image_size(image_rel: str):
         return None
 
 
-def _og(request: Request, title: str, description: str = "", image_rel: str = None):
+def _og(request: Request, title: str, description: str = "", image_rel: str | None = None):
     """Open Graph / Twitter-card context for a page's social-share preview."""
     og = {"title": title, "url": _abs_url(request, request.url.path),
           "description": " ".join((description or "").split())[:280]}
@@ -133,7 +134,7 @@ def _check_cookie(request: Request) -> bool:
 
 
 def _is_api_path(path: str) -> bool:
-    return path.startswith("/api") or path.startswith("/docs") or path == "/openapi.json"
+    return path.startswith(("/api", "/docs")) or path == "/openapi.json"
 
 
 def _is_public_read(request: Request) -> bool:
@@ -146,14 +147,12 @@ def _is_public_read(request: Request) -> bool:
     if path in ("/", "/robots.txt", "/sitemap.xml", "/favicon.ico",
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
         return True
-    if path.startswith("/images/") or path.startswith("/static/"):
+    if path.startswith(("/images/", "/static/")):
         return True
     if path.startswith("/items/"):
         return True
-    if path.startswith("/computers/") or path.startswith("/parts/"):
-        if path.endswith("/new") or "/edit" in path or "/label.pdf" in path:
-            return False
-        return True
+    if path.startswith(("/computers/", "/parts/")):
+        return not (path.endswith("/new") or "/edit" in path or "/label.pdf" in path)
     return False
 
 
@@ -268,8 +267,8 @@ def robots_txt(request: Request):
 def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
     # Newest change per asset, for <lastmod>.
-    last = {aid: ts for aid, ts in db.query(
-        LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id)}
+    last = dict(db.query(
+        LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id))
     urls = [(f"{base}/", None)]
     for c in db.query(Computer.asset_id).order_by(Computer.asset_id):
         urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
@@ -362,16 +361,14 @@ def _watermarked_file(rel: str) -> Path:
 
 def _wm_forget(rel: str):
     """Drop an image's cached watermark (on delete / rename) so it regenerates."""
-    try:
+    with contextlib.suppress(OSError):
         (WM_CACHE / rel).unlink(missing_ok=True)
-    except OSError:
-        pass
 
 
 def _is_own_photo(rel: str) -> bool:
     ext = Path(rel).suffix.lower()
     return (WATERMARK and ext in IMAGE_EXTS
-            and (rel.startswith("computers/") or rel.startswith("parts/"))
+            and (rel.startswith(("computers/", "parts/")))
             and not is_reference(rel))
 
 
@@ -400,11 +397,18 @@ def to_dict(obj):
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 
+def _now():
+    """Naive UTC, matching the column and every row already in it. utcnow() is
+    deprecated, and an aware value here would be inconsistent with the history
+    written before this."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 def add_log(db, asset_id, message, kind="change"):
     """Record a dated history entry for an asset. The caller commits."""
     if not message:
         return
-    db.add(LogEntry(asset_id=asset_id, created_at=datetime.utcnow(),
+    db.add(LogEntry(asset_id=asset_id, created_at=_now(),
                     kind=kind, message=message))
 
 
@@ -751,10 +755,8 @@ def img_url(rel):
         return ""
     ts = 0
     for p in (IMAGES_DIR / rel, _ref_sidecar(rel)):
-        try:
+        with contextlib.suppress(OSError):
             ts = max(ts, int(p.stat().st_mtime))
-        except OSError:
-            pass
     return f"/images/{rel}?v={ts}" if ts else f"/images/{rel}"
 
 
@@ -797,10 +799,8 @@ def _move_with_sidecar(src: Path, dst: Path):
     if sc.exists():
         sc.rename(dst.with_name(dst.name + ".ref"))
     for p in (src, dst):
-        try:
+        with contextlib.suppress(ValueError):
             _wm_forget(str(p.relative_to(IMAGES_DIR)))
-        except ValueError:
-            pass
 
 
 def _set_primary_photo(kind, asset_id, rel):
@@ -872,11 +872,12 @@ def _crop_op(x, y, w, h):
     """Crop to a box given as fractions (0..1) of the image's width/height."""
     def crop(im):
         iw, ih = im.size
-        l, t = max(0, round(x * iw)), max(0, round(y * ih))
-        r, b = min(iw, round((x + w) * iw)), min(ih, round((y + h) * ih))
-        if r - l < 8 or b - t < 8:   # ignore a too-small / degenerate selection
+        left, top = max(0, round(x * iw)), max(0, round(y * ih))
+        right, bottom = min(iw, round((x + w) * iw)), min(ih, round((y + h) * ih))
+        # Ignore a too-small or degenerate selection.
+        if right - left < 8 or bottom - top < 8:
             return im
-        return im.crop((l, t, r, b))
+        return im.crop((left, top, right, bottom))
     return crop
 
 
@@ -900,8 +901,8 @@ def _do_photo_crop(db, model, kind, aid, form):
     get_or_404(db, model, aid)
     try:
         x, y, w, h = (float(form.get(k, "")) for k in ("x", "y", "w", "h"))
-    except ValueError:
-        raise HTTPException(400, "bad crop box")
+    except ValueError as err:
+        raise HTTPException(400, "bad crop box") from err
     _edit_image(kind, aid, form.get("image", ""), _crop_op(x, y, w, h))
     add_log(db, aid, "cropped a photo")
     db.commit()
