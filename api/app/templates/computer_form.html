@@ -33,10 +33,33 @@
   <label for="installed_ram">Installed RAM — other / notes</label>
   <input id="installed_ram" name="installed_ram" value="{{ ram_free }}">
   <p class="hint">free-form fallback for anything the grids above do not cover (DIMMs, unusual sizes) or just a plain total like 16MB. All three are combined.</p>
-  {{ fld('drives', 'Drives', "floppy / optical / CF-SD only; separate with ; — e.g. 3.5in 1.44MB floppy; CD-ROM. (Hard disks/tape are storage parts.)") }}
+  <label>Drives</label>
+  <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove that drive.</p>
+  <table class="drives">
+    <tr><th>How many</th><th>Kind</th><th>Form factor</th><th>Size</th><th>Make / model</th></tr>
+    {% for d in drives %}
+    <tr>
+      <td><input type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"></td>
+      <td><select name="drive{{ loop.index0 }}_kind">
+        <option value=""></option>
+        {% for k in drive_kinds %}<option value="{{ k }}"{{ ' selected' if k == d.get('kind') else '' }}>{{ k }}</option>{% endfor %}
+      </select></td>
+      <td><select name="drive{{ loop.index0 }}_form_factor">
+        <option value=""></option>
+        {% for f in drive_forms %}<option value="{{ f }}"{{ ' selected' if f == d.get('form_factor') else '' }}>{{ f }}</option>{% endfor %}
+      </select></td>
+      <td><input name="drive{{ loop.index0 }}_size" list="dl_drive_sizes" value="{{ d.get('size', '') }}"></td>
+      <td><input name="drive{{ loop.index0 }}_model" value="{{ d.get('model', '') }}"></td>
+    </tr>
+    {% endfor %}
+  </table>
+  <datalist id="dl_drive_sizes">{% for x in drive_sizes %}<option value="{{ x }}">{% endfor %}</datalist>
+  <label for="drives_note">Drives — anything the rows cannot say</label>
+  <input id="drives_note" name="drives_note" value="{{ (c.drives_note if c else '') or '' }}">
   <label for="condition">Condition</label>
   <select id="condition" name="condition">
     {% set cur = (c.condition if c else '') or 'Working' %}
+    {% if cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
     {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
   </select>
   {{ fld('source', 'Source', "where / how acquired") }}

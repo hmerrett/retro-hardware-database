@@ -41,6 +41,7 @@ class ComputerOut(ComputerIn):
     asset_id: str
     installed_ram_kb: int | None = None
     installed_ram_note: str = ""
+    drives_note: str = ""
 
 
 class PartIn(BaseModel):

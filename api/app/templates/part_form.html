@@ -146,6 +146,7 @@
     <label for="condition">Condition</label>
     <select id="condition" name="condition">
       {% set cur = (p.condition if p else '') or 'Working' %}
+      {% if cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
       {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
     </select>
     <label for="source">Source</label>

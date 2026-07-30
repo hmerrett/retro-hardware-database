@@ -161,7 +161,5 @@ def upgrade():
 def downgrade():
     op.drop_column("computers", "installed_ram_note")
     op.drop_column("computers", "installed_ram_kb")
-    op.drop_index("ix_computer_ram_chip_computer_id", "computer_ram_chip")
     op.drop_table("computer_ram_chip")
-    op.drop_index("ix_computer_ram_module_computer_id", "computer_ram_module")
     op.drop_table("computer_ram_module")

@@ -38,6 +38,8 @@ class Computer(Base):
     installed_ram_note = Column(String(255), nullable=False, default="",
                                 server_default="")
     drives = Column(Text, default="")
+    drives_note = Column(String(255), nullable=False, default="",
+                         server_default="")
     condition = Column(String(64), default="")
     source = Column(String(255), default="")
     acquired_date = Column(Date)
@@ -209,6 +211,24 @@ class PartAttribute(Base):
 def _computer_fk():
     return Column(String(16), ForeignKey("computers.asset_id", ondelete="CASCADE"),
                   index=True, nullable=False)
+
+
+class ComputerDrive(Base):
+    """A removable-media drive fitted in a machine: floppy, Gotek, optical, or a
+    card standing in for one. Mechanical hard disks and tape are parts with their
+    own asset tag, not rows here.
+
+    size and form_factor hold the standard labels a person writes ('1.44MB',
+    '5.25"') rather than a byte count: these are media designations, not measured
+    quantities, and 1.44MB is 1475 KB only by convention."""
+    __tablename__ = "computer_drive"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    computer_id = _computer_fk()
+    count = Column(Integer, default=1)
+    kind = Column(String(32), nullable=False, default="")
+    form_factor = Column(String(16), nullable=False, default="")
+    size = Column(String(32), nullable=False, default="")
+    model = Column(String(255), nullable=False, default="")
 
 
 class ComputerRamModule(Base):

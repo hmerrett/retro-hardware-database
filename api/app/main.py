@@ -27,7 +27,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import enrich, entry, labels, ramdb, specdb, specstruct
+from . import drivedb, enrich, entry, labels, ramdb, specdb, specstruct
 from .db import get_db
 from .ids import next_asset_id
 from .models import Computer, LogEntry, Part
@@ -218,9 +218,9 @@ def gui_logout():
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
 PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
 
-# installed_ram and its total are rendered from the memory child tables, so the
-# form loop must not write them and the change log need not repeat the total.
-RAM_DERIVED = {"installed_ram", "installed_ram_kb"}
+# These are rendered from the memory and drive child tables, so the form loop must
+# not write them, and the change log need not repeat the derived total.
+DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note"}
 COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
 
 # Container paths by default (the `images` volume and the goaccess report mount);
@@ -473,6 +473,14 @@ def _field_diffs(old, new, keys, semantic_specs=False):
 
 # --- JSON API: computers ---------------------------------------------------
 
+def _drives_from_api(db, computer, text):
+    """drives over the wire is what a person would type, ';'-separated, and is
+    parsed into rows the way the specs string is -- anything a segment does not
+    yield is kept verbatim in drives_note."""
+    drives, note = drivedb.from_string(text)
+    drivedb.write(db, computer, drives, note)
+
+
 def _ram_from_api(db, computer, text):
     """installed_ram over the wire is a plain amount ('640KB') or free text, never
     a module breakdown -- that has its own grids in the GUI. A caller sending one
@@ -490,10 +498,12 @@ def api_list_computers(db: Session = Depends(get_db)):
 def api_create_computer(data: ComputerIn, db: Session = Depends(get_db)):
     fields = data.model_dump()
     ram = fields.pop("installed_ram", "")
+    drives = fields.pop("drives", "")
     obj = Computer(asset_id=next_asset_id(db), **fields)
     db.add(obj)
     db.flush()
     _ram_from_api(db, obj, ram)
+    _drives_from_api(db, obj, drives)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     db.refresh(obj)
@@ -510,13 +520,17 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
     obj = get_or_404(db, Computer, aid)
     fields = data.model_dump(exclude_unset=True)
     ram = fields.pop("installed_ram", None)
-    old = {k: getattr(obj, k) for k in fields} | {"installed_ram": obj.installed_ram}
+    drives = fields.pop("drives", None)
+    derived = ("installed_ram", "drives")
+    old = {k: getattr(obj, k) for k in fields} | {k: getattr(obj, k) for k in derived}
     for k, v in fields.items():
         setattr(obj, k, v)
     if ram is not None:
         _ram_from_api(db, obj, ram)
-    new = {k: getattr(obj, k) for k in fields} | {"installed_ram": obj.installed_ram}
-    diff = _field_diffs(old, new, list(fields) + ["installed_ram"])
+    if drives is not None:
+        _drives_from_api(db, obj, drives)
+    new = {k: getattr(obj, k) for k in fields} | {k: getattr(obj, k) for k in derived}
+    diff = _field_diffs(old, new, list(fields) + list(derived))
     if diff:
         add_log(db, aid, diff)
     db.commit()
@@ -1015,15 +1029,37 @@ def _ram_from_form(form):
     return mods, chips, note, total_kb
 
 
+MAX_DRIVE_ROWS = 8
+
+
+def _drives_from_form(form):
+    """[drive dict] from the numbered drive rows, skipping the empty ones -- so
+    clearing a row's fields is how a drive is removed."""
+    out = []
+    for i in range(MAX_DRIVE_ROWS):
+        row = {k: (form.get(f"drive{i}_{k}", "") or "").strip()
+               for k in ("kind", "form_factor", "size", "model")}
+        if not any(row.values()):
+            continue
+        count = (form.get(f"drive{i}_count", "") or "").strip()
+        row["count"] = int(count) if count.isdigit() and int(count) > 0 else 1
+        out.append(row)
+    return out
+
+
 def _computer_form_ctx(c, title, db=None):
     mods, chips = ramdb.read(db, c) if (c is not None and db is not None) else ([], [])
     free = c.installed_ram_note if c else ""
     if c is not None and not (mods or chips) and not free and c.installed_ram_kb:
         free = entry.fmt_kb(c.installed_ram_kb)
+    drives = drivedb.read(db, c) if (c is not None and db is not None) else []
+    blanks = max(2, MAX_DRIVE_ROWS - len(drives))
     return {"c": c, "conditions": entry.CONDITIONS, "title": title,
             "ram_modules": entry.RAM_MODULES, "ram_mod_counts": dict(mods),
             "ram_chips": entry.RAM_CHIPS, "ram_counts": dict(chips),
-            "ram_free": free}
+            "ram_free": free, "drives": drives + [{}] * blanks,
+            "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
+            "drive_sizes": drivedb.SIZES}
 
 
 @app.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)
@@ -1037,6 +1073,7 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     data = {k: _coerce(k, form[k]) for k in COMPUTER_FIELDS if k in form}
     data.pop("installed_ram", None)
+    data.pop("drives", None)
     for f in ("manufacturer", "model"):
         if f in data:
             data[f] = entry.deshout(data[f])
@@ -1044,6 +1081,8 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     db.add(obj)
     db.flush()
     ramdb.write(db, obj, *_ram_from_form(form))
+    drivedb.write(db, obj, _drives_from_form(form),
+                  (form.get("drives_note", "") or "").strip())
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     # Land on the build walk so the next step (motherboard) is front and centre.
@@ -1106,7 +1145,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
     for k in COMPUTER_FIELDS:
         if k not in form:
             continue
-        if k in RAM_DERIVED:
+        if k in DERIVED_FIELDS:
             continue
         v = _coerce(k, form[k])
         if k in ("manufacturer", "model"):
@@ -1114,6 +1153,8 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
         setattr(c, k, v)
     mods, chips, note, total_kb = _ram_from_form(form)
     ramdb.write(db, c, mods, chips, note, total_kb)
+    drivedb.write(db, c, _drives_from_form(form),
+                  (form.get("drives_note", "") or "").strip())
     diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS},
                         COMPUTER_DIFF_FIELDS)
     if diff:
@@ -1469,8 +1510,11 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
             desc = (form.get("drive_desc", "") or "").strip() or kind
             if computer_id:
                 c = get_or_404(db, Computer, computer_id)
-                cur = (c.drives or "").strip()
-                c.drives = f"{cur}; {desc}" if cur else desc
+                # Append a row, not text: drives is rendered from the rows, so
+                # anything written straight to it would vanish on the next save.
+                rows = drivedb.read(db, c) + drivedb.from_string(desc)[0]
+                drivedb.write(db, c, rows)
+                add_log(db, computer_id, f"added drive: {desc}")
                 db.commit()
                 return RedirectResponse(f"/computers/{computer_id}?build=1",
                                         status_code=303)
