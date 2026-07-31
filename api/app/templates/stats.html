@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}The collection by numbers — Retro Hardware Database{% endblock %}
+{% block content %}
+
+{#
+  Figures, not charts, for most of this: single headline numbers belong in a tile,
+  and a one-bar bar chart is never the answer. The ranked lists are the exception --
+  comparing magnitude across a handful of names is what a bar is for -- and they use
+  one hue, because the job is magnitude, not identity. No legend: a single series is
+  named by its own heading.
+#}
+
+{% macro rank(title, caption, rows, unit='') %}
+  {% set top = (rows | map(attribute=1) | max) if rows else 1 %}
+  <div class="rank">
+    <h3>{{ title }}</h3>
+    <p class="cap">{{ caption }}</p>
+    <table>
+      {% for label, n in rows %}
+      <tr title="{{ label }}: {{ n }}{{ ' ' ~ unit if unit }}">
+        <td class="lbl">{{ label }}</td>
+        <td class="bar"><div class="track"><div class="fill"
+            style="width: {{ (100 * n / top) | round(1) }}%"></div></div></td>
+        <td class="num">{{ n }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endmacro %}
+
+<div class="hero">
+  <div class="n">{{ st.n_total }}</div>
+  <div class="of">things in the register — {{ st.n_computers }} machines and
+    {{ st.n_parts }} parts, {{ st.photos }} photographs between them</div>
+</div>
+
+<div class="tiles">
+  {% if st.top_maker %}
+  <div class="tile"><div class="k">Most represented maker</div>
+    <div class="v">{{ st.top_maker[0] }}</div>
+    <div class="s">{{ st.top_maker[1] }} parts</div></div>
+  {% endif %}
+  {% if st.top_type %}
+  <div class="tile"><div class="k">Most collected thing</div>
+    <div class="v">{{ type_label(st.top_type[0]) }}</div>
+    <div class="s">{{ st.top_type[1] }} of them</div></div>
+  {% endif %}
+  {% if st.mean_year %}
+  <div class="tile"><div class="k">The average item</div>
+    <div class="v">{{ st.mean_year }}</div>
+    <div class="s">{{ this_year - st.mean_year }} years old</div></div>
+  {% endif %}
+  {% if st.top_ram %}
+  <div class="tile"><div class="k">Usual amount of memory</div>
+    <div class="v">{{ st.top_ram | map(attribute=0) | join(' / ') }}</div>
+    <div class="s">{{ st.top_ram[0][1] }} machine{{ 's' if st.top_ram[0][1] != 1 }}
+      {{- ' each' if st.top_ram | length > 1 }}</div></div>
+  {% endif %}
+  <div class="tile"><div class="k">Memory fitted, everything added up</div>
+    <div class="v">{{ (st.fitted_kb / 1024) | round | int }} MB</div>
+    <div class="s">across every machine here</div></div>
+  <div class="tile"><div class="k">Storage, everything added up</div>
+    <div class="v">{{ (st.stored_kb / 1048576) | round(1) }} GB</div>
+    <div class="s">one modern phone's worth</div></div>
+  {% if st.slots_per_board %}
+  <div class="tile"><div class="k">Expansion slots</div>
+    <div class="v">{{ st.slots }}</div>
+    <div class="s">on {{ st.boards }} boards, {{ st.slots_per_board }} each</div></div>
+  {% endif %}
+  <div class="tile"><div class="k">Memory chips counted individually</div>
+    <div class="v">{{ st.chips }}</div>
+    <div class="s">soldered or socketed on a board</div></div>
+  <div class="tile"><div class="k">Drives fitted</div>
+    <div class="v">{{ st.drives }}</div>
+    <div class="s">{{ st.gotek }} of them a Gotek</div></div>
+  {% if st.working_pct is not none %}
+  <div class="tile"><div class="k">Still working</div>
+    <div class="v">{{ st.working_pct }}%</div>
+    <div class="s">{{ st.working }} of {{ st.n_parts }} parts</div></div>
+  {% endif %}
+  {% if st.oldest_year %}
+  <div class="tile"><div class="k">Oldest and newest</div>
+    <div class="v">{{ st.oldest_year }}–{{ st.newest_year }}</div>
+    <div class="s">{{ st.newest_year - st.oldest_year }} years apart</div></div>
+  {% endif %}
+  {% if st.fullest %}
+  <div class="tile"><div class="k">Best equipped machine</div>
+    <div class="v"><a href="/computers/{{ st.fullest[0].asset_id }}">{{
+      display_name({'name': st.fullest[0].name, 'manufacturer': st.fullest[0].manufacturer,
+                    'model': st.fullest[0].model, 'asset_id': st.fullest[0].asset_id}) }}</a></div>
+    <div class="s">{{ st.fullest[1] }} parts fitted</div></div>
+  {% endif %}
+  {% if st.oldest_held %}
+  <div class="tile"><div class="k">Longest in the collection</div>
+    <div class="v"><a href="/parts/{{ st.oldest_held.asset_id }}">{{
+      display_name({'name': st.oldest_held.name, 'manufacturer': st.oldest_held.manufacturer,
+                    'model': st.oldest_held.model, 'asset_id': st.oldest_held.asset_id}) }}</a></div>
+    <div class="s">since {{ st.oldest_held.acquired_date }}</div></div>
+  {% endif %}
+  {% if st.fitted_per_machine is not none %}
+  <div class="tile"><div class="k">Fitted in a machine</div>
+    <div class="v">{{ st.fitted }}</div>
+    <div class="s">{{ st.fitted_per_machine }} per machine on average</div></div>
+  {% endif %}
+  <div class="tile"><div class="k">Spares on the shelf</div>
+    <div class="v">{{ st.spares }}</div>
+    <div class="s">waiting for a home</div></div>
+  <div class="tile"><div class="k">No longer with us</div>
+    <div class="v">{{ st.disposed }}</div>
+    <div class="s">binned, sold or donated</div></div>
+</div>
+
+<div class="ranks">
+  {{ rank('Makers, by parts held', 'the eight best represented', st.makers, 'parts') }}
+  {{ rank('What the parts are', 'every category in the register', st.types_labelled,
+          'parts') }}
+  {{ rank('Expansion buses', 'slots counted across every board', st.buses, 'slots') }}
+  {{ rank('Ports', 'counted across every card and board', st.ports, 'ports') }}
+  {{ rank('Condition', 'as recorded, parts only', st.conditions, 'parts') }}
+</div>
+
+<p class="hint">Counted live from the catalogue. Quantities come from typed columns
+rather than being read back out of text, so a figure here is the same figure the
+database sorts on.</p>
+{% endblock %}

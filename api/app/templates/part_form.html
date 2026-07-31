@@ -216,8 +216,11 @@ until you submit.</p>
     function narrow() {
       if (!models) return;
       const m = norm(make.value);
-      const forMake = known.filter(k => !m || norm(k.m) === m).map(k => k.d);
-      const list = [...new Set(forMake.length ? forMake : known.map(k => k.d))].sort();
+      // With no maker chosen, offer every model. With one chosen, offer only its
+      // models -- including none, when it is a maker nothing is recorded under:
+      // suggesting another maker's models would be worse than suggesting nothing.
+      const forMake = m ? known.filter(k => norm(k.m) === m) : known;
+      const list = [...new Set(forMake.map(k => k.d))].sort();
       models.innerHTML = list.map(d => `<option value="${d.replace(/"/g, '&quot;')}">`).join('');
     }
 

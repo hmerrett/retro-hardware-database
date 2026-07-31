@@ -32,7 +32,8 @@ from sqlalchemy.orm import Session
 from . import drivedb, enrich, entry, labels, ramdb, specdb, specstruct
 from .db import get_db
 from .ids import next_asset_id
-from .models import Computer, LogEntry, Part
+from .models import (Computer, ComputerDrive, ComputerRamChip, LogEntry, Part,
+                     PartPort, PartSlot, StorageSpec)
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
 import contextlib
 
@@ -145,7 +146,7 @@ def _is_public_read(request: Request) -> bool:
     if request.method != "GET":
         return False
     path = request.url.path
-    if path in ("/", "/robots.txt", "/sitemap.xml", "/favicon.ico",
+    if path in ("/", "/stats", "/robots.txt", "/sitemap.xml", "/favicon.ico",
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
         return True
     if path.startswith(("/images/", "/static/")):
@@ -234,8 +235,8 @@ IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 STATS_DIR = Path(os.getenv("RHDB_STATS_DIR", "/app/stats"))
 
 
-@app.get("/stats", response_class=HTMLResponse, include_in_schema=False)
-def gui_stats():
+@app.get("/traffic", response_class=HTMLResponse, include_in_schema=False)
+def gui_traffic():
     report = STATS_DIR / "index.html"
     if not report.exists():
         return HTMLResponse(
@@ -243,6 +244,101 @@ def gui_stats():
             "&mdash; it is generated from the access log every minute, so check "
             "back shortly.</p>")
     return HTMLResponse(report.read_text(encoding="utf-8"))
+
+
+def _collection_stats(db):
+    """Figures about the collection for the public /stats page. Everything here is
+    counted from the typed columns and child tables rather than parsed out of
+    strings, which is the whole point of their being typed."""
+    n_computers = db.query(func.count(Computer.asset_id)).scalar() or 0
+    n_parts = db.query(func.count(Part.asset_id)).scalar() or 0
+
+    def ranked(query, limit=None):
+        rows = [(k, n) for k, n in query if (k or "").strip()]
+        rows.sort(key=lambda r: (-r[1], r[0]))
+        return rows[:limit] if limit else rows
+
+    makers = ranked(db.query(Part.manufacturer, func.count(Part.asset_id))
+                    .group_by(Part.manufacturer), 8)
+    types = ranked(db.query(Part.type, func.count(Part.asset_id))
+                   .group_by(Part.type))
+    buses = ranked(db.query(PartSlot.bus, func.sum(PartSlot.count))
+                   .group_by(PartSlot.bus), 6)
+    ports = ranked(db.query(PartPort.port, func.sum(PartPort.count))
+                   .group_by(PartPort.port), 6)
+    conditions = ranked(db.query(Part.condition, func.count(Part.asset_id))
+                        .group_by(Part.condition))
+
+    years = [y for (y,) in db.query(Computer.year).filter(Computer.year.isnot(None))]
+    years += [y for (y,) in db.query(Part.year).filter(Part.year.isnot(None))]
+    ram = [kb for (kb,) in db.query(Computer.installed_ram_kb)
+           .filter(Computer.installed_ram_kb.isnot(None))]
+    common_ram = ranked([(entry.fmt_kb(kb), ram.count(kb)) for kb in set(ram)], 3)
+    top_ram = [r for r in common_ram if r[1] == common_ram[0][1]] if common_ram else []
+
+    fitted_kb = sum(ram)
+    stored_kb = db.query(func.sum(StorageSpec.capacity_kb)).scalar() or 0
+    slots = db.query(func.sum(PartSlot.count)).scalar() or 0
+    boards = db.query(func.count(func.distinct(PartSlot.part_id))).scalar() or 0
+    chips = db.query(func.sum(ComputerRamChip.count)).scalar() or 0
+    drives = db.query(func.sum(ComputerDrive.count)).scalar() or 0
+    gotek = db.query(func.count(ComputerDrive.id)).filter(
+        ComputerDrive.kind == "Gotek").scalar() or 0
+    working = db.query(func.count(Part.asset_id)).filter(
+        Part.condition == "Working").scalar() or 0
+    disposed = ((db.query(func.count(Part.asset_id)).filter(Part.disposed).scalar() or 0)
+                + (db.query(func.count(Computer.asset_id))
+                   .filter(Computer.disposed).scalar() or 0))
+
+    fullest = (db.query(Part.computer_id, func.count(Part.asset_id))
+               .filter(Part.computer_id.isnot(None))
+               .group_by(Part.computer_id)
+               .order_by(func.count(Part.asset_id).desc()).first())
+    fullest_machine = db.get(Computer, fullest[0]) if fullest else None
+
+    oldest_held = (db.query(Part).filter(Part.acquired_date.isnot(None))
+                   .order_by(Part.acquired_date).first())
+    photos = sum(len(folder_images(k)) for k in ("computers", "parts"))
+    # Most parts are spares on a shelf, so "parts per machine" over the whole
+    # register would say 19 and mean nothing. Only the fitted ones divide.
+    fitted = db.query(func.count(Part.asset_id)).filter(
+        Part.computer_id.isnot(None)).scalar() or 0
+
+    return {
+        "n_computers": n_computers, "n_parts": n_parts,
+        "n_total": n_computers + n_parts,
+        "makers": makers, "types": types, "buses": buses, "ports": ports,
+        "types_labelled": [(entry.type_label(t), n) for t, n in types],
+        "conditions": conditions,
+        "top_maker": makers[0] if makers else None,
+        "top_type": types[0] if types else None,
+        "top_ram": top_ram,
+        "mean_year": round(sum(years) / len(years)) if years else None,
+        "oldest_year": min(years) if years else None,
+        "newest_year": max(years) if years else None,
+        "fitted_kb": fitted_kb, "stored_kb": stored_kb,
+        "slots": slots, "boards": boards, "chips": chips,
+        "drives": drives, "gotek": gotek,
+        "working": working, "disposed": disposed, "photos": photos,
+        "fullest": (fullest_machine, fullest[1]) if fullest_machine else None,
+        "oldest_held": oldest_held,
+        "fitted": fitted, "spares": n_parts - fitted,
+        # Guarded because an empty register is a real state -- a fresh install --
+        # and a stats page that divides by zero on day one is no use to anyone.
+        "fitted_per_machine": (round(fitted / n_computers, 1) if n_computers else None),
+        "working_pct": (round(100 * working / n_parts) if n_parts else None),
+        "slots_per_board": (round(slots / boards, 1) if boards else None),
+    }
+
+
+@app.get("/stats", response_class=HTMLResponse, include_in_schema=False)
+def gui_stats(request: Request, db: Session = Depends(get_db)):
+    st = _collection_stats(db)
+    blurb = (f"{st['n_total']} things in the register: {st['n_computers']} machines "
+             f"and {st['n_parts']} parts, averaging {st['mean_year']}.")
+    return templates.TemplateResponse(request, "stats.html", {
+        "st": st, "this_year": date.today().year,
+        "og": _og(request, "The collection by numbers", blurb)})
 
 
 @app.get("/robots.txt", include_in_schema=False)
@@ -256,7 +352,7 @@ def robots_txt(request: Request):
         "Disallow: /openapi.json\n"
         "Disallow: /login\n"
         "Disallow: /logout\n"
-        "Disallow: /stats\n"
+        "Disallow: /traffic\n"
         "Disallow: /computers/new\n"
         "Disallow: /parts/new\n"
         "Disallow: /*/edit\n"
@@ -270,7 +366,7 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     # Newest change per asset, for <lastmod>.
     last = dict(db.query(
         LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id))
-    urls = [(f"{base}/", None)]
+    urls = [(f"{base}/", None), (f"{base}/stats", None)]
     for c in db.query(Computer.asset_id).order_by(Computer.asset_id):
         urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
     for p in db.query(Part.asset_id).order_by(Part.asset_id):

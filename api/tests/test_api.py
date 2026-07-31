@@ -621,3 +621,62 @@ class TestStartingFromAnExistingPart:
         src = part(type="video", manufacturer="Tseng", model="ET4000")
         page = client.get(f"/parts/new?from={src['asset_id']}&computer_id={cid}").text
         assert f'name="computer_id" value="{cid}"' in page
+
+
+class TestTheNumbersPage:
+    """A public page of figures about the collection.
+
+    Everything is counted from typed columns and child tables, so the page cannot
+    disagree with what the database sorts on.
+    """
+
+    def test_it_is_public(self, client, computer):
+        computer()
+        assert client.get("/stats").status_code == 200
+
+    def test_it_renders_with_nothing_in_the_register(self, client):
+        """A fresh install is a real state, and several figures are ratios: the
+        page must not divide by zero on day one."""
+        r = client.get("/stats")
+        assert r.status_code == 200
+        assert '<div class="n">0</div>' in r.text
+
+    def test_the_headline_counts_everything(self, client, computer, part):
+        computer()
+        computer()
+        part()
+        page = client.get("/stats").text
+        assert '<div class="n">3</div>' in page
+        assert "2 machines and 1 parts" in page
+
+    def test_the_top_maker_is_the_one_with_most_parts(self, client, part):
+        for i in range(3):
+            part(manufacturer="IBM", model=f"x{i}")
+        part(manufacturer="Amstrad", model="y")
+        page = client.get("/stats").text
+        assert "Most represented maker" in page and "IBM" in page
+
+    def test_bars_are_scaled_to_the_largest_value(self, client, part):
+        for i in range(4):
+            part(type="video", manufacturer="Tseng", model=f"ET400{i}")
+        part(type="sound", manufacturer="Creative", model="CT2830")
+        page = client.get("/stats").text
+        assert "width: 100.0%" in page
+        assert "width: 25.0%" in page
+
+    def test_memory_totals_come_from_the_typed_column(self, client, computer):
+        aid = computer()["asset_id"]
+        client.patch(f"/api/computers/{aid}", json={"installed_ram": "8MB"})
+        assert "8 MB" in client.get("/stats").text
+
+    def test_the_traffic_report_is_still_private(self, client, monkeypatch):
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        r = client.get("/traffic", follow_redirects=False)
+        assert r.status_code == 303 and "/login" in r.headers["location"]
+
+    def test_it_is_offered_to_search_engines(self, client):
+        assert "/stats</loc>" in client.get("/sitemap.xml").text
+        robots = client.get("/robots.txt").text
+        assert "Disallow: /traffic" in robots
+        assert "Disallow: /stats" not in robots

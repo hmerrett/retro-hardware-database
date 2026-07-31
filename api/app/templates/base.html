@@ -43,11 +43,13 @@
     color-scheme: light dark;
     --bg: #ffffff; --fg: #1a1c20; --line: #e3e6eb; --muted: #6b7280; --accent: #2563eb;
     --btn: #00000010; --btn-hover: #00000020; --chip: #00000010;
+    --fill: #2563eb; --track: #2563eb1f;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
       --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
       --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16;
+      --fill: #1b81ff; --track: #1b81ff2b;
     }
   }
   :root[data-theme="light"] { color-scheme: light; }
@@ -55,6 +57,7 @@
     color-scheme: dark;
     --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
     --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16;
+    --fill: #1b81ff; --track: #1b81ff2b;
   }
   * { box-sizing: border-box; }
   /* Form controls don't inherit font-family by default, so they'd fall back to
@@ -89,6 +92,30 @@
   .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
   .checks input { width: auto; }
   .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
+     text wears an ink token. */
+  .hero { margin: 18px 0 6px; }
+  .hero .n { font-size: 54px; line-height: 1; font-weight: 600; letter-spacing: -1px; }
+  .hero .of { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+    gap: 10px; margin: 16px 0 26px; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+  .tile .k { color: var(--muted); font-size: 12px; }
+  .tile .v { font-size: 21px; font-weight: 600; margin-top: 3px; }
+  .tile .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+    gap: 22px 34px; margin-bottom: 24px; }
+  .rank h3 { font-size: 14px; margin: 0 0 2px; }
+  .rank .cap { color: var(--muted); font-size: 12px; margin: 0 0 9px; }
+  .rank table { border-collapse: separate; border-spacing: 0 2px; }
+  .rank td { border: 0; padding: 0 8px 0 0; vertical-align: middle; font-size: 13px; }
+  .rank td.lbl { white-space: nowrap; color: var(--fg); }
+  .rank td.bar { width: 100%; }
+  .rank td.num { text-align: right; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .rank .track { background: var(--track); border-radius: 0 3px 3px 0; height: 14px; }
+  .rank .fill { background: var(--fill); height: 14px; border-radius: 0 4px 4px 0;
+    min-width: 3px; }
   .muted { color: var(--muted); }
   .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
   .banner { background: #b4530022; border: 1px solid #b45300aa; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
@@ -175,12 +202,13 @@
 <body>
 <header>
   <a class="brand" href="/">Retro Hardware Database</a>
+  <a href="/stats">numbers</a>
   <a href="/docs">API docs</a>
   <span style="margin-left:auto"></span>
   <button id="theme-toggle" class="btn sm" type="button" title="Toggle light / dark">☾</button>
   {% if auth_enabled %}
   {% if request.state.authed %}
-  <a class="btn sm" href="/stats">stats</a>
+  <a class="btn sm" href="/traffic">traffic</a>
   <form method="post" action="/logout" style="margin:0"><button class="btn sm" type="submit">log out</button></form>
   {% else %}
   <a class="btn sm" href="/login">log in</a>
