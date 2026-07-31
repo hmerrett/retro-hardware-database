@@ -16,6 +16,29 @@ temporary dump to its own disk, so it cannot fill up.
 | the photos | `rsync` from the docker volume | 260 MB that barely changes, so only new files cross the wire |
 | `.env` | `cat` over SSH, optional | a backup you cannot restore *with* is half a backup; the repository is encrypted |
 
+## Where the backup lives
+
+`BACKUP_DIR` in `.env`. Two directories are created under it:
+
+```
+$BACKUP_DIR/repo    the restic repository -- this is the backup
+$BACKUP_DIR/stage   a mirror of the server, so each night transfers only changes
+```
+
+A NAS path works directly (`/mnt/nas/backup/rhdb`, a Synology shared folder, an
+NFS or SMB mount). Two options if you want them apart:
+
+- `STAGE_DIR` puts the working mirror on local disk while the repository stays on
+  the NAS. Faster, and it halves what the NAS holds -- the mirror is rebuildable,
+  so losing it costs one slow night and no history.
+- `RESTIC_REPOSITORY=sftp:admin@nas:/volume1/backup/rhdb` skips the mount and lets
+  restic talk to the NAS itself. Useful if the NAS is awkward to mount, or you
+  would rather not hand a mount write access to a whole directory tree.
+
+Photos are synced with `-rlt` rather than `-a`, deliberately: their contents and
+timestamps matter, their ownership does not, and an SMB mount cannot store
+ownership at all -- with `-a`, rsync fails there.
+
 ## Setting it up
 
 On the machine that will hold the backup:

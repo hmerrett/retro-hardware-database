@@ -56,8 +56,17 @@ collect() {
     say "database: $(wc -c < "$STAGE/db.sql") bytes"
 
     say "syncing photos"
-    rsync -a --delete --info=stats2 -e "$SSH" \
-        "$RHDB_HOST:$RHDB_IMAGES/" "$STAGE/images/" | grep -E "Number of|Total" || true
+    # -rlt rather than -a: photos need their contents and timestamps, not their
+    # ownership, and a NAS mounted over SMB cannot store ownership at all -- with
+    # -a rsync fails there. Timestamps matter because both rsync and restic use
+    # them to decide what has changed.
+    if ! rsync_out=$(rsync -rlt --delete --info=stats2 -e "$SSH" \
+            "$RHDB_HOST:$RHDB_IMAGES/" "$STAGE/images/" 2>&1); then
+        say "photo sync failed:"
+        echo "$rsync_out" | tail -5
+        return 1
+    fi
+    echo "$rsync_out" | grep -E "Number of|Total" || true
 
     if [ "$INCLUDE_ENV" = "1" ]; then
         # Credentials are configuration, not data, but a backup you cannot

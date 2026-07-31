@@ -18,14 +18,19 @@ services:
       KEEP_WEEKLY: ${KEEP_WEEKLY:-5}
       KEEP_MONTHLY: ${KEEP_MONTHLY:-12}
       KEEP_YEARLY: ${KEEP_YEARLY:-3}
-      RESTIC_REPOSITORY: /repo
+      # /repo is the mounted directory below. Point this at sftp:user@nas:/path or
+      # s3:... instead if you would rather restic talk to the NAS directly than go
+      # through a mount -- everything else works the same.
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:-/repo}
       RESTIC_PASSWORD_FILE: /run/secrets/restic-password
       STAGE: /stage
     volumes:
-      # The backup itself. Point the left-hand side at wherever you keep data.
+      # The backup itself: put this on the NAS.
       - ${BACKUP_DIR:-./data}/repo:/repo
-      # A mirror of the server, so each night only transfers what changed.
-      - ${BACKUP_DIR:-./data}/stage:/stage
+      # A mirror of the server, so each night only transfers what changed. It can
+      # live on local disk even when the repository is on the NAS -- losing it
+      # costs one slow night, not any history.
+      - ${STAGE_DIR:-${BACKUP_DIR:-./data}/stage}:/stage
       # Read-only: the key that reaches the server, and the repository password.
       - ${SSH_KEY:-./secrets/id_ed25519}:/root/.ssh/id_ed25519:ro
       - ${RESTIC_PASSWORD_FILE:-./secrets/restic-password}:/run/secrets/restic-password:ro
