@@ -27,7 +27,9 @@ KEEP_WEEKLY="${KEEP_WEEKLY:-5}"
 KEEP_MONTHLY="${KEEP_MONTHLY:-12}"
 KEEP_YEARLY="${KEEP_YEARLY:-3}"
 
-SSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new"
+# ConnectTimeout matters: without it an unreachable server leaves the run hanging
+# on a TCP timeout, and the scheduler behind it never gets to try again.
+SSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15"
 
 say() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -109,24 +111,52 @@ run_once() {
     restic snapshots --tag rhdb --latest 3 --compact 2>/dev/null || true
 }
 
+# Each check stops the run, because `cmd && say "ok"` does not: a failure on the
+# left of && does not trip `set -e`, so this used to report every SSH probe
+# failing and then say "all checks passed" with exit 0.
+fail() {
+    say "  FAILED: $1"
+    exit 1
+}
+
 self_check() {
-    say "checking the SSH connection"
-    $SSH "$RHDB_HOST" true && say "  reachable"
-    say "checking the repository directory and .env"
-    $SSH "$RHDB_HOST" "test -f $RHDB_DIR/.env" && say "  $RHDB_DIR/.env found"
+    say "checking the SSH connection to $RHDB_HOST"
+    $SSH "$RHDB_HOST" true 2>&1 || fail "cannot reach it. Is the public key in that \
+host's ~/.ssh/authorized_keys, and is RHDB_HOST right?"
+    say "  reachable"
+
+    say "checking the repository directory"
+    $SSH "$RHDB_HOST" "test -f $RHDB_DIR/.env" \
+        || fail "no $RHDB_DIR/.env on the server. Set RHDB_DIR to where the repo is."
+    say "  $RHDB_DIR/.env found"
+
     say "checking the photo volume"
     $SSH "$RHDB_HOST" "test -d $RHDB_IMAGES" \
-        && say "  $RHDB_IMAGES found ($($SSH "$RHDB_HOST" "du -sh $RHDB_IMAGES | cut -f1"))"
+        || fail "no $RHDB_IMAGES on the server. Check RHDB_IMAGES, or the volume name."
+    size=$($SSH "$RHDB_HOST" "du -sh $RHDB_IMAGES | cut -f1")
+    say "  $RHDB_IMAGES found ($size)"
+
     say "checking the database dump"
-    remote_dump | head -c 200 | grep -q "MariaDB dump" && say "  dump works"
+    remote_dump 2>/dev/null | head -c 200 | grep -q "MariaDB dump" \
+        || fail "the dump produced nothing usable. Can that user run docker compose \
+in $RHDB_DIR?"
+    say "  dump works"
+
+    say "checking where the backup will be written"
+    touch "$STAGE/.writable" 2>/dev/null \
+        || fail "$STAGE is not writable. Check the mount, and that the NAS share is up."
+    rm -f "$STAGE/.writable"
+    say "  $STAGE is writable"
+
     say "checking the restic repository"
     if restic cat config >/dev/null 2>&1; then
-        say "  repository present, $(restic snapshots --tag rhdb --json 2>/dev/null | grep -c '"time"') snapshot(s)"
+        say "  repository present at $RESTIC_REPOSITORY"
     else
-        say "  no repository yet; the first run will create it"
+        say "  none at $RESTIC_REPOSITORY yet; the first run will create it"
     fi
     say "all checks passed"
 }
+
 
 # Wall-clock arithmetic rather than `date -d "tomorrow .."`: that is a GNU
 # extension and this runs on busybox. Leading zeros are stripped because the

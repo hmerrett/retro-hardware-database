@@ -41,6 +41,34 @@ ownership at all -- with `-a`, rsync fails there.
 
 ## Setting it up
 
+Needs Docker **with the Compose plugin** — `docker compose version` should print a
+version. If `docker` lists no `compose` command, the plugin is missing:
+
+```sh
+apt install docker-compose-plugin     # Docker's own apt repository
+apt install docker-compose-v2         # Debian/Ubuntu's packaging of the same thing
+```
+
+Everything below also works without Compose, if you would rather not install it:
+
+```sh
+docker build -t rhdb-backup .
+set -a; . ./.env; set +a
+docker run --rm \
+  -e RHDB_HOST -e RHDB_DIR -e RHDB_IMAGES -e BACKUP_AT -e TZ -e INCLUDE_ENV \
+  -e KEEP_DAILY -e KEEP_WEEKLY -e KEEP_MONTHLY -e KEEP_YEARLY \
+  -e RESTIC_REPOSITORY=/repo -e RESTIC_PASSWORD_FILE=/run/secrets/restic-password \
+  -e STAGE=/stage \
+  -v "$BACKUP_DIR/repo:/repo" \
+  -v "${STAGE_DIR:-$BACKUP_DIR/stage}:/stage" \
+  -v "$PWD/secrets/id_ed25519:/root/.ssh/id_ed25519:ro" \
+  -v "$PWD/secrets/restic-password:/run/secrets/restic-password:ro" \
+  rhdb-backup check
+```
+
+Swap `check` for `once` to run a backup, or drop `--rm` for `-d --restart
+unless-stopped` with no argument to leave it running nightly.
+
 On the machine that will hold the backup:
 
 ```sh
