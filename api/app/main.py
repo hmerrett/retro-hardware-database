@@ -146,7 +146,8 @@ def _is_public_read(request: Request) -> bool:
     if request.method != "GET":
         return False
     path = request.url.path
-    if path in ("/", "/stats", "/robots.txt", "/sitemap.xml", "/favicon.ico",
+    if path in ("/", "/stats", "/browse", "/robots.txt", "/sitemap.xml",
+                "/favicon.ico",
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
         return True
     if path.startswith(("/images/", "/static/")):
@@ -246,15 +247,26 @@ def gui_traffic():
     return HTMLResponse(report.read_text(encoding="utf-8"))
 
 
+def _all_years(db):
+    """Every year recorded against anything, machines and parts together."""
+    years = [y for (y,) in db.query(Computer.year).filter(Computer.year.isnot(None))]
+    return years + [y for (y,) in db.query(Part.year).filter(Part.year.isnot(None))]
+
+
 def _collection_stats(db):
     """Figures about the collection for the public /stats page. Everything here is
     counted from the typed columns and child tables rather than parsed out of
-    strings, which is the whole point of their being typed."""
+    strings, which is the whole point of their being typed.
+
+    The ranked lists carry three fields per row -- label, count, and the value to
+    query on -- so that a bar on the page can link to the items behind it. Usually
+    the label is the value; for part types the label is prettified and the raw type
+    key is what /browse needs."""
     n_computers = db.query(func.count(Computer.asset_id)).scalar() or 0
     n_parts = db.query(func.count(Part.asset_id)).scalar() or 0
 
     def ranked(query, limit=None):
-        rows = [(k, n) for k, n in query if (k or "").strip()]
+        rows = [(k, n, k) for k, n in query if (k or "").strip()]
         rows.sort(key=lambda r: (-r[1], r[0]))
         return rows[:limit] if limit else rows
 
@@ -269,12 +281,14 @@ def _collection_stats(db):
     conditions = ranked(db.query(Part.condition, func.count(Part.asset_id))
                         .group_by(Part.condition))
 
-    years = [y for (y,) in db.query(Computer.year).filter(Computer.year.isnot(None))]
-    years += [y for (y,) in db.query(Part.year).filter(Part.year.isnot(None))]
+    years = _all_years(db)
     ram = [kb for (kb,) in db.query(Computer.installed_ram_kb)
            .filter(Computer.installed_ram_kb.isnot(None))]
-    common_ram = ranked([(entry.fmt_kb(kb), ram.count(kb)) for kb in set(ram)], 3)
-    top_ram = [r for r in common_ram if r[1] == common_ram[0][1]] if common_ram else []
+    common_ram = sorted(((entry.fmt_kb(kb), ram.count(kb), kb) for kb in set(ram)),
+                        key=lambda r: (-r[1], r[0]))
+    # Ties share the honour: two sizes fitted to three machines each are both "the
+    # usual amount". Sorted by count, so the ties are the rows at the front.
+    top_ram = [r for r in common_ram if r[1] == common_ram[0][1]][:3] if common_ram else []
 
     fitted_kb = sum(ram)
     stored_kb = db.query(func.sum(StorageSpec.capacity_kb)).scalar() or 0
@@ -308,11 +322,11 @@ def _collection_stats(db):
         "n_computers": n_computers, "n_parts": n_parts,
         "n_total": n_computers + n_parts,
         "makers": makers, "types": types, "buses": buses, "ports": ports,
-        "types_labelled": [(entry.type_label(t), n) for t, n in types],
+        "types_labelled": [(entry.type_label(t), n, t) for t, n, _ in types],
         "conditions": conditions,
         "top_maker": makers[0] if makers else None,
         "top_type": types[0] if types else None,
-        "top_ram": top_ram,
+        "top_ram": top_ram, "top_ram_kb": [r[2] for r in top_ram],
         "mean_year": round(sum(years) / len(years)) if years else None,
         "oldest_year": min(years) if years else None,
         "newest_year": max(years) if years else None,
@@ -353,6 +367,8 @@ def robots_txt(request: Request):
         "Disallow: /login\n"
         "Disallow: /logout\n"
         "Disallow: /traffic\n"
+        # Filtered slices of the gallery: the items in them are indexed already.
+        "Disallow: /browse\n"
         "Disallow: /computers/new\n"
         "Disallow: /parts/new\n"
         "Disallow: /*/edit\n"
@@ -1052,8 +1068,9 @@ def gui_item(aid: str, db: Session = Depends(get_db)):
 
 # --- GUI: index ------------------------------------------------------------
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def gui_index(request: Request, db: Session = Depends(get_db)):
+def _catalogue_rows(db):
+    """Every computer and part as one list of card rows. The gallery and /browse
+    render the same grid from this; they differ only in which rows survive."""
     computers = db.query(Computer).order_by(Computer.asset_id).all()
     parts = db.query(Part).order_by(Part.asset_id).all()
     counts = {}
@@ -1127,15 +1144,166 @@ def gui_index(request: Request, db: Session = Depends(get_db)):
                                  p.model or "", p.specs or "", p.type or "",
                                  entry.type_label(ptype)]).lower(),
         })
-    cats = [("computer", "Computers")]
-    present = {p.type or "other" for p in parts}
+    return rows
+
+
+def _cats_for(rows):
+    """Options for the toolbar's category menu: only the kinds actually present, so
+    a filtered page does not offer to filter down to nothing."""
+    cats = [("computer", "Computers")] if any(r["kind"] == "computer" for r in rows) else []
+    present = {r["cat"] for r in rows if r["kind"] == "part"}
     for t in sorted(present, key=entry.type_sort_key):
         cats.append((t, entry.type_label(t)))
+    return cats
+
+
+def _grid_page(request, rows, **extra):
+    """Render the card grid. Counts come from the rows on the page rather than from
+    the register, so a filtered view describes itself honestly."""
+    n_computers = sum(1 for r in rows if r["kind"] == "computer")
     return templates.TemplateResponse(request, "index.html", {
-        "rows": rows, "cats": cats,
-        "n_computers": len(computers), "n_parts": len(parts),
-        "og": _og(request, "Retro Hardware Database",
-                  f"{len(computers)} computers and {len(parts)} parts in the collection.")})
+        "rows": rows, "cats": _cats_for(rows),
+        "n_computers": n_computers, "n_parts": len(rows) - n_computers, **extra})
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def gui_index(request: Request, db: Session = Depends(get_db)):
+    rows = _catalogue_rows(db)
+    n_computers = sum(1 for r in rows if r["kind"] == "computer")
+    return _grid_page(
+        request, rows,
+        og=_og(request, "Retro Hardware Database",
+               f"{n_computers} computers and {len(rows) - n_computers} parts "
+               "in the collection."))
+
+
+# --- GUI: browse, the items behind a figure on /stats -----------------------
+
+def _tagged(query):
+    """A row test for the asset ids a single-column query returns. Asset ids are
+    unique across the whole register, so the kind needs no separate check."""
+    ids = {aid for (aid,) in query}
+    return lambda r: r["obj"].asset_id in ids
+
+
+def _browse_view(db, key: str, val: str):
+    """What /browse?f=<key> means: a heading, a line saying what is on the page, an
+    optional link back to the thing it is about, and a test each catalogue row
+    passes or fails.
+
+    There is one entry per figure on /stats, which is the point: every number there
+    is clickable and lands here on exactly the items it counted. Where a figure adds
+    up quantities rather than counting assets -- slots, chips, drives -- the note
+    says whose they are, because the count on this page is of items, not of slots.
+    Returns None for an unknown view, which the caller turns into a 404."""
+    if key == "all":
+        return ("Everything in the register", "computers and parts together",
+                None, lambda r: True)
+    if key == "computers":
+        return ("Computers", "every whole machine in the register", None,
+                lambda r: r["kind"] == "computer")
+    if key == "parts":
+        return ("Parts", "everything tagged in its own right rather than as a machine",
+                None, lambda r: r["kind"] == "part")
+    if key == "photos":
+        return ("Photographed", "items with at least one photograph on file", None,
+                lambda r: bool(r["image"]))
+    if key == "maker":
+        return (f"Parts made by {val}", "as recorded in the maker field", None,
+                lambda r: r["kind"] == "part" and (r["obj"].manufacturer or "") == val)
+    if key == "type":
+        return (entry.type_label(val), "every one of them in the register", None,
+                lambda r: r["kind"] == "part" and r["cat"] == val)
+    if key == "condition":
+        return (f"Parts recorded as {val}", "condition as it was last checked", None,
+                lambda r: r["kind"] == "part" and (r["obj"].condition or "") == val)
+    if key == "year":
+        return ("Items with a year", "what the average year is worked out from", None,
+                lambda r: bool(r["obj"].year))
+    if key == "extremes":
+        years = _all_years(db)
+        ends = {min(years), max(years)} if years else set()
+        return ("The oldest and the newest", "the two ends of the range", None,
+                lambda r: r["obj"].year in ends)
+    if key == "ram":
+        sizes = sorted({int(x) for x in val.split(",") if x.strip().isdigit()})
+        return (("Machines with " + " or ".join(entry.fmt_kb(kb) for kb in sizes)
+                 + " fitted") if sizes else "Machines by memory fitted",
+                "read from the typed memory column, not from the text", None,
+                lambda r: r["kind"] == "computer" and r["obj"].installed_ram_kb in sizes)
+    if key == "ramfitted":
+        return ("Machines with their memory recorded",
+                "the machines the memory total is added up from", None,
+                lambda r: r["kind"] == "computer"
+                and r["obj"].installed_ram_kb is not None)
+    if key == "storage":
+        return ("Storage with a capacity recorded",
+                "the parts the storage total is added up from", None,
+                _tagged(db.query(StorageSpec.part_id)
+                        .filter(StorageSpec.capacity_kb.isnot(None))))
+    if key == "slots":
+        return ("Boards with expansion slots", "the boards those slots are on", None,
+                _tagged(db.query(PartSlot.part_id).distinct()))
+    if key == "bus":
+        return (f"Boards with {val} slots", "the boards those slots are on", None,
+                _tagged(db.query(PartSlot.part_id).filter(PartSlot.bus == val)))
+    if key == "port":
+        return (f"Fitted with a {val} port", "the cards and boards those ports are on",
+                None, _tagged(db.query(PartPort.part_id).filter(PartPort.port == val)))
+    if key == "chips":
+        return ("Machines with memory chips on the board",
+                "the machines those chips are soldered or socketed into", None,
+                _tagged(db.query(ComputerRamChip.computer_id).distinct()))
+    if key == "drives":
+        return ("Machines with a drive fitted", "the machines those drives are in",
+                None, _tagged(db.query(ComputerDrive.computer_id).distinct()))
+    if key == "gotek":
+        return ("Machines with a Gotek", "a floppy emulator standing in for a drive",
+                None, _tagged(db.query(ComputerDrive.computer_id)
+                              .filter(ComputerDrive.kind == "Gotek").distinct()))
+    if key == "fitted":
+        return ("Parts fitted in a machine", "installed rather than sitting on a shelf",
+                None, lambda r: r["kind"] == "part" and bool(r["obj"].computer_id))
+    if key == "spares":
+        return ("Spares on the shelf", "parts not fitted in anything", None,
+                lambda r: r["kind"] == "part" and not r["obj"].computer_id)
+    if key == "disposed":
+        return ("No longer in the collection", "binned, sold or donated", None,
+                lambda r: bool(r["obj"].disposed))
+    if key == "held":
+        return ("Items with an acquisition date",
+                "when each of these arrived, as recorded", None,
+                lambda r: r["obj"].acquired_date is not None)
+    if key == "in":
+        machine = db.get(Computer, (val or "").upper())
+        if machine is None:
+            return None
+        name = entry.display_name(to_dict(machine))
+        return (f"Parts fitted in {name}", "everything installed in this machine",
+                (f"/computers/{machine.asset_id}", name),
+                lambda r: r["kind"] == "part"
+                and r["obj"].computer_id == machine.asset_id)
+    return None
+
+
+@app.get("/browse", response_class=HTMLResponse, include_in_schema=False)
+def gui_browse(request: Request, f: str = "", v: str = "",
+               db: Session = Depends(get_db)):
+    """The items behind one figure on /stats, in the same grid as the gallery."""
+    view = _browse_view(db, f, v)
+    if view is None:
+        raise HTTPException(404, f"no such view: {f or '(none)'}")
+    heading, note, crumb, keep = view
+    rows = [r for r in _catalogue_rows(db) if keep(r)]
+    return _grid_page(
+        request, rows, heading=heading, note=note, crumb=crumb,
+        # The figures on /stats count disposed items too, so this page has to show
+        # them by default or it would seem to contradict the number clicked on.
+        show_disposed=True,
+        page_title=f"{heading} — Retro Hardware Database",
+        # A filtered slice of the gallery is not a page search engines want; the
+        # items themselves are already indexed one by one.
+        noindex=True, og=_og(request, heading, note))
 
 
 # --- GUI: computers --------------------------------------------------------

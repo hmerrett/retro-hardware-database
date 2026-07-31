@@ -4,6 +4,7 @@ Weighted towards the things that have actually broken: typed columns rejecting o
 silently eating form input, a select with no option for the value it holds, links
 left pointing at deleted rows, and derived strings being written to directly.
 """
+import re
 from datetime import date
 
 
@@ -639,15 +640,15 @@ class TestTheNumbersPage:
         page must not divide by zero on day one."""
         r = client.get("/stats")
         assert r.status_code == 200
-        assert '<div class="n">0</div>' in r.text
+        assert '<div class="n"><a href="/browse?f=all">0</a></div>' in r.text
 
     def test_the_headline_counts_everything(self, client, computer, part):
         computer()
         computer()
         part()
         page = client.get("/stats").text
-        assert '<div class="n">3</div>' in page
-        assert "2 machines and 1 parts" in page
+        assert '<div class="n"><a href="/browse?f=all">3</a></div>' in page
+        assert "2 machines</a> and" in page and "1 parts</a>" in page
 
     def test_the_top_maker_is_the_one_with_most_parts(self, client, part):
         for i in range(3):
@@ -680,3 +681,102 @@ class TestTheNumbersPage:
         robots = client.get("/robots.txt").text
         assert "Disallow: /traffic" in robots
         assert "Disallow: /stats" not in robots
+
+
+class TestFollowingAFigureToItsItems:
+    """Every figure on /stats links to /browse, which shows the items it counted.
+
+    The tiles were dead ends before: the page could say eleven parts were made by
+    IBM and give no way to see which eleven.
+    """
+
+    @staticmethod
+    def _offered(page):
+        """Every /browse link the page renders."""
+        return sorted(set(re.findall(r'href="(/browse\?[^"]*)"', page)))
+
+    @staticmethod
+    def _cards(page):
+        """The asset ids of the cards in the grid."""
+        return [href.rsplit("/", 1)[1]
+                for href in re.findall(r'class="card" href="([^"]+)"', page)]
+
+    def _a_bit_of_everything(self, client, computer, part):
+        """One machine with memory, chips and drives, and parts with the child rows
+        the aggregate figures are summed from, so every tile renders."""
+        c = computer(year=1991, condition="Working", acquired_date="2026-05-01",
+                     drives='2x 5.25" 360K; 1x Gotek 1.44MB')
+        client.post(f"/computers/{c['asset_id']}/edit",
+                    data={"ramchip:41256": "18"}, follow_redirects=False)
+        part(computer_id=c["asset_id"], type="motherboard", manufacturer="IBM",
+             model="Planar", year=1988, condition="Working",
+             specs="Form factor: AT | Slots: 8× 8-bit ISA | Ports: DIN keyboard")
+        part(type="storage", manufacturer="SanDisk", model="CF card", year=1999,
+             specs="Kind: CF | Capacity: 4GB")
+        return c
+
+    def test_every_figure_on_the_page_leads_somewhere_real(self, client, computer,
+                                                           part):
+        """A sweep of the whole page. A filter name misspelt in one tile would
+        otherwise stay hidden until someone clicked that one tile."""
+        self._a_bit_of_everything(client, computer, part)
+        offered = self._offered(client.get("/stats").text)
+        # Every tile, both ends of the hero, and every bar in the ranked lists.
+        assert len(offered) > 15
+        for href in offered:
+            assert client.get(href).status_code == 200, href
+
+    def test_a_maker_leads_to_that_maker_s_parts(self, client, part):
+        mine = {part(manufacturer="IBM", model=f"x{i}")["asset_id"] for i in range(3)}
+        part(manufacturer="Amstrad", model="y")
+        page = client.get("/browse?f=maker&v=IBM").text
+        assert set(self._cards(page)) == mine
+        assert "3 computers · 0 parts" not in page and "0 computers · 3 parts" in page
+
+    def test_a_category_leads_to_the_parts_in_it(self, client, part):
+        card = part(type="video", model="ET4000")["asset_id"]
+        part(type="sound", model="CT2830")
+        assert self._cards(client.get("/browse?f=type&v=video").text) == [card]
+
+    def test_the_best_equipped_machine_leads_to_the_parts_in_it(self, client,
+                                                                computer, part):
+        cid = computer()["asset_id"]
+        fitted = part(computer_id=cid, model="fitted")["asset_id"]
+        part(model="spare")
+        page = client.get(f"/browse?f=in&v={cid}").text
+        assert self._cards(page) == [fitted]
+        # The machine itself stays one click away, named rather than an asset id.
+        assert f'href="/computers/{cid}"' in page
+
+    def test_the_disposed_count_shows_the_disposed_items(self, client, part):
+        """The gallery hides disposed items unless asked; a page reached from the
+        figure that counted them must not, or it contradicts the number clicked."""
+        aid = part(model="gone")["asset_id"]
+        client.patch(f"/api/parts/{aid}", json={"disposed": True})
+        page = client.get("/browse?f=disposed").text
+        assert self._cards(page) == [aid]
+        assert 'id="showdisposed" checked>' in page
+
+    def test_the_gallery_itself_still_hides_them(self, client, part):
+        client.patch(f"/api/parts/{part(model='gone')['asset_id']}",
+                     json={"disposed": True})
+        assert 'id="showdisposed">' in client.get("/").text
+
+    def test_an_unknown_view_is_a_404(self, client):
+        assert client.get("/browse?f=nonsense").status_code == 404
+        assert client.get("/browse").status_code == 404
+
+    def test_a_view_of_a_machine_that_is_gone_is_a_404(self, client):
+        assert client.get("/browse?f=in&v=RH-NOPE").status_code == 404
+
+    def test_it_is_public_like_the_figures_it_came_from(self, client, monkeypatch):
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        r = client.get("/browse?f=all", follow_redirects=False)
+        assert r.status_code == 200
+
+    def test_it_is_kept_out_of_the_search_index(self, client):
+        """Filtered slices of the gallery are not pages worth indexing; the items in
+        them already have their own."""
+        assert "Disallow: /browse" in client.get("/robots.txt").text
+        assert 'content="noindex, follow"' in client.get("/browse?f=all").text

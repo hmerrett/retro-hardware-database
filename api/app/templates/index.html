@@ -1,9 +1,17 @@
 {% extends "base.html" %}
+{% block title %}{{ page_title | default('Retro Hardware Database') }}{% endblock %}
 {% block content %}
+{# Doubles as /browse: same grid, a subset of the rows, and a line saying which
+   subset. Without a heading it is the whole gallery. #}
 <div class="flex">
-  <h2 style="margin:0">Inventory</h2>
+  <h2 style="margin:0">{{ heading | default('Inventory') }}</h2>
   <span class="muted">{{ n_computers }} computers · {{ n_parts }} parts</span>
 </div>
+{% if note %}
+<p class="hint" style="margin:5px 0 0">{{ note }}{% if crumb %} —
+  <a href="{{ crumb[0] }}">{{ crumb[1] }}</a>{% endif %} ·
+  <a href="/stats">back to the figures</a></p>
+{% endif %}
 
 <div class="toolbar">
   <input id="q" type="search" placeholder="Search name, maker, chip, interface, port, asset no." style="flex:1;min-width:220px">
@@ -16,7 +24,8 @@
     <option value="added">Recently added</option>
     <option value="name">Name A–Z</option>
   </select>
-  <label class="muted"><input type="checkbox" id="showdisposed"> show disposed</label>
+  <label class="muted"><input type="checkbox" id="showdisposed"{{ ' checked' if show_disposed }}>
+    show disposed</label>
   <span class="count" id="count"></span>
 </div>
 
