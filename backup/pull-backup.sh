@@ -62,7 +62,11 @@ collect() {
     # ownership, and a NAS mounted over SMB cannot store ownership at all -- with
     # -a rsync fails there. Timestamps matter because both rsync and restic use
     # them to decide what has changed.
-    if ! rsync_out=$(rsync -rlt --delete --info=stats2 -e "$SSH" \
+    # .wm holds watermarked copies the app regenerates on demand -- a third of the
+    # volume, and all of it rewritten whenever the watermark size changes. The .ref
+    # sidecars beside the photos are not excluded: those are recorded state, saying
+    # which photos are someone else's picture of the model rather than ours.
+    if ! rsync_out=$(rsync -rlt --delete --exclude ".wm/" --info=stats2 -e "$SSH" \
             "$RHDB_HOST:$RHDB_IMAGES/" "$STAGE/images/" 2>&1); then
         say "photo sync failed:"
         echo "$rsync_out" | tail -5

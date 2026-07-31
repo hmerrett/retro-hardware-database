@@ -13,12 +13,13 @@ temporary dump to its own disk, so it cannot fill up.
 | | how | why that way |
 |---|---|---|
 | the database | `mariadb-dump` inside the db container, streamed to stdout over SSH | ~170 KB, uncompressed so restic can deduplicate it night to night |
-| the photos | `rsync` from the docker volume | 260 MB that barely changes, so only new files cross the wire |
+| the photos | `rsync` from the docker volume, minus `.wm` | ~195 MB that barely changes, so only new files cross the wire. `.wm` is the watermark cache, regenerated on demand and a third of the volume; the `.ref` sidecars are kept, being recorded state |
 | `.env` | `cat` over SSH, optional | a backup you cannot restore *with* is half a backup; the repository is encrypted |
 
 ## Where the backup lives
 
-`BACKUP_DIR` in `.env`. Two directories are created under it:
+`RHDB_DIR` and `RHDB_IMAGES` are paths **on the server**; `BACKUP_DIR` is the one
+on this machine. Two directories are created under it:
 
 ```
 $BACKUP_DIR/repo    the restic repository -- this is the backup
