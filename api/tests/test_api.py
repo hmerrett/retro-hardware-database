@@ -543,3 +543,81 @@ class TestWatermark:
         assert main.WM_CACHE.parent.name == ".wm"
         assert str(main.WM_SCALE) in main.WM_CACHE.name
         assert str(main.WM_MIN_PX) in main.WM_CACHE.name
+
+
+class TestStartingFromAnExistingPart:
+    """Entering a make and model already in the collection usually means a second
+    of the same thing, so the form offers to start from it.
+
+    This is the duplicate button's copy semantics moved earlier: nothing is saved
+    until the form is submitted, so it can be corrected first.
+    """
+
+    def test_the_form_offers_the_makers_already_recorded(self, client, part):
+        part(manufacturer="Tseng", model="ET4000")
+        part(manufacturer="Adaptec", model="AHA-1542CF")
+        page = client.get("/parts/new").text
+        assert '<datalist id="dl_makes">' in page
+        assert 'value="Tseng"' in page and 'value="Adaptec"' in page
+
+    def test_the_models_already_recorded_are_offered_too(self, client, part):
+        part(manufacturer="Tseng", model="ET4000")
+        assert 'value="ET4000"' in client.get("/parts/new").text
+
+    def test_a_make_and_model_pair_is_matchable_with_its_asset_id(self, client, part):
+        aid = part(type="video", manufacturer="Tseng", model="ET4000")["asset_id"]
+        page = client.get("/parts/new").text
+        assert '"m": "Tseng"' in page and '"d": "ET4000"' in page
+        assert f'"id": "{aid}"' in page
+
+    def test_starting_from_a_part_fills_in_what_describes_the_model(self, client, part):
+        src = part(type="video", manufacturer="Tseng", model="ET4000", year=1993,
+                   specs="Chip: ET4000 | Interface: VLB")
+        page = client.get(f"/parts/new?from={src['asset_id']}").text
+        assert 'value="Tseng"' in page and 'value="ET4000"' in page
+        assert 'value="1993"' in page
+        assert 'value="ET4000"' in page and "VLB" in page
+
+    def test_the_prefilled_form_creates_rather_than_edits(self, client, part):
+        """The source must not be overwritten: the form posts to /parts/new."""
+        src = part(type="video", manufacturer="Tseng", model="ET4000")
+        page = client.get(f"/parts/new?from={src['asset_id']}").text
+        form = page[page.index('<form class="edit"'):]
+        assert 'action="/parts/new"' in form[:200]
+        assert f"/parts/{src['asset_id']}/edit" not in form[:200]
+
+    def test_it_says_where_the_values_came_from(self, client, part):
+        src = part(manufacturer="Tseng", model="ET4000")
+        page = client.get(f"/parts/new?from={src['asset_id']}").text
+        assert "Started from" in page and src["asset_id"] in page
+
+    def test_nothing_of_the_original_object_is_offered(self, client, part):
+        src = part(manufacturer="Tseng", model="ET4000", source="eBay",
+                   acquired_date="2026-01-05", notes="a bit bent")
+        page = client.get(f"/parts/new?from={src['asset_id']}").text
+        assert 'value="eBay"' not in page
+        assert "2026-01-05" not in page
+        assert "a bit bent" not in page
+
+    def test_opening_the_prefilled_form_changes_nothing(self, client, part):
+        src = part(type="video", manufacturer="Tseng", model="ET4000")
+        before = client.get(f"/api/parts/{src['asset_id']}").json()
+        client.get(f"/parts/new?from={src['asset_id']}")
+        assert client.get(f"/api/parts/{src['asset_id']}").json() == before
+
+    def test_the_type_follows_the_part_it_started_from(self, client, part):
+        src = part(type="sound", manufacturer="Creative", model="CT2830")
+        page = client.get(f"/parts/new?from={src['asset_id']}").text
+        assert '<option value="sound" selected>' in page
+
+    def test_a_stale_link_gives_a_blank_form_rather_than_an_error(self, client):
+        r = client.get("/parts/new?from=RH-NOPE")
+        assert r.status_code == 200
+        assert "Started from" not in r.text
+
+    def test_it_keeps_the_machine_the_part_is_being_added_to(self, client, part,
+                                                            computer):
+        cid = computer()["asset_id"]
+        src = part(type="video", manufacturer="Tseng", model="ET4000")
+        page = client.get(f"/parts/new?from={src['asset_id']}&computer_id={cid}").text
+        assert f'name="computer_id" value="{cid}"' in page

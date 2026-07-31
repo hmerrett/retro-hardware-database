@@ -16,8 +16,16 @@
 <datalist id="dl_video_conn">{% for o in vocab.video_connectors %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_ifaces">{% for o in vocab.storage_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_proto">{% for o in vocab.storage_protocols %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_makes">{% for o in makes %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
-<form class="edit" method="post" action="{{ ('/parts/' + p.asset_id + '/edit') if p else '/parts/new' }}">
+{% if from_part %}
+<p class="hint">Started from <a href="/parts/{{ from_part }}">{{ from_part }}</a>. Its
+photos, source, acquired date and notes are not carried over, and nothing is saved
+until you submit.</p>
+{% endif %}
+
+<form class="edit" method="post" action="{{ action }}">
   <input type="hidden" name="computer_id" value="{{ computer_id }}">
   <input type="hidden" name="parent_id" value="{{ parent_id }}">
 
@@ -31,9 +39,12 @@
   <fieldset>
     <legend>Identity</legend>
     <label for="manufacturer">Manufacturer</label>
-    <input id="manufacturer" name="manufacturer" value="{{ (p.manufacturer if p else '') or '' }}">
+    <input id="manufacturer" name="manufacturer" list="dl_makes" autocomplete="off"
+           value="{{ (p.manufacturer if p else '') or '' }}">
     <label for="model">Model</label>
-    <input id="model" name="model" value="{{ (p.model if p else '') or '' }}">
+    <input id="model" name="model" list="dl_models" autocomplete="off"
+           value="{{ (p.model if p else '') or '' }}">
+    <p class="hint" id="samemake" style="display:none"></p>
     <label for="name">Name <span class="muted">(optional; defaults to maker + model)</span></label>
     <input id="name" name="name" value="{{ (p.name if p else '') or '' }}">
     <label for="year">Year</label>
@@ -186,5 +197,47 @@
     }
     kind.addEventListener('change', toggle); toggle();
   }
+
+  // Entering a make and model already in the collection almost always means a
+  // second of the same thing, so offer to start from it rather than retyping its
+  // specs. Only offered on a new part, and only as a link: the existing record is
+  // never touched, and nothing is filled in until it is followed.
+  (function () {
+    const known = {{ known | tojson }};
+    const make = document.getElementById('manufacturer');
+    const model = document.getElementById('model');
+    const note = document.getElementById('samemake');
+    const type = document.getElementById('ptype');
+    if (!make || !model || !note) return;
+    const norm = s => (s || '').trim().toLowerCase();
+
+    // Narrow the model list to the chosen maker's models once one is picked.
+    const models = document.getElementById('dl_models');
+    function narrow() {
+      if (!models) return;
+      const m = norm(make.value);
+      const forMake = known.filter(k => !m || norm(k.m) === m).map(k => k.d);
+      const list = [...new Set(forMake.length ? forMake : known.map(k => k.d))].sort();
+      models.innerHTML = list.map(d => `<option value="${d.replace(/"/g, '&quot;')}">`).join('');
+    }
+
+    function look() {
+      const m = norm(make.value), d = norm(model.value);
+      const hit = (m && d) ? known.find(k => norm(k.m) === m && norm(k.d) === d) : null;
+      if (!hit) { note.style.display = 'none'; return; }
+      const q = new URLSearchParams(location.search);
+      const params = new URLSearchParams({from: hit.id});
+      for (const k of ['computer_id', 'parent_id']) {
+        if (q.get(k)) params.set(k, q.get(k));
+      }
+      note.innerHTML = `<a href="/parts/new?${params}">${hit.id} is the same make and `
+        + `model — start from it</a> to copy its type, year and specs.`;
+      note.style.display = '';
+      if (type && hit.t && !q.get('type')) type.value = hit.t;
+    }
+    make.addEventListener('input', () => { narrow(); look(); });
+    model.addEventListener('input', look);
+    narrow();
+  })();
 </script>
 {% endblock %}

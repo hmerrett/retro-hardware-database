@@ -20,7 +20,8 @@ import json
 from urllib.parse import quote, urlparse
 from xml.sax.saxutils import escape
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
+                     UploadFile)
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from fastapi.staticfiles import StaticFiles
@@ -1378,7 +1379,23 @@ def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)):
 
 # --- GUI: parts (guided, typed entry) --------------------------------------
 
-def _part_form_ctx(db, obj, ptype, computer_id, parent_id=""):
+def _known_makes(db):
+    """The manufacturers and (make, model) pairs already recorded, for the new-part
+    form's pick lists and for spotting that a part being entered is a second of
+    something already here. One representative asset id per pair, so the form can
+    offer to start from it."""
+    makes = [m for (m,) in db.query(Part.manufacturer).distinct()
+             .order_by(Part.manufacturer) if (m or "").strip()]
+    pairs = (db.query(Part.manufacturer, Part.model, Part.type,
+                      func.max(Part.asset_id))
+             .filter(Part.manufacturer != "", Part.model != "")
+             .group_by(Part.manufacturer, Part.model, Part.type).all())
+    known = [{"m": mk, "d": md, "t": t, "id": aid} for mk, md, t, aid in pairs]
+    models = sorted({p["d"] for p in known})
+    return makes, models, known
+
+
+def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
     # Existing values come from the typed tables, not from re-parsing the string.
     mb_slots, mb_ram, mb_ports, mb_cpufams = {}, {}, {}, []
     spec_keys = {}
@@ -1399,9 +1416,12 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id=""):
     # form would silently drop it.
     cpu_families = list(entry.CPU_FAMILIES)
     cpu_families += [f for f in mb_cpufams if f not in cpu_families]
+    makes, models, known = _known_makes(db)
     return {
         "p": obj, "ptype": ptype, "computer_id": computer_id, "parent_id": parent_id,
         "spec_keys": spec_keys,
+        "action": action or (f"/parts/{obj.asset_id}/edit" if obj else "/parts/new"),
+        "makes": makes, "models": models, "known": known,
         "conditions": entry.CONDITIONS,
         "vocab": {
             "form_factors": entry.MOBO_FORM_FACTORS, "cpu_families": cpu_families,
@@ -1421,9 +1441,27 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id=""):
 
 @app.get("/parts/new", response_class=HTMLResponse, include_in_schema=False)
 def gui_new_part(request: Request, type: str = "other", computer_id: str = "",
-                 parent_id: str = "", db: Session = Depends(get_db)):
-    ctx = _part_form_ctx(db, None, type, computer_id, parent_id)
-    ctx["title"] = f"New {entry.type_label(type)}"
+                 parent_id: str = "", db: Session = Depends(get_db),
+                 source: str = Query("", alias="from")):
+    """The new-part form. `from` starts it filled in from an existing part -- the
+    same fields duplicating one copies, so a second of something already recorded
+    is a couple of clicks rather than retyping its specs. Nothing is saved until
+    the form is submitted, so it can be edited first, which is the difference
+    between this and the duplicate button."""
+    src = db.get(Part, source.upper()) if source else None
+    if src is None:
+        ctx = _part_form_ctx(db, None, type, computer_id, parent_id)
+        ctx["title"] = f"New {entry.type_label(type)}"
+        return templates.TemplateResponse(request, "part_form.html", ctx)
+
+    ptype = src.type or type
+    ctx = _part_form_ctx(db, src, ptype, computer_id, parent_id, action="/parts/new")
+    # A transient Part, never added to the session: the descriptive fields of the
+    # source with everything belonging to that particular object left out.
+    ctx["p"] = Part(**{k: getattr(src, k) for k in PART_FIELDS
+                       if k not in DUP_EXCLUDE})
+    ctx["title"] = f"New {entry.type_label(ptype)}"
+    ctx["from_part"] = src.asset_id
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
 
