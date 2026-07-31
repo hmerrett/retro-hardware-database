@@ -104,6 +104,36 @@ docker compose up -d
 It sleeps until `BACKUP_AT` each night. `docker compose logs -f backup` shows what
 it did; `docker compose run --rm backup once` runs one immediately.
 
+A run reports what it actually moved, so the log is worth something when a night
+looks wrong:
+
+```
+[03:30:01] dumping the database from root@db.2600.me
+             size      174143 bytes (last night 174012)
+             tables    19
+             schema    0013_normalise_cpu
+             rows      computers 15, parts 282, history 327
+[03:30:03] syncing photos from /var/lib/.../_data
+             Number of regular files transferred: 2
+             Total transferred file size: 1,204,338 bytes
+             on disk   194M in 625 files
+[03:30:12] snapshotting into /repo
+             using parent snapshot ea7ebed6
+             Added to the repository: 1.171 MiB (1.093 MiB stored)
+[03:30:14] applying retention: 7d 5w 12m 3y
+[03:30:15] integrity check (structure)
+             no errors were found
+[03:30:16] the backup now holds
+             8 snapshots
+             Total Size:  251.4 MiB
+             space     412G free of 3.6T at /repo
+[03:30:16] done in 15s
+```
+
+The row counts are read out of the dump itself, so a night where the database
+came back short is visible rather than merely smaller. `VERBOSE=1` adds every
+file rsync moved and every blob restic stored -- worth it once, noisy nightly.
+
 ## Retention
 
 Defaults, set in `.env`:

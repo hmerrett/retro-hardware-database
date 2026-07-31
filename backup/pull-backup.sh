@@ -21,6 +21,9 @@ RHDB_IMAGES="${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-db-2_images/_
 STAGE="${STAGE:-/stage}"
 BACKUP_AT="${BACKUP_AT:-03:30}"
 INCLUDE_ENV="${INCLUDE_ENV:-1}"
+# VERBOSE=1 additionally lists every file rsync moved and every file restic stored.
+# Useful once; noisy nightly, since there are several hundred of them.
+VERBOSE="${VERBOSE:-0}"
 
 KEEP_DAILY="${KEEP_DAILY:-7}"
 KEEP_WEEKLY="${KEEP_WEEKLY:-5}"
@@ -35,6 +38,15 @@ say() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
 
+# Indented, so the detail under a step reads as belonging to it.
+detail() {
+    sed 's/^/             /'
+}
+
+since() {
+    echo "$(( $(date +%s) - $1 ))s"
+}
+
 # The password and database name stay on the server: the remote shell expands
 # them, so they are never an argument here and never reach this machine.
 remote_dump() {
@@ -44,20 +56,44 @@ remote_dump() {
 '--single-transaction --quick --databases "$DB_NAME"'
 }
 
+# Rows in one table, counted from the dump. mariadb-dump writes one INSERT per
+# table with the tuples on their own lines after VALUES, so the tuples are the
+# lines starting with "(" until the statement's semicolon. A table with no rows
+# has no INSERT at all, which counts as zero.
+_dump_rows() {
+    awk -v t="\`$1\`" '
+        $0 ~ "^INSERT INTO " t " VALUES" { inblock = 1; next }
+        inblock && /^\(/ { n++ }
+        inblock && /;[[:space:]]*$/ { inblock = 0 }
+        END { print n + 0 }
+    ' "$STAGE/db.sql"
+}
+
 collect() {
     mkdir -p "$STAGE"
 
-    say "dumping the database"
+    say "dumping the database from $RHDB_HOST"
+    t=$(date +%s)
     remote_dump > "$STAGE/db.sql.part"
     if ! grep -q "^-- Dump completed" "$STAGE/db.sql.part"; then
         say "the dump did not finish -- keeping last night's and stopping"
         rm -f "$STAGE/db.sql.part"
         return 1
     fi
+    was=0
+    [ -f "$STAGE/db.sql" ] && was=$(wc -c < "$STAGE/db.sql")
     mv "$STAGE/db.sql.part" "$STAGE/db.sql"
-    say "database: $(wc -c < "$STAGE/db.sql") bytes"
+    now=$(wc -c < "$STAGE/db.sql")
+    {
+        echo "size      $now bytes (last night $was)"
+        echo "tables    $(grep -c '^CREATE TABLE' "$STAGE/db.sql")"
+        echo "schema    $(grep -A2 'INSERT INTO `alembic_version`' "$STAGE/db.sql" \
+                          | grep -o "'[0-9_a-z]*'" | head -1 | tr -d "'")"
+        echo "rows      computers $(_dump_rows computers), parts $(_dump_rows parts), \
+history $(_dump_rows log_entry)"
+        echo "took      $(since "$t")"
+    } | detail
 
-    say "syncing photos"
     # -rlt rather than -a: photos need their contents and timestamps, not their
     # ownership, and a NAS mounted over SMB cannot store ownership at all -- with
     # -a rsync fails there. Timestamps matter because both rsync and restic use
@@ -66,53 +102,84 @@ collect() {
     # volume, and all of it rewritten whenever the watermark size changes. The .ref
     # sidecars beside the photos are not excluded: those are recorded state, saying
     # which photos are someone else's picture of the model rather than ours.
-    if ! rsync_out=$(rsync -rlt --delete --exclude ".wm/" --info=stats2 -e "$SSH" \
-            "$RHDB_HOST:$RHDB_IMAGES/" "$STAGE/images/" 2>&1); then
+    say "syncing photos from $RHDB_IMAGES"
+    t=$(date +%s)
+    [ "$VERBOSE" = "1" ] && rsync_v="-v" || rsync_v=""
+    # shellcheck disable=SC2086
+    if ! rsync_out=$(rsync -rlt $rsync_v --delete --exclude ".wm/" --info=stats2 \
+            -e "$SSH" "$RHDB_HOST:$RHDB_IMAGES/" "$STAGE/images/" 2>&1); then
         say "photo sync failed:"
-        echo "$rsync_out" | tail -5
+        echo "$rsync_out" | tail -5 | detail
         return 1
     fi
-    echo "$rsync_out" | grep -E "Number of|Total" || true
+    echo "$rsync_out" \
+        | grep -E "^(Number of|Total|Literal|Matched|sent|total size)" | detail
+    {
+        echo "on disk   $(du -sh "$STAGE/images" | cut -f1) in \
+$(find "$STAGE/images" -type f | wc -l | tr -d ' ') files"
+        echo "took      $(since "$t")"
+    } | detail
 
     if [ "$INCLUDE_ENV" = "1" ]; then
         # Credentials are configuration, not data, but a backup you cannot
         # restore with is half a backup. The restic repository is encrypted.
         say "copying .env"
         $SSH "$RHDB_HOST" "cat $RHDB_DIR/.env" > "$STAGE/env"
+        echo "keys      $(grep -c '^[A-Z]' "$STAGE/env") settings" | detail
     fi
 }
 
 snapshot() {
     if ! restic cat config >/dev/null 2>&1; then
         say "initialising the restic repository at $RESTIC_REPOSITORY"
-        restic init
+        restic init | detail
     fi
-    say "snapshotting"
-    restic backup --tag rhdb --host "${SNAPSHOT_HOST:-db.2600.me}" "$STAGE"
+    say "snapshotting into $RESTIC_REPOSITORY"
+    t=$(date +%s)
+    [ "$VERBOSE" = "1" ] && restic_v="--verbose" || restic_v=""
+    # shellcheck disable=SC2086
+    restic backup $restic_v --tag rhdb --host "${SNAPSHOT_HOST:-db.2600.me}" "$STAGE" \
+        | detail
+    echo "took      $(since "$t")" | detail
 
     say "applying retention: ${KEEP_DAILY}d ${KEEP_WEEKLY}w ${KEEP_MONTHLY}m ${KEEP_YEARLY}y"
     restic forget --tag rhdb \
         --keep-daily "$KEEP_DAILY" --keep-weekly "$KEEP_WEEKLY" \
         --keep-monthly "$KEEP_MONTHLY" --keep-yearly "$KEEP_YEARLY" \
-        --prune
+        --prune | grep -vE "^(keep [0-9]|remove [0-9]|snapshots for|-----|ID  )" | detail
 
     # Structure every night; on Sundays also re-read a slice of the actual data,
     # which is what catches bit rot on the disk holding the repository.
     if [ "$(date +%u)" = "7" ]; then
         say "weekly integrity check (structure + 5% of the data)"
-        restic check --read-data-subset=5%
+        restic check --read-data-subset=5% | detail
     else
         say "integrity check (structure)"
-        restic check
+        restic check | detail
     fi
+}
+
+
+summarise() {
+    say "the backup now holds"
+    restic snapshots --tag rhdb --compact 2>/dev/null | detail
+    restic stats --tag rhdb --mode raw-data 2>/dev/null \
+        | grep -E "Total|File" | detail
+    # Only meaningful for a repository on a filesystem; sftp and s3 have no df.
+    case "$RESTIC_REPOSITORY" in
+        /*) df -h "$RESTIC_REPOSITORY" \
+                | awk -v r="$RESTIC_REPOSITORY" \
+                      'NR==2 {print "space     " $4 " free of " $2 " at " r}' | detail ;;
+    esac
 }
 
 run_once() {
     started=$(date +%s)
+    say "starting a backup of $RHDB_HOST"
     collect
     snapshot
-    say "done in $(( $(date +%s) - started ))s"
-    restic snapshots --tag rhdb --latest 3 --compact 2>/dev/null || true
+    summarise
+    say "done in $(since "$started")"
 }
 
 # Each check stops the run, because `cmd && say "ok"` does not: a failure on the
