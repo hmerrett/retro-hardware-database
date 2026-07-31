@@ -48,9 +48,9 @@ git clone git@github.com:hmerrett/retro-hardware-db-2.git
 cd retro-hardware-db-2/backup
 cp .env.example .env          # then edit it: RHDB_HOST and BACKUP_DIR at least
 
-mkdir -p secrets
 ssh-keygen -t ed25519 -N "" -f secrets/id_ed25519
 openssl rand -base64 32 > secrets/restic-password
+chmod 600 secrets/restic-password
 ssh-copy-id -i secrets/id_ed25519 root@db.2600.me
 ```
 

@@ -1,4 +1,5 @@
-secrets/
+secrets/*
+!secrets/.gitkeep
 data/
 restored/
 .env
