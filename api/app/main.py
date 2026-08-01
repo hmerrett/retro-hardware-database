@@ -1185,6 +1185,8 @@ def _catalogue_rows(db):
             "ref_photo": is_reference(cpi), "ref_icon": _favicon_for_rel(cpi),
             "placeholder": entry.placeholder_for("computer"),
             "updated": stamps(c.asset_id)[0], "added": stamps(c.asset_id)[1],
+            "maker": (c.manufacturer or "").lower(),
+            "acquired": str(c.acquired_date or ""), "catsort": 0,
             "sub": f"{counts.get(c.asset_id, 0)} part(s)",
             "search": " ".join([c.asset_id, c.name or "", c.manufacturer or "",
                                  c.model or "", c.os or "", c.cpu or "",
@@ -1206,6 +1208,9 @@ def _catalogue_rows(db):
             "placeholder": (storage_placeholder(p) if ptype == "storage"
                             else entry.placeholder_for(ptype)),
             "updated": stamps(p.asset_id)[0], "added": stamps(p.asset_id)[1],
+            "maker": (p.manufacturer or "").lower(),
+            "acquired": str(p.acquired_date or ""),
+            "catsort": entry.type_sort_key(ptype) + 1,
             "sub": (p.computer_id if p.computer_id else "standalone"),
             "search": " ".join([p.asset_id, p.name or "", p.manufacturer or "",
                                  p.model or "", p.specs or "", p.type or "",

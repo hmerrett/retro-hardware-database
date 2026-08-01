@@ -413,6 +413,59 @@ class TestPagesAndDiscovery:
         assert r.content.startswith(b"%PDF")
 
 
+class TestSortingTheGallery:
+    """The toolbar's sort menu reorders the cards in the browser, so the ordering
+    itself is not reachable from here. What is reachable, and what silently breaks
+    a sort if it goes missing, is the key each card carries."""
+
+    @staticmethod
+    def _card(page, aid):
+        match = re.search(rf'<a class="card"[^>]*/{aid}"(.*?)>', page, re.S)
+        assert match, f"no card for {aid}"
+        return match.group(1)
+
+    def test_a_machine_carries_every_key_the_menu_sorts_on(self, client, computer):
+        c = computer(manufacturer="Amstrad", model="PC1512", year=1986,
+                     acquired_date="2026-05-01")
+        card = self._card(client.get("/").text, c["asset_id"])
+        assert 'data-year="1986"' in card
+        assert 'data-maker="amstrad"' in card
+        assert 'data-acquired="2026-05-01"' in card
+        assert f'data-aid="{c["asset_id"]}"' in card
+
+    def test_a_part_carries_them_too(self, client, part):
+        p = part(type="video", manufacturer="Tseng", model="ET4000", year=1990,
+                 acquired_date="2026-05-02")
+        card = self._card(client.get("/").text, p["asset_id"])
+        assert 'data-year="1990"' in card
+        assert 'data-maker="tseng"' in card
+        assert 'data-acquired="2026-05-02"' in card
+
+    def test_what_is_not_recorded_is_blank_rather_than_absent(self, client, part):
+        """A missing attribute reads as undefined in the sort; an empty one is
+        what the blanks-last rule looks for."""
+        p = part(manufacturer="", year=None, acquired_date=None)
+        card = self._card(client.get("/").text, p["asset_id"])
+        assert 'data-year=""' in card
+        assert 'data-maker=""' in card
+        assert 'data-acquired=""' in card
+
+    def test_machines_lead_the_category_order(self, client, computer, part):
+        """Category sorts by the vocabulary's own order, not the label's spelling,
+        and a computer is not one of the part types."""
+        c = computer()
+        p = part(type="video")
+        page = client.get("/").text
+        assert 'data-catsort="0"' in self._card(page, c["asset_id"])
+        assert 'data-catsort="0"' not in self._card(page, p["asset_id"])
+
+    def test_the_menu_offers_each_of_them(self, client):
+        page = client.get("/").text
+        for mode in ("updated", "added", "acquired", "yearnew", "yearold",
+                     "name", "maker", "cat", "aid"):
+            assert f'<option value="{mode}">' in page
+
+
 class TestHistory:
     def test_creating_an_item_is_recorded(self, client, part):
         aid = part()["asset_id"]
