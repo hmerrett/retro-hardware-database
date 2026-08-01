@@ -107,11 +107,11 @@
       </div>
       {% endif %}
       <table>
-        <tr><th>Asset</th><th>Type</th><th>Name</th><th>Specs</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
+        <tr><th class="tight">Asset</th><th class="tight">Type</th><th>Name</th><th>Specs</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
         {% for p in parts %}
         <tr>
-          <td><a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a></td>
-          <td>{{ type_label(p.type) }}</td>
+          <td class="tight"><a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a></td>
+          <td class="tight">{{ type_label(p.type) }}</td>
           <td>{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}{% if p.disposed %} <span class="chip">disposed</span>{% endif %}</td>
           <td class="muted">{{ p.specs }}</td>
           {% if request.state.authed %}

@@ -76,11 +76,11 @@
       <h3 style="margin:0 0 6px">Mounted parts <span class="muted">({{ children|length }})</span></h3>
       {% if children %}
       <table>
-        <tr><th>Asset</th><th>Type</th><th>Name</th><th>Specs</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
+        <tr><th class="tight">Asset</th><th class="tight">Type</th><th>Name</th><th>Specs</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
         {% for ch in children %}
         <tr>
-          <td><a href="/parts/{{ ch.asset_id }}">{{ ch.asset_id }}</a></td>
-          <td>{{ type_label(ch.type) }}</td>
+          <td class="tight"><a href="/parts/{{ ch.asset_id }}">{{ ch.asset_id }}</a></td>
+          <td class="tight">{{ type_label(ch.type) }}</td>
           <td>{{ display_name({'name': ch.name, 'manufacturer': ch.manufacturer, 'model': ch.model, 'asset_id': ch.asset_id}) }}</td>
           <td class="muted">{{ ch.specs }}</td>
           {% if request.state.authed %}

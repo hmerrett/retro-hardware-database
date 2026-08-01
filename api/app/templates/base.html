@@ -81,8 +81,16 @@
   table { border-collapse: collapse; width: 100%; }
   /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
      sets the column's minimum width, and a table refuses to shrink below it. On a
-     phone that is what pushes the whole page sideways, so let such a run break. */
-  th, td { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+     phone that is what pushes the whole page sideways, so let such a run break.
+     break-word, not anywhere: `anywhere` also drops the column's min-content width
+     to a single character, which lets the layout squeeze a narrow column until its
+     heading reads one letter per line. Where a column really must be allowed to
+     collapse that far, .wrap opts into it. */
+  th, td { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+  /* Short columns never wrap: their content is a word or two, and wrapping them
+     buys no room while making the table look broken. */
+  td.tight, th.tight { white-space: nowrap; }
+  .detail-main table th { white-space: nowrap; }
   th { color: var(--muted); font-weight: 500; font-size: 13px; }
   .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap; }
   .btn:hover { background: var(--btn-hover); }
