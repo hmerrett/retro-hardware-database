@@ -885,3 +885,108 @@ class TestFollowingAFigureToItsItems:
         them already have their own."""
         assert "Disallow: /browse" in client.get("/robots.txt").text
         assert 'content="noindex, follow"' in client.get("/browse?f=all").text
+
+
+class TestSearchTerms:
+    """A query is the set of things that must all appear."""
+
+    def test_words_are_separate_terms(self):
+        from app.main import search_terms
+        assert search_terms("amstrad faulty") == ["amstrad", "faulty"]
+
+    def test_case_and_spacing_do_not_matter(self):
+        from app.main import search_terms
+        assert search_terms("  AMSTRAD   PC1640 ") == ["amstrad", "pc1640"]
+
+    def test_a_quoted_run_is_one_term(self):
+        from app.main import search_terms
+        assert search_terms('"etherlink iii"') == ["etherlink iii"]
+
+    def test_quoted_and_bare_terms_mix(self):
+        from app.main import search_terms
+        assert search_terms('ibm "16-bit isa"') == ["ibm", "16-bit isa"]
+
+    def test_an_empty_query_asks_for_nothing(self):
+        from app.main import search_terms
+        assert search_terms("") == [] and search_terms("   ") == []
+
+
+class TestSearchingEveryField:
+    """The point of the server-side search: a word anywhere about an item finds it,
+    including the fields too bulky to ship to the browser for instant filtering."""
+
+    def test_no_query_shows_everything(self, client, computer, part):
+        computer()
+        part()
+        page = client.get("/").text
+        assert page.count('class="card"') == 2
+        assert "Searched every field" not in page
+
+    def test_a_word_only_in_the_notes(self, client, part):
+        aid = part(model="Widget", notes="battery damage on the corner")["asset_id"]
+        part(model="Other")
+        page = client.get("/?q=battery").text
+        assert aid in page
+        assert 'class="card"' in page and page.count('class="card"') == 1
+
+    def test_a_word_only_in_the_summary(self, client, computer):
+        aid = computer(model="Portable", summary="A luggable machine of its day")["asset_id"]
+        computer(model="Desktop")
+        page = client.get("/?q=luggable").text
+        assert aid in page and page.count('class="card"') == 1
+
+    def test_a_word_only_in_the_history(self, client, part):
+        aid = part(model="Widget")["asset_id"]
+        client.post(f"/parts/{aid}/note", data={"message": "recapped the lot"},
+                    follow_redirects=False)
+        part(model="Other")
+        page = client.get("/?q=recapped").text
+        assert aid in page and page.count('class="card"') == 1
+
+    def test_a_word_only_in_the_specs(self, client, part):
+        aid = part(type="video", specs="Chip: ET4000 | Interface: VLB")["asset_id"]
+        part(type="sound")
+        assert client.get("/?q=et4000").text.count('class="card"') == 1
+        assert aid in client.get("/?q=et4000").text
+
+    def test_every_term_must_appear_somewhere(self, client, part):
+        """The words may be in different fields -- maker in one, condition in
+        another -- which is what makes it a search rather than a phrase match."""
+        wanted = part(manufacturer="Amstrad", model="A", condition="Faulty")["asset_id"]
+        part(manufacturer="Amstrad", model="B", condition="Working")
+        part(manufacturer="IBM", model="C", condition="Faulty")
+        page = client.get("/?q=amstrad+faulty").text
+        assert wanted in page and page.count('class="card"') == 1
+
+    def test_a_quoted_phrase_must_be_contiguous(self, client, part):
+        run = part(model="Etherlink III combo")["asset_id"]
+        part(model="Etherlink", name="III elsewhere in the record")
+        page = client.get('/?q=%22etherlink+iii%22').text
+        assert run in page and page.count('class="card"') == 1
+
+    def test_nothing_matching_says_so(self, client, part):
+        part()
+        page = client.get("/?q=zzzznotathing").text
+        assert page.count('class="card"') == 0
+        assert "Searched every field" in page
+
+    def test_it_reports_what_it_searched(self, client, computer, part):
+        computer()
+        part()
+        page = client.get("/?q=nothinghere").text
+        assert "all\n  2 items" in page or "2 items" in page
+
+    def test_the_browser_is_told_what_the_server_matched(self, client, part):
+        """Otherwise the instant filter would hide rows that matched on a field the
+        browser's own copy does not carry."""
+        part(notes="battery damage")
+        page = client.get("/?q=battery").text
+        assert 'const serverQuery = "battery"' in page
+        card = page[page.index('<a class="card"'):]
+        assert "battery" not in card[:card.index("</a>")]
+
+    def test_searching_is_public(self, client, part, monkeypatch):
+        from app import main
+        part(notes="battery damage")
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        assert client.get("/?q=battery").status_code == 200

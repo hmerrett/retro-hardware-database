@@ -1191,7 +1191,10 @@ def _catalogue_rows(db):
             "search": " ".join([c.asset_id, c.name or "", c.manufacturer or "",
                                  c.model or "", c.os or "", c.cpu or "",
                                  c.chassis or "", c.installed_ram or "",
-                                 c.drives or ""]).lower(),
+                                 c.drives or "", str(c.year or ""),
+                                 c.condition or "", c.source or "",
+                                 str(c.acquired_date or ""),
+                                 c.disposed_note or ""]).lower(),
         })
     for p in parts:
         ptype = p.type or "other"
@@ -1208,7 +1211,10 @@ def _catalogue_rows(db):
             "sub": (p.computer_id if p.computer_id else "standalone"),
             "search": " ".join([p.asset_id, p.name or "", p.manufacturer or "",
                                  p.model or "", p.specs or "", p.type or "",
-                                 entry.type_label(ptype)]).lower(),
+                                 entry.type_label(ptype), str(p.year or ""),
+                                 p.condition or "", p.source or "",
+                                 str(p.acquired_date or ""), p.disk_image or "",
+                                 p.computer_id or "", p.disposed_note or ""]).lower(),
         })
     return rows
 
@@ -1232,12 +1238,66 @@ def _grid_page(request, rows, **extra):
         "n_computers": n_computers, "n_parts": len(rows) - n_computers, **extra})
 
 
+def search_terms(query):
+    """A query as the list of things that must all appear. Bare words are words;
+    "a quoted run" is one term, so a phrase can be asked for exactly."""
+    terms = []
+    for i, chunk in enumerate((query or "").lower().split('"')):
+        if i % 2:
+            if chunk.strip():
+                terms.append(chunk.strip())
+        else:
+            terms.extend(chunk.split())
+    return terms
+
+
+def _haystack(db, obj, history):
+    """Everything written about one item, as one lowercase string: every text
+    column, its rendered specs or memory and drives, and its history. This is what
+    makes a search over "any field" true rather than nearly true."""
+    fields = [str(getattr(obj, c.name) or "") for c in obj.__table__.columns]
+    fields += history.get(obj.asset_id, [])
+    if isinstance(obj, Part):
+        fields.append(entry.type_label(obj.type or "other"))
+    # Joined by newline, not by space: with a space, a quoted phrase could match
+    # across the seam between two fields -- a part whose model is "Etherlink" and
+    # whose name begins "III" would answer to "etherlink iii", which it is not.
+    return "\n".join(fields).lower()
+
+
+def _history_by_asset(db):
+    out = {}
+    for aid, message in db.query(LogEntry.asset_id, LogEntry.message):
+        out.setdefault(aid, []).append(message or "")
+    return out
+
+
+def _search(db, rows, query):
+    """The rows whose text contains every term. Done in Python over the rows the
+    page already loaded: at this size it is a few hundred string searches, and it
+    matches exactly what a reader would call a match rather than what SQL collation
+    would."""
+    terms = search_terms(query)
+    if not terms:
+        return rows
+    history = _history_by_asset(db)
+    kept = []
+    for r in rows:
+        hay = _haystack(db, r["obj"], history)
+        if all(t in hay for t in terms):
+            kept.append(r)
+    return kept
+
+
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def gui_index(request: Request, db: Session = Depends(get_db)):
+def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
     rows = _catalogue_rows(db)
+    total = len(rows)
+    if q.strip():
+        rows = _search(db, rows, q)
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
     return _grid_page(
-        request, rows,
+        request, rows, q=q, searched=bool(q.strip()), total=total,
         og=_og(request, "Retro Hardware Database",
                f"{n_computers} computers and {len(rows) - n_computers} parts "
                "in the collection."))

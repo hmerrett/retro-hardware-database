@@ -14,7 +14,14 @@
 {% endif %}
 
 <div class="toolbar">
-  <input id="q" type="search" placeholder="Search name, maker, chip, interface, port, asset no." style="flex:1;min-width:220px">
+  {# Typing filters what is on the page instantly. Enter submits, and the server
+     searches every field of every item plus its history -- including the prose
+     summaries, which are too bulky to ship to the browser for filtering. #}
+  <form method="get" action="/" style="display:flex;flex:1;min-width:220px;margin:0">
+    <input id="q" name="q" type="search" value="{{ q | default('', true) }}"
+           style="flex:1;min-width:0"
+           placeholder="Search anything — maker, chip, port, a note, an asset no.">
+  </form>
   <select id="cat">
     <option value="">All categories</option>
     {% for key, label in cats %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
@@ -28,6 +35,12 @@
     show disposed</label>
   <span class="count" id="count"></span>
 </div>
+
+{% if searched %}
+<p class="hint" id="searchnote">Searched every field and the history of all
+  {{ total }} items for <strong>{{ q }}</strong> — {{ rows | length }} matched.
+  <a href="/">clear</a></p>
+{% endif %}
 
 <div class="grid" id="grid">
   {% for r in rows %}
@@ -78,13 +91,29 @@
     });
     arr.forEach(el => grid.appendChild(el));
   }
+  // What the server already searched for. While the box still holds it, the rows
+  // on the page are the server's answer -- filtering them again here would hide
+  // the ones that matched on a summary or a history entry, which this blob does
+  // not carry. Edit the box and instant filtering takes over again.
+  const serverQuery = {{ (q | default('', true)) | tojson }};
+
+  function terms(value) {
+    const out = [];
+    value.toLowerCase().split('"').forEach((chunk, i) => {
+      if (i % 2) { if (chunk.trim()) out.push(chunk.trim()); }
+      else { out.push(...chunk.split(/\s+/).filter(Boolean)); }
+    });
+    return out;
+  }
+
   function apply() {
     sortCards(sortSel.value);
-    const term = q.value.trim().toLowerCase();
+    const raw = q.value.trim();
+    const words = (raw === serverQuery) ? [] : terms(raw);
     const c = cat.value;
     let shown = 0;
     for (const el of cards) {
-      const ok = (!term || el.dataset.search.includes(term))
+      const ok = words.every(w => el.dataset.search.includes(w))
         && (!c || el.dataset.cat === c)
         && (showd.checked || el.dataset.disposed === '0');
       el.style.display = ok ? '' : 'none';
