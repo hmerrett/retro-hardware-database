@@ -556,11 +556,62 @@ def _short(v, limit=80):
     return v if len(v) <= limit else v[:limit - 1] + "…"
 
 
-def _disposal_log(obj):
+def _disposal_log(obj, with_machine=None):
     """The history line for a disposal: when, and why if a reason was given."""
     when = obj.disposed_at.isoformat() if obj.disposed_at else "date unknown"
-    return f"marked disposed ({when})" + (f": {obj.disposed_note}"
-                                          if obj.disposed_note else "")
+    who = f" with {with_machine}" if with_machine else ""
+    return f"marked disposed{who} ({when})" + (f": {obj.disposed_note}"
+                                               if obj.disposed_note else "")
+
+
+def _parts_in_computer(db, aid):
+    """Everything inside a machine: the parts installed in it, and then whatever
+    is mounted on those in turn. A disk on a controller card carries the card's
+    id rather than the machine's, so following computer_id alone would miss it."""
+    found, seen = [], set()
+    ids, first = [aid], True
+    while ids:
+        q = db.query(Part).filter(Part.computer_id == aid) if first \
+            else db.query(Part).filter(Part.parent_id.in_(ids))
+        rows = [p for p in q.order_by(Part.asset_id).all() if p.asset_id not in seen]
+        seen.update(p.asset_id for p in rows)
+        found.extend(rows)
+        ids, first = [p.asset_id for p in rows], False
+    return found
+
+
+def _dispose_contents(db, c):
+    """A machine goes to the tip with what is in it. A part already disposed keeps
+    the record it has -- it did not go with this machine -- and so is left alone,
+    which is also what lets a restore tell the two apart."""
+    n = 0
+    for p in _parts_in_computer(db, c.asset_id):
+        if p.disposed:
+            continue
+        p.disposed, p.disposed_at = True, c.disposed_at
+        p.disposed_note = c.disposed_note
+        add_log(db, p.asset_id, _disposal_log(p, c.asset_id))
+        n += 1
+    return n
+
+
+def _restore_contents(db, c, was_at, was_note):
+    """The other half of the cascade: the parts that went out with this machine --
+    still in it, and still carrying its disposal record -- come back with it."""
+    n = 0
+    for p in _parts_in_computer(db, c.asset_id):
+        if not (p.disposed and p.disposed_at == was_at
+                and (p.disposed_note or "") == (was_note or "")):
+            continue
+        p.disposed, p.disposed_at, p.disposed_note = False, None, ""
+        add_log(db, p.asset_id, f"restored with {c.asset_id}")
+        n += 1
+    return n
+
+
+def _and_parts(n, went="went with it"):
+    """The tail of a machine's history line when the cascade touched anything."""
+    return f"\n{n} part{'' if n == 1 else 's'} in it {went}" if n else ""
 
 
 def _parse_date(raw):
@@ -666,8 +717,23 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
         _drives_from_api(db, obj, drives)
     new = {k: getattr(obj, k) for k in fields} | {k: getattr(obj, k) for k in derived}
     diff = _field_diffs(old, new, list(fields) + list(derived))
-    if diff:
-        add_log(db, aid, diff)
+    # The contents follow the machine whichever door the change came in by, so
+    # that the API and the GUI cannot leave the register in different states.
+    n = 0
+    if "disposed" in fields and bool(old["disposed"]) != bool(obj.disposed):
+        if obj.disposed:
+            n = _dispose_contents(db, obj)
+        else:
+            # A patch that clears the flag need not clear the date and note as
+            # well, so the record to match the parts against is whichever of the
+            # two the request left behind.
+            n = _restore_contents(
+                db, obj,
+                old["disposed_at"] if "disposed_at" in fields else obj.disposed_at,
+                old["disposed_note"] if "disposed_note" in fields else obj.disposed_note)
+    if diff or n:
+        add_log(db, aid, (diff + _and_parts(
+            n, "went with it" if obj.disposed else "came back too")).strip())
     db.commit()
     db.refresh(obj)
     return obj
@@ -1501,7 +1567,11 @@ async def gui_dispose_computer(aid: str, request: Request,
     c.disposed = True
     c.disposed_at = _parse_date(form.get("date", "")) or date.today()
     c.disposed_note = form.get("note", "") or ""
-    add_log(db, aid, _disposal_log(c))
+    # What was in the machine went out with the machine, on the same date and for
+    # the same reason -- recording it any other way would leave the register
+    # claiming we still hold parts that are in the same skip as their host.
+    n = _dispose_contents(db, c)
+    add_log(db, aid, _disposal_log(c) + _and_parts(n))
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
@@ -1509,10 +1579,12 @@ async def gui_dispose_computer(aid: str, request: Request,
 @app.post("/computers/{aid}/restore", include_in_schema=False)
 def gui_restore_computer(aid: str, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
+    was_at, was_note = c.disposed_at, c.disposed_note
     c.disposed = False
     c.disposed_at = None
     c.disposed_note = ""
-    add_log(db, aid, "restored")
+    n = _restore_contents(db, c, was_at, was_note)
+    add_log(db, aid, "restored" + _and_parts(n, "came back too"))
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 

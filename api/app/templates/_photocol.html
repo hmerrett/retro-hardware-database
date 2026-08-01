@@ -68,6 +68,9 @@
       <input name="date" type="date" value="{{ today() }}">
       <button class="btn sm" type="submit">mark disposed</button>
     </form>
+    {% if kind == 'computers' %}<p class="hint">The parts in the machine are
+      disposed with it, on the same date and for the same reason. Restoring the
+      machine brings them back.</p>{% endif %}
     {% endif %}
   </div>
   {% endif %}

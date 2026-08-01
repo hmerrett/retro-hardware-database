@@ -33,6 +33,11 @@ history for every asset (automatic change records plus free-text notes);
 printable label PDFs; duplicating an item; marking one disposed and restoring it;
 and a build walk that steps through a machine's motherboard and cards.
 
+Disposing a machine disposes what is in it -- the parts installed in it and
+anything mounted on those in turn -- on the same date and for the same reason.
+A part already disposed keeps its own record, and restoring the machine brings
+back only the parts that went out with it.
+
 Our own photos are watermarked with the site icon as they are served (reference
 images are not). Set `RHDB_WATERMARK=0` to serve everything untouched.
 

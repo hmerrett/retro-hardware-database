@@ -101,6 +101,111 @@ class TestDisposal:
         assert p["disposed"] is True and p["disposed_at"] is None
 
 
+class TestDisposingAMachineTakesItsPartsWithIt:
+    """A machine leaves the collection as an assembled thing. If its contents kept
+    reading as held, the register would claim we still have parts that are in the
+    same skip as the machine they were bolted into."""
+
+    def test_the_parts_installed_in_it_are_disposed_too(self, client, computer, part):
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.post(f"/computers/{cid}/dispose",
+                    data={"note": "sold as a lot", "date": "2026-07-20"},
+                    follow_redirects=False)
+        p = client.get(f"/api/parts/{pid}").json()
+        assert p["disposed"] is True
+        assert p["disposed_at"] == "2026-07-20"
+        assert p["disposed_note"] == "sold as a lot"
+
+    def test_a_part_mounted_on_a_card_in_it_goes_too(self, client, computer, part):
+        """A disk on a controller carries the controller's id, not the machine's,
+        so the walk has to follow the whole tree rather than one column."""
+        cid = computer()["asset_id"]
+        card = part(type="io", computer_id=cid)["asset_id"]
+        disk = part(type="storage", parent_id=card)["asset_id"]
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{disk}").json()["disposed"] is True
+
+    def test_a_part_outside_the_machine_is_left_alone(self, client, computer, part):
+        cid = computer()["asset_id"]
+        spare = part()["asset_id"]
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{spare}").json()["disposed"] is False
+
+    def test_a_part_already_disposed_keeps_its_own_record(self, client, computer,
+                                                          part):
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.post(f"/parts/{pid}/dispose",
+                    data={"note": "died on the bench", "date": "2026-01-05"},
+                    follow_redirects=False)
+        client.post(f"/computers/{cid}/dispose",
+                    data={"note": "sold as a lot", "date": "2026-07-20"},
+                    follow_redirects=False)
+        p = client.get(f"/api/parts/{pid}").json()
+        assert p["disposed_at"] == "2026-01-05"
+        assert p["disposed_note"] == "died on the bench"
+
+    def test_restoring_the_machine_brings_those_parts_back(self, client, computer,
+                                                           part):
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        client.post(f"/computers/{cid}/restore", follow_redirects=False)
+        p = client.get(f"/api/parts/{pid}").json()
+        assert p["disposed"] is False
+        assert p["disposed_at"] is None and p["disposed_note"] == ""
+
+    def test_restoring_leaves_a_part_that_went_separately(self, client, computer,
+                                                          part):
+        """Only what went out with the machine comes back with it."""
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.post(f"/parts/{pid}/dispose",
+                    data={"note": "died on the bench", "date": "2026-01-05"},
+                    follow_redirects=False)
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        client.post(f"/computers/{cid}/restore", follow_redirects=False)
+        assert client.get(f"/api/parts/{pid}").json()["disposed"] is True
+
+    def test_the_json_api_cascades_the_same_way(self, client, computer, part):
+        """The rule belongs to the data, not to the GUI: the MCP server and the
+        command-line tools go through PATCH and must not leave a machine disposed
+        with its parts still reading as held."""
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.patch(f"/api/computers/{cid}",
+                     json={"disposed": True, "disposed_at": "2026-07-20",
+                           "disposed_note": "sold as a lot"})
+        p = client.get(f"/api/parts/{pid}").json()
+        assert p["disposed"] is True and p["disposed_at"] == "2026-07-20"
+        client.patch(f"/api/computers/{cid}", json={"disposed": False})
+        assert client.get(f"/api/parts/{pid}").json()["disposed"] is False
+
+    def test_editing_a_disposed_machine_does_not_re_dispose(self, client, computer,
+                                                            part):
+        """The cascade fires on the change, not on the state, so a later edit
+        cannot overwrite a part that was restored on its own."""
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.patch(f"/api/computers/{cid}", json={"disposed": True})
+        client.post(f"/parts/{pid}/restore", follow_redirects=False)
+        client.patch(f"/api/computers/{cid}", json={"notes": "in the garage"})
+        assert client.get(f"/api/parts/{pid}").json()["disposed"] is False
+
+    def test_both_histories_say_what_happened(self, client, computer, part):
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        assert "1 part in it went with it" in client.get(f"/computers/{cid}").text
+        assert f"marked disposed with {cid}" in client.get(f"/parts/{pid}").text
+
+
 class TestLinks:
     def test_a_new_part_stands_alone(self, part):
         p = part()
