@@ -69,9 +69,20 @@
   header a { text-decoration: none; }
   header .brand { font-weight: 600; }
   main { max-width: 1000px; margin: 0 auto; padding: 18px; }
+  /* A phone spends its width on content, not on margins. */
+  @media (max-width: 480px) {
+    header { padding: 10px 12px; }
+    main { padding: 14px 12px; }
+  }
   a { color: var(--accent); }
+  /* Names like "TMC/MyComp/MyNix/Megastar AI5TV" are one unbreakable word to a
+     browser, and a heading is a flex item that will not shrink below it. */
+  h1, h2, h3 { overflow-wrap: anywhere; }
   table { border-collapse: collapse; width: 100%; }
-  th, td { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
+     sets the column's minimum width, and a table refuses to shrink below it. On a
+     phone that is what pushes the whole page sideways, so let such a run break. */
+  th, td { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
   th { color: var(--muted); font-weight: 500; font-size: 13px; }
   .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap; }
   .btn:hover { background: var(--btn-hover); }
@@ -81,7 +92,9 @@
   form.edit label { display: block; margin: 10px 0 3px; color: var(--muted); font-size: 13px; }
   form.edit input, form.edit textarea, form.edit select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: transparent; color: inherit; }
   form.edit textarea { min-height: 60px; }
-  .countgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 16px; margin: 4px 0 10px; }
+  /* min(Npx, 100%) rather than a bare Npx: on a screen narrower than one column
+     the track would otherwise keep its floor and hang off the side of the page. */
+  .countgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 6px 16px; margin: 4px 0 10px; }
   .countgrid label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
   .countgrid input { width: 60px; padding: 4px 6px; }
   table.drives { margin: 4px 0 10px; }
@@ -97,7 +110,7 @@
   .hero { margin: 18px 0 6px; }
   .hero .n { font-size: 54px; line-height: 1; font-weight: 600; letter-spacing: -1px; }
   .hero .of { color: var(--muted); font-size: 14px; margin-top: 6px; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(196px, 100%), 1fr));
     gap: 10px; margin: 16px 0 26px; }
   .tile { border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
   /* Every figure leads to the items behind it, quietly: a page of numbers should
@@ -109,7 +122,7 @@
   .tile .k { color: var(--muted); font-size: 12px; }
   .tile .v { font-size: 21px; font-weight: 600; margin-top: 3px; }
   .tile .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
-  .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr));
     gap: 22px 34px; margin-bottom: 24px; }
   .rank h3 { font-size: 14px; margin: 0 0 2px; }
   .rank .cap { color: var(--muted); font-size: 12px; margin: 0 0 9px; }
@@ -128,6 +141,10 @@
   .build-banner { background: #3b82f622; border: 1px solid #3b82f6aa; border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
   .toolbar input[type=search], .toolbar input[list], .toolbar select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
+  /* A picker is as wide as its widest option, and the options here are whole item
+     names -- wider than a phone. Let it shrink; the chosen line still fits. */
+  select { max-width: 100%; }
+  .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
   .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
   .thumbs img { width: 150px; height: 110px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
   .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
@@ -180,8 +197,10 @@
     .detail .photo-col { order: -1; }
   }
   .section { margin-top: 24px; }
-  .flex { display: flex; align-items: baseline; gap: 12px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 14px; }
+  /* Wraps because the title row carries the heading, its chips and -- when logged
+     in -- the edit/print buttons, which is more than a phone's width. */
+  .flex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 14px; margin-top: 14px; }
   .card { display: block; background: transparent; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; }
   .card:hover { border-color: var(--accent); }
   .card .thumb { aspect-ratio: 4 / 3; background: var(--chip); display: flex; align-items: center; justify-content: center; position: relative; }
