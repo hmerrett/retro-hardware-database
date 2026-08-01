@@ -100,3 +100,53 @@ class TestCanonicalOrder:
 
     def test_attributes_come_after_the_known_keys(self):
         assert render("video", "Voltage: 5V | Chip: S3") == "Chip: S3 | Voltage: 5V"
+
+
+class TestDriveCapacityFromGeometry:
+    """A drive's geometry gives its capacity, so it need not be typed twice.
+
+    What is typed always wins, because the geometry is not always the truth: a 20 GB
+    drive reports 16383/16/63 because CHS cannot address beyond about 8 GB, and an
+    RLL drive's sector count gives a different figure from its MFM formatted size.
+    """
+
+    def test_the_arithmetic_is_sectors_of_512_bytes(self):
+        assert specstruct.chs_capacity_kb((615, 4, 17)) == 20910
+        assert specstruct.chs_capacity_kb((1024, 16, 63)) == 516096
+
+    def test_a_geometry_alone_gives_a_capacity(self):
+        st = specstruct.parse("storage", "Kind: Hard disk | CHS: 1024/16/63")
+        assert st.scalars["capacity_kb"] == 516096
+        assert "Capacity: 504 MB" in specstruct.format("storage", st)
+
+    def test_a_stated_capacity_is_never_overwritten(self):
+        st = specstruct.parse("storage", "CHS: 16383/16/63 | Capacity: 20GB")
+        assert st.scalars["capacity_kb"] == 20971520
+
+    def test_a_stated_capacity_the_columns_cannot_read_still_wins(self):
+        """It is the reader's figure either way; it stays verbatim and no number is
+        invented to replace it."""
+        st = specstruct.parse("storage", "CHS: 615/4/17 | Capacity: 20MB (36MB?!)")
+        assert st.scalars["capacity_kb"] is None
+        assert ("Capacity", "20MB (36MB?!)") in st.attributes
+
+    def test_no_geometry_derives_nothing(self):
+        st = specstruct.parse("storage", "Kind: Hard disk")
+        assert "capacity_kb" not in st.scalars
+
+    def test_a_malformed_geometry_derives_nothing(self):
+        st = specstruct.parse("storage", "Kind: Hard disk | CHS: lots")
+        assert "capacity_kb" not in st.scalars
+
+    def test_only_drives_are_measured_this_way(self):
+        st = specstruct.parse("video", "Chip: ET4000")
+        assert "capacity_kb" not in st.scalars
+
+    def test_a_derived_capacity_survives_being_saved_again(self):
+        """The rendered figure must re-read as the same number, or it would drift
+        every time the part was saved."""
+        once = specstruct.format(
+            "storage", specstruct.parse("storage", "CHS: 615/4/17"))
+        twice = specstruct.format("storage", specstruct.parse("storage", once))
+        assert once == twice
+        assert specstruct.parse("storage", once).scalars["capacity_kb"] == 20910

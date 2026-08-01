@@ -67,7 +67,7 @@ until you submit.</p>
     <div id="drive-part">
       {{ sf('spec_interface', 'Interface', 'Interface', '', 'dl_storage_ifaces') }}
       {{ sf('spec_protocol', 'Protocol', 'Protocol', '', 'dl_storage_proto') }}
-      {{ sf('spec_capacity', 'Capacity', 'Capacity', 'e.g. 540 MB') }}
+      {{ sf('spec_capacity', 'Capacity', 'Capacity', 'e.g. 540 MB. Leave it blank and it is worked out from the geometry below; whatever you type here wins, which matters for a drive whose CHS is clamped (16383/16/63) or quoted for RLL.') }}
       {{ sf('spec_chs', 'CHS', 'CHS geometry', 'cylinders/heads/sectors, e.g. 1024/16/63') }}
       {{ sf('spec_media', 'Media', 'Media') }}
       {{ sf('spec_speed', 'Speed', 'Speed') }}

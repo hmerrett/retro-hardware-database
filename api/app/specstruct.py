@@ -4,7 +4,8 @@ stay in agreement.
 
 - parse(ptype, specs) -> Struct: scalars (mapped to DB columns), the count-list
   fields (slots / RAM slots / ports), storage CHS split into ints, and a
-  key/value fallback for free-form types.
+  key/value fallback for free-form types. A drive with a geometry but no stated
+  capacity has one worked out from it; a stated capacity is always kept.
 - format(ptype, struct) -> specs string: the canonical rendering, used to keep
   parts.specs as a denormalised cache and to render spec tables.
 
@@ -193,6 +194,19 @@ def numeric_handler(col):
     return None
 
 
+def chs_capacity_kb(chs):
+    """Capacity in KB from a drive's geometry: cylinders x heads x sectors, each
+    sector 512 bytes, which is every drive this catalogue holds.
+
+    A KB being 1024 bytes, two sectors make one, so the arithmetic is that simple.
+    A geometry of 615/4/17 comes to 20,910 KB -- near enough the "20MB" written on
+    the label to corroborate it, and far enough off to show why a figure a person
+    typed is left alone rather than being corrected to this one.
+    """
+    c, h, sec = chs
+    return (c * h * sec) // 2
+
+
 def _parse_counts(value):
     """'2× 8-bit ISA, 6× 16-bit ISA, VLB' -> [('8-bit ISA', 2), ('16-bit ISA', 6),
     ('VLB', 1)]."""
@@ -247,6 +261,8 @@ def parse(ptype, specs) -> Struct:
                 s.scalars[col] = v
         else:
             s.attributes.append((k, v))
+    if ptype == "storage" and s.chs and "capacity_kb" not in s.scalars:
+        s.scalars["capacity_kb"] = chs_capacity_kb(s.chs)
     return s
 
 
