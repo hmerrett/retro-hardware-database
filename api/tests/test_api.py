@@ -990,3 +990,117 @@ class TestSearchingEveryField:
         part(notes="battery damage")
         monkeypatch.setattr(main, "AUTH_ENABLED", True)
         assert client.get("/?q=battery").status_code == 200
+
+
+class TestTheBigPhotoView:
+    """The big view is also the editor when logged in, so a run of corrections does
+    not mean a round trip through the item page between each one."""
+
+    @staticmethod
+    def upload(client, kind, aid, size=(900, 600)):
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", size, (120, 90, 60)).save(buf, "JPEG", quality=92)
+        buf.seek(0)
+        client.post(f"/{kind}/{aid}/photo",
+                    files={"photos": (f"{aid}.jpg", buf, "image/jpeg")},
+                    follow_redirects=False)
+        return f"{kind}/{aid}.jpg"
+
+    @staticmethod
+    def served_size(client, rel):
+        import io
+        from PIL import Image
+        return Image.open(io.BytesIO(client.get(f"/images/{rel}").content)).size
+
+    def test_each_photo_says_where_it_lives(self, client, part):
+        """One toolbar in the overlay serves every photo, so each carries its own
+        item and filename."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert f'data-kind="parts" data-aid="{aid}" data-rel="{rel}"' in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_the_editing_tools_are_only_for_the_logged_in(self, client, part,
+                                                          monkeypatch):
+        from app import main
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            assert 'id="lb-tools"' in client.get(f"/parts/{aid}").text
+            monkeypatch.setattr(main, "AUTH_ENABLED", True)
+            anon = client.get(f"/parts/{aid}").text
+            assert 'id="lb-tools"' not in anon
+            assert "zoomable" in anon
+        finally:
+            monkeypatch.setattr(main, "AUTH_ENABLED", False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_the_old_editor_page_opens_the_big_view_instead(self, client, part):
+        """It was its own page; keeping the link working means one crop
+        implementation rather than two."""
+        aid = part()["asset_id"]
+        r = client.get(f"/parts/{aid}/edit-photo?image=parts%2F{aid}.jpg",
+                       follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == f"/parts/{aid}?photo=parts/{aid}.jpg"
+
+    def test_rotating_from_the_view_returns_to_the_same_photo(self, client, part):
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        back = f"/parts/{aid}?photo={rel}"
+        try:
+            assert self.served_size(client, rel) == (900, 600)
+            r = client.post(f"/parts/{aid}/photo-rotate",
+                            data={"image": rel, "dir": "cw", "next": back},
+                            follow_redirects=False)
+            assert r.status_code == 303 and r.headers["location"] == back
+            assert self.served_size(client, rel) == (600, 900)
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_cropping_from_the_view_returns_to_the_same_photo(self, client, part):
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        back = f"/parts/{aid}?photo={rel}"
+        try:
+            r = client.post(f"/parts/{aid}/photo-crop",
+                            data={"image": rel, "x": "0.25", "y": "0.25",
+                                  "w": "0.5", "h": "0.5", "next": back},
+                            follow_redirects=False)
+            assert r.status_code == 303 and r.headers["location"] == back
+            assert self.served_size(client, rel) == (450, 300)
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_a_nonsense_crop_box_is_refused(self, client, part):
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            r = client.post(f"/parts/{aid}/photo-crop",
+                            data={"image": rel, "x": "a", "y": "b", "w": "c", "h": "d"},
+                            follow_redirects=False)
+            assert r.status_code == 400
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_an_edit_is_recorded_in_the_history(self, client, part):
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            client.post(f"/parts/{aid}/photo-rotate", data={"image": rel, "dir": "ccw"},
+                        follow_redirects=False)
+            messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+            assert "rotated a photo" in messages
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)

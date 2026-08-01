@@ -189,7 +189,22 @@
   img.zoomable { cursor: zoom-in; }
   #lightbox { position: fixed; inset: 0; background: #000000d8; display: none; align-items: center; justify-content: center; z-index: 1000; }
   #lightbox.open { display: flex; }
-  #lightbox img { max-width: 92vw; max-height: 92vh; border-radius: 8px; box-shadow: 0 6px 40px #000; }
+  #lightbox .lb-stage { position: relative; line-height: 0; max-width: 92vw; max-height: 84vh; }
+  #lightbox img { max-width: 92vw; max-height: 84vh; border-radius: 8px; box-shadow: 0 6px 40px #000;
+    display: block; width: auto; height: auto; }
+  #lightbox .lb-stage.cropping { cursor: crosshair; touch-action: none; }
+  #lb-crop { position: absolute; border: 2px solid #fff; box-sizing: border-box;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); cursor: move; }
+  #lb-crop .handle { position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px;
+    background: #fff; border: 1px solid #333; border-radius: 2px; cursor: se-resize; }
+  #lightbox .lb-tools { position: absolute; bottom: 2vh; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
+    background: #000000a8; padding: 7px 10px; border-radius: 10px; max-width: 94vw; }
+  #lightbox .lb-tools form { margin: 0; display: flex; gap: 8px; align-items: center; }
+  #lightbox .lb-tools .btn { position: static; background: #ffffff1f; color: #fff;
+    border-color: #ffffff33; }
+  #lightbox .lb-tools .btn.primary { background: var(--accent); border-color: var(--accent); }
+  #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
   #lightbox button { position: absolute; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
   #lightbox .lb-nav { top: 50%; transform: translateY(-50%); font-size: 38px; padding: 6px 16px; }
   #lightbox .lb-prev { left: 3vw; } #lightbox .lb-next { right: 3vw; }
@@ -253,43 +268,189 @@
   {% endif %}
 </header>
 <main>{% block content %}{% endblock %}</main>
+{# The big view. Logged in, it is also the photo editor: rotating or cropping from
+   here returns to this same photo still open, so a run of corrections does not mean
+   a round trip through the item page for each one. The crop maths works in
+   fractions of the image, which is why it can live at whatever size the overlay
+   happens to be showing. #}
 <div id="lightbox">
   <button class="lb-close" title="Close (Esc)">×</button>
-  <button class="lb-nav lb-prev" title="Previous">‹</button>
-  <img alt="">
-  <button class="lb-nav lb-next" title="Next">›</button>
+  <button class="lb-nav lb-prev" title="Previous (←)">‹</button>
+  <div class="lb-stage" id="lb-stage">
+    <img alt="">
+    <div id="lb-crop" hidden><div class="handle"></div></div>
+  </div>
+  <button class="lb-nav lb-next" title="Next (→)">›</button>
+  {% if request.state.authed %}
+  <div class="lb-tools" id="lb-tools">
+    <form method="post" class="lb-act" data-act="photo-rotate">
+      <input type="hidden" name="image"><input type="hidden" name="next">
+      <input type="hidden" name="dir" value="ccw">
+      <button class="btn sm" type="submit" title="Rotate anticlockwise">⟲</button>
+    </form>
+    <form method="post" class="lb-act" data-act="photo-rotate">
+      <input type="hidden" name="image"><input type="hidden" name="next">
+      <input type="hidden" name="dir" value="cw">
+      <button class="btn sm" type="submit" title="Rotate clockwise">⟳</button>
+    </form>
+    <button class="btn sm" type="button" id="lb-crop-on">crop</button>
+    <form method="post" class="lb-act" data-act="photo-crop" id="lb-crop-form" hidden>
+      <input type="hidden" name="image"><input type="hidden" name="next">
+      <input type="hidden" name="x"><input type="hidden" name="y">
+      <input type="hidden" name="w"><input type="hidden" name="h">
+      <button class="btn sm primary" type="submit" id="lb-crop-apply" disabled>apply crop</button>
+      <button class="btn sm" type="button" id="lb-crop-off">cancel</button>
+    </form>
+    <span class="lb-hint" id="lb-hint"></span>
+  </div>
+  {% endif %}
 </div>
 <script>
   (function () {
     const box = document.getElementById('lightbox');
+    const stage = document.getElementById('lb-stage');
     const img = box.querySelector('img');
     const prev = box.querySelector('.lb-prev');
     const next = box.querySelector('.lb-next');
-    let list = [], idx = 0;
+    const tools = document.getElementById('lb-tools');
+    const cropLayer = document.getElementById('lb-crop');
+    const cropForm = document.getElementById('lb-crop-form');
+    const cropOn = document.getElementById('lb-crop-on');
+    const cropOff = document.getElementById('lb-crop-off');
+    const cropApply = document.getElementById('lb-crop-apply');
+    const hint = document.getElementById('lb-hint');
+    const shots = Array.from(document.querySelectorAll('img.zoomable'));
+    if (!shots.length) return;
+
+    let idx = 0, sel = null, mode = null, startPt = null, startSel = null;
+
+    function current() { return shots[idx]; }
+
     function show() {
-      img.src = list[idx];
-      const multi = list.length > 1;
+      const el = current();
+      img.src = el.dataset.full || el.src;
+      const multi = shots.length > 1;
       prev.style.display = next.style.display = multi ? '' : 'none';
+      cropMode(false);
+      if (tools) {
+        // Each photo carries where it lives, so one toolbar serves them all.
+        const d = el.dataset;
+        tools.style.display = d.rel ? '' : 'none';
+        const back = d.aid ? `/${d.kind}/${d.aid}?photo=${encodeURIComponent(d.rel)}` : '';
+        tools.querySelectorAll('form.lb-act').forEach(f => {
+          f.action = `/${d.kind}/${d.aid}/${f.dataset.act}`;
+          f.querySelector('[name=image]').value = d.rel || '';
+          f.querySelector('[name=next]').value = back;
+        });
+      }
+      if (hint) hint.textContent = multi ? `${idx + 1} of ${shots.length}` : '';
     }
-    function close() { box.classList.remove('open'); img.src = ''; }
-    function step(d) { if (list.length) { idx = (idx + d + list.length) % list.length; show(); } }
-    const zoomables = document.querySelectorAll('img.zoomable');
-    zoomables.forEach((el, i) => el.addEventListener('click', () => {
-      list = Array.from(zoomables).map(x => x.dataset.full || x.src);
-      idx = i;
-      box.classList.add('open');
+    function open(i) { idx = i; box.classList.add('open'); show(); }
+    function close() { cropMode(false); box.classList.remove('open'); img.src = ''; }
+    function step(d) {
+      if (mode) return;
+      idx = (idx + d + shots.length) % shots.length;
       show();
-    }));
+    }
+
+    // --- crop, in fractions of the image so the overlay's size is irrelevant ---
+    function cropMode(on) {
+      sel = null; mode = null;
+      stage.classList.toggle('cropping', on);
+      cropLayer.hidden = true;
+      if (cropForm) cropForm.hidden = !on;
+      if (cropOn) cropOn.hidden = on;
+      if (cropApply) cropApply.disabled = true;
+    }
+    const clamp = v => Math.min(1, Math.max(0, v));
+    function ptFrac(e) {
+      const r = img.getBoundingClientRect();
+      return { x: clamp((e.clientX - r.left) / r.width),
+               y: clamp((e.clientY - r.top) / r.height) };
+    }
+    function render() {
+      const ok = sel && sel.w > 0.02 && sel.h > 0.02;
+      cropLayer.hidden = !sel;
+      cropApply.disabled = !ok;
+      if (!sel) return;
+      cropLayer.style.left = (sel.x * 100) + '%';
+      cropLayer.style.top = (sel.y * 100) + '%';
+      cropLayer.style.width = (sel.w * 100) + '%';
+      cropLayer.style.height = (sel.h * 100) + '%';
+      if (ok) {
+        cropForm.querySelector('[name=x]').value = sel.x.toFixed(4);
+        cropForm.querySelector('[name=y]').value = sel.y.toFixed(4);
+        cropForm.querySelector('[name=w]').value = sel.w.toFixed(4);
+        cropForm.querySelector('[name=h]').value = sel.h.toFixed(4);
+      }
+    }
+    if (cropOn) {
+      cropOn.addEventListener('click', () => cropMode(true));
+      cropOff.addEventListener('click', () => cropMode(false));
+      stage.addEventListener('pointerdown', e => {
+        if (!stage.classList.contains('cropping')) return;
+        const p = ptFrac(e);
+        if (sel && e.target === cropLayer.querySelector('.handle')) mode = 'resize';
+        else if (sel && e.target === cropLayer) {
+          mode = 'move'; startPt = p; startSel = Object.assign({}, sel);
+        } else { mode = 'draw'; startPt = p; sel = { x: p.x, y: p.y, w: 0, h: 0 }; }
+        stage.setPointerCapture(e.pointerId);
+        e.preventDefault();
+      });
+      stage.addEventListener('pointermove', e => {
+        if (!mode) return;
+        const p = ptFrac(e);
+        if (mode === 'draw') {
+          sel = { x: Math.min(startPt.x, p.x), y: Math.min(startPt.y, p.y),
+                  w: Math.abs(p.x - startPt.x), h: Math.abs(p.y - startPt.y) };
+        } else if (mode === 'resize') {
+          sel.w = Math.max(0.01, Math.min(1 - sel.x, p.x - sel.x));
+          sel.h = Math.max(0.01, Math.min(1 - sel.y, p.y - sel.y));
+        } else {
+          sel.x = Math.min(1 - startSel.w, Math.max(0, startSel.x + (p.x - startPt.x)));
+          sel.y = Math.min(1 - startSel.h, Math.max(0, startSel.y + (p.y - startPt.y)));
+        }
+        render();
+      });
+      stage.addEventListener('pointerup', () => {
+        if (mode === 'draw' && sel && (sel.w < 0.02 || sel.h < 0.02)) sel = null;
+        mode = null;
+        render();
+      });
+    }
+
+    // --- getting about ------------------------------------------------------
+    shots.forEach((el, i) => el.addEventListener('click', () => open(i)));
     prev.addEventListener('click', e => { e.stopPropagation(); step(-1); });
     next.addEventListener('click', e => { e.stopPropagation(); step(1); });
     box.querySelector('.lb-close').addEventListener('click', close);
     box.addEventListener('click', e => { if (e.target === box) close(); });
     document.addEventListener('keydown', e => {
       if (!box.classList.contains('open')) return;
-      if (e.key === 'Escape') close();
+      if (e.key === 'Escape') { stage.classList.contains('cropping') ? cropMode(false) : close(); }
       else if (e.key === 'ArrowLeft') step(-1);
       else if (e.key === 'ArrowRight') step(1);
     });
+    // A swipe moves between photos, but not while a crop is being dragged out.
+    let touch = null;
+    box.addEventListener('touchstart', e => {
+      touch = e.changedTouches[0] ? { x: e.changedTouches[0].clientX,
+                                      y: e.changedTouches[0].clientY } : null;
+    }, { passive: true });
+    box.addEventListener('touchend', e => {
+      if (!touch || stage.classList.contains('cropping')) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+      touch = null;
+    }, { passive: true });
+
+    // Arriving from a rotate or a crop: reopen on the photo just edited.
+    const want = new URLSearchParams(location.search).get('photo');
+    if (want) {
+      const at = shots.findIndex(el => (el.dataset.rel || '') === want);
+      if (at >= 0) open(at);
+    }
   })();
 </script>
 <script>

@@ -1091,13 +1091,11 @@ def _crop_op(x, y, w, h):
     return crop
 
 
-def _photo_edit_page(request, db, model, kind, aid, image):
-    obj = get_or_404(db, model, aid)
-    if image not in detect_images(kind, aid):
-        raise HTTPException(404, "no such photo for this item")
-    return templates.TemplateResponse(request, "photo_edit.html",
-                                      {"obj": obj, "kind": kind, "image": image,
-                                       "noindex": True})
+def _photo_edit_redirect(kind, aid, image):
+    """The photo editor used to be its own page. Rotating and cropping now live in
+    the big view on the item page, so there is one crop implementation rather than
+    two; this keeps any link or bookmark to the old page working."""
+    return RedirectResponse(f"/{kind}/{aid}?photo={quote(image or '')}", status_code=303)
 
 
 def _do_photo_rotate(db, model, kind, aid, form):
@@ -1732,9 +1730,8 @@ async def gui_computer_photo_reference(aid: str, request: Request,
 
 
 @app.get("/computers/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)
-def gui_computer_edit_photo(aid: str, request: Request, image: str = "",
-                            db: Session = Depends(get_db)):
-    return _photo_edit_page(request, db, Computer, "computers", aid, image)
+def gui_computer_edit_photo(aid: str, image: str = ""):
+    return _photo_edit_redirect("computers", aid, image)
 
 
 @app.post("/computers/{aid}/photo-rotate", include_in_schema=False)
@@ -2272,9 +2269,8 @@ async def gui_part_photo_reference(aid: str, request: Request,
 
 
 @app.get("/parts/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)
-def gui_part_edit_photo(aid: str, request: Request, image: str = "",
-                        db: Session = Depends(get_db)):
-    return _photo_edit_page(request, db, Part, "parts", aid, image)
+def gui_part_edit_photo(aid: str, image: str = ""):
+    return _photo_edit_redirect("parts", aid, image)
 
 
 @app.post("/parts/{aid}/photo-rotate", include_in_schema=False)
