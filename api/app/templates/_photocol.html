@@ -18,7 +18,6 @@
       <button class="iconbtn" type="submit" title="Make default photo" aria-label="Make default photo">{{ I.ico('star') }}</button>
     </form>
     {% endif %}
-    <a class="iconbtn" href="/{{ kind }}/{{ obj.asset_id }}?photo={{ img|urlencode }}" title="View big, rotate or crop" aria-label="View big, rotate or crop">{{ I.ico('crop') }}</a>
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference">
       <input type="hidden" name="image" value="{{ img }}">
       <input type="hidden" name="set" value="{{ '0' if marked else '1' }}">
@@ -35,6 +34,7 @@
   {% if images %}
     <div class="photo-primary">
       <img class="photo-main zoomable" src="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
+           tabindex="0" role="button" aria-label="View this photo full size"
            data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}">
       {{ badge(images[0]) }}
       {{ ctrls(images[0], True) }}
@@ -44,6 +44,7 @@
       {% for img in images[1:] %}
       <div class="thumb-item">
         <img class="zoomable" src="{{ img_url(img) }}" alt="{{ obj.asset_id }}" loading="lazy"
+             tabindex="0" role="button" aria-label="View this photo full size"
              data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ img }}">
         {{ badge(img) }}
         {{ ctrls(img, False) }}

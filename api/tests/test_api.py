@@ -1104,3 +1104,17 @@ class TestTheBigPhotoView:
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
+
+    def test_there_is_no_separate_button_to_open_the_view(self, client, part):
+        """The photo is the way in: a button beside it did nothing that clicking it
+        does not. It is focusable so the keyboard has a way in as well."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert "rotate or crop" not in page
+            assert f'?photo=parts%2F{aid}' not in page
+            assert 'tabindex="0" role="button"' in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
