@@ -71,7 +71,12 @@
   button, input, select, textarea { font-family: inherit; }
   ::file-selector-button { font-family: inherit; }
   body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; margin: 0; line-height: 1.5; background: var(--bg); color: var(--fg); }
-  header { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+  /* Centred, not baseline-aligned: a flex box takes its baseline from its first
+     item and an image's baseline is its bottom edge, so on `baseline` the logo
+     hangs the whole brand half its own height above the rest of the bar. Centres
+     line up the logo, the links and the buttons whatever heights they happen to
+     be. */
+  header { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
   header a { text-decoration: none; }
   header .brand { font-weight: 600; display: inline-flex; align-items: center; gap: 9px; }
   /* Sized by height, width auto: the logo is wider than it is tall and must keep
