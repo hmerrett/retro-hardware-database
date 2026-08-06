@@ -63,9 +63,15 @@ until you submit.</p>
     </select>
     <div id="drive-route" style="display:none">
       <label for="drive_desc">Drive description <span class="muted">(goes on the computer's Drives field, not a part)</span></label>
-      <input id="drive_desc" name="drive_desc" placeholder="e.g. 3.5in 1.44MB floppy beige; Sony CDU55">
-      <p class="hint">a bezel colour is read from what you type ("beige", "yellowed");
-        the machine's own edit form has the chart and the menu.</p>
+      <input id="drive_desc" name="drive_desc" placeholder="e.g. 3.5in 1.44MB floppy; Sony CDU55">
+      <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+      {# The same menus the machine's own form has, because this is where a drive is
+         usually added -- it goes to the same two columns on the drive row. #}
+      {{ C.pair('drive_', '', '', bezel_colours, yellowing, bezel_colour_labels,
+                yellowing_labels) }}
+      <p class="hint">a bezel named in the description ("beige", "yellowed") is read
+        from there too; a menu wins over the text where both say something.</p>
+      {{ C.chart(bezel_colours, yellowing) }}
     </div>
     <div id="drive-part">
       {{ sf('spec_interface', 'Interface', 'Interface', '', 'dl_storage_ifaces') }}

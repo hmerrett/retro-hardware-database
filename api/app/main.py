@@ -1995,6 +1995,17 @@ def _assemble_specs(ptype, form, extra=()):
     return _append_unmanaged(specs, extra, managed)
 
 
+def _apply_bezel(rows, colour, yellowing):
+    """Put the bezel the menus chose on drives just read from a typed description.
+
+    A menu is a deliberate answer, so it wins over the same thing said in the text;
+    a blank menu leaves what the text said. Two drives typed at once get the same
+    bezel, which is the only reading a single pair of menus can have."""
+    for row in rows:
+        row["colour"] = (colour or "").strip() or row.get("colour", "")
+        row["yellowing"] = (yellowing or "").strip() or row.get("yellowing", "")
+
+
 async def _part_from_form(form, ptype, extra=()):
     data = {"type": ptype,
             "computer_id": form.get("computer_id", "") or None,
@@ -2023,9 +2034,14 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
                 c = get_or_404(db, Computer, computer_id)
                 # Append a row, not text: drives is rendered from the rows, so
                 # anything written straight to it would vanish on the next save.
-                rows = drivedb.read(db, c) + drivedb.from_string(desc)[0]
-                drivedb.write(db, c, rows)
-                add_log(db, computer_id, f"added drive: {desc}")
+                added = drivedb.from_string(desc)[0]
+                _apply_bezel(added, form.get("drive_colour", ""),
+                             form.get("drive_yellowing", ""))
+                drivedb.write(db, c, drivedb.read(db, c) + added)
+                # The canonical rendering rather than what was typed, so the history
+                # names the bezel that was picked from the menus as well.
+                add_log(db, computer_id,
+                        f"added drive: {drivedb.render(added) or desc}")
                 db.commit()
                 return RedirectResponse(f"/computers/{computer_id}?build=1",
                                         status_code=303)
@@ -2033,6 +2049,14 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
     if ptype == "storage":
         data["specs"] = entry.merge_spec(data["specs"], "Kind",
                                          form.get("kind", "") or "")
+        # A routed kind with no machine to route to becomes a part after all, so a
+        # bezel picked on that path comes with it rather than being dropped on the
+        # floor -- the part's own menus were not on screen to say otherwise.
+        for key, routed, own in (("Colour", "drive_colour", "spec_colour"),
+                                 ("Yellowing", "drive_yellowing", "spec_yellowing")):
+            picked = (form.get(routed, "") or "").strip()
+            if picked and not (form.get(own, "") or "").strip():
+                data["specs"] = entry.merge_spec(data["specs"], key, picked)
     obj = Part(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()

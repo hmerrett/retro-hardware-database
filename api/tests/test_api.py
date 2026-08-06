@@ -413,6 +413,69 @@ class TestDrives:
         assert client.get(f"/api/computers/{aid}").json()["drives"] == \
             '5.25" 1.2MB floppy (beige, lightly yellowed)'
 
+    def test_routing_a_drive_takes_the_bezel_from_its_menus(self, client, computer):
+        """Adding a drive from the part form is where most of them get added, so the
+        menus are there too rather than only in the machine's own form."""
+        aid = computer()["asset_id"]
+        client.post("/parts/new",
+                    data={"type": "storage", "computer_id": aid,
+                          "kind": "Floppy/Gotek", "drive_desc": '1x 5.25" 1.2MB',
+                          "drive_colour": "Grey", "drive_yellowing": "Browned"},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
+            '5.25" 1.2MB floppy (grey, browned)'
+
+    def test_the_menu_wins_over_the_same_thing_typed(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post("/parts/new",
+                    data={"type": "storage", "computer_id": aid,
+                          "kind": "Floppy/Gotek",
+                          "drive_desc": '1x 5.25" 1.2MB beige',
+                          "drive_colour": "Warm beige"},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
+            '5.25" 1.2MB floppy (warm beige)'
+
+    def test_a_blank_menu_leaves_what_was_typed(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post("/parts/new",
+                    data={"type": "storage", "computer_id": aid,
+                          "kind": "Floppy/Gotek",
+                          "drive_desc": '1x 5.25" 1.2MB beige',
+                          "drive_colour": "", "drive_yellowing": ""},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
+            '5.25" 1.2MB floppy (beige)'
+
+    def test_the_history_names_the_bezel_that_was_picked(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post("/parts/new",
+                    data={"type": "storage", "computer_id": aid,
+                          "kind": "Floppy/Gotek", "drive_desc": "1x 3.5in 1.44MB",
+                          "drive_colour": "Beige", "drive_yellowing": "Yellowed"},
+                    follow_redirects=False)
+        messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+        assert 'added drive: 3.5" 1.44MB floppy (beige, yellowed)' in messages
+
+    def test_the_routed_form_offers_the_menus_and_the_chart(self, client, computer):
+        page = client.get(f"/parts/new?type=storage&computer_id="
+                          f"{computer()['asset_id']}").text
+        assert 'name="drive_colour"' in page and 'name="drive_yellowing"' in page
+        assert "colour chart" in page
+
+    def test_a_routed_drive_with_no_machine_keeps_its_bezel(self, client):
+        """No machine to route to, so it becomes a storage part after all -- and the
+        bezel picked on the way in comes with it."""
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Floppy/Gotek",
+                              "drive_desc": '5.25" 1.2MB',
+                              "drive_colour": "Beige",
+                              "drive_yellowing": "Lightly yellowed"},
+                        follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        specs = client.get(f"/api/parts/{aid}").json()["specs"]
+        assert "Colour: Beige" in specs and "Yellowing: Lightly yellowed" in specs
+
     def test_routing_a_floppy_creates_no_part(self, client, computer):
         aid = computer()["asset_id"]
         client.post("/parts/new",
