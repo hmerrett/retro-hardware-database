@@ -73,7 +73,12 @@
   body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; margin: 0; line-height: 1.5; background: var(--bg); color: var(--fg); }
   header { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
   header a { text-decoration: none; }
-  header .brand { font-weight: 600; }
+  header .brand { font-weight: 600; display: inline-flex; align-items: center; gap: 9px; }
+  /* Sized by height, width auto: the logo is wider than it is tall and must keep
+     its own proportions whatever it is put next to. */
+  header .brand img { height: 34px; width: auto; display: block; }
+  /* A phone spends its width on the name, not on both. */
+  @media (max-width: 380px) { header .brand span { display: none; } }
   main { max-width: 1000px; margin: 0 auto; padding: 18px; }
   /* A phone spends its width on content, not on margins. */
   @media (max-width: 480px) {
@@ -264,6 +269,11 @@
   #lightbox .lb-nav { top: 50%; transform: translateY(-50%); font-size: 38px; padding: 6px 16px; }
   #lightbox .lb-prev { left: 3vw; } #lightbox .lb-next { right: 3vw; }
   #lightbox .lb-close { top: 3vh; right: 3vw; font-size: 30px; padding: 2px 12px; }
+  /* The way back, and the way on to the next item: one row, the pair pushed to the
+     far end so they fall under the thumb on a phone. */
+  .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
+    margin: 16px 0; }
+  .itemnav { margin-left: auto; display: flex; gap: 6px; }
   .summary { margin: 4px 0 14px; }
   .detail { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; margin-top: 6px; }
   .detail-main { min-width: 0; }
@@ -304,7 +314,12 @@
 </head>
 <body>
 <header>
-  <a class="brand" href="/">Retro Hardware Database</a>
+  {# The sticker and the name together: the logo says 2600.me, which is where this
+     is, and the words say what it is. #}
+  <a class="brand" href="/">
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="2600.me" width="256" height="172">
+    <span>Retro Hardware Database</span>
+  </a>
   <a href="/stats">numbers</a>
   <a href="/docs">API docs</a>
   <span style="margin-left:auto"></span>
@@ -667,6 +682,51 @@
       const at = shots.findIndex(el => (el.dataset.rel || '') === want);
       if (at >= 0) open(at);
     }
+  })();
+</script>
+<script>
+  // Prev/next on an item page. The buttons arrive filled in with register order; if
+  // the gallery has been visited this session it left the order it was showing, and
+  // that wins -- walking a search result or a category should follow that list, not
+  // the register. A swipe does the same thing on a phone.
+  (function () {
+    const nav = document.getElementById('itemnav');
+    if (!nav) return;
+    const prev = document.getElementById('nav-prev');
+    const next = document.getElementById('nav-next');
+
+    let order = [];
+    try { order = JSON.parse(sessionStorage.getItem('rhdb-order') || '[]'); } catch (e) {}
+    const here = location.pathname.replace(/\/+$/, '');
+    const at = order.findIndex(row => row[0].replace(/\/+$/, '') === here);
+    if (at >= 0) {
+      // Only the ends differ from the server's answer: the list the browser has may
+      // be a filtered one, so its first and last really are the first and last.
+      [[prev, order[at - 1]], [next, order[at + 1]]].forEach(([btn, row]) => {
+        btn.hidden = !row;
+        if (row) { btn.href = row[0]; btn.title = row[1] || ''; }
+      });
+    }
+
+    // A swipe, but only a deliberate sideways one, and never while the big photo
+    // view has the screen (it swipes between photos of its own).
+    const lightbox = document.getElementById('lightbox');
+    let touch = null;
+    addEventListener('touchstart', e => {
+      touch = e.touches.length === 1 ? { x: e.touches[0].clientX,
+                                         y: e.touches[0].clientY } : null;
+    }, { passive: true });
+    addEventListener('touchend', e => {
+      const t = touch;
+      touch = null;
+      if (!t || (lightbox && lightbox.classList.contains('open'))) return;
+      const end = e.changedTouches[0];
+      if (!end) return;
+      const dx = end.clientX - t.x, dy = end.clientY - t.y;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+      const btn = dx < 0 ? next : prev;   // swiping left brings the next one in
+      if (btn && !btn.hidden && btn.href) location.href = btn.href;
+    }, { passive: true });
   })();
 </script>
 <script>

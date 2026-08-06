@@ -68,14 +68,44 @@ def main():
     out(512, "icon-512.png")
     sq.save(f"{STATIC}/favicon.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
 
-    # The photo watermark, from the tight crop rather than the squared icon: it is
-    # composited into a corner at a fraction of the photo's short edge, so a square
-    # with the logo letterboxed inside it would put a smaller mark on the photo than
-    # the numbers ask for -- and the padding is invisible against the picture.
-    mark = tight.copy()
-    mark.thumbnail((512, 512), Image.LANCZOS)
-    mark.save(f"{STATIC}/watermark.png", optimize=True)
-    print(f"regenerated favicon.ico + png icons, and watermark.png at {mark.size}")
+    # The logo at its own proportions, for everywhere that is not a square slot:
+    # the header, and the photo watermark. A watermark goes into the corner of a
+    # photo at a fraction of its short edge, so a square with the logo letterboxed
+    # inside it would put a smaller mark on the photo than the numbers ask for.
+    def logo(width, name):
+        im = tight.copy()
+        im.thumbnail((width, width), Image.LANCZOS)
+        im.save(f"{STATIC}/{name}", optimize=True)
+        return im
+
+    # Two sizes rather than one master-sized file: 512 is what a watermark needs on
+    # the largest photo in the collection, and 256 is a 30px-tall header logo on a
+    # 3x screen. Neither is the master, because the master is whatever artwork
+    # somebody dropped in -- these are cropped, and known to be.
+    big = logo(512, "logo-512.png")
+    small = logo(256, "logo-256.png")
+    print(f"logo-512.png at {big.size}, logo-256.png at {small.size}")
+    make_share_card(tight)
+
+
+# A social-share card is composited by the sites that show it, several of them onto
+# black, so this one is opaque: the logo on its own cream, at the 1.91:1 the card
+# slots want. Cream rather than white because it is the sticker's own keyline
+# colour, and rather than the sticker's charcoal because the sticker is charcoal.
+CARD_SIZE = (1200, 630)
+CARD_BG = (244, 240, 226)
+CARD_FILL = 0.72  # of the card's width, leaving it room to breathe
+
+
+def make_share_card(tight):
+    card = Image.new("RGB", CARD_SIZE, CARD_BG)
+    art = tight.copy()
+    art.thumbnail((int(CARD_SIZE[0] * CARD_FILL), int(CARD_SIZE[1] * CARD_FILL)),
+                  Image.LANCZOS)
+    card.paste(art, ((CARD_SIZE[0] - art.width) // 2,
+                     (CARD_SIZE[1] - art.height) // 2), art)
+    card.save(f"{STATIC}/og-image.png", optimize=True)
+    print(f"og-image.png at {card.size}, logo {art.size}")
 
 
 if __name__ == "__main__":

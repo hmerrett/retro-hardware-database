@@ -606,6 +606,105 @@ class TestPagesAndDiscovery:
         assert r.content.startswith(b"%PDF")
 
 
+class TestTheBrandOnThePage:
+    """Where the logo shows: the header, and the card a shared link previews as."""
+
+    def test_the_header_carries_the_logo_and_the_name(self, client):
+        page = client.get("/").text
+        assert re.search(r'<a class="brand" href="/">\s*<img src="/static/logo-256'
+                         r'\.png\?v=[a-f0-9]+"', page)
+        assert "<span>Retro Hardware Database</span>" in page
+
+    def test_a_page_with_no_photo_shares_as_the_site_card(self, client, part):
+        """It used to share as bare text. An item with no photograph of its own, the
+        gallery and the figures all get the logo card instead."""
+        for path in ("/", "/stats", f"/parts/{part()['asset_id']}"):
+            page = client.get(path).text
+            assert 'property="og:image" content="https://example.test/static/' \
+                   'og-image.png?v=' in page, path
+            assert '<meta property="og:image:width" content="1200">' in page, path
+            assert 'name="twitter:card" content="summary_large_image"' in page, path
+
+    def test_a_photographed_item_still_shares_its_own_photo(self, client, part):
+        """The card is the fallback, not a replacement: a photograph of the thing
+        itself is a better preview than a logo."""
+        from PIL import Image
+
+        from app import main
+        aid = part()["asset_id"]
+        folder = main.IMAGES_DIR / "parts"
+        folder.mkdir(parents=True, exist_ok=True)
+        photo = folder / f"{aid}.jpg"
+        Image.new("RGB", (800, 600), (120, 90, 60)).save(photo, "JPEG")
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert f'property="og:image" content="https://example.test/images/parts/{aid}.jpg' \
+                   in page
+            assert "og-image.png" not in page
+        finally:
+            photo.unlink()
+
+
+class TestWalkingFromItemToItem:
+    """Prev/next on an item page. The browser rewrites them to whatever order the
+    gallery was showing; what is reachable from here is the fallback the server
+    renders, which is register order -- what an item reached from a printed label
+    gets, with nothing in sessionStorage to go on.
+    """
+
+    @staticmethod
+    def links(page):
+        return {rel: re.search(rf'id="nav-{rel}"[^>]*href="([^"]*)"', page).group(1)
+                for rel in ("prev", "next")}
+
+    def test_the_middle_item_points_both_ways(self, client, computer, part):
+        first, middle, last = sorted(computer()["asset_id"] for _ in range(3))
+        page = client.get(f"/computers/{middle}").text
+        assert self.links(page) == {"prev": f"/computers/{first}",
+                                    "next": f"/computers/{last}"}
+
+    def test_the_ends_have_nothing_beyond_them(self, client, computer):
+        first, last = sorted(computer()["asset_id"] for _ in range(2))
+        assert re.search(r'id="nav-prev"[^>]*hidden', client.get(
+            f"/computers/{first}").text)
+        assert re.search(r'id="nav-next"[^>]*hidden', client.get(
+            f"/computers/{last}").text)
+
+    def test_it_walks_across_computers_and_parts_alike(self, client, computer, part):
+        """One register, so the walk is over both -- the next asset after a machine
+        may well be a card that is not in it."""
+        kind = {computer()["asset_id"]: "computers", part()["asset_id"]: "parts"}
+        first, second = sorted(kind)  # ids are assigned, so either may come first
+        page = client.get(f"/{kind[first]}/{first}").text
+        assert self.links(page)["next"] == f"/{kind[second]}/{second}"
+
+    def test_the_buttons_name_where_they_go(self, client, computer):
+        """The title is the neighbour's name, so a walk is not blind."""
+        first = sorted([computer(model="Aaa")["asset_id"],
+                        computer(model="Zzz")["asset_id"]])[0]
+        page = client.get(f"/computers/{first}").text
+        assert re.search(r'id="nav-next"[^>]*title="Acme (Aaa|Zzz)"', page)
+
+    def test_a_lone_item_offers_neither(self, client, part):
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert re.search(r'id="nav-prev"[^>]*hidden', page)
+        assert re.search(r'id="nav-next"[^>]*hidden', page)
+
+    def test_the_gallery_hands_over_the_order_it_is_showing(self, client, computer):
+        """Sorted and filtered as the visitor left it, which is the order their
+        prev/next should follow -- not the register's."""
+        computer()
+        page = client.get("/").text
+        assert "sessionStorage.setItem('rhdb-order'" in page
+        assert "el.style.display !== 'none'" in page
+
+    def test_the_item_page_prefers_that_order(self, client, part):
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert "sessionStorage.getItem('rhdb-order')" in page
+        # ...and a swipe follows the same two links.
+        assert "touchend" in page and "nav-next" in page
+
+
 class TestSortingTheGallery:
     """The toolbar's sort menu reorders the cards in the browser, so the ordering
     itself is not reachable from here. What is reachable, and what silently breaks
@@ -923,8 +1022,8 @@ class TestTheIconSet:
 
     @pytest.mark.parametrize("name", ["app-icon.png", "favicon-16x16.png",
                                       "favicon-32x32.png", "icon-192.png",
-                                      "icon-512.png", "watermark.png",
-                                      "favicon.ico"])
+                                      "icon-512.png", "logo-512.png",
+                                      "logo-256.png", "favicon.ico"])
     def test_the_background_stays_transparent(self, name):
         im = self.open(name).convert("RGBA")
         assert im.getchannel("A").getextrema()[0] == 0, f"{name} lost its alpha"
@@ -943,11 +1042,20 @@ class TestTheIconSet:
     def test_each_slot_is_the_square_it_claims(self, name, size):
         assert self.open(name).size == (size, size)
 
-    def test_the_watermark_keeps_the_logo_s_own_shape(self):
-        """It is composited into a corner of a photo, not into a square slot, so it
-        is the tight crop -- letterboxing it would shrink the mark on the photo."""
-        master, mark = self.open("app-icon.png"), self.open("watermark.png")
-        assert abs(master.width / master.height - mark.width / mark.height) < 0.02
+    @pytest.mark.parametrize("name", ["logo-512.png", "logo-256.png"])
+    def test_the_logo_keeps_its_own_shape(self, name):
+        """The header and the photo watermark are not square slots, so they get the
+        tight crop: letterboxing the mark would shrink it on the photo, and the
+        header would carry a logo with air above and below it."""
+        master, logo = self.open("app-icon.png"), self.open(name)
+        assert abs(master.width / master.height - logo.width / logo.height) < 0.02
+
+    def test_the_share_card_is_opaque_and_the_shape_those_slots_want(self):
+        """Several of the sites that show a card composite a transparent PNG onto
+        black, so this one brings its own background."""
+        card = self.open("og-image.png")
+        assert card.size == (1200, 630)
+        assert card.convert("RGBA").getchannel("A").getextrema() == (255, 255)
 
     def test_the_master_is_cropped_to_its_artwork(self):
         """No transparent margin left on the master, so every icon made from it uses

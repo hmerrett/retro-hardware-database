@@ -2,7 +2,10 @@
 {% import "_icons.html" as I %}
 {% block title %}{{ og.title }}{% if og.title != c.asset_id %} · {{ c.asset_id }}{% endif %} — Retro Hardware Database{% endblock %}
 {% block content %}
-<p><a href="/">&larr; all</a></p>
+<div class="crumbnav">
+  <a href="/">&larr; all</a>
+  {% include "_itemnav.html" %}
+</div>
 <div class="flex">
   <h2 style="margin:0">{{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</h2>
   <span class="muted">{{ c.asset_id }}</span>

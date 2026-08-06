@@ -144,6 +144,23 @@
     }
     count.textContent = shown + ' item' + (shown === 1 ? '' : 's');
     empty.style.display = shown ? 'none' : '';
+    remember();
+  }
+
+  // Hand the order over to the item pages, so their prev/next buttons walk the list
+  // as it stands here -- this sort, this filter -- rather than plain register order.
+  // sessionStorage, because it describes this session's browsing and nothing else.
+  function remember() {
+    try {
+      // The grid's own children, not the `cards` array: that one keeps the order the
+      // page arrived in, and sorting moves the elements rather than that list.
+      const order = [...grid.children]
+        .filter(el => el.style.display !== 'none')
+        // The name as it reads on the card, not the lowercased sort key beside it.
+        .map(el => [new URL(el.href).pathname,
+                    (el.querySelector('.nm') || {}).textContent.trim()]);
+      sessionStorage.setItem('rhdb-order', JSON.stringify(order));
+    } catch (e) {}
   }
   [q, cat, sortSel, showd].forEach(el => el.addEventListener('input', apply));
   apply();

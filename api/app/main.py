@@ -77,6 +77,13 @@ def _image_size(image_rel: str):
         return None
 
 
+# The share card for a page with no photograph of its own: the logo on its own
+# cream, opaque and at the 1.91:1 those slots want (tools/make_icons.py makes it).
+# Several of the sites that show these composite a transparent PNG onto black,
+# which is why this one is not transparent.
+SITE_CARD = ("/static/og-image.png", 1200, 630)
+
+
 def _og(request: Request, title: str, description: str = "", image_rel: str | None = None):
     """Open Graph / Twitter-card context for a page's social-share preview."""
     og = {"title": title, "url": _abs_url(request, request.url.path),
@@ -87,6 +94,12 @@ def _og(request: Request, title: str, description: str = "", image_rel: str | No
         size = _image_size(image_rel)
         if size:
             og["image_w"], og["image_h"] = size
+    else:
+        # An item with no photo, the gallery, the figures: the site's own card, so a
+        # shared link is never the bare text preview it used to be.
+        path, og["image_w"], og["image_h"] = SITE_CARD
+        og["image"] = _abs_url(request, f"{path}?v={SITE_CARD_VER}")
+        og["image_alt"] = "2600.me — the Retro Hardware Database"
     return og
 
 
@@ -415,6 +428,8 @@ def _file_ver(path: Path) -> str:
 
 
 templates.env.globals["icon_ver"] = _file_ver(STATIC_DIR / "favicon.ico")
+# Social sites cache a card hard, so its URL carries the artwork's hash too.
+SITE_CARD_VER = _file_ver(STATIC_DIR / SITE_CARD[0].removeprefix("/static/"))
 _ICON_CACHE = {"Cache-Control": "public, max-age=86400"}
 
 
@@ -442,7 +457,7 @@ WATERMARK = os.getenv("RHDB_WATERMARK", "1").lower() not in ("0", "false", "no",
 # The logo at its own proportions (tools/make_icons.py writes it), not the squared
 # app icon: a mark letterbox-padded inside a square would sit on the photo smaller
 # than the numbers below ask for. Falls back to the square icon if it is missing.
-WM_SRC = STATIC_DIR / "watermark.png"
+WM_SRC = STATIC_DIR / "logo-512.png"
 if not WM_SRC.exists():
     WM_SRC = STATIC_DIR / "icon-512.png"
 
@@ -1154,6 +1169,40 @@ def gui_item(aid: str, db: Session = Depends(get_db)):
     raise HTTPException(404, f"no asset {aid}")
 
 
+def _register_order(db):
+    """Every asset in register order, as (asset_id, kind, display name).
+
+    Two small column queries: no photos are looked at, because this is only wanted
+    for the prev/next buttons on an item page. It is the fallback order -- arrive
+    from the gallery and the browser hands over the order it was actually showing,
+    filtered and sorted as you left it (see base.html)."""
+    rows = []
+    for kind, cls in (("computers", Computer), ("parts", Part)):
+        for aid, name, maker, model in db.query(cls.asset_id, cls.name,
+                                                cls.manufacturer, cls.model):
+            rows.append((aid, kind, entry.display_name(
+                {"asset_id": aid, "name": name, "manufacturer": maker,
+                 "model": model})))
+    rows.sort()
+    return rows
+
+
+def _item_nav(db, aid):
+    """{prev, next} for an item page: the assets either side of this one."""
+    order = _register_order(db)
+    here = next((n for n, row in enumerate(order) if row[0] == aid), None)
+    if here is None:
+        return {}
+
+    def at(n):
+        if not 0 <= n < len(order):
+            return None
+        a, kind, name = order[n]
+        return {"url": f"/{kind}/{a}", "name": name, "aid": a}
+
+    return {"prev": at(here - 1), "next": at(here + 1)}
+
+
 # --- GUI: index ------------------------------------------------------------
 
 def _catalogue_rows(db, precise_times=True):
@@ -1602,7 +1651,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "link_candidates": link_candidates, "images": images,
         "ref_marks": reference_marks("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
-        "log": item_log(db, aid),
+        "log": item_log(db, aid), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer")})
@@ -2105,7 +2154,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
         "candidates": candidates, "computers": computers,
         "images": images, "ref_marks": reference_marks("parts", aid),
         "spec_pairs": specdb.pairs(db, p), "imgerr": bool(imgerr),
-        "log": item_log(db, aid),
+        "log": item_log(db, aid), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, p.asset_id, p.manufacturer,

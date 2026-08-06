@@ -1,0 +1,13 @@
+{# Prev/next through the register, shown on an item page. The server fills these in
+   from asset-id order, so an item reached from a printed label still has them; if
+   the gallery has been visited, base.html's script rewrites them to the order it
+   was actually showing -- sorted and filtered as you left it -- and a swipe on a
+   phone follows the same two links. #}
+<nav class="itemnav" id="itemnav">
+  <a class="btn sm" id="nav-prev" rel="prev" href="{{ nav.prev.url if nav.prev }}"
+     title="{{ nav.prev.name if nav.prev }}" aria-label="Previous item"
+     {{ 'hidden' if not nav.prev }}>‹ prev</a>
+  <a class="btn sm" id="nav-next" rel="next" href="{{ nav.next.url if nav.next }}"
+     title="{{ nav.next.name if nav.next }}" aria-label="Next item"
+     {{ 'hidden' if not nav.next }}>next ›</a>
+</nav>

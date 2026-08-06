@@ -46,6 +46,11 @@ back only the parts that went out with it.
 
 Photos upload as soon as they are chosen -- picking them is the whole gesture.
 
+An item page has prev/next buttons, and a swipe does the same on a phone. They
+walk the list the gallery was last showing -- that sort, that search, that
+category -- which the browser hands over in `sessionStorage`; arrive from a
+printed label instead and they walk the register in asset order.
+
 Our own photos are watermarked with the site logo as they are served (reference
 images are not). Set `RHDB_WATERMARK=0` to serve everything untouched.
 

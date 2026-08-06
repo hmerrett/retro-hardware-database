@@ -62,9 +62,11 @@ the box by hand; a fresh clone needs its own `.env` (see the keys referenced in
 
 ## Special case: changing the site icon
 
-The favicons, app icons and the photo watermark are all generated from
-`api/app/static/app-icon.png`. After replacing that master, regenerate the set
-before rebuilding:
+Everything the brand appears on is generated from `api/app/static/app-icon.png`:
+the favicons and app icons (square, transparent), `logo-256.png` for the header
+and `logo-512.png` for the photo watermark (the logo's own proportions), and
+`og-image.png`, the card a shared link previews as. After replacing that master,
+regenerate the set before rebuilding:
 
 ```sh
 docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
