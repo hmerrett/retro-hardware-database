@@ -190,10 +190,21 @@
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   #lightbox { position: fixed; inset: 0; background: #000000d8; display: none; align-items: center; justify-content: center; z-index: 1000; }
   #lightbox.open { display: flex; }
-  #lightbox .lb-stage { position: relative; line-height: 0; max-width: 92vw; max-height: 84vh; }
+  /* touch-action: none because the overlay does its own pinch: left to itself the
+     browser would zoom the whole page, scrollbars, header and all. */
+  #lightbox .lb-stage { position: relative; line-height: 0; max-width: 92vw; max-height: 84vh;
+    touch-action: none; }
+  /* Zoom rides on the image's own transform from its top-left corner, so the stage
+     keeps the untransformed box that the pan bounds and the crop maths measure
+     against -- and, while zoomed, crops the enlarged photo to that box. */
   #lightbox img { max-width: 92vw; max-height: 84vh; border-radius: 8px; box-shadow: 0 6px 40px #000;
-    display: block; width: auto; height: auto; }
+    display: block; width: auto; height: auto; transform-origin: 0 0;
+    cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
+  #lightbox .lb-stage.zoomed { overflow: hidden; }
+  #lightbox .lb-stage.zoomed img { cursor: grab; }
+  #lightbox .lb-stage.zoomed.panning img { cursor: grabbing; }
   #lightbox .lb-stage.cropping { cursor: crosshair; touch-action: none; }
+  #lightbox .lb-stage.cropping img { cursor: crosshair; }
   #lb-crop { position: absolute; border: 2px solid #fff; box-sizing: border-box;
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); cursor: move; }
   #lb-crop .handle { position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px;
@@ -205,6 +216,11 @@
   #lightbox .lb-tools .btn { position: static; background: #ffffff1f; color: #fff;
     border-color: #ffffff33; }
   #lightbox .lb-tools .btn.primary { background: var(--accent); border-color: var(--accent); }
+  /* Crop swaps its button for its apply/cancel form with the hidden attribute, and
+     the two rules above outrank the browser's own `[hidden] { display: none }` --
+     which left the whole toolbar on screen whatever mode it was in. Said again
+     here, specifically enough to win. */
+  #lightbox .lb-tools .btn[hidden], #lightbox .lb-tools form[hidden] { display: none; }
   #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
   #lightbox button { position: absolute; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
   #lightbox .lb-nav { top: 50%; transform: translateY(-50%); font-size: 38px; padding: 6px 16px; }
@@ -269,11 +285,12 @@
   {% endif %}
 </header>
 <main>{% block content %}{% endblock %}</main>
-{# The big view. Logged in, it is also the photo editor: rotating or cropping from
-   here returns to this same photo still open, so a run of corrections does not mean
-   a round trip through the item page for each one. The crop maths works in
-   fractions of the image, which is why it can live at whatever size the overlay
-   happens to be showing. #}
+{# The big view: the photo as large as the window allows, and zoomable from there by
+   the usual gestures -- what the detail on a board or a chip marking needs. Logged
+   in, it is also the photo editor: rotating or cropping from here returns to this
+   same photo still open, so a run of corrections does not mean a round trip through
+   the item page for each one. The crop maths works in fractions of the image, which
+   is why it can live at whatever size the overlay happens to be showing. #}
 <div id="lightbox">
   <button class="lb-close" title="Close (Esc)">×</button>
   <button class="lb-nav lb-prev" title="Previous (←)">‹</button>
@@ -333,6 +350,7 @@
       const multi = shots.length > 1;
       prev.style.display = next.style.display = multi ? '' : 'none';
       cropMode(false);
+      resetZoom();
       if (tools) {
         // Each photo carries where it lives, so one toolbar serves them all.
         const d = el.dataset;
@@ -347,7 +365,10 @@
       if (hint) hint.textContent = multi ? `${idx + 1} of ${shots.length}` : '';
     }
     function open(i) { idx = i; box.classList.add('open'); show(); }
-    function close() { cropMode(false); box.classList.remove('open'); img.src = ''; }
+    function close() {
+      cropMode(false); resetZoom();
+      box.classList.remove('open'); img.src = '';
+    }
     function step(d) {
       if (mode) return;
       idx = (idx + d + shots.length) % shots.length;
@@ -355,8 +376,11 @@
     }
 
     // --- crop, in fractions of the image so the overlay's size is irrelevant ---
+    // Cropping wants the whole photo in view and the drag to itself, so it starts
+    // from a photo zoomed back out.
     function cropMode(on) {
       sel = null; mode = null;
+      if (on) resetZoom();
       stage.classList.toggle('cropping', on);
       cropLayer.hidden = true;
       if (cropForm) cropForm.hidden = !on;
@@ -420,6 +444,141 @@
       });
     }
 
+    // --- zoom ---------------------------------------------------------------
+    // The controls a photo viewer is expected to have: double-click or double-tap
+    // to go in and out, the wheel (or a trackpad pinch) and two fingers to choose
+    // how far, and a drag to move around once there is more photo than window.
+    // Kept out of the way of cropping, which wants the same drag for itself.
+    const MAX_ZOOM = 6, TAP_ZOOM = 2.5, STEP_ZOOM = 1.6;
+    let scale = 1, tx = 0, ty = 0;
+    const held = new Map();
+    let pan = null, pinch = null, tap = null, lastTap = 0, lastKind = 'mouse';
+
+    const zoomed = () => scale > 1;
+    const cropping = () => stage.classList.contains('cropping');
+    function stageBox() { return stage.getBoundingClientRect(); }
+    function gap(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+    // The photo may sit anywhere that still covers the stage, and nowhere that
+    // would show a strip of backdrop down one side of it.
+    function applyZoom() {
+      const r = stageBox();
+      tx = Math.min(0, Math.max(r.width * (1 - scale), tx));
+      ty = Math.min(0, Math.max(r.height * (1 - scale), ty));
+      img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      stage.classList.toggle('zoomed', zoomed());
+      if (!zoomed()) stage.classList.remove('panning');
+    }
+    // Zoom about a point on screen: whatever was under it stays under it, give or
+    // take a drift for a gesture whose own centre has moved since it began.
+    function zoomAbout(want, cx, cy, from, driftX, driftY) {
+      const r = stageBox();
+      const next = Math.min(MAX_ZOOM, Math.max(1, want));
+      const k = next / from.scale;
+      tx = (cx - r.left) - ((cx - r.left) - from.tx) * k + (driftX || 0);
+      ty = (cy - r.top) - ((cy - r.top) - from.ty) * k + (driftY || 0);
+      scale = next;
+      applyZoom();
+    }
+    function zoomBy(factor, cx, cy) {
+      zoomAbout(scale * factor, cx, cy, { scale: scale, tx: tx, ty: ty });
+    }
+    function resetZoom() {
+      scale = 1; tx = 0; ty = 0;
+      pan = pinch = tap = null;
+      applyZoom();
+    }
+    function toggleZoom(cx, cy) {
+      if (zoomed()) resetZoom();
+      else zoomBy(TAP_ZOOM, cx, cy);
+    }
+    function zoomKeys(factor) {
+      const r = stageBox();
+      zoomBy(factor, r.left + r.width / 2, r.top + r.height / 2);
+    }
+
+    // Mice only: a phone that reports a double tap as a double click as well would
+    // otherwise zoom in on the tap and straight back out on the click.
+    stage.addEventListener('dblclick', e => {
+      if (cropping() || lastKind !== 'mouse') return;
+      e.preventDefault();
+      toggleZoom(e.clientX, e.clientY);
+    });
+    box.addEventListener('wheel', e => {
+      if (cropping()) return;
+      e.preventDefault();
+      // Lines and pages to pixels first, or a wheel that reports in lines would
+      // creep while one reporting in pixels jumps. A trackpad pinch arrives as
+      // ctrl+wheel and means the same thing, only finer.
+      const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+      zoomBy(Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0025)), e.clientX, e.clientY);
+    }, { passive: false });
+    // A photo is draggable to a browser by default, which fights panning.
+    img.addEventListener('dragstart', e => e.preventDefault());
+
+    stage.addEventListener('pointerdown', e => {
+      if (cropping()) return;
+      lastKind = e.pointerType || 'mouse';
+      held.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (held.size === 2) {
+        const [a, b] = [...held.values()];
+        pinch = { d: gap(a, b), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2,
+                  scale: scale, tx: tx, ty: ty };
+        pan = tap = null;
+      } else if (held.size === 1) {
+        tap = e.pointerType === 'mouse' ? null : { x: e.clientX, y: e.clientY };
+        if (zoomed()) {
+          pan = { x: e.clientX, y: e.clientY, tx: tx, ty: ty };
+          stage.classList.add('panning');
+        }
+      }
+      // Capture so a drag that leaves the photo keeps panning it. Touch does this
+      // of its own accord, and a pointer can be gone before we ask -- which is no
+      // loss, since a tap that quick had nothing to pan with.
+      if (pan || pinch) {
+        try { stage.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+      }
+    });
+    stage.addEventListener('pointermove', e => {
+      if (!held.has(e.pointerId)) return;
+      held.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 12) tap = null;
+      if (pinch && held.size >= 2) {
+        const [a, b] = [...held.values()];
+        if (!pinch.d) return;
+        // The gesture is measured from where it began, so a pinch that wanders
+        // does not drift, and moving both fingers together pans.
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        zoomAbout(pinch.scale * gap(a, b) / pinch.d, pinch.cx, pinch.cy, pinch,
+                  mx - pinch.cx, my - pinch.cy);
+        e.preventDefault();
+      } else if (pan) {
+        tx = pan.tx + (e.clientX - pan.x);
+        ty = pan.ty + (e.clientY - pan.y);
+        applyZoom();
+        e.preventDefault();
+      }
+    });
+    function letGo(e) {
+      if (!held.has(e.pointerId)) return;
+      const wasPinching = !!pinch;
+      held.delete(e.pointerId);
+      if (held.size < 2) pinch = null;
+      if (!held.size) { pan = null; stage.classList.remove('panning'); }
+      // Double-tap, the touch counterpart of a double-click: two taps in the same
+      // spot in quick succession, and no pinch in between.
+      if (tap && !wasPinching && e.type === 'pointerup') {
+        if (e.timeStamp - lastTap < 350) { lastTap = 0; toggleZoom(e.clientX, e.clientY); }
+        else lastTap = e.timeStamp;
+      }
+      tap = null;
+    }
+    stage.addEventListener('pointerup', letGo);
+    stage.addEventListener('pointercancel', letGo);
+    // The stage is sized in vw/vh, so a turn of the phone can leave the photo
+    // parked outside its new bounds.
+    addEventListener('resize', () => { if (zoomed()) applyZoom(); });
+
     // --- getting about ------------------------------------------------------
     // The photo itself is the way in -- there is no separate button for it, so it
     // answers to the keyboard as well as to a click or a tap.
@@ -433,20 +592,31 @@
     next.addEventListener('click', e => { e.stopPropagation(); step(1); });
     box.querySelector('.lb-close').addEventListener('click', close);
     box.addEventListener('click', e => { if (e.target === box) close(); });
+    // Zoomed in, the arrows move about the photo rather than off it -- 0 zooms back
+    // out and hands them back. + and - are there for a keyboard with no wheel.
+    function nudge(dx, dy) { tx += dx; ty += dy; applyZoom(); }
     document.addEventListener('keydown', e => {
       if (!box.classList.contains('open')) return;
-      if (e.key === 'Escape') { stage.classList.contains('cropping') ? cropMode(false) : close(); }
-      else if (e.key === 'ArrowLeft') step(-1);
-      else if (e.key === 'ArrowRight') step(1);
+      if (e.key === 'Escape') { cropping() ? cropMode(false) : close(); }
+      else if (e.key === '+' || e.key === '=') zoomKeys(STEP_ZOOM);
+      else if (e.key === '-' || e.key === '_') zoomKeys(1 / STEP_ZOOM);
+      else if (e.key === '0') resetZoom();
+      else if (e.key === 'ArrowLeft') zoomed() ? nudge(60, 0) : step(-1);
+      else if (e.key === 'ArrowRight') zoomed() ? nudge(-60, 0) : step(1);
+      else if (e.key === 'ArrowUp' && zoomed()) nudge(0, 60);
+      else if (e.key === 'ArrowDown' && zoomed()) nudge(0, -60);
+      else return;
+      e.preventDefault();
     });
-    // A swipe moves between photos, but not while a crop is being dragged out.
+    // A swipe moves between photos, but not while a crop is being dragged out, and
+    // not zoomed in, where one finger is how the photo is moved about instead.
     let touch = null;
     box.addEventListener('touchstart', e => {
-      touch = e.changedTouches[0] ? { x: e.changedTouches[0].clientX,
-                                      y: e.changedTouches[0].clientY } : null;
+      touch = e.touches.length === 1 && e.changedTouches[0]
+        ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : null;
     }, { passive: true });
     box.addEventListener('touchend', e => {
-      if (!touch || stage.classList.contains('cropping')) return;
+      if (!touch || cropping() || zoomed()) return;
       const t = e.changedTouches[0];
       const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
       if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);

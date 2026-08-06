@@ -549,6 +549,19 @@ def item_log(db, asset_id):
             .order_by(LogEntry.created_at.desc(), LogEntry.id.desc()).all())
 
 
+def log_stamp(created_at, authed):
+    """A history line's date, with the clock time only for whoever is signed in.
+    Editing wants the minute -- it is how you tell apart two corrections to the same
+    photo -- but a visitor is reading about the machine, and the time of day says
+    more about the owner's evenings than about the hardware."""
+    if not created_at:
+        return ""
+    return created_at.strftime("%Y-%m-%d %H:%M" if authed else "%Y-%m-%d")
+
+
+templates.env.globals["log_stamp"] = log_stamp
+
+
 def _short(v, limit=80):
     v = "" if v is None else str(v).strip()
     if not v:
@@ -1132,9 +1145,14 @@ def gui_item(aid: str, db: Session = Depends(get_db)):
 
 # --- GUI: index ------------------------------------------------------------
 
-def _catalogue_rows(db):
+def _catalogue_rows(db, precise_times=True):
     """Every computer and part as one list of card rows. The gallery and /browse
-    render the same grid from this; they differ only in which rows survive."""
+    render the same grid from this; they differ only in which rows survive.
+
+    The recency sort keys ride on the cards as data attributes, so anonymously they
+    carry the date alone, like the history does (`precise_times=False`). The rows
+    come back newest-change-first regardless, which is what keeps a day's worth of
+    edits in order once the browser sorts on dates that are all equal."""
     computers = db.query(Computer).order_by(Computer.asset_id).all()
     parts = db.query(Part).order_by(Part.asset_id).all()
     counts = {}
@@ -1150,10 +1168,14 @@ def _catalogue_rows(db):
             func.min(LogEntry.created_at)).group_by(LogEntry.asset_id):
         ts[aid] = (latest, first)
 
+    def stamp(when):
+        if not when:
+            return ""
+        return when.isoformat() if precise_times else when.strftime("%Y-%m-%d")
+
     def stamps(aid):
         latest, first = ts.get(aid, (None, None))
-        return (latest.isoformat() if latest else "",
-                first.isoformat() if first else "")
+        return (stamp(latest), stamp(first))
 
     # Both folders read once for the whole page: scanning per row was the bulk of
     # this route's time (0.38s of 0.50s across 293 assets).
@@ -1219,6 +1241,11 @@ def _catalogue_rows(db):
                                  str(p.acquired_date or ""), p.disk_image or "",
                                  p.computer_id or "", p.disposed_note or ""]).lower(),
         })
+    # Newest change first. The browser re-sorts on load anyway, but its sort is
+    # stable, so this is the order items updated on the same day keep -- the whole
+    # of what the dropped clock time used to settle.
+    rows.sort(key=lambda r: ts.get(r["obj"].asset_id, (datetime.min,))[0] or datetime.min,
+              reverse=True)
     return rows
 
 
@@ -1294,7 +1321,7 @@ def _search(db, rows, query):
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
-    rows = _catalogue_rows(db)
+    rows = _catalogue_rows(db, precise_times=request.state.authed)
     total = len(rows)
     if q.strip():
         rows = _search(db, rows, q)
@@ -1423,7 +1450,8 @@ def gui_browse(request: Request, f: str = "", v: str = "",
     if view is None:
         raise HTTPException(404, f"no such view: {f or '(none)'}")
     heading, note, crumb, keep = view
-    rows = [r for r in _catalogue_rows(db) if keep(r)]
+    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed)
+            if keep(r)]
     return _grid_page(
         request, rows, heading=heading, note=note, crumb=crumb,
         # The figures on /stats count disposed items too, so this page has to show

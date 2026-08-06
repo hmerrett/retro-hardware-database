@@ -5,7 +5,7 @@ silently eating form input, a select with no option for the value it holds, link
 left pointing at deleted rows, and derived strings being written to directly.
 """
 import re
-from datetime import date
+from datetime import date, datetime
 
 
 class TestTypedColumns:
@@ -482,6 +482,61 @@ class TestHistory:
         aid = part()["asset_id"]
         client.delete(f"/api/parts/{aid}")
         assert client.get(f"/api/items/{aid}/log").json() == []
+
+
+class TestTheClockShowsOnlyWhenSignedIn:
+    """A visitor gets the date something happened; what time of night the collection
+    gets worked on is nobody else's business. Auth is off in these tests, so the
+    anonymous half has to ask for it.
+    """
+    DATE = r"\d{4}-\d{2}-\d{2}"
+    DATE_TIME = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}"
+
+    def test_the_history_gives_the_minute_to_whoever_can_edit_it(self, client, part):
+        aid = part()["asset_id"]
+        page = client.get(f"/parts/{aid}").text
+        assert re.search(self.DATE_TIME, page)
+
+    def test_a_visitor_gets_the_day_alone(self, client, part, monkeypatch):
+        from app import main
+        aid = part()["asset_id"]
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        page = client.get(f"/parts/{aid}").text
+        assert re.search(self.DATE, page)
+        assert not re.search(self.DATE_TIME, page)
+
+    def test_a_machine_history_is_the_same(self, client, computer, monkeypatch):
+        from app import main
+        aid = computer()["asset_id"]
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        page = client.get(f"/computers/{aid}").text
+        assert re.search(self.DATE, page)
+        assert not re.search(self.DATE_TIME, page)
+
+    def test_the_gallery_sort_keys_lose_the_time_too(self, client, part, monkeypatch):
+        """They are not on show, but a timestamp in the page source is a timestamp
+        published all the same."""
+        from app import main
+        p = part()
+        card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
+        assert re.search(rf'data-updated="{self.DATE}T', card)
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
+        assert re.search(rf'data-updated="{self.DATE}"', card)
+        assert re.search(rf'data-added="{self.DATE}"', card)
+
+    def test_the_cards_arrive_newest_change_first(self, client, part, db):
+        """Dates alone are all the sort keys a visitor gets, and the browser's sort
+        is stable, so the order the cards arrive in is what still settles a run of
+        edits made on the same day."""
+        from app.models import LogEntry
+        old = part(model="Older")["asset_id"]
+        new = part(model="Newer")["asset_id"]
+        db.query(LogEntry).filter(LogEntry.asset_id == old).update(
+            {"created_at": datetime(2020, 1, 1)})
+        db.commit()
+        page = client.get("/").text
+        assert page.index(f'/parts/{new}"') < page.index(f'/parts/{old}"')
 
 
 class TestPhotoLookup:
@@ -1157,6 +1212,15 @@ class TestTheBigPhotoView:
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
+
+    def test_one_mode_of_the_toolbar_at_a_time(self, client, part):
+        """crop swaps its button for an apply/cancel form using the hidden
+        attribute, and the toolbar's own display rules outrank the browser's
+        `[hidden] { display: none }` -- which showed every control at once whatever
+        mode it was in. Said again in the stylesheet, so it has to stay said."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert "#lightbox .lb-tools .btn[hidden]" in page
+        assert "#lightbox .lb-tools form[hidden]" in page
 
     def test_there_is_no_separate_button_to_open_the_view(self, client, part):
         """The photo is the way in: a button beside it did nothing that clicking it

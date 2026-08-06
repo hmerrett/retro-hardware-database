@@ -33,6 +33,12 @@ history for every asset (automatic change records plus free-text notes);
 printable label PDFs; duplicating an item; marking one disposed and restoring it;
 and a build walk that steps through a machine's motherboard and cards.
 
+Clicking a photo opens it as large as the window allows, and from there it zooms by
+the usual gestures -- double-click or double-tap, the wheel or a trackpad or
+two-finger pinch, `+`/`-`/`0` -- with a drag to move about the enlarged photo and the
+arrow keys, a swipe or `Esc` for the rest. Zooming is the big view's own, so the
+gallery and item pages pinch-zoom as any page does.
+
 Disposing a machine disposes what is in it -- the parts installed in it and
 anything mounted on those in turn -- on the same date and for the same reason.
 A part already disposed keeps its own record, and restoring the machine brings
@@ -149,7 +155,9 @@ login page and gets a signed session cookie, with a log out button in the
 header. The JSON API and `/docs` also accept HTTP Basic, which is how the MCP
 server and command-line tools authenticate (the tools also accept `auth_user`
 and `auth_password` in `tools/config.yml`). The cookie is signed with
-`RHDB_SECRET_KEY`. Editing controls appear only when logged in.
+`RHDB_SECRET_KEY`. Editing controls appear only when logged in, and a visitor is
+given the date of a history entry where whoever can edit it also sees the time of
+day (the gallery's recency sort keys are trimmed to match).
 
 The `caddy` service terminates HTTPS. It obtains and renews a Let's Encrypt
 certificate for the hostname in `caddy/Caddyfile` (`db.2600.me`) and proxies to

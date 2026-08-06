@@ -117,7 +117,7 @@
       <table>
         {% for e in log %}
         <tr>
-          <td class="muted" style="white-space:nowrap;vertical-align:top">{{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '' }}</td>
+          <td class="muted" style="white-space:nowrap;vertical-align:top">{{ log_stamp(e.created_at, request.state.authed) }}</td>
           <td style="white-space:pre-line">{% if e.kind == 'note' %}<span class="chip">note</span> {% endif %}{{ e.message }}</td>
         </tr>
         {% endfor %}
