@@ -2030,17 +2030,23 @@ def _assemble_specs(ptype, form, extra=()):
         "sound": ["Chip", "Interface", "FM", "Ports"],
         "network": ["Chip", "Interface", "Connector"],
         "io": ["Chip", "Interface", "Ports"],
-        "storage": ["Kind", "Interface", "Protocol", "Capacity", "CHS", "Media",
-                    "Speed", "Role", "Colour", "Yellowing"],
+        "storage": ["Kind", "Description", "Interface", "Protocol", "Capacity",
+                    "CHS", "Media", "Speed", "Role", "Colour", "Yellowing"],
     }.get(ptype)
     # 'other' / 'peripheral' keep a free-text specs box (no data loss).
     if managed is None:
         return " ".join((form.get("specs", "") or "").split())
+    # One managed key whose box is not named for it: the drive description is
+    # typed into the same field that feeds a machine's drive row, so it is named
+    # for that job. Routed to a machine it becomes the row and never reaches
+    # here; kept as a part, this is what stops it being dropped on the floor.
+    fields = {"Description": "drive_desc"}
     specs = ""
     for key in managed:
         # spec_ prefix keeps these clear of the part's own columns (a RAM
         # 'Type' spec vs the part type, etc.).
-        field = "spec_" + key.lower().replace(" ", "_").replace("/", "_")
+        field = fields.get(key) or (
+            "spec_" + key.lower().replace(" ", "_").replace("/", "_"))
         raw = (form.get(field, "") or "").strip()
         if not raw:
             continue

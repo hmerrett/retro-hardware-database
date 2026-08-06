@@ -65,6 +65,20 @@ class TestCondition:
         page = client.get(f"/computers/{aid}/edit").text
         assert page.count('value="Working"') == 1
 
+    @pytest.mark.parametrize("path", ["/computers/new", "/parts/new"])
+    def test_a_new_thing_claims_nothing_about_its_condition(self, client, path):
+        """It used to open on "Working", so anything added and not thought about
+        was recorded as working when nobody had checked."""
+        page = client.get(path).text
+        assert '<option value="Working" selected>' not in page
+        assert '<option value="">not recorded</option>' in page
+
+    def test_a_condition_can_be_taken_back_off(self, client, computer):
+        aid = computer(condition="Working")["asset_id"]
+        client.post(f"/computers/{aid}/edit", data={"condition": ""},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["condition"] == ""
+
 
 class TestDisposal:
     def test_disposing_records_a_flag_a_date_and_a_note(self, client, part):
@@ -486,6 +500,66 @@ class TestDrives:
                           "kind": "Floppy/Gotek", "drive_desc": "1x 3.5in 1.44MB"},
                     follow_redirects=False)
         assert client.get("/api/parts", params={"computer_id": aid}).json() == []
+
+
+class TestADriveKeptAsAPart:
+    """A routed kind with no machine to route to becomes a part after all, and its
+    description is the only thing that says what the drive is. It used to be read
+    for the machine's drive row and thrown away on the path that made a part, so
+    the part arrived saying nothing but 'Kind: Floppy/Gotek'."""
+
+    DESC = '3.5" 1.44MB floppy, Sony CDU55'
+
+    def make(self, client, **extra):
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Floppy/Gotek",
+                              "drive_desc": self.DESC, **extra},
+                        follow_redirects=False)
+        return r.headers["location"].rsplit("/", 1)[-1]
+
+    def test_the_description_is_kept(self, client):
+        aid = self.make(client)
+        assert f"Description: {self.DESC}" in \
+            client.get(f"/api/parts/{aid}").json()["specs"]
+
+    def test_the_form_opens_on_it_again(self, client):
+        from markupsafe import escape
+        aid = self.make(client)
+        assert f'value="{escape(self.DESC)}"' in client.get(f"/parts/{aid}/edit").text
+
+    def test_a_no_op_save_does_not_drop_it(self, client):
+        aid = self.make(client)
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "storage", "kind": "Floppy/Gotek",
+                          "drive_desc": self.DESC}, follow_redirects=False)
+        assert self.DESC in client.get(f"/api/parts/{aid}").json()["specs"]
+
+    def test_editing_it_is_not_ignored(self, client):
+        aid = self.make(client)
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "storage", "kind": "Floppy/Gotek",
+                          "drive_desc": "5.25in 360K floppy"}, follow_redirects=False)
+        specs = client.get(f"/api/parts/{aid}").json()["specs"]
+        assert "Description: 5.25in 360K floppy" in specs and self.DESC not in specs
+
+    def test_duplicating_carries_it_across(self, client):
+        aid = self.make(client)
+        r = client.post(f"/parts/{aid}/duplicate", follow_redirects=False)
+        copy = r.headers["location"].rsplit("/", 1)[-1]
+        assert self.DESC in client.get(f"/api/parts/{copy}").json()["specs"]
+
+    def test_a_second_one_started_from_it_opens_on_it(self, client):
+        """The duplicate-then-edit route: /parts/new?from= fills the form in from
+        an existing part, and the description is part of what it describes."""
+        aid = self.make(client)
+        page = client.get(f"/parts/new?from={aid}").text
+        assert "1.44MB floppy, Sony CDU55" in page
+
+    def test_a_machine_to_route_to_still_wins(self, client, computer):
+        cid = computer()["asset_id"]
+        self.make(client, computer_id=cid)
+        assert client.get("/api/parts", params={"computer_id": cid}).json() == []
+        assert "1.44MB" in client.get(f"/api/computers/{cid}").json()["drives"]
 
 
 class TestSpecs:
