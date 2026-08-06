@@ -1,26 +1,94 @@
-{# Drive bezel colours: a swatch, and the reference chart of the whole vocabulary.
+{# The bezel: the shade a drive was made in, and how far it has yellowed since.
+   Used by the machine form (a pair of menus per drive row) and by the part form (a
+   pair for a storage part), so both describe the same plastic in the same words.
 
    A screen cannot promise a colour, so the chart is a starting point rather than a
-   standard: hold the bezel up to it, pick the nearest, and the name is what gets
-   stored. Names, not hex values, are the data -- see drivedb.COLOURS. #}
-{% macro css(col) %}{% if col.hex2 %}linear-gradient(115deg, {{ col.hex }} 46%, {{ col.hex2 }} 54%){% else %}{{ col.hex }}{% endif %}{% endmacro %}
+   standard: hold the bezel up to it and take the nearest. Names are the data --
+   see entry.BEZEL_COLOURS and entry.YELLOWING -- and every swatch here comes from
+   entry.bezel_css (the `bezel_css` global), so the chart, the menus and anything
+   else that draws one cannot disagree. #}
 
-{% macro dot(col) %}<span class="swatch{{ '' if col else ' none' }}"
-  {%- if col %} style="background:{{ css(col) }}" title="{{ col.label }} — {{ col.note }}"{% endif %}></span>{% endmacro %}
+{% macro dot(css, title='') %}<span class="swatch{{ '' if css else ' none' }}"
+  {%- if css %} style="background:{{ css }}"{% endif %}
+  {%- if title %} title="{{ title }}"{% endif %}></span>{% endmacro %}
 
-{% macro chart(colours, groups) %}
+{# One menu. `cur` is kept as an option of its own when it is from outside the
+   vocabulary, so saving the form cannot quietly drop what someone else wrote. #}
+{% macro menu(name, part, vocab, labels, cur, blank) %}
+<select class="bezel-pick" name="{{ name }}" data-bezel="{{ part }}">
+  <option value="">{{ blank }}</option>
+  {% if cur and cur not in labels %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
+  {% for v in vocab %}<option value="{{ v.label }}"{{ ' selected' if v.label == cur else '' }}>{{ v.label }}</option>{% endfor %}
+</select>
+{% endmacro %}
+
+{# Both menus and the swatch that combines them. `prefix` namespaces the fields:
+   'drive0_' for a machine's first drive row, 'spec_' for a storage part. #}
+{% macro pair(prefix, colour, level, colours, yellowing, colour_labels,
+              yellowing_labels) %}
+<div class="bezel-cell">
+  {{ dot(bezel_css(colour, level)) }}
+  {{ menu(prefix + 'colour', 'colour', colours, colour_labels, colour, 'shade —') }}
+  {{ menu(prefix + 'yellowing', 'yellowing', yellowing, yellowing_labels, level,
+          'not yellowed') }}
+</div>
+{% endmacro %}
+
+{# Repaint the swatch as the menus change. The mixing is done once, in Python, and
+   shipped as a lookup: JavaScript that mixed its own colours could drift from the
+   chart drawn beside it. #}
+{% macro script(swatches) %}
+<script>
+  (function () {
+    const CSS = {{ swatches | tojson }};
+    document.querySelectorAll('.bezel-cell').forEach(cell => {
+      const dot = cell.querySelector('.swatch');
+      const menus = cell.querySelectorAll('select[data-bezel]');
+      const val = part => {
+        const el = [...menus].find(m => m.dataset.bezel === part);
+        return el ? el.value : '';
+      };
+      const paint = () => {
+        const css = CSS[`${val('colour')}|${val('yellowing')}`] || '';
+        dot.style.background = css;
+        // Nothing recorded, or a value from outside the chart: a hatch rather than
+        // a swatch, so an empty menu does not read as a colour of its own.
+        dot.classList.toggle('none', !css);
+      };
+      menus.forEach(m => m.addEventListener('change', paint));
+      paint();
+    });
+  })();
+</script>
+{% endmacro %}
+
+{% macro chart(colours, yellowing) %}
 <details class="colourchart">
-  <summary>colour chart — what each name looks like</summary>
-  <p class="hint">Hold the bezel next to the screen and take the nearest. Record how
-    it looks <em>now</em>: a beige drive that has gone yellow is yellowed, not beige.
-    What it started as belongs in the note below.</p>
-  {% for grp in groups %}
-  <p class="cc-grp">{{ grp }}</p>
+  <summary>colour chart — the shades, and what yellowing does to them</summary>
+  <p class="hint">Hold the bezel next to the screen and take the nearest shade, then
+    say how far it has gone. The two are recorded separately: a beige drive that has
+    yellowed is still a beige drive, which is what makes "did these two start the
+    same colour" a question with an answer. Leave yellowing at <em>not yellowed</em>
+    if it has not, or if nobody has looked yet.</p>
+  <p class="cc-grp">The shade it was made in</p>
   <div class="cc-grid">
-    {% for col in colours if col.group == grp %}
-    <div class="cc-item">{{ dot(col) }}<span class="cc-lbl">{{ col.label }}<span class="hint">{{ col.note }}</span></span></div>
+    {% for col in colours %}
+    <div class="cc-item">{{ dot(bezel_css(col.label, ''), col.label) }}<span class="cc-lbl">{{ col.label }}<span class="hint">{{ col.note }}</span></span></div>
     {% endfor %}
   </div>
-  {% endfor %}
+  <p class="cc-grp">How far it has yellowed — on white, off-white and beige, because
+    the same level reads differently on each</p>
+  <div class="cc-grid">
+    {% for lvl in yellowing %}
+    <div class="cc-item">
+      <span class="cc-ladder">
+        {%- for base in ('White', 'Off-white', 'Beige') -%}
+        {{ dot(bezel_css(base, lvl.label), base + ' — ' + lvl.label | lower) }}
+        {%- endfor -%}
+      </span>
+      <span class="cc-lbl">{{ lvl.label }}<span class="hint">{{ lvl.note }}</span></span>
+    </div>
+    {% endfor %}
+  </div>
 </details>
 {% endmacro %}

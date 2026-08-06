@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_colours.html" as C %}
 {% block title %}{{ title }} — Retro Hardware Database{% endblock %}
 {% block content %}
 <p><a href="javascript:history.back()">&larr; back</a></p>
@@ -74,6 +75,12 @@ until you submit.</p>
       {{ sf('spec_media', 'Media', 'Media') }}
       {{ sf('spec_speed', 'Speed', 'Speed') }}
       {{ sf('spec_role', 'Role', 'Role') }}
+      <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+      {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
+                bezel_colours, yellowing, bezel_colour_labels, yellowing_labels) }}
+      <p class="hint">a full-height drive shows its bezel; a bare 3.5" disk that
+        never had one has nothing to record here.</p>
+      {{ C.chart(bezel_colours, yellowing) }}
       <label for="disk_image">Disk image filename <span class="muted">(image taken on arrival)</span></label>
       <input id="disk_image" name="disk_image" value="{{ (p.disk_image if p else '') or '' }}">
     </div>
@@ -245,4 +252,5 @@ until you submit.</p>
     narrow();
   })();
 </script>
+{% if ptype == 'storage' %}{{ C.script(bezel_swatches) }}{% endif %}
 {% endblock %}

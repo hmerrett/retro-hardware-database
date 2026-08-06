@@ -24,6 +24,63 @@ class TestAmounts:
         assert entry.normalise_amount("Interface", "2MB") == "2MB"
 
 
+class TestBezelSwatches:
+    """The shades and the yellowing levels, and the colour that stands for a pair of
+    them. The mixing lives here so the chart, a form's live swatch and an item page
+    cannot disagree about what 'heavily yellowed beige' looks like.
+    """
+
+    def test_a_shade_on_its_own_is_its_own_hex(self):
+        assert entry.bezel_css("Beige") == entry.bezel_colour("Beige")["hex"]
+
+    def test_nothing_recorded_draws_nothing(self):
+        assert entry.bezel_css("", "") == ""
+        assert entry.bezel_css("puce", "faded") == ""
+
+    def test_yellowing_darkens_and_warms_the_shade(self):
+        """Each step has to move the same way, or the ladder would not read as one."""
+        def rgb(css):
+            return [int(css[i:i + 2], 16) for i in (1, 3, 5)]
+        steps = [entry.bezel_css("White", lvl) for lvl in
+                 ("", "Lightly yellowed", "Yellowed", "Heavily yellowed", "Browned")]
+        blues = [rgb(s)[2] for s in steps]
+        assert blues == sorted(blues, reverse=True)
+        # ...and every step stays a colour a browser will accept.
+        assert all(len(s) == 7 and s.startswith("#") for s in steps)
+
+    def test_the_same_level_reads_differently_on_a_different_shade(self):
+        assert entry.bezel_css("White", "Yellowed") != entry.bezel_css("Beige", "Yellowed")
+
+    def test_uneven_yellowing_is_drawn_as_two_tones(self):
+        """One shade in two states is the only honest way to draw a patchy bezel."""
+        css = entry.bezel_css("Beige", "Unevenly yellowed")
+        assert css.startswith("linear-gradient(") and css.count("#") == 2
+
+    def test_yellowing_with_no_shade_recorded_still_draws(self):
+        """An unrestored find often shows only how yellow it is; it is drawn on some
+        pale plastic, which is what almost every yellowed bezel started as."""
+        assert entry.bezel_css("", "Heavily yellowed").startswith("#")
+
+    def test_the_swatch_map_covers_every_pair(self):
+        m = entry.bezel_swatch_map()
+        assert m["Beige|Heavily yellowed"] == entry.bezel_css("Beige",
+                                                              "Heavily yellowed")
+        # Every pair but the one where neither is recorded, which draws nothing.
+        assert len(m) == (len(entry.BEZEL_COLOURS) + 1) * (len(entry.YELLOWING) + 1) - 1
+        assert "|" not in m
+
+    def test_every_entry_carries_what_the_chart_needs(self):
+        for col in entry.BEZEL_COLOURS:
+            assert len(col["hex"]) == 7 and col["note"]
+        for lvl in entry.YELLOWING:
+            assert 0 < lvl["weight"] < 1 and len(lvl["tint"]) == 7 and lvl["note"]
+
+    def test_no_shade_is_also_a_yellowing_level(self):
+        """They are separate fields; a word that meant both would make a typed drive
+        ambiguous."""
+        assert not (set(entry.BEZEL_COLOUR_LABELS) & set(entry.YELLOWING_LABELS))
+
+
 class TestInstalledRam:
     def test_modules_render_with_a_total(self):
         assert entry.format_ram_modules([("30p1m", 8)]) == "8× 1MB 30-pin (8 MB)"

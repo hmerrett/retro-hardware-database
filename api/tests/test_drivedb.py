@@ -6,33 +6,34 @@ fails rather than quietly restructuring it.
 """
 import pytest
 
-from app import drivedb
+from app import drivedb, entry
 
 REAL_VALUES = [
     ("3.5-inch 1.44 MB floppy drive",
      [{"count": 1, "kind": "floppy", "form_factor": '3.5"', "size": "1.44MB",
-       "model": "", "colour": ""}]),
+       "model": "", "colour": "", "yellowing": ""}]),
     ('2 x 5.25" 360K',
      [{"count": 2, "kind": "floppy", "form_factor": '5.25"', "size": "360K",
-       "model": "", "colour": ""}]),
+       "model": "", "colour": "", "yellowing": ""}]),
     ('2x 5.25" 360K Floppy',
      [{"count": 2, "kind": "floppy", "form_factor": '5.25"', "size": "360K",
-       "model": "", "colour": ""}]),
+       "model": "", "colour": "", "yellowing": ""}]),
     ("Custom GOTEK 2.88MB",
      [{"count": 1, "kind": "Gotek", "form_factor": "", "size": "2.88MB",
-       "model": "Custom", "colour": ""}]),
+       "model": "Custom", "colour": "", "yellowing": ""}]),
     ("Gotek floppy emulator (1.44MB)",
      [{"count": 1, "kind": "Gotek", "form_factor": "", "size": "1.44MB",
-       "model": "", "colour": ""}]),
+       "model": "", "colour": "", "yellowing": ""}]),
     ("Integral 2GB SD",
      [{"count": 1, "kind": "SD", "form_factor": "", "size": "2GB",
-       "model": "Integral", "colour": ""}]),
+       "model": "Integral", "colour": "", "yellowing": ""}]),
     ("1GB CF",
      [{"count": 1, "kind": "CF", "form_factor": "", "size": "1GB", "model": "",
-       "colour": ""}]),
+       "colour": "", "yellowing": ""}]),
     ("Mitsubishi MF504A-318U (1.2MB)",
      [{"count": 1, "kind": "floppy", "form_factor": "", "size": "1.2MB",
-       "model": "Mitsubishi MF504A-318U", "colour": ""}]),
+       "model": "Mitsubishi MF504A-318U", "colour": "",
+       "yellowing": ""}]),
 ]
 
 
@@ -121,89 +122,107 @@ class TestRendering:
         assert drivedb.render(*drivedb.from_string(once)) == once
 
 
-class TestBezelColour:
-    """The colour of the bezel, from a vocabulary that runs from the factory shades
-    into the stages of yellowing. Typed text has to read the same as the menu, or
-    the same drive would be recorded two ways depending on where it was entered.
+class TestTheBezel:
+    """Two things about one piece of plastic: the shade it was made in, and how far
+    it has yellowed. Typed text has to read the same as the two menus, or the same
+    drive would be recorded differently depending on where it was entered.
     """
 
-    @pytest.mark.parametrize("text,colour", [
-        ("3.5in 1.44MB floppy beige", "Beige"),
-        ("3.5in 1.44MB floppy (beige)", "Beige"),
-        ("5.25in 360K floppy, yellowed", "Yellowed"),
-        ("1.44MB floppy heavily yellowed", "Heavily yellowed"),
-        ("Gotek black", "Black"),
+    @pytest.mark.parametrize("text,colour,level", [
+        ("3.5in 1.44MB floppy beige", "Beige", ""),
+        ("3.5in 1.44MB floppy (beige)", "Beige", ""),
+        ("5.25in 360K floppy, yellowed", "", "Yellowed"),
+        ("1.44MB floppy heavily yellowed", "", "Heavily yellowed"),
+        ("Gotek black", "Black", ""),
+        ("3.5in 1.44MB floppy (beige, heavily yellowed)", "Beige",
+         "Heavily yellowed"),
+        ("floppy yellowed beige", "Beige", "Yellowed"),
     ])
-    def test_a_colour_is_read_from_what_was_typed(self, text, colour):
-        assert drivedb.parse_segment(text)["colour"] == colour
+    def test_both_are_read_from_what_was_typed(self, text, colour, level):
+        d = drivedb.parse_segment(text)
+        assert (d["colour"], d["yellowing"]) == (colour, level)
 
     @pytest.mark.parametrize("text,colour", [
         ("floppy off-white", "Off-white"),
         ("floppy light grey", "Light grey"),
         ("floppy grey-beige", "Grey-beige"),
-        ("floppy unevenly yellowed", "Unevenly yellowed"),
     ])
-    def test_a_two_word_colour_is_one_colour(self, text, colour):
+    def test_a_two_word_shade_is_one_shade(self, text, colour):
         """'off-white' is not 'white' with a stray word, and 'light grey' is not
         'grey' after one -- either mistake would leave half of it in the model."""
         d = drivedb.parse_segment(text)
         assert (d["colour"], d["model"]) == (colour, "")
 
-    @pytest.mark.parametrize("text,colour", [
-        ("floppy gray", "Grey"), ("floppy cream", "Off-white"),
+    @pytest.mark.parametrize("text,level", [
+        ("floppy unevenly yellowed", "Unevenly yellowed"),
         ("floppy badly yellowed", "Heavily yellowed"),
         ("floppy yellowing", "Yellowed"),
+        ("floppy patchy", "Unevenly yellowed"),
+    ])
+    def test_a_two_word_level_is_one_level(self, text, level):
+        d = drivedb.parse_segment(text)
+        assert (d["yellowing"], d["model"]) == (level, "")
+
+    @pytest.mark.parametrize("text,colour", [
+        ("floppy gray", "Grey"), ("floppy cream", "Off-white"),
+        ("floppy light gray", "Light grey"),
     ])
     def test_the_looser_words_land_on_a_label(self, text, colour):
         assert drivedb.parse_segment(text)["colour"] == colour
 
-    def test_every_label_answers_to_itself(self):
-        for label in drivedb.COLOUR_LABELS:
-            assert drivedb.parse_segment(f"floppy {label}")["colour"] == label
+    def test_browning_is_a_level_not_a_shade(self):
+        """'brown' describes what has happened to a bezel, not what it was made in
+        -- there is no brown in the shade list to mistake it for."""
+        d = drivedb.parse_segment("floppy brown")
+        assert (d["yellowing"], d["colour"], d["model"]) == ("Browned", "", "")
 
-    def test_a_colour_alone_is_a_drive_worth_recording(self):
+    def test_every_label_answers_to_itself(self):
+        for label in entry.BEZEL_COLOUR_LABELS:
+            assert drivedb.parse_segment(f"floppy {label}")["colour"] == label
+        for label in entry.YELLOWING_LABELS:
+            assert drivedb.parse_segment(f"floppy {label}")["yellowing"] == label
+
+    def test_a_bezel_alone_is_a_drive_worth_recording(self):
         """Half a drive is still a drive: the bezel is beige even if nobody has
         written down what kind it is yet."""
         assert drivedb.parse_segment("beige")["colour"] == "Beige"
+        assert drivedb.parse_segment("yellowed")["yellowing"] == "Yellowed"
 
-    def test_a_colour_is_not_taken_from_inside_a_word(self):
-        assert drivedb.parse_segment("Greyhound 1.44MB floppy")["colour"] == ""
+    def test_neither_is_taken_from_inside_a_word(self):
+        d = drivedb.parse_segment("Greyhound 1.44MB floppy")
+        assert (d["colour"], d["yellowing"]) == ("", "")
 
     def test_it_renders_in_brackets_at_the_end(self):
         assert drivedb.render([{"count": 1, "kind": "floppy", "form_factor": '3.5"',
-                                "size": "1.44MB", "model": "", "colour": "Beige"}]) \
-            == '3.5" 1.44MB floppy (beige)'
+                                "size": "1.44MB", "model": "", "colour": "Beige",
+                                "yellowing": "Heavily yellowed"}]) \
+            == '3.5" 1.44MB floppy (beige, heavily yellowed)'
+
+    def test_either_alone_renders_too(self):
+        row = {"count": 1, "kind": "floppy", "form_factor": "", "size": "",
+               "model": ""}
+        assert drivedb.render([row | {"colour": "Beige"}]) == "floppy (beige)"
+        assert drivedb.render([row | {"yellowing": "Yellowed"}]) \
+            == "floppy (yellowed)"
 
     def test_a_count_still_leads(self):
         assert drivedb.render([{"count": 2, "kind": "floppy", "form_factor": '5.25"',
-                                "size": "360K", "model": "",
-                                "colour": "Yellowed"}]) \
-            == '2× 5.25" 360K floppy (yellowed)'
+                                "size": "360K", "model": "", "colour": "Off-white",
+                                "yellowing": "Yellowed"}]) \
+            == '2× 5.25" 360K floppy (off-white, yellowed)'
 
-    @pytest.mark.parametrize("colour", ["Beige", "Off-white", "Light grey",
-                                        "Heavily yellowed", "Unevenly yellowed"])
-    def test_rendering_a_colour_reads_back_the_same(self, colour):
+    @pytest.mark.parametrize("colour", ["", "Beige", "Off-white", "Light grey"])
+    @pytest.mark.parametrize("level", ["", "Yellowed", "Heavily yellowed",
+                                       "Unevenly yellowed"])
+    def test_rendering_a_bezel_reads_back_the_same(self, colour, level):
         """The string is a cache of the rows, so it has to parse back into them --
-        a colour that renders one way and reads another would drift on every save."""
+        a bezel that renders one way and reads another would drift on every save."""
         rows = [{"count": 1, "kind": "floppy", "form_factor": '3.5"',
-                 "size": "1.44MB", "model": "Mitsumi", "colour": colour}]
+                 "size": "1.44MB", "model": "Mitsumi", "colour": colour,
+                 "yellowing": level}]
         once = drivedb.render(rows)
         assert drivedb.from_string(once)[0] == rows
         assert drivedb.render(*drivedb.from_string(once)) == once
-
-    def test_the_swatch_for_a_recorded_colour(self):
-        assert drivedb.swatch("Beige")["hex"].startswith("#")
-        assert drivedb.swatch("beige") == drivedb.swatch("Beige")
-
-    def test_a_colour_from_nowhere_has_no_swatch(self):
-        assert drivedb.swatch("puce") is None
-        assert drivedb.swatch("") is None
-
-    def test_every_colour_offers_a_swatch_and_a_group(self):
-        for col in drivedb.COLOURS:
-            assert col["group"] in drivedb.COLOUR_GROUPS
-            assert len(col["hex"]) == 7 and col["hex"].startswith("#")
-            assert col["note"]
 
 
 class TestEmpties:

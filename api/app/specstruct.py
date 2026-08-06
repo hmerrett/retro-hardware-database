@@ -38,7 +38,7 @@ SCALARS = {
     "io": {"Chip": "chip", "Chipset": "chip", "Interface": "interface"},
     "storage": {"Kind": "kind", "Interface": "interface", "Protocol": "protocol",
                 "Capacity": "capacity_kb", "Media": "media", "Speed": "speed_rpm",
-                "Role": "role"},
+                "Role": "role", "Colour": "colour", "Yellowing": "yellowing"},
 }
 
 # --- numeric columns -------------------------------------------------------
@@ -77,7 +77,7 @@ ORDER = {
     "network": ["Chip", "Interface", "Connector"],
     "io": ["Chip", "Interface", "Ports"],
     "storage": ["Kind", "Interface", "Protocol", "Capacity", "CHS", "Media",
-                "Speed", "Role"],
+                "Speed", "Role", "Colour", "Yellowing"],
 }
 # Which column a display key reads from in format() (first alias wins).
 DISPLAY_COL = {t: {} for t in SCALARS}

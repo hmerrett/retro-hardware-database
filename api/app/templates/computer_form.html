@@ -38,7 +38,7 @@
   <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove that drive.</p>
   <div class="hscroll">
   <table class="drives">
-    <tr><th>How many</th><th>Kind</th><th>Form factor</th><th>Size</th><th>Make / model</th><th>Colour</th></tr>
+    <tr><th>How many</th><th>Kind</th><th>Form factor</th><th>Size</th><th>Make / model</th><th>Bezel — shade, and yellowing</th></tr>
     {% for d in drives %}
     <tr>
       <td><input type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"></td>
@@ -52,27 +52,17 @@
       </select></td>
       <td><input name="drive{{ loop.index0 }}_size" list="dl_drive_sizes" value="{{ d.get('size', '') }}"></td>
       <td><input name="drive{{ loop.index0 }}_model" value="{{ d.get('model', '') }}"></td>
-      {# The swatch beside the menu is filled in by the script below, so the choice
-         can be checked against the chart without reading back up the page. #}
-      <td><div class="colour-cell">{{ C.dot(none) }}
-        <select class="colour-pick" name="drive{{ loop.index0 }}_colour">
-          <option value=""></option>
-          {% set cur = d.get('colour', '') %}
-          {% if cur and cur not in drive_colour_labels %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
-          {% for grp in drive_colour_groups %}
-          <optgroup label="{{ grp }}">
-            {% for col in drive_colours if col.group == grp %}
-            <option value="{{ col.label }}"{{ ' selected' if col.label == cur else '' }}>{{ col.label }}</option>
-            {% endfor %}
-          </optgroup>
-          {% endfor %}
-        </select>
-      </div></td>
+      {# Two menus and one swatch: the shade as made, and how far it has yellowed.
+         The swatch shows the pair together, so the choice can be checked against
+         the chart below without reading back up the page. #}
+      <td>{{ C.pair('drive%d_' % loop.index0, d.get('colour', ''),
+                    d.get('yellowing', ''), bezel_colours, yellowing,
+                    bezel_colour_labels, yellowing_labels) }}</td>
     </tr>
     {% endfor %}
   </table>
   </div>
-  {{ C.chart(drive_colours, drive_colour_groups) }}
+  {{ C.chart(bezel_colours, yellowing) }}
   <datalist id="dl_drive_sizes">{% for x in drive_sizes %}<option value="{{ x }}">{% endfor %}</datalist>
   <label for="drives_note">Drives — anything the rows cannot say</label>
   <input id="drives_note" name="drives_note" value="{{ (c.drives_note if c else '') or '' }}">
@@ -92,27 +82,5 @@
   <textarea id="notes" name="notes">{{ (c.notes if c else '') or '' }}</textarea>
   <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
 </form>
-<script>
-  // Show the chosen bezel colour beside its menu. The names are the data; these
-  // are the same swatches the chart above draws, so the two cannot disagree.
-  (function () {
-    const css = {};
-    for (const c of {{ drive_colours | tojson }}) {
-      css[c.label] = c.hex2
-        ? `linear-gradient(115deg, ${c.hex} 46%, ${c.hex2} 54%)` : c.hex;
-    }
-    document.querySelectorAll('.colour-cell').forEach(cell => {
-      const sel = cell.querySelector('select'), dot = cell.querySelector('.swatch');
-      const paint = () => {
-        dot.style.background = css[sel.value] || '';
-        // No colour recorded, or one from outside the chart: a hatch rather than a
-        // swatch, so an empty menu does not read as a colour of its own.
-        dot.classList.toggle('none', !css[sel.value]);
-        dot.title = css[sel.value] ? sel.value : '';
-      };
-      sel.addEventListener('change', paint);
-      paint();
-    });
-  })();
-</script>
+{{ C.script(bezel_swatches) }}
 {% endblock %}

@@ -336,59 +336,82 @@ class TestDrives:
         page = client.get(f"/computers/{aid}/edit").text
         assert 'value="1.2MB"' in page
 
-    def test_the_form_records_a_bezel_colour(self, client, computer):
+    def test_the_form_records_both_halves_of_a_bezel(self, client, computer):
         aid = computer()["asset_id"]
         client.post(f"/computers/{aid}/edit",
                     data={"drive0_count": "1", "drive0_kind": "floppy",
                           "drive0_form_factor": '3.5"', "drive0_size": "1.44MB",
-                          "drive0_model": "", "drive0_colour": "Heavily yellowed"},
+                          "drive0_model": "", "drive0_colour": "Beige",
+                          "drive0_yellowing": "Heavily yellowed"},
                     follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '3.5" 1.44MB floppy (heavily yellowed)'
+            '3.5" 1.44MB floppy (beige, heavily yellowed)'
 
-    def test_the_colour_comes_back_into_the_form(self, client, computer):
-        """Its menu has to hold what was saved, or the next save would quietly
-        drop it -- the same trap a select with no option for its value always is."""
-        aid = computer(drives='3.5" 1.44MB floppy (grey-beige)')["asset_id"]
+    def test_a_shade_with_no_yellowing_is_a_clean_drive(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post(f"/computers/{aid}/edit",
+                    data={"drive0_count": "1", "drive0_kind": "floppy",
+                          "drive0_colour": "Off-white", "drive0_yellowing": ""},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
+            "floppy (off-white)"
+
+    def test_both_come_back_into_the_form(self, client, computer):
+        """Each menu has to hold what was saved, or the next save would quietly drop
+        it -- the same trap a select with no option for its value always is."""
+        aid = computer(
+            drives='3.5" 1.44MB floppy (grey-beige, unevenly yellowed)')["asset_id"]
         page = client.get(f"/computers/{aid}/edit").text
         assert '<option value="Grey-beige" selected>' in page
+        assert '<option value="Unevenly yellowed" selected>' in page
         client.post(f"/computers/{aid}/edit",
                     data={"drive0_count": "1", "drive0_kind": "floppy",
                           "drive0_form_factor": '3.5"', "drive0_size": "1.44MB",
-                          "drive0_model": "", "drive0_colour": "Grey-beige"},
+                          "drive0_model": "", "drive0_colour": "Grey-beige",
+                          "drive0_yellowing": "Unevenly yellowed"},
                     follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '3.5" 1.44MB floppy (grey-beige)'
+            '3.5" 1.44MB floppy (grey-beige, unevenly yellowed)'
+
+    def test_a_row_with_only_a_bezel_is_still_a_drive(self, client, computer):
+        """Nothing else known about it yet, but the bezel was looked at."""
+        aid = computer()["asset_id"]
+        client.post(f"/computers/{aid}/edit",
+                    data={"drive0_yellowing": "Browned"}, follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == "(browned)"
 
     def test_the_edit_form_carries_the_chart(self, client, computer):
-        """The chart is next to the menu because that is where the choice is made:
+        """The chart is next to the menus because that is where the choice is made:
         a bezel is held up to the screen and the nearest one taken."""
         page = client.get(f"/computers/{computer()['asset_id']}/edit").text
         assert "colour chart" in page
         for label in ("Black", "Grey", "White", "Beige", "Lightly yellowed"):
             assert f'<option value="{label}">' in page
-        # Six columns do not fit a phone; squeezed to fit, the row showed two
-        # characters of a model and none of its colour.
+        # The chart draws each level on three shades, from the same function the
+        # menus' live swatch reads.
+        assert page.count("linear-gradient(115deg") >= 3
+        # The drive rows do not fit a phone; squeezed to fit, the row showed two
+        # characters of a model and none of the bezel.
         assert re.search(r'<div class="hscroll">\s*<table class="drives">', page)
 
-    def test_a_colour_is_searchable(self, client, computer):
+    def test_a_bezel_is_searchable(self, client, computer):
         """It rides on the drives string, which the search index reads, so "which
         machines have a yellowed floppy" is a question the box can answer."""
-        aid = computer(drives='3.5" 1.44MB floppy (yellowed)')["asset_id"]
+        aid = computer(drives='3.5" 1.44MB floppy (beige, yellowed)')["asset_id"]
         computer(drives='3.5" 1.44MB floppy (beige)')
         found = re.findall(r'/computers/(RH-[A-Z0-9]+)"',
                            client.get("/?q=yellowed").text)
         assert set(found) == {aid}
 
-    def test_routing_a_drive_reads_its_colour(self, client, computer):
+    def test_routing_a_drive_reads_its_bezel(self, client, computer):
         aid = computer()["asset_id"]
         client.post("/parts/new",
                     data={"type": "storage", "computer_id": aid,
                           "kind": "Floppy/Gotek",
-                          "drive_desc": '1x 5.25" 1.2MB beige'},
+                          "drive_desc": '1x 5.25" 1.2MB beige, lightly yellowed'},
                     follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '5.25" 1.2MB floppy (beige)'
+            '5.25" 1.2MB floppy (beige, lightly yellowed)'
 
     def test_routing_a_floppy_creates_no_part(self, client, computer):
         aid = computer()["asset_id"]
@@ -419,6 +442,56 @@ class TestSpecs:
         client.post(f"/parts/{aid}/edit",
                     data={"type": "video", "spec_chip": "S3"}, follow_redirects=False)
         assert "Voltage: 5V" in client.get(f"/api/parts/{aid}").json()["specs"]
+
+
+class TestAStoragePartsBezel:
+    """The front of a full-height drive is as beige as any floppy's, so a storage
+    part records the same shade and yellowing a fitted drive row does -- through the
+    spec machinery rather than its own columns, which is where a part's other typed
+    facts already live.
+    """
+
+    def test_the_form_records_both(self, client):
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Hard disk",
+                              "spec_interface": "MFM", "spec_colour": "Off-white",
+                              "spec_yellowing": "Yellowed"},
+                        follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        specs = client.get(f"/api/parts/{aid}").json()["specs"]
+        assert specs == ("Kind: Hard disk | Interface: MFM | Colour: Off-white "
+                         "| Yellowing: Yellowed")
+
+    def test_they_come_back_into_the_form(self, client, part):
+        aid = part(type="storage",
+                   specs="Kind: Tape | Colour: Black")["asset_id"]
+        page = client.get(f"/parts/{aid}/edit").text
+        assert '<option value="Black" selected>' in page
+        assert "colour chart" in page
+
+    def test_editing_keeps_them(self, client, part):
+        aid = part(type="storage", specs="Kind: Hard disk | Colour: Beige | "
+                                         "Yellowing: Browned")["asset_id"]
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "storage", "kind": "Hard disk",
+                          "spec_colour": "Beige", "spec_yellowing": "Browned"},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            "Kind: Hard disk | Colour: Beige | Yellowing: Browned"
+
+    def test_the_part_page_shows_the_swatch_for_the_pair(self, client, part):
+        """One piece of plastic, so both rows carry the swatch of the two together
+        rather than a shade beside a separate stage."""
+        from app import entry
+        aid = part(type="storage", specs="Kind: Hard disk | Colour: Beige | "
+                                         "Yellowing: Heavily yellowed")["asset_id"]
+        page = client.get(f"/parts/{aid}").text
+        css = entry.bezel_css("Beige", "Heavily yellowed")
+        assert page.count(f'style="background:{css}"') == 2
+
+    def test_a_drive_with_no_bezel_recorded_shows_no_swatch(self, client, part):
+        aid = part(type="storage", specs="Kind: Hard disk")["asset_id"]
+        assert 'class="swatch"' not in client.get(f"/parts/{aid}").text
 
 
 class TestPagesAndDiscovery:

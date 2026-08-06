@@ -60,14 +60,22 @@ carries its CPU, installed RAM and floppy/optical/CF-SD drives as attributes of
 the machine; mechanical hard disks, tape and expansion cards are parts.
 
 A machine's drives are rows (`computer_drive`), each with how many, kind, form
-factor, media size, make/model and the colour of its bezel. Colour comes from a
-fixed vocabulary in `app/drivedb.py` -- the factory shades from black through grey
-to the beiges, then the stages of yellowing -- and the edit form shows it as a
-chart of swatches to hold a real bezel up to. It is the colour as it looks now,
-which is why "yellowed" sits in the same list as "beige". The name is what is
-stored; the swatches are only there to choose by. A colour typed into the drives
-field or a routed drive's description ("3.5in 1.44MB floppy beige") reads the same
-as the menu, and renders back as `3.5" 1.44MB floppy (beige)`.
+factor, media size, make/model and its bezel: the shade it was made in and how far
+it has yellowed since. Storage parts record the same two things, as their `Colour`
+and `Yellowing` specs, so a drive on the shelf and one fitted in a machine are
+described alike.
+
+Both vocabularies live in `app/entry.py` -- the factory shades from black through
+the greys to the beiges, and the yellowing levels from lightly through browned to
+unevenly -- and either can be recorded without the other, because an unrestored
+find often shows only how yellow it is. They are separate fields on purpose: a
+beige drive that has yellowed is still a beige drive, which is what makes "did
+these two start the same colour" answerable. The names are the data; the swatches
+are only there to choose by, and `entry.bezel_css` mixes the shade with the
+yellowing so the chart in the edit forms, the swatch beside a menu and the one on a
+part page cannot disagree. A bezel typed into the drives field or a routed drive's
+description ("3.5in 1.44MB floppy beige, lightly yellowed") reads the same as the
+menus, and renders back as `3.5" 1.44MB floppy (beige, lightly yellowed)`.
 
 `year` is an integer, `acquired_date` and `disposed_at` are dates, and
 `disposed` is a boolean whose detail lives in `disposed_note` -- the remaining

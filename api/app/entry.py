@@ -57,6 +57,116 @@ STORAGE_KINDS = ["Hard disk", "SD/CF card", "Tape", "Optical", "Floppy/Gotek"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
 
+# --- bezel colour and yellowing --------------------------------------------
+# Two things, recorded separately: the shade a drive was made in, and how far it
+# has yellowed since. They are not one field because they answer different
+# questions -- "what did this machine's drives look like new" and "how bad is this
+# one" -- and because a beige drive that has gone yellow is still a beige drive.
+# Either can be recorded without the other: an unrestored find often shows only
+# how yellow it is, and a pristine spare only what shade it is.
+#
+# Shared by a machine's drive rows (drivedb) and by storage parts (the Colour and
+# Yellowing specs), so a drive fitted in a machine and the same drive on the shelf
+# are described in the same words.
+BEZEL_COLOURS = [
+    {"label": "Black", "hex": "#1a1b1d",
+     "note": "black plastic or a painted bezel"},
+    {"label": "Dark grey", "hex": "#4b4f55",
+     "note": "a grey that reads darker than the case around it"},
+    {"label": "Grey", "hex": "#8b9097", "note": "mid grey, with no warmth in it"},
+    {"label": "Light grey", "hex": "#c3c7cc", "note": "pale grey, cooler than beige"},
+    {"label": "White", "hex": "#f6f6f4", "note": "a true white, no cream in it"},
+    {"label": "Off-white", "hex": "#ece8dc",
+     "note": "white with a little cream, as made rather than as aged"},
+    {"label": "Beige", "hex": "#dad0b8", "note": "the classic PC beige"},
+    {"label": "Warm beige", "hex": "#cebb9a", "note": "beige with more brown in it"},
+    {"label": "Grey-beige", "hex": "#c8c5b5",
+     "note": "beige with the warmth taken out"},
+]
+
+# How far it has gone. `weight` is how much of `tint` to mix into the original
+# shade to draw it -- a rendering, not data, so these numbers can be adjusted
+# without touching a single record. Blank means it has not yellowed, or nobody has
+# looked yet: the same blank every other unrecorded field uses.
+YELLOWING = [
+    {"label": "Lightly yellowed", "weight": 0.20, "tint": "#c49a44",
+     "note": "just off its original shade; tells beside a clean part"},
+    {"label": "Yellowed", "weight": 0.38, "tint": "#bd8f34",
+     "note": "plainly yellow, evenly across the bezel"},
+    {"label": "Heavily yellowed", "weight": 0.58, "tint": "#b3822c",
+     "note": "deep yellow going to tan"},
+    {"label": "Browned", "weight": 0.78, "tint": "#8a6a35",
+     "note": "past yellow into brown; UV, heat or years of smoke"},
+    {"label": "Unevenly yellowed", "weight": 0.15, "weight2": 0.55,
+     "tint": "#bd8f34",
+     "note": "patchy, or one side only -- a sun-facing edge, or the shadow of a "
+             "bracket"},
+]
+BEZEL_COLOUR_LABELS = [c["label"] for c in BEZEL_COLOURS]
+YELLOWING_LABELS = [y["label"] for y in YELLOWING]
+
+# What to draw a yellowing level on when the original shade was never recorded:
+# some pale plastic, which is what almost every yellowed bezel started as.
+ASSUMED_BEZEL = "#ded7c6"
+
+
+def bezel_colour(label):
+    """The BEZEL_COLOURS entry for a recorded shade, or None for one from outside
+    the vocabulary -- which is shown as its own words and no swatch."""
+    return _by_label(BEZEL_COLOURS, label)
+
+
+def yellowing_level(label):
+    """The YELLOWING entry for a recorded level, or None."""
+    return _by_label(YELLOWING, label)
+
+
+def _by_label(vocab, label):
+    want = (label or "").strip().lower()
+    return next((v for v in vocab if v["label"].lower() == want), None) if want else None
+
+
+def _mix(base, tint, weight):
+    """`base` hex moved `weight` of the way towards `tint` hex."""
+    pairs = [(int(base[i:i + 2], 16), int(tint[i:i + 2], 16)) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(b + (t - b) * weight):02x}" for b, t in pairs)
+
+
+def bezel_css(colour="", yellowing=""):
+    """A CSS background for a bezel as made and as it has aged, or '' if neither is
+    recorded. Uneven yellowing comes back as a two-tone gradient, which is the only
+    honest way to draw one shade in two states.
+
+    The maths lives here, once: the chart, the swatch beside a form row and the
+    swatch on an item page all read the same value, so none of them can disagree
+    about what 'heavily yellowed beige' looks like."""
+    col = bezel_colour(colour)
+    lvl = yellowing_level(yellowing)
+    if not col and not lvl:
+        return ""
+    base = col["hex"] if col else ASSUMED_BEZEL
+    if not lvl:
+        return base
+    if lvl.get("weight2"):
+        light = _mix(base, lvl["tint"], lvl["weight"])
+        heavy = _mix(base, lvl["tint"], lvl["weight2"])
+        return f"linear-gradient(115deg, {light} 46%, {heavy} 54%)"
+    return _mix(base, lvl["tint"], lvl["weight"])
+
+
+def bezel_swatch_map():
+    """Every colour/yellowing pair as its CSS background, keyed 'colour|yellowing'.
+
+    The browser repaints the swatch beside a menu from this rather than doing the
+    mixing again in JavaScript, so there is one implementation of it."""
+    out = {}
+    for colour in ["", *BEZEL_COLOUR_LABELS]:
+        for level in ["", *YELLOWING_LABELS]:
+            css = bezel_css(colour, level)
+            if css:
+                out[f"{colour}|{level}"] = css
+    return out
+
 # --- specs parsing / merging -----------------------------------------------
 
 def parse_specs(specs: str) -> list[tuple[str, str]]:

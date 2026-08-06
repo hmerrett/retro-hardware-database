@@ -102,6 +102,33 @@ class TestCanonicalOrder:
         assert render("video", "Voltage: 5V | Chip: S3") == "Chip: S3 | Voltage: 5V"
 
 
+class TestAStorageBezel:
+    """A full-height drive shows its bezel on the front of the machine, so a storage
+    part records the same two things a fitted drive row does.
+    """
+
+    def test_the_two_keys_map_to_their_own_columns(self):
+        st = specstruct.parse("storage", "Kind: Hard disk | Colour: Beige | "
+                                         "Yellowing: Heavily yellowed")
+        assert st.scalars == {"kind": "Hard disk", "colour": "Beige",
+                              "yellowing": "Heavily yellowed"}
+
+    def test_they_come_last_in_the_canonical_order(self):
+        assert render("storage", "Yellowing: Yellowed | Colour: Beige | "
+                                 "Kind: Hard disk") == \
+            "Kind: Hard disk | Colour: Beige | Yellowing: Yellowed"
+
+    def test_either_alone_survives(self):
+        assert render("storage", "Yellowing: Browned") == "Yellowing: Browned"
+        assert render("storage", "Colour: Black") == "Colour: Black"
+
+    def test_a_bezel_is_only_a_storage_thing(self):
+        """Nothing else in the register has a bezel, so on any other type the keys
+        stay verbatim attributes rather than being quietly adopted."""
+        st = specstruct.parse("video", "Chip: S3 | Colour: Beige")
+        assert st.attributes == [("Colour", "Beige")]
+
+
 class TestDriveCapacityFromGeometry:
     """A drive's geometry gives its capacity, so it need not be typed twice.
 

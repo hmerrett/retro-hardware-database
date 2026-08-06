@@ -44,6 +44,7 @@ app = FastAPI(title="Retro Hardware Database API", version="0.3.0")
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 templates.env.globals.update(
     display_name=entry.display_name, type_label=entry.type_label,
+    bezel_css=entry.bezel_css,
     today=lambda: date.today().isoformat())
 
 AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
@@ -1495,7 +1496,8 @@ def _drives_from_form(form):
     out = []
     for i in range(MAX_DRIVE_ROWS):
         row = {k: (form.get(f"drive{i}_{k}", "") or "").strip()
-               for k in ("kind", "form_factor", "size", "model", "colour")}
+               for k in ("kind", "form_factor", "size", "model", "colour",
+                         "yellowing")}
         if not any(row.values()):
             continue
         count = (form.get(f"drive{i}_count", "") or "").strip()
@@ -1516,9 +1518,16 @@ def _computer_form_ctx(c, title, db=None):
             "ram_chips": entry.RAM_CHIPS, "ram_counts": dict(chips),
             "ram_free": free, "drives": drives + [{}] * blanks,
             "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
-            "drive_sizes": drivedb.SIZES, "drive_colours": drivedb.COLOURS,
-            "drive_colour_groups": drivedb.COLOUR_GROUPS,
-            "drive_colour_labels": drivedb.COLOUR_LABELS}
+            "drive_sizes": drivedb.SIZES, **_bezel_ctx()}
+
+
+def _bezel_ctx():
+    """The bezel vocabularies and their swatches, for any form that records one:
+    a machine's drive rows and a storage part both do."""
+    return {"bezel_colours": entry.BEZEL_COLOURS, "yellowing": entry.YELLOWING,
+            "bezel_colour_labels": entry.BEZEL_COLOUR_LABELS,
+            "yellowing_labels": entry.YELLOWING_LABELS,
+            "bezel_swatches": entry.bezel_swatch_map()}
 
 
 @app.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)
@@ -1859,6 +1868,7 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
             "storage_kinds": entry.STORAGE_KINDS, "storage_protocols": entry.STORAGE_PROTOCOLS,
             "peripheral_interfaces": entry.PERIPHERAL_INTERFACES,
         },
+        **_bezel_ctx(),
         "slot_names": entry.SLOT_NAMES, "port_names": entry.PORT_NAMES,
         "mb_slots": mb_slots, "mb_ram": mb_ram, "mb_ports": mb_ports,
         "mb_cpufams": mb_cpufams,
@@ -1962,7 +1972,7 @@ def _assemble_specs(ptype, form, extra=()):
         "network": ["Chip", "Interface", "Connector"],
         "io": ["Chip", "Interface", "Ports"],
         "storage": ["Kind", "Interface", "Protocol", "Capacity", "CHS", "Media",
-                    "Speed", "Role"],
+                    "Speed", "Role", "Colour", "Yellowing"],
     }.get(ptype)
     # 'other' / 'peripheral' keep a free-text specs box (no data loss).
     if managed is None:

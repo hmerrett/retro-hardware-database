@@ -174,6 +174,10 @@ class StorageSpec(Base):
     media = Column(String(255))
     speed_rpm = Column(Integer)
     role = Column(String(255))
+    # The same two things a machine's drive rows record about the same plastic (see
+    # ComputerDrive), so a drive on the shelf and one fitted are described alike.
+    colour = Column(String(32))
+    yellowing = Column(String(32))
 
 
 class PartSlot(Base):
@@ -222,10 +226,12 @@ class ComputerDrive(Base):
     '5.25"') rather than a byte count: these are media designations, not measured
     quantities, and 1.44MB is 1475 KB only by convention.
 
-    colour is the bezel as it looks now, from drivedb.COLOURS -- a label rather
-    than a hex value, because what is recorded is which shade of beige or which
-    stage of yellowing it is, and the swatch that stands for it is free to be
-    adjusted without rewriting anyone's data."""
+    colour is the shade the bezel was made in and yellowing is how far it has gone
+    since, from entry.BEZEL_COLOURS and entry.YELLOWING -- two fields because they
+    answer different questions, and either can be known without the other. Both
+    hold a label rather than a hex value: what is recorded is which shade and which
+    stage, so the swatch that stands for one is free to be adjusted without
+    rewriting anyone's data."""
     __tablename__ = "computer_drive"
     id = Column(Integer, primary_key=True, autoincrement=True)
     computer_id = _computer_fk()
@@ -235,6 +241,7 @@ class ComputerDrive(Base):
     size = Column(String(32), nullable=False, default="")
     model = Column(String(255), nullable=False, default="")
     colour = Column(String(32), nullable=False, default="")
+    yellowing = Column(String(32), nullable=False, default="")
 
 
 class ComputerRamModule(Base):
