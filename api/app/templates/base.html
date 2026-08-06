@@ -109,6 +109,30 @@
   table.drives th, table.drives td { padding: 4px 8px 4px 0; border: 0; }
   table.drives input, table.drives select { width: 100%; padding: 4px 6px; }
   table.drives td:first-child input { width: 70px; }
+  /* Six columns do not fit a phone, and squeezed to fit they show two characters
+     of a drive's model and none of its colour. The row keeps its usable widths and
+     the table scrolls sideways instead. */
+  .hscroll { overflow-x: auto; }
+  @media (max-width: 700px) { table.drives { min-width: 600px; } }
+  /* Drive bezel colours. A swatch is a literal colour rather than a themed one, so
+     it wears a border: black on a dark page and white on a light one both need an
+     edge to be a swatch at all. */
+  .swatch { display: inline-block; width: 22px; height: 15px; border-radius: 3px;
+    border: 1px solid var(--line); vertical-align: middle; flex: none; }
+  .swatch.none { background: repeating-linear-gradient(45deg,
+    transparent 0 3px, var(--line) 3px 4px); }
+  .colour-cell { display: flex; align-items: center; gap: 6px; }
+  .colour-cell select { min-width: 0; }
+  .colourchart { margin: 2px 0 10px; }
+  .colourchart summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .colourchart .cc-grp { margin: 12px 0 5px; font-size: 12px; color: var(--muted); }
+  .cc-grid { display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+    gap: 8px 18px; }
+  .cc-item { display: flex; align-items: flex-start; gap: 8px; }
+  .cc-item .swatch { width: 32px; height: 21px; margin-top: 2px; }
+  .cc-lbl { font-size: 13px; line-height: 1.35; }
+  .cc-lbl .hint { display: block; }
   .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
   .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
   .checks input { width: auto; }

@@ -59,6 +59,16 @@ and deleting a machine or a host card unlinks what pointed at it. A computer
 carries its CPU, installed RAM and floppy/optical/CF-SD drives as attributes of
 the machine; mechanical hard disks, tape and expansion cards are parts.
 
+A machine's drives are rows (`computer_drive`), each with how many, kind, form
+factor, media size, make/model and the colour of its bezel. Colour comes from a
+fixed vocabulary in `app/drivedb.py` -- the factory shades from black through grey
+to the beiges, then the stages of yellowing -- and the edit form shows it as a
+chart of swatches to hold a real bezel up to. It is the colour as it looks now,
+which is why "yellowed" sits in the same list as "beige". The name is what is
+stored; the swatches are only there to choose by. A colour typed into the drives
+field or a routed drive's description ("3.5in 1.44MB floppy beige") reads the same
+as the menu, and renders back as `3.5" 1.44MB floppy (beige)`.
+
 `year` is an integer, `acquired_date` and `disposed_at` are dates, and
 `disposed` is a boolean whose detail lives in `disposed_note` -- the remaining
 columns are text.

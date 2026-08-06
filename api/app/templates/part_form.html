@@ -62,7 +62,9 @@ until you submit.</p>
     </select>
     <div id="drive-route" style="display:none">
       <label for="drive_desc">Drive description <span class="muted">(goes on the computer's Drives field, not a part)</span></label>
-      <input id="drive_desc" name="drive_desc" placeholder="e.g. 3.5in 1.44MB floppy; Sony CDU55">
+      <input id="drive_desc" name="drive_desc" placeholder="e.g. 3.5in 1.44MB floppy beige; Sony CDU55">
+      <p class="hint">a bezel colour is read from what you type ("beige", "yellowed");
+        the machine's own edit form has the chart and the menu.</p>
     </div>
     <div id="drive-part">
       {{ sf('spec_interface', 'Interface', 'Interface', '', 'dl_storage_ifaces') }}

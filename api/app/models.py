@@ -220,7 +220,12 @@ class ComputerDrive(Base):
 
     size and form_factor hold the standard labels a person writes ('1.44MB',
     '5.25"') rather than a byte count: these are media designations, not measured
-    quantities, and 1.44MB is 1475 KB only by convention."""
+    quantities, and 1.44MB is 1475 KB only by convention.
+
+    colour is the bezel as it looks now, from drivedb.COLOURS -- a label rather
+    than a hex value, because what is recorded is which shade of beige or which
+    stage of yellowing it is, and the swatch that stands for it is free to be
+    adjusted without rewriting anyone's data."""
     __tablename__ = "computer_drive"
     id = Column(Integer, primary_key=True, autoincrement=True)
     computer_id = _computer_fk()
@@ -229,6 +234,7 @@ class ComputerDrive(Base):
     form_factor = Column(String(16), nullable=False, default="")
     size = Column(String(32), nullable=False, default="")
     model = Column(String(255), nullable=False, default="")
+    colour = Column(String(32), nullable=False, default="")
 
 
 class ComputerRamModule(Base):

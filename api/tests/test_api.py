@@ -336,6 +336,60 @@ class TestDrives:
         page = client.get(f"/computers/{aid}/edit").text
         assert 'value="1.2MB"' in page
 
+    def test_the_form_records_a_bezel_colour(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post(f"/computers/{aid}/edit",
+                    data={"drive0_count": "1", "drive0_kind": "floppy",
+                          "drive0_form_factor": '3.5"', "drive0_size": "1.44MB",
+                          "drive0_model": "", "drive0_colour": "Heavily yellowed"},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
+            '3.5" 1.44MB floppy (heavily yellowed)'
+
+    def test_the_colour_comes_back_into_the_form(self, client, computer):
+        """Its menu has to hold what was saved, or the next save would quietly
+        drop it -- the same trap a select with no option for its value always is."""
+        aid = computer(drives='3.5" 1.44MB floppy (grey-beige)')["asset_id"]
+        page = client.get(f"/computers/{aid}/edit").text
+        assert '<option value="Grey-beige" selected>' in page
+        client.post(f"/computers/{aid}/edit",
+                    data={"drive0_count": "1", "drive0_kind": "floppy",
+                          "drive0_form_factor": '3.5"', "drive0_size": "1.44MB",
+                          "drive0_model": "", "drive0_colour": "Grey-beige"},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
+            '3.5" 1.44MB floppy (grey-beige)'
+
+    def test_the_edit_form_carries_the_chart(self, client, computer):
+        """The chart is next to the menu because that is where the choice is made:
+        a bezel is held up to the screen and the nearest one taken."""
+        page = client.get(f"/computers/{computer()['asset_id']}/edit").text
+        assert "colour chart" in page
+        for label in ("Black", "Grey", "White", "Beige", "Lightly yellowed"):
+            assert f'<option value="{label}">' in page
+        # Six columns do not fit a phone; squeezed to fit, the row showed two
+        # characters of a model and none of its colour.
+        assert re.search(r'<div class="hscroll">\s*<table class="drives">', page)
+
+    def test_a_colour_is_searchable(self, client, computer):
+        """It rides on the drives string, which the search index reads, so "which
+        machines have a yellowed floppy" is a question the box can answer."""
+        aid = computer(drives='3.5" 1.44MB floppy (yellowed)')["asset_id"]
+        computer(drives='3.5" 1.44MB floppy (beige)')
+        found = re.findall(r'/computers/(RH-[A-Z0-9]+)"',
+                           client.get("/?q=yellowed").text)
+        assert set(found) == {aid}
+
+    def test_routing_a_drive_reads_its_colour(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post("/parts/new",
+                    data={"type": "storage", "computer_id": aid,
+                          "kind": "Floppy/Gotek",
+                          "drive_desc": '1x 5.25" 1.2MB beige'},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
+            '5.25" 1.2MB floppy (beige)'
+
     def test_routing_a_floppy_creates_no_part(self, client, computer):
         aid = computer()["asset_id"]
         client.post("/parts/new",

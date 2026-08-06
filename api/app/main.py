@@ -1495,7 +1495,7 @@ def _drives_from_form(form):
     out = []
     for i in range(MAX_DRIVE_ROWS):
         row = {k: (form.get(f"drive{i}_{k}", "") or "").strip()
-               for k in ("kind", "form_factor", "size", "model")}
+               for k in ("kind", "form_factor", "size", "model", "colour")}
         if not any(row.values()):
             continue
         count = (form.get(f"drive{i}_count", "") or "").strip()
@@ -1516,7 +1516,9 @@ def _computer_form_ctx(c, title, db=None):
             "ram_chips": entry.RAM_CHIPS, "ram_counts": dict(chips),
             "ram_free": free, "drives": drives + [{}] * blanks,
             "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
-            "drive_sizes": drivedb.SIZES}
+            "drive_sizes": drivedb.SIZES, "drive_colours": drivedb.COLOURS,
+            "drive_colour_groups": drivedb.COLOUR_GROUPS,
+            "drive_colour_labels": drivedb.COLOUR_LABELS}
 
 
 @app.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)

@@ -1,0 +1,26 @@
+{# Drive bezel colours: a swatch, and the reference chart of the whole vocabulary.
+
+   A screen cannot promise a colour, so the chart is a starting point rather than a
+   standard: hold the bezel up to it, pick the nearest, and the name is what gets
+   stored. Names, not hex values, are the data -- see drivedb.COLOURS. #}
+{% macro css(col) %}{% if col.hex2 %}linear-gradient(115deg, {{ col.hex }} 46%, {{ col.hex2 }} 54%){% else %}{{ col.hex }}{% endif %}{% endmacro %}
+
+{% macro dot(col) %}<span class="swatch{{ '' if col else ' none' }}"
+  {%- if col %} style="background:{{ css(col) }}" title="{{ col.label }} — {{ col.note }}"{% endif %}></span>{% endmacro %}
+
+{% macro chart(colours, groups) %}
+<details class="colourchart">
+  <summary>colour chart — what each name looks like</summary>
+  <p class="hint">Hold the bezel next to the screen and take the nearest. Record how
+    it looks <em>now</em>: a beige drive that has gone yellow is yellowed, not beige.
+    What it started as belongs in the note below.</p>
+  {% for grp in groups %}
+  <p class="cc-grp">{{ grp }}</p>
+  <div class="cc-grid">
+    {% for col in colours if col.group == grp %}
+    <div class="cc-item">{{ dot(col) }}<span class="cc-lbl">{{ col.label }}<span class="hint">{{ col.note }}</span></span></div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</details>
+{% endmacro %}
