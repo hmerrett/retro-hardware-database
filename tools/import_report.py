@@ -184,9 +184,11 @@ def detect(text):
 
 
 def blank_part(computer_id):
+    # Condition is left blank like every other column. A card the report can see
+    # is a card that answered, which is not the same as a card that works, and
+    # the register should not say "Working" on the strength of an enumeration.
     row = dict.fromkeys(PART_COLUMNS, "")
     row["computer_id"] = computer_id
-    row["condition"] = "Working"
     return row
 
 

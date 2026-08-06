@@ -62,8 +62,12 @@ until you submit.</p>
       {% for o in vocab.storage_kinds %}<option value="{{ o }}"{{ ' selected' if o == curkind else '' }}>{{ o }}</option>{% endfor %}
     </select>
     <div id="drive-route" style="display:none">
-      <label for="drive_desc">Drive description <span class="muted">(goes on the computer's Drives field, not a part)</span></label>
-      <input id="drive_desc" name="drive_desc" placeholder="e.g. 3.5in 1.44MB floppy; Sony CDU55">
+      <label for="drive_desc">Drive description <span class="muted">(goes on the computer's Drives field, or stays as the part's own if there is no machine to fit it to)</span></label>
+      {# Filled in when there is something to fill it with: a drive kept as a part
+         records this as a spec, so editing one -- or starting a second from it --
+         opens on the description already written rather than on an empty box. #}
+      <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
+             placeholder="e.g. 3.5in 1.44MB floppy; Sony CDU55">
       <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
       {# The same menus the machine's own form has, because this is where a drive is
          usually added -- it goes to the same two columns on the drive row. #}
@@ -170,9 +174,14 @@ until you submit.</p>
   <fieldset>
     <legend>Tracking</legend>
     <label for="condition">Condition</label>
+    {# Nothing is assumed to work. A new part starts on the blank rather than at
+       "Working": the register should say a thing works because someone checked,
+       not because a menu was left where it was found. The blank stays in the list
+       so a condition can be taken back off as well as put on. #}
     <select id="condition" name="condition">
-      {% set cur = (p.condition if p else '') or 'Working' %}
-      {% if cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
+      {% set cur = (p.condition if p else '') or '' %}
+      <option value="">not recorded</option>
+      {% if cur and cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
       {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
     </select>
     <label for="source">Source</label>

@@ -67,9 +67,11 @@
   <label for="drives_note">Drives — anything the rows cannot say</label>
   <input id="drives_note" name="drives_note" value="{{ (c.drives_note if c else '') or '' }}">
   <label for="condition">Condition</label>
+  {# Blank by default, not "Working" -- see the same menu on the part form. #}
   <select id="condition" name="condition">
-    {% set cur = (c.condition if c else '') or 'Working' %}
-    {% if cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
+    {% set cur = (c.condition if c else '') or '' %}
+    <option value="">not recorded</option>
+    {% if cur and cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
     {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
   </select>
   {{ fld('source', 'Source', "where / how acquired") }}
