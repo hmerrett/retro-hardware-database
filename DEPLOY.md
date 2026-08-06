@@ -62,8 +62,9 @@ the box by hand; a fresh clone needs its own `.env` (see the keys referenced in
 
 ## Special case: changing the site icon
 
-The favicons/app icons are generated from `api/app/static/app-icon.png`. After
-replacing that master, regenerate the set before rebuilding:
+The favicons, app icons and the photo watermark are all generated from
+`api/app/static/app-icon.png`. After replacing that master, regenerate the set
+before rebuilding:
 
 ```sh
 docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
@@ -71,8 +72,16 @@ docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
 ./deploy.sh
 ```
 
-(The `?v=` cache-buster in the page head updates automatically from the new
-icon, so browsers pick up the change.)
+The master should be a transparent PNG; the script crops it to its artwork,
+squares it for the icon slots, and keeps the alpha channel everywhere except
+`apple-touch-icon.png` (iOS composites transparency on black, so that one is
+flattened on white). Anywhere with Pillow, `RHDB_STATIC=api/app/static python3
+tools/make_icons.py` does the same without Docker.
+
+Both caches key themselves on the artwork, so nothing has to be cleared by hand:
+the `?v=` in the page head follows the favicon's hash, and the watermark cache
+directory is named partly after the mark's, so already-served photos are
+re-marked rather than keeping the old logo.
 
 ## Checking on it
 

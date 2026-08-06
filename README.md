@@ -44,7 +44,9 @@ anything mounted on those in turn -- on the same date and for the same reason.
 A part already disposed keeps its own record, and restoring the machine brings
 back only the parts that went out with it.
 
-Our own photos are watermarked with the site icon as they are served (reference
+Photos upload as soon as they are chosen -- picking them is the whole gesture.
+
+Our own photos are watermarked with the site logo as they are served (reference
 images are not). Set `RHDB_WATERMARK=0` to serve everything untouched.
 
 `/stats` (login required) shows the GoAccess traffic report.

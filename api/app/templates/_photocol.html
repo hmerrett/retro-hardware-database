@@ -55,9 +55,17 @@
   {% endif %}
   {% if request.state.authed %}
   <div class="photo-actions">
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo" enctype="multipart/form-data">
-      <input type="file" name="photos" accept="image/*" multiple required>
-      <button class="btn sm" type="submit">upload photo(s)</button>
+    {# Choosing the photos is the whole gesture: the upload goes as soon as they are
+       picked, so the button below is only there for a browser with no JavaScript.
+       The native file input is behind its own label, which is how the button says
+       "choose files" rather than whatever the browser calls it. #}
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
+          enctype="multipart/form-data" id="photo-upload">
+      <label class="btn sm filebtn">choose files
+        <input type="file" name="photos" accept="image/*" multiple required>
+      </label>
+      <button class="btn sm" type="submit" id="photo-upload-go">upload</button>
+      <span class="hint" id="photo-upload-busy" hidden>uploading…</span>
     </form>
     {% if obj.url %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image">

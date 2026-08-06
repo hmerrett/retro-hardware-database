@@ -403,16 +403,18 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
-def _icon_ver():
-    """Short hash of the current favicon, appended to icon URLs so a regenerated
-    set busts the browser's (very sticky) favicon cache."""
+def _file_ver(path: Path) -> str:
+    """Short content hash of a file, or '0' if it is not there. Used to name things
+    after the artwork that went into them, so replacing the artwork misses every
+    cache keyed on it -- the browser's favicon cache is famously sticky, and a
+    watermark already composited into a served photo is stickier still."""
     try:
-        return hashlib.md5((STATIC_DIR / "favicon.ico").read_bytes()).hexdigest()[:8]
+        return hashlib.md5(path.read_bytes()).hexdigest()[:8]
     except OSError:
-        return "1"
+        return "0"
 
 
-templates.env.globals["icon_ver"] = _icon_ver()
+templates.env.globals["icon_ver"] = _file_ver(STATIC_DIR / "favicon.ico")
 _ICON_CACHE = {"Cache-Control": "public, max-age=86400"}
 
 
@@ -437,7 +439,12 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # the watermarked version is cached next to a mtime check. Reference (not-ours)
 # images and favicons are served untouched. Toggle with RHDB_WATERMARK=0.
 WATERMARK = os.getenv("RHDB_WATERMARK", "1").lower() not in ("0", "false", "no", "off")
-WM_SRC = STATIC_DIR / "icon-512.png"
+# The logo at its own proportions (tools/make_icons.py writes it), not the squared
+# app icon: a mark letterbox-padded inside a square would sit on the photo smaller
+# than the numbers below ask for. Falls back to the square icon if it is missing.
+WM_SRC = STATIC_DIR / "watermark.png"
+if not WM_SRC.exists():
+    WM_SRC = STATIC_DIR / "icon-512.png"
 
 # A proportion of the photo's short edge, so the mark stays legible on a 5712px
 # photo and unobtrusive on a small one, with a floor for the very small.
@@ -446,12 +453,15 @@ WM_MIN_PX = 41
 WM_OPACITY = 0.55
 WM_MARGIN = 0.03
 
-# The cache lives under a directory named after those numbers. A cached copy is
-# otherwise only rebuilt when its source photo changes, so changing the size here
-# left every existing watermark at the old one until its photo was next edited --
-# twice now. Naming the directory after the parameters means a change simply
-# misses the old cache instead of needing anyone to remember.
-WM_CACHE = IMAGES_DIR / ".wm" / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}"
+# The cache lives under a directory named after those numbers, and after the mark
+# itself. A cached copy is otherwise only rebuilt when its source photo changes, so
+# changing the size here left every existing watermark at the old one until its
+# photo was next edited -- twice now. Naming the directory after what went into it
+# means a change simply misses the old cache instead of needing anyone to remember;
+# the artwork's hash is in there because a new site icon is a new watermark, and
+# every photo already served carries the old one.
+WM_CACHE = (IMAGES_DIR / ".wm"
+            / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}-i{_file_ver(WM_SRC)}")
 
 if WATERMARK:
     WM_CACHE.mkdir(parents=True, exist_ok=True)

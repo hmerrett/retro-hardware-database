@@ -6,6 +6,9 @@ left pointing at deleted rows, and derived strings being written to directly.
 """
 import re
 from datetime import date, datetime
+from pathlib import Path
+
+import pytest
 
 
 class TestTypedColumns:
@@ -881,6 +884,80 @@ class TestDuplication:
                    for e in client.get(f"/api/items/{copy_id}/log").json())
 
 
+class TestChoosingPhotos:
+    """Choosing the photos is the whole gesture: they upload on selection, and the
+    button says so in the site's own words rather than the browser's.
+    """
+
+    def test_the_button_is_the_site_s_own_lower_case_one(self, client, part):
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert '<label class="btn sm filebtn">choose files' in page
+        # The native input lives inside that label, which is the only way the
+        # browser's own "Choose Files" button and "no file chosen" never appear.
+        assert re.search(r'<label class="btn sm filebtn">choose files\s*'
+                         r'<input type="file"', page)
+
+    def test_it_uploads_without_a_button_press(self, client, part):
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert "input.addEventListener('change'" in page
+        assert "requestSubmit" in page
+
+    def test_the_button_is_still_there_for_a_browser_without_scripts(self, client,
+                                                                     part):
+        """The submit hides itself from the script above rather than being absent, so
+        the form still works where that script never runs."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert '<button class="btn sm" type="submit" id="photo-upload-go">' in page
+
+
+class TestTheIconSet:
+    """The favicons, app icons and photo watermark, all generated from one master by
+    tools/make_icons.py. The artwork is a design matter; that it keeps its
+    transparency on the way into every format is not.
+    """
+    STATIC = Path(__file__).resolve().parent.parent / "app" / "static"
+
+    def open(self, name):
+        from PIL import Image
+        return Image.open(self.STATIC / name)
+
+    @pytest.mark.parametrize("name", ["app-icon.png", "favicon-16x16.png",
+                                      "favicon-32x32.png", "icon-192.png",
+                                      "icon-512.png", "watermark.png",
+                                      "favicon.ico"])
+    def test_the_background_stays_transparent(self, name):
+        im = self.open(name).convert("RGBA")
+        assert im.getchannel("A").getextrema()[0] == 0, f"{name} lost its alpha"
+
+    def test_the_apple_icon_is_deliberately_not(self):
+        """iOS composites transparency on black, so this one is flattened on white.
+        The exception is the reason the rule above is worth stating."""
+        im = self.open("apple-touch-icon.png").convert("RGBA")
+        assert im.getchannel("A").getextrema() == (255, 255)
+
+    @pytest.mark.parametrize("name,size", [("favicon-16x16.png", 16),
+                                           ("favicon-32x32.png", 32),
+                                           ("apple-touch-icon.png", 180),
+                                           ("icon-192.png", 192),
+                                           ("icon-512.png", 512)])
+    def test_each_slot_is_the_square_it_claims(self, name, size):
+        assert self.open(name).size == (size, size)
+
+    def test_the_watermark_keeps_the_logo_s_own_shape(self):
+        """It is composited into a corner of a photo, not into a square slot, so it
+        is the tight crop -- letterboxing it would shrink the mark on the photo."""
+        master, mark = self.open("app-icon.png"), self.open("watermark.png")
+        assert abs(master.width / master.height - mark.width / mark.height) < 0.02
+
+    def test_the_master_is_cropped_to_its_artwork(self):
+        """No transparent margin left on the master, so every icon made from it uses
+        the whole slot."""
+        from PIL import Image
+        im: Image.Image = self.open("app-icon.png").convert("RGBA")
+        solid = im.getchannel("A").point(lambda v: 255 if v > 32 else 0)
+        assert solid.getbbox() == (0, 0, im.width, im.height)
+
+
 class TestWatermark:
     """Our own photos are served marked; someone else's are served untouched.
 
@@ -1405,12 +1482,12 @@ class TestTheBigPhotoView:
 
     def test_one_mode_of_the_toolbar_at_a_time(self, client, part):
         """crop swaps its button for an apply/cancel form using the hidden
-        attribute, and the toolbar's own display rules outrank the browser's
+        attribute, and author rules that set display outrank the browser's
         `[hidden] { display: none }` -- which showed every control at once whatever
-        mode it was in. Said again in the stylesheet, so it has to stay said."""
+        mode it was in, and later left the upload button on screen too. One rule
+        answers both, so it has to stay in the stylesheet."""
         page = client.get(f"/parts/{part()['asset_id']}").text
-        assert "#lightbox .lb-tools .btn[hidden]" in page
-        assert "#lightbox .lb-tools form[hidden]" in page
+        assert "[hidden] { display: none !important; }" in page
 
     def test_there_is_no_separate_button_to_open_the_view(self, client, part):
         """The photo is the way in: a button beside it did nothing that clicking it

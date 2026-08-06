@@ -60,6 +60,12 @@
     --fill: #1b81ff; --track: #1b81ff2b;
   }
   * { box-sizing: border-box; }
+  /* `[hidden] { display: none }` is a browser rule, so any author rule that sets
+     display -- .btn, .lb-tools form, .photo-actions form -- outranks it and leaves
+     the element on screen with its hidden attribute set. That has now caught the
+     crop toolbar and the upload button, so it is said once here, loudly, and
+     `hidden` means hidden everywhere. */
+  [hidden] { display: none !important; }
   /* Form controls don't inherit font-family by default, so they'd fall back to
      the browser's sans-serif; keep everything on the site's monospace. */
   button, input, select, textarea { font-family: inherit; }
@@ -209,11 +215,15 @@
   .photo-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-top: 10px; max-width: 320px; }
   .photo-actions form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0; }
   .photo-actions input[name=note] { padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
-  .photo-actions input[type=file] { font-size: 13px; max-width: 100%; }
-  .photo-actions input[type=file]::file-selector-button { font: inherit; font-size: 13px;
-    padding: 3px 8px; margin-right: 8px; border: 1px solid var(--line); border-radius: 7px;
-    background: var(--btn); color: inherit; cursor: pointer; }
-  .photo-actions input[type=file]::file-selector-button:hover { background: var(--btn-hover); }
+  /* The file input sits invisible over its own label, so the button wears the
+     site's own wording and styling instead of the browser's ("Choose Files",
+     capitals and all) -- and keeps a real input, so it is still focusable, still
+     opens the picker, and still works with no JavaScript. */
+  .filebtn { position: relative; overflow: hidden; }
+  .filebtn input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; font-size: 0; }
+  .filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #photo-upload.sending .filebtn { pointer-events: none; opacity: .55; }
   .photo-actions .hint { margin: 0; }
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
@@ -246,11 +256,9 @@
   #lightbox .lb-tools .btn { position: static; background: #ffffff1f; color: #fff;
     border-color: #ffffff33; }
   #lightbox .lb-tools .btn.primary { background: var(--accent); border-color: var(--accent); }
-  /* Crop swaps its button for its apply/cancel form with the hidden attribute, and
-     the two rules above outrank the browser's own `[hidden] { display: none }` --
-     which left the whole toolbar on screen whatever mode it was in. Said again
-     here, specifically enough to win. */
-  #lightbox .lb-tools .btn[hidden], #lightbox .lb-tools form[hidden] { display: none; }
+  /* Crop swaps its button for its apply/cancel form with the hidden attribute; the
+     rules above would outrank the browser's own `[hidden] { display: none }`, which
+     is why there is one of our own at the top of this stylesheet. */
   #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
   #lightbox button { position: absolute; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
   #lightbox .lb-nav { top: 50%; transform: translateY(-50%); font-size: 38px; padding: 6px 16px; }
@@ -659,6 +667,30 @@
       const at = shots.findIndex(el => (el.dataset.rel || '') === want);
       if (at >= 0) open(at);
     }
+  })();
+</script>
+<script>
+  // Photos upload as soon as they are chosen. Picking a file and then having to
+  // find a button was two gestures for one intention; the button stays in the
+  // markup for a browser that never runs this, and hides itself here.
+  (function () {
+    const form = document.getElementById('photo-upload');
+    if (!form) return;
+    const input = form.querySelector('input[type=file]');
+    const go = document.getElementById('photo-upload-go');
+    const busy = document.getElementById('photo-upload-busy');
+    go.hidden = true;
+    let sent = false;
+    input.addEventListener('change', () => {
+      // A cancelled picker fires change too, with nothing chosen.
+      if (sent || !input.files || !input.files.length) return;
+      sent = true;
+      busy.hidden = false;
+      // The label stops taking clicks rather than the input being disabled: a
+      // disabled input is not submitted, which would send the upload empty.
+      form.classList.add('sending');
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
   })();
 </script>
 <script>
