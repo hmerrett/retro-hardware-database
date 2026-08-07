@@ -797,10 +797,17 @@
     // made when the site answered to a different name, or a bare asset tag all end
     // up at /items/<tag>, the one address that resolves to either kind. The host in
     // the code is never followed -- only the tag is taken from it.
+    //
+    // Nor is what comes before the /items/ segment. The catalogue was published to
+    // GitHub Pages before this app was the site, and a project page lives under the
+    // repository's name -- so the labels printed then read
+    // https://hmerrett.github.io/retro-hardware-database/items/RH-0001/, whose path
+    // has a segment in front that an anchored pattern refuses. Since only the tag is
+    // ever taken, where in the path it sits does not matter.
     function pathFor(text) {
       let p = (text || '').trim();
       try { p = new URL(p).pathname; } catch (e) { /* not a URL: maybe a bare tag */ }
-      const m = p.match(/^\/?(?:items|computers|parts)\/([A-Za-z0-9-]+)\/?$/i)
+      const m = p.match(/(?:^|\/)(?:items|computers|parts)\/([A-Za-z0-9-]+)\/?$/i)
              || p.match(/^([A-Za-z]{2}-[A-Za-z0-9]+)$/);
       return m ? '/items/' + m[1].toUpperCase() : null;
     }

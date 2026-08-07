@@ -37,7 +37,8 @@ The search bar sits in the banner, so a search starts from whatever page you are
 on. Enter hands the query to the server, which reads every field of every item
 and its history; on the gallery the same box also filters the cards as you type.
 Beside it, on a device with a camera, is a scan button that reads the QR code on
-a printed label and opens that item.
+a printed label and opens that item — labels printed against the old GitHub
+Pages URL included, since only the asset tag is taken from the code.
 
 Clicking a photo opens it as large as the window allows, and from there it zooms by
 the usual gestures -- double-click or double-tap, the wheel or a trackpad or
