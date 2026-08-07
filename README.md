@@ -33,6 +33,12 @@ history for every asset (automatic change records plus free-text notes);
 printable label PDFs; duplicating an item; marking one disposed and restoring it;
 and a build walk that steps through a machine's motherboard and cards.
 
+The search bar sits in the banner, so a search starts from whatever page you are
+on. Enter hands the query to the server, which reads every field of every item
+and its history; on the gallery the same box also filters the cards as you type.
+Beside it, on a device with a camera, is a scan button that reads the QR code on
+a printed label and opens that item.
+
 Clicking a photo opens it as large as the window allows, and from there it zooms by
 the usual gestures -- double-click or double-tap, the wheel or a trackpad or
 two-finger pinch, `+`/`-`/`0` -- with a drag to move about the enlarged photo and the
@@ -185,8 +191,9 @@ given the date of a history entry where whoever can edit it also sees the time o
 day (the gallery's recency sort keys are trimmed to match).
 
 The `caddy` service terminates HTTPS. It obtains and renews a Let's Encrypt
-certificate for the hostname in `caddy/Caddyfile` (`db.2600.me`) and proxies to
-the app. To use a different hostname, edit the Caddyfile and restart Caddy; DNS
+certificate for the hostname in `caddy/Caddyfile` (`db.2600.me`), compresses what
+it serves (zstd or gzip, whichever the browser takes; already-compressed types
+such as the photos are passed through untouched), and proxies to the app. To use a different hostname, edit the Caddyfile and restart Caddy; DNS
 must point at the host and ports 80 and 443 must be reachable for the ACME
 challenge.
 

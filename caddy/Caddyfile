@@ -11,5 +11,11 @@ db.2600.me {
 		format json
 	}
 
+	# Compress on the way out. Caddy leaves already-compressed types alone (the
+	# photos, the icons), so what this actually buys is the text: every page of
+	# markup, and the QR decoder, which is by far the largest thing we serve.
+	# zstd first for a browser that takes it, gzip for everything else.
+	encode zstd gzip
+
 	reverse_proxy api:8000
 }

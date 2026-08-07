@@ -13,19 +13,12 @@
   <a href="/stats">back to the figures</a></p>
 {% endif %}
 
+{# The search box itself lives in the banner, so that one search bar serves every
+   page; what is left here is what only the gallery can do. Typing in it filters
+   what is on the page instantly, and Enter hands the query to the server, which
+   searches every field of every item plus its history -- including the prose
+   summaries, which are too bulky to ship to the browser for filtering. #}
 <div class="toolbar">
-  {# Typing filters what is on the page instantly. Enter submits, and the server
-     searches every field of every item plus its history -- including the prose
-     summaries, which are too bulky to ship to the browser for filtering. #}
-  <form method="get" action="/" style="display:flex;flex:1;min-width:220px;margin:0;gap:6px">
-    <input id="q" name="q" type="search" value="{{ q | default('', true) }}"
-           style="flex:1;min-width:0"
-           placeholder="Search anything — maker, chip, port, a note, an asset no.">
-    {# Reading a label instead of typing its number. Hidden until the script has
-       found a camera to open, so it never offers what it cannot do. #}
-    <button type="button" class="btn sm" id="scan-open" hidden
-            title="Scan a label's QR code">scan</button>
-  </form>
   <select id="cat">
     <option value="">All categories</option>
     {% for key, label in cats %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
@@ -79,144 +72,6 @@
   {% endfor %}
 </div>
 <p id="empty" class="muted" style="display:none">No matching items.</p>
-
-{# Reading a label's QR code without leaving the page. The codes hold a full URL to
-   the item, so a phone's own camera app already opens one -- this exists so that
-   finding a thing you are holding does not mean leaving the register to do it. #}
-<div id="scanner" hidden>
-  <div class="scan-stage">
-    <video id="scan-video" playsinline muted></video>
-    <div class="scan-frame"></div>
-  </div>
-  <p class="scan-note" id="scan-note"></p>
-  <button type="button" class="btn" id="scan-close">close</button>
-</div>
-
-<script>
-  // The scan button. The decoder is fetched the first time it is pressed rather
-  // than with the page: it is by far the largest asset on the site, and almost
-  // every visit is someone reading rather than holding a drive.
-  (function () {
-    const open = document.getElementById('scan-open');
-    const box = document.getElementById('scanner');
-    if (!open || !box) return;
-    // A camera is the whole feature, so without one the button never appears. This
-    // also covers plain http, where getUserMedia does not exist at all -- a
-    // capability check rather than a guess about which phone this is.
-    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
-    open.hidden = false;
-
-    const video = document.getElementById('scan-video');
-    const note = document.getElementById('scan-note');
-    const shut = document.getElementById('scan-close');
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const DECODER = '/static/vendor/jsqr-1.4.0.js';
-    let stream = null, timer = null, loading = null, found = false;
-
-    function decoder() {
-      if (window.jsQR) return Promise.resolve(window.jsQR);
-      if (!loading) {
-        loading = new Promise(function (resolve, reject) {
-          const s = document.createElement('script');
-          s.src = DECODER;
-          s.onload = function () { resolve(window.jsQR); };
-          s.onerror = function () { loading = null; reject(new Error('load failed')); };
-          document.head.appendChild(s);
-        });
-      }
-      return loading;
-    }
-
-    // What a code has to say to be one of ours. A printed URL, a URL from a label
-    // made when the site answered to a different name, or a bare asset tag all end
-    // up at /items/<tag>, the one address that resolves to either kind. The host in
-    // the code is never followed -- only the tag is taken from it.
-    function pathFor(text) {
-      let p = (text || '').trim();
-      try { p = new URL(p).pathname; } catch (e) { /* not a URL: maybe a bare tag */ }
-      const m = p.match(/^\/?(?:items|computers|parts)\/([A-Za-z0-9-]+)\/?$/i)
-             || p.match(/^([A-Za-z]{2}-[A-Za-z0-9]+)$/);
-      return m ? '/items/' + m[1].toUpperCase() : null;
-    }
-
-    function stop() {
-      if (timer) { clearTimeout(timer); timer = null; }
-      if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
-      video.srcObject = null;
-      box.hidden = true;
-      document.body.style.overflow = '';
-    }
-
-    function tick() {
-      timer = null;
-      if (found) return;
-      const w = video.videoWidth, h = video.videoHeight;
-      if (window.jsQR && w && h) {
-        // The middle square of the frame, at no more than 640px: the full frame at
-        // a phone camera's resolution is slow to read, and the middle is what the
-        // camera is being pointed with.
-        const side = Math.min(w, h);
-        canvas.width = canvas.height = Math.min(side, 640);
-        ctx.drawImage(video, (w - side) / 2, (h - side) / 2, side, side,
-                      0, 0, canvas.width, canvas.height);
-        const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const hit = window.jsQR(frame.data, frame.width, frame.height,
-                               { inversionAttempts: 'dontInvert' });
-        if (hit) {
-          const path = pathFor(hit.data);
-          if (path) {
-            found = true;
-            note.textContent = 'Found it — opening…';
-            stop();
-            location.href = path;
-            return;
-          }
-          note.textContent = 'That code is not one of ours.';
-        }
-      }
-      timer = setTimeout(tick, 120);
-    }
-
-    open.addEventListener('click', function () {
-      found = false;
-      box.hidden = false;
-      document.body.style.overflow = 'hidden';
-      note.textContent = 'Starting the camera…';
-      decoder().then(function () {
-        return navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } }, audio: false });
-      }).then(function (s) {
-        stream = s;
-        video.srcObject = s;
-        // Safari will not play a stream without this, and wants the muted +
-        // playsinline attributes on the element as well. A rejection here is not
-        // fatal and must not be reported as one: the camera is already running, and
-        // what matters is whether frames arrive, which tick() finds out.
-        video.play().catch(function () {});
-        note.textContent = 'Point the camera at the code on the label.';
-        tick();
-      }).catch(function (err) {
-        const why = err && err.name;
-        note.textContent =
-          why === 'NotAllowedError'
-            ? 'The camera was not allowed. Allow it for this site, then try again.'
-          : why === 'NotFoundError' || why === 'OverconstrainedError'
-            ? 'No camera to read with.'
-          : why === 'NotReadableError'
-            ? 'The camera is busy in another app.'
-            : 'Could not start scanning. Your phone’s own camera app opens a label’s code too.';
-      });
-    });
-
-    shut.addEventListener('click', stop);
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && !box.hidden) stop();
-    });
-    // Leaving the page with the camera still running would keep the light on.
-    window.addEventListener('pagehide', stop);
-  })();
-</script>
 
 <script>
   const q = document.getElementById('q');
