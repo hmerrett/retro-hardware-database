@@ -99,11 +99,30 @@ and `Size` specs. A `Size` here is a media designation and not a quantity, so
 unlike a memory `Size` it never normalises to KB: 1.44MB is 1475 KB only by
 convention, and nobody calls that disk a 1475 KB.
 
+With both picked, a floppy's description has nothing left to say, so the box is out
+of the way until it is wanted: when "custom" is chosen and the thing has to be
+spelled out, when the kind has no capacity picker of its own (an optical drive is
+named, not measured), or when it already holds something -- a hidden box still
+submits what it holds, so a full one is never hidden. The make and model come from
+Identity, which a routed drive now reads (it never becomes a Part, so what was
+typed there used to be dropped); they fill a blank rather than winning, because
+what survives in a description after the pickers have taken their share is the
+words they could not say, like the `SS/DD` on a Tandon TM100-1.
+
 Because the picks arrive after the description has been read, a description naming
 no kind ("Sony MPF920") no longer reaches drivedb's rule that a floppy-only size
 means a floppy. The kind menu that routed the drive answers instead, read back
 through drivedb's own vocabulary, and only where the text did not say -- which is
 also why an early 5.25" CD-ROM drive is not filed as a floppy.
+
+The eight drives recorded before the pickers existed were split into them by
+migration 0016, which writes down what each becomes and is held to the parser's own
+answers by a test. Six were said entirely by the two pickers and lost their
+descriptions; two also record their media (`SS/DD`, `DS/DD`), which no picker
+offers, and kept that much. Six of the eight wrote the inch mark as a curly `”` --
+what a phone or a Mac autocorrects it to -- which drivedb did not know, so `3.5”`
+was read as the drive's *model*. `_FORM_RE` now takes `"`, `”`, `“`, `″`, `''`,
+`in` and `inch`.
 
 The small label carries those two on one line, `3.5" 1.44MB`, the way a drive is
 spoken of; a hard disk's capacity and CHS geometry keep a line each as before. One

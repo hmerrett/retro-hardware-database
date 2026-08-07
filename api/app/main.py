@@ -2266,6 +2266,17 @@ def _apply_drive_picks(form, rows):
              for key, (_f, col, _only) in DRIVE_PICKS.items()}
     picks["colour"] = form.get("drive_colour", "") or ""
     picks["yellowing"] = form.get("drive_yellowing", "") or ""
+    # The make and model, from the fields that ask for them. A routed drive never
+    # becomes a Part, so what was typed under Identity used to be dropped on the
+    # floor and the description was the only way to name the thing -- survivable
+    # while the description was always on screen, not now that a floppy the pickers
+    # have described does without one. Filled in where the description named
+    # nothing, not over the top of it: what is left of a description after the
+    # pickers have taken their share is the words they could not say (a "SS/DD"),
+    # and those are the last thing to overwrite.
+    named = " ".join(
+        x for x in (entry.deshout((form.get("manufacturer", "") or "").strip()),
+                    entry.deshout((form.get("model", "") or "").strip())) if x)
     # The first word of the menu's label: "Floppy/Gotek" and "SD/CF card" are pairs
     # of alternatives that drivedb reads as neither, and a Gotek names itself.
     menu = (form.get("kind", "") or "").split("/")[0]
@@ -2274,6 +2285,7 @@ def _apply_drive_picks(form, rows):
         for col, picked in picks.items():
             row[col] = picked.strip() or row.get(col, "")
         row["kind"] = row.get("kind", "") or from_menu
+        row["model"] = row.get("model", "") or named
 
 
 async def _part_from_form(form, ptype, extra=()):

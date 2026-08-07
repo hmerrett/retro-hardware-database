@@ -17,7 +17,7 @@
    list chooses "custom" and fills the box, so a form reopens on what it saved.
    maxlength is the width of the drive-row column the answer may end up in: a
    picker that let you type more than the column holds would fail on save. #}
-{% macro pick(field, key, label, hint, options, placeholder, note, maxlength) %}
+{% macro pick(field, key, label, hint, options, placeholder, maxlength) %}
   {% set cur = spec_keys.get(key, '') %}
   {% set custom = cur and cur not in options %}
   <label>{{ label }} <span class="muted">({{ hint }})</span></label>
@@ -33,7 +33,6 @@
   </div>
   <input id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
          value="{{ cur if custom else '' }}" placeholder="{{ placeholder }}" hidden>
-  <p class="hint">{{ note }}</p>
 {% endmacro %}
 
 <datalist id="dl_form_factors">{% for o in vocab.form_factors %}<option value="{{ o }}">{% endfor %}</datalist>
@@ -87,28 +86,32 @@ until you submit.</p>
       {% for o in vocab.storage_kinds %}<option value="{{ o }}"{{ ' selected' if o == curkind else '' }}>{{ o }}</option>{% endfor %}
     </select>
     <div id="drive-route" style="display:none">
-      <label for="drive_desc">Drive description <span class="muted">(goes on the computer's Drives field, or stays as the part's own if there is no machine to fit it to)</span></label>
-      {# Filled in when there is something to fill it with: a drive kept as a part
-         records this as a spec, so editing one -- or starting a second from it --
-         opens on the description already written rather than on an empty box. #}
-      <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
-             placeholder="e.g. 3.5in 1.44MB floppy; Sony CDU55">
       {# The bay it fits, and what the disk is called. A form factor fits any drive
          that lives on the drives field -- an optical drive is 5.25" as surely as a
          floppy is 3.5" -- so it is offered here for all of them; the capacities are
          floppy media designations, so that group appears for that kind alone. #}
       {{ pick('drive_form', 'Form factor', 'Form factor', 'the bay it fits',
-              drive_forms, 'e.g. 3" (Amstrad CF-2), 2.5"',
-              'a size named in the description ("3.5in") is read from there too;
-               the picker wins over the text where both say something.',
-              drive_form_max) }}
+              drive_forms, 'e.g. 3" (Amstrad CF-2), 2.5"', drive_form_max) }}
       <div id="drive-size" hidden>
         {{ pick('drive_size', 'Size', 'Capacity',
                 'what the disk is called, not a measured size',
-                drive_sizes, 'e.g. 21MB Floptical, 120MB LS-120',
-                'a capacity named in the description ("1.44MB") is read from there
-                 too; the picker wins over the text where both say something.',
-                drive_size_max) }}
+                drive_sizes, 'e.g. 21MB Floptical, 120MB LS-120', drive_size_max) }}
+      </div>
+      {# Last, and usually not at all. A floppy the two pickers have described needs
+         no prose, so the box is out of the way until it is wanted: when "custom" is
+         chosen and the thing has to be spelled out, when the kind has no capacity
+         picker of its own (an optical drive is named, not measured), or when it
+         already holds something -- a hidden box that still submits its contents is
+         not somewhere to leave text nobody can see. The make and model go in
+         Identity above, and reach a machine's drive row from there. #}
+      <div id="drive-desc-row" hidden>
+        <label for="drive_desc">Drive description <span class="muted">(anything the pickers cannot say; goes on the computer's Drives field, or stays as the part's own if there is no machine to fit it to)</span></label>
+        <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
+               placeholder="e.g. SS/DD; 3.5in 1.44MB floppy">
+        {# Said here, where the box it is about is: a bay or a capacity written into
+           the prose is still read out of it, and a picker set above wins over it. #}
+        <p class="hint">a size or capacity named here is read from the text too; a
+          picker above wins over it where both say something.</p>
       </div>
       <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
       {# The same menus the machine's own form has, because this is where a drive is
@@ -264,14 +267,23 @@ until you submit.</p>
     u.searchParams.set('type', pt.value);
     {% if not p %}window.location.href = '/parts/new' + u.search;{% endif %}
   });
-  // Storage routing: hide part-only fields when the kind lives on the drives field.
+  // Storage routing: hide part-only fields when the kind lives on the drives field,
+  // and show each of the routed block's own fields only where it has a job.
   const kind = document.getElementById('kind');
   if (kind) {
     const routed = ['SD/CF card', 'Optical', 'Floppy/Gotek'];
     const drivePart = document.getElementById('drive-part');
     const driveRoute = document.getElementById('drive-route');
     const driveSize = document.getElementById('drive-size');
+    const descRow = document.getElementById('drive-desc-row');
+    const descBox = document.getElementById('drive_desc');
     const FLOPPY = {{ floppy_kind | tojson }};
+
+    const anyCustom = () => ['drive_form', 'drive_size'].some(function (n) {
+      const on = document.querySelector('input[name=' + n + ']:checked');
+      return on && on.value === 'custom';
+    });
+
     function toggle() {
       const r = routed.includes(kind.value);
       driveRoute.style.display = r ? '' : 'none';
@@ -281,25 +293,35 @@ until you submit.</p>
       // condition, so a radio left checked from a kind since changed is ignored
       // rather than saved.
       if (driveSize) driveSize.hidden = !(r && kind.value === FLOPPY);
+      // The description, only where it still has something to say: a floppy the
+      // pickers have described needs no prose. Never hidden with text in it -- the
+      // box still submits what it holds, so hiding a full one would leave writing
+      // on the record that nobody can see or reach.
+      if (descRow) {
+        descRow.hidden = kind.value === FLOPPY && !anyCustom()
+                         && !(descBox && descBox.value.trim());
+      }
     }
-    kind.addEventListener('change', toggle); toggle();
-  }
+    kind.addEventListener('change', toggle);
 
-  // "custom" reveals the box it needs, and takes the cursor there; the standard
-  // answers need no box at all.
-  ['drive_form', 'drive_size'].forEach(function (name) {
-    const custom = document.getElementById(name + '_custom');
-    if (!custom) return;
-    function show(focus) {
-      const on = document.querySelector('input[name=' + name + ']:checked');
-      custom.hidden = !(on && on.value === 'custom');
-      if (focus && !custom.hidden) custom.focus();
-    }
-    document.querySelectorAll('input[name=' + name + ']').forEach(function (r) {
-      r.addEventListener('change', function () { show(true); });
+    // "custom" reveals the box it needs, and takes the cursor there; the standard
+    // answers need no box at all. Choosing one also decides whether the
+    // description has a job, so the two are settled together.
+    ['drive_form', 'drive_size'].forEach(function (name) {
+      const custom = document.getElementById(name + '_custom');
+      if (!custom) return;
+      function show(focus) {
+        const on = document.querySelector('input[name=' + name + ']:checked');
+        custom.hidden = !(on && on.value === 'custom');
+        if (focus && !custom.hidden) custom.focus();
+      }
+      document.querySelectorAll('input[name=' + name + ']').forEach(function (r) {
+        r.addEventListener('change', function () { show(true); toggle(); });
+      });
+      show(false);
     });
-    show(false);
-  });
+    toggle();
+  }
 
   // Entering a make and model already in the collection almost always means a
   // second of the same thing, so offer to start from it rather than retyping its

@@ -80,7 +80,12 @@ _KIND_WORDS = {"floppy": "floppy", "fdd": "floppy", "gotek": "Gotek",
 _NOISE = {"drive", "drives", "emulator", "card", "x"}
 
 _COUNT_RE = re.compile(r"^\s*(\d+)\s*(?:[x×]\s*|\s)", re.I)
-_FORM_RE = re.compile(r"""(\d\.?\d*)\s*(?:"|''|-?\s*inch\b|in\b)""", re.I)
+# The inch mark, in every form it actually arrives in. A straight quote is what a
+# keyboard gives; a phone or a Mac autocorrects it to a curly one, and ″ is the
+# typographically correct prime. Six of the eight drive descriptions on file used
+# the curly quote, and without it 3.5” read as the drive's *model* -- the number
+# went into the name of the thing rather than into its form factor.
+_FORM_RE = re.compile(r"""(\d\.?\d*)\s*(?:["”“″]|''|-?\s*inch\b|in\b)""", re.I)
 _SIZE_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(K|KB|MB|GB)\b", re.I)
 
 

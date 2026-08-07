@@ -767,6 +767,26 @@ class TestPickingTheBayADriveFits:
                  drive_form='3.5"')
         assert "Gotek" in client.get(f"/api/computers/{cid}").json()["drives"]
 
+    def test_a_routed_drive_takes_its_make_and_model_from_identity(
+            self, client, computer):
+        """A routed drive never becomes a Part, so what was typed under Identity
+        used to be dropped on the floor -- survivable while the description was
+        always on screen and could carry the name, not now that it is not."""
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, manufacturer="Sony", model="MPF920",
+                 drive_form='3.5"', drive_size="1.44MB")
+        assert client.get(f"/api/computers/{cid}").json()["drives"] \
+            == 'Sony MPF920 3.5" 1.44MB floppy'
+
+    def test_what_the_description_still_says_is_not_written_over(
+            self, client, computer):
+        """What is left of a description once the pickers have taken their share is
+        the words they could not say. Identity fills a blank; it does not win."""
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, manufacturer="Tandon", model="TM100-1",
+                 drive_desc="SS/DD", drive_form='5.25"', drive_size="180K")
+        assert "SS/DD" in client.get(f"/api/computers/{cid}").json()["drives"]
+
     def test_the_form_reopens_on_the_pick(self, client):
         aid = self.add(client, drive_desc="floppy",
                        drive_form='5.25"').rsplit("/", 1)[-1]
@@ -782,6 +802,69 @@ class TestPickingTheBayADriveFits:
             in " ".join(page.split())
         assert f'name="drive_size_custom" maxlength="{ComputerDrive.size.type.length}"' \
             in " ".join(page.split())
+
+
+class TestReadingTheInchMarkAsTyped:
+    """A straight quote is what a keyboard gives; a phone or a Mac autocorrects it
+    to a curly one, and ″ is the typographically correct prime. Six of the eight
+    drive descriptions on file used the curly quote, and drivedb did not know that
+    character -- so 3.5” was read as the drive's *model*, the number going into the
+    name of the thing rather than into its form factor."""
+
+    @staticmethod
+    def parsed(text):
+        from app import drivedb
+        return drivedb.parse_segment(text)
+
+    def test_every_inch_mark_reads_the_same(self):
+        for mark in ('"', "”", "“", "″", "''", "in", " inch"):
+            d = self.parsed(f"3.5{mark} 1.44MB")
+            assert d["form_factor"] == '3.5"', mark
+            assert d["model"] == "", mark
+
+    def test_the_number_no_longer_lands_in_the_model(self):
+        assert self.parsed("3.5” 1.44MB") == self.parsed('3.5" 1.44MB')
+
+    def test_a_quote_that_is_not_an_inch_mark_is_left_alone(self):
+        """Only a number in front of it makes it a measurement."""
+        assert self.parsed('Sony “Special” floppy')["form_factor"] == ""
+
+
+class TestTheDescriptionSplitMigration:
+    """The eight descriptions recorded before the pickers existed. The migration
+    writes down what each becomes; this is the claim that those are the parser's
+    own answers and not a second reading of the same words, so the table cannot
+    drift from the code that justified it."""
+
+    @staticmethod
+    def splits():
+        import importlib.util
+        from pathlib import Path
+        path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
+                / "0016_drive_description_split.py")
+        spec = importlib.util.spec_from_file_location("m0016", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.SPLITS
+
+    def test_each_row_is_what_the_parser_gives(self):
+        from app import drivedb
+        for aid, before, form, size, after in self.splits():
+            d = drivedb.parse_segment(before)
+            assert (d["form_factor"], d["size"], d["model"]) == (form, size, after), aid
+
+    def test_every_one_of_them_is_a_floppy(self):
+        from app import drivedb
+        for aid, before, *_ in self.splits():
+            assert drivedb.parse_segment(before)["kind"] == "floppy", aid
+
+    def test_the_capacities_are_ones_the_picker_offers(self):
+        """A split that produced something off the list would open on "custom"
+        rather than on the radio it should be."""
+        from app import drivedb
+        for aid, _b, form, size, _a in self.splits():
+            assert size in drivedb.SIZES, aid
+            assert form in drivedb.FORM_FACTORS, aid
 
 
 class TestAFloppySSmallLabel:
