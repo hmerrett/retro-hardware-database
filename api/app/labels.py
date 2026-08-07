@@ -28,7 +28,13 @@ SMALL = {"w": 51 * mm, "h": 19 * mm, "qr": "M", "rotate": 90, "safe_mm": 3}
 
 BUILD_ROWS = [("cpu", "CPU"), ("ram", "Memory"), ("video", "Video"),
               ("sound", "Sound"), ("storage", "Storage"), ("network", "Network")]
+# The one spec that stands for a whole part, where a machine's label has room for
+# only a line each.
 SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
+# The small label has no room for a spec list at all -- but a bare drive on a shelf
+# is known by how big it is as much as by what it says on the casing, so for those
+# the same headline spec rides along with the name.
+SMALL_SPEC_TYPES = ("storage",)
 
 
 def _pairs_of(part):
@@ -156,6 +162,23 @@ def computer_lines(comp, parts, form_factor=""):
     return lines
 
 
+def small_body(asset, is_computer, spec_pairs=None):
+    """The small label's text below the asset id: the display name, and for the
+    types whose name does not say the thing you actually want off the label, the
+    headline spec after it. Nothing is added when that spec is not recorded."""
+    name = display_name(asset)
+    ptype = asset.get("type", "")
+    if is_computer or ptype not in SMALL_SPEC_TYPES:
+        return name
+    if spec_pairs is None:
+        spec_pairs = parse_specs(asset.get("specs", ""))
+    value = (dict(spec_pairs).get(SPEC_PICK[ptype]) or "").strip()
+    # A comma, not a hyphen or a middle dot. A hyphen muddles with the ones inside
+    # model numbers ("ST-225 - 20 MB"), and the label wraps on spaces, so a dot can
+    # be left stranded at the end of a line where a comma simply reads as one.
+    return f"{name}, {value}" if value else name
+
+
 def part_lines(part, spec_pairs=None):
     lines = [f"Type: {type_label(part.get('type', ''))}"]
     for label, key in (("Manufacturer", "manufacturer"), ("Year", "year")):
@@ -247,7 +270,8 @@ def render_pdf(asset, parts, is_computer, small=False, form_factor="",
     c.saveState()
     _apply_rotation(c, spec["w"], spec["h"], spec["rotate"])
     if small:
-        _render_small(c, spec["w"], spec["h"], asset["asset_id"], title, url,
+        _render_small(c, spec["w"], spec["h"], asset["asset_id"],
+                      small_body(asset, is_computer, spec_pairs), url,
                       hfont, bfont, spec.get("safe_mm", 0))
     else:
         lines = (computer_lines(asset, parts, form_factor) if is_computer

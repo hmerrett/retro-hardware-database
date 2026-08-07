@@ -680,6 +680,75 @@ class TestPagesAndDiscovery:
         assert r.content.startswith(b"%PDF")
 
 
+class TestHowBigTheDriveIsOnItsLabel:
+    """The small label is what goes on the drive, and it is the default for a part.
+    It has no room for a spec list, and a bare disk on a shelf is known by its
+    capacity as much as by the model on the casing -- so that one spec goes on it.
+    """
+
+    def body(self, db, aid):
+        from app import labels, main, specdb
+        from app.models import Part
+        p = db.get(Part, aid)
+        return labels.small_body(main.to_dict(p), False, specdb.pairs(db, p))
+
+    def test_a_drive_says_how_big_it_is(self, client, db, part):
+        aid = part(type="storage", manufacturer="Seagate", model="ST-225",
+                   specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
+        assert self.body(db, aid) == "Seagate ST-225, 20 MB"
+
+    def test_a_drive_with_no_capacity_recorded_just_says_what_it_is(self, client, db,
+                                                                   part):
+        """Half the drives on file have no capacity against them; none of them should
+        pick up a stray comma waiting for one."""
+        aid = part(type="storage", manufacturer="Mitsumi", model="D503V",
+                   specs="Kind: Floppy/Gotek")["asset_id"]
+        assert self.body(db, aid) == "Mitsumi D503V"
+
+    def test_capacity_worked_out_from_the_geometry_counts_too(self, client, db, part):
+        """A drive recorded by its cylinders/heads/sectors has its capacity derived
+        rather than stated, and the label carries that just the same. It arrives in
+        the unit the rest of the app renders it in -- KB when nothing said MB."""
+        aid = part(type="storage", manufacturer="Quantum", model="LPS 52A",
+                   specs="Kind: Hard disk | CHS: 571/8/17")["asset_id"]
+        assert self.body(db, aid) == "Quantum LPS 52A, 38828 KB"
+
+    def test_other_kinds_of_part_are_left_alone(self, client, db, part):
+        """Only the types whose name does not say the thing you want off the label.
+        A video card's memory is on the full label, where there is room for it."""
+        aid = part(type="video", manufacturer="Trident", model="8900C",
+                   specs="Memory: 1 MB")["asset_id"]
+        assert self.body(db, aid) == "Trident 8900C"
+
+    def test_a_machine_is_left_alone(self, client, computer):
+        from app import labels, main
+        from app.models import Computer
+        from app.db import SessionLocal
+        aid = computer(manufacturer="Acme", model="PC-1")["asset_id"]
+        s = SessionLocal()
+        try:
+            c = main.to_dict(s.get(Computer, aid))
+        finally:
+            s.close()
+        assert labels.small_body(c, True) == "Acme PC-1"
+
+    def test_the_full_label_still_lists_it_among_the_specs(self, client, db, part):
+        from app import labels, main, specdb
+        from app.models import Part
+        aid = part(type="storage", manufacturer="Seagate", model="ST-225",
+                   specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
+        p = db.get(Part, aid)
+        lines = labels.part_lines(main.to_dict(p), specdb.pairs(db, p))
+        assert "Capacity: 20 MB" in lines
+
+    def test_the_drive_s_own_label_still_renders(self, client, part):
+        aid = part(type="storage", model="ST-225",
+                   specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
+        r = client.get(f"/parts/{aid}/label.pdf")
+        assert r.status_code == 200
+        assert r.content.startswith(b"%PDF")
+
+
 class TestTheBrandOnThePage:
     """Where the logo shows: the header, and the card a shared link previews as."""
 
