@@ -1083,6 +1083,109 @@ class TestChoosingPhotos:
         assert '<button class="btn sm" type="submit" id="photo-upload-go">' in page
 
 
+class TestPhotographsOnACreateForm:
+    """A thing has no asset tag until it is saved, so photographs chosen while it is
+    being created cannot upload as they are picked the way they do on an item's own
+    page. They wait, travel with the rest of the form, and are written once the tag
+    has been assigned.
+    """
+
+    @staticmethod
+    def image(name="shot.jpg", size=(400, 300)):
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", size, (90, 120, 60)).save(buf, "JPEG", quality=90)
+        buf.seek(0)
+        return (name, buf, "image/jpeg")
+
+    def created(self, r, kind="computers"):
+        return r.headers["location"].split(f"/{kind}/")[1].split("?")[0]
+
+    def test_a_machine_is_photographed_as_it_is_created(self, client):
+        from app import main
+        r = client.post("/computers/new", data={"model": "Snapped"},
+                        files={"photos": self.image()}, follow_redirects=False)
+        aid = self.created(r)
+        assert (main.IMAGES_DIR / "computers" / f"{aid}.jpg").exists()
+        # The first one becomes the machine's own photo, as it would on the item page.
+        assert client.get(f"/api/computers/{aid}").json()["image"] == \
+            f"computers/{aid}.jpg"
+
+    def test_a_part_is_photographed_as_it_is_created(self, client):
+        from app import main
+        r = client.post("/parts/new", data={"type": "video", "model": "Trident"},
+                        files={"photos": self.image()}, follow_redirects=False)
+        aid = self.created(r, "parts")
+        assert (main.IMAGES_DIR / "parts" / f"{aid}.jpg").exists()
+        assert client.get(f"/api/parts/{aid}").json()["image"] == f"parts/{aid}.jpg"
+
+    def test_several_arrive_together_and_the_first_is_the_primary(self, client):
+        from app import main
+        r = client.post("/computers/new", data={"model": "Gallery"},
+                        files=[("photos", self.image("a.jpg")),
+                               ("photos", self.image("b.jpg")),
+                               ("photos", self.image("c.jpg"))],
+                        follow_redirects=False)
+        aid = self.created(r)
+        folder = main.IMAGES_DIR / "computers"
+        assert (folder / f"{aid}.jpg").exists()
+        assert (folder / f"{aid}-2.jpg").exists()
+        assert (folder / f"{aid}-3.jpg").exists()
+        assert client.get(f"/api/computers/{aid}").json()["image"] == \
+            f"computers/{aid}.jpg"
+
+    def test_a_file_that_is_not_an_image_creates_nothing_at_all(self, client):
+        """Checked before the machine is written rather than after. A file refused
+        half way would leave photographs filed under a tag the machine never kept --
+        and the next thing created, taking that tag, would inherit them."""
+        import io
+
+        from app import main
+        folder = main.IMAGES_DIR / "computers"
+        folder.mkdir(parents=True, exist_ok=True)
+        before = sorted(p.name for p in folder.iterdir())
+        r = client.post("/computers/new", data={"model": "Rejected"},
+                        files={"photos": ("notes.txt", io.BytesIO(b"nope"),
+                                          "text/plain")},
+                        follow_redirects=False)
+        assert r.status_code == 400
+        assert client.get("/api/computers").json() == []
+        assert sorted(p.name for p in folder.iterdir()) == before
+
+    def test_a_drive_folded_into_a_machine_photographs_the_machine(self, client,
+                                                                   computer):
+        """A floppy becomes a row on the machine rather than an asset of its own, so
+        it has no tag of its own to file a photograph under: the machine it went
+        into is the only place they can go."""
+        aid = computer()["asset_id"]
+        client.post("/parts/new",
+                    data={"type": "storage", "kind": "Floppy/Gotek",
+                          "computer_id": aid, "drive_desc": '3.5" 1.44MB'},
+                    files={"photos": self.image()}, follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["image"] == \
+            f"computers/{aid}.jpg"
+
+    @pytest.mark.parametrize("path", ["/computers/new", "/parts/new"])
+    def test_the_form_offers_the_picker_and_can_carry_a_file(self, client, path):
+        page = client.get(path).text
+        assert 'name="photos"' in page
+        assert 'enctype="multipart/form-data"' in page
+
+    def test_an_edit_form_does_not_offer_it(self, client, computer, part):
+        """The item already has a page, where a photograph uploads the moment it is
+        picked; a second, slower way to do the same thing on the edit form would
+        only be a way of doing it worse."""
+        for path in (f"/computers/{computer()['asset_id']}/edit",
+                     f"/parts/{part()['asset_id']}/edit"):
+            assert 'name="photos"' not in client.get(path).text
+
+    def test_the_picker_is_not_the_one_that_uploads_on_selection(self, client):
+        """That script is bound by id to the item page's form. A create form's picker
+        must fall outside it, or choosing a file would submit the half-filled form."""
+        assert 'id="photo-upload"' not in client.get("/computers/new").text
+
+
 class TestTheIconSet:
     """The favicons, app icons and photo watermark, all generated from one master by
     tools/make_icons.py. The artwork is a design matter; that it keeps its

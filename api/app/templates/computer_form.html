@@ -4,7 +4,8 @@
 {% block content %}
 <p><a href="javascript:history.back()">&larr; back</a></p>
 <h2>{{ title }}</h2>
-<form class="edit" method="post" action="{{ ('/computers/' + c.asset_id + '/edit') if c else '/computers/new' }}">
+<form class="edit" method="post" enctype="multipart/form-data"
+      action="{{ ('/computers/' + c.asset_id + '/edit') if c else '/computers/new' }}">
   {% macro fld(key, label, hint='', type='text') %}
     <label for="{{ key }}">{{ label }}</label>
     <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (c[key] if c else '') or '' }}">
@@ -82,6 +83,20 @@
   <p class="hint">the description shown at the top of the page</p>
   <label for="notes">Notes</label>
   <textarea id="notes" name="notes">{{ (c.notes if c else '') or '' }}</textarea>
+  {% if not c %}
+  {# On an item that exists, photos upload the moment they are picked, from the
+     photo column on its own page. Here there is no asset tag to file them under
+     yet, so they wait and go with the rest of the form. #}
+  <label>Photographs</label>
+  <div class="newphotos">
+    <label class="btn sm filebtn">choose files
+      <input type="file" name="photos" accept="image/*" multiple>
+    </label>
+    <span class="hint" data-photo-count></span>
+  </div>
+  <p class="hint">optional, and saved with the machine. More can be added, rotated
+    and cropped from its page afterwards.</p>
+  {% endif %}
   <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
 </form>
 {{ C.script(bezel_swatches) }}

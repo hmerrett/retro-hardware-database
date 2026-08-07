@@ -26,7 +26,7 @@ photos, source, acquired date and notes are not carried over, and nothing is sav
 until you submit.</p>
 {% endif %}
 
-<form class="edit" method="post" action="{{ action }}">
+<form class="edit" method="post" enctype="multipart/form-data" action="{{ action }}">
   <input type="hidden" name="computer_id" value="{{ computer_id }}">
   <input type="hidden" name="parent_id" value="{{ parent_id }}">
 
@@ -195,6 +195,20 @@ until you submit.</p>
     <p class="hint">the description shown at the top of the page</p>
     <label for="notes">Notes</label>
     <textarea id="notes" name="notes">{{ (p.notes if p else '') or '' }}</textarea>
+    {% if action == '/parts/new' %}
+    {# On a part that exists, photos upload as soon as they are picked, from the
+       photo column on its own page. Here there is no asset tag to file them under
+       yet, so they wait and go with the rest of the form. #}
+    <label>Photographs</label>
+    <div class="newphotos">
+      <label class="btn sm filebtn">choose files
+        <input type="file" name="photos" accept="image/*" multiple>
+      </label>
+      <span class="hint" data-photo-count></span>
+    </div>
+    <p class="hint">optional, and saved with the part. More can be added, rotated
+      and cropped from its page afterwards.</p>
+    {% endif %}
   </fieldset>
 
   <p><button class="btn primary" type="submit">Save</button></p>

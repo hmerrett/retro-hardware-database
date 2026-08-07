@@ -922,6 +922,38 @@ def _save_photo(kind, asset_id, upload: UploadFile):
     return rel
 
 
+def _chosen_photos(form):
+    """The photos picked on a create form, every one of them checked before any is
+    written. The item is committed before its photos are stored, so its asset id is
+    settled first: a file rejected half way would otherwise leave photos filed
+    under an id the item never kept, which the next thing created would inherit."""
+    # A form value is either text or an upload, and the upload is Starlette's own
+    # class -- not the FastAPI subclass the typed routes are annotated with, so it
+    # is the text case that is worth excluding here.
+    ups = [u for u in form.getlist("photos")
+           if not isinstance(u, str) and (u.filename or "").strip()]
+    for up in ups:
+        ext = Path(up.filename or "").suffix.lower() or ".jpg"
+        if ext not in IMAGE_EXTS:
+            raise HTTPException(400, f"unsupported image type: {ext}")
+    return ups
+
+
+def _attach_photos(db, obj, kind, uploads):
+    """Store photos against an item that has only just been created. Nothing can
+    upload while a create form is still being filled in -- there is no asset id to
+    file a photo under yet -- so they come with the form and are written here."""
+    first = None
+    for up in uploads:
+        rel = _save_photo(kind, obj.asset_id, up)
+        if first is None:
+            first = rel
+    if first and not obj.image:
+        obj.image = first
+    if uploads:
+        add_log(db, obj.asset_id, f"added {len(uploads)} photo(s)")
+
+
 def _fetch_reference_photo(kind, asset_id, url):
     """Pull a photo from the item's reference URL (Wikipedia API or og:image),
     store it, and return its relative path (or None if nothing was found)."""
@@ -1598,6 +1630,7 @@ def gui_new_computer(request: Request):
 @app.post("/computers/new", include_in_schema=False)
 async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
+    photos = _chosen_photos(form)
     data = {k: _coerce(k, form[k]) for k in COMPUTER_FIELDS if k in form}
     data.pop("installed_ram", None)
     data.pop("drives", None)
@@ -1612,6 +1645,9 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
                   (form.get("drives_note", "") or "").strip())
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
+    if photos:
+        _attach_photos(db, obj, "computers", photos)
+        db.commit()
     # Land on the build walk so the next step (motherboard) is front and centre.
     return RedirectResponse(f"/computers/{obj.asset_id}?build=1", status_code=303)
 
@@ -2087,6 +2123,7 @@ async def _part_from_form(form, ptype, extra=()):
 @app.post("/parts/new", include_in_schema=False)
 async def gui_create_part(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
+    photos = _chosen_photos(form)
     ptype = form.get("type", "other") or "other"
     computer_id = form.get("computer_id", "") or ""
     # Storage routing: floppy / optical / SD-CF live on the computer's drives
@@ -2107,6 +2144,11 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
                 # names the bezel that was picked from the menus as well.
                 add_log(db, computer_id,
                         f"added drive: {drivedb.render(added) or desc}")
+                # This drive is a field on the machine rather than an asset of its
+                # own, so it has no tag of its own to file a photo under: any that
+                # were chosen belong to the machine the drive went into.
+                if photos:
+                    _attach_photos(db, c, "computers", photos)
                 db.commit()
                 return RedirectResponse(f"/computers/{computer_id}?build=1",
                                         status_code=303)
@@ -2128,6 +2170,9 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
     specdb.write(db, obj)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
+    if photos:
+        _attach_photos(db, obj, "parts", photos)
+        db.commit()
     parent_id = form.get("parent_id", "") or ""
     dest = (f"/computers/{computer_id}?build=1" if computer_id
             else f"/parts/{parent_id}" if parent_id
