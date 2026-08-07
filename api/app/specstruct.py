@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 
-from .entry import parse_specs
+from .entry import fmt_kb, parse_specs
 
 # Spec-key -> column name, per typed table. Aliases (Chipset->chip) collapse on
 # the way in; format() uses the display order below on the way out.
@@ -55,9 +55,9 @@ INT_COLS = {"cores"}
 # ('256' cache). Real data relies on this: RH-0247's bare '44' is 44 MB, which
 # its recorded CHS geometry confirms.
 KB_BARE_MB_COLS = {"capacity_kb"}
-# Rendered in the largest exact unit (MB/GB) rather than raw KB, so a 20 GB drive
-# does not display as '20971520 KB'.
-KB_AUTO_COLS = {"capacity_kb"}
+# Every KB column is rendered in the unit a person would use, by entry.fmt_kb --
+# a 20 GB drive is not '20971520 KB', and a 2 MB SIMM is not '2048 KB'. Which unit
+# is a rendering question; the column stays a plain KB integer.
 
 # Count-list spec keys, per type -> which Struct list they populate.
 LIST_KEYS = {
@@ -141,31 +141,6 @@ def _simple_int(pattern):
     return parse
 
 
-def _fmt_kb(kb, auto=False):
-    """Render a KB count. With auto, pick the unit a person would have typed.
-
-    Whole MB stays in MB rather than being rounded up to GB, because for this
-    hardware the difference is meaningful: 2096128 KB is the 2047 MB BIOS limit,
-    not '2 GB'. Only a value that is not a whole number of MB is allowed to
-    render as fractional GB (so '1.2GB' comes back as '1.2 GB', not '1228.8 MB').
-    """
-    if not auto:
-        return f"{kb} KB"
-    if kb % (1024 * 1024) == 0:
-        return f"{kb // (1024 * 1024)} GB"
-    if kb % 1024 == 0:
-        return f"{kb // 1024} MB"
-    # Fractional: use the largest unit whose one-decimal form parses back to
-    # exactly this many KB, so rendering is always reversible. Falling through to
-    # KB keeps oddities like 1.44 MB (1475 KB) intact instead of rounding them.
-    for unit, mult in (("GB", 1024 * 1024), ("MB", 1024)):
-        if kb >= mult:
-            text = f"{kb / mult:.1f}"
-            if round(float(text) * mult) == kb:
-                return f"{text} {unit}"
-    return f"{kb} KB"
-
-
 def _fmt_khz(khz):
     """Render as MHz when that is exactly reversible, else keep kHz -- so a stored
     speed never drifts by being rounded to the nearest MHz on display."""
@@ -177,12 +152,18 @@ def _fmt_khz(khz):
     return f"{khz} kHz"
 
 
-def numeric_handler(col):
-    """(parse, format) for a numeric column, or None if the column is free text."""
+def numeric_handler(col, display=False):
+    """(parse, format) for a numeric column, or None if the column is free text.
+
+    `display` is passed through to the KB formatter: on for text that is only read,
+    off for the edit form and the stored specs string, which are parsed back."""
     if col in KB_COLS:
         bare = 1024 if col in KB_BARE_MB_COLS else 1
-        auto = col in KB_AUTO_COLS
-        return (lambda v: _to_kb(v, bare)), (lambda n: _fmt_kb(n, auto))
+        # A spec that says zero is saying something ('Cache: 0'), where a memory
+        # total of zero is just a machine with none recorded -- so this does not
+        # inherit fmt_kb's nothing-for-nothing.
+        return ((lambda v: _to_kb(v, bare)),
+                (lambda n: fmt_kb(n, display=display) if n else f"{n} KB"))
     if col in KHZ_COLS:
         return _to_khz, _fmt_khz
     if col in NS_COLS:
@@ -266,11 +247,15 @@ def parse(ptype, specs) -> Struct:
     return s
 
 
-def pairs(ptype, s):
+def pairs(ptype, s, display=False):
     """Canonical ordered (display key, rendered value) pairs for a Struct.
 
     The single source of display order, shared by format() and by the templates
     that render a spec table straight from the typed tables.
+
+    `display` on renders quantities for reading rather than for parsing back: pass
+    it for a page or a label, leave it off for the edit form and for format(),
+    whose output is stored and re-parsed on the next save.
     """
     pairs = []
     if ptype in ORDER:
@@ -286,7 +271,7 @@ def pairs(ptype, s):
                 col = SCALARS[ptype].get(key)
                 if col and s.scalars.get(col) not in (None, ""):
                     val = s.scalars[col]
-                    handler = numeric_handler(col)
+                    handler = numeric_handler(col, display)
                     pairs.append((key, handler[1](val)
                                   if handler and isinstance(val, (int, float))
                                   else str(val)))
@@ -294,6 +279,12 @@ def pairs(ptype, s):
     return pairs
 
 
+def join(rendered) -> str:
+    """Already-rendered pairs as one specs string. The separator lives here so the
+    stored string and any prose built from display pairs read the same."""
+    return " | ".join(f"{k}: {v}" if k else str(v) for k, v in rendered)
+
+
 def format(ptype, s) -> str:
     """Canonical specs string from a Struct (or a mapping produced by main.py)."""
-    return " | ".join(f"{k}: {v}" if k else str(v) for k, v in pairs(ptype, s))
+    return join(pairs(ptype, s))

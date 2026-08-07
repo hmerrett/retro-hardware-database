@@ -19,6 +19,67 @@ class TestAmounts:
     def test_fmt_kb(self, kb, text):
         assert entry.fmt_kb(kb) == text
 
+
+class TestWhichUnitAFigureIsSaidIn:
+    """Quantities are stored as plain KB integers so they sort in SQL; the unit to
+    say them in is decided here, once, for spec columns and memory totals alike.
+    """
+
+    @pytest.mark.parametrize("kb,text", [
+        (1024, "1 MB"),                 # not '1024 KB'
+        (2048, "2 MB"),
+        (8192, "8 MB"),
+        (640, "640 KB"),                # below a megabyte, so KB is the right word
+        (512, "512 KB"),
+        (20971520, "20 GB"),            # not '20971520 KB'
+        (1258291, "1.2 GB"),            # exact at one decimal
+        (1475, "1.44 MB"),              # a floppy, exact at two
+    ])
+    def test_a_figure_that_can_be_said_exactly_is_said_that_way_everywhere(self, kb,
+                                                                          text):
+        """No split to make here: the same words serve the page and the form."""
+        assert entry.fmt_kb(kb) == text
+        assert entry.fmt_kb(kb, display=True) == text
+        # And it survives the trip back, which is what lets the form use it: the
+        # value shown is parsed again on the next save.
+        assert entry.to_kb(text.replace(" ", "")) == kb
+
+    @pytest.mark.parametrize("kb,text", [(2096128, "2047 MB"), (1572864, "1536 MB")])
+    def test_a_whole_number_of_megabytes_stays_in_megabytes(self, kb, text):
+        """2096128 KB is the 2047 MB BIOS limit, and calling it '2 GB' would lose the
+        one thing about it worth knowing. The rule is not applied only to that one
+        number, so 1536 MB keeps its unit too."""
+        assert entry.fmt_kb(kb) == text
+        assert entry.fmt_kb(kb, display=True) == text
+
+    @pytest.mark.parametrize("kb,exact,shown", [
+        (38828, "38828 KB", "37.9 MB"),        # a 38 MB drive, from its geometry
+        (2116800, "2116800 KB", "2.02 GB"),
+    ])
+    def test_a_figure_that_cannot_is_rounded_only_where_it_is_read(self, kb, exact,
+                                                                  shown):
+        """Rounding cannot be undone, so it is offered to a page and a label and
+        withheld from the form and the specs string, which are parsed back."""
+        assert entry.fmt_kb(kb) == exact
+        assert entry.fmt_kb(kb, display=True) == shown
+        # Genuinely lossy -- which is the whole reason for the split, and worth
+        # stating outright rather than implying.
+        assert entry.to_kb(shown.replace(" ", "")) != kb
+
+    def test_rounding_never_reaches_for_scientific_notation(self):
+        """Three significant figures via '%g' would render 1000 as '1e+03'."""
+        assert entry.fmt_kb(1024000 + 1, display=True) == "1000 MB"
+
+    @pytest.mark.parametrize("kb", [1, 511, 640, 1023])
+    def test_under_a_megabyte_stays_in_kilobytes(self, kb):
+        assert entry.fmt_kb(kb, display=True) == f"{kb} KB"
+
+    def test_nothing_is_nothing_rather_than_zero(self):
+        """A machine with no memory recorded has no memory string, not '0 KB'. A
+        spec column that says zero is a different matter -- see test_specstruct."""
+        assert entry.fmt_kb(0) == ""
+        assert entry.fmt_kb(None) == ""
+
     def test_memory_spec_amounts_normalise_to_kb(self):
         assert entry.normalise_amount("Size", "2MB") == "2048 KB"
         assert entry.normalise_amount("Interface", "2MB") == "2MB"

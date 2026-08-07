@@ -239,11 +239,59 @@ def normalise_amount(spec_key: str, amt: str) -> str:
     return amt
 
 
-def fmt_kb(kb) -> str:
-    """A KB count in the unit a person would have typed: whole MB as MB, else KB."""
+def fmt_kb(kb, display: bool = False) -> str:
+    """A KB count in the unit a person would use. The one place that decides this,
+    for spec columns, a machine's memory total and the figures on the stats page.
+
+    Quantities are stored as plain KB integers so they sort and compare in SQL;
+    which unit to say them in is a rendering question, answered here.
+
+    A whole number of MB stays in MB rather than climbing to GB, because for this
+    hardware the difference is meaningful: 2096128 KB is the 2047 MB BIOS limit,
+    not "2 GB".
+
+    Everything the default returns parses back to exactly the number of KB it was
+    given, which is what the edit form and the stored specs string need -- both are
+    read back and parsed on the next save. `display` is for text that is only ever
+    read (a page, a label, a RAM total): there an amount that cannot be said
+    exactly is rounded to three significant figures, "37.9 MB" rather than the
+    strictly-true-but-useless "38828 KB".
+    """
     if not kb:
         return ""
-    return f"{kb // 1024} MB" if kb % 1024 == 0 else f"{kb} KB"
+    if kb % (1024 * 1024) == 0:
+        return f"{kb // (1024 * 1024)} GB"
+    if kb % 1024 == 0:
+        return f"{kb // 1024} MB"
+    # The largest unit whose short decimal form still parses back to exactly this
+    # many KB, so "1.2GB" comes back as "1.2 GB" rather than "1228.8 MB". Two
+    # places as well as one, which is what lets a floppy's 1475 KB be the 1.44 MB
+    # everyone calls it while still being reversible.
+    for unit, mult in (("GB", 1024 * 1024), ("MB", 1024)):
+        if kb < mult:
+            continue
+        for places in (1, 2):
+            text = f"{kb / mult:.{places}f}"
+            if round(float(text) * mult) == kb:
+                return f"{text} {unit}"
+    return _round_kb(kb) if display else f"{kb} KB"
+
+
+def _round_kb(kb) -> str:
+    """A KB count at three significant figures in the largest unit it fills, for
+    text that is read and never parsed back. 1475 KB is the 1.44 MB of a floppy;
+    38828 KB is a 37.9 MB drive. Neither parses back to the KB it came from, which
+    is why this is not what the form or the specs string is given."""
+    for unit, mult in (("GB", 1024 * 1024), ("MB", 1024)):
+        if kb < mult:
+            continue
+        val = kb / mult
+        # Three significant figures, without %g's habit of turning 1000 into 1e+03.
+        text = f"{val:.0f}" if val >= 100 else f"{val:.1f}" if val >= 10 else f"{val:.2f}"
+        if "." in text:
+            text = text.rstrip("0").rstrip(".")
+        return f"{text} {unit}"
+    return f"{kb} KB"
 
 
 # Common DRAM chips for machines with RAM soldered/socketed directly on the board
@@ -307,7 +355,7 @@ def format_ram_chips(counts):
         return ""
     total_kb, parity = chip_capacity(counts)
     chips = ", ".join(f"{n}× {pn}" for pn, n in counts)
-    return f"{chips} ({fmt_kb(total_kb)}{' + parity' if parity else ''})"
+    return f"{chips} ({fmt_kb(total_kb, display=True)}{' + parity' if parity else ''})"
 
 
 # Common memory modules for machines with RAM on SIMMs / SIPPs rather than
@@ -332,7 +380,7 @@ def format_ram_modules(counts):
         return ""
     total_kb = sum(n * RAM_MODULE_KB.get(s, 0) for s, n in counts)
     mods = ", ".join(f"{n}× {RAM_MODULE_LABEL[s]}" for s, n in counts)
-    return f"{mods} ({fmt_kb(total_kb)})"
+    return f"{mods} ({fmt_kb(total_kb, display=True)})"
 
 
 def ram_total_kb(modules, chips) -> int:
@@ -350,7 +398,7 @@ def render_installed_ram(modules, chips, total_kb=None, note="") -> str:
     chips_txt = format_ram_chips(chips)
     out = []
     if not (mods or chips_txt) and total_kb:
-        out.append(fmt_kb(total_kb))
+        out.append(fmt_kb(total_kb, display=True))
     out += [x for x in (mods, chips_txt) if x]
     if note:
         out.append(note)

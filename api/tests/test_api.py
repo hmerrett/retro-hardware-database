@@ -690,7 +690,9 @@ class TestHowBigTheDriveIsOnItsLabel:
         from app import labels, main, specdb
         from app.models import Part
         p = db.get(Part, aid)
-        return labels.small_body(main.to_dict(p), False, specdb.pairs(db, p))
+        # display=True, as the label route passes: a label is read, never parsed.
+        return labels.small_body(main.to_dict(p), False,
+                                 specdb.pairs(db, p, display=True))
 
     def test_a_drive_says_how_big_it_is(self, client, db, part):
         aid = part(type="storage", manufacturer="Seagate", model="ST-225",
@@ -707,11 +709,11 @@ class TestHowBigTheDriveIsOnItsLabel:
 
     def test_capacity_worked_out_from_the_geometry_counts_too(self, client, db, part):
         """A drive recorded by its cylinders/heads/sectors has its capacity derived
-        rather than stated, and the label carries that just the same. It arrives in
-        the unit the rest of the app renders it in -- KB when nothing said MB."""
+        rather than stated, and the label carries that just the same. 38828 KB is a
+        38 MB drive, and the label says so rather than reciting the KB."""
         aid = part(type="storage", manufacturer="Quantum", model="LPS 52A",
                    specs="Kind: Hard disk | CHS: 571/8/17")["asset_id"]
-        assert self.body(db, aid) == "Quantum LPS 52A, 38828 KB"
+        assert self.body(db, aid) == "Quantum LPS 52A, 37.9 MB"
 
     def test_other_kinds_of_part_are_left_alone(self, client, db, part):
         """Only the types whose name does not say the thing you want off the label.
@@ -747,6 +749,77 @@ class TestHowBigTheDriveIsOnItsLabel:
         r = client.get(f"/parts/{aid}/label.pdf")
         assert r.status_code == 200
         assert r.content.startswith(b"%PDF")
+
+
+class TestWhereAFigureIsRoundedAndWhereItIsNot:
+    """A quantity is stored as plain KB and said in whatever unit suits. Text that is
+    only ever read -- a page, a label -- rounds an amount that cannot be said exactly.
+    The edit form keeps it to the KB, because what the form shows is parsed back on
+    the next save, and a rounded figure would quietly move the number.
+    """
+
+    # 571x8x17 sectors of 512 bytes: 38828 KB, which is not a whole MB and cannot
+    # be written as one to two decimal places either.
+    SPECS = "Kind: Hard disk | CHS: 571/8/17"
+
+    def make(self, part):
+        return part(type="storage", manufacturer="Quantum", model="LPS 52A",
+                    specs=self.SPECS)["asset_id"]
+
+    def test_the_page_says_it_the_way_a_person_would(self, client, part):
+        aid = self.make(part)
+        page = client.get(f"/parts/{aid}").text
+        assert "37.9 MB" in page
+        assert "38828 KB" not in page
+
+    def test_the_form_is_given_it_to_the_kilobyte(self, client, part):
+        aid = self.make(part)
+        page = client.get(f"/parts/{aid}/edit").text
+        assert 'name="spec_capacity" value="38828 KB"' in page
+        assert "37.9 MB" not in page
+
+    def test_saving_that_form_back_untouched_does_not_move_the_number(self, client,
+                                                                     db, part):
+        """The corruption the split exists to prevent. Had the form been handed
+        '37.9 MB', saving it without touching it would have written 38810 KB.
+
+        The geometry is deliberately not resubmitted: were it there, the capacity
+        would be re-derived from it and this would pass whatever the box said.
+        """
+        from app import specdb
+        from app.models import Part
+        aid = self.make(part)
+        page = client.get(f"/parts/{aid}/edit").text
+        shown = re.search(r'name="spec_capacity" value="([^"]*)"', page).group(1)
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "storage", "model": "LPS 52A",
+                          "spec_kind": "Hard disk", "spec_capacity": shown},
+                    follow_redirects=False)
+        db.expire_all()
+        p = db.get(Part, aid)
+        assert specdb.read(db, p).scalars["capacity_kb"] == 38828
+
+    def test_the_stored_string_is_exact_too(self, client, db, part):
+        """It is the wire format for the REST API and the MCP tools, and it is parsed
+        back by the next write, so it holds the figure rather than a rounding."""
+        from app.models import Part
+        aid = self.make(part)
+        db.expire_all()
+        assert "38828 KB" in db.get(Part, aid).specs
+
+    @pytest.mark.parametrize("typed,shown", [
+        ("2 MB", "2 MB"),          # was rendered back as '2048 KB'
+        ("1024 KB", "1 MB"),
+        ("8192 KB", "8 MB"),
+        ("640 KB", "640 KB"),
+    ])
+    def test_memory_is_said_in_megabytes_where_that_is_the_word_for_it(
+            self, client, db, part, typed, shown):
+        """Not only drives: a 2 MB SIMM read '2048 KB' on every page it appeared on."""
+        from app.models import Part
+        aid = part(type="ram", model="SIMM", specs=f"Size: {typed}")["asset_id"]
+        db.expire_all()
+        assert db.get(Part, aid).specs == f"Size: {shown}"
 
 
 class TestTheBrandOnThePage:

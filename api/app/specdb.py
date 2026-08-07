@@ -90,9 +90,12 @@ def read(db, part) -> specstruct.Struct:
     return st
 
 
-def pairs(db, part):
-    """Ordered (display key, rendered value) pairs for a part's spec table."""
-    return specstruct.pairs(part.type or "other", read(db, part))
+def pairs(db, part, display=False):
+    """Ordered (display key, rendered value) pairs for a part's spec table.
+
+    `display` on is for a page or a label; off gives the edit form and the stored
+    specs string values that parse back to the same numbers."""
+    return specstruct.pairs(part.type or "other", read(db, part), display)
 
 
 def scalars(db, part) -> dict:

@@ -1911,7 +1911,7 @@ def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)):
     rows = []
     for p in installed:
         d = to_dict(p)
-        d["spec_pairs"] = specdb.pairs(db, p)
+        d["spec_pairs"] = specdb.pairs(db, p, display=True)
         rows.append(d)
     pdf = labels.render_pdf(
         to_dict(c), rows, is_computer=True, small=bool(small),
@@ -2209,14 +2209,17 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
         if not p.computer_id and not p.parent_id:
             computers = db.query(Computer).order_by(Computer.asset_id).all()
     images = detect_images("parts", aid)
+    spec_pairs = specdb.pairs(db, p, display=True)
+    # The preview text and the structured data are read rather than parsed, so they
+    # say the figures the page says -- not the stored string's exact-to-the-KB ones.
     blurb = p.summary or _dot(entry.type_label(p.type),
                               " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
-                              p.specs)
+                              specstruct.join(spec_pairs))
     return templates.TemplateResponse(request, "part.html", {
         "p": p, "parent": parent, "host": host, "children": children,
         "candidates": candidates, "computers": computers,
         "images": images, "ref_marks": reference_marks("parts", aid),
-        "spec_pairs": specdb.pairs(db, p), "imgerr": bool(imgerr),
+        "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
         "log": item_log(db, aid), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
                          images[0] if images else None)),
@@ -2486,6 +2489,6 @@ async def gui_part_photo_crop(aid: str, request: Request,
 def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     pdf = labels.render_pdf(to_dict(p), [], is_computer=False, small=bool(small),
-                            spec_pairs=specdb.pairs(db, p))
+                            spec_pairs=specdb.pairs(db, p, display=True))
     return Response(pdf, media_type="application/pdf", headers={
         "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
