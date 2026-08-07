@@ -84,6 +84,17 @@ it has yellowed since. Storage parts record the same two things, as their `Colou
 and `Yellowing` specs, so a drive on the shelf and one fitted in a machine are
 described alike.
 
+A floppy's capacity is picked rather than typed: the designations this hardware
+actually takes (`drivedb.SIZES`, 160K through 2.88MB) as a row of radio buttons,
+with a "custom" box for the ones the list does not name -- a Floptical, an LS-120.
+The pick is a deliberate answer, so it beats a capacity mentioned in the drive's
+description, the same rule the bezel menus follow; picking nothing leaves the
+description to say it. Routed to a machine it becomes the row's `size`; kept as a
+part it is the drive's `Size` spec. It is a media designation and not a quantity,
+so unlike a memory `Size` it never normalises to KB: 1.44MB is 1475 KB only by
+convention, and nobody calls that disk a 1475 KB. The picker is offered for
+`Floppy/Gotek` alone, since an optical drive is not a 720K anything.
+
 Both vocabularies live in `app/entry.py` -- the factory shades from black through
 the greys to the beiges, and the yellowing levels from lightly through browned to
 unevenly -- and either can be recorded without the other, because an unrestored

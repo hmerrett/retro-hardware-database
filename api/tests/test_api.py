@@ -562,6 +562,132 @@ class TestADriveKeptAsAPart:
         assert "1.44MB" in client.get(f"/api/computers/{cid}").json()["drives"]
 
 
+class TestPickingAFloppySCapacity:
+    """The capacity had to be typed into the drive's description and picked back
+    out of the prose. It is a short, closed list of designations, so it is offered
+    as one -- with a box for the disks the list does not name."""
+
+    def add(self, client, **extra):
+        data = {"type": "storage", "kind": "Floppy/Gotek"} | extra
+        r = client.post("/parts/new", data=data, follow_redirects=False)
+        return r.headers["location"]
+
+    def part(self, client, **extra):
+        return self.add(client, **extra).rsplit("/", 1)[-1]
+
+    def specs(self, client, aid):
+        return client.get(f"/api/parts/{aid}").json()["specs"]
+
+    def test_the_pick_lands_on_the_machines_drive_row(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc='3.5in floppy',
+                 drive_size="1.44MB")
+        assert "1.44MB" in client.get(f"/api/computers/{cid}").json()["drives"]
+
+    def test_the_picker_wins_over_the_description(self, client, computer):
+        """The same rule the bezel menus follow: a pick is a deliberate answer, so
+        it beats the same thing said in passing in the prose."""
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc='3.5in 1.44MB floppy',
+                 drive_size="720K")
+        drives = client.get(f"/api/computers/{cid}").json()["drives"]
+        assert "720K" in drives and "1.44MB" not in drives
+
+    def test_picking_nothing_leaves_what_the_description_said(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc='3.5in 1.44MB floppy',
+                 drive_size="")
+        assert "1.44MB" in client.get(f"/api/computers/{cid}").json()["drives"]
+
+    def test_a_drive_kept_as_a_part_records_it_too(self, client):
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
+        assert "Size: 1.44MB" in self.specs(client, aid)
+
+    def test_a_designation_is_not_turned_into_a_byte_count(self, client):
+        """1.44MB is 1475 KB only by convention. A RAM 'Size' is a quantity and
+        normalises to KB; a disk's is what the disk is called, and must not."""
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
+        specs = self.specs(client, aid)
+        assert "1475" not in specs and "KB" not in specs
+
+    def test_a_ram_size_still_normalises(self, client, db):
+        """The other half of that guard: only storage is exempt, and a memory
+        amount still lands in the KB column that makes it sort and compare."""
+        from app.models import RamSpec
+        r = client.post("/parts/new", data={"type": "ram", "spec_size": "4MB"},
+                        follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        assert db.query(RamSpec).filter(RamSpec.part_id == aid).one().size_kb == 4096
+
+    def test_a_floppys_size_is_no_column_at_all(self, client, db):
+        """It is not a quantity, so it is not one of storage_spec's typed columns:
+        it rides as a plain attribute, the way an unmanaged key does."""
+        from app.models import PartAttribute
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
+        rows = {a.akey: a.avalue for a
+                in db.query(PartAttribute).filter(PartAttribute.part_id == aid)}
+        assert rows.get("Size") == "1.44MB"
+
+    def test_custom_records_what_was_typed(self, client):
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="custom",
+                        drive_size_custom="21MB Floptical")
+        assert "Size: 21MB Floptical" in self.specs(client, aid)
+
+    def test_custom_with_nothing_typed_records_nothing(self, client):
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="custom",
+                        drive_size_custom="   ")
+        assert "Size:" not in self.specs(client, aid)
+
+    def test_a_kind_that_takes_no_such_disk_ignores_a_stale_pick(self, client):
+        """Choosing 1.44MB and then changing the kind leaves the radio checked and
+        off-screen. An optical drive is not a 1.44MB anything."""
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Optical",
+                              "drive_desc": "Sony CDU55", "drive_size": "1.44MB"},
+                        follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        assert "Size:" not in self.specs(client, aid)
+
+    def test_a_hard_disk_ignores_it_as_well(self, client):
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Hard disk",
+                              "spec_capacity": "540 MB", "drive_size": "1.44MB"},
+                        follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        assert "Size:" not in self.specs(client, aid)
+
+    def test_the_form_opens_on_the_pick_again(self, client):
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="720K")
+        flat = " ".join(client.get(f"/parts/{aid}/edit").text.split())
+        assert 'value="720K" checked' in flat
+
+    def test_a_custom_one_opens_on_the_box(self, client):
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="custom",
+                        drive_size_custom="21MB Floptical")
+        page = client.get(f"/parts/{aid}/edit").text
+        assert 'id="drive_size_custom"' in page and "21MB Floptical" in page
+        # ...and it is the custom radio that is chosen, not one of the standard ones.
+        flat = " ".join(page.split())
+        assert 'value="custom" checked' in flat
+
+    def test_a_capacity_alone_still_describes_a_floppy(self, client, computer):
+        """Picking a capacity and typing no description is an ordinary gesture now
+        the picker exists; the kind's menu label must not land in the model."""
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_size="1.44MB")
+        drives = client.get(f"/api/computers/{cid}").json()["drives"]
+        assert drives == "1.44MB floppy"
+
+    def test_editing_a_kept_drive_changes_it(self, client):
+        aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "storage", "kind": "Floppy/Gotek",
+                          "drive_desc": "3.5in floppy", "drive_size": "720K"},
+                    follow_redirects=False)
+        specs = self.specs(client, aid)
+        assert "Size: 720K" in specs and "1.44MB" not in specs
+
+
 class TestSpecs:
     def test_writing_specs_canonicalises_the_string(self, part):
         p = part(type="sound", specs="Interface: ISA | Chip: ES1869F")

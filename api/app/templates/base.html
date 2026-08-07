@@ -171,8 +171,14 @@
   /* min(Npx, 100%) rather than a bare Npx: on a screen narrower than one column
      the track would otherwise keep its floor and hang off the side of the page. */
   .countgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 6px 16px; margin: 4px 0 10px; }
-  .countgrid label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
-  .countgrid input { width: 60px; padding: 4px 6px; }
+  /* Said with the form in front of them, and the same for .checks below. These
+     groups only ever appear inside form.edit, whose own `label` and `input` rules
+     are a class plus two elements to a bare class plus one -- so they were quietly
+     winning, and had been all along: a "how many" box filled its whole column
+     instead of being 60px, and a checkbox came out 106px wide with its own words
+     underneath it. The group's own layout is the one that should apply. */
+  form.edit .countgrid label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
+  form.edit .countgrid input { width: 60px; padding: 4px 6px; }
   table.drives { margin: 4px 0 10px; }
   table.drives th, table.drives td { padding: 4px 8px 4px 0; border: 0; }
   table.drives input, table.drives select { width: 100%; padding: 4px 6px; }
@@ -208,8 +214,8 @@
   .cc-lbl { font-size: 13px; line-height: 1.35; }
   .cc-lbl .hint { display: block; }
   .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
-  .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
-  .checks input { width: auto; }
+  form.edit .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
+  form.edit .checks input { width: auto; }
   .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
   /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
      text wears an ink token. */

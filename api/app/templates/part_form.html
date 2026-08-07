@@ -68,6 +68,31 @@ until you submit.</p>
          opens on the description already written rather than on an empty box. #}
       <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
              placeholder="e.g. 3.5in 1.44MB floppy; Sony CDU55">
+      {# The capacity, picked rather than typed. Only a floppy's is one of these
+         designations, so the group appears for that kind alone -- an optical drive
+         is not a 720K anything. #}
+      {% set cursize = spec_keys.get('Size', '') %}
+      {% set custom = cursize and cursize not in drive_sizes %}
+      <div id="drive-size" hidden>
+        <label>Capacity <span class="muted">(what the disk is called, not a measured size)</span></label>
+        <div class="checks">
+          <label><input type="radio" name="drive_size" value=""
+                        {{ ' checked' if not cursize else '' }}> not recorded</label>
+          {% for s in drive_sizes %}
+          <label><input type="radio" name="drive_size" value="{{ s }}"
+                        {{ ' checked' if s == cursize else '' }}> {{ s }}</label>
+          {% endfor %}
+          <label><input type="radio" name="drive_size" value="custom"
+                        {{ ' checked' if custom else '' }}> custom</label>
+        </div>
+        {# Revealed by "custom", because the list names the disks this hardware
+           actually takes and the ones it does not are worth typing out. #}
+        <input id="drive_size_custom" name="drive_size_custom"
+               value="{{ cursize if custom else '' }}"
+               placeholder="e.g. 21MB Floptical, 120MB LS-120" hidden>
+        <p class="hint">a capacity named in the description ("1.44MB") is read from
+          there too; the picker wins over the text where both say something.</p>
+      </div>
       <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
       {# The same menus the machine's own form has, because this is where a drive is
          usually added -- it goes to the same two columns on the drive row. #}
@@ -228,13 +253,36 @@ until you submit.</p>
     const routed = ['SD/CF card', 'Optical', 'Floppy/Gotek'];
     const drivePart = document.getElementById('drive-part');
     const driveRoute = document.getElementById('drive-route');
+    const driveSize = document.getElementById('drive-size');
+    const FLOPPY = {{ floppy_kind | tojson }};
     function toggle() {
       const r = routed.includes(kind.value);
       driveRoute.style.display = r ? '' : 'none';
       drivePart.style.display = r ? 'none' : '';
+      // The capacities on offer are floppy media designations, so the group is
+      // shown for that kind and no other. The server reads it on the same
+      // condition, so a radio left checked from a kind since changed is ignored
+      // rather than saved.
+      if (driveSize) driveSize.hidden = !(r && kind.value === FLOPPY);
     }
     kind.addEventListener('change', toggle); toggle();
   }
+
+  // "custom" reveals the box it needs, and takes the cursor there; the standard
+  // designations need no box at all.
+  (function () {
+    const custom = document.getElementById('drive_size_custom');
+    if (!custom) return;
+    function show(focus) {
+      const on = document.querySelector('input[name=drive_size]:checked');
+      custom.hidden = !(on && on.value === 'custom');
+      if (focus && !custom.hidden) custom.focus();
+    }
+    document.querySelectorAll('input[name=drive_size]').forEach(function (r) {
+      r.addEventListener('change', function () { show(true); });
+    });
+    show(false);
+  })();
 
   // Entering a make and model already in the collection almost always means a
   // second of the same thing, so offer to start from it rather than retyping its

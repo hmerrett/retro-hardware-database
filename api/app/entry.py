@@ -37,6 +37,10 @@ CARD_STEPS = [
 # Storage kinds that are their own tagged parts; the rest live on the computer's
 # drives field.
 PART_STORAGE_KINDS = ("Hard disk", "Tape")
+# The one routed kind whose capacity is a media designation ('1.44MB') rather than
+# a measured quantity, which is the vocabulary drivedb.SIZES holds and the only
+# kind the capacity picker fits: an optical drive is not a 720K anything.
+FLOPPY_KIND = "Floppy/Gotek"
 
 # --- pick-list vocabularies ------------------------------------------------
 
