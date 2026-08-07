@@ -39,8 +39,22 @@ docker image prune -f            # tidy up old layers
 - **Migrations run automatically**: the api container's entrypoint runs
   `alembic upgrade head` on start, so a schema change ships with the code with
   no extra step.
-- **Config-only changes** (e.g. `caddy/Caddyfile`, `docker-compose.yml`) still
-  need `docker compose up -d` to take effect; add `--build` if app code changed.
+- **Config-only changes** to `docker-compose.yml` need `docker compose up -d` to
+  take effect; add `--build` if app code changed.
+- **`caddy/Caddyfile` needs more than that.** It is bind-mounted into the
+  container, so nothing Compose compares has changed and `docker compose up -d`
+  -- and therefore `deploy.sh` -- leaves Caddy running on the old config without
+  a word. `docker compose exec caddy caddy reload` does not save you either: the
+  mount is of a single file, by inode, and an editor that writes-and-renames
+  leaves the container holding the file as it was, so the reload reports
+  `config is unchanged` and means it. Recreate the container:
+
+  ```
+  docker compose up -d --force-recreate caddy
+  ```
+
+  Then check it took, rather than trusting that it did:
+  `docker compose exec caddy cat /etc/caddy/Caddyfile`.
 
 ## Data is safe across deploys
 
