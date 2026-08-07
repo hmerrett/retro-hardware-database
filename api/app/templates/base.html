@@ -102,6 +102,40 @@
     header .hdr-search { flex: 1 1 100%; }
     header .hdr-search input[type=search] { flex: 1; width: auto; }
   }
+  /* The first few matches, offered while you are still typing. It hangs off the
+     input rather than pushing the page down, and is wider than the box it hangs
+     from because a machine's name is longer than the room to type it. Right-
+     aligned to the input's right edge, which is the one that does not move. */
+  header .hdr-search { position: relative; }
+  #suggest { position: absolute; top: calc(100% + 6px); right: 0; z-index: 900;
+    min-width: 100%; width: 380px; max-width: calc(100vw - 24px);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 10px 30px #00000026; overflow: hidden; padding: 4px; }
+  :root[data-theme="dark"] #suggest { box-shadow: 0 10px 30px #00000080; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) #suggest { box-shadow: 0 10px 30px #00000080; }
+  }
+  #suggest .sg { display: flex; align-items: center; gap: 9px; padding: 6px 7px;
+    border-radius: 7px; text-decoration: none; color: inherit; }
+  /* One highlight for both ways of choosing: the mouse sets the same marker the
+     arrow keys do, so the row under the pointer and the row Enter would open can
+     never be two different rows. */
+  #suggest .sg[aria-selected="true"] { background: var(--btn-hover); }
+  #suggest .sg img { width: 38px; height: 28px; flex: none; border-radius: 4px;
+    object-fit: cover; background: var(--chip); }
+  #suggest .sg img.ph { object-fit: contain; padding: 4px; opacity: .55; }
+  #suggest .sg .t { min-width: 0; flex: 1; }
+  /* One line each, clipped: a wrapped name would make the rows different heights
+     and the list a different length for every query. */
+  #suggest .sg .nm, #suggest .sg .sub { overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; }
+  #suggest .sg .nm { font-size: 13px; }
+  #suggest .sg .sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  #suggest .sg-more { display: block; padding: 6px 8px 5px; font-size: 12px;
+    color: var(--muted); border-top: 1px solid var(--line); margin: 4px 3px 0;
+    text-decoration: none; }
+  #suggest .sg-more:hover { color: var(--accent); }
+  #suggest .sg-none { padding: 8px; font-size: 13px; color: var(--muted); }
   main { max-width: 1000px; margin: 0 auto; padding: 18px; }
   /* A phone spends its width on content, not on margins. */
   @media (max-width: 480px) {
@@ -388,14 +422,18 @@
      of every item plus its history, including the prose summaries. On the gallery
      the same box also filters what is already on the page as you type, which is
      what the id is for -- see the script at the foot of index.html. #}
-  <form class="hdr-search" method="get" action="/">
+  <form class="hdr-search" method="get" action="/" role="search">
     <input id="q" name="q" type="search" value="{{ q | default('', true) }}"
            placeholder="Search anything…"
-           title="Search every field of every item — maker, chip, port, a note, an asset no.">
+           title="Search every field of every item — maker, chip, port, a note, an asset no."
+           autocomplete="off" role="combobox" aria-expanded="false"
+           aria-controls="suggest" aria-autocomplete="list">
     {# Reading a label instead of typing its number. Hidden until the script has
        found a camera to open, so it never offers what it cannot do. #}
     <button type="button" class="btn sm" id="scan-open" hidden
             title="Scan a label's QR code">scan</button>
+    {# The first few matches, filled in by the script below. #}
+    <div id="suggest" role="listbox" aria-label="Search suggestions" hidden></div>
   </form>
 </header>
 <main>{% block content %}{% endblock %}</main>
@@ -745,6 +783,157 @@
     }
   })();
 </script>
+<script>
+  // The first few matches, offered while you are still typing. The server does the
+  // matching -- the same match Enter performs, over every field and the history --
+  // because no page but the gallery has the catalogue to search, and the gallery's
+  // own copy carries none of the prose or history that the search reads.
+  (function () {
+    const box = document.getElementById('q');
+    const list = document.getElementById('suggest');
+    if (!box || !list) return;
+
+    const MIN = 2;          // one letter matches most of the register: not a list
+    const WAIT = 140;       // long enough that a typed word is one request, not six
+    let timer = null, pending = null, rows = [], at = -1, last = null;
+
+    function close() {
+      list.hidden = true;
+      list.innerHTML = '';
+      box.setAttribute('aria-expanded', 'false');
+      box.removeAttribute('aria-activedescendant');
+      rows = []; at = -1;
+    }
+    // Belt and braces against a query arriving as markup: the text goes in as text,
+    // and the only attribute built from data is a URL this server itself minted.
+    function el(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    function highlight(i) {
+      if (at >= 0 && rows[at]) rows[at].setAttribute('aria-selected', 'false');
+      at = i;
+      if (at >= 0 && rows[at]) {
+        rows[at].setAttribute('aria-selected', 'true');
+        box.setAttribute('aria-activedescendant', rows[at].id);
+        rows[at].scrollIntoView({ block: 'nearest' });
+      } else {
+        box.removeAttribute('aria-activedescendant');
+      }
+    }
+
+    function draw(data) {
+      list.innerHTML = '';
+      rows = []; at = -1;
+      if (!data.items.length) {
+        list.appendChild(el('div', 'sg-none', 'Nothing matches that.'));
+      }
+      data.items.forEach(function (it, i) {
+        const a = el('a', 'sg');
+        a.href = it.url;
+        a.id = 'sg-' + i;
+        a.setAttribute('role', 'option');
+        a.setAttribute('aria-selected', 'false');
+        const img = el('img');
+        img.src = it.img || it.icon;
+        if (!it.img) img.className = 'ph';
+        img.alt = '';
+        img.loading = 'lazy';
+        a.appendChild(img);
+        const t = el('div', 't');
+        t.appendChild(el('div', 'nm', it.name));
+        // What tells two similar boards apart at a glance, in the order you would
+        // read it out: the tag, what kind of thing it is, and when it is from.
+        const bits = [it.aid, it.cat];
+        if (it.year) bits.push(it.year);
+        if (it.disposed) bits.push('disposed');
+        t.appendChild(el('div', 'sub', bits.join(' · ')));
+        a.appendChild(t);
+        // Choosing with the pointer moves the same marker the keys move, so what is
+        // lit is always what opens.
+        a.addEventListener('mousemove', function () { highlight(i); });
+        list.appendChild(a);
+        rows.push(a);
+      });
+      if (data.total > data.items.length) {
+        const more = el('a', 'sg-more',
+          'and ' + (data.total - data.items.length) + ' more — press Enter for all '
+          + data.total);
+        more.href = '/?q=' + encodeURIComponent(data.q);
+        list.appendChild(more);
+      }
+      list.hidden = false;
+      box.setAttribute('aria-expanded', 'true');
+    }
+
+    function ask() {
+      const query = box.value.trim();
+      if (query.length < MIN) { close(); last = null; return; }
+      if (query === last && !list.hidden) return;
+      last = query;
+      // Only the newest question is worth an answer: a reply to a prefix typed
+      // three keystrokes ago would otherwise overwrite the list for what is in the
+      // box now, and does, on a slow connection.
+      if (pending) pending.abort();
+      const ctl = new AbortController();
+      pending = ctl;
+      fetch('/suggest?q=' + encodeURIComponent(query), { signal: ctl.signal })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (data) {
+          if (ctl !== pending || !data) return;
+          pending = null;
+          if (box.value.trim() !== query) return;   // typed on while it was in flight
+          draw(data);
+        })
+        .catch(function () { /* aborted, offline: leave the list as it stands */ });
+    }
+
+    box.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(ask, WAIT);
+    });
+    // Coming back to a box that already holds a word: offer the list again without
+    // making them retype a character to see it.
+    box.addEventListener('focus', function () { if (box.value.trim().length >= MIN) ask(); });
+
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        if (!list.hidden) { e.preventDefault(); e.stopPropagation(); close(); }
+        return;
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (list.hidden || !rows.length) return;
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        // Off either end returns to the typed text, which is how a list you have
+        // arrowed into by mistake is escaped without losing what you wrote.
+        const next = at + step;
+        highlight(next < -1 ? rows.length - 1 : next >= rows.length ? -1 : next);
+        return;
+      }
+      // Enter on a lit row opens it; Enter on none of them searches, as it always
+      // has. Nothing else here interferes with typing.
+      if (e.key === 'Enter' && at >= 0 && rows[at]) {
+        e.preventDefault();
+        location.href = rows[at].href;
+      }
+    });
+
+    // A click lands before the blur that would otherwise pull the row out from
+    // under it, so the list closes on mousedown anywhere that is not the list.
+    document.addEventListener('mousedown', function (e) {
+      if (!list.hidden && !e.target.closest('#suggest') && e.target !== box) close();
+    });
+    box.addEventListener('blur', function () {
+      // A tap on a row is a blur first on a touch screen, so let the tap through.
+      setTimeout(function () { if (!list.contains(document.activeElement)) close(); }, 160);
+    });
+  })();
+</script>
+
 {# Reading a label's QR code without leaving the page. The codes hold a full URL to
    the item, so a phone's own camera app already opens one -- this exists so that
    finding a thing you are holding does not mean leaving the page to do it. #}

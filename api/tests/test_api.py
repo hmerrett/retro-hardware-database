@@ -1977,6 +1977,97 @@ class TestSearchingEveryField:
         assert client.get("/?q=battery").status_code == 200
 
 
+class TestTheFirstFewMatchesWhileYouType:
+    """What the search bar offers under the box. It is the same search Enter runs
+    -- so what it lists is a preview of that answer rather than a second, narrower
+    one -- with an order laid over it, because ten rows under a half-typed word are
+    being aimed at rather than read."""
+
+    def sug(self, client, q):
+        r = client.get("/suggest", params={"q": q})
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    def test_it_offers_the_matches_and_says_how_many_there_are(self, client, part):
+        for i in range(14):
+            part(manufacturer="Adaptec", model=f"AHA-{i:04d}")
+        out = self.sug(client, "adaptec")
+        assert out["total"] == 14
+        assert len(out["items"]) == 10
+
+    def test_nothing_is_offered_for_nothing_typed(self, client, part):
+        part()
+        assert self.sug(client, "")["items"] == []
+        assert self.sug(client, "   ")["total"] == 0
+
+    def test_an_asset_tag_typed_in_full_comes_first(self, client, part):
+        """Typing a tag off a label is aiming at one item, whatever else mentions
+        it -- and other items do mention it, because a part records the machine it
+        is installed in."""
+        wanted = part(model="Sound Blaster")["asset_id"]
+        for i in range(6):
+            part(model=f"Filler {i}", notes=f"pulled from {wanted}")
+        out = self.sug(client, wanted)
+        assert out["items"][0]["aid"] == wanted
+        assert out["total"] > 1
+
+    def test_a_name_that_starts_with_it_beats_one_that_merely_contains_it(
+            self, client, part):
+        starts = part(name="Adaptec AHA-1542CF")["asset_id"]
+        contains = part(name="Cable for Adaptec host adapters")["asset_id"]
+        order = [i["aid"] for i in self.sug(client, "adaptec")["items"]]
+        assert order.index(starts) < order.index(contains)
+
+    def test_a_hit_only_in_the_history_is_offered_but_sorts_below_a_named_one(
+            self, client, part):
+        named = part(name="Recapped PSU tester")["asset_id"]
+        logged = part(name="Mystery board")["asset_id"]
+        client.post(f"/parts/{logged}/note", data={"message": "recapped the lot"},
+                    follow_redirects=False)
+        order = [i["aid"] for i in self.sug(client, "recapped")["items"]]
+        assert order == [named, logged]
+
+    def test_a_disposed_item_is_offered_last_and_says_so(self, client, part):
+        gone = part(name="Maxtor spare")["asset_id"]
+        here = part(name="Maxtor keeper")["asset_id"]
+        client.post(f"/parts/{gone}/dispose", data={"note": "died", "date": ""},
+                    follow_redirects=False)
+        items = self.sug(client, "maxtor")["items"]
+        assert [i["aid"] for i in items] == [here, gone]
+        assert items[1]["disposed"] is True and items[0]["disposed"] is False
+
+    def test_each_row_carries_what_the_list_draws(self, client, computer):
+        aid = computer(manufacturer="Commodore", model="Amiga 2000",
+                       year=1987)["asset_id"]
+        row = self.sug(client, "amiga")["items"][0]
+        assert row["url"] == f"/computers/{aid}"
+        assert row["name"] == "Commodore Amiga 2000"
+        assert row["cat"] == "Computer" and row["year"] == 1987
+        # No photo, so the card's own placeholder stands in for one.
+        assert row["img"] == "" and row["icon"].startswith("/static/placeholders/")
+
+    def test_a_part_wears_its_own_category_and_icon(self, client, part):
+        part(type="video", model="ET4000")
+        row = self.sug(client, "et4000")["items"][0]
+        assert row["cat"] == "Video" and row["icon"] == "/static/placeholders/card.svg"
+
+    def test_a_floppy_drive_is_not_drawn_as_a_hard_disk(self, client, part):
+        """The gallery tells a floppy from a disc from a disk by its Kind spec; a
+        list of ten under the search box has the same job and the same answer."""
+        part(type="storage", model="TEAC FD-235HF", specs="Kind: Floppy")
+        assert self.sug(client, "fd-235")["items"][0]["icon"] \
+            == "/static/placeholders/floppy.svg"
+
+    def test_suggesting_is_public(self, client, part, monkeypatch):
+        from app import main
+        part(notes="battery damage")
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        assert client.get("/suggest", params={"q": "battery"}).status_code == 200
+
+    def test_it_is_not_offered_to_crawlers(self, client):
+        assert "Disallow: /suggest" in client.get("/robots.txt").text
+
+
 class TestTheBigPhotoView:
     """The big view is also the editor when logged in, so a run of corrections does
     not mean a round trip through the item page between each one."""

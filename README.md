@@ -36,6 +36,11 @@ and a build walk that steps through a machine's motherboard and cards.
 The search bar sits in the banner, so a search starts from whatever page you are
 on. Enter hands the query to the server, which reads every field of every item
 and its history; on the gallery the same box also filters the cards as you type.
+Typing two characters also drops down the first ten matches — the arrow keys and
+Enter walk them, and the last line says how many more there are. It is the same
+search Enter runs, so the list previews that answer rather than a narrower one,
+ordered so that what you typed being an asset tag, or the start of a name, comes
+before a hit buried in a spec or a history note.
 Beside it, on a device with a camera, is a scan button that reads the QR code on
 a printed label and opens that item — labels printed against the old GitHub
 Pages URL included, since only the asset tag is taken from the code.

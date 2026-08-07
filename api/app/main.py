@@ -162,7 +162,7 @@ def _is_public_read(request: Request) -> bool:
     if request.method != "GET":
         return False
     path = request.url.path
-    if path in ("/", "/stats", "/browse", "/robots.txt", "/sitemap.xml",
+    if path in ("/", "/stats", "/browse", "/suggest", "/robots.txt", "/sitemap.xml",
                 "/favicon.ico",
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
         return True
@@ -385,6 +385,8 @@ def robots_txt(request: Request):
         "Disallow: /traffic\n"
         # Filtered slices of the gallery: the items in them are indexed already.
         "Disallow: /browse\n"
+        # What the search bar reads while you type: JSON about pages already indexed.
+        "Disallow: /suggest\n"
         "Disallow: /computers/new\n"
         "Disallow: /parts/new\n"
         "Disallow: /*/edit\n"
@@ -1293,14 +1295,6 @@ def _catalogue_rows(db, precise_times=True):
     # string (or a lookup per row) just to choose an icon.
     kinds = specdb.storage_kinds(db)
 
-    def storage_placeholder(p):
-        kind = (kinds.get(p.asset_id) or "").lower()
-        if "optical" in kind:
-            return entry.placeholder_for("optical")
-        if "floppy" in kind or "gotek" in kind:
-            return entry.placeholder_for("floppy")
-        return entry.placeholder_for("storage")
-
     rows = []
     for c in computers:
         rows.append({
@@ -1331,7 +1325,8 @@ def _catalogue_rows(db, precise_times=True):
             "name": entry.display_name(to_dict(p)),
             "image": (ppi := primary_image("parts", p.asset_id)),
             "ref_photo": is_reference(ppi), "ref_icon": _favicon_for_rel(ppi),
-            "placeholder": (storage_placeholder(p) if ptype == "storage"
+            "placeholder": (_storage_placeholder(kinds.get(p.asset_id))
+                            if ptype == "storage"
                             else entry.placeholder_for(ptype)),
             "updated": stamps(p.asset_id)[0], "added": stamps(p.asset_id)[1],
             "maker": (p.manufacturer or "").lower(),
@@ -1351,6 +1346,17 @@ def _catalogue_rows(db, precise_times=True):
     rows.sort(key=lambda r: ts.get(r["obj"].asset_id, (datetime.min,))[0] or datetime.min,
               reverse=True)
     return rows
+
+
+def _storage_placeholder(kind):
+    """Which drive icon a storage part wears, read from its Kind spec: a floppy, a
+    disc and a disk are all "storage" and none of them look alike."""
+    kind = (kind or "").lower()
+    if "optical" in kind:
+        return entry.placeholder_for("optical")
+    if "floppy" in kind or "gotek" in kind:
+        return entry.placeholder_for("floppy")
+    return entry.placeholder_for("storage")
 
 
 def _cats_for(rows):
@@ -1421,6 +1427,95 @@ def _search(db, rows, query):
         if all(t in hay for t in terms):
             kept.append(r)
     return kept
+
+
+# --- GUI: what the search bar offers while you are still typing --------------
+
+SUGGEST_LIMIT = 10
+
+
+def _suggest_tier(obj, name, raw):
+    """Which band of the list an item belongs in, lowest first: what was typed is
+    its asset tag, or the start of one, or the start of its name, or somewhere in
+    what identifies it -- or else it matched on a spec or a history entry, which
+    is a real hit but not one to put at the top of a list of ten."""
+    aid = (obj.asset_id or "").lower()
+    if aid == raw:
+        return 0
+    if aid.startswith(raw):
+        return 1
+    if name.lower().startswith(raw):
+        return 2
+    ident = " ".join([obj.asset_id or "", name, obj.manufacturer or "",
+                      obj.model or ""]).lower()
+    return 3 if raw in ident else 4
+
+
+def _suggest(db, query, limit=SUGGEST_LIMIT):
+    """The first few items a query matches, and how many it matches in all.
+
+    Deliberately the same match the search bar itself performs -- every field of
+    every item plus its history -- so the list is a preview of the answer Enter
+    gives rather than a second, narrower search that disagrees with it. What the
+    list adds is an order: a whole-page result can arrive in catalogue order
+    because you read it, but ten rows under a half-typed word are being aimed at,
+    so the ones that answer to what was typed come first."""
+    terms = search_terms(query)
+    if not terms:
+        return [], 0
+    history = _history_by_asset(db)
+    latest = dict(db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
+                    .group_by(LogEntry.asset_id).all())
+    raw = " ".join((query or "").lower().split())
+
+    hits = []
+    for obj, kind in ([(c, "computer") for c in db.query(Computer).all()]
+                      + [(p, "part") for p in db.query(Part).all()]):
+        if not all(t in _haystack(db, obj, history) for t in terms):
+            continue
+        name = entry.display_name(to_dict(obj))
+        hits.append({"obj": obj, "kind": kind, "name": name,
+                     "tier": _suggest_tier(obj, name, raw)})
+    # Two stable sorts rather than one compound key: the second keeps the order of
+    # the first within each band, which is how recency settles a tie without the
+    # arithmetic of negating a timestamp that may be missing.
+    hits.sort(key=lambda h: latest.get(h["obj"].asset_id) or datetime.min,
+              reverse=True)
+    hits.sort(key=lambda h: (h["tier"], bool(h["obj"].disposed)))
+
+    shown = hits[:limit]
+    listings, kinds = {}, None
+    out = []
+    for h in shown:
+        obj, folder = h["obj"], "computers" if h["kind"] == "computer" else "parts"
+        if folder not in listings:
+            listings[folder] = folder_images(folder)
+        imgs = pick_images(folder, obj.asset_id, listings[folder])
+        if h["kind"] == "computer":
+            cat, icon = "Computer", entry.placeholder_for("computer")
+        else:
+            cat = entry.type_label(obj.type or "other")
+            icon = entry.placeholder_for(obj.type or "other")
+            if (obj.type or "") == "storage":
+                # One query, and only when a drive is actually on the list, to tell
+                # a floppy from a disc from a disk as the gallery's cards do.
+                if kinds is None:
+                    kinds = specdb.storage_kinds(db)
+                icon = _storage_placeholder(kinds.get(obj.asset_id))
+        out.append({
+            "url": f"/{folder}/{obj.asset_id}", "aid": obj.asset_id,
+            "name": h["name"], "cat": cat, "year": obj.year or "",
+            "disposed": bool(obj.disposed),
+            "img": img_url(imgs[0]) if imgs else "",
+            "icon": f"/static/{icon}",
+        })
+    return out, len(hits)
+
+
+@app.get("/suggest", include_in_schema=False)
+def gui_suggest(q: str = "", db: Session = Depends(get_db)):
+    items, total = _suggest(db, q)
+    return {"q": q, "items": items, "total": total}
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
