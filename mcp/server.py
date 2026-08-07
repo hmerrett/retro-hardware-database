@@ -17,7 +17,7 @@ clear them in the GUI.
 import os
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 
@@ -26,11 +26,13 @@ _AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
 _AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
 API_AUTH = (_AUTH_USER, _AUTH_PASS) if _AUTH_USER and _AUTH_PASS else None
 
-mcp = FastMCP(
-    "retro-hardware",
-    host=os.getenv("MCP_HOST", "0.0.0.0"),
-    port=int(os.getenv("MCP_PORT", "8001")),
-)
+mcp = MCPServer("retro-hardware")
+
+# The host and port belong to the transport, not the server, so they are settled
+# where it is started rather than here. The default host is loopback, which inside
+# a container means nothing outside it can connect.
+MCP_HOST = os.getenv("MCP_HOST", "0.0.0.0")
+MCP_PORT = int(os.getenv("MCP_PORT", "8001"))
 
 
 def _client():
@@ -225,4 +227,4 @@ def delete_part(asset_id: str) -> dict:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    mcp.run(transport="streamable-http", host=MCP_HOST, port=MCP_PORT)
