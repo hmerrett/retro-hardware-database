@@ -12,8 +12,10 @@ Interactive API docs live at /docs (OpenAPI).
 import base64
 import hashlib
 import os
+import random
 import secrets
 import shutil
+from collections import Counter
 from datetime import UTC, date, datetime
 from pathlib import Path
 import json
@@ -26,7 +28,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Resp
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from . import drivedb, enrich, entry, labels, ramdb, specdb, specstruct
@@ -269,6 +271,223 @@ def _all_years(db):
     return years + [y for (y,) in db.query(Part.year).filter(Part.year.isnot(None))]
 
 
+# --- the pointless department -----------------------------------------------
+# Figures that answer nothing anyone needs to know, which is the point of them. A
+# page of totals says how big the collection is; these say what it is like.
+
+# How many parts a maker needs before its record means anything. Below this a maker
+# with one working card would top the table on a sample of one, which is not a
+# fact about the maker. The caption on the page says the threshold, because a
+# ranking whose entry condition is hidden is a ranking that flatters itself.
+RELIABILITY_MIN = 5
+# Not makers. These stand in the maker field for "we do not know" or "nobody in
+# particular", and a league table of manufacturers should not have them in it.
+NOT_A_MAKER = {"unknown", "generic", "various", "noname", "no name", "n/a", "-", "?"}
+
+
+def _maker_reliability(db):
+    """(maker, parts, working, percent) per maker, best record first.
+
+    Reliability here means one thing and only one: the share of that maker's parts
+    whose condition is recorded as Working. Not "Restored" -- a part that had to be
+    restored is evidence of the opposite -- and only parts still in the register,
+    because a disposed one may have been sold in perfect order.
+
+    Ties are settled by sample size: with equal records, the maker who earned it
+    over more parts has made the better case."""
+    rows = []
+    for maker, n, working in (
+            db.query(Part.manufacturer, func.count(Part.asset_id),
+                     func.sum(case((Part.condition == "Working", 1), else_=0)))
+            .filter(Part.manufacturer.isnot(None), Part.manufacturer != "",
+                    Part.condition.isnot(None), Part.condition != "",
+                    Part.disposed.is_(False))
+            .group_by(Part.manufacturer)):
+        if n < RELIABILITY_MIN or (maker or "").strip().lower() in NOT_A_MAKER:
+            continue
+        rows.append((maker, n, int(working or 0), round(100 * (working or 0) / n)))
+    rows.sort(key=lambda r: (-r[3], -r[1], r[0]))
+    return rows
+
+
+def _photo_counts(db, asset_ids):
+    """How many photographs each asset has, from one pass over the two folders.
+
+    A photo is <asset_id>.<ext> or <asset_id>-<something>.<ext>, so the stem is the
+    tag itself or the tag with a suffix -- and the tags are matched against the
+    register rather than guessed at with a regex, because an asset id is whatever
+    ids.py says it is and not a shape this function should be repeating."""
+    counts = {}
+    for kind in ("computers", "parts"):
+        for stem, _name in folder_images(kind):
+            aid = stem if stem in asset_ids else stem.rsplit("-", 1)[0]
+            if aid in asset_ids:
+                counts[aid] = counts.get(aid, 0) + 1
+    return counts
+
+
+def _curios(db, st, this_year):
+    """The shuffled half of /stats: every figure that has something to say today.
+
+    Each is skipped rather than shown empty, so the pool is what the collection can
+    currently answer -- a register with no acquisition dates simply never offers the
+    ones about waiting. The page draws a handful at random from what comes back."""
+    out = []
+
+    def add(k, v, s, href=None):
+        out.append({"k": k, "v": v, "s": s, "href": href})
+
+    def named(obj):
+        return entry.display_name(to_dict(obj))
+
+    rel = _maker_reliability(db)
+    if len(rel) >= 2:
+        best, worst = rel[0], rel[-1]
+        add("Most reliable maker", best[0],
+            f"{best[2]} of {best[1]} parts working",
+            f"/browse?f=maker&v={quote(best[0])}")
+        add("Least reliable maker", worst[0],
+            f"{worst[2]} of {worst[1]} parts working",
+            f"/browse?f=maker&v={quote(worst[0])}")
+
+    # The long wait: made one year, arrived another. Computers and parts together,
+    # because the record is the same record either way.
+    waits = []
+    for model in (Computer, Part):
+        for obj in (db.query(model)
+                    .filter(model.year.isnot(None), model.acquired_date.isnot(None))):
+            waits.append((obj.acquired_date.year - obj.year, obj))
+    waits = [w for w in waits if w[0] > 0]
+    if waits:
+        gap, obj = max(waits, key=lambda w: w[0])
+        kind = "computers" if isinstance(obj, Computer) else "parts"
+        add("Longest wait", f"{gap} years",
+            f"{named(obj)}, made {obj.year}, arrived {obj.acquired_date.year}",
+            f"/{kind}/{obj.asset_id}")
+
+    # Every floppy in every machine, as though each had a disk in it. Pure whimsy,
+    # and it says so: the drives are real, the disks are hypothetical.
+    #
+    # Floppies and Goteks only. The same column holds an optical drive's size and a
+    # card reader's, and a 4GB CF card among the 1.44s swamps the total: the first
+    # draft of this said 7189 MB, of which 7000 was two memory cards.
+    floppy_kb, floppy_n = 0, 0
+    for size, count in db.query(ComputerDrive.size, ComputerDrive.count).filter(
+            ComputerDrive.size != "",
+            ComputerDrive.kind.in_(("floppy", "Gotek"))):
+        kb = entry.to_kb(size)
+        if kb:
+            floppy_kb += kb * (count or 1)
+            floppy_n += count or 1
+    # Three drives is where adding them up starts being a joke rather than a sum;
+    # below that "if all 2 drives had a disk in them" is just arithmetic.
+    if floppy_kb and floppy_n >= 3:
+        add("Every floppy at once", f"{round(floppy_kb / 1024)} MB",
+            f"if all {floppy_n} drives had a disk in them",
+            "/browse?f=drives")
+
+    eventful = (db.query(LogEntry.asset_id, func.count(LogEntry.id))
+                .group_by(LogEntry.asset_id)
+                .order_by(func.count(LogEntry.id).desc()).first())
+    if eventful:
+        obj = db.get(Computer, eventful[0]) or db.get(Part, eventful[0])
+        if obj:
+            kind = "computers" if isinstance(obj, Computer) else "parts"
+            add("Most written about", named(obj),
+                f"{eventful[1]} entries in its history",
+                f"/{kind}/{obj.asset_id}")
+
+    lonely = [t for t, n, _v in st["types"] if n == 1]
+    if lonely:
+        # One is a thing; several is a count. "1 — categories with a single example:
+        # Peripheral" says the same word twice and names it in the small print.
+        add("One of a kind",
+            entry.type_label(lonely[0]) if len(lonely) == 1 else str(len(lonely)),
+            "the only one in the register" if len(lonely) == 1 else
+            "categories with a single example: "
+            + ", ".join(entry.type_label(t) for t in lonely[:3]),
+            f"/browse?f=type&v={quote(lonely[0])}")
+
+    ids = {a for (a,) in db.query(Computer.asset_id)} | {
+        a for (a,) in db.query(Part.asset_id)}
+    shots = _photo_counts(db, ids)
+    if shots:
+        aid, n = max(shots.items(), key=lambda kv: (kv[1], kv[0]))
+        obj = db.get(Computer, aid) or db.get(Part, aid)
+        if obj and n > 1:
+            kind = "computers" if isinstance(obj, Computer) else "parts"
+            add("Most photographed", named(obj), f"{n} pictures of it",
+                f"/{kind}/{obj.asset_id}")
+    bare = len(ids) - len(shots)
+    if bare:
+        add("Never photographed", str(bare),
+            f"{round(100 * bare / len(ids))}% of the register, waiting for a camera",
+            "/browse?f=nophotos")
+
+    makers = db.query(func.count(func.distinct(Part.manufacturer))).filter(
+        Part.manufacturer.isnot(None), Part.manufacturer != "").scalar() or 0
+    if makers:
+        add("Names on the parts", str(makers), "distinct makers in the register",
+            "/browse?f=parts")
+
+    # Counted in Python rather than grouped by YEAR(): the app runs on SQLite for
+    # local development as well as on MariaDB, and that function is not portable.
+    # At this size it is a few dozen dates either way.
+    arrivals = Counter(d.year for (d,) in db.query(Part.acquired_date)
+                       .filter(Part.acquired_date.isnot(None)))
+    if arrivals:
+        year, n = max(arrivals.items(), key=lambda kv: (kv[1], kv[0]))
+        if n > 1:
+            add("Busiest year for buying", str(year), f"{n} parts arrived",
+                "/browse?f=held")
+
+    source = (db.query(Part.source, func.count(Part.asset_id))
+              .filter(Part.source.isnot(None), Part.source != "")
+              .group_by(Part.source)
+              .order_by(func.count(Part.asset_id).desc()).first())
+    if source and source[1] > 1:
+        add("Where things come from", source[0], f"{source[1]} parts from there",
+            f"/browse?f=source&v={quote(source[0])}")
+
+    caps = [(kb, pid) for pid, kb in db.query(StorageSpec.part_id,
+                                              StorageSpec.capacity_kb)
+            .filter(StorageSpec.capacity_kb.isnot(None), StorageSpec.capacity_kb > 0)]
+    if len(caps) >= 2:
+        big, small = max(caps), min(caps)
+        add("Biggest and smallest disk",
+            f"{entry.fmt_kb(big[0], True)} / {entry.fmt_kb(small[0], True)}",
+            f"a factor of {round(big[0] / small[0]):,} between them",
+            "/browse?f=storage")
+
+    chips = (db.query(ComputerRamChip.computer_id, func.sum(ComputerRamChip.count))
+             .group_by(ComputerRamChip.computer_id)
+             .order_by(func.sum(ComputerRamChip.count).desc()).first())
+    if chips:
+        machine = db.get(Computer, chips[0])
+        if machine:
+            add("Most memory chips", named(machine),
+                f"{int(chips[1])} of them in one machine",
+                f"/computers/{machine.asset_id}")
+
+    longest, holder, holder_kind = 0, None, ""
+    for model, kind in ((Computer, "computers"), (Part, "parts")):
+        for obj in db.query(model):
+            name = named(obj)
+            if len(name) > longest:
+                longest, holder, holder_kind = len(name), obj, kind
+    if holder and longest > 20:
+        add("Longest name in the register", f"{longest} characters", named(holder),
+            f"/{holder_kind}/{holder.asset_id}")
+
+    # Not when this year is also the busiest: two tiles saying "48 parts, 2026" in
+    # one draw is the shuffle looking like it is broken.
+    if arrivals.get(this_year) and max(arrivals, key=arrivals.get) != this_year:
+        add(f"Arrived in {this_year}", str(arrivals[this_year]),
+            "parts so far this year", "/browse?f=held")
+
+    return out
+
+
 def _collection_stats(db):
     """Figures about the collection for the public /stats page. Everything here is
     counted from the typed columns and child tables rather than parsed out of
@@ -361,13 +580,34 @@ def _collection_stats(db):
     }
 
 
+# How many of the shuffled figures a visit gets. Six fills two rows on a wide
+# screen and still leaves the page's fixed figures as the page, rather than a
+# preamble to a slot machine.
+CURIOS_SHOWN = 6
+
+
 @app.get("/stats", response_class=HTMLResponse, include_in_schema=False)
 def gui_stats(request: Request, db: Session = Depends(get_db)):
+    this_year = date.today().year
     st = _collection_stats(db)
+    # A different handful each time the page is looked at. The pool is only the
+    # figures that have something to say today, so the sample is never padded with
+    # blanks; sample() rather than shuffle() because it also handles a pool smaller
+    # than the handful, which is what a young register has.
+    pool = _curios(db, st, this_year)
+    st["curios"] = random.sample(pool, min(CURIOS_SHOWN, len(pool)))
+    st["n_curios"] = len(pool)
+    rel = _maker_reliability(db)
+    # Shaped for the rank macro here rather than in the template: (label, bar, the
+    # value /browse needs). The macro takes rows, not a data model.
+    st["reliability_rank"] = [(maker, pct, maker) for maker, _n, _w, pct in rel]
+    st["reliability_min"] = RELIABILITY_MIN
+    # The description a crawler or a chat window sees is the collection, not
+    # whichever six figures this particular render drew.
     blurb = (f"{st['n_total']} things in the register: {st['n_computers']} machines "
              f"and {st['n_parts']} parts, averaging {st['mean_year']}.")
     return templates.TemplateResponse(request, "stats.html", {
-        "st": st, "this_year": date.today().year,
+        "st": st, "this_year": this_year,
         "og": _og(request, "The collection by numbers", blurb)})
 
 
@@ -1563,6 +1803,12 @@ def _browse_view(db, key: str, val: str):
     if key == "photos":
         return ("Photographed", "items with at least one photograph on file", None,
                 lambda r: bool(r["image"]))
+    if key == "nophotos":
+        return ("Not photographed yet", "everything still waiting for a camera",
+                None, lambda r: not r["image"])
+    if key == "source":
+        return (f"Came from {val}", "as recorded in the source field", None,
+                lambda r: (r["obj"].source or "") == val)
     if key == "maker":
         return (f"Parts made by {val}", "as recorded in the maker field", None,
                 lambda r: r["kind"] == "part" and (r["obj"].manufacturer or "") == val)

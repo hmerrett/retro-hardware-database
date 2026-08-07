@@ -804,6 +804,160 @@ class TestPickingTheBayADriveFits:
             in " ".join(page.split())
 
 
+class TestTheMakerLeagueTable:
+    """Most and least reliable maker. Reliability means one thing here -- the share
+    of a maker's parts recorded as Working -- and the entry conditions matter more
+    than the ranking does, because a league table nobody can see the rules of is
+    just an opinion with a bar chart."""
+
+    def table(self, db):
+        from app import main
+        return main._maker_reliability(db)
+
+    def stock(self, part, maker, working, broken, **extra):
+        for i in range(working):
+            part(manufacturer=maker, model=f"{maker}-w{i}", condition="Working", **extra)
+        for i in range(broken):
+            part(manufacturer=maker, model=f"{maker}-f{i}", condition="Faulty", **extra)
+
+    def test_best_record_first_worst_last(self, client, db, part):
+        self.stock(part, "Goodco", 6, 0)
+        self.stock(part, "Middling", 3, 3)
+        self.stock(part, "Dudco", 1, 5)
+        assert [r[0] for r in self.table(db)] == ["Goodco", "Middling", "Dudco"]
+        assert [r[3] for r in self.table(db)] == [100, 50, 17]
+
+    def test_a_maker_with_too_few_parts_does_not_qualify(self, client, db, part):
+        """One working card is not a record, and on a sample of one it would top
+        the table."""
+        from app import main
+        self.stock(part, "Tiny", main.RELIABILITY_MIN - 1, 0)
+        self.stock(part, "Realco", main.RELIABILITY_MIN, 0)
+        assert [r[0] for r in self.table(db)] == ["Realco"]
+
+    def test_a_tie_goes_to_the_bigger_sample(self, client, db, part):
+        """Equal records; the one who earned it over more parts has the better
+        case for it."""
+        self.stock(part, "Fewer", 5, 0)
+        self.stock(part, "More", 9, 0)
+        assert [r[0] for r in self.table(db)] == ["More", "Fewer"]
+
+    def test_unknown_is_not_a_maker(self, client, db, part):
+        """"Unknown" and "Generic" stand for "we do not know" and "nobody in
+        particular"; neither belongs in a league table of manufacturers."""
+        self.stock(part, "Unknown", 6, 0)
+        self.stock(part, "Generic", 6, 0)
+        self.stock(part, "Realco", 5, 1)
+        assert [r[0] for r in self.table(db)] == ["Realco"]
+
+    def test_restored_does_not_count_as_working(self, client, db, part):
+        """A part that had to be restored is evidence of the opposite."""
+        self.stock(part, "Fixedco", 3, 0)
+        for i in range(3):
+            part(manufacturer="Fixedco", model=f"r{i}", condition="Restored")
+        assert self.table(db)[0][3] == 50
+
+    def test_a_part_no_longer_here_is_not_counted(self, client, db, part):
+        """It may have been sold in perfect order; the register is what is here."""
+        gone = part(manufacturer="Goneco", model="g", condition="Faulty")["asset_id"]
+        self.stock(part, "Goneco", 5, 0)
+        client.post(f"/parts/{gone}/dispose", data={"note": "sold", "date": ""},
+                    follow_redirects=False)
+        assert self.table(db)[0] == ("Goneco", 5, 5, 100)
+
+    def test_the_bars_are_drawn_against_a_hundred(self, client, part):
+        """A percentage scaled to its own best row would draw 92% as a full bar and
+        read as "all of them"."""
+        self.stock(part, "Halfco", 3, 3)
+        self.stock(part, "Nearlyco", 5, 1)
+        page = client.get("/stats").text
+        # 5 of 6 is 83%, and 83% of a 100 ceiling is 83% of the track. Against the
+        # best row instead it would have been the full width.
+        assert 'style="width: 50.0%"' in page and 'style="width: 83.0%"' in page
+
+
+class TestTheShuffledFigures:
+    """The pointless department: a pool of figures, a handful drawn per visit. What
+    matters is that the pool only holds what the collection can currently answer,
+    and that every one of them leads somewhere real -- not just the six that
+    happened to come up on the render a test looked at."""
+
+    def pool(self, db):
+        from app import main
+        return main._curios(db, main._collection_stats(db), date.today().year)
+
+    def furnish(self, client, computer, part):
+        """Enough of everything that most of the pool has something to say."""
+        c = computer(year=1991, condition="Working", acquired_date="2026-05-01",
+                     manufacturer="IBM", model="PS/2", drives='2x 3.5" 1.44MB')
+        client.post(f"/computers/{c['asset_id']}/edit", data={"ramchip:41256": "18"},
+                    follow_redirects=False)
+        client.post(f"/computers/{c['asset_id']}/note", data={"message": "cleaned"},
+                    follow_redirects=False)
+        for i in range(6):
+            part(manufacturer="Goodco", model=f"g{i}", condition="Working",
+                 year=1988, acquired_date="2026-02-0%d" % (i + 1), source="a rally",
+                 computer_id=c["asset_id"])
+        for i in range(6):
+            part(manufacturer="Dudco", model=f"d{i}", condition="Faulty", year=1990)
+        part(type="storage", model="Big", specs="Kind: Hard disk | Capacity: 4GB")
+        part(type="storage", model="Small", specs="Kind: Hard disk | Capacity: 20MB")
+        return c
+
+    def test_every_figure_in_the_pool_leads_somewhere_real(self, client, db,
+                                                           computer, part):
+        """The page's own sweep only sees the handful it drew, and some of these
+        lead to an item page rather than to /browse, so neither is covered there."""
+        from app import main
+        self.furnish(client, computer, part)
+        pool = self.pool(db)
+        assert len(pool) > main.CURIOS_SHOWN      # or there is nothing to shuffle
+        for c in pool:
+            if c["href"]:
+                assert client.get(c["href"]).status_code == 200, (c["k"], c["href"])
+
+    def test_no_figure_is_offered_with_nothing_to_say(self, client, db):
+        """An empty register answers none of them rather than answering them
+        blank."""
+        assert self.pool(db) == []
+        assert client.get("/stats").status_code == 200
+
+    def test_only_a_handful_is_shown(self, client, db, computer, part):
+        from app import main
+        self.furnish(client, computer, part)
+        page = client.get("/stats").text
+        assert len(self.department(page)) == main.CURIOS_SHOWN
+        flat = " ".join(page.split())
+        assert f"of {len(self.pool(db))}" in flat      # and it says what it drew from
+
+    def test_a_different_draw_each_time(self, client, db, computer, part):
+        """Seeded rather than looked at twice and hoped over: two draws from the
+        same pool can legitimately coincide, and a test that fails once a fortnight
+        is worse than no test."""
+        import random
+        self.furnish(client, computer, part)
+        random.seed(1)
+        first = client.get("/stats").text
+        random.seed(2)
+        second = client.get("/stats").text
+        assert self.department(first) != self.department(second)
+
+    @staticmethod
+    def department(page):
+        body = page[page.index("The pointless department"):]
+        return re.findall(r'<div class="k">([^<]+)</div>', body)
+
+    def test_the_share_link_says_the_collection_not_the_draw(self, client, computer,
+                                                             part):
+        """Whichever six came up is not what a crawler or a chat window should
+        quote back."""
+        self.furnish(client, computer, part)
+        page = client.get("/stats").text
+        blurb = re.search(r'og:description" content="([^"]+)"', page).group(1)
+        assert "things in the register" in blurb
+
+
+
 class TestReadingTheInchMarkAsTyped:
     """A straight quote is what a keyboard gives; a phone or a Mac autocorrects it
     to a curly one, and ″ is the typographically correct prime. Six of the eight

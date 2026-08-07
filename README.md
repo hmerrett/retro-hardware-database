@@ -16,7 +16,7 @@ docker compose
 ├── mcp    MCP server                   (127.0.0.1:8001/mcp)
 │          list/get/create/update/delete tools over the REST API
 └── goaccess  traffic report from caddy's access log, rebuilt every minute
-           (volume: goaccess_report, served by the api at /stats)
+           (volume: goaccess_report, served by the api at /traffic)
 ```
 
 Anyone can browse the gallery and item pages at https://db.2600.me without
@@ -66,7 +66,23 @@ printed label instead and they walk the register in asset order.
 Our own photos are watermarked with the site logo as they are served (reference
 images are not). Set `RHDB_WATERMARK=0` to serve everything untouched.
 
-`/stats` (login required) shows the GoAccess traffic report.
+`/stats` is the collection by numbers, and public: totals, a handful of ranked
+charts, and "the pointless department" -- a pool of figures nobody needs (most and
+least reliable maker, the longest wait between a thing being made and arriving
+here, what every floppy would hold if each had a disk in it) from which the page
+draws six at random on each visit, so a figure too silly to earn permanent space
+still gets seen. A figure only joins the pool when it has something to say, so a
+young register offers fewer rather than offering blanks, and every one links to
+the items behind it like the rest of the page.
+
+Reliability there means one thing: the share of a maker's parts recorded as
+Working. Not "Restored" -- a part that had to be restored is evidence of the
+opposite -- and only parts still in the register, since a disposed one may have
+been sold in perfect order. Makers need five parts to qualify, "Unknown" and
+"Generic" are not makers, and the caption on the page says so, because a league
+table whose entry conditions are hidden is an opinion with a bar chart.
+
+`/traffic` (login required) shows the GoAccess traffic report.
 
 ## Data model
 

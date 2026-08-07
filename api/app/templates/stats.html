@@ -14,8 +14,16 @@
   hover -- because a page of numbers should read as numbers, not as a page of links.
 #}
 
-{% macro rank(title, caption, rows, unit='', f='') %}
-  {% set top = (rows | map(attribute=1) | max) if rows else 1 %}
+{% macro rank(title, caption, rows, unit='', f='', full=0, suffix='') %}
+  {# `full` scales the bars against a fixed ceiling instead of the biggest row --
+     which is what a percentage needs. Scaled to its own maximum, a table topped by
+     92% would draw that as a full bar and read as "all of them".
+
+     `suffix` goes on the figure itself, for the one measure that needs it: these
+     charts sit side by side, and a bare 100 beside a neighbouring bare 20 does not
+     say which of them is a percentage. A count needs no such help -- "20 parts"
+     against every row is the noise the caption exists to avoid. #}
+  {% set top = full or ((rows | map(attribute=1) | max) if rows else 1) %}
   <div class="rank">
     <h3>{{ title }}</h3>
     <p class="cap">{{ caption }}</p>
@@ -26,7 +34,7 @@
           >{{ label }}</a>{% else %}{{ label }}{% endif %}</td>
         <td class="bar"><div class="track"><div class="fill"
             style="width: {{ (100 * n / top) | round(1) }}%"></div></div></td>
-        <td class="num">{{ n }}</td>
+        <td class="num">{{ n }}{{ suffix }}</td>
       </tr>
       {% endfor %}
     </table>
@@ -123,7 +131,37 @@
     <div class="s">binned, sold or donated</div></a>
 </div>
 
+{% if st.curios %}
+{# The shuffled half. Same tiles, same quiet links -- what changes is that the page
+   picks a different handful out of the hat each time it is looked at, so a figure
+   too silly to earn permanent space on the page still gets seen occasionally. #}
+<div class="flex" style="margin-top:26px">
+  <h2 style="margin:0;font-size:17px">The pointless department</h2>
+  <span class="muted" style="font-size:13px">{{ st.curios | length }} of
+    {{ st.n_curios }}, drawn fresh each time you look —
+    <a href="/stats">shuffle</a></span>
+</div>
+<div class="tiles">
+  {% for c in st.curios %}
+  {% if c.href %}<a class="tile" href="{{ c.href }}">{% else %}<div class="tile">{% endif %}
+    <div class="k">{{ c.k }}</div>
+    <div class="v">{{ c.v }}</div>
+    <div class="s">{{ c.s }}</div>
+  {% if c.href %}</a>{% else %}</div>{% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="ranks">
+  {% if st.reliability_rank | length >= 2 %}
+  {# Percentages, so the bars are drawn against 100 rather than against the best
+     row: the question is how close to all of them, not how each compares to the
+     leader. One hue, like every other chart here -- the job is magnitude. #}
+  {{ rank('Makers, by how much of it still works',
+          'share recorded as Working, makers with ' ~ st.reliability_min ~
+          '+ parts still here',
+          st.reliability_rank, '%', 'maker', 100, '%') }}
+  {% endif %}
   {{ rank('Makers, by parts held', 'the eight best represented', st.makers, 'parts',
           'maker') }}
   {{ rank('What the parts are', 'every category in the register', st.types_labelled,
