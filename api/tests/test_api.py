@@ -697,15 +697,15 @@ class TestHowBigTheDriveIsOnItsLabel:
     def test_a_drive_says_how_big_it_is(self, client, db, part):
         aid = part(type="storage", manufacturer="Seagate", model="ST-225",
                    specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
-        assert self.body(db, aid) == "Seagate ST-225, 20 MB"
+        assert self.body(db, aid) == ("Seagate ST-225", ["20 MB"])
 
     def test_a_drive_with_no_capacity_recorded_just_says_what_it_is(self, client, db,
                                                                    part):
         """Half the drives on file have no capacity against them; none of them should
-        pick up a stray comma waiting for one."""
+        get a blank line held open for one."""
         aid = part(type="storage", manufacturer="Mitsumi", model="D503V",
                    specs="Kind: Floppy/Gotek")["asset_id"]
-        assert self.body(db, aid) == "Mitsumi D503V"
+        assert self.body(db, aid) == ("Mitsumi D503V", [])
 
     def test_capacity_worked_out_from_the_geometry_counts_too(self, client, db, part):
         """A drive recorded by its cylinders/heads/sectors has its capacity derived
@@ -713,14 +713,14 @@ class TestHowBigTheDriveIsOnItsLabel:
         38 MB drive, and the label says so rather than reciting the KB."""
         aid = part(type="storage", manufacturer="Quantum", model="LPS 52A",
                    specs="Kind: Hard disk | CHS: 571/8/17")["asset_id"]
-        assert self.body(db, aid) == "Quantum LPS 52A, 37.9 MB"
+        assert self.body(db, aid) == ("Quantum LPS 52A", ["37.9 MB", "CHS 571/8/17"])
 
     def test_other_kinds_of_part_are_left_alone(self, client, db, part):
         """Only the types whose name does not say the thing you want off the label.
         A video card's memory is on the full label, where there is room for it."""
         aid = part(type="video", manufacturer="Trident", model="8900C",
                    specs="Memory: 1 MB")["asset_id"]
-        assert self.body(db, aid) == "Trident 8900C"
+        assert self.body(db, aid) == ("Trident 8900C", [])
 
     def test_a_machine_is_left_alone(self, client, computer):
         from app import labels, main
@@ -732,7 +732,7 @@ class TestHowBigTheDriveIsOnItsLabel:
             c = main.to_dict(s.get(Computer, aid))
         finally:
             s.close()
-        assert labels.small_body(c, True) == "Acme PC-1"
+        assert labels.small_body(c, True) == ("Acme PC-1", [])
 
     def test_the_full_label_still_lists_it_among_the_specs(self, client, db, part):
         from app import labels, main, specdb
@@ -749,6 +749,76 @@ class TestHowBigTheDriveIsOnItsLabel:
         r = client.get(f"/parts/{aid}/label.pdf")
         assert r.status_code == 200
         assert r.content.startswith(b"%PDF")
+
+
+class TestTheCapacityGetsALineOfItsOwn:
+    """On its own line rather than trailing the name, so a shelf of drives reads
+    down the capacities instead of finding each one wherever the name stopped
+    wrapping. Which means the line has to be budgeted for, not hoped for.
+    """
+
+    @staticmethod
+    def laid_out(title, tags, avail_mm=13.0):
+        """The body lines a small label would draw, at the size chosen for them."""
+        from reportlab.lib.units import mm
+        from reportlab.pdfgen import canvas
+
+        from app import labels
+        c = canvas.Canvas("/dev/null")
+        _, bfont = labels._fonts()
+        # The body column on a 51x19mm label, and the height under the asset id.
+        return labels._small_body_lines(c, title, tags, bfont, 69.4, avail_mm * mm)
+
+    def test_the_capacity_is_the_last_line(self):
+        _, lines = self.laid_out("Seagate ST-225", ["20 MB"])
+        assert lines[-1] == "20 MB"
+        assert "20 MB" not in lines[0]
+
+    def test_the_longest_name_on_file_still_leaves_room(self):
+        """It takes three lines of its own; the capacity gets a fourth, and on a
+        51x19mm label all four fit without the type having to give."""
+        long_name = "Magnetic Peripheraps Inc 91455-36"
+        size, lines = self.laid_out(long_name, ["20 MB"])
+        assert lines[-1] == "20 MB"
+        assert " ".join(lines[:-1]) == long_name      # nothing of the name lost
+        assert size == 6.5
+
+    def test_where_the_height_does_run_short_the_type_gives_first(self):
+        """Squeezed, it shrinks the name to buy the capacity its line rather than
+        dropping the line."""
+        long_name = "Magnetic Peripheraps Inc 91455-36"
+        size, lines = self.laid_out(long_name, ["20 MB"], avail_mm=9.0)
+        assert lines[-1] == "20 MB"
+        assert size < 6.5
+
+    def test_nothing_is_held_open_when_there_is_no_capacity(self):
+        _, lines = self.laid_out("Copal / Fujitsu F-5002-3728", [])
+        assert lines == ["Copal / Fujitsu", "F-5002-3728"]
+
+    def test_the_capacity_survives_a_name_that_cannot_fit_at_all(self):
+        """Past the point where shrinking helps, the name is clipped and the capacity
+        is kept -- on a drive it is the thing being looked for."""
+        _, lines = self.laid_out(" ".join(["Fujitsu Siemens Computers"] * 6), ["540 MB"])
+        assert lines[-1] == "540 MB"
+
+    def test_a_label_with_barely_any_room_still_says_something(self):
+        """Rather than dividing by a line count of zero, or drawing off the label."""
+        _, lines = self.laid_out("Seagate ST-225", ["20 MB"], avail_mm=1.0)
+        assert lines and all(lines)
+
+    def test_the_geometry_gets_a_line_under_the_capacity(self):
+        """An old BIOS wants cylinders/heads/sectors before it will talk to the
+        drive, so it goes on the label with them -- prefixed, because three numbers
+        with no word in front of them could be anything."""
+        _, lines = self.laid_out("Quantum LPS 52A", ["50 MB", "CHS 571/8/17"])
+        assert lines[-2:] == ["50 MB", "CHS 571/8/17"]
+
+    def test_the_capacity_outranks_the_geometry_when_only_one_fits(self):
+        """Squeezed past shrinking the type, the last line is the one to go."""
+        _, lines = self.laid_out("Quantum ProDrive LPS 52A",
+                                 ["50 MB", "CHS 571/8/17"], avail_mm=4.5)
+        assert "50 MB" in lines
+        assert "CHS 571/8/17" not in lines
 
 
 class TestWhereAFigureIsRoundedAndWhereItIsNot:

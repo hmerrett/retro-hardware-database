@@ -31,10 +31,14 @@ BUILD_ROWS = [("cpu", "CPU"), ("ram", "Memory"), ("video", "Video"),
 # The one spec that stands for a whole part, where a machine's label has room for
 # only a line each.
 SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
-# The small label has no room for a spec list at all -- but a bare drive on a shelf
-# is known by how big it is as much as by what it says on the casing, so for those
-# the same headline spec rides along with the name.
-SMALL_SPEC_TYPES = ("storage",)
+# The small label has no room for a spec list -- but a bare drive on a shelf is
+# known by how big it is, and by the geometry you need before an old BIOS will talk
+# to it, as much as by what is printed on the casing. Those get lines of their own,
+# in this order: squeezed for height, the last is what goes.
+#
+# Each carries the prefix it needs to be unmistakable at arm's length. A capacity
+# says its own unit; a geometry is three numbers that could otherwise be anything.
+SMALL_SPECS = {"storage": (("Capacity", ""), ("CHS", "CHS "))}
 
 
 def _pairs_of(part):
@@ -163,20 +167,22 @@ def computer_lines(comp, parts, form_factor=""):
 
 
 def small_body(asset, is_computer, spec_pairs=None):
-    """The small label's text below the asset id: the display name, and for the
-    types whose name does not say the thing you actually want off the label, the
-    headline spec after it. Nothing is added when that spec is not recorded."""
+    """(name, [spec lines]) for the small label's text below the asset id.
+
+    Separate values rather than one sentence: each spec goes on a line of its own,
+    so a shelf of drives reads down the capacities instead of finding each one at
+    whatever point the name happened to stop wrapping. The list is empty for the
+    types whose name already says what you want, and holds only what is recorded.
+    """
     name = display_name(asset)
-    ptype = asset.get("type", "")
-    if is_computer or ptype not in SMALL_SPEC_TYPES:
-        return name
+    wanted = () if is_computer else SMALL_SPECS.get(asset.get("type", ""), ())
+    if not wanted:
+        return name, []
     if spec_pairs is None:
         spec_pairs = parse_specs(asset.get("specs", ""))
-    value = (dict(spec_pairs).get(SPEC_PICK[ptype]) or "").strip()
-    # A comma, not a hyphen or a middle dot. A hyphen muddles with the ones inside
-    # model numbers ("ST-225 - 20 MB"), and the label wraps on spaces, so a dot can
-    # be left stranded at the end of a line where a comma simply reads as one.
-    return f"{name}, {value}" if value else name
+    have = dict(spec_pairs)
+    return name, [prefix + value for key, prefix in wanted
+                  if (value := (have.get(key) or "").strip())]
 
 
 def part_lines(part, spec_pairs=None):
@@ -233,7 +239,28 @@ def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont):
     c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
 
 
-def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0):
+def _small_body_lines(c, title, tags, bfont, tw, avail):
+    """(size, lines) for a small label's body: the name wrapped, then each spec on a
+    line of its own.
+
+    The type size is chosen against the height actually available with those lines
+    already counted, so a long name shrinks the type rather than pushing a spec off
+    the label -- on a drive the specs are what is being looked for. The name always
+    keeps at least one line, and where even the floor will not fit, it is the name
+    that is clipped and the last spec that is dropped.
+    """
+    size = 6.5
+    while True:
+        room = max(1, int(avail // (size + 1.5)))
+        keep = list(tags[:max(0, room - 1)])
+        for_name = max(1, room - len(keep))
+        lines = _wrap(c, title, bfont, size, tw)
+        if len(lines) <= for_name or size <= 4.5:
+            return size, [*lines[:for_name], *keep]
+        size -= 0.5
+
+
+def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=()):
     my = 1.2 * mm
     mx = my + safe * mm
     c.setFillColorRGB(0, 0, 0)
@@ -246,8 +273,8 @@ def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0):
     y = H - my - aid_size
     c.setFont(hfont, aid_size)
     c.drawString(tx, y, asset_id)
-    bsize = _fit_lines(c, title, bfont, 6.5, 4.5, tw, 3)
-    for line in _wrap(c, title, bfont, bsize, tw)[:3]:
+    bsize, lines = _small_body_lines(c, title, tags, bfont, tw, y - my)
+    for line in lines:
         if y - (bsize + 1.5) < my:
             break
         y -= bsize + 1.5
@@ -270,9 +297,9 @@ def render_pdf(asset, parts, is_computer, small=False, form_factor="",
     c.saveState()
     _apply_rotation(c, spec["w"], spec["h"], spec["rotate"])
     if small:
-        _render_small(c, spec["w"], spec["h"], asset["asset_id"],
-                      small_body(asset, is_computer, spec_pairs), url,
-                      hfont, bfont, spec.get("safe_mm", 0))
+        name, tags = small_body(asset, is_computer, spec_pairs)
+        _render_small(c, spec["w"], spec["h"], asset["asset_id"], name, url,
+                      hfont, bfont, spec.get("safe_mm", 0), tags=tags)
     else:
         lines = (computer_lines(asset, parts, form_factor) if is_computer
                  else part_lines(asset, spec_pairs))
