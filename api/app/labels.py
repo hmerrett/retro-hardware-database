@@ -36,9 +36,21 @@ SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
 # to it, as much as by what is printed on the casing. Those get lines of their own,
 # in this order: squeezed for height, the last is what goes.
 #
+# Each entry is one line, and a line may join more than one spec where the two are
+# read as one thing: a floppy drive is "a 3.5-inch 1.44MB", never a 3.5-inch on one
+# line and a 1.44MB on another -- and joined, they cannot be separated by the squeeze
+# that drops the last line, which would leave the less useful half behind.
+#
 # Each carries the prefix it needs to be unmistakable at arm's length. A capacity
-# says its own unit; a geometry is three numbers that could otherwise be anything.
-SMALL_SPECS = {"storage": (("Capacity", ""), ("CHS", "CHS "))}
+# and a form factor say their own units; a geometry is three numbers that could
+# otherwise be anything.
+#
+# One table serves both sorts of drive because the keys do not overlap: a disk has
+# a Capacity and a CHS, a floppy has a Form factor and a Size, and each takes the
+# lines the other leaves empty.
+SMALL_SPECS = {"storage": ((("Capacity", ""),),
+                           (("CHS", "CHS "),),
+                           (("Form factor", ""), ("Size", "")))}
 
 
 def _pairs_of(part):
@@ -187,8 +199,13 @@ def small_body(asset, is_computer, spec_pairs=None):
     if spec_pairs is None:
         spec_pairs = parse_specs(asset.get("specs", ""))
     have = dict(spec_pairs)
-    return name, [prefix + value for key, prefix in wanted
-                  if (value := (have.get(key) or "").strip())]
+    lines = []
+    for group in wanted:
+        said = [prefix + value for key, prefix in group
+                if (value := (have.get(key) or "").strip())]
+        if said:
+            lines.append(" ".join(said))
+    return name, lines
 
 
 def part_lines(part, spec_pairs=None):

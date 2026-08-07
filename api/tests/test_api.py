@@ -688,6 +688,146 @@ class TestPickingAFloppySCapacity:
         assert "Size: 720K" in specs and "1.44MB" not in specs
 
 
+class TestPickingTheBayADriveFits:
+    """The form factor, the same way: a closed list of three, offered rather than
+    typed. Unlike the capacity it fits every drive that lives on the drives field
+    -- an optical drive is 5.25" as surely as a floppy is 3.5"."""
+
+    def add(self, client, kind="Floppy/Gotek", **extra):
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": kind} | extra,
+                        follow_redirects=False)
+        return r.headers["location"]
+
+    def specs(self, client, aid):
+        return client.get(f"/api/parts/{aid}").json()["specs"]
+
+    def test_the_pick_lands_on_the_machines_drive_row(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc="floppy", drive_form='3.5"',
+                 drive_size="1.44MB")
+        assert client.get(f"/api/computers/{cid}").json()["drives"] \
+            == '3.5" 1.44MB floppy'
+
+    def test_the_picker_wins_over_the_description(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc="5.25in 360K floppy",
+                 drive_form='3.5"')
+        drives = client.get(f"/api/computers/{cid}").json()["drives"]
+        assert '3.5"' in drives and "5.25" not in drives
+
+    def test_picking_nothing_leaves_what_the_description_said(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc="5.25in 360K floppy",
+                 drive_form="")
+        assert '5.25"' in client.get(f"/api/computers/{cid}").json()["drives"]
+
+    def test_an_optical_drive_gets_one_too(self, client):
+        """The capacity picker is a floppy's alone; this one is not."""
+        aid = self.add(client, kind="Optical", drive_desc="Sony CDU55",
+                       drive_form='5.25"').rsplit("/", 1)[-1]
+        assert 'Form factor: 5.25"' in self.specs(client, aid)
+
+    def test_a_hard_disk_ignores_a_stale_pick(self, client):
+        aid = self.add(client, kind="Hard disk", spec_capacity="540 MB",
+                       drive_form='3.5"').rsplit("/", 1)[-1]
+        assert "Form factor:" not in self.specs(client, aid)
+
+    def test_custom_records_a_bay_the_list_does_not_name(self, client):
+        """An Amstrad CF-2 is a 3" disk, and drivedb's parser reads a typed 3" as
+        3.5" -- the shorthand it has always meant. Picked, it is not guessed at."""
+        aid = self.add(client, drive_desc="Amstrad CF-2", drive_form="custom",
+                       drive_form_custom='3"').rsplit("/", 1)[-1]
+        assert 'Form factor: 3"' in self.specs(client, aid)
+
+    def test_a_description_that_names_no_kind_gets_one_from_the_menu(
+            self, client, computer):
+        """drivedb infers "floppy" from a size only a floppy has -- but it infers
+        while reading the text, and "Sony MPF920" names neither a kind nor a size.
+        Picked rather than typed, the facts arrive after that rule has run, so the
+        row came out with no kind at all."""
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc="Sony MPF920",
+                 drive_form='3.5"', drive_size="1.44MB")
+        assert client.get(f"/api/computers/{cid}").json()["drives"] \
+            == 'Sony MPF920 3.5" 1.44MB floppy'
+
+    def test_an_optical_drive_is_not_called_a_floppy(self, client, computer):
+        """Which is why the menu answers rather than the 5.25" being taken as
+        proof: early CD-ROM drives are 5.25" too."""
+        cid = computer()["asset_id"]
+        self.add(client, kind="Optical", computer_id=cid, drive_desc="Sony CDU55",
+                 drive_form='5.25"')
+        assert client.get(f"/api/computers/{cid}").json()["drives"] \
+            == 'Sony CDU55 5.25" optical'
+
+    def test_a_kind_the_description_does_name_is_left_alone(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc="Gotek emulator",
+                 drive_form='3.5"')
+        assert "Gotek" in client.get(f"/api/computers/{cid}").json()["drives"]
+
+    def test_the_form_reopens_on_the_pick(self, client):
+        aid = self.add(client, drive_desc="floppy",
+                       drive_form='5.25"').rsplit("/", 1)[-1]
+        flat = " ".join(client.get(f"/parts/{aid}/edit").text.split())
+        assert 'value="5.25&#34;" checked' in flat or 'value="5.25"" checked' in flat
+
+    def test_the_typed_box_cannot_outgrow_the_column_it_lands_in(self, client):
+        """The drive row's form_factor is a String(16); a picker that let you type
+        more than that would fail on save rather than on the form."""
+        from app.models import ComputerDrive
+        page = client.get("/parts/new?type=storage").text
+        assert f'name="drive_form_custom" maxlength="{ComputerDrive.form_factor.type.length}"' \
+            in " ".join(page.split())
+        assert f'name="drive_size_custom" maxlength="{ComputerDrive.size.type.length}"' \
+            in " ".join(page.split())
+
+
+class TestAFloppySSmallLabel:
+    """A drive on a shelf is known by the disk it takes. The small label carried a
+    hard disk's capacity and geometry but nothing at all for a floppy, whose two
+    facts live under different spec keys."""
+
+    def body(self, specs):
+        """The (name, spec lines) a small label would carry for a drive recorded
+        like this. A mapping rather than keywords, because "Form factor" is two
+        words on the label as it is in the spec key."""
+        from app import labels
+        rendered = " | ".join(f"{k}: {v}" for k, v in specs.items())
+        return labels.small_body(
+            {"asset_id": "RH-0031", "name": "Sony MPF920-E", "type": "storage",
+             "specs": rendered}, False)
+
+    def test_the_bay_and_the_disk_share_one_line(self):
+        """They are read as one thing -- "a 3.5-inch 1.44MB" -- and joined they
+        cannot be split by the squeeze that drops the last line, which would
+        otherwise leave the less useful half behind."""
+        _, lines = self.body({"Form factor": '3.5"', "Size": "1.44MB"})
+        assert lines == ['3.5" 1.44MB']
+
+    def test_either_alone_still_says_what_it_knows(self):
+        assert self.body({"Form factor": '5.25"'})[1] == ['5.25"']
+        assert self.body({"Size": "1.2MB"})[1] == ["1.2MB"]
+
+    def test_a_drive_with_neither_holds_no_line_open(self):
+        assert self.body({"Kind": "Floppy/Gotek"})[1] == []
+
+    def test_a_hard_disk_reads_as_it_always_did(self):
+        """One table serves both because the keys do not overlap."""
+        _, lines = self.body({"Capacity": "1281 MB", "CHS": "2482/16/63"})
+        assert lines == ["1281 MB", "CHS 2482/16/63"]
+
+    def test_it_reaches_the_printed_label(self, client):
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Floppy/Gotek",
+                              "drive_desc": "Sony MPF920", "drive_form": '3.5"',
+                              "drive_size": "1.44MB"}, follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        pdf = client.get(f"/parts/{aid}/label.pdf?small=1")
+        assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
+
+
 class TestSpecs:
     def test_writing_specs_canonicalises_the_string(self, part):
         p = part(type="sound", specs="Interface: ISA | Chip: ES1869F")

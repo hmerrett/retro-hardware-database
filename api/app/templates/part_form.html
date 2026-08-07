@@ -11,6 +11,31 @@
   {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
 {% endmacro %}
 
+{# A short closed list, offered rather than typed, with a box for the hardware the
+   list does not name -- revealed by "custom" alone, by the script at the foot of
+   the form. What is already recorded chooses itself, and an answer outside the
+   list chooses "custom" and fills the box, so a form reopens on what it saved.
+   maxlength is the width of the drive-row column the answer may end up in: a
+   picker that let you type more than the column holds would fail on save. #}
+{% macro pick(field, key, label, hint, options, placeholder, note, maxlength) %}
+  {% set cur = spec_keys.get(key, '') %}
+  {% set custom = cur and cur not in options %}
+  <label>{{ label }} <span class="muted">({{ hint }})</span></label>
+  <div class="checks">
+    <label><input type="radio" name="{{ field }}" value=""
+                  {{ ' checked' if not cur else '' }}> not recorded</label>
+    {% for o in options %}
+    <label><input type="radio" name="{{ field }}" value="{{ o }}"
+                  {{ ' checked' if o == cur else '' }}> {{ o }}</label>
+    {% endfor %}
+    <label><input type="radio" name="{{ field }}" value="custom"
+                  {{ ' checked' if custom else '' }}> custom</label>
+  </div>
+  <input id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
+         value="{{ cur if custom else '' }}" placeholder="{{ placeholder }}" hidden>
+  <p class="hint">{{ note }}</p>
+{% endmacro %}
+
 <datalist id="dl_form_factors">{% for o in vocab.form_factors %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_cpu_families">{% for o in vocab.cpu_families %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_card_ifaces">{% for o in vocab.card_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
@@ -68,30 +93,22 @@ until you submit.</p>
          opens on the description already written rather than on an empty box. #}
       <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
              placeholder="e.g. 3.5in 1.44MB floppy; Sony CDU55">
-      {# The capacity, picked rather than typed. Only a floppy's is one of these
-         designations, so the group appears for that kind alone -- an optical drive
-         is not a 720K anything. #}
-      {% set cursize = spec_keys.get('Size', '') %}
-      {% set custom = cursize and cursize not in drive_sizes %}
+      {# The bay it fits, and what the disk is called. A form factor fits any drive
+         that lives on the drives field -- an optical drive is 5.25" as surely as a
+         floppy is 3.5" -- so it is offered here for all of them; the capacities are
+         floppy media designations, so that group appears for that kind alone. #}
+      {{ pick('drive_form', 'Form factor', 'Form factor', 'the bay it fits',
+              drive_forms, 'e.g. 3" (Amstrad CF-2), 2.5"',
+              'a size named in the description ("3.5in") is read from there too;
+               the picker wins over the text where both say something.',
+              drive_form_max) }}
       <div id="drive-size" hidden>
-        <label>Capacity <span class="muted">(what the disk is called, not a measured size)</span></label>
-        <div class="checks">
-          <label><input type="radio" name="drive_size" value=""
-                        {{ ' checked' if not cursize else '' }}> not recorded</label>
-          {% for s in drive_sizes %}
-          <label><input type="radio" name="drive_size" value="{{ s }}"
-                        {{ ' checked' if s == cursize else '' }}> {{ s }}</label>
-          {% endfor %}
-          <label><input type="radio" name="drive_size" value="custom"
-                        {{ ' checked' if custom else '' }}> custom</label>
-        </div>
-        {# Revealed by "custom", because the list names the disks this hardware
-           actually takes and the ones it does not are worth typing out. #}
-        <input id="drive_size_custom" name="drive_size_custom"
-               value="{{ cursize if custom else '' }}"
-               placeholder="e.g. 21MB Floptical, 120MB LS-120" hidden>
-        <p class="hint">a capacity named in the description ("1.44MB") is read from
-          there too; the picker wins over the text where both say something.</p>
+        {{ pick('drive_size', 'Size', 'Capacity',
+                'what the disk is called, not a measured size',
+                drive_sizes, 'e.g. 21MB Floptical, 120MB LS-120',
+                'a capacity named in the description ("1.44MB") is read from there
+                 too; the picker wins over the text where both say something.',
+                drive_size_max) }}
       </div>
       <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
       {# The same menus the machine's own form has, because this is where a drive is
@@ -269,20 +286,20 @@ until you submit.</p>
   }
 
   // "custom" reveals the box it needs, and takes the cursor there; the standard
-  // designations need no box at all.
-  (function () {
-    const custom = document.getElementById('drive_size_custom');
+  // answers need no box at all.
+  ['drive_form', 'drive_size'].forEach(function (name) {
+    const custom = document.getElementById(name + '_custom');
     if (!custom) return;
     function show(focus) {
-      const on = document.querySelector('input[name=drive_size]:checked');
+      const on = document.querySelector('input[name=' + name + ']:checked');
       custom.hidden = !(on && on.value === 'custom');
       if (focus && !custom.hidden) custom.focus();
     }
-    document.querySelectorAll('input[name=drive_size]').forEach(function (r) {
+    document.querySelectorAll('input[name=' + name + ']').forEach(function (r) {
       r.addEventListener('change', function () { show(true); });
     });
     show(false);
-  })();
+  });
 
   // Entering a make and model already in the collection almost always means a
   // second of the same thing, so offer to start from it rather than retyping its

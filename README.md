@@ -84,16 +84,30 @@ it has yellowed since. Storage parts record the same two things, as their `Colou
 and `Yellowing` specs, so a drive on the shelf and one fitted in a machine are
 described alike.
 
-A floppy's capacity is picked rather than typed: the designations this hardware
-actually takes (`drivedb.SIZES`, 160K through 2.88MB) as a row of radio buttons,
-with a "custom" box for the ones the list does not name -- a Floptical, an LS-120.
-The pick is a deliberate answer, so it beats a capacity mentioned in the drive's
-description, the same rule the bezel menus follow; picking nothing leaves the
-description to say it. Routed to a machine it becomes the row's `size`; kept as a
-part it is the drive's `Size` spec. It is a media designation and not a quantity,
-so unlike a memory `Size` it never normalises to KB: 1.44MB is 1475 KB only by
-convention, and nobody calls that disk a 1475 KB. The picker is offered for
-`Floppy/Gotek` alone, since an optical drive is not a 720K anything.
+A drive's bay and the disk it takes are picked rather than typed, as two short
+closed lists of radio buttons with a "custom" box each for the hardware the list
+does not name: the form factor (`drivedb.FORM_FACTORS`, 5.25"/3.5"/8", custom for
+a 3" Amstrad CF-2) and, for a floppy, the capacity (`drivedb.SIZES`, 160K through
+2.88MB, custom for a Floptical or an LS-120). A form factor fits every drive that
+lives on the drives field, since an optical drive is 5.25" as surely as a floppy is
+3.5"; the capacities are floppy media designations, so that picker is offered for
+`Floppy/Gotek` alone. A pick is a deliberate answer, so it beats the same thing
+said in the drive's description -- the rule the bezel menus follow -- and picking
+nothing leaves the description to say it. Routed to a machine they become the
+row's `form_factor` and `size`; kept as a part they are the drive's `Form factor`
+and `Size` specs. A `Size` here is a media designation and not a quantity, so
+unlike a memory `Size` it never normalises to KB: 1.44MB is 1475 KB only by
+convention, and nobody calls that disk a 1475 KB.
+
+Because the picks arrive after the description has been read, a description naming
+no kind ("Sony MPF920") no longer reaches drivedb's rule that a floppy-only size
+means a floppy. The kind menu that routed the drive answers instead, read back
+through drivedb's own vocabulary, and only where the text did not say -- which is
+also why an early 5.25" CD-ROM drive is not filed as a floppy.
+
+The small label carries those two on one line, `3.5" 1.44MB`, the way a drive is
+spoken of; a hard disk's capacity and CHS geometry keep a line each as before. One
+table in `labels.SMALL_SPECS` serves both, because the keys do not overlap.
 
 Both vocabularies live in `app/entry.py` -- the factory shades from black through
 the greys to the beiges, and the yellowing levels from lightly through browned to

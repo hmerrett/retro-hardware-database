@@ -2070,8 +2070,13 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
             "storage_kinds": entry.STORAGE_KINDS, "storage_protocols": entry.STORAGE_PROTOCOLS,
             "peripheral_interfaces": entry.PERIPHERAL_INTERFACES,
         },
-        # The floppy capacities to pick from, and the one kind they belong to.
-        "drive_sizes": drivedb.SIZES, "floppy_kind": entry.FLOPPY_KIND,
+        # What the routed-drive block's two pickers offer, and the kind whose
+        # capacities those are. Column widths so a typed "custom" answer cannot be
+        # longer than the drive row it may end up in.
+        "drive_forms": drivedb.FORM_FACTORS, "drive_sizes": drivedb.SIZES,
+        "floppy_kind": entry.FLOPPY_KIND,
+        "drive_form_max": ComputerDrive.form_factor.type.length,
+        "drive_size_max": ComputerDrive.size.type.length,
         **_bezel_ctx(),
         "slot_names": entry.SLOT_NAMES, "port_names": entry.PORT_NAMES,
         "mb_slots": mb_slots, "mb_ram": mb_ram, "mb_ports": mb_ports,
@@ -2175,9 +2180,9 @@ def _assemble_specs(ptype, form, extra=()):
         "sound": ["Chip", "Interface", "FM", "Ports"],
         "network": ["Chip", "Interface", "Connector"],
         "io": ["Chip", "Interface", "Ports"],
-        "storage": ["Kind", "Description", "Size", "Interface", "Protocol",
-                    "Capacity", "CHS", "Media", "Speed", "Role", "Colour",
-                    "Yellowing"],
+        "storage": ["Kind", "Description", "Form factor", "Size", "Interface",
+                    "Protocol", "Capacity", "CHS", "Media", "Speed", "Role",
+                    "Colour", "Yellowing"],
     }.get(ptype)
     # 'other' / 'peripheral' keep a free-text specs box (no data loss).
     if managed is None:
@@ -2193,13 +2198,10 @@ def _assemble_specs(ptype, form, extra=()):
         # 'Type' spec vs the part type, etc.).
         field = fields.get(key) or (
             "spec_" + key.lower().replace(" ", "_").replace("/", "_"))
-        if key == "Size" and ptype == "storage":
+        if ptype == "storage" and key in DRIVE_PICKS:
             # Picked from a radio group with a box beside it, not typed into one
-            # input -- and read only for a floppy, so an optical drive left with a
-            # radio still checked from a kind since changed cannot come away
-            # holding '1.44MB'.
-            raw = (_picked_drive_size(form)
-                   if (form.get("kind", "") or "") == entry.FLOPPY_KIND else "")
+            # input, and read only for the kinds the group is offered for.
+            raw = _picked_drive(form, key)
         else:
             raw = (form.get(field, "") or "").strip()
         if not raw:
@@ -2217,27 +2219,61 @@ def _assemble_specs(ptype, form, extra=()):
     return _append_unmanaged(specs, extra, managed)
 
 
-def _picked_drive_size(form):
-    """The capacity the picker chose: one of the standard media designations, or
-    whatever was typed beside "custom" for a drive the list does not name (a
-    Floptical, an LS-120). Blank when nothing was picked, which leaves the
-    description to say it."""
-    picked = (form.get("drive_size", "") or "").strip()
+# The routed-drive block's pick-or-type groups: the spec key each fills, the form
+# field it is named for, the drive row column it becomes, and the kind it is
+# offered for (None for any drive that lives on the drives field). A form factor
+# fits every such drive -- an optical drive is 5.25" as surely as a floppy is 3.5"
+# -- while the capacities on offer are floppy media designations and fit a floppy.
+DRIVE_PICKS = {
+    "Form factor": ("drive_form", "form_factor", None),
+    "Size": ("drive_size", "size", entry.FLOPPY_KIND),
+}
+
+
+def _picked_drive(form, key):
+    """What one of those groups chose: one of the standard answers, or whatever was
+    typed beside "custom" for the hardware the list does not name (a 3" Amstrad, a
+    Floptical). Blank when nothing was picked, which leaves the description to say
+    it -- and blank for a kind the group is not offered for, so a radio left
+    checked from a kind since changed is not saved against a drive it never
+    described."""
+    field, _col, only = DRIVE_PICKS[key]
+    kind = form.get("kind", "") or ""
+    if kind in entry.PART_STORAGE_KINDS or (only and kind != only):
+        return ""
+    picked = (form.get(field, "") or "").strip()
     if picked == "custom":
-        return " ".join((form.get("drive_size_custom", "") or "").split())
+        return " ".join((form.get(field + "_custom", "") or "").split())
     return picked
 
 
-def _apply_drive_picks(rows, colour, yellowing, size=""):
+def _apply_drive_picks(form, rows):
     """Put what the pickers chose on drives just read from a typed description.
 
     A picker is a deliberate answer, so it wins over the same thing said in the
     text; a blank one leaves what the text said. Two drives typed at once get the
-    same answers, which is the only reading a single set of pickers can have."""
+    same answers, which is the only reading a single set of pickers can have.
+
+    And the kind, where the description named none. drivedb infers "floppy" from a
+    size or a form factor only a floppy has, but it infers it while reading the
+    text -- so a description like "Sony MPF920", which names neither, used to leave
+    a row with no kind, and picking the size rather than typing it does not reach
+    that rule. The menu that routed the drive here has already said which kind it
+    is, so let it answer: read through drivedb's own vocabulary rather than a
+    second mapping of the same words, and only where the text did not say.
+    """
+    picks = {col: _picked_drive(form, key)
+             for key, (_f, col, _only) in DRIVE_PICKS.items()}
+    picks["colour"] = form.get("drive_colour", "") or ""
+    picks["yellowing"] = form.get("drive_yellowing", "") or ""
+    # The first word of the menu's label: "Floppy/Gotek" and "SD/CF card" are pairs
+    # of alternatives that drivedb reads as neither, and a Gotek names itself.
+    menu = (form.get("kind", "") or "").split("/")[0]
+    from_menu = (drivedb.parse_segment(menu) or {}).get("kind", "")
     for row in rows:
-        row["colour"] = (colour or "").strip() or row.get("colour", "")
-        row["yellowing"] = (yellowing or "").strip() or row.get("yellowing", "")
-        row["size"] = (size or "").strip() or row.get("size", "")
+        for col, picked in picks.items():
+            row[col] = picked.strip() or row.get(col, "")
+        row["kind"] = row.get("kind", "") or from_menu
 
 
 async def _part_from_form(form, ptype, extra=()):
@@ -2270,14 +2306,12 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
             # word, which is a word it knows. Picking only a capacity and typing
             # no description is an ordinary gesture now the picker exists.
             desc = (form.get("drive_desc", "") or "").strip() or kind.split("/")[0]
-            size = (_picked_drive_size(form) if kind == entry.FLOPPY_KIND else "")
             if computer_id:
                 c = get_or_404(db, Computer, computer_id)
                 # Append a row, not text: drives is rendered from the rows, so
                 # anything written straight to it would vanish on the next save.
                 added = drivedb.from_string(desc)[0]
-                _apply_drive_picks(added, form.get("drive_colour", ""),
-                                   form.get("drive_yellowing", ""), size)
+                _apply_drive_picks(form, added)
                 drivedb.write(db, c, drivedb.read(db, c) + added)
                 # The canonical rendering rather than what was typed, so the history
                 # names the bezel that was picked from the menus as well.
