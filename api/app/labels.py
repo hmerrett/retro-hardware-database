@@ -74,8 +74,14 @@ def _fonts():
 
 
 def _qr(data, error="M"):
+    # micro=False, or segno picks a Micro QR whenever the data is short enough for
+    # one -- and most readers, the scanner on the gallery included, decode standard
+    # QR only. Any URL is comfortably too long to trigger it, so this is not load
+    # bearing today; it is here so that encoding something short one day (a bare
+    # asset tag is a Micro QR) cannot quietly print labels nothing will read.
     buf = io.BytesIO()
-    segno.make(data, error=error.lower()).save(buf, kind="png", scale=10, border=1)
+    segno.make(data, error=error.lower(), micro=False).save(
+        buf, kind="png", scale=10, border=1)
     buf.seek(0)
     return ImageReader(buf)
 

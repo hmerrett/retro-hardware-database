@@ -751,6 +751,45 @@ class TestHowBigTheDriveIsOnItsLabel:
         assert r.content.startswith(b"%PDF")
 
 
+class TestALabelSCodeCanActuallyBeRead:
+    """The codes are the point of the labels, and the gallery now reads them with a
+    camera as well as a phone's own app. Both decode standard QR only.
+    """
+
+    # A Micro QR at the scale and border the labels use is at most (17+2)x10 px
+    # across; the smallest standard symbol is (21+2)x10.
+    LARGEST_MICRO_PX = (17 + 2) * 10
+
+    def test_a_code_is_never_a_micro_qr(self):
+        """Left to itself segno reaches for a Micro QR whenever the data will fit in
+        one, and most readers cannot decode those. No URL is anywhere near short
+        enough to trigger it, so this guards the day something short is encoded
+        rather than a break anyone would see now."""
+        import segno
+
+        from app import labels
+        tag = "RH-0001"
+        assert segno.make(tag, error="m").is_micro          # what segno would choose
+        w, h = labels._qr(tag).getSize()                    # what the label gets
+        assert w == h and w > self.LARGEST_MICRO_PX
+
+    def test_the_url_on_a_label_is_a_full_size_code_too(self):
+        from app import labels
+        w, _ = labels._qr(labels.item_url("RH-0001")).getSize()
+        assert w > self.LARGEST_MICRO_PX
+
+    def test_the_code_holds_the_url_that_resolves_to_either_kind(self, client,
+                                                                 computer, part):
+        """/items/<tag> is what the scanner navigates to and what the printed code
+        says, so it has to keep working for a machine and for a part alike."""
+        from app import labels
+        for aid, kind in ((computer()["asset_id"], "computers"),
+                          (part()["asset_id"], "parts")):
+            assert labels.item_url(aid).endswith(f"/items/{aid}/")
+            r = client.get(f"/items/{aid}", follow_redirects=False)
+            assert r.headers["location"].endswith(f"/{kind}/{aid}")
+
+
 class TestTheCapacityGetsALineOfItsOwn:
     """On its own line rather than trailing the name, so a shelf of drives reads
     down the capacities instead of finding each one wherever the name stopped
