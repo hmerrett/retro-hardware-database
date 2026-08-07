@@ -70,9 +70,11 @@ def _image_size(image_rel: str):
     """(width, height) of a stored image, or None. Lets link previews (Discord
     especially) render the large image immediately without a probe fetch."""
     try:
-        from PIL import Image
+        from PIL import Image, ImageOps
         with Image.open(IMAGES_DIR / image_rel) as im:
-            return im.size
+            # As served, which is upright: a photo lying on its side in the file
+            # would otherwise be announced to a preview the wrong way round.
+            return ImageOps.exif_transpose(im).size
     except Exception:
         return None
 
@@ -467,6 +469,10 @@ WM_SCALE = 0.216
 WM_MIN_PX = 41
 WM_OPACITY = 0.55
 WM_MARGIN = 0.03
+# Bumped when the compositing itself changes rather than the numbers above, so the
+# cache misses and every copy is rebuilt. 2: EXIF orientation is baked in, which
+# every photo cached before it was is missing.
+WM_BUILD = 2
 
 # The cache lives under a directory named after those numbers, and after the mark
 # itself. A cached copy is otherwise only rebuilt when its source photo changes, so
@@ -476,7 +482,7 @@ WM_MARGIN = 0.03
 # the artwork's hash is in there because a new site icon is a new watermark, and
 # every photo already served carries the old one.
 WM_CACHE = (IMAGES_DIR / ".wm"
-            / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}-i{_file_ver(WM_SRC)}")
+            / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}-b{WM_BUILD}-i{_file_ver(WM_SRC)}")
 
 if WATERMARK:
     WM_CACHE.mkdir(parents=True, exist_ok=True)
@@ -486,8 +492,14 @@ if WATERMARK:
 
 
 def _make_watermark(src_path: Path, dst_path: Path):
-    from PIL import Image
-    base = Image.open(src_path).convert("RGBA")
+    from PIL import Image, ImageOps
+    # Bake in EXIF orientation, exactly as editing a photo does. This copy is
+    # re-encoded without the EXIF block, so a photo whose pixels lie on their side
+    # and say so only in that block would be served -- and shown -- on its side.
+    # Worse than looking wrong: a crop dragged on that view was being mapped onto
+    # the upright original, so it kept a different region of the photo altogether.
+    with Image.open(src_path) as src:
+        base = ImageOps.exif_transpose(src).convert("RGBA")
     w, h = base.size
     mark = Image.open(WM_SRC).convert("RGBA")
     target = max(WM_MIN_PX, int(min(w, h) * WM_SCALE))

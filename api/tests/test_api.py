@@ -1310,6 +1310,80 @@ class TestWatermark:
         assert str(main.WM_SCALE) in main.WM_CACHE.name
         assert str(main.WM_MIN_PX) in main.WM_CACHE.name
 
+    def test_the_cache_is_keyed_on_the_compositing_too(self):
+        """Changing how the copy is made, rather than the numbers it is made with,
+        also has to miss the old cache -- baking in the orientation did."""
+        from app import main
+        assert f"b{main.WM_BUILD}" in main.WM_CACHE.name
+
+
+class TestAPhotoLyingOnItsSide:
+    """A phone writes the pixels landscape and says "turn me" in an EXIF tag. The
+    served copy is re-encoded without that tag, so the turn has to be applied before
+    it is written. Left off, the photo was shown on its side -- and a crop dragged on
+    that view was mapped onto the upright original, keeping a different region of the
+    photo altogether: off centre, and the wrong shape.
+    """
+
+    ORIENT = 6      # "turn 90° clockwise to view"
+    SIZE = (1200, 900)   # landscape pixels, so it should be served 900x1200
+
+    def upload(self, client, aid):
+        import io
+
+        from PIL import Image, ImageDraw
+        im = Image.new("RGB", self.SIZE, (40, 40, 50))
+        d = ImageDraw.Draw(im)
+        d.rectangle([0, 0, 300, 220], fill=(220, 60, 60))
+        exif = im.getexif()
+        exif[274] = self.ORIENT
+        buf = io.BytesIO()
+        im.save(buf, "JPEG", quality=90, exif=exif)
+        buf.seek(0)
+        client.post(f"/parts/{aid}/photo",
+                    files={"photos": ("phone.jpeg", buf, "image/jpeg")},
+                    follow_redirects=False)
+        return f"parts/{aid}.jpeg"
+
+    def served(self, client, rel):
+        import io
+
+        from PIL import Image
+        return Image.open(io.BytesIO(client.get(f"/images/{rel}").content))
+
+    def test_it_arrives_the_way_up_it_should_be_seen(self, client, part):
+        aid = part()["asset_id"]
+        rel = self.upload(client, aid)
+        assert self.served(client, rel).size == (self.SIZE[1], self.SIZE[0])
+
+    def test_a_crop_keeps_the_region_it_was_dragged_over(self, client, part):
+        """The box arrives as fractions of the photo as displayed, so it has to land
+        on the same way up that the serving path produced. Deliberately off centre:
+        a centred box stays centred even when the two disagree, and hides this."""
+        from PIL import Image
+
+        from app import main
+        aid = part()["asset_id"]
+        rel = self.upload(client, aid)
+        sw, sh = self.served(client, rel).size
+        x, y, w, h = 0.10, 0.55, 0.40, 0.30
+        client.post(f"/parts/{aid}/photo-crop",
+                    data={"image": rel, "x": x, "y": y, "w": w, "h": h},
+                    follow_redirects=False)
+        # Rounded the way the crop rounds, from the size the browser was given.
+        want = (round((x + w) * sw) - round(x * sw),
+                round((y + h) * sh) - round(y * sh))
+        with Image.open(main.IMAGES_DIR / rel) as out:
+            assert out.size == want
+
+    def test_a_preview_is_told_the_size_that_will_arrive(self, client, part):
+        """The og:image dimensions let a link preview lay the image out without
+        fetching it, so they have to describe the copy that is actually served."""
+        from app import main
+        aid = part()["asset_id"]
+        self.upload(client, aid)
+        assert main._image_size(f"parts/{aid}.jpeg") == (self.SIZE[1], self.SIZE[0])
+
 
 class TestStartingFromAnExistingPart:
     """Entering a make and model already in the collection usually means a second
