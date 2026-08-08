@@ -392,6 +392,27 @@
   .inline-form { display: inline; }
   .notebar { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap; }
   .notebar input { flex: 1; min-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+
+  /* Last, so it outranks the sizes set above. iOS zooms the page in when it
+     focuses a control whose text is under 16px, and does not zoom back out when
+     the box is left -- so on a phone every tap on a field left the page scaled up
+     and scrolled sideways, and you had to pinch your way back. The site's own
+     type is 14px and the search box 13px, so every one of them tripped it.
+
+     Hand touch devices 16px controls rather than pin the viewport: the usual
+     `maximum-scale=1` also stops the zoom, but takes pinch-zoom away with it, and
+     the photo lightbox is the last place on this site to do that. Typing on a
+     phone at 16px is no bad thing anyway; on a pointer it stays 14 and nothing
+     about the desktop layout moves. Every rule that sets a control's size is
+     restated here because they are more specific than a bare `input` would be. */
+  @media (pointer: coarse) {
+    input, select, textarea,
+    form.edit input, form.edit select, form.edit textarea,
+    form.edit .countgrid input, table.drives input, table.drives select,
+    header .hdr-search input[type=search],
+    .toolbar input[list], .toolbar select,
+    .photo-actions input[name=note], .notebar input { font-size: 16px; }
+  }
 </style>
 <script>
   try {
