@@ -274,6 +274,11 @@
   .iconbtn.lbl-l svg { width: 19px; height: 19px; }
   .hdr-actions { display: inline-flex; align-items: center; gap: 6px; align-self: center; }
   .hdr-actions form { margin: 0; }
+  /* A destructive button says so at rest, not only under the pointer: the whole
+     value of the colour is being read before the click, not during it. (The
+     icon-button variant above stays plain until hover on purpose -- a row of
+     photo tools would be all warning and no hierarchy otherwise.) */
+  .btn.danger { color: #b45300; border-color: #b45300aa; }
   .btn.danger:hover { background: #b4530033; border-color: #b45300aa; }
   .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
     font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; pointer-events: none; }

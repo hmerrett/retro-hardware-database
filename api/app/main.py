@@ -34,8 +34,9 @@ from sqlalchemy.orm import Session
 from . import drivedb, enrich, entry, labels, ramdb, specdb, specstruct
 from .db import get_db
 from .ids import next_asset_id
-from .models import (Computer, ComputerDrive, ComputerRamChip, LogEntry, Part,
-                     PartPort, PartSlot, StorageSpec)
+from .models import (Computer, ComputerDrive, ComputerRamChip,
+                     ComputerRamModule, LogEntry, Part, PartPort, PartSlot,
+                     StorageSpec)
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
 import contextlib
 
@@ -159,8 +160,9 @@ def _is_api_path(path: str) -> bool:
 
 def _is_public_read(request: Request) -> bool:
     """Anonymous visitors get read-only GETs: the gallery, item pages, photos and
-    static assets. Editing GETs (new/edit forms, labels), the JSON API and /docs
-    stay private, and every write (POST/PATCH/DELETE) requires login."""
+    static assets. Editing GETs (new/edit forms, delete confirmations, labels),
+    the JSON API and /docs stay private, and every write (POST/PATCH/DELETE)
+    requires login."""
     if request.method != "GET":
         return False
     path = request.url.path
@@ -173,7 +175,8 @@ def _is_public_read(request: Request) -> bool:
     if path.startswith("/items/"):
         return True
     if path.startswith(("/computers/", "/parts/")):
-        return not (path.endswith("/new") or "/edit" in path or "/label.pdf" in path)
+        return not (path.endswith(("/new", "/delete"))
+                    or "/edit" in path or "/label.pdf" in path)
     return False
 
 
@@ -1034,11 +1037,12 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
 
 @app.delete("/api/computers/{aid}", tags=["computers"])
 def api_delete_computer(aid: str, db: Session = Depends(get_db)):
+    """Delete a computer. The parts inside it are unlinked, not deleted; its
+    photos, drive/memory rows and history go with it (see delete_computer). The
+    API deletes any computer -- the disposed-only rule and the confirmation are
+    the GUI's, where a delete is a click rather than a deliberate request."""
     obj = get_or_404(db, Computer, aid)
-    db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
-    db.delete(obj)
-    db.commit()
-    return {"deleted": aid}
+    return {"deleted": aid, "photos": len(delete_computer(db, obj))}
 
 
 # --- JSON API: parts -------------------------------------------------------
@@ -1104,11 +1108,10 @@ def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)):
 
 @app.delete("/api/parts/{aid}", tags=["parts"])
 def api_delete_part(aid: str, db: Session = Depends(get_db)):
+    """Delete a part, with its typed spec rows, photos and history. Anything
+    mounted on it is unlinked, not deleted."""
     obj = get_or_404(db, Part, aid)
-    db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
-    db.delete(obj)
-    db.commit()
-    return {"deleted": aid}
+    return {"deleted": aid, "photos": len(delete_part(db, obj))}
 
 
 @app.get("/api/items/{aid}/log", tags=["log"])
@@ -1378,6 +1381,90 @@ def _delete_image(kind, asset_id, rel):
         if remaining:
             new_primary = _set_primary_photo(kind, asset_id, remaining[0])
     return was_primary, new_primary
+
+
+# --- deleting a record for good ---------------------------------------------
+# Disposal says an item has left the collection and keeps its record; this is the
+# other thing, for when the record itself should not exist -- a duplicate, a
+# mistake, something scrapped that was never worth a line. Only a disposed item
+# can be deleted through the GUI, so the ordinary way to lose something is still
+# the reversible one.
+#
+# Everything pointing at the asset is cleared before its own row goes, rather
+# than leaving it to the foreign keys. Three reasons: what another item's history
+# should say about losing its link is a judgement no cascade can make; the
+# confirmation page can only promise what this code actually does; and the
+# cascades are MariaDB's, while the tests run on SQLite, where they hold only
+# while a PRAGMA does.
+
+def _purge_photos(rels):
+    """Delete photo files, each with its reference sidecar and cached watermark.
+    Called after the rows are safely gone -- a file cannot be rolled back."""
+    for rel in rels:
+        with contextlib.suppress(OSError):
+            _ref_sidecar(rel).unlink(missing_ok=True)
+        with contextlib.suppress(OSError):
+            (IMAGES_DIR / rel).unlink(missing_ok=True)
+        _wm_forget(rel)
+
+
+def _clear_part_rows(db, part, also_going=()):
+    """Everything in the database belonging to one part, and the links other parts
+    hold to it. Returns its photos, for the caller to delete once the transaction
+    is safe. `also_going` names assets being deleted in the same breath, which are
+    not told they have lost a link they are about to stop having."""
+    aid = part.asset_id
+    for child in db.query(Part).filter(Part.parent_id == aid).all():
+        if child.asset_id in also_going:
+            continue
+        child.parent_id = None
+        add_log(db, child.asset_id, f"came off {aid}, which was deleted")
+    for model in specdb.SPEC_TABLES:
+        db.query(model).filter(model.part_id == aid).delete(synchronize_session=False)
+    db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
+    photos = detect_images("parts", aid)
+    db.delete(part)
+    return photos
+
+
+def _clear_computer_rows(db, c, with_parts=()):
+    """The same for a computer: its drive and memory rows, its history, and either
+    the parts inside it or the link they hold to it. `with_parts` is the parts to
+    delete along with it; the rest are unlinked and kept."""
+    aid = c.asset_id
+    going = {p.asset_id for p in with_parts}
+    photos = []
+    # The same walk disposal uses, so that what a delete calls "in the machine" is
+    # what disposal called it: a disk on a controller card carries the card's id,
+    # not the machine's. A kept part only needs the link it holds to the machine
+    # cleared here -- one held to a part that is going is cleared by that part.
+    for p in _parts_in_computer(db, aid):
+        if p.asset_id in going:
+            photos += _clear_part_rows(db, p, also_going=going)
+        elif p.computer_id == aid:
+            p.computer_id = None
+            add_log(db, p.asset_id, f"came out of {aid}, which was deleted")
+    for model in (ComputerDrive, ComputerRamModule, ComputerRamChip):
+        db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
+    db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
+    photos += detect_images("computers", aid)
+    db.delete(c)
+    return photos
+
+
+def delete_part(db, part):
+    """Delete a part and commit. Returns the photos that went with it."""
+    photos = _clear_part_rows(db, part)
+    db.commit()  # the rows first: if this raises, the photos are still there
+    _purge_photos(photos)
+    return photos
+
+
+def delete_computer(db, c, with_parts=()):
+    photos = _clear_computer_rows(db, c, with_parts)
+    db.commit()
+    _purge_photos(photos)
+    return photos
 
 
 def _edit_image(kind, asset_id, rel, fn):
@@ -2109,6 +2196,72 @@ async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
+# --- the GUI's delete, with its safety net ----------------------------------
+
+def _require_disposed(obj, kind):
+    """Only a disposed item can be deleted from the GUI. Disposal is reversible
+    and deletion is not, so the reversible step is made a precondition of the
+    other: whatever is about to go has already been marked as gone once, on
+    purpose, on an earlier day."""
+    if not obj.disposed:
+        raise HTTPException(
+            400, f"{obj.asset_id} is still in the collection. Mark it disposed "
+                 f"first -- only a disposed {kind} can be deleted.")
+
+
+def _confirms_url(text, kind, aid) -> bool:
+    """The safety net: the item's own URL, pasted in. Nothing about this asks the
+    database a question it does not already know the answer to -- the point is to
+    make deleting the wrong thing take a deliberate act, so that a delete cannot
+    be a stray click on a page somebody landed on by accident.
+
+    What the address bar holds is accepted from any host, with any query or
+    fragment, and so is the bare path, because all three are the same act of
+    fetching the thing's identity. The asset id itself has to be right."""
+    path = urlparse((text or "").strip()).path.rstrip("/")
+    return path.upper() == f"/{kind}/{aid}".upper()
+
+
+def _log_count(db, asset_ids):
+    if not asset_ids:
+        return 0
+    return (db.query(func.count(LogEntry.id))
+            .filter(LogEntry.asset_id.in_(asset_ids)).scalar() or 0)
+
+
+def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
+    """What deleting this would take with it, for the confirmation page. Read with
+    the same queries the deletion itself runs, so the page cannot promise one
+    thing and the button do another.
+
+    The item's own figures and the contents' are kept apart rather than summed
+    against the tick, so both are on the page whichever way the tick is set and
+    neither needs a script to keep them honest."""
+    aid = obj.asset_id
+    inside = children = []
+    if kind == "computers":
+        inside = _parts_in_computer(db, aid)
+    else:
+        children = (db.query(Part).filter(Part.parent_id == aid)
+                    .order_by(Part.asset_id).all())
+    # A part inside the machine that is not itself disposed is not deleted even
+    # when the box is ticked: it is still in the collection, and the rule here is
+    # that only what has already been marked as gone can go.
+    deletable = [p for p in inside if p.disposed]
+    return {"kind": kind, "obj": obj, "aid": aid,
+            "name": entry.display_name(to_dict(obj)),
+            "url": _abs_url(request, f"/{kind}/{aid}"),
+            "photos": detect_images(kind, aid),
+            "logs": _log_count(db, [aid]),
+            "inside": inside, "deletable": deletable,
+            "kept": [p for p in inside if not p.disposed],
+            "parts_photos": sum(len(detect_images("parts", p.asset_id))
+                                for p in deletable),
+            "parts_logs": _log_count(db, [p.asset_id for p in deletable]),
+            "children": children, "with_parts": with_parts, "error": error,
+            "noindex": True}
+
+
 @app.post("/computers/{aid}/dispose", include_in_schema=False)
 async def gui_dispose_computer(aid: str, request: Request,
                                db: Session = Depends(get_db)):
@@ -2137,6 +2290,34 @@ def gui_restore_computer(aid: str, db: Session = Depends(get_db)):
     add_log(db, aid, "restored" + _and_parts(n, "came back too"))
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
+
+
+@app.get("/computers/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)
+def gui_delete_computer_form(aid: str, request: Request, db: Session = Depends(get_db)):
+    c = get_or_404(db, Computer, aid)
+    _require_disposed(c, "computer")
+    return templates.TemplateResponse(request, "delete.html",
+                                      _delete_ctx(request, db, "computers", c))
+
+
+@app.post("/computers/{aid}/delete", include_in_schema=False)
+async def gui_delete_computer(aid: str, request: Request,
+                              db: Session = Depends(get_db)):
+    c = get_or_404(db, Computer, aid)
+    _require_disposed(c, "computer")
+    form = await request.form()
+    with_parts = bool(form.get("with_parts"))
+    if not _confirms_url(form.get("confirm", ""), "computers", c.asset_id):
+        # Back to the page rather than an error: a paste that went wrong is the
+        # ordinary way to arrive here, and the tick keeps whatever it was set to.
+        return templates.TemplateResponse(
+            request, "delete.html",
+            _delete_ctx(request, db, "computers", c, with_parts=with_parts,
+                        error="That is not this item's URL. Nothing was deleted."),
+            status_code=400)
+    ctx = _delete_ctx(request, db, "computers", c, with_parts=with_parts)
+    delete_computer(db, c, with_parts=ctx["deletable"] if with_parts else ())
+    return RedirectResponse("/", status_code=303)
 
 
 @app.post("/computers/{aid}/note", include_in_schema=False)
@@ -2740,6 +2921,32 @@ def gui_restore_part(aid: str, db: Session = Depends(get_db)):
     add_log(db, aid, "restored")
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
+
+
+@app.get("/parts/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)
+def gui_delete_part_form(aid: str, request: Request, db: Session = Depends(get_db)):
+    p = get_or_404(db, Part, aid)
+    _require_disposed(p, "part")
+    return templates.TemplateResponse(request, "delete.html",
+                                      _delete_ctx(request, db, "parts", p))
+
+
+@app.post("/parts/{aid}/delete", include_in_schema=False)
+async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_db)):
+    p = get_or_404(db, Part, aid)
+    _require_disposed(p, "part")
+    form = await request.form()
+    if not _confirms_url(form.get("confirm", ""), "parts", p.asset_id):
+        return templates.TemplateResponse(
+            request, "delete.html",
+            _delete_ctx(request, db, "parts", p,
+                        error="That is not this item's URL. Nothing was deleted."),
+            status_code=400)
+    # Back to the machine it was in if it was in one, since that page is now a
+    # part short and is the thing worth looking at; otherwise to the gallery.
+    where = f"/computers/{p.computer_id}" if p.computer_id else "/"
+    delete_part(db, p)
+    return RedirectResponse(where, status_code=303)
 
 
 @app.post("/parts/{aid}/note", include_in_schema=False)

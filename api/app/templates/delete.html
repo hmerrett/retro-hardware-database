@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{# The confirmation standing between a disposed item and its record being gone.
+   It lists what will go before asking, and asks for the item's own URL rather
+   than a yes: a delete should cost a deliberate act, not a click. #}
+{% block title %}Delete {{ aid }} — Retro Hardware Database{% endblock %}
+{% block content %}
+{% set noun = 'computer' if kind == 'computers' else 'part' %}
+<div class="crumbnav"><a href="/{{ kind }}/{{ aid }}">&larr; back to {{ aid }}</a></div>
+
+<h2 style="margin:0 0 2px">Delete {{ name }}</h2>
+<p class="muted" style="margin:0 0 14px">{{ aid }} · disposed{% if obj.disposed_at %} {{ obj.disposed_at }}{% endif %}</p>
+
+{% if error %}<div class="banner">{{ error }}</div>{% endif %}
+
+<div class="danger-box">
+  <p style="margin:0 0 8px"><strong>This cannot be undone.</strong> Disposing an item
+  can be reversed; this removes the record itself, and there is no restore.</p>
+
+  <ul class="going">
+    <li>the {{ noun }}'s own record, and everything filed under it</li>
+    {% if photos %}
+    <li><strong>{{ photos | length }}</strong> photo{{ '' if photos | length == 1 else 's' }}
+      deleted from disk</li>
+    {% endif %}
+    {% if logs %}
+    <li><strong>{{ logs }}</strong> history entr{{ 'y' if logs == 1 else 'ies' }}</li>
+    {% endif %}
+    {% if kind == 'computers' %}
+      {% if inside %}
+      {# "in it" rather than "installed in it": the count follows disposal's walk,
+         which includes a disk mounted on a controller card mounted in the machine. #}
+      <li><strong>{{ inside | length }}</strong> part{{ '' if inside | length == 1 else 's' }}
+        in it — kept, and unlinked, unless you tick the box below</li>
+      {% endif %}
+    {% elif children %}
+      <li><strong>{{ children | length }}</strong> part{{ '' if children | length == 1 else 's' }}
+        mounted on it — kept, and unlinked:
+        {% for c in children %}<a href="/parts/{{ c.asset_id }}">{{ c.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}</li>
+    {% endif %}
+  </ul>
+
+  <form method="post" action="/{{ kind }}/{{ aid }}/delete" class="edit">
+    {% if deletable %}
+    <div class="checks" style="margin: 12px 0 0">
+      <label><input type="checkbox" name="with_parts" value="1"{{ ' checked' if with_parts else '' }}>
+        <span>also delete the {{ deletable | length }} disposed
+          part{{ '' if deletable | length == 1 else 's' }} that went with it</span></label>
+    </div>
+    <p class="hint" style="margin-left: 22px">
+      {% for p in deletable %}<a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}
+      — a further {{ parts_photos }} photo{{ '' if parts_photos == 1 else 's' }}
+      and {{ parts_logs }} history entr{{ 'y' if parts_logs == 1 else 'ies' }}.
+    </p>
+    {% endif %}
+    {% if kept %}
+    <p class="hint">{{ kept | length }} part{{ ' is' if kept | length == 1 else 's are' }}
+      still in the collection and will be kept whatever you tick
+      ({% for p in kept %}<a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}) —
+      dispose {{ 'it' if kept | length == 1 else 'them' }} first if {{ 'it' if kept | length == 1 else 'they' }} should go too.</p>
+    {% endif %}
+
+    <label for="confirm" style="margin-top: 14px">Paste this {{ noun }}'s URL to confirm</label>
+    <p class="confirm-url"><code>{{ url }}</code></p>
+    {# No placeholder holding the answer: a greyed-out copy of the URL in the box
+       reads as one already typed, which is the opposite of what this asks for. #}
+    <input id="confirm" name="confirm" autocomplete="off" autocapitalize="off"
+           spellcheck="false" placeholder="paste it here" required>
+
+    <div class="flex" style="margin-top: 14px; gap: 8px">
+      <a class="btn" href="/{{ kind }}/{{ aid }}">cancel</a>
+      <button class="btn danger" type="submit">delete this {{ noun }}</button>
+    </div>
+  </form>
+</div>
+
+<style>
+  .danger-box { border: 1px solid #b45300aa; border-radius: 8px; padding: 14px 16px;
+    margin: 12px 0; max-width: 620px; }
+  .danger-box ul.going { margin: 0; padding-left: 20px; }
+  .danger-box ul.going li { margin: 3px 0; }
+  /* Selectable on its own line: it is there to be copied, and a line of its own
+     is the difference between a double-click taking the URL and taking a word. */
+  .confirm-url { margin: 2px 0 6px; }
+  .confirm-url code { user-select: all; word-break: break-all; }
+</style>
+{% endblock %}

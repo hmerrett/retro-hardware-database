@@ -31,7 +31,8 @@ image; a per-photo "reference image" marker for a picture of the same model
 rather than this exact unit, badged with the source site's favicon; a dated
 history for every asset (automatic change records plus free-text notes);
 printable label PDFs; duplicating an item; marking one disposed and restoring it;
-and a build walk that steps through a machine's motherboard and cards.
+deleting a disposed record for good; and a build walk that steps through a
+machine's motherboard and cards.
 
 The search bar sits in the banner, so a search starts from whatever page you are
 on. Enter hands the query to the server, which reads every field of every item
@@ -55,6 +56,19 @@ Disposing a machine disposes what is in it -- the parts installed in it and
 anything mounted on those in turn -- on the same date and for the same reason.
 A part already disposed keeps its own record, and restoring the machine brings
 back only the parts that went out with it.
+
+Disposal is how something leaves the collection while keeping its record. For
+when the record itself should not exist -- a duplicate, a mistake, a thing
+scrapped that was never worth a line -- a disposed item can be deleted outright
+from the banner on its page. Only a disposed one: the reversible step is a
+precondition of the irreversible one, so nothing goes that has not already been
+marked as gone once, deliberately, on an earlier day. The confirmation lists what
+will go (photos are deleted from disk, history with them) and asks for the item's
+own URL to be pasted in, which makes a delete a deliberate act rather than a
+stray click. Whatever pointed at it is unlinked first and keeps a line in its own
+history saying why it is suddenly standing alone; a machine's disposed parts can
+be deleted along with it by ticking a box, while any part still in the collection
+is kept whatever the box says.
 
 Photos upload as soon as they are chosen -- picking them is the whole gesture.
 

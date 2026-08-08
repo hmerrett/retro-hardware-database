@@ -29,6 +29,7 @@
   {% if request.state.authed %}
   <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/restore">
     <button class="btn sm" type="submit">restore</button></form>
+  <a class="btn sm danger" href="/parts/{{ p.asset_id }}/delete">delete…</a>
   {% endif %}
 </div>
 {% endif %}

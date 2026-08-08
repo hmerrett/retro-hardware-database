@@ -132,7 +132,9 @@ def update_computer(
 @mcp.tool()
 def delete_computer(asset_id: str) -> dict:
     """Delete a computer by asset id. Its parts are not deleted -- they are
-    unlinked and become standalone."""
+    unlinked and become standalone. Its photos, drive and memory rows and history
+    go with it, and none of it comes back; to take a machine out of the
+    collection reversibly, set disposed instead."""
     return _request("DELETE", f"/api/computers/{asset_id}")
 
 
@@ -222,7 +224,9 @@ def update_part(
 
 @mcp.tool()
 def delete_part(asset_id: str) -> dict:
-    """Delete a part by asset id."""
+    """Delete a part by asset id, with its specs, photos and history. Anything
+    mounted on it is unlinked, not deleted. Irreversible; set disposed instead to
+    record that it has left the collection."""
     return _request("DELETE", f"/api/parts/{asset_id}")
 
 
