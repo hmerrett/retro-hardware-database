@@ -41,7 +41,7 @@ def load_tight():
 
 def squared(icon):
     """Centred in a transparent square, because every icon slot is square and a
-    logo wider than it is tall must not be stretched into one."""
+    logo that is not must not be stretched into one."""
     w, h = icon.size
     s = max(w, h)
     sq = Image.new("RGBA", (s, s), (0, 0, 0, 0))
@@ -89,9 +89,10 @@ def main():
 
 
 # A social-share card is composited by the sites that show it, several of them onto
-# black, so this one is opaque: the logo on its own cream, at the 1.91:1 the card
-# slots want. Cream rather than white because it is the sticker's own keyline
-# colour, and rather than the sticker's charcoal because the sticker is charcoal.
+# black, so this one is opaque: the logo on a flat ground, at the 1.91:1 the card
+# slots want. Cream because the artwork is a beige machine photographed against
+# nothing -- white would leave its case looking grubby and charcoal would turn a
+# shared link into a picture of a switched-off monitor.
 CARD_SIZE = (1200, 630)
 CARD_BG = (244, 240, 226)
 CARD_FILL = 0.72  # of the card's width, leaving it room to breathe

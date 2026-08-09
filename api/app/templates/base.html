@@ -79,8 +79,9 @@
   header { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
   header a { text-decoration: none; }
   header .brand { font-weight: 600; display: inline-flex; align-items: center; gap: 9px; }
-  /* Sized by height, width auto: the logo is wider than it is tall and must keep
-     its own proportions whatever it is put next to. */
+  /* Sized by height, width auto: the logo is not square and must keep its own
+     proportions whatever it is put next to. Height is the dimension pinned
+     because it is the one the banner's other items are measured against. */
   header .brand img { height: 34px; width: auto; display: block; }
   /* A phone spends its width on the name, not on both. */
   @media (max-width: 380px) { header .brand span { display: none; } }
@@ -431,7 +432,7 @@
   {# The sticker and the name together: the logo says 2600.me, which is where this
      is, and the words say what it is. #}
   <a class="brand" href="/">
-    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="2600.me" width="256" height="245">
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="2600.me" width="248" height="256">
     <span>Retro Hardware Database</span>
   </a>
   <a href="/stats">numbers</a>
