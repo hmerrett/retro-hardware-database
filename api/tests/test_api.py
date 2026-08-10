@@ -1156,6 +1156,197 @@ class TestPickingTheBayADriveFits:
             in " ".join(page.split())
 
 
+class TestPickingWhatAnOpticalDriveTakes:
+    """A floppy is known by the disk it takes; an optical drive is known by the
+    discs it takes and the rating on its front. Neither is a capacity, so they are
+    two pickers of their own rather than the floppy list pointed at other words --
+    and both had been going into the description for want of anywhere else."""
+
+    def add(self, client, **extra):
+        data = {"type": "storage", "kind": "Optical"} | extra
+        r = client.post("/parts/new", data=data, follow_redirects=False)
+        return r.headers["location"]
+
+    def part(self, client, **extra):
+        return self.add(client, **extra).rsplit("/", 1)[-1]
+
+    def specs(self, client, aid):
+        return client.get(f"/api/parts/{aid}").json()["specs"]
+
+    def test_both_picks_land_on_the_machines_drive_row(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_media="CD-RW", drive_speed="48×")
+        assert client.get(f"/api/computers/{cid}").json()["drives"] \
+            == "48× CD-RW optical"
+
+    def test_a_drive_kept_as_a_part_records_them(self, client):
+        specs = self.specs(client, self.part(client, drive_media="CD-ROM",
+                                             drive_speed="24×"))
+        assert "Media: CD-ROM" in specs and "Speed: 24×" in specs
+
+    def test_the_rating_is_stored_as_a_number_of_its_own(self, client, db):
+        """Not in the rpm column: 48× and 5400 rpm are different quantities, and
+        one column could not sort or compare both."""
+        from app.models import StorageSpec
+        aid = self.part(client, drive_media="CD-RW", drive_speed="48×")
+        row = db.query(StorageSpec).filter(StorageSpec.part_id == aid).one()
+        assert (row.speed_x, row.speed_rpm) == (48, None)
+
+    def test_a_hard_disks_speed_is_still_its_spindles(self, client, db):
+        """The same key, and the same text box it has always been typed into: the
+        pickers appear for an optical drive, and must not swallow this one."""
+        from app.models import StorageSpec
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Hard disk",
+                              "spec_capacity": "540 MB", "spec_speed": "5400 rpm",
+                              "spec_media": "MFM"}, follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        row = db.query(StorageSpec).filter(StorageSpec.part_id == aid).one()
+        assert (row.speed_rpm, row.speed_x, row.media) == (5400, None, "MFM")
+
+    def test_a_kind_that_takes_no_disc_ignores_a_stale_pick(self, client):
+        """Choosing CD-RW and then changing the kind leaves the radio checked and
+        off-screen. A floppy drive is not a CD-RW anything."""
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Floppy/Gotek",
+                              "drive_desc": "3.5in floppy", "drive_media": "CD-RW",
+                              "drive_speed": "48×"}, follow_redirects=False)
+        specs = self.specs(client, r.headers["location"].rsplit("/", 1)[-1])
+        assert "Media:" not in specs and "Speed:" not in specs
+
+    def test_the_picker_wins_over_the_description(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc="24x CD-ROM",
+                 drive_media="CD-RW", drive_speed="48×")
+        drives = client.get(f"/api/computers/{cid}").json()["drives"]
+        assert "48× CD-RW" in drives and "24×" not in drives
+
+    def test_picking_nothing_leaves_what_the_description_said(self, client, computer):
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_desc="48x CD-RW")
+        assert client.get(f"/api/computers/{cid}").json()["drives"] \
+            == "48× CD-RW optical"
+
+    def test_custom_records_what_was_typed(self, client):
+        specs = self.specs(client, self.part(
+            client, drive_media="custom", drive_media_custom="magneto-optical",
+            drive_speed="custom", drive_speed_custom="48×/24×/48×"))
+        assert "Media: magneto-optical" in specs
+        assert "Speed: 48×/24×/48×" in specs
+
+    def test_a_rating_the_list_does_not_name_is_kept_as_it_was_typed(self, client):
+        """It is no kind of number, so it lands where every unparseable quantity
+        does -- kept verbatim rather than dropped on the floor."""
+        aid = self.part(client, drive_media="CD-RW", drive_speed="custom",
+                        drive_speed_custom="48×/24×/48×")
+        assert "Speed: 48×/24×/48×" in self.specs(client, aid)
+
+    def test_the_form_opens_on_the_picks_again(self, client):
+        aid = self.part(client, drive_media="CD-RW", drive_speed="48×")
+        flat = " ".join(client.get(f"/parts/{aid}/edit").text.split())
+        assert 'value="CD-RW" checked' in flat
+        assert 'value="48×" checked' in flat
+
+    def test_a_pick_can_be_taken_back_off(self, client):
+        """Choosing "not recorded" has to clear it, rather than the hidden text box
+        below quietly putting it back."""
+        aid = self.part(client, drive_media="CD-RW", drive_speed="48×")
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "storage", "kind": "Optical", "drive_media": "",
+                          "drive_speed": "", "spec_media": "CD-RW",
+                          "spec_speed": "48×"}, follow_redirects=False)
+        specs = self.specs(client, aid)
+        assert "Media:" not in specs and "Speed:" not in specs
+
+    def test_a_medium_alone_still_describes_the_drive(self, client, computer):
+        """Picking a medium and typing no description is an ordinary gesture now
+        the picker exists; the kind's menu label must not land in the model."""
+        cid = computer()["asset_id"]
+        self.add(client, computer_id=cid, drive_media="DVD-ROM")
+        assert client.get(f"/api/computers/{cid}").json()["drives"] \
+            == "DVD-ROM optical"
+
+    def test_the_typed_boxes_cannot_outgrow_the_columns_they_land_in(self, client):
+        from app.models import ComputerDrive
+        flat = " ".join(client.get("/parts/new?type=storage").text.split())
+        assert f'name="drive_media_custom" maxlength="{ComputerDrive.media.type.length}"' \
+            in flat
+        assert f'name="drive_speed_custom" maxlength="{ComputerDrive.speed.type.length}"' \
+            in flat
+
+    def test_an_optical_drive_says_what_it_takes_on_its_label(self, client):
+        from app import labels
+        _, lines = labels.small_body(
+            {"asset_id": "RH-0031", "name": "Plextor PX-W4012A", "type": "storage",
+             "specs": "Kind: Optical | Media: CD-RW | Speed: 48×"}, False)
+        assert lines == ["CD-RW 48×"]
+
+
+class TestTheOpticalSplitMigration:
+    """The two optical drives that were on file before any of this asked for them.
+    The migration writes down what each becomes; this is the claim that those are
+    the parser's own answers, so the table cannot drift from the code behind it."""
+
+    @staticmethod
+    def splits():
+        import importlib.util
+        from pathlib import Path
+        path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
+                / "0017_optical_media_and_speed.py")
+        spec = importlib.util.spec_from_file_location("m0017", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.SPLITS
+
+    def test_each_row_is_what_the_parser_gives(self):
+        from app import drivedb
+        for aid, before, media, speed in self.splits():
+            d = drivedb.parse_segment(before)
+            assert (d["media"], d["speed"], d["model"]) == (media, speed, ""), aid
+
+    def test_every_one_of_them_is_an_optical_drive(self):
+        from app import drivedb
+        for aid, before, *_ in self.splits():
+            assert drivedb.parse_segment(before)["kind"] == "optical", aid
+
+    def test_every_medium_is_one_the_picker_offers(self):
+        """A split that produced something off the list would open on "custom"
+        rather than on the radio it should be."""
+        from app import drivedb
+        for aid, _b, media, _s in self.splits():
+            assert media in drivedb.MEDIA, aid
+
+    def test_a_rating_is_offered_or_fits_the_box_that_takes_it(self):
+        """A single figure is on the list; a writer's three are what the custom box
+        is for, and must fit the column that box is sized to."""
+        from app import drivedb
+        from app.models import ComputerDrive
+        for aid, _b, _m, speed in self.splits():
+            assert (speed in drivedb.SPEEDS
+                    or len(speed) <= ComputerDrive.speed.type.length), aid
+
+    def test_a_single_figure_reads_back_from_the_column_it_is_stored_in(self):
+        """The migration writes those as a number; the spec key renders them."""
+        from app import specstruct
+        for _aid, _b, _m, speed in self.splits():
+            if speed not in [f"{n}×" for n in range(1, 100)]:
+                continue
+            st = specstruct.Struct()
+            st.scalars["speed_x"] = int(speed.rstrip("×"))
+            assert specstruct.format("storage", st) == f"Speed: {speed}"
+
+    def test_the_three_figure_ones_survive_as_they_are_written(self):
+        """They are no kind of a number, so they ride as a verbatim attribute --
+        and come back out under the same key, in the same notation."""
+        from app import specstruct
+        for _aid, _b, _m, speed in self.splits():
+            if speed in [f"{n}×" for n in range(1, 100)]:
+                continue
+            st = specstruct.parse("storage", f"Speed: {speed}")
+            assert st.attributes == [("Speed", speed)]
+            assert specstruct.format("storage", st) == f"Speed: {speed}"
+
+
 class TestTheMakerLeagueTable:
     """Most and least reliable maker. Reliability means one thing here -- the share
     of a maker's parts recorded as Working -- and the entry conditions matter more

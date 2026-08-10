@@ -45,12 +45,17 @@ SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
 # and a form factor say their own units; a geometry is three numbers that could
 # otherwise be anything.
 #
-# One table serves both sorts of drive because the keys do not overlap: a disk has
-# a Capacity and a CHS, a floppy has a Form factor and a Size, and each takes the
-# lines the other leaves empty.
+# One table serves every sort of drive because the keys barely overlap: a disk has
+# a Capacity and a CHS, a floppy has a Form factor and a Size, an optical drive has
+# a Media, and each takes the lines the others leave empty.
+#
+# Speed is the one key two of them answer -- 7200 rpm on a disk, 48× on an optical
+# drive -- and it goes last, beside the medium it belongs with, where the squeeze
+# takes it first: it is the least of what identifies a drive at arm's length.
 SMALL_SPECS = {"storage": ((("Capacity", ""),),
                            (("CHS", "CHS "),),
-                           (("Form factor", ""), ("Size", "")))}
+                           (("Form factor", ""), ("Size", "")),
+                           (("Media", ""), ("Speed", "")))}
 
 
 def _pairs_of(part):

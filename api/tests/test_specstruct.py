@@ -102,6 +102,49 @@ class TestCanonicalOrder:
         assert render("video", "Voltage: 5V | Chip: S3") == "Chip: S3 | Voltage: 5V"
 
 
+class TestTheTwoSortsOfDriveSpeed:
+    """One Speed key, two columns behind it: a spindle turns at 5400 rpm and an
+    optical drive reads at 48×, and neither is a number of the other. Which is
+    meant is written in the value, so a person types one Speed and reads one back.
+    """
+
+    def test_a_spindle_speed_is_still_rpm(self):
+        st = specstruct.parse("storage", "Kind: Hard disk | Speed: 5400")
+        assert st.scalars["speed_rpm"] == 5400
+        assert "speed_x" not in st.scalars
+
+    def test_a_rating_goes_to_its_own_column(self):
+        st = specstruct.parse("storage", "Kind: Optical | Speed: 48x")
+        assert st.scalars["speed_x"] == 48
+        assert "speed_rpm" not in st.scalars
+
+    @pytest.mark.parametrize("text,rendered", [
+        ("48x", "48×"), ("48X", "48×"), ("48 x", "48×"), ("48×", "48×"),
+        ("5400", "5400 rpm"), ("5400rpm", "5400 rpm"), ("7200 rpm", "7200 rpm"),
+    ])
+    def test_each_renders_in_the_unit_it_was_read_in(self, text, rendered):
+        assert render("storage", f"Speed: {text}") == f"Speed: {rendered}"
+
+    def test_a_speed_that_is_neither_is_still_not_lost(self):
+        """The same fallback every unparseable quantity has: kept verbatim rather
+        than dropped on the floor."""
+        st = specstruct.parse("storage", "Speed: variable")
+        assert st.attributes == [("Speed", "variable")]
+
+    def test_a_medium_says_what_the_discs_are(self):
+        st = specstruct.parse("storage", "Kind: Optical | Media: CD-RW")
+        assert st.scalars["media"] == "CD-RW"
+
+    def test_an_optical_drive_renders_in_the_canonical_order(self):
+        assert render("storage", "Speed: 48x | Kind: Optical | Media: CD-RW") == \
+            "Kind: Optical | Media: CD-RW | Speed: 48×"
+
+    def test_it_reads_back_as_it_renders(self):
+        once = render("storage", "Kind: Optical | Media: CD-RW | Speed: 48x")
+        assert render("storage", once) == once
+        assert specstruct.parse("storage", once).scalars["speed_x"] == 48
+
+
 class TestAStorageBezel:
     """A full-height drive shows its bezel on the front of the machine, so a storage
     part records the same two things a fitted drive row does.

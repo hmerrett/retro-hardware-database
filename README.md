@@ -109,19 +109,27 @@ carries its CPU, installed RAM and floppy/optical/CF-SD drives as attributes of
 the machine; mechanical hard disks, tape and expansion cards are parts.
 
 A machine's drives are rows (`computer_drive`), each with how many, kind, form
-factor, media size, make/model and its bezel: the shade it was made in and how far
-it has yellowed since. Storage parts record the same two things, as their `Colour`
-and `Yellowing` specs, so a drive on the shelf and one fitted in a machine are
-described alike.
+factor, media size, the discs an optical drive takes and the rating on its front,
+make/model, and its bezel: the shade it was made in and how far it has yellowed
+since. Storage parts record the same things -- as their `Colour` and `Yellowing`,
+`Media` and `Speed` specs -- so a drive on the shelf and one fitted in a machine
+are described alike.
 
-A drive's bay and the disk it takes are picked rather than typed, as two short
-closed lists of radio buttons with a "custom" box each for the hardware the list
-does not name: the form factor (`drivedb.FORM_FACTORS`, 5.25"/3.5"/8", custom for
-a 3" Amstrad CF-2) and, for a floppy, the capacity (`drivedb.SIZES`, 160K through
-2.88MB, custom for a Floptical or an LS-120). A form factor fits every drive that
+A drive's bay and what it takes are picked rather than typed, as short closed
+lists of radio buttons with a "custom" box each for the hardware the list does not
+name: the form factor (`drivedb.FORM_FACTORS`, 5.25"/3.5"/8", custom for a 3"
+Amstrad CF-2); for a floppy, the capacity (`drivedb.SIZES`, 160K through 2.88MB,
+custom for a Floptical or an LS-120); and for an optical drive, the discs it takes
+(`drivedb.MEDIA`, CD-ROM through Blu-ray) and the rating on its front
+(`drivedb.SPEEDS`, 1× to 52×). A form factor fits every drive that
 lives on the drives field, since an optical drive is 5.25" as surely as a floppy is
 3.5"; the capacities are floppy media designations, so that picker is offered for
-`Floppy/Gotek` alone. A pick is a deliberate answer, so it beats the same thing
+`Floppy/Gotek` alone, and the other two for `Optical` alone. Each medium names the
+most the drive does, on the understanding that it reads everything below it, and a
+writer quoting three figures (48×/24×/48× for write, rewrite and read) types them
+into the custom box, because which of the three a single number means is not a
+question this catalogue should answer on the owner's behalf.
+A pick is a deliberate answer, so it beats the same thing
 said in the drive's description -- the rule the bezel menus follow -- and picking
 nothing leaves the description to say it. Routed to a machine they become the
 row's `form_factor` and `size`; kept as a part they are the drive's `Form factor`
@@ -129,10 +137,10 @@ and `Size` specs. A `Size` here is a media designation and not a quantity, so
 unlike a memory `Size` it never normalises to KB: 1.44MB is 1475 KB only by
 convention, and nobody calls that disk a 1475 KB.
 
-With both picked, a floppy's description has nothing left to say, so the box is out
-of the way until it is wanted: when "custom" is chosen and the thing has to be
-spelled out, when the kind has no capacity picker of its own (an optical drive is
-named, not measured), or when it already holds something -- a hidden box still
+With its pickers answered a drive's description has nothing left to say, so the box
+is out of the way until it is wanted: when "custom" is chosen and the thing has to
+be spelled out, when the kind has no pickers of its own to say what it is (a card
+standing in for a drive), or when it already holds something -- a hidden box still
 submits what it holds, so a full one is never hidden. The make and model come from
 Identity, which a routed drive now reads (it never becomes a Part, so what was
 typed there used to be dropped); they fill a blank rather than winning, because
@@ -153,6 +161,20 @@ offers, and kept that much. Six of the eight wrote the inch mark as a curly `”
 what a phone or a Mac autocorrects it to -- which drivedb did not know, so `3.5”`
 was read as the drive's *model*. `_FORM_RE` now takes `"`, `”`, `“`, `″`, `''`,
 `in` and `inch`.
+
+A drive's `Speed` reads from two columns: `storage_spec.speed_rpm` for a spindle
+and `speed_x` for an optical drive, because 48× and 5400 rpm are different
+quantities and one column could sort neither. They answer to one `Speed` key, and
+the unit written in the value decides which column takes it (`specstruct.ALT_COLS`)
+-- so a person types and reads one Speed. A rating a writer quotes as three figures
+is no kind of a number and rides as a verbatim attribute, the way an unparseable
+quantity always has. In typed text a rating is only ever looked for in a segment
+that is an optical drive's, which is what keeps the `2 x` of `2 x 5.25" 360K` the
+two floppies it has always been; there, a run of figures carrying the mark is one
+rating (`52x32x52x`, `4x 2x 20x`), and the count is written as a bare number so
+nothing has to guess between them. The four optical drives recorded before any of
+this asked for them were split into the new fields by migration 0017, held to the
+parser's own answers by a test as 0016's eight were.
 
 The small label carries those two on one line, `3.5" 1.44MB`, the way a drive is
 spoken of; a hard disk's capacity and CHS geometry keep a line each as before. One

@@ -2027,8 +2027,8 @@ def _drives_from_form(form):
     out = []
     for i in range(MAX_DRIVE_ROWS):
         row = {k: (form.get(f"drive{i}_{k}", "") or "").strip()
-               for k in ("kind", "form_factor", "size", "model", "colour",
-                         "yellowing")}
+               for k in ("kind", "form_factor", "size", "media", "speed",
+                         "model", "colour", "yellowing")}
         if not any(row.values()):
             continue
         count = (form.get(f"drive{i}_count", "") or "").strip()
@@ -2049,7 +2049,8 @@ def _computer_form_ctx(c, title, db=None):
             "ram_chips": entry.RAM_CHIPS, "ram_counts": dict(chips),
             "ram_free": free, "drives": drives + [{}] * blanks,
             "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
-            "drive_sizes": drivedb.SIZES, **_bezel_ctx()}
+            "drive_sizes": drivedb.SIZES, "drive_media": drivedb.MEDIA,
+            "drive_speeds": drivedb.SPEEDS, **_bezel_ctx()}
 
 
 def _bezel_ctx():
@@ -2501,9 +2502,12 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
         # capacities those are. Column widths so a typed "custom" answer cannot be
         # longer than the drive row it may end up in.
         "drive_forms": drivedb.FORM_FACTORS, "drive_sizes": drivedb.SIZES,
-        "floppy_kind": entry.FLOPPY_KIND,
+        "drive_media": drivedb.MEDIA, "drive_speeds": drivedb.SPEEDS,
+        "floppy_kind": entry.FLOPPY_KIND, "optical_kind": entry.OPTICAL_KIND,
         "drive_form_max": ComputerDrive.form_factor.type.length,
         "drive_size_max": ComputerDrive.size.type.length,
+        "drive_media_max": ComputerDrive.media.type.length,
+        "drive_speed_max": ComputerDrive.speed.type.length,
         **_bezel_ctx(),
         "slot_names": entry.SLOT_NAMES, "port_names": entry.PORT_NAMES,
         "mb_slots": mb_slots, "mb_ram": mb_ram, "mb_ports": mb_ports,
@@ -2625,11 +2629,15 @@ def _assemble_specs(ptype, form, extra=()):
         # 'Type' spec vs the part type, etc.).
         field = fields.get(key) or (
             "spec_" + key.lower().replace(" ", "_").replace("/", "_"))
+        raw = None
         if ptype == "storage" and key in DRIVE_PICKS:
             # Picked from a radio group with a box beside it, not typed into one
-            # input, and read only for the kinds the group is offered for.
+            # input, and read only for the kinds the group is offered for. Where it
+            # is offered its answer stands, blank included -- that is how a value is
+            # taken back off -- and where it is not, the plain field below it is
+            # what the form was asking with, so that is what is read.
             raw = _picked_drive(form, key)
-        else:
+        if raw is None:
             raw = (form.get(field, "") or "").strip()
         if not raw:
             continue
@@ -2651,9 +2659,14 @@ def _assemble_specs(ptype, form, extra=()):
 # offered for (None for any drive that lives on the drives field). A form factor
 # fits every such drive -- an optical drive is 5.25" as surely as a floppy is 3.5"
 # -- while the capacities on offer are floppy media designations and fit a floppy.
+# An optical drive answers the other two instead: what it does with a disc, and how
+# fast, which is what that drive is known by where a capacity is what a floppy is
+# known by.
 DRIVE_PICKS = {
     "Form factor": ("drive_form", "form_factor", None),
     "Size": ("drive_size", "size", entry.FLOPPY_KIND),
+    "Media": ("drive_media", "media", entry.OPTICAL_KIND),
+    "Speed": ("drive_speed", "speed", entry.OPTICAL_KIND),
 }
 
 
@@ -2661,13 +2674,18 @@ def _picked_drive(form, key):
     """What one of those groups chose: one of the standard answers, or whatever was
     typed beside "custom" for the hardware the list does not name (a 3" Amstrad, a
     Floptical). Blank when nothing was picked, which leaves the description to say
-    it -- and blank for a kind the group is not offered for, so a radio left
-    checked from a kind since changed is not saved against a drive it never
-    described."""
+    it.
+
+    None -- not blank -- for a kind the group is not offered for, which is the
+    difference between "asked, and the answer is nothing" and "never asked". A
+    radio left checked from a kind since changed must not be saved against a drive
+    it never described; but Media and Speed are also a hard disk's own typed spec
+    fields, and those must not be thrown away by a picker that was not on screen.
+    """
     field, _col, only = DRIVE_PICKS[key]
     kind = form.get("kind", "") or ""
     if kind in entry.PART_STORAGE_KINDS or (only and kind != only):
-        return ""
+        return None
     picked = (form.get(field, "") or "").strip()
     if picked == "custom":
         return " ".join((form.get(field + "_custom", "") or "").split())
@@ -2689,7 +2707,7 @@ def _apply_drive_picks(form, rows):
     is, so let it answer: read through drivedb's own vocabulary rather than a
     second mapping of the same words, and only where the text did not say.
     """
-    picks = {col: _picked_drive(form, key)
+    picks = {col: _picked_drive(form, key) or ""
              for key, (_f, col, _only) in DRIVE_PICKS.items()}
     picks["colour"] = form.get("drive_colour", "") or ""
     picks["yellowing"] = form.get("drive_yellowing", "") or ""

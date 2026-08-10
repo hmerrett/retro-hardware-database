@@ -41,6 +41,9 @@ PART_STORAGE_KINDS = ("Hard disk", "Tape")
 # a measured quantity, which is the vocabulary drivedb.SIZES holds and the only
 # kind the capacity picker fits: an optical drive is not a 720K anything.
 FLOPPY_KIND = "Floppy/Gotek"
+# The kind that is described by what it does with a disc rather than by how big
+# one is, and so has the two pickers below instead of a capacity.
+OPTICAL_KIND = "Optical"
 
 # --- pick-list vocabularies ------------------------------------------------
 
@@ -60,6 +63,27 @@ STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD",
 STORAGE_KINDS = ["Hard disk", "SD/CF card", "Tape", "Optical", "Floppy/Gotek"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
+
+# --- optical drives --------------------------------------------------------
+# What an optical drive is known by: the discs it takes, and how fast it reads
+# them. Neither is a capacity -- a CD-ROM drive is not a 650MB anything, it is a
+# drive that takes CDs -- which is why these are their own two fields rather than
+# the floppy capacity picker pointed at different words.
+#
+# Each medium names the most the drive does, on the understanding that a drive
+# reads everything below it: a CD-RW writer reads pressed CD-ROMs, and saying so
+# on every record would be noise. A drive that reads a disc it cannot write is
+# named for what it reads (a DVD-ROM that burns CDs is the combo).
+OPTICAL_MEDIA = ["CD-ROM", "CD-R", "CD-RW", "DVD-ROM", "DVD/CD-RW combo",
+                 "DVD±RW", "DVD-RAM", "Blu-ray"]
+
+# The × rating on the front of the drive, 1× being the 150 KB/s a CD player runs
+# at. The list is the ratings that were actually sold; a drive quoting three
+# figures (48×/24×/48× for write, rewrite and read) is typed into the custom box,
+# because which of the three a single number means is a question this catalogue
+# should not answer on the owner's behalf.
+OPTICAL_SPEEDS = ["1×", "2×", "4×", "6×", "8×", "12×", "16×", "24×", "32×",
+                  "40×", "48×", "52×"]
 
 # --- bezel colour and yellowing --------------------------------------------
 # Two things, recorded separately: the shade a drive was made in, and how far it

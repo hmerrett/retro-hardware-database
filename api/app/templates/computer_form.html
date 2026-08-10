@@ -39,7 +39,7 @@
   <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove that drive.</p>
   <div class="hscroll">
   <table class="drives">
-    <tr><th>How many</th><th>Kind</th><th>Form factor</th><th>Size</th><th>Make / model</th><th>Bezel — shade, and yellowing</th></tr>
+    <tr><th>How many</th><th>Kind</th><th>Form factor</th><th>Size</th><th>Media</th><th>Speed</th><th>Make / model</th><th>Bezel — shade, and yellowing</th></tr>
     {% for d in drives %}
     <tr>
       <td><input type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"></td>
@@ -52,6 +52,12 @@
         {% for f in drive_forms %}<option value="{{ f }}"{{ ' selected' if f == d.get('form_factor') else '' }}>{{ f }}</option>{% endfor %}
       </select></td>
       <td><input name="drive{{ loop.index0 }}_size" list="dl_drive_sizes" value="{{ d.get('size', '') }}"></td>
+      {# A capacity is what a floppy takes and a medium is what an optical drive
+         takes, so a row fills one or the other. Offered rather than closed, like
+         the capacity beside them: the lists name what was sold, not everything
+         that exists. #}
+      <td><input name="drive{{ loop.index0 }}_media" list="dl_drive_media" value="{{ d.get('media', '') }}"></td>
+      <td><input name="drive{{ loop.index0 }}_speed" list="dl_drive_speeds" value="{{ d.get('speed', '') }}"></td>
       <td><input name="drive{{ loop.index0 }}_model" value="{{ d.get('model', '') }}"></td>
       {# Two menus and one swatch: the shade as made, and how far it has yellowed.
          The swatch shows the pair together, so the choice can be checked against
@@ -65,6 +71,8 @@
   </div>
   {{ C.chart(bezel_colours, yellowing) }}
   <datalist id="dl_drive_sizes">{% for x in drive_sizes %}<option value="{{ x }}">{% endfor %}</datalist>
+  <datalist id="dl_drive_media">{% for x in drive_media %}<option value="{{ x }}">{% endfor %}</datalist>
+  <datalist id="dl_drive_speeds">{% for x in drive_speeds %}<option value="{{ x }}">{% endfor %}</datalist>
   <label for="drives_note">Drives — anything the rows cannot say</label>
   <input id="drives_note" name="drives_note" value="{{ (c.drives_note if c else '') or '' }}">
   <label for="condition">Condition</label>

@@ -8,32 +8,34 @@ import pytest
 
 from app import drivedb, entry
 
+def drive(**fields):
+    """A drive row with everything unsaid left blank, so a case says only what it
+    is about."""
+    return {"count": 1, "kind": "", "form_factor": "", "size": "", "media": "",
+            "speed": "", "model": "", "colour": "", "yellowing": ""} | fields
+
+
 REAL_VALUES = [
     ("3.5-inch 1.44 MB floppy drive",
-     [{"count": 1, "kind": "floppy", "form_factor": '3.5"', "size": "1.44MB",
-       "model": "", "colour": "", "yellowing": ""}]),
+     [drive(kind="floppy", form_factor='3.5"', size="1.44MB")]),
     ('2 x 5.25" 360K',
-     [{"count": 2, "kind": "floppy", "form_factor": '5.25"', "size": "360K",
-       "model": "", "colour": "", "yellowing": ""}]),
+     [drive(count=2, kind="floppy", form_factor='5.25"', size="360K")]),
     ('2x 5.25" 360K Floppy',
-     [{"count": 2, "kind": "floppy", "form_factor": '5.25"', "size": "360K",
-       "model": "", "colour": "", "yellowing": ""}]),
+     [drive(count=2, kind="floppy", form_factor='5.25"', size="360K")]),
     ("Custom GOTEK 2.88MB",
-     [{"count": 1, "kind": "Gotek", "form_factor": "", "size": "2.88MB",
-       "model": "Custom", "colour": "", "yellowing": ""}]),
+     [drive(kind="Gotek", size="2.88MB", model="Custom")]),
     ("Gotek floppy emulator (1.44MB)",
-     [{"count": 1, "kind": "Gotek", "form_factor": "", "size": "1.44MB",
-       "model": "", "colour": "", "yellowing": ""}]),
+     [drive(kind="Gotek", size="1.44MB")]),
     ("Integral 2GB SD",
-     [{"count": 1, "kind": "SD", "form_factor": "", "size": "2GB",
-       "model": "Integral", "colour": "", "yellowing": ""}]),
+     [drive(kind="SD", size="2GB", model="Integral")]),
     ("1GB CF",
-     [{"count": 1, "kind": "CF", "form_factor": "", "size": "1GB", "model": "",
-       "colour": "", "yellowing": ""}]),
+     [drive(kind="CF", size="1GB")]),
     ("Mitsubishi MF504A-318U (1.2MB)",
-     [{"count": 1, "kind": "floppy", "form_factor": "", "size": "1.2MB",
-       "model": "Mitsubishi MF504A-318U", "colour": "",
-       "yellowing": ""}]),
+     [drive(kind="floppy", size="1.2MB", model="Mitsubishi MF504A-318U")]),
+    # The two optical drives on file, as their descriptions read before 0017 gave
+    # the two things they say fields of their own.
+    ("CDRW 48x", [drive(kind="optical", media="CD-RW", speed="48×")]),
+    ("48x CD-ROM Drive", [drive(kind="optical", media="CD-ROM", speed="48×")]),
 ]
 
 
@@ -217,9 +219,112 @@ class TestTheBezel:
     def test_rendering_a_bezel_reads_back_the_same(self, colour, level):
         """The string is a cache of the rows, so it has to parse back into them --
         a bezel that renders one way and reads another would drift on every save."""
-        rows = [{"count": 1, "kind": "floppy", "form_factor": '3.5"',
-                 "size": "1.44MB", "model": "Mitsumi", "colour": colour,
-                 "yellowing": level}]
+        rows = [drive(kind="floppy", form_factor='3.5"', size="1.44MB",
+                      model="Mitsumi", colour=colour, yellowing=level)]
+        once = drivedb.render(rows)
+        assert drivedb.from_string(once)[0] == rows
+        assert drivedb.render(*drivedb.from_string(once)) == once
+
+
+class TestOpticalDrives:
+    """The drive with no capacity to state: what it does with a disc, and how fast.
+    Typed text has to read the same as the two pickers, or the same drive would be
+    recorded differently depending on where it was entered."""
+
+    @pytest.mark.parametrize("text,media", [
+        ("CD-ROM", "CD-ROM"), ("cdrom", "CD-ROM"), ("CD", "CD-ROM"),
+        ("CD-RW", "CD-RW"), ("cdrw", "CD-RW"), ("CDW", "CD-RW"),
+        ("CD-R", "CD-R"), ("DVD", "DVD-ROM"), ("DVD-ROM", "DVD-ROM"),
+        ("DVDRW", "DVD±RW"), ("DVD+RW", "DVD±RW"), ("DVD-RAM", "DVD-RAM"),
+        ("Blu-ray", "Blu-ray"),
+    ])
+    def test_the_ways_a_medium_is_written(self, text, media):
+        assert drivedb.parse_segment(f"{text} drive")["media"] == media
+
+    def test_every_medium_answers_to_itself(self):
+        for label in entry.OPTICAL_MEDIA:
+            assert drivedb.parse_segment(label)["media"] == label
+
+    def test_a_medium_makes_it_an_optical_drive(self):
+        """Nothing but an optical drive takes a CD-RW, so the kind need not be said
+        as well -- and the word "cd" the kind list knows has been taken out of the
+        text by the medium on its way past."""
+        assert drivedb.parse_segment("CD-RW 48x")["kind"] == "optical"
+
+    def test_a_medium_is_one_designation_not_a_kind_and_a_stray_word(self):
+        d = drivedb.parse_segment("Plextor CD-RW")
+        assert (d["media"], d["model"]) == ("CD-RW", "Plextor")
+
+    def test_a_model_that_begins_with_one_keeps_it(self):
+        """A drive modelled "CD-120" is an optical drive, but those two letters are
+        its model's -- taking them would leave a bare "120" behind."""
+        d = drivedb.parse_segment("Chinon CD-120 optical")
+        assert (d["media"], d["kind"], d["model"]) == ("", "optical", "Chinon CD-120")
+
+    @pytest.mark.parametrize("text", ["48x", "48X", "48 x", "48×"])
+    def test_the_ways_a_rating_is_written(self, text):
+        assert drivedb.parse_segment(f"{text} CD-ROM")["speed"] == "48×"
+
+    def test_every_rating_answers_to_itself(self):
+        for label in entry.OPTICAL_SPEEDS:
+            assert drivedb.parse_segment(f"{label} CD-ROM")["speed"] == label
+
+    def test_a_lone_rating_is_the_speed_not_a_count(self):
+        """The one "N×" beside a medium is what the drive is being described by --
+        a 2× CD-ROM is a real drive, and two of them is not what someone writing
+        "2x CD-ROM" means."""
+        for text, speed in (("48x CD-ROM", "48×"), ("2x CD-ROM", "2×")):
+            d = drivedb.parse_segment(text)
+            assert (d["count"], d["speed"]) == (1, speed)
+
+    @pytest.mark.parametrize("text,speed", [
+        ("52x32x52x CD-RW", "52×/32×/52×"),
+        ("4x 2x 20x CD RW", "4×/2×/20×"),
+        ("CD-RW 48x/24x/48x", "48×/24×/48×"),
+        ("CD-RW 8×/4×/32×", "8×/4×/32×"),
+    ])
+    def test_a_writers_three_figures_are_one_rating(self, text, speed):
+        """What it writes, rewrites and reads. Three of the four optical drives on
+        file are written this way, and none of them is three drives."""
+        d = drivedb.parse_segment(text)
+        assert (d["count"], d["speed"], d["media"]) == (1, speed, "CD-RW")
+
+    def test_a_bay_standing_after_a_rating_is_not_another_figure(self):
+        d = drivedb.parse_segment('48x CD-RW 5.25"')
+        assert (d["speed"], d["form_factor"]) == ("48×", '5.25"')
+
+    def test_a_count_of_unrated_drives_is_written_without_the_mark(self):
+        """Which is how render() writes it, so that it reads back as a count."""
+        d = drivedb.parse_segment("2 CD-RW optical")
+        assert (d["count"], d["speed"], d["media"]) == (2, "", "CD-RW")
+
+    def test_a_rating_is_only_read_where_a_drive_could_have_one(self):
+        """'2 x 5.25" 360K' is two floppies, and always was: nothing but an optical
+        drive is rated in ×, so nothing else goes looking for one."""
+        d = drivedb.parse_segment('2 x 5.25" 360K')
+        assert (d["count"], d["speed"]) == (2, "")
+
+    def test_a_rating_is_not_taken_from_inside_a_word(self):
+        """A model number ending in a digit beside an x is not a speed."""
+        assert drivedb.parse_segment("Sony CDU31A optical")["speed"] == ""
+
+    def test_it_renders_as_it_is_said_out_loud(self):
+        assert drivedb.render([drive(kind="optical", form_factor='5.25"',
+                                     media="CD-RW", speed="48×")]) \
+            == '5.25" 48× CD-RW optical'
+
+    def test_the_model_still_leads_and_the_bezel_still_trails(self):
+        assert drivedb.render([drive(kind="optical", form_factor='5.25"',
+                                     media="CD-ROM", speed="24×", model="Mitsumi",
+                                     colour="Beige", yellowing="Yellowed")]) \
+            == 'Mitsumi 5.25" 24× CD-ROM optical (beige, yellowed)'
+
+    @pytest.mark.parametrize("media", ["", *entry.OPTICAL_MEDIA])
+    @pytest.mark.parametrize("speed", ["", "2×", "48×"])
+    def test_rendering_reads_back_the_same(self, media, speed):
+        """The string is a cache of the rows, so it has to parse back into them."""
+        rows = [drive(count=2, kind="optical", form_factor='5.25"', media=media,
+                      speed=speed, model="Plextor")]
         once = drivedb.render(rows)
         assert drivedb.from_string(once)[0] == rows
         assert drivedb.render(*drivedb.from_string(once)) == once

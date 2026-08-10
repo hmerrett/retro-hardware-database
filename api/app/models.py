@@ -173,6 +173,12 @@ class StorageSpec(Base):
     chs_s = Column(Integer)
     media = Column(String(255))
     speed_rpm = Column(Integer)
+    # The other sort of drive speed: the × rating of an optical drive, where 1× is
+    # the 150 KB/s a CD player runs at. Its own column because 48× and 5400 rpm are
+    # different quantities and one column could not sort or compare both; they
+    # share the Speed spec key, and the unit written in the value says which is
+    # meant (see specstruct.ALT_COLS).
+    speed_x = Column(Integer)
     role = Column(String(255))
     # The same two things a machine's drive rows record about the same plastic (see
     # ComputerDrive), so a drive on the shelf and one fitted are described alike.
@@ -224,7 +230,10 @@ class ComputerDrive(Base):
 
     size and form_factor hold the standard labels a person writes ('1.44MB',
     '5.25"') rather than a byte count: these are media designations, not measured
-    quantities, and 1.44MB is 1475 KB only by convention.
+    quantities, and 1.44MB is 1475 KB only by convention. media and speed are the
+    same sort of label for the drive that has no capacity to state -- an optical
+    drive is known by the discs it takes ('CD-RW') and the rating on its front
+    ('48×'), from entry.OPTICAL_MEDIA and entry.OPTICAL_SPEEDS.
 
     colour is the shade the bezel was made in and yellowing is how far it has gone
     since, from entry.BEZEL_COLOURS and entry.YELLOWING -- two fields because they
@@ -239,6 +248,8 @@ class ComputerDrive(Base):
     kind = Column(String(32), nullable=False, default="")
     form_factor = Column(String(16), nullable=False, default="")
     size = Column(String(32), nullable=False, default="")
+    media = Column(String(32), nullable=False, default="", server_default="")
+    speed = Column(String(16), nullable=False, default="", server_default="")
     model = Column(String(255), nullable=False, default="")
     colour = Column(String(32), nullable=False, default="")
     yellowing = Column(String(32), nullable=False, default="")

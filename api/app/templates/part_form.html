@@ -86,10 +86,11 @@ until you submit.</p>
       {% for o in vocab.storage_kinds %}<option value="{{ o }}"{{ ' selected' if o == curkind else '' }}>{{ o }}</option>{% endfor %}
     </select>
     <div id="drive-route" style="display:none">
-      {# The bay it fits, and what the disk is called. A form factor fits any drive
-         that lives on the drives field -- an optical drive is 5.25" as surely as a
-         floppy is 3.5" -- so it is offered here for all of them; the capacities are
-         floppy media designations, so that group appears for that kind alone. #}
+      {# The bay it fits, and what it takes. A form factor fits any drive that
+         lives on the drives field -- an optical drive is 5.25" as surely as a
+         floppy is 3.5" -- so it is offered here for all of them; the capacities
+         are floppy media designations, so that group appears for that kind alone,
+         and an optical drive is asked the two questions it can answer instead. #}
       {{ pick('drive_form', 'Form factor', 'Form factor', 'the bay it fits',
               drive_forms, 'e.g. 3" (Amstrad CF-2), 2.5"', drive_form_max) }}
       <div id="drive-size" hidden>
@@ -97,10 +98,18 @@ until you submit.</p>
                 'what the disk is called, not a measured size',
                 drive_sizes, 'e.g. 21MB Floptical, 120MB LS-120', drive_size_max) }}
       </div>
-      {# Last, and usually not at all. A floppy the two pickers have described needs
-         no prose, so the box is out of the way until it is wanted: when "custom" is
-         chosen and the thing has to be spelled out, when the kind has no capacity
-         picker of its own (an optical drive is named, not measured), or when it
+      <div id="drive-optical" hidden>
+        {{ pick('drive_media', 'Media', 'Media',
+                'the discs it takes — each reads everything below it',
+                drive_media, 'e.g. HD DVD, magneto-optical', drive_media_max) }}
+        {{ pick('drive_speed', 'Speed', 'Speed', 'the rating on the front',
+                drive_speeds, 'e.g. 48×/24×/48× (write/rewrite/read)',
+                drive_speed_max) }}
+      </div>
+      {# Last, and usually not at all. A drive its pickers have described needs no
+         prose, so the box is out of the way until it is wanted: when "custom" is
+         chosen and the thing has to be spelled out, when the kind has no pickers of
+         its own to say what it is (a card standing in for a drive), or when it
          already holds something -- a hidden box that still submits its contents is
          not somewhere to leave text nobody can see. The make and model go in
          Identity above, and reach a machine's drive row from there. #}
@@ -275,31 +284,37 @@ until you submit.</p>
     const drivePart = document.getElementById('drive-part');
     const driveRoute = document.getElementById('drive-route');
     const driveSize = document.getElementById('drive-size');
+    const driveOptical = document.getElementById('drive-optical');
     const descRow = document.getElementById('drive-desc-row');
     const descBox = document.getElementById('drive_desc');
     const FLOPPY = {{ floppy_kind | tojson }};
+    const OPTICAL = {{ optical_kind | tojson }};
+    // Every pick-or-type group, and the kind each belongs to.
+    const PICKS = [['drive_form', null], ['drive_size', FLOPPY],
+                   ['drive_media', OPTICAL], ['drive_speed', OPTICAL]];
 
-    const anyCustom = () => ['drive_form', 'drive_size'].some(function (n) {
-      const on = document.querySelector('input[name=' + n + ']:checked');
-      return on && on.value === 'custom';
+    const anyCustom = () => PICKS.some(function (p) {
+      const on = document.querySelector('input[name=' + p[0] + ']:checked');
+      return on && on.value === 'custom' && (!p[1] || p[1] === kind.value);
     });
 
     function toggle() {
       const r = routed.includes(kind.value);
       driveRoute.style.display = r ? '' : 'none';
       drivePart.style.display = r ? 'none' : '';
-      // The capacities on offer are floppy media designations, so the group is
-      // shown for that kind and no other. The server reads it on the same
-      // condition, so a radio left checked from a kind since changed is ignored
-      // rather than saved.
+      // Each group is shown for the kind it describes and no other: the capacities
+      // on offer are floppy media designations, and a disc and a × rating are an
+      // optical drive's. The server reads each on the same condition, so a radio
+      // left checked from a kind since changed is ignored rather than saved.
       if (driveSize) driveSize.hidden = !(r && kind.value === FLOPPY);
-      // The description, only where it still has something to say: a floppy the
+      if (driveOptical) driveOptical.hidden = !(r && kind.value === OPTICAL);
+      // The description, only where it still has something to say: a drive its
       // pickers have described needs no prose. Never hidden with text in it -- the
       // box still submits what it holds, so hiding a full one would leave writing
       // on the record that nobody can see or reach.
       if (descRow) {
-        descRow.hidden = kind.value === FLOPPY && !anyCustom()
-                         && !(descBox && descBox.value.trim());
+        descRow.hidden = (kind.value === FLOPPY || kind.value === OPTICAL)
+                         && !anyCustom() && !(descBox && descBox.value.trim());
       }
     }
     kind.addEventListener('change', toggle);
@@ -307,7 +322,8 @@ until you submit.</p>
     // "custom" reveals the box it needs, and takes the cursor there; the standard
     // answers need no box at all. Choosing one also decides whether the
     // description has a job, so the two are settled together.
-    ['drive_form', 'drive_size'].forEach(function (name) {
+    PICKS.forEach(function (pick) {
+      const name = pick[0];
       const custom = document.getElementById(name + '_custom');
       if (!custom) return;
       function show(focus) {

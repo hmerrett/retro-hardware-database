@@ -49,7 +49,15 @@ KB_COLS = {"size_kb", "memory_kb", "capacity_kb", "cache_kb"}
 KHZ_COLS = {"speed_khz", "fsb_khz"}
 NS_COLS = {"speed_ns"}
 RPM_COLS = {"speed_rpm"}
+X_COLS = {"speed_x"}
 INT_COLS = {"cores"}
+
+# Where one display key has more than one column behind it. A drive's Speed is
+# 5400 rpm or 48×, and those are different quantities: sharing a column would mean
+# neither could be sorted or compared. So the unit written in the value picks the
+# column on the way in, and whichever column holds a value renders it on the way
+# out -- and a person still sees, types and reads one Speed.
+ALT_COLS = {"storage": {"Speed": ("speed_rpm", "speed_x")}}
 
 # A unitless number means MB for a drive capacity ('44'), but KB everywhere else
 # ('256' cache). Real data relies on this: RH-0247's bare '44' is 44 MB, which
@@ -93,6 +101,9 @@ _CHS_RE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*/\s*(\d+)\s*$")
 _MHZ_RE = re.compile(r"^\s*([\d.]+)\s*(mhz|khz)?\s*$", re.I)
 _NS_RE = re.compile(r"^\s*(\d+)\s*(?:ns)?\s*$", re.I)
 _RPM_RE = re.compile(r"^\s*(\d+)\s*(?:rpm)?\s*$", re.I)
+# The x is what tells an optical speed from a spindle speed, so it is required
+# here where rpm is not: a bare number is rpm, as it always was.
+_X_RE = re.compile(r"^\s*(\d+)\s*[x×]\s*$", re.I)
 
 
 class Struct:
@@ -170,9 +181,29 @@ def numeric_handler(col, display=False):
         return _simple_int(_NS_RE), (lambda n: f"{n} ns")
     if col in RPM_COLS:
         return _simple_int(_RPM_RE), (lambda n: f"{n} rpm")
+    if col in X_COLS:
+        return _simple_int(_X_RE), (lambda n: f"{n}×")
     if col in INT_COLS:
         return _simple_int(re.compile(r"^\s*(\d+)")), str
     return None
+
+
+def _column_for(ptype, key, value, col):
+    """Which of a key's columns a value belongs in (see ALT_COLS), by asking each
+    in turn whether it can read it: '48×' is no kind of rpm and '5400' is no kind
+    of × rating, so the value answers for itself and there is no second list of
+    units to keep in step with the first. A value neither can read falls back to
+    the first column, whose parser rejects it and so keeps it verbatim."""
+    for alt in ALT_COLS.get(ptype, {}).get(key, ()):
+        handler = numeric_handler(alt)
+        if handler and handler[0](value) is not None:
+            return alt
+    return col
+
+
+def _display_column(ptype, key):
+    """The columns a display key may read from, best first."""
+    return ALT_COLS.get(ptype, {}).get(key) or (SCALARS[ptype].get(key),)
 
 
 def chs_capacity_kb(chs):
@@ -229,7 +260,7 @@ def parse(ptype, specs) -> Struct:
             if not m:
                 s.attributes.append((k, v))
         elif k in scalar_map:
-            col = scalar_map[k]
+            col = _column_for(ptype, k, v, scalar_map[k])
             handler = numeric_handler(col)
             if handler:
                 n = handler[0](v)
@@ -268,8 +299,9 @@ def pairs(ptype, s, display=False):
                 if s.chs:
                     pairs.append(("CHS", "{}/{}/{}".format(*s.chs)))
             else:
-                col = SCALARS[ptype].get(key)
-                if col and s.scalars.get(col) not in (None, ""):
+                col = next((c for c in _display_column(ptype, key)
+                            if c and s.scalars.get(c) not in (None, "")), None)
+                if col:
                     val = s.scalars[col]
                     handler = numeric_handler(col, display)
                     pairs.append((key, handler[1](val)
