@@ -1,4 +1,6 @@
 """Vocabularies, amount handling and the quick-entry expanders."""
+from typing import ClassVar
+
 import pytest
 
 from app import entry
@@ -289,3 +291,57 @@ class TestNames:
 
     def test_an_unknown_type_still_gets_something_readable(self):
         assert entry.type_label("gizmo") == "Gizmo"
+
+
+class TestWhatEachKindOfDriveIsAsked:
+    """The chart, as code. Every field on the storage form comes from this table and
+    the server reads each answer back through it, so it is the one place the shape of
+    the form is decided -- and worth stating outright, because a wrong entry here is
+    a field quietly missing rather than anything that breaks."""
+
+    ASKED: ClassVar[dict[str, set[str]]] = {
+        "Hard disk": {"Interface", "Protocol", "Capacity", "CHS", "Speed",
+                      "Form factor", "Role"},
+        "Tape": {"Interface", "Protocol", "Capacity", "Media", "Form factor", "Role"},
+        "Optical": {"Interface", "Protocol", "Capacity", "Media", "Speed",
+                    "Form factor", "Role"},
+        "Floppy/Gotek": {"Interface", "Size", "Media", "Form factor", "Role"},
+        "SD/CF card": {"Interface", "Protocol", "Capacity", "CHS", "Role"},
+    }
+
+    @pytest.mark.parametrize("kind", list(ASKED))
+    def test_each_kind_is_asked_what_the_chart_says(self, kind):
+        assert {a["key"] for a in entry.storage_asks(kind)} == self.ASKED[kind]
+
+    def test_every_kind_in_the_menu_is_in_the_table(self):
+        """A kind the table says nothing about would arrive with no fields at all."""
+        for kind in entry.STORAGE_KINDS:
+            assert entry.storage_asks(kind), kind
+
+    @pytest.mark.parametrize("kind,key,expected", [
+        # What "how fast" means depends on what is spinning: a reader's × rating is
+        # not a spindle's rpm, and one list offering both would invite the wrong one.
+        ("Optical", "Speed", entry.OPTICAL_SPEEDS),
+        ("Hard disk", "Speed", entry.DISK_SPEEDS),
+        # Nor is what a drive takes the same question for a disc, a cartridge and a
+        # floppy, whose own width is the disk it takes.
+        ("Optical", "Media", entry.OPTICAL_MEDIA),
+        ("Tape", "Media", entry.TAPE_MEDIA),
+        ("Floppy/Gotek", "Media", entry.DRIVE_INCHES),
+    ])
+    def test_a_shared_question_offers_each_kind_its_own_answers(self, kind, key,
+                                                               expected):
+        asks = {a["key"]: a["options"] for a in entry.storage_asks(kind)}
+        assert asks[key] == expected
+
+    def test_only_the_interface_is_required(self):
+        """Everything else may honestly be unknown on a drive still in its box."""
+        required = {a["key"] for a in entry.STORAGE_ASKS if a.get("required")}
+        assert required == {"Interface"}
+
+    def test_a_floppy_is_asked_a_designation_and_never_a_measured_capacity(self):
+        """720K is what the disk is called; it is 737 KB only by convention, and
+        normalising it would put a number on the label nobody uses."""
+        floppy = {a["key"] for a in entry.storage_asks("Floppy/Gotek")}
+        assert "Size" in floppy and "Capacity" not in floppy
+        assert "Capacity" in {a["key"] for a in entry.storage_asks("Hard disk")}

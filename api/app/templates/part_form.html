@@ -89,83 +89,82 @@ until you submit.</p>
       {% set curkind = spec_keys.get('Kind', '') %}
       {% for o in vocab.storage_kinds %}<option value="{{ o }}"{{ ' selected' if o == curkind else '' }}>{{ o }}</option>{% endfor %}
     </select>
-    <div id="drive-route" style="display:none">
-      {# The bay it fits, and what it takes. A form factor fits any drive that
-         lives on the drives field -- an optical drive is 5.25" as surely as a
-         floppy is 3.5" -- so it is offered here for all of them; the capacities
-         are floppy media designations, so that group appears for that kind alone,
-         and an optical drive is asked the two questions it can answer instead. #}
-      {{ pick('drive_form', 'Form factor', 'Form factor', 'the bay it fits',
-              drive_forms, 'e.g. 3" (Amstrad CF-2), 2.5"', drive_form_max) }}
-      <div id="drive-size" hidden>
-        {{ pick('drive_size', 'Size', 'Capacity',
-                'what the disk is called, not a measured size',
-                drive_sizes, 'e.g. 21MB Floptical, 120MB LS-120', drive_size_max) }}
-      </div>
-      <div id="drive-optical" hidden>
-        {{ pick('drive_media', 'Media', 'Media',
-                'the discs it takes — each reads everything below it',
-                drive_media, 'e.g. HD DVD, magneto-optical', drive_media_max) }}
-        {{ pick('drive_speed', 'Speed', 'Speed', 'the rating on the front',
-                drive_speeds, 'e.g. 48×/24×/48× (write/rewrite/read)',
-                drive_speed_max) }}
-      </div>
-      {# Last, and usually not at all. A drive its pickers have described needs no
-         prose, so the box is out of the way until it is wanted: when "custom" is
-         chosen and the thing has to be spelled out, when the kind has no pickers of
-         its own to say what it is (a card standing in for a drive), or when it
-         already holds something -- a hidden box that still submits its contents is
-         not somewhere to leave text nobody can see. The make and model go in
-         Identity above, and reach a machine's drive row from there. #}
-      <div id="drive-desc-row" hidden>
-        <label for="drive_desc">Drive description <span class="muted">(anything the pickers cannot say; goes on the computer's Drives field, or stays as the part's own if there is no machine to fit it to)</span></label>
-        <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
-               placeholder="e.g. SS/DD; 3.5in 1.44MB floppy">
-        {# Said here, where the box it is about is: a bay or a capacity written into
-           the prose is still read out of it, and a picker set above wins over it. #}
-        <p class="hint">a size or capacity named here is read from the text too; a
-          picker above wins over it where both say something.</p>
-      </div>
-      {# Only where the drive becomes a row on a machine. Kept as a part it has the
-         part's own bezel menus below, and two sets of menus for one pair of columns
-         is a way to disagree with yourself. #}
-      <div id="drive-bezel">
+
+    {# Every question a drive is asked, from the one table in entry.py that the
+       server reads back through. Each carries the kinds it is asked for, and the
+       script at the foot shows it to those kinds and no others -- so what is on
+       screen and what is read cannot come apart, which they did twice when the two
+       were written out separately. `row` marks the four that have a column on a
+       machine's drive row, and so are the only ones still asked once a drive is
+       folded into a machine rather than kept as a part. #}
+    {% for ask in storage_asks %}
+    <div class="ask" data-kinds="{{ ask.kinds|join('|') }}"{{ ' data-row=1' if ask.row else '' }}{{ ' data-required=1' if ask.required else '' }} hidden>
+      {% if ask.options is mapping %}
+        {# One group per kind, because the vocabulary is the kind's: what a tape
+           takes is not what a disc drive takes, and a spindle's rpm is not a
+           reader's × rating. They share a field name, so picking in one clears
+           the other and only one answer is ever posted. #}
+        {% for k, opts in ask.options.items() %}
+        <div data-kind="{{ k }}" hidden>
+          {{ pick(ask.field, ask.key, ask.label, ask.hint, opts, ask.placeholder, ask.max, ask.required) }}
+        </div>
+        {% endfor %}
+      {% elif ask.options %}
+        {{ pick(ask.field, ask.key, ask.label, ask.hint, ask.options, ask.placeholder, ask.max, ask.required) }}
+      {% else %}
+        {{ sf(ask.field, ask.key, ask.label, ask.hint) }}
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    {# The bezel, for the drives that have one. Two sets of menus for one pair of
+       columns would be a way to disagree with yourself, so the drive row's are used
+       where the drive becomes a row and the part's own where it becomes a part. #}
+    {# data-row because the bezel is two columns on a drive row as well as two specs
+       on a part, so it is still asked of a drive being folded into a machine. #}
+    <div class="ask" data-kinds="{{ bezel_kinds|join('|') }}" data-row=1 hidden>
+      <div id="drive-bezel" hidden>
         <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
-        {# The same menus the machine's own form has, because this is where a drive is
-           usually added -- it goes to the same two columns on the drive row. #}
+        {# The same menus the machine's own form has -- it goes to the same two
+           columns on the drive row. #}
         {{ C.pair('drive_', '', '', bezel_colours, yellowing, bezel_colour_labels,
                   yellowing_labels) }}
         <p class="hint">a bezel named in the description ("beige", "yellowed") is read
           from there too; a menu wins over the text where both say something.</p>
         {{ C.chart(bezel_colours, yellowing) }}
       </div>
-    </div>
-    <div id="drive-part">
-      {{ pick('spec_interface', 'Interface', 'Interface', 'how it attaches',
-              vocab.storage_interfaces, 'e.g. QIC-02, Panasonic/Matsushita', 64, true) }}
-      {{ sf('spec_protocol', 'Protocol', 'Protocol', '', 'dl_storage_proto') }}
-      {{ sf('spec_capacity', 'Capacity', 'Capacity', 'e.g. 540 MB. Leave it blank and it is worked out from the geometry below; whatever you type here wins, which matters for a drive whose CHS is clamped (16383/16/63) or quoted for RLL.') }}
-      {{ sf('spec_chs', 'CHS', 'CHS geometry', 'cylinders/heads/sectors, e.g. 1024/16/63') }}
-      {# The text boxes these two keys are asked with for every kind but one. An
-         optical drive has the pickers above instead, and the server reads those in
-         preference, so leaving these on screen for it would offer a second control
-         that quietly loses. #}
-      <div id="part-disc">
-        {{ sf('spec_media', 'Media', 'Media') }}
-        {{ sf('spec_speed', 'Speed', 'Speed') }}
+      <div id="part-bezel" hidden>
+        <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+        {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
+                  bezel_colours, yellowing, bezel_colour_labels, yellowing_labels) }}
+        <p class="hint">a full-height drive shows its bezel; a bare 3.5" disk that
+          never had one has nothing to record here.</p>
+        {{ C.chart(bezel_colours, yellowing) }}
       </div>
-      {{ sf('spec_role', 'Role', 'Role') }}
-      <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
-      {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
-                bezel_colours, yellowing, bezel_colour_labels, yellowing_labels) }}
-      <p class="hint">a full-height drive shows its bezel; a bare 3.5" disk that
-        never had one has nothing to record here.</p>
-      {{ C.chart(bezel_colours, yellowing) }}
+    </div>
+
+    {# Last, and usually not at all. A drive its pickers have described needs no
+       prose, so the box is out of the way until it is wanted: when "custom" is
+       chosen and the thing has to be spelled out, when the kind has no pickers of
+       its own to say what it is (a card standing in for a drive), or when it
+       already holds something -- a hidden box that still submits its contents is
+       not somewhere to leave text nobody can see. The make and model go in
+       Identity above, and reach a machine's drive row from there. #}
+    <div id="drive-desc-row" hidden>
+      <label for="drive_desc">Drive description <span class="muted">(anything the pickers cannot say; goes on the computer's Drives field, or stays as the part's own if there is no machine to fit it to)</span></label>
+      <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
+             placeholder="e.g. SS/DD; 3.5in 1.44MB floppy">
+      {# Said here, where the box it is about is: a bay or a capacity written into
+         the prose is still read out of it, and a picker set above wins over it. #}
+      <p class="hint">a size or capacity named here is read from the text too; a
+        picker above wins over it where both say something.</p>
+    </div>
+
+    <div class="ask" data-kinds="{{ disk_image_kinds|join('|') }}" hidden>
       <label for="disk_image">Disk image filename <span class="muted">(image taken on arrival)</span></label>
       <input id="disk_image" name="disk_image" value="{{ (p.disk_image if p else '') or '' }}">
     </div>
   </fieldset>
-
   {% elif ptype == 'motherboard' %}
   <fieldset>
     <legend>Motherboard</legend>
@@ -292,90 +291,87 @@ until you submit.</p>
     u.searchParams.set('type', pt.value);
     {% if not p %}window.location.href = '/parts/new' + u.search;{% endif %}
   });
-  // Storage: two independent questions, which used to be answered as one.
-  //
-  //   What kind of drive is it -- which pickers describe it? The bay it fits, the
-  //   disk or disc it takes, how fast it reads. The server reads each of those on
-  //   the kind alone (see _picked_drive), so they belong on screen on the kind
-  //   alone: a spare optical drive is asked what discs it takes exactly as one
-  //   going into a machine is.
-  //
-  //   Where does what it says end up -- a row on a machine, or a part's own specs?
-  //   Only that second question turns on there being a machine to fold it into,
-  //   and only it decides whether the part-only fields are asked.
-  //
-  // Answering both with one flag is what went wrong twice: keyed on the kind alone,
-  // a spare drive lost the part fields and with them its interface; keyed on the
-  // machine alone, it lost the pickers.
+  // Storage: two questions, kept apart because answering them as one went wrong
+  // twice. What is asked comes from the kind -- entry.STORAGE_ASKS says which kinds
+  // each group belongs to, and the server reads each back on the same condition, so
+  // a group on screen and a group read are the same set. Where the answers land --
+  // a row on a machine, or a part's own specs -- turns on there being a machine to
+  // fold the drive into, and decides only whether the part-only groups are asked at
+  // all: a folded drive has columns for four of them and nowhere to put the rest.
   const kind = document.getElementById('kind');
   if (kind) {
-    const routed = ['SD/CF card', 'Optical', 'Floppy/Gotek'];
-    // Whether there is a machine to fold a drive into, which is the condition
-    // gui_create_part routes on. An edit is of a part that already exists.
+    // The kinds that fold into a machine's drives field rather than becoming a part.
+    const ROW_KINDS = {{ row_kinds | tojson }};
+    // Whether there is a machine to fold one into, which is what gui_create_part
+    // routes on. An edit is always of a part that already exists.
     const routes = {{ 'true' if (computer_id and not p) else 'false' }};
-    const drivePart = document.getElementById('drive-part');
-    const driveRoute = document.getElementById('drive-route');
-    const driveSize = document.getElementById('drive-size');
-    const driveOptical = document.getElementById('drive-optical');
+    const asks = [...document.querySelectorAll('#fs-storage .ask')];
     const driveBezel = document.getElementById('drive-bezel');
-    const partDisc = document.getElementById('part-disc');
+    const partBezel = document.getElementById('part-bezel');
     const descRow = document.getElementById('drive-desc-row');
     const descBox = document.getElementById('drive_desc');
     const FLOPPY = {{ floppy_kind | tojson }};
     const OPTICAL = {{ optical_kind | tojson }};
-    // Every pick-or-type group, and the kind each belongs to.
-    const PICKS = [['drive_form', null], ['drive_size', FLOPPY],
-                   ['drive_media', OPTICAL], ['drive_speed', OPTICAL]];
 
-    // The part's own interface has the same pick-or-type shape as the groups above,
-    // but it belongs to the part fields rather than the machine's drive row, so it
-    // is settled on its own and says nothing about whether the description has a
-    // job. Required only while those fields are on screen: a required control inside
-    // a hidden block would refuse to submit and give the browser nothing to focus.
-    const ifaceRadios = document.querySelectorAll('input[name=spec_interface]');
-    const ifaceCustom = document.getElementById('spec_interface_custom');
+    const folds = () => routes && ROW_KINDS.includes(kind.value);
 
-    function syncIface(routedNow, focus) {
-      const on = document.querySelector('input[name=spec_interface]:checked');
-      ifaceRadios.forEach(function (el) { el.required = !routedNow; });
-      if (!ifaceCustom) return;
-      ifaceCustom.hidden = !(on && on.value === 'custom');
-      ifaceCustom.required = !routedNow && !ifaceCustom.hidden;
-      if (focus && !ifaceCustom.hidden) ifaceCustom.focus();
-    }
-    ifaceRadios.forEach(function (r) {
-      r.addEventListener('change', function () {
-        syncIface(routes && routed.includes(kind.value), true);
+    // Whether any group on screen is sitting on "custom", which is the one case a
+    // drive still needs prose: the box beside it says what the list could not.
+    const anyCustom = () => asks.some(function (ask) {
+      if (ask.hidden) return false;
+      const on = ask.querySelector('input[type=radio]:checked');
+      return on && on.value === 'custom';
+    });
+
+    // A group's box and its required flag follow its own visibility: a required
+    // control inside a hidden block would refuse to submit and give the browser
+    // nothing to focus, and a box for a "custom" nobody can see is no use either.
+    function syncGroup(ask, focus) {
+      const shown = !ask.hidden;
+      ask.querySelectorAll('div[data-kind]').forEach(function (g) {
+        g.hidden = g.dataset.kind !== kind.value;
+        // A radio left checked from a kind since changed is not an answer to what is
+        // being asked now: the groups share a field name, so it would otherwise still
+        // be the one posted. The server refuses it against this kind's list either
+        // way; clearing it here is so the form says the same thing.
+        if (g.hidden) {
+          g.querySelectorAll('input[type=radio]:checked').forEach(function (r) {
+            r.checked = false;
+          });
+        }
       });
-    });
-
-    const anyCustom = () => PICKS.some(function (p) {
-      const on = document.querySelector('input[name=' + p[0] + ']:checked');
-      return on && on.value === 'custom' && (!p[1] || p[1] === kind.value);
-    });
+      ask.querySelectorAll('input[type=radio]').forEach(function (r) {
+        const live = shown && !(r.closest('div[data-kind]') || {hidden: false}).hidden;
+        r.required = live && ask.dataset.required === '1';
+      });
+      ask.querySelectorAll('input[type=text], input:not([type])').forEach(function (box) {
+        if (!box.id.endsWith('_custom')) return;
+        const group = box.closest('div[data-kind]');
+        const live = shown && !(group ? group.hidden : false);
+        const on = ask.querySelector('input[type=radio][value=custom]:checked');
+        box.hidden = !(live && on);
+        box.required = !box.hidden && ask.dataset.required === '1';
+        if (focus && !box.hidden) box.focus();
+      });
+    }
 
     function toggle() {
-      // The kind's own question, and the destination's.
-      const describes = routed.includes(kind.value);
-      const folds = routes && describes;
-      driveRoute.style.display = describes ? '' : 'none';
-      drivePart.style.display = folds ? 'none' : '';
-      syncIface(folds, false);
-      // Each group is shown for the kind it describes and no other: the capacities
-      // on offer are floppy media designations, and a disc and a × rating are an
-      // optical drive's. The server reads each on the same condition, so a radio
-      // left checked from a kind since changed is ignored rather than saved.
-      if (driveSize) driveSize.hidden = !(describes && kind.value === FLOPPY);
-      if (driveOptical) driveOptical.hidden = !(describes && kind.value === OPTICAL);
-      // One bezel on screen, never two: the drive row's menus where it becomes a
+      const folded = folds();
+      asks.forEach(function (ask) {
+        const kinds = (ask.dataset.kinds || '').split('|');
+        // Asked for this kind at all, and -- once folded into a machine -- only if
+        // the drive row has a column to keep the answer in.
+        ask.hidden = !kinds.includes(kind.value)
+                     || (folded && ask.dataset.row !== '1');
+        syncGroup(ask, false);
+      });
+      // One bezel on screen, never two: the drive row's where the drive becomes a
       // row, the part's own where it becomes a part.
-      if (driveBezel) driveBezel.hidden = !folds;
-      // And no text box for a key a picker above is already asking for.
-      if (partDisc) partDisc.hidden = kind.value === OPTICAL;
-      // The description, only where it still has something to say: a drive its
-      // pickers have described needs no prose. Never hidden with text in it -- the
-      // box still submits what it holds, so hiding a full one would leave writing
-      // on the record that nobody can see or reach.
+      if (driveBezel) driveBezel.hidden = !folded;
+      if (partBezel) partBezel.hidden = folded;
+      // The description, only where it still has something to say. Never hidden with
+      // text in it -- the box still submits what it holds, so hiding a full one would
+      // leave writing on the record that nobody can see or reach.
       if (descRow) {
         descRow.hidden = (kind.value === FLOPPY || kind.value === OPTICAL)
                          && !anyCustom() && !(descBox && descBox.value.trim());
@@ -383,22 +379,13 @@ until you submit.</p>
     }
     kind.addEventListener('change', toggle);
 
-    // "custom" reveals the box it needs, and takes the cursor there; the standard
-    // answers need no box at all. Choosing one also decides whether the
-    // description has a job, so the two are settled together.
-    PICKS.forEach(function (pick) {
-      const name = pick[0];
-      const custom = document.getElementById(name + '_custom');
-      if (!custom) return;
-      function show(focus) {
-        const on = document.querySelector('input[name=' + name + ']:checked');
-        custom.hidden = !(on && on.value === 'custom');
-        if (focus && !custom.hidden) custom.focus();
-      }
-      document.querySelectorAll('input[name=' + name + ']').forEach(function (r) {
-        r.addEventListener('change', function () { show(true); toggle(); });
+    // "custom" reveals the box it needs and takes the cursor there; choosing any
+    // answer also decides whether the description still has a job, so the two are
+    // settled together.
+    asks.forEach(function (ask) {
+      ask.querySelectorAll('input[type=radio]').forEach(function (r) {
+        r.addEventListener('change', function () { syncGroup(ask, true); toggle(); });
       });
-      show(false);
     });
     toggle();
   }

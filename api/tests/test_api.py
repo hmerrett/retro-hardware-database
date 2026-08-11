@@ -1088,10 +1088,13 @@ class TestPickingTheBayADriveFits:
                        drive_form='5.25"').rsplit("/", 1)[-1]
         assert 'Form factor: 5.25"' in self.specs(client, aid)
 
-    def test_a_hard_disk_ignores_a_stale_pick(self, client):
+    def test_a_hard_disk_is_asked_its_bay_as_well(self, client):
+        """It used to be a routed drive's question alone. A hard disk fits a bay like
+        anything else, and knowing which is how you tell a full-height 5.25" from a
+        3.5" without getting it out of the box."""
         aid = self.add(client, kind="Hard disk", spec_capacity="540 MB",
                        drive_form='3.5"').rsplit("/", 1)[-1]
-        assert "Form factor:" not in self.specs(client, aid)
+        assert 'Form factor: 3.5"' in self.specs(client, aid)
 
     def test_custom_records_a_bay_the_list_does_not_name(self, client):
         """An Amstrad CF-2 is a 3" disk, and drivedb's parser reads a typed 3" as
@@ -1202,28 +1205,31 @@ class TestPickingWhatAnOpticalDriveTakes:
         assert (row.speed_x, row.speed_rpm) == (48, None)
 
     def test_a_hard_disks_speed_is_still_its_spindles(self, client, db):
-        """The same key, and the same text box it has always been typed into: the
-        pickers appear for an optical drive, and must not swallow this one."""
+        """The same key, from a group of its own: a disk is asked its rpm and a reader
+        its × rating, and one list must never offer both. It lands in the rpm column
+        either way."""
         from app.models import StorageSpec
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Hard disk",
                               "spec_interface": "IDE",
-                              "spec_capacity": "540 MB", "spec_speed": "5400 rpm",
+                              "spec_capacity": "540 MB", "drive_speed": "5400 rpm",
                               "spec_media": "MFM"}, follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
         row = db.query(StorageSpec).filter(StorageSpec.part_id == aid).one()
-        assert (row.speed_rpm, row.speed_x, row.media) == (5400, None, "MFM")
+        assert (row.speed_rpm, row.speed_x) == (5400, None)
 
     def test_a_kind_that_takes_no_disc_ignores_a_stale_pick(self, client):
         """Choosing CD-RW and then changing the kind leaves the radio checked and
-        off-screen. A floppy drive is not a CD-RW anything."""
+        off-screen. A floppy is asked its media too, but from its own list, so a disc
+        arriving under that name is not an answer to it -- and a floppy is asked no
+        speed at all."""
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Floppy/Gotek",
                               "spec_interface": "34-pin floppy",
                               "drive_desc": "3.5in floppy", "drive_media": "CD-RW",
                               "drive_speed": "48×"}, follow_redirects=False)
         specs = self.specs(client, r.headers["location"].rsplit("/", 1)[-1])
-        assert "Media:" not in specs and "Speed:" not in specs
+        assert "Media: CD-RW" not in specs and "Speed:" not in specs
 
     def test_the_picker_wins_over_the_description(self, client, computer):
         cid = computer()["asset_id"]
@@ -1407,8 +1413,8 @@ class TestAStoragePartSInterface:
         dropping one leaves a rule silently toggling nothing, which is how the
         pickers and then the part fields each went missing once."""
         page = client.get("/parts/new?type=storage").text
-        for hook in ('id="drive-route"', 'id="drive-part"', 'id="drive-size"',
-                     'id="drive-optical"', 'id="drive-bezel"', 'id="part-disc"'):
+        for hook in ('id="drive-bezel"', 'id="part-bezel"', 'id="drive-desc-row"',
+                     'class="ask"', 'data-kinds=', 'data-row=1', 'data-required=1'):
             assert hook in page, hook
 
     def test_a_slimline_drive_and_a_sound_card_bus_are_on_offer(self, client):

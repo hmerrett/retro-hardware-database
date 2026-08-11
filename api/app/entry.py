@@ -38,12 +38,16 @@ CARD_STEPS = [
 # drives field.
 PART_STORAGE_KINDS = ("Hard disk", "Tape")
 # The one routed kind whose capacity is a media designation ('1.44MB') rather than
-# a measured quantity, which is the vocabulary drivedb.SIZES holds and the only
+# a measured quantity, which is the vocabulary FLOPPY_SIZES holds and the only
 # kind the capacity picker fits: an optical drive is not a 720K anything.
 FLOPPY_KIND = "Floppy/Gotek"
 # The kind that is described by what it does with a disc rather than by how big
 # one is, and so has the two pickers below instead of a capacity.
 OPTICAL_KIND = "Optical"
+DISK_KIND = "Hard disk"
+TAPE_KIND = "Tape"
+# A card in a reader or an adapter: no bezel of its own, no disc, no spindle.
+CARD_KIND = "SD/CF card"
 
 # --- pick-list vocabularies ------------------------------------------------
 
@@ -89,6 +93,93 @@ OPTICAL_MEDIA = ["CD-ROM", "CD-R", "CD-RW", "DVD-ROM", "DVD/CD-RW combo",
 # should not answer on the owner's behalf.
 OPTICAL_SPEEDS = ["1×", "2×", "4×", "6×", "8×", "12×", "16×", "24×", "32×",
                   "40×", "48×", "52×"]
+
+# --- the rest of what a drive is asked --------------------------------------
+
+# How wide the drive is, and how wide a bay it needs. Two questions with one
+# vocabulary: a 3.5" drive normally sits in a 3.5" bay, but not when it is bracketed
+# into a 5.25" one, and a floppy's own width is also the disk it takes.
+DRIVE_INCHES = ['5.25"', '3.5"', '8"']
+
+# The floppy capacities that actually turn up on this hardware. A designation rather
+# than a measured quantity -- 1.44MB is 1475 KB only by convention, and nobody calls
+# that disk a 1475 KB -- which is why it is its own key and never normalised.
+FLOPPY_SIZES = ["160K", "180K", "320K", "360K", "720K", "1.2MB", "1.44MB", "2.88MB"]
+
+# What a tape drive takes. The cartridge families a PC of this era was backed up
+# onto, coarsest first; a drive quoting a length or a raw/compressed pair goes in
+# the custom box.
+TAPE_MEDIA = ["QIC-40", "QIC-80", "QIC-3010", "QIC-3020",
+              "Travan TR-1", "Travan TR-2", "Travan TR-3", "Travan TR-4",
+              "DC6150", "DDS/DAT", "DLT", "LTO"]
+
+# A spindle's speed, which is what "how fast" means for a disk -- the × ratings
+# above are a reader's, and the two must not share a list. Anything off the shelf
+# (4200, 5900, a quoted average) goes in the custom box.
+DISK_SPEEDS = ["3600 rpm", "5400 rpm", "7200 rpm", "10000 rpm", "15000 rpm"]
+
+_ALL_STORAGE_KINDS = (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND, CARD_KIND)
+
+# What each kind of drive is asked, and with what. One table: the form builds itself
+# from it and the server reads back through it, because keeping a form and the code
+# behind it in step by hand is what went wrong twice here -- once a field on screen
+# the server ignored, once a field the server read with nothing on screen to fill it.
+#
+#   key      the spec key the answer is recorded under
+#   kinds    the kinds that are asked at all; every other kind hides it
+#   options  the closed list it is picked from, per kind where that differs, or
+#            None for a plain text box
+STORAGE_ASKS = [
+    {"key": "Interface", "kinds": _ALL_STORAGE_KINDS,
+     "options": STORAGE_INTERFACES, "required": True,
+     "label": "Interface", "hint": "how it attaches",
+     "placeholder": "e.g. QIC-02, Panasonic/Matsushita"},
+    {"key": "Protocol", "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, CARD_KIND),
+     "options": STORAGE_PROTOCOLS,
+     "label": "Protocol", "hint": "the command set it speaks",
+     "placeholder": "e.g. ATA-3, Fast SCSI-2"},
+    {"key": "Form factor", "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND),
+     "options": DRIVE_INCHES,
+     "label": "Bay size", "hint": "the bay it fits",
+     "placeholder": "e.g. 3\" (Amstrad CF-2), 2.5\""},
+    {"key": "Media", "kinds": (OPTICAL_KIND, TAPE_KIND, FLOPPY_KIND),
+     "options": {OPTICAL_KIND: OPTICAL_MEDIA, TAPE_KIND: TAPE_MEDIA,
+                 FLOPPY_KIND: DRIVE_INCHES},
+     "label": "Media", "hint": "what it takes",
+     "placeholder": "e.g. HD DVD, magneto-optical, AIT"},
+    {"key": "Size", "kinds": (FLOPPY_KIND,), "options": FLOPPY_SIZES,
+     "label": "Capacity", "hint": "what the disk is called, not a measured size",
+     "placeholder": "e.g. 21MB Floptical, 120MB LS-120"},
+    {"key": "Capacity", "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, CARD_KIND),
+     "options": None, "label": "Capacity", "hint": "e.g. 540 MB"},
+    {"key": "Speed", "kinds": (OPTICAL_KIND, DISK_KIND),
+     "options": {OPTICAL_KIND: OPTICAL_SPEEDS, DISK_KIND: DISK_SPEEDS},
+     "label": "Speed", "hint": "the rating on the front, or the spindle",
+     "placeholder": "e.g. 48×/24×/48× (write/rewrite/read), 4200 rpm"},
+    {"key": "CHS", "kinds": (DISK_KIND, CARD_KIND), "options": None,
+     "label": "CHS geometry", "hint": "cylinders/heads/sectors, e.g. 1024/16/63"},
+    {"key": "Role", "kinds": _ALL_STORAGE_KINDS, "options": None,
+     "label": "Role", "hint": "what it was for"},
+]
+
+# The two that are not spec text at all: the bezel is a pair of colour menus, and
+# the disk image is a column on the part. Same question of which kinds are asked.
+BEZEL_KINDS = (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND)
+DISK_IMAGE_KINDS = (DISK_KIND,)
+
+
+def storage_asks(kind):
+    """The asks that apply to one kind, each with the options that kind picks from
+    (a per-kind vocabulary resolved, and None left as None for a text box)."""
+    out = []
+    for ask in STORAGE_ASKS:
+        if kind not in ask["kinds"]:
+            continue
+        options = ask["options"]
+        if isinstance(options, dict):
+            options = options.get(kind)
+        out.append(ask | {"options": options})
+    return out
 
 # --- bezel colour and yellowing --------------------------------------------
 # Two things, recorded separately: the shade a drive was made in, and how far it

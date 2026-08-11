@@ -2462,6 +2462,37 @@ def _known_makes(db):
     return makes, models, known
 
 
+# How long a typed "custom" answer may be: the column the answer lands in. The four
+# that can become a machine's drive row are held to the row's width, because a picker
+# that let you type more than the column holds would fail on save.
+_ASK_WIDTHS = {
+    "Form factor": ComputerDrive.form_factor.type.length,
+    "Size": ComputerDrive.size.type.length,
+    "Media": ComputerDrive.media.type.length,
+    "Speed": ComputerDrive.speed.type.length,
+    "Interface": StorageSpec.interface.type.length,
+    "Protocol": StorageSpec.protocol.type.length,
+}
+
+
+def _spec_field(key):
+    """The form field a spec key is asked with. The spec_ prefix keeps these clear of
+    the part's own columns (a RAM 'Type' spec vs the part type, etc.)."""
+    return "spec_" + key.lower().replace(" ", "_").replace("/", "_")
+
+
+def _storage_asks_ctx():
+    """entry.STORAGE_ASKS dressed for the form: the field each group posts, how long a
+    custom answer may be, and whether the answer has anywhere to go on a machine's
+    drive row -- the four that do are the only ones still asked once a drive is folded
+    into a machine, the rest being fields on a part that will not exist."""
+    return [ask | {"field": PICK_FIELDS.get(ask["key"], _spec_field(ask["key"])),
+                   "max": _ASK_WIDTHS.get(ask["key"], 255),
+                   "row": ask["key"] in DRIVE_PICKS,
+                   "kinds": list(ask["kinds"])}
+            for ask in entry.STORAGE_ASKS]
+
+
 def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
     # Existing values come from the typed tables, not from re-parsing the string.
     mb_slots, mb_ram, mb_ports, mb_cpufams = {}, {}, {}, []
@@ -2498,16 +2529,13 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
             "storage_kinds": entry.STORAGE_KINDS, "storage_protocols": entry.STORAGE_PROTOCOLS,
             "peripheral_interfaces": entry.PERIPHERAL_INTERFACES,
         },
-        # What the routed-drive block's two pickers offer, and the kind whose
-        # capacities those are. Column widths so a typed "custom" answer cannot be
-        # longer than the drive row it may end up in.
-        "drive_forms": drivedb.FORM_FACTORS, "drive_sizes": drivedb.SIZES,
-        "drive_media": drivedb.MEDIA, "drive_speeds": drivedb.SPEEDS,
+        # Every question a drive is asked, for the form to build itself from.
+        "storage_asks": _storage_asks_ctx(),
+        "bezel_kinds": list(entry.BEZEL_KINDS),
+        "disk_image_kinds": list(entry.DISK_IMAGE_KINDS),
+        "row_kinds": [k for k in entry.STORAGE_KINDS
+                      if k not in entry.PART_STORAGE_KINDS],
         "floppy_kind": entry.FLOPPY_KIND, "optical_kind": entry.OPTICAL_KIND,
-        "drive_form_max": ComputerDrive.form_factor.type.length,
-        "drive_size_max": ComputerDrive.size.type.length,
-        "drive_media_max": ComputerDrive.media.type.length,
-        "drive_speed_max": ComputerDrive.speed.type.length,
         **_bezel_ctx(),
         "slot_names": entry.SLOT_NAMES, "port_names": entry.PORT_NAMES,
         "mb_slots": mb_slots, "mb_ram": mb_ram, "mb_ports": mb_ports,
@@ -2627,21 +2655,15 @@ def _assemble_specs(ptype, form, extra=()):
     for key in managed:
         # spec_ prefix keeps these clear of the part's own columns (a RAM
         # 'Type' spec vs the part type, etc.).
-        field = fields.get(key) or (
-            "spec_" + key.lower().replace(" ", "_").replace("/", "_"))
+        field = fields.get(key) or _spec_field(key)
         raw = None
-        if ptype == "storage" and key == "Interface":
-            # The part's own interface is picked from a radio group with a box
-            # beside it too, but it is a field on the part rather than on a
-            # machine's drive row, so it is read whatever the kind.
-            raw = _picked(form, field)
-        elif ptype == "storage" and key in DRIVE_PICKS:
+        if ptype == "storage" and key in PICK_FIELDS:
             # Picked from a radio group with a box beside it, not typed into one
             # input, and read only for the kinds the group is offered for. Where it
             # is offered its answer stands, blank included -- that is how a value is
-            # taken back off -- and where it is not, the plain field below it is
-            # what the form was asking with, so that is what is read.
-            raw = _picked_drive(form, key)
+            # taken back off -- and where it is not, nothing here replaces what the
+            # record already said.
+            raw = _picked_ask(form, key)
         if raw is None:
             raw = (form.get(field, "") or "").strip()
         if not raw:
@@ -2659,29 +2681,38 @@ def _assemble_specs(ptype, form, extra=()):
     return _append_unmanaged(specs, extra, managed)
 
 
-# The routed-drive block's pick-or-type groups: the spec key each fills, the form
-# field it is named for, the drive row column it becomes, and the kind it is
-# offered for (None for any drive that lives on the drives field). A form factor
-# fits every such drive -- an optical drive is 5.25" as surely as a floppy is 3.5"
-# -- while the capacities on offer are floppy media designations and fit a floppy.
-# An optical drive answers the other two instead: what it does with a disc, and how
-# fast, which is what that drive is known by where a capacity is what a floppy is
-# known by.
+# The pick-or-type groups, and the drive row column each becomes where the drive is
+# folded into a machine. Which kinds are asked, and what each picks from, is not
+# repeated here: it comes from entry.STORAGE_ASKS, the one table the form is built
+# from, so a group cannot be on screen for a kind the server reads past.
 DRIVE_PICKS = {
-    "Form factor": ("drive_form", "form_factor", None),
-    "Size": ("drive_size", "size", entry.FLOPPY_KIND),
-    "Media": ("drive_media", "media", entry.OPTICAL_KIND),
-    "Speed": ("drive_speed", "speed", entry.OPTICAL_KIND),
+    "Form factor": ("drive_form", "form_factor"),
+    "Size": ("drive_size", "size"),
+    "Media": ("drive_media", "media"),
+    "Speed": ("drive_speed", "speed"),
 }
 
+# The form field each ask's radio group is named for: the four above keep the
+# drive_-prefixed names a machine's own form posts, and the rest are named for their
+# spec key like every other field on the part form.
+PICK_FIELDS = {
+    ask["key"]: (DRIVE_PICKS[ask["key"]][0] if ask["key"] in DRIVE_PICKS
+                 else "spec_" + ask["key"].lower().replace(" ", "_"))
+    for ask in entry.STORAGE_ASKS if ask["options"]
+}
 
-def _picked(form, field):
-    """What one pick-or-type group chose: one of its standard answers, or whatever
-    was typed beside "custom" for the hardware the list does not name."""
-    picked = (form.get(field, "") or "").strip()
-    if picked == "custom":
-        return " ".join((form.get(field + "_custom", "") or "").split())
-    return picked
+# Which kinds each ask is offered for, straight off the table the form is built
+# from, so a group cannot be on screen for a kind the server reads past.
+ASK_KINDS = {ask["key"]: ask["kinds"] for ask in entry.STORAGE_ASKS}
+
+
+def _ask_options(key, kind):
+    """The answers one kind is offered for one ask, () where it is asked with a text
+    box instead."""
+    for ask in entry.storage_asks(kind):
+        if ask["key"] == key:
+            return ask["options"] or ()
+    return ()
 
 
 def _require_storage_interface(ptype, form):
@@ -2692,28 +2723,40 @@ def _require_storage_interface(ptype, form):
     a part, and has no interface column of its own to fill."""
     if ptype != "storage":
         return
-    if not _picked(form, "spec_interface"):
+    # Read exactly as the value that gets saved is read, or the two could disagree and
+    # let a part through with an interface that is then dropped for not being one.
+    picked = _picked_ask(form, "Interface")
+    if picked is None:
+        return
+    if not picked:
         raise HTTPException(400, "a storage part needs an interface: one of "
                             + ", ".join(entry.STORAGE_INTERFACES) + ", or custom")
 
 
-def _picked_drive(form, key):
+def _picked_ask(form, key):
     """What one of those groups chose: one of the standard answers, or whatever was
     typed beside "custom" for the hardware the list does not name (a 3" Amstrad, a
     Floptical). Blank when nothing was picked, which leaves the description to say
     it.
 
     None -- not blank -- for a kind the group is not offered for, which is the
-    difference between "asked, and the answer is nothing" and "never asked". A
-    radio left checked from a kind since changed must not be saved against a drive
-    it never described; but Media and Speed are also a hard disk's own typed spec
-    fields, and those must not be thrown away by a picker that was not on screen.
+    difference between "asked, and the answer is nothing" and "never asked". A radio
+    left checked from a kind since changed must not be saved against a drive it never
+    described, and a value already on a record must not be thrown away by a group
+    that was never on screen to replace it.
     """
-    field, _col, only = DRIVE_PICKS[key]
     kind = form.get("kind", "") or ""
-    if kind in entry.PART_STORAGE_KINDS or (only and kind != only):
+    if kind not in ASK_KINDS.get(key, ()):
         return None
-    return _picked(form, field)
+    field = PICK_FIELDS[key]
+    raw = (form.get(field, "") or "").strip()
+    if raw == "custom":
+        return " ".join((form.get(field + "_custom", "") or "").split())
+    # Against this kind's own list, not just any of them. Media and Speed are asked
+    # of more than one kind and each kind has its own vocabulary, so the groups share
+    # a field name -- which means a radio left checked from a kind since changed
+    # arrives here looking like an answer. A CD-RW is not something a floppy takes.
+    return raw if raw in _ask_options(key, kind) else ""
 
 
 def _apply_drive_picks(form, rows):
@@ -2731,8 +2774,8 @@ def _apply_drive_picks(form, rows):
     is, so let it answer: read through drivedb's own vocabulary rather than a
     second mapping of the same words, and only where the text did not say.
     """
-    picks = {col: _picked_drive(form, key) or ""
-             for key, (_f, col, _only) in DRIVE_PICKS.items()}
+    picks = {col: _picked_ask(form, key) or ""
+             for key, (_f, col) in DRIVE_PICKS.items()}
     picks["colour"] = form.get("drive_colour", "") or ""
     picks["yellowing"] = form.get("drive_yellowing", "") or ""
     # The make and model, from the fields that ask for them. A routed drive never

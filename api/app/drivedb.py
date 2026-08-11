@@ -22,9 +22,11 @@ from .models import ComputerDrive
 
 # Display forms, so a row renders as it is stored.
 KINDS = ["floppy", "Gotek", "optical", "SD", "CF", "tape"]
-FORM_FACTORS = ['5.25"', '3.5"', '8"']
-# The media designations that actually turn up on this hardware.
-SIZES = ["160K", "180K", "320K", "360K", "720K", "1.2MB", "1.44MB", "2.88MB"]
+# Both of these, and the four below, live in entry.py: a storage part is asked the
+# same questions about the same drive, from the one table there (entry.STORAGE_ASKS),
+# so a row on a machine and the same drive on the shelf cannot come to disagree.
+FORM_FACTORS = entry.DRIVE_INCHES
+SIZES = entry.FLOPPY_SIZES
 # What an optical drive says instead of a capacity: the discs it takes and the
 # rating on its front. Both vocabularies live in entry.py, because a storage part
 # records the same two things about the same drive (see entry.OPTICAL_MEDIA /
