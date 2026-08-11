@@ -268,10 +268,21 @@ def gui_traffic():
     return HTMLResponse(report.read_text(encoding="utf-8"))
 
 
-def _all_years(db):
-    """Every year recorded against anything, machines and parts together."""
-    years = [y for (y,) in db.query(Computer.year).filter(Computer.year.isnot(None))]
-    return years + [y for (y,) in db.query(Part.year).filter(Part.year.isnot(None))]
+# Disposed items are records of things that have gone. A figure about the collection
+# is about what is in it, so everything on /stats counts only what is still held --
+# the exceptions being the figures that are *about* disposal, which say so where they
+# are written. This is the filter, in one place, so "still here" means one thing.
+def _held(query, model):
+    return query.filter(model.disposed.is_(False))
+
+
+def _all_years(db, held=True):
+    """Every year recorded against anything still here, machines and parts together."""
+    out = []
+    for model in (Computer, Part):
+        q = db.query(model.year).filter(model.year.isnot(None))
+        out += [y for (y,) in (_held(q, model) if held else q)]
+    return out
 
 
 # --- the pointless department -----------------------------------------------
@@ -329,12 +340,33 @@ def _photo_counts(db, asset_ids):
     return counts
 
 
-def _curios(db, st, this_year):
-    """The shuffled half of /stats: every figure that has something to say today.
+def _big_total(kb):
+    """A grand total in the unit a person would say it in. entry.fmt_kb keeps a
+    non-round figure in MB, which is right for one drive -- 2096128 KB is the 2047 MB
+    BIOS limit, not "2 GB" -- and unreadable for the sum of every drive there is,
+    where it gives "124222 MB"."""
+    if kb >= 1024 * 1024:
+        return f"{kb / (1024 * 1024):.1f} GB"
+    return entry.fmt_kb(kb, True)
 
-    Each is skipped rather than shown empty, so the pool is what the collection can
-    currently answer -- a register with no acquisition dates simply never offers the
-    ones about waiting. The page draws a handful at random from what comes back."""
+
+def _facts(db, st, this_year):
+    """Every figure the collection can currently answer, in one pool for the page to
+    draw a handful from.
+
+    There used to be two halves: a fixed set of tiles that were always on the page,
+    and a shuffled set of odder ones underneath. The split flattered the fixed half --
+    "spares on the shelf" is no more a headline than "longest wait" -- and it meant
+    the interesting figures were the ones you had to scroll to. One pool, shuffled,
+    and the page is different every time you look at it.
+
+    Each figure is skipped rather than shown empty, so the pool is what the register
+    can currently answer: a collection with no acquisition dates simply never offers
+    the ones about waiting, and a fresh install offers none of them.
+
+    Disposed items are left out throughout -- see _held -- bar the one figure that is
+    about them.
+    """
     out = []
 
     def add(k, v, s, href=None):
@@ -342,6 +374,78 @@ def _curios(db, st, this_year):
 
     def named(obj):
         return entry.display_name(to_dict(obj))
+
+    # --- how big it is ------------------------------------------------------
+
+    if st["top_maker"]:
+        add("Most represented maker", st["top_maker"][0],
+            f"{st['top_maker'][1]} parts",
+            f"/browse?f=maker&v={quote(st['top_maker'][0])}")
+    if st["top_type"]:
+        add("Most collected thing", entry.type_label(st["top_type"][0]),
+            f"{st['top_type'][1]} of them",
+            f"/browse?f=type&v={quote(st['top_type'][0])}")
+    if st["mean_year"]:
+        add("The average item", str(st["mean_year"]),
+            f"{this_year - st['mean_year']} years old", "/browse?f=year")
+    if st["top_ram"]:
+        each = " each" if len(st["top_ram"]) > 1 else ""
+        n = st["top_ram"][0][1]
+        add("Usual amount of memory",
+            " / ".join(r[0] for r in st["top_ram"]),
+            f"{n} machine{'' if n == 1 else 's'}{each}",
+            "/browse?f=ram&v=" + ",".join(str(k) for k in st["top_ram_kb"]))
+    if st["fitted_kb"]:
+        add("Memory fitted, everything added up",
+            entry.fmt_kb(st["fitted_kb"], True), "across every machine here",
+            "/browse?f=ramfitted")
+    if st["stored_kb"]:
+        # The comparison used to be a hardcoded "one modern phone's worth", which
+        # stopped being true as the register grew. Worked out, it stays true.
+        phone_kb = 128 * 1024 * 1024
+        share = st["stored_kb"] / phone_kb
+        how = (f"about {share:.0%} of one modern phone" if share < 1
+               else f"{share:.1f} modern phones' worth")
+        add("Storage, everything added up", _big_total(st["stored_kb"]), how,
+            "/browse?f=storage")
+    if st["slots_per_board"]:
+        add("Expansion slots", str(st["slots"]),
+            f"on {st['boards']} boards, {st['slots_per_board']} each",
+            "/browse?f=slots")
+    if st["chips"]:
+        add("Memory chips counted individually", str(int(st["chips"])),
+            "soldered or socketed on a board", "/browse?f=chips")
+    if st["drives"]:
+        add("Drives fitted", str(int(st["drives"])),
+            f"{st['gotek']} of them a Gotek" if st["gotek"]
+            else "in the machines, counted individually", "/browse?f=drives")
+    if st["working_pct"] is not None:
+        add("Still working", f"{st['working_pct']}%",
+            f"{st['working']} of {st['n_parts']} parts",
+            "/browse?f=condition&v=Working")
+    if st["oldest_year"] and st["newest_year"] > st["oldest_year"]:
+        add("Oldest and newest", f"{st['oldest_year']}–{st['newest_year']}",
+            f"{st['newest_year'] - st['oldest_year']} years apart",
+            "/browse?f=extremes")
+    if st["fullest"]:
+        add("Best equipped machine", named(st["fullest"][0]),
+            f"{st['fullest'][1]} parts fitted",
+            f"/browse?f=in&v={st['fullest'][0].asset_id}")
+    if st["oldest_held"]:
+        add("Longest in the collection", named(st["oldest_held"]),
+            f"since {st['oldest_held'].acquired_date}", "/browse?f=held")
+    if st["fitted_per_machine"] is not None and st["fitted"]:
+        add("Fitted in a machine", str(st["fitted"]),
+            f"{st['fitted_per_machine']} per machine on average", "/browse?f=fitted")
+    if st["spares"]:
+        add("Spares on the shelf", str(st["spares"]), "waiting for a home",
+            "/browse?f=spares")
+    if st["disposed"]:
+        # Counts the disposed, being the figure that is about them.
+        add("No longer with us", str(st["disposed"]), "binned, sold or donated",
+            "/browse?f=disposed")
+
+    # --- and what it is like ------------------------------------------------
 
     rel = _maker_reliability(db)
     if len(rel) >= 2:
@@ -357,8 +461,9 @@ def _curios(db, st, this_year):
     # because the record is the same record either way.
     waits = []
     for model in (Computer, Part):
-        for obj in (db.query(model)
-                    .filter(model.year.isnot(None), model.acquired_date.isnot(None))):
+        for obj in _held(db.query(model).filter(model.year.isnot(None),
+                                                model.acquired_date.isnot(None)),
+                         model):
             waits.append((obj.acquired_date.year - obj.year, obj))
     waits = [w for w in waits if w[0] > 0]
     if waits:
@@ -375,9 +480,11 @@ def _curios(db, st, this_year):
     # card reader's, and a 4GB CF card among the 1.44s swamps the total: the first
     # draft of this said 7189 MB, of which 7000 was two memory cards.
     floppy_kb, floppy_n = 0, 0
-    for size, count in db.query(ComputerDrive.size, ComputerDrive.count).filter(
-            ComputerDrive.size != "",
-            ComputerDrive.kind.in_(("floppy", "Gotek"))):
+    for size, count in _held(
+            db.query(ComputerDrive.size, ComputerDrive.count)
+            .join(Computer, Computer.asset_id == ComputerDrive.computer_id)
+            .filter(ComputerDrive.size != "",
+                    ComputerDrive.kind.in_(("floppy", "Gotek"))), Computer):
         kb = entry.to_kb(size)
         if kb:
             floppy_kb += kb * (count or 1)
@@ -389,7 +496,11 @@ def _curios(db, st, this_year):
             f"if all {floppy_n} drives had a disk in them",
             "/browse?f=drives")
 
+    held_ids = {a for (a,) in _held(db.query(Computer.asset_id), Computer)} | {
+        a for (a,) in _held(db.query(Part.asset_id), Part)}
+
     eventful = (db.query(LogEntry.asset_id, func.count(LogEntry.id))
+                .filter(LogEntry.asset_id.in_(held_ids) if held_ids else False)
                 .group_by(LogEntry.asset_id)
                 .order_by(func.count(LogEntry.id).desc()).first())
     if eventful:
@@ -411,9 +522,7 @@ def _curios(db, st, this_year):
             + ", ".join(entry.type_label(t) for t in lonely[:3]),
             f"/browse?f=type&v={quote(lonely[0])}")
 
-    ids = {a for (a,) in db.query(Computer.asset_id)} | {
-        a for (a,) in db.query(Part.asset_id)}
-    shots = _photo_counts(db, ids)
+    shots = _photo_counts(db, held_ids)
     if shots:
         aid, n = max(shots.items(), key=lambda kv: (kv[1], kv[0]))
         obj = db.get(Computer, aid) or db.get(Part, aid)
@@ -421,40 +530,53 @@ def _curios(db, st, this_year):
             kind = "computers" if isinstance(obj, Computer) else "parts"
             add("Most photographed", named(obj), f"{n} pictures of it",
                 f"/{kind}/{obj.asset_id}")
-    bare = len(ids) - len(shots)
-    if bare:
+    bare = len(held_ids) - len(shots)
+    if bare and held_ids:
         add("Never photographed", str(bare),
-            f"{round(100 * bare / len(ids))}% of the register, waiting for a camera",
-            "/browse?f=nophotos")
+            f"{round(100 * bare / len(held_ids))}% of the register, waiting for a "
+            "camera", "/browse?f=nophotos")
+    if shots and st["photos"] and len(held_ids):
+        add("Photographs per thing", f"{st['photos'] / len(held_ids):.1f}",
+            f"{st['photos']} pictures of {len(held_ids)} things", "/browse?f=photos")
 
-    makers = db.query(func.count(func.distinct(Part.manufacturer))).filter(
-        Part.manufacturer.isnot(None), Part.manufacturer != "").scalar() or 0
-    if makers:
-        add("Names on the parts", str(makers), "distinct makers in the register",
-            "/browse?f=parts")
+    maker_counts = _held(db.query(Part.manufacturer, func.count(Part.asset_id))
+                         .filter(Part.manufacturer.isnot(None),
+                                 Part.manufacturer != ""), Part) \
+        .group_by(Part.manufacturer).all()
+    if maker_counts:
+        add("Names on the parts", str(len(maker_counts)),
+            "distinct makers in the register", "/browse?f=parts")
+    singles = [m for m, n in maker_counts if n == 1]
+    if len(singles) >= 3:
+        add("Makers represented once", str(len(singles)),
+            f"of {len(maker_counts)}, a single part each: "
+            + ", ".join(sorted(singles)[:3]), "/browse?f=parts")
 
     # Counted in Python rather than grouped by YEAR(): the app runs on SQLite for
     # local development as well as on MariaDB, and that function is not portable.
     # At this size it is a few dozen dates either way.
-    arrivals = Counter(d.year for (d,) in db.query(Part.acquired_date)
-                       .filter(Part.acquired_date.isnot(None)))
+    arrivals = Counter(d.year for (d,) in
+                       _held(db.query(Part.acquired_date)
+                             .filter(Part.acquired_date.isnot(None)), Part))
     if arrivals:
         year, n = max(arrivals.items(), key=lambda kv: (kv[1], kv[0]))
         if n > 1:
             add("Busiest year for buying", str(year), f"{n} parts arrived",
                 "/browse?f=held")
 
-    source = (db.query(Part.source, func.count(Part.asset_id))
-              .filter(Part.source.isnot(None), Part.source != "")
+    source = (_held(db.query(Part.source, func.count(Part.asset_id))
+                    .filter(Part.source.isnot(None), Part.source != ""), Part)
               .group_by(Part.source)
               .order_by(func.count(Part.asset_id).desc()).first())
     if source and source[1] > 1:
         add("Where things come from", source[0], f"{source[1]} parts from there",
             f"/browse?f=source&v={quote(source[0])}")
 
-    caps = [(kb, pid) for pid, kb in db.query(StorageSpec.part_id,
-                                              StorageSpec.capacity_kb)
-            .filter(StorageSpec.capacity_kb.isnot(None), StorageSpec.capacity_kb > 0)]
+    caps = [(kb, pid) for pid, kb in
+            _held(db.query(StorageSpec.part_id, StorageSpec.capacity_kb)
+                  .join(Part, Part.asset_id == StorageSpec.part_id)
+                  .filter(StorageSpec.capacity_kb.isnot(None),
+                          StorageSpec.capacity_kb > 0), Part)]
     if len(caps) >= 2:
         big, small = max(caps), min(caps)
         add("Biggest and smallest disk",
@@ -462,7 +584,10 @@ def _curios(db, st, this_year):
             f"a factor of {round(big[0] / small[0]):,} between them",
             "/browse?f=storage")
 
-    chips = (db.query(ComputerRamChip.computer_id, func.sum(ComputerRamChip.count))
+    chips = (_held(db.query(ComputerRamChip.computer_id,
+                            func.sum(ComputerRamChip.count))
+                   .join(Computer,
+                         Computer.asset_id == ComputerRamChip.computer_id), Computer)
              .group_by(ComputerRamChip.computer_id)
              .order_by(func.sum(ComputerRamChip.count).desc()).first())
     if chips:
@@ -474,7 +599,7 @@ def _curios(db, st, this_year):
 
     longest, holder, holder_kind = 0, None, ""
     for model, kind in ((Computer, "computers"), (Part, "parts")):
-        for obj in db.query(model):
+        for obj in _held(db.query(model), model):
             name = named(obj)
             if len(name) > longest:
                 longest, holder, holder_kind = len(name), obj, kind
@@ -488,6 +613,101 @@ def _curios(db, st, this_year):
         add(f"Arrived in {this_year}", str(arrivals[this_year]),
             "parts so far this year", "/browse?f=held")
 
+    # --- what the drives are like -------------------------------------------
+    # These read the typed storage columns, which is where the per-kind form now
+    # files everything a drive is asked (see entry.STORAGE_ASKS).
+
+    def storage_rank(column, kind=None):
+        """(value, count) for one storage column, commonest first, held parts only."""
+        q = _held(db.query(column, func.count(StorageSpec.part_id))
+                  .join(Part, Part.asset_id == StorageSpec.part_id)
+                  .filter(column.isnot(None), column != ""), Part)
+        if kind:
+            q = q.filter(StorageSpec.kind == kind)
+        return sorted(q.group_by(column).all(), key=lambda r: (-r[1], r[0]))
+
+    ifaces = storage_rank(StorageSpec.interface)
+    if ifaces:
+        total = sum(n for _i, n in ifaces)
+        add("How a drive usually attaches", ifaces[0][0],
+            f"{ifaces[0][1]} of {total} drives", "/browse?f=storage")
+    if len(ifaces) >= 3:
+        add("Ways of attaching a drive", str(len(ifaces)),
+            "in use here: " + ", ".join(i for i, _n in ifaces[:4])
+            + ("…" if len(ifaces) > 4 else ""), "/browse?f=storage")
+
+    discs = storage_rank(StorageSpec.media, entry.OPTICAL_KIND)
+    if discs and discs[0][1] > 1:
+        add("The usual disc", discs[0][0], f"{discs[0][1]} optical drives take it",
+            "/browse?f=storage")
+
+    kinds = storage_rank(StorageSpec.kind)
+    if len(kinds) >= 2:
+        add("What the drives are", str(sum(n for _k, n in kinds)),
+            ", ".join(f"{n} × {k}" for k, n in kinds),
+            "/browse?f=storage")
+
+    disk_caps = [kb for (kb,) in
+                 _held(db.query(StorageSpec.capacity_kb)
+                       .join(Part, Part.asset_id == StorageSpec.part_id)
+                       .filter(StorageSpec.kind == entry.DISK_KIND,
+                               StorageSpec.capacity_kb.isnot(None),
+                               StorageSpec.capacity_kb > 0), Part)]
+    if len(disk_caps) >= 2:
+        add("Every hard disk added up", _big_total(sum(disk_caps)),
+            f"across {len(disk_caps)} of them", "/browse?f=storage")
+
+    # The 137 GB wall, as reported by the drive: a disk bigger than 8.4 GB has to
+    # lie about its geometry, and 16383/16/63 is the lie they all tell.
+    clamped = _held(db.query(func.count(StorageSpec.part_id))
+                    .join(Part, Part.asset_id == StorageSpec.part_id)
+                    .filter(StorageSpec.chs_c == 16383, StorageSpec.chs_h == 16,
+                            StorageSpec.chs_s == 63), Part).scalar() or 0
+    if clamped:
+        add("Drives that lie about their shape", str(clamped),
+            "reporting the ATA limit of 16383/16/63 rather than their real geometry",
+            "/browse?f=storage")
+
+    shades = storage_rank(StorageSpec.colour)
+    if shades:
+        add("The usual shade", shades[0][0],
+            f"{shades[0][1]} of {sum(n for _s, n in shades)} bezels on file",
+            "/browse?f=storage")
+    yellowed = storage_rank(StorageSpec.yellowing)
+    if yellowed:
+        n = sum(n for _y, n in yellowed)
+        add("Bezels gone yellow", str(n),
+            f"most often {yellowed[0][0].lower()}", "/browse?f=storage")
+
+    # --- and the shape of the whole thing -----------------------------------
+
+    years = _all_years(db)
+    if years:
+        decades = Counter((y // 10) * 10 for y in years)
+        decade, n = max(decades.items(), key=lambda kv: (kv[1], kv[0]))
+        if len(decades) > 1:
+            add("Best represented decade", f"{decade}s", f"{n} things made then",
+                "/browse?f=year")
+
+    for label, pick, blurb in (
+            ("The oldest thing here", min, "the earliest year on anything"),
+            ("The newest thing here", max, "the latest year on anything")):
+        dated = []
+        for model, kind in ((Computer, "computers"), (Part, "parts")):
+            for obj in _held(db.query(model).filter(model.year.isnot(None)), model):
+                dated.append((obj.year, kind, obj))
+        if dated:
+            year, kind, obj = pick(dated, key=lambda d: d[0])
+            add(label, str(year), f"{named(obj)} — {blurb}",
+                f"/{kind}/{obj.asset_id}")
+
+    untested = _held(db.query(func.count(Part.asset_id))
+                     .filter(Part.condition == "Untested"), Part).scalar() or 0
+    if untested and st["n_parts"]:
+        add("Never tested", str(untested),
+            f"{round(100 * untested / st['n_parts'])}% of the parts, plugged into "
+            "nothing yet", "/browse?f=condition&v=Untested")
+
     return out
 
 
@@ -500,28 +720,33 @@ def _collection_stats(db):
     query on -- so that a bar on the page can link to the items behind it. Usually
     the label is the value; for part types the label is prettified and the raw type
     key is what /browse needs."""
-    n_computers = db.query(func.count(Computer.asset_id)).scalar() or 0
-    n_parts = db.query(func.count(Part.asset_id)).scalar() or 0
+    n_computers = _held(db.query(func.count(Computer.asset_id)), Computer).scalar() or 0
+    n_parts = _held(db.query(func.count(Part.asset_id)), Part).scalar() or 0
 
     def ranked(query, limit=None):
         rows = [(k, n, k) for k, n in query if (k or "").strip()]
         rows.sort(key=lambda r: (-r[1], r[0]))
         return rows[:limit] if limit else rows
 
-    makers = ranked(db.query(Part.manufacturer, func.count(Part.asset_id))
+    makers = ranked(_held(db.query(Part.manufacturer, func.count(Part.asset_id)), Part)
                     .group_by(Part.manufacturer), 8)
-    types = ranked(db.query(Part.type, func.count(Part.asset_id))
+    types = ranked(_held(db.query(Part.type, func.count(Part.asset_id)), Part)
                    .group_by(Part.type))
-    buses = ranked(db.query(PartSlot.bus, func.sum(PartSlot.count))
+    # The child tables have no disposed flag of their own, so these join back to the
+    # part that owns the row: a binned board's slots are not slots the collection has.
+    buses = ranked(_held(db.query(PartSlot.bus, func.sum(PartSlot.count))
+                         .join(Part, Part.asset_id == PartSlot.part_id), Part)
                    .group_by(PartSlot.bus), 6)
-    ports = ranked(db.query(PartPort.port, func.sum(PartPort.count))
+    ports = ranked(_held(db.query(PartPort.port, func.sum(PartPort.count))
+                         .join(Part, Part.asset_id == PartPort.part_id), Part)
                    .group_by(PartPort.port), 6)
-    conditions = ranked(db.query(Part.condition, func.count(Part.asset_id))
+    conditions = ranked(_held(db.query(Part.condition, func.count(Part.asset_id)), Part)
                         .group_by(Part.condition))
 
     years = _all_years(db)
-    ram = [kb for (kb,) in db.query(Computer.installed_ram_kb)
-           .filter(Computer.installed_ram_kb.isnot(None))]
+    ram = [kb for (kb,) in _held(db.query(Computer.installed_ram_kb)
+                                 .filter(Computer.installed_ram_kb.isnot(None)),
+                                 Computer)]
     common_ram = sorted(((entry.fmt_kb(kb), ram.count(kb), kb) for kb in set(ram)),
                         key=lambda r: (-r[1], r[0]))
     # Ties share the honour: two sizes fitted to three machines each are both "the
@@ -529,32 +754,44 @@ def _collection_stats(db):
     top_ram = [r for r in common_ram if r[1] == common_ram[0][1]][:3] if common_ram else []
 
     fitted_kb = sum(ram)
-    stored_kb = db.query(func.sum(StorageSpec.capacity_kb)).scalar() or 0
-    slots = db.query(func.sum(PartSlot.count)).scalar() or 0
-    boards = db.query(func.count(func.distinct(PartSlot.part_id))).scalar() or 0
-    chips = db.query(func.sum(ComputerRamChip.count)).scalar() or 0
-    drives = db.query(func.sum(ComputerDrive.count)).scalar() or 0
-    gotek = db.query(func.count(ComputerDrive.id)).filter(
-        ComputerDrive.kind == "Gotek").scalar() or 0
-    working = db.query(func.count(Part.asset_id)).filter(
-        Part.condition == "Working").scalar() or 0
+    stored_kb = _held(db.query(func.sum(StorageSpec.capacity_kb))
+                      .join(Part, Part.asset_id == StorageSpec.part_id),
+                      Part).scalar() or 0
+    slots = _held(db.query(func.sum(PartSlot.count))
+                  .join(Part, Part.asset_id == PartSlot.part_id), Part).scalar() or 0
+    boards = _held(db.query(func.count(func.distinct(PartSlot.part_id)))
+                   .join(Part, Part.asset_id == PartSlot.part_id), Part).scalar() or 0
+    chips = _held(db.query(func.sum(ComputerRamChip.count))
+                  .join(Computer, Computer.asset_id == ComputerRamChip.computer_id),
+                  Computer).scalar() or 0
+    drives = _held(db.query(func.sum(ComputerDrive.count))
+                   .join(Computer, Computer.asset_id == ComputerDrive.computer_id),
+                   Computer).scalar() or 0
+    gotek = _held(db.query(func.count(ComputerDrive.id))
+                  .join(Computer, Computer.asset_id == ComputerDrive.computer_id)
+                  .filter(ComputerDrive.kind == "Gotek"), Computer).scalar() or 0
+    working = _held(db.query(func.count(Part.asset_id))
+                    .filter(Part.condition == "Working"), Part).scalar() or 0
+    # The one figure that is about the disposed, so the only one that counts them.
     disposed = ((db.query(func.count(Part.asset_id)).filter(Part.disposed).scalar() or 0)
                 + (db.query(func.count(Computer.asset_id))
                    .filter(Computer.disposed).scalar() or 0))
 
-    fullest = (db.query(Part.computer_id, func.count(Part.asset_id))
-               .filter(Part.computer_id.isnot(None))
+    fullest = (_held(db.query(Part.computer_id, func.count(Part.asset_id))
+                     .filter(Part.computer_id.isnot(None)), Part)
                .group_by(Part.computer_id)
                .order_by(func.count(Part.asset_id).desc()).first())
     fullest_machine = db.get(Computer, fullest[0]) if fullest else None
+    if fullest_machine and fullest_machine.disposed:
+        fullest, fullest_machine = None, None
 
-    oldest_held = (db.query(Part).filter(Part.acquired_date.isnot(None))
-                   .order_by(Part.acquired_date).first())
+    oldest_held = _held(db.query(Part).filter(Part.acquired_date.isnot(None)),
+                        Part).order_by(Part.acquired_date).first()
     photos = sum(len(folder_images(k)) for k in ("computers", "parts"))
     # Most parts are spares on a shelf, so "parts per machine" over the whole
     # register would say 19 and mean nothing. Only the fitted ones divide.
-    fitted = db.query(func.count(Part.asset_id)).filter(
-        Part.computer_id.isnot(None)).scalar() or 0
+    fitted = _held(db.query(func.count(Part.asset_id))
+                   .filter(Part.computer_id.isnot(None)), Part).scalar() or 0
 
     return {
         "n_computers": n_computers, "n_parts": n_parts,
@@ -583,10 +820,10 @@ def _collection_stats(db):
     }
 
 
-# How many of the shuffled figures a visit gets. Six fills two rows on a wide
-# screen and still leaves the page's fixed figures as the page, rather than a
-# preamble to a slot machine.
-CURIOS_SHOWN = 6
+# How many figures a visit gets. Eight fills two rows on a wide screen, and with the
+# whole pool shuffled rather than half of it there is no fixed half left for them to
+# be a preamble to.
+FACTS_SHOWN = 8
 
 
 @app.get("/stats", response_class=HTMLResponse, include_in_schema=False)
@@ -597,16 +834,16 @@ def gui_stats(request: Request, db: Session = Depends(get_db)):
     # figures that have something to say today, so the sample is never padded with
     # blanks; sample() rather than shuffle() because it also handles a pool smaller
     # than the handful, which is what a young register has.
-    pool = _curios(db, st, this_year)
-    st["curios"] = random.sample(pool, min(CURIOS_SHOWN, len(pool)))
-    st["n_curios"] = len(pool)
+    pool = _facts(db, st, this_year)
+    st["facts"] = random.sample(pool, min(FACTS_SHOWN, len(pool)))
+    st["n_facts"] = len(pool)
     rel = _maker_reliability(db)
     # Shaped for the rank macro here rather than in the template: (label, bar, the
     # value /browse needs). The macro takes rows, not a data model.
     st["reliability_rank"] = [(maker, pct, maker) for maker, _n, _w, pct in rel]
     st["reliability_min"] = RELIABILITY_MIN
     # The description a crawler or a chat window sees is the collection, not
-    # whichever six figures this particular render drew.
+    # whichever eight figures this particular render drew.
     blurb = (f"{st['n_total']} things in the register: {st['n_computers']} machines "
              f"and {st['n_parts']} parts, averaging {st['mean_year']}.")
     return templates.TemplateResponse(request, "stats.html", {

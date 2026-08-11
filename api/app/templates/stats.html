@@ -49,100 +49,20 @@
     <a href="/browse?f=photos">{{ st.photos }} photographs</a> between them</div>
 </div>
 
-<div class="tiles">
-  {% if st.top_maker %}
-  <a class="tile" href="/browse?f=maker&v={{ st.top_maker[0] | urlencode }}">
-    <div class="k">Most represented maker</div>
-    <div class="v">{{ st.top_maker[0] }}</div>
-    <div class="s">{{ st.top_maker[1] }} parts</div></a>
-  {% endif %}
-  {% if st.top_type %}
-  <a class="tile" href="/browse?f=type&v={{ st.top_type[0] | urlencode }}">
-    <div class="k">Most collected thing</div>
-    <div class="v">{{ type_label(st.top_type[0]) }}</div>
-    <div class="s">{{ st.top_type[1] }} of them</div></a>
-  {% endif %}
-  {% if st.mean_year %}
-  <a class="tile" href="/browse?f=year"><div class="k">The average item</div>
-    <div class="v">{{ st.mean_year }}</div>
-    <div class="s">{{ this_year - st.mean_year }} years old</div></a>
-  {% endif %}
-  {% if st.top_ram %}
-  <a class="tile" href="/browse?f=ram&v={{ st.top_ram_kb | join(',') }}">
-    <div class="k">Usual amount of memory</div>
-    <div class="v">{{ st.top_ram | map(attribute=0) | join(' / ') }}</div>
-    <div class="s">{{ st.top_ram[0][1] }} machine{{ 's' if st.top_ram[0][1] != 1 }}
-      {{- ' each' if st.top_ram | length > 1 }}</div></a>
-  {% endif %}
-  <a class="tile" href="/browse?f=ramfitted">
-    <div class="k">Memory fitted, everything added up</div>
-    <div class="v">{{ (st.fitted_kb / 1024) | round | int }} MB</div>
-    <div class="s">across every machine here</div></a>
-  <a class="tile" href="/browse?f=storage"><div class="k">Storage, everything added up</div>
-    <div class="v">{{ (st.stored_kb / 1048576) | round(1) }} GB</div>
-    <div class="s">one modern phone's worth</div></a>
-  {% if st.slots_per_board %}
-  <a class="tile" href="/browse?f=slots"><div class="k">Expansion slots</div>
-    <div class="v">{{ st.slots }}</div>
-    <div class="s">on {{ st.boards }} boards, {{ st.slots_per_board }} each</div></a>
-  {% endif %}
-  <a class="tile" href="/browse?f=chips">
-    <div class="k">Memory chips counted individually</div>
-    <div class="v">{{ st.chips }}</div>
-    <div class="s">soldered or socketed on a board</div></a>
-  <a class="tile" href="/browse?f=drives"><div class="k">Drives fitted</div>
-    <div class="v">{{ st.drives }}</div>
-    <div class="s">{{ st.gotek }} of them a Gotek</div></a>
-  {% if st.working_pct is not none %}
-  <a class="tile" href="/browse?f=condition&v=Working"><div class="k">Still working</div>
-    <div class="v">{{ st.working_pct }}%</div>
-    <div class="s">{{ st.working }} of {{ st.n_parts }} parts</div></a>
-  {% endif %}
-  {% if st.oldest_year %}
-  <a class="tile" href="/browse?f=extremes"><div class="k">Oldest and newest</div>
-    <div class="v">{{ st.oldest_year }}–{{ st.newest_year }}</div>
-    <div class="s">{{ st.newest_year - st.oldest_year }} years apart</div></a>
-  {% endif %}
-  {% if st.fullest %}
-  <a class="tile" href="/browse?f=in&v={{ st.fullest[0].asset_id }}">
-    <div class="k">Best equipped machine</div>
-    <div class="v">{{
-      display_name({'name': st.fullest[0].name, 'manufacturer': st.fullest[0].manufacturer,
-                    'model': st.fullest[0].model, 'asset_id': st.fullest[0].asset_id}) }}</div>
-    <div class="s">{{ st.fullest[1] }} parts fitted</div></a>
-  {% endif %}
-  {% if st.oldest_held %}
-  <a class="tile" href="/browse?f=held"><div class="k">Longest in the collection</div>
-    <div class="v">{{
-      display_name({'name': st.oldest_held.name, 'manufacturer': st.oldest_held.manufacturer,
-                    'model': st.oldest_held.model, 'asset_id': st.oldest_held.asset_id}) }}</div>
-    <div class="s">since {{ st.oldest_held.acquired_date }}</div></a>
-  {% endif %}
-  {% if st.fitted_per_machine is not none %}
-  <a class="tile" href="/browse?f=fitted"><div class="k">Fitted in a machine</div>
-    <div class="v">{{ st.fitted }}</div>
-    <div class="s">{{ st.fitted_per_machine }} per machine on average</div></a>
-  {% endif %}
-  <a class="tile" href="/browse?f=spares"><div class="k">Spares on the shelf</div>
-    <div class="v">{{ st.spares }}</div>
-    <div class="s">waiting for a home</div></a>
-  <a class="tile" href="/browse?f=disposed"><div class="k">No longer with us</div>
-    <div class="v">{{ st.disposed }}</div>
-    <div class="s">binned, sold or donated</div></a>
-</div>
+{# One pool, shuffled. There used to be a fixed set of tiles here and an odder,
+   shuffled set underneath -- which flattered the fixed half ("spares on the shelf" is
+   no more a headline than "longest wait") and buried the interesting figures below
+   the fold. Now every figure takes its chance, and the page is different each visit.
 
-{% if st.curios %}
-{# The shuffled half. Same tiles, same quiet links -- what changes is that the page
-   picks a different handful out of the hat each time it is looked at, so a figure
-   too silly to earn permanent space on the page still gets seen occasionally. #}
+   Same quiet links throughout: every figure leads to the things it counted. #}
 <div class="flex" style="margin-top:26px">
-  <h2 style="margin:0;font-size:17px">The pointless department</h2>
-  <span class="muted" style="font-size:13px">{{ st.curios | length }} of
-    {{ st.n_curios }}, drawn fresh each time you look —
+  <h2 style="margin:0;font-size:17px">Eight things about it</h2>
+  <span class="muted" style="font-size:13px">{{ st.facts | length }} of
+    {{ st.n_facts }}, drawn fresh each time you look —
     <a href="/stats">shuffle</a></span>
 </div>
 <div class="tiles">
-  {% for c in st.curios %}
+  {% for c in st.facts %}
   {% if c.href %}<a class="tile" href="{{ c.href }}">{% else %}<div class="tile">{% endif %}
     <div class="k">{{ c.k }}</div>
     <div class="v">{{ c.v }}</div>
@@ -150,7 +70,6 @@
   {% if c.href %}</a>{% else %}</div>{% endif %}
   {% endfor %}
 </div>
-{% endif %}
 
 <div class="ranks">
   {% if st.reliability_rank | length >= 2 %}
@@ -172,7 +91,9 @@
   {{ rank('Condition', 'as recorded, parts only', st.conditions, 'parts', 'condition') }}
 </div>
 
-<p class="hint">Counted live from the catalogue. Quantities come from typed columns
-rather than being read back out of text, so a figure here is the same figure the
-database sorts on. Every number leads to the things it counted.</p>
+<p class="hint">Counted live from the catalogue, and only from what is still here:
+a disposed item is a record of something gone, so it is left out of every figure bar
+the count of disposals itself. Quantities come from typed columns rather than being
+read back out of text, so a figure here is the same figure the database sorts on.
+Every number leads to the things it counted.</p>
 {% endblock %}

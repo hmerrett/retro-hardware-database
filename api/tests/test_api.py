@@ -1631,15 +1631,105 @@ class TestTheMakerLeagueTable:
         assert 'style="width: 50.0%"' in page and 'style="width: 83.0%"' in page
 
 
+class TestTheGalleryOpensShuffled:
+    """A shelf is more interesting shuffled than in the order things were last
+    touched, and a recency sort only ever shows the same dozen items."""
+
+    def test_random_is_the_first_option_and_so_the_default(self, client, computer):
+        computer(model="A")
+        page = client.get("/").text
+        select = page[page.index('<select id="sort"'):page.index("</select>", page.index('<select id="sort"'))]
+        values = re.findall(r'<option value="([^"]*)"', select)
+        assert values[0] == "random", values
+        # No `selected` anywhere in the group, so the first option is what opens --
+        # asserted because adding one elsewhere would silently take the default away.
+        assert "selected" not in select
+
+    def test_the_shuffle_is_dealt_once_and_held(self, client, computer):
+        """Filtering and searching re-sort on every keystroke, so a shuffle that
+        re-dealt each time would throw the cards up in the air while you typed."""
+        computer(model="A")
+        page = client.get("/").text
+        assert "function deal()" in page and "el._shuffle = Math.random()" in page
+        # Dealt again only when Random is chosen afresh, which is what makes the
+        # option useful once you are already on it.
+        assert "if (mode === 'random' && mode !== lastMode) deal();" in page
+
+    def test_a_photoless_item_still_sorts_last(self, client, computer):
+        """The same rule the recency sorts follow: a shuffle that opens on a screenful
+        of unphotographed things looks like a broken page, not a random one."""
+        computer(model="A")
+        page = client.get("/").text
+        assert "random: (a, b) => hasImg(b) - hasImg(a) || a._shuffle - b._shuffle" \
+            in page
+
+
+class TestWhatIsGoneIsNotCounted:
+    """A disposed item is a record of something that has left the collection, so it
+    should not swell a figure about what the collection has. The exception is the one
+    figure that is about disposal, which would otherwise always read nought."""
+
+    def facts(self, db):
+        from app import main
+        return {f["k"]: f for f in
+                main._facts(db, main._collection_stats(db), date.today().year)}
+
+    def test_a_binned_part_leaves_the_totals(self, client, db, part):
+        from app import main
+        keep = part(manufacturer="Goodco", model="stays", condition="Working")
+        gone = part(manufacturer="Dudco", model="goes", condition="Working")
+        before = main._collection_stats(db)["n_parts"]
+        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"},
+                    follow_redirects=False)
+        db.expire_all()
+        after = main._collection_stats(db)
+        assert after["n_parts"] == before - 1
+        assert after["working"] == 1
+        # ...and it is not among the makers either, which is what a league table of
+        # them would otherwise reward.
+        assert [m for m, _n, _v in after["makers"]] == ["Goodco"]
+        assert keep["asset_id"] and after["disposed"] == 1
+
+    def test_the_count_of_disposals_does_count_them(self, client, db, part):
+        gone = part(model="goes")
+        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        db.expire_all()
+        assert self.facts(db)["No longer with us"]["v"] == "1"
+
+    def test_a_disposed_year_does_not_stretch_the_range(self, client, db, part):
+        from app import main
+        part(model="held", year=1990)
+        part(model="also", year=1995)
+        gone = part(model="goes", year=1970)
+        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"},
+                    follow_redirects=False)
+        db.expire_all()
+        assert min(main._all_years(db)) == 1990
+
+    def test_a_disposed_machine_is_not_the_best_equipped(self, client, db, computer,
+                                                        part):
+        from app import main
+        c = computer(model="gone")
+        for i in range(3):
+            part(model=f"p{i}", computer_id=c["asset_id"])
+        assert main._collection_stats(db)["fullest"] is not None
+        client.post(f"/computers/{c['asset_id']}/dispose", data={"note": "sold"},
+                    follow_redirects=False)
+        db.expire_all()
+        assert main._collection_stats(db)["fullest"] is None
+
+
 class TestTheShuffledFigures:
-    """The pointless department: a pool of figures, a handful drawn per visit. What
-    matters is that the pool only holds what the collection can currently answer,
-    and that every one of them leads somewhere real -- not just the six that
+    """One pool of figures, a handful drawn per visit -- the fixed tiles and the odd
+    ones together, since the split only meant the interesting half was below the fold.
+    What matters is that the pool holds only what the collection can currently answer,
+    and that every one of them leads somewhere real -- not just the eight that
     happened to come up on the render a test looked at."""
 
     def pool(self, db):
         from app import main
-        return main._curios(db, main._collection_stats(db), date.today().year)
+        return main._facts(db, main._collection_stats(db), date.today().year)
 
     def furnish(self, client, computer, part):
         """Enough of everything that most of the pool has something to say."""
@@ -1666,7 +1756,7 @@ class TestTheShuffledFigures:
         from app import main
         self.furnish(client, computer, part)
         pool = self.pool(db)
-        assert len(pool) > main.CURIOS_SHOWN      # or there is nothing to shuffle
+        assert len(pool) > main.FACTS_SHOWN       # or there is nothing to shuffle
         for c in pool:
             if c["href"]:
                 assert client.get(c["href"]).status_code == 200, (c["k"], c["href"])
@@ -1681,7 +1771,7 @@ class TestTheShuffledFigures:
         from app import main
         self.furnish(client, computer, part)
         page = client.get("/stats").text
-        assert len(self.department(page)) == main.CURIOS_SHOWN
+        assert len(self.department(page)) == main.FACTS_SHOWN
         flat = " ".join(page.split())
         assert f"of {len(self.pool(db))}" in flat      # and it says what it drew from
 
@@ -1699,12 +1789,12 @@ class TestTheShuffledFigures:
 
     @staticmethod
     def department(page):
-        body = page[page.index("The pointless department"):]
+        body = page[page.index("Eight things about it"):]
         return re.findall(r'<div class="k">([^<]+)</div>', body)
 
     def test_the_share_link_says_the_collection_not_the_draw(self, client, computer,
                                                              part):
-        """Whichever six came up is not what a crawler or a chat window should
+        """Whichever eight came up is not what a crawler or a chat window should
         quote back."""
         self.furnish(client, computer, part)
         page = client.get("/stats").text
