@@ -17,19 +17,23 @@
    list chooses "custom" and fills the box, so a form reopens on what it saved.
    maxlength is the width of the drive-row column the answer may end up in: a
    picker that let you type more than the column holds would fail on save. #}
-{% macro pick(field, key, label, hint, options, placeholder, maxlength) %}
+{% macro pick(field, key, label, hint, options, placeholder, maxlength, req=false) %}
   {% set cur = spec_keys.get(key, '') %}
   {% set custom = cur and cur not in options %}
   <label>{{ label }} <span class="muted">({{ hint }})</span></label>
   <div class="checks">
+    {# A required group offers no way to say nothing: every one of these has an
+       answer, and "not recorded" would be the easiest thing to leave it on. #}
+    {% if not req %}
     <label><input type="radio" name="{{ field }}" value=""
                   {{ ' checked' if not cur else '' }}> not recorded</label>
+    {% endif %}
     {% for o in options %}
     <label><input type="radio" name="{{ field }}" value="{{ o }}"
-                  {{ ' checked' if o == cur else '' }}> {{ o }}</label>
+                  {{ ' checked' if o == cur else '' }}{{ ' required' if req else '' }}> {{ o }}</label>
     {% endfor %}
     <label><input type="radio" name="{{ field }}" value="custom"
-                  {{ ' checked' if custom else '' }}> custom</label>
+                  {{ ' checked' if custom else '' }}{{ ' required' if req else '' }}> custom</label>
   </div>
   <input id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
          value="{{ cur if custom else '' }}" placeholder="{{ placeholder }}" hidden>
@@ -132,7 +136,8 @@ until you submit.</p>
       {{ C.chart(bezel_colours, yellowing) }}
     </div>
     <div id="drive-part">
-      {{ sf('spec_interface', 'Interface', 'Interface', '', 'dl_storage_ifaces') }}
+      {{ pick('spec_interface', 'Interface', 'Interface', 'how it attaches',
+              vocab.storage_interfaces, 'e.g. QIC-02, Panasonic/Matsushita', 64, true) }}
       {{ sf('spec_protocol', 'Protocol', 'Protocol', '', 'dl_storage_proto') }}
       {{ sf('spec_capacity', 'Capacity', 'Capacity', 'e.g. 540 MB. Leave it blank and it is worked out from the geometry below; whatever you type here wins, which matters for a drive whose CHS is clamped (16383/16/63) or quoted for RLL.') }}
       {{ sf('spec_chs', 'CHS', 'CHS geometry', 'cylinders/heads/sectors, e.g. 1024/16/63') }}
@@ -281,6 +286,12 @@ until you submit.</p>
   const kind = document.getElementById('kind');
   if (kind) {
     const routed = ['SD/CF card', 'Optical', 'Floppy/Gotek'];
+    // Only a new drive with a machine to go into is routed, which is the condition
+    // gui_create_part routes on. A standalone spare of a routed kind becomes a part
+    // of its own, and an edit is of a part that already exists -- both need the part
+    // fields, and hiding them is what left every floppy and optical drive in the
+    // collection with no interface recorded.
+    const routes = {{ 'true' if (computer_id and not p) else 'false' }};
     const drivePart = document.getElementById('drive-part');
     const driveRoute = document.getElementById('drive-route');
     const driveSize = document.getElementById('drive-size');
@@ -293,15 +304,38 @@ until you submit.</p>
     const PICKS = [['drive_form', null], ['drive_size', FLOPPY],
                    ['drive_media', OPTICAL], ['drive_speed', OPTICAL]];
 
+    // The part's own interface has the same pick-or-type shape as the groups above,
+    // but it belongs to the part fields rather than the machine's drive row, so it
+    // is settled on its own and says nothing about whether the description has a
+    // job. Required only while those fields are on screen: a required control inside
+    // a hidden block would refuse to submit and give the browser nothing to focus.
+    const ifaceRadios = document.querySelectorAll('input[name=spec_interface]');
+    const ifaceCustom = document.getElementById('spec_interface_custom');
+
+    function syncIface(routedNow, focus) {
+      const on = document.querySelector('input[name=spec_interface]:checked');
+      ifaceRadios.forEach(function (el) { el.required = !routedNow; });
+      if (!ifaceCustom) return;
+      ifaceCustom.hidden = !(on && on.value === 'custom');
+      ifaceCustom.required = !routedNow && !ifaceCustom.hidden;
+      if (focus && !ifaceCustom.hidden) ifaceCustom.focus();
+    }
+    ifaceRadios.forEach(function (r) {
+      r.addEventListener('change', function () {
+        syncIface(routes && routed.includes(kind.value), true);
+      });
+    });
+
     const anyCustom = () => PICKS.some(function (p) {
       const on = document.querySelector('input[name=' + p[0] + ']:checked');
       return on && on.value === 'custom' && (!p[1] || p[1] === kind.value);
     });
 
     function toggle() {
-      const r = routed.includes(kind.value);
+      const r = routes && routed.includes(kind.value);
       driveRoute.style.display = r ? '' : 'none';
       drivePart.style.display = r ? 'none' : '';
+      syncIface(r, false);
       // Each group is shown for the kind it describes and no other: the capacities
       // on offer are floppy media designations, and a disc and a × rating are an
       // optical drive's. The server reads each on the same condition, so a radio

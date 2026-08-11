@@ -58,8 +58,13 @@ CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "EISA", "MCA", "VLB",
                    "PCI", "AGP", "PCIe x16", "USB"]
 VIDEO_CONNECTORS = ["VGA", "DVI", "HDMI", "DisplayPort", "S-Video", "Composite",
                     "Component", "MDA", "CGA", "EGA"]
-STORAGE_INTERFACES = ["IDE", "SCSI", "SATA", "MFM", "RLL", "ESDI", "CF", "SD",
-                      "USB", "34-pin floppy"]
+# Ordered as the radio group reads: the buses a drive is usually on, then the
+# pre-IDE disk interfaces, the two floppy ribbons (a slimline drive takes a 26-pin
+# flex cable, not the 34-pin header of a desktop drive), removable media, and last
+# the early CD-ROMs that hung off a sound card rather than a disk controller.
+STORAGE_INTERFACES = ["IDE", "SATA", "SCSI", "MFM", "RLL", "ESDI",
+                      "34-pin floppy", "26-pin floppy", "CF", "SD", "USB",
+                      "Proprietary"]
 STORAGE_KINDS = ["Hard disk", "SD/CF card", "Tape", "Optical", "Floppy/Gotek"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]

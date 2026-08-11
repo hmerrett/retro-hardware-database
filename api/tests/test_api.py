@@ -837,6 +837,7 @@ class TestDrives:
         bezel picked on the way in comes with it."""
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Floppy/Gotek",
+                              "spec_interface": "34-pin floppy",
                               "drive_desc": '5.25" 1.2MB',
                               "drive_colour": "Beige",
                               "drive_yellowing": "Lightly yellowed"},
@@ -865,6 +866,7 @@ class TestADriveKeptAsAPart:
     def make(self, client, **extra):
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Floppy/Gotek",
+                              "spec_interface": "34-pin floppy",
                               "drive_desc": self.DESC, **extra},
                         follow_redirects=False)
         return r.headers["location"].rsplit("/", 1)[-1]
@@ -890,6 +892,7 @@ class TestADriveKeptAsAPart:
         aid = self.make(client)
         client.post(f"/parts/{aid}/edit",
                     data={"type": "storage", "kind": "Floppy/Gotek",
+                          "spec_interface": "34-pin floppy",
                           "drive_desc": "5.25in 360K floppy"}, follow_redirects=False)
         specs = client.get(f"/api/parts/{aid}").json()["specs"]
         assert "Description: 5.25in 360K floppy" in specs and self.DESC not in specs
@@ -920,7 +923,8 @@ class TestPickingAFloppySCapacity:
     as one -- with a box for the disks the list does not name."""
 
     def add(self, client, **extra):
-        data = {"type": "storage", "kind": "Floppy/Gotek"} | extra
+        data = {"type": "storage", "kind": "Floppy/Gotek",
+                "spec_interface": "34-pin floppy"} | extra
         r = client.post("/parts/new", data=data, follow_redirects=False)
         return r.headers["location"]
 
@@ -995,6 +999,7 @@ class TestPickingAFloppySCapacity:
         off-screen. An optical drive is not a 1.44MB anything."""
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Optical",
+                              "spec_interface": "IDE",
                               "drive_desc": "Sony CDU55", "drive_size": "1.44MB"},
                         follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
@@ -1003,6 +1008,7 @@ class TestPickingAFloppySCapacity:
     def test_a_hard_disk_ignores_it_as_well(self, client):
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Hard disk",
+                              "spec_interface": "IDE",
                               "spec_capacity": "540 MB", "drive_size": "1.44MB"},
                         follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
@@ -1034,6 +1040,7 @@ class TestPickingAFloppySCapacity:
         aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
         client.post(f"/parts/{aid}/edit",
                     data={"type": "storage", "kind": "Floppy/Gotek",
+                          "spec_interface": "34-pin floppy",
                           "drive_desc": "3.5in floppy", "drive_size": "720K"},
                     follow_redirects=False)
         specs = self.specs(client, aid)
@@ -1047,7 +1054,8 @@ class TestPickingTheBayADriveFits:
 
     def add(self, client, kind="Floppy/Gotek", **extra):
         r = client.post("/parts/new",
-                        data={"type": "storage", "kind": kind} | extra,
+                        data={"type": "storage", "kind": kind,
+                              "spec_interface": "IDE"} | extra,
                         follow_redirects=False)
         return r.headers["location"]
 
@@ -1163,7 +1171,8 @@ class TestPickingWhatAnOpticalDriveTakes:
     and both had been going into the description for want of anywhere else."""
 
     def add(self, client, **extra):
-        data = {"type": "storage", "kind": "Optical"} | extra
+        data = {"type": "storage", "kind": "Optical",
+                "spec_interface": "IDE"} | extra
         r = client.post("/parts/new", data=data, follow_redirects=False)
         return r.headers["location"]
 
@@ -1198,6 +1207,7 @@ class TestPickingWhatAnOpticalDriveTakes:
         from app.models import StorageSpec
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Hard disk",
+                              "spec_interface": "IDE",
                               "spec_capacity": "540 MB", "spec_speed": "5400 rpm",
                               "spec_media": "MFM"}, follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
@@ -1209,6 +1219,7 @@ class TestPickingWhatAnOpticalDriveTakes:
         off-screen. A floppy drive is not a CD-RW anything."""
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Floppy/Gotek",
+                              "spec_interface": "34-pin floppy",
                               "drive_desc": "3.5in floppy", "drive_media": "CD-RW",
                               "drive_speed": "48×"}, follow_redirects=False)
         specs = self.specs(client, r.headers["location"].rsplit("/", 1)[-1])
@@ -1252,7 +1263,8 @@ class TestPickingWhatAnOpticalDriveTakes:
         below quietly putting it back."""
         aid = self.part(client, drive_media="CD-RW", drive_speed="48×")
         client.post(f"/parts/{aid}/edit",
-                    data={"type": "storage", "kind": "Optical", "drive_media": "",
+                    data={"type": "storage", "kind": "Optical",
+                          "spec_interface": "IDE", "drive_media": "",
                           "drive_speed": "", "spec_media": "CD-RW",
                           "spec_speed": "48×"}, follow_redirects=False)
         specs = self.specs(client, aid)
@@ -1280,6 +1292,110 @@ class TestPickingWhatAnOpticalDriveTakes:
             {"asset_id": "RH-0031", "name": "Plextor PX-W4012A", "type": "storage",
              "specs": "Kind: Optical | Media: CD-RW | Speed: 48×"}, False)
         assert lines == ["CD-RW 48×"]
+
+
+class TestAStoragePartSInterface:
+    """How a drive attaches is the one thing every storage part has to say, so that
+    "every SCSI drive" stays a question the collection can answer. It is picked from
+    a closed list rather than typed, with a box for the buses the list does not name.
+
+    It also had to become reachable at all: the part fields were hidden for every
+    routed kind, whether or not there was a machine to route to, which is why all 53
+    floppy and all 12 optical drives on file had no interface recorded."""
+
+    def add(self, client, **extra):
+        data = {"type": "storage", "kind": "Hard disk",
+                "spec_interface": "SCSI"} | extra
+        return client.post("/parts/new", data=data, follow_redirects=False)
+
+    def part(self, client, **extra):
+        r = self.add(client, **extra)
+        assert r.status_code == 303, r.text
+        return r.headers["location"].rsplit("/", 1)[-1]
+
+    def specs(self, client, aid):
+        return client.get(f"/api/parts/{aid}").json()["specs"]
+
+    def test_it_is_recorded(self, client):
+        aid = self.part(client)
+        assert "Interface: SCSI" in self.specs(client, aid)
+
+    def test_a_part_with_none_is_refused(self, client):
+        assert self.add(client, spec_interface="").status_code == 400
+
+    def test_an_edit_that_drops_it_is_refused_too(self, client):
+        aid = self.part(client)
+        r = client.post(f"/parts/{aid}/edit",
+                        data={"type": "storage", "kind": "Hard disk",
+                              "spec_interface": ""}, follow_redirects=False)
+        assert r.status_code == 400
+        assert "Interface: SCSI" in self.specs(client, aid)
+
+    def test_another_type_is_not_asked(self, client):
+        """Only storage attaches by a bus worth naming this way; a sound card's
+        interface is its own free-text field and must not start being required."""
+        r = client.post("/parts/new", data={"type": "sound", "model": "SB16"},
+                        follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_a_drive_routed_to_a_machine_is_not_asked(self, client, computer):
+        """It becomes a row on that machine rather than a part, and has no interface
+        column of its own to fill."""
+        cid = computer()["asset_id"]
+        r = client.post("/parts/new",
+                        data={"type": "storage", "kind": "Floppy/Gotek",
+                              "computer_id": cid, "drive_desc": "3.5in floppy"},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert "floppy" in client.get(f"/api/computers/{cid}").json()["drives"]
+
+    def test_custom_records_a_bus_the_list_does_not_name(self, client):
+        aid = self.part(client, kind="Tape", spec_interface="custom",
+                        spec_interface_custom="QIC-02")
+        assert "Interface: QIC-02" in self.specs(client, aid)
+
+    def test_custom_with_nothing_typed_is_refused(self, client):
+        assert self.add(client, spec_interface="custom",
+                        spec_interface_custom="  ").status_code == 400
+
+    def test_the_form_opens_on_the_pick_again(self, client):
+        aid = self.part(client)
+        flat = " ".join(client.get(f"/parts/{aid}/edit").text.split())
+        assert 'value="SCSI" checked' in flat
+
+    def test_a_bus_outside_the_list_opens_on_the_box(self, client):
+        """The one disk on file recorded as 'ATA' has to survive being edited: a
+        radio group with no room for it would retag it as whatever was ticked."""
+        aid = self.part(client, spec_interface="custom",
+                        spec_interface_custom="ATA")
+        page = client.get(f"/parts/{aid}/edit").text
+        assert 'id="spec_interface_custom"' in page and "ATA" in page
+        assert 'value="custom" checked' in " ".join(page.split())
+
+    def test_a_spare_of_a_routed_kind_is_asked_on_screen(self, client):
+        """The bug: no machine to route to, so it becomes a part -- and the field it
+        has to fill was hidden by the kind alone."""
+        page = client.get("/parts/new?type=storage").text
+        assert "const routes = false;" in page
+        assert 'name="spec_interface" value="34-pin floppy"' in \
+            " ".join(page.split())
+
+    def test_editing_a_routed_kind_is_asked_on_screen_too(self, client):
+        aid = self.part(client, kind="Floppy/Gotek",
+                        spec_interface="34-pin floppy")
+        assert "const routes = false;" in client.get(f"/parts/{aid}/edit").text
+
+    def test_building_a_drive_into_a_machine_still_routes(self, client, computer):
+        cid = computer()["asset_id"]
+        page = client.get(f"/parts/new?type=storage&computer_id={cid}").text
+        assert "const routes = true;" in page
+
+    def test_a_slimline_drive_and_a_sound_card_bus_are_on_offer(self, client):
+        """A 26-pin flex cable is not the 34-pin header of a desktop drive, and the
+        early CD-ROMs hung off a sound card rather than a disk controller."""
+        flat = " ".join(client.get("/parts/new?type=storage").text.split())
+        for bus in ("26-pin floppy", "Proprietary"):
+            assert f'name="spec_interface" value="{bus}"' in flat
 
 
 class TestTheOpticalSplitMigration:
@@ -1601,6 +1717,7 @@ class TestAFloppySSmallLabel:
     def test_it_reaches_the_printed_label(self, client):
         r = client.post("/parts/new",
                         data={"type": "storage", "kind": "Floppy/Gotek",
+                              "spec_interface": "34-pin floppy",
                               "drive_desc": "Sony MPF920", "drive_form": '3.5"',
                               "drive_size": "1.44MB"}, follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]

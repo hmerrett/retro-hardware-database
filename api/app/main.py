@@ -2630,7 +2630,12 @@ def _assemble_specs(ptype, form, extra=()):
         field = fields.get(key) or (
             "spec_" + key.lower().replace(" ", "_").replace("/", "_"))
         raw = None
-        if ptype == "storage" and key in DRIVE_PICKS:
+        if ptype == "storage" and key == "Interface":
+            # The part's own interface is picked from a radio group with a box
+            # beside it too, but it is a field on the part rather than on a
+            # machine's drive row, so it is read whatever the kind.
+            raw = _picked(form, field)
+        elif ptype == "storage" and key in DRIVE_PICKS:
             # Picked from a radio group with a box beside it, not typed into one
             # input, and read only for the kinds the group is offered for. Where it
             # is offered its answer stands, blank included -- that is how a value is
@@ -2670,6 +2675,28 @@ DRIVE_PICKS = {
 }
 
 
+def _picked(form, field):
+    """What one pick-or-type group chose: one of its standard answers, or whatever
+    was typed beside "custom" for the hardware the list does not name."""
+    picked = (form.get(field, "") or "").strip()
+    if picked == "custom":
+        return " ".join((form.get(field + "_custom", "") or "").split())
+    return picked
+
+
+def _require_storage_interface(ptype, form):
+    """A storage part has to say how it attaches, so that "every SCSI drive" stays a
+    question the collection can answer. The radios are marked required, so this is
+    the backstop for anything posting straight to the endpoint. A drive folded into a
+    machine's drive row never reaches here: it is a field on that machine rather than
+    a part, and has no interface column of its own to fill."""
+    if ptype != "storage":
+        return
+    if not _picked(form, "spec_interface"):
+        raise HTTPException(400, "a storage part needs an interface: one of "
+                            + ", ".join(entry.STORAGE_INTERFACES) + ", or custom")
+
+
 def _picked_drive(form, key):
     """What one of those groups chose: one of the standard answers, or whatever was
     typed beside "custom" for the hardware the list does not name (a 3" Amstrad, a
@@ -2686,10 +2713,7 @@ def _picked_drive(form, key):
     kind = form.get("kind", "") or ""
     if kind in entry.PART_STORAGE_KINDS or (only and kind != only):
         return None
-    picked = (form.get(field, "") or "").strip()
-    if picked == "custom":
-        return " ".join((form.get(field + "_custom", "") or "").split())
-    return picked
+    return _picked(form, field)
 
 
 def _apply_drive_picks(form, rows):
@@ -2782,6 +2806,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
                 db.commit()
                 return RedirectResponse(f"/computers/{computer_id}?build=1",
                                         status_code=303)
+    _require_storage_interface(ptype, form)
     data = await _part_from_form(form, ptype)
     if ptype == "storage":
         data["specs"] = entry.merge_spec(data["specs"], "Kind",
@@ -2859,6 +2884,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     p = get_or_404(db, Part, aid)
     form = await request.form()
     ptype = form.get("type", p.type) or "other"
+    _require_storage_interface(ptype, form)
     # Unmanaged keys live in part_attribute; carry them across the edit.
     data = await _part_from_form(form, ptype, specdb.read(db, p).attributes)
     if ptype == "storage" and (form.get("kind", "") or ""):
