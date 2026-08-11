@@ -1390,6 +1390,27 @@ class TestAStoragePartSInterface:
         page = client.get(f"/parts/new?type=storage&computer_id={cid}").text
         assert "const routes = true;" in page
 
+    def test_a_spare_optical_drive_records_its_discs_and_its_bus_together(self, client):
+        """The two questions are independent: what the drive is, from the pickers the
+        kind brings, and how it attaches, from the part's own field. A spare optical
+        drive answers both."""
+        aid = self.part(client, kind="Optical", spec_interface="IDE",
+                        drive_media="CD-RW", drive_speed="32×")
+        specs = self.specs(client, aid)
+        assert "Interface: IDE" in specs
+        assert "Media: CD-RW" in specs and "Speed: 32×" in specs
+
+    def test_the_blocks_the_script_toggles_are_all_still_there(self, client):
+        """Which of these is on screen is decided in the script, so it is not
+        something this suite can see. What it can hold onto is that every block the
+        script reaches for still exists under the name it uses -- renaming or
+        dropping one leaves a rule silently toggling nothing, which is how the
+        pickers and then the part fields each went missing once."""
+        page = client.get("/parts/new?type=storage").text
+        for hook in ('id="drive-route"', 'id="drive-part"', 'id="drive-size"',
+                     'id="drive-optical"', 'id="drive-bezel"', 'id="part-disc"'):
+            assert hook in page, hook
+
     def test_a_slimline_drive_and_a_sound_card_bus_are_on_offer(self, client):
         """A 26-pin flex cable is not the 34-pin header of a desktop drive, and the
         early CD-ROMs hung off a sound card rather than a disk controller."""

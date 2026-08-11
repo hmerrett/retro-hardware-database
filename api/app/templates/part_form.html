@@ -126,14 +126,19 @@ until you submit.</p>
         <p class="hint">a size or capacity named here is read from the text too; a
           picker above wins over it where both say something.</p>
       </div>
-      <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
-      {# The same menus the machine's own form has, because this is where a drive is
-         usually added -- it goes to the same two columns on the drive row. #}
-      {{ C.pair('drive_', '', '', bezel_colours, yellowing, bezel_colour_labels,
-                yellowing_labels) }}
-      <p class="hint">a bezel named in the description ("beige", "yellowed") is read
-        from there too; a menu wins over the text where both say something.</p>
-      {{ C.chart(bezel_colours, yellowing) }}
+      {# Only where the drive becomes a row on a machine. Kept as a part it has the
+         part's own bezel menus below, and two sets of menus for one pair of columns
+         is a way to disagree with yourself. #}
+      <div id="drive-bezel">
+        <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+        {# The same menus the machine's own form has, because this is where a drive is
+           usually added -- it goes to the same two columns on the drive row. #}
+        {{ C.pair('drive_', '', '', bezel_colours, yellowing, bezel_colour_labels,
+                  yellowing_labels) }}
+        <p class="hint">a bezel named in the description ("beige", "yellowed") is read
+          from there too; a menu wins over the text where both say something.</p>
+        {{ C.chart(bezel_colours, yellowing) }}
+      </div>
     </div>
     <div id="drive-part">
       {{ pick('spec_interface', 'Interface', 'Interface', 'how it attaches',
@@ -141,8 +146,14 @@ until you submit.</p>
       {{ sf('spec_protocol', 'Protocol', 'Protocol', '', 'dl_storage_proto') }}
       {{ sf('spec_capacity', 'Capacity', 'Capacity', 'e.g. 540 MB. Leave it blank and it is worked out from the geometry below; whatever you type here wins, which matters for a drive whose CHS is clamped (16383/16/63) or quoted for RLL.') }}
       {{ sf('spec_chs', 'CHS', 'CHS geometry', 'cylinders/heads/sectors, e.g. 1024/16/63') }}
-      {{ sf('spec_media', 'Media', 'Media') }}
-      {{ sf('spec_speed', 'Speed', 'Speed') }}
+      {# The text boxes these two keys are asked with for every kind but one. An
+         optical drive has the pickers above instead, and the server reads those in
+         preference, so leaving these on screen for it would offer a second control
+         that quietly loses. #}
+      <div id="part-disc">
+        {{ sf('spec_media', 'Media', 'Media') }}
+        {{ sf('spec_speed', 'Speed', 'Speed') }}
+      </div>
       {{ sf('spec_role', 'Role', 'Role') }}
       <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
       {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
@@ -281,21 +292,33 @@ until you submit.</p>
     u.searchParams.set('type', pt.value);
     {% if not p %}window.location.href = '/parts/new' + u.search;{% endif %}
   });
-  // Storage routing: hide part-only fields when the kind lives on the drives field,
-  // and show each of the routed block's own fields only where it has a job.
+  // Storage: two independent questions, which used to be answered as one.
+  //
+  //   What kind of drive is it -- which pickers describe it? The bay it fits, the
+  //   disk or disc it takes, how fast it reads. The server reads each of those on
+  //   the kind alone (see _picked_drive), so they belong on screen on the kind
+  //   alone: a spare optical drive is asked what discs it takes exactly as one
+  //   going into a machine is.
+  //
+  //   Where does what it says end up -- a row on a machine, or a part's own specs?
+  //   Only that second question turns on there being a machine to fold it into,
+  //   and only it decides whether the part-only fields are asked.
+  //
+  // Answering both with one flag is what went wrong twice: keyed on the kind alone,
+  // a spare drive lost the part fields and with them its interface; keyed on the
+  // machine alone, it lost the pickers.
   const kind = document.getElementById('kind');
   if (kind) {
     const routed = ['SD/CF card', 'Optical', 'Floppy/Gotek'];
-    // Only a new drive with a machine to go into is routed, which is the condition
-    // gui_create_part routes on. A standalone spare of a routed kind becomes a part
-    // of its own, and an edit is of a part that already exists -- both need the part
-    // fields, and hiding them is what left every floppy and optical drive in the
-    // collection with no interface recorded.
+    // Whether there is a machine to fold a drive into, which is the condition
+    // gui_create_part routes on. An edit is of a part that already exists.
     const routes = {{ 'true' if (computer_id and not p) else 'false' }};
     const drivePart = document.getElementById('drive-part');
     const driveRoute = document.getElementById('drive-route');
     const driveSize = document.getElementById('drive-size');
     const driveOptical = document.getElementById('drive-optical');
+    const driveBezel = document.getElementById('drive-bezel');
+    const partDisc = document.getElementById('part-disc');
     const descRow = document.getElementById('drive-desc-row');
     const descBox = document.getElementById('drive_desc');
     const FLOPPY = {{ floppy_kind | tojson }};
@@ -332,16 +355,23 @@ until you submit.</p>
     });
 
     function toggle() {
-      const r = routes && routed.includes(kind.value);
-      driveRoute.style.display = r ? '' : 'none';
-      drivePart.style.display = r ? 'none' : '';
-      syncIface(r, false);
+      // The kind's own question, and the destination's.
+      const describes = routed.includes(kind.value);
+      const folds = routes && describes;
+      driveRoute.style.display = describes ? '' : 'none';
+      drivePart.style.display = folds ? 'none' : '';
+      syncIface(folds, false);
       // Each group is shown for the kind it describes and no other: the capacities
       // on offer are floppy media designations, and a disc and a × rating are an
       // optical drive's. The server reads each on the same condition, so a radio
       // left checked from a kind since changed is ignored rather than saved.
-      if (driveSize) driveSize.hidden = !(r && kind.value === FLOPPY);
-      if (driveOptical) driveOptical.hidden = !(r && kind.value === OPTICAL);
+      if (driveSize) driveSize.hidden = !(describes && kind.value === FLOPPY);
+      if (driveOptical) driveOptical.hidden = !(describes && kind.value === OPTICAL);
+      // One bezel on screen, never two: the drive row's menus where it becomes a
+      // row, the part's own where it becomes a part.
+      if (driveBezel) driveBezel.hidden = !folds;
+      // And no text box for a key a picker above is already asking for.
+      if (partDisc) partDisc.hidden = kind.value === OPTICAL;
       // The description, only where it still has something to say: a drive its
       // pickers have described needs no prose. Never hidden with text in it -- the
       // box still submits what it holds, so hiding a full one would leave writing
