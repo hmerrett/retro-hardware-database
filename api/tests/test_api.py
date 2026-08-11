@@ -1631,6 +1631,81 @@ class TestTheMakerLeagueTable:
         assert 'style="width: 50.0%"' in page and 'style="width: 83.0%"' in page
 
 
+class TestRememberingHowYouLeftIt:
+    """The sort order is kept in a cookie, so the shelf opens the way you left it --
+    and a first visit, having no cookie, opens shuffled."""
+
+    def test_the_cookie_the_page_writes_is_the_one_the_server_names(self, client,
+                                                                   computer):
+        """The name is a template global rather than a string in two places, because
+        a cookie written under one name and read under another is not remembered."""
+        from app import main
+        computer(model="A")
+        page = client.get("/").text
+        assert main.SORT_COOKIE == "rhdb_sort"
+        assert f'rhdbCookie.read("{main.SORT_COOKIE}")' in page
+        assert f'rhdbCookie.write("{main.SORT_COOKIE}"' in page
+
+    def test_a_sort_that_no_longer_exists_is_not_trusted(self, client, computer):
+        """A stale or hand-edited cookie naming a sort the page dropped would
+        otherwise leave the grid sorted by nothing."""
+        computer(model="A")
+        assert "if (saved && SORTS[saved]) sortSel.value = saved;" \
+            in client.get("/").text
+
+    def test_it_is_written_on_the_sorts_own_change_and_not_on_every_keystroke(
+            self, client, computer):
+        computer(model="A")
+        page = client.get("/").text
+        assert "sortSel.addEventListener('change', function () {" in page
+
+    def test_the_helpers_are_defined_before_the_page_uses_them(self, client, computer):
+        """The gallery's script lives in the content block, so anything it calls has
+        to be defined above it in the document. Put after, it threw on load and took
+        the sorting and filtering with it."""
+        computer(model="A")
+        page = client.get("/").text
+        assert page.index("window.rhdbCookie = {") < page.index("</head>")
+
+
+class TestTheCookieNotice:
+    """Said once, dismissible, and gone from the markup afterwards. No accept-or-reject
+    pair, because nothing is stored until the reader picks a sort order or the dark
+    theme -- there is nothing to consent to in advance."""
+
+    def test_it_is_offered_on_a_first_visit(self, client, computer):
+        computer(model="A")
+        page = client.get("/").text
+        assert 'id="cookienote"' in page
+        # What it actually says matters: no analytics and no third party is the claim
+        # the page is making, and it should stay true. Flattened, because the sentence
+        # is wrapped across lines in the template.
+        flat = " ".join(page.split())
+        assert "no analytics" in flat and "nothing shared with anyone" in flat
+
+    def test_dismissing_it_takes_it_out_of_the_markup(self, client, computer):
+        """Not hidden by a script on every page thereafter -- the server knows from
+        the cookie and leaves it out."""
+        from app import main
+        computer(model="A")
+        client.cookies.set(main.NOTICE_COOKIE, "1")
+        assert 'id="cookienote"' not in client.get("/").text
+        client.cookies.delete(main.NOTICE_COOKIE)
+
+    def test_it_is_on_every_page_not_just_the_gallery(self, client, computer):
+        c = computer(model="A")
+        for path in ("/", "/stats", f"/computers/{c['asset_id']}"):
+            assert 'id="cookienote"' in client.get(path).text, path
+
+    def test_it_does_not_block_the_page(self, client, computer):
+        """A notice, not a gate: no overlay, and the cards are reachable behind it."""
+        computer(model="A")
+        page = client.get("/").text
+        note = page[page.index('id="cookienote"'):]
+        assert "position: fixed" in page and 'class="card"' in page
+        assert "Got it" in note[:600]
+
+
 class TestTheGalleryOpensShuffled:
     """A shelf is more interesting shuffled than in the order things were last
     touched, and a recency sort only ever shows the same dozen items."""

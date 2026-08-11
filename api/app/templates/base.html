@@ -218,6 +218,15 @@
   form.edit .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
   form.edit .checks input { width: auto; }
   .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  /* The cookie notice. A slim bar rather than a panel over the page: nothing is
+     stored until the reader chooses something, so there is nothing to hold them up
+     for -- it is a notice, not a gate. */
+  #cookienote { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: var(--bg); border-top: 1px solid var(--line);
+    padding: 9px 14px; display: flex; gap: 12px; align-items: center;
+    justify-content: center; flex-wrap: wrap; }
+  #cookienote p { margin: 0; color: var(--muted); font-size: 12px; max-width: 70ch; }
+  #cookienote .btn { flex: none; }
   /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
      text wears an ink token. */
   .hero { margin: 18px 0 6px; }
@@ -425,6 +434,29 @@
     var _t = localStorage.getItem('theme');
     if (_t === 'dark' || _t === 'light') document.documentElement.dataset.theme = _t;
   } catch (e) {}
+
+  // Reading and writing this site's own cookies. Shared, because the sort order on
+  // the gallery and the notice at the foot of the page both want them, and a cookie
+  // written two slightly different ways is a cookie that does not stay written.
+  //
+  // A year, because a preference that expires by the weekend is not remembered. Lax
+  // rather than Strict so following a link in from anywhere still opens the way you
+  // left it, and secure wherever the page itself arrived over HTTPS.
+  window.rhdbCookie = {
+    read: function (name) {
+      var hit = document.cookie.split('; ').find(function (row) {
+        return row.indexOf(name + '=') === 0;
+      });
+      return hit ? decodeURIComponent(hit.slice(name.length + 1)) : '';
+    },
+    write: function (name, value) {
+      try {
+        document.cookie = name + '=' + encodeURIComponent(value)
+          + ';path=/;max-age=' + (365 * 24 * 60 * 60) + ';samesite=lax'
+          + (location.protocol === 'https:' ? ';secure' : '');
+      } catch (e) {}
+    }
+  };
 </script>
 </head>
 <body>
@@ -470,6 +502,24 @@
   </form>
 </header>
 <main>{% block content %}{% endblock %}</main>
+
+{# Left out of the markup entirely once dismissed -- the server knows from the cookie
+   -- rather than shipped on every page and hidden by a script.
+
+   No accept-or-reject pair, because there is nothing yet to accept: the site writes
+   nothing until the reader picks a sort order or the dark theme, and picking one is
+   the choice. A banner demanding consent before anything has been stored would be
+   asking about a thing that has not happened. #}
+{% if not request.state.noticed %}
+<div id="cookienote">
+  <p><strong>Cookies.</strong> Nothing is kept in your browser until you choose
+    something. Pick a sort order or the dark theme and it is remembered, so the page
+    opens as you left it. First party only — no analytics, no advertising, nothing
+    shared with anyone{% if auth_enabled %}; signing in to edit adds a session
+    cookie{% endif %}.</p>
+  <button class="btn sm" id="cookieok" type="button">Got it</button>
+</div>
+{% endif %}
 {# The big view: the photo as large as the window allows, and zoomable from there by
    the usual gestures -- what the detail on a board or a chip marking needs. Logged
    in, it is also the photo editor: rotating or cropping from here returns to this
@@ -1195,6 +1245,17 @@
         out.textContent = n === 0 ? '' :
           n === 1 ? input.files[0].name : n + ' files chosen';
       });
+    });
+  })();
+</script>
+<script>
+  (function () {
+    var note = document.getElementById('cookienote');
+    var ok = document.getElementById('cookieok');
+    if (!note || !ok) return;
+    ok.addEventListener('click', function () {
+      window.rhdbCookie.write({{ notice_cookie | tojson }}, '1');
+      note.remove();
     });
   })();
 </script>

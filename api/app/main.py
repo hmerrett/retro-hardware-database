@@ -127,6 +127,18 @@ def _jsonld(og, asset_id, brand, category):
 SECRET_KEY = (os.getenv("RHDB_SECRET_KEY")
               or hashlib.sha256(f"{AUTH_USER}:{AUTH_PASS}:rhdb".encode()).hexdigest())
 COOKIE = "rhdb_session"
+# The two cookies the site sets for a visitor who is only reading, both first party,
+# both holding a choice that visitor made themselves and nothing else. Neither is
+# written until the choice is made, so arriving and reading stores nothing at all --
+# which is what the notice at the foot of the page is able to say.
+SORT_COOKIE = "rhdb_sort"
+# That the notice has been read. Set only by dismissing it, and strictly necessary in
+# the plain sense: without it the notice cannot stay dismissed.
+NOTICE_COOKIE = "rhdb_noticed"
+# The names, so the script that writes them and the notice that describes them cannot
+# come to disagree with the code that reads them.
+templates.env.globals["sort_cookie"] = SORT_COOKIE
+templates.env.globals["notice_cookie"] = NOTICE_COOKIE
 SESSION_MAX_AGE = 60 * 60 * 24 * 30
 _signer = URLSafeTimedSerializer(SECRET_KEY, salt="rhdb-session")
 
@@ -190,6 +202,9 @@ async def auth_gate(request: Request, call_next):
     # and docs also accept HTTP Basic for the MCP server and command-line tools.
     request.state.authed = (not AUTH_ENABLED or _check_cookie(request)
                             or (api_path and _check_basic(request)))
+    # Read here so the notice can be left out of the markup altogether once it has
+    # been dismissed, rather than shipped on every page and hidden by a script.
+    request.state.noticed = NOTICE_COOKIE in request.cookies
     if path in ("/login", "/logout"):
         return await call_next(request)
     if not request.state.authed and not _is_public_read(request):

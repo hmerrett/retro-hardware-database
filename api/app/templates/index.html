@@ -121,6 +121,19 @@
     aid: (a, b) => asc(a, b, 'aid'),
   };
 
+  // What you chose last time, if you ever chose. Absent on a first visit, which is
+  // what leaves the menu on its first option and opens the shelf shuffled; present,
+  // and the page opens the way you left it. Checked against SORTS rather than
+  // trusted, so a stale or hand-edited cookie naming a sort that no longer exists
+  // falls back to the default instead of sorting by nothing.
+  const saved = window.rhdbCookie.read({{ sort_cookie | tojson }});
+  if (saved && SORTS[saved]) sortSel.value = saved;
+  // Written on the sort's own change event, not from apply(): apply() also runs on
+  // every keystroke in the search box, and the sort has not changed then.
+  sortSel.addEventListener('change', function () {
+    window.rhdbCookie.write({{ sort_cookie | tojson }}, sortSel.value);
+  });
+
   let lastMode = null;
   function sortCards(mode) {
     // Choosing Random -- on arrival, or after being somewhere else -- deals again.
