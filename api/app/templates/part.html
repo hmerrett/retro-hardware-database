@@ -58,7 +58,12 @@
     <div class="toolbar">
       <span class="muted">Install in computer:</span>
       <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/link">
-        <select name="computer_id">
+        {# Opens on nothing, and the browser will not submit until something is
+           chosen. A menu that opens on the first machine in the register reads as a
+           statement about where this part is -- which is what the row above is for,
+           and it is only there when the part really is installed somewhere. #}
+        <select name="computer_id" required>
+          <option value="">— choose a computer —</option>
           {% for comp in computers %}<option value="{{ comp.asset_id }}">{{ comp.asset_id }} · {{ display_name({'name': comp.name, 'manufacturer': comp.manufacturer, 'model': comp.model, 'asset_id': comp.asset_id}) }}</option>{% endfor %}
         </select>
         <button class="btn sm" type="submit">install</button>
@@ -108,7 +113,8 @@
         <a class="btn sm" href="/parts/new?type=storage&parent_id={{ p.asset_id }}">add storage</a>
         {% if candidates %}
         <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/attach">
-          <select name="part_id">
+          <select name="part_id" required>
+            <option value="">— choose a part —</option>
             {% for c in candidates %}<option value="{{ c.asset_id }}">{{ c.asset_id }} — {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</option>{% endfor %}
           </select>
           <button class="btn sm" type="submit">mount existing storage</button>

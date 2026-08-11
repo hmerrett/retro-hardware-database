@@ -1631,6 +1631,70 @@ class TestTheMakerLeagueTable:
         assert 'style="width: 50.0%"' in page and 'style="width: 83.0%"' in page
 
 
+class TestAPickerOpensOnNothing:
+    """"Install in computer" opened on the first machine in the register, which reads
+    as a statement that the part is in it -- next to a table whose "Installed in" row
+    is absent precisely because it is not. Every one of these menus now opens on
+    nothing and refuses to submit until something is chosen."""
+
+    @staticmethod
+    def _select(page, name):
+        cut = page[page.index(f'<select name="{name}"'):]
+        return cut[:cut.index("</select>")]
+
+    def test_the_install_menu_opens_on_nothing(self, client, computer, part):
+        computer(model="PS/1")
+        p = part(model="a card")
+        select = self._select(client.get(f"/parts/{p['asset_id']}").text, "computer_id")
+        assert re.findall(r'<option value="([^"]*)"', select)[0] == "", select
+        assert "required" in select.split(">")[0]
+
+    def test_it_says_nothing_about_where_the_part_is(self, client, computer, part):
+        """The machine's name must not be the chosen option -- that is the
+        misreading."""
+        computer(model="PS/1")
+        p = part(model="a card")
+        page = client.get(f"/parts/{p['asset_id']}").text
+        assert "selected" not in self._select(page, "computer_id")
+        # ...and the table above says nothing either, the part being installed nowhere.
+        assert "Installed in" not in page
+
+    def test_choosing_one_still_installs_it(self, client, computer, part):
+        c = computer(model="PS/1")
+        p = part(model="a card")
+        client.post(f"/parts/{p['asset_id']}/link",
+                    data={"computer_id": c["asset_id"]}, follow_redirects=False)
+        assert "Installed in" in client.get(f"/parts/{p['asset_id']}").text
+        assert client.get(f"/api/parts/{p['asset_id']}").json()["computer_id"] \
+            == c["asset_id"]
+
+    @pytest.mark.parametrize("path,field", [
+        ("/parts/{aid}/link", "computer_id"),
+        ("/parts/{aid}/attach", "part_id"),
+    ])
+    def test_posting_a_blank_does_nothing_rather_than_404(self, client, part, path,
+                                                         field):
+        """The menus will not submit empty, so this only arrives from something posting
+        straight at the endpoint -- where the empty string used to be looked up as an
+        asset id."""
+        p = part(model="a card")
+        r = client.post(path.format(aid=p["asset_id"]), data={field: ""},
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text
+        got = client.get(f"/api/parts/{p['asset_id']}").json()
+        assert not got["computer_id"] and not got["parent_id"]
+
+    def test_the_board_menu_on_a_machine_opens_on_nothing_too(self, client, computer,
+                                                              part):
+        c = computer(model="PS/1")
+        part(type="motherboard", model="a board")
+        select = self._select(client.get(f"/computers/{c['asset_id']}").text, "part_id")
+        assert re.findall(r'<option value="([^"]*)"', select)[0] == ""
+        r = client.post(f"/computers/{c['asset_id']}/link-motherboard",
+                        data={"part_id": ""}, follow_redirects=False)
+        assert r.status_code == 303
+
+
 class TestRememberingHowYouLeftIt:
     """The sort order is kept in a cookie, so the shelf opens the way you left it --
     and a first visit, having no cookie, opens shuffled."""

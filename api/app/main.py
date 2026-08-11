@@ -2437,7 +2437,9 @@ async def gui_link_motherboard(aid: str, request: Request,
                                db: Session = Depends(get_db)):
     get_or_404(db, Computer, aid)
     form = await request.form()
-    pid = form.get("part_id", "")
+    pid = form.get("part_id", "") or ""
+    if not pid:
+        return RedirectResponse(f"/computers/{aid}?build=1", status_code=303)
     board = get_or_404(db, Part, pid)
     if board.type != "motherboard":
         raise HTTPException(400, f"{pid} is not a motherboard")
@@ -2453,7 +2455,10 @@ async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db
     """Install an existing standalone part into this computer."""
     get_or_404(db, Computer, aid)
     form = await request.form()
-    part = get_or_404(db, Part, form.get("part_id", ""))
+    pid = form.get("part_id", "") or ""
+    if not pid:
+        return RedirectResponse(f"/computers/{aid}", status_code=303)
+    part = get_or_404(db, Part, pid)
     part.computer_id = aid
     part.parent_id = None
     add_log(db, aid, f"linked part {part.asset_id}")
@@ -3378,7 +3383,10 @@ async def gui_attach_part(aid: str, request: Request, db: Session = Depends(get_
     """Mount another part onto this one (e.g. a hard disk on a controller card)."""
     get_or_404(db, Part, aid)
     form = await request.form()
-    child = get_or_404(db, Part, form.get("part_id", ""))
+    pid = form.get("part_id", "") or ""
+    if not pid:
+        return RedirectResponse(f"/parts/{aid}", status_code=303)
+    child = get_or_404(db, Part, pid)
     child.parent_id = aid
     child.computer_id = None
     add_log(db, aid, f"mounted {child.asset_id}")
