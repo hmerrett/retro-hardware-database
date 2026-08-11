@@ -4,9 +4,11 @@ Weighted towards the things that have actually broken: typed columns rejecting o
 silently eating form input, a select with no option for the value it holds, links
 left pointing at deleted rows, and derived strings being written to directly.
 """
+import html
 import re
 from datetime import date, datetime
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -1423,6 +1425,73 @@ class TestAStoragePartSInterface:
         flat = " ".join(client.get("/parts/new?type=storage").text.split())
         for bus in ("26-pin floppy", "Proprietary"):
             assert f'name="spec_interface" value="{bus}"' in flat
+
+
+class TestReopeningADriveOnWhatItSaved:
+    """A question asked of more than one kind has a group per kind, and they share a
+    field name -- so the browser reads them as one group and the last `checked` in the
+    markup wins. Every group deciding for itself whether the recorded answer was one
+    of its own is how an optical drive's speed came to be posted back blank: the hard
+    disk's rpm group did not recognise "12×", called it custom, and checked its own
+    custom radio further down the page.
+
+    So: exactly one answer checked per group, and a form reopened and saved with
+    nothing touched must give back the record it was opened on."""
+
+    CASES: ClassVar[list[tuple[str, str]]] = [
+        ("Optical", "Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 12×"),
+        ("Optical", "Kind: Optical | Interface: IDE | Media: CD-RW | Speed: 4×/2×/20×"),
+        ("Hard disk", "Kind: Hard disk | Interface: SCSI | Protocol: SCSI | "
+                      "Speed: 7200 rpm"),
+        ("Hard disk", 'Kind: Hard disk | Interface: IDE | Capacity: 540 MB | '
+                      'CHS: 1057/16/63 | Form factor: 3.5"'),
+        ("Tape", "Kind: Tape | Interface: SCSI | Media: QIC-80"),
+        ("Floppy/Gotek", 'Kind: Floppy/Gotek | Interface: 34-pin floppy | '
+                         'Media: 3.5" | Form factor: 5.25" | Size: 1.44MB'),
+        ("SD/CF card", "Kind: SD/CF card | Interface: CF | Capacity: 512 MB"),
+    ]
+
+    GROUPS = ("drive_speed", "drive_media", "drive_size", "drive_form",
+              "spec_interface", "spec_protocol")
+
+    def edit_page(self, client, specs):
+        aid = client.post("/api/parts", json={"type": "storage", "model": "X",
+                                              "specs": specs}).json()["asset_id"]
+        return aid, " ".join(client.get(f"/parts/{aid}/edit").text.split())
+
+    def reopened(self, flat):
+        """The form as a browser would post it straight back, untouched."""
+        out = {}
+        for m in re.finditer(r'name="(\w+)" value="([^"]*)"[^>]*?\schecked', flat):
+            out[m.group(1)] = html.unescape(m.group(2))
+        for m in re.finditer(r'<input id="\w+" name="(\w+)"[^>]*?value="([^"]*)"', flat):
+            out.setdefault(m.group(1), html.unescape(m.group(2)))
+        return out
+
+    @pytest.mark.parametrize("kind,specs", CASES)
+    def test_one_answer_is_checked_per_group(self, client, kind, specs):
+        _aid, flat = self.edit_page(client, specs)
+        for name in self.GROUPS:
+            checked = re.findall(rf'name="{name}" value="([^"]*)"[^>]*?\schecked', flat)
+            assert len(checked) <= 1, f"{name} has {checked}"
+
+    @pytest.mark.parametrize("kind,specs", CASES)
+    def test_saving_it_untouched_changes_nothing(self, client, kind, specs):
+        aid, flat = self.edit_page(client, specs)
+        form = self.reopened(flat) | {"type": "storage", "kind": kind}
+        r = client.post(f"/parts/{aid}/edit", data=form, follow_redirects=False)
+        assert r.status_code == 303, r.text
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == specs
+
+    def test_a_group_for_another_kind_is_sitting_on_nothing(self, client):
+        """Not even on "not recorded", which is an answer too and would post a blank
+        over the real one for exactly the same reason."""
+        _aid, flat = self.edit_page(
+            client, "Kind: Optical | Interface: IDE | Speed: 12×")
+        # The optical group holds the answer, so every other speed group -- the hard
+        # disk's -- must hold nothing at all.
+        checked = re.findall(r'name="drive_speed" value="([^"]*)"[^>]*?\schecked', flat)
+        assert checked == ["12×"]
 
 
 class TestTheOpticalSplitMigration:

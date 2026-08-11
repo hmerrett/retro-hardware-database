@@ -17,16 +17,26 @@
    list chooses "custom" and fills the box, so a form reopens on what it saved.
    maxlength is the width of the drive-row column the answer may end up in: a
    picker that let you type more than the column holds would fail on save. #}
-{% macro pick(field, key, label, hint, options, placeholder, maxlength, req=false) %}
-  {% set cur = spec_keys.get(key, '') %}
+{# `active` is for a question asked of more than one kind, where each kind has its own
+   list and the groups share a field name -- so the browser treats them as one group
+   and the last `checked` in the markup wins. Only the group belonging to the kind
+   actually chosen may claim the recorded answer: left to decide for itself, every
+   other group finds that answer missing from its own list, calls it custom, and
+   checks its own custom radio, which then beats the real one and posts nothing. #}
+{% macro pick(field, key, label, hint, options, placeholder, maxlength, req=false,
+              active=true) %}
+  {% set cur = spec_keys.get(key, '') if active else '' %}
   {% set custom = cur and cur not in options %}
   <label>{{ label }} <span class="muted">({{ hint }})</span></label>
   <div class="checks">
     {# A required group offers no way to say nothing: every one of these has an
        answer, and "not recorded" would be the easiest thing to leave it on. #}
+    {# "not recorded" is an answer like any other, so an inactive group must not be
+       sitting on it either: shared with the live group, it would win on markup order
+       and post a blank over the real answer. An inactive group checks nothing. #}
     {% if not req %}
     <label><input type="radio" name="{{ field }}" value=""
-                  {{ ' checked' if not cur else '' }}> not recorded</label>
+                  {{ ' checked' if active and not cur else '' }}> not recorded</label>
     {% endif %}
     {% for o in options %}
     <label><input type="radio" name="{{ field }}" value="{{ o }}"
@@ -84,9 +94,10 @@ until you submit.</p>
   {% if ptype == 'storage' %}
   <fieldset id="fs-storage">
     <legend>Storage</legend>
+    {# Hoisted: the groups below need to know which kind's answer is the live one. #}
+    {% set curkind = spec_keys.get('Kind', '') %}
     <label for="kind">Kind</label>
     <select id="kind" name="kind">
-      {% set curkind = spec_keys.get('Kind', '') %}
       {% for o in vocab.storage_kinds %}<option value="{{ o }}"{{ ' selected' if o == curkind else '' }}>{{ o }}</option>{% endfor %}
     </select>
 
@@ -106,7 +117,7 @@ until you submit.</p>
            the other and only one answer is ever posted. #}
         {% for k, opts in ask.options.items() %}
         <div data-kind="{{ k }}" hidden>
-          {{ pick(ask.field, ask.key, ask.label, ask.hint, opts, ask.placeholder, ask.max, ask.required) }}
+          {{ pick(ask.field, ask.key, ask.label, ask.hint, opts, ask.placeholder, ask.max, ask.required, k == curkind) }}
         </div>
         {% endfor %}
       {% elif ask.options %}
