@@ -1775,6 +1775,16 @@ class TestTheShuffledFigures:
         flat = " ".join(page.split())
         assert f"of {len(self.pool(db))}" in flat      # and it says what it drew from
 
+    def test_no_two_tiles_show_the_same_number(self, client, computer, part):
+        """The storage total and the hard disks that are nearly all of it both read
+        the same figure on the real register. Drawn together they look like a bug."""
+        self.furnish(client, computer, part)
+        for _ in range(12):
+            page = client.get("/stats").text
+            body = page[page.index("Eight things about it"):]
+            values = re.findall(r'<div class="v">([^<]+)</div>', body)
+            assert len(values) == len(set(values)), values
+
     def test_a_different_draw_each_time(self, client, db, computer, part):
         """Seeded rather than looked at twice and hoped over: two draws from the
         same pool can legitimately coincide, and a test that fails once a fortnight
@@ -3131,8 +3141,14 @@ class TestFollowingAFigureToItsItems:
 
     @staticmethod
     def _offered(page):
-        """Every /browse link the page renders."""
-        return sorted(set(re.findall(r'href="(/browse\?[^"]*)"', page)))
+        """Every /browse link the page renders, as a browser would read it.
+
+        Unescaped, because a link built in Python and interpolated into the attribute
+        comes out with its separator as `&amp;` -- which is the correct way to write
+        an `&` in HTML, and what a browser turns back into `&` before requesting it.
+        Comparing the raw attribute would be testing the escaping, not the link."""
+        return sorted({html.unescape(h)
+                       for h in re.findall(r'href="(/browse\?[^"]*)"', page)})
 
     @staticmethod
     def _cards(page):
@@ -3157,12 +3173,19 @@ class TestFollowingAFigureToItsItems:
     def test_every_figure_on_the_page_leads_somewhere_real(self, client, computer,
                                                            part):
         """A sweep of the whole page. A filter name misspelt in one tile would
-        otherwise stay hidden until someone clicked that one tile."""
+        otherwise stay hidden until someone clicked that one tile.
+
+        Over several renders rather than one: the tiles are eight drawn from a much
+        larger pool now, so a single render sweeps only the eight it happened to deal
+        -- and a threshold on one draw is a test that fails on an unlucky shuffle."""
         self._a_bit_of_everything(client, computer, part)
-        offered = self._offered(client.get("/stats").text)
-        # Every tile, both ends of the hero, and every bar in the ranked lists.
+        offered = set()
+        for _ in range(20):
+            offered |= set(self._offered(client.get("/stats").text))
+        # Both ends of the hero, every bar in the ranked lists, and by now most of
+        # the pool's tiles.
         assert len(offered) > 15
-        for href in offered:
+        for href in sorted(offered):
             assert client.get(href).status_code == 200, href
 
     def test_a_maker_leads_to_that_maker_s_parts(self, client, part):

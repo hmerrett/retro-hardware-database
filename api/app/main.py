@@ -831,11 +831,24 @@ def gui_stats(request: Request, db: Session = Depends(get_db)):
     this_year = date.today().year
     st = _collection_stats(db)
     # A different handful each time the page is looked at. The pool is only the
-    # figures that have something to say today, so the sample is never padded with
-    # blanks; sample() rather than shuffle() because it also handles a pool smaller
-    # than the handful, which is what a young register has.
+    # figures that have something to say today, so the draw is never padded with
+    # blanks.
+    #
+    # Shuffled and then taken one at a time, skipping any figure whose headline a
+    # tile in this draw already shows: the storage total and the hard disks that are
+    # very nearly all of it both read "2464.1 GB" here, and two tiles showing one
+    # number looks like the shuffle is broken rather than like two facts. Same reason
+    # "arrived this year" stands down when this year is also the busiest.
     pool = _facts(db, st, this_year)
-    st["facts"] = random.sample(pool, min(FACTS_SHOWN, len(pool)))
+    drawn, seen = [], set()
+    for fact in random.sample(pool, len(pool)):
+        if fact["v"] in seen:
+            continue
+        seen.add(fact["v"])
+        drawn.append(fact)
+        if len(drawn) == FACTS_SHOWN:
+            break
+    st["facts"] = drawn
     st["n_facts"] = len(pool)
     rel = _maker_reliability(db)
     # Shaped for the rank macro here rather than in the template: (label, bar, the
