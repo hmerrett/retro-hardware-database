@@ -55,12 +55,39 @@ def _clean(fields):
     return {k: v for k, v in fields.items() if v is not None}
 
 
+def _machine(fields):
+    """Fold the flat machine_* arguments into the nested `machine` object the API
+    takes. Left out entirely when none of them were given, which is what tells the
+    API to leave a machine's catalogue rows alone; a blank machine_model_key means
+    the opposite, forget the catalogue for that machine."""
+    machine = {k[len("machine_"):]: fields.pop(k) for k in list(fields)
+               if k.startswith("machine_")}
+    if machine:
+        fields["machine"] = machine
+    return fields
+
+
 # --- computers -------------------------------------------------------------
 
 @mcp.tool()
 def list_computers() -> list[dict]:
     """List every computer (whole machine) in the asset register."""
     return _request("GET", "/api/computers")
+
+
+@mcp.tool()
+def list_machine_models() -> dict:
+    """The catalogue of known home computers and consoles -- Sinclair, Commodore,
+    Atari, Acorn, Amstrad, Sega -- and the variations each model was built in: its
+    standard memory sizes, board issues, case and keyboard styles, regions, and the
+    chip sockets with the part numbers that turn up in them.
+
+    Call this before creating or updating one of these machines: `key` is what the
+    `machine_model_key` argument takes, and the chip roles it lists are the keys of
+    `machine_chips`. Every list names what is commonly seen rather than everything
+    that exists, so a board or a chip from outside one can still be recorded as it
+    is."""
+    return _request("GET", "/api/machines")
 
 
 @mcp.tool()
@@ -90,12 +117,25 @@ def create_computer(
     disposed: bool | None = None,
     disposed_at: str | None = None,
     disposed_note: str | None = None,
+    machine_model_key: str | None = None,
+    machine_issue: str | None = None,
+    machine_style: str | None = None,
+    machine_region: str | None = None,
+    machine_chips: dict[str, str] | None = None,
 ) -> dict:
     """Create a computer. The server assigns the asset id from the register shared
     with parts. CPU, installed_ram and drives (floppy/optical/CF-SD, ';'-separated)
     are attributes of the computer, not separate parts. installed_ram takes a
-    plain amount ('640KB'); the per-module breakdown is entered in the GUI."""
-    return _request("POST", "/api/computers", json=_clean(locals()))
+    plain amount ('640KB'); the per-module breakdown is entered in the GUI.
+
+    For a home computer or a console -- a Spectrum, a C64, a CPC, a Mega Drive --
+    the machine_* arguments file it against the catalogue that list_machine_models
+    returns: machine_model_key is that model's key, machine_issue the board as its
+    make marked it ('Issue 6A', 'ASSY 250425', 'VA6'), machine_style the case or
+    keyboard it was built with, machine_region the market it was sold in, and
+    machine_chips a {role: part number} map for its sockets ({'ula':
+    'Ferranti 6C001E-7'}). A role that model has no socket for is refused."""
+    return _request("POST", "/api/computers", json=_machine(_clean(locals())))
 
 
 @mcp.tool()
@@ -120,13 +160,24 @@ def update_computer(
     disposed: bool | None = None,
     disposed_at: str | None = None,
     disposed_note: str | None = None,
+    machine_model_key: str | None = None,
+    machine_issue: str | None = None,
+    machine_style: str | None = None,
+    machine_region: str | None = None,
+    machine_chips: dict[str, str] | None = None,
 ) -> dict:
     """Partial-update a computer: only the fields you pass are changed. Set
     disposed true to flag it disposed, with disposed_at (ISO date) and
-    disposed_note for when and why; set it false to undo."""
+    disposed_note for when and why; set it false to undo.
+
+    The machine_* arguments record a catalogue machine's identity and work the same
+    way (see create_computer and list_machine_models): passing one leaves the others
+    as they are, and machine_chips replaces the whole set of chips rather than
+    merging into it. An empty machine_model_key files the machine out of the
+    catalogue, which forgets its board issue and chips with it."""
     fields = _clean(locals())
     fields.pop("asset_id")
-    return _request("PATCH", f"/api/computers/{asset_id}", json=fields)
+    return _request("PATCH", f"/api/computers/{asset_id}", json=_machine(fields))
 
 
 @mcp.tool()

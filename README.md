@@ -1,7 +1,8 @@
 # Retro Hardware Database
 
-A catalogue of retro PCs and the parts they are built from. It runs under Docker
-Compose and has five services:
+A catalogue of retro PCs and the parts they are built from, and of the home
+computers and consoles that are not built from parts but come in documented
+variations of their own. It runs under Docker Compose and has five services:
 
 ```
 docker compose
@@ -98,6 +99,15 @@ table whose entry conditions are hidden is an opinion with a bar chart.
 
 `/traffic` (login required) shows the GoAccess traffic report.
 
+A machine the catalogue names — a Spectrum, a C64, a CPC, a Mega Drive — is filed
+against it from a menu at the top of the machine form, and its documented
+variations appear underneath: the board issue, the case or keyboard style, the
+region, and a box per chip socket with the part numbers that turn up in it.
+Picking a model also fills the manufacturer, model, year, CPU, chassis and OS into
+whichever of those boxes are still empty, and offers the memory sizes that model
+was sold with on the memory box. See [Data model](#data-model) for what is stored
+and why the boxes are boxes rather than menus.
+
 ## Data model
 
 Two tables share a single asset register (RH-0001, RH-0002, and so on).
@@ -192,6 +202,68 @@ part page cannot disagree. A bezel typed into the drives field or a routed drive
 description ("3.5in 1.44MB floppy beige, lightly yellowed") reads the same as the
 menus, and renders back as `3.5" 1.44MB floppy (beige, lightly yellowed)`.
 
+### Machines the catalogue names
+
+A PC is described by what is fitted in it, one tagged part at a time. A home
+computer or a console is not that sort of object: a ZX Spectrum is a sealed machine
+that was built in a handful of documented forms, and what identifies one is which
+form it is -- Issue 3B or 6A, 16K or 48K, a 5C102E ULA or a 6C001E-7, rubber keys or
+moulded ones. None of that is a part to tag. Nobody shelves a ULA, photographs it or
+gives it an asset id, and a register that made them do so would claim to hold forty
+more objects than it does.
+
+So a machine can also have a catalogue identity. `computer_variant` holds one row per
+machine: which model it is (`model_key`), the board as its make marked it (`issue` --
+Sinclair and Acorn number an issue, Commodore an ASSY, an Amiga a Rev, a Mega Drive a
+VA), the case or keyboard it was built with (`style`), and the market it was sold in
+(`region`). `computer_chip` holds one row per socket -- the ULA, the SID, the CRTC
+type, the Kickstart in the ROM socket -- keyed by the catalogue's role slug with the
+number marked on the chip. Memory chips are the exception that proves the rule and
+keep their own table: they are counted rather than identified (see
+`computer_ram_chip`).
+
+The catalogue itself is `app/machines.py`: families, the models in each, and for
+every model its standard memory sizes, board issues, styles, regions and chip
+sockets with the variants that turn up in them. Sinclair, Commodore 8-bit, Amiga,
+Atari 8-bit, Atari consoles, Atari ST, Acorn, Amstrad and Sega, at fifty-odd models.
+Only the slugs are stored; a model's name, year, CPU and lists are read from the
+catalogue every time, so correcting an entry there corrects every machine filed under
+it -- the lesson migration 0011 wrote down about memory modules, applied before it
+could be learned twice.
+
+Every list names what is commonly seen rather than everything that exists, which is
+why each variation is a box with a list attached rather than a closed menu -- the rule
+the drive pickers follow. A late board nobody has written up, a chip swapped in a
+repair, a Spectrum+ converted from a rubber-key machine: all of those are recorded by
+typing them. A model that has no such socket says so and is not asked (a VIC-20 has no
+SID, a ZX80 no ULA), a model can replace its family's chip for a socket with its own
+(a Spectrum +2A has Amstrad's gate array where the family has a Ferranti ULA), and
+what a machine records is kept whether or not the catalogue still lists it.
+
+`computers.variant` is the rendered cache of both tables, in the same relation to them
+as `installed_ram` is to the memory tables: written from the rows on every change,
+read by the machine page, the label, the search index and the wire format, and never
+parsed back. That is what makes a part number a way back to the machine -- the search
+reads every text column, so `8580R5` finds the C64 it is in -- and what
+`python -m app.resync` brings back into line when the catalogue's own words change
+underneath a machine that has not been edited since.
+
+The form's variation fields are built in the browser from the catalogue, because sixty
+models' worth of menus rendered at once would be most of the page and all but one set
+of them would be wrong. The model menu itself is server-rendered, so choosing a model
+works without JavaScript, and a save that arrives without the marker the script sets
+changes only the model and leaves the board issue, style, region and chips on file
+alone: a form that could not draw them must not be able to erase them either. A change
+of model keeps the chips whose sockets the new model also has and drops the rest, and
+filing a machine out of the catalogue forgets the lot -- a machine that is no longer a
+Spectrum has no Spectrum ULA.
+
+Over the API a catalogue identity is the one nested shape, because it is not a string:
+`GET /api/machines` returns the catalogue, and a computer's `machine` object takes
+`model_key`, `issue`, `style`, `region` and `chips` (a `{role: variant}` map). Omitting
+it leaves a machine's rows alone, sending `null` forgets them, and a model key or a
+chip socket the catalogue does not have is refused rather than stored.
+
 `year` is an integer, `acquired_date` and `disposed_at` are dates, and
 `disposed` is a boolean whose detail lives in `disposed_note` -- the remaining
 columns are text.
@@ -224,10 +296,12 @@ labels encode. On the host the GUI is at http://localhost:8000 and the docs at
 |---|---|---|
 | GET, POST | `/api/computers`, `/api/parts` | list, or create (server assigns the next asset id) |
 | GET, PATCH, DELETE | `/api/computers/{id}`, `/api/parts/{id}` | fetch, partial update, delete |
+| GET | `/api/machines` | the catalogue of known home machines and consoles, and the variations each was built in |
 
 `GET /api/parts?computer_id=RH-0010` and `?type=sound` filter the list. PATCH
-changes only the fields you send. The full schema and an interactive console are
-at `/docs`.
+changes only the fields you send. A computer's `machine` object files it against the
+catalogue (see [Machines the catalogue names](#machines-the-catalogue-names)). The
+full schema and an interactive console are at `/docs`.
 
 ## MCP server
 
@@ -236,6 +310,9 @@ Protocol:
 
 - `list_computers`, `get_computer`, `create_computer`, `update_computer`, `delete_computer`
 - `list_parts` (filter by `computer_id` or `type`), `get_part`, `create_part`, `update_part`, `delete_part`
+- `list_machine_models` — the catalogue behind the `machine_*` arguments of
+  `create_computer` and `update_computer`, which file a Spectrum, a C64 or a Mega
+  Drive against a model and record its board issue, style, region and chips
 
 It stores nothing of its own; every call is an HTTP request to the API, so the
 MCP server, the GUI and the command-line tools all work against the same

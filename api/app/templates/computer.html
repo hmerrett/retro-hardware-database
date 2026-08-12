@@ -55,6 +55,33 @@
     {% if c.url %}<tr><th>Reference</th><td class="wrap"><a href="{{ c.url }}" target="_blank">{{ c.url }}</a></td></tr>{% endif %}
     </table>
 
+    {# What a sealed machine has instead of a parts list: which catalogue model it is,
+       which of that model's builds this one is, and what is in its sockets. Nothing
+       here is a tagged part -- nobody shelves a ULA -- so this is the only place a
+       Spectrum's board issue or a C64's SID is written down. #}
+    {% if machine %}
+    <div class="section">
+      <h3 style="margin:0 0 6px">Machine</h3>
+      <table>
+        <tr><th>Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
+        {% for label, value in machine.rows %}
+        <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+        {% endfor %}
+      </table>
+      {# A table of their own, because the CPU row above says which processor this
+         model has and this one says what is marked on the chip in the socket -- two
+         different facts that would read as a contradiction side by side. #}
+      {% if machine.chips %}
+      <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
+      <table>
+        {% for chip in machine.chips %}
+        <tr><th>{{ chip.label }}</th><td>{{ chip.variant }}</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+    </div>
+    {% endif %}
+
     <!-- Motherboard: link an existing unlinked board, or create one now. -->
     <div class="section">
       <h3 style="margin:0 0 6px">Motherboard</h3>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_colours.html" as C %}
+{% import "_machine.html" as M %}
 {% block title %}{{ title }} — Retro Hardware Database{% endblock %}
 {% block content %}
 <p><a href="javascript:history.back()">&larr; back</a></p>
@@ -11,6 +12,9 @@
     <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (c[key] if c else '') or '' }}">
     {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
   {% endmacro %}
+  {# First, because picking a model fills in half of what follows and puts the right
+     variations on screen for the rest. #}
+  {{ M.picker(machine_groups, machine_saved, machine_catalogue) }}
   {{ fld('name', 'Name', "display name; overrides manufacturer + model") }}
   {{ fld('manufacturer', 'Manufacturer', "or 'Custom build'") }}
   {{ fld('model', 'Model') }}
@@ -108,4 +112,5 @@
   <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
 </form>
 {{ C.script(bezel_swatches) }}
+{{ M.script(machine_catalogue, machine_saved, machine_widths) }}
 {% endblock %}

@@ -180,6 +180,14 @@
      underneath it. The group's own layout is the one that should apply. */
   form.edit .countgrid label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
   form.edit .countgrid input { width: 60px; padding: 4px 6px; }
+  /* The chips fitted in a catalogue machine. The same shape as a count grid but with
+     room in it: what goes in the box is a part number rather than a count, and the
+     label beside it carries the line about what that chip does. */
+  .chipgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 8px 16px; margin: 4px 0 10px; }
+  form.edit .chipgrid label { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
+  form.edit .chipgrid label > span:first-child { flex: 1; }
+  form.edit .chipgrid label .hint { display: block; margin: 0; }
+  form.edit .chipgrid input { width: 140px; flex: none; padding: 4px 6px; }
   table.drives { margin: 4px 0 10px; }
   table.drives th, table.drives td { padding: 4px 8px 4px 0; border: 0; }
   table.drives input, table.drives select { width: 100%; padding: 4px 6px; }
@@ -423,7 +431,8 @@
   @media (pointer: coarse) {
     input, select, textarea,
     form.edit input, form.edit select, form.edit textarea,
-    form.edit .countgrid input, table.drives input, table.drives select,
+    form.edit .countgrid input, form.edit .chipgrid input,
+    table.drives input, table.drives select,
     header .hdr-search input[type=search],
     .toolbar input[list], .toolbar select,
     .photo-actions input[name=note], .notebar input { font-size: 16px; }

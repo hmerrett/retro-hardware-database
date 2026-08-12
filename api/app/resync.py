@@ -15,6 +15,12 @@ computer_ram_module / computer_ram_chip, and drift for the same reason: migratio
 group chips by depth (a bank's parity chips are often a different part number from
 its data chips, and were being counted as capacity).
 
+computers.variant is the third, over computer_variant / computer_chip, and is the one
+that will drift most often: its words come from the catalogue in app/machines.py
+rather than from the record, so correcting a chip's part number or renaming a model
+leaves every machine filed under it rendering the old wording. That is what makes the
+catalogue safe to edit, and this is what brings the strings back into line.
+
 Either way it self-heals the next time that item is edited. This brings the whole
 database into step in one pass instead, and prints what it would change first.
 
@@ -25,7 +31,7 @@ from __future__ import annotations
 
 import sys
 
-from . import entry, ramdb, specdb, specstruct
+from . import entry, machinedb, machines, ramdb, specdb, specstruct
 from .db import SessionLocal
 from .models import Computer, Part
 
@@ -55,6 +61,25 @@ def plan_memory(db):
     return out
 
 
+def plan_variant(db):
+    """[(computer, current, rendered)] for every machine whose catalogue line differs
+    from what its variant and chip rows now say.
+
+    This one drifts for a reason the others do not: the words in the line come from
+    the catalogue rather than from the record, so correcting a chip's part number or a
+    model's name in app/machines.py leaves every machine filed under it rendering the
+    old wording until it is next edited. That is the price of keeping the catalogue
+    editable, and this is how it is paid."""
+    out = []
+    for c in db.query(Computer).order_by(Computer.asset_id).all():
+        v = machinedb.read(db, c)
+        rendered = machines.render(v["model_key"], v["issue"], v["style"],
+                                   v["region"], v["chips"])
+        if rendered != (c.variant or ""):
+            out.append((c, c.variant or "", rendered))
+    return out
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     write = "--write" in argv
@@ -70,7 +95,14 @@ def main(argv=None):
             print(f"{comp.asset_id} (memory)")
             print(f"  - {before}")
             print(f"  + {after}")
-        if not changes and not memory:
+        variants = plan_variant(db)
+        for comp, before, after in variants:
+            print(f"{comp.asset_id} (machine)")
+            print(f"  - {before}")
+            print(f"  + {after}")
+        machines_touched = {c.asset_id for c, *_ in memory} | {
+            c.asset_id for c, *_ in variants}
+        if not changes and not machines_touched:
             print("Every derived value already matches the rows behind it.")
             return 0
         if write:
@@ -78,11 +110,14 @@ def main(argv=None):
                 part.specs = after
             for comp, _before, _after, mods, chips in memory:
                 ramdb.write(db, comp, mods, chips)
+            for comp, _before, _after in variants:
+                machinedb.refresh(db, comp)
             db.commit()
-            print(f"\nRewrote {len(changes)} part(s) and {len(memory)} machine(s).")
+            print(f"\nRewrote {len(changes)} part(s) and "
+                  f"{len(machines_touched)} machine(s).")
         else:
-            print(f"\n{len(changes)} part(s) and {len(memory)} machine(s) would "
-                  "change. Re-run with --write to apply.")
+            print(f"\n{len(changes)} part(s) and {len(machines_touched)} machine(s) "
+                  "would change. Re-run with --write to apply.")
     finally:
         db.close()
     return 0

@@ -37,6 +37,11 @@ class Computer(Base):
     installed_ram_kb = Column(Integer)
     installed_ram_note = Column(String(255), nullable=False, default="",
                                 server_default="")
+    # The rendered cache of the catalogue rows, in the same relation to
+    # computer_variant / computer_chip as installed_ram is to the memory tables:
+    # written from them on every change, read by the page, the label, the search
+    # index and the wire format, and never parsed back (see machinedb).
+    variant = Column(Text, nullable=False, default="", server_default="")
     drives = Column(Text, default="")
     drives_note = Column(String(255), nullable=False, default="",
                          server_default="")
@@ -274,6 +279,54 @@ class ComputerRamChip(Base):
     computer_id = _computer_fk()
     chip = Column(String(32), nullable=False)
     count = Column(Integer, default=1)
+
+
+class ComputerVariant(Base):
+    """Which catalogue machine this is, and which of that model's documented
+    variations. One row per machine, and only for a machine the catalogue names --
+    a PC or a custom build has none, which is why this is a table of its own rather
+    than four more columns on `computers`.
+
+    model_key is the stable slug from machines.FAMILIES and is the only part of the
+    catalogue stored here; the model's name, year, CPU and chip lists are read from
+    the catalogue every time, so correcting an entry there corrects every machine
+    filed under it. The other three hold what was picked or typed, verbatim: the
+    lists in the catalogue name what was commonly made, not everything that
+    exists, so a value from outside one is kept as it was given.
+
+    issue is the board as its make marked it -- Sinclair's Issue 6A, Commodore's
+    ASSY 250425, an Amiga's Rev 6A, a Mega Drive's VA6 -- and style is what tells
+    two of the same model apart from across the room: rubber or moulded keys, a
+    silver or a rainbow label, a heavy sixer."""
+    __tablename__ = "computer_variant"
+    computer_id = Column(String(16),
+                         ForeignKey("computers.asset_id", ondelete="CASCADE"),
+                         primary_key=True)
+    model_key = Column(String(64), nullable=False, default="", server_default="")
+    issue = Column(String(64), nullable=False, default="", server_default="")
+    style = Column(String(64), nullable=False, default="", server_default="")
+    region = Column(String(32), nullable=False, default="", server_default="")
+
+
+class ComputerChip(Base):
+    """Which variant of a chip is in one of a machine's sockets: the ULA under the
+    heatsink, the SID, the CRTC type, the Kickstart in the ROM socket.
+
+    One row per socket, keyed by the catalogue's stable role slug ('ula', 'sid',
+    'crtc') with the part number or version as it is marked on the chip. A socket
+    the catalogue no longer lists still reads back, under the role's own name --
+    what was seen on the board is not wrong for having gone out of the catalogue.
+
+    These are not parts: a chip soldered into a sealed machine is not tagged,
+    photographed or shelved separately, and giving each one an asset id would say
+    the collection holds forty more objects than it does. The memory chips are the
+    exception that proves the rule -- they are counted, not identified, and so have
+    their own table (see ComputerRamChip)."""
+    __tablename__ = "computer_chip"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    computer_id = _computer_fk()
+    role = Column(String(32), nullable=False)
+    variant = Column(String(64), nullable=False, default="", server_default="")
 
 
 class LogEntry(Base):

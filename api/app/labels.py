@@ -19,6 +19,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 from .entry import display_name, parse_specs, type_label
+from .machines import ISSUE_KEY, REGION_KEY, STYLE_KEY
+
+# The three answers in a catalogue machine's line that are not a chip, and so get a
+# line of their own on a label (see computer_lines).
+_MACHINE_KEYS = (ISSUE_KEY, STYLE_KEY, REGION_KEY)
 
 FONT_PATH = Path(__file__).resolve().parent / "label_font.ttf"
 
@@ -165,6 +170,23 @@ def computer_lines(comp, parts, form_factor=""):
         lines.append(f"Manufacturer: {comp['manufacturer']}")
     if comp.get("year"):
         lines.append(f"Year: {comp['year']}")
+    # A catalogue machine's identity: on a sealed machine the board issue and the ULA
+    # are what a label is for, since nothing inside it has a tag of its own to carry
+    # them. The model, the board and the two answers that tell one of these apart get
+    # a line each; the chips share one line, each named by its socket, because a
+    # socket is often called what the label already calls something else -- a machine
+    # has a CPU field and a CPU socket, saying different true things -- and two lines
+    # both headed CPU read as a contradiction rather than as two facts.
+    chips = []
+    for key, value in parse_specs(comp.get("variant", "")):
+        if not key:
+            lines.append(f"Machine: {value}")
+        elif key in _MACHINE_KEYS:
+            lines.append(f"{key}: {value}")
+        else:
+            chips.append(f"{key} {value}")
+    if chips:
+        lines.append("Chips: " + ", ".join(chips))
     if form_factor:
         lines.append(f"Form factor: {form_factor}")
     for label, key in (("CPU", "cpu"), ("RAM", "installed_ram"),

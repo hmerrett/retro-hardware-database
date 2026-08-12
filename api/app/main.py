@@ -31,12 +31,13 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from . import drivedb, enrich, entry, labels, ramdb, specdb, specstruct
+from . import (drivedb, enrich, entry, labels, machinedb, machines, ramdb,
+               specdb, specstruct)
 from .db import get_db
 from .ids import next_asset_id
-from .models import (Computer, ComputerDrive, ComputerRamChip,
-                     ComputerRamModule, LogEntry, Part, PartPort, PartSlot,
-                     StorageSpec)
+from .models import (Computer, ComputerChip, ComputerDrive, ComputerRamChip,
+                     ComputerRamModule, ComputerVariant, LogEntry, Part,
+                     PartPort, PartSlot, StorageSpec)
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
 import contextlib
 
@@ -256,9 +257,10 @@ def gui_logout():
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
 PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
 
-# These are rendered from the memory and drive child tables, so the form loop must
-# not write them, and the change log need not repeat the derived total.
-DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note"}
+# These are rendered from the memory, drive and catalogue child tables, so the form
+# loop must not write them, and the change log need not repeat the derived total.
+DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note",
+                  "variant"}
 COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
 
 # Container paths by default (the `images` volume and the goaccess report mount);
@@ -1236,9 +1238,82 @@ def _ram_from_api(db, computer, text):
     ramdb.write(db, computer, note=note, total_kb=total_kb)
 
 
+def _machine_from_api(db, computer, machine):
+    """A machine's catalogue identity as the wire gives it: an object naming a
+    catalogue model and any of the variations it was built in, or null to forget the
+    catalogue for this machine.
+
+    A key or a chip socket the catalogue does not have is refused rather than stored.
+    Everything else here takes what it is given and the register keeps it -- but the
+    point of a catalogue is that it is the thing being filed against, and a `sid` on
+    an Amiga or a model key with a typo in it is a mistake the caller wants to hear
+    about rather than a fact about anyone's hardware.
+    """
+    if machine is None:
+        machinedb.clear(db, computer)
+        return
+    fields = machine.model_dump(exclude_unset=True)
+    key = fields.get("model_key")
+    if key and machines.model(key) is None:
+        raise HTTPException(422, f"no such machine model: {key} -- "
+                                 "GET /api/machines lists them")
+    # Which model the chips are being checked against: the one this request sets, or
+    # the one the machine is already filed as.
+    against = key if key is not None else machinedb.read(db, computer)["model_key"]
+    for role in (fields.get("chips") or {}):
+        if role not in machines.roles(against):
+            raise HTTPException(422, f"{against or 'a machine with no model'} has no "
+                                     f"{role} socket to record a chip in")
+    machinedb.write(db, computer, **fields)
+
+
+def _machine_out(db, computer, identity=None):
+    """A machine's catalogue identity for the wire: what is stored, plus the
+    catalogue's own name for the model, or None for a machine that is not filed as
+    one."""
+    v = machinedb.read(db, computer) if identity is None else identity
+    if not any(v.values()):
+        return None
+    m = machines.model(v["model_key"]) or {}
+    return v | {"model": m.get("model", ""), "family": m.get("family", "")}
+
+
+def _computer_out(db, computer, identity=None):
+    """One computer as the API returns it: its own columns, and the catalogue
+    identity read from its rows rather than from the line rendered off them."""
+    return to_dict(computer) | {"machine": _machine_out(db, computer, identity)}
+
+
+@app.get("/api/machines", tags=["computers"])
+def api_list_machines():
+    """The catalogue of known home machines and consoles: every model, with the
+    memory sizes, board issues, case and keyboard styles, regions and chip sockets
+    it was built in. `key` is what a computer's `machine.model_key` is set to.
+
+    Every list names what is commonly seen rather than everything that exists, so a
+    board issue or a chip from outside one is recorded as it is given."""
+    return {"families": [{"name": name,
+                          "models": [{"key": m["key"], "model": m["model"],
+                                      "year": m["year"],
+                                      "manufacturer": m["manufacturer"],
+                                      "ram": [lbl for lbl, _kb in m["ram"]],
+                                      "issues": m["issues"], "styles": m["styles"],
+                                      "regions": m["regions"],
+                                      "chips": [{"role": c["role"],
+                                                 "label": c["label"],
+                                                 "variants": c["variants"]}
+                                                for c in m["chips"]]}
+                                     for m in group]}
+                         for name, group in machines.grouped()]}
+
+
 @app.get("/api/computers", response_model=list[ComputerOut], tags=["computers"])
 def api_list_computers(db: Session = Depends(get_db)):
-    return db.query(Computer).order_by(Computer.asset_id).all()
+    rows = db.query(Computer).order_by(Computer.asset_id).all()
+    # One pair of queries for the whole list rather than a pair per machine.
+    identities = machinedb.read_many(db, rows)
+    return [_computer_out(db, c, identities.get(c.asset_id, dict(machinedb.BLANK)))
+            for c in rows]
 
 
 @app.post("/api/computers", response_model=ComputerOut, tags=["computers"])
@@ -1246,20 +1321,25 @@ def api_create_computer(data: ComputerIn, db: Session = Depends(get_db)):
     fields = data.model_dump()
     ram = fields.pop("installed_ram", "")
     drives = fields.pop("drives", "")
+    machine = data.machine
+    fields.pop("machine", None)
     obj = Computer(asset_id=next_asset_id(db), **fields)
     db.add(obj)
     db.flush()
     _ram_from_api(db, obj, ram)
     _drives_from_api(db, obj, drives)
+    if machine is not None:
+        _machine_from_api(db, obj, machine)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     db.refresh(obj)
-    return obj
+    return _computer_out(db, obj)
 
 
 @app.get("/api/computers/{aid}", response_model=ComputerOut, tags=["computers"])
 def api_get_computer(aid: str, db: Session = Depends(get_db)):
-    return get_or_404(db, Computer, aid)
+    obj = get_or_404(db, Computer, aid)
+    return _computer_out(db, obj)
 
 
 @app.patch("/api/computers/{aid}", response_model=ComputerOut, tags=["computers"])
@@ -1268,7 +1348,12 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
     fields = data.model_dump(exclude_unset=True)
     ram = fields.pop("installed_ram", None)
     drives = fields.pop("drives", None)
-    derived = ("installed_ram", "drives")
+    # An omitted machine leaves the catalogue rows alone; an explicit null forgets
+    # them. Both arrive here as None, so which was meant is read from what the
+    # request set rather than from the value.
+    sent_machine = "machine" in fields
+    fields.pop("machine", None)
+    derived = ("installed_ram", "drives", "variant")
     old = {k: getattr(obj, k) for k in fields} | {k: getattr(obj, k) for k in derived}
     for k, v in fields.items():
         setattr(obj, k, v)
@@ -1276,6 +1361,8 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
         _ram_from_api(db, obj, ram)
     if drives is not None:
         _drives_from_api(db, obj, drives)
+    if sent_machine:
+        _machine_from_api(db, obj, data.machine)
     new = {k: getattr(obj, k) for k in fields} | {k: getattr(obj, k) for k in derived}
     diff = _field_diffs(old, new, list(fields) + list(derived))
     # The contents follow the machine whichever door the change came in by, so
@@ -1297,7 +1384,7 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
             n, "went with it" if obj.disposed else "came back too")).strip())
     db.commit()
     db.refresh(obj)
-    return obj
+    return _computer_out(db, obj)
 
 
 @app.delete("/api/computers/{aid}", tags=["computers"])
@@ -1709,7 +1796,8 @@ def _clear_computer_rows(db, c, with_parts=()):
         elif p.computer_id == aid:
             p.computer_id = None
             add_log(db, p.asset_id, f"came out of {aid}, which was deleted")
-    for model in (ComputerDrive, ComputerRamModule, ComputerRamChip):
+    for model in (ComputerDrive, ComputerRamModule, ComputerRamChip,
+                  ComputerChip, ComputerVariant):
         db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
     db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("computers", aid)
@@ -2315,7 +2403,85 @@ def _computer_form_ctx(c, title, db=None):
             "ram_free": free, "drives": drives + [{}] * blanks,
             "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
             "drive_sizes": drivedb.SIZES, "drive_media": drivedb.MEDIA,
-            "drive_speeds": drivedb.SPEEDS, **_bezel_ctx()}
+            "drive_speeds": drivedb.SPEEDS, **_bezel_ctx(), **_machine_ctx(c, db)}
+
+
+# What a typed answer to one of the catalogue pickers may be as long as: the column
+# it lands in. The same rule the drive pickers follow (see _ASK_WIDTHS) -- a box that
+# accepted more than the column holds would fail on save rather than at the keyboard.
+_MACHINE_WIDTHS = {"issue": ComputerVariant.issue.type.length,
+                   "style": ComputerVariant.style.type.length,
+                   "region": ComputerVariant.region.type.length,
+                   "chip": ComputerChip.variant.type.length}
+
+
+def _machine_ctx(c, db=None):
+    """The catalogue and this machine's place in it, for the edit form.
+
+    The whole catalogue goes to the browser as JSON because the variation fields are
+    built from whichever model is picked: sixty models' worth of menus rendered at
+    once would be most of the page, and all but one set of them would be wrong."""
+    saved = machinedb.read(db, c) if (c is not None and db is not None) \
+        else dict(machinedb.BLANK)
+    return {"machine_groups": machines.grouped(), "machine_saved": saved,
+            "machine_catalogue": machines.form_catalogue(),
+            "machine_widths": _MACHINE_WIDTHS}
+
+
+def _machine_from_form(form):
+    """A machine's catalogue identity as the form gives it, as keyword arguments for
+    machinedb.write -- or None where the form did not carry the question at all.
+
+    The variation fields are built in the browser from the catalogue, and
+    `mach_fields` is the marker the script sets once it has built them. Without it --
+    no JavaScript, or a script that did not run -- only the model choice is read and
+    the board issue, style, region and chips already on file are left alone: a form
+    that could not draw them must not be able to erase them either.
+
+    Only the sockets the chosen model has are read, so fields left over from another
+    model in the same browser tab cannot put a ULA in a Commodore 64."""
+    if "mach_model" not in form:
+        return None
+    key = (form.get("mach_model", "") or "").strip()
+    out = {"model_key": key}
+    if not key or not (form.get("mach_fields", "") or "").strip():
+        return out
+    for field in ("issue", "style", "region"):
+        out[field] = (form.get(f"mach_{field}", "") or "").strip()
+    out["chips"] = {role: (form.get(f"chip:{role}", "") or "").strip()
+                    for role in machines.roles(key)}
+    return out
+
+
+def _machine_page(db, c):
+    """A machine's catalogue identity for its page: what it is filed as, then what
+    makes this one of them, then the chips in the order a board is read in. None for
+    a machine outside the catalogue, so the section does not appear at all.
+
+    Every label is read from the catalogue rather than from the record, so a page
+    shows the current words for what was recorded -- and a chip whose socket the
+    catalogue has since dropped still shows, under the role's own name, because what
+    was seen on the board is not wrong for having gone out of the catalogue. The
+    catalogue's line about a socket stays on the form, where it helps decide what to
+    look at; here it would be the same sentence under every machine of the model.
+
+    The row keys are machines.ISSUE_KEY and the two beside it, so the page and the
+    rendered line call the same three answers by the same names."""
+    v = machinedb.read(db, c)
+    if not any(v.values()):
+        return None
+    m = machines.model(v["model_key"])
+    return {
+        "model": (m["model"] if m else v["model_key"]),
+        "family": m["family"] if m else "",
+        "year": m["year"] if m else None,
+        "rows": [(label, value) for label, value in
+                 ((machines.ISSUE_KEY, v["issue"]), (machines.STYLE_KEY, v["style"]),
+                  (machines.REGION_KEY, v["region"])) if value],
+        "chips": [{"label": machines.chip_label(v["model_key"], role),
+                   "variant": variant}
+                  for role, variant in v["chips"].items()],
+    }
 
 
 def _bezel_ctx():
@@ -2337,9 +2503,10 @@ def gui_new_computer(request: Request):
 async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     photos = _chosen_photos(form)
-    data = {k: _coerce(k, form[k]) for k in COMPUTER_FIELDS if k in form}
-    data.pop("installed_ram", None)
-    data.pop("drives", None)
+    # Everything the child tables render is left to them, as the edit path does: the
+    # form's own installed_ram and drive fields are read by ramdb and drivedb below.
+    data = {k: _coerce(k, form[k]) for k in COMPUTER_FIELDS
+            if k in form and k not in DERIVED_FIELDS}
     for f in ("manufacturer", "model"):
         if f in data:
             data[f] = entry.deshout(data[f])
@@ -2349,6 +2516,8 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     ramdb.write(db, obj, *_ram_from_form(form))
     drivedb.write(db, obj, _drives_from_form(form),
                   (form.get("drives_note", "") or "").strip())
+    if (mach := _machine_from_form(form)) is not None:
+        machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     if photos:
@@ -2387,6 +2556,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
     form_factor = (specdb.scalars(db, motherboard).get("form_factor", "")
                    if motherboard else "")
     return templates.TemplateResponse(request, "computer.html", {
+        "machine": _machine_page(db, c),
         "c": c, "parts": [p for p in parts if p is not motherboard],
         "motherboard": motherboard, "form_factor": form_factor,
         "free_boards": free_boards,
@@ -2424,6 +2594,8 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
     ramdb.write(db, c, mods, chips, note, total_kb)
     drivedb.write(db, c, _drives_from_form(form),
                   (form.get("drives_note", "") or "").strip())
+    if (mach := _machine_from_form(form)) is not None:
+        machinedb.write(db, c, **mach)
     diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS},
                         COMPUTER_DIFF_FIELDS)
     if diff:
@@ -3240,7 +3412,10 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
 def gui_duplicate_computer(aid: str, db: Session = Depends(get_db)):
     """A second machine of the same model. Its memory and drives come across --
     they describe the build -- but its parts do not: those are tagged objects
-    fitted to the original, and the copy starts as an empty chassis to fill."""
+    fitted to the original, and the copy starts as an empty chassis to fill. The
+    catalogue model comes across for the same reason the model field does; the
+    board issue and the chips do not, because those are found by opening this
+    machine rather than the one it was copied from."""
     src = get_or_404(db, Computer, aid)
     data = {k: getattr(src, k) for k in COMPUTER_FIELDS
             if k not in DUP_EXCLUDE and k not in DERIVED_FIELDS}
@@ -3251,6 +3426,7 @@ def gui_duplicate_computer(aid: str, db: Session = Depends(get_db)):
     ramdb.write(db, obj, mods, chips, src.installed_ram_note or "",
                 src.installed_ram_kb)
     drivedb.write(db, obj, drivedb.read(db, src), src.drives_note or "")
+    machinedb.duplicated_from(db, src, obj)
     add_log(db, obj.asset_id, f"created as a duplicate of {aid}", kind="created")
     add_log(db, aid, f"duplicated to {obj.asset_id}", kind="duplicate")
     db.commit()

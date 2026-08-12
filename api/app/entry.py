@@ -420,9 +420,16 @@ def _round_kb(kb) -> str:
 
 # Common DRAM chips for machines with RAM soldered/socketed directly on the board
 # (not on SIMMs/modules). Each is (part number, KB per chip, organisation).
+#
+# The 4532 and the 41464 are here for the home machines rather than the PCs: the
+# 4532 is the half-good 4164 that eight of make up a 48K Spectrum's upper bank, and
+# the 41464 is what a C64C or a 6128 has two or four of where a breadbin had eight
+# 4164s. Neither ever turns up in a PC, and both are the whole answer to "how much
+# memory has this got" on the machines that do use them.
 RAM_CHIPS = [
-    ("4116", 2, "16K×1"), ("4164", 8, "64K×1"), ("4416", 8, "16K×4"),
-    ("4464", 32, "64K×4"), ("41256", 32, "256K×1"), ("44256", 128, "256K×4"),
+    ("4116", 2, "16K×1"), ("4532", 4, "32K×1"), ("4164", 8, "64K×1"),
+    ("4416", 8, "16K×4"), ("4464", 32, "64K×4"), ("41464", 32, "64K×4"),
+    ("41256", 32, "256K×1"), ("44256", 128, "256K×4"),
     ("411000", 128, "1M×1"), ("514256", 128, "256K×4"),
 ]
 RAM_CHIP_KB = {pn: kb for pn, kb, _ in RAM_CHIPS}
