@@ -232,10 +232,26 @@ it -- the lesson migration 0011 wrote down about memory modules, applied before 
 could be learned twice.
 
 Every list names what is commonly seen rather than everything that exists, which is
-why each variation is a box with a list attached rather than a closed menu -- the rule
-the drive pickers follow. A late board nobody has written up, a chip swapped in a
-repair, a Spectrum+ converted from a rubber-key machine: all of those are recorded by
-typing them. A model that has no such socket says so and is not asked (a VIC-20 has no
+why each variation is a radio group with a "custom" box beside it rather than a closed
+menu -- the rule the drive pickers follow. A late board nobody has written up, a chip
+swapped in a repair, a Spectrum+ converted from a rubber-key machine: all of those are
+recorded by typing them.
+
+And what is typed once is offered ever after. `machinedb.recorded` reads back every
+answer already on file, keyed by the model it was given for, and
+`machines.with_recorded` folds those into the lists the form offers: discover a ULA
+the catalogue has never heard of and it is a radio button on the next machine, the
+curated order kept and the discoveries after it. Two spellings that differ only in
+case or spacing are one answer, so a chip does not appear twice for having been typed
+twice, and what one model teaches is not offered on another -- a ULA found in a
+Spectrum says nothing about a Commodore 64. That is what lets these lists be the
+common cases rather than an inventory: the register completes them as it is used, and
+what turns up often enough to be worth curating can be written into `machines.py`
+later. A field the catalogue has no list for at all stays a plain box, because
+offering "not recorded" and "custom" as the only two choices would be a menu that asks
+a question and answers none of it.
+
+A model that has no such socket says so and is not asked (a VIC-20 has no
 SID, a ZX80 no ULA), a model can replace its family's chip for a socket with its own
 (a Spectrum +2A has Amstrad's gate array where the family has a Ferranti ULA), and
 what a machine records is kept whether or not the catalogue still lists it.

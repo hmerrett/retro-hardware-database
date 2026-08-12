@@ -2423,9 +2423,13 @@ def _machine_ctx(c, db=None):
     once would be most of the page, and all but one set of them would be wrong."""
     saved = machinedb.read(db, c) if (c is not None and db is not None) \
         else dict(machinedb.BLANK)
+    # What the catalogue names, plus what the register has since been told: a chip
+    # somebody had to type once is a radio button from then on.
+    catalogue = machines.with_recorded(machines.form_catalogue(),
+                                       machinedb.recorded(db) if db is not None
+                                       else {})
     return {"machine_groups": machines.grouped(), "machine_saved": saved,
-            "machine_catalogue": machines.form_catalogue(),
-            "machine_widths": _MACHINE_WIDTHS}
+            "machine_catalogue": catalogue, "machine_widths": _MACHINE_WIDTHS}
 
 
 def _machine_from_form(form):
@@ -2447,10 +2451,21 @@ def _machine_from_form(form):
     if not key or not (form.get("mach_fields", "") or "").strip():
         return out
     for field in ("issue", "style", "region"):
-        out[field] = (form.get(f"mach_{field}", "") or "").strip()
-    out["chips"] = {role: (form.get(f"chip:{role}", "") or "").strip()
+        out[field] = _machine_pick(form, f"mach_{field}")
+    out["chips"] = {role: _machine_pick(form, f"chip:{role}")
                     for role in machines.roles(key)}
     return out
+
+
+def _machine_pick(form, field):
+    """What one of the catalogue's radio groups chose: one of the answers it offered,
+    or whatever was typed beside "custom" for the machine the catalogue has not met
+    yet. Blank is a deliberate answer too -- it is how a socket nobody has looked at
+    is left unrecorded, and how a chip written down by mistake is taken back off."""
+    picked = (form.get(field, "") or "").strip()
+    if picked == "custom":
+        return " ".join((form.get(f"{field}_custom", "") or "").split())
+    return picked
 
 
 def _machine_page(db, c):
@@ -2494,9 +2509,12 @@ def _bezel_ctx():
 
 
 @app.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)
-def gui_new_computer(request: Request):
+def gui_new_computer(request: Request, db: Session = Depends(get_db)):
+    # With a session, because the catalogue's pickers offer what other machines have
+    # already been found to have as well as what the catalogue names -- and the form
+    # for a machine being entered for the first time is where that matters most.
     return templates.TemplateResponse(request, "computer_form.html",
-                                      _computer_form_ctx(None, "New computer"))
+                                      _computer_form_ctx(None, "New computer", db))
 
 
 @app.post("/computers/new", include_in_schema=False)

@@ -18,11 +18,18 @@ a machine's memory.
 Two things to hold on to when adding to it:
 
   * Every list names what is commonly seen, not everything that exists. The form
-    offers them as suggestions beside a box that still takes whatever is typed --
-    the rule the drive pickers already follow -- because a catalogue that refused
-    the odd machine would be wrong more often than the machine was. A late board
-    nobody has written up, a chip replaced in a repair, a Spectrum+ converted from
-    a rubber-key machine: all of those are recorded by typing them.
+    offers them as radio buttons with a "custom" box beside them -- the rule the
+    drive pickers already follow -- because a catalogue that refused the odd
+    machine would be wrong more often than the machine was. A late board nobody has
+    written up, a chip replaced in a repair, a Spectrum+ converted from a rubber-key
+    machine: all of those are recorded by typing them.
+
+    And what is typed once is offered ever after: with_recorded() adds everything
+    already on file to the lists this module holds, so discovering a ULA the
+    catalogue has never heard of is a thing you do once. That is why these lists
+    can afford to be the common cases rather than an inventory -- the register
+    completes them as it is used, and what turns up often enough to be worth
+    curating can be written in here later.
   * `key` is the stable slug and is the only thing stored. A label, a note, a
     chip's part number and even a model's name can be corrected without orphaning
     a record; a key cannot be changed without a migration. This is the lesson
@@ -51,12 +58,14 @@ def _chip(role, label, variants, note=""):
 # bought from whoever was cheapest that month. Nothing about the machine changes
 # with the marking, which is exactly why it is worth writing down: it is one of the
 # few things about a sealed machine you can only know by opening it.
-_Z80 = ["Zilog Z80A", "NEC D780C-1", "SGS Z8400AB1", "Sharp LH0080A",
-        "Mostek MK3880N-4", "Toshiba TMPZ84C00AP"]
-_AY = ["General Instrument AY-3-8912", "Yamaha YM2149F"]
+_Z80 = ["Zilog Z80A", "Zilog Z8400AB1", "NEC D780C-1", "SGS Z8400AB1",
+        "Sharp LH0080A", "Mostek MK3880N-4", "GoldStar Z8400A",
+        "Toshiba TMPZ84C00AP"]
+_AY = ["General Instrument AY-3-8912", "General Instrument AY-3-8910",
+       "Yamaha YM2149F"]
 
-_SPECTRUM_ULA = ["Ferranti 5C102E", "Ferranti 5C112E", "Ferranti 6C001E-6",
-                 "Ferranti 6C001E-7", "Ferranti 7K010E-5"]
+_SPECTRUM_ULA = ["Ferranti 5C102E", "Ferranti 5C112E", "Ferranti 6C001E-5",
+                 "Ferranti 6C001E-6", "Ferranti 6C001E-7", "Ferranti 7K010E-5"]
 _SPECTRUM_ISSUES = ["Issue 1", "Issue 2", "Issue 3", "Issue 3B", "Issue 4A",
                     "Issue 4B", "Issue 5", "Issue 6A"]
 
@@ -69,12 +78,13 @@ _C64_CHIPS = [
           "6569 is the PAL part and 6567 the NTSC one; 8565/8562 are the HMOS-II "
           "chips of the later boards"),
     _chip("sid", "SID", ["MOS 6581", "MOS 6581R2", "MOS 6581R3", "MOS 6581R4",
-                         "MOS 6581R4AR", "MOS 8580R5"],
+                         "MOS 6581R4AR", "MOS 6582", "MOS 8580", "MOS 8580R5"],
           "the one chip people choose a machine by: 6581 in a breadbin, 8580 in "
           "the C64C"),
     _chip("cia", "CIA", ["MOS 6526", "MOS 6526A", "MOS 8521"],
           "two of them, and both are usually the same part"),
-    _chip("pla", "PLA", ["MOS 906114-01", "MOS 252535-01", "MOS 251715-01"],
+    _chip("pla", "PLA", ["MOS 906114-01", "Signetics 82S100", "MOS 252535-01",
+                         "MOS 251715-01"],
           "the chip that runs hot and takes the machine with it when it goes; "
           "251715-01 is the 250469 board's combined part"),
     _chip("kernal", "Kernal ROM", ["901227-01", "901227-02", "901227-03",
@@ -115,8 +125,8 @@ _ST_CHIPS = [
     _chip("glue", "GLUE", ["C025913", "combined in the STE's GST MCU"]),
     _chip("mmu", "MMU", ["C025912-002", "combined in the STE's GST MCU"]),
     _chip("psg", "Sound", ["Yamaha YM2149F"]),
-    _chip("tos", "TOS ROM", ["TOS 1.00", "TOS 1.02", "TOS 1.04", "TOS 1.62",
-                             "TOS 2.06"],
+    _chip("tos", "TOS ROM", ["TOS 1.00", "TOS 1.02", "TOS 1.04", "TOS 1.06",
+                             "TOS 1.62", "TOS 2.06"],
           "on socketed ROMs in most machines, so this is the one thing on the "
           "list that may not be what it left the factory with"),
 ]
@@ -883,6 +893,53 @@ def in_role_order(model_key, chips):
     order = roles(model_key)
     return sorted(pairs, key=lambda kv: (order.index(kv[0]) if kv[0] in order
                                          else len(order), kv[0]))
+
+
+def _fold(text):
+    """The form two spellings of one answer have in common, for telling whether
+    something is already offered: case and spacing are how the same chip gets
+    written twice, and neither makes it a different chip."""
+    return " ".join((text or "").split()).lower()
+
+
+def _extend(known, seen):
+    """`known` with everything in `seen` it does not already offer, the curated order
+    kept and the discoveries after it in alphabetical order -- so the list a person
+    reads down stays the one that was written deliberately, and what the register
+    has taught it follows."""
+    have = {_fold(k) for k in known}
+    extra = {}
+    for value in seen:
+        folded = _fold(value)
+        if value and folded not in have:
+            extra.setdefault(folded, value.strip())
+    return [*known, *sorted(extra.values(), key=str.lower)]
+
+
+def with_recorded(catalogue, recorded):
+    """A form catalogue with every answer already on file added to the lists it
+    offers, so a variation that had to be typed once is picked from a radio button
+    the next time -- which is what makes this a catalogue that grows rather than a
+    list of what was known the day it was written.
+
+    `recorded` is machinedb.recorded(): what real machines say, keyed by model. Only
+    the lists a model already has are extended, and only for the model it was seen
+    on: a ULA found in a Spectrum says nothing about a Commodore 64, and a socket
+    the catalogue has since dropped is not brought back by a machine that still
+    names it.
+    """
+    out = {}
+    for key, model in catalogue.items():
+        seen = recorded.get(key) or {}
+        entry_out = dict(model)
+        for field in ("issues", "styles", "regions"):
+            entry_out[field] = _extend(model[field], seen.get(field, ()))
+        chips_seen = seen.get("chips") or {}
+        entry_out["chips"] = [dict(c, variants=_extend(c["variants"],
+                                                       chips_seen.get(c["role"], ())))
+                              for c in model["chips"]]
+        out[key] = entry_out
+    return out
 
 
 def form_catalogue():

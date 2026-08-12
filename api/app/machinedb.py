@@ -74,6 +74,45 @@ def read_many(db, computers):
     return out
 
 
+def recorded(db):
+    """Every answer already given to a catalogue question, keyed by model:
+    {model_key: {"issues": [...], "styles": [...], "regions": [...],
+                 "chips": {role: [...]}}}.
+
+    What this is for is the picker: machines.with_recorded folds it into the lists
+    the form offers, so a ULA nobody had heard of when the catalogue was written is
+    a radio button once one machine records it. Two queries, both distinct, because
+    this is read on every edit form.
+
+    Keyed by the model the machine is filed as now -- a chip is only evidence about
+    the model it was found in.
+    """
+    out = {}
+
+    def bucket(key):
+        return out.setdefault(key, {"issues": [], "styles": [], "regions": [],
+                                    "chips": {}})
+
+    variants = (db.query(ComputerVariant.model_key, ComputerVariant.issue,
+                         ComputerVariant.style, ComputerVariant.region)
+                .filter(ComputerVariant.model_key != "").distinct().all())
+    for key, issue, style, region in variants:
+        got = bucket(key)
+        for field, value in (("issues", issue), ("styles", style),
+                             ("regions", region)):
+            if (value or "").strip():
+                got[field].append(value.strip())
+    chips = (db.query(ComputerVariant.model_key, ComputerChip.role,
+                      ComputerChip.variant)
+             .join(ComputerChip,
+                   ComputerChip.computer_id == ComputerVariant.computer_id)
+             .filter(ComputerVariant.model_key != "").distinct().all())
+    for key, role, variant in chips:
+        if (variant or "").strip():
+            bucket(key)["chips"].setdefault(role, []).append(variant.strip())
+    return out
+
+
 def write(db, computer, model_key=None, issue=None, style=None, region=None,
           chips=None):
     """Store what is known about a machine's catalogue identity and re-render the

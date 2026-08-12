@@ -492,6 +492,114 @@ class TestForm:
         assert aid in hits
 
 
+class TestACatalogueThatGrows:
+    """The catalogue names what is commonly seen, and the register keeps meeting
+    what is not. A variation typed into the custom box once is offered as a button
+    ever after, so discovering a ULA nobody had written up is a thing you do once.
+    """
+
+    def cat(self, recorded):
+        return machines.with_recorded(machines.form_catalogue(), recorded)
+
+    def ula(self, catalogue, key="zx-spectrum-48k"):
+        return next(c["variants"] for c in catalogue[key]["chips"]
+                    if c["role"] == "ula")
+
+    def test_a_chip_the_catalogue_never_heard_of_is_offered(self):
+        out = self.ula(self.cat({"zx-spectrum-48k": {"chips": {"ula": ["Ferranti 6C001W-8"]}}}))
+        assert "Ferranti 6C001W-8" in out
+
+    def test_the_curated_order_is_kept_and_discoveries_follow(self):
+        """What was written down deliberately is what a person reads down first."""
+        known = self.ula(self.cat({}))
+        out = self.ula(self.cat({"zx-spectrum-48k": {"chips": {"ula": ["AAA first"]}}}))
+        assert out[:len(known)] == known
+        assert out[-1] == "AAA first"
+
+    def test_one_already_offered_is_not_offered_twice(self):
+        out = self.ula(self.cat(
+            {"zx-spectrum-48k": {"chips": {"ula": ["Ferranti 6C001E-7"]}}}))
+        assert out.count("Ferranti 6C001E-7") == 1
+
+    def test_a_difference_of_case_or_spacing_is_not_a_different_chip(self):
+        out = self.ula(self.cat(
+            {"zx-spectrum-48k": {"chips": {"ula": ["ferranti  6C001E-7"]}}}))
+        assert len([v for v in out if v.lower().replace("  ", " ")
+                    == "ferranti 6c001e-7"]) == 1
+
+    def test_what_one_model_teaches_is_not_told_about_another(self):
+        """A ULA found in a Spectrum says nothing about a Commodore 64."""
+        cat = self.cat({"zx-spectrum-48k": {"chips": {"ula": ["Ferranti 9Z9"]}}})
+        for chip in cat["c64"]["chips"]:
+            assert "Ferranti 9Z9" not in chip["variants"]
+
+    def test_a_socket_the_catalogue_dropped_is_not_brought_back(self):
+        cat = self.cat({"c64": {"chips": {"ula": ["Ferranti 6C001E-7"]}}})
+        assert "ula" not in [c["role"] for c in cat["c64"]["chips"]]
+
+    def test_the_other_variations_grow_the_same_way(self):
+        cat = self.cat({"c64": {"issues": ["ASSY 250466 rev B"],
+                                "styles": ["Aldi C64 (short board)"],
+                                "regions": ["PAL"]}})
+        assert "ASSY 250466 rev B" in cat["c64"]["issues"]
+        # ...and the ones it already knew are still there once each.
+        assert cat["c64"]["styles"].count("Aldi C64 (short board)") == 1
+        assert cat["c64"]["regions"].count("PAL") == 1
+
+    def test_what_machines_say_is_read_back_by_model(self, computer, db):
+        c = db.get(Computer, computer()["asset_id"])
+        machinedb.write(db, c, model_key="zx-spectrum-48k", issue="Issue 3B",
+                        chips={"ula": "Ferranti 6C001W-8"})
+        db.commit()
+        seen = machinedb.recorded(db)
+        assert seen["zx-spectrum-48k"]["chips"]["ula"] == ["Ferranti 6C001W-8"]
+        assert seen["zx-spectrum-48k"]["issues"] == ["Issue 3B"]
+
+    def test_a_machine_outside_the_catalogue_teaches_nothing(self, computer, db):
+        c = db.get(Computer, computer()["asset_id"])
+        machinedb.write(db, c, model_key="")
+        db.commit()
+        assert machinedb.recorded(db) == {}
+
+    def test_a_chip_typed_once_is_offered_on_the_next_machine(self, client):
+        """The whole point, end to end: the custom box on one machine puts the chip
+        into the list the next machine's form is built from."""
+        r = client.post("/computers/new",
+                        data={"manufacturer": "Sinclair", "model": "Spectrum",
+                              "mach_model": "zx-spectrum-48k", "mach_fields": "1",
+                              "chip:ula": "custom",
+                              "chip:ula_custom": "Ferranti 6C001W-8"},
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text
+        # A blank form: the only place this can appear is the catalogue the script
+        # builds its buttons from.
+        assert "Ferranti 6C001W-8" in client.get("/computers/new").text
+
+    def test_the_custom_box_is_what_gets_stored(self, client, db):
+        r = client.post("/computers/new",
+                        data={"manufacturer": "Commodore", "model": "64",
+                              "mach_model": "c64", "mach_fields": "1",
+                              "mach_issue": "custom",
+                              "mach_issue_custom": "  ASSY 250425  rev C ",
+                              "chip:sid": "MOS 6582"}, follow_redirects=False)
+        aid = r.headers["location"].split("/computers/")[1].split("?")[0]
+        row = db.get(ComputerVariant, aid)
+        # Squeezed, like every other typed answer the form takes.
+        assert row.issue == "ASSY 250425 rev C"
+        assert db.query(ComputerChip).filter(
+            ComputerChip.computer_id == aid).one().variant == "MOS 6582"
+
+    def test_custom_with_nothing_typed_records_nothing(self, client, db):
+        r = client.post("/computers/new",
+                        data={"manufacturer": "Commodore", "model": "64",
+                              "mach_model": "c64", "mach_fields": "1",
+                              "chip:sid": "custom", "chip:sid_custom": "   "},
+                        follow_redirects=False)
+        aid = r.headers["location"].split("/computers/")[1].split("?")[0]
+        assert db.query(ComputerChip).filter(
+            ComputerChip.computer_id == aid).count() == 0
+
+
 class TestResync:
     def test_a_line_that_has_drifted_is_reported_and_rewritten(self, computer, db):
         """The catalogue's words are not stored, so correcting one leaves every

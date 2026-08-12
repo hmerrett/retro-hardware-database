@@ -48,10 +48,17 @@
    about it. Every list here comes from the same catalogue the server reads the save
    back against, so the two cannot come to disagree about what a model was built in.
 
-   Each field is a box with a list attached rather than a closed menu -- the rule the
-   drive pickers follow -- because the catalogue names what was commonly made, not
+   Each field is a radio group with a "custom" box beside it -- the rule the drive
+   pickers follow -- because the catalogue names what was commonly made, not
    everything that exists: a late board nobody has written up, or a chip swapped in a
-   repair, is recorded by typing it. #}
+   repair, is recorded by typing it. What is typed once is offered ever after: the
+   lists arrive here already carrying everything the register has been told
+   (machines.with_recorded), so a ULA nobody had heard of becomes a button once one
+   machine records it.
+
+   A field the catalogue has no list for at all is a plain box: there is nothing to
+   pick from, and offering "not recorded" and "custom" as the only two choices would
+   be a menu that asks a question and answers none of it. #}
 {% macro script(catalogue, saved, widths, ram_field='installed_ram') %}
 <script>
   (function () {
@@ -67,6 +74,18 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
 
+    // What one group says: the answer it offered that is chosen, or what was typed
+    // beside "custom". The same reading the server takes of the same fields.
+    const groupValue = (name) => {
+      const plain = box.querySelector(`input[type=text][name="${name}"]`);
+      if (plain) return plain.value;
+      const on = box.querySelector(`input[name="${name}"]:checked`);
+      if (!on) return '';
+      if (on.value !== 'custom') return on.value;
+      const custom = box.querySelector(`input[name="${name}_custom"]`);
+      return custom ? custom.value.trim() : '';
+    };
+
     // What the fields hold now, so changing the model keeps the answers whose question
     // the new model also asks -- a C64 refiled as a C64C still has the SID it had.
     // Before they have been built once, that is whatever was last saved.
@@ -74,27 +93,54 @@
       if (!box.children.length) return SAVED;
       const now = {chips: {}};
       for (const f of ['issue', 'style', 'region']) {
-        const el = box.querySelector(`[name="mach_${f}"]`);
-        now[f] = el ? el.value : '';
+        now[f] = groupValue(`mach_${f}`);
       }
-      box.querySelectorAll('[data-chip-role]').forEach(el => {
-        now.chips[el.dataset.chipRole] = el.value;
+      box.querySelectorAll('[data-role]').forEach(el => {
+        now.chips[el.dataset.role] = groupValue(el.dataset.field);
       });
       return now;
     };
 
-    const list = (id, options) => options.length
-      ? `<datalist id="${esc(id)}">` +
-        options.map(o => `<option value="${esc(o)}">`).join('') + '</datalist>'
-      : '';
+    const radio = (name, value, checked, label) =>
+      `<label><input type="radio" name="${esc(name)}" value="${esc(value)}"` +
+      `${checked ? ' checked' : ''}> ${esc(label)}</label>`;
 
-    const field = (name, label, hint, value, options, maxlen) => `
-      <label for="${esc(name)}">${esc(label)}</label>
-      <input id="${esc(name)}" name="${esc(name)}" value="${esc(value)}"
-             ${options.length ? `list="dl_${esc(name)}"` : ''}
-             ${maxlen ? `maxlength="${maxlen}"` : ''} autocomplete="off">
-      ${list('dl_' + name, options)}
-      ${hint ? `<p class="hint">${esc(hint)}</p>` : ''}`;
+    // One question: what the catalogue offers, "not recorded" for the socket nobody
+    // has looked in yet, and "custom" for the machine it has not met. An answer from
+    // outside the list chooses custom and fills the box, so a form reopens on what it
+    // saved.
+    const field = (name, label, hint, value, options, maxlen, role) => {
+      const attrs = `data-field="${esc(name)}"${role ? ` data-role="${esc(role)}"` : ''}`;
+      const head = `<label for="${esc(name)}">${esc(label)}</label>` +
+        (hint ? `<p class="hint">${esc(hint)}</p>` : '');
+      if (!options.length) {
+        return `<div ${attrs}>${head}
+          <input type="text" id="${esc(name)}" name="${esc(name)}"
+                 value="${esc(value)}" ${maxlen ? `maxlength="${maxlen}"` : ''}
+                 autocomplete="off"></div>`;
+      }
+      const custom = value !== '' && !options.some(o => o === value);
+      return `<div ${attrs}>${head}
+        <div class="checks">
+          ${radio(name, '', !value, 'not recorded')}
+          ${options.map(o => radio(name, o, o === value, o)).join('')}
+          ${radio(name, 'custom', custom, 'custom')}
+        </div>
+        <input name="${esc(name)}_custom" value="${esc(custom ? value : '')}"
+               ${maxlen ? `maxlength="${maxlen}"` : ''} autocomplete="off"
+               placeholder="as it is marked"${custom ? '' : ' hidden'}></div>`;
+    };
+
+    // "custom" reveals the box it needs and takes the cursor there; every other answer
+    // needs no box at all, and an empty one is not left on screen to be wondered about.
+    box.addEventListener('change', (ev) => {
+      const el = ev.target;
+      if (el.type !== 'radio') return;
+      const custom = box.querySelector(`input[name="${el.name}_custom"]`);
+      if (!custom) return;
+      custom.hidden = el.value !== 'custom';
+      if (!custom.hidden) custom.focus();
+    });
 
     const build = () => {
       const model = CAT[pick.value];
@@ -120,22 +166,16 @@
       }
       if (model.chips.length) {
         html += '<label>Chips fitted</label>' +
-          '<p class="hint">the sockets worth writing down on this model, each taking ' +
-          'the number or version marked on the chip itself. Leave one blank until it ' +
-          'has been looked at — a guess here is worse than nothing.</p>' +
-          '<div class="chipgrid">';
+          '<p class="hint">the sockets worth writing down on this model, each ' +
+          'offering the numbers that turn up in it. Leave one at <em>not ' +
+          'recorded</em> until it has been looked at — a guess here is worse than ' +
+          'nothing — and use <em>custom</em> for a marking the list does not have, ' +
+          'which puts it on the list for next time.</p>';
         for (const chip of model.chips) {
-          const name = `chip:${chip.role}`;
-          html += `<label for="${esc(name)}"><span>${esc(chip.label)}${
-            chip.note ? ` <span class="hint">${esc(chip.note)}</span>` : ''}</span>` +
-            `<input id="${esc(name)}" name="${esc(name)}"
-                    data-chip-role="${esc(chip.role)}"
-                    value="${esc(was.chips[chip.role] || '')}"
-                    list="dl_${esc(name)}" maxlength="${WIDTHS.chip || 64}"
-                    autocomplete="off">` +
-            list('dl_' + name, chip.variants) + '</label>';
+          html += field(`chip:${chip.role}`, chip.label, chip.note,
+                        was.chips[chip.role] || '', chip.variants,
+                        WIDTHS.chip || 64, chip.role);
         }
-        html += '</div>';
       }
       box.innerHTML = html;
     };
