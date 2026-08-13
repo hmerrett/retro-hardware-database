@@ -44,7 +44,7 @@
 <div class="detail">
   <div class="detail-main">
     {% if c.summary %}<p class="summary">{{ c.summary }}</p>{% endif %}
-    <table>
+    <table class="kv">
     {% for k, v in [('Manufacturer', c.manufacturer), ('Model', c.model), ('Year', c.year),
                     ('Form factor', form_factor),
                     ('Chassis', c.chassis), ('CPU', c.cpu), ('Installed RAM', c.installed_ram),
@@ -62,7 +62,7 @@
     {% if machine %}
     <div class="section">
       <h3 style="margin:0 0 6px">Machine</h3>
-      <table>
+      <table class="kv">
         <tr><th>Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
         {% for label, value in machine.rows %}
         <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
@@ -73,13 +73,27 @@
          different facts that would read as a contradiction side by side. #}
       {% if machine.chips %}
       <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
-      <table>
+      <table class="kv">
         {% for chip in machine.chips %}
         <tr><th>{{ chip.label }}</th><td>{{ chip.variant }}</td></tr>
         {% endfor %}
       </table>
       {% endif %}
     </div>
+    {% endif %}
+
+    {# A catalogue machine is a sealed thing described by what it was built as, not
+       by tagged parts: a C64 has no board to link and nothing on a shelf to fit to
+       it, so asking twice on every page is asking about the wrong machine. Fold
+       them away when there is genuinely nothing there -- into a disclosure while
+       logged in, since a drive or a peripheral may still be added later, and out of
+       sight entirely for a visitor, who could not add one anyway. The moment
+       something is fitted, both sections come back on their own. #}
+    {% set bare = machine and not motherboard and not parts %}
+    {% if not bare or request.state.authed %}
+    {% if bare %}
+    <details class="section fold">
+      <summary>Motherboard and parts <span class="muted">— none fitted</span></summary>
     {% endif %}
 
     <!-- Motherboard: link an existing unlinked board, or create one now. -->
@@ -155,6 +169,9 @@
         {% endfor %}
       </table>
     </div>
+    {% if bare %}</details>{% endif %}
+    {% endif %}
+
     <div class="section">
       <h3 style="margin:0 0 6px">History</h3>
       {% if request.state.authed %}
@@ -164,7 +181,7 @@
       </form>
       {% endif %}
       {% if log %}
-      <table>
+      <table class="kv">
         {% for e in log %}
         <tr>
           <td class="muted" style="white-space:nowrap;vertical-align:top">{{ log_stamp(e.created_at, request.state.authed) }}</td>

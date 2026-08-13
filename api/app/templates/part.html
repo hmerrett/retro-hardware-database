@@ -37,7 +37,7 @@
 <div class="detail">
   <div class="detail-main">
     {% if p.summary %}<p class="summary">{{ p.summary }}</p>{% endif %}
-    <table>
+    <table class="kv">
     {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
       {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
     {% endfor %}
@@ -79,7 +79,7 @@
          shade and the yellowing are one piece of plastic. #}
       {% set specs = dict(spec_pairs) %}
       {% set bezel = bezel_css(specs.get('Colour', ''), specs.get('Yellowing', '')) %}
-      <table>
+      <table class="kv">
         {% for k, v in spec_pairs %}
         <tr><th>{{ k or '—' }}</th>
           <td>{% if bezel and k in ('Colour', 'Yellowing') %}{{ CL.dot(bezel, specs.get('Colour', '') or 'yellowing, on a shade nobody recorded') }} {% endif %}{{ v }}</td></tr>
@@ -133,7 +133,7 @@
       </form>
       {% endif %}
       {% if log %}
-      <table>
+      <table class="kv">
         {% for e in log %}
         <tr>
           <td class="muted" style="white-space:nowrap;vertical-align:top">{{ log_stamp(e.created_at, request.state.authed) }}</td>

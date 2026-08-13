@@ -405,6 +405,17 @@
   .photo-col { min-width: 0; }
   .detail-main td.wrap { overflow-wrap: anywhere; }
   .detail-main table td:first-child { white-space: nowrap; }
+  /* An item page is a stack of key/value tables -- the record, the catalogue
+     machine, the chips fitted, the history -- and an auto-laid table sizes its
+     label column to its own longest word, so each one found a different edge and
+     the values stepped in and out down the page. One declared width, one column,
+     read as one list. The parts grid is a real grid and keeps its own widths. */
+  .detail-main table.kv { table-layout: fixed; }
+  .detail-main table.kv tr > *:first-child { width: 176px; }
+  /* A section folded away because it has nothing in it. It reads as the heading it
+     replaces, so the page still says what is missing rather than going quiet. */
+  .detail-main details.fold > summary { cursor: pointer; font-weight: 500; }
+  .detail-main details.fold > .section:first-of-type { margin-top: 14px; }
   @media (max-width: 720px) {
     .detail { grid-template-columns: 1fr; }
     .detail .photo-col { order: -1; }
