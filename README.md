@@ -73,6 +73,13 @@ is kept whatever the box says.
 
 Photos upload as soon as they are chosen -- picking them is the whole gesture.
 
+The camera that takes the picture belongs to a phone, and the register is edited at
+a desk, so every item page ends in a QR code of its own URL. Scan it and the phone
+is on that item, where choosing a photo shoots it or picks it from the camera roll.
+It is shown only when logged in -- a visitor has nothing to upload with -- and a
+phone that arrives not logged in is put back on the item after logging in rather
+than handed the gallery.
+
 An item page has prev/next buttons, and a swipe does the same on a phone. They
 walk the list the gallery was last showing -- that sort, that search, that
 category -- which the browser hands over in `sessionStorage`; arrive from a

@@ -26,6 +26,7 @@ from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
                      UploadFile)
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from markupsafe import Markup
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func
@@ -49,6 +50,9 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "tem
 templates.env.globals.update(
     display_name=entry.display_name, type_label=entry.type_label,
     bezel_css=entry.bezel_css,
+    # Markup here rather than |safe at each use: the markup is ours, built by segno
+    # from a URL the app made, and no template should have to remember that.
+    qr_svg=lambda data: Markup(labels.qr_svg(data)),
     today=lambda: date.today().isoformat())
 
 AUTH_USER = os.getenv("RHDB_AUTH_USER", "")

@@ -322,6 +322,15 @@
     color: inherit; font-size: 13px; }
   .newphotos .hint { margin: 0; }
   .photo-actions .hint { margin: 0; }
+  /* The phone code at the foot of an item page. Its own white card whatever the
+     theme is doing: the SVG paints a white quiet zone of its own, and a card that
+     stopped at the edge of it would read as a printing mistake in the dark. */
+  .qr-card { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .qr-card .qr-code { background: #fff; padding: 4px; border-radius: 8px;
+    border: 1px solid var(--line); line-height: 0; }
+  .qr-card .qr-code svg { display: block; width: 132px; height: 132px; }
+  .qr-card p { max-width: 46ch; }
+  .qr-card .qr-url { overflow-wrap: anywhere; margin-top: 6px; }
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -489,7 +498,10 @@
   <a class="btn sm" href="/traffic">traffic</a>
   <form method="post" action="/logout" style="margin:0"><button class="btn sm" type="submit">log out</button></form>
   {% else %}
-  <a class="btn sm" href="/login">log in</a>
+  {# Carrying where you are, so logging in puts you back on it. That matters most
+     to a phone that has arrived by scanning an item's code and would otherwise be
+     handed the gallery and left to find the thing in its hands again. #}
+  <a class="btn sm" href="/login?next={{ request.url.path | urlencode }}">log in</a>
   {% endif %}
   {% endif %}
   {# Enter searches the register from wherever you are: the server reads every field

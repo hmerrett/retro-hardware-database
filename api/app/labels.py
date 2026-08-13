@@ -3,6 +3,9 @@ can hand back a file to download. A focused port of the flat-file make_labels.py
 same 6x4in full label and 51x19mm small label, same QR encoding
 <base_url>/items/<asset_id>/ so the codes match every label already printed.
 
+Also home to the QR drawing itself (`_qr` for a PDF, `qr_svg` for a page), so a
+code on screen and a code on a label are made the same way.
+
 Physical printing stays on the DYMO box; here we only generate the PDF.
 """
 from __future__ import annotations
@@ -106,6 +109,21 @@ def _qr(data, error="M"):
         buf, kind="png", scale=10, border=1)
     buf.seek(0)
     return ImageReader(buf)
+
+
+def qr_svg(data, error="M") -> str:
+    """The same code as a label's, as SVG markup to drop straight into a page.
+
+    Black on an opaque white ground rather than the page's own colours: half this
+    site is read in the dark theme, and a pale code on a dark ground is one a phone
+    camera has to be argued with. No width or height either -- the viewBox keeps it
+    square and the stylesheet says how big.
+    """
+    buf = io.BytesIO()
+    segno.make(data, error=error.lower(), micro=False).save(
+        buf, kind="svg", scale=1, border=2, dark="#000", light="#fff",
+        omitsize=True, xmldecl=False, nl=False, svgclass=None, lineclass=None)
+    return buf.getvalue().decode("utf-8")
 
 
 def _wrap(c, text, font, size, max_w):

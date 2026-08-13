@@ -2832,6 +2832,68 @@ class TestChoosingPhotos:
         assert '<button class="btn sm" type="submit" id="photo-upload-go">' in page
 
 
+class TestTheCodeThatPutsAPhoneOnTheItem:
+    """An item page ends in a QR of its own URL, because the register is edited at a
+    desk and the hardware is photographed on the bench: the camera that takes the
+    picture belongs to the phone, and this is how the phone gets to the right item
+    without anyone typing an asset tag into it.
+
+    It says the page's own address rather than the /items/<tag> one the labels carry,
+    so there is no redirect between the code and the upload button.
+    """
+
+    def expected(self, kind, aid):
+        from app import labels
+        return labels.qr_svg(f"https://example.test/{kind}/{aid}#photo-upload")
+
+    def test_a_machine_page_carries_a_code_for_its_own_url(self, client, computer):
+        aid = computer()["asset_id"]
+        assert self.expected("computers", aid) in client.get(f"/computers/{aid}").text
+
+    def test_a_part_page_carries_one_too(self, client, part):
+        """Not only machines: a card or a drive is photographed off the bench as
+        often as the machine it came out of."""
+        aid = part()["asset_id"]
+        assert self.expected("parts", aid) in client.get(f"/parts/{aid}").text
+
+    def test_the_code_lands_on_something_that_is_really_there(self, client, part):
+        """The fragment is the upload form's own id -- at phone width the photo
+        column is the first thing on the page anyway, so this is for a desktop being
+        scanned from across the bench."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert 'id="photo-upload"' in page
+
+    def test_it_is_a_standard_symbol_not_a_micro_one(self):
+        """Same reason as the labels: most readers, the gallery's own scanner
+        included, decode standard QR only."""
+        from app import labels
+        svg = labels.qr_svg("https://example.test/parts/RH-0001#photo-upload")
+        side = int(re.search(r'viewBox="0 0 (\d+) ', svg).group(1))
+        assert side >= 21 + 2 * 2                       # smallest standard, plus border
+
+    def test_a_visitor_is_not_offered_one(self, client, part, monkeypatch):
+        """A code leading to a page with no upload button on it is a promise the site
+        will not keep. Auth is off in these tests, so this asks for it."""
+        from app import main
+        aid = part()["asset_id"]
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        page = client.get(f"/parts/{aid}").text
+        assert "photo-qr" not in page
+        assert self.expected("parts", aid) not in page
+
+    def test_a_phone_that_arrives_logged_out_is_sent_back_to_the_item(
+            self, client, part, monkeypatch):
+        """Scanning is most of the way to the picture; being handed the gallery after
+        logging in and told to find the thing in your hands again is not."""
+        from app import main
+        aid = part()["asset_id"]
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        # The header shows a log-in button only where there is a login to do, and
+        # the template reads that from a global settled at import.
+        monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
+        assert f'href="/login?next=/parts/{aid}"' in client.get(f"/parts/{aid}").text
+
+
 class TestPhotographsOnACreateForm:
     """A thing has no asset tag until it is saved, so photographs chosen while it is
     being created cannot upload as they are picked the way they do on an item's own
