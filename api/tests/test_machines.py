@@ -607,6 +607,20 @@ class TestWhereTheBoardAndPartsAreAskedFor:
         assert "Create motherboard" in client.get(f"/computers/{aid}").text
         assert "Create motherboard" not in client.get(f"/computers/{aid}/edit").text
 
+    def test_how_a_chip_is_held_is_a_column_of_ticks(self, client, db):
+        """Six sockets each ending in "— soldered to the board" is a paragraph; a
+        column of ticks and crosses is read at a glance."""
+        aid = self._c64(client)
+        c = db.get(Computer, aid)
+        machinedb.write(db, c, chips={"sid": "MOS 6581", "cpu": "MOS 6510"},
+                        sockets={"sid": True, "cpu": False})
+        db.commit()
+        page = client.get(f"/computers/{aid}").text
+        assert "<th class=\"tick\">Socketed</th>" in page
+        assert 'aria-label="in a socket" title="in a socket">✓' in page
+        assert 'aria-label="soldered to the board" title="soldered to the board">✗' \
+            in page
+
 
 class TestACatalogueThatGrows:
     """The catalogue names what is commonly seen, and the register keeps meeting

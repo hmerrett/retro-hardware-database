@@ -73,14 +73,17 @@
          different facts that would read as a contradiction side by side. #}
       {% if machine.chips %}
       <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
+      {# How each is held gets a column rather than a sentence: down a list of six
+         sockets, a tick and a cross are read at a glance where "— soldered to the
+         board" six times over is not. Blank where nobody has looked, which is
+         neither answer. #}
       <table class="kv">
+        <tr><th>Socket</th><th>Marked</th><th class="tick">Socketed</th></tr>
         {% for chip in machine.chips %}
-        {# How it is held, where it is known: the difference between a chip that can
-           be swapped to test a fault and one that means desoldering forty pins.
-           Silent where nobody has looked, rather than guessing at soldered. #}
-        <tr><th>{{ chip.label }}</th>
-          <td>{{ chip.variant }}{% if chip.socketed is not none %}
-            <span class="muted">— {{ 'in a socket' if chip.socketed else 'soldered to the board' }}</span>{% endif %}</td></tr>
+        {% set held = 'in a socket' if chip.socketed else 'soldered to the board' %}
+        <tr><th>{{ chip.label }}</th><td>{{ chip.variant }}</td>
+          <td class="tick">{% if chip.socketed is not none %}<span role="img"
+            aria-label="{{ held }}" title="{{ held }}">{{ '✓' if chip.socketed else '✗' }}</span>{% endif %}</td></tr>
         {% endfor %}
       </table>
       {% endif %}

@@ -418,6 +418,9 @@
      read as one list. The parts grid is a real grid and keeps its own widths. */
   .detail-main table.kv { table-layout: fixed; }
   .detail-main table.kv tr > *:first-child { width: 176px; }
+  /* A yes/no column: the answer is one character, so the column is only as wide as
+     the word that heads it. */
+  .detail-main table.kv .tick { width: 92px; text-align: center; }
   /* A section folded away because it has nothing in it. It reads as the heading it
      replaces, so the page still says what is missing rather than going quiet. */
   .detail-main details.fold > summary { cursor: pointer; font-weight: 500; }
