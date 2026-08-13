@@ -327,6 +327,9 @@
      code big enough to scan. Its own white card whatever the theme is doing: the
      SVG paints a white quiet zone of its own, and a card that stopped at the edge
      of it would read as a printing mistake in the dark. */
+  /* Its heading is an aside in a sidebar, not one of the page's sections, so it
+     takes the 13px the column's other labels use rather than the h3 default. */
+  .photo-qr h3 { font-size: 13px; margin: 0 0 6px; }
   .qr-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .qr-card .qr-code { background: #fff; padding: 4px; border-radius: 8px;
     border: 1px solid var(--line); line-height: 0; }

@@ -14,7 +14,7 @@
 {% if request.state.authed %}
 {% set here = og.url ~ '#photo-upload' %}
 <div class="section photo-qr">
-  <h3 style="margin:0 0 6px">Add photos with your phone</h3>
+  <h3>Add photos with your phone</h3>
   <div class="qr-card">
     <div class="qr-code">{{ qr_svg(here) }}</div>
     <div>
