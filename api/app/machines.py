@@ -320,20 +320,20 @@ FAMILIES = [
                  _chip("pla", "PLA", []),
                  _chip("kernal", "Kernal ROM", ["901486-01", "901486-06",
                                                 "901486-07"])]},
-            {"key": "c64", "model": "Commodore 64", "year": 1982,
+            {"key": "c64", "model": "64", "year": 1982,
              "cpu": "MOS 6510-1.02", "chassis": "breadbin",
              "os": "Commodore BASIC 2.0", "ram": [("64K", 64)],
              "issues": _C64_BREADBIN_BOARDS,
              "styles": ["silver label", "rainbow label", "Aldi C64 (short board)"]},
-            {"key": "c64c", "model": "Commodore 64C", "year": 1986,
+            {"key": "c64c", "model": "64C", "year": 1986,
              "cpu": "MOS 8500-1.02", "chassis": "wedge (C64C)",
              "os": "Commodore BASIC 2.0", "ram": [("64K", 64)],
              "issues": _C64C_BOARDS, "styles": ["C64C", "C64G"]},
-            {"key": "sx-64", "model": "Commodore SX-64", "year": 1984,
+            {"key": "sx-64", "model": "SX-64", "year": 1984,
              "cpu": "MOS 6510-1.02", "chassis": "luggable, built-in 1541",
              "os": "Commodore BASIC 2.0", "ram": [("64K", 64)],
              "issues": ["ASSY 250425"], "styles": ["SX-64 (single drive)"]},
-            {"key": "c16", "model": "Commodore 16", "year": 1984,
+            {"key": "c16", "model": "16", "year": 1984,
              "cpu": "MOS 7501", "chassis": "dark breadbin",
              "os": "Commodore BASIC 3.5", "ram": [("16K", 16)],
              "issues": [], "styles": ["C16 (dark case)", "C116 (rubber keys)"],
@@ -342,7 +342,7 @@ FAMILIES = [
                         _chip("cia", "CIA", []),
                         _chip("kernal", "Kernal ROM",
                               ["318004-05", "318005-05"])]},
-            {"key": "plus4", "model": "Commodore Plus/4", "year": 1984,
+            {"key": "plus4", "model": "Plus/4", "year": 1984,
              "cpu": "MOS 7501", "chassis": "wedge, dark case",
              "os": "Commodore BASIC 3.5 with 3-plus-1", "ram": [("64K", 64)],
              "issues": [], "styles": ["Plus/4"],
@@ -352,7 +352,7 @@ FAMILIES = [
                         _chip("acia", "ACIA", ["MOS 6551"]),
                         _chip("kernal", "Kernal ROM",
                               ["318005-05", "318006-01"])]},
-            {"key": "c128", "model": "Commodore 128", "year": 1985,
+            {"key": "c128", "model": "128", "year": 1985,
              "cpu": "MOS 8502-2.04", "chassis": "wedge with numeric keypad",
              "os": "Commodore BASIC 7.0 / CP/M 3.0", "ram": [("128K", 128)],
              "issues": [], "styles": ["C128 (flat case)"],
@@ -367,7 +367,7 @@ FAMILIES = [
                  _chip("cia", "CIA", ["MOS 6526", "MOS 8521"]),
                  _chip("pla", "PLA", ["MOS 8721"]),
                  _chip("kernal", "Kernal ROM", ["318020-03", "318020-05"])]},
-            {"key": "c128d", "model": "Commodore 128D", "year": 1986,
+            {"key": "c128d", "model": "128D", "year": 1986,
              "cpu": "MOS 8502-2.04", "chassis": "desktop with built-in 1571",
              "os": "Commodore BASIC 7.0 / CP/M 3.0", "ram": [("128K", 128)],
              "issues": [], "styles": ["plastic 128D", "metal 128DCR"],
@@ -434,20 +434,20 @@ FAMILIES = [
         "regions": ["PAL", "NTSC"],
         "chips": _ATARI8_CHIPS,
         "models": [
-            {"key": "atari-400", "model": "Atari 400", "year": 1979,
+            {"key": "atari-400", "model": "400", "year": 1979,
              "cpu": "MOS 6502B-1.79", "chassis": "wedge, membrane keyboard",
              "os": "Atari OS ROM", "ram": [("8K", 8), ("16K", 16)],
              "issues": [], "styles": ["membrane keyboard"],
              "chips": [
                  _chip("os-rom", "OS ROM", ["Rev A", "Rev B"])]},
-            {"key": "atari-800", "model": "Atari 800", "year": 1979,
+            {"key": "atari-800", "model": "800", "year": 1979,
              "cpu": "MOS 6502B-1.79", "chassis": "desktop, two cartridge slots",
              "os": "Atari OS ROM",
              "ram": [("8K", 8), ("16K", 16), ("48K", 48)],
              "issues": [], "styles": ["Atari 800"],
              "chips": [
                  _chip("os-rom", "OS ROM", ["Rev A", "Rev B"])]},
-            {"key": "atari-600xl", "model": "Atari 600XL", "year": 1983,
+            {"key": "atari-600xl", "model": "600XL", "year": 1983,
              "cpu": "MOS 6502C-1.79", "chassis": "XL wedge",
              "os": "Atari OS Rev 2", "ram": [("16K", 16), ("64K", 64)],
              "issues": [], "styles": ["600XL"],
@@ -456,28 +456,28 @@ FAMILIES = [
                        "the XL/XE memory controller; the earliest 600XL boards "
                        "do without it"),
                  _chip("os-rom", "OS ROM", ["Rev 2 (XL)", "Rev 3 (XE)"])]},
-            {"key": "atari-800xl", "model": "Atari 800XL", "year": 1983,
+            {"key": "atari-800xl", "model": "800XL", "year": 1983,
              "cpu": "MOS 6502C-1.79", "chassis": "XL wedge",
              "os": "Atari OS Rev 2", "ram": [("64K", 64)],
              "issues": [], "styles": ["800XL", "800XLF (later board)"],
              "chips": [
                  _chip("freddie", "FREDDIE", ["C061618"]),
                  _chip("os-rom", "OS ROM", ["Rev 2 (XL)", "Rev 3 (XE)"])]},
-            {"key": "atari-65xe", "model": "Atari 65XE", "year": 1985,
+            {"key": "atari-65xe", "model": "65XE", "year": 1985,
              "cpu": "MOS 6502C-1.79", "chassis": "XE wedge",
              "os": "Atari OS Rev 3", "ram": [("64K", 64)],
              "issues": [], "styles": ["65XE", "800XE (Eastern Europe)"],
              "chips": [
                  _chip("freddie", "FREDDIE", ["C061618"]),
                  _chip("os-rom", "OS ROM", ["Rev 3 (XE)"])]},
-            {"key": "atari-130xe", "model": "Atari 130XE", "year": 1985,
+            {"key": "atari-130xe", "model": "130XE", "year": 1985,
              "cpu": "MOS 6502C-1.79", "chassis": "XE wedge",
              "os": "Atari OS Rev 3", "ram": [("128K", 128)],
              "issues": [], "styles": ["130XE"],
              "chips": [
                  _chip("freddie", "FREDDIE", ["C061618"]),
                  _chip("os-rom", "OS ROM", ["Rev 3 (XE)"])]},
-            {"key": "atari-xegs", "model": "Atari XE Game System", "year": 1987,
+            {"key": "atari-xegs", "model": "XE Game System", "year": 1987,
              "cpu": "MOS 6502C-1.79", "chassis": "console with detachable keyboard",
              "os": "Atari OS Rev 4 with Missile Command", "ram": [("64K", 64)],
              "issues": [], "styles": ["XEGS"],
@@ -493,7 +493,7 @@ FAMILIES = [
         "regions": ["PAL", "NTSC", "SECAM"],
         "chips": [],
         "models": [
-            {"key": "atari-2600", "model": "Atari 2600", "year": 1977,
+            {"key": "atari-2600", "model": "2600", "year": 1977,
              "cpu": "MOS 6507-1.19", "chassis": "console",
              "os": "cartridge only", "ram": [],
              "issues": [],
@@ -508,7 +508,7 @@ FAMILIES = [
                  _chip("riot", "RIOT", ["MOS 6532", "Synertek 6532"],
                        "the RAM, the timers and the switch inputs -- all 128 "
                        "bytes of the machine's memory are in here")]},
-            {"key": "atari-7800", "model": "Atari 7800", "year": 1986,
+            {"key": "atari-7800", "model": "7800", "year": 1986,
              "cpu": "MOS 6502C-1.79", "chassis": "console",
              "os": "cartridge only, with a BIOS", "ram": [("4K", 4)],
              "issues": [], "styles": ["7800 (1986 production)", "7800 with expansion port"],
@@ -531,15 +531,15 @@ FAMILIES = [
         "regions": ["PAL", "NTSC"],
         "chips": _ST_CHIPS,
         "models": [
-            {"key": "atari-520stfm", "model": "Atari 520STFM", "year": 1986,
+            {"key": "atari-520stfm", "model": "520STFM", "year": 1986,
              "cpu": "Motorola 68000-8", "chassis": "wedge, built-in floppy",
              "os": "TOS 1.02 / GEM", "ram": [("512K", 512), ("1MB", 1024)],
              "issues": [], "styles": ["520STFM", "520STM (no drive)"]},
-            {"key": "atari-1040stf", "model": "Atari 1040STF", "year": 1986,
+            {"key": "atari-1040stf", "model": "1040STF", "year": 1986,
              "cpu": "Motorola 68000-8", "chassis": "wedge, built-in floppy",
              "os": "TOS 1.02 / GEM", "ram": [("1MB", 1024)],
              "issues": [], "styles": ["1040STF", "1040STFM"]},
-            {"key": "atari-1040ste", "model": "Atari 1040STE", "year": 1989,
+            {"key": "atari-1040ste", "model": "1040STE", "year": 1989,
              "cpu": "Motorola 68000-8", "chassis": "wedge, built-in floppy",
              "os": "TOS 1.62 / GEM", "ram": [("1MB", 1024), ("4MB", 4096)],
              "issues": [], "styles": ["1040STE"],
@@ -580,7 +580,7 @@ FAMILIES = [
                  _chip("fdc", "Floppy controller", ["WD1770", "WD1772"]),
                  _chip("os-rom", "OS ROM", ["MOS 3.20", "MOS 3.50"]),
                  _chip("basic-rom", "BASIC ROM", ["BASIC IV"])]},
-            {"key": "acorn-electron", "model": "Acorn Electron", "year": 1983,
+            {"key": "acorn-electron", "model": "Electron", "year": 1983,
              "cpu": "Rockwell 6502A-2", "chassis": "compact beige wedge",
              "os": "Acorn OS 1.00", "ram": [("32K", 32)],
              "issues": ["Issue 4", "Issue 6"], "styles": ["Electron"],
@@ -591,7 +591,7 @@ FAMILIES = [
                        "and is the usual reason a dead Electron is dead"),
                  _chip("os-rom", "OS ROM", ["OS 1.00"]),
                  _chip("basic-rom", "BASIC ROM", ["BASIC II"])]},
-            {"key": "acorn-a3000", "model": "Acorn Archimedes A3000", "year": 1989,
+            {"key": "acorn-a3000", "model": "Archimedes A3000", "year": 1989,
              "cpu": "Acorn ARM2-8", "chassis": "wedge, one-piece",
              "os": "RISC OS 2.00", "ram": [("1MB", 1024), ("2MB", 2048),
                                            ("4MB", 4096)],
@@ -603,7 +603,7 @@ FAMILIES = [
                  _chip("ioc", "IOC", ["IOC"]),
                  _chip("os-rom", "OS ROM", ["RISC OS 2.00", "RISC OS 3.00",
                                             "RISC OS 3.10", "RISC OS 3.11"])]},
-            {"key": "acorn-a3010", "model": "Acorn A3010", "year": 1992,
+            {"key": "acorn-a3010", "model": "A3010", "year": 1992,
              "cpu": "Acorn ARM250-12", "chassis": "wedge, one-piece",
              "os": "RISC OS 3.10", "ram": [("1MB", 1024), ("2MB", 2048),
                                            ("4MB", 4096)],
@@ -622,25 +622,25 @@ FAMILIES = [
         "regions": ["PAL (UK/Europe)"],
         "chips": _CPC_CHIPS,
         "models": [
-            {"key": "cpc-464", "model": "Amstrad CPC 464", "year": 1984,
+            {"key": "cpc-464", "model": "CPC 464", "year": 1984,
              "cpu": "Zilog Z80A-4", "chassis": "wedge, built-in tape",
              "os": "Locomotive BASIC 1.0", "ram": [("64K", 64)],
              "issues": ["Z70200", "Z70290"],
              "styles": ["grey keys", "colour keys (later production)"]},
-            {"key": "cpc-664", "model": "Amstrad CPC 664", "year": 1985,
+            {"key": "cpc-664", "model": "CPC 664", "year": 1985,
              "cpu": "Zilog Z80A-4", "chassis": 'wedge, built-in 3" floppy',
              "os": "Locomotive BASIC 1.1 / AMSDOS", "ram": [("64K", 64)],
              "issues": [], "styles": ["CPC 664"],
              "chips": [
                  _chip("fdc", "Floppy controller", ["NEC D765AC"])]},
-            {"key": "cpc-6128", "model": "Amstrad CPC 6128", "year": 1985,
+            {"key": "cpc-6128", "model": "CPC 6128", "year": 1985,
              "cpu": "Zilog Z80A-4", "chassis": 'wedge, built-in 3" floppy',
              "os": "Locomotive BASIC 1.1 / AMSDOS / CP/M Plus",
              "ram": [("128K", 128)],
              "issues": [], "styles": ["grey case (UK)", "white case (Europe)"],
              "chips": [
                  _chip("fdc", "Floppy controller", ["NEC D765AC"])]},
-            {"key": "cpc-464-plus", "model": "Amstrad 464 Plus", "year": 1990,
+            {"key": "cpc-464-plus", "model": "464 Plus", "year": 1990,
              "cpu": "Zilog Z80A-4", "chassis": "wedge, built-in tape",
              "os": "Locomotive BASIC 1.1", "ram": [("64K", 64)],
              "issues": [], "styles": ["464 Plus"],
@@ -650,7 +650,7 @@ FAMILIES = [
                        "the Plus ASIC does the Gate Array's and the CRTC's work "
                        "together, and adds the sprites"),
                  _chip("psg", "Sound", _AY)]},
-            {"key": "cpc-6128-plus", "model": "Amstrad 6128 Plus", "year": 1990,
+            {"key": "cpc-6128-plus", "model": "6128 Plus", "year": 1990,
              "cpu": "Zilog Z80A-4", "chassis": 'wedge, built-in 3" floppy',
              "os": "Locomotive BASIC 1.1 / AMSDOS / CP/M Plus",
              "ram": [("128K", 128)], "issues": [], "styles": ["6128 Plus"],
@@ -659,7 +659,7 @@ FAMILIES = [
                  _chip("gate-array", "ASIC", ["Amstrad 40489"]),
                  _chip("psg", "Sound", _AY),
                  _chip("fdc", "Floppy controller", ["NEC D765AC"])]},
-            {"key": "gx4000", "model": "Amstrad GX4000", "year": 1990,
+            {"key": "gx4000", "model": "GX4000", "year": 1990,
              "cpu": "Zilog Z80A-4", "chassis": "console",
              "os": "cartridge only", "ram": [("64K", 64)],
              "issues": [], "styles": ["GX4000"],
@@ -667,7 +667,7 @@ FAMILIES = [
                  _chip("cpu", "CPU", _Z80),
                  _chip("gate-array", "ASIC", ["Amstrad 40489"]),
                  _chip("psg", "Sound", _AY)]},
-            {"key": "pcw-8256", "model": "Amstrad PCW 8256", "year": 1985,
+            {"key": "pcw-8256", "model": "PCW 8256", "year": 1985,
              "cpu": "Zilog Z80A-4", "chassis": 'monitor unit with 3" floppy',
              "os": "CP/M Plus / LocoScript", "ram": [("256K", 256)],
              "issues": [], "styles": ["PCW 8256", "PCW 8512 (two drives, 512K)"],
@@ -686,7 +686,7 @@ FAMILIES = [
         "regions": ["PAL", "NTSC-U", "NTSC-J"],
         "chips": _MEGADRIVE_CHIPS,
         "models": [
-            {"key": "master-system", "model": "Sega Master System", "year": 1986,
+            {"key": "master-system", "model": "Master System", "year": 1986,
              "cpu": "Zilog Z80A-3.58", "chassis": "console",
              "os": "cartridge, with a boot ROM", "ram": [("8K", 8)],
              "issues": [], "styles": ["Master System", "Master System (built-in "
@@ -700,7 +700,7 @@ FAMILIES = [
                                         "Yamaha YM2413 (FM, Japan)"],
                        "the FM chip is a Japanese Mark III / Master System "
                        "fitting, and worth recording where it is there")]},
-            {"key": "master-system-ii", "model": "Sega Master System II",
+            {"key": "master-system-ii", "model": "Master System II",
              "year": 1990, "cpu": "Zilog Z80A-3.58", "chassis": "console",
              "os": "cartridge, with a built-in game",
              "ram": [("8K", 8)], "issues": [],
@@ -710,14 +710,14 @@ FAMILIES = [
                  _chip("cpu", "CPU", ["Zilog Z80A", "Sharp LH5080A"]),
                  _chip("vdp", "VDP", ["Sega 315-5246"]),
                  _chip("psg", "Sound", ["SN76489 (in the VDP)"])]},
-            {"key": "megadrive", "model": "Sega Mega Drive", "year": 1988,
+            {"key": "megadrive", "model": "Mega Drive", "year": 1988,
              "cpu": "Motorola 68000-7.6", "chassis": "console",
              "os": "cartridge, with TMSS on later boards", "ram": [("64K", 64)],
              "issues": _MEGADRIVE_BOARDS,
              "styles": ["High Definition Graphics badge",
                         "later Model 1 (no badge)", "Genesis Model 1 (US)",
                         "Mega Drive (Japan)"]},
-            {"key": "megadrive-2", "model": "Sega Mega Drive 2", "year": 1993,
+            {"key": "megadrive-2", "model": "Mega Drive 2", "year": 1993,
              "cpu": "Motorola 68000-7.6", "chassis": "console (smaller case)",
              "os": "cartridge, with TMSS", "ram": [("64K", 64)],
              "issues": ["VA0", "VA1", "VA1.8", "VA2", "VA2.3"],
@@ -730,7 +730,7 @@ FAMILIES = [
                  _chip("fm", "FM sound", ["Yamaha YM3438",
                                           "integrated in the ASIC"]),
                  _chip("amp", "Amplifier", ["Rohm BA10324", "JRC 2100"])]},
-            {"key": "game-gear", "model": "Sega Game Gear", "year": 1990,
+            {"key": "game-gear", "model": "Game Gear", "year": 1990,
              "cpu": "Zilog Z80A-3.58", "chassis": "handheld",
              "os": "cartridge", "ram": [("8K", 8)],
              "issues": ["VA0", "VA1", "VA4", "VA5"],
@@ -766,6 +766,9 @@ def _merge(family, mod):
     chips = [own.pop(c["role"], c) for c in family.get("chips", [])]
     chips += [c for c in mod.get("chips", []) if c["role"] in own]
     out["chips"] = [c for c in chips if c["variants"]]
+    # After the update, so a model that names its own maker -- the Amstrad-built
+    # Spectrums -- is named after that one rather than its family's.
+    out["full_name"] = " ".join(p for p in (out["manufacturer"], out["model"]) if p)
     return out
 
 
@@ -838,6 +841,21 @@ def prefill(key):
     return {"manufacturer": m.get("manufacturer", ""), "model": m.get("model", ""),
             "year": m.get("year"), "cpu": m.get("cpu", ""),
             "chassis": m.get("chassis", ""), "os": m.get("os", "")}
+
+
+def full_name(key):
+    """The name a model is known by, maker and all: "Commodore 64", "CPC 464".
+
+    The catalogue stores the two apart, because that is how a machine's record
+    holds them -- a model field that repeated the maker filed a C64 as "Commodore
+    Commodore 64" the moment both boxes were prefilled by the same pick. This is
+    for the one place a model is named with nothing beside it: the picker's menu,
+    where "64 (1982)" says less than it should. Everywhere else -- the record, the
+    label, the rendered variant line -- the manufacturer is already on the page,
+    and repeating it there is the clunk this was split up to avoid.
+    """
+    m = model(key)
+    return m["full_name"] if m else (key or "").strip()
 
 
 def ram_labels(key):

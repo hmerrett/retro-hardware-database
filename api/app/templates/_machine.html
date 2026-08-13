@@ -27,7 +27,7 @@
   {% for family, models in groups %}
   <optgroup label="{{ family }}">
     {% for m in models %}
-    <option value="{{ m.key }}"{{ ' selected' if m.key == saved.model_key else '' }}>{{ m.model }}{% if m.year %} ({{ m.year }}){% endif %}</option>
+    <option value="{{ m.key }}"{{ ' selected' if m.key == saved.model_key else '' }}>{{ m.full_name }}{% if m.year %} ({{ m.year }}){% endif %}</option>
     {% endfor %}
   </optgroup>
   {% endfor %}

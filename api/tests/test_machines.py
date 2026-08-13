@@ -66,12 +66,23 @@ class TestCatalogueConsistency:
                 assert len(variant) <= ComputerChip.variant.type.length, variant
 
     def test_the_machines_asked_for_are_all_there(self):
-        """The list this was built for, by the names they are known by."""
-        wanted = ["Commodore 64", "ZX Spectrum+", "Commodore 16", "Atari 65XE",
-                  "Sega Mega Drive", "Amstrad CPC 464", "Amstrad CPC 6128",
-                  "BBC Micro Model B", "Amiga 500"]
-        have = {m["model"] for m in machines.models()}
+        """The list this was built for, by the names they are known by -- which is
+        the maker and the model together, since the catalogue holds them apart."""
+        wanted = ["Commodore 64", "Sinclair ZX Spectrum+", "Commodore 16",
+                  "Atari 65XE", "Sega Mega Drive", "Amstrad CPC 464",
+                  "Amstrad CPC 6128", "Acorn BBC Micro Model B",
+                  "Commodore Amiga 500"]
+        have = {machines.full_name(k) for k in machines.keys()}
         assert not [w for w in wanted if w not in have]
+
+    def test_no_model_repeats_its_maker(self):
+        """The model field fills the machine's model box and the manufacturer fills
+        its own, so a model named "Commodore 64" filed a C64 as "Commodore Commodore
+        64". Whatever is added here later, the two fields say each thing once."""
+        doubled = [(m["manufacturer"], m["model"]) for m in machines.models()
+                   if m["manufacturer"]
+                   and m["model"].lower().startswith(m["manufacturer"].lower())]
+        assert doubled == []
 
     def test_a_model_inherits_its_family_sockets(self):
         assert "ula" in machines.roles("zx-spectrum-48k")
@@ -111,7 +122,7 @@ class TestCatalogueConsistency:
 
     def test_prefill_only_offers_what_is_true_of_every_one_of_them(self):
         p = machines.prefill("c64")
-        assert p["manufacturer"] == "Commodore" and p["model"] == "Commodore 64"
+        assert p["manufacturer"] == "Commodore" and p["model"] == "64"
         assert p["year"] == 1982 and p["chassis"] == "breadbin"
         # Not condition, source, or anything else about a particular machine.
         assert set(p) == {"manufacturer", "model", "year", "cpu", "chassis", "os"}
@@ -132,24 +143,24 @@ class TestRendering:
     def test_the_model_is_the_subject_rather_than_an_attribute(self):
         """It comes first and without a key, the way parse_specs keeps a keyless
         segment -- so a label can name it and nothing has to strip a prefix."""
-        assert entry.parse_specs(machines.render("c64"))[0] == ("", "Commodore 64")
+        assert entry.parse_specs(machines.render("c64"))[0] == ("", "64")
 
     def test_what_is_not_known_is_not_said(self):
-        assert machines.render("c64", "", "", "", {}) == "Commodore 64"
+        assert machines.render("c64", "", "", "", {}) == "64"
         assert machines.render() == ""
 
     def test_chips_are_said_in_board_order_whatever_order_they_arrive_in(self):
         line = machines.render("c64", chips={"sid": "MOS 6581", "cpu": "MOS 6510"})
-        assert line == "Commodore 64 | CPU: MOS 6510 | SID: MOS 6581"
+        assert line == "64 | CPU: MOS 6510 | SID: MOS 6581"
 
     def test_a_chip_from_a_socket_the_catalogue_dropped_still_says_what_it_is(self):
         """What was seen on the board is not wrong for having gone out of the
         catalogue, so the role slug names itself: short ones read as the acronyms
         they are, longer ones as words."""
         assert machines.render("c64", chips={"sidx": "Whatsit 9000"}) == \
-            "Commodore 64 | SIDX: Whatsit 9000"
+            "64 | SIDX: Whatsit 9000"
         assert machines.render("c64", chips={"sound-chip": "Whatsit 9000"}) == \
-            "Commodore 64 | Sound chip: Whatsit 9000"
+            "64 | Sound chip: Whatsit 9000"
 
     def test_a_model_key_the_catalogue_lost_is_still_named(self):
         assert machines.render("zx-spectrum-2048k") == "zx-spectrum-2048k"
@@ -174,7 +185,7 @@ class TestStorage:
         c = db.get(Computer, computer()["asset_id"])
         machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 8580R5"})
         db.commit()
-        assert c.variant == "Commodore 64 | SID: MOS 8580R5"
+        assert c.variant == "64 | SID: MOS 8580R5"
 
     def test_a_field_not_named_is_left_as_it_was(self, computer, db):
         """The convention ramdb and drivedb already follow: a caller that knows one
@@ -258,7 +269,7 @@ class TestApi:
         models = [m for f in families for m in f["models"]]
         assert len(models) == len(machines.keys())
         c64 = next(m for m in models if m["key"] == "c64")
-        assert c64["model"] == "Commodore 64" and c64["year"] == 1982
+        assert c64["model"] == "64" and c64["year"] == 1982
         assert "ASSY 250425" in c64["issues"]
         assert "MOS 6581" in next(c["variants"] for c in c64["chips"]
                                   if c["role"] == "sid")
@@ -283,7 +294,7 @@ class TestApi:
     def test_it_comes_back_on_get_and_on_the_list(self, client, computer):
         c = computer(machine={"model_key": "c16"})
         assert client.get(f"/api/computers/{c['asset_id']}").json()["machine"][
-            "model"] == "Commodore 16"
+            "model"] == "16"
         listed = {row["asset_id"]: row for row in client.get("/api/computers").json()}
         assert listed[c["asset_id"]]["machine"]["model_key"] == "c16"
 
@@ -338,7 +349,7 @@ class TestApi:
         c = computer(machine={"model_key": "c64"})
         r = client.patch(f"/api/computers/{c['asset_id']}",
                          json={"variant": "an Amiga, honestly"})
-        assert r.json()["variant"] == "Commodore 64"
+        assert r.json()["variant"] == "64"
 
     def test_a_change_of_machine_is_in_the_history(self, client, computer):
         c = computer(machine={"model_key": "c64"})
@@ -608,10 +619,10 @@ class TestResync:
         from app import resync
         c = db.get(Computer, computer()["asset_id"])
         machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"})
-        c.variant = "Commodore 64 | SID: something else"
+        c.variant = "64 | SID: something else"
         db.commit()
         assert [x[0].asset_id for x in resync.plan_variant(db)] == [c.asset_id]
         machinedb.refresh(db, c)
         db.commit()
-        assert c.variant == "Commodore 64 | SID: MOS 6581"
+        assert c.variant == "64 | SID: MOS 6581"
         assert resync.plan_variant(db) == []
