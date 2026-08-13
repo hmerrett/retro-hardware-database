@@ -2524,8 +2524,14 @@ class TestWalkingFromItemToItem:
     def test_the_item_page_prefers_that_order(self, client, part):
         page = client.get(f"/parts/{part()['asset_id']}").text
         assert "sessionStorage.getItem('rhdb-order')" in page
-        # ...and a swipe follows the same two links.
-        assert "touchend" in page and "nav-next" in page
+        assert "nav-next" in page
+
+    def test_a_swipe_across_the_page_is_left_to_the_browser(self, client, part):
+        """Walking the register is the two buttons' job. A sideways swipe is how a
+        phone goes back, and the page taking it over left no way to leave an item.
+        The lightbox still binds touches, but only on itself."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert not re.search(r"(?<![.\w])addEventListener\('touch", page)
 
 
 class TestSortingTheGallery:

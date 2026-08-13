@@ -1187,7 +1187,9 @@
   // Prev/next on an item page. The buttons arrive filled in with register order; if
   // the gallery has been visited this session it left the order it was showing, and
   // that wins -- walking a search result or a category should follow that list, not
-  // the register. A swipe does the same thing on a phone.
+  // the register. The buttons are the whole gesture: a sideways swipe used to do
+  // this too, but it is the phone's own back gesture, and taking it over left no
+  // way to go back.
   (function () {
     const nav = document.getElementById('itemnav');
     if (!nav) return;
@@ -1206,26 +1208,6 @@
         if (row) { btn.href = row[0]; btn.title = row[1] || ''; }
       });
     }
-
-    // A swipe, but only a deliberate sideways one, and never while the big photo
-    // view has the screen (it swipes between photos of its own).
-    const lightbox = document.getElementById('lightbox');
-    let touch = null;
-    addEventListener('touchstart', e => {
-      touch = e.touches.length === 1 ? { x: e.touches[0].clientX,
-                                         y: e.touches[0].clientY } : null;
-    }, { passive: true });
-    addEventListener('touchend', e => {
-      const t = touch;
-      touch = null;
-      if (!t || (lightbox && lightbox.classList.contains('open'))) return;
-      const end = e.changedTouches[0];
-      if (!end) return;
-      const dx = end.clientX - t.x, dy = end.clientY - t.y;
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
-      const btn = dx < 0 ? next : prev;   // swiping left brings the next one in
-      if (btn && !btn.hidden && btn.href) location.href = btn.href;
-    }, { passive: true });
   })();
 </script>
 <script>

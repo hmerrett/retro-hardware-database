@@ -1,8 +1,9 @@
 {# Prev/next through the register, shown on an item page. The server fills these in
    from asset-id order, so an item reached from a printed label still has them; if
    the gallery has been visited, base.html's script rewrites them to the order it
-   was actually showing -- sorted and filtered as you left it -- and a swipe on a
-   phone follows the same two links. #}
+   was actually showing -- sorted and filtered as you left it. On a phone these
+   buttons are the only way through: a sideways swipe there belongs to the browser,
+   which uses it to go back. #}
 <nav class="itemnav" id="itemnav">
   <a class="btn sm" id="nav-prev" rel="prev" href="{{ nav.prev.url if nav.prev }}"
      title="{{ nav.prev.name if nav.prev }}" aria-label="Previous item"
