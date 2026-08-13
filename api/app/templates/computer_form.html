@@ -111,6 +111,12 @@
   {% endif %}
   <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
 </form>
+{# Only for the machine whose own page has dropped these: a catalogue machine with
+   nothing fitted. Outside the form above, because they post to endpoints of their
+   own and a form cannot be nested in another. #}
+{% if boardparts %}
+<div class="detail-main">{% include "_boardparts.html" %}</div>
+{% endif %}
 {{ C.script(bezel_swatches) }}
 {{ M.script(machine_catalogue, machine_saved, machine_widths) }}
 {% endblock %}

@@ -2394,6 +2394,32 @@ def _drives_from_form(form):
     return out
 
 
+def _boardparts_ctx(db, c):
+    """The motherboard and parts sections, for the edit form of the one machine
+    whose own page does not carry them: a catalogue machine with nothing fitted.
+
+    Empty for every other machine, because the page it is read on already has them
+    and offering the same two sections twice would be two places to add the same
+    drive. The queries are the page's own, and only run for the machine that needs
+    them."""
+    if c is None or db is None or not machinedb.read(db, c)["model_key"]:
+        return {}
+    parts = db.query(Part).filter(Part.computer_id == c.asset_id).all()
+    if parts:
+        return {}
+    return {"boardparts": True, "motherboard": None, "parts": [],
+            "card_steps": entry.CARD_STEPS,
+            "free_boards": (db.query(Part)
+                            .filter(Part.type == "motherboard",
+                                    Part.computer_id.is_(None))
+                            .order_by(Part.asset_id).all()),
+            "link_candidates": (db.query(Part)
+                                .filter(Part.type != "motherboard",
+                                        Part.computer_id.is_(None),
+                                        Part.parent_id.is_(None))
+                                .order_by(Part.type, Part.asset_id).all())}
+
+
 def _computer_form_ctx(c, title, db=None):
     mods, chips = ramdb.read(db, c) if (c is not None and db is not None) else ([], [])
     free = c.installed_ram_note if c else ""
@@ -2407,7 +2433,8 @@ def _computer_form_ctx(c, title, db=None):
             "ram_free": free, "drives": drives + [{}] * blanks,
             "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
             "drive_sizes": drivedb.SIZES, "drive_media": drivedb.MEDIA,
-            "drive_speeds": drivedb.SPEEDS, **_bezel_ctx(), **_machine_ctx(c, db)}
+            "drive_speeds": drivedb.SPEEDS, **_bezel_ctx(), **_machine_ctx(c, db),
+            **_boardparts_ctx(db, c)}
 
 
 # What a typed answer to one of the catalogue pickers may be as long as: the column
