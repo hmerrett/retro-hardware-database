@@ -1,11 +1,12 @@
-{# The code at the foot of an item page, shared by computer.html and part.html.
+{# The code at the foot of the photo column, included by _photocol.html.
    Expects: obj, og.
 
    It holds this page's own URL, because the register is edited at a desk and the
    hardware is photographed on the bench: scan it and the phone already in your hand
-   is on the right item, with its camera a tap away. The upload column is the first
-   thing on the page at phone width, so the fragment is only there for a desktop
-   scanning to a second screen.
+   is on the right item, with its camera a tap away. It sits under the upload button
+   the fragment points at, which is the thing the phone is being sent to. A phone
+   reading this page is already where the code leads, so the column hides it at that
+   width rather than opening every item with a QR of itself.
 
    Logged in only, like every other thing on the page that does something: a visitor
    has nothing to upload with, and a code leading to a page with no upload button on

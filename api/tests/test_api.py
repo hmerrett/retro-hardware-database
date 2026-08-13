@@ -7,6 +7,7 @@ left pointing at deleted rows, and derived strings being written to directly.
 import html
 import re
 from datetime import date, datetime
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import ClassVar
 
@@ -2863,11 +2864,40 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
         assert self.expected("parts", aid) in client.get(f"/parts/{aid}").text
 
     def test_the_code_lands_on_something_that_is_really_there(self, client, part):
-        """The fragment is the upload form's own id -- at phone width the photo
-        column is the first thing on the page anyway, so this is for a desktop being
-        scanned from across the bench."""
+        """The fragment is the upload form's own id, and the code sits in the same
+        column as that form -- a desktop being scanned from across the bench."""
         page = client.get(f"/parts/{part()['asset_id']}").text
         assert 'id="photo-upload"' in page
+
+    @staticmethod
+    def in_the_photo_column(page):
+        """Whether the QR block is nested inside the item page's right-hand column,
+        rather than sitting under the two columns as it once did."""
+        class Nesting(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.open, self.found = [], False
+
+            def handle_starttag(self, tag, attrs):
+                if tag != "div":
+                    return
+                cls = dict(attrs).get("class", "").split()
+                self.open.append(cls)
+                if "photo-qr" in cls:
+                    self.found = any("photo-col" in c for c in self.open)
+
+            def handle_endtag(self, tag):
+                if tag == "div" and self.open:
+                    self.open.pop()
+
+        parser = Nesting()
+        parser.feed(page)
+        return parser.found
+
+    @pytest.mark.parametrize("kind", ["computers", "parts"])
+    def test_the_code_rides_in_the_photo_column(self, client, computer, part, kind):
+        aid = (computer() if kind == "computers" else part())["asset_id"]
+        assert self.in_the_photo_column(client.get(f"/{kind}/{aid}").text)
 
     def test_it_is_a_standard_symbol_not_a_micro_one(self):
         """Same reason as the labels: most readers, the gallery's own scanner
@@ -2884,7 +2914,7 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
         aid = part()["asset_id"]
         monkeypatch.setattr(main, "AUTH_ENABLED", True)
         page = client.get(f"/parts/{aid}").text
-        assert "photo-qr" not in page
+        assert 'class="section photo-qr"' not in page   # the block, not the stylesheet
         assert self.expected("parts", aid) not in page
 
     def test_a_phone_that_arrives_logged_out_is_sent_back_to_the_item(

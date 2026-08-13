@@ -322,14 +322,16 @@
     color: inherit; font-size: 13px; }
   .newphotos .hint { margin: 0; }
   .photo-actions .hint { margin: 0; }
-  /* The phone code at the foot of an item page. Its own white card whatever the
-     theme is doing: the SVG paints a white quiet zone of its own, and a card that
-     stopped at the edge of it would read as a printing mistake in the dark. */
-  .qr-card { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  /* The phone code at the foot of the photo column. Stacked rather than side by
+     side: the column is 320px, which is not enough for a readable line beside a
+     code big enough to scan. Its own white card whatever the theme is doing: the
+     SVG paints a white quiet zone of its own, and a card that stopped at the edge
+     of it would read as a printing mistake in the dark. */
+  .qr-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .qr-card .qr-code { background: #fff; padding: 4px; border-radius: 8px;
     border: 1px solid var(--line); line-height: 0; }
   .qr-card .qr-code svg { display: block; width: 132px; height: 132px; }
-  .qr-card p { max-width: 46ch; }
+  .qr-card p { margin: 0; }
   .qr-card .qr-url { overflow-wrap: anywhere; margin-top: 6px; }
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
@@ -403,6 +405,9 @@
   @media (max-width: 720px) {
     .detail { grid-template-columns: 1fr; }
     .detail .photo-col { order: -1; }
+    /* The column leads the page at this width, and a code that opens the page you
+       are already reading is not worth the first screenful of it. */
+    .photo-qr { display: none; }
   }
   .section { margin-top: 24px; }
   /* Wraps because the title row carries the heading, its chips and -- when logged
