@@ -224,6 +224,12 @@
   .cc-lbl .hint { display: block; }
   .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
   form.edit .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
+  /* The tickbox that rides under a chip's answer. Its own width, like the radios
+     above it: everything else in an edit form is a full-width box, which on a
+     checkbox puts the label a column away from the thing it names. */
+  form.edit label.socketed { display: flex; align-items: center; gap: 5px;
+    margin: 0 0 10px; color: inherit; font-size: 13px; }
+  form.edit label.socketed input { width: auto; }
   form.edit .checks input { width: auto; }
   .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
   /* The cookie notice. A slim bar rather than a panel over the page: nothing is

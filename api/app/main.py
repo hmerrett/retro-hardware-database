@@ -1264,7 +1264,7 @@ def _machine_from_api(db, computer, machine):
     # Which model the chips are being checked against: the one this request sets, or
     # the one the machine is already filed as.
     against = key if key is not None else machinedb.read(db, computer)["model_key"]
-    for role in (fields.get("chips") or {}):
+    for role in {*(fields.get("chips") or {}), *(fields.get("sockets") or {})}:
         if role not in machines.roles(against):
             raise HTTPException(422, f"{against or 'a machine with no model'} has no "
                                      f"{role} socket to record a chip in")
@@ -2458,6 +2458,12 @@ def _machine_from_form(form):
         out[field] = _machine_pick(form, f"mach_{field}")
     out["chips"] = {role: _machine_pick(form, f"chip:{role}")
                     for role in machines.roles(key)}
+    # The tickbox beside each chip: on for a socket, off for soldered to the board.
+    # A box that is off is only an answer for a chip that has one -- a socket left
+    # at "not recorded" stores no row at all, so saving the form cannot quietly
+    # decide that a chip nobody has looked at is soldered down.
+    out["sockets"] = {role: bool(form.get(f"chip:{role}:socketed"))
+                      for role in machines.roles(key) if out["chips"].get(role)}
     return out
 
 
@@ -2498,7 +2504,8 @@ def _machine_page(db, c):
                  ((machines.ISSUE_KEY, v["issue"]), (machines.STYLE_KEY, v["style"]),
                   (machines.REGION_KEY, v["region"])) if value],
         "chips": [{"label": machines.chip_label(v["model_key"], role),
-                   "variant": variant}
+                   "variant": variant,
+                   "socketed": v["sockets"].get(role)}
                   for role, variant in v["chips"].items()],
     }
 

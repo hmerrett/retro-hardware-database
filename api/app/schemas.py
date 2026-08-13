@@ -32,12 +32,18 @@ class MachineIn(BaseModel):
     than stored, because a C64 with a ULA is a mistake worth hearing about; the
     variant itself is free text, since the catalogue's lists name what was
     commonly made rather than everything that exists.
+
+    sockets is {role: bool} beside it: true for a chip in a socket, false for one
+    soldered to the board. A role left out keeps whatever it already said, and null
+    puts it back to nobody having looked -- which is why this is a field of its own
+    rather than a third state stuffed into the variant string.
     """
     model_key: str | None = None
     issue: str | None = None
     style: str | None = None
     region: str | None = None
     chips: dict[str, str] | None = None
+    sockets: dict[str, bool | None] | None = None
 
 
 class ComputerIn(BaseModel):
@@ -75,6 +81,9 @@ class MachineOut(BaseModel):
     style: str = ""
     region: str = ""
     chips: dict[str, str] = {}
+    # Only the sockets somebody has actually looked at: absent is "not recorded",
+    # which is a different thing from soldered.
+    sockets: dict[str, bool] = {}
 
 
 class ComputerOut(ComputerIn):

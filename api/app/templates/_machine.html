@@ -91,12 +91,14 @@
     // Before they have been built once, that is whatever was last saved.
     const held = () => {
       if (!box.children.length) return SAVED;
-      const now = {chips: {}};
+      const now = {chips: {}, sockets: {}};
       for (const f of ['issue', 'style', 'region']) {
         now[f] = groupValue(`mach_${f}`);
       }
       box.querySelectorAll('[data-role]').forEach(el => {
         now.chips[el.dataset.role] = groupValue(el.dataset.field);
+        const tick = el.querySelector('input[type=checkbox]');
+        if (tick) now.sockets[el.dataset.role] = tick.checked;
       });
       return now;
     };
@@ -109,15 +111,25 @@
     // has looked in yet, and "custom" for the machine it has not met. An answer from
     // outside the list chooses custom and fills the box, so a form reopens on what it
     // saved.
-    const field = (name, label, hint, value, options, maxlen, role) => {
+    // The tickbox that rides with a chip: on for a chip in a socket, off for one
+    // soldered to the board. It is only read for a socket that names a chip, so a
+    // box left off beside "not recorded" answers nothing -- which is what keeps
+    // saving a form from deciding that every chip nobody looked at is soldered.
+    const socketBox = (name, held) =>
+      `<label class="socketed"><input type="checkbox" name="${esc(name)}:socketed"` +
+      `${held ? ' checked' : ''}> in a socket <span class="muted">— rather than ` +
+      `soldered to the board</span></label>`;
+
+    const field = (name, label, hint, value, options, maxlen, role, socketed) => {
       const attrs = `data-field="${esc(name)}"${role ? ` data-role="${esc(role)}"` : ''}`;
       const head = `<label for="${esc(name)}">${esc(label)}</label>` +
         (hint ? `<p class="hint">${esc(hint)}</p>` : '');
+      const foot = role ? socketBox(name, socketed) : '';
       if (!options.length) {
         return `<div ${attrs}>${head}
           <input type="text" id="${esc(name)}" name="${esc(name)}"
                  value="${esc(value)}" ${maxlen ? `maxlength="${maxlen}"` : ''}
-                 autocomplete="off"></div>`;
+                 autocomplete="off">${foot}</div>`;
       }
       const custom = value !== '' && !options.some(o => o === value);
       return `<div ${attrs}>${head}
@@ -128,7 +140,7 @@
         </div>
         <input name="${esc(name)}_custom" value="${esc(custom ? value : '')}"
                ${maxlen ? `maxlength="${maxlen}"` : ''} autocomplete="off"
-               placeholder="as it is marked"${custom ? '' : ' hidden'}></div>`;
+               placeholder="as it is marked"${custom ? '' : ' hidden'}>${foot}</div>`;
     };
 
     // "custom" reveals the box it needs and takes the cursor there; every other answer
@@ -170,11 +182,14 @@
           'offering the numbers that turn up in it. Leave one at <em>not ' +
           'recorded</em> until it has been looked at — a guess here is worse than ' +
           'nothing — and use <em>custom</em> for a marking the list does not have, ' +
-          'which puts it on the list for next time.</p>';
+          'which puts it on the list for next time. Tick the ones sitting in a ' +
+          'socket; a chip named with the box left clear is recorded as soldered to ' +
+          'the board.</p>';
         for (const chip of model.chips) {
           html += field(`chip:${chip.role}`, chip.label, chip.note,
                         was.chips[chip.role] || '', chip.variants,
-                        WIDTHS.chip || 64, chip.role);
+                        WIDTHS.chip || 64, chip.role,
+                        (was.sockets || {})[chip.role]);
         }
       }
       box.innerHTML = html;

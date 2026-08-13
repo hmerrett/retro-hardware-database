@@ -179,7 +179,30 @@ class TestStorage:
         db.commit()
         assert machinedb.read(db, c) == {
             "model_key": "c64", "issue": "ASSY 250425", "style": "rainbow label",
-            "region": "PAL", "chips": {"vic": "MOS 6569R3", "sid": "MOS 6581R4"}}
+            "region": "PAL", "chips": {"vic": "MOS 6569R3", "sid": "MOS 6581R4"},
+            # Nothing was said about how they are held, and nothing is assumed.
+            "sockets": {}}
+
+    def test_how_a_chip_is_held_survives_the_chips_being_rewritten(self, computer,
+                                                                   db):
+        """write() replaces the chip rows wholesale, so a later call that names only
+        the variants must not lose what was said about their sockets."""
+        c = db.get(Computer, computer()["asset_id"])
+        machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"},
+                        sockets={"sid": True})
+        machinedb.write(db, c, chips={"sid": "MOS 6581R4", "cpu": "MOS 6510"})
+        db.commit()
+        v = machinedb.read(db, c)
+        assert v["chips"] == {"cpu": "MOS 6510", "sid": "MOS 6581R4"}
+        assert v["sockets"] == {"sid": True}
+
+    def test_the_sockets_can_be_answered_on_their_own(self, computer, db):
+        c = db.get(Computer, computer()["asset_id"])
+        machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"})
+        machinedb.write(db, c, sockets={"sid": False})
+        db.commit()
+        v = machinedb.read(db, c)
+        assert v["chips"] == {"sid": "MOS 6581"} and v["sockets"] == {"sid": False}
 
     def test_the_cache_is_written_from_the_rows(self, computer, db):
         c = db.get(Computer, computer()["asset_id"])
@@ -287,6 +310,20 @@ class TestApi:
         assert body["machine"]["chips"] == {"ula": "Ferranti 6C001E-7"}
         assert body["variant"] == ("ZX Spectrum+ | Board: Issue 6A | "
                                    "Style: moulded keys | ULA: Ferranti 6C001E-7")
+
+    def test_sockets_ride_over_the_wire_beside_the_chips(self, client):
+        r = client.post("/api/computers", json={
+            "manufacturer": "Commodore", "model": "64",
+            "machine": {"model_key": "c64", "chips": {"sid": "MOS 6581"},
+                        "sockets": {"sid": True}}})
+        assert r.status_code == 200, r.text
+        assert r.json()["machine"]["sockets"] == {"sid": True}
+
+    def test_a_socket_for_a_chip_the_model_has_not_got_is_refused(self, client):
+        r = client.post("/api/computers", json={
+            "manufacturer": "Commodore", "model": "64",
+            "machine": {"model_key": "c64", "sockets": {"ula": True}}})
+        assert r.status_code == 422 and "ula" in r.text
 
     def test_a_machine_that_is_not_one_says_so(self, computer):
         assert computer()["machine"] is None
@@ -402,6 +439,35 @@ class TestForm:
                            "chip:sid": "MOS 6581"})
         c = db.get(Computer, aid)
         assert machinedb.read(db, c)["chips"] == {"sid": "MOS 6581"}
+
+    def test_the_tickbox_says_which_chips_are_in_a_socket(self, client, db):
+        """A socketed chip can be swapped to test a fault; a soldered one is forty
+        pins and a desoldering station. The box beside each chip records which."""
+        aid = self._new(client, mach_model="c64", mach_fields="1",
+                        **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on",
+                           "chip:vic": "MOS 6569R3"})
+        v = machinedb.read(db, db.get(Computer, aid))
+        assert v["sockets"] == {"sid": True, "vic": False}
+
+    def test_a_socket_nobody_named_a_chip_for_is_not_answered_either(self, client,
+                                                                     db):
+        """The box is off for every socket on the form, including the ones left at
+        "not recorded". Saving must not turn that into a claim that a chip nobody
+        has looked at is soldered down -- there is no chip there to hold."""
+        aid = self._new(client, mach_model="c64", mach_fields="1",
+                        **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on"})
+        v = machinedb.read(db, db.get(Computer, aid))
+        assert v["chips"] == {"sid": "MOS 6581"} and v["sockets"] == {"sid": True}
+
+    def test_unticking_it_says_soldered_rather_than_forgetting(self, client, db):
+        aid = self._new(client, mach_model="c64", mach_fields="1",
+                        **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on"})
+        r = client.post(f"/computers/{aid}/edit",
+                        data={"manufacturer": "Commodore", "model": "64",
+                              "mach_model": "c64", "mach_fields": "1",
+                              "chip:sid": "MOS 6581"}, follow_redirects=False)
+        assert r.status_code == 303
+        assert machinedb.read(db, db.get(Computer, aid))["sockets"] == {"sid": False}
 
     def test_a_save_that_could_not_draw_the_fields_does_not_erase_them(self, client,
                                                                       db):

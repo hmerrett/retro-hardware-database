@@ -327,6 +327,11 @@ class ComputerChip(Base):
     computer_id = _computer_fk()
     role = Column(String(32), nullable=False)
     variant = Column(String(64), nullable=False, default="", server_default="")
+    # Whether it sits in a socket or is soldered to the board -- the difference
+    # between a chip that can be swapped to test a fault and one that means
+    # desoldering forty pins. NULL is a chip recorded before the question was asked;
+    # nothing claims a chip is soldered because nobody has said otherwise.
+    socketed = Column(Boolean, nullable=True)
 
 
 class LogEntry(Base):

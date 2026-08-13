@@ -75,7 +75,12 @@
       <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
       <table class="kv">
         {% for chip in machine.chips %}
-        <tr><th>{{ chip.label }}</th><td>{{ chip.variant }}</td></tr>
+        {# How it is held, where it is known: the difference between a chip that can
+           be swapped to test a fault and one that means desoldering forty pins.
+           Silent where nobody has looked, rather than guessing at soldered. #}
+        <tr><th>{{ chip.label }}</th>
+          <td>{{ chip.variant }}{% if chip.socketed is not none %}
+            <span class="muted">— {{ 'in a socket' if chip.socketed else 'soldered to the board' }}</span>{% endif %}</td></tr>
         {% endfor %}
       </table>
       {% endif %}
