@@ -74,6 +74,44 @@ class TestFilingUnderAName:
         upload(client, "d.zip", tags="  trident   TVGA8900 ")
         assert ids_on(client, f"/parts/{p['asset_id']}")
 
+    def test_a_name_written_closed_up_is_the_same_name(self, client, part):
+        """Nobody agrees where the spaces go in SoundBlaster, and neither spelling
+        is the wrong one to have typed."""
+        p = part(manufacturer="Creative Labs", model="Sound Blaster 16")
+        upload(client, "sb.zip", tags="soundblaster")
+        assert ids_on(client, f"/parts/{p['asset_id']}")
+
+    def test_a_name_covers_everything_that_has_it_in(self, client, part):
+        """One tag for a family: "Creative Labs Sound Blaster" is the driver disk
+        for the AWE32, the 16 and the Pro, because each of them is called that and
+        then some."""
+        awe = part(manufacturer="Creative Labs", model="Sound Blaster AWE32")
+        pro = part(manufacturer="Creative Labs", model="Sound Blaster Pro")
+        gus = part(manufacturer="Gravis", model="UltraSound")
+        upload(client, "sbdrivers.zip", tags="Creative Labs Sound Blaster")
+        assert ids_on(client, f"/parts/{awe['asset_id']}")
+        assert ids_on(client, f"/parts/{pro['asset_id']}")
+        assert not ids_on(client, f"/parts/{gus['asset_id']}")
+
+    def test_it_reaches_the_narrower_name_and_not_the_broader_one(self, client,
+                                                                  part):
+        """One direction only. A disk written for the AWE32 is not the disk for
+        every Sound Blaster, and putting it on the plain one would be a claim
+        nobody made."""
+        plain = part(manufacturer="Creative Labs", model="Sound Blaster")
+        awe = part(manufacturer="Creative Labs", model="Sound Blaster AWE32")
+        upload(client, "awe32.zip", tags="Sound Blaster AWE32")
+        assert ids_on(client, f"/parts/{awe['asset_id']}")
+        assert not ids_on(client, f"/parts/{plain['asset_id']}")
+
+    def test_a_tag_holding_a_wildcard_is_read_as_the_characters_it_is(self, client,
+                                                                      part):
+        """% and _ mean something to the LIKE that narrows the search and nothing to
+        anybody typing a name, so the answer is checked again after it."""
+        p = part(manufacturer="Iomega", model="Zip 100")
+        upload(client, "zip.zip", tags="100%")
+        assert not ids_on(client, f"/parts/{p['asset_id']}")
+
     def test_one_file_can_be_filed_under_several(self, client, computer, part):
         c = computer(manufacturer="Amstrad", model="CPC 464")
         p = part(manufacturer="Amstrad", model="DDI-1", type="storage")
@@ -203,6 +241,16 @@ class TestOverTheWire:
         upload(client, "et4000.zip", tags="Tseng ET4000")
         got = client.get("/api/files?tag=TRIDENT tvga8900").json()
         assert [f["filename"] for f in got] == ["tvga.zip"]
+
+    def test_asking_for_a_name_answers_as_an_item_of_that_name_would(self, client):
+        """Following a tag from a page shows what that page shows: the broader
+        disks a thing of this name would be offered, not only the file whose tag
+        was clicked."""
+        upload(client, "sbdrivers.zip", tags="Creative Labs Sound Blaster")
+        upload(client, "awe32.zip", tags="Creative Labs Sound Blaster AWE32")
+        upload(client, "gus.zip", tags="Gravis UltraSound")
+        got = client.get("/api/files?tag=Creative Labs Sound Blaster AWE32").json()
+        assert sorted(f["filename"] for f in got) == ["awe32.zip", "sbdrivers.zip"]
 
 
 class TestWhoMayDoWhat:

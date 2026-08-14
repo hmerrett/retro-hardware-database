@@ -52,9 +52,10 @@
     <input name="note" placeholder="what it is — optional">
     <button class="btn sm" type="submit">upload</button>
   </form>
-  <p class="hint">a driver, a manual, a ROM dump. It is filed under the names above,
-    not under this item, so every {{ 'machine' if kind == 'computers' else 'part' }}
-    and every other item answering to one of them offers it too. Use
+  <p class="hint">a driver, a manual, a ROM dump. It is filed under the names above
+    rather than under this item, and a name covers anything with it in — file one
+    under <em>Creative Labs Sound Blaster</em> and every Sound Blaster has it, the
+    AWE32 and the Pro included. Spaces and capitals make no difference. Use
     <em>{{ item.asset_id }}</em> as the name for something about this one unit alone.</p>
   {% endif %}
 </div>

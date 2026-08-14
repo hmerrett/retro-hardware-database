@@ -6,10 +6,11 @@
   <span class="muted">{{ files|length }}</span>
 </div>
 <p class="hint">Drivers, manuals, ROM dumps and utility disks. Each is filed under
-  the names it is for rather than under one asset, so it appears on every item
-  answering to one of them — the card, the machine it shipped in, or a single unit
-  when the name is an asset id.{% if tag %} Showing what is filed under
-  <em>{{ tag }}</em>. <a href="/files">show everything</a>.{% endif %}</p>
+  the names it is for rather than under one asset, and a name covers anything with
+  it in: <em>Creative Labs Sound Blaster</em> reaches the AWE32 and the Pro alike,
+  whatever the spacing and capitals. An asset id as the name pins one to a single
+  unit.{% if tag %} Showing what something called <em>{{ tag }}</em> would be
+  offered. <a href="/files">show everything</a>.{% endif %}</p>
 
 {% if files %}
 <table>

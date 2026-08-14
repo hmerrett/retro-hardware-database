@@ -14,11 +14,16 @@ model together, and its own asset id. That last one is how a file is pinned to a
 single unit when it really is about that unit -- a receipt, a photograph of a repair
 -- without needing a second mechanism for it.
 
-Matching is on a folded form of the name, because case and spacing are how one name
-gets written two ways ("Trident TVGA8900" and "trident  tvga8900" are the card). It
-is equality on that fold and nothing cleverer: a tag either names the thing or it
-does not, and a register that guessed would attach the wrong driver to something and
-be believed.
+Matching is containment on a folded form of the name: a tag matches an item when
+the item's name has the tag inside it. That is what makes one tag cover a range --
+"Creative Labs Sound Blaster" is on the AWE32, the 16 and the Pro, because each of
+their names has it in -- while a tag that names one card exactly still lands on that
+card alone. It goes one way only: the broader name reaches the narrower thing, never
+the other way about, so a driver written for the AWE32 does not turn up on a plain
+Sound Blaster.
+
+The fold drops case and every space, because "Sound Blaster", "soundblaster" and
+"SOUND  BLASTER" are one name written by three people.
 
 This module owns the bytes too. The name on disk is generated and the uploaded name
 is only ever data -- see `save`.
@@ -30,6 +35,8 @@ import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
+
+from sqlalchemy import literal, or_
 
 from .models import FileTag, StoredFile
 
@@ -47,9 +54,18 @@ _SAFE_SUFFIX = re.compile(r"^\.[A-Za-z0-9]{1,8}$")
 
 
 def fold(text) -> str:
-    """The form two spellings of one name have in common. The same rule
-    machines._fold follows, for the same reason."""
-    return " ".join((text or "").split()).lower()
+    """The form several spellings of one name have in common: no spaces at all, no
+    case. Every space rather than runs of them, because a name is as often written
+    closed up as apart -- SoundBlaster, Sound Blaster -- and neither spelling is the
+    wrong one to have typed."""
+    return "".join((text or "").split()).lower()
+
+
+def matches(name, tag) -> bool:
+    """Whether a file tagged `tag` belongs to something called `name`. Containment,
+    not equality, and in that direction only."""
+    name_fold, tag_fold = fold(name), fold(tag)
+    return bool(tag_fold) and tag_fold in name_fold
 
 
 def keys_for(item) -> set[str]:
@@ -67,14 +83,30 @@ def keys_for(item) -> set[str]:
     return {fold(n) for n in names if fold(n)}
 
 
-def for_item(db, item):
-    """Every file tagged with a name this item answers to, newest first, each with
-    its tags attached as `.tags`."""
-    keys = keys_for(item)
+def _file_ids_for(db, keys):
+    """The ids of files whose tags are inside any of these folded names.
+
+    Two steps on purpose. LIKE narrows it in the database, so this does not read
+    every tag on file to draw one page; then the same test is made again in Python,
+    because a tag holding a % or an _ is a wildcard to LIKE and an ordinary
+    character to everyone else. The database is the filter, Python is the
+    authority."""
     if not keys:
+        return set()
+    hits = (db.query(FileTag.file_id, FileTag.fold)
+            .filter(or_(*[literal(key).contains(FileTag.fold) for key in keys]))
+            .all())
+    return {fid for fid, tag_fold in hits
+            if tag_fold and any(tag_fold in key for key in keys)}
+
+
+def for_item(db, item):
+    """Every file whose tags this item's names contain, newest first, each with its
+    tags attached as `.tags`."""
+    ids = _file_ids_for(db, keys_for(item))
+    if not ids:
         return []
-    rows = (db.query(StoredFile).join(FileTag, FileTag.file_id == StoredFile.id)
-            .filter(FileTag.fold.in_(keys)).distinct()
+    rows = (db.query(StoredFile).filter(StoredFile.id.in_(ids))
             .order_by(StoredFile.created_at.desc(), StoredFile.id.desc()).all())
     return with_tags(db, rows)
 
@@ -96,11 +128,15 @@ def with_tags(db, rows):
 
 
 def all_files(db, tag=""):
-    """Everything on file, newest first, or only what one name is tagged with."""
+    """Everything on file, newest first -- or, given a name, what something called
+    that would be offered. The same rule the item pages use, so following a tag
+    from a page shows what that page shows and not a narrower list."""
     q = db.query(StoredFile)
     if fold(tag):
-        q = q.join(FileTag, FileTag.file_id == StoredFile.id).filter(
-            FileTag.fold == fold(tag)).distinct()
+        ids = _file_ids_for(db, {fold(tag)})
+        if not ids:
+            return []
+        q = q.filter(StoredFile.id.in_(ids))
     return with_tags(db, q.order_by(StoredFile.created_at.desc(),
                                     StoredFile.id.desc()).all())
 
