@@ -333,7 +333,7 @@
   .filebtn input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%;
     opacity: 0; cursor: pointer; font-size: 0; }
   .filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #photo-upload.sending .filebtn { pointer-events: none; opacity: .55; }
+  #photo-upload.sending .filebtn, #file-upload.sending .filebtn { pointer-events: none; opacity: .55; }
   /* The choose-files button on a create form. It is a label, and the block styling
      every other label in form.edit gets would otherwise flatten it. */
   .newphotos { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
@@ -1253,27 +1253,34 @@
   })();
 </script>
 <script>
-  // Photos upload as soon as they are chosen. Picking a file and then having to
-  // find a button was two gestures for one intention; the button stays in the
-  // markup for a browser that never runs this, and hides itself here.
+  // Photos and files upload as soon as they are chosen. Picking a file and then
+  // having to find a button was two gestures for one intention; the button stays in
+  // the markup for a browser that never runs this, and hides itself here.
+  //
+  // Both forms behave the same way, so they are the same few lines twice rather
+  // than two scripts that could drift. The file form has boxes of its own above the
+  // picker -- the names it is filed under, and a note -- which is why the picker is
+  // last in it: by the time it is reached, what it needs has been said.
   (function () {
-    const form = document.getElementById('photo-upload');
-    if (!form) return;
-    const input = form.querySelector('input[type=file]');
-    const go = document.getElementById('photo-upload-go');
-    const busy = document.getElementById('photo-upload-busy');
-    go.hidden = true;
-    let sent = false;
-    input.addEventListener('change', () => {
-      // A cancelled picker fires change too, with nothing chosen.
-      if (sent || !input.files || !input.files.length) return;
-      sent = true;
-      busy.hidden = false;
-      // The label stops taking clicks rather than the input being disabled: a
-      // disabled input is not submitted, which would send the upload empty.
-      form.classList.add('sending');
-      form.requestSubmit ? form.requestSubmit() : form.submit();
-    });
+    for (const id of ['photo-upload', 'file-upload']) {
+      const form = document.getElementById(id);
+      if (!form) continue;
+      const input = form.querySelector('input[type=file]');
+      const go = document.getElementById(id + '-go');
+      const busy = document.getElementById(id + '-busy');
+      if (go) go.hidden = true;
+      let sent = false;
+      input.addEventListener('change', () => {
+        // A cancelled picker fires change too, with nothing chosen.
+        if (sent || !input.files || !input.files.length) return;
+        sent = true;
+        if (busy) busy.hidden = false;
+        // The label stops taking clicks rather than the input being disabled: a
+        // disabled input is not submitted, which would send the upload empty.
+        form.classList.add('sending');
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+      });
+    }
   })();
 </script>
 <script>

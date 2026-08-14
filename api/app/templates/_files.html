@@ -41,16 +41,22 @@
   {% if request.state.authed %}
   {% if fileerr %}<p class="hint">Something was too big to keep — nothing over
     {{ max_file_mb }} MB.</p>{% endif %}
-  <form class="fileform" method="post" action="/files" enctype="multipart/form-data">
+  {# Choosing the files is the whole gesture, as it is for photographs: the upload
+     goes the moment they are picked. The names and the note are filled in first
+     because they are what the upload is filed under, and the button below stays in
+     the markup for a browser that runs no script. #}
+  <form class="fileform" method="post" action="/files" enctype="multipart/form-data"
+        id="file-upload">
     <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
     <input type="hidden" name="aid" value="{{ item.asset_id }}">
-    <label class="btn sm filebtn">choose files
-      <input type="file" name="uploads" multiple required>
-    </label>
     <input name="tags" value="{{ display_name(item) }}"
            placeholder="names this is for, comma separated">
     <input name="note" placeholder="what it is — optional">
-    <button class="btn sm" type="submit">upload</button>
+    <label class="btn sm filebtn">choose files
+      <input type="file" name="uploads" multiple required>
+    </label>
+    <button class="btn sm" type="submit" id="file-upload-go">upload</button>
+    <span class="hint" id="file-upload-busy" hidden>uploading…</span>
   </form>
   <p class="hint">a driver, a manual, a ROM dump. It is filed under the names above
     rather than under this item, and a name covers anything with it in — file one
