@@ -13,6 +13,7 @@ from pathlib import Path
 _TMP = Path(tempfile.mkdtemp(prefix="rhdb-test-"))
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMP / 'test.db'}"
 os.environ["RHDB_IMAGES_DIR"] = str(_TMP / "images")
+os.environ["RHDB_FILES_DIR"] = str(_TMP / "files")
 os.environ["RHDB_BASE_URL"] = "https://example.test"
 os.environ.pop("RHDB_AUTH_USER", None)
 os.environ.pop("RHDB_AUTH_PASSWORD", None)

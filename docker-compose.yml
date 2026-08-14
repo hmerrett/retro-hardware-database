@@ -29,6 +29,9 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - images:/app/images
+      # Drivers, manuals and disk images uploaded beside the register. Its own
+      # volume, like the photographs: a rebuild replaces the image, not the data.
+      - files:/app/files
       - goaccess_report:/app/stats:ro
     depends_on:
       db:
@@ -84,6 +87,7 @@ services:
 volumes:
   dbdata:
   images:
+  files:
   caddy_data:
   caddy_config:
   caddy_logs:

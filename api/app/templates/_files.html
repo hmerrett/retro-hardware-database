@@ -1,0 +1,60 @@
+{# The files this item is covered by, and how to add one. Expects: item (the
+   record as a dict), kind, files, fileerr.
+
+   Filed under names rather than asset ids, so the same driver disk shows on every
+   card of that model and on the machine it shipped in. Which is why the tag box
+   below arrives prefilled with what this item is called: the common case is a
+   driver found while looking at the thing it is for, and the uncommon one is a
+   file about this unit alone, which is what its asset id is offered for. #}
+<div class="section">
+  <h3 style="margin:0 0 6px">Files</h3>
+  {# A grid rather than one of the page's key/value tables: a filename is as long as
+     it is, and a declared label column would have it running under the next one. #}
+  {% if files %}
+  <table>
+    <tr><th>File</th><th>Filed under</th><th class="tight">Size</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
+    {% for f in files %}
+    <tr>
+      <td class="wrap"><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
+        {% if f.note %}<br><span class="hint">{{ f.note }}</span>{% endif %}</td>
+      <td>{% if request.state.authed %}
+        <form class="inline-form" method="post" action="/files/{{ f.id }}/tags">
+          <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
+          <input name="tags" value="{{ f.tags | join(', ') }}" aria-label="names this file is for">
+          <button class="btn sm" type="submit">re-file</button>
+        </form>
+        {% else %}{% for t in f.tags %}<span class="chip">{{ t }}</span> {% endfor %}{% endif %}</td>
+      <td class="tight muted">{{ human_size(f.size) }}</td>
+      {% if request.state.authed %}
+      <td><form method="post" action="/files/{{ f.id }}/delete" style="margin:0"
+                onsubmit="return confirm('Delete {{ f.filename }}? It goes from every item filed under its names.')">
+          <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
+          <button class="btn sm danger" type="submit">delete</button></form></td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No files for this one yet.</p>
+  {% endif %}
+
+  {% if request.state.authed %}
+  {% if fileerr %}<p class="hint">Something was too big to keep — nothing over
+    {{ max_file_mb }} MB.</p>{% endif %}
+  <form class="fileform" method="post" action="/files" enctype="multipart/form-data">
+    <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
+    <input type="hidden" name="aid" value="{{ item.asset_id }}">
+    <label class="btn sm filebtn">choose files
+      <input type="file" name="uploads" multiple required>
+    </label>
+    <input name="tags" value="{{ display_name(item) }}"
+           placeholder="names this is for, comma separated">
+    <input name="note" placeholder="what it is — optional">
+    <button class="btn sm" type="submit">upload</button>
+  </form>
+  <p class="hint">a driver, a manual, a ROM dump. It is filed under the names above,
+    not under this item, so every {{ 'machine' if kind == 'computers' else 'part' }}
+    and every other item answering to one of them offers it too. Use
+    <em>{{ item.asset_id }}</em> as the name for something about this one unit alone.</p>
+  {% endif %}
+</div>

@@ -334,6 +334,40 @@ class ComputerChip(Base):
     socketed = Column(Boolean, nullable=True)
 
 
+class StoredFile(Base):
+    """A file kept beside the register: a driver disk, a manual, a ROM dump, the
+    utility that came with a card.
+
+    It belongs to no one asset. A driver is a fact about a model, not about the
+    particular card on the shelf, and a collection with three of the same card
+    would otherwise hold the same download three times. So a file is tagged with
+    the names it is for, and every item answering to one of those names shows it
+    -- see filesdb, which owns both the matching and the bytes on disk.
+
+    `stored` is the name on disk, which is generated: what was uploaded is kept in
+    `filename` for the download to be called by, and never used as a path."""
+    __tablename__ = "files"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stored = Column(String(72), nullable=False, unique=True)
+    filename = Column(String(255), nullable=False)
+    size = Column(Integer, nullable=False, default=0)
+    note = Column(String(255), nullable=False, default="", server_default="")
+    created_at = Column(DateTime, index=True)
+
+
+class FileTag(Base):
+    """One name a file is for. `fold` is that name normalised for matching (case
+    and spacing are how one name gets typed two ways); `tag` is it as written, for
+    showing back. A file has as many as it needs -- a driver that covers a card and
+    the machine it shipped in is tagged with both."""
+    __tablename__ = "file_tag"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    tag = Column(String(120), nullable=False)
+    fold = Column(String(120), nullable=False, index=True)
+
+
 class LogEntry(Base):
     """A dated history entry for any asset (computer or part): automatic
     change records and free-text notes. asset_id is from the shared register, so

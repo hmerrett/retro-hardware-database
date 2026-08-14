@@ -63,6 +63,7 @@ them:
 
 - `dbdata` — the MariaDB database
 - `images` — uploaded photos (and their `.ref` reference markers)
+- `files` — drivers, manuals and disk images uploaded beside the register
 - `caddy_data` — TLS certificates
 - `goaccess_report`, `caddy_logs` — traffic stats and access logs
 

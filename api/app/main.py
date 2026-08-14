@@ -32,13 +32,13 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
-from . import (drivedb, enrich, entry, labels, machinedb, machines, ramdb,
-               specdb, specstruct)
+from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
+               ramdb, specdb, specstruct)
 from .db import get_db
 from .ids import next_asset_id
 from .models import (Computer, ComputerChip, ComputerDrive, ComputerRamChip,
                      ComputerRamModule, ComputerVariant, LogEntry, Part,
-                     PartPort, PartSlot, StorageSpec)
+                     PartPort, PartSlot, StorageSpec, StoredFile)
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
 import contextlib
 
@@ -188,6 +188,12 @@ def _is_public_read(request: Request) -> bool:
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
         return True
     if path.startswith(("/images/", "/static/")):
+        return True
+    # The files kept beside the register read like the photographs do: a driver or
+    # a manual is part of what the catalogue is for. Downloading one is public;
+    # putting one there, re-filing it and deleting it are all POSTs, so they are
+    # already behind the login by the rule above.
+    if path == "/files" or path.startswith("/files/"):
         return True
     if path.startswith("/items/"):
         return True
@@ -1655,6 +1661,8 @@ def img_url(rel):
 
 
 templates.env.globals["img_url"] = img_url
+templates.env.globals["human_size"] = filesdb.human_size
+templates.env.globals["max_file_mb"] = filesdb.MAX_BYTES // (1024 * 1024)
 
 
 def _cache_favicon(source):
@@ -2585,7 +2593,7 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
 
 @app.get("/computers/{aid}", response_class=HTMLResponse, include_in_schema=False)
 def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
-                 db: Session = Depends(get_db)):
+                 fileerr: int = 0, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     parts = db.query(Part).filter(Part.computer_id == aid).all()
     parts.sort(key=lambda p: (entry.type_sort_key(p.type or ""),
@@ -2613,6 +2621,8 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
                    if motherboard else "")
     return templates.TemplateResponse(request, "computer.html", {
         "machine": _machine_page(db, c),
+        "item": (cdict := to_dict(c)), "kind": "computers",
+        "files": filesdb.for_item(db, cdict), "fileerr": bool(fileerr),
         "c": c, "parts": [p for p in parts if p is not motherboard],
         "motherboard": motherboard, "form_factor": form_factor,
         "free_boards": free_boards,
@@ -3377,7 +3387,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/parts/{aid}", response_class=HTMLResponse, include_in_schema=False)
-def gui_part(aid: str, request: Request, imgerr: int = 0,
+def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
              db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     parent = db.get(Computer, p.computer_id) if p.computer_id else None
@@ -3401,6 +3411,8 @@ def gui_part(aid: str, request: Request, imgerr: int = 0,
                               specstruct.join(spec_pairs))
     return templates.TemplateResponse(request, "part.html", {
         "p": p, "parent": parent, "host": host, "children": children,
+        "item": (pdict := to_dict(p)), "kind": "parts",
+        "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
         "candidates": candidates, "computers": computers,
         "images": images, "ref_marks": reference_marks("parts", aid),
         "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
@@ -3710,3 +3722,114 @@ def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
                             spec_pairs=specdb.pairs(db, p, display=True))
     return Response(pdf, media_type="application/pdf", headers={
         "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
+
+
+# --- files kept beside the register -----------------------------------------
+# Drivers, manuals, ROM dumps. Not hung off an asset id: a file is tagged with the
+# names it is for and every item answering to one of them offers it, which is what
+# stops a collection with three of the same card holding the same driver three
+# times. app/filesdb.py owns the matching and the bytes; these are the four things
+# a person does with one.
+
+
+def _file_or_404(db, fid):
+    row = db.get(StoredFile, fid)
+    if row is None:
+        raise HTTPException(404, f"file {fid} not found")
+    return row
+
+
+@app.get("/files/{fid}/{name}", include_in_schema=False)
+def serve_file(fid: int, name: str, db: Session = Depends(get_db)):
+    """Hand over the bytes, always as a download and never as a page.
+
+    An upload is whatever somebody sent, and some of what people send is HTML, or
+    an SVG, which a browser asked to display would run as this site with this
+    site's cookies. So: one content type for everything, an attachment
+    disposition, and nosniff to stop the browser deciding it knows better. `name`
+    is in the URL for the sake of the link reading like the file, and is not what
+    is opened -- the id is."""
+    row = _file_or_404(db, fid)
+    path = filesdb.path_of(row)
+    if not path.is_file():
+        raise HTTPException(404)
+    return FileResponse(path, media_type="application/octet-stream", headers={
+        "Content-Disposition": f'attachment; filename="{_ascii_filename(row.filename)}"',
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "public, max-age=3600"})
+
+
+def _ascii_filename(name):
+    """A filename safe to put in a header: no quotes, no control characters, no
+    non-ASCII (which a header cannot carry). The stored name keeps the original."""
+    cleaned = "".join(ch for ch in (name or "") if ch.isprintable() and ord(ch) < 128)
+    return cleaned.replace('"', "").replace("\\", "").strip() or "download"
+
+
+@app.post("/files", include_in_schema=False)
+async def gui_upload_files(request: Request, uploads: list[UploadFile] = File(...),
+                           db: Session = Depends(get_db)):
+    """Take one or more files and file them under the tags the form carries. The
+    tags are prefilled from the item the upload started on, which is the common
+    case -- a driver found while looking at the card it is for."""
+    form = await request.form()
+    tags = filesdb.parse_tags(form.get("tags", ""))
+    note = form.get("note", "")
+    nxt = _safe_next(form.get("next") or "/files")
+    saved, errors = 0, []
+    for up in uploads:
+        if not (up.filename or "").strip():
+            continue
+        try:
+            if filesdb.save(db, up, tags, note) is not None:
+                saved += 1
+        except ValueError as exc:
+            errors.append(str(exc))
+    aid = (form.get("aid") or "").strip().upper()
+    if saved and aid:
+        add_log(db, aid, f"added {saved} file(s)")
+    db.commit()
+    return RedirectResponse(nxt + ("?fileerr=1" if errors else ""), status_code=303)
+
+
+@app.post("/files/{fid}/tags", include_in_schema=False)
+async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db)):
+    """Re-file one: what the box says is the whole list, so a name taken out of it
+    stops matching."""
+    row = _file_or_404(db, fid)
+    form = await request.form()
+    filesdb.set_tags(db, row, form.get("tags", ""))
+    db.commit()
+    return RedirectResponse(_safe_next(form.get("next") or "/files"),
+                            status_code=303)
+
+
+@app.post("/files/{fid}/delete", include_in_schema=False)
+async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_db)):
+    row = _file_or_404(db, fid)
+    form = await request.form()
+    filesdb.remove(db, row)
+    db.commit()
+    return RedirectResponse(_safe_next(form.get("next") or "/files"),
+                            status_code=303)
+
+
+@app.get("/files", response_class=HTMLResponse, include_in_schema=False)
+def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
+    """Everything on file, for finding the driver whose card is not in front of
+    you and for seeing what a tag is spelled as before typing it again."""
+    return templates.TemplateResponse(request, "files.html", {
+        "files": filesdb.all_files(db, tag), "tag": tag,
+        "og": _og(request, "Files", "Drivers, manuals and disks kept with the "
+                                    "hardware they belong to")})
+
+
+@app.get("/api/files", tags=["files"])
+def api_list_files(tag: str = "", db: Session = Depends(get_db)):
+    """Files kept beside the register, newest first, each with the names it is
+    filed under. `tag` narrows it to one name, matched the way the pages match:
+    ignoring case and spacing."""
+    return [{"id": f.id, "filename": f.filename, "size": f.size, "note": f.note,
+             "tags": f.tags, "created_at": f.created_at,
+             "url": f"/files/{f.id}/{quote(f.filename)}"}
+            for f in filesdb.all_files(db, tag)]
