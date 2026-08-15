@@ -33,6 +33,18 @@ class Computer(Base):
     chassis = Column(String(64), default="")
     os = Column(String(255), default="")
     cpu = Column(String(255), default="")
+    # What this machine scores in TopBench, the DOS benchmark that puts a PC in
+    # order against a table of known ones. It sits beside the CPU because that is
+    # mostly what decides it, and it is the one measured number in a record that
+    # otherwise says only what a machine was built as -- two 486DX2-66s with the
+    # same score are the same machine, and the one that scores half is telling you
+    # something (a cache disabled, a turbo button, a chipset set up wrong).
+    #
+    # Only an x86 machine has one: TopBench is a DOS program and there is no score
+    # to be had for a Spectrum. NULL is a machine it has not been run on, which is
+    # most of them, and no number is inferred from the CPU -- running it is the
+    # whole point.
+    topbench = Column(Integer)
     installed_ram = Column(String(255), default="")
     installed_ram_kb = Column(Integer)
     installed_ram_note = Column(String(255), nullable=False, default="",

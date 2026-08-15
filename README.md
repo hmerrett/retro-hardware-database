@@ -125,6 +125,21 @@ and deleting a machine or a host card unlinks what pointed at it. A computer
 carries its CPU, installed RAM and floppy/optical/CF-SD drives as attributes of
 the machine; mechanical hard disks, tape and expansion cards are parts.
 
+`computers.topbench` is the one measured number in a record that otherwise says
+only what a machine was built as: what it scores in TopBench, the DOS benchmark
+that puts a PC in order against a table of known ones. It lives beside the CPU,
+because that is mostly what decides it, and it is worth having because the parts
+list does not always predict it -- two 486DX2-66s with the same score are the same
+machine, and the one scoring half is telling you something (a cache left disabled,
+a turbo button, a chipset set up wrong). NULL is a machine it has not been run on,
+which is most of them; nothing infers a score from a CPU, since having actually run
+it is the whole value of the field. Only an x86 machine has one -- there is no
+TopBench for a Spectrum -- so the form asks for it only while the machine is not a
+catalogue model, which is how it already says "a PC or a custom build". The box is
+hidden rather than removed when a catalogue model is picked, because a hidden input
+still submits what it holds and a score on file must survive being mis-filed and
+put back.
+
 A machine's drives are rows (`computer_drive`), each with how many, kind, form
 factor, media size, the discs an optical drive takes and the rating on its front,
 make/model, and its bezel: the shade it was made in and how far it has yellowed

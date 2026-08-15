@@ -1202,7 +1202,7 @@ def _parse_date(raw):
 
 def _coerce(field, raw):
     """A form string as the column's type: blank means not recorded."""
-    if field == "year":
+    if field in ("year", "topbench"):
         v = (raw or "").strip()
         return int(v) if v.isdigit() else None
     if field in ("acquired_date", "disposed_at"):

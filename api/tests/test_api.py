@@ -3812,3 +3812,68 @@ class TestTheBigPhotoView:
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
+
+
+class TestATopBenchScore:
+    """The one measured number on a machine's record: what it scores in TopBench,
+    the DOS benchmark. A typed column like `year`, so it is held to the same rules
+    -- a blank clears it, a non-number is refused rather than stored as zero, and
+    not recorded is NULL."""
+
+    def test_it_comes_back_typed(self, computer):
+        assert computer(topbench=187)["topbench"] == 187
+
+    def test_a_machine_it_has_not_been_run_on_has_no_score(self, computer):
+        """Not zero: a machine nobody has benchmarked has no score, and zero is a
+        result -- the one a machine that could not finish the run would get."""
+        assert computer(cpu="Intel 486DX2-66")["topbench"] is None
+
+    def test_a_score_that_is_not_a_number_is_refused(self, client):
+        r = client.post("/api/computers", json={"model": "X", "topbench": "fast"})
+        assert r.status_code == 422
+
+    def test_the_form_takes_one_and_gives_it_back(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post(f"/computers/{aid}/edit", data={"topbench": "187"},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["topbench"] == 187
+        assert 'value="187"' in client.get(f"/computers/{aid}/edit").text
+
+    def test_the_form_can_take_it_back_off(self, client, computer):
+        aid = computer(topbench=187)["asset_id"]
+        client.post(f"/computers/{aid}/edit", data={"topbench": ""},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["topbench"] is None
+
+    def test_the_page_shows_it(self, client, computer):
+        assert "TopBench" in client.get(
+            f"/computers/{computer(topbench=187)['asset_id']}").text
+
+    def test_and_says_nothing_about_a_machine_that_has_no_score(self, client,
+                                                                computer):
+        assert "TopBench" not in client.get(
+            f"/computers/{computer()['asset_id']}").text
+
+    def test_the_change_is_recorded_in_the_history(self, client, computer):
+        aid = computer(topbench=187)["asset_id"]
+        client.post(f"/computers/{aid}/edit", data={"topbench": "212"},
+                    follow_redirects=False)
+        messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+        assert any("187 → 212" in m for m in messages)
+
+    def test_the_box_is_marked_for_the_script_that_hides_it(self, client, computer):
+        """TopBench is a DOS program, so the box is on screen for a PC and off it
+        for a catalogue machine -- which the machine picker's script decides, since
+        the model is chosen without reloading the page. It is hidden rather than
+        dropped from the form, so a score already on file is not erased by someone
+        filing the machine against the catalogue and saving."""
+        page = client.get(f"/computers/{computer()['asset_id']}/edit").text
+        assert "data-x86-only" in page
+
+    def test_a_score_survives_the_machine_being_filed_as_a_catalogue_one(
+            self, client, computer):
+        aid = computer(topbench=187)["asset_id"]
+        client.post(f"/computers/{aid}/edit",
+                    data={"mach_model": "zx-spectrum-48k", "topbench": "187"},
+                    follow_redirects=False)
+        assert client.get(f"/api/computers/{aid}").json()["topbench"] == 187

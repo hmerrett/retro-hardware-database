@@ -54,6 +54,9 @@ class ComputerIn(BaseModel):
     chassis: str = ""
     os: str = ""
     cpu: str = ""
+    # The DOS benchmark's number for this machine, on the machines that have one:
+    # null is "not run", and nothing infers a score from the CPU.
+    topbench: int | None = None
     installed_ram: str = ""
     drives: str = ""
     condition: str = ""

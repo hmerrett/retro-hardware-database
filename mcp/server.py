@@ -105,6 +105,7 @@ def create_computer(
     chassis: str | None = None,
     os: str | None = None,
     cpu: str | None = None,
+    topbench: int | None = None,
     installed_ram: str | None = None,
     drives: str | None = None,
     condition: str | None = None,
@@ -128,6 +129,11 @@ def create_computer(
     are attributes of the computer, not separate parts. installed_ram takes a
     plain amount ('640KB'); the per-module breakdown is entered in the GUI.
 
+    topbench is what the machine scores in TopBench, the DOS benchmark -- an x86
+    machine only, and only once it has actually been run on this machine. Leave it
+    out otherwise: an unmeasured machine has no score, and one must never be
+    guessed from the CPU.
+
     For a home computer or a console -- a Spectrum, a C64, a CPC, a Mega Drive --
     the machine_* arguments file it against the catalogue that list_machine_models
     returns: machine_model_key is that model's key, machine_issue the board as its
@@ -148,6 +154,7 @@ def update_computer(
     chassis: str | None = None,
     os: str | None = None,
     cpu: str | None = None,
+    topbench: int | None = None,
     installed_ram: str | None = None,
     drives: str | None = None,
     condition: str | None = None,

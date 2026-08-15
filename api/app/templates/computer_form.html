@@ -22,6 +22,15 @@
   {{ fld('chassis', 'Chassis / case', "desktop, tower, mini-tower, breadbin…") }}
   {{ fld('os', 'Operating system') }}
   {{ fld('cpu', 'CPU', "an attribute, not a part. Maker model-MHz — e.g. Intel 486DX2-66, Intel 80286-6, or 2x Pentium III 500") }}
+  {# Beside the CPU, because that is mostly what decides it. Shown only while the
+     machine is not a catalogue model -- TopBench is a DOS program, the catalogue
+     holds nothing that runs one, and "not a catalogue model" is how this form
+     already says "a PC or a custom build". The box is hidden rather than dropped,
+     so a score already on file is not quietly erased by someone filing the machine
+     against the catalogue: a hidden input still submits what it holds. #}
+  <div data-x86-only>
+    {{ fld('topbench', 'TopBench score', "what this machine scores in TopBench, the DOS benchmark — leave it blank until it has actually been run on this machine", type='number') }}
+  </div>
   <label>Memory modules (SIMMs / SIPPs)</label>
   <p class="hint">enter how many of each fitted module; the total is computed.</p>
   <div class="countgrid">

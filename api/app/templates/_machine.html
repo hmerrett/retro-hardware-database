@@ -154,8 +154,16 @@
       if (!custom.hidden) custom.focus();
     });
 
+    // The boxes on the form that only a PC has an answer for -- the TopBench score
+    // so far. Off screen for a catalogue machine, which cannot run a DOS benchmark,
+    // and hidden rather than emptied: a hidden input still submits what it holds, so
+    // a score on file survives a machine being filed against the catalogue by
+    // mistake and put back.
+    const x86 = document.querySelectorAll('[data-x86-only]');
+
     const build = () => {
       const model = CAT[pick.value];
+      x86.forEach(el => { el.hidden = !!model; });
       const was = held();
       // Not a catalogue machine: nothing to ask about, and nothing left on screen for
       // a save to read.

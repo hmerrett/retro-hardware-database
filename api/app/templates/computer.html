@@ -47,7 +47,8 @@
     <table class="kv">
     {% for k, v in [('Manufacturer', c.manufacturer), ('Model', c.model), ('Year', c.year),
                     ('Form factor', form_factor),
-                    ('Chassis', c.chassis), ('CPU', c.cpu), ('Installed RAM', c.installed_ram),
+                    ('Chassis', c.chassis), ('CPU', c.cpu), ('TopBench', c.topbench),
+                    ('Installed RAM', c.installed_ram),
                     ('Drives', c.drives), ('OS', c.os), ('Condition', c.condition),
                     ('Source', c.source), ('Acquired', c.acquired_date), ('Notes', c.notes)] %}
       {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
