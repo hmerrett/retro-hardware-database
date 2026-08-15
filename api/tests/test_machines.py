@@ -72,7 +72,7 @@ class TestCatalogueConsistency:
                   "Atari 65XE", "Sega Mega Drive", "Amstrad CPC 464",
                   "Amstrad CPC 6128", "Acorn BBC Micro Model B",
                   "Commodore Amiga 500"]
-        have = {machines.full_name(k) for k in machines.keys()}
+        have = {machines.full_name(k) for k in machines.keys()}  # noqa: SIM118
         assert not [w for w in wanted if w not in have]
 
     def test_no_model_repeats_its_maker(self):
