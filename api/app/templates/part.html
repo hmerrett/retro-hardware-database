@@ -2,6 +2,7 @@
 {% import "_icons.html" as I %}
 {% import "_colours.html" as CL %}
 {% import "_partlist.html" as P %}
+{% import "_panel.html" as PN %}
 {% block title %}{{ og.title }}{% if og.title != p.asset_id %} · {{ p.asset_id }}{% endif %} — Retro Hardware Database{% endblock %}
 {% block content %}
 <div class="crumbnav">
@@ -38,6 +39,9 @@
 <div class="detail">
   <div class="detail-main">
     {% if p.summary %}<p class="summary">{{ p.summary }}</p>{% endif %}
+    {# The part's own facts, in a panel like every other section: what the register
+       knows about it, and where it is installed. #}
+    {% call PN.panel('Details') %}
     <table class="kv">
     {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
       {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
@@ -56,7 +60,7 @@
     </table>
 
     {% if request.state.authed and computers %}
-    <div class="toolbar">
+    <div class="toolbar" style="margin-bottom:0">
       <span class="muted">Install in computer:</span>
       <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/link">
         {# Opens on nothing, and the browser will not submit until something is
@@ -71,10 +75,10 @@
       </form>
     </div>
     {% endif %}
+    {% endcall %}
 
     {% if spec_pairs %}
-    <div class="section">
-      <h3 style="margin:0 0 6px">Specs</h3>
+    {% call PN.panel('Specs') %}
       {# The bezel rows carry the same swatch the chart draws, so the page shows the
          colour rather than only naming it -- and shows it as the pair, since the
          shade and the yellowing are one piece of plastic. #}
@@ -86,18 +90,18 @@
           <td>{% if bezel and k in ('Colour', 'Yellowing') %}{{ CL.dot(bezel, specs.get('Colour', '') or 'yellowing, on a shade nobody recorded') }} {% endif %}{{ v }}</td></tr>
         {% endfor %}
       </table>
-    </div>
+    {% endcall %}
     {% endif %}
 
     {% set build_host = request.state.authed and p.type in ('io', 'other') %}
     {% if children or build_host %}
-    <div class="section">
-      <h3 style="margin:0 0 6px">Mounted parts <span class="muted">({{ children|length }})</span></h3>
+    {% call PN.panel('Mounted parts', children | length, flush=true) %}
       {% if children %}
       {{ P.cards(children, 'detach', 'unmount', '/parts/' + p.asset_id, request.state.authed) }}
-      {% else %}<p class="muted">Nothing mounted on this card yet.</p>{% endif %}
+      {% else %}<div class="pbody"><p class="muted" style="margin:0">Nothing mounted on this card yet.</p></div>{% endif %}
       {% if build_host %}
-      <div class="toolbar">
+      <div class="pbody">
+      <div class="toolbar" style="margin:0">
         <a class="btn sm" href="/parts/new?type=storage&parent_id={{ p.asset_id }}">add storage</a>
         {% if candidates %}
         <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/attach">
@@ -109,15 +113,15 @@
         </form>
         {% endif %}
       </div>
+      </div>
       {% endif %}
-    </div>
+    {% endcall %}
     {% endif %}
     {# Above the history, because the files are part of what this item is -- the
        driver disk it needs, the manual for it -- and the history is a log to be
        consulted rather than read, which is why it is last on the page. #}
     {% include "_files.html" %}
-    <div class="section">
-      <h3 style="margin:0 0 6px">History</h3>
+    {% call PN.panel('History') %}
       {% if request.state.authed %}
       <form method="post" action="/parts/{{ p.asset_id }}/note" class="notebar">
         <input name="message" placeholder="add a note, e.g. tested, cleaned, recapped" required>
@@ -133,8 +137,8 @@
         </tr>
         {% endfor %}
       </table>
-      {% else %}<p class="muted">No history yet.</p>{% endif %}
-    </div>
+      {% else %}<p class="muted" style="margin:0">No history yet.</p>{% endif %}
+    {% endcall %}
   </div>
   {% set obj = p %}{% set kind = "parts" %}
   {% include "_photocol.html" %}

@@ -6,39 +6,20 @@
    below arrives prefilled with what this item is called: the common case is a
    driver found while looking at the thing it is for, and the uncommon one is a
    file about this unit alone, which is what its asset id is offered for. #}
-<div class="section">
-  <h3 style="margin:0 0 6px">Files</h3>
-  {# A grid rather than one of the page's key/value tables: a filename is as long as
-     it is, and a declared label column would have it running under the next one. #}
+{% import "_panel.html" as PN %}
+{% import "_partlist.html" as P %}
+{% call PN.panel('Files', files | length if files else '', flush=true) %}
+  {# A card each rather than a row each, as the parts above are: a filename is as
+     long as it is, and the names a file is filed under want a box to be edited in --
+     both of which a table asked to share its width with the other three columns. #}
   {% if files %}
-  <table>
-    <tr><th>File</th><th>Filed under</th><th class="tight">Size</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
-    {% for f in files %}
-    <tr>
-      <td class="wrap"><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
-        {% if f.note %}<br><span class="hint">{{ f.note }}</span>{% endif %}</td>
-      <td>{% if request.state.authed %}
-        <form class="inline-form" method="post" action="/files/{{ f.id }}/tags">
-          <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
-          <input name="tags" value="{{ f.tags | join(', ') }}" aria-label="names this file is for">
-          <button class="btn sm" type="submit">re-file</button>
-        </form>
-        {% else %}{% for t in f.tags %}<span class="chip">{{ t }}</span> {% endfor %}{% endif %}</td>
-      <td class="tight muted">{{ human_size(f.size) }}</td>
-      {% if request.state.authed %}
-      <td><form method="post" action="/files/{{ f.id }}/delete" style="margin:0"
-                onsubmit="return confirm('Delete {{ f.filename }}? It goes from every item filed under its names.')">
-          <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
-          <button class="btn sm danger" type="submit">delete</button></form></td>
-      {% endif %}
-    </tr>
-    {% endfor %}
-  </table>
+  {{ P.filecards(files, '/' + kind + '/' + item.asset_id, request.state.authed) }}
   {% else %}
-  <p class="muted">No files for this one yet.</p>
+  <div class="pbody"><p class="muted" style="margin:0">No files for this one yet.</p></div>
   {% endif %}
 
   {% if request.state.authed %}
+  <div class="pbody">
   {% if fileerr %}<p class="hint">Something was too big to keep — nothing over
     {{ max_file_mb }} MB.</p>{% endif %}
   {# Choosing the files is the whole gesture, as it is for photographs: the upload
@@ -63,5 +44,6 @@
     under <em>Creative Labs Sound Blaster</em> and every Sound Blaster has it, the
     AWE32 and the Pro included. Spaces and capitals make no difference. Use
     <em>{{ item.asset_id }}</em> as the name for something about this one unit alone.</p>
+  </div>
   {% endif %}
-</div>
+{% endcall %}

@@ -1,0 +1,29 @@
+{# A panel: one titled box, and the shape every section of an item page is drawn in.
+
+   The pages grew a section at a time -- details, specs, the board, the parts, the
+   files, the history -- and each was a heading with something under it, so what told
+   you where one ended and the next began was a gap and a bold word. That works until
+   a section is a list of things that themselves have parts and a gap inside them,
+   and then the page is one long column of rules with nothing saying which level
+   anything is at. A panel says it: the title sits on a band across the top, and what
+   belongs to that section is inside the border.
+
+   `meta` is the quiet half of the title -- a count, a date, whatever the section is
+   measured in -- and is shown beside it rather than in it.
+
+   Content goes in the panel's padded body by default. `flush` leaves it to place its
+   own padding, which is what a section made of cards wants: their bands run the full
+   width of the panel, edge to edge, the way a table's rows do. Such a section puts
+   whatever else it has -- a toolbar, a form -- in a `pbody` of its own.
+
+   `cls` is for a panel the stylesheet has something else to say about -- the QR code
+   is hidden at the width where the phone reading it is already here. #}
+{% macro panel(title, meta='', flush=false, cls='') %}
+<section class="panel{{ ' ' ~ cls if cls else '' }}">
+  <header>
+    <h3>{{ title }}</h3>
+    {% if meta != '' and meta is not none %}<span class="muted">{{ meta }}</span>{% endif %}
+  </header>
+  {% if flush %}{{ caller() }}{% else %}<div class="pbody">{{ caller() }}</div>{% endif %}
+</section>
+{% endmacro %}

@@ -11,10 +11,10 @@
    Logged in only, like every other thing on the page that does something: a visitor
    has nothing to upload with, and a code leading to a page with no upload button on
    it promises something the site will not do. #}
+{% import "_panel.html" as PN %}
 {% if request.state.authed %}
 {% set here = og.url ~ '#photo-upload' %}
-<div class="section photo-qr">
-  <h3>Add photos with your phone</h3>
+{% call PN.panel('Add photos with your phone', cls='photo-qr') %}
   <div class="qr-card">
     <div class="qr-code">{{ qr_svg(here) }}</div>
     <div>
@@ -24,5 +24,5 @@
       <p class="hint qr-url">{{ here }}</p>
     </div>
   </div>
-</div>
+{% endcall %}
 {% endif %}

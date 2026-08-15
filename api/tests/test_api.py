@@ -13,6 +13,8 @@ from typing import ClassVar
 
 import pytest
 
+from app import main
+
 
 class TestTypedColumns:
     def test_year_and_date_come_back_typed(self, computer):
@@ -2873,13 +2875,17 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
     def in_the_photo_column(page):
         """Whether the QR block is nested inside the item page's right-hand column,
         rather than sitting under the two columns as it once did."""
+        # div and section alike: the column is a div and the blocks inside it are
+        # panels, which are sections.
+        boxes = ("div", "section")
+
         class Nesting(HTMLParser):
             def __init__(self):
                 super().__init__()
                 self.open, self.found = [], False
 
             def handle_starttag(self, tag, attrs):
-                if tag != "div":
+                if tag not in boxes:
                     return
                 cls = dict(attrs).get("class", "").split()
                 self.open.append(cls)
@@ -2887,7 +2893,7 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
                     self.found = any("photo-col" in c for c in self.open)
 
             def handle_endtag(self, tag):
-                if tag == "div" and self.open:
+                if tag in boxes and self.open:
                     self.open.pop()
 
         parser = Nesting()
@@ -3896,7 +3902,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         aid = computer()["asset_id"]
         part(type="video", computer_id=aid, name="Stealth 24", specs="Chip: S3")
         page = client.get(f"/computers/{aid}").text
-        assert page.count('<article class="partcard">') == 1
+        assert page.count('<article class="itemcard">') == 1
         assert "Stealth 24</h4>" in page
 
     def test_they_are_shown_as_labelled_pairs_below_the_part(self, client, computer,
@@ -3913,7 +3919,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         aid = computer()["asset_id"]
         part(type="peripheral", computer_id=aid, name="Keyboard")
         page = client.get(f"/computers/{aid}").text
-        assert '<article class="partcard">' in page
+        assert '<article class="itemcard">' in page
         assert '<dl class="specs">' not in page
 
     def test_a_card_s_mounted_parts_are_listed_the_same_way(self, client, part):
@@ -3923,7 +3929,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         part(type="storage", parent_id=host, specs="Interface: IDE")
         page = client.get(f"/parts/{host}").text
         assert "<th>Specs</th>" not in page
-        assert '<article class="partcard">' in page
+        assert '<article class="itemcard">' in page
         assert "<dt>Interface</dt><dd>IDE</dd>" in page
 
     def test_the_board_above_them_is_drawn_as_one_too(self, client, computer, part):
@@ -3932,7 +3938,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         aid = computer()["asset_id"]
         part(type="motherboard", computer_id=aid, specs="Chipset: SiS 496")
         page = client.get(f"/computers/{aid}").text
-        assert page.count('<article class="partcard">') == 1
+        assert page.count('<article class="itemcard">') == 1
         assert "<dt>Chipset</dt><dd>SiS 496</dd>" in page
 
 
@@ -4027,3 +4033,85 @@ class TestWhereTheFilesSit:
                           ("parts", part()["asset_id"])):
             page = client.get(f"/{kind}/{aid}").text
             assert page.index("Files") < page.index(">History<")
+
+
+class TestEverySectionIsAPanel:
+    """An item page is a stack of panels: a title on a band, and what belongs to
+    that section inside the border. What told you where one section ended and the
+    next began used to be a gap and a bold word, which stopped working once a
+    section was itself a list of things with gaps inside them."""
+
+    @pytest.mark.parametrize("title", ["Details", "Files", "History"])
+    def test_the_machine_page_says_where_each_section_starts(self, client, computer,
+                                                             title):
+        page = client.get(f"/computers/{computer()['asset_id']}").text
+        assert f"<h3>{title}</h3>" in page
+
+    @pytest.mark.parametrize("title", ["Details", "Files", "History"])
+    def test_and_so_does_a_part_page(self, client, part, title):
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert f"<h3>{title}</h3>" in page
+
+    def test_a_section_of_cards_is_one_panel_and_not_a_box_each(self, client,
+                                                                computer, part):
+        """The panel draws the box, so the cards in it give theirs up and keep their
+        bands -- a border round each inside a border round all of them is what makes
+        a page look busy."""
+        aid = computer()["asset_id"]
+        part(type="motherboard", computer_id=aid, specs="Chipset: SiS 496")
+        part(type="video", computer_id=aid, specs="Chip: S3")
+        part(type="sound", computer_id=aid, specs="Chip: CT1745A")
+        page = client.get(f"/computers/{aid}").text
+        assert page.count('<section class="panel">') >= 3
+        assert page.count('<div class="itemcards">') == 2   # the board, and the parts
+        assert page.count('<article class="itemcard">') == 3
+
+    def test_the_specs_of_a_part_are_their_own_panel(self, client, part):
+        aid = part(type="video", specs="Chip: S3 Trio64")["asset_id"]
+        page = client.get(f"/parts/{aid}").text
+        assert "<h3>Specs</h3>" in page
+
+
+class TestFilesReadLikeThePartsDo:
+    """A file is a thing in a list, as a part is, so it is drawn as one. The row it
+    used to be had a text box and two buttons squeezed into table cells beside a
+    filename as long as it is."""
+
+    @staticmethod
+    def upload(client, aid, name="sb16.img", tags="", note=""):
+        r = client.post("/files", data={"aid": aid, "tags": tags or aid, "note": note,
+                                        "next": f"/computers/{aid}"},
+                        files={"uploads": (name, b"\0" * 2048,
+                                           "application/octet-stream")},
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text
+
+    def test_a_file_is_a_card_with_its_name_on_it(self, client, computer):
+        aid = computer()["asset_id"]
+        self.upload(client, aid, note="the driver disk that came with it")
+        page = client.get(f"/computers/{aid}").text
+        assert '<article class="itemcard">' in page
+        assert "sb16.img</a></h4>" in page
+        assert "the driver disk that came with it" in page
+
+    def test_it_says_how_big_it_is_before_you_click_it(self, client, computer):
+        aid = computer()["asset_id"]
+        self.upload(client, aid)
+        assert "2.0 KB" in client.get(f"/computers/{aid}").text
+
+    def test_the_names_it_is_filed_under_are_still_editable(self, client, computer):
+        """Re-filing is the thing most often wanted here, so it stays a box rather
+        than becoming a link to somewhere else."""
+        aid = computer()["asset_id"]
+        self.upload(client, aid, tags=f"{aid}, Creative Labs Sound Blaster")
+        page = client.get(f"/computers/{aid}").text
+        assert f'name="tags" value="{aid}, Creative Labs Sound Blaster"' in page
+
+    def test_a_visitor_gets_the_names_without_the_box(self, client, computer,
+                                                      monkeypatch):
+        aid = computer()["asset_id"]
+        self.upload(client, aid, tags=f"{aid}, Creative Labs Sound Blaster")
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        page = client.get(f"/computers/{aid}").text
+        assert '<span class="chip">Creative Labs Sound Blaster</span>' in page
+        assert 'name="tags"' not in page

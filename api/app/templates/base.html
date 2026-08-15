@@ -43,12 +43,15 @@
     color-scheme: light dark;
     --bg: #ffffff; --fg: #1a1c20; --line: #e3e6eb; --muted: #6b7280; --accent: #2563eb;
     --btn: #00000010; --btn-hover: #00000020; --chip: #00000010;
+    /* The band a panel's title sits on: a shade stronger than the strip on a
+       card, so a section's own heading is not read as the first thing in it. */
+    --band: #0000001c;
     --fill: #2563eb; --track: #2563eb1f;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
       --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
-      --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16;
+      --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
       --fill: #1b81ff; --track: #1b81ff2b;
     }
   }
@@ -56,7 +59,7 @@
   :root[data-theme="dark"] {
     color-scheme: dark;
     --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
-    --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16;
+    --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
     --fill: #1b81ff; --track: #1b81ff2b;
   }
   * { box-sizing: border-box; }
@@ -161,25 +164,67 @@
   td.tight, th.tight { white-space: nowrap; }
   .detail-main table th { white-space: nowrap; }
   th { color: var(--muted); font-weight: 500; font-size: 13px; }
-  /* A part in a list of them. Everything about one part is inside one border, which
-     is the thing a table could not say: laid out as rows, a part was five loose cells
-     with a rule somewhere in the middle of it, and nothing on the page told you which
-     rule ended one part and began the next. */
-  .partcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-  .partcard { border: 1px solid var(--line); border-radius: 10px; padding-bottom: 9px;
+  /* A section of an item page. The title sits on a band across the top and what
+     belongs to the section is inside the border, so a page of them says which level
+     anything is at -- which a column of headings and gaps could not. */
+  .panel { border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    margin-top: 14px; }
+  .panel > header { background: var(--band); padding: 6px 11px; display: flex;
+    flex-wrap: wrap; align-items: baseline; gap: 2px 9px; }
+  .panel > header h3 { margin: 0; font-size: 14px; }
+  .panel > header .muted { font-size: 13px; }
+  .panel .pbody { padding: 9px 11px; }
+  /* Under a band of its own, a table's first rule is a second line saying the same
+     thing. */
+  .panel .pbody > table tr:first-child > * { border-top: 0; }
+  .panel .pbody > p:first-child, .panel .pbody > .toolbar:first-child { margin-top: 0; }
+  .panel .pbody > p:last-child { margin-bottom: 0; }
+
+  /* One thing in a list of them -- a part fitted in a machine, a file kept beside
+     the register, a chip in one of a machine's sockets. Everything about it is
+     inside one border, which is the thing a table could not say: laid out as rows,
+     a part was five loose cells with a rule somewhere in the middle of it, and
+     nothing on the page told you which rule ended one and began the next. */
+  .itemcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .itemcard { border: 1px solid var(--line); border-radius: 12px; padding-bottom: 9px;
     overflow: hidden; }
-  /* The strip the eye lands on when it is looking for a tag: what this part is
-     called in the register and what kind of thing it is, with the way out of the
-     machine at the far end. */
-  .partcard > header { display: flex; flex-wrap: wrap; align-items: center;
+  /* The strip the eye lands on when it is looking for a tag: what this thing is
+     called in the register and what kind of thing it is, with the way of taking it
+     out at the far end. */
+  .itemcard > header { display: flex; flex-wrap: wrap; align-items: center;
     gap: 3px 8px; background: var(--chip); padding: 5px 10px; font-size: 13px;
     margin-bottom: 8px; }
-  .partcard > header form { margin: 0 0 0 auto; }
-  /* The name is the part itself and carries the weight; the strip above it is
+  .itemcard > header form { margin: 0 0 0 auto; }
+  .itemcard > header .grow { flex: 1; }
+  /* The name is the thing itself and carries the weight; the strip above it is
      labelling. anywhere, because a name like "TMC/MyComp/MyNix/Megastar AI5TV" is
      one unbreakable word to a browser and would otherwise widen the card. */
-  .partcard > h4 { margin: 0 10px; font-size: 14px; font-weight: 600;
+  .itemcard > h4 { margin: 0 10px; font-size: 14px; font-weight: 600;
     overflow-wrap: anywhere; }
+  .itemcard > .cardrow { margin: 7px 10px 0; display: flex; flex-wrap: wrap;
+    align-items: center; gap: 5px 8px; font-size: 13px; }
+  .itemcard > .cardrow > .lbl { color: var(--muted); font-size: 12px; }
+  .itemcard > .cardrow form { display: flex; flex: 1 1 260px; align-items: center;
+    gap: 6px; min-width: 0; margin: 0; }
+  .itemcard > .cardrow input { flex: 1 1 200px; min-width: 0; padding: 4px 7px;
+    border: 1px solid var(--line); border-radius: 6px; font: inherit;
+    font-size: 13px; background: transparent; color: inherit; }
+  /* A list that is the panel's own content: the box is already drawn, so the cards
+     give theirs up and keep their bands -- edge to edge, one rule between one and
+     the next, the way a table's rows sit under its heading. A list nested deeper
+     than that (the chips inside the machine panel) keeps its cards whole, which is
+     what tells the two apart. */
+  .panel > .itemcards { gap: 0; margin: 0; }
+  .panel > .itemcards > .itemcard { border: 0; border-radius: 0; }
+  .panel > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
+  /* What follows such a list in the same panel -- the upload form under the files --
+     is a different thing and says so. */
+  .panel > .itemcards + .pbody { border-top: 1px solid var(--line); }
+  /* Where the things in a list are small enough to sit side by side -- a machine's
+     chip sockets, where what is written in one is a part number. */
+  .cardgrid { display: grid; gap: 10px; margin-top: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
+  .panel > .cardgrid { margin: 0; padding: 11px; }
   /* The specs themselves: label and value paired, as many pairs across as the width
      allows, in tracks so the pairs line up down the page instead of landing wherever
      the previous value happened to end. min(Npx, 100%) for the same reason the count
@@ -379,7 +424,6 @@
      of it would read as a printing mistake in the dark. */
   /* Its heading is an aside in a sidebar, not one of the page's sections, so it
      takes the 13px the column's other labels use rather than the h3 default. */
-  .photo-qr h3 { font-size: 13px; margin: 0 0 6px; }
   .qr-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
   .qr-card .qr-code { background: #fff; padding: 4px; border-radius: 8px;
     border: 1px solid var(--line); line-height: 0; }

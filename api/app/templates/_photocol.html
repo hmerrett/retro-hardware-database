@@ -1,6 +1,7 @@
 {# Photo column shared by computer.html and part.html.
    Expects: obj, kind ("computers"/"parts"), images, ref_marks, imgerr. #}
 {% import "_icons.html" as I %}
+{% import "_panel.html" as PN %}
 {% macro badge(img) %}
   {% if img in ref_marks %}
   <span class="ref-badge{{ ' icon' if ref_marks[img].icon else '' }}" title="{{ ref_marks[img].note }}">
@@ -31,7 +32,12 @@
   {% endif %}
 {% endmacro %}
 <div class="photo-col">
+  {# Panels, as the column beside this one is: the photographs are a section of the
+     page like the parts or the files, and disposal is a thing you do to the item
+     rather than a thing about it, so it says so with a title of its own instead of
+     sitting under the pictures unannounced. #}
   {% if images %}
+  {% call PN.panel('Photographs', images | length, flush=true) %}
     <div class="photo-primary">
       <img class="photo-main zoomable" src="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
            tabindex="0" role="button" aria-label="View this photo full size"
@@ -52,8 +58,10 @@
       {% endfor %}
     </div>
     {% endif %}
+  {% endcall %}
   {% endif %}
   {% if request.state.authed %}
+  {% call PN.panel('Photographs' if not images else 'Add photographs') %}
   <div class="photo-actions">
     {# Choosing the photos is the whole gesture: the upload goes as soon as they are
        picked, so the button below is only there for a browser with no JavaScript.
@@ -73,7 +81,11 @@
     </form>
     {% endif %}
     {% if imgerr %}<p class="hint">No image found at the reference URL.</p>{% endif %}
-    {% if not obj.disposed %}
+  </div>
+  {% endcall %}
+  {% if not obj.disposed %}
+  {% call PN.panel('Disposal') %}
+    <div class="photo-actions" style="margin-top:0">
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose">
       <input name="note" placeholder="why — sold, binned, donated…">
       <input name="date" type="date" value="{{ today() }}">
@@ -82,8 +94,9 @@
     {% if kind == 'computers' %}<p class="hint">The parts in the machine are
       disposed with it, on the same date and for the same reason. Restoring the
       machine brings them back.</p>{% endif %}
-    {% endif %}
-  </div>
+    </div>
+  {% endcall %}
+  {% endif %}
   {% endif %}
   {% include "_photoqr.html" %}
 </div>

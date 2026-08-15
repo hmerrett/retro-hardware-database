@@ -14,9 +14,9 @@
    outside the form that saves the machine: nesting one form in another is not
    something a browser will do. #}
 {% import "_partlist.html" as P %}
+{% import "_panel.html" as PN %}
 <!-- Motherboard: link an existing unlinked board, or create one now. -->
-<div class="section">
-  <h3 style="margin:0 0 6px">Motherboard</h3>
+{% call PN.panel('Motherboard', flush=true) %}
   {# The board is a part like the ones below it and is drawn as one: it has the
      longest set of specs on the page -- a chipset, a CPU family, a form factor, a
      cache size and a BIOS -- and a section that said them a second way would be two
@@ -25,6 +25,7 @@
     {{ P.cards([motherboard], 'unlink', 'unlink', '/computers/' + c.asset_id,
                request.state.authed) }}
   {% else %}
+    <div class="pbody">
     <p class="muted">No motherboard linked yet.</p>
     {% if request.state.authed %}
     <div class="toolbar">
@@ -40,16 +41,15 @@
       {% endif %}
     </div>
     {% endif %}
+    </div>
   {% endif %}
-</div>
+{% endcall %}
 
 <!-- Add parts by category, plus storage (which routes hard disk/tape -> part). -->
-<div class="section">
-  <div class="flex">
-    <h3 style="margin:0">Parts <span class="muted">({{ parts|length }})</span></h3>
-  </div>
+{% call PN.panel('Parts', parts | length, flush=true) %}
   {% if request.state.authed %}
-  <div class="toolbar">
+  <div class="pbody">
+  <div class="toolbar" style="margin-top:0">
     <span class="muted">Add:</span>
     <a class="btn sm" href="/parts/new?type=storage&computer_id={{ c.asset_id }}">storage / drive</a>
     {% for ptype, label in card_steps %}
@@ -72,7 +72,10 @@
     </form>
   </div>
   {% endif %}
+  {% if request.state.authed %}</div>{% endif %}
   {% if parts %}
   {{ P.cards(parts, 'unlink', 'unlink', '/computers/' + c.asset_id, request.state.authed) }}
+  {% else %}
+  <div class="pbody"><p class="muted" style="margin:0">Nothing fitted in it yet.</p></div>
   {% endif %}
-</div>
+{% endcall %}

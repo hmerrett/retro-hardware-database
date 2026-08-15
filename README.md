@@ -130,6 +130,12 @@ and deleting a machine or a host card unlinks what pointed at it. A computer
 carries its CPU, installed RAM and floppy/optical/CF-SD drives as attributes of
 the machine; mechanical hard disks, tape and expansion cards are parts.
 
+An item page is a stack of panels (`_panel.html`): each section -- the details, the
+machine, the board, the parts, the files, the photographs, the history -- is a box
+with its title on a band across the top. What used to say where one section ended
+and the next began was a gap and a bold word, which stops working once a section is
+itself a list of things with gaps inside them.
+
 A machine's parts are listed as one card each: the asset tag and the kind on a
 banded strip across the top, the name under it, and what the part is made of
 beneath that, as labelled pairs in columns. They were a table, and a table is what a
@@ -141,10 +147,14 @@ left every part as five loose cells with a rule somewhere in the middle of it, a
 nothing on the page saying which rule ended one part and began the next. A card says
 it, because everything about one part is inside one border. A part with nothing
 recorded gets no pairs at all, so the list also shows at a glance which parts have
-been written up. One template (`_partlist.html`) draws every place a part is
-listed -- the parts fitted in a machine, the parts mounted on a card, and the one
-motherboard above them -- since three designs for one thing is how they come to
-disagree; they differ only in what taking a part out is called.
+been written up. One template (`_partlist.html`) draws every list of things on a
+page -- the parts fitted in a machine, the parts mounted on a card, the motherboard
+above them, the files kept beside the register and the chips in a sealed machine's
+sockets -- since five designs for one thing is how they come to disagree. A list
+that is a panel's own content gives up its cards' borders and keeps their bands,
+edge to edge, the way a table's rows sit under its heading; a list nested deeper
+than that (the chips inside the machine panel) keeps its cards whole, which is what
+tells the two apart.
 
 `computers.topbench` is the one measured number in a record that otherwise says
 only what a machine was built as: what it scores in TopBench, the DOS benchmark

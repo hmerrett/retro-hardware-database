@@ -1,30 +1,29 @@
-{# A list of parts: the ones fitted in a machine, or the ones mounted on a card.
-   One card each -- the tag and the kind on a strip across the top, the name under
-   it, and what the part is made of beneath that.
+{# The things a page lists, drawn as cards: the parts fitted in a machine, the parts
+   mounted on a card, the files kept beside the register, the chips in a machine's
+   sockets. One card each -- what it is called on a strip across the top, and what it
+   is underneath.
 
-   It began as a table, and a table is what a part is not. The specs are the longest
-   thing about it and were a fourth column, so they took most of the width, squeezed
-   the tag and the name into a few characters each, and still wrapped to three lines;
-   moving them to a second row fixed the widths but left every part as five loose
-   cells with a thin rule somewhere in the middle, and nothing on the page said which
-   rule ended one part and began the next. A card says it: everything about one part
-   is inside one border, and the strip at the top is where the eye lands when it is
-   looking for a tag.
+   They began as tables, and a table is what none of them is. The specs are the
+   longest thing about a part and were a fourth column, so they took most of the
+   width, squeezed the tag and the name into a few characters each, and still wrapped
+   to three lines; putting them on a second row fixed the widths but left every part
+   as five loose cells with a rule somewhere in the middle of it, and nothing on the
+   page told you which rule ended one part and began the next. A card says it:
+   everything about one thing is inside one border, and the strip at the top is where
+   the eye lands when it is looking for a tag.
 
-   The specs are labelled pairs in tracks rather than a run of "Key: value |", as
-   many across as the card has room for. A part with nothing recorded gets no pairs
-   at all, so the list also shows at a glance which parts have been written up and
-   which are still just a name.
+   One template for all of them, so a machine's parts, a card's mounted parts, the
+   motherboard above them and the files beside them cannot come to look like four
+   different things. Inside a panel the cards give up their own border and keep their
+   bands, since the panel has already drawn the box (see _panel.html). #}
 
-   Everywhere a part is listed uses this -- a machine's parts, a card's mounted
-   parts, and the one motherboard above them -- so they cannot come to look like
-   three different things. They differ only in what taking a part out is called:
-   unlinked from a machine, unmounted from the card it sits on. `authed` is passed in
-   because an imported macro does not see the request. #}
+{# Parts. `endpoint`/`label` are what taking one out is called -- unlinked from a
+   machine, unmounted from the card it sits on -- and `authed` is passed in because
+   an imported macro does not see the request. #}
 {% macro cards(parts, endpoint, label, back, authed) %}
-<div class="partcards">
+<div class="itemcards">
   {% for p in parts %}
-  <article class="partcard">
+  <article class="itemcard">
     <header>
       <a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>
       <span class="muted">· {{ type_label(p.type) }}</span>
@@ -50,4 +49,66 @@
   <div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{{ v }}</dd></div>
   {% endfor %}
 </dl>
+{% endmacro %}
+
+{# Files. The name is what a file is known by, so it goes where a part's name goes,
+   and the size rides on the strip with it -- it is the one thing you want before
+   clicking a download. The names it is filed under are an editable box for whoever
+   can edit, because re-filing is the thing most often wanted here, and plain chips
+   for everyone else. `back` is where the re-file and the delete return to. #}
+{% macro filecards(files, back, authed) %}
+<div class="itemcards">
+  {% for f in files %}
+  <article class="itemcard">
+    <header>
+      <span class="muted">{{ human_size(f.size) }}</span>
+      {% if f.created_at %}<span class="muted">· {{ log_stamp(f.created_at, authed) }}</span>{% endif %}
+      {% if authed %}
+      <form method="post" action="/files/{{ f.id }}/delete"
+            onsubmit="return confirm('Delete {{ f.filename }}? It goes from every item filed under its names.')">
+        <input type="hidden" name="next" value="{{ back }}">
+        <button class="btn sm danger" type="submit">delete</button></form>
+      {% endif %}
+    </header>
+    <h4><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a></h4>
+    {% if f.note %}<div class="cardrow"><span>{{ f.note }}</span></div>{% endif %}
+    <div class="cardrow">
+      <span class="lbl">Filed under</span>
+      {% if authed %}
+      <form method="post" action="/files/{{ f.id }}/tags">
+        <input type="hidden" name="next" value="{{ back }}">
+        <input name="tags" value="{{ f.tags | join(', ') }}" aria-label="names this file is for">
+        <button class="btn sm" type="submit">re-file</button>
+      </form>
+      {% else %}{% for t in f.tags %}<span class="chip">{{ t }}</span>{% endfor %}{% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{# The chips in a sealed machine's sockets. Small enough to sit side by side, and
+   what is written in one is a part number: the socket the catalogue names goes on
+   the strip with whether the chip sits in one, and the marking underneath.
+
+   The tick is on the strip rather than in a column of its own because there is no
+   column here to put it in, and it belongs with the socket: it answers "how is this
+   one held", which is a fact about the socket and not about the number marked on the
+   chip. Nothing is shown where nobody has looked -- that is neither answer. #}
+{% macro chipcards(chips) %}
+<div class="cardgrid">
+  {% for chip in chips %}
+  {% set held = 'in a socket' if chip.socketed else 'soldered to the board' %}
+  <article class="itemcard">
+    <header>
+      <span>{{ chip.label }}</span>
+      {% if chip.socketed is not none %}
+      <span class="grow"></span>
+      <span role="img" aria-label="{{ held }}" title="{{ held }}">{{ '✓' if chip.socketed else '✗' }}</span>
+      {% endif %}
+    </header>
+    <h4>{{ chip.variant }}</h4>
+  </article>
+  {% endfor %}
+</div>
 {% endmacro %}

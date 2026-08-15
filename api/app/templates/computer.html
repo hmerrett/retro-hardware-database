@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% import "_icons.html" as I %}
+{% import "_panel.html" as PN %}
+{% import "_partlist.html" as P %}
 {% block title %}{{ og.title }}{% if og.title != c.asset_id %} · {{ c.asset_id }}{% endif %} — Retro Hardware Database{% endblock %}
 {% block content %}
 <div class="crumbnav">
@@ -44,6 +46,9 @@
 <div class="detail">
   <div class="detail-main">
     {% if c.summary %}<p class="summary">{{ c.summary }}</p>{% endif %}
+    {# The machine's own facts. A panel like every other section of the page, so what
+       the register knows about it and what is fitted in it are read the same way. #}
+    {% call PN.panel('Details') %}
     <table class="kv">
     {% for k, v in [('Manufacturer', c.manufacturer), ('Model', c.model), ('Year', c.year),
                     ('Form factor', form_factor),
@@ -55,40 +60,30 @@
     {% endfor %}
     {% if c.url %}<tr><th>Reference</th><td class="wrap"><a href="{{ c.url }}" target="_blank">{{ c.url }}</a></td></tr>{% endif %}
     </table>
+    {% endcall %}
 
     {# What a sealed machine has instead of a parts list: which catalogue model it is,
        which of that model's builds this one is, and what is in its sockets. Nothing
        here is a tagged part -- nobody shelves a ULA -- so this is the only place a
        Spectrum's board issue or a C64's SID is written down. #}
     {% if machine %}
-    <div class="section">
-      <h3 style="margin:0 0 6px">Machine</h3>
+    {% call PN.panel('Machine') %}
       <table class="kv">
         <tr><th>Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
         {% for label, value in machine.rows %}
         <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
         {% endfor %}
       </table>
-      {# A table of their own, because the CPU row above says which processor this
-         model has and this one says what is marked on the chip in the socket -- two
-         different facts that would read as a contradiction side by side. #}
+      {# Kept apart from the rows above, because the CPU row there says which
+         processor this model has and these say what is marked on the chip in the
+         socket -- two different facts that would read as a contradiction side by
+         side. A card each, small enough to sit two or three across: what is written
+         on a chip is a part number, and a tick says how it is held. #}
       {% if machine.chips %}
       <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
-      {# How each is held gets a column rather than a sentence: down a list of six
-         sockets, a tick and a cross are read at a glance where "— soldered to the
-         board" six times over is not. Blank where nobody has looked, which is
-         neither answer. #}
-      <table class="kv">
-        <tr><th>Socket</th><th>Marked</th><th class="tick">Socketed</th></tr>
-        {% for chip in machine.chips %}
-        {% set held = 'in a socket' if chip.socketed else 'soldered to the board' %}
-        <tr><th>{{ chip.label }}</th><td>{{ chip.variant }}</td>
-          <td class="tick">{% if chip.socketed is not none %}<span role="img"
-            aria-label="{{ held }}" title="{{ held }}">{{ '✓' if chip.socketed else '✗' }}</span>{% endif %}</td></tr>
-        {% endfor %}
-      </table>
+      {{ P.chipcards(machine.chips) }}
       {% endif %}
-    </div>
+    {% endcall %}
     {% endif %}
 
     {# A catalogue machine is a sealed thing described by what it was built as, not
@@ -106,8 +101,7 @@
        driver disk it needs, the manual for it -- and the history is a log to be
        consulted rather than read, which is why it is last on the page. #}
     {% include "_files.html" %}
-    <div class="section">
-      <h3 style="margin:0 0 6px">History</h3>
+    {% call PN.panel('History') %}
       {% if request.state.authed %}
       <form method="post" action="/computers/{{ c.asset_id }}/note" class="notebar">
         <input name="message" placeholder="add a note, e.g. tested, cleaned, recapped" required>
@@ -123,8 +117,8 @@
         </tr>
         {% endfor %}
       </table>
-      {% else %}<p class="muted">No history yet.</p>{% endif %}
-    </div>
+      {% else %}<p class="muted" style="margin:0">No history yet.</p>{% endif %}
+    {% endcall %}
   </div>
   {% set obj = c %}{% set kind = "computers" %}
   {% include "_photocol.html" %}

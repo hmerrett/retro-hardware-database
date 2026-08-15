@@ -607,19 +607,31 @@ class TestWhereTheBoardAndPartsAreAskedFor:
         assert "Create motherboard" in client.get(f"/computers/{aid}").text
         assert "Create motherboard" not in client.get(f"/computers/{aid}/edit").text
 
-    def test_how_a_chip_is_held_is_a_column_of_ticks(self, client, db):
+    def test_how_a_chip_is_held_rides_on_the_socket(self, client, db):
         """Six sockets each ending in "— soldered to the board" is a paragraph; a
-        column of ticks and crosses is read at a glance."""
+        tick and a cross are read at a glance. Each socket is a card of its own, and
+        the mark sits on its strip beside the socket's name -- it answers how this
+        one is held, which is a fact about the socket rather than about the number
+        marked on the chip."""
         aid = self._c64(client)
         c = db.get(Computer, aid)
         machinedb.write(db, c, chips={"sid": "MOS 6581", "cpu": "MOS 6510"},
                         sockets={"sid": True, "cpu": False})
         db.commit()
         page = client.get(f"/computers/{aid}").text
-        assert "<th class=\"tick\">Socketed</th>" in page
+        assert '<div class="cardgrid">' in page
         assert 'aria-label="in a socket" title="in a socket">✓' in page
         assert 'aria-label="soldered to the board" title="soldered to the board">✗' \
             in page
+
+    def test_a_socket_nobody_has_looked_in_says_nothing(self, client, db):
+        """Neither answer is not the same as soldered."""
+        aid = self._c64(client)
+        c = db.get(Computer, aid)
+        machinedb.write(db, c, chips={"sid": "MOS 6581"}, sockets={})
+        db.commit()
+        page = client.get(f"/computers/{aid}").text
+        assert "MOS 6581" in page and "soldered to the board" not in page
 
 
 class TestACatalogueThatGrows:
