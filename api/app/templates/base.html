@@ -161,22 +161,32 @@
   td.tight, th.tight { white-space: nowrap; }
   .detail-main table th { white-space: nowrap; }
   th { color: var(--muted); font-weight: 500; font-size: 13px; }
-  /* A list of parts, where each part is two rows: what it is on top, what it is made
-     of underneath. One tbody per part, so the rule between rows is drawn between one
-     part and the next and never between a part and its own specs -- the two lines
-     have to read as one entry. */
-  table.parts tbody td { border-top: 0; }
-  table.parts tbody + tbody td { border-top: 1px solid var(--line); }
-  /* Indented under the row it belongs to, so the second line reads as part of the
-     entry above rather than as an entry of its own. */
-  table.parts tbody tr.specrow td { border-top: 0; padding: 0 8px 8px 26px; }
+  /* A part in a list of them. Everything about one part is inside one border, which
+     is the thing a table could not say: laid out as rows, a part was five loose cells
+     with a rule somewhere in the middle of it, and nothing on the page told you which
+     rule ended one part and began the next. */
+  .partcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .partcard { border: 1px solid var(--line); border-radius: 10px; padding-bottom: 9px;
+    overflow: hidden; }
+  /* The strip the eye lands on when it is looking for a tag: what this part is
+     called in the register and what kind of thing it is, with the way out of the
+     machine at the far end. */
+  .partcard > header { display: flex; flex-wrap: wrap; align-items: center;
+    gap: 3px 8px; background: var(--chip); padding: 5px 10px; font-size: 13px;
+    margin-bottom: 8px; }
+  .partcard > header form { margin: 0 0 0 auto; }
+  /* The name is the part itself and carries the weight; the strip above it is
+     labelling. anywhere, because a name like "TMC/MyComp/MyNix/Megastar AI5TV" is
+     one unbreakable word to a browser and would otherwise widen the card. */
+  .partcard > h4 { margin: 0 10px; font-size: 14px; font-weight: 600;
+    overflow-wrap: anywhere; }
   /* The specs themselves: label and value paired, as many pairs across as the width
      allows, in tracks so the pairs line up down the page instead of landing wherever
      the previous value happened to end. min(Npx, 100%) for the same reason the count
      grids use it -- a narrower screen than one track drops to one column rather than
      hanging off the side. */
   dl.specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
-    gap: 2px 18px; margin: 0; }
+    gap: 2px 18px; margin: 7px 10px 0; }
   dl.specs > div { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
   /* The label is the quiet half: it is the same six words down every part in the
      list, and what is being read is the values beside them. */

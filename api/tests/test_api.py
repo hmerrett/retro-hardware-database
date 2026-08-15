@@ -3884,11 +3884,20 @@ class TestThePartsAndWhatTheyAreMadeOf:
     column: a card's specs are longer than the rest of the row put together, and as
     a column they took the width the asset id and the name needed."""
 
-    def test_the_specs_are_not_a_column_of_the_table(self, client, computer, part):
+    def test_the_specs_are_not_a_column_of_a_table(self, client, computer, part):
         aid = computer()["asset_id"]
         part(type="video", computer_id=aid, specs="Chip: S3 Trio64")
         page = client.get(f"/computers/{aid}").text
         assert "<th>Specs</th>" not in page
+
+    def test_each_part_is_one_card(self, client, computer, part):
+        """Everything about a part inside one border: the tag and the kind on the
+        strip, the name under it, the specs beneath that."""
+        aid = computer()["asset_id"]
+        part(type="video", computer_id=aid, name="Stealth 24", specs="Chip: S3")
+        page = client.get(f"/computers/{aid}").text
+        assert page.count('<article class="partcard">') == 1
+        assert "Stealth 24</h4>" in page
 
     def test_they_are_shown_as_labelled_pairs_below_the_part(self, client, computer,
                                                             part):
@@ -3903,7 +3912,9 @@ class TestThePartsAndWhatTheyAreMadeOf:
                                                               computer, part):
         aid = computer()["asset_id"]
         part(type="peripheral", computer_id=aid, name="Keyboard")
-        assert '<tr class="specrow">' not in client.get(f"/computers/{aid}").text
+        page = client.get(f"/computers/{aid}").text
+        assert '<article class="partcard">' in page
+        assert '<dl class="specs">' not in page
 
     def test_a_card_s_mounted_parts_are_listed_the_same_way(self, client, part):
         """One list, two places: a machine's parts and a card's mounted parts are
@@ -3912,14 +3923,17 @@ class TestThePartsAndWhatTheyAreMadeOf:
         part(type="storage", parent_id=host, specs="Interface: IDE")
         page = client.get(f"/parts/{host}").text
         assert "<th>Specs</th>" not in page
+        assert '<article class="partcard">' in page
         assert "<dt>Interface</dt><dd>IDE</dd>" in page
 
-    def test_the_board_above_them_says_its_own_the_same_way(self, client, computer,
-                                                            part):
+    def test_the_board_above_them_is_drawn_as_one_too(self, client, computer, part):
+        """A section that said a board's specs a second way would be two designs for
+        one thing, and the board has the longest set of them on the page."""
         aid = computer()["asset_id"]
         part(type="motherboard", computer_id=aid, specs="Chipset: SiS 496")
-        assert "<dt>Chipset</dt><dd>SiS 496</dd>" in client.get(
-            f"/computers/{aid}").text
+        page = client.get(f"/computers/{aid}").text
+        assert page.count('<article class="partcard">') == 1
+        assert "<dt>Chipset</dt><dd>SiS 496</dd>" in page
 
 
 class TestAHistoryThatReadsAsOneSitting:

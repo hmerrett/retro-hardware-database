@@ -94,7 +94,7 @@
     <div class="section">
       <h3 style="margin:0 0 6px">Mounted parts <span class="muted">({{ children|length }})</span></h3>
       {% if children %}
-      {{ P.table(children, 'detach', 'unmount', '/parts/' + p.asset_id, request.state.authed) }}
+      {{ P.cards(children, 'detach', 'unmount', '/parts/' + p.asset_id, request.state.authed) }}
       {% else %}<p class="muted">Nothing mounted on this card yet.</p>{% endif %}
       {% if build_host %}
       <div class="toolbar">

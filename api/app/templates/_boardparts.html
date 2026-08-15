@@ -17,17 +17,13 @@
 <!-- Motherboard: link an existing unlinked board, or create one now. -->
 <div class="section">
   <h3 style="margin:0 0 6px">Motherboard</h3>
+  {# The board is a part like the ones below it and is drawn as one: it has the
+     longest set of specs on the page -- a chipset, a CPU family, a form factor, a
+     cache size and a BIOS -- and a section that said them a second way would be two
+     designs for one thing. #}
   {% if motherboard %}
-    {# The board's specs go below its name for the same reason the parts below do:
-       a chipset, a CPU family, a form factor, a cache size and a BIOS trailing off
-       the end of one line is the longest run of them on the page. #}
-    <p><a href="/parts/{{ motherboard.asset_id }}">{{ motherboard.asset_id }}</a>
-       {{ display_name({'name': motherboard.name, 'manufacturer': motherboard.manufacturer, 'model': motherboard.model, 'asset_id': motherboard.asset_id}) }}
-       {% if request.state.authed %}
-       <form class="inline-form" method="post" action="/parts/{{ motherboard.asset_id }}/unlink"><input type="hidden" name="next" value="/computers/{{ c.asset_id }}"><button class="btn sm" type="submit">unlink</button></form>
-       {% endif %}</p>
-    {% set mb_pairs = parse_specs(motherboard.specs) %}
-    {% if mb_pairs %}{{ P.speclist(mb_pairs) }}{% endif %}
+    {{ P.cards([motherboard], 'unlink', 'unlink', '/computers/' + c.asset_id,
+               request.state.authed) }}
   {% else %}
     <p class="muted">No motherboard linked yet.</p>
     {% if request.state.authed %}
@@ -77,6 +73,6 @@
   </div>
   {% endif %}
   {% if parts %}
-  {{ P.table(parts, 'unlink', 'unlink', '/computers/' + c.asset_id, request.state.authed) }}
+  {{ P.cards(parts, 'unlink', 'unlink', '/computers/' + c.asset_id, request.state.authed) }}
   {% endif %}
 </div>
