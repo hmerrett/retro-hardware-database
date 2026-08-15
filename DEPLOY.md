@@ -56,6 +56,28 @@ docker image prune -f            # tidy up old layers
   Then check it took, rather than trusting that it did:
   `docker compose exec caddy cat /etc/caddy/Caddyfile`.
 
+## The bare domain
+
+`2600.me` and `www.2600.me` are not sites of their own: Caddy answers both with a
+301 to `https://db.2600.me{uri}`, so a path survives the trip and an old link lands
+where it was going rather than on the front page.
+
+Each name needs its own certificate, and getting one needs its A record pointing at
+this host: the ACME challenge is fetched over HTTP from wherever the name resolves,
+so until it resolves here the answer comes from somewhere else or from nowhere.
+Caddy retries in the background and backs off as it goes, so after the DNS lands the
+quickest way to have it try again at once is to recreate the container:
+
+```sh
+docker compose up -d --force-recreate caddy
+docker compose logs caddy --tail=40 | grep -i 2600.me
+```
+
+The log says which problem it is: `Connection refused` at another address means the
+name still points at the old host, and `NXDOMAIN` means there is no record yet.
+Do not recreate it in a loop while waiting -- Let's Encrypt rate-limits failed
+validations per name per hour, and the backoff exists to stay under that.
+
 ## Data is safe across deploys
 
 These live in Docker named volumes, not in the image, so rebuilds never touch

@@ -2,6 +2,27 @@
 	email h@2600.me
 }
 
+# The bare domain and its www, which are not sites of their own: the register is
+# what is at 2600.me, and anyone arriving at either of these is looking for it. 301
+# rather than 302, because this is not a temporary arrangement -- browsers and search
+# engines are meant to remember it and stop asking.
+#
+# {uri} rather than a bare host, so a path survives the trip: an old link to
+# 2600.me/parts/RH-0001 lands on that part rather than on the front page having
+# quietly lost where it was going.
+#
+# Both names need a certificate of their own, which needs their A records pointing
+# at this host first: the challenge is fetched over HTTP from wherever the name
+# resolves to, so until it resolves here the answer comes from somewhere else or
+# from nowhere. Caddy retries in the background, backing off as it goes, and says
+# which of the two it is in its log (a refused connection means the name still
+# points at the old host; NXDOMAIN means there is no record yet). db.2600.me below
+# is unaffected throughout -- a certificate that cannot be had for one site does not
+# disturb another, and its own is already issued and renewing.
+2600.me, www.2600.me {
+	redir https://db.2600.me{uri} permanent
+}
+
 db.2600.me {
 	log {
 		output file /var/log/caddy/access.log {
