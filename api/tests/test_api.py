@@ -6,7 +6,7 @@ left pointing at deleted rows, and derived strings being written to directly.
 """
 import html
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import ClassVar
@@ -3920,3 +3920,96 @@ class TestThePartsAndWhatTheyAreMadeOf:
         part(type="motherboard", computer_id=aid, specs="Chipset: SiS 496")
         assert "<dt>Chipset</dt><dd>SiS 496</dd>" in client.get(
             f"/computers/{aid}").text
+
+
+class TestAHistoryThatReadsAsOneSitting:
+    """Clearing out a folder of photographs writes one history line per photograph,
+    and twenty of those bury what the machine's history is actually for. A run of
+    the same thing, done in one sitting, reads as one line -- while the rows behind
+    it stay one per action."""
+
+    @staticmethod
+    def log_rows(client, aid, kind="computers"):
+        page = client.get(f"/{kind}/{aid}").text
+        section = page.split("History", 1)[1]
+        return re.findall(r"<td style=\"white-space:pre-line\">(.*?)</td>", section)
+
+    @staticmethod
+    def repeat(db, aid, message, times, apart_minutes=1, day=1):
+        """`times` of the same thing, `apart_minutes` apart, oldest first."""
+        from app.models import LogEntry
+        when = datetime(2026, 8, day, 12, 0)
+        for i in range(times):
+            db.add(LogEntry(asset_id=aid, created_at=when + timedelta(
+                minutes=i * apart_minutes), kind="change", message=message))
+        db.commit()
+
+    def test_ten_deleted_photos_are_one_line(self, client, computer, db):
+        aid = computer()["asset_id"]
+        self.repeat(db, aid, "deleted a photo", 10)
+        rows = self.log_rows(client, aid)
+        assert "deleted 10 photos" in rows
+        assert "deleted a photo" not in rows
+
+    def test_one_of_a_thing_is_still_written_as_one(self, client, computer, db):
+        aid = computer()["asset_id"]
+        self.repeat(db, aid, "deleted a photo", 1)
+        assert "deleted a photo" in self.log_rows(client, aid)
+
+    def test_the_same_thing_a_week_later_is_its_own_line(self, client, computer, db):
+        aid = computer()["asset_id"]
+        self.repeat(db, aid, "deleted a photo", 2, apart_minutes=60 * 24 * 7)
+        assert self.log_rows(client, aid).count("deleted a photo") == 2
+
+    def test_a_long_tidying_session_is_still_one_line(self, client, computer, db):
+        """Chained, not windowed from the first: twenty photographs deleted a couple
+        of minutes apart is one sitting however long it ran."""
+        aid = computer()["asset_id"]
+        self.repeat(db, aid, "deleted a photo", 20, apart_minutes=2)
+        assert "deleted 20 photos" in self.log_rows(client, aid)
+
+    def test_two_different_things_are_not_folded_together(self, client, computer, db):
+        aid = computer()["asset_id"]
+        self.repeat(db, aid, "rotated a photo", 2, day=1)
+        self.repeat(db, aid, "deleted a photo", 3, day=2)
+        rows = self.log_rows(client, aid)
+        assert "rotated 2 photos" in rows and "deleted 3 photos" in rows
+
+    def test_a_message_naming_no_single_thing_takes_a_count(self, client, computer,
+                                                            db):
+        aid = computer()["asset_id"]
+        self.repeat(db, aid, "changed the default photo", 3)
+        assert "changed the default photo ×3" in self.log_rows(client, aid)
+
+    def test_a_note_is_never_folded(self, client, computer):
+        """A note is a person's own words about the machine and stands as written,
+        however like the last one it reads."""
+        aid = computer()["asset_id"]
+        for _ in range(3):
+            client.post(f"/computers/{aid}/note", data={"message": "tested"},
+                        follow_redirects=False)
+        page = client.get(f"/computers/{aid}").text
+        assert page.count("note</span> tested") == 3
+
+    def test_the_record_behind_it_is_untouched(self, client, computer, db):
+        """The page reads the history this way; it does not rewrite it. The rows
+        stay one per action, and the API still lists every one."""
+        aid = computer()["asset_id"]
+        self.repeat(db, aid, "deleted a photo", 10)
+        messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+        assert messages.count("deleted a photo") == 10
+
+    def test_a_parts_history_folds_the_same_way(self, client, part, db):
+        aid = part()["asset_id"]
+        self.repeat(db, aid, "deleted a photo", 4)
+        assert "deleted 4 photos" in self.log_rows(client, aid, "parts")
+
+
+class TestWhereTheFilesSit:
+    def test_they_come_before_the_history(self, client, computer, part):
+        """Files are part of what the item is -- the driver disk it needs, the
+        manual for it. The history is a log to be consulted, so it goes last."""
+        for kind, aid in (("computers", computer()["asset_id"]),
+                          ("parts", part()["asset_id"])):
+            page = client.get(f"/{kind}/{aid}").text
+            assert page.index("Files") < page.index(">History<")

@@ -102,6 +102,10 @@
     {% include "_boardparts.html" %}
     {% endif %}
 
+    {# Above the history, because the files are part of what this machine is -- the
+       driver disk it needs, the manual for it -- and the history is a log to be
+       consulted rather than read, which is why it is last on the page. #}
+    {% include "_files.html" %}
     <div class="section">
       <h3 style="margin:0 0 6px">History</h3>
       {% if request.state.authed %}
@@ -121,7 +125,6 @@
       </table>
       {% else %}<p class="muted">No history yet.</p>{% endif %}
     </div>
-    {% include "_files.html" %}
   </div>
   {% set obj = c %}{% set kind = "computers" %}
   {% include "_photocol.html" %}

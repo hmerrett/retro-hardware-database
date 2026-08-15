@@ -30,7 +30,12 @@ MCP server listen on localhost and are reached through the proxy or on the host.
 Beyond browsing and editing: photo upload with rotate/crop and a chosen default
 image; a per-photo "reference image" marker for a picture of the same model
 rather than this exact unit, badged with the source site's favicon; a dated
-history for every asset (automatic change records plus free-text notes);
+history for every asset (automatic change records plus free-text notes, with a run
+of the same thing done in one sitting -- ten photographs deleted one after another
+-- read out as one line);
+the files kept beside the register (a driver disk, a manual, a ROM dump), shown on
+every item tagged with a name they are for and sitting above the history, since
+they are part of what the item is where the history is a log to be consulted;
 printable label PDFs; duplicating an item; marking one disposed and restoring it;
 deleting a disposed record for good; and a build walk that steps through a
 machine's motherboard and cards.

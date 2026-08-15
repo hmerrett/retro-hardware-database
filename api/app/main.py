@@ -13,11 +13,13 @@ import base64
 import hashlib
 import os
 import random
+import re
 import secrets
 import shutil
 from collections import Counter
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 import json
 from urllib.parse import quote, urlparse
 from xml.sax.saxutils import escape
@@ -1112,6 +1114,61 @@ def add_log(db, asset_id, message, kind="change"):
 def item_log(db, asset_id):
     return (db.query(LogEntry).filter(LogEntry.asset_id == asset_id)
             .order_by(LogEntry.created_at.desc(), LogEntry.id.desc()).all())
+
+
+# How far apart two of the same thing can be and still be one sitting. Long enough
+# to cover picking the next photo out of a folder, short enough that coming back to
+# the same machine after tea is a separate line.
+FOLD_WINDOW = timedelta(minutes=5)
+
+# "deleted a photo" ten times over is "deleted 10 photos", which is the sentence a
+# person would have written. Where a message does not name a single thing that way,
+# the count is appended instead rather than guessed at.
+_ONE_OF = re.compile(r"\ba (photo|file)\b")
+
+
+def _folded_message(message, n):
+    if n < 2:
+        return message
+    plural, hit = _ONE_OF.subn(lambda m: f"{n} {m.group(1)}s", message, count=1)
+    return plural if hit else f"{message} ×{n}"
+
+
+def _fold_log(entries):
+    """The history as a page shows it, with a run of the same thing done over and
+    over collapsed into one line.
+
+    Clearing out a folder of photographs writes "deleted a photo" once per
+    photograph, and twenty of those push the history the machine actually has --
+    what it was fitted with, what was corrected -- off the bottom of the page. They
+    are one action to the person who did them, so they read as one line.
+
+    Only entries next to each other, saying exactly the same thing, and within
+    FOLD_WINDOW of the one before: a chain, so a long tidying session is still one
+    line, while the same thing done again next week is its own. A note is never
+    folded -- it is a person's own words about the machine, and it stands as
+    written, however like the last one it reads.
+
+    The record itself is untouched: the rows stay one per action, and the API's log
+    still lists them. This is how the page reads them out.
+    """
+    out = []
+    for e in entries:
+        last = out[-1] if out else None
+        if (last is not None and e.kind != "note" and last.kind == e.kind
+                and last.message == e.message and last.created_at and e.created_at
+                and last.oldest - e.created_at <= FOLD_WINDOW):
+            last.count += 1
+            last.oldest = e.created_at
+            continue
+        out.append(SimpleNamespace(created_at=e.created_at, kind=e.kind,
+                                   message=e.message, count=1,
+                                   oldest=e.created_at))
+    # Newest first, so a run's own stamp is the last time it was done; the count in
+    # the message says the rest.
+    for e in out:
+        e.message = _folded_message(e.message, e.count)
+    return out
 
 
 def log_stamp(created_at, authed):
@@ -2634,7 +2691,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "link_candidates": link_candidates, "images": images,
         "ref_marks": reference_marks("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
-        "log": item_log(db, aid), "nav": _item_nav(db, aid),
+        "log": _fold_log(item_log(db, aid)), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer")})
@@ -3421,7 +3478,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "candidates": candidates, "computers": computers,
         "images": images, "ref_marks": reference_marks("parts", aid),
         "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
-        "log": item_log(db, aid), "nav": _item_nav(db, aid),
+        "log": _fold_log(item_log(db, aid)), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, p.asset_id, p.manufacturer,
