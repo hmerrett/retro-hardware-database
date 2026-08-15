@@ -13,16 +13,21 @@
    The forms here post to their own endpoints, so on the edit page this has to sit
    outside the form that saves the machine: nesting one form in another is not
    something a browser will do. #}
+{% import "_partlist.html" as P %}
 <!-- Motherboard: link an existing unlinked board, or create one now. -->
 <div class="section">
   <h3 style="margin:0 0 6px">Motherboard</h3>
   {% if motherboard %}
+    {# The board's specs go below its name for the same reason the parts below do:
+       a chipset, a CPU family, a form factor, a cache size and a BIOS trailing off
+       the end of one line is the longest run of them on the page. #}
     <p><a href="/parts/{{ motherboard.asset_id }}">{{ motherboard.asset_id }}</a>
        {{ display_name({'name': motherboard.name, 'manufacturer': motherboard.manufacturer, 'model': motherboard.model, 'asset_id': motherboard.asset_id}) }}
-       <span class="muted">{{ motherboard.specs }}</span>
        {% if request.state.authed %}
        <form class="inline-form" method="post" action="/parts/{{ motherboard.asset_id }}/unlink"><input type="hidden" name="next" value="/computers/{{ c.asset_id }}"><button class="btn sm" type="submit">unlink</button></form>
        {% endif %}</p>
+    {% set mb_pairs = parse_specs(motherboard.specs) %}
+    {% if mb_pairs %}{{ P.speclist(mb_pairs) }}{% endif %}
   {% else %}
     <p class="muted">No motherboard linked yet.</p>
     {% if request.state.authed %}
@@ -72,19 +77,6 @@
   </div>
   {% endif %}
   {% if parts %}
-  <table>
-    <tr><th class="tight">Asset</th><th class="tight">Type</th><th>Name</th><th>Specs</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
-    {% for p in parts %}
-    <tr>
-      <td class="tight"><a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a></td>
-      <td class="tight">{{ type_label(p.type) }}</td>
-      <td>{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}{% if p.disposed %} <span class="chip">disposed</span>{% endif %}</td>
-      <td class="muted">{{ p.specs }}</td>
-      {% if request.state.authed %}
-      <td><form method="post" action="/parts/{{ p.asset_id }}/unlink" style="margin:0"><input type="hidden" name="next" value="/computers/{{ c.asset_id }}"><button class="btn sm" type="submit">unlink</button></form></td>
-      {% endif %}
-    </tr>
-    {% endfor %}
-  </table>
+  {{ P.table(parts, 'unlink', 'unlink', '/computers/' + c.asset_id, request.state.authed) }}
   {% endif %}
 </div>

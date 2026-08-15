@@ -50,6 +50,11 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "tem
 templates.env.globals.update(
     display_name=entry.display_name, type_label=entry.type_label,
     bezel_css=entry.bezel_css,
+    # For the pages that list parts rather than show one: a part's rendered specs
+    # broken back into pairs so they can be laid out as labelled columns. The item's
+    # own page reads the typed tables instead (specdb.pairs) -- this is the same
+    # reading of the same string that the change log already takes of it.
+    parse_specs=entry.parse_specs,
     # Markup here rather than |safe at each use: the markup is ours, built by segno
     # from a URL the app made, and no template should have to remember that.
     qr_svg=lambda data: Markup(labels.qr_svg(data)),

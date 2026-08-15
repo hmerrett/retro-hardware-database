@@ -1,0 +1,60 @@
+{# A list of parts: the ones fitted in a machine, or the ones mounted on a card.
+   One row each, with what the part is made of on a line of its own underneath.
+
+   The specs used to be a fourth column, and a card's are longer than everything else
+   in the row put together -- "Chip: Trident TVGA9000B | Interface: ISA 16-bit |
+   Memory: 512KB | Connector: DE-15" beside an asset id and a name. The column took
+   most of the table's width, squeezed the name and the id it was sitting next to
+   into a few characters each, and still wrapped to three or four lines, so every
+   row stood that tall whether it had specs in it or not.
+
+   So the row says which part this is, and the line below it says what the part is:
+   the same pairs, laid out as labelled columns that the eye runs along rather than a
+   run of "Key: value |" to be read as a sentence. A part with nothing recorded gets
+   no second line at all, which is also how the list shows at a glance which parts
+   have been written up and which are still just a name.
+
+   Each part is one tbody, so its two rows cannot be split and the rule is drawn
+   between one part and the next rather than between a part and its own specs.
+
+   Both places that list parts use this, so they are read the same way; they differ
+   only in what taking a part out is called -- unlinked from a machine, unmounted
+   from the card it sits on. `authed` is passed in because an imported macro does not
+   see the request. #}
+{% macro table(parts, endpoint, label, back, authed) %}
+<table class="parts">
+  <thead>
+    <tr><th class="tight">Asset</th><th class="tight">Type</th><th>Name</th>{% if authed %}<th></th>{% endif %}</tr>
+  </thead>
+  {% for p in parts %}
+  <tbody>
+    <tr>
+      <td class="tight"><a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a></td>
+      <td class="tight">{{ type_label(p.type) }}</td>
+      <td>{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}{% if p.disposed %} <span class="chip">disposed</span>{% endif %}</td>
+      {% if authed %}
+      <td class="tight"><form method="post" action="/parts/{{ p.asset_id }}/{{ endpoint }}" style="margin:0"><input type="hidden" name="next" value="{{ back }}"><button class="btn sm" type="submit">{{ label }}</button></form></td>
+      {% endif %}
+    </tr>
+    {% set pairs = parse_specs(p.specs) %}
+    {% if pairs %}
+    <tr class="specrow">
+      <td colspan="{{ 4 if authed else 3 }}">{{ speclist(pairs) }}</td>
+    </tr>
+    {% endif %}
+  </tbody>
+  {% endfor %}
+</table>
+{% endmacro %}
+
+{# The pairs themselves, wherever a part's specs are shown in passing rather than on
+   its own page. A spec typed with no key of its own -- what specstruct could not
+   parse and kept verbatim -- is shown as the value alone rather than under a blank
+   label, because an empty heading asks a question it has no answer to. #}
+{% macro speclist(pairs) %}
+<dl class="specs">
+  {% for k, v in pairs %}
+  <div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{{ v }}</dd></div>
+  {% endfor %}
+</dl>
+{% endmacro %}

@@ -3877,3 +3877,46 @@ class TestATopBenchScore:
                     data={"mach_model": "zx-spectrum-48k", "topbench": "187"},
                     follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["topbench"] == 187
+
+
+class TestThePartsAndWhatTheyAreMadeOf:
+    """A part's specs sit on a line of their own under the part, not in a fourth
+    column: a card's specs are longer than the rest of the row put together, and as
+    a column they took the width the asset id and the name needed."""
+
+    def test_the_specs_are_not_a_column_of_the_table(self, client, computer, part):
+        aid = computer()["asset_id"]
+        part(type="video", computer_id=aid, specs="Chip: S3 Trio64")
+        page = client.get(f"/computers/{aid}").text
+        assert "<th>Specs</th>" not in page
+
+    def test_they_are_shown_as_labelled_pairs_below_the_part(self, client, computer,
+                                                            part):
+        aid = computer()["asset_id"]
+        part(type="video", computer_id=aid, specs="Chip: S3 Trio64 | Interface: PCI")
+        page = client.get(f"/computers/{aid}").text
+        assert '<dl class="specs">' in page
+        assert "<dt>Chip</dt><dd>S3 Trio64</dd>" in page
+        assert "<dt>Interface</dt><dd>PCI</dd>" in page
+
+    def test_a_part_with_nothing_recorded_gets_no_second_line(self, client,
+                                                              computer, part):
+        aid = computer()["asset_id"]
+        part(type="peripheral", computer_id=aid, name="Keyboard")
+        assert '<tr class="specrow">' not in client.get(f"/computers/{aid}").text
+
+    def test_a_card_s_mounted_parts_are_listed_the_same_way(self, client, part):
+        """One list, two places: a machine's parts and a card's mounted parts are
+        the same thing and have to read alike."""
+        host = part(type="io", name="Multi-IO")["asset_id"]
+        part(type="storage", parent_id=host, specs="Interface: IDE")
+        page = client.get(f"/parts/{host}").text
+        assert "<th>Specs</th>" not in page
+        assert "<dt>Interface</dt><dd>IDE</dd>" in page
+
+    def test_the_board_above_them_says_its_own_the_same_way(self, client, computer,
+                                                            part):
+        aid = computer()["asset_id"]
+        part(type="motherboard", computer_id=aid, specs="Chipset: SiS 496")
+        assert "<dt>Chipset</dt><dd>SiS 496</dd>" in client.get(
+            f"/computers/{aid}").text

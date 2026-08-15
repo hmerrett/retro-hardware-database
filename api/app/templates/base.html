@@ -161,6 +161,27 @@
   td.tight, th.tight { white-space: nowrap; }
   .detail-main table th { white-space: nowrap; }
   th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  /* A list of parts, where each part is two rows: what it is on top, what it is made
+     of underneath. One tbody per part, so the rule between rows is drawn between one
+     part and the next and never between a part and its own specs -- the two lines
+     have to read as one entry. */
+  table.parts tbody td { border-top: 0; }
+  table.parts tbody + tbody td { border-top: 1px solid var(--line); }
+  /* Indented under the row it belongs to, so the second line reads as part of the
+     entry above rather than as an entry of its own. */
+  table.parts tbody tr.specrow td { border-top: 0; padding: 0 8px 8px 26px; }
+  /* The specs themselves: label and value paired, as many pairs across as the width
+     allows, in tracks so the pairs line up down the page instead of landing wherever
+     the previous value happened to end. min(Npx, 100%) for the same reason the count
+     grids use it -- a narrower screen than one track drops to one column rather than
+     hanging off the side. */
+  dl.specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+    gap: 2px 18px; margin: 0; }
+  dl.specs > div { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  /* The label is the quiet half: it is the same six words down every part in the
+     list, and what is being read is the values beside them. */
+  dl.specs dt { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
   .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap; }
   .btn:hover { background: var(--btn-hover); }
   .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }

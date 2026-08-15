@@ -125,6 +125,17 @@ and deleting a machine or a host card unlinks what pointed at it. A computer
 carries its CPU, installed RAM and floppy/optical/CF-SD drives as attributes of
 the machine; mechanical hard disks, tape and expansion cards are parts.
 
+A machine's parts are listed with what each one is made of on a line of its own
+underneath, as labelled pairs in columns, rather than in a `Specs` column beside
+the name. A card's specs are longer than the rest of its row put together, so as a
+column they took most of the table's width, squeezed the asset id and the name into
+a few characters each, and still wrapped -- which made every row that tall whether
+it had specs in it or not. A part with nothing recorded gets no second line, so the
+list also shows at a glance which parts have been written up. One template
+(`_partlist.html`) draws both the parts fitted in a machine and the parts mounted on
+a card, since they are the same list and differ only in what taking one out is
+called.
+
 `computers.topbench` is the one measured number in a record that otherwise says
 only what a machine was built as: what it scores in TopBench, the DOS benchmark
 that puts a PC in order against a table of known ones. It lives beside the CPU,

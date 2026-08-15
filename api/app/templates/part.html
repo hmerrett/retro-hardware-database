@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_icons.html" as I %}
 {% import "_colours.html" as CL %}
+{% import "_partlist.html" as P %}
 {% block title %}{{ og.title }}{% if og.title != p.asset_id %} · {{ p.asset_id }}{% endif %} — Retro Hardware Database{% endblock %}
 {% block content %}
 <div class="crumbnav">
@@ -93,20 +94,7 @@
     <div class="section">
       <h3 style="margin:0 0 6px">Mounted parts <span class="muted">({{ children|length }})</span></h3>
       {% if children %}
-      <table>
-        <tr><th class="tight">Asset</th><th class="tight">Type</th><th>Name</th><th>Specs</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
-        {% for ch in children %}
-        <tr>
-          <td class="tight"><a href="/parts/{{ ch.asset_id }}">{{ ch.asset_id }}</a></td>
-          <td class="tight">{{ type_label(ch.type) }}</td>
-          <td>{{ display_name({'name': ch.name, 'manufacturer': ch.manufacturer, 'model': ch.model, 'asset_id': ch.asset_id}) }}</td>
-          <td class="muted">{{ ch.specs }}</td>
-          {% if request.state.authed %}
-          <td><form method="post" action="/parts/{{ ch.asset_id }}/detach" style="margin:0"><input type="hidden" name="next" value="/parts/{{ p.asset_id }}"><button class="btn sm" type="submit">unmount</button></form></td>
-          {% endif %}
-        </tr>
-        {% endfor %}
-      </table>
+      {{ P.table(children, 'detach', 'unmount', '/parts/' + p.asset_id, request.state.authed) }}
       {% else %}<p class="muted">Nothing mounted on this card yet.</p>{% endif %}
       {% if build_host %}
       <div class="toolbar">
