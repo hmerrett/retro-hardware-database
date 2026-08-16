@@ -276,8 +276,9 @@ turn up in them. It runs from the 1975 Altair to the last of the 16-bit machines
 | **Japan** | Sega from the SG-1000 to the Saturn, Nintendo from the Game & Watch to the Virtual Boy, NEC's PC-88, PC-98 and PC Engine, Sharp's MZ, X1 and X68000, Fujitsu's FM line, SNK's Neo Geo, Sord, Casio, Epson, Epoch, Tomy, Toshiba, Sony, Hitachi, and twenty-five MSX machines from all of them |
 
 Families are offered alphabetically by who made them, and each family's machines
-oldest first. Both orders are worked out when the file is read, so a machine or a
-maker added anywhere in it still appears in the right place.
+alphabetically by name — with numbers read as numbers, so an Amiga 500 comes
+before an Amiga 1000. Both orders are worked out when the file is read, so a
+machine or a maker added anywhere in it still appears in the right place.
 
 Pick a model from the menu at the top of the machine form and two things happen:
 

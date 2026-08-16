@@ -143,16 +143,23 @@ class TestCatalogueConsistency:
         assert not [w for w in wanted if w not in have]
 
     def test_the_picker_is_in_an_order_a_person_can_guess(self):
-        """Seventy-odd makers is only usable if you can guess where to look, so
-        families are alphabetical by maker and each maker's machines are oldest
-        first -- both worked out on load, so neither depends on the file staying
-        tidy."""
+        """Seventy-odd makers and three hundred machines is only usable if you can
+        guess where to look, so both lists are alphabetical -- worked out on load,
+        so neither depends on the file staying tidy."""
         makers = [(f["manufacturer"] or f["name"]).casefold()
                   for f in machines.FAMILIES]
         assert makers == sorted(makers)
         for family in machines.FAMILIES:
-            years = [m["year"] for m in family["models"]]
-            assert years == sorted(years), family["name"]
+            names = [m["model"] for m in family["models"]]
+            assert names == sorted(names, key=machines._by_name), family["name"]
+
+    def test_a_number_in_a_name_sorts_as_a_number(self):
+        """Alphabetical by characters would file the Amiga 1000 before the 500 and
+        the 1040ST before the 520ST, which is not what anyone means by it."""
+        family = next(f for f in machines.FAMILIES if f["key"] == "amiga")
+        amiga = [m["model"] for m in family["models"]]
+        assert amiga.index("Amiga 500") < amiga.index("Amiga 1000")
+        assert amiga.index("Amiga 600") < amiga.index("Amiga 1200")
 
     def test_the_catalogue_for_the_form_covers_every_model(self):
         cat = machines.form_catalogue()

@@ -42,7 +42,7 @@ def render(families):
         " issue, the case, the region, the chips in the sockets.", WIDTH))
     out.append("")
     out.append(textwrap.fill(
-        "Listed alphabetically by maker, and each maker's machines oldest first."
+        "Listed alphabetically by maker, and alphabetically within each maker."
         " Where a machine was built by someone other than the maker it is filed"
         " under, that is given in brackets. The catalogue itself is"
         " api/app/machines.yaml; this list is generated from it by"

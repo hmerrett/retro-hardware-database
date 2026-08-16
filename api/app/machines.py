@@ -49,6 +49,7 @@ catalogue that half-loads and quietly offers a Spectrum no ULA.
 from __future__ import annotations
 
 import difflib
+import re
 from pathlib import Path
 
 import yaml
@@ -270,15 +271,26 @@ def load(path=None):
                 **({"manufacturer": _text(mod["manufacturer"], mat, "manufacturer")}
                    if mod.get("manufacturer") else {}),
             })
-        # Oldest first, whatever order they are written in -- the same reasoning as
-        # sorting the families, and it keeps a machine slotted in next to the one
-        # it was copied from from landing out of sequence. Python's sort is stable,
-        # so two machines of the same year stay as they were written (a Spectrum
-        # 16K before the 48K).
-        family["models"].sort(key=lambda m: m["year"])
+        # By name, whatever order they are written in -- the same reasoning as
+        # sorting the families, and it keeps a machine slotted in next to the one it
+        # was copied from from landing out of sequence.
+        family["models"].sort(key=lambda m: _by_name(m["model"]))
         families.append(family)
     families.sort(key=_by_maker)
     return families
+
+
+def _by_name(name):
+    """A model name in the order a person means by alphabetical, which is not the
+    order the characters are in: nearly every one of these names has a number in it,
+    and comparing "1000" against "500" a character at a time files the Amiga 1000
+    before the 500 and the 1040ST before the 520ST. So the digits are compared as
+    numbers and everything else as letters, case ignored."""
+    # Each chunk is (which kind, the number, the letters), so a name that starts
+    # with a digit and one that starts with a letter can still be compared -- an
+    # Atari 400 against an Atari Lynx. Numbers sort before letters.
+    return [(0, int(part), "") if part.isdigit() else (1, 0, part.casefold())
+            for part in re.split(r"(\d+)", name or "") if part != ""]
 
 
 def _by_maker(family):

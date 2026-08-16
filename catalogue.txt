@@ -7,52 +7,53 @@ fills in what is already known about that model, and asks only about
 what varies between two of them -- the board issue, the case, the
 region, the chips in the sockets.
 
-Listed alphabetically by maker, and each maker's machines oldest
-first. Where a machine was built by someone other than the maker it is
-filed under, that is given in brackets. The catalogue itself is
+Listed alphabetically by maker, and alphabetically within each maker.
+Where a machine was built by someone other than the maker it is filed
+under, that is given in brackets. The catalogue itself is
 api/app/machines.yaml; this list is generated from it by
 tools/catalogue_list.py.
 
 
 Acorn   -- 17
 ----------------------------------------------------------------------
-  Atom, BBC Micro Model A, BBC Micro Model B, Electron, BBC Micro
-  Model B+, BBC Master 128, BBC Master Compact, Archimedes A310,
-  Archimedes A440/1, Archimedes A3000, A5000, A3010, A3020, A4000, A4,
-  Risc PC 600, A7000
+  A4, A3010, A3020, A4000, A5000, A7000, Archimedes A310, Archimedes
+  A440/1, Archimedes A3000, Atom, BBC Master 128, BBC Master Compact,
+  BBC Micro Model A, BBC Micro Model B, BBC Micro Model B+, Electron,
+  Risc PC 600
 
 Amstrad   -- 13
 ----------------------------------------------------------------------
-  CPC 464, CPC 664, CPC 6128, PCW 8256, CPC 472, PCW 8512, PCW 9512,
-  464 Plus, 6128 Plus, GX4000, PCW 9256, NC100 Notepad, NC200 Notebook
+  464 Plus, 6128 Plus, CPC 464, CPC 472, CPC 664, CPC 6128, GX4000,
+  NC100 Notepad, NC200 Notebook, PCW 8256, PCW 8512, PCW 9256, PCW
+  9512
 
 Apple  (Apple II)   -- 7
 ----------------------------------------------------------------------
-  II, II+, III, IIe, IIc, IIgs, IIc Plus
+  II, II+, IIc, IIc Plus, IIe, IIgs, III
 
 Apple  (Apple Macintosh)   -- 28
 ----------------------------------------------------------------------
-  Lisa, Macintosh 128K, Macintosh 512K, Macintosh Plus, Macintosh SE,
-  Macintosh II, Macintosh IIx, Macintosh IIci, Macintosh Portable,
-  Macintosh SE/30, Macintosh IIsi, Macintosh IIfx, Macintosh Classic,
-  Macintosh LC, Macintosh Classic II, Macintosh Quadra 700, PowerBook
-  100, PowerBook 170, Macintosh LC II, PowerBook 180, PowerBook Duo
-  230, Macintosh Color Classic, Macintosh LC III, Macintosh Quadra
-  605, Macintosh Quadra 840AV, Power Macintosh 6100, Power Macintosh
-  7100, Power Macintosh 8100
+  Lisa, Macintosh 128K, Macintosh 512K, Macintosh Classic, Macintosh
+  Classic II, Macintosh Color Classic, Macintosh II, Macintosh IIci,
+  Macintosh IIfx, Macintosh IIsi, Macintosh IIx, Macintosh LC,
+  Macintosh LC II, Macintosh LC III, Macintosh Plus, Macintosh
+  Portable, Macintosh Quadra 605, Macintosh Quadra 700, Macintosh
+  Quadra 840AV, Macintosh SE, Macintosh SE/30, Power Macintosh 6100,
+  Power Macintosh 7100, Power Macintosh 8100, PowerBook 100, PowerBook
+  170, PowerBook 180, PowerBook Duo 230
 
 Atari  (Atari 8-bit)   -- 8
 ----------------------------------------------------------------------
-  400, 800, 1200XL, 600XL, 800XL, 65XE, 130XE, XE Game System
+  65XE, 130XE, 400, 600XL, 800, 800XL, 1200XL, XE Game System
 
 Atari  (Atari consoles)   -- 5
 ----------------------------------------------------------------------
-  2600, 5200, 7800, Lynx, Jaguar
+  2600, 5200, 7800, Jaguar, Lynx
 
 Atari  (Atari ST)   -- 12
 ----------------------------------------------------------------------
-  520ST, 520STM, 520STFM, 1040STF, Mega ST, STacy, 1040STE, 520STE,
-  TT030, Mega STE, ST Book, Falcon030
+  520ST, 520STE, 520STFM, 520STM, 1040STE, 1040STF, Falcon030, Mega
+  ST, Mega STE, ST Book, STacy, TT030
 
 Bally   -- 1
 ----------------------------------------------------------------------
@@ -68,25 +69,25 @@ Camputers   -- 1
 
 Casio   -- 3
 ----------------------------------------------------------------------
-  PV-1000, PV-2000, FP-1100
+  FP-1100, PV-1000, PV-2000
 
 Coleco   -- 2
 ----------------------------------------------------------------------
-  ColecoVision, Adam
+  Adam, ColecoVision
 
 Commodore  (Commodore 8-bit)   -- 11
 ----------------------------------------------------------------------
-  VIC-20, MAX Machine, 64, 116, SX-64, 16, Plus/4, 128, 64C, 128D, 64
-  Games System
+  16, 64, 64 Games System, 64C, 116, 128, 128D, MAX Machine, Plus/4,
+  SX-64, VIC-20
 
 Commodore  (Commodore Amiga)   -- 11
 ----------------------------------------------------------------------
-  Amiga 1000, Amiga 500, Amiga 2000, Amiga 1500, Amiga 3000, Amiga
-  500+, CDTV, Amiga 600, Amiga 1200, Amiga 4000, CD32
+  Amiga 500, Amiga 500+, Amiga 600, Amiga 1000, Amiga 1200, Amiga
+  1500, Amiga 2000, Amiga 3000, Amiga 4000, CD32, CDTV
 
 Commodore  (Commodore PET)   -- 6
 ----------------------------------------------------------------------
-  PET 2001, 3032, 4032, 8032, B128, 8296
+  3032, 4032, 8032, 8296, B128, PET 2001
 
 Compukit   -- 1
 ----------------------------------------------------------------------
@@ -102,7 +103,7 @@ Dragon   -- 3
 
 EACA   -- 2
 ----------------------------------------------------------------------
-  Video Genie EG3003, Colour Genie EG2000
+  Colour Genie EG2000, Video Genie EG3003
 
 Elektronika   -- 1
 ----------------------------------------------------------------------
@@ -146,7 +147,7 @@ Franklin   -- 1
 
 Fujitsu   -- 6
 ----------------------------------------------------------------------
-  FM-8, FM-7, FM-11, FM77AV, FM Towns, FM Towns Marty
+  FM77AV, FM Towns, FM Towns Marty, FM-7, FM-8, FM-11
 
 GCE   -- 1
 ----------------------------------------------------------------------
@@ -174,7 +175,7 @@ Jupiter Cantab   -- 1
 
 Kaypro   -- 2
 ----------------------------------------------------------------------
-  II, 2X
+  2X, II
 
 Luxor   -- 2
 ----------------------------------------------------------------------
@@ -206,14 +207,14 @@ MITS   -- 1
 
 MSX   -- 25
 ----------------------------------------------------------------------
-  HX-10 [Toshiba], VG-8020 [Philips], HitBit HB-75 [Sony], VG-8010
-  [Philips], CX5M [Yamaha], HX-20 [Toshiba], HitBit HB-101 [Sony],
-  V-20 [Canon], PHC-28 [Sanyo], DPC-200 [Daewoo], FC-200 [Goldstar],
-  ML-F80 [Mitsubishi], HC-7GB [JVC], SVI-728 [Spectravideo], HitBit
-  HB-501P [Sony], HB-F1XD [Sony], FS-A1 [Panasonic], VG-8235
-  [Philips], NMS 8250 [Philips], HB-F900 [Sony], FS-A1F [Panasonic],
-  HB-F1XV [Sony], FS-A1WSX [Panasonic], FS-A1ST [Panasonic], FS-A1GT
-  [Panasonic]
+  CX5M [Yamaha], DPC-200 [Daewoo], FC-200 [Goldstar], FS-A1
+  [Panasonic], FS-A1F [Panasonic], FS-A1GT [Panasonic], FS-A1ST
+  [Panasonic], FS-A1WSX [Panasonic], HB-F1XD [Sony], HB-F1XV [Sony],
+  HB-F900 [Sony], HC-7GB [JVC], HitBit HB-75 [Sony], HitBit HB-101
+  [Sony], HitBit HB-501P [Sony], HX-10 [Toshiba], HX-20 [Toshiba],
+  ML-F80 [Mitsubishi], NMS 8250 [Philips], PHC-28 [Sanyo], SVI-728
+  [Spectravideo], V-20 [Canon], VG-8010 [Philips], VG-8020 [Philips],
+  VG-8235 [Philips]
 
 Nascom   -- 2
 ----------------------------------------------------------------------
@@ -221,13 +222,13 @@ Nascom   -- 2
 
 NEC   -- 12
 ----------------------------------------------------------------------
-  PC-8001, PC-8801, PC-6001, PC-9801, PC-6601, PC-8801mkII SR,
-  PC-9801VM, PC-8801FH, PC Engine, PC Engine SuperGrafx, PC Engine
-  Duo, PC-9821
+  PC Engine, PC Engine Duo, PC Engine SuperGrafx, PC-6001, PC-6601,
+  PC-8001, PC-8801, PC-8801FH, PC-8801mkII SR, PC-9801, PC-9801VM,
+  PC-9821
 
 Nintendo   -- 7
 ----------------------------------------------------------------------
-  Game & Watch, Famicom, Entertainment System, Game Boy, Super
+  Entertainment System, Famicom, Game & Watch, Game Boy, Super
   Famicom, Super NES, Virtual Boy
 
 Ohio Scientific   -- 1
@@ -236,7 +237,7 @@ Ohio Scientific   -- 1
 
 Olivetti   -- 2
 ----------------------------------------------------------------------
-  M20, M10
+  M10, M20
 
 Oric   -- 3
 ----------------------------------------------------------------------
@@ -248,11 +249,11 @@ Osborne   -- 2
 
 Philips   -- 3
 ----------------------------------------------------------------------
-  Videopac G7000, P2000T, Videopac+ G7400
+  P2000T, Videopac G7000, Videopac+ G7400
 
 Pravetz   -- 2
 ----------------------------------------------------------------------
-  82, 8D
+  8D, 82
 
 Processor Technology   -- 1
 ----------------------------------------------------------------------
@@ -264,7 +265,7 @@ Research Machines   -- 3
 
 Robotron   -- 3
 ----------------------------------------------------------------------
-  Z9001, KC 85/3, A5105
+  A5105, KC 85/3, Z9001
 
 Science of Cambridge   -- 1
 ----------------------------------------------------------------------
@@ -272,19 +273,19 @@ Science of Cambridge   -- 1
 
 Sega   -- 11
 ----------------------------------------------------------------------
-  SG-1000, SC-3000, Mark III, Master System, Mega Drive, Master System
-  II, Game Gear, Mega Drive 2, Pico, Saturn, Nomad
+  Game Gear, Mark III, Master System, Master System II, Mega Drive,
+  Mega Drive 2, Nomad, Pico, Saturn, SC-3000, SG-1000
 
 Sharp   -- 11
 ----------------------------------------------------------------------
-  MZ-80K, PC-1211, MZ-80B, PC-1500, MZ-80A, MZ-700, X1, MZ-800,
-  X1turbo, MZ-2500, X68000
+  MZ-80A, MZ-80B, MZ-80K, MZ-700, MZ-800, MZ-2500, PC-1211, PC-1500,
+  X1, X1turbo, X68000
 
 Sinclair   -- 11
 ----------------------------------------------------------------------
-  ZX80, ZX81, ZX Spectrum 16K, ZX Spectrum 48K, ZX Spectrum+, QL, ZX
-  Spectrum 128, ZX Spectrum +2 [Amstrad], ZX Spectrum +2A [Amstrad],
-  ZX Spectrum +3 [Amstrad], ZX Spectrum +2B [Amstrad]
+  QL, ZX80, ZX81, ZX Spectrum 16K, ZX Spectrum 48K, ZX Spectrum 128,
+  ZX Spectrum +2 [Amstrad], ZX Spectrum +2A [Amstrad], ZX Spectrum +2B
+  [Amstrad], ZX Spectrum +3 [Amstrad], ZX Spectrum+
 
 SNK   -- 2
 ----------------------------------------------------------------------
@@ -304,9 +305,9 @@ Spectravideo   -- 2
 
 Tandy   -- 10
 ----------------------------------------------------------------------
-  TRS-80 Model I, TRS-80 Model II, TRS-80 Model III, Color Computer,
-  MC-10, TRS-80 Model 4, TRS-80 Model 100, Color Computer 2, TRS-80
-  Model 102, Color Computer 3
+  Color Computer, Color Computer 2, Color Computer 3, MC-10, TRS-80
+  Model 4, TRS-80 Model 100, TRS-80 Model 102, TRS-80 Model I, TRS-80
+  Model II, TRS-80 Model III
 
 Tangerine   -- 1
 ----------------------------------------------------------------------
@@ -318,11 +319,11 @@ Tatung   -- 1
 
 Texas Instruments   -- 3
 ----------------------------------------------------------------------
-  TI-99/4, TI-99/4A, Compact Computer 40
+  Compact Computer 40, TI-99/4, TI-99/4A
 
 Thomson   -- 6
 ----------------------------------------------------------------------
-  TO7, TO7/70, MO5, TO9, MO6, TO8
+  MO5, MO6, TO7, TO7/70, TO8, TO9
 
 Tomy   -- 1
 ----------------------------------------------------------------------
@@ -338,5 +339,5 @@ Videoton   -- 1
 
 VTech   -- 4
 ----------------------------------------------------------------------
-  CreatiVision, Laser 200, Laser 310, Laser 128
+  CreatiVision, Laser 128, Laser 200, Laser 310
 
