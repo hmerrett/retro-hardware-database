@@ -630,14 +630,14 @@ class TestInstalledRam:
                     data={"rammod:30p1m": "8", "installed_ram": ""},
                     follow_redirects=False)
         c = client.get(f"/api/computers/{aid}").json()
-        assert c["installed_ram"] == "8× 1MB 30-pin (8 MB)"
+        assert c["installed_ram"] == "8× 1MiB 30-pin (8 MiB)"
         assert c["installed_ram_kb"] == 8192
 
     def test_a_plain_amount_over_the_wire_becomes_a_number(self, client, computer):
         aid = computer()["asset_id"]
         c = client.patch(f"/api/computers/{aid}",
                          json={"installed_ram": "640KB"}).json()
-        assert c["installed_ram"] == "640 KB" and c["installed_ram_kb"] == 640
+        assert c["installed_ram"] == "640 KiB" and c["installed_ram_kb"] == 640
 
     def test_setting_a_total_does_not_wipe_a_breakdown(self, client, computer):
         aid = computer()["asset_id"]
@@ -646,12 +646,12 @@ class TestInstalledRam:
                     follow_redirects=False)
         c = client.patch(f"/api/computers/{aid}",
                          json={"installed_ram": "32MB"}).json()
-        assert c["installed_ram"] == "8× 1MB 30-pin (8 MB)"
+        assert c["installed_ram"] == "8× 1MiB 30-pin (8 MiB)"
 
     def test_replacing_a_total_with_a_note_does_not_leave_the_old_figure(
             self, client, computer):
         """Passing None once meant "leave the total alone", so the stale number
-        stayed and the string read '16 MB; 16MB (2 banks)'."""
+        stayed and the string read '16 MiB; 16MB (2 banks)'."""
         aid = computer()["asset_id"]
         client.patch(f"/api/computers/{aid}", json={"installed_ram": "16MB"})
         c = client.patch(f"/api/computers/{aid}",
@@ -965,15 +965,15 @@ class TestPickingAFloppySCapacity:
         assert "Size: 1.44MB" in self.specs(client, aid)
 
     def test_a_designation_is_not_turned_into_a_byte_count(self, client):
-        """1.44MB is 1475 KB only by convention. A RAM 'Size' is a quantity and
-        normalises to KB; a disk's is what the disk is called, and must not."""
+        """1.44MB is 1475 KiB only by convention. A RAM 'Size' is a quantity and
+        normalises to KiB; a disk's is what the disk is called, and must not."""
         aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
         specs = self.specs(client, aid)
-        assert "1475" not in specs and "KB" not in specs
+        assert "1475" not in specs and "KiB" not in specs
 
     def test_a_ram_size_still_normalises(self, client, db):
         """The other half of that guard: only storage is exempt, and a memory
-        amount still lands in the KB column that makes it sort and compare."""
+        amount still lands in the KiB column that makes it sort and compare."""
         from app.models import RamSpec
         r = client.post("/parts/new", data={"type": "ram", "spec_size": "4MB"},
                         follow_redirects=False)
@@ -1446,12 +1446,12 @@ class TestReopeningADriveOnWhatItSaved:
         ("Optical", "Kind: Optical | Interface: IDE | Media: CD-RW | Speed: 4×/2×/20×"),
         ("Hard disk", "Kind: Hard disk | Interface: SCSI | Protocol: SCSI | "
                       "Speed: 7200 rpm"),
-        ("Hard disk", 'Kind: Hard disk | Interface: IDE | Capacity: 540 MB | '
+        ("Hard disk", 'Kind: Hard disk | Interface: IDE | Capacity: 540 MiB | '
                       'CHS: 1057/16/63 | Form factor: 3.5"'),
         ("Tape", "Kind: Tape | Interface: SCSI | Media: QIC-80"),
         ("Floppy/Gotek", 'Kind: Floppy/Gotek | Interface: 34-pin floppy | '
                          'Media: 3.5" | Form factor: 5.25" | Size: 1.44MB'),
-        ("SD/CF card", "Kind: SD/CF card | Interface: CF | Capacity: 512 MB"),
+        ("SD/CF card", "Kind: SD/CF card | Interface: CF | Capacity: 512 MiB"),
     ]
 
     GROUPS = ("drive_speed", "drive_media", "drive_size", "drive_form",
@@ -2049,8 +2049,8 @@ class TestAFloppySSmallLabel:
 
     def test_a_hard_disk_reads_as_it_always_did(self):
         """One table serves both because the keys do not overlap."""
-        _, lines = self.body({"Capacity": "1281 MB", "CHS": "2482/16/63"})
-        assert lines == ["1281 MB", "CHS 2482/16/63"]
+        _, lines = self.body({"Capacity": "1281 MiB", "CHS": "2482/16/63"})
+        assert lines == ["1281 MiB", "CHS 2482/16/63"]
 
     def test_it_reaches_the_printed_label(self, client):
         r = client.post("/parts/new",
@@ -2198,7 +2198,7 @@ class TestHowBigTheDriveIsOnItsLabel:
     def test_a_drive_says_how_big_it_is(self, client, db, part):
         aid = part(type="storage", manufacturer="Seagate", model="ST-225",
                    specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
-        assert self.body(db, aid) == ("Seagate ST-225", ["20 MB"])
+        assert self.body(db, aid) == ("Seagate ST-225", ["20 MiB"])
 
     def test_a_drive_with_no_capacity_recorded_just_says_what_it_is(self, client, db,
                                                                    part):
@@ -2210,11 +2210,11 @@ class TestHowBigTheDriveIsOnItsLabel:
 
     def test_capacity_worked_out_from_the_geometry_counts_too(self, client, db, part):
         """A drive recorded by its cylinders/heads/sectors has its capacity derived
-        rather than stated, and the label carries that just the same. 38828 KB is a
-        38 MB drive, and the label says so rather than reciting the KB."""
+        rather than stated, and the label carries that just the same. 38828 KiB is
+        a 38 MiB drive, and the label says so rather than reciting the KiB."""
         aid = part(type="storage", manufacturer="Quantum", model="LPS 52A",
                    specs="Kind: Hard disk | CHS: 571/8/17")["asset_id"]
-        assert self.body(db, aid) == ("Quantum LPS 52A", ["37.9 MB", "CHS 571/8/17"])
+        assert self.body(db, aid) == ("Quantum LPS 52A", ["37.9 MiB", "CHS 571/8/17"])
 
     def test_other_kinds_of_part_are_left_alone(self, client, db, part):
         """Only the types whose name does not say the thing you want off the label.
@@ -2242,7 +2242,7 @@ class TestHowBigTheDriveIsOnItsLabel:
                    specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
         p = db.get(Part, aid)
         lines = labels.part_lines(main.to_dict(p), specdb.pairs(db, p))
-        assert "Capacity: 20 MB" in lines
+        assert "Capacity: 20 MiB" in lines
 
     def test_the_drive_s_own_label_still_renders(self, client, part):
         aid = part(type="storage", model="ST-225",
@@ -2362,13 +2362,13 @@ class TestTheCapacityGetsALineOfItsOwn:
 
 
 class TestWhereAFigureIsRoundedAndWhereItIsNot:
-    """A quantity is stored as plain KB and said in whatever unit suits. Text that is
+    """A quantity is stored as plain KiB and said in whatever unit suits. Text that is
     only ever read -- a page, a label -- rounds an amount that cannot be said exactly.
-    The edit form keeps it to the KB, because what the form shows is parsed back on
+    The edit form keeps it to the KiB, because what the form shows is parsed back on
     the next save, and a rounded figure would quietly move the number.
     """
 
-    # 571x8x17 sectors of 512 bytes: 38828 KB, which is not a whole MB and cannot
+    # 571x8x17 sectors of 512 bytes: 38828 KiB, which is not a whole MiB and cannot
     # be written as one to two decimal places either.
     SPECS = "Kind: Hard disk | CHS: 571/8/17"
 
@@ -2379,19 +2379,19 @@ class TestWhereAFigureIsRoundedAndWhereItIsNot:
     def test_the_page_says_it_the_way_a_person_would(self, client, part):
         aid = self.make(part)
         page = client.get(f"/parts/{aid}").text
-        assert "37.9 MB" in page
-        assert "38828 KB" not in page
+        assert "37.9 MiB" in page
+        assert "38828 KiB" not in page
 
     def test_the_form_is_given_it_to_the_kilobyte(self, client, part):
         aid = self.make(part)
         page = client.get(f"/parts/{aid}/edit").text
-        assert 'name="spec_capacity" value="38828 KB"' in page
-        assert "37.9 MB" not in page
+        assert 'name="spec_capacity" value="38828 KiB"' in page
+        assert "37.9 MiB" not in page
 
     def test_saving_that_form_back_untouched_does_not_move_the_number(self, client,
                                                                      db, part):
         """The corruption the split exists to prevent. Had the form been handed
-        '37.9 MB', saving it without touching it would have written 38810 KB.
+        '37.9 MiB', saving it without touching it would have written 38810 KiB.
 
         The geometry is deliberately not resubmitted: were it there, the capacity
         would be re-derived from it and this would pass whatever the box said.
@@ -2415,17 +2415,17 @@ class TestWhereAFigureIsRoundedAndWhereItIsNot:
         from app.models import Part
         aid = self.make(part)
         db.expire_all()
-        assert "38828 KB" in db.get(Part, aid).specs
+        assert "38828 KiB" in db.get(Part, aid).specs
 
     @pytest.mark.parametrize("typed,shown", [
-        ("2 MB", "2 MB"),          # was rendered back as '2048 KB'
-        ("1024 KB", "1 MB"),
-        ("8192 KB", "8 MB"),
-        ("640 KB", "640 KB"),
+        ("2 MB", "2 MiB"),         # was rendered back as '2048 KiB'
+        ("1024 KB", "1 MiB"),
+        ("8192 KiB", "8 MiB"),
+        ("640 KiB", "640 KiB"),
     ])
     def test_memory_is_said_in_megabytes_where_that_is_the_word_for_it(
             self, client, db, part, typed, shown):
-        """Not only drives: a 2 MB SIMM read '2048 KB' on every page it appeared on."""
+        """Not only drives: a 2 MiB SIMM read '2048 KiB' on every page it appeared on."""
         from app.models import Part
         aid = part(type="ram", model="SIMM", specs=f"Size: {typed}")["asset_id"]
         db.expire_all()
@@ -2790,7 +2790,7 @@ class TestDuplication:
                     follow_redirects=False)
         r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
         copy = client.get(f"/api/computers/{r.headers['location'].split('/')[-1]}").json()
-        assert copy["installed_ram"] == "4× 1MB 30-pin (4 MB)"
+        assert copy["installed_ram"] == "4× 1MiB 30-pin (4 MiB)"
         assert copy["installed_ram_kb"] == 4096
         assert copy["drives"] == '2× 5.25" 360K floppy'
 
@@ -3360,7 +3360,7 @@ class TestTheNumbersPage:
     def test_memory_totals_come_from_the_typed_column(self, client, computer):
         aid = computer()["asset_id"]
         client.patch(f"/api/computers/{aid}", json={"installed_ram": "8MB"})
-        assert "8 MB" in client.get("/stats").text
+        assert "8 MiB" in client.get("/stats").text
 
     def test_the_traffic_report_is_still_private(self, client, monkeypatch):
         from app import main
@@ -4097,7 +4097,7 @@ class TestFilesReadLikeThePartsDo:
     def test_it_says_how_big_it_is_before_you_click_it(self, client, computer):
         aid = computer()["asset_id"]
         self.upload(client, aid)
-        assert "2.0 KB" in client.get(f"/computers/{aid}").text
+        assert "2.0 KiB" in client.get(f"/computers/{aid}").text
 
     def test_the_names_it_is_filed_under_are_still_editable(self, client, computer):
         """Re-filing is the thing most often wanted here, so it stays a box rather

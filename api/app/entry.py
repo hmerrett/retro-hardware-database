@@ -151,7 +151,7 @@ STORAGE_ASKS = [
      "label": "Capacity", "hint": "what the disk is called, not a measured size",
      "placeholder": "e.g. 21MB Floptical, 120MB LS-120"},
     {"key": "Capacity", "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, CARD_KIND),
-     "options": None, "label": "Capacity", "hint": "e.g. 540 MB"},
+     "options": None, "label": "Capacity", "hint": "e.g. 540 MiB"},
     {"key": "Speed", "kinds": (OPTICAL_KIND, DISK_KIND),
      "options": {OPTICAL_KIND: OPTICAL_SPEEDS, DISK_KIND: DISK_SPEEDS},
      "label": "Speed", "hint": "the rating on the front, or the spindle",
@@ -334,13 +334,31 @@ def build_specs(pairs) -> str:
 
 # --- amounts / RAM ---------------------------------------------------------
 
-_KB_UNITS = {"": 1024, "k": 1, "kb": 1, "m": 1024, "mb": 1024,
-             "g": 1024 * 1024, "gb": 1024 * 1024,
-             "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024}
+# What the register says, and what it reads.
+#
+# Every amount in here is binary and always has been: a K is 1024 bytes, an M is
+# 1024 of those, and the arithmetic below has never done anything else. What was
+# written on the page said KB and MB, which are the decimal units, so the label
+# disagreed with the sum behind it. These are the IEC units that mean what the
+# register actually counts, and saying them is the whole of the change -- no figure
+# moves.
+#
+# The old spellings stay readable (KB, MB, and the bare K of a "360K" floppy), and
+# have to: every specs string, memory total and drive already stored says KB, and
+# is parsed back on the next save. They are read and never written.
+KIB, MIB, GIB, TIB = "KiB", "MiB", "GiB", "TiB"
+
+_KB_UNITS = {"": 1024, "k": 1, "kb": 1, "ki": 1, "kib": 1,
+             "m": 1024, "mb": 1024, "mi": 1024, "mib": 1024,
+             "g": 1024 * 1024, "gb": 1024 * 1024, "gi": 1024 * 1024,
+             "gib": 1024 * 1024,
+             "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024,
+             "ti": 1024 * 1024 * 1024, "tib": 1024 * 1024 * 1024}
 
 
 def to_kb(text: str):
-    """'2MB'->2048, '512KB'->512, '2'->2048 (bare number assumed MB). None if
+    """'2MiB'->2048, '512KiB'->512, '2'->2048 (bare number assumed MiB). The older
+    KB/MB spellings read the same, because that is what is already on file. None if
     unparseable."""
     m = re.match(r"^\s*([\d.]+)\s*([a-zA-Z]*)\s*$", text or "")
     if not m:
@@ -355,58 +373,58 @@ def to_kb(text: str):
 
 
 def normalise_amount(spec_key: str, amt: str) -> str:
-    """Memory amounts (Size/Memory) normalise to KB; others kept as typed."""
+    """Memory amounts (Size/Memory) normalise to KiB; others kept as typed."""
     if spec_key in ("Size", "Memory"):
         kb = to_kb(amt)
         if kb is not None:
-            return f"{kb} KB"
+            return f"{kb} {KIB}"
     return amt
 
 
 def fmt_kb(kb, display: bool = False) -> str:
-    """A KB count in the unit a person would use. The one place that decides this,
+    """A KiB count in the unit a person would use. The one place that decides this,
     for spec columns, a machine's memory total and the figures on the stats page.
 
-    Quantities are stored as plain KB integers so they sort and compare in SQL;
+    Quantities are stored as plain KiB integers so they sort and compare in SQL;
     which unit to say them in is a rendering question, answered here.
 
-    A whole number of MB stays in MB rather than climbing to GB, because for this
-    hardware the difference is meaningful: 2096128 KB is the 2047 MB BIOS limit,
-    not "2 GB".
+    A whole number of MiB stays in MiB rather than climbing to GiB, because for this
+    hardware the difference is meaningful: 2096128 KiB is the 2047 MiB BIOS limit,
+    not "2 GiB".
 
-    Everything the default returns parses back to exactly the number of KB it was
+    Everything the default returns parses back to exactly the number of KiB it was
     given, which is what the edit form and the stored specs string need -- both are
     read back and parsed on the next save. `display` is for text that is only ever
     read (a page, a label, a RAM total): there an amount that cannot be said
-    exactly is rounded to three significant figures, "37.9 MB" rather than the
-    strictly-true-but-useless "38828 KB".
+    exactly is rounded to three significant figures, "37.9 MiB" rather than the
+    strictly-true-but-useless "38828 KiB".
     """
     if not kb:
         return ""
     if kb % (1024 * 1024) == 0:
-        return f"{kb // (1024 * 1024)} GB"
+        return f"{kb // (1024 * 1024)} {GIB}"
     if kb % 1024 == 0:
-        return f"{kb // 1024} MB"
+        return f"{kb // 1024} {MIB}"
     # The largest unit whose short decimal form still parses back to exactly this
-    # many KB, so "1.2GB" comes back as "1.2 GB" rather than "1228.8 MB". Two
-    # places as well as one, which is what lets a floppy's 1475 KB be the 1.44 MB
+    # many KiB, so "1.2GiB" comes back as "1.2 GiB" rather than "1228.8 MiB". Two
+    # places as well as one, which is what lets a floppy's 1475 KiB be the 1.44 MiB
     # everyone calls it while still being reversible.
-    for unit, mult in (("GB", 1024 * 1024), ("MB", 1024)):
+    for unit, mult in ((GIB, 1024 * 1024), (MIB, 1024)):
         if kb < mult:
             continue
         for places in (1, 2):
             text = f"{kb / mult:.{places}f}"
             if round(float(text) * mult) == kb:
                 return f"{text} {unit}"
-    return _round_kb(kb) if display else f"{kb} KB"
+    return _round_kb(kb) if display else f"{kb} {KIB}"
 
 
 def _round_kb(kb) -> str:
-    """A KB count at three significant figures in the largest unit it fills, for
-    text that is read and never parsed back. 1475 KB is the 1.44 MB of a floppy;
-    38828 KB is a 37.9 MB drive. Neither parses back to the KB it came from, which
-    is why this is not what the form or the specs string is given."""
-    for unit, mult in (("GB", 1024 * 1024), ("MB", 1024)):
+    """A KiB count at three significant figures in the largest unit it fills, for
+    text that is read and never parsed back. 1475 KiB is the 1.44 MiB of a floppy;
+    38828 KiB is a 37.9 MiB drive. Neither parses back to the KiB it came from,
+    which is why this is not what the form or the specs string is given."""
+    for unit, mult in ((GIB, 1024 * 1024), (MIB, 1024)):
         if kb < mult:
             continue
         val = kb / mult
@@ -415,11 +433,11 @@ def _round_kb(kb) -> str:
         if "." in text:
             text = text.rstrip("0").rstrip(".")
         return f"{text} {unit}"
-    return f"{kb} KB"
+    return f"{kb} {KIB}"
 
 
 # Common DRAM chips for machines with RAM soldered/socketed directly on the board
-# (not on SIMMs/modules). Each is (part number, KB per chip, organisation).
+# (not on SIMMs/modules). Each is (part number, KiB per chip, organisation).
 #
 # The 4532 and the 41464 are here for the home machines rather than the PCs: the
 # 4532 is the half-good 4164 that eight of make up a 48K Spectrum's upper bank, and
@@ -449,16 +467,16 @@ def _chip_depth(org):
 
 
 def chip_capacity(counts):
-    """Usable KB and whether parity is fitted, from [(chip, n), ...].
+    """Usable KiB and whether parity is fitted, from [(chip, n), ...].
 
     A bank is made of chips of the same depth, and is nine bits wide where the
     ninth is parity. Chips are therefore grouped by depth and the group's total
     width decides: 18 bits at 64K deep is two banks of 8 data bits plus 2 parity,
-    so 128 KB of the 144 KB fitted is usable.
+    so 128 KiB of the 144 KiB fitted is usable.
 
     Grouping matters because a bank's data and parity are often different chips --
     an Amstrad PC1640 carries 4x 4464 for data with 2x 4164 alongside for their
-    parity, and counting those two as data overstates the machine by 16 KB.
+    parity, and counting those two as data overstates the machine by 16 KiB.
     """
     groups = {}
     for pn, n in counts:
@@ -480,7 +498,7 @@ def chip_capacity(counts):
 
 
 def format_ram_chips(counts):
-    """[(chip, n), ...] -> '9× 41256 (256 KB + parity)' with the usable total."""
+    """[(chip, n), ...] -> '9× 41256 (256 KiB + parity)' with the usable total."""
     counts = [(pn, n) for pn, n in counts if n]
     if not counts:
         return ""
@@ -490,22 +508,22 @@ def format_ram_chips(counts):
 
 
 # Common memory modules for machines with RAM on SIMMs / SIPPs rather than
-# soldered chips. Each is (slug for the form field, KB per module, label).
+# soldered chips. Each is (slug for the form field, KiB per module, label).
 RAM_MODULES = [
-    ("30p256k", 256, "256KB 30-pin"), ("30p1m", 1024, "1MB 30-pin"),
-    ("30p4m", 4096, "4MB 30-pin"),
-    ("sipp256k", 256, "256KB SIPP"), ("sipp1m", 1024, "1MB SIPP"),
-    ("sipp4m", 4096, "4MB SIPP"),
-    ("72p1m", 1024, "1MB 72-pin"), ("72p2m", 2048, "2MB 72-pin"),
-    ("72p4m", 4096, "4MB 72-pin"), ("72p8m", 8192, "8MB 72-pin"),
-    ("72p16m", 16384, "16MB 72-pin"), ("72p32m", 32768, "32MB 72-pin"),
+    ("30p256k", 256, "256KiB 30-pin"), ("30p1m", 1024, "1MiB 30-pin"),
+    ("30p4m", 4096, "4MiB 30-pin"),
+    ("sipp256k", 256, "256KiB SIPP"), ("sipp1m", 1024, "1MiB SIPP"),
+    ("sipp4m", 4096, "4MiB SIPP"),
+    ("72p1m", 1024, "1MiB 72-pin"), ("72p2m", 2048, "2MiB 72-pin"),
+    ("72p4m", 4096, "4MiB 72-pin"), ("72p8m", 8192, "8MiB 72-pin"),
+    ("72p16m", 16384, "16MiB 72-pin"), ("72p32m", 32768, "32MiB 72-pin"),
 ]
 RAM_MODULE_KB = {s: kb for s, kb, _ in RAM_MODULES}
 RAM_MODULE_LABEL = {s: lbl for s, _kb, lbl in RAM_MODULES}
 
 
 def format_ram_modules(counts):
-    """[(slug, n), ...] -> '4× 1MB 30-pin, 2× 4MB 72-pin (12 MB)' with the total."""
+    """[(slug, n), ...] -> '4× 1MiB 30-pin, 2× 4MiB 72-pin (12 MiB)' with the total."""
     counts = [(s, n) for s, n in counts if n]
     if not counts:
         return ""
@@ -515,7 +533,7 @@ def format_ram_modules(counts):
 
 
 def ram_total_kb(modules, chips) -> int:
-    """Usable KB fitted, from [(slug, n)] modules and [(chip, n)] chips. Parity
+    """Usable KiB fitted, from [(slug, n)] modules and [(chip, n)] chips. Parity
     chips are not capacity, so chip_capacity discounts them."""
     return (sum(n * RAM_MODULE_KB.get(slug, 0) for slug, n in modules if n)
             + chip_capacity(chips)[0])

@@ -376,11 +376,11 @@ def _photo_counts(db, asset_ids):
 
 def _big_total(kb):
     """A grand total in the unit a person would say it in. entry.fmt_kb keeps a
-    non-round figure in MB, which is right for one drive -- 2096128 KB is the 2047 MB
-    BIOS limit, not "2 GB" -- and unreadable for the sum of every drive there is,
-    where it gives "124222 MB"."""
+    non-round figure in MiB, which is right for one drive -- 2096128 KiB is the 2047
+    MiB BIOS limit, not "2 GiB" -- and unreadable for the sum of every drive there
+    is, where it gives "124222 MiB"."""
     if kb >= 1024 * 1024:
-        return f"{kb / (1024 * 1024):.1f} GB"
+        return f"{kb / (1024 * 1024):.1f} {entry.GIB}"
     return entry.fmt_kb(kb, True)
 
 
@@ -512,7 +512,7 @@ def _facts(db, st, this_year):
     #
     # Floppies and Goteks only. The same column holds an optical drive's size and a
     # card reader's, and a 4GB CF card among the 1.44s swamps the total: the first
-    # draft of this said 7189 MB, of which 7000 was two memory cards.
+    # draft of this said 7189 MiB, of which 7000 was two memory cards.
     floppy_kb, floppy_n = 0, 0
     for size, count in _held(
             db.query(ComputerDrive.size, ComputerDrive.count)
@@ -526,7 +526,7 @@ def _facts(db, st, this_year):
     # Three drives is where adding them up starts being a joke rather than a sum;
     # below that "if all 2 drives had a disk in them" is just arithmetic.
     if floppy_kb and floppy_n >= 3:
-        add("Every floppy at once", f"{round(floppy_kb / 1024)} MB",
+        add("Every floppy at once", f"{round(floppy_kb / 1024)} {entry.MIB}",
             f"if all {floppy_n} drives had a disk in them",
             "/browse?f=drives")
 
@@ -691,7 +691,7 @@ def _facts(db, st, this_year):
         add("Every hard disk added up", _big_total(sum(disk_caps)),
             f"across {len(disk_caps)} of them", "/browse?f=storage")
 
-    # The 137 GB wall, as reported by the drive: a disk bigger than 8.4 GB has to
+    # The 137 GiB wall, as reported by the drive: a disk bigger than 8.4 GiB has to
     # lie about its geometry, and 16383/16/63 is the lie they all tell.
     clamped = _held(db.query(func.count(StorageSpec.part_id))
                     .join(Part, Part.asset_id == StorageSpec.part_id)
@@ -870,7 +870,7 @@ def gui_stats(request: Request, db: Session = Depends(get_db)):
     #
     # Shuffled and then taken one at a time, skipping any figure whose headline a
     # tile in this draw already shows: the storage total and the hard disks that are
-    # very nearly all of it both read "2464.1 GB" here, and two tiles showing one
+    # very nearly all of it both read "2464.1 GiB" here, and two tiles showing one
     # number looks like the shuffle is broken rather than like two facts. Same reason
     # "arrived this year" stands down when this year is also the busiest.
     pool = _facts(db, st, this_year)
@@ -1303,7 +1303,7 @@ def _drives_from_api(db, computer, text):
 
 
 def _ram_from_api(db, computer, text):
-    """installed_ram over the wire is a plain amount ('640KB') or free text, never
+    """installed_ram over the wire is a plain amount ('640KiB') or free text, never
     a module breakdown -- that has its own grids in the GUI. A caller sending one
     replaces any note and total but leaves the fitted modules and chips alone."""
     total_kb, note = ramdb.from_string(text)
@@ -3070,7 +3070,7 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
     if obj:
         st = specdb.read(db, obj)
         # The form's text inputs are keyed by display name, and want the same
-        # rendering the item page shows ('256 KB', not 256).
+        # rendering the item page shows ('256 KiB', not 256).
         spec_keys = {k: v for k, v in specstruct.pairs(obj.type or "other", st) if k}
         if (obj.type or "") == "motherboard":
             mb_slots = dict(st.slots)
@@ -3243,9 +3243,9 @@ def _assemble_specs(ptype, form, extra=()):
         elif key == "Slots":
             raw = entry.expand_slots(raw)
         elif key in ("Size", "Memory") and ptype != "storage":
-            # A memory amount is a quantity, and normalises to KB so it sorts and
+            # A memory amount is a quantity, and normalises to KiB so it sorts and
             # compares. A drive's size is a media designation and must not: 1.44MB
-            # is 1475 KB only by convention, and nobody calls that disk a 1475 KB.
+            # is 1475 KiB only by convention, and nobody calls that disk a 1475 KiB.
             raw = entry.normalise_amount(key, raw)
         specs = entry.merge_spec(specs, key, raw)
     return _append_unmanaged(specs, extra, managed)
@@ -3467,7 +3467,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
     images = detect_images("parts", aid)
     spec_pairs = specdb.pairs(db, p, display=True)
     # The preview text and the structured data are read rather than parsed, so they
-    # say the figures the page says -- not the stored string's exact-to-the-KB ones.
+    # say the figures the page says -- not the stored string's exact-to-the-KiB ones.
     blurb = p.summary or _dot(entry.type_label(p.type),
                               " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
                               specstruct.join(spec_pairs))

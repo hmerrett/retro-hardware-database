@@ -38,11 +38,12 @@ from pathlib import Path
 
 from sqlalchemy import literal, or_
 
+from .entry import GIB, KIB, MIB
 from .models import FileTag, StoredFile
 
 FILES_DIR = Path(os.getenv("RHDB_FILES_DIR", "/app/files"))
 
-# What one upload may weigh. A driver disk is a few hundred KB and a CD image is
+# What one upload may weigh. A driver disk is a few hundred KiB and a CD image is
 # not something to keep in a register, so this is generous rather than a guess at
 # the largest useful file.
 MAX_BYTES = 64 * 1024 * 1024
@@ -186,7 +187,7 @@ def save(db, upload, tags, note=""):
             if size > MAX_BYTES:
                 out.close()
                 dest.unlink(missing_ok=True)
-                raise ValueError(f"{name} is over {MAX_BYTES // (1024 * 1024)} MB")
+                raise ValueError(f"{name} is over {MAX_BYTES // (1024 * 1024)} {MIB}")
             out.write(chunk)
     if not size:
         dest.unlink(missing_ok=True)
@@ -219,8 +220,8 @@ def human_size(n) -> str:
     n = int(n or 0)
     if n < 1024:
         return f"{n} B"
-    for unit, scale in (("KB", 1024), ("MB", 1024 ** 2), ("GB", 1024 ** 3)):
-        if n < scale * 1024 or unit == "GB":
+    for unit, scale in ((KIB, 1024), (MIB, 1024 ** 2), (GIB, 1024 ** 3)):
+        if n < scale * 1024 or unit == GIB:
             size = n / scale
             return f"{size:.0f} {unit}" if size >= 10 else f"{size:.1f} {unit}"
     return f"{n} B"

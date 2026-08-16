@@ -56,8 +56,8 @@ def plan_memory(db):
         rendered = entry.render_installed_ram(mods, chips, kb,
                                               c.installed_ram_note or "")
         if rendered != (c.installed_ram or "") or kb != c.installed_ram_kb:
-            out.append((c, f"{c.installed_ram or ''} [{c.installed_ram_kb} KB]",
-                        f"{rendered} [{kb} KB]", mods, chips))
+            out.append((c, f"{c.installed_ram or ''} [{c.installed_ram_kb} KiB]",
+                        f"{rendered} [{kb} KiB]", mods, chips))
     return out
 
 

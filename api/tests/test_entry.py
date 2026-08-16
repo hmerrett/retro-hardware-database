@@ -8,7 +8,11 @@ from app import entry
 
 class TestAmounts:
     @pytest.mark.parametrize("text,kb", [
-        ("2MB", 2048), ("512KB", 512), ("512K", 512), ("2", 2048), ("1GB", 1048576),
+        ("2MiB", 2048), ("512KiB", 512), ("512K", 512), ("2", 2048),
+        ("1GiB", 1048576),
+        # The spellings the register used to write, which every string already
+        # stored still says and so has to keep reading.
+        ("2MB", 2048), ("512KB", 512), ("1GB", 1048576),
     ])
     def test_to_kb(self, text, kb):
         assert entry.to_kb(text) == kb
@@ -17,25 +21,28 @@ class TestAmounts:
     def test_to_kb_refuses_what_it_cannot_read(self, text):
         assert entry.to_kb(text) is None
 
-    @pytest.mark.parametrize("kb,text", [(8192, "8 MB"), (640, "640 KB"), (0, "")])
+    @pytest.mark.parametrize("kb,text", [(8192, "8 MiB"), (640, "640 KiB"), (0, "")])
     def test_fmt_kb(self, kb, text):
         assert entry.fmt_kb(kb) == text
 
 
 class TestWhichUnitAFigureIsSaidIn:
-    """Quantities are stored as plain KB integers so they sort in SQL; the unit to
+    """Quantities are stored as plain KiB integers so they sort in SQL; the unit to
     say them in is decided here, once, for spec columns and memory totals alike.
+
+    The units are the IEC ones, because the arithmetic behind them is binary: a K
+    here has always been 1024 bytes, and KiB is the word for that.
     """
 
     @pytest.mark.parametrize("kb,text", [
-        (1024, "1 MB"),                 # not '1024 KB'
-        (2048, "2 MB"),
-        (8192, "8 MB"),
-        (640, "640 KB"),                # below a megabyte, so KB is the right word
-        (512, "512 KB"),
-        (20971520, "20 GB"),            # not '20971520 KB'
-        (1258291, "1.2 GB"),            # exact at one decimal
-        (1475, "1.44 MB"),              # a floppy, exact at two
+        (1024, "1 MiB"),                # not '1024 KiB'
+        (2048, "2 MiB"),
+        (8192, "8 MiB"),
+        (640, "640 KiB"),               # below a mebibyte, so KiB is the word
+        (512, "512 KiB"),
+        (20971520, "20 GiB"),           # not '20971520 KiB'
+        (1258291, "1.2 GiB"),           # exact at one decimal
+        (1475, "1.44 MiB"),             # a floppy, exact at two
     ])
     def test_a_figure_that_can_be_said_exactly_is_said_that_way_everywhere(self, kb,
                                                                           text):
@@ -46,17 +53,17 @@ class TestWhichUnitAFigureIsSaidIn:
         # value shown is parsed again on the next save.
         assert entry.to_kb(text.replace(" ", "")) == kb
 
-    @pytest.mark.parametrize("kb,text", [(2096128, "2047 MB"), (1572864, "1536 MB")])
+    @pytest.mark.parametrize("kb,text", [(2096128, "2047 MiB"), (1572864, "1536 MiB")])
     def test_a_whole_number_of_megabytes_stays_in_megabytes(self, kb, text):
-        """2096128 KB is the 2047 MB BIOS limit, and calling it '2 GB' would lose the
-        one thing about it worth knowing. The rule is not applied only to that one
-        number, so 1536 MB keeps its unit too."""
+        """2096128 KiB is the 2047 MiB BIOS limit, and calling it '2 GiB' would lose
+        the one thing about it worth knowing. The rule is not applied only to that
+        one number, so 1536 MiB keeps its unit too."""
         assert entry.fmt_kb(kb) == text
         assert entry.fmt_kb(kb, display=True) == text
 
     @pytest.mark.parametrize("kb,exact,shown", [
-        (38828, "38828 KB", "37.9 MB"),        # a 38 MB drive, from its geometry
-        (2116800, "2116800 KB", "2.02 GB"),
+        (38828, "38828 KiB", "37.9 MiB"),      # a 38 MiB drive, from its geometry
+        (2116800, "2116800 KiB", "2.02 GiB"),
     ])
     def test_a_figure_that_cannot_is_rounded_only_where_it_is_read(self, kb, exact,
                                                                   shown):
@@ -70,21 +77,22 @@ class TestWhichUnitAFigureIsSaidIn:
 
     def test_rounding_never_reaches_for_scientific_notation(self):
         """Three significant figures via '%g' would render 1000 as '1e+03'."""
-        assert entry.fmt_kb(1024000 + 1, display=True) == "1000 MB"
+        assert entry.fmt_kb(1024000 + 1, display=True) == "1000 MiB"
 
     @pytest.mark.parametrize("kb", [1, 511, 640, 1023])
     def test_under_a_megabyte_stays_in_kilobytes(self, kb):
-        assert entry.fmt_kb(kb, display=True) == f"{kb} KB"
+        assert entry.fmt_kb(kb, display=True) == f"{kb} KiB"
 
     def test_nothing_is_nothing_rather_than_zero(self):
-        """A machine with no memory recorded has no memory string, not '0 KB'. A
+        """A machine with no memory recorded has no memory string, not '0 KiB'. A
         spec column that says zero is a different matter -- see test_specstruct."""
         assert entry.fmt_kb(0) == ""
         assert entry.fmt_kb(None) == ""
 
     def test_memory_spec_amounts_normalise_to_kb(self):
-        assert entry.normalise_amount("Size", "2MB") == "2048 KB"
-        assert entry.normalise_amount("Interface", "2MB") == "2MB"
+        assert entry.normalise_amount("Size", "2MB") == "2048 KiB"
+        assert entry.normalise_amount("Size", "2MiB") == "2048 KiB"
+        assert entry.normalise_amount("Interface", "2MiB") == "2MiB"
 
 
 class TestBezelSwatches:
@@ -146,7 +154,7 @@ class TestBezelSwatches:
 
 class TestInstalledRam:
     def test_modules_render_with_a_total(self):
-        assert entry.format_ram_modules([("30p1m", 8)]) == "8× 1MB 30-pin (8 MB)"
+        assert entry.format_ram_modules([("30p1m", 8)]) == "8× 1MiB 30-pin (8 MiB)"
 
     def test_module_totals_add_up_across_types(self):
         assert entry.ram_total_kb([("30p1m", 4), ("72p2m", 2)], []) == 8192
@@ -154,7 +162,7 @@ class TestInstalledRam:
     def test_parity_chips_of_a_different_type_are_not_capacity(self):
         """An Amstrad PC1640 carries 4x 4464 for data with 2x 4164 alongside for
         their parity. Counting a bank's parity chips as data made RH-FTXR read
-        656 KB when the machine has 640, which is what its sibling records."""
+        656 KiB when the machine has 640, which is what its sibling records."""
         chips = [("4164", 2), ("4464", 4), ("41256", 18)]
         assert entry.chip_capacity(chips) == (640, True)
         assert entry.ram_total_kb([], chips) == 640
@@ -181,9 +189,9 @@ class TestInstalledRam:
 
     def test_nine_by_one_chips_are_eight_of_data_plus_parity(self):
         """A byte-wide bank of x1 chips is 8 data chips plus a 9th for parity, so
-        nine 32KB chips are 256 KB usable, not 288."""
+        nine 32KiB chips are 256 KiB usable, not 288."""
         assert entry.ram_total_kb([], [("41256", 9)]) == 256
-        assert entry.format_ram_chips([("41256", 9)]) == "9× 41256 (256 KB + parity)"
+        assert entry.format_ram_chips([("41256", 9)]) == "9× 41256 (256 KiB + parity)"
 
     def test_eight_chips_are_a_plain_bank(self):
         assert entry.ram_total_kb([], [("41256", 8)]) == 256
@@ -194,16 +202,16 @@ class TestInstalledRam:
 
     def test_a_wide_chip_can_carry_parity_too(self):
         """The old rule only looked for parity among ×1 chips, so nine ×4 chips
-        counted as 1152 KB -- 36 data bits, four and a half bytes wide, which no
+        counted as 1152 KiB -- 36 data bits, four and a half bytes wide, which no
         byte-organised machine is. Thirty-two of those bits are data."""
         assert entry.ram_total_kb([], [("44256", 9)]) == 1024
 
     def test_a_bare_total_renders_when_there_is_no_breakdown(self):
-        assert entry.render_installed_ram([], [], 8192, "") == "8 MB"
+        assert entry.render_installed_ram([], [], 8192, "") == "8 MiB"
 
     def test_a_breakdown_hides_the_bare_total(self):
         out = entry.render_installed_ram([("30p1m", 8)], [], 8192, "")
-        assert out == "8× 1MB 30-pin (8 MB)"
+        assert out == "8× 1MiB 30-pin (8 MiB)"
 
     def test_a_note_is_appended_not_swallowed(self):
         out = entry.render_installed_ram([], [], None, "16MB (2 banks)")
@@ -340,7 +348,7 @@ class TestWhatEachKindOfDriveIsAsked:
         assert required == {"Interface"}
 
     def test_a_floppy_is_asked_a_designation_and_never_a_measured_capacity(self):
-        """720K is what the disk is called; it is 737 KB only by convention, and
+        """720K is what the disk is called; it is 737 KiB only by convention, and
         normalising it would put a number on the label nobody uses."""
         floppy = {a["key"] for a in entry.storage_asks("Floppy/Gotek")}
         assert "Size" in floppy and "Capacity" not in floppy

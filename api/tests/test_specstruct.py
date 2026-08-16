@@ -50,11 +50,11 @@ class TestNumbers:
         assert render("cpu", "Speed: 4.77MHz") == "Speed: 4.77 MHz"
 
     def test_capacity_renders_in_the_unit_a_person_would_type(self):
-        assert render("storage", "Capacity: 840MB") == "Capacity: 840 MB"
-        assert render("storage", "Capacity: 20GB") == "Capacity: 20 GB"
+        assert render("storage", "Capacity: 840MB") == "Capacity: 840 MiB"
+        assert render("storage", "Capacity: 20GiB") == "Capacity: 20 GiB"
 
     def test_whole_megabytes_do_not_become_fractional_gigabytes(self):
-        assert render("storage", "Capacity: 2047MB") == "Capacity: 2047 MB"
+        assert render("storage", "Capacity: 2047MB") == "Capacity: 2047 MiB"
 
     def test_a_value_that_is_not_a_number_is_kept_not_dropped(self):
         st = specstruct.parse("motherboard", "Cache: Fake")
@@ -62,7 +62,7 @@ class TestNumbers:
         assert st.attributes == [("Cache", "Fake")]
 
     def test_zero_is_a_value_not_an_absence(self):
-        assert render("motherboard", "Cache: 0") == "Cache: 0 KB"
+        assert render("motherboard", "Cache: 0") == "Cache: 0 KiB"
 
 
 class TestCountLists:
@@ -175,8 +175,8 @@ class TestAStorageBezel:
 class TestDriveCapacityFromGeometry:
     """A drive's geometry gives its capacity, so it need not be typed twice.
 
-    What is typed always wins, because the geometry is not always the truth: a 20 GB
-    drive reports 16383/16/63 because CHS cannot address beyond about 8 GB, and an
+    What is typed always wins, because the geometry is not always the truth: a 20 GiB
+    drive reports 16383/16/63 because CHS cannot address beyond about 8 GiB, and an
     RLL drive's sector count gives a different figure from its MFM formatted size.
     """
 
@@ -187,7 +187,7 @@ class TestDriveCapacityFromGeometry:
     def test_a_geometry_alone_gives_a_capacity(self):
         st = specstruct.parse("storage", "Kind: Hard disk | CHS: 1024/16/63")
         assert st.scalars["capacity_kb"] == 516096
-        assert "Capacity: 504 MB" in specstruct.format("storage", st)
+        assert "Capacity: 504 MiB" in specstruct.format("storage", st)
 
     def test_a_stated_capacity_is_never_overwritten(self):
         st = specstruct.parse("storage", "CHS: 16383/16/63 | Capacity: 20GB")

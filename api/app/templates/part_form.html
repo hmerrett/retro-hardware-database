@@ -199,8 +199,8 @@ until you submit.</p>
       <label>{{ b }} <input type="number" min="0" name="slot:{{ b }}" value="{{ mb_slots.get(b, '') }}"></label>
       {% endfor %}
     </div>
-    {{ sf('spec_onboard_ram', 'Onboard RAM', 'Onboard RAM', 'RAM soldered or socketed on the board itself, e.g. 64-256KB') }}
-    {{ sf('spec_cache', 'Cache', 'Cache', 'e.g. 256 KB, COAST socket') }}
+    {{ sf('spec_onboard_ram', 'Onboard RAM', 'Onboard RAM', 'RAM soldered or socketed on the board itself, e.g. 64-256KiB') }}
+    {{ sf('spec_cache', 'Cache', 'Cache', 'e.g. 256 KiB, COAST socket') }}
     {{ sf('spec_bios', 'BIOS', 'BIOS', 'e.g. AMI 1992, Award 4.51') }}
     {{ sf('spec_onboard_video', 'Onboard video', 'Onboard video', 'e.g. VGA, or VGA C&T 65545') }}
     <label>Onboard I/O ports <span class="muted">(how many of each)</span></label>
@@ -225,7 +225,7 @@ until you submit.</p>
   <fieldset>
     <legend>Memory</legend>
     {{ sf('spec_type', 'Type', 'Type', 'e.g. 72-pin FPM, EDO, SDRAM') }}
-    {{ sf('spec_size', 'Size', 'Size', 'e.g. 16MB — normalised to KB') }}
+    {{ sf('spec_size', 'Size', 'Size', 'e.g. 16MiB — normalised to KiB') }}
     {{ sf('spec_speed', 'Speed', 'Speed') }}
   </fieldset>
 
@@ -235,7 +235,7 @@ until you submit.</p>
     {{ sf('spec_chip', 'Chip', 'Main chip', 'e.g. Yamaha OPL3, S3 Trident, Realtek RTL8019') }}
     {{ sf('spec_interface', 'Interface', 'Interface (bus)', '', 'dl_card_ifaces') }}
     {% if ptype == 'video' %}{{ sf('spec_connector', 'Connector', 'Connector(s)', 'comma-separate several', 'dl_video_conn') }}
-      {{ sf('spec_memory', 'Memory', 'Memory', 'e.g. 1MB — normalised to KB') }}
+      {{ sf('spec_memory', 'Memory', 'Memory', 'e.g. 1MiB — normalised to KiB') }}
       {{ sf('spec_type', 'Type', 'Type') }}{% endif %}
     {% if ptype == 'sound' %}{{ sf('spec_fm', 'FM', 'FM synthesis') }}
       {{ sf('spec_ports', 'Ports', 'Ports', 'letters — ' + port_legend) }}{% endif %}

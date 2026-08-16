@@ -144,12 +144,19 @@ def _canon_speed(run):
 # the curly quote, and without it 3.5” read as the drive's *model* -- the number
 # went into the name of the thing rather than into its form factor.
 _FORM_RE = re.compile(r"""(\d\.?\d*)\s*(?:["”“″]|''|-?\s*inch\b|in\b)""", re.I)
-_SIZE_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(K|KB|MB|GB)\b", re.I)
+_SIZE_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(KiB|MiB|GiB|K|KB|MB|GB)\b", re.I)
+
+# The IEC spellings, by what someone might type them as. A size in a drive segment
+# is what is written on the drive -- a 1.44MB floppy, a 4GB card -- and neither is
+# a figure this end did the 1024 arithmetic for, so the unit is kept the way it was
+# given rather than converted. What this settles is only the capitalisation, so
+# "4gib" and "4GIB" are the one drive.
+_IEC_SIZE_UNITS = {"KIB": "KiB", "MIB": "MiB", "GIB": "GiB"}
 
 
 def _canon_size(number, unit):
-    unit = unit.upper()
-    unit = "K" if unit in ("K", "KB") else unit
+    upper = unit.upper()
+    unit = _IEC_SIZE_UNITS.get(upper) or ("K" if upper in ("K", "KB") else upper)
     number = number.rstrip(".")
     return f"{number}{unit}"
 

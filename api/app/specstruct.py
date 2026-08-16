@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import re
 
-from .entry import fmt_kb, parse_specs
+from .entry import KIB, fmt_kb, parse_specs
 
 # Spec-key -> column name, per typed table. Aliases (Chipset->chip) collapse on
 # the way in; format() uses the display order below on the way out.
@@ -59,13 +59,13 @@ INT_COLS = {"cores"}
 # out -- and a person still sees, types and reads one Speed.
 ALT_COLS = {"storage": {"Speed": ("speed_rpm", "speed_x")}}
 
-# A unitless number means MB for a drive capacity ('44'), but KB everywhere else
-# ('256' cache). Real data relies on this: RH-0247's bare '44' is 44 MB, which
+# A unitless number means MiB for a drive capacity ('44'), but KiB everywhere else
+# ('256' cache). Real data relies on this: RH-0247's bare '44' is 44 MiB, which
 # its recorded CHS geometry confirms.
 KB_BARE_MB_COLS = {"capacity_kb"}
-# Every KB column is rendered in the unit a person would use, by entry.fmt_kb --
-# a 20 GB drive is not '20971520 KB', and a 2 MB SIMM is not '2048 KB'. Which unit
-# is a rendering question; the column stays a plain KB integer.
+# Every KiB column is rendered in the unit a person would use, by entry.fmt_kb --
+# a 20 GiB drive is not '20971520 KiB', and a 2 MiB SIMM is not '2048 KiB'. Which
+# unit is a rendering question; the column stays a plain KiB integer.
 
 # Count-list spec keys, per type -> which Struct list they populate.
 LIST_KEYS = {
@@ -96,7 +96,10 @@ for _t, _m in SCALARS.items():
 TYPED = set(SCALARS)
 
 _COUNT_RE = re.compile(r"^\s*(\d+)\s*[×x]\s*(.+?)\s*$")
-_KB_RE = re.compile(r"^\s*([\d.]+)\s*([kKmMgG]?)[bB]?\s*$")
+# The i of KiB is optional and so is the B, so "2M", "2MB" and "2MiB" are one
+# amount -- the register writes the IEC spelling and reads back everything it
+# ever wrote.
+_KB_RE = re.compile(r"^\s*([\d.]+)\s*([kKmMgG]?)(?:[iI]?[bB])?\s*$")
 _CHS_RE = re.compile(r"^\s*(\d+)\s*/\s*(\d+)\s*/\s*(\d+)\s*$")
 _MHZ_RE = re.compile(r"^\s*([\d.]+)\s*(mhz|khz)?\s*$", re.I)
 _NS_RE = re.compile(r"^\s*(\d+)\s*(?:ns)?\s*$", re.I)
@@ -119,7 +122,7 @@ class Struct:
 
 
 def _to_kb(text, bare=1):
-    """'2MB'->2048, '20GB'->20971520, '32.4MB'->33178. `bare` is the multiplier
+    """'2MiB'->2048, '20GiB'->20971520, '32.4MB'->33178. `bare` is the multiplier
     applied to a unitless number (see KB_BARE_MB_COLS)."""
     m = _KB_RE.match(text or "")
     if not m:
@@ -166,7 +169,7 @@ def _fmt_khz(khz):
 def numeric_handler(col, display=False):
     """(parse, format) for a numeric column, or None if the column is free text.
 
-    `display` is passed through to the KB formatter: on for text that is only read,
+    `display` is passed through to the KiB formatter: on for text that is only read,
     off for the edit form and the stored specs string, which are parsed back."""
     if col in KB_COLS:
         bare = 1024 if col in KB_BARE_MB_COLS else 1
@@ -174,7 +177,7 @@ def numeric_handler(col, display=False):
         # total of zero is just a machine with none recorded -- so this does not
         # inherit fmt_kb's nothing-for-nothing.
         return ((lambda v: _to_kb(v, bare)),
-                (lambda n: fmt_kb(n, display=display) if n else f"{n} KB"))
+                (lambda n: fmt_kb(n, display=display) if n else f"{n} {KIB}"))
     if col in KHZ_COLS:
         return _to_khz, _fmt_khz
     if col in NS_COLS:
@@ -207,11 +210,11 @@ def _display_column(ptype, key):
 
 
 def chs_capacity_kb(chs):
-    """Capacity in KB from a drive's geometry: cylinders x heads x sectors, each
+    """Capacity in KiB from a drive's geometry: cylinders x heads x sectors, each
     sector 512 bytes, which is every drive this catalogue holds.
 
-    A KB being 1024 bytes, two sectors make one, so the arithmetic is that simple.
-    A geometry of 615/4/17 comes to 20,910 KB -- near enough the "20MB" written on
+    A KiB being 1024 bytes, two sectors make one, so the arithmetic is that simple.
+    A geometry of 615/4/17 comes to 20,910 KiB -- near enough the "20MB" written on
     the label to corroborate it, and far enough off to show why a figure a person
     typed is left alone rather than being corrected to this one.
     """

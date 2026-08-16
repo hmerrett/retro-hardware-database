@@ -281,6 +281,6 @@ class TestSizesRead:
     def test_a_size_is_said_the_way_it_would_be_said(self):
         assert filesdb.human_size(0) == "0 B"
         assert filesdb.human_size(900) == "900 B"
-        assert filesdb.human_size(2048) == "2.0 KB"
-        assert filesdb.human_size(20 * 1024) == "20 KB"
-        assert filesdb.human_size(5 * 1024 ** 2) == "5.0 MB"
+        assert filesdb.human_size(2048) == "2.0 KiB"
+        assert filesdb.human_size(20 * 1024) == "20 KiB"
+        assert filesdb.human_size(5 * 1024 ** 2) == "5.0 MiB"
