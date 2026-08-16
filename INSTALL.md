@@ -279,10 +279,21 @@ old logo.
 ### The machine catalogue
 
 The list of home machines and consoles — families, models, board issues, styles,
-regions, chip sockets and the part numbers seen in them — is a plain Python data
-structure in `api/app/machines.py`. If your collection is Japanese machines, or
-Eastern Bloc clones, or anything else the shipped catalogue does not cover, that
-is the file to edit.
+regions, chip sockets and the part numbers seen in them — is one YAML file,
+`api/app/machines.yaml`, with the instructions for editing it written at the top
+of the file. It needs no programming: copy the model above the one you want, and
+correct the values.
+
+The shipped catalogue is a little over three hundred machines from seventy-odd
+makers in Britain, Europe, America and Japan. If your collection is Eastern Bloc clones, Australian
+or Brazilian machines, or anything else it does not cover, that is the file to
+add them to. A mistake in it stops the API from starting rather than being
+half-loaded, and the error names the family, the model and the field — so if the
+container will not come up after an edit, read the log:
+
+```sh
+docker compose logs api | tail -20
+```
 
 Only the slugs are stored against a machine; every name, year, CPU and list is
 read from the catalogue on every page load. So correcting an entry there corrects

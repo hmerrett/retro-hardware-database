@@ -1,0 +1,6034 @@
+# The catalogue of home computers and consoles this register knows about.
+#
+# ---------------------------------------------------------------------------
+# ADDING A MACHINE
+# ---------------------------------------------------------------------------
+#
+# You do not need to know any programming to edit this file. It is a list, and
+# the only rule that really matters is that things line up: a line's indentation
+# is what says which machine it belongs to. Use spaces, never tabs.
+#
+# Find the family your machine belongs to (Sinclair, Commodore, Sharp, MSX...)
+# and copy the model above it as a starting point. If its maker is not here at
+# all, copy a whole family instead. Then correct the values.
+#
+# A model looks like this, and only the first three lines are compulsory:
+#
+#       - key: oric-atmos          <- the permanent name. See the warning below.
+#         model: Atmos             <- what to call it. NOT "Oric Atmos": the
+#                                     maker is written separately, so putting it
+#                                     here would file the machine as "Oric Oric
+#                                     Atmos". The two are joined for you.
+#         year: 1984               <- the year that model appeared
+#         manufacturer: Oric       <- only if it differs from the family's
+#         cpu: MOS 6502A-1         <- maker, part, MHz, the way the CPU box wants
+#         chassis: wedge, white case
+#         os: Oric Extended BASIC
+#         ram: [48K]               <- the sizes it was sold with. Write them as
+#                                     16K, 128K, 1MiB; the register reads those
+#                                     back, and refuses a size it cannot.
+#         issues: [Issue 1]        <- board revisions, as the maker marked them
+#         styles: [Atmos]          <- what tells two of them apart across the
+#                                     room: rubber or moulded keys, a silver or
+#                                     a rainbow label, a heavy sixer
+#         chips:                   <- one entry per socket worth recording
+#           - socket: psg          <- the permanent name for the socket
+#             label: Sound         <- what the page and the form call it. Leave
+#                                     it out and the socket name is tidied up
+#                                     instead, so 'cpu' shows as 'CPU'.
+#             note: >-             <- optional, and shown beside the question.
+#               why anyone would care which one is in there
+#             variants: [General Instrument AY-3-8912]
+#
+# Anything you leave out is simply not asked about. Anything you get wrong stops
+# the register from starting, and the message says which family, which model and
+# which field -- so if the site does not come back up after an edit, read it.
+#
+# ---------------------------------------------------------------------------
+# THE THINGS TO BE CAREFUL ABOUT
+# ---------------------------------------------------------------------------
+#
+# KEYS ARE FOREVER. `key:` is the one thing a real machine's record stores. Every
+# other word here -- a name, a label, a note, a chip's part number -- can be
+# corrected whenever, and every machine filed under it picks the correction up.
+# Change a key and the machines filed under the old one are orphaned, and only a
+# database migration puts them back. Pick a key, keep it.
+#
+# THESE LISTS ARE THE COMMON CASES, NOT AN INVENTORY. Every list here is offered
+# as a set of buttons with a "custom" box beside them, so a board nobody has
+# written up or a chip swapped in a repair is recorded by typing it. Better
+# still, what is typed once is offered ever after: the register adds it to the
+# buttons for that model by itself. So there is no need to chase completeness --
+# put down what turns up, and let the rest arrive.
+#
+# ONE THING SAID ONCE. The maker goes in `manufacturer:`, at the family or on the
+# model, and never in `model:` as well.
+#
+# ---------------------------------------------------------------------------
+# TWO SHORTCUTS
+# ---------------------------------------------------------------------------
+#
+# SHARED LISTS. Where the same part numbers turn up in machine after machine,
+# they are written once under `lists:` at the top and named afterwards:
+#
+#     variants: z80          instead of the eight Z80 markings written out
+#
+# You can name a shared list anywhere a list is expected -- variants, styles,
+# issues, regions.
+#
+# A FAMILY'S SOCKETS ARE EVERY MODEL'S. A `chips:` block on the family is asked
+# of every model in it, so the Z80 is written once for all the Spectrums. A model
+# can then say something different about one socket without repeating the rest:
+#
+#     chips:
+#       - socket: ula
+#         variants: [Amstrad 40056]     <- this model has a different part
+#       - socket: sid
+#         variants: []                  <- this model hasn't got that socket
+#
+# An empty `variants:` list is how a machine says it has not got one: it is why a
+# VIC-20 is not asked about its SID and a ZX80 is not asked about its ULA.
+#
+# ---------------------------------------------------------------------------
+#
+# WHERE ORDER MATTERS. Families are offered in alphabetical order of who made
+# them, whatever order this file lists them in -- so a new family can go wherever
+# is convenient and will still land in the right place in the menu. This file is
+# kept in that order too, just so it is easy to read.
+#
+# What you write in order stays in order: a family's models are offered as you
+# list them (oldest first, by convention), and a model's chip sockets are asked as
+# you list them -- so put them in the order you read the board.
+
+lists:
+  z80:
+    - Zilog Z80A
+    - Zilog Z8400AB1
+    - NEC D780C-1
+    - SGS Z8400AB1
+    - Sharp LH0080A
+    - Mostek MK3880N-4
+    - GoldStar Z8400A
+    - Toshiba TMPZ84C00AP
+  ay:
+    - General Instrument AY-3-8912
+    - General Instrument AY-3-8910
+    - Yamaha YM2149F
+
+families:
+  - key: acorn
+    name: Acorn
+    manufacturer: Acorn
+    regions: [PAL (UK)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Rockwell R6502A, Synertek SY6502A, MOS 6502A]
+      - socket: video-ula
+        label: Video ULA
+        note: >-
+          the ULA that fails and takes the display with it; VIDPROC is the modern
+          stand-in
+        variants: [Ferranti 5C022E, VideoProc (VIDPROC)]
+      - socket: serial-ula
+        label: Serial ULA
+        note: >-
+          the cassette and RS423 side, and the other ULA that fails
+        variants: [Ferranti 2C199E]
+      - socket: crtc
+        label: CRTC
+        variants: [Hitachi HD6845, Motorola MC6845, Synertek SY6845]
+      - socket: fdc
+        label: Floppy controller
+        note: >-
+          the 8271 of an early board, the 1770 of a later one, or an empty socket
+          on a machine sold without discs
+        variants: [Intel 8271, WD1770, WD1772, none fitted]
+      - socket: os-rom
+        label: OS ROM
+        variants: [OS 0.10, OS 1.00, OS 1.20, OS 2.00 (B+), MOS 3.20, MOS 3.50]
+      - socket: basic-rom
+        label: BASIC ROM
+        variants: [BASIC I, BASIC II, BASIC IV]
+    models:
+      - key: bbc-model-a
+        model: BBC Micro Model A
+        year: 1981
+        cpu: Rockwell 6502A-2
+        chassis: 'beige case, cream keys'
+        os: Acorn MOS 1.20
+        ram: [16K]
+        issues: [Issue 1, Issue 2, Issue 3, Issue 4, Issue 7]
+        styles: [Model A]
+      - key: bbc-model-b
+        model: BBC Micro Model B
+        year: 1981
+        cpu: Rockwell 6502A-2
+        chassis: 'beige case, cream keys'
+        os: Acorn MOS 1.20
+        ram: [32K]
+        issues: [Issue 1, Issue 2, Issue 3, Issue 4, Issue 7]
+        styles: [Model B, Model A upgraded to B]
+      - key: bbc-b-plus
+        model: BBC Micro Model B+
+        year: 1985
+        cpu: Rockwell 6512A-2
+        chassis: 'beige case, cream keys'
+        os: Acorn MOS 2.00
+        ram: [64K, 128K]
+        issues: []
+        styles: [B+ 64K, B+ 128K]
+      - key: bbc-master-128
+        model: BBC Master 128
+        year: 1986
+        cpu: Rockwell 65SC12-2
+        chassis: beige case with keypad
+        os: Acorn MOS 3.20
+        ram: [128K]
+        issues: []
+        styles: [Master 128, Master Compact]
+        chips:
+          - socket: cpu
+            variants: [Rockwell R65SC12, GTE G65SC12]
+          - socket: fdc
+            variants: [WD1770, WD1772]
+          - socket: os-rom
+            variants: [MOS 3.20, MOS 3.50]
+          - socket: basic-rom
+            variants: [BASIC IV]
+      - key: acorn-electron
+        model: Electron
+        year: 1983
+        cpu: Rockwell 6502A-2
+        chassis: compact beige wedge
+        os: Acorn OS 1.00
+        ram: [32K]
+        issues: [Issue 4, Issue 6]
+        styles: [Electron]
+        chips:
+          - socket: cpu
+            variants: [Rockwell R6502A, Synertek SY6502A]
+          - socket: ula
+            label: ULA
+            note: >-
+              video, memory and cassette in one chip that runs hot and is the usual
+              reason a dead Electron is dead
+            variants: [Ferranti 12C021, Ferranti 12C021A]
+          - socket: os-rom
+            variants: [OS 1.00]
+          - socket: basic-rom
+            variants: [BASIC II]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: fdc
+            variants: []
+      - key: acorn-a3000
+        model: Archimedes A3000
+        year: 1989
+        cpu: Acorn ARM2-8
+        chassis: 'wedge, one-piece'
+        os: RISC OS 2.00
+        ram: [1MB, 2MB, 4MB]
+        issues: []
+        styles: [A3000]
+        chips:
+          - socket: cpu
+            variants: [Acorn ARM2, Acorn ARM3 (upgrade)]
+          - socket: memc
+            label: MEMC
+            variants: [MEMC1a]
+          - socket: vidc
+            label: VIDC
+            variants: [VIDC1a]
+          - socket: ioc
+            label: IOC
+            variants: [IOC]
+          - socket: os-rom
+            variants: [RISC OS 2.00, RISC OS 3.00, RISC OS 3.10, RISC OS 3.11]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+      - key: acorn-a3010
+        model: A3010
+        year: 1992
+        cpu: Acorn ARM250-12
+        chassis: 'wedge, one-piece'
+        os: RISC OS 3.10
+        ram: [1MB, 2MB, 4MB]
+        issues: []
+        styles: [A3010, A3020]
+        chips:
+          - socket: cpu
+            note: >-
+              the ARM250 has the MEMC, VIDC and IOC inside it, so there are no
+              separate chips to record
+            variants: [Acorn ARM250]
+          - socket: os-rom
+            variants: [RISC OS 3.10, RISC OS 3.11]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+      - key: acorn-atom
+        model: Atom
+        year: 1980
+        cpu: MOS 6502-1
+        chassis: white and blue case, integrated keyboard
+        os: Atom BASIC
+        ram: [2K, 12K]
+        issues: []
+        styles: [Atom (kit-built), Atom (factory-built)]
+        chips:
+          - socket: cpu
+            variants: [MOS 6502, Synertek SY6502]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: fdc
+            variants: [Intel 8271, none fitted]
+          - socket: os-rom
+            label: MOS ROM
+            variants: [Atom MOS]
+          - socket: basic-rom
+            variants: [Atom BASIC]
+          - socket: vdg
+            label: Video (VDG)
+            note: >-
+              the same display chip a Dragon and a Tandy CoCo have; the ULA that
+              makes a BBC's picture was still two years off
+            variants: [Motorola MC6847]
+      - key: acorn-a310
+        model: Archimedes A310
+        year: 1987
+        cpu: Acorn ARM2-8
+        chassis: two-box desktop
+        os: Arthur 1.20 / RISC OS 2
+        ram: [512K, 1MiB, 4MiB]
+        issues: []
+        styles: [A305, A310, A410/1, A440]
+        chips:
+          - socket: cpu
+            variants: [Acorn ARM2, Acorn ARM3 (upgrade)]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+          - socket: basic-rom
+            variants: []
+          - socket: memc
+            label: MEMC
+            variants: [MEMC1, MEMC1a]
+          - socket: vidc
+            label: VIDC
+            variants: [VIDC1, VIDC1a]
+          - socket: ioc
+            label: IOC
+            variants: [IOC]
+          - socket: os-rom
+            variants: [Arthur 1.20, RISC OS 2.00, RISC OS 3.10, RISC OS 3.11]
+
+      - key: bbc-master-compact
+        model: BBC Master Compact
+        year: 1986
+        cpu: Rockwell 65SC12-2
+        chassis: slim keyboard unit with a separate monitor
+        os: Acorn MOS 5.00
+        ram: [128K]
+        issues: []
+        styles: [Master Compact, Master Compact (with monitor)]
+        chips:
+          - socket: cpu
+            variants: [Rockwell R65SC12, GTE G65SC12]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+          - socket: os-rom
+            variants: [MOS 5.00]
+          - socket: basic-rom
+            variants: [BASIC IV]
+      - key: acorn-a440
+        model: Archimedes A440/1
+        year: 1987
+        cpu: Acorn ARM2-8
+        chassis: two-box desktop with a hard disk
+        os: Arthur 1.20 / RISC OS 2
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [A410/1, A420/1, A440, A440/1]
+        chips:
+          - socket: cpu
+            variants: [Acorn ARM2, Acorn ARM3 (upgrade)]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+          - socket: memc
+            label: MEMC
+            variants: [MEMC1, MEMC1a]
+          - socket: vidc
+            label: VIDC
+            variants: [VIDC1, VIDC1a]
+          - socket: ioc
+            label: IOC
+            variants: [IOC]
+          - socket: os-rom
+            variants: [Arthur 1.20, RISC OS 2.00, RISC OS 3.11]
+      - key: acorn-a5000
+        model: A5000
+        year: 1991
+        cpu: Acorn ARM3-25
+        chassis: two-box desktop
+        os: RISC OS 3.00
+        ram: [2MiB, 4MiB]
+        issues: []
+        styles: [A5000, A5000 Alpha (33MHz)]
+        chips:
+          - socket: cpu
+            variants: [Acorn ARM3]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [WD1772, Intel 82C710]
+          - socket: memc
+            label: MEMC
+            variants: [MEMC1a]
+          - socket: vidc
+            label: VIDC
+            variants: [VIDC1a]
+          - socket: ioc
+            label: IOC
+            variants: [IOC]
+          - socket: os-rom
+            variants: [RISC OS 3.00, RISC OS 3.10, RISC OS 3.11]
+      - key: acorn-a3020
+        model: A3020
+        year: 1992
+        cpu: Acorn ARM250-12
+        chassis: wedge, one-piece, with a built-in drive
+        os: RISC OS 3.11
+        ram: [2MiB, 4MiB]
+        issues: []
+        styles: [A3020, A3020 with a hard disk]
+        chips:
+          - socket: cpu
+            note: >-
+              the ARM250 has the MEMC, VIDC and IOC inside it, so there are no
+              separate chips to record
+            variants: [Acorn ARM250]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+          - socket: os-rom
+            variants: [RISC OS 3.10, RISC OS 3.11]
+      - key: acorn-a4000
+        model: A4000
+        year: 1992
+        cpu: Acorn ARM250-12
+        chassis: two-box desktop
+        os: RISC OS 3.11
+        ram: [2MiB, 4MiB]
+        issues: []
+        styles: [A4000, A4000 Home Office]
+        chips:
+          - socket: cpu
+            variants: [Acorn ARM250]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+          - socket: os-rom
+            variants: [RISC OS 3.10, RISC OS 3.11]
+      - key: acorn-a4
+        model: A4
+        year: 1992
+        cpu: Acorn ARM3-24
+        chassis: laptop with a mono LCD
+        os: RISC OS 3.11
+        ram: [2MiB, 4MiB]
+        issues: []
+        styles: [A4]
+        chips:
+          - socket: cpu
+            variants: [Acorn ARM3]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [WD1772]
+          - socket: os-rom
+            variants: [RISC OS 3.11]
+      - key: acorn-risc-pc
+        model: Risc PC 600
+        year: 1994
+        cpu: Acorn ARM610-30
+        chassis: stackable two-slice desktop
+        os: RISC OS 3.50
+        ram: [4MiB, 8MiB, 16MiB]
+        issues: []
+        styles: [Risc PC 600, Risc PC 700, Risc PC (three slices)]
+        chips:
+          - socket: cpu
+            note: >-
+              on a card of its own, and the reason a Risc PC can carry a 486 beside
+              the ARM and run both
+            variants: [Acorn ARM610, Acorn ARM710, Acorn StrongARM SA-110]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [Intel 82C710]
+          - socket: vidc
+            label: VIDC
+            variants: [VIDC20]
+          - socket: ioc
+            label: IOMD
+            variants: [IOMD]
+          - socket: os-rom
+            variants: [RISC OS 3.50, RISC OS 3.60, RISC OS 3.70]
+      - key: acorn-a7000
+        model: A7000
+        year: 1995
+        cpu: Acorn ARM7500-32
+        chassis: two-box desktop
+        os: RISC OS 3.60
+        ram: [4MiB, 8MiB]
+        issues: []
+        styles: [A7000, A7000+]
+        chips:
+          - socket: cpu
+            variants: [Acorn ARM7500]
+          - socket: video-ula
+            variants: []
+          - socket: serial-ula
+            variants: []
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: []
+          - socket: fdc
+            variants: [Intel 82C710]
+          - socket: os-rom
+            variants: [RISC OS 3.60, RISC OS 3.71]
+
+  - key: amstrad
+    name: Amstrad
+    manufacturer: Amstrad
+    regions: [PAL (UK/Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+      - socket: gate-array
+        label: Gate Array
+        note: >-
+          video and memory banking; the ASIC of a Plus machine does this and the
+          CRTC's job together
+        variants: [Amstrad 40007, Amstrad 40008, Amstrad 40010, Amstrad 40489 (ASIC)]
+      - socket: crtc
+        label: CRTC
+        note: >-
+          the type number is what software cares about -- the border and split
+          tricks behave differently on each
+        variants:
+          - Hitachi HD6845S (type 0)
+          - UMC UM6845R (type 1)
+          - Motorola MC6845 (type 2)
+          - Amstrad pre-ASIC (type 3)
+          - Amstrad 40489 ASIC (type 4)
+      - socket: psg
+        label: Sound
+        variants: ay
+      - socket: ppi
+        label: PPI
+        variants: [NEC D8255AC-5, Intel 8255A-5]
+    models:
+      - key: cpc-464
+        model: CPC 464
+        year: 1984
+        cpu: Zilog Z80A-4
+        chassis: 'wedge, built-in tape'
+        os: Locomotive BASIC 1.0
+        ram: [64K]
+        issues: [Z70200, Z70290]
+        styles: [grey keys, colour keys (later production)]
+      - key: cpc-664
+        model: CPC 664
+        year: 1985
+        cpu: Zilog Z80A-4
+        chassis: 'wedge, built-in 3" floppy'
+        os: Locomotive BASIC 1.1 / AMSDOS
+        ram: [64K]
+        issues: []
+        styles: [CPC 664]
+        chips:
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC]
+      - key: cpc-6128
+        model: CPC 6128
+        year: 1985
+        cpu: Zilog Z80A-4
+        chassis: 'wedge, built-in 3" floppy'
+        os: Locomotive BASIC 1.1 / AMSDOS / CP/M Plus
+        ram: [128K]
+        issues: []
+        styles: [grey case (UK), white case (Europe)]
+        chips:
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC]
+      - key: cpc-464-plus
+        model: 464 Plus
+        year: 1990
+        cpu: Zilog Z80A-4
+        chassis: 'wedge, built-in tape'
+        os: Locomotive BASIC 1.1
+        ram: [64K]
+        issues: []
+        styles: [464 Plus]
+        chips:
+          - socket: cpu
+            variants: z80
+          - socket: gate-array
+            label: ASIC
+            note: >-
+              the Plus ASIC does the Gate Array's and the CRTC's work together, and
+              adds the sprites
+            variants: [Amstrad 40489]
+          - socket: psg
+            variants: ay
+          - socket: crtc
+            variants: []
+      - key: cpc-6128-plus
+        model: 6128 Plus
+        year: 1990
+        cpu: Zilog Z80A-4
+        chassis: 'wedge, built-in 3" floppy'
+        os: Locomotive BASIC 1.1 / AMSDOS / CP/M Plus
+        ram: [128K]
+        issues: []
+        styles: [6128 Plus]
+        chips:
+          - socket: cpu
+            variants: z80
+          - socket: gate-array
+            label: ASIC
+            variants: [Amstrad 40489]
+          - socket: psg
+            variants: ay
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC]
+          - socket: crtc
+            variants: []
+      - key: gx4000
+        model: GX4000
+        year: 1990
+        cpu: Zilog Z80A-4
+        chassis: console
+        os: cartridge only
+        ram: [64K]
+        issues: []
+        styles: [GX4000]
+        chips:
+          - socket: cpu
+            variants: z80
+          - socket: gate-array
+            label: ASIC
+            variants: [Amstrad 40489]
+          - socket: psg
+            variants: ay
+          - socket: crtc
+            variants: []
+      - key: pcw-8256
+        model: PCW 8256
+        year: 1985
+        cpu: Zilog Z80A-4
+        chassis: monitor unit with 3" floppy
+        os: CP/M Plus / LocoScript
+        ram: [256K]
+        issues: []
+        styles: [PCW 8256, 'PCW 8512 (two drives, 512K)']
+        chips:
+          - socket: cpu
+            variants: z80
+          - socket: gate-array
+            note: >-
+              the PCW's own gate array, not a CPC part
+            variants: [Amstrad 40026, Amstrad 40028]
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC]
+          - socket: crtc
+            variants: []
+          - socket: psg
+            variants: []
+          - socket: ppi
+            variants: []
+      - key: pcw-9512
+        model: PCW 9512
+        year: 1987
+        cpu: Zilog Z80A-4
+        chassis: monitor unit with a 3-inch floppy and a daisywheel printer
+        os: CP/M Plus / LocoScript 2
+        ram: [512K]
+        issues: []
+        styles: [PCW 9512, PCW 9512+ (9-pin printer)]
+        chips:
+          - socket: cpu
+            variants: z80
+          - socket: gate-array
+            label: Gate Array
+            note: the PCW's own gate array, not a CPC part
+            variants: [Amstrad 40026, Amstrad 40028]
+          - socket: crtc
+            variants: []
+          - socket: psg
+            variants: []
+          - socket: ppi
+            variants: []
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC]
+      - key: cpc-472
+        model: CPC 472
+        year: 1985
+        cpu: Zilog Z80A-4
+        chassis: wedge, built-in tape
+        os: Locomotive BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [CPC 472 (Spain)]
+        chips:
+          - socket: gate-array
+            note: >-
+              a 464 with 8K of memory nobody could use, soldered on to dodge a
+              Spanish import duty on 64K machines
+            variants: [Amstrad 40010]
+      - key: pcw-8512
+        model: PCW 8512
+        year: 1985
+        cpu: Zilog Z80A-4
+        chassis: monitor unit with two 3-inch drives
+        os: CP/M Plus / LocoScript
+        ram: [512K]
+        issues: []
+        styles: [PCW 8512]
+        chips:
+          - socket: gate-array
+            label: Gate Array
+            variants: [Amstrad 40026, Amstrad 40028]
+          - socket: crtc
+            variants: []
+          - socket: psg
+            variants: []
+          - socket: ppi
+            variants: []
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC]
+      - key: pcw-9256
+        model: PCW 9256
+        year: 1991
+        cpu: Zilog Z80A-4
+        chassis: monitor unit with a 3.5-inch drive
+        os: CP/M Plus / LocoScript 2
+        ram: [256K]
+        issues: []
+        styles: [PCW 9256, PCW 9512+]
+        chips:
+          - socket: gate-array
+            label: Gate Array
+            variants: [Amstrad 40026, Amstrad 40028]
+          - socket: crtc
+            variants: []
+          - socket: psg
+            variants: []
+          - socket: ppi
+            variants: []
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC]
+      - key: amstrad-nc200
+        model: NC200 Notebook
+        year: 1993
+        cpu: Zilog Z80-6
+        chassis: clamshell notebook with a backlit LCD and a 3.5-inch drive
+        os: BASIC, the organiser and Protext, in ROM
+        ram: [128K]
+        issues: []
+        styles: [NC200]
+        chips:
+          - socket: cpu
+            variants: z80
+          - socket: gate-array
+            label: ASIC
+            variants: [Amstrad NC200 ASIC]
+          - socket: crtc
+            variants: []
+          - socket: psg
+            variants: []
+          - socket: ppi
+            variants: []
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765A]
+      - key: amstrad-nc100
+        model: NC100 Notepad
+        year: 1992
+        cpu: Zilog Z80-4.6
+        chassis: A4 notepad with an 8-line LCD
+        os: BASIC and the built-in organiser, in ROM
+        ram: [64K]
+        issues: []
+        styles: [NC100, NC150 (Europe), NC200 (with a drive)]
+        chips:
+          - socket: cpu
+            variants: z80
+          - socket: gate-array
+            label: ASIC
+            variants: [Amstrad NC100 ASIC]
+          - socket: crtc
+            variants: []
+          - socket: psg
+            variants: []
+          - socket: ppi
+            variants: []
+
+  - key: apple
+    name: Apple II
+    manufacturer: Apple
+    regions: [NTSC (US), PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants:
+          - MOS 6502
+          - Synertek SY6502
+          - Rockwell R6502
+          - NCR 65C02
+          - Western Design 65C02
+      - socket: rom
+        label: Firmware ROM
+        note: >-
+          socketed on every one of them, and swapped often enough -- for Autostart,
+          for the Enhanced set, for a language card -- that what is in there now is
+          worth writing down
+        variants: [Original Monitor, Autostart Monitor]
+    models:
+      - key: apple-ii
+        model: II
+        year: 1977
+        cpu: MOS 6502-1.02
+        chassis: beige case with a lift-off lid
+        os: Integer BASIC
+        ram: [4K, 16K, 48K]
+        issues: [Revision 0, Revision 1, RFI revision]
+        styles: [Apple II]
+      - key: apple-ii-plus
+        model: II+
+        year: 1979
+        cpu: MOS 6502-1.02
+        chassis: beige case with a lift-off lid
+        os: Applesoft BASIC / DOS 3.3
+        ram: [16K, 32K, 48K]
+        issues: []
+        styles: [II+, Europlus (Europe), J-Plus (Japan)]
+        chips:
+          - socket: rom
+            variants: [Autostart Monitor]
+      - key: apple-iie
+        model: IIe
+        year: 1983
+        cpu: MOS 6502-1.02
+        chassis: beige case with a lift-off lid
+        os: Applesoft BASIC / ProDOS
+        ram: [64K, 128K]
+        issues: []
+        styles: [IIe, IIe Enhanced, IIe Platinum]
+        chips:
+          - socket: cpu
+            variants: [MOS 6502, NCR 65C02 (Enhanced), Synertek SY6502]
+          - socket: rom
+            note: >-
+              which set is in there is what tells an Enhanced IIe from an original
+              one, and it is the difference between a machine that runs 128K
+              software and one that does not
+            variants: [IIe, Enhanced IIe, Platinum IIe]
+      - key: apple-iic
+        model: IIc
+        year: 1984
+        cpu: NCR 65C02-1.02
+        chassis: compact white case with a built-in drive
+        os: Applesoft BASIC / ProDOS
+        ram: [128K]
+        issues: []
+        styles: [IIc, IIc (memory expansion), IIc Plus]
+        chips:
+          - socket: cpu
+            variants: [NCR 65C02, Western Design 65C02]
+          - socket: rom
+            note: >-
+              the four IIc firmware revisions, and what a machine can do with a
+              mouse, a second drive or a memory card depends on which it has
+            variants: [ROM 255, ROM 0, ROM 3, ROM 4]
+      - key: apple-iigs
+        model: IIgs
+        year: 1986
+        cpu: Western Design 65C816-2.8
+        chassis: platinum desktop with a lift-off lid
+        os: GS/OS
+        ram: [256K, 1MiB, 4MiB]
+        issues: []
+        styles: [ROM 00, ROM 01, ROM 3, Woz limited edition]
+        chips:
+          - socket: cpu
+            variants: [Western Design 65C816, GTE G65SC816]
+          - socket: mega2
+            label: Mega II
+            note: the whole of an Apple IIe reduced to one chip, for compatibility
+            variants: [Apple Mega II]
+          - socket: vgc
+            label: VGC
+            variants: [Apple VGC]
+          - socket: doc
+            label: Sound (DOC)
+            note: >-
+              thirty-two oscillators from the company that made the Mirage sampler,
+              and far and away the best sound of any Apple II
+            variants: [Ensoniq 5503 DOC]
+          - socket: iwm
+            label: Disk controller
+            variants: [Apple IWM, Apple SWIM]
+          - socket: rom
+            variants: [ROM 00, ROM 01, ROM 3]
+
+      - key: apple-iii
+        model: III
+        year: 1980
+        cpu: Synertek 6502B-1.8
+        chassis: cast aluminium desktop with a built-in drive
+        os: Apple SOS
+        ram: [128K, 256K]
+        issues: []
+        styles: [III, III Plus (1983)]
+        chips:
+          - socket: cpu
+            variants: [Synertek 6502B, MOS 6502B]
+          - socket: rom
+            variants: [SOS boot ROM]
+      - key: apple-iic-plus
+        model: IIc Plus
+        year: 1988
+        cpu: Western Design 65C02-4
+        chassis: compact white case with a 3.5-inch drive
+        os: Applesoft BASIC / ProDOS
+        ram: [128K]
+        issues: []
+        styles: [IIc Plus]
+        chips:
+          - socket: cpu
+            variants: [Western Design 65C02]
+          - socket: rom
+            variants: [IIc Plus ROM]
+
+  - key: macintosh
+    name: Apple Macintosh
+    manufacturer: Apple
+    regions: [US, Europe, Japan]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants:
+          - Motorola MC68000
+          - Motorola MC68020
+          - Motorola MC68030
+      - socket: rom
+        label: ROM
+        note: >-
+          the Toolbox lives in here, so the ROM size is a good part of what the
+          machine can do at all
+        variants: [64K ROM, 128K ROM, 256K ROM, 512K ROM]
+      - socket: iwm
+        label: Disk controller
+        note: >-
+          the IWM is the chip behind the variable-speed 400K drive; the SWIM that
+          replaced it is what reads an ordinary 1.44MB disk
+        variants: [Apple IWM, Apple SWIM]
+      - socket: via
+        label: VIA
+        variants: [Synertek SY6522, Rockwell R6522]
+      - socket: scc
+        label: Serial
+        variants: [Zilog Z8530, AMD Am8530]
+    models:
+      - key: apple-lisa
+        model: Lisa
+        year: 1983
+        cpu: Motorola 68000-5
+        chassis: all-in-one with a 12-inch mono screen and twin Twiggy drives
+        os: Lisa Office System
+        ram: [1MiB, 2MiB]
+        issues: []
+        styles: [Lisa 1 (Twiggy drives), Lisa 2, Lisa 2/10 (Macintosh XL)]
+        chips:
+          - socket: rom
+            variants: [Lisa boot ROM]
+          - socket: iwm
+            variants: [Apple IWM, Twiggy controller]
+      - key: mac-iix
+        model: Macintosh IIx
+        year: 1988
+        cpu: Motorola 68030-16
+        chassis: desktop with six NuBus slots
+        os: System 6
+        ram: [4MiB, 8MiB, 32MiB]
+        issues: []
+        styles: [IIx]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: fpu
+            label: FPU
+            variants: [Motorola MC68882]
+          - socket: rom
+            variants: [256K ROM]
+      - key: mac-iici
+        model: Macintosh IIci
+        year: 1989
+        cpu: Motorola 68030-25
+        chassis: desktop with three NuBus slots
+        os: System 6.0.4
+        ram: [4MiB, 8MiB, 32MiB]
+        issues: []
+        styles: [IIci, IIcx]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: fpu
+            label: FPU
+            variants: [Motorola MC68882]
+          - socket: rom
+            variants: [512K ROM]
+      - key: mac-iisi
+        model: Macintosh IIsi
+        year: 1990
+        cpu: Motorola 68030-20
+        chassis: slimline desktop
+        os: System 6.0.7
+        ram: [2MiB, 5MiB, 17MiB]
+        issues: []
+        styles: [IIsi]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: rom
+            variants: [512K ROM]
+      - key: mac-iifx
+        model: Macintosh IIfx
+        year: 1990
+        cpu: Motorola 68030-40
+        chassis: desktop with six NuBus slots
+        os: System 6.0.5
+        ram: [4MiB, 8MiB, 32MiB]
+        issues: []
+        styles: [IIfx]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: fpu
+            label: FPU
+            variants: [Motorola MC68882]
+          - socket: rom
+            variants: [512K ROM]
+      - key: mac-classic-ii
+        model: Macintosh Classic II
+        year: 1991
+        cpu: Motorola 68030-16
+        chassis: all-in-one, 9-inch mono screen
+        os: System 7
+        ram: [2MiB, 4MiB, 10MiB]
+        issues: []
+        styles: [Classic II, Performa 200]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: rom
+            variants: [512K ROM]
+      - key: mac-color-classic
+        model: Macintosh Color Classic
+        year: 1993
+        cpu: Motorola 68030-16
+        chassis: all-in-one, 10-inch colour screen
+        os: System 7.1
+        ram: [4MiB, 10MiB]
+        issues: []
+        styles: [Color Classic, Color Classic II]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+      - key: mac-lc-ii
+        model: Macintosh LC II
+        year: 1992
+        cpu: Motorola 68030-16
+        chassis: slimline desktop (pizza box)
+        os: System 7
+        ram: [4MiB, 10MiB]
+        issues: []
+        styles: [LC II, Performa 400]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+      - key: mac-lc-iii
+        model: Macintosh LC III
+        year: 1993
+        cpu: Motorola 68030-25
+        chassis: slimline desktop (pizza box)
+        os: System 7.1
+        ram: [4MiB, 12MiB, 36MiB]
+        issues: []
+        styles: [LC III, LC III+, Performa 450]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+      - key: mac-quadra-700
+        model: Macintosh Quadra 700
+        year: 1991
+        cpu: Motorola 68040-25
+        chassis: tower with NuBus slots
+        os: System 7
+        ram: [4MiB, 20MiB]
+        issues: []
+        styles: [Quadra 700, Quadra 900, Quadra 950]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68040]
+      - key: mac-quadra-605
+        model: Macintosh Quadra 605
+        year: 1993
+        cpu: Motorola 68LC040-25
+        chassis: slimline desktop (pizza box)
+        os: System 7.1
+        ram: [4MiB, 16MiB, 36MiB]
+        issues: []
+        styles: [Quadra 605, LC 475, Performa 475]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68LC040, Motorola MC68040]
+      - key: mac-quadra-840av
+        model: Macintosh Quadra 840AV
+        year: 1993
+        cpu: Motorola 68040-40
+        chassis: tower with NuBus slots
+        os: System 7.1
+        ram: [8MiB, 32MiB, 128MiB]
+        issues: []
+        styles: [Quadra 840AV, Quadra 660AV, Centris 660AV]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68040]
+          - socket: dsp
+            label: DSP
+            note: the AV machines put a signal processor in for video and telephony
+            variants: [AT&T DSP3210]
+      - key: mac-portable
+        model: Macintosh Portable
+        year: 1989
+        cpu: Motorola 68000-16
+        chassis: luggable with an active-matrix mono LCD
+        os: System 6.0.4
+        ram: [1MiB, 2MiB, 9MiB]
+        issues: []
+        styles: [Portable (backlit), Portable (no backlight)]
+        chips:
+          - socket: rom
+            variants: [256K ROM]
+      - key: powerbook-100
+        model: PowerBook 100
+        year: 1991
+        cpu: Motorola 68000-16
+        chassis: notebook with a mono LCD
+        os: System 7
+        ram: [2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [PowerBook 100]
+        chips:
+          - socket: rom
+            variants: [512K ROM]
+      - key: powerbook-170
+        model: PowerBook 170
+        year: 1991
+        cpu: Motorola 68030-25
+        chassis: notebook with an active-matrix mono LCD
+        os: System 7
+        ram: [2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [PowerBook 140, PowerBook 145, PowerBook 170]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: fpu
+            label: FPU
+            variants: [Motorola MC68882]
+      - key: powerbook-180
+        model: PowerBook 180
+        year: 1992
+        cpu: Motorola 68030-33
+        chassis: notebook with an active-matrix mono LCD
+        os: System 7.1
+        ram: [4MiB, 8MiB, 14MiB]
+        issues: []
+        styles: [PowerBook 160, PowerBook 180, PowerBook 180c (colour)]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+      - key: powerbook-duo-230
+        model: PowerBook Duo 230
+        year: 1992
+        cpu: Motorola 68030-33
+        chassis: subnotebook for a docking station
+        os: System 7.1
+        ram: [4MiB, 8MiB, 24MiB]
+        issues: []
+        styles: [Duo 210, Duo 230, Duo 270c, Duo 280]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+      - key: power-macintosh-6100
+        model: Power Macintosh 6100
+        year: 1994
+        cpu: PowerPC 601-60
+        chassis: slimline desktop (pizza box)
+        os: System 7.1.2
+        ram: [8MiB, 16MiB, 72MiB]
+        issues: []
+        styles: [6100/60, 6100/66, 6100 AV, Performa 6110]
+        chips:
+          - socket: cpu
+            note: >-
+              the first Macs off the 68000, and the ones that ran the old software
+              through an emulator rather than natively
+            variants: [PowerPC 601]
+      - key: power-macintosh-7100
+        model: Power Macintosh 7100
+        year: 1994
+        cpu: PowerPC 601-66
+        chassis: desktop with three NuBus slots
+        os: System 7.1.2
+        ram: [8MiB, 16MiB, 136MiB]
+        issues: []
+        styles: [7100/66, 7100/80, 7100 AV]
+        chips:
+          - socket: cpu
+            variants: [PowerPC 601]
+      - key: power-macintosh-8100
+        model: Power Macintosh 8100
+        year: 1994
+        cpu: PowerPC 601-80
+        chassis: tower with three NuBus slots
+        os: System 7.1.2
+        ram: [8MiB, 16MiB, 264MiB]
+        issues: []
+        styles: [8100/80, 8100/100, 8100/110]
+        chips:
+          - socket: cpu
+            variants: [PowerPC 601]
+      - key: mac-128k
+        model: Macintosh 128K
+        year: 1984
+        cpu: Motorola 68000-7.83
+        chassis: all-in-one, 9-inch mono screen
+        os: System 1
+        ram: [128K]
+        issues: []
+        styles: [Macintosh 128K, 128K upgraded to 512K]
+        chips:
+          - socket: rom
+            variants: [64K ROM]
+          - socket: iwm
+            variants: [Apple IWM]
+      - key: mac-512k
+        model: Macintosh 512K
+        year: 1984
+        cpu: Motorola 68000-7.83
+        chassis: all-in-one, 9-inch mono screen
+        os: System 2
+        ram: [512K]
+        issues: []
+        styles: [512K (Fat Mac), 512Ke]
+        chips:
+          - socket: rom
+            variants: [64K ROM, 128K ROM (512Ke)]
+      - key: mac-plus
+        model: Macintosh Plus
+        year: 1986
+        cpu: Motorola 68000-7.83
+        chassis: all-in-one, 9-inch mono screen
+        os: System 3
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [Plus (beige), Plus (platinum)]
+        chips:
+          - socket: rom
+            variants: [128K ROM]
+          - socket: scsi
+            label: SCSI
+            note: the first Mac with a port worth hanging a hard disk off
+            variants: [NCR 5380]
+      - key: mac-se
+        model: Macintosh SE
+        year: 1987
+        cpu: Motorola 68000-7.83
+        chassis: all-in-one, 9-inch mono screen
+        os: System 4
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [SE (dual floppy), SE (floppy and hard disk), SE FDHD]
+        chips:
+          - socket: rom
+            variants: [256K ROM]
+          - socket: scsi
+            label: SCSI
+            variants: [NCR 5380]
+      - key: mac-se-30
+        model: Macintosh SE/30
+        year: 1989
+        cpu: Motorola 68030-16
+        chassis: all-in-one, 9-inch mono screen
+        os: System 6
+        ram: [1MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [SE/30]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: fpu
+            label: FPU
+            variants: [Motorola MC68882]
+          - socket: rom
+            variants: [256K ROM]
+          - socket: iwm
+            variants: [Apple SWIM]
+          - socket: scsi
+            label: SCSI
+            variants: [NCR 5380]
+      - key: mac-ii
+        model: Macintosh II
+        year: 1987
+        cpu: Motorola 68020-16
+        chassis: desktop with six NuBus slots
+        os: System 4.1
+        ram: [1MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [Macintosh II]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68020]
+          - socket: fpu
+            label: FPU
+            variants: [Motorola MC68881]
+          - socket: rom
+            variants: [256K ROM]
+          - socket: scsi
+            label: SCSI
+            variants: [NCR 5380]
+      - key: mac-classic
+        model: Macintosh Classic
+        year: 1990
+        cpu: Motorola 68000-7.83
+        chassis: all-in-one, 9-inch mono screen
+        os: System 6.0.7
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [Classic, Classic (with hard disk)]
+        chips:
+          - socket: rom
+            variants: [512K ROM]
+          - socket: iwm
+            variants: [Apple SWIM]
+      - key: mac-lc
+        model: Macintosh LC
+        year: 1990
+        cpu: Motorola 68020-16
+        chassis: slimline desktop (pizza box)
+        os: System 6.0.7
+        ram: [2MiB, 4MiB, 10MiB]
+        issues: []
+        styles: [LC, LC with an Apple IIe card]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68020]
+          - socket: rom
+            variants: [512K ROM]
+          - socket: iwm
+            variants: [Apple SWIM]
+
+  - key: atari-8bit
+    name: Atari 8-bit
+    manufacturer: Atari
+    regions: [PAL, NTSC]
+    chips:
+      - socket: cpu
+        label: CPU
+        note: >-
+          Sally is the 6502C with the halt line the later machines need
+        variants: [MOS 6502B, Synertek 6502B, MOS 6502C (Sally)]
+      - socket: antic
+        label: ANTIC
+        note: >-
+          the display list processor; the second number is the later mask
+        variants: [C012296, C021697]
+      - socket: gtia
+        label: GTIA
+        note: >-
+          an early 400/800 has the CTIA, which has no GTIA graphics modes
+        variants: [C010444 (CTIA), C014805, C014889]
+      - socket: pokey
+        label: POKEY
+        note: >-
+          sound, the keyboard scan and the serial port
+        variants: [C012294, C012294B]
+      - socket: pia
+        label: PIA
+        note: >-
+          the joystick ports
+        variants: [C014795 (6520), MOS 6520]
+    models:
+      - key: atari-400
+        model: '400'
+        year: 1979
+        cpu: MOS 6502B-1.79
+        chassis: 'wedge, membrane keyboard'
+        os: Atari OS ROM
+        ram: [8K, 16K]
+        issues: []
+        styles: [membrane keyboard]
+        chips:
+          - socket: os-rom
+            label: OS ROM
+            variants: [Rev A, Rev B]
+      - key: atari-800
+        model: '800'
+        year: 1979
+        cpu: MOS 6502B-1.79
+        chassis: 'desktop, two cartridge slots'
+        os: Atari OS ROM
+        ram: [8K, 16K, 48K]
+        issues: []
+        styles: [Atari 800]
+        chips:
+          - socket: os-rom
+            label: OS ROM
+            variants: [Rev A, Rev B]
+      - key: atari-1200xl
+        model: 1200XL
+        year: 1983
+        cpu: MOS 6502C-1.79
+        chassis: XL wedge, aluminium fascia
+        os: Atari OS Rev 1 (1200XL)
+        ram: [64K]
+        issues: []
+        styles: [1200XL]
+        chips:
+          - socket: os-rom
+            note: >-
+              the 1200XL's own OS broke enough software that Atari replaced it on
+              the 600XL and 800XL a few months later
+            variants: [Rev 1 (1200XL), Rev 2 (XL)]
+      - key: atari-600xl
+        model: 600XL
+        year: 1983
+        cpu: MOS 6502C-1.79
+        chassis: XL wedge
+        os: Atari OS Rev 2
+        ram: [16K, 64K]
+        issues: []
+        styles: [600XL]
+        chips:
+          - socket: freddie
+            label: FREDDIE
+            note: >-
+              the XL/XE memory controller; the earliest 600XL boards do without it
+            variants: [C061618, not fitted]
+          - socket: os-rom
+            label: OS ROM
+            variants: [Rev 2 (XL), Rev 3 (XE)]
+      - key: atari-800xl
+        model: 800XL
+        year: 1983
+        cpu: MOS 6502C-1.79
+        chassis: XL wedge
+        os: Atari OS Rev 2
+        ram: [64K]
+        issues: []
+        styles: [800XL, 800XLF (later board)]
+        chips:
+          - socket: freddie
+            label: FREDDIE
+            variants: [C061618]
+          - socket: os-rom
+            label: OS ROM
+            variants: [Rev 2 (XL), Rev 3 (XE)]
+      - key: atari-65xe
+        model: 65XE
+        year: 1985
+        cpu: MOS 6502C-1.79
+        chassis: XE wedge
+        os: Atari OS Rev 3
+        ram: [64K]
+        issues: []
+        styles: [65XE, 800XE (Eastern Europe)]
+        chips:
+          - socket: freddie
+            label: FREDDIE
+            variants: [C061618]
+          - socket: os-rom
+            label: OS ROM
+            variants: [Rev 3 (XE)]
+      - key: atari-130xe
+        model: 130XE
+        year: 1985
+        cpu: MOS 6502C-1.79
+        chassis: XE wedge
+        os: Atari OS Rev 3
+        ram: [128K]
+        issues: []
+        styles: [130XE]
+        chips:
+          - socket: freddie
+            label: FREDDIE
+            variants: [C061618]
+          - socket: os-rom
+            label: OS ROM
+            variants: [Rev 3 (XE)]
+      - key: atari-xegs
+        model: XE Game System
+        year: 1987
+        cpu: MOS 6502C-1.79
+        chassis: console with detachable keyboard
+        os: Atari OS Rev 4 with Missile Command
+        ram: [64K]
+        issues: []
+        styles: [XEGS]
+        chips:
+          - socket: freddie
+            label: FREDDIE
+            variants: [C061618]
+          - socket: os-rom
+            label: OS ROM
+            variants: [Rev 4 (XEGS)]
+
+  - key: atari-consoles
+    name: Atari consoles
+    manufacturer: Atari
+    regions: [PAL, NTSC, SECAM]
+    models:
+      - key: atari-2600
+        model: '2600'
+        year: 1977
+        cpu: MOS 6507-1.19
+        chassis: console
+        os: cartridge only
+        ram: []
+        issues: []
+        styles:
+          - heavy sixer
+          - light sixer
+          - 4-switch woodgrain
+          - 4-switch (Vader)
+          - 2600 Jr short rainbow
+          - 2600 Jr long rainbow
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [MOS 6507, Synertek 6507]
+          - socket: tia
+            label: TIA
+            note: >-
+              graphics and sound in one chip, and no frame buffer behind it
+            variants: [C010444, C011903]
+          - socket: riot
+            label: RIOT
+            note: >-
+              the RAM, the timers and the switch inputs -- all 128 bytes of the
+              machine's memory are in here
+            variants: [MOS 6532, Synertek 6532]
+      - key: atari-7800
+        model: '7800'
+        year: 1986
+        cpu: MOS 6502C-1.79
+        chassis: console
+        os: 'cartridge only, with a BIOS'
+        ram: [4K]
+        issues: []
+        styles: [7800 (1986 production), 7800 with expansion port]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [MOS 6502C (Sally)]
+          - socket: maria
+            label: MARIA
+            note: >-
+              the display chip that made the 7800 a 7800 rather than a faster 2600
+            variants: [C300599]
+          - socket: tia
+            label: TIA
+            note: >-
+              kept for sound, and for playing 2600 cartridges
+            variants: [C011903]
+          - socket: pokey
+            label: POKEY
+            note: >-
+              on the cartridge rather than the board, in the handful of games that
+              wanted better sound
+            variants: [C012294, not fitted]
+      - key: atari-5200
+        model: '5200'
+        year: 1982
+        cpu: MOS 6502C-1.79
+        chassis: console with a sloped case
+        os: cartridge, with a BIOS
+        ram: [16K]
+        issues: []
+        styles: [5200 (four controller ports), 5200 (two controller ports)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: an 800 in a console case, which is why the games look so familiar
+            variants: [MOS 6502C (Sally)]
+          - socket: antic
+            label: ANTIC
+            variants: [C012296]
+          - socket: gtia
+            label: GTIA
+            variants: [C014805, C014889]
+          - socket: pokey
+            label: POKEY
+            variants: [C012294]
+      - key: atari-lynx
+        model: Lynx
+        year: 1989
+        cpu: MOS 65SC02-4
+        chassis: handheld with a backlit colour LCD
+        os: cartridge
+        ram: [64K]
+        issues: []
+        styles: [Lynx I, Lynx II]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [MOS 65SC02, Western Design 65SC02]
+          - socket: suzy
+            label: Suzy
+            note: the sprite engine, and the reason a Lynx scales and rotates
+            variants: [Atari Suzy]
+          - socket: mikey
+            label: Mikey
+            note: the CPU's housing, the sound, the timers and the LCD
+            variants: [Atari Mikey]
+
+      - key: atari-jaguar
+        model: Jaguar
+        year: 1993
+        cpu: Motorola 68000-13.3
+        chassis: console, black with a numeric keypad controller
+        os: cartridge
+        ram: [2MiB]
+        issues: []
+        styles: [Jaguar, Jaguar with the CD unit]
+        chips:
+          - socket: cpu
+            note: >-
+              the 68000 is the housekeeper rather than the star; the two custom
+              chips beside it are where the "64-bit" on the box came from
+            variants: [Motorola MC68000]
+          - socket: tom
+            label: Tom
+            variants: [Atari Tom]
+          - socket: jerry
+            label: Jerry
+            variants: [Atari Jerry]
+
+  - key: atari-st
+    name: Atari ST
+    manufacturer: Atari
+    regions: [PAL, NTSC]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Motorola MC68000-8, Signetics SCC68000]
+      - socket: shifter
+        label: Shifter
+        note: >-
+          the video shifter; the STE part is the one with the palette the ST has
+          not got
+        variants: [C025912, C300589 (STE)]
+      - socket: glue
+        label: GLUE
+        variants: [C025913, combined in the STE's GST MCU]
+      - socket: mmu
+        label: MMU
+        variants: [C025912-002, combined in the STE's GST MCU]
+      - socket: psg
+        label: Sound
+        variants: [Yamaha YM2149F]
+      - socket: tos
+        label: TOS ROM
+        note: >-
+          on socketed ROMs in most machines, so this is the one thing on the list
+          that may not be what it left the factory with
+        variants: [TOS 1.00, TOS 1.02, TOS 1.04, TOS 1.06, TOS 1.62, TOS 2.06]
+    models:
+      - key: atari-520st
+        model: 520ST
+        year: 1985
+        cpu: Motorola 68000-8
+        chassis: wedge, external floppy drive
+        os: TOS 1.00 / GEM
+        ram: [512K]
+        issues: []
+        styles: [520ST (TOS on disk), 520ST+ (1MB)]
+        chips:
+          - socket: tos
+            variants: [TOS 1.00 (on disk), TOS 1.00, TOS 1.02]
+      - key: atari-520stm
+        model: 520STM
+        year: 1985
+        cpu: Motorola 68000-8
+        chassis: wedge, external floppy drive
+        os: TOS 1.02 / GEM
+        ram: [512K, 1MiB]
+        issues: []
+        styles: [520STM, 260ST]
+      - key: atari-stacy
+        model: STacy
+        year: 1989
+        cpu: Motorola 68000-8
+        chassis: luggable with a mono LCD
+        os: TOS 1.04 / GEM
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [STacy 1, STacy 2, STacy 4]
+        chips:
+          - socket: tos
+            variants: [TOS 1.04, TOS 1.06]
+      - key: atari-mega-ste
+        model: Mega STE
+        year: 1991
+        cpu: Motorola 68000-16
+        chassis: desktop with a detachable keyboard
+        os: TOS 2.06 / GEM
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [Mega STE 1, Mega STE 2, Mega STE 4]
+        chips:
+          - socket: blitter
+            label: Blitter
+            variants: [C025972]
+          - socket: tos
+            variants: [TOS 2.05, TOS 2.06]
+      - key: atari-st-book
+        model: ST Book
+        year: 1991
+        cpu: Motorola 68000-8
+        chassis: notebook with a mono LCD
+        os: TOS 2.06 / GEM
+        ram: [1MiB, 4MiB]
+        issues: []
+        styles: [ST Book]
+        chips:
+          - socket: tos
+            variants: [TOS 2.06]
+      - key: atari-520stfm
+        model: 520STFM
+        year: 1986
+        cpu: Motorola 68000-8
+        chassis: 'wedge, built-in floppy'
+        os: TOS 1.02 / GEM
+        ram: [512K, 1MB]
+        issues: []
+        styles: [520STFM, 520STM (no drive)]
+      - key: atari-1040stf
+        model: 1040STF
+        year: 1986
+        cpu: Motorola 68000-8
+        chassis: 'wedge, built-in floppy'
+        os: TOS 1.02 / GEM
+        ram: [1MB]
+        issues: []
+        styles: [1040STF, 1040STFM]
+      - key: atari-1040ste
+        model: 1040STE
+        year: 1989
+        cpu: Motorola 68000-8
+        chassis: 'wedge, built-in floppy'
+        os: TOS 1.62 / GEM
+        ram: [1MB, 4MB]
+        issues: []
+        styles: [1040STE]
+        chips:
+          - socket: blitter
+            label: Blitter
+            note: >-
+              standard on the STE, an option on an ST
+            variants: [C025972]
+          - socket: psg
+            variants: [Yamaha YM2149F]
+          - socket: tos
+            variants: [TOS 1.62, TOS 2.06]
+      - key: atari-mega-st
+        model: Mega ST
+        year: 1987
+        cpu: Motorola 68000-8
+        chassis: desktop with a detachable keyboard
+        os: TOS 1.02 / GEM
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [Mega ST 1, Mega ST 2, Mega ST 4]
+        chips:
+          - socket: blitter
+            label: Blitter
+            note: standard on a Mega, an option on an ST
+            variants: [C025972]
+          - socket: tos
+            variants: [TOS 1.02, TOS 1.04, TOS 2.06]
+      - key: atari-520ste
+        model: 520STE
+        year: 1989
+        cpu: Motorola 68000-8
+        chassis: wedge, built-in floppy
+        os: TOS 1.62 / GEM
+        ram: [512K, 1MiB, 4MiB]
+        issues: []
+        styles: [520STE]
+        chips:
+          - socket: blitter
+            label: Blitter
+            variants: [C025972]
+          - socket: psg
+            variants: [Yamaha YM2149F]
+          - socket: tos
+            variants: [TOS 1.62, TOS 2.06]
+      - key: atari-tt030
+        model: TT030
+        year: 1990
+        cpu: Motorola 68030-32
+        chassis: desktop with a detachable keyboard
+        os: TOS 3.06 / GEM
+        ram: [2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [TT030]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: shifter
+            variants: []
+          - socket: glue
+            variants: []
+          - socket: mmu
+            variants: []
+          - socket: tos
+            variants: [TOS 3.01, TOS 3.05, TOS 3.06]
+      - key: atari-falcon030
+        model: Falcon030
+        year: 1992
+        cpu: Motorola 68030-16
+        chassis: wedge, one-piece
+        os: TOS 4.04 / MultiTOS
+        ram: [1MiB, 4MiB, 14MiB]
+        issues: []
+        styles: [Falcon030, Falcon030 with a hard disk]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: shifter
+            variants: []
+          - socket: glue
+            variants: []
+          - socket: mmu
+            variants: []
+          - socket: videl
+            label: VIDEL
+            variants: [Atari VIDEL]
+          - socket: dsp
+            label: DSP
+            note: >-
+              a Motorola signal processor beside the CPU, which nothing else on a
+              desk in 1992 had and which is why the Falcon is still used for audio
+            variants: [Motorola DSP56001]
+          - socket: tos
+            variants: [TOS 4.01, TOS 4.02, TOS 4.04]
+
+  - key: bally
+    name: Bally
+    manufacturer: Bally
+    regions: [NTSC (US)]
+    models:
+      - key: bally-astrocade
+        model: Astrocade
+        year: 1978
+        cpu: Zilog Z80-1.79
+        chassis: console with a membrane keypad and pistol-grip controllers
+        os: cartridge, with a built-in BASIC
+        ram: [4K]
+        issues: []
+        styles: [Bally Professional Arcade, Astrocade, Astrovision]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: bandai
+    name: Bandai
+    manufacturer: Bandai
+    regions: [NTSC-J (Japan)]
+    models:
+      - key: bandai-rx-78
+        model: RX-78 Gundam
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: white console with a detachable keyboard, styled after Gundam
+        os: BASIC cartridge
+        ram: [30K]
+        issues: []
+        styles: [RX-78]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: camputers
+    name: Camputers
+    manufacturer: Camputers
+    regions: [PAL (UK)]
+    models:
+      - key: camputers-lynx
+        model: Lynx 48K
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: wedge, black case
+        os: Lynx BASIC
+        ram: [48K, 96K, 128K]
+        issues: []
+        styles: [Lynx 48K, Lynx 96K, Lynx 128]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: casio
+    name: Casio
+    manufacturer: Casio
+    regions: [NTSC-J (Japan)]
+    models:
+      - key: casio-pv-1000
+        model: PV-1000
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: white console with a hard-wired joystick
+        os: cartridge
+        ram: [2K]
+        issues: []
+        styles: [PV-1000]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              withdrawn within weeks of going on sale, which makes it one of the
+              rarest consoles anyone actually shipped
+            variants: z80
+      - key: casio-pv-2000
+        model: PV-2000
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: white wedge with a chiclet keyboard
+        os: Casio BASIC
+        ram: [4K, 16K]
+        issues: []
+        styles: [PV-2000]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9918A]
+      - key: casio-fp-1100
+        model: FP-1100
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: desktop with a full keyboard
+        os: Casio BASIC / CP/M
+        ram: [64K]
+        issues: []
+        styles: [FP-1100, FP-1000 (mono)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: coleco
+    name: Coleco
+    manufacturer: Coleco
+    regions: [NTSC (US), PAL (Europe)]
+    models:
+      - key: colecovision
+        model: ColecoVision
+        year: 1982
+        cpu: Zilog Z80A-3.58
+        chassis: console with a controller storage well
+        os: cartridge, with a BIOS
+        ram: [1K]
+        issues: []
+        styles: [ColecoVision, ColecoVision (Expansion Module 1)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9928A, TI TMS9929A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+      - key: coleco-adam
+        model: Adam
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: computer with a daisywheel printer and digital data packs
+        os: SmartWRITER / CP/M 2.2
+        ram: [64K, 80K]
+        issues: []
+        styles: [Adam (standalone), Adam (ColecoVision expansion)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9928A, TI TMS9929A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+
+  - key: commodore-8bit
+    name: Commodore 8-bit
+    manufacturer: Commodore
+    regions: [PAL, NTSC]
+    chips:
+      - socket: cpu
+        label: CPU
+        note: >-
+          the 6510 in a breadbin, the 8500 in the C64C and late boards
+        variants: [MOS 6510, MOS 6510R4, MOS 8500]
+      - socket: vic
+        label: VIC-II
+        note: >-
+          6569 is the PAL part and 6567 the NTSC one; 8565/8562 are the HMOS-II
+          chips of the later boards
+        variants:
+          - MOS 6567R56A
+          - MOS 6567R8
+          - MOS 6569R1
+          - MOS 6569R3
+          - MOS 6569R4
+          - MOS 6569R5
+          - MOS 8562
+          - MOS 8565
+      - socket: sid
+        label: SID
+        note: >-
+          the one chip people choose a machine by: 6581 in a breadbin, 8580 in the
+          C64C
+        variants:
+          - MOS 6581
+          - MOS 6581R2
+          - MOS 6581R3
+          - MOS 6581R4
+          - MOS 6581R4AR
+          - MOS 6582
+          - MOS 8580
+          - MOS 8580R5
+      - socket: cia
+        label: CIA
+        note: >-
+          two of them, and both are usually the same part
+        variants: [MOS 6526, MOS 6526A, MOS 8521]
+      - socket: pla
+        label: PLA
+        note: >-
+          the chip that runs hot and takes the machine with it when it goes;
+          251715-01 is the 250469 board's combined part
+        variants: [MOS 906114-01, Signetics 82S100, MOS 252535-01, MOS 251715-01]
+      - socket: kernal
+        label: Kernal ROM
+        note: >-
+          -01 is the first Kernal, -03 the one nearly every machine has, and
+          251913-01 the C64C's combined ROM
+        variants: [901227-01, 901227-02, 901227-03, 251913-01]
+    models:
+      - key: vic-20
+        model: VIC-20
+        year: 1980
+        cpu: MOS 6502A-1.02
+        chassis: breadbin
+        os: Commodore BASIC 2.0
+        ram: [5K]
+        issues: [ASSY 324003, ASSY 250403 (VIC-20CR)]
+        styles: [VIC-20 (1980 case), VIC-20CR]
+        chips:
+          - socket: cpu
+            variants: [MOS 6502, MOS 6502A]
+          - socket: vic
+            label: VIC
+            variants: [MOS 6560 (NTSC), MOS 6561 (PAL)]
+          - socket: via
+            label: VIA
+            note: >-
+              two of them
+            variants: [MOS 6522]
+          - socket: sid
+            note: >-
+              there is no SID -- the VIC makes the sound
+            variants: []
+          - socket: cia
+            variants: []
+          - socket: pla
+            variants: []
+          - socket: kernal
+            variants: [901486-01, 901486-06, 901486-07]
+      - key: max-machine
+        model: MAX Machine
+        year: 1982
+        cpu: MOS 6510-1.02
+        chassis: small console with a membrane keyboard
+        os: cartridge only
+        ram: [2K]
+        issues: []
+        styles: [MAX Machine (Japan), Ultimax, VC-10]
+        chips:
+          - socket: cpu
+            note: >-
+              a C64 with almost all of it left out, sold in Japan and withdrawn in
+              months; the rarest thing Commodore made in numbers
+            variants: [MOS 6510]
+          - socket: vic
+            label: VIC-II
+            variants: [MOS 6566, MOS 6567]
+          - socket: sid
+            label: SID
+            variants: [MOS 6581]
+          - socket: cia
+            variants: []
+          - socket: pla
+            variants: []
+          - socket: kernal
+            variants: []
+      - key: c116
+        model: '116'
+        year: 1984
+        cpu: MOS 7501
+        chassis: small dark wedge, rubber keys
+        os: Commodore BASIC 3.5
+        ram: [16K]
+        issues: []
+        styles: [C116]
+        chips:
+          - socket: cpu
+            variants: [MOS 7501, MOS 8501]
+          - socket: ted
+            label: TED
+            variants: [MOS 7360, MOS 8360]
+          - socket: vic
+            variants: []
+          - socket: sid
+            variants: []
+          - socket: cia
+            variants: []
+          - socket: pla
+            variants: [MOS 251641-02]
+          - socket: kernal
+            label: Kernal ROM
+            variants: [318004-05, 318005-05]
+      - key: c64
+        model: '64'
+        year: 1982
+        cpu: MOS 6510-1.02
+        chassis: breadbin
+        os: Commodore BASIC 2.0
+        ram: [64K]
+        issues: [ASSY 326298, ASSY 250407, ASSY 250425, ASSY 250466]
+        styles: [silver label, rainbow label, Aldi C64 (short board)]
+      - key: c64c
+        model: 64C
+        year: 1986
+        cpu: MOS 8500-1.02
+        chassis: wedge (C64C)
+        os: Commodore BASIC 2.0
+        ram: [64K]
+        issues: [ASSY 250466, ASSY 250469, KU-14194HB]
+        styles: [C64C, C64G]
+      - key: sx-64
+        model: SX-64
+        year: 1984
+        cpu: MOS 6510-1.02
+        chassis: 'luggable, built-in 1541'
+        os: Commodore BASIC 2.0
+        ram: [64K]
+        issues: [ASSY 250425]
+        styles: [SX-64 (single drive)]
+      - key: c16
+        model: '16'
+        year: 1984
+        cpu: MOS 7501
+        chassis: dark breadbin
+        os: Commodore BASIC 3.5
+        ram: [16K]
+        issues: []
+        styles: [C16 (dark case), C116 (rubber keys)]
+        chips:
+          - socket: cpu
+            variants: [MOS 7501, MOS 8501]
+          - socket: ted
+            label: TED
+            note: >-
+              video, sound and the timers in one chip -- the machine is named for what
+              it has instead of a VIC-II and a SID
+            variants: [MOS 7360, MOS 8360]
+          - socket: pla
+            variants: [MOS 251641-02]
+          - socket: vic
+            variants: []
+          - socket: sid
+            variants: []
+          - socket: cia
+            variants: []
+          - socket: kernal
+            variants: [318004-05, 318005-05]
+      - key: plus4
+        model: Plus/4
+        year: 1984
+        cpu: MOS 7501
+        chassis: 'wedge, dark case'
+        os: Commodore BASIC 3.5 with 3-plus-1
+        ram: [64K]
+        issues: []
+        styles: [Plus/4]
+        chips:
+          - socket: cpu
+            variants: [MOS 7501, MOS 8501]
+          - socket: ted
+            label: TED
+            note: >-
+              video, sound and the timers in one chip -- the machine is named for what
+              it has instead of a VIC-II and a SID
+            variants: [MOS 7360, MOS 8360]
+          - socket: pla
+            variants: [MOS 251641-02]
+          - socket: vic
+            variants: []
+          - socket: sid
+            variants: []
+          - socket: cia
+            variants: []
+          - socket: acia
+            label: ACIA
+            variants: [MOS 6551]
+          - socket: kernal
+            variants: [318005-05, 318006-01]
+      - key: c128
+        model: '128'
+        year: 1985
+        cpu: MOS 8502-2.04
+        chassis: wedge with numeric keypad
+        os: Commodore BASIC 7.0 / CP/M 3.0
+        ram: [128K]
+        issues: []
+        styles: [C128 (flat case)]
+        chips:
+          - socket: cpu
+            variants: [MOS 8502]
+          - socket: cpu2
+            label: Z80
+            note: >-
+              the second processor, for the CP/M side
+            variants: [Zilog Z80A, MOS 8502-paired Z80B]
+          - socket: vic
+            label: VIC-IIe
+            variants: [MOS 8564 (NTSC), MOS 8566 (PAL)]
+          - socket: vdc
+            label: VDC
+            note: >-
+              the 80-column chip, and the one that runs hottest
+            variants: [MOS 8563, MOS 8568]
+          - socket: sid
+            variants: [MOS 6581, MOS 8580R5]
+          - socket: cia
+            variants: [MOS 6526, MOS 8521]
+          - socket: pla
+            variants: [MOS 8721]
+          - socket: kernal
+            variants: [318020-03, 318020-05]
+      - key: c128d
+        model: 128D
+        year: 1986
+        cpu: MOS 8502-2.04
+        chassis: desktop with built-in 1571
+        os: Commodore BASIC 7.0 / CP/M 3.0
+        ram: [128K]
+        issues: []
+        styles: [plastic 128D, metal 128DCR]
+        chips:
+          - socket: cpu
+            variants: [MOS 8502]
+          - socket: vic
+            label: VIC-IIe
+            variants: [MOS 8564 (NTSC), MOS 8566 (PAL)]
+          - socket: vdc
+            label: VDC
+            variants: [MOS 8563, MOS 8568]
+          - socket: sid
+            variants: [MOS 6581, MOS 8580R5]
+          - socket: cia
+            variants: [MOS 6526, MOS 8521]
+          - socket: pla
+            variants: [MOS 8721]
+          - socket: kernal
+            variants: [318020-03, 318020-05]
+          - socket: cpu2
+            label: Z80
+            note: the second processor, for the CP/M side
+            variants: [Zilog Z80A, Zilog Z80B]
+      - key: c64gs
+        model: 64 Games System
+        year: 1990
+        cpu: MOS 8500-1.02
+        chassis: console, no keyboard
+        os: cartridge only
+        ram: [64K]
+        issues: [ASSY 250469]
+        styles: [C64GS]
+
+  - key: amiga
+    name: Commodore Amiga
+    manufacturer: Commodore
+    regions: [PAL, NTSC]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Motorola MC68000-7, Motorola MC68000-14 (upgrade)]
+      - socket: agnus
+        label: Agnus
+        note: >-
+          which Agnus decides how much chip RAM the machine can see at all
+        variants: [8370 (NTSC OCS), 8371 (PAL OCS), '8372A (ECS, 1MB)', '8375 (ECS, 2MB)']
+      - socket: denise
+        label: Denise
+        variants: ['8362', 8373 (Super Denise)]
+      - socket: paula
+        label: Paula
+        variants: ['8364']
+      - socket: gary
+        label: Gary
+        variants: ['5719', Gayle (A600/A1200)]
+      - socket: kickstart
+        label: Kickstart ROM
+        note: >-
+          socketed, and swapped often enough that it is worth recording what is in
+          there now
+        variants: ['1.2', '1.3', '2.04', '2.05', '3.0', '3.1']
+    models:
+      - key: amiga-1000
+        model: Amiga 1000
+        year: 1985
+        cpu: Motorola 68000-7.16
+        chassis: desktop with a keyboard garage underneath
+        os: Kickstart from disk / Workbench 1.x
+        ram: [256K, 512K]
+        issues: []
+        styles: [A1000 (NTSC), A1000 (PAL)]
+        chips:
+          - socket: agnus
+            variants: [8361 (NTSC), 8367 (PAL)]
+          - socket: denise
+            variants: ['8362']
+          - socket: kickstart
+            note: >-
+              the only Amiga that loads Kickstart from a floppy into write-protected
+              RAM, so what it runs is whichever disk is in the drive
+            variants: [1.1 (soft-loaded), 1.2 (soft-loaded), 1.3 (soft-loaded)]
+      - key: amiga-500
+        model: Amiga 500
+        year: 1987
+        cpu: Motorola 68000-7.09
+        chassis: 'wedge, built-in floppy'
+        os: Kickstart / Workbench
+        ram: [512K, 1MB]
+        issues: [Rev 3, Rev 5, Rev 6A, Rev 8A]
+        styles: [A500]
+      - key: amiga-500-plus
+        model: Amiga 500+
+        year: 1991
+        cpu: Motorola 68000-7.09
+        chassis: 'wedge, built-in floppy'
+        os: Kickstart 2.04 / Workbench 2.0
+        ram: [1MB, 2MB]
+        issues: [Rev 8A.1]
+        styles: [A500+]
+        chips:
+          - socket: agnus
+            variants: ['8375 (ECS, 2MB)']
+          - socket: denise
+            variants: [8373 (Super Denise)]
+          - socket: kickstart
+            variants: ['2.04']
+      - key: amiga-600
+        model: Amiga 600
+        year: 1992
+        cpu: Motorola 68000-7.09
+        chassis: 'compact, built-in floppy'
+        os: Kickstart 2.05 / Workbench 2.1
+        ram: [1MB, 2MB]
+        issues: [Rev 1.5]
+        styles: [A600, A600HD]
+        chips:
+          - socket: agnus
+            variants: ['8375 (ECS, 2MB)']
+          - socket: denise
+            variants: [8373 (Super Denise)]
+          - socket: gary
+            label: Gayle
+            variants: [Gayle]
+          - socket: kickstart
+            variants: ['2.05']
+      - key: amiga-1200
+        model: Amiga 1200
+        year: 1992
+        cpu: Motorola 68EC020-14.19
+        chassis: 'wedge, built-in floppy'
+        os: Kickstart 3.0 / Workbench 3.0
+        ram: [2MB]
+        issues: [Rev 1A, Rev 1D1, Rev 1D4, Rev 2B]
+        styles: [A1200]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68EC020-14]
+          - socket: agnus
+            label: Alice
+            variants: [AGA Alice]
+          - socket: denise
+            label: Lisa
+            variants: [AGA Lisa]
+          - socket: paula
+            variants: ['8364']
+          - socket: gary
+            label: Gayle
+            variants: [Gayle]
+          - socket: kickstart
+            variants: ['3.0', '3.1']
+      - key: amiga-2000
+        model: Amiga 2000
+        year: 1987
+        cpu: Motorola 68000-7.09
+        chassis: desktop with Zorro II slots
+        os: Kickstart 1.3 / Workbench 1.3
+        ram: [1MiB, 2MiB]
+        issues: [Rev 4.x, Rev 6.x]
+        styles: [A2000, A2000HD, A2500]
+        chips:
+          - socket: agnus
+            variants: [8371 (PAL OCS), 8372A (ECS, 1MB)]
+          - socket: kickstart
+            variants: ['1.2', '1.3', '2.04', '3.1']
+      - key: amiga-1500
+        model: Amiga 1500
+        year: 1990
+        cpu: Motorola 68000-7.09
+        chassis: desktop with Zorro II slots and two floppy drives
+        os: Kickstart 1.3 / Workbench 1.3
+        ram: [1MiB, 2MiB]
+        issues: [Rev 6.x]
+        styles: [A1500 (UK), A1500 (Checkmate case)]
+        chips:
+          - socket: agnus
+            variants: [8372A (ECS, 1MB)]
+          - socket: kickstart
+            variants: ['1.3', '2.04']
+      - key: amiga-cdtv
+        model: CDTV
+        year: 1991
+        cpu: Motorola 68000-7.16
+        chassis: black hi-fi component with a CD drive
+        os: Kickstart 1.3 / CDTV
+        ram: [1MiB]
+        issues: []
+        styles: [CDTV, CDTV with the keyboard and drive]
+        chips:
+          - socket: agnus
+            variants: [8372A (ECS, 1MB)]
+          - socket: kickstart
+            variants: [1.3 (CDTV)]
+      - key: amiga-3000
+        model: Amiga 3000
+        year: 1990
+        cpu: Motorola 68030-25
+        chassis: desktop with Zorro III slots
+        os: Kickstart 2.04 / Workbench 2.0
+        ram: [2MiB, 8MiB, 16MiB]
+        issues: [Rev 7, Rev 9, Rev 11]
+        styles: [A3000, A3000T (tower), A3000UX]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68030]
+          - socket: agnus
+            variants: [8372B (ECS, 2MB)]
+          - socket: denise
+            variants: [8373 (Super Denise)]
+          - socket: kickstart
+            variants: ['2.04', '3.1']
+      - key: amiga-4000
+        model: Amiga 4000
+        year: 1992
+        cpu: Motorola 68EC030-25
+        chassis: desktop with Zorro III slots
+        os: Kickstart 3.0 / Workbench 3.0
+        ram: [2MiB, 6MiB, 18MiB]
+        issues: []
+        styles: [A4000/030, A4000/040, A4000T (tower)]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68EC030, Motorola MC68040]
+          - socket: agnus
+            label: Alice
+            variants: [AGA Alice]
+          - socket: denise
+            label: Lisa
+            variants: [AGA Lisa]
+          - socket: kickstart
+            variants: ['3.0', '3.1']
+          - socket: gary
+            variants: []
+      - key: amiga-cd32
+        model: CD32
+        year: 1993
+        cpu: Motorola 68EC020-14.19
+        chassis: console with a CD drive
+        os: Kickstart 3.1 / CD32
+        ram: [2MiB]
+        issues: []
+        styles: [CD32, CD32 with the SX-1 expansion]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68EC020]
+          - socket: agnus
+            label: Alice
+            variants: [AGA Alice]
+          - socket: denise
+            label: Lisa
+            variants: [AGA Lisa]
+          - socket: akiko
+            label: Akiko
+            note: >-
+              the chip that turns chunky pixels into the planar ones the Amiga
+              draws in, and the one part a CD32 has that an A1200 has not
+            variants: [Commodore Akiko]
+          - socket: kickstart
+            variants: ['3.1']
+          - socket: gary
+            label: Gayle
+            variants: [Gayle]
+
+  - key: commodore-pet
+    name: Commodore PET
+    manufacturer: Commodore
+    regions: [PAL, NTSC]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [MOS 6502, MOS 6502A]
+      - socket: crtc
+        label: CRTC
+        note: >-
+          the 2001 and the 3000s draw the screen in TTL and have no CRTC at all;
+          the 4000s and 8000s put a 6545 in, which is what lets them do 80 columns
+        variants: [MOS 6545, MOS 6545-1, Motorola MC6845]
+      - socket: pia
+        label: PIA
+        note: two of them, for the keyboard and the tape ports
+        variants: [MOS 6520, MOS 6521]
+      - socket: via
+        label: VIA
+        variants: [MOS 6522]
+      - socket: basic-rom
+        label: BASIC ROM
+        variants: [BASIC 1.0, BASIC 2.0, BASIC 4.0]
+    models:
+      - key: pet-2001
+        model: PET 2001
+        year: 1977
+        cpu: MOS 6502-1
+        chassis: all-in-one with a tape deck and a 9-inch screen
+        os: Commodore BASIC 1.0
+        ram: [4K, 8K]
+        issues: []
+        styles: [chiclet keyboard, full keyboard (2001-N)]
+        chips:
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: [BASIC 1.0, BASIC 2.0]
+      - key: pet-3032
+        model: '3032'
+        year: 1979
+        cpu: MOS 6502-1
+        chassis: all-in-one with a 9-inch screen
+        os: Commodore BASIC 2.0
+        ram: [32K]
+        issues: []
+        styles: [3016 (16K), 3032]
+        chips:
+          - socket: crtc
+            variants: []
+          - socket: basic-rom
+            variants: [BASIC 2.0]
+      - key: pet-4032
+        model: '4032'
+        year: 1980
+        cpu: MOS 6502-1
+        chassis: all-in-one with a 9- or 12-inch screen
+        os: Commodore BASIC 4.0
+        ram: [32K]
+        issues: []
+        styles: [4032 (9-inch screen), 4032 (12-inch, fat 40), 4016 (16K)]
+        chips:
+          - socket: basic-rom
+            variants: [BASIC 4.0]
+      - key: pet-8032
+        model: '8032'
+        year: 1980
+        cpu: MOS 6502-1
+        chassis: all-in-one with an 80-column 12-inch screen
+        os: Commodore BASIC 4.0
+        ram: [32K, 96K]
+        issues: []
+        styles: [8032, 8032-SK (detachable keyboard), 8096, 8296]
+        chips:
+          - socket: basic-rom
+            variants: [BASIC 4.0]
+
+      - key: cbm-8296
+        model: '8296'
+        year: 1984
+        cpu: MOS 6502-1
+        chassis: all-in-one with a detachable keyboard
+        os: Commodore BASIC 4.0
+        ram: [128K]
+        issues: []
+        styles: ['8296', 8296-D (with drives)]
+        chips:
+          - socket: basic-rom
+            variants: [BASIC 4.0]
+      - key: cbm-b128
+        model: B128
+        year: 1983
+        cpu: MOS 6509-2
+        chassis: desktop with a detachable keyboard
+        os: Commodore BASIC 4.0+
+        ram: [128K, 256K]
+        issues: []
+        styles: [B128, B256, CBM 610, CBM 710]
+        chips:
+          - socket: cpu
+            note: the 6509 is the 6502 with a megabyte of memory banking bolted on
+            variants: [MOS 6509]
+          - socket: crtc
+            label: CRTC
+            variants: [MOS 6545, Motorola MC6845]
+          - socket: pia
+            variants: []
+          - socket: via
+            label: VIA
+            variants: [MOS 6522]
+          - socket: sid
+            label: SID
+            variants: [MOS 6581]
+          - socket: basic-rom
+            variants: [BASIC 4.0+]
+
+  - key: compukit
+    name: Compukit
+    manufacturer: Compukit
+    regions: [PAL (UK)]
+    models:
+      - key: compukit-uk101
+        model: UK101
+        year: 1979
+        cpu: MOS 6502-1
+        chassis: bare board, kit-built
+        os: Monitor / Microsoft BASIC in ROM
+        ram: [4K, 8K]
+        issues: []
+        styles: [UK101 (kit), UK101 (cased)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [MOS 6502, Synertek SY6502]
+
+  - key: didaktik
+    name: Didaktik
+    manufacturer: Didaktik
+    regions: [PAL (Czechoslovakia)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Zilog Z80A, MME U880, Tesla MHB8080]
+    models:
+      - key: didaktik-gama
+        model: Gama
+        year: 1987
+        cpu: Zilog Z80A-3.55
+        chassis: grey wedge with moulded keys
+        os: Sinclair BASIC (48K ROM)
+        ram: [64K, 80K]
+        issues: []
+        styles: [Gama 87, Gama 88, Gama 89]
+      - key: didaktik-m
+        model: M
+        year: 1990
+        cpu: Zilog Z80A-3.55
+        chassis: grey wedge with moulded keys
+        os: Sinclair BASIC (48K ROM)
+        ram: [64K]
+        issues: []
+        styles: [Didaktik M, Didaktik Kompakt (with a drive)]
+
+  - key: dragon
+    name: Dragon
+    manufacturer: Dragon
+    regions: [PAL (UK)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Motorola MC6809E, Hitachi HD6809E]
+      - socket: vdg
+        label: Video (VDG)
+        note: >-
+          the same display chip a Tandy CoCo has, and the reason the two machines
+          run so much of each other's software
+        variants: [Motorola MC6847, Motorola MC6847T1]
+      - socket: sam
+        label: SAM
+        note: memory addressing and the video timing, in one chip beside the VDG
+        variants: [Motorola MC6883, Motorola SN74LS783]
+      - socket: pia
+        label: PIA
+        note: two of them, for the keyboard, the joysticks, the tape and the printer
+        variants: [Motorola MC6821, Motorola MC6822]
+    models:
+      - key: dragon-32
+        model: '32'
+        year: 1982
+        cpu: Motorola MC6809E-0.89
+        chassis: wedge, cream case
+        os: Dragon BASIC (Microsoft)
+        ram: [32K]
+        issues: []
+        styles: [Dragon 32, 32 upgraded to 64K]
+      - key: dragon-64
+        model: '64'
+        year: 1983
+        cpu: Motorola MC6809E-0.89
+        chassis: wedge, grey case
+        os: Dragon BASIC / OS-9
+        ram: [64K]
+        issues: []
+        styles: [Dragon 64, Dragon 200 (Spain)]
+
+      - key: tano-dragon-64
+        model: Dragon 64 (Tano)
+        manufacturer: Tano
+        year: 1983
+        cpu: Motorola MC6809E-0.89
+        chassis: wedge, cream case
+        os: Dragon BASIC (Microsoft)
+        ram: [64K]
+        issues: []
+        styles: [Tano Dragon (US, NTSC)]
+
+  - key: eaca
+    name: EACA
+    manufacturer: EACA
+    regions: [PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+    models:
+      - key: video-genie
+        model: Video Genie EG3003
+        year: 1980
+        cpu: Zilog Z80-1.77
+        chassis: cream all-in-one with a built-in cassette deck
+        os: Level II BASIC
+        ram: [16K]
+        issues: []
+        styles: [Video Genie, System 80 (Australia), PMC-80 (US)]
+      - key: colour-genie
+        model: Colour Genie EG2000
+        year: 1982
+        cpu: Zilog Z80A-2.2
+        chassis: cream wedge with a full keyboard
+        os: Colour Genie BASIC
+        ram: [16K, 32K]
+        issues: []
+        styles: [Colour Genie EG2000]
+        chips:
+          - socket: vdp
+            label: Video
+            variants: [Motorola MC6845]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910]
+
+  - key: elektronika
+    name: Elektronika
+    manufacturer: Elektronika
+    regions: [SECAM (USSR)]
+    models:
+      - key: elektronika-bk-0010
+        model: BK-0010
+        year: 1985
+        cpu: Soviet K1801VM1-3
+        chassis: wedge with a membrane keyboard
+        os: Focal / Vilnius BASIC
+        ram: [32K]
+        issues: []
+        styles: [BK-0010, BK-0010-01, BK-0011M]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              a PDP-11 on one chip, which makes the BK the only home computer most
+              people will ever meet that runs DEC instructions
+            variants: [K1801VM1, K1801VM2]
+
+  - key: elwro
+    name: Elwro
+    manufacturer: Elwro
+    regions: [PAL (Poland)]
+    models:
+      - key: elwro-800-junior
+        model: 800 Junior
+        year: 1986
+        cpu: Zilog Z80A-3.5
+        chassis: grey wedge with moulded keys, for a classroom network
+        os: Sinclair BASIC / CP/J
+        ram: [64K, 128K]
+        issues: []
+        styles: [800 Junior, 800-3 Junior]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Zilog Z80A, MME U880]
+
+  - key: emerson
+    name: Emerson
+    manufacturer: Emerson
+    regions: [NTSC (US), PAL (Europe)]
+    models:
+      - key: arcadia-2001
+        model: Arcadia 2001
+        year: 1982
+        cpu: Signetics 2650-3.58
+        chassis: small console with keypad controllers
+        os: cartridge
+        ram: []
+        issues: []
+        styles: [Arcadia 2001, Leisure-Vision, Palladium Video-Computer-Game]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Signetics 2650]
+          - socket: vdc
+            label: Video
+            variants: [Signetics 2637 UVI]
+
+  - key: enterprise
+    name: Enterprise
+    manufacturer: Enterprise
+    regions: [PAL (UK)]
+    models:
+      - key: enterprise-128
+        model: '128'
+        year: 1985
+        cpu: Zilog Z80A-4
+        chassis: wedge with built-in joystick, rubber keys
+        os: EXOS / IS-BASIC
+        ram: [64K, 128K]
+        issues: []
+        styles: [Enterprise 64, Enterprise 128, Flan (Germany)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: nick
+            label: NICK
+            note: >-
+              the video chip, and half of why a machine two years late still looked
+              like nothing else on the shelf
+            variants: [Intelligent Designs NICK]
+          - socket: dave
+            label: DAVE
+            note: sound and the memory paging, and the other half
+            variants: [Intelligent Designs DAVE]
+
+  - key: epoch
+    name: Epoch
+    manufacturer: Epoch
+    regions: [NTSC-J (Japan)]
+    models:
+      - key: epoch-cassette-vision
+        model: Cassette Vision
+        year: 1981
+        cpu: NEC D7801-4
+        chassis: console with the controls built into the case
+        os: cartridge
+        ram: []
+        issues: []
+        styles: [Cassette Vision, Cassette Vision Jr.]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: the processor is in the cartridge, not the console
+            variants: [NEC D7801G]
+      - key: epoch-super-cassette-vision
+        model: Super Cassette Vision
+        year: 1984
+        cpu: NEC D7801-4
+        chassis: console with detachable controllers
+        os: cartridge
+        ram: []
+        issues: []
+        styles: [Super Cassette Vision, Super Lady Cassette Vision, Yeno (France)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC D7801G]
+          - socket: vdp
+            label: Video
+            variants: [Epoch EPOCH TV-1]
+
+  - key: epson
+    name: Epson
+    manufacturer: Epson
+    regions: [NTSC-J (Japan), US, PAL (Europe)]
+    models:
+      - key: epson-hx-20
+        model: HX-20
+        year: 1982
+        cpu: Hitachi HD6301-0.61
+        chassis: A4 portable with a 4-line LCD, a printer and a microcassette
+        os: Epson BASIC in ROM
+        ram: [16K, 32K]
+        issues: []
+        styles: [HX-20, HC-20 (Japan)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              two 6301s, a printer, a tape drive and a display in one battery-run
+              box in 1982 -- the first machine that was really a laptop
+            variants: [Hitachi HD6301]
+      - key: epson-px-8
+        model: PX-8
+        year: 1984
+        cpu: Zilog Z80-2.45
+        chassis: portable with a tilting 8-line LCD and a microcassette
+        os: CP/M 2.2 in ROM
+        ram: [64K]
+        issues: []
+        styles: [PX-8 Geneva, PX-4]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: exelvision
+    name: Exelvision
+    manufacturer: Exelvision
+    regions: [SECAM (France)]
+    models:
+      - key: exl-100
+        model: EXL 100
+        year: 1984
+        cpu: TI TMS7020-4.9
+        chassis: wedge with an infra-red membrane keyboard
+        os: EXL BASIC (cartridge)
+        ram: [34K]
+        issues: []
+        styles: [EXL 100, EXELTYP 100]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [TI TMS7020, TI TMS7040]
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS3556]
+
+  - key: exidy
+    name: Exidy
+    manufacturer: Exidy
+    regions: [US, PAL (Europe)]
+    models:
+      - key: exidy-sorcerer
+        model: Sorcerer
+        year: 1978
+        cpu: Zilog Z80-2.1
+        chassis: heavy metal case with a full keyboard and a cartridge slot
+        os: Monitor / Exidy BASIC ROM PAC
+        ram: [8K, 16K, 32K, 48K]
+        issues: []
+        styles: [Sorcerer, Sorcerer II, Dynasty Smart-Alec]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: fairchild
+    name: Fairchild
+    manufacturer: Fairchild
+    regions: [NTSC (US), PAL (Europe)]
+    models:
+      - key: channel-f
+        model: Channel F
+        year: 1976
+        cpu: Fairchild F8-1.79
+        chassis: wood-effect console with plunger controllers
+        os: Videocart
+        ram: []
+        issues: []
+        styles: [Channel F, Channel F System II, SABA Videoplay (Germany)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the first console with swappable cartridges and a processor in it,
+              a year before the 2600 -- and the reason the 2600 had to exist
+            variants: [Fairchild F8 3850]
+          - socket: vram
+            label: Video RAM
+            variants: [Fairchild 3853 SMI]
+
+  - key: franklin
+    name: Franklin
+    manufacturer: Franklin
+    regions: [NTSC (US)]
+    models:
+      - key: franklin-ace-1000
+        model: Ace 1000
+        year: 1982
+        cpu: Synertek 6502-1.02
+        chassis: beige case with a lift-off lid and a numeric keypad
+        os: Applesoft-compatible BASIC / DOS 3.3
+        ram: [48K, 64K, 128K]
+        issues: []
+        styles: [Ace 1000, Ace 1200, Ace 2000]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the Apple II clone that copied the ROM as well as the board, lost in
+              court, and set the precedent that firmware is software
+            variants: [Synertek SY6502, MOS 6502]
+
+  - key: fujitsu
+    name: Fujitsu
+    manufacturer: Fujitsu
+    regions: [NTSC-J (Japan)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Motorola MC6809, Motorola MC68B09, Hitachi HD6809]
+      - socket: cpu2
+        label: Sub CPU
+        note: >-
+          a second 6809 that does nothing but drive the display and the keyboard,
+          which is the design decision the whole FM line is built around
+        variants: [Motorola MC6809, Hitachi HD6809]
+    models:
+      - key: fm-8
+        model: FM-8
+        year: 1981
+        cpu: Motorola MC6809-1
+        chassis: desktop with a detachable keyboard and bubble-memory slots
+        os: F-BASIC
+        ram: [64K]
+        issues: []
+        styles: [FM-8]
+      - key: fm-7
+        model: FM-7
+        year: 1982
+        cpu: Motorola MC6809-1.2
+        chassis: wedge with a full keyboard
+        os: F-BASIC V3
+        ram: [64K]
+        issues: []
+        styles: [FM-7, FM-NEW7, FM-77]
+        chips:
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910, Yamaha YM2203 (OPN)]
+      - key: fm-77av
+        model: FM77AV
+        year: 1985
+        cpu: Motorola MC68B09-2
+        chassis: desktop with a detachable keyboard
+        os: F-BASIC V3.3
+        ram: [128K, 192K]
+        issues: []
+        styles: [FM77AV, FM77AV20, FM77AV40, FM77AV40EX]
+        chips:
+          - socket: psg
+            label: Sound
+            variants: [Yamaha YM2203 (OPN)]
+
+      - key: fm-11
+        model: FM-11
+        year: 1982
+        cpu: Motorola MC6809-2
+        chassis: desktop with a detachable keyboard
+        os: F-BASIC / CP/M-86 / OS-9
+        ram: [64K, 192K]
+        issues: []
+        styles: [FM-11 AD, FM-11 EX, FM-11 ST]
+      - key: fm-towns
+        model: FM Towns
+        year: 1989
+        cpu: Intel 386DX-16
+        chassis: white tower with a built-in CD-ROM drive
+        os: Towns OS
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [FM Towns Model 1, Model 2, Towns II]
+        chips:
+          - socket: cpu
+            note: >-
+              the first home computer sold with a CD-ROM drive as standard, two
+              years before anyone else bothered
+            variants: [Intel 386DX, Intel 386SX, Intel 486]
+          - socket: cpu2
+            variants: []
+      - key: fm-towns-marty
+        model: FM Towns Marty
+        year: 1993
+        cpu: AMD 386SX-16
+        chassis: console with a built-in CD-ROM drive
+        os: Towns OS
+        ram: [2MiB]
+        issues: []
+        styles: [Marty, Marty 2, Car Marty]
+        chips:
+          - socket: cpu
+            note: a Towns in a console case, and the first 32-bit games console
+            variants: [AMD 386SX]
+          - socket: cpu2
+            variants: []
+
+  - key: gce
+    name: GCE
+    manufacturer: GCE
+    regions: [NTSC (US), PAL (Europe)]
+    models:
+      - key: vectrex
+        model: Vectrex
+        year: 1982
+        cpu: Motorola MC6809-1.5
+        chassis: console with a built-in vector screen
+        os: cartridge, with Mine Storm in the BIOS
+        ram: [1K]
+        issues: []
+        styles: [GCE Vectrex, MB Vectrex (Europe)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Motorola MC6809]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8912]
+          - socket: via
+            label: VIA
+            note: >-
+              the joystick, the sound chip and the beam are all driven through it,
+              which is why a failed 6522 is a Vectrex with no picture
+            variants: [MOS 6522, Synertek SY6522]
+
+  - key: grundy
+    name: Grundy
+    manufacturer: Grundy
+    regions: [PAL (UK)]
+    models:
+      - key: grundy-newbrain
+        model: NewBrain AD
+        year: 1982
+        cpu: Zilog Z80A-4
+        chassis: small black case with a one-line fluorescent display
+        os: NewBrain BASIC
+        ram: [32K]
+        issues: []
+        styles: [Model A, Model AD (with display)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: heathkit
+    name: Heathkit
+    manufacturer: Heathkit
+    regions: [US]
+    models:
+      - key: heathkit-h8
+        model: H8
+        year: 1977
+        cpu: Intel 8080A-2
+        chassis: sloped cabinet with an octal keypad and LED display
+        os: HDOS / CP/M
+        ram: [4K, 16K, 64K]
+        issues: []
+        styles: [H8 (8080), H8 with the Z80 card]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8080A, Zilog Z80]
+      - key: heathkit-h89
+        model: H89
+        year: 1979
+        cpu: Zilog Z80-2.05
+        chassis: all-in-one terminal case with a built-in 5.25-inch drive
+        os: HDOS / CP/M
+        ram: [16K, 48K, 64K]
+        issues: []
+        styles: [H89, H88, Zenith Z-89, Zenith Z-90]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: hitachi
+    name: Hitachi
+    manufacturer: Hitachi
+    regions: [NTSC-J (Japan)]
+    models:
+      - key: hitachi-basic-master
+        model: Basic Master Level 3
+        year: 1980
+        cpu: Motorola MC6800-1
+        chassis: desktop with a full keyboard
+        os: Hitachi BASIC
+        ram: [32K, 60K]
+        issues: []
+        styles: [Level 3 Mark 2, Level 3 Mark 5, MB-6890]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Motorola MC6800, Hitachi HD6800]
+
+  - key: imsai
+    name: IMSAI
+    manufacturer: IMSAI
+    regions: [US]
+    models:
+      - key: imsai-8080
+        model: '8080'
+        year: 1975
+        cpu: Intel 8080A-2
+        chassis: blue rack box with paddle switches and lamps
+        os: CP/M
+        ram: [4K, 16K, 64K]
+        issues: []
+        styles: [IMSAI 8080, IMSAI 8080 with the VIO board]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8080A]
+
+  - key: jupiter-cantab
+    name: Jupiter Cantab
+    manufacturer: Jupiter Cantab
+    regions: [PAL (UK)]
+    models:
+      - key: jupiter-ace
+        model: Ace
+        year: 1982
+        cpu: Zilog Z80A-3.25
+        chassis: small white wedge, rubber keys
+        os: Forth in ROM
+        ram: [3K, 19K]
+        issues: []
+        styles: [Ace, Ace 4000]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
+  - key: kaypro
+    name: Kaypro
+    manufacturer: Kaypro
+    regions: [US, PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+      - socket: fdc
+        label: Floppy controller
+        variants: [WD1793, Fujitsu MB8877]
+    models:
+      - key: kaypro-ii
+        model: II
+        year: 1982
+        cpu: Zilog Z80-2.5
+        chassis: brushed aluminium luggable with a 9-inch green screen
+        os: CP/M 2.2
+        ram: [64K]
+        issues: []
+        styles: [Kaypro II, Kaypro 4, Kaypro 10 (hard disk)]
+      - key: kaypro-2x
+        model: 2X
+        year: 1984
+        cpu: Zilog Z80A-4
+        chassis: brushed aluminium luggable with a 9-inch green screen
+        os: CP/M 2.2
+        ram: [64K]
+        issues: []
+        styles: [Kaypro 2X, Kaypro 4-84, Kaypro Robie]
+
+  - key: luxor
+    name: Luxor
+    manufacturer: Luxor
+    regions: [PAL (Sweden)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+    models:
+      - key: abc-80
+        model: ABC 80
+        year: 1978
+        cpu: Zilog Z80A-3
+        chassis: wedge with a full keyboard
+        os: ABC BASIC in ROM
+        ram: [16K, 32K]
+        issues: []
+        styles: [ABC 80, ABC 80 with the floppy unit]
+      - key: abc-800
+        model: ABC 800
+        year: 1981
+        cpu: Zilog Z80A-3
+        chassis: desktop with a detachable keyboard
+        os: ABC BASIC II
+        ram: [32K, 64K]
+        issues: []
+        styles: [ABC 800M (mono), ABC 800C (colour), ABC 802, ABC 806]
+
+  - key: magnavox
+    name: Magnavox
+    manufacturer: Magnavox
+    regions: [NTSC (US)]
+    models:
+      - key: odyssey-2
+        model: Odyssey 2
+        year: 1978
+        cpu: Intel 8048-5.9
+        chassis: console with a membrane keyboard
+        os: cartridge
+        ram: []
+        issues: []
+        styles: [Odyssey², Videopac G7000 (Europe)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8048]
+          - socket: vdc
+            label: Video
+            variants: [Intel 8244, Intel 8245 (PAL)]
+
+  - key: matra
+    name: Matra
+    manufacturer: Matra
+    regions: [SECAM (France)]
+    models:
+      - key: matra-alice
+        model: Alice
+        year: 1983
+        cpu: Motorola MC6803-0.89
+        chassis: small red wedge with chiclet keys
+        os: Microcolor BASIC
+        ram: [4K, 8K]
+        issues: []
+        styles: [Alice, Alice 32, Alice 90]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              a Tandy MC-10 in a red case, built under licence for the French
+              school market
+            variants: [Motorola MC6803]
+          - socket: vdg
+            label: Video (VDG)
+            variants: [Motorola MC6847, EF9345 (Alice 32/90)]
+
+  - key: mattel
+    name: Mattel
+    manufacturer: Mattel
+    regions: [NTSC (US), PAL (Europe)]
+    models:
+      - key: intellivision
+        model: Intellivision
+        year: 1979
+        cpu: General Instrument CP1610-0.89
+        chassis: console with a wood-effect fascia
+        os: cartridge, with an Exec ROM
+        ram: []
+        issues: []
+        styles:
+          - Intellivision (1979)
+          - Intellivision II
+          - Sears Super Video Arcade
+          - Intellivision (INTV System III)
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [General Instrument CP1610]
+          - socket: stic
+            label: STIC
+            note: the display chip, and where the machine's name comes from
+            variants: [General Instrument AY-3-8900-1]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8914, General Instrument AY-3-8916]
+
+  - key: memotech
+    name: Memotech
+    manufacturer: Memotech
+    regions: [PAL (UK)]
+    models:
+      - key: memotech-mtx512
+        model: MTX512
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: black aluminium case, brushed finish
+        os: MTX BASIC / NODDY
+        ram: [64K]
+        issues: []
+        styles: [MTX500 (32K), MTX512, RS128]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9929A, TI TMS9918A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+
+  - key: mgt
+    name: MGT
+    manufacturer: MGT
+    regions: [PAL (UK)]
+    models:
+      - key: sam-coupe
+        model: SAM Coupé
+        year: 1989
+        cpu: Zilog Z80B-6
+        chassis: wedge with two internal drive bays
+        os: SAM BASIC / MasterDOS
+        ram: [256K, 512K]
+        issues: []
+        styles: [SAM Coupé, SAM Coupé (SAMDOS), Coupé with external drive]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Zilog Z80B, NEC D780C-2]
+          - socket: asic
+            label: ASIC
+            note: >-
+              video, memory paging and the Spectrum compatibility, in the one part
+              MGT had made for it
+            variants: [MGT ASIC, MGT ASIC (revised)]
+          - socket: psg
+            label: Sound
+            note: >-
+              six channels where a Spectrum had one, and the reason a Coupé is worth
+              hearing
+            variants: [Philips SAA1099]
+
+  - key: mits
+    name: MITS
+    manufacturer: MITS
+    regions: [US]
+    models:
+      - key: altair-8800
+        model: Altair 8800
+        year: 1975
+        cpu: Intel 8080-2
+        chassis: blue and grey rack box with switches and lamps
+        os: none, or Altair BASIC from tape
+        ram: [1K, 4K]
+        issues: []
+        styles: [8800, 8800a, 8800b, 8800b Turnkey]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the machine on the cover of Popular Electronics in January 1975, the
+              first thing Microsoft wrote software for, and the reason the S-100
+              bus existed
+            variants: [Intel 8080, Intel 8080A]
+
+  - key: msx
+    name: MSX
+    manufacturer: ''
+    regions: [NTSC-J (Japan), PAL (Europe), NTSC-U (US)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+      - socket: vdp
+        label: VDP
+        note: >-
+          which VDP is in there is what generation of MSX the machine is: a 9918 is
+          an MSX1, a V9938 an MSX2, a V9958 an MSX2+ or a turbo R
+        variants: [TI TMS9918A, TI TMS9929A, Yamaha V9938, Yamaha V9958]
+      - socket: psg
+        label: Sound
+        variants: ay
+      - socket: ppi
+        label: PPI
+        note: >-
+          the keyboard and the slot switching; on a later machine it is inside the
+          MSX-Engine along with most of the rest of the board
+        variants: [NEC D8255AC-5, Intel 8255A-5, Toshiba T7937A (MSX-Engine)]
+    models:
+      - key: msx-hx-10
+        model: HX-10
+        manufacturer: Toshiba
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with two cartridge slots
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [HX-10, HX-10P (Europe), HX-20]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A, TI TMS9918A]
+      - key: msx-vg-8020
+        model: VG-8020
+        manufacturer: Philips
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, dark grey case
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [VG-8020/00, VG-8020/19, VG-8020/40]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A]
+      - key: msx-hb-75
+        model: HitBit HB-75
+        manufacturer: Sony
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, black case with a red stripe
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [HB-75P (Europe), HB-75B, HB-75D, HB-75 (Japan)]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A, TI TMS9918A]
+      - key: msx2-hb-f1xd
+        model: HB-F1XD
+        manufacturer: Sony
+        year: 1986
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a built-in 3.5-inch drive
+        os: MSX BASIC 2.0
+        ram: [64K]
+        issues: []
+        styles: [HB-F1XD, HB-F1XDmk2]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9938]
+          - socket: rtc
+            label: Clock
+            note: the battery-backed clock every MSX2 has, and every MSX1 has not
+            variants: [Ricoh RP5C01]
+      - key: msx2-fs-a1
+        model: FS-A1
+        manufacturer: Panasonic
+        year: 1986
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, red or black case
+        os: MSX BASIC 2.0
+        ram: [64K]
+        issues: []
+        styles: [FS-A1, FS-A1F (with drive), FS-A1mk2]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9938]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+      - key: msx2p-fs-a1wsx
+        model: FS-A1WSX
+        manufacturer: Panasonic
+        year: 1989
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a built-in 3.5-inch drive
+        os: MSX BASIC 2.1
+        ram: [64K]
+        issues: []
+        styles: [FS-A1WSX, FS-A1WX, FS-A1FX]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9958]
+          - socket: fm
+            label: MSX-MUSIC
+            note: >-
+              the FM chip an MSX2+ has built in, where an MSX2 owner had to buy the
+              cartridge
+            variants: [Yamaha YM2413 (OPLL)]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+      - key: msx-turbo-r-fs-a1gt
+        model: FS-A1GT
+        manufacturer: Panasonic
+        year: 1991
+        cpu: ASCII R800-7.16
+        chassis: wedge with a built-in 3.5-inch drive
+        os: MSX BASIC 4.0 / MSX-DOS 2
+        ram: [512K]
+        issues: []
+        styles: [FS-A1GT, FS-A1ST]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the last MSX carries both: the R800 for speed and a real Z80 beside
+              it for everything written for the eight years before
+            variants: [ASCII R800]
+          - socket: cpu2
+            label: Z80
+            variants: [Zilog Z80A, Toshiba TMPZ84C00AP]
+          - socket: vdp
+            variants: [Yamaha V9958]
+          - socket: fm
+            label: MSX-MUSIC
+            variants: [Yamaha YM2413 (OPLL)]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+
+      - key: msx-vg-8010
+        model: VG-8010
+        manufacturer: Philips
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, dark grey case with moulded keys
+        os: MSX BASIC 1.0
+        ram: [32K]
+        issues: []
+        styles: [VG-8010, VG-8010F (France)]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A]
+      - key: msx-cx5m
+        model: CX5M
+        manufacturer: Yamaha
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: black wedge with a music-keyboard connector
+        os: MSX BASIC 1.0
+        ram: [32K]
+        issues: []
+        styles: [CX5M, CX5MII, CX5M-128]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A, TI TMS9918A]
+          - socket: fm
+            label: FM (SFG)
+            note: >-
+              Yamaha put a real FM synthesiser and a MIDI socket in a home computer
+              in 1984; the CX5M is where a lot of eighties records were sequenced
+            variants: [Yamaha YM2151 (SFG-05), Yamaha YM2164 (SFG-01)]
+      - key: msx-hx-20
+        model: HX-20
+        manufacturer: Toshiba
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a full keyboard and a word-processor ROM
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [HX-20, HX-21, HX-22 (with RS-232)]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A]
+      - key: msx-hb-101
+        model: HitBit HB-101
+        manufacturer: Sony
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with rubber keys and a cartridge slot
+        os: MSX BASIC 1.0
+        ram: [16K]
+        issues: []
+        styles: [HB-101, HB-201, HB-201P (Europe)]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9929A]
+      - key: msx-hb-501p
+        model: HitBit HB-501P
+        manufacturer: Sony
+        year: 1985
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, black case with a full keyboard
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [HB-501P, HB-501F]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A]
+      - key: msx-canon-v-20
+        model: V-20
+        manufacturer: Canon
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, black case with moulded keys
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [V-20, V-10 (16K)]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A]
+      - key: msx-sanyo-phc-28
+        model: PHC-28
+        manufacturer: Sanyo
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a full keyboard
+        os: MSX BASIC 1.0
+        ram: [16K, 64K]
+        issues: []
+        styles: [PHC-28L, PHC-28S, Wavy PHC-70FD]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9929A]
+      - key: msx-daewoo-dpc-200
+        model: DPC-200
+        manufacturer: Daewoo
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, cream case
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [DPC-200, DPC-100, Yeno DPC-64 (France)]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9929A]
+      - key: msx-goldstar-fc-200
+        model: FC-200
+        manufacturer: Goldstar
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a full keyboard
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [FC-200, FC-80]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9929A]
+      - key: msx-mitsubishi-ml-f80
+        model: ML-F80
+        manufacturer: Mitsubishi
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, black case
+        os: MSX BASIC 1.0
+        ram: [32K, 64K]
+        issues: []
+        styles: [ML-F80, ML-F48, ML-F120]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9929A]
+      - key: msx-jvc-hc-7gb
+        model: HC-7GB
+        manufacturer: JVC
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge, dark case with a full keyboard
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [HC-7GB, HC-5]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A]
+      - key: msx-svi-728
+        model: SVI-728
+        manufacturer: Spectravideo
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a full keyboard and a numeric keypad
+        os: MSX BASIC 1.0
+        ram: [64K]
+        issues: []
+        styles: [SVI-728, SVI-738 X'Press (with a drive)]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9929A]
+      - key: msx2-vg-8235
+        model: VG-8235
+        manufacturer: Philips
+        year: 1986
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a built-in single-sided 3.5-inch drive
+        os: MSX BASIC 2.0
+        ram: [128K]
+        issues: []
+        styles: [VG-8235, VG-8230 (64K), VG-8240]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9938]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+      - key: msx2-nms-8250
+        model: NMS 8250
+        manufacturer: Philips
+        year: 1986
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a built-in double-sided 3.5-inch drive
+        os: MSX BASIC 2.0
+        ram: [128K]
+        issues: []
+        styles: [NMS 8245, NMS 8250, NMS 8255, NMS 8280 (with a digitiser)]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9938]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+      - key: msx2-hb-f900
+        model: HB-F900
+        manufacturer: Sony
+        year: 1986
+        cpu: Zilog Z80A-3.58
+        chassis: desktop with two 3.5-inch drives and a video interface
+        os: MSX BASIC 2.0
+        ram: [256K]
+        issues: []
+        styles: [HB-F900, HB-F700P (Europe), HB-F500]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9938]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+      - key: msx2-fs-a1f
+        model: FS-A1F
+        manufacturer: Panasonic
+        year: 1987
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a built-in 3.5-inch drive
+        os: MSX BASIC 2.0
+        ram: [64K]
+        issues: []
+        styles: [FS-A1F, FS-A1FM (with a modem)]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9938]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+      - key: msx2-hb-f1xv
+        model: HB-F1XV
+        manufacturer: Sony
+        year: 1988
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a built-in 3.5-inch drive
+        os: MSX BASIC 2.1
+        ram: [64K]
+        issues: []
+        styles: [HB-F1XV, HB-F1XDJ]
+        chips:
+          - socket: vdp
+            variants: [Yamaha V9958]
+          - socket: fm
+            label: MSX-MUSIC
+            variants: [Yamaha YM2413 (OPLL)]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+      - key: msx-turbo-r-fs-a1st
+        model: FS-A1ST
+        manufacturer: Panasonic
+        year: 1990
+        cpu: ASCII R800-7.16
+        chassis: wedge with a built-in 3.5-inch drive
+        os: MSX BASIC 4.0 / MSX-DOS 2
+        ram: [256K]
+        issues: []
+        styles: [FS-A1ST]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [ASCII R800]
+          - socket: cpu2
+            label: Z80
+            variants: [Zilog Z80A, Toshiba TMPZ84C00AP]
+          - socket: vdp
+            variants: [Yamaha V9958]
+          - socket: fm
+            label: MSX-MUSIC
+            variants: [Yamaha YM2413 (OPLL)]
+          - socket: rtc
+            label: Clock
+            variants: [Ricoh RP5C01]
+
+  - key: nascom
+    name: Nascom
+    manufacturer: Nascom
+    regions: [PAL (UK)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+    models:
+      - key: nascom-1
+        model: '1'
+        year: 1977
+        cpu: Zilog Z80-1
+        chassis: bare board, kit-built
+        os: NASBUG monitor
+        ram: [1K, 2K]
+        issues: []
+        styles: [Nascom 1 (kit), Nascom 1 (built)]
+      - key: nascom-2
+        model: '2'
+        year: 1979
+        cpu: Zilog Z80A-4
+        chassis: bare board, kit-built
+        os: NAS-SYS monitor / Nascom BASIC
+        ram: [8K, 32K, 48K]
+        issues: []
+        styles: [Nascom 2 (kit), Nascom 2 (Gemini case)]
+
+  - key: nec
+    name: NEC
+    manufacturer: NEC
+    regions: [NTSC-J (Japan), NTSC-U (US), PAL (Europe)]
+    models:
+      - key: pc-8001
+        model: PC-8001
+        year: 1979
+        cpu: NEC D780C-4
+        chassis: keyboard unit with a separate monitor
+        os: N-BASIC
+        ram: [16K, 32K]
+        issues: []
+        styles: [PC-8001, PC-8001mkII]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: NEC's own Z80, in NEC's own machine
+            variants: [NEC D780C, NEC D780C-1]
+          - socket: crtc
+            label: CRTC
+            variants: [NEC D3301]
+      - key: pc-8801
+        model: PC-8801
+        year: 1981
+        cpu: NEC D780C-1-4
+        chassis: desktop with a detachable keyboard
+        os: N88-BASIC
+        ram: [64K]
+        issues: []
+        styles: [PC-8801, PC-8801mkII]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC D780C-1]
+      - key: pc-8801-mk2-sr
+        model: PC-8801mkII SR
+        year: 1985
+        cpu: NEC D780C-1-4
+        chassis: desktop with a detachable keyboard
+        os: N88-BASIC V2
+        ram: [64K]
+        issues: []
+        styles: [mkII SR, mkII TR, mkII FR, mkII MR]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC D780C-1]
+          - socket: psg
+            label: Sound
+            note: >-
+              the FM chip that made the SR the machine Japanese developers wrote
+              for, and the reason PC-88 music sounds the way it does
+            variants: [Yamaha YM2203 (OPN)]
+      - key: pc-6001
+        model: PC-6001
+        year: 1981
+        cpu: NEC D780C-4
+        chassis: wedge with a rubber keyboard and a cartridge slot
+        os: N60-BASIC
+        ram: [16K, 32K]
+        issues: []
+        styles: [PC-6001, PC-6001mkII, NEC Trek (US)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC D780C]
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9918A]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910]
+      - key: pc-6601
+        model: PC-6601
+        year: 1983
+        cpu: NEC D780C-4
+        chassis: wedge with a built-in 3.5-inch drive
+        os: N66-BASIC
+        ram: [32K, 64K]
+        issues: []
+        styles: [PC-6601, PC-6601SR (Mr PC)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC D780C]
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9918A]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910]
+      - key: pc-8801-fh
+        model: PC-8801FH
+        year: 1986
+        cpu: NEC D70008AC-8
+        chassis: desktop with two 5.25-inch drives
+        os: N88-BASIC V2
+        ram: [64K]
+        issues: []
+        styles: [FH, MH, FA, MA, FE, MC]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the FH is where the PC-88 got a 8MHz mode, and where most of the
+              later software expects to be
+            variants: [NEC D70008AC]
+          - socket: psg
+            label: Sound
+            variants: [Yamaha YM2203 (OPN), Yamaha YM2608 (OPNA)]
+      - key: pc-9821
+        model: PC-9821
+        year: 1992
+        cpu: Intel 486SX-33
+        chassis: desktop with a detachable keyboard
+        os: MS-DOS 5 / Windows 3.1
+        ram: [2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [PC-9821 (Multi), Ap, As, Ce, Xa]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 486SX, Intel 486DX, Intel Pentium]
+      - key: pc-engine-duo
+        model: PC Engine Duo
+        year: 1991
+        cpu: Hudson HuC6280-7.16
+        chassis: console with a built-in CD-ROM drive
+        os: HuCard and CD-ROM²
+        ram: [8K]
+        issues: []
+        styles: [Duo, Duo-R, Duo-RX, TurboDuo (US)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Hudson HuC6280A]
+          - socket: vdc
+            label: VDC
+            variants: [Hudson HuC6270]
+          - socket: vce
+            label: VCE
+            variants: [Hudson HuC6260]
+          - socket: adpcm
+            label: ADPCM
+            variants: [Oki MSM5205]
+      - key: pc-9801
+        model: PC-9801
+        year: 1982
+        cpu: Intel 8086-5
+        chassis: desktop with a detachable keyboard
+        os: N88-BASIC(86) / MS-DOS
+        ram: [128K, 640K]
+        issues: []
+        styles: [PC-9801, PC-9801E, PC-9801F]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8086, NEC D8086]
+      - key: pc-9801vm
+        model: PC-9801VM
+        year: 1985
+        cpu: NEC V30-10
+        chassis: desktop with a detachable keyboard
+        os: MS-DOS 3.1
+        ram: [384K, 640K]
+        issues: []
+        styles: [VM0, VM2, VM4, VM21]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: NEC's faster 8086 clone, and the standard the PC-98 line settled on
+            variants: [NEC V30]
+      - key: pc-engine
+        model: PC Engine
+        year: 1987
+        cpu: Hudson HuC6280-7.16
+        chassis: console, small white square
+        os: HuCard
+        ram: [8K]
+        issues: []
+        styles:
+          - PC Engine (white)
+          - CoreGrafx
+          - CoreGrafx II
+          - Shuttle
+          - TurboGrafx-16 (US)
+          - PC Engine GT / TurboExpress
+        chips:
+          - socket: cpu
+            label: CPU
+            note: a 65C02 core with the sound and the timers built in
+            variants: [Hudson HuC6280, Hudson HuC6280A]
+          - socket: vdc
+            label: VDC
+            variants: [Hudson HuC6270]
+          - socket: vce
+            label: VCE
+            variants: [Hudson HuC6260]
+      - key: supergrafx
+        model: PC Engine SuperGrafx
+        year: 1989
+        cpu: Hudson HuC6280-7.16
+        chassis: console, grey with a carrying handle
+        os: HuCard
+        ram: [32K]
+        issues: []
+        styles: [SuperGrafx]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Hudson HuC6280A]
+          - socket: vdc
+            label: VDC
+            note: two of them, which is the whole of what makes it a SuperGrafx
+            variants: [Hudson HuC6270 (two fitted)]
+          - socket: vpc
+            label: VPC
+            variants: [Hudson HuC6202]
+          - socket: vce
+            label: VCE
+            variants: [Hudson HuC6260]
+
+  - key: nintendo
+    name: Nintendo
+    manufacturer: Nintendo
+    regions: [NTSC-J (Japan), NTSC-U (US), PAL (Europe)]
+    models:
+      - key: game-and-watch
+        model: Game & Watch
+        year: 1980
+        cpu: Sharp SM5-0.03
+        chassis: handheld with a segmented LCD
+        os: one game, in the chip
+        ram: []
+        issues: []
+        styles: [Silver, Gold, Wide Screen, Multi Screen, Tabletop, Panorama]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the whole machine is the one 4-bit chip, and the game is etched into
+              it -- there is no cartridge and nothing to swap
+            variants: [Sharp SM5, Sharp SM510, Sharp SM511, Sharp SM512]
+      - key: virtual-boy
+        model: Virtual Boy
+        year: 1995
+        cpu: NEC V810-20
+        chassis: tabletop stereoscopic visor on a stand
+        os: cartridge
+        ram: [128K]
+        issues: []
+        styles: [Virtual Boy]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC V810]
+          - socket: vip
+            label: VIP
+            note: the chip that drives the two oscillating-mirror red LED displays
+            variants: [Nintendo VIP]
+      - key: famicom
+        model: Famicom
+        year: 1983
+        cpu: Ricoh RP2A03-1.79
+        chassis: console with hard-wired controllers
+        os: cartridge
+        ram: [2K]
+        issues: []
+        styles: [red and white Famicom, AV Famicom (HVC-101), Twin Famicom (Sharp)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              a 6502 with the sound and the controller ports inside it, and the
+              decimal mode taken out
+            variants: [Ricoh RP2A03]
+          - socket: ppu
+            label: PPU
+            variants: [Ricoh RP2C02]
+      - key: nes
+        model: Entertainment System
+        year: 1985
+        cpu: Ricoh RP2A03-1.79
+        chassis: front-loading console
+        os: cartridge, with a lockout chip
+        ram: [2K]
+        issues: []
+        styles: [NES-001 front loader, NES-101 top loader, NES (PAL A), NES (PAL B)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Ricoh RP2A03 (NTSC), Ricoh RP2A07 (PAL)]
+          - socket: ppu
+            label: PPU
+            variants: [Ricoh RP2C02 (NTSC), Ricoh RP2C07 (PAL)]
+          - socket: cic
+            label: Lockout chip
+            note: >-
+              the 10NES, and the reason a front loader blinks at a cartridge that
+              is perfectly good; on a lot of surviving machines it has been cut
+            variants: [Nintendo 10NES CIC, disabled or removed]
+      - key: game-boy
+        model: Game Boy
+        year: 1989
+        cpu: Sharp LR35902-4.19
+        chassis: handheld with a mono LCD
+        os: cartridge, with a boot ROM
+        ram: [8K]
+        issues: []
+        styles: [DMG-01, Play It Loud, Game Boy Light (Japan)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              neither a Z80 nor a 8080 but Sharp's own thing borrowing from both,
+              with the sound and the LCD controller on the same die
+            variants: [Sharp DMG-CPU, Sharp DMG-CPU A, Sharp DMG-CPU B, Sharp CPU MGB]
+      - key: super-famicom
+        model: Super Famicom
+        year: 1990
+        cpu: Ricoh 5A22-3.58
+        chassis: console with rounded grey case
+        os: cartridge
+        ram: [128K]
+        issues: []
+        styles: [Super Famicom, Super Famicom Jr.]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Ricoh 5A22]
+          - socket: ppu1
+            label: PPU1
+            variants: [Nintendo S-PPU1 5C77]
+          - socket: ppu2
+            label: PPU2
+            variants: [Nintendo S-PPU2 5C78]
+          - socket: apu
+            label: Sound CPU
+            note: a whole second processor for audio, bought in from Sony
+            variants: [Sony S-SMP (SPC700)]
+          - socket: dsp
+            label: Sound DSP
+            variants: [Sony S-DSP]
+      - key: snes
+        model: Super NES
+        year: 1991
+        cpu: Ricoh 5A22-3.58
+        chassis: console
+        os: cartridge
+        ram: [128K]
+        issues: [1CHIP-01, 1CHIP-02, 1CHIP-03]
+        styles:
+          - SNES (US, boxy)
+          - Super Nintendo (PAL, rounded)
+          - SNES Jr / Super Famicom Jr.
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Ricoh 5A22]
+          - socket: ppu1
+            label: PPU1
+            note: >-
+              a 1CHIP board has the two PPUs and the CPU on one die, and is the
+              revision people go looking for: the picture is noticeably cleaner
+            variants: [Nintendo S-PPU1 5C77, combined on a 1CHIP board]
+          - socket: ppu2
+            label: PPU2
+            variants: [Nintendo S-PPU2 5C78, combined on a 1CHIP board]
+          - socket: apu
+            label: Sound CPU
+            variants: [Sony S-SMP (SPC700)]
+          - socket: dsp
+            label: Sound DSP
+            variants: [Sony S-DSP]
+
+  - key: ohio-scientific
+    name: Ohio Scientific
+    manufacturer: Ohio Scientific
+    regions: [US]
+    models:
+      - key: osi-superboard-ii
+        model: Superboard II
+        year: 1979
+        cpu: MOS 6502-1
+        chassis: bare board with a full keyboard along one edge
+        os: OSI Monitor / Microsoft BASIC in ROM
+        ram: [4K, 8K]
+        issues: []
+        styles: [Superboard II, Challenger 1P, UK101 relative]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [MOS 6502, Synertek SY6502]
+
+  - key: olivetti
+    name: Olivetti
+    manufacturer: Olivetti
+    regions: [PAL (Europe)]
+    models:
+      - key: olivetti-m20
+        model: M20
+        year: 1982
+        cpu: Zilog Z8001-4
+        chassis: desktop with a detachable keyboard and two floppy drives
+        os: PCOS
+        ram: [128K, 512K]
+        issues: []
+        styles: [M20, M20 ST, M20 BC]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              a 16-bit Zilog rather than an Intel, which made it a good machine
+              that could not run a line of PC software
+            variants: [Zilog Z8001]
+      - key: olivetti-m10
+        model: M10
+        year: 1983
+        cpu: OKI 80C85-2.4
+        chassis: A4 portable with a tilting 8-line LCD
+        os: BASIC and the built-in applications, in ROM
+        ram: [8K, 32K]
+        issues: []
+        styles: [M10 (Europe), Kyotronic 85 relative]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [OKI M80C85, Intel 80C85]
+
+  - key: oric
+    name: Oric
+    manufacturer: Oric
+    regions: [PAL (UK/Europe), SECAM (France)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [MOS 6502A, Synertek SY6502A, UMC UM6502A]
+      - socket: psg
+        label: Sound
+        note: >-
+          the same three-channel chip a Spectrum 128 and a CPC have, which is why
+          an Oric sounds more like those than like anything else with a 6502 in it
+        variants: [General Instrument AY-3-8912]
+      - socket: via
+        label: VIA
+        note: the keyboard, the tape port and the printer, all through one chip
+        variants: [MOS 6522, Rockwell R6522, Synertek SY6522]
+      - socket: rom
+        label: ROM
+        note: >-
+          the one thing worth checking first on an Oric-1: BASIC 1.0 shipped with
+          bugs bad enough that owners sent the machine back for the 1.1 ROM, and
+          plenty of surviving Oric-1s have had it fitted
+        variants: [BASIC 1.0, BASIC 1.1]
+    models:
+      - key: oric-1
+        model: '1'
+        year: 1983
+        cpu: MOS 6502A-1
+        chassis: wedge, calculator keys
+        os: Oric BASIC 1.0
+        ram: [16K, 48K]
+        issues: []
+        styles: [Oric-1, 16K board upgraded to 48K]
+        chips:
+          - socket: rom
+            variants: [BASIC 1.0, BASIC 1.1]
+      - key: oric-atmos
+        model: Atmos
+        year: 1984
+        cpu: MOS 6502A-1
+        chassis: wedge, black case with red keys
+        os: Oric BASIC 1.1
+        ram: [48K]
+        issues: []
+        styles: [Atmos, Oric-1 board in an Atmos case]
+        chips:
+          - socket: rom
+            variants: [BASIC 1.1]
+      - key: oric-telestrat
+        model: Telestrat
+        year: 1986
+        cpu: MOS 6502A-1
+        chassis: wedge, dark case
+        os: Telestrat TELEMON / Stratsed
+        ram: [64K]
+        issues: []
+        styles: [Telestrat]
+        chips:
+          - socket: rom
+            variants: [TELEMON 2.4]
+
+  - key: osborne
+    name: Osborne
+    manufacturer: Osborne
+    regions: [US, PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+      - socket: fdc
+        label: Floppy controller
+        variants: [WD1793, Fujitsu MB8877]
+    models:
+      - key: osborne-1
+        model: '1'
+        year: 1981
+        cpu: Zilog Z80A-4
+        chassis: sewing-machine luggable with a 5-inch screen and two drives
+        os: CP/M 2.2
+        ram: [64K]
+        issues: []
+        styles: [Osborne 1 (tan), Osborne 1 (blue), Osborne 1A]
+      - key: osborne-executive
+        model: Executive
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: luggable with a 7-inch amber screen and two drives
+        os: CP/M Plus
+        ram: [128K]
+        issues: []
+        styles: [Executive, Executive 2]
+
+  - key: philips
+    name: Philips
+    manufacturer: Philips
+    regions: [PAL (Europe), SECAM (France)]
+    models:
+      - key: philips-videopac-g7000
+        model: Videopac G7000
+        year: 1978
+        cpu: Intel 8048-5.9
+        chassis: console with a membrane keyboard
+        os: cartridge
+        ram: []
+        issues: []
+        styles: [G7000, Odyssey² (US), Videopac (Europe)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8048, Intel 8244 (with the video)]
+          - socket: vdc
+            label: Video
+            variants: [Intel 8244, Intel 8245 (PAL)]
+      - key: philips-videopac-g7400
+        model: Videopac+ G7400
+        year: 1983
+        cpu: Intel 8048-5.9
+        chassis: console with a membrane keyboard
+        os: cartridge
+        ram: []
+        issues: []
+        styles: [G7400, Jopac JO7400 (France)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8048]
+          - socket: vdc
+            label: Video
+            variants: [Intel 8245, Philips EF9340/EF9341]
+      - key: philips-p2000t
+        model: P2000T
+        year: 1980
+        cpu: Zilog Z80A-2.5
+        chassis: wedge with a built-in mini-cassette drive
+        os: P2000 monitor / BASIC cartridge
+        ram: [16K, 48K]
+        issues: []
+        styles: [P2000T, P2000M (80 columns)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdc
+            label: Video
+            variants: [Philips SAA5050 (Teletext)]
+
+  - key: pravetz
+    name: Pravetz
+    manufacturer: Pravetz
+    regions: [SECAM (Bulgaria), PAL (Europe)]
+    models:
+      - key: pravetz-82
+        model: '82'
+        year: 1982
+        cpu: MOS 6502-1
+        chassis: beige case with a lift-off lid
+        os: Applesoft-compatible BASIC
+        ram: [48K, 64K]
+        issues: []
+        styles: [Pravetz 82, Pravetz 8A, Pravetz 8C]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              an Apple II built in Bulgaria for the whole Eastern bloc, down to the
+              ROM; more of them were made than Apple sold in Europe
+            variants: [MOS 6502, Rockwell R6502, CM630 (Bulgarian 6502)]
+      - key: pravetz-8d
+        model: 8D
+        year: 1985
+        cpu: MOS 6502A-1
+        chassis: wedge, beige case with moulded keys
+        os: Oric BASIC 1.1
+        ram: [48K, 64K]
+        issues: []
+        styles: [Pravetz 8D, Nova 64 (export)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [MOS 6502A, CM630 (Bulgarian 6502)]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8912]
+
+  - key: processor-technology
+    name: Processor Technology
+    manufacturer: Processor Technology
+    regions: [US]
+    models:
+      - key: sol-20
+        model: Sol-20
+        year: 1976
+        cpu: Intel 8080A-2
+        chassis: metal case with walnut side panels and a built-in keyboard
+        os: SOLOS monitor / CP/M
+        ram: [8K, 16K, 48K]
+        issues: []
+        styles: [Sol-20, Sol-10, Sol-PC]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the first computer sold as one box with a keyboard and a video output
+              in it, a year before the Apple II and the PET
+            variants: [Intel 8080A]
+
+  - key: research-machines
+    name: Research Machines
+    manufacturer: Research Machines
+    regions: [PAL (UK)]
+    models:
+      - key: rm-380z
+        model: '380Z'
+        year: 1977
+        cpu: Zilog Z80A-4
+        chassis: rack-style black case with two 8-inch or 5.25-inch drives
+        os: COS / CP/M
+        ram: [16K, 32K, 56K]
+        issues: []
+        styles: [380Z (cassette), 380Z (floppy), 480Z]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+      - key: rm-link-480z
+        model: Link 480Z
+        year: 1981
+        cpu: Zilog Z80A-4
+        chassis: single box with a detachable keyboard, for a school network
+        os: CP/M / RML Network
+        ram: [64K, 256K]
+        issues: []
+        styles: [Link 480Z, 480Z with a disc]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+      - key: rm-nimbus
+        model: Nimbus PC-186
+        year: 1985
+        cpu: Intel 80186-8
+        chassis: wedge with a detachable keyboard
+        os: MS-DOS / RM-DOS
+        ram: [512K, 1MiB]
+        issues: []
+        styles: [PC-186, PC-186 (networked, no disc)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              an 80186 rather than an 8088, which made it faster than a PC and not
+              quite compatible with one -- the machine a generation of British
+              schools actually met
+            variants: [Intel 80186]
+
+  - key: robotron
+    name: Robotron
+    manufacturer: Robotron
+    regions: [SECAM (East Germany), PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        note: >-
+          the U880 is East Germany's Z80, made in Dresden without a licence and
+          near enough identical to run the same code
+        variants: [MME U880, Zilog Z80A]
+    models:
+      - key: robotron-z9001
+        model: Z9001
+        year: 1984
+        cpu: MME U880-2.5
+        chassis: dark wedge with a membrane keyboard
+        os: OS in ROM / KC BASIC
+        ram: [16K, 32K]
+        issues: []
+        styles: [Z9001, KC 85/1, KC 87]
+      - key: robotron-kc-85-3
+        model: KC 85/3
+        year: 1986
+        cpu: MME U880-1.75
+        chassis: dark grey box with a separate keyboard and module slots
+        os: CAOS 3.1 / HC-BASIC
+        ram: [16K, 32K]
+        issues: []
+        styles: [KC 85/2, KC 85/3, KC 85/4, KC 85/5]
+      - key: robotron-a5105
+        model: A5105
+        year: 1989
+        cpu: MME U880-3.75
+        chassis: desktop with a detachable keyboard
+        os: SCP / RBASIC
+        ram: [64K, 192K]
+        issues: []
+        styles: [A5105, BIC A5105]
+
+  - key: science-of-cambridge
+    name: Science of Cambridge
+    manufacturer: Science of Cambridge
+    regions: [PAL (UK)]
+    models:
+      - key: mk14
+        model: MK14
+        year: 1978
+        cpu: National SC/MP-4.4
+        chassis: bare board with a calculator keypad and an LED display
+        os: monitor in ROM
+        ram: []
+        issues: []
+        styles: [MK14 (kit), MK14 with the VDU board]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              Sinclair's first computer, sold as a kit two years before the ZX80,
+              with 256 bytes of memory and eight LED digits
+            variants: [National Semiconductor INS8060 SC/MP]
+
+  - key: sega
+    name: Sega
+    manufacturer: Sega
+    regions: [PAL, NTSC-U, NTSC-J]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Motorola MC68000, Signetics SCC68000, Hitachi HD68HC000]
+      - socket: z80
+        label: Sound CPU
+        variants: [Zilog Z80A, Sharp LH5080A, integrated in the ASIC]
+      - socket: vdp
+        label: VDP
+        variants: [Sega 315-5313, Sega 315-5313A, Sega 315-5660 (Model 2 ASIC)]
+      - socket: fm
+        label: FM sound
+        note: >-
+          the discrete YM2612 is the one people buy a Model 1 for; the YM3438 and
+          the ASIC's version are cleaner and thinner
+        variants: [Yamaha YM2612, Yamaha YM3438, integrated in the ASIC]
+      - socket: amp
+        label: Amplifier
+        note: >-
+          part of why two Model 1s of different revisions do not sound alike
+        variants: [Sanyo LA6510, Sony CXA1034, Rohm BA10324]
+    models:
+      - key: sg-1000
+        model: SG-1000
+        year: 1983
+        cpu: NEC D780C-3.58
+        chassis: console with a cartridge slot and a hard-wired joystick
+        os: cartridge
+        ram: [1K]
+        issues: []
+        styles: [SG-1000, SG-1000 II, Othello Multivision]
+        chips:
+          - socket: cpu
+            variants: [NEC D780C, Zilog Z80A]
+          - socket: z80
+            variants: []
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9928A, TI TMS9929A]
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+      - key: sc-3000
+        model: SC-3000
+        year: 1983
+        cpu: NEC D780C-3.58
+        chassis: wedge with a rubber or moulded keyboard
+        os: BASIC from cartridge
+        ram: [2K, 32K]
+        issues: []
+        styles: [SC-3000 (rubber keys), SC-3000H (moulded keys)]
+        chips:
+          - socket: cpu
+            variants: [NEC D780C, Zilog Z80A]
+          - socket: z80
+            variants: []
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9929A]
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+      - key: sega-mark-iii
+        model: Mark III
+        year: 1985
+        cpu: Zilog Z80A-3.58
+        chassis: console, white case
+        os: cartridge or My Card
+        ram: [8K]
+        issues: []
+        styles: [Mark III, Mark III with the FM Sound Unit]
+        chips:
+          - socket: cpu
+            variants: [Zilog Z80A, Sharp LH5080A, NEC D780C]
+          - socket: z80
+            variants: []
+          - socket: vdp
+            variants: [Sega 315-5124]
+          - socket: fm
+            label: FM sound
+            note: >-
+              the FM Sound Unit was a Japanese add-on and later built into some
+              Master Systems; a game written for it sounds like a different game
+            variants: [Yamaha YM2413, not fitted]
+          - socket: amp
+            variants: []
+          - socket: psg
+            label: Sound
+            variants: [SN76489 (in the VDP)]
+      - key: master-system
+        model: Master System
+        year: 1986
+        cpu: Zilog Z80A-3.58
+        chassis: console
+        os: 'cartridge, with a boot ROM'
+        ram: [8K]
+        issues: []
+        styles: [Master System, Master System (built-in Hang-On), Master System (Alex Kidd)]
+        chips:
+          - socket: cpu
+            variants: [Zilog Z80A, Sharp LH5080A]
+          - socket: vdp
+            note: >-
+              the -5246 of a later machine and a Game Gear fixes some of the -5124's
+              quirks
+            variants: [Sega 315-5124, Sega 315-5246]
+          - socket: psg
+            label: Sound
+            note: >-
+              the FM chip is a Japanese Mark III / Master System fitting, and worth
+              recording where it is there
+            variants: [SN76489 (in the VDP), 'Yamaha YM2413 (FM, Japan)']
+          - socket: z80
+            variants: []
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+      - key: master-system-ii
+        model: Master System II
+        year: 1990
+        cpu: Zilog Z80A-3.58
+        chassis: console
+        os: 'cartridge, with a built-in game'
+        ram: [8K]
+        issues: []
+        styles: [Master System II (Alex Kidd), Master System II (Sonic)]
+        chips:
+          - socket: cpu
+            variants: [Zilog Z80A, Sharp LH5080A]
+          - socket: vdp
+            variants: [Sega 315-5246]
+          - socket: psg
+            label: Sound
+            variants: [SN76489 (in the VDP)]
+          - socket: z80
+            variants: []
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+      - key: megadrive
+        model: Mega Drive
+        year: 1988
+        cpu: Motorola 68000-7.6
+        chassis: console
+        os: 'cartridge, with TMSS on later boards'
+        ram: [64K]
+        issues: [VA0, VA1, VA2, VA3, VA4, VA5, VA6, VA6.8, VA7]
+        styles:
+          - High Definition Graphics badge
+          - later Model 1 (no badge)
+          - Genesis Model 1 (US)
+          - Mega Drive (Japan)
+      - key: megadrive-2
+        model: Mega Drive 2
+        year: 1993
+        cpu: Motorola 68000-7.6
+        chassis: console (smaller case)
+        os: 'cartridge, with TMSS'
+        ram: [64K]
+        issues: [VA0, VA1, VA1.8, VA2, VA2.3]
+        styles: [Mega Drive 2, Genesis Model 2 (US)]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68000, Hitachi HD68HC000]
+          - socket: z80
+            variants: [integrated in the ASIC]
+          - socket: vdp
+            variants: [Sega 315-5660, Sega 315-5700]
+          - socket: fm
+            variants: [Yamaha YM3438, integrated in the ASIC]
+          - socket: amp
+            variants: [Rohm BA10324, JRC 2100]
+      - key: game-gear
+        model: Game Gear
+        year: 1990
+        cpu: Zilog Z80A-3.58
+        chassis: handheld
+        os: cartridge
+        ram: [8K]
+        issues: [VA0, VA1, VA4, VA5]
+        styles: [Game Gear, Game Gear (Majesco)]
+        chips:
+          - socket: cpu
+            variants: [Zilog Z80A, Sharp LH5080A]
+          - socket: vdp
+            variants: [Sega 315-5378, Sega 315-5535]
+          - socket: psg
+            label: Sound
+            variants: [SN76489 (in the VDP)]
+
+          - socket: z80
+            variants: []
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+
+      - key: sega-pico
+        model: Pico
+        year: 1993
+        cpu: Motorola 68000-7.6
+        chassis: book-shaped console with a stylus and page sensor
+        os: Storyware cartridge
+        ram: [64K]
+        issues: []
+        styles: [Pico (Japan), Pico (Europe), Pico (US)]
+        chips:
+          - socket: z80
+            variants: []
+          - socket: vdp
+            variants: [Sega 315-5313A]
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+      - key: sega-nomad
+        model: Nomad
+        year: 1995
+        cpu: Motorola 68000-7.6
+        chassis: handheld taking Mega Drive cartridges
+        os: cartridge
+        ram: [64K]
+        issues: []
+        styles: [Nomad (US)]
+        chips:
+          - socket: vdp
+            variants: [Sega 315-5313A]
+          - socket: fm
+            variants: [Yamaha YM3438]
+      - key: sega-saturn
+        model: Saturn
+        year: 1994
+        cpu: Hitachi SH-2-28
+        chassis: console with a CD-ROM drive
+        os: CD-ROM
+        ram: [2MiB]
+        issues: []
+        styles: [Saturn (grey, Japan), Saturn (black), Saturn (oval buttons)]
+        chips:
+          - socket: cpu
+            note: two of them, which is most of why the Saturn was hard to write for
+            variants: [Hitachi SH-2 (two fitted)]
+          - socket: z80
+            variants: []
+          - socket: vdp
+            label: VDP
+            variants: [Sega VDP1 and VDP2]
+          - socket: fm
+            label: Sound
+            variants: [Yamaha SCSP / YMF292]
+          - socket: amp
+            variants: []
+          - socket: scu
+            label: SCU
+            variants: [Sega SCU with DSP]
+
+  - key: sharp
+    name: Sharp
+    manufacturer: Sharp
+    regions: [NTSC-J (Japan), PAL (Europe)]
+    models:
+      - key: mz-80k
+        model: MZ-80K
+        year: 1978
+        cpu: Sharp LH0080-2
+        chassis: all-in-one with a tape deck and a mono screen
+        os: SP-1002 monitor, BASIC loaded from tape
+        ram: [20K, 48K]
+        issues: []
+        styles: [MZ-80K, MZ-80K2, MZ-80A]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: Sharp's own Z80, in Sharp's own machine
+            variants: [Sharp LH0080, Sharp LH0080A]
+      - key: mz-80a
+        model: MZ-80A
+        year: 1982
+        cpu: Sharp LH0080A-2
+        chassis: all-in-one with a tape deck and a mono screen
+        os: SP-1002 monitor, BASIC loaded from tape
+        ram: [48K]
+        issues: []
+        styles: [MZ-80A, MZ-1200 (Japan)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH0080A]
+      - key: mz-80b
+        model: MZ-80B
+        year: 1981
+        cpu: Sharp LH0080A-4
+        chassis: all-in-one with a tape deck and a green screen
+        os: monitor ROM, BASIC loaded from tape
+        ram: [64K]
+        issues: []
+        styles: [MZ-80B, MZ-2000, MZ-2200]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH0080A]
+      - key: mz-2500
+        model: MZ-2500
+        year: 1985
+        cpu: Sharp LH0080E-6
+        chassis: desktop with two 3.5-inch drives
+        os: MZ-2500 BASIC / CP/M
+        ram: [256K, 640K]
+        issues: []
+        styles: [MZ-2500, MZ-2520, MZ-2861]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH0080E]
+          - socket: psg
+            label: Sound
+            variants: [Yamaha YM2203 (OPN)]
+      - key: sharp-pc-1211
+        model: PC-1211
+        year: 1980
+        cpu: Sharp SC43177-0.25
+        chassis: pocket computer with a one-line LCD
+        os: Sharp BASIC
+        ram: [1K]
+        issues: []
+        styles: [PC-1211, Tandy TRS-80 Pocket Computer]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: two 4-bit processors working together, which is how it fits
+            variants: [Sharp SC43177, Sharp SC43178]
+      - key: sharp-pc-1500
+        model: PC-1500
+        year: 1981
+        cpu: Sharp LH5801-1.3
+        chassis: pocket computer with a 26-character LCD
+        os: Sharp BASIC
+        ram: [2K, 16K]
+        issues: []
+        styles: [PC-1500, PC-1500A, Tandy PC-2]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH5801]
+      - key: mz-700
+        model: MZ-700
+        year: 1982
+        cpu: Sharp LH0080A-3.54
+        chassis: wedge with an optional tape deck and plotter
+        os: BASIC loaded from tape
+        ram: [64K]
+        issues: []
+        styles: [MZ-700, MZ-711 (no tape), MZ-721 (tape), MZ-731 (plotter)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH0080A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+      - key: mz-800
+        model: MZ-800
+        year: 1984
+        cpu: Sharp LH0080A-3.54
+        chassis: wedge with an optional tape deck
+        os: BASIC loaded from tape / CP/M
+        ram: [64K]
+        issues: []
+        styles: [MZ-800 (Europe), MZ-1500 (Japan)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH0080A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+      - key: sharp-x1
+        model: X1
+        year: 1982
+        cpu: Sharp LH0080A-4
+        chassis: desktop with a built-in tape deck
+        os: Hu-BASIC
+        ram: [64K]
+        issues: []
+        styles: [X1 (CZ-800C), X1C, X1D, X1F]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH0080A]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910, Yamaha YM2149F]
+      - key: sharp-x1-turbo
+        model: X1turbo
+        year: 1984
+        cpu: Sharp LH0080A-4
+        chassis: desktop with a detachable keyboard
+        os: Hu-BASIC / CP/M
+        ram: [64K]
+        issues: []
+        styles: [X1turbo, X1turboII, X1turboZ]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp LH0080A, Sharp LH0080E]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910, Yamaha YM2149F]
+      - key: x68000
+        model: X68000
+        year: 1987
+        cpu: Motorola MC68000-10
+        chassis: twin-tower Manhattan Shape
+        os: Human68k
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [X68000 (1987), ACE, EXPERT, PRO, SUPER, XVI, Compact XVI]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Motorola MC68000, Motorola MC68000-16 (XVI)]
+          - socket: fm
+            label: FM sound
+            note: >-
+              the same OPM an arcade board of the period has, which is most of why
+              an X68000 was the machine arcade conversions were done on
+            variants: [Yamaha YM2151 (OPM)]
+          - socket: adpcm
+            label: ADPCM
+            variants: [OKI MSM6258]
+
+  - key: sinclair
+    name: Sinclair ZX
+    manufacturer: Sinclair
+    regions: [PAL (UK/Europe), NTSC (Timex/US)]
+    chips:
+      - socket: cpu
+        label: CPU
+        note: >-
+          four foundries made it and Sinclair bought from whoever was cheapest;
+          nothing but the marking changes
+        variants: z80
+      - socket: ula
+        label: ULA
+        note: >-
+          the heart of the machine and the part that kills it: the number under
+          the heatsink is worth writing down before it is needed
+        variants:
+          - Ferranti 5C102E
+          - Ferranti 5C112E
+          - Ferranti 6C001E-5
+          - Ferranti 6C001E-6
+          - Ferranti 6C001E-7
+          - Ferranti 7K010E-5
+    models:
+      - key: zx80
+        model: ZX80
+        year: 1980
+        cpu: NEC D780C-3.25
+        chassis: 'white wedge, membrane keyboard'
+        os: 4K ZX80 BASIC ROM
+        ram: [1K, 16K]
+        issues: []
+        styles: [membrane keyboard]
+        chips:
+          - socket: ula
+            note: >-
+              there isn't one -- the ZX80 does it in TTL, which is why the board is so
+              busy
+            variants: []
+      - key: zx81
+        model: ZX81
+        year: 1981
+        cpu: NEC D780C-3.25
+        chassis: 'black wedge, membrane keyboard'
+        os: 8K ZX81 BASIC ROM
+        ram: [1K, 16K]
+        issues: [Issue 1, Issue 3]
+        styles: [membrane keyboard, Timex Sinclair 1000]
+        chips:
+          - socket: ula
+            note: >-
+              the one chip that made a ZX81 out of a ZX80's worth of TTL
+            variants: [Ferranti 2C158E, Ferranti 2C184E]
+      - key: zx-spectrum-16k
+        model: ZX Spectrum 16K
+        year: 1982
+        cpu: Zilog Z80A-3.5
+        chassis: 'wedge, rubber keys'
+        os: Sinclair BASIC (48K ROM)
+        ram: [16K]
+        issues: [Issue 1, Issue 2, Issue 3, Issue 3B]
+        styles: [rubber keys]
+      - key: zx-spectrum-48k
+        model: ZX Spectrum 48K
+        year: 1982
+        cpu: Zilog Z80A-3.5
+        chassis: 'wedge, rubber keys'
+        os: Sinclair BASIC (48K ROM)
+        ram: [48K, 16K]
+        issues: [Issue 1, Issue 2, Issue 3, Issue 3B, Issue 4A, Issue 4B, Issue 5, Issue 6A]
+        styles: [rubber keys, 16K board upgraded to 48K]
+      - key: zx-spectrum-plus
+        model: ZX Spectrum+
+        year: 1984
+        cpu: Zilog Z80A-3.5
+        chassis: 'wedge, moulded keys'
+        os: Sinclair BASIC (48K ROM)
+        ram: [48K]
+        issues: [Issue 4A, Issue 4B, Issue 6A]
+        styles: [moulded keys, rubber-key machine in a + case]
+      - key: zx-spectrum-128
+        model: ZX Spectrum 128
+        year: 1986
+        cpu: Zilog Z80A-3.5
+        chassis: wedge with heatsink (toastrack)
+        os: 128 BASIC / 48 BASIC
+        ram: [128K]
+        issues: []
+        styles: [toastrack, Spanish 128 (Investronica)]
+        chips:
+          - socket: psg
+            label: Sound
+            note: >-
+              the three-channel chip that is the whole reason a 128 sounds like a 128
+            variants: ay
+      - key: zx-spectrum-plus2
+        model: ZX Spectrum +2
+        manufacturer: Amstrad
+        year: 1986
+        cpu: Zilog Z80A-3.5
+        chassis: 'grey case, built-in tape'
+        os: 128 BASIC / 48 BASIC
+        ram: [128K]
+        issues: []
+        styles: [grey case]
+        chips:
+          - socket: psg
+            label: Sound
+            variants: ay
+      - key: zx-spectrum-plus2a
+        model: ZX Spectrum +2A
+        manufacturer: Amstrad
+        year: 1987
+        cpu: Zilog Z80A-3.5
+        chassis: 'black case, built-in tape'
+        os: 128 BASIC / +3 BASIC
+        ram: [128K]
+        issues: []
+        styles: [black case, +2B (later production)]
+        chips:
+          - socket: ula
+            label: ASIC
+            note: >-
+              Amstrad's gate array, which does the ULA's job and the memory decoding
+              with it
+            variants: [Amstrad 40056]
+          - socket: psg
+            label: Sound
+            variants: ay
+      - key: zx-spectrum-plus2b
+        model: ZX Spectrum +2B
+        manufacturer: Amstrad
+        year: 1988
+        cpu: Zilog Z80A-3.5
+        chassis: grey case, built-in tape
+        os: 128 BASIC / 48 BASIC
+        ram: [128K]
+        issues: []
+        styles: [+2B (grey), +2B (black)]
+        chips:
+          - socket: ula
+            label: ASIC
+            variants: [Amstrad 40056]
+          - socket: psg
+            label: Sound
+            variants: ay
+      - key: zx-spectrum-plus3
+        model: ZX Spectrum +3
+        manufacturer: Amstrad
+        year: 1987
+        cpu: Zilog Z80A-3.5
+        chassis: 'black case, built-in 3" floppy'
+        os: +3 BASIC / +3DOS / CP/M
+        ram: [128K]
+        issues: []
+        styles: [black case, +3B (later production)]
+        chips:
+          - socket: ula
+            label: ASIC
+            variants: [Amstrad 40056]
+          - socket: psg
+            label: Sound
+            variants: ay
+          - socket: fdc
+            label: Floppy controller
+            variants: [NEC D765AC, UMC UM8272A]
+          - socket: rom
+            label: ROM
+            note: >-
+              v4.1 fixed the bugs v4.0 shipped with; a machine can have either
+            variants: [v4.0, v4.1]
+      - key: sinclair-ql
+        model: QL
+        year: 1984
+        cpu: Motorola 68008-7.5
+        chassis: black wedge with two Microdrives
+        os: Sinclair QDOS
+        ram: [128K, 640K]
+        issues: [Issue 5, Issue 6, Issue 7]
+        styles: [QL, QL with the kludge board]
+        chips:
+          - socket: cpu
+            variants: [Motorola MC68008, Motorola MC68008P8]
+          - socket: ula
+            label: ZX8301
+            note: >-
+              the display and the memory timing; the QL has two Sinclair ULAs
+              rather than the Spectrum's one, and this is the one that runs hot
+            variants: [Sinclair ZX8301]
+          - socket: zx8302
+            label: ZX8302
+            note: the Microdrives, the serial ports, the network and the clock
+            variants: [Sinclair ZX8302]
+          - socket: ipc
+            label: IPC
+            note: the second processor that scans the keyboard and makes the sound
+            variants: [Intel 8049, NEC D8049]
+          - socket: rom
+            label: ROM
+            note: >-
+              the QL shipped before its ROM was finished, so which one a machine
+              has is the first thing to look at: FB and PM are the early ones, JM
+              the common one, and JS and MG the versions with the bugs out
+            variants: [FB, PM, AH, JM, JS, MG (later, multilingual)]
+
+  - key: snk
+    name: SNK
+    manufacturer: SNK
+    regions: [NTSC-J (Japan), NTSC-U (US), PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Motorola MC68000, Toshiba TMP68HC000]
+      - socket: z80
+        label: Sound CPU
+        variants: [Zilog Z80, Sharp LH5080A]
+      - socket: fm
+        label: FM sound
+        variants: [Yamaha YM2610]
+    models:
+      - key: neo-geo-aes
+        model: Neo Geo AES
+        year: 1990
+        cpu: Motorola 68000-12
+        chassis: console with a huge cartridge slot and arcade sticks
+        os: cartridge
+        ram: [64K]
+        issues: []
+        styles: [AES (Japan), AES (US), Gold System]
+      - key: neo-geo-cd
+        model: Neo Geo CD
+        year: 1994
+        cpu: Motorola 68000-12
+        chassis: console with a CD-ROM drive
+        os: CD-ROM
+        ram: [7MiB]
+        issues: []
+        styles: [Neo Geo CD (front loader), Neo Geo CD (top loader), CDZ]
+
+  - key: sony
+    name: Sony
+    manufacturer: Sony
+    regions: [NTSC-J (Japan), PAL (Europe)]
+    models:
+      - key: sony-smc-70
+        model: SMC-70
+        year: 1982
+        cpu: Zilog Z80A-4
+        chassis: slim desktop with a detachable keyboard and 3.5-inch drives
+        os: CP/M 2.2 / SONY BASIC
+        ram: [64K]
+        issues: []
+        styles: [SMC-70, SMC-70G (genlock), SMC-777]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the machine Sony's 3.5-inch disc arrived on, three years before the
+              Macintosh made it the standard
+            variants: z80
+
+  - key: sord
+    name: Sord
+    manufacturer: Sord
+    regions: [NTSC-J (Japan), PAL (Europe)]
+    models:
+      - key: sord-m5
+        model: M5
+        year: 1982
+        cpu: Zilog Z80A-3.58
+        chassis: small wedge with rubber keys and a cartridge slot
+        os: BASIC-I / BASIC-G cartridge
+        ram: [4K, 20K]
+        issues: []
+        styles: [M5, M5 Pro, CGL M5 (UK), Takara Game Pasokon]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9918A, TI TMS9929A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+
+  - key: spectravideo
+    name: Spectravideo
+    manufacturer: Spectravideo
+    regions: [NTSC (US), PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: z80
+      - socket: vdp
+        label: VDP
+        variants: [TI TMS9918A, TI TMS9929A]
+      - socket: psg
+        label: Sound
+        variants: [General Instrument AY-3-8910]
+    models:
+      - key: svi-318
+        model: SV-318
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with rubber keys and a built-in joystick
+        os: SV BASIC
+        ram: [16K]
+        issues: []
+        styles: [SV-318]
+      - key: svi-328
+        model: SV-328
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a full keyboard and a numeric keypad
+        os: SV BASIC / CP/M
+        ram: [64K, 80K]
+        issues: []
+        styles: [SV-328, SV-328 Mark II]
+
+  - key: tandy
+    name: Tandy
+    manufacturer: Tandy
+    regions: [NTSC (US), PAL (Europe)]
+    models:
+      - key: trs-80-model-1
+        model: TRS-80 Model I
+        year: 1977
+        cpu: Zilog Z80-1.77
+        chassis: keyboard unit with a separate monitor
+        os: Level I / Level II BASIC
+        ram: [4K, 16K]
+        issues: []
+        styles: [Level I, Level II, Level II with expansion interface]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: rom
+            label: ROM
+            variants: [Level I BASIC, Level II BASIC]
+      - key: trs-80-model-2
+        model: TRS-80 Model II
+        year: 1979
+        cpu: Zilog Z80A-4
+        chassis: all-in-one with an 8-inch drive and a 12-inch screen
+        os: TRSDOS-II / CP/M
+        ram: [32K, 64K]
+        issues: []
+        styles: [Model II, Model 12, Model 16, Model 16B]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: fdc
+            label: Floppy controller
+            variants: [WD1791, WD1793]
+      - key: trs-80-mc-10
+        model: MC-10
+        year: 1983
+        cpu: Motorola MC6803-0.89
+        chassis: small white wedge with chiclet keys
+        os: Microcolor BASIC
+        ram: [4K, 20K]
+        issues: []
+        styles: [MC-10, Matra Alice (France)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Motorola MC6803]
+          - socket: vdg
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: trs-80-model-102
+        model: TRS-80 Model 102
+        year: 1986
+        cpu: OKI 80C85-2.4
+        chassis: A4 portable with an 8-line LCD
+        os: BASIC and the built-in applications, in ROM
+        ram: [24K, 32K]
+        issues: []
+        styles: [Model 102, Tandy 200 (16-line screen)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [OKI M80C85, Intel 80C85]
+      - key: trs-80-model-3
+        model: TRS-80 Model III
+        year: 1980
+        cpu: Zilog Z80-2.03
+        chassis: all-in-one with a 12-inch screen
+        os: Model III BASIC / TRSDOS
+        ram: [16K, 32K, 48K]
+        issues: []
+        styles: [Model III (cassette), Model III (dual floppy)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: fdc
+            label: Floppy controller
+            variants: [WD1771, WD1773, none fitted]
+      - key: trs-80-model-4
+        model: TRS-80 Model 4
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: all-in-one with a 12-inch screen
+        os: TRSDOS 6 / LS-DOS / CP/M
+        ram: [16K, 64K, 128K]
+        issues: []
+        styles: [Model 4, Model 4D, Model 4P (portable)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: fdc
+            label: Floppy controller
+            variants: [WD1773]
+      - key: trs-80-model-100
+        model: TRS-80 Model 100
+        year: 1983
+        cpu: OKI 80C85-2.4
+        chassis: A4 portable with an 8-line LCD
+        os: BASIC and the built-in applications, in ROM
+        ram: [8K, 24K, 32K]
+        issues: []
+        styles: [Model 100, Tandy 102, Kyotronic 85 (Japan)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the machine Bill Gates wrote the ROM for, and the last one he wrote
+              code for himself
+            variants: [OKI M80C85, Intel 80C85, NEC D70008]
+      - key: tandy-coco
+        model: Color Computer
+        year: 1980
+        cpu: Motorola MC6809E-0.89
+        chassis: wedge with chiclet keys
+        os: Color BASIC / Extended Color BASIC
+        ram: [4K, 16K, 32K]
+        issues: []
+        styles: [chiclet keys, melted keys (1982)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Motorola MC6809E, Hitachi HD6809E]
+          - socket: vdg
+            label: Video (VDG)
+            variants: [Motorola MC6847, Motorola MC6847T1]
+          - socket: sam
+            label: SAM
+            variants: [Motorola MC6883, Motorola SN74LS783]
+          - socket: pia
+            label: PIA
+            note: two of them, for the keyboard, joysticks, tape and printer
+            variants: [Motorola MC6821, Motorola MC6822]
+      - key: tandy-coco-2
+        model: Color Computer 2
+        year: 1983
+        cpu: Motorola MC6809E-0.89
+        chassis: smaller wedge with moulded keys
+        os: Color BASIC / Extended Color BASIC
+        ram: [16K, 64K]
+        issues: []
+        styles: [CoCo 2, CoCo 2B]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Motorola MC6809E, Hitachi HD6809E]
+          - socket: vdg
+            label: Video (VDG)
+            variants: [Motorola MC6847, Motorola MC6847T1]
+          - socket: sam
+            label: SAM
+            variants: [Motorola MC6883, Motorola SN74LS783]
+          - socket: pia
+            label: PIA
+            variants: [Motorola MC6821, Motorola MC6822]
+      - key: tandy-coco-3
+        model: Color Computer 3
+        year: 1986
+        cpu: Motorola MC68B09E-1.79
+        chassis: wedge, white case
+        os: Extended Color BASIC 2.0 / OS-9 Level II
+        ram: [128K, 512K]
+        issues: []
+        styles: [CoCo 3]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Motorola MC68B09E, Hitachi HD63B09E]
+          - socket: gime
+            label: GIME
+            note: >-
+              graphics, interrupts, memory and everything else the VDG and the SAM
+              used to do between them, in one gate array
+            variants: [Tandy GIME (1986), Tandy GIME (1987)]
+          - socket: pia
+            label: PIA
+            variants: [Motorola MC6821, Motorola MC6822]
+
+  - key: tangerine
+    name: Tangerine
+    manufacturer: Tangerine
+    regions: [PAL (UK)]
+    models:
+      - key: microtan-65
+        model: Microtan 65
+        year: 1979
+        cpu: MOS 6502-0.75
+        chassis: bare board, kit-built, expandable in a rack
+        os: TANBUG monitor
+        ram: [1K, 8K]
+        issues: []
+        styles: [Microtan 65 (kit), Microtan with the Tanex board]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the board the same people built the Oric out of four years later
+            variants: [MOS 6502, Rockwell R6502]
+
+  - key: tatung
+    name: Tatung
+    manufacturer: Tatung
+    regions: [PAL (UK)]
+    models:
+      - key: tatung-einstein
+        model: Einstein TC-01
+        year: 1984
+        cpu: Zilog Z80A-4
+        chassis: desktop with built-in 3-inch drives
+        os: Xtal DOS / CP/M
+        ram: [64K]
+        issues: []
+        styles: [TC-01, TC-01 (two drives), Einstein 256]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9129, TI TMS9918A]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910]
+          - socket: fdc
+            label: Floppy controller
+            variants: [WD1770, WD1772]
+
+  - key: ti
+    name: Texas Instruments
+    manufacturer: Texas Instruments
+    regions: [NTSC (US), PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        note: >-
+          a 16-bit processor in a home computer in 1979, and hobbled by a 16-bit
+          bus that only the video chip's memory sat on
+        variants: [TI TMS9900]
+      - socket: vdp
+        label: VDP
+        variants: [TI TMS9918, TI TMS9918A, TI TMS9928A, TI TMS9929A]
+      - socket: psg
+        label: Sound
+        variants: [TI SN76489AN, TI SN94624]
+      - socket: grom
+        label: GROM
+        note: >-
+          TI's own read-only part, addressed a byte at a time rather than mapped;
+          the BASIC and the menu live in these rather than in ordinary ROM
+        variants: [TI TMC0430]
+    models:
+      - key: ti-99-4
+        model: TI-99/4
+        year: 1979
+        cpu: TI TMS9900-3
+        chassis: silver and black console with a calculator keyboard
+        os: TI BASIC
+        ram: [16K]
+        issues: []
+        styles: [TI-99/4]
+        chips:
+          - socket: vdp
+            variants: [TI TMS9918]
+      - key: ti-99-4a
+        model: TI-99/4A
+        year: 1981
+        cpu: TI TMS9900-3
+        chassis: silver and black console
+        os: TI BASIC
+        ram: [16K]
+        issues: []
+        styles:
+          - silver and black
+          - beige (1983)
+          - QI (late board)
+          - TI-99/4A (Europe, PAL)
+        chips:
+          - socket: vdp
+            variants: [TI TMS9918A, TI TMS9929A]
+
+      - key: ti-cc-40
+        model: Compact Computer 40
+        year: 1983
+        cpu: TI TMS70C20-2.5
+        chassis: portable with a one-line 31-character LCD
+        os: TI BASIC
+        ram: [6K, 18K]
+        issues: []
+        styles: [CC-40]
+        chips:
+          - socket: cpu
+            variants: [TI TMS70C20]
+          - socket: vdp
+            variants: []
+          - socket: psg
+            variants: []
+          - socket: grom
+            variants: []
+
+  - key: thomson
+    name: Thomson
+    manufacturer: Thomson
+    regions: [SECAM (France), PAL (Europe)]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Motorola MC6809E, Hitachi HD6809E]
+      - socket: gate-array
+        label: Gate Array
+        note: >-
+          video and memory decoding; the machine that took over French classrooms
+          and never left France
+        variants: [Thomson EF9369, Thomson gate array]
+    models:
+      - key: thomson-to7
+        model: TO7
+        year: 1982
+        cpu: Motorola MC6809E-1
+        chassis: wedge with a membrane keyboard and a light pen
+        os: BASIC 1.0 (cartridge)
+        ram: [8K, 24K]
+        issues: []
+        styles: [TO7]
+      - key: thomson-to9
+        model: TO9
+        year: 1985
+        cpu: Motorola MC6809E-1
+        chassis: desktop with a detachable keyboard and a built-in drive
+        os: BASIC 128
+        ram: [128K]
+        issues: []
+        styles: [TO9, TO9+]
+      - key: thomson-to7-70
+        model: TO7/70
+        year: 1984
+        cpu: Motorola MC6809E-1
+        chassis: wedge with a membrane keyboard and a cartridge slot
+        os: BASIC 1.0 (cartridge)
+        ram: [64K]
+        issues: []
+        styles: [TO7, TO7/70]
+      - key: thomson-mo5
+        model: MO5
+        year: 1984
+        cpu: Motorola MC6809E-1
+        chassis: wedge, rubber keys
+        os: Microsoft BASIC 1.0
+        ram: [48K]
+        issues: []
+        styles: [MO5, MO5E (export), MO5NR (networked)]
+      - key: thomson-mo6
+        model: MO6
+        year: 1986
+        cpu: Motorola MC6809E-1
+        chassis: wedge, moulded keys
+        os: BASIC 1.0 / BASIC 128
+        ram: [128K]
+        issues: []
+        styles: [MO6, Olivetti Prodest PC128 (Italy)]
+      - key: thomson-to8
+        model: TO8
+        year: 1986
+        cpu: Motorola MC6809E-1
+        chassis: wedge with a detachable keyboard
+        os: BASIC 1.0 / BASIC 512
+        ram: [256K, 512K]
+        issues: []
+        styles: [TO8, TO8D (built-in drive), TO9+]
+
+  - key: tomy
+    name: Tomy
+    manufacturer: Tomy
+    regions: [NTSC-J (Japan), NTSC-U (US)]
+    models:
+      - key: tomy-tutor
+        model: Tutor
+        year: 1982
+        cpu: TI TMS9995-10.7
+        chassis: white wedge with a chiclet keyboard
+        os: Tomy BASIC / GBASIC
+        ram: [16K]
+        issues: []
+        styles: [Tutor (US), Pyuuta (Japan), Grandstand Tutor (UK)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [TI TMS9995]
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9918A, TI TMS9929A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+
+  - key: toshiba
+    name: Toshiba
+    manufacturer: Toshiba
+    regions: [NTSC-J (Japan)]
+    models:
+      - key: toshiba-pasopia
+        model: Pasopia
+        year: 1981
+        cpu: Zilog Z80A-4
+        chassis: desktop with a detachable keyboard
+        os: T-BASIC / CP/M
+        ram: [64K]
+        issues: []
+        styles: [Pasopia, Pasopia 5, Pasopia 16]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+      - key: toshiba-pasopia-7
+        model: Pasopia 7
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: wedge with a full keyboard and two cartridge slots
+        os: T-BASIC 7
+        ram: [64K]
+        issues: []
+        styles: [Pasopia 7, Pasopia IQ (MSX line)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910]
+
+  - key: videoton
+    name: Videoton
+    manufacturer: Videoton
+    regions: [PAL (Hungary)]
+    models:
+      - key: videoton-tvc
+        model: TV Computer
+        year: 1986
+        cpu: Zilog Z80A-3.125
+        chassis: white wedge with moulded keys
+        os: TVC BASIC
+        ram: [32K, 64K]
+        issues: []
+        styles: [TVC 32K, TVC 64K, TVC 64K+]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Zilog Z80A, MME U880]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910]
+
+  - key: vtech
+    name: VTech
+    manufacturer: VTech
+    regions: [PAL (Europe), NTSC (US)]
+    models:
+      - key: creativision
+        model: CreatiVision
+        year: 1982
+        cpu: Rockwell 6502A-2
+        chassis: console with two controllers that clip on as a keyboard
+        os: cartridge
+        ram: [1K]
+        issues: []
+        styles: [CreatiVision, Dick Smith Wizzard, FunVision]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Rockwell R6502A]
+          - socket: vdp
+            label: VDP
+            variants: [TI TMS9918A, TI TMS9929A]
+          - socket: psg
+            label: Sound
+            variants: [TI SN76489AN]
+      - key: laser-200
+        model: Laser 200
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: small wedge with rubber keys
+        os: Microsoft BASIC in ROM
+        ram: [4K, 20K]
+        issues: []
+        styles: [Laser 200, Laser 210, VZ-200 (Australia), Salora Fellow]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: laser-310
+        model: Laser 310
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with moulded keys
+        os: Microsoft BASIC in ROM
+        ram: [16K, 64K]
+        issues: []
+        styles: [Laser 310, VZ-300 (Australia)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: laser-128
+        model: Laser 128
+        year: 1986
+        cpu: Western Design 65C02-1.02
+        chassis: compact beige case with a built-in 5.25-inch drive
+        os: Applesoft-compatible BASIC / ProDOS
+        ram: [128K]
+        issues: []
+        styles: [Laser 128, Laser 128EX, Laser 128EX/2]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the Apple IIc clone Apple could not sue out of existence, because
+              VTech had written its own ROM rather than copying Apple's
+            variants: [Western Design 65C02]

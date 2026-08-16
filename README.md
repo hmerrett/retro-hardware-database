@@ -24,10 +24,12 @@ different kinds of object:
   its case, the region it was sold in and the part numbers in its chip sockets —
   not a pile of tagged components. Nobody shelves a ULA on its own.
 
-The database does both. It knows about fifty-odd home machines and consoles
-(Sinclair, Commodore, Amiga, Atari, Acorn, Amstrad, Sega) and the documented
-variations each was built in, so filing a machine against one of them fills in
-what is already known and asks only about what varies.
+The database does both. It knows about three hundred home machines and consoles
+— Britain, Europe, America and Japan, from the Altair to the Neo Geo — and the
+documented variations each was built in, so filing a machine against one of them
+fills in what is already known and asks only about what varies. The catalogue is a
+single YAML file with instructions at the top of it, so adding the machines your
+collection has needs a text editor and nothing else.
 
 ## What you get
 

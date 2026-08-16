@@ -7,6 +7,8 @@ disagrees with what it caches is worse than no cache. And the two doors -- the f
 and the API -- because everything in this register has to arrive by either and leave
 the same record behind.
 """
+import textwrap
+
 import pytest
 
 from app import entry, machinedb, machines
@@ -27,9 +29,12 @@ class TestCatalogueConsistency:
 
     @pytest.mark.parametrize("key", machines.keys())
     def test_a_model_says_what_it_is(self, key):
+        """The window is the microcomputer era, wide enough at both ends for the
+        Altair that started it and the last of the 16-bit machines, and narrow
+        enough that a year typed with a digit missing is caught."""
         m = machines.model(key)
         assert m["model"] and m["manufacturer"] and m["family"]
-        assert isinstance(m["year"], int) and 1975 < m["year"] < 1996
+        assert isinstance(m["year"], int) and 1969 < m["year"] < 2000
 
     @pytest.mark.parametrize("key", machines.keys())
     def test_every_memory_size_is_a_figure_the_register_can_read(self, key):
@@ -78,11 +83,20 @@ class TestCatalogueConsistency:
     def test_no_model_repeats_its_maker(self):
         """The model field fills the machine's model box and the manufacturer fills
         its own, so a model named "Commodore 64" filed a C64 as "Commodore Commodore
-        64". Whatever is added here later, the two fields say each thing once."""
+        64". Whatever is added here later, the two fields say each thing once.
+
+        The maker has to be there as a word of its own to be a repeat. A
+        ColecoVision is one word that Coleco is inside of, not a maker written
+        twice, and there is no split of it that is not a worse name -- so the rule
+        is about the separator, and full_name says such a name once."""
         doubled = [(m["manufacturer"], m["model"]) for m in machines.models()
                    if m["manufacturer"]
-                   and m["model"].lower().startswith(m["manufacturer"].lower())]
+                   and m["model"].lower().startswith(m["manufacturer"].lower() + " ")]
         assert doubled == []
+
+    def test_a_name_its_maker_is_inside_of_is_said_once(self):
+        assert machines.full_name("colecovision") == "ColecoVision"
+        assert machines.full_name("c64") == "Commodore 64"
 
     def test_a_model_inherits_its_family_sockets(self):
         assert "ula" in machines.roles("zx-spectrum-48k")
@@ -109,6 +123,20 @@ class TestCatalogueConsistency:
         controller."""
         assert machines.roles("zx-spectrum-plus3")[:2] == ["cpu", "ula"]
         assert "fdc" in machines.roles("zx-spectrum-plus3")[2:]
+
+    def test_the_machines_a_person_asked_for_are_all_there(self):
+        """The second round: the 8- and 16-bit machines of Europe, America and
+        Japan, by the names they are known by."""
+        wanted = ["Apple IIe", "Apple Macintosh Plus", "Tandy TRS-80 Model I",
+                  "Texas Instruments TI-99/4A", "ColecoVision", "Mattel Intellivision",
+                  "Commodore PET 2001", "Sinclair QL", "Oric Atmos", "Dragon 32",
+                  "MGT SAM Coupé", "Enterprise 128", "Thomson MO5",
+                  "Nintendo Entertainment System", "Nintendo Game Boy",
+                  "Nintendo Super NES", "NEC PC Engine", "Sharp X68000",
+                  "Fujitsu FM-7", "Toshiba HX-10", "Sega SG-1000",
+                  "Atari Lynx", "Acorn Atom", "Commodore CD32"]
+        have = {machines.full_name(k) for k in machines.keys()}  # noqa: SIM118
+        assert not [w for w in wanted if w not in have]
 
     def test_the_catalogue_for_the_form_covers_every_model(self):
         cat = machines.form_catalogue()
@@ -757,3 +785,122 @@ class TestResync:
         db.commit()
         assert c.variant == "64 | SID: MOS 6581"
         assert resync.plan_variant(db) == []
+
+
+class TestTheFileTheCatalogueIsWrittenIn:
+    """machines.yaml is meant to be edited by anyone with a text editor, so what a
+    mistake in it does matters as much as what a correct one does. Every one of
+    these is a wrong edit, and each has to fail at load with the family, the model
+    and the field named -- a catalogue that half-loaded would quietly offer a
+    Spectrum no ULA, and nobody would know until they went to record one.
+    """
+
+    GOOD = """
+    lists:
+      z80: [Zilog Z80A, NEC D780C-1]
+    families:
+      - key: sinclair
+        name: Sinclair ZX
+        manufacturer: Sinclair
+        regions: [PAL (UK/Europe)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+        models:
+          - key: zx-spectrum-48k
+            model: ZX Spectrum 48K
+            year: 1982
+            ram: [48K, 16K]
+            styles: [rubber keys]
+    """
+
+    def written(self, tmp_path, text):
+        path = tmp_path / "machines.yaml"
+        path.write_text(textwrap.dedent(text), encoding="utf-8")
+        return path
+
+    def load(self, tmp_path, text):
+        return machines.load(self.written(tmp_path, text))
+
+    def refused(self, tmp_path, text):
+        with pytest.raises(machines.CatalogueError) as caught:
+            self.load(tmp_path, text)
+        return str(caught.value)
+
+    def test_a_good_file_reads(self, tmp_path):
+        families = self.load(tmp_path, self.GOOD)
+        model = families[0]["models"][0]
+        assert model["ram"] == [("48K", 48), ("16K", 16)]
+        assert families[0]["chips"][0]["variants"] == ["Zilog Z80A", "NEC D780C-1"]
+
+    def test_a_shared_list_can_be_named_wherever_a_list_is_expected(self, tmp_path):
+        families = self.load(tmp_path, self.GOOD.replace(
+            "styles: [rubber keys]", "styles: z80"))
+        assert families[0]["models"][0]["styles"] == ["Zilog Z80A", "NEC D780C-1"]
+
+    def test_a_misspelled_field_says_what_was_meant(self, tmp_path):
+        message = self.refused(tmp_path, self.GOOD.replace("styles:", "styel:"))
+        assert "styel" in message and "styles" in message
+        assert "zx-spectrum-48k" in message
+
+    def test_a_field_that_is_no_kind_of_typo_lists_the_ones_there_are(self,
+                                                                     tmp_path):
+        message = self.refused(tmp_path, self.GOOD.replace("styles:", "colour:"))
+        assert "colour" in message and "chassis" in message
+
+    def test_a_memory_size_nothing_can_read_is_refused(self, tmp_path):
+        """The labels are offered on the memory box and read back with
+        entry.to_kb, so one it cannot read would file the machine with no memory
+        at all."""
+        message = self.refused(tmp_path, self.GOOD.replace("[48K, 16K]", "[a lot]"))
+        assert "a lot" in message and "ram" in message
+
+    def test_two_models_cannot_share_a_key(self, tmp_path):
+        message = self.refused(tmp_path, self.GOOD + textwrap.dedent("""
+              - key: zx-spectrum-48k
+                model: ZX Spectrum 48K (again)
+                year: 1982
+        """))
+        assert "zx-spectrum-48k" in message
+
+    def test_a_year_that_is_not_a_year_is_refused(self, tmp_path):
+        assert "year" in self.refused(tmp_path,
+                                      self.GOOD.replace("year: 1982", "year: '82"))
+
+    def test_a_model_with_no_name_is_refused(self, tmp_path):
+        message = self.refused(tmp_path,
+                               self.GOOD.replace("model: ZX Spectrum 48K", "cpu: Z80"))
+        assert "model" in message
+
+    def test_a_shared_list_that_is_not_there_is_refused(self, tmp_path):
+        message = self.refused(tmp_path, self.GOOD.replace("variants: z80",
+                                                           "variants: z80a"))
+        assert "z80a" in message and "z80" in message
+
+    def test_one_socket_cannot_be_asked_twice(self, tmp_path):
+        message = self.refused(tmp_path, self.GOOD.replace(
+            "            variants: z80",
+            "            variants: z80\n          - socket: cpu\n"
+            "            variants: [MOS 6502]"))
+        assert "cpu" in message
+
+    def test_an_answer_too_long_for_its_column_is_refused_at_the_file(self,
+                                                                     tmp_path):
+        """Rather than on save, in front of whoever was recording the machine."""
+        message = self.refused(tmp_path, self.GOOD.replace(
+            "[rubber keys]", "[" + "x" * 80 + "]"))
+        assert "styles" in message and "64" in message
+
+    def test_a_file_that_is_not_yaml_at_all_says_so(self, tmp_path):
+        assert "YAML" in self.refused(tmp_path, "families: [\n")
+
+    def test_a_missing_file_says_where_it_looked(self, tmp_path):
+        with pytest.raises(machines.CatalogueError) as caught:
+            machines.load(tmp_path / "nothing.yaml")
+        assert "nothing.yaml" in str(caught.value)
+
+    def test_the_file_the_register_ships_is_the_one_it_loads(self):
+        assert machines.CATALOGUE_FILE.exists()
+        assert [f["key"] for f in machines.load()] == \
+            [f["key"] for f in machines.FAMILIES]

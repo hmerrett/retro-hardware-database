@@ -263,11 +263,20 @@ to the machine, so building out a PC is a straight run down the list.
 
 ## 6. Machines the catalogue names
 
-The catalogue holds around fifty home computers and consoles — Sinclair,
-Commodore 8-bit, Amiga, Atari 8-bit, Atari consoles, Atari ST, Acorn, Amstrad and
-Sega — and, for each model, its standard memory sizes, board issues, case and
-keyboard styles, regions, and chip sockets with the part numbers that turn up in
-them.
+The catalogue holds a little over three hundred home computers and consoles, from
+seventy-odd makers, and for each model its standard memory sizes, board issues,
+case and keyboard styles, regions, and chip sockets with the part numbers that
+turn up in them. It runs from the 1975 Altair to the last of the 16-bit machines.
+
+| | |
+|---|---|
+| **Britain** | Sinclair (ZX80 to the QL), Acorn (Atom, BBC, Electron, Archimedes to the Risc PC), Amstrad (CPC, PCW, GX4000, Notepad), Oric, Dragon, and the independents — Jupiter Cantab, Camputers, Memotech, Tatung, Enterprise, Grundy, MGT, Nascom, Research Machines, Tangerine, Science of Cambridge, Compukit |
+| **Europe** | Thomson's MO and TO, Philips, Olivetti, Luxor, Matra, Exelvision, EACA, VTech — and the Eastern bloc: Robotron, Didaktik, Pravetz, Elwro, Videoton, Elektronika |
+| **America** | Commodore PET, 8-bit and Amiga; Atari 8-bit, ST and consoles; Apple II, Macintosh and Lisa; Tandy TRS-80 and CoCo; TI-99; the consoles — Intellivision, ColecoVision, Vectrex, Channel F, Odyssey², Astrocade, Arcadia; and the S-100 and CP/M era — MITS, IMSAI, Processor Technology, Exidy, Osborne, Kaypro, Heathkit |
+| **Japan** | Sega from the SG-1000 to the Saturn, Nintendo from the Game & Watch to the Virtual Boy, NEC's PC-88, PC-98 and PC Engine, Sharp's MZ, X1 and X68000, Fujitsu's FM line, SNK's Neo Geo, Sord, Casio, Epson, Epoch, Tomy, Toshiba, Sony, Hitachi, and twenty-five MSX machines from all of them |
+
+Families are listed alphabetically by who made them; a family's models are listed
+oldest first.
 
 Pick a model from the menu at the top of the machine form and two things happen:
 
@@ -315,6 +324,30 @@ identified, so they keep their own grid on the form; see below.
 Every part number recorded this way is searchable, because search reads every
 text column. Type `8580R5` in the search box and you get the C64 it is fitted in.
 
+### Adding a machine to the catalogue
+
+The catalogue is one file — **`api/app/machines.yaml`** — and it is meant to be
+edited by hand. No programming: it is an indented list, and the instructions for
+adding to it are written at the top of the file itself. Find the family your
+machine belongs to, copy the model above it, and correct the values. Restart the
+API and it is in the picker.
+
+A few things worth knowing before you start:
+
+- **The `key` is permanent.** It is the only part of the catalogue a real machine's
+  record stores. Every other word — a name, a label, a note, a part number — can be
+  corrected whenever, and every machine already filed under it picks the correction
+  up. Change a key and those machines are orphaned.
+- **Get it wrong and the register will not start**, on purpose. The message names
+  the family, the model and the field, and suggests the spelling you probably
+  meant. A catalogue that half-loaded would quietly offer a Spectrum no ULA.
+- **A family's chip sockets are asked of every model in it**, so the Z80 is written
+  once for all the Spectrums. A model can name a different part for one socket, or
+  give it an empty list to say it has not got that socket at all.
+- After correcting wording that machines are already filed under, run
+  `python -m app.resync --write` to bring their rendered lines into step
+  (section 20).
+
 ---
 
 ## 7. Memory
@@ -322,13 +355,13 @@ text column. Type `8580R5` in the search box and you get the C64 it is fitted in
 A machine's memory is entered three ways, and all three are combined:
 
 - **Memory modules (SIMMs / SIPPs)** — a grid of how many of each fitted module:
-  256KB/1MB/4MB 30-pin, the same in SIPP, and 1MB through 32MB 72-pin. The total
+  256KiB/1MiB/4MiB 30-pin, the same in SIPP, and 1MiB through 32MiB 72-pin. The total
   is computed.
 - **RAM chips (installed directly)** — for DRAM soldered or socketed on the board
   rather than on modules: 4116, 4164, 41256, 44256, 41464 and so on, each with
   its organisation shown. Enter how many of each.
 - **Installed RAM — other / notes** — free text for anything the grids do not
-  cover (DIMMs, unusual sizes), or just a plain total like `16MB`.
+  cover (DIMMs, unusual sizes), or just a plain total like `16MiB`.
 
 ### Parity
 
@@ -337,14 +370,25 @@ with parity, and the parity chips are not counted as capacity. Chips are grouped
 by their addressable depth before that arithmetic is done, because a bank's data
 and parity chips are often different part numbers — an Amstrad PC1640 carries
 four 4464s for data with two 4164s alongside for their parity, and counting those
-two as data would overstate the machine by 16 KB.
+two as data would overstate the machine by 16 KiB.
 
 ### How amounts are stored
 
-Memory amounts are normalised to KB in the database, so they sort and compare
-properly, and rendered back in the unit a person would use. A whole number of MB
-stays in MB rather than climbing to GB, because for this hardware the difference
-is meaningful: 2096128 KB is the 2047 MB BIOS limit, not "2 GB".
+Memory amounts are normalised to KiB in the database, so they sort and compare
+properly, and rendered back in the unit a person would use. A whole number of MiB
+stays in MiB rather than climbing to GiB, because for this hardware the difference
+is meaningful: 2096128 KiB is the 2047 MiB BIOS limit, not "2 GiB".
+
+The units are the IEC ones — KiB, MiB, GiB — because the arithmetic behind them
+has always been binary here: a K in this register is 1024 bytes and an M is 1024
+of those, which is exactly what KiB and MiB mean. Nothing about the figures has
+changed, only the word beside them. The older spellings are still read: type
+`640KB` or `2MB` and it is understood, and written back as `640 KiB` and `2 MiB`.
+A floppy's capacity is the exception, because it is a name rather than a
+measurement — see section 8.
+
+Once the units changed, every string already stored still said `KB`. Bring them
+into line in one pass with `python -m app.resync --write` (section 20).
 
 ---
 
@@ -379,6 +423,13 @@ a **custom** box each:
 |---|---|---|
 | **Bay size** | 5.25", 3.5", 8" — custom for a 3" Amstrad CF-2, a 2.5" | every drive |
 | **Capacity** | 160K, 180K, 320K, 360K, 720K, 1.2MB, 1.44MB, 2.88MB — custom for a Floptical or an LS-120 | floppies |
+
+A floppy's capacity keeps the spelling it was sold under, and is the one figure in
+the register that is not converted to KiB. It is a designation rather than a
+measurement: nobody has ever called a 1.44MB disk anything else, and it is neither
+1.44 million bytes nor 1.44 MiB but 1440 KiB. A hard disk's or a card's capacity
+*is* a measurement, goes through the same arithmetic as everything else, and is
+said in MiB and GiB.
 | **Media** | CD-ROM, CD-R, CD-RW, DVD-ROM, DVD/CD-RW combo, DVD±RW, DVD-RAM, Blu-ray | optical |
 | **Media** | QIC, Travan, DC6150, DDS/DAT, DLT, LTO | tape |
 | **Speed** | 1× through 52× | optical |
@@ -454,7 +505,7 @@ What differs by type is the specification section.
 - **Expansion slots** — how many of each: 8-bit ISA, 16-bit ISA, EISA, MCA, VLB,
   PCI, AGP, PCIe x16
 - **Onboard RAM** — RAM soldered or socketed on the board itself
-- **Cache** — e.g. 256 KB, COAST socket
+- **Cache** — e.g. 256 KiB, COAST socket
 - **BIOS** — e.g. AMI 1992, Award 4.51
 - **Onboard video** — e.g. VGA, or VGA C&T 65545
 - **Onboard I/O ports** — how many of each
@@ -465,7 +516,7 @@ Socket, Speed, FSB, Cores, Cache.
 
 ### Memory
 
-Type (e.g. 72-pin FPM, EDO, SDRAM), Size (normalised to KB), Speed.
+Type (e.g. 72-pin FPM, EDO, SDRAM), Size (normalised to KiB), Speed.
 
 ### Video / Sound / Network / I/O
 
@@ -596,7 +647,7 @@ tag it with that unit's asset tag. The upload box on an item page offers both:
 it arrives prefilled with what the item is called, and the hint reminds you of
 the tag.
 
-Uploads are limited to 64 MB each. The stored filename is generated, never taken
+Uploads are limited to 64 MiB each. The stored filename is generated, never taken
 from the upload; the name you uploaded is kept as data, and used for the download.
 
 ---
@@ -887,8 +938,8 @@ on every change and never parsed back:
 - `computers.variant` — over the catalogue identity tables
 
 They drift only when something changes *underneath* them — most often when you
-edit the machine catalogue, whose words are read from the code rather than from
-the record. Any item you edit fixes itself. To bring the whole database into step
+edit the machine catalogue (`api/app/machines.yaml`), whose words are read from
+that file rather than from the record. Any item you edit fixes itself. To bring the whole database into step
 in one pass:
 
 ```sh

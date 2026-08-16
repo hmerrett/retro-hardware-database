@@ -77,10 +77,14 @@ def list_computers() -> list[dict]:
 
 @mcp.tool()
 def list_machine_models() -> dict:
-    """The catalogue of known home computers and consoles -- Sinclair, Commodore,
-    Atari, Acorn, Amstrad, Sega -- and the variations each model was built in: its
-    standard memory sizes, board issues, case and keyboard styles, regions, and the
-    chip sockets with the part numbers that turn up in them.
+    """The catalogue of known home computers and consoles -- three hundred of them
+    from seventy-odd makers in Britain, Europe, America and Japan: Sinclair,
+    Commodore,
+    Atari, Acorn, Amstrad, Oric, Dragon, Thomson, Apple, Tandy, TI, Sega,
+    Nintendo, NEC, Sharp, Fujitsu, MSX and more -- and the variations each model
+    was built in: its standard memory sizes, board issues, case and keyboard
+    styles, regions, and the chip sockets with the part numbers that turn up in
+    them.
 
     Call this before creating or updating one of these machines: `key` is what the
     `machine_model_key` argument takes, and the chip roles it lists are the keys of
@@ -127,14 +131,14 @@ def create_computer(
     """Create a computer. The server assigns the asset id from the register shared
     with parts. CPU, installed_ram and drives (floppy/optical/CF-SD, ';'-separated)
     are attributes of the computer, not separate parts. installed_ram takes a
-    plain amount ('640KB'); the per-module breakdown is entered in the GUI.
+    plain amount ('640KiB'); the per-module breakdown is entered in the GUI.
 
     topbench is what the machine scores in TopBench, the DOS benchmark -- an x86
     machine only, and only once it has actually been run on this machine. Leave it
     out otherwise: an unmeasured machine has no score, and one must never be
     guessed from the CPU.
 
-    For a home computer or a console -- a Spectrum, a C64, a CPC, a Mega Drive --
+    For a home computer or a console -- a Spectrum, a C64, an Apple IIe, an MSX --
     the machine_* arguments file it against the catalogue that list_machine_models
     returns: machine_model_key is that model's key, machine_issue the board as its
     make marked it ('Issue 6A', 'ASSY 250425', 'VA6'), machine_style the case or
