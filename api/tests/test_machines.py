@@ -7,12 +7,16 @@ disagrees with what it caches is worse than no cache. And the two doors -- the f
 and the API -- because everything in this register has to arrive by either and leave
 the same record behind.
 """
+import sys
 import textwrap
+from pathlib import Path
 
 import pytest
 
 from app import entry, machinedb, machines
 from app.models import Computer, ComputerChip, ComputerVariant
+
+ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class TestCatalogueConsistency:
@@ -797,6 +801,22 @@ class TestResync:
         db.commit()
         assert c.variant == "64 | SID: MOS 6581"
         assert resync.plan_variant(db) == []
+
+
+class TestTheListOfWhatIsInIt:
+    """catalogue.txt is the catalogue in plain text -- makers and machines, no
+    detail -- for the question that gets asked far more often than any question
+    about a board issue. It is generated, so the only way it stays true is if
+    something notices when it stops being."""
+
+    def test_it_is_in_step_with_the_catalogue(self):
+        sys.path.insert(0, str(ROOT / "tools"))
+        import catalogue_list
+        wanted = catalogue_list.render(machines.FAMILIES)
+        have = (ROOT / "catalogue.txt").read_text(encoding="utf-8")
+        assert have == wanted, ("catalogue.txt is out of step with"
+                                " api/app/machines.yaml -- run"
+                                " `python tools/catalogue_list.py`")
 
 
 class TestTheFileTheCatalogueIsWrittenIn:

@@ -927,6 +927,23 @@ machines, so a machine's memory is entered by hand.
 
 ---
 
+
+### catalogue_list.py
+
+`catalogue.txt` in the repository root is the machine catalogue as plain text —
+every maker and every machine, and none of the detail — for the question that is
+asked far more often than any question about a board issue: what is in it?
+
+```sh
+python tools/catalogue_list.py            # rewrite it
+python tools/catalogue_list.py --check    # is it in step?
+```
+
+It is generated from `api/app/machines.yaml`, so it goes stale the moment a
+machine is added. Add one, run this, and commit both; a test fails if you forget.
+Unlike the other scripts here it reads the catalogue file directly rather than the
+API, so it needs no network and no login.
+
 ## 20. Housekeeping
 
 ### Derived values
