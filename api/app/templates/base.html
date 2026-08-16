@@ -609,6 +609,16 @@
   <a class="btn sm primary" href="/computers/new">+ Computer</a>
   <a class="btn sm" href="/parts/new">+ Part</a>
   {% endif %}
+  {# Two buttons the browser normally provides and the installed app does not: the
+     manifest asks for display:standalone, so on a phone's home screen there is no
+     address bar to reload from and no browser menu to share out of. They are shown
+     in an ordinary tab as well -- a share button that copies the link is worth
+     having on a desktop too, and one button that is occasionally redundant reads
+     better than one that appears only in a mode you cannot see you are in. #}
+  <button id="share-page" class="btn sm" type="button"
+          title="Share this page" aria-label="Share this page">⤴</button>
+  <button id="reload-page" class="btn sm" type="button"
+          title="Reload this page" aria-label="Reload this page">↻</button>
   <button id="theme-toggle" class="btn sm" type="button" title="Toggle light / dark">☾</button>
   {% if auth_enabled %}
   {% if request.state.authed %}
@@ -1402,6 +1412,67 @@
       refresh();
     });
     refresh();
+  })();
+</script>
+<script>
+  /* Share, and reload.
+
+     Share hands the page to whatever the device shares with -- the phone's own
+     sheet, which is how an item's link gets into a message or a forum post. A
+     desktop browser has no share sheet, so there the link goes on the clipboard
+     instead and the button says so for a moment. Either way what is shared is the
+     page you are on, filters and all: a gallery narrowed to the Spectrums is a
+     thing worth sending someone.
+
+     Reload is reload. It is here because the app is installed standalone and has
+     no address bar to press it in. */
+  (function () {
+    var share = document.getElementById('share-page');
+    var reload = document.getElementById('reload-page');
+    if (reload) {
+      reload.addEventListener('click', function () { location.reload(); });
+    }
+    if (!share) return;
+
+    var face = share.textContent;
+    var timer = null;
+    function say(word) {
+      clearTimeout(timer);
+      share.textContent = word;
+      timer = setTimeout(function () { share.textContent = face; }, 1600);
+    }
+
+    function copy(url) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { say('copied'); },
+                                                function () { say('copy failed'); });
+        return;
+      }
+      // Older browsers, and any page not served over HTTPS: a hidden input is
+      // still selectable and execCommand still copies from one.
+      var box = document.createElement('input');
+      box.value = url;
+      box.setAttribute('readonly', '');
+      box.style.position = 'fixed';
+      box.style.opacity = '0';
+      document.body.appendChild(box);
+      box.select();
+      var done = false;
+      try { done = document.execCommand('copy'); } catch (e) {}
+      box.remove();
+      say(done ? 'copied' : 'copy failed');
+    }
+
+    share.addEventListener('click', function () {
+      var url = location.href;
+      if (navigator.share) {
+        // A share the person backs out of rejects, and is not a failure worth
+        // reporting -- they closed the sheet on purpose.
+        navigator.share({title: document.title, url: url}).catch(function () {});
+        return;
+      }
+      copy(url);
+    });
   })();
 </script>
 </body>
