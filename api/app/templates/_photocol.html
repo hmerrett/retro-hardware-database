@@ -56,7 +56,7 @@
       {% for img in images[1:] %}
       <div class="thumb-item">
         <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
-             srcset="{{ img_srcset(img, [400, 800]) }}" sizes="150px"
+             srcset="{{ img_srcset(img, [300, 500]) }}" sizes="150px"
              data-full="{{ img_url(img) }}" alt="{{ obj.asset_id }}" loading="lazy"
              decoding="async"
              tabindex="0" role="button" aria-label="View this photo full size"

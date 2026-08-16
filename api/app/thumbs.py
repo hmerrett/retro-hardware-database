@@ -36,10 +36,21 @@ import contextlib
 import shutil
 from pathlib import Path
 
-# What the templates may ask for. A card at 400, the same card on a retina screen
-# at 800, and an item page's main photograph at 1200 -- past which the original is
-# usually no bigger anyway.
-WIDTHS = (400, 800, 1200)
+# What the templates may ask for, and why each one is there. The card in the
+# gallery measures 229px on every desktop width (the page is capped at 1000px) and
+# 364px on a phone; the strip of small ones on an item page is 150px; the main
+# photograph on an item page gets around 620px.
+#
+#   300   a card, and a strip thumbnail at 2x
+#   500   a card on a retina screen, which is every phone and most laptops
+#   800   a card filling the width of a phone at 2x
+#  1200   the main photograph on an item page, at 2x
+#
+# The gaps matter as much as the sizes. A ladder of 400 and 800 sounds sensible and
+# is not: a 229px card on a retina screen needs 458, finds nothing between 400 and
+# 800, and takes the 800 -- four times the pixels it can show. Measured on the live
+# gallery that was 10.7 MB of photographs where 4 would do.
+WIDTHS = (300, 500, 800, 1200)
 
 # JPEG quality for the copies. 80 is where a photograph of a circuit board stops
 # looking any better and the file carries on getting larger.
@@ -48,7 +59,7 @@ QUALITY = 80
 # Bumped when something about how these are made changes, so old copies are missed
 # rather than served -- the same reasoning as the watermark cache's directory name,
 # which learned it the hard way twice.
-BUILD = 1
+BUILD = 2
 
 
 def cache_dir(images_dir: Path) -> Path:

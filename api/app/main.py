@@ -1794,7 +1794,7 @@ def img_srcset(rel, widths):
 
 templates.env.globals["img_url"] = img_url
 templates.env.globals["img_srcset"] = img_srcset
-templates.env.globals["THUMB_CARD"] = 400
+templates.env.globals["THUMB_CARD"] = 300
 templates.env.globals["THUMB_MAIN"] = 1200
 templates.env.globals["human_size"] = filesdb.human_size
 templates.env.globals["max_file_mb"] = filesdb.MAX_BYTES // (1024 * 1024)
@@ -2333,7 +2333,7 @@ def _suggest(db, query, limit=SUGGEST_LIMIT):
             "url": f"/{folder}/{obj.asset_id}", "aid": obj.asset_id,
             "name": h["name"], "cat": cat, "year": obj.year or "",
             "disposed": bool(obj.disposed),
-            "img": img_url(imgs[0], 400) if imgs else "",
+            "img": img_url(imgs[0], 300) if imgs else "",
             "icon": f"/static/{icon}",
         })
     return out, len(hits)

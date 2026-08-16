@@ -4149,17 +4149,17 @@ class TestPhotographsAreServedAtTheSizeAsked:
         aid = self.shot(client, tmp_path)
         rel = f"computers/{aid}.jpg"
         whole = self.size_of(client, f"/images/{rel}")
-        card = client.get(f"/images/{rel}?w=400")
+        card = client.get(f"/images/{rel}?w=300")
         assert card.status_code == 200
         assert len(card.content) < whole / 2, (len(card.content), whole)
         with Image.open(io.BytesIO(card.content)) as im:
-            assert im.width == 400
+            assert im.width == 300
 
     def test_the_same_copy_is_served_the_second_time(self, client, tmp_path):
         aid = self.shot(client, tmp_path)
         rel = f"computers/{aid}.jpg"
-        first = client.get(f"/images/{rel}?w=400").content
-        assert client.get(f"/images/{rel}?w=400").content == first
+        first = client.get(f"/images/{rel}?w=300").content
+        assert client.get(f"/images/{rel}?w=300").content == first
 
     def test_a_width_nobody_asked_for_is_not_made(self, client, tmp_path):
         """The width comes out of a URL, so a stranger could otherwise fill the disk
@@ -4172,10 +4172,10 @@ class TestPhotographsAreServedAtTheSizeAsked:
 
     def test_a_photograph_smaller_than_the_width_is_served_as_it_is(self, client,
                                                                     tmp_path):
-        aid = self.shot(client, tmp_path, px=300)
+        aid = self.shot(client, tmp_path, px=250)
         rel = f"computers/{aid}.jpg"
         whole = self.size_of(client, f"/images/{rel}")
-        assert self.size_of(client, f"/images/{rel}?w=400") == whole
+        assert self.size_of(client, f"/images/{rel}?w=300") == whole
 
     def test_a_stamped_url_may_be_kept_and_an_unstamped_one_may_not(self, client,
                                                                     tmp_path):
@@ -4190,7 +4190,7 @@ class TestPhotographsAreServedAtTheSizeAsked:
             self, client, tmp_path):
         aid = self.shot(client, tmp_path)
         page = client.get("/").text
-        assert "w=400" in page and "srcset" in page
+        assert "w=300" in page and "srcset" in page
         item = client.get(f"/computers/{aid}").text
         # The page shows a copy; the lightbox is handed the original.
         assert "w=1200" in item

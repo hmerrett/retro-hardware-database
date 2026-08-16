@@ -60,13 +60,13 @@
      data-aid="{{ r.obj.asset_id }}"
      data-img="{{ '1' if r.image else '0' }}" data-name="{{ r.name|lower }}">
     <div class="thumb">
-      {# A card is 215px at its narrowest and the width of a phone at its widest, so
-         it is served a 400px copy and offered an 800px one for a retina screen to
-         take instead. The original is several megabytes and is what the lightbox
-         opens; drawing it into a card was most of what this page weighed. #}
+      {# A card measures 229px on every desktop width -- the page is capped at
+         1000px -- and the width of the screen on a phone. sizes says so, because a
+         browser believes it: overstating it by seventy pixels was enough to make a
+         retina screen fetch the 800px copy for a card that can show 458. #}
       {% if r.image %}<img src="{{ img_url(r.image, THUMB_CARD) }}"
-           srcset="{{ img_srcset(r.image, [400, 800]) }}"
-           sizes="(max-width: 430px) 100vw, 300px"
+           srcset="{{ img_srcset(r.image, [300, 500, 800]) }}"
+           sizes="(max-width: 460px) 100vw, 229px"
            alt="{{ r.name }}" loading="lazy" decoding="async">
       {% else %}<img class="ph" src="/static/{{ r.placeholder }}" alt="{{ r.cat_label }}" loading="lazy">{% endif %}
       {% if r.ref_photo %}<span class="ref-badge{{ ' icon' if r.ref_icon else '' }}" title="Illustrative image, not this exact unit">{% if r.ref_icon %}<img src="/images/{{ r.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
