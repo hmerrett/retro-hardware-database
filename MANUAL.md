@@ -929,6 +929,30 @@ machines, so a machine's memory is entered by hand.
 ---
 
 
+### Photographs, and how big they are served
+
+You upload a photograph at whatever size your phone took it — several megabytes,
+three to five thousand pixels across — and that is what is kept. It is never
+resized, cropped or thrown away in the name of space.
+
+What is *served* is a copy no bigger than the place it is going. A gallery card
+gets a 400-pixel copy (800 on a retina screen), an item page's main photograph
+1200. Those copies are made the first time they are asked for and kept beside the
+originals, and rebuilt whenever the photograph behind them changes. Opening a
+photograph full size — clicking it, or the lightbox — always gives you the
+original, because reading the markings on a chip is what a 24-megapixel photograph
+of a board is *for*.
+
+To make the copies up front rather than making the next visitor wait for them
+(worth doing after a deploy, and after any bulk import):
+
+```sh
+docker compose exec api python -m app.thumbs
+```
+
+The copies live in a dot-directory under `images/` and are excluded from backups,
+since they can always be made again from the originals.
+
 ### catalogue_list.py
 
 `catalogue.txt` in the repository root is the machine catalogue as plain text —

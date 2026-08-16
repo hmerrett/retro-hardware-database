@@ -122,6 +122,33 @@ the `?v=` in the page head follows the favicon's hash, and the watermark cache
 directory is named partly after the mark's, so already-served photos are
 re-marked rather than keeping the old logo.
 
+## After a deploy that touches photographs or units
+
+Two things are derived rather than stored, and neither is required — the site
+works without them and heals itself as it is used. Running them makes that
+happen at once instead of making the next visitor pay for it.
+
+**The resized photographs.** Cards and item pages are served copies of the
+photographs at the size they are drawn, made on first request and kept. After a
+deploy of a fresh image volume, or a bulk import, make them all up front:
+
+```sh
+docker compose exec api python -m app.thumbs
+```
+
+Four hundred photographs take a couple of minutes. Without it the first person to
+open the gallery waits while every one of them is resized, and each resize
+competes with the page they are waiting for.
+
+**The rendered caches** — a part's specs line, a machine's memory, a machine's
+catalogue line. These only drift when the words behind them change: the machine
+catalogue in `api/app/machines.yaml`, or how a figure is rendered.
+
+```sh
+docker compose exec api python -m app.resync           # report only
+docker compose exec api python -m app.resync --write   # apply
+```
+
 ## Checking on it
 
 ```sh

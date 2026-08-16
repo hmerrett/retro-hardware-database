@@ -21,7 +21,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 import json
-from urllib.parse import quote, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 from xml.sax.saxutils import escape
 
 from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
@@ -35,7 +35,7 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
-               ramdb, specdb, specstruct)
+               ramdb, specdb, specstruct, thumbs)
 from .db import get_db
 from .ids import next_asset_id
 from .models import (Computer, ComputerChip, ComputerDrive, ComputerRamChip,
@@ -976,9 +976,34 @@ def apple_touch_icon():
     return FileResponse(STATIC_DIR / "apple-touch-icon.png", headers=_ICON_CACHE)
 
 
+class _CachedStatic(StaticFiles):
+    """The static files, with a Cache-Control on them.
+
+    StaticFiles sends an ETag and a Last-Modified and no Cache-Control at all,
+    which means the browser asks about every one of them on every page: ten
+    conditional requests for the logo, the icons and the placeholder drawings,
+    each answered 304 Not Modified, each a round trip. On a phone on a slow link
+    that is most of what a second page view costs.
+
+    Every one of them is linked with ?v=<hash of the file>, so the URL already
+    says which version it wants and cannot go stale -- change the file and the
+    markup asks for a different URL. Those may be kept for a year and never asked
+    about again. A request without the stamp is somebody typing the path, and
+    keeps a short life so it cannot pin an old copy in a cache for a year.
+    """
+
+    def file_response(self, full_path, stat_result, scope, status_code=200):
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        query = parse_qs(scope.get("query_string", b"").decode("latin-1"))
+        response.headers["Cache-Control"] = (
+            "public, max-age=31536000, immutable" if query.get("v")
+            else "public, max-age=3600")
+        return response
+
+
 for sub in ("computers", "parts"):
     (IMAGES_DIR / sub).mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/static", _CachedStatic(directory=str(STATIC_DIR)), name="static")
 
 # Our own photos are served with a small RHDB watermark composited in a corner,
 # so shared/saved copies carry attribution. Originals on disk are never altered;
@@ -1018,6 +1043,9 @@ if WATERMARK:
     for stale in WM_CACHE.parent.iterdir():
         if stale.is_dir() and stale != WM_CACHE:
             shutil.rmtree(stale, ignore_errors=True)
+
+# The resized copies keep their own cache beside it, swept the same way.
+thumbs.sweep(IMAGES_DIR)
 
 
 def _make_watermark(src_path: Path, dst_path: Path):
@@ -1059,9 +1087,16 @@ def _watermarked_file(rel: str) -> Path:
 
 
 def _wm_forget(rel: str):
-    """Drop an image's cached watermark (on delete / rename) so it regenerates."""
+    """Drop an image's cached watermark and its resized copies (on delete, rename or
+    edit) so they regenerate.
+
+    A copy is rebuilt anyway once it is older than what it was made from, which is
+    what covers an edit. This is for the case that check cannot see: a photograph
+    that is gone, whose copies would otherwise sit on the disk forever.
+    """
     with contextlib.suppress(OSError):
         (WM_CACHE / rel).unlink(missing_ok=True)
+    thumbs.forget(IMAGES_DIR, rel)
 
 
 def _is_own_photo(rel: str) -> bool:
@@ -1071,9 +1106,23 @@ def _is_own_photo(rel: str) -> bool:
             and not is_reference(rel))
 
 
+def _image_cache(versioned: bool) -> dict:
+    """How long the browser may keep an image.
+
+    A URL carrying ?v= names which version of the photograph it wants -- img_url
+    stamps it from the file's mtime -- so that URL can never go stale and may be
+    kept for as long as the browser likes. Editing the photograph changes the stamp
+    and therefore the URL, which is the whole point of having one. A URL without a
+    stamp could mean anything later, so it gets the hour it always had.
+    """
+    return {"Cache-Control": "public, max-age=31536000, immutable" if versioned
+            else "public, max-age=3600"}
+
+
 @app.get("/images/{path:path}", include_in_schema=False)
-def serve_image(path: str):
-    # Reject traversal, dotfiles/dotdirs (e.g. the .wm cache) and non-images.
+def serve_image(path: str, v: str = "", w: int = 0):
+    # Reject traversal, dotfiles/dotdirs (e.g. the .wm and .sized caches) and
+    # non-images.
     if any(seg.startswith(".") for seg in path.split("/")):
         raise HTTPException(404)
     full = (IMAGES_DIR / path).resolve()
@@ -1082,7 +1131,13 @@ def serve_image(path: str):
     if full.suffix.lower() not in IMAGE_EXTS:
         raise HTTPException(404)
     served = _watermarked_file(path) if _is_own_photo(path) else full
-    return FileResponse(served, headers={"Cache-Control": "public, max-age=3600"})
+    # ?w= asks for a copy no wider than that, made and kept on first request. Only
+    # the widths the templates use are made; anything else is served whole rather
+    # than refused, because a photograph is never the wrong answer to a request for
+    # a photograph.
+    if w:
+        served = thumbs.served_path(IMAGES_DIR, path, w, served)
+    return FileResponse(served, headers=_image_cache(bool(v)))
 
 
 def get_or_404(db, model, aid):
@@ -1708,21 +1763,39 @@ def _favicon_for_rel(rel):
     return _favicon_rel(info["source"]) if info else ""
 
 
-def img_url(rel):
+def img_url(rel, width=None):
     """/images URL for a photo with a cache-busting ?v= stamp from its mtime, so
     the browser refetches after an edit or watermark change rather than showing a
     stale cached copy. Reflects the reference-marker sidecar too (its toggle
-    changes whether the served image is watermarked)."""
+    changes whether the served image is watermarked).
+
+    `width` asks for a copy no wider than that many pixels -- see thumbs.py. Leave
+    it out for the original, which is what the lightbox wants and what everything
+    wanted before there were copies to ask for.
+    """
     if not rel:
         return ""
     ts = 0
     for p in (IMAGES_DIR / rel, _ref_sidecar(rel)):
         with contextlib.suppress(OSError):
             ts = max(ts, int(p.stat().st_mtime))
-    return f"/images/{rel}?v={ts}" if ts else f"/images/{rel}"
+    query = f"?v={ts}" if ts else ""
+    if width:
+        query += ("&" if query else "?") + f"w={int(width)}"
+    return f"/images/{rel}{query}"
+
+
+def img_srcset(rel, widths):
+    """A srcset for one photo at several widths, so the browser takes the one that
+    suits its screen: a card is 400 wide on an ordinary display and 800 on a retina
+    one, and only it knows which it is."""
+    return ", ".join(f"{img_url(rel, w)} {w}w" for w in widths) if rel else ""
 
 
 templates.env.globals["img_url"] = img_url
+templates.env.globals["img_srcset"] = img_srcset
+templates.env.globals["THUMB_CARD"] = 400
+templates.env.globals["THUMB_MAIN"] = 1200
 templates.env.globals["human_size"] = filesdb.human_size
 templates.env.globals["max_file_mb"] = filesdb.MAX_BYTES // (1024 * 1024)
 
@@ -2260,7 +2333,7 @@ def _suggest(db, query, limit=SUGGEST_LIMIT):
             "url": f"/{folder}/{obj.asset_id}", "aid": obj.asset_id,
             "name": h["name"], "cat": cat, "year": obj.year or "",
             "disposed": bool(obj.disposed),
-            "img": img_url(imgs[0]) if imgs else "",
+            "img": img_url(imgs[0], 400) if imgs else "",
             "icon": f"/static/{icon}",
         })
     return out, len(hits)

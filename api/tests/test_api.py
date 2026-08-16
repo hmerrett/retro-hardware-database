@@ -4115,3 +4115,90 @@ class TestFilesReadLikeThePartsDo:
         page = client.get(f"/computers/{aid}").text
         assert '<span class="chip">Creative Labs Sound Blaster</span>' in page
         assert 'name="tags"' not in page
+
+
+class TestPhotographsAreServedAtTheSizeAsked:
+    """A photograph off a phone is several megabytes and four thousand pixels wide,
+    and the gallery draws it into a card two hundred pixels wide. ?w= asks for a
+    copy no bigger than it needs, made once and kept; the original is still there
+    and is what the lightbox opens.
+    """
+
+    def shot(self, client, tmp_path, px=1600):
+        """A real JPEG, big enough to be worth shrinking, on a real computer."""
+        from PIL import Image
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Acme", "model": "PC"}).json()["asset_id"]
+        src = tmp_path / "big.jpg"
+        Image.new("RGB", (px, int(px * 0.75)), (30, 60, 120)).save(src, "JPEG")
+        with src.open("rb") as fh:
+            r = client.post(f"/computers/{aid}/photo",
+                            files={"photos": ("big.jpg", fh, "image/jpeg")},
+                            follow_redirects=False)
+        assert r.status_code in (200, 303), r.status_code
+        return aid
+
+    def size_of(self, client, url):
+        r = client.get(url)
+        assert r.status_code == 200, url
+        return len(r.content)
+
+    def test_a_width_is_smaller_than_the_original(self, client, tmp_path):
+        from PIL import Image
+        import io
+        aid = self.shot(client, tmp_path)
+        rel = f"computers/{aid}.jpg"
+        whole = self.size_of(client, f"/images/{rel}")
+        card = client.get(f"/images/{rel}?w=400")
+        assert card.status_code == 200
+        assert len(card.content) < whole / 2, (len(card.content), whole)
+        with Image.open(io.BytesIO(card.content)) as im:
+            assert im.width == 400
+
+    def test_the_same_copy_is_served_the_second_time(self, client, tmp_path):
+        aid = self.shot(client, tmp_path)
+        rel = f"computers/{aid}.jpg"
+        first = client.get(f"/images/{rel}?w=400").content
+        assert client.get(f"/images/{rel}?w=400").content == first
+
+    def test_a_width_nobody_asked_for_is_not_made(self, client, tmp_path):
+        """The width comes out of a URL, so a stranger could otherwise fill the disk
+        with nine hundred copies of one photograph. An unsupported width gets the
+        photograph itself rather than an error."""
+        aid = self.shot(client, tmp_path)
+        rel = f"computers/{aid}.jpg"
+        whole = self.size_of(client, f"/images/{rel}")
+        assert self.size_of(client, f"/images/{rel}?w=417") == whole
+
+    def test_a_photograph_smaller_than_the_width_is_served_as_it_is(self, client,
+                                                                    tmp_path):
+        aid = self.shot(client, tmp_path, px=300)
+        rel = f"computers/{aid}.jpg"
+        whole = self.size_of(client, f"/images/{rel}")
+        assert self.size_of(client, f"/images/{rel}?w=400") == whole
+
+    def test_a_stamped_url_may_be_kept_and_an_unstamped_one_may_not(self, client,
+                                                                    tmp_path):
+        """?v= names which version of the photograph the URL wants, so it can never
+        go stale and can be cached for a year. Without it, an hour."""
+        aid = self.shot(client, tmp_path)
+        rel = f"computers/{aid}.jpg"
+        assert "immutable" in client.get(f"/images/{rel}?v=123").headers["cache-control"]
+        assert "immutable" not in client.get(f"/images/{rel}").headers["cache-control"]
+
+    def test_the_gallery_asks_for_card_sized_copies_and_keeps_the_original(
+            self, client, tmp_path):
+        aid = self.shot(client, tmp_path)
+        page = client.get("/").text
+        assert "w=400" in page and "srcset" in page
+        item = client.get(f"/computers/{aid}").text
+        # The page shows a copy; the lightbox is handed the original.
+        assert "w=1200" in item
+        assert f'data-full="/images/computers/{aid}.jpg?v=' in item
+
+    def test_the_static_files_may_be_kept_when_the_url_says_which_version(self,
+                                                                          client):
+        stamped = client.get("/static/site.webmanifest?v=abc").headers["cache-control"]
+        plain = client.get("/static/site.webmanifest").headers["cache-control"]
+        assert "immutable" in stamped and "31536000" in stamped
+        assert "immutable" not in plain

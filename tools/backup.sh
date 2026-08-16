@@ -39,7 +39,11 @@ docker compose exec -T -e MYSQL_PWD="${DB_ROOT_PASSWORD:-}" db \
     | gzip > "$DEST/db-$STAMP.sql.gz"
 
 echo "==> Archiving photos"
-docker compose exec -T api tar -czf - -C /app images > "$DEST/images-$STAMP.tgz"
+# The dot-directories under images/ are derived caches -- the watermarked copies
+# and the resized ones -- and are rebuilt from the originals on demand. Backing
+# them up would roughly double the archive to save nothing.
+docker compose exec -T api tar -czf - -C /app --exclude="images/.*" images \
+  > "$DEST/images-$STAMP.tgz"
 
 echo "==> Done:"
 ls -lh "$DEST/db-$STAMP.sql.gz" "$DEST/images-$STAMP.tgz" | awk '{print "    " $9 "  (" $5 ")"}'

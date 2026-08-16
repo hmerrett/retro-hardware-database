@@ -39,7 +39,13 @@
   {% if images %}
   {% call PN.panel('Photographs', images | length, flush=true) %}
     <div class="photo-primary">
-      <img class="photo-main zoomable" src="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
+      {# data-full is what the lightbox opens, and it is the original: the point of
+         a photograph of a board is being able to read the chips on it. What sits
+         on the page is a copy no wider than the column it sits in. #}
+      <img class="photo-main zoomable" src="{{ img_url(images[0], THUMB_MAIN) }}"
+           srcset="{{ img_srcset(images[0], [800, 1200]) }}"
+           sizes="(max-width: 900px) 100vw, 620px"
+           data-full="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
            tabindex="0" role="button" aria-label="View this photo full size"
            data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}">
       {{ badge(images[0]) }}
@@ -49,7 +55,10 @@
     <div class="thumbs">
       {% for img in images[1:] %}
       <div class="thumb-item">
-        <img class="zoomable" src="{{ img_url(img) }}" alt="{{ obj.asset_id }}" loading="lazy"
+        <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
+             srcset="{{ img_srcset(img, [400, 800]) }}" sizes="150px"
+             data-full="{{ img_url(img) }}" alt="{{ obj.asset_id }}" loading="lazy"
+             decoding="async"
              tabindex="0" role="button" aria-label="View this photo full size"
              data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ img }}">
         {{ badge(img) }}
