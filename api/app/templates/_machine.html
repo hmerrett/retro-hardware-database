@@ -5,12 +5,15 @@
    computer or a console is not: it is a sealed machine that was built in a handful of
    known forms, and what identifies one is which form -- the board issue, the ULA
    under the heatsink, 16K or 48K, rubber keys or moulded ones. The catalogue in
-   app/machines.py is the list of those forms, and this is where one is picked from it.
+   app/machines.yaml is the list of those forms, and this is where one is picked from
+   it.
 
    The model menu is rendered here in full, so choosing a model works whatever the
    browser does. The variation fields below it are built by the script from the
-   catalogue, because sixty models' worth of menus rendered at once would be most of
-   the page and all but one set of them would be wrong. `mach_fields` is the marker
+   catalogue, because three hundred models' worth of menus rendered at once would be
+   most of the page and all but one set of them would be wrong. The catalogue rides
+   along as JSON in the page -- a quarter of a megabyte of it, which is thirty
+   kilobytes once Caddy has compressed it (see caddy/Caddyfile). `mach_fields` is the marker
    the script sets once it has built them -- without it the server reads only the
    model and leaves the board issue, style, region and chips already on file alone,
    because a form that could not draw them must not be able to erase them either. #}

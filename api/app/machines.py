@@ -270,6 +270,12 @@ def load(path=None):
                 **({"manufacturer": _text(mod["manufacturer"], mat, "manufacturer")}
                    if mod.get("manufacturer") else {}),
             })
+        # Oldest first, whatever order they are written in -- the same reasoning as
+        # sorting the families, and it keeps a machine slotted in next to the one
+        # it was copied from from landing out of sequence. Python's sort is stable,
+        # so two machines of the same year stay as they were written (a Spectrum
+        # 16K before the 48K).
+        family["models"].sort(key=lambda m: m["year"])
         families.append(family)
     families.sort(key=_by_maker)
     return families

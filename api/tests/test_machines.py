@@ -138,6 +138,18 @@ class TestCatalogueConsistency:
         have = {machines.full_name(k) for k in machines.keys()}  # noqa: SIM118
         assert not [w for w in wanted if w not in have]
 
+    def test_the_picker_is_in_an_order_a_person_can_guess(self):
+        """Seventy-odd makers is only usable if you can guess where to look, so
+        families are alphabetical by maker and each maker's machines are oldest
+        first -- both worked out on load, so neither depends on the file staying
+        tidy."""
+        makers = [(f["manufacturer"] or f["name"]).casefold()
+                  for f in machines.FAMILIES]
+        assert makers == sorted(makers)
+        for family in machines.FAMILIES:
+            years = [m["year"] for m in family["models"]]
+            assert years == sorted(years), family["name"]
+
     def test_the_catalogue_for_the_form_covers_every_model(self):
         cat = machines.form_catalogue()
         assert set(cat) == set(machines.keys())

@@ -275,8 +275,9 @@ turn up in them. It runs from the 1975 Altair to the last of the 16-bit machines
 | **America** | Commodore PET, 8-bit and Amiga; Atari 8-bit, ST and consoles; Apple II, Macintosh and Lisa; Tandy TRS-80 and CoCo; TI-99; the consoles — Intellivision, ColecoVision, Vectrex, Channel F, Odyssey², Astrocade, Arcadia; and the S-100 and CP/M era — MITS, IMSAI, Processor Technology, Exidy, Osborne, Kaypro, Heathkit |
 | **Japan** | Sega from the SG-1000 to the Saturn, Nintendo from the Game & Watch to the Virtual Boy, NEC's PC-88, PC-98 and PC Engine, Sharp's MZ, X1 and X68000, Fujitsu's FM line, SNK's Neo Geo, Sord, Casio, Epson, Epoch, Tomy, Toshiba, Sony, Hitachi, and twenty-five MSX machines from all of them |
 
-Families are listed alphabetically by who made them; a family's models are listed
-oldest first.
+Families are offered alphabetically by who made them, and each family's machines
+oldest first. Both orders are worked out when the file is read, so a machine or a
+maker added anywhere in it still appears in the right place.
 
 Pick a model from the menu at the top of the machine form and two things happen:
 
