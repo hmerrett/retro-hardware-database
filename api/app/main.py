@@ -2731,6 +2731,10 @@ def _machine_page(db, obj):
         return None
     m = machines.model(v["model_key"])
     return {
+        # The stable key as well as the words, because a page that offers an action
+        # on a filed asset has to ask whether it is filed -- and the rendered model
+        # name falls back to the key, so it cannot answer that.
+        "key": v["model_key"],
         "model": (m["model"] if m else v["model_key"]),
         "family": m["family"] if m else "",
         "year": m["year"] if m else None,
@@ -2818,8 +2822,15 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
     # here"). Read it from the typed column rather than re-parsing the string.
     form_factor = (specdb.scalars(db, motherboard).get("form_factor", "")
                    if motherboard else "")
+    # Whether a board can be lifted out of this machine, worked out from what the
+    # page has already read rather than by asking again: a machine the catalogue
+    # names, with no board linked to it yet. _board_out_of is the same two conditions
+    # at the door, so the button and the route cannot disagree.
+    machine = _machine_page(db, c)
+    detachable = bool(request.state.authed and machine and machine["key"]
+                      and motherboard is None)
     return templates.TemplateResponse(request, "computer.html", {
-        "machine": _machine_page(db, c),
+        "machine": machine, "detachable": detachable,
         "item": (cdict := to_dict(c)), "kind": "computers",
         "files": filesdb.for_item(db, cdict), "fileerr": bool(fileerr),
         "c": c, "parts": [p for p in parts if p is not motherboard],
@@ -2902,6 +2913,149 @@ async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db
     add_log(db, part.asset_id, f"installed in {aid}")
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
+
+
+# --- detaching the board: the moment a description becomes an object ---------
+#
+# A machine the catalogue names is one object, and the board inside it is part of
+# the description of that object: the board issue and the chips in its sockets are
+# answers the machine gives about itself. Lift the board out and put it on a shelf
+# and that stops being true -- it is now a thing that can be photographed, tagged,
+# swapped into another machine and sold on its own, which is the register's whole
+# test for what deserves an asset id. So this verb is the moment of physical
+# separation written down, and nothing here happens speculatively: no machine grows
+# a board object because the catalogue says it has one.
+#
+# What moves is exactly what stops being true of the machine. The board issue and
+# the chips go, because they were always facts about the board. The model key is
+# copied rather than moved -- the machine is still a Spectrum and the board is a
+# Spectrum board -- and the style and the region stay behind, because a case and a
+# market are facts about the assembled machine and a board has neither.
+#
+# One way only. Refitting a board, to this machine or to another, is setting
+# computer_id like any other part: there is no re-absorb that would fold the object
+# back into a description, because the object exists now and pretending otherwise
+# would mean deleting a tagged, photographed thing.
+#
+# Two open questions, left open rather than guessed at:
+#
+#   * The memory tables (computer_ram_module, computer_ram_chip) are keyed to the
+#     computer and stay there. DRAM soldered to the board arguably went with it,
+#     but those rows count chips rather than identify them, they are half of how a
+#     machine's installed RAM is rendered, and a machine that lost its memory
+#     figure by having its board tagged would be a worse record than one whose
+#     memory row is filed a level up. Deciding it needs a look at how a refitted
+#     board should read, which nothing has asked for yet.
+#   * A board detached and then unlinked leaves the machine looking detachable
+#     again, and pressing it a second time would put a second object on the shelf
+#     where there is one piece of hardware. The register cannot tell an empty case
+#     from an unopened one -- both hold no board -- and the person holding the
+#     machine can, so the guard below is the one it can make honestly and the
+#     history says what happened either way.
+
+def _board_out_of(db, c):
+    """The machine's catalogue identity, if a board can be lifted out of it -- or a
+    400 naming which of the two conditions it fails.
+
+    It has to be a machine the catalogue names, because what this verb moves is the
+    machine's catalogue answers and a PC has none: a PC's board is already an object
+    with its own chipset and slot counts written on it.
+
+    And nothing of type motherboard may be linked to it, because a machine has one
+    board. Without that, the button is one press per object rather than one object
+    per separation, which is the difference between recording what happened and
+    inventing hardware."""
+    v = machinedb.read(db, c)
+    if not v["model_key"]:
+        raise HTTPException(
+            400, f"{c.asset_id} is not a catalogue machine, so it has no board "
+                 f"issue and no chips to move onto one. A PC's board is entered as "
+                 f"a part in the ordinary way.")
+    fitted = (db.query(Part)
+              .filter(Part.computer_id == c.asset_id,
+                      Part.type == "motherboard").first())
+    if fitted is not None:
+        raise HTTPException(
+            400, f"{c.asset_id} already has board {fitted.asset_id} linked to it. "
+                 f"A machine has one board.")
+    return v
+
+
+def _detach_ctx(db, c, v):
+    """What lifting the board out will do, for the page that asks first.
+
+    Read through the catalogue's current words, exactly as _machine_page reads the
+    panel this was picked from, so the page names what is about to move in the same
+    language it was recorded in."""
+    return {"c": c, "aid": c.asset_id, "name": entry.display_name(to_dict(c)),
+            "model": machines.full_name(v["model_key"]),
+            "issue_label": machines.ISSUE_KEY, "issue": v["issue"],
+            "chips": [{"label": machines.chip_label(v["model_key"], role),
+                       "variant": variant, "socketed": v["sockets"].get(role)}
+                      for role, variant in v["chips"].items()],
+            "staying": [(label, value) for label, value in
+                        ((machines.STYLE_KEY, v["style"]),
+                         (machines.REGION_KEY, v["region"])) if value],
+            "noindex": True}
+
+
+@app.get("/computers/{aid}/detach-board", response_class=HTMLResponse,
+         include_in_schema=False)
+def gui_detach_board_form(aid: str, request: Request,
+                          db: Session = Depends(get_db)):
+    c = get_or_404(db, Computer, aid)
+    return templates.TemplateResponse(request, "detach.html",
+                                      _detach_ctx(db, c, _board_out_of(db, c)))
+
+
+@app.post("/computers/{aid}/detach-board", include_in_schema=False)
+async def gui_detach_board(aid: str, request: Request,
+                           db: Session = Depends(get_db)):
+    """Make the board in this machine an object of its own.
+
+    The identity move is a rewrite inside the two catalogue tables rather than a
+    copy between a machine's and a part's, which is what keying them by a plain
+    asset id bought: read the machine's answers, write the board's, blank the two
+    the machine has stopped being able to answer. No schema knows this verb exists.
+
+    The machine keeps its asset id, its model, its style, its region and every line
+    of its history. It is still the machine on the shelf; what has changed is that
+    one of the things it is made of is now on the shelf beside it.
+
+    The photographs come with the form for the reason they do on any create form --
+    there is no asset tag to file them under until the part exists -- but here they
+    are also the point of the page. A board is photographable at the moment it is
+    out and before it goes back in, and that moment does not come round again."""
+    c = get_or_404(db, Computer, aid)
+    v = _board_out_of(db, c)
+    form = await request.form()
+    photos = _chosen_photos(form)
+    # The maker and the model come across because the maker of the machine made the
+    # board and it is the board for that model -- the same carry the duplicate
+    # button makes, and without it the board is an asset id with no name in a list.
+    # Nothing else does: the condition of a board out of a working machine, where it
+    # came from and what it cost are its own answers now, and the machine's history
+    # is where it came from.
+    board = Part(asset_id=next_asset_id(db), type="motherboard", computer_id=aid,
+                 manufacturer=c.manufacturer, model=c.model)
+    db.add(board)
+    db.flush()
+    specdb.write(db, board)
+    machinedb.write(db, board, model_key=v["model_key"], issue=v["issue"],
+                    chips=v["chips"], sockets=v["sockets"])
+    # Blanked, not cleared: clear() would take the model with it, and this machine is
+    # still a Spectrum. The style and the region are not touched at all -- the form
+    # never asked them of the board and the case did not go anywhere.
+    machinedb.write(db, c, issue="", chips={})
+    # The board's history opens with where it came from, because that is its birth:
+    # it was not created out of nothing, it was taken out of RH-xxxx.
+    add_log(db, board.asset_id, f"detached from computer {aid}", kind="created")
+    add_log(db, aid, f"board detached as {board.asset_id}, and linked back in")
+    db.commit()
+    if photos:
+        _attach_photos(db, board, "parts", photos)
+        db.commit()
+    return RedirectResponse(f"/parts/{board.asset_id}", status_code=303)
 
 
 # --- the GUI's delete, with its safety net ----------------------------------

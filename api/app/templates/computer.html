@@ -83,6 +83,14 @@
       <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
       {{ P.chipcards(machine.chips) }}
       {% endif %}
+      {# Here rather than beside the edit button at the top, because this is the panel
+         whose contents move: the board issue and the chips above are the board's own
+         facts, written on the machine only while the board is not a thing of its own.
+         Behind a page, which says what will move and takes the board's photograph. #}
+      {% if detachable %}
+      <p class="hint" style="margin:12px 0 0"><a href="/computers/{{ c.asset_id }}/detach-board">detach the board…</a>
+        — give the board in it an asset tag of its own, once it is actually out</p>
+      {% endif %}
     {% endcall %}
     {% endif %}
 

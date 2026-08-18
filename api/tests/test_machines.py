@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from app import entry, machinedb, machines
+from app.main import item_log
 from app.models import AssetChip, AssetVariant, Computer, Part
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -1055,6 +1056,232 @@ class TestTheBoardsDoorOnTheApi:
             "machine": {"model_key": "amiga-500"}}).json()["asset_id"]
         r = client.patch(f"/api/parts/{aid}", json={"variant": "a Spectrum, really"})
         assert r.json()["variant"] == "Amiga 500"
+
+
+class TestDetachingTheBoard:
+    """The verb that turns a piece of a description into an object.
+
+    A sealed Spectrum is one object and its board issue is one of the answers the
+    machine gives about itself. Lift the board out onto a shelf and that stops being
+    true: it is now a thing that can be photographed, tagged, swapped and sold
+    separately, which is the register's whole test for an asset id. So the board
+    issue and the chips move onto the new object, because they were always facts
+    about the board; the model is copied, because the machine is still a Spectrum;
+    and the case style and the region stay, because the case did not move.
+
+    One press, one object, one way. There is no re-absorb: refitting a board is
+    setting computer_id like any other part, and folding an object back into a
+    description would mean deleting a tagged, photographed thing.
+    """
+
+    @staticmethod
+    def image(name="board.jpg"):
+        import io
+
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", (400, 300), (40, 90, 60)).save(buf, "JPEG", quality=90)
+        buf.seek(0)
+        return (name, buf, "image/jpeg")
+
+    def machine(self, client, db, **fields):
+        """A Spectrum with a board issue, a ULA, a case style and a region -- one of
+        each of the four answers, so a test can tell which of them moved."""
+        c = db.get(Computer, client.post("/api/computers",
+                                        json={"manufacturer": "Sinclair",
+                                              "model": "ZX Spectrum 48K"}).json()
+                   ["asset_id"])
+        machinedb.write(db, c, model_key="zx-spectrum-48k", issue="Issue 4B",
+                        style="rubber keys", region="PAL (UK/Europe)",
+                        chips={"ula": "6C001E-7"}, sockets={"ula": True})
+        db.commit()
+        return c
+
+    def detach(self, client, aid, files=None):
+        r = client.post(f"/computers/{aid}/detach-board", files=files,
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text
+        return r.headers["location"].rsplit("/", 1)[1]
+
+    def test_the_board_becomes_an_object_holding_the_board_s_own_answers(self, client,
+                                                                        db):
+        c = self.machine(client, db)
+        board = db.get(Part, self.detach(client, c.asset_id))
+        assert board.type == "motherboard"
+        v = machinedb.read(db, board)
+        assert v["model_key"] == "zx-spectrum-48k"
+        assert v["issue"] == "Issue 4B"
+        assert v["chips"] == {"ula": "6C001E-7"} and v["sockets"] == {"ula": True}
+        # The two a case answers were never asked of the board and are not invented
+        # for it: a board out of a rubber-key Spectrum is not a rubber-key board.
+        assert v["style"] == "" and v["region"] == ""
+
+    def test_the_machine_keeps_being_the_machine_on_the_shelf(self, client, db):
+        """Its id, its model, its case and its market are untouched -- what it has
+        stopped being able to answer is which board is in it, because the board is
+        answering for itself now."""
+        c = self.machine(client, db)
+        was = c.asset_id
+        self.detach(client, was)
+        db.refresh(c)
+        v = machinedb.read(db, c)
+        assert c.asset_id == was
+        assert v["model_key"] == "zx-spectrum-48k"
+        assert v["style"] == "rubber keys" and v["region"] == "PAL (UK/Europe)"
+        assert v["issue"] == "" and v["chips"] == {}
+
+    def test_the_rendered_lines_follow_the_rows_on_both(self, client, db):
+        """Two caches over one pair of tables, so the machine's line loses the board
+        issue in the same write that puts it on the board's."""
+        c = self.machine(client, db)
+        board = db.get(Part, self.detach(client, c.asset_id))
+        db.refresh(c)
+        assert "Issue 4B" in board.variant and "6C001E-7" in board.variant
+        assert "Issue 4B" not in c.variant and "6C001E-7" not in c.variant
+        assert "rubber keys" in c.variant
+
+    def test_the_board_is_linked_back_into_the_machine_it_came_out_of(self, client,
+                                                                     db):
+        """Detaching is about the object, not about where it is: the board is out of
+        the case and still fitted to that machine."""
+        c = self.machine(client, db)
+        board = db.get(Part, self.detach(client, c.asset_id))
+        assert board.computer_id == c.asset_id
+        assert f'/parts/{board.asset_id}' in client.get(f"/computers/{c.asset_id}").text
+
+    def test_both_histories_name_the_other(self, client, db):
+        """One event, written down on both sides of it -- the register's answer to
+        "where did this board come from" and "what happened to that machine"."""
+        c = self.machine(client, db)
+        aid = self.detach(client, c.asset_id)
+        theirs = [e.message for e in item_log(db, c.asset_id)]
+        mine = [e.message for e in item_log(db, aid)]
+        assert any(aid in m for m in theirs)
+        assert any(c.asset_id in m for m in mine)
+
+    def test_the_board_s_history_opens_with_where_it_came_from(self, client, db):
+        """A detached board was not created out of nothing, and its first line says
+        so rather than saying "created" -- the birth and the separation are one
+        event."""
+        c = self.machine(client, db)
+        first = item_log(db, self.detach(client, c.asset_id))[-1]
+        assert first.kind == "created"
+        assert first.message == f"detached from computer {c.asset_id}"
+
+    def test_the_maker_and_the_model_come_across_and_nothing_else_does(self, client,
+                                                                      db):
+        """Enough that the board has a name in a list; not so much that the register
+        claims to know the condition of a board nobody has looked at."""
+        c = self.machine(client, db)
+        c.condition = "working"
+        c.source = "eBay"
+        db.commit()
+        board = db.get(Part, self.detach(client, c.asset_id))
+        assert board.manufacturer == "Sinclair" and board.model == "ZX Spectrum 48K"
+        assert not board.condition and not board.source
+        assert board.year is None and board.acquired_date is None
+
+    def test_the_photograph_taken_while_it_is_out_becomes_its_portrait(self, client,
+                                                                      db):
+        """The point of the form. A board is photographable at the moment it is out
+        of the case and before it goes back in, and that moment does not come round
+        again -- so the file picker is on the page that records the separation."""
+        from app import main
+        c = self.machine(client, db)
+        aid = self.detach(client, c.asset_id, files={"photos": self.image()})
+        assert (main.IMAGES_DIR / "parts" / f"{aid}.jpg").exists()
+        assert db.get(Part, aid).image == f"parts/{aid}.jpg"
+
+    def test_it_goes_through_without_one(self, client, db):
+        """A separation that really happened is recorded even with no camera to hand:
+        an object with no portrait is a gap to be chased later, not a reason to write
+        down the wrong thing now."""
+        c = self.machine(client, db)
+        board = db.get(Part, self.detach(client, c.asset_id))
+        assert board.image in ("", None)
+        assert machinedb.read(db, board)["issue"] == "Issue 4B"
+
+    def test_a_machine_the_catalogue_does_not_name_has_nothing_to_move(self, client,
+                                                                      computer):
+        """A PC's board is already an object described by its chipset and its slots,
+        and is entered as a part in the ordinary way."""
+        aid = computer()["asset_id"]
+        assert client.get(f"/computers/{aid}/detach-board").status_code == 400
+        assert client.post(f"/computers/{aid}/detach-board").status_code == 400
+
+    def test_a_machine_has_one_board(self, client, db):
+        """The scope guard: one object per real separation event. Without it the
+        button is one object per press, which is inventing hardware rather than
+        recording what happened."""
+        c = self.machine(client, db)
+        first = self.detach(client, c.asset_id)
+        r = client.post(f"/computers/{c.asset_id}/detach-board")
+        assert r.status_code == 400 and first in r.text
+        assert db.query(Part).filter(Part.type == "motherboard").count() == 1
+
+    def test_the_action_is_offered_where_the_answers_it_moves_are_read(self, client,
+                                                                      db):
+        c = self.machine(client, db)
+        assert "detach-board" in client.get(f"/computers/{c.asset_id}").text
+        self.detach(client, c.asset_id)
+        assert "detach-board" not in client.get(f"/computers/{c.asset_id}").text
+
+    def test_the_page_says_what_will_move_before_it_moves(self, client, db):
+        c = self.machine(client, db)
+        page = client.get(f"/computers/{c.asset_id}/detach-board").text
+        assert "Issue 4B" in page and "6C001E-7" in page
+        # And what will not, said out loud: "detach" reads like the machine is being
+        # taken to pieces, and the case is not going anywhere.
+        assert "rubber keys" in page and "PAL (UK/Europe)" in page
+        assert "keeps its asset tag" in page
+
+    def test_a_board_lifted_out_and_unlinked_can_be_refitted_like_any_part(self,
+                                                                          client,
+                                                                          db):
+        """One way only. Refitting is not a re-absorb -- there is no undo that would
+        fold a tagged, photographed object back into a description -- it is setting
+        computer_id, and the board keeps its own answers through both."""
+        c = self.machine(client, db)
+        aid = self.detach(client, c.asset_id)
+        client.post(f"/parts/{aid}/unlink", follow_redirects=False)
+        # An unlinked board is offered for linking wherever the free-board queries
+        # run: the machine's own page once something else is fitted, and the edit
+        # form for the catalogue machine with nothing in it.
+        assert aid in client.get(f"/computers/{c.asset_id}/edit").text
+        r = client.post(f"/computers/{c.asset_id}/link-motherboard",
+                        data={"part_id": aid}, follow_redirects=False)
+        assert r.status_code == 303
+        board = db.get(Part, aid)
+        db.refresh(board)
+        assert board.computer_id == c.asset_id
+        assert machinedb.read(db, board)["issue"] == "Issue 4B"
+        # And the machine did not get the board issue back by having the board put
+        # back in it. The board is where that is written down now.
+        db.refresh(c)
+        assert machinedb.read(db, c)["issue"] == ""
+
+    def test_a_detached_board_is_asked_the_catalogue_s_questions_on_its_own_form(
+            self, client, db):
+        """It arrives filed, so its edit form comes back with what moved -- and it is
+        the board's form, which does not ask the two a case answers."""
+        c = self.machine(client, db)
+        page = client.get(f"/parts/{self.detach(client, c.asset_id)}/edit").text
+        assert 'value="zx-spectrum-48k" selected' in page
+        assert "Issue 4B" in page and "6C001E-7" in page
+        assert "const BOARD = true" in page
+
+    def test_the_memory_rows_stay_on_the_machine(self, client, db):
+        """Left where they are on purpose, and noted as an open question rather than
+        guessed at: those rows count chips rather than identify them, and they are
+        half of how a machine's installed RAM is rendered."""
+        from app import ramdb
+        c = self.machine(client, db)
+        ramdb.write(db, c, [], [("4116", 16)], "", None)
+        db.commit()
+        self.detach(client, c.asset_id)
+        db.refresh(c)
+        assert ramdb.read(db, c) == ([], [("4116", 16)])
+        assert c.installed_ram == "16× 4116 (32 KiB)" and c.installed_ram_kb == 32
 
 
 class TestResync:

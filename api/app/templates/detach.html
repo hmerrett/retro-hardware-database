@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% import "_partlist.html" as P %}
+{# The page that stands between a board inside a machine and a board on a shelf.
+
+   It is a page rather than a button on the machine's page for two reasons. One is
+   that an object is being born, and the register's rule is that objects are born at
+   the moment of physical separation and never speculatively -- so the act is worth
+   a screen of its own that says what will move and what will stay. The other is the
+   camera: a board is photographable while it is out and before it goes back in, and
+   that moment does not come round again. A file picker needs a form, and this is it.
+
+   Not the delete page's URL-paste confirmation, though it borrows the box. Nothing
+   here is destroyed: the machine keeps its id, its model and its history, and what
+   happens is that one more thing gets a tag. #}
+{% block title %}Detach the board — {{ aid }} — Retro Hardware Database{% endblock %}
+{% block content %}
+<div class="crumbnav"><a href="/computers/{{ aid }}">&larr; back to {{ aid }}</a></div>
+
+<h2 style="margin:0 0 2px">Detach the board from {{ name }}</h2>
+<p class="muted" style="margin:0 0 14px">{{ aid }} · {{ model }}</p>
+
+<div class="detach-box">
+  <p style="margin:0 0 8px">This files the board in this machine as an object of its
+  own — its own asset tag, its own photographs, its own history — and links it back
+  into the machine it came out of. Do it when the board is actually out: a part in
+  the register is a thing that leads a separate life, and until the board does, what
+  it is is written down here as part of the machine.</p>
+
+  <ul class="going">
+    <li>a new <strong>motherboard</strong> part, filed as <strong>{{ model }}</strong></li>
+    {% if issue %}<li>{{ issue_label | lower }} <strong>{{ issue }}</strong> moves onto it</li>{% endif %}
+    {% if chips %}
+    <li><strong>{{ chips | length }}</strong> {{ 'chip moves' if chips | length == 1 else 'chips move' }}
+      onto it — what is marked on a chip was always a fact about the board</li>
+    {% endif %}
+    <li>a line in both histories, each naming the other</li>
+  </ul>
+
+  {% if chips %}
+  <p class="hint" style="margin:10px 0 2px">Moving with the board</p>
+  {{ P.chipcards(chips) }}
+  {% endif %}
+
+  {# What a case answers and a board does not. Said out loud, because "detach" reads
+     like the machine is being taken to pieces and it is not: the style and the region
+     are facts about the assembled computer in its box, and the box is not moving. #}
+  <p style="margin:12px 0 0">{{ aid }} keeps its asset tag, its history, its
+  photographs and its catalogue model{% if staying %} — and
+  {% for label, value in staying %}{{ label | lower }} <strong>{{ value }}</strong>{{ '' if loop.last else ' and ' }}{% endfor %},
+  which {{ 'is a fact' if staying | length == 1 else 'are facts' }} about the case
+  and not about the board{% endif %}.</p>
+
+  <form method="post" action="/computers/{{ aid }}/detach-board"
+        enctype="multipart/form-data" class="edit">
+    {# Asked for here and nowhere else, because here is the only place it can be
+       taken. Not required, though: a separation that really happened should be
+       recorded even with no camera to hand, and an object with no portrait is a gap
+       the register can be asked about later rather than a reason to write down the
+       wrong thing now. #}
+    <label>The board's portrait</label>
+    <div class="newphotos">
+      <label class="btn sm filebtn">choose files
+        <input type="file" name="photos" accept="image/*" multiple>
+      </label>
+      <span class="hint" data-photo-count></span>
+    </div>
+    <p class="hint">the board is out and on the bench, which is the one moment it can
+      be photographed. The first becomes its portrait; more can be added, rotated and
+      cropped from its page afterwards.</p>
+
+    <div class="flex" style="margin-top: 14px; gap: 8px">
+      <a class="btn" href="/computers/{{ aid }}">cancel</a>
+      <button class="btn primary" type="submit">detach the board</button>
+    </div>
+  </form>
+</div>
+
+<style>
+  /* The delete page's box without its colour: the same "read this before you press
+     it" shape, and nothing here is dangerous. */
+  .detach-box { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
+    margin: 12px 0; max-width: 620px; }
+  .detach-box ul.going { margin: 0; padding-left: 20px; }
+  .detach-box ul.going li { margin: 3px 0; }
+</style>
+{% endblock %}

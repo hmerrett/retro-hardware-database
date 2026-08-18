@@ -351,6 +351,63 @@ you read it off is exactly what does not matter about it.
 No other kind of part gets this. A SIMM is not a model of machine, and the API
 refuses one rather than quietly ignoring it.
 
+### Detaching the board
+
+The two sections above describe the same board twice over — once as an answer a
+sealed machine gives about itself, once as an object on a shelf. **Detach the
+board** is the moment one becomes the other.
+
+The link is in the Machine panel on the machine's page, which is the panel whose
+contents move. It offers itself on a machine the catalogue names that has no
+motherboard linked to it yet, and it opens a page that says what will happen
+before anything does.
+
+Press it when the board is actually out. That is the whole rule: a part in the
+register is a thing that leads a separate life — photographed, tagged, swappable,
+sellable on its own — and until the board is out of the case, what it is belongs
+to the description of the machine. Nothing detaches a board because the catalogue
+says the machine has one.
+
+What happens:
+
+- **A new motherboard part**, filed under the same catalogue model. The machine is
+  still a Spectrum and the board is a Spectrum board.
+- **The board issue and the chips move onto it.** They were always facts about the
+  board; the machine stops claiming to know which board is in it, because the board
+  answers for itself now.
+- **The style and the region stay behind.** A keyboard style and the market a
+  machine was sold into are facts about the assembled computer in its box, and the
+  box did not move.
+- **The board is linked back into the machine** it came out of, so the machine's
+  page shows it where its motherboard goes.
+- **A line in both histories**, each naming the other's asset tag.
+- The machine keeps its asset tag, its photographs and every line of its history.
+  It is still the machine on the shelf; what changed is that one of the things it
+  is made of is on the shelf beside it.
+
+**The page asks for the board's photograph**, and this is the only place it asks.
+A board is photographable while it is out on the bench and before it goes back in,
+and that moment does not come round again — every object in the register is meant
+to have one portrait, and this is the one chance to take this one's. It is not
+compulsory: a separation that really happened should be recorded even with no
+camera to hand.
+
+It goes one way. There is no re-absorb that would fold the object back into a
+description, because that would mean deleting a tagged, photographed thing.
+**Refitting a board is ordinary linking** — unlink it, link it to this machine or
+to another, exactly as with any part — and the board keeps its own answers through
+all of it.
+
+Two things it will refuse. A machine the catalogue does not name has no board
+issue and no chips to move, so a **PC's board is entered as a part** in the
+ordinary way (section 9). And a machine that **already has a board linked** has
+one board: without that, the button would be one object per press rather than one
+object per separation, which is inventing hardware rather than recording it.
+
+A machine's memory rows stay with the machine. They count chips rather than
+identify them, and they are half of how its installed RAM figure is worked out
+(section 7).
+
 ### Finding a machine by a chip
 
 Every part number recorded this way is searchable, because search reads every
@@ -721,6 +778,11 @@ to, see [command-line tools](#19-command-line-tools).
 Every item has a dated history, and it fills itself in. Creating, editing,
 photographing, linking, unlinking, disposing and restoring all write a line
 saying what changed.
+
+Detaching a board writes on both sides of the one event: the machine's history
+says which tag its board became, and the board's history opens by saying which
+machine it came out of, because that is its birth rather than a creation out of
+nothing.
 
 **You can add a note** from the box at the top of the History panel — `tested`,
 `cleaned`, `recapped`, `bought a replacement PSU for it`. Notes are marked as
