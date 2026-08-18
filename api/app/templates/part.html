@@ -77,6 +77,27 @@
     {% endif %}
     {% endcall %}
 
+    {# Which catalogue machine this board is out of, drawn exactly as the machine
+       page draws its own: it is the same answer about the same hardware, and saying
+       it two ways would invite a reader to look for a difference that is not there.
+       Above the specs, because "this is an Amiga 500 board" is what you want before
+       the chipset and the slot counts -- and on a board out of a sealed machine it
+       is most of what there is to say. #}
+    {% if machine %}
+    {% call PN.panel('Machine') %}
+      <table class="kv">
+        <tr><th>Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
+        {% for label, value in machine.rows %}
+        <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+        {% endfor %}
+      </table>
+      {% if machine.chips %}
+      <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
+      {{ P.chipcards(machine.chips) }}
+      {% endif %}
+    {% endcall %}
+    {% endif %}
+
     {% if spec_pairs %}
     {% call PN.panel('Specs') %}
       {# The bezel rows carry the same swatch the chart draws, so the page shows the

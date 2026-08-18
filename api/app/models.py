@@ -50,7 +50,7 @@ class Computer(Base):
     installed_ram_note = Column(String(255), nullable=False, default="",
                                 server_default="")
     # The rendered cache of the catalogue rows, in the same relation to
-    # computer_variant / computer_chip as installed_ram is to the memory tables:
+    # asset_variant / asset_chip as installed_ram is to the memory tables:
     # written from them on every change, read by the page, the label, the search
     # index and the wire format, and never parsed back (see machinedb).
     variant = Column(Text, nullable=False, default="", server_default="")
@@ -85,6 +85,12 @@ class Part(Base):
     name = Column(String(255), default="")
     year = Column(SmallInteger)
     specs = Column(Text, default="")
+    # The rendered cache of the catalogue rows, in exactly the relation to
+    # asset_variant / asset_chip that computers.variant is: written from them on
+    # every change and never parsed back. Only a board ever has one -- a catalogue
+    # identity is something a machine or the board out of one can answer to, and a
+    # SIMM cannot -- so on every other part this stays the empty string it starts as.
+    variant = Column(Text, nullable=False, default="", server_default="")
     condition = Column(String(64), default="")
     source = Column(String(255), default="")
     acquired_date = Column(Date)
@@ -293,35 +299,45 @@ class ComputerRamChip(Base):
     count = Column(Integer, default=1)
 
 
-class ComputerVariant(Base):
-    """Which catalogue machine this is, and which of that model's documented
-    variations. One row per machine, and only for a machine the catalogue names --
-    a PC or a custom build has none, which is why this is a table of its own rather
-    than four more columns on `computers`.
+class AssetVariant(Base):
+    """Which catalogue machine an asset is, and which of that model's documented
+    variations. One row per asset, and only for one the catalogue names -- a PC or
+    a custom build has none, which is why this is a table of its own rather than
+    four more columns on `computers`.
+
+    Keyed by a plain asset_id from the shared register, the way log_entry is, and
+    for the same reason: what answers a catalogue question is a machine or the
+    board out of one, and both give the same sort of answer. A sealed Spectrum is
+    a Spectrum; a bare Amiga 500 board on a shelf is an Amiga 500 board, and can
+    say so with the same words rather than in free text. Which of the two is
+    holding the identity is already known from which table the asset_id is in.
 
     model_key is the stable slug from machines.FAMILIES and is the only part of the
     catalogue stored here; the model's name, year, CPU and chip lists are read from
-    the catalogue every time, so correcting an entry there corrects every machine
+    the catalogue every time, so correcting an entry there corrects everything
     filed under it. The other three hold what was picked or typed, verbatim: the
     lists in the catalogue name what was commonly made, not everything that
     exists, so a value from outside one is kept as it was given.
 
     issue is the board as its make marked it -- Sinclair's Issue 6A, Commodore's
-    ASSY 250425, an Amiga's Rev 6A, a Mega Drive's VA6 -- and style is what tells
-    two of the same model apart from across the room: rubber or moulded keys, a
-    silver or a rainbow label, a heavy sixer."""
-    __tablename__ = "computer_variant"
-    computer_id = Column(String(16),
-                         ForeignKey("computers.asset_id", ondelete="CASCADE"),
-                         primary_key=True)
+    ASSY 250425, an Amiga's Rev 6A, a Mega Drive's VA6 -- and is asked of a board
+    as readily as of a machine, since it is the board it was always about.
+
+    style and region are asked only of a machine. A case or keyboard style and the
+    market a machine was built for are facts about an assembled computer in a box:
+    a board out of a rubber-key Spectrum is the same board as one out of a moulded
+    one, and a PAL machine's board is not a PAL board. So a part leaves both blank
+    rather than the two moving to a table of their own."""
+    __tablename__ = "asset_variant"
+    asset_id = Column(String(16), primary_key=True)
     model_key = Column(String(64), nullable=False, default="", server_default="")
     issue = Column(String(64), nullable=False, default="", server_default="")
     style = Column(String(64), nullable=False, default="", server_default="")
     region = Column(String(32), nullable=False, default="", server_default="")
 
 
-class ComputerChip(Base):
-    """Which variant of a chip is in one of a machine's sockets: the ULA under the
+class AssetChip(Base):
+    """Which variant of a chip is in one of an asset's sockets: the ULA under the
     heatsink, the SID, the CRTC type, the Kickstart in the ROM socket.
 
     One row per socket, keyed by the catalogue's stable role slug ('ula', 'sid',
@@ -329,14 +345,18 @@ class ComputerChip(Base):
     the catalogue no longer lists still reads back, under the role's own name --
     what was seen on the board is not wrong for having gone out of the catalogue.
 
-    These are not parts: a chip soldered into a sealed machine is not tagged,
-    photographed or shelved separately, and giving each one an asset id would say
-    the collection holds forty more objects than it does. The memory chips are the
-    exception that proves the rule -- they are counted, not identified, and so have
-    their own table (see ComputerRamChip)."""
-    __tablename__ = "computer_chip"
+    These are not parts: a chip soldered to a board is not tagged, photographed or
+    shelved separately, and giving each one an asset id would say the collection
+    holds forty more objects than it does. The memory chips are the exception that
+    proves the rule -- they are counted, not identified, and so have their own
+    table (see ComputerRamChip).
+
+    Where the chips are read off is where they are recorded: a sealed machine
+    answers for its own sockets, and a board lifted out of one answers for them
+    afterwards, which is the whole of what detaching a board moves."""
+    __tablename__ = "asset_chip"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    computer_id = _computer_fk()
+    asset_id = Column(String(16), index=True, nullable=False)
     role = Column(String(32), nullable=False)
     variant = Column(String(64), nullable=False, default="", server_default="")
     # Whether it sits in a socket or is soldered to the board -- the difference

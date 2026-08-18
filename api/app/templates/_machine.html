@@ -1,5 +1,5 @@
 {# The catalogue machine: which model this is, and which of that model's documented
-   variations. Used by the computer form.
+   variations. Used by the computer form, and by the part form for a motherboard.
 
    A PC is described by the parts fitted in it, one tagged object at a time. A home
    computer or a console is not: it is a sealed machine that was built in a handful of
@@ -7,6 +7,13 @@
    under the heatsink, 16K or 48K, rubber keys or moulded ones. The catalogue in
    app/machines.yaml is the list of those forms, and this is where one is picked from
    it.
+
+   `board` is the same pickers on the form for a board rather than a whole machine:
+   an Amiga 500 board on a shelf is an Amiga 500 board, with a revision marked on it
+   and chips in its sockets, and the only questions it does not answer are the two
+   about a case -- the keyboard style and the region a machine was sold into. Every
+   other word here is the same, deliberately: it is the same question about the same
+   piece of hardware, and two sets of prose would drift.
 
    The model menu is rendered here in full, so choosing a model works whatever the
    browser does. The variation fields below it are built by the script from the
@@ -18,13 +25,21 @@
    model and leaves the board issue, style, region and chips already on file alone,
    because a form that could not draw them must not be able to erase them either. #}
 
-{% macro picker(groups, saved, catalogue) %}
-<label for="mach_model">Known machine</label>
+{% macro picker(groups, saved, catalogue, board=false) %}
+<label for="mach_model">{{ 'Board from a known machine' if board else 'Known machine' }}</label>
+{% if board %}
+<p class="hint">which machine this board is out of — a Spectrum, a C64, an Amiga 500.
+  Pick the model and its documented board revisions and chip sockets appear below, so
+  a spare on the shelf is filed as what it is rather than as a line of free text.
+  Leave it at <em>not a catalogue model</em> for a PC board, which is described by
+  its chipset and its slots instead.</p>
+{% else %}
 <p class="hint">a Spectrum, a C64, a CPC, a Mega Drive — pick the model and its
   documented variations appear below, with the manufacturer, year, CPU and chassis
   filled into any of those boxes still empty. Leave it at <em>not a catalogue
   model</em> for a PC or a custom build: those are described by the parts fitted in
   them instead.</p>
+{% endif %}
 <select id="mach_model" name="mach_model" data-machine-pick>
   <option value="">— not a catalogue model —</option>
   {% for family, models in groups %}
@@ -41,10 +56,10 @@
   {% endif %}
 </select>
 <div data-machine-vars></div>
-<noscript><p class="hint">The board issue, the case style and the chips are picked
+<noscript><p class="hint">The board issue{{ '' if board else ', the case style' }} and the chips are picked
   from lists built for whichever model is chosen above, which needs JavaScript.
   Choosing a model still works without it, and whatever is already recorded about
-  this machine is left as it is.</p></noscript>
+  this {{ 'board' if board else 'machine' }} is left as it is.</p></noscript>
 {% endmacro %}
 
 {# Build the variation fields for the model picked, and offer what the catalogue knows
@@ -62,12 +77,16 @@
    A field the catalogue has no list for at all is a plain box: there is nothing to
    pick from, and offering "not recorded" and "custom" as the only two choices would
    be a menu that asks a question and answers none of it. #}
-{% macro script(catalogue, saved, widths, ram_field='installed_ram') %}
+{% macro script(catalogue, saved, widths, ram_field='installed_ram', board=false) %}
 <script>
   (function () {
     const CAT = {{ catalogue | tojson }};
     const SAVED = {{ saved | tojson }};
     const WIDTHS = {{ widths | tojson }};
+    // A board's form asks the model, the revision and the chips, and never draws
+    // the two a case answers -- which is also how the save reads it back, since a
+    // field that is not on the page posts nothing.
+    const BOARD = {{ 'true' if board else 'false' }};
     const pick = document.querySelector('[data-machine-pick]');
     const box = document.querySelector('[data-machine-vars]');
     if (!pick || !box) return;
@@ -95,7 +114,7 @@
     const held = () => {
       if (!box.children.length) return SAVED;
       const now = {chips: {}, sockets: {}};
-      for (const f of ['issue', 'style', 'region']) {
+      for (const f of (BOARD ? ['issue'] : ['issue', 'style', 'region'])) {
         now[f] = groupValue(`mach_${f}`);
       }
       box.querySelectorAll('[data-role]').forEach(el => {
@@ -176,12 +195,12 @@
                     'as its make marked it: Sinclair and Acorn number an issue, ' +
                     'Commodore an ASSY, an Amiga a Rev, a Mega Drive a VA',
                     was.issue || '', model.issues, WIDTHS.issue);
-      if (model.styles.length) {
+      if (!BOARD && model.styles.length) {
         html += field('mach_style', 'Case / keyboard',
                       'what tells two of these apart from across the room',
                       was.style || '', model.styles, WIDTHS.style);
       }
-      if (model.regions.length) {
+      if (!BOARD && model.regions.length) {
         html += field('mach_region', 'Region',
                       'the market it was built for, which on some machines is also ' +
                       'which video chip is in it',

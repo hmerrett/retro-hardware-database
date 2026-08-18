@@ -11,10 +11,15 @@ an amount) and leaves any breakdown alone. installed_ram_kb is the usable total.
 
 `machine` is the one nested shape, because a catalogue identity is not a string:
 it is a model key from app/machines.py plus the variations that model was built
-in. Omitting it leaves a machine's catalogue rows alone, sending null forgets them
+in. Omitting it leaves the catalogue rows alone, sending null forgets them
 altogether, and sending an object replaces the fields it names. `variant` beside
 it is the rendered line those rows come out as, and is read-only: it is written
 from the rows and never parsed back into them.
+
+A part takes one too, and only a motherboard may: a board is the object the board
+issue and the chip sockets were always about, so a bare one on a shelf files as
+what it is instead of as free text. It answers a little less than a machine does
+(see BoardIn), and asking it of any other kind of part is refused.
 """
 from datetime import date
 
@@ -42,6 +47,31 @@ class MachineIn(BaseModel):
     issue: str | None = None
     style: str | None = None
     region: str | None = None
+    chips: dict[str, str] | None = None
+    sockets: dict[str, bool | None] | None = None
+
+
+class BoardIn(BaseModel):
+    """The same identity as it arrives for a motherboard, which is asked less of it.
+
+    A board is the one part the catalogue can name: it is the thing a board issue
+    and a chip socket were always about, and a bare Amiga 500 board is an Amiga 500
+    board rather than an unidentified green rectangle. What it is not asked is the
+    case style and the region, which are facts about a whole machine in a box -- a
+    board out of a rubber-key Spectrum is the same board as one out of a moulded
+    one.
+
+    This is the one shape here that refuses a field it does not have. Everywhere
+    else an unknown key is a caller's own typo and dropping it costs nothing; here
+    the two most likely ones are `style` and `region`, which are real questions
+    asked of the machine next door -- so ignoring them would take an answer somebody
+    meant and quietly put it nowhere. The same reasoning the catalogue file follows
+    for a misspelled field (see machines._fields).
+    """
+    model_config = ConfigDict(extra="forbid")
+
+    model_key: str | None = None
+    issue: str | None = None
     chips: dict[str, str] | None = None
     sockets: dict[str, bool | None] | None = None
 
@@ -99,6 +129,17 @@ class ComputerOut(ComputerIn):
     variant: str = ""
 
 
+class BoardOut(BaseModel):
+    """What a board's catalogue identity reads back as. MachineOut without the two
+    rows a case answers, for the reason BoardIn leaves them out."""
+    model_key: str = ""
+    model: str = ""
+    family: str = ""
+    issue: str = ""
+    chips: dict[str, str] = {}
+    sockets: dict[str, bool] = {}
+
+
 class PartIn(BaseModel):
     computer_id: str | None = None
     parent_id: str | None = None
@@ -119,6 +160,7 @@ class PartIn(BaseModel):
     disposed_at: date | None = None
     disposed_note: str = ""
     disk_image: str = ""
+    machine: BoardIn | None = None
 
     @field_validator("computer_id", "parent_id", mode="before")
     @classmethod
@@ -130,3 +172,5 @@ class PartIn(BaseModel):
 class PartOut(PartIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
+    machine: BoardOut | None = None
+    variant: str = ""

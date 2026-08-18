@@ -80,6 +80,11 @@ A machine can of course be both — a Spectrum with a divIDE fitted has a catalo
 identity *and* a tagged part in it — and the pages adjust to show whichever
 sections have something in them.
 
+The two meet at the motherboard. A board lifted out of a sealed machine becomes a
+tagged object the moment it is a thing on a shelf, and it is still an Amiga 500
+board — so a motherboard can carry a catalogue identity of its own. See [a board
+on its own](#a-board-on-its-own).
+
 ---
 
 ## 2. Getting around
@@ -321,10 +326,36 @@ a machine that is no longer a Spectrum has no Spectrum ULA.
 Memory chips are the exception to all of this. They are counted rather than
 identified, so they keep their own grid on the form; see below.
 
+### A board on its own
+
+A bare motherboard out of one of these machines is a real object with a tag of
+its own, and it is exactly the thing the questions above were always about: the
+board issue is the board's, and so are the chips in its sockets. So a **part of
+type motherboard is offered the same pickers** — the model, the board revision,
+and a box per chip socket — and the catalogue panel appears on its page just as
+it does on a machine's.
+
+That is how a spare on a shelf is filed as *Amiga 500, Rev 6A, these chips*
+rather than as a sentence in the notes. Picking the model fills in the maker,
+model and year here too.
+
+A board is not asked the two questions a **case** answers — the keyboard style
+and the region — because a board out of a rubber-key Spectrum is the same board
+as one out of a moulded one, and a PAL machine's board is not a PAL board.
+
+Everything else is shared, including what the register learns: a revision or a
+chip typed into a custom box on a board is offered on the next machine of that
+model, and the other way round. It is the same board either way, and which object
+you read it off is exactly what does not matter about it.
+
+No other kind of part gets this. A SIMM is not a model of machine, and the API
+refuses one rather than quietly ignoring it.
+
 ### Finding a machine by a chip
 
 Every part number recorded this way is searchable, because search reads every
-text column. Type `8580R5` in the search box and you get the C64 it is fitted in.
+text column. Type `8580R5` in the search box and you get the C64 it is fitted in
+— or the loose board it is on.
 
 ### Adding a machine to the catalogue
 
@@ -497,6 +528,12 @@ Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
 What differs by type is the specification section.
 
 ### Motherboard
+
+A motherboard is also the one part that can be filed against the catalogue: a
+**Catalogue** section at the top of the form asks which machine the board is out
+of, its revision, and what is in its sockets. See [a board on its
+own](#a-board-on-its-own). Leave it at *not a catalogue model* for a PC board,
+which is what the fields below describe.
 
 - **Chipset** — e.g. Intel 430FX, OPTi 495
 - **CPU family** — tick all that fit: 8088-class through Athlon-class, plus Z80
@@ -829,11 +866,16 @@ schema is at `/openapi.json`.
 
 `PATCH` changes only the fields you send.
 
-A computer's catalogue identity is the one nested shape, because it is not a
-string. Its `machine` object takes `model_key`, `issue`, `style`, `region` and
-`chips` (a `{role: variant}` map). Omitting it leaves a machine's existing
-identity alone; sending `null` forgets it. A model key or a chip socket the
-catalogue does not have is refused rather than stored.
+A catalogue identity is the one nested shape, because it is not a string. Its
+`machine` object takes `model_key`, `issue`, `style`, `region` and `chips` (a
+`{role: variant}` map). Omitting it leaves the existing identity alone; sending
+`null` forgets it. A model key or a chip socket the catalogue does not have is
+refused rather than stored.
+
+A part takes one too, and only a motherboard may: it asks for `model_key`,
+`issue` and `chips`, and refuses `style` and `region` — those are facts about a
+whole machine in a case. Both read back with `variant`, the rendered line, which
+is written from the rows and ignored if you send it.
 
 Authenticate with HTTP Basic:
 

@@ -243,14 +243,25 @@ def create_part(
     disposed_at: str | None = None,
     disposed_note: str | None = None,
     disk_image: str | None = None,
+    machine_model_key: str | None = None,
+    machine_issue: str | None = None,
+    machine_chips: dict[str, str] | None = None,
 ) -> dict:
     """Create a part. The server assigns the asset id. computer_id installs it in a
     computer and parent_id mounts it on another part (a disk on a controller card,
     say); both blank means standalone. specs is free text formatted
     'Key: value | Key: value'. Storage parts are mechanical hard disks and tape
     (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
-    family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports."""
-    return _request("POST", "/api/parts", json=_clean(locals()))
+    family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports.
+
+    A motherboard, and only a motherboard, can also be filed against the catalogue
+    that list_machine_models returns: machine_model_key is which machine the board
+    is out of, machine_issue the revision as its make marked it ('Rev 6A', 'ASSY
+    250425'), and machine_chips a {role: part number} map for its sockets. That is
+    how a bare Amiga 500 board on a shelf is recorded as what it is. The case style
+    and the region are not asked of a board -- they are facts about a whole machine
+    in a case."""
+    return _request("POST", "/api/parts", json=_machine(_clean(locals())))
 
 
 @mcp.tool()
@@ -275,13 +286,21 @@ def update_part(
     disposed_at: str | None = None,
     disposed_note: str | None = None,
     disk_image: str | None = None,
+    machine_model_key: str | None = None,
+    machine_issue: str | None = None,
+    machine_chips: dict[str, str] | None = None,
 ) -> dict:
     """Partial-update a part: only the fields you pass are changed. To move a part
     to another machine set computer_id, to mount it on another part set parent_id,
-    and to make it standalone set either to ''."""
+    and to make it standalone set either to ''.
+
+    The machine_* arguments file a motherboard against the catalogue and work as
+    they do on a computer (see create_part and list_machine_models): passing one
+    leaves the others alone, machine_chips replaces the whole set of chips, and an
+    empty machine_model_key files the board out of the catalogue."""
     fields = _clean(locals())
     fields.pop("asset_id")
-    return _request("PATCH", f"/api/parts/{asset_id}", json=fields)
+    return _request("PATCH", f"/api/parts/{asset_id}", json=_machine(fields))
 
 
 @mcp.tool()

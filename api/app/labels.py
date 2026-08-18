@@ -172,6 +172,31 @@ def _apply_rotation(c, W, H, rot):
 
 # --- content ---------------------------------------------------------------
 
+def _catalogue_lines(asset):
+    """An asset's catalogue identity as label lines, from its rendered variant.
+
+    On a sealed machine the board issue and the ULA are what a label is for, since
+    nothing inside it has a tag of its own to carry them; on a board lifted out of
+    one they are what the board itself has to say, and the label is the only place a
+    bare board in a box says which revision it is. The model, the board and the two
+    answers that tell two machines apart get a line each; the chips share one line,
+    each named by its socket, because a socket is often called what the label already
+    calls something else -- a machine has a CPU field and a CPU socket, saying
+    different true things -- and two lines both headed CPU read as a contradiction
+    rather than as two facts."""
+    lines, chips = [], []
+    for key, value in parse_specs(asset.get("variant", "")):
+        if not key:
+            lines.append(f"Machine: {value}")
+        elif key in _MACHINE_KEYS:
+            lines.append(f"{key}: {value}")
+        else:
+            chips.append(f"{key} {value}")
+    if chips:
+        lines.append("Chips: " + ", ".join(chips))
+    return lines
+
+
 def computer_lines(comp, parts, form_factor=""):
     """Label body for a machine. `form_factor` comes from the linked board's typed
     column (see main.gui_computer_label); it falls back to the rendered specs
@@ -188,23 +213,7 @@ def computer_lines(comp, parts, form_factor=""):
         lines.append(f"Manufacturer: {comp['manufacturer']}")
     if comp.get("year"):
         lines.append(f"Year: {comp['year']}")
-    # A catalogue machine's identity: on a sealed machine the board issue and the ULA
-    # are what a label is for, since nothing inside it has a tag of its own to carry
-    # them. The model, the board and the two answers that tell one of these apart get
-    # a line each; the chips share one line, each named by its socket, because a
-    # socket is often called what the label already calls something else -- a machine
-    # has a CPU field and a CPU socket, saying different true things -- and two lines
-    # both headed CPU read as a contradiction rather than as two facts.
-    chips = []
-    for key, value in parse_specs(comp.get("variant", "")):
-        if not key:
-            lines.append(f"Machine: {value}")
-        elif key in _MACHINE_KEYS:
-            lines.append(f"{key}: {value}")
-        else:
-            chips.append(f"{key} {value}")
-    if chips:
-        lines.append("Chips: " + ", ".join(chips))
+    lines += _catalogue_lines(comp)
     if form_factor:
         lines.append(f"Form factor: {form_factor}")
     for label, key in (("CPU", "cpu"), ("RAM", "installed_ram"),
@@ -258,6 +267,10 @@ def part_lines(part, spec_pairs=None):
     for label, key in (("Manufacturer", "manufacturer"), ("Year", "year")):
         if part.get(key):
             lines.append(f"{label}: {part[key]}")
+    # Before the specs, because on a board out of a sealed machine the model and the
+    # revision are what the label is being read for, and the chipset row underneath
+    # is likely to be empty.
+    lines += _catalogue_lines(part)
     if spec_pairs is None:
         spec_pairs = parse_specs(part.get("specs", ""))
     lines += [f"{k}: {v}" if k else v for k, v in spec_pairs]

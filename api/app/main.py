@@ -38,8 +38,8 @@ from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
                ramdb, specdb, specstruct, thumbs)
 from .db import get_db
 from .ids import next_asset_id
-from .models import (Computer, ComputerChip, ComputerDrive, ComputerRamChip,
-                     ComputerRamModule, ComputerVariant, LogEntry, Part,
+from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
+                     ComputerRamChip, ComputerRamModule, LogEntry, Part,
                      PartPort, PartSlot, StorageSpec, StoredFile)
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
 import contextlib
@@ -279,6 +279,10 @@ PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
 DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note",
                   "variant"}
 COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
+
+# The same for a part: its variant line is rendered from the catalogue rows, so
+# nothing that copies or writes a part's columns wholesale may set it.
+PART_DERIVED_FIELDS = {"variant"}
 
 # Container paths by default (the `images` volume and the goaccess report mount);
 # overridable so the app can be imported and run outside Docker for local
@@ -1365,10 +1369,10 @@ def _ram_from_api(db, computer, text):
     ramdb.write(db, computer, note=note, total_kb=total_kb)
 
 
-def _machine_from_api(db, computer, machine):
-    """A machine's catalogue identity as the wire gives it: an object naming a
+def _machine_from_api(db, asset, machine):
+    """An asset's catalogue identity as the wire gives it: an object naming a
     catalogue model and any of the variations it was built in, or null to forget the
-    catalogue for this machine.
+    catalogue for it.
 
     A key or a chip socket the catalogue does not have is refused rather than stored.
     Everything else here takes what it is given and the register keeps it -- but the
@@ -1377,7 +1381,7 @@ def _machine_from_api(db, computer, machine):
     about rather than a fact about anyone's hardware.
     """
     if machine is None:
-        machinedb.clear(db, computer)
+        machinedb.clear(db, asset)
         return
     fields = machine.model_dump(exclude_unset=True)
     key = fields.get("model_key")
@@ -1385,20 +1389,35 @@ def _machine_from_api(db, computer, machine):
         raise HTTPException(422, f"no such machine model: {key} -- "
                                  "GET /api/machines lists them")
     # Which model the chips are being checked against: the one this request sets, or
-    # the one the machine is already filed as.
-    against = key if key is not None else machinedb.read(db, computer)["model_key"]
+    # the one the asset is already filed as.
+    against = key if key is not None else machinedb.read(db, asset)["model_key"]
     for role in {*(fields.get("chips") or {}), *(fields.get("sockets") or {})}:
         if role not in machines.roles(against):
             raise HTTPException(422, f"{against or 'a machine with no model'} has no "
                                      f"{role} socket to record a chip in")
-    machinedb.write(db, computer, **fields)
+    machinedb.write(db, asset, **fields)
 
 
-def _machine_out(db, computer, identity=None):
-    """A machine's catalogue identity for the wire: what is stored, plus the
-    catalogue's own name for the model, or None for a machine that is not filed as
-    one."""
-    v = machinedb.read(db, computer) if identity is None else identity
+def _board_from_api(db, part, machine):
+    """The same for a part, which only a motherboard may have. Every other kind is
+    refused rather than quietly ignored: a card or a SIMM filed as a Commodore 64 is
+    a mistake the caller wants to hear about, and the register would have no way to
+    show what it had been told.
+
+    Null is the exception, because null asks for nothing to be there -- and anything
+    may be asked to forget a catalogue identity it has not got."""
+    if machine is not None and (part.type or "") != "motherboard":
+        raise HTTPException(
+            422, f"a {entry.type_label(part.type) or 'part'} cannot be a catalogue "
+                 "machine -- only a motherboard is filed against the catalogue")
+    _machine_from_api(db, part, machine)
+
+
+def _machine_out(db, asset, identity=None):
+    """An asset's catalogue identity for the wire: what is stored, plus the
+    catalogue's own name for the model, or None for one that is not filed as a
+    catalogue machine at all."""
+    v = machinedb.read(db, asset) if identity is None else identity
     if not any(v.values()):
         return None
     m = machines.model(v["model_key"]) or {}
@@ -1409,6 +1428,12 @@ def _computer_out(db, computer, identity=None):
     """One computer as the API returns it: its own columns, and the catalogue
     identity read from its rows rather than from the line rendered off them."""
     return to_dict(computer) | {"machine": _machine_out(db, computer, identity)}
+
+
+def _part_out(db, part, identity=None):
+    """One part as the API returns it. The same two pieces as a computer's, and for
+    a part that is not a board `machine` is simply null."""
+    return to_dict(part) | {"machine": _machine_out(db, part, identity)}
 
 
 @app.get("/api/machines", tags=["computers"])
@@ -1535,7 +1560,10 @@ def api_list_parts(computer_id: str | None = None, type: str | None = None,
                      else Part.computer_id == computer_id)
     if type is not None:
         q = q.filter(Part.type == type)
-    return q.order_by(Part.asset_id).all()
+    rows = q.order_by(Part.asset_id).all()
+    identities = machinedb.read_many(db, rows)
+    return [_part_out(db, p, identities.get(p.asset_id, dict(machinedb.BLANK)))
+            for p in rows]
 
 
 def _check_links(db, fields):
@@ -1551,38 +1579,51 @@ def _check_links(db, fields):
 
 @app.post("/api/parts", response_model=PartOut, tags=["parts"])
 def api_create_part(data: PartIn, db: Session = Depends(get_db)):
-    _check_links(db, data.model_dump())
-    obj = Part(asset_id=next_asset_id(db), **data.model_dump())
+    fields = data.model_dump()
+    machine = fields.pop("machine")
+    _check_links(db, fields)
+    obj = Part(asset_id=next_asset_id(db), **fields)
     db.add(obj)
     db.flush()
     specdb.write(db, obj)
+    if machine is not None:
+        _board_from_api(db, obj, data.machine)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     db.refresh(obj)
-    return obj
+    return _part_out(db, obj)
 
 
 @app.get("/api/parts/{aid}", response_model=PartOut, tags=["parts"])
 def api_get_part(aid: str, db: Session = Depends(get_db)):
-    return get_or_404(db, Part, aid)
+    return _part_out(db, get_or_404(db, Part, aid))
 
 
 @app.patch("/api/parts/{aid}", response_model=PartOut, tags=["parts"])
 def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)):
     obj = get_or_404(db, Part, aid)
     fields = data.model_dump(exclude_unset=True)
+    machine = fields.pop("machine", ...)
     _check_links(db, fields)
     old = {k: getattr(obj, k) for k in fields}
     for k, v in fields.items():
         setattr(obj, k, v)
     specdb.write(db, obj)
+    # After the columns are set, so a request that renames the type and files the
+    # board in one go is checked against the type it is being given.
+    if machine is not ...:
+        _board_from_api(db, obj, data.machine)
+    elif "type" in fields and obj.type != "motherboard" and obj.variant:
+        # Retyped out of being a board, and the catalogue answer goes with it -- the
+        # same rule the edit form follows.
+        machinedb.clear(db, obj)
     new = {k: getattr(obj, k) for k in fields}
     diff = _field_diffs(old, new, list(fields), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
     db.commit()
     db.refresh(obj)
-    return obj
+    return _part_out(db, obj)
 
 
 @app.delete("/api/parts/{aid}", tags=["parts"])
@@ -1920,7 +1961,11 @@ def _clear_part_rows(db, part, also_going=()):
         add_log(db, child.asset_id, f"came off {aid}, which was deleted")
     for model in specdb.SPEC_TABLES:
         db.query(model).filter(model.part_id == aid).delete(synchronize_session=False)
-    db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
+    # By hand rather than by cascade, for the reason log_entry is: these are keyed
+    # by an asset id from the shared register, which no one table can own.
+    for model in (AssetChip, AssetVariant, LogEntry):
+        db.query(model).filter(
+            model.asset_id == aid).delete(synchronize_session=False)
     photos = detect_images("parts", aid)
     db.delete(part)
     return photos
@@ -1943,10 +1988,11 @@ def _clear_computer_rows(db, c, with_parts=()):
         elif p.computer_id == aid:
             p.computer_id = None
             add_log(db, p.asset_id, f"came out of {aid}, which was deleted")
-    for model in (ComputerDrive, ComputerRamModule, ComputerRamChip,
-                  ComputerChip, ComputerVariant):
+    for model in (ComputerDrive, ComputerRamModule, ComputerRamChip):
         db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
-    db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
+    for model in (AssetChip, AssetVariant, LogEntry):
+        db.query(model).filter(
+            model.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("computers", aid)
     db.delete(c)
     return photos
@@ -2583,31 +2629,39 @@ def _computer_form_ctx(c, title, db=None):
 # What a typed answer to one of the catalogue pickers may be as long as: the column
 # it lands in. The same rule the drive pickers follow (see _ASK_WIDTHS) -- a box that
 # accepted more than the column holds would fail on save rather than at the keyboard.
-_MACHINE_WIDTHS = {"issue": ComputerVariant.issue.type.length,
-                   "style": ComputerVariant.style.type.length,
-                   "region": ComputerVariant.region.type.length,
-                   "chip": ComputerChip.variant.type.length}
+_MACHINE_WIDTHS = {"issue": AssetVariant.issue.type.length,
+                   "style": AssetVariant.style.type.length,
+                   "region": AssetVariant.region.type.length,
+                   "chip": AssetChip.variant.type.length}
+
+# The two answers a board is not asked for. A case or keyboard style and the market
+# a machine was built for are facts about a whole computer in a case, so a board's
+# form leaves them off -- and the save reads only what the form asked.
+_MACHINE_ONLY = ("style", "region")
 
 
-def _machine_ctx(c, db=None):
-    """The catalogue and this machine's place in it, for the edit form.
+def _machine_ctx(obj, db=None, board=False):
+    """The catalogue and this asset's place in it, for the edit form of a machine or
+    of a board.
 
     The whole catalogue goes to the browser as JSON because the variation fields are
     built from whichever model is picked: sixty models' worth of menus rendered at
     once would be most of the page, and all but one set of them would be wrong."""
-    saved = machinedb.read(db, c) if (c is not None and db is not None) \
+    saved = machinedb.read(db, obj) if (obj is not None and db is not None) \
         else dict(machinedb.BLANK)
     # What the catalogue names, plus what the register has since been told: a chip
-    # somebody had to type once is a radio button from then on.
+    # somebody had to type once is a radio button from then on. Boards teach it the
+    # same as machines do -- the query behind this reads the whole register.
     catalogue = machines.with_recorded(machines.form_catalogue(),
                                        machinedb.recorded(db) if db is not None
                                        else {})
     return {"machine_groups": machines.grouped(), "machine_saved": saved,
-            "machine_catalogue": catalogue, "machine_widths": _MACHINE_WIDTHS}
+            "machine_catalogue": catalogue, "machine_widths": _MACHINE_WIDTHS,
+            "machine_board": board}
 
 
-def _machine_from_form(form):
-    """A machine's catalogue identity as the form gives it, as keyword arguments for
+def _machine_from_form(form, board=False):
+    """An asset's catalogue identity as the form gives it, as keyword arguments for
     machinedb.write -- or None where the form did not carry the question at all.
 
     The variation fields are built in the browser from the catalogue, and
@@ -2615,6 +2669,10 @@ def _machine_from_form(form):
     no JavaScript, or a script that did not run -- only the model choice is read and
     the board issue, style, region and chips already on file are left alone: a form
     that could not draw them must not be able to erase them either.
+
+    `board` is the board's form, which asks the model, the issue and the chips and
+    not the two that belong to a whole machine. They are left unnamed rather than
+    blanked, so a question this form never put cannot answer itself.
 
     Only the sockets the chosen model has are read, so fields left over from another
     model in the same browser tab cannot put a ULA in a Commodore 64."""
@@ -2624,7 +2682,8 @@ def _machine_from_form(form):
     out = {"model_key": key}
     if not key or not (form.get("mach_fields", "") or "").strip():
         return out
-    for field in ("issue", "style", "region"):
+    asked = ["issue"] if board else ["issue", *_MACHINE_ONLY]
+    for field in asked:
         out[field] = _machine_pick(form, f"mach_{field}")
     out["chips"] = {role: _machine_pick(form, f"chip:{role}")
                     for role in machines.roles(key)}
@@ -2648,10 +2707,15 @@ def _machine_pick(form, field):
     return picked
 
 
-def _machine_page(db, c):
-    """A machine's catalogue identity for its page: what it is filed as, then what
+def _machine_page(db, obj):
+    """An asset's catalogue identity for its page: what it is filed as, then what
     makes this one of them, then the chips in the order a board is read in. None for
-    a machine outside the catalogue, so the section does not appear at all.
+    an asset outside the catalogue, so the section does not appear at all.
+
+    The same shape for a machine and for a board, because it is the same answer: a
+    board is filed as an Amiga 500 exactly as the Amiga 500 it came out of is, and a
+    page that said it two ways would be inviting the reader to look for a difference
+    that is not there. A board simply has nothing in the two rows a case answers.
 
     Every label is read from the catalogue rather than from the record, so a page
     shows the current words for what was recorded -- and a chip whose socket the
@@ -2662,7 +2726,7 @@ def _machine_page(db, c):
 
     The row keys are machines.ISSUE_KEY and the two beside it, so the page and the
     rendered line call the same three answers by the same names."""
-    v = machinedb.read(db, c)
+    v = machinedb.read(db, obj)
     if not any(v.values()):
         return None
     m = machines.model(v["model_key"])
@@ -3158,7 +3222,15 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
     cpu_families = list(entry.CPU_FAMILIES)
     cpu_families += [f for f in mb_cpufams if f not in cpu_families]
     makes, models, known = _known_makes(db)
+    # A board is the one part that can answer the catalogue: it is the thing the
+    # board issue and the chip sockets were always about, and a bare one on a shelf
+    # is an Amiga 500 board rather than an unidentified green rectangle. Nothing
+    # else is offered it -- a SIMM is not a model of machine -- and the catalogue is
+    # a quarter of a megabyte of JSON, which is not shipped to a form that cannot
+    # use it.
+    catalogue = _machine_ctx(obj, db, board=True) if ptype == "motherboard" else {}
     return {
+        **catalogue,
         "p": obj, "ptype": ptype, "computer_id": computer_id, "parent_id": parent_id,
         "spec_keys": spec_keys,
         "action": action or (f"/parts/{obj.asset_id}/edit" if obj else "/parts/new"),
@@ -3208,9 +3280,15 @@ def gui_new_part(request: Request, type: str = "other", computer_id: str = "",
     # A transient Part, never added to the session: the descriptive fields of the
     # source with everything belonging to that particular object left out.
     ctx["p"] = Part(**{k: getattr(src, k) for k in PART_FIELDS
-                       if k not in DUP_EXCLUDE})
+                       if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS})
     ctx["title"] = f"New {entry.type_label(ptype)}"
     ctx["from_part"] = src.asset_id
+    # The same rule the duplicate button follows: another board of this model is
+    # another board of this model, but which revision it is and what is in its
+    # sockets are found by looking at the board in your hand.
+    if ctx.get("machine_saved"):
+        ctx["machine_saved"] = dict(machinedb.BLANK) | {
+            "model_key": ctx["machine_saved"]["model_key"]}
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
 
@@ -3509,6 +3587,12 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
     db.add(obj)
     db.flush()
     specdb.write(db, obj)
+    # Only a board is filed against the catalogue, whatever a hand-made post claims:
+    # the pickers are on no other type's form, and a SIMM filed as a Commodore 64
+    # would be a record of nothing anybody owns.
+    if ptype == "motherboard" and \
+            (mach := _machine_from_form(form, board=True)) is not None:
+        machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
     db.commit()
     if photos:
@@ -3545,6 +3629,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
                               " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
                               specstruct.join(spec_pairs))
     return templates.TemplateResponse(request, "part.html", {
+        "machine": _machine_page(db, p),
         "p": p, "parent": parent, "host": host, "children": children,
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
@@ -3581,6 +3666,14 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     for k, v in data.items():
         setattr(p, k, v)
     specdb.write(db, p)
+    if ptype == "motherboard":
+        if (mach := _machine_from_form(form, board=True)) is not None:
+            machinedb.write(db, p, **mach)
+    elif p.variant:
+        # Retyped out of being a board, and the catalogue answer goes with it: a
+        # record saying this RAM stick is an Amiga 500 board describes nothing
+        # anybody owns. The same rule as filing a machine out of the catalogue.
+        machinedb.clear(db, p)
     diff = _field_diffs(old, {k: getattr(p, k) for k in data}, list(data), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
@@ -3599,12 +3692,18 @@ DUP_EXCLUDE = {"image", "disposed", "disposed_at", "disposed_note", "source",
 
 @app.post("/parts/{aid}/duplicate", include_in_schema=False)
 def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
+    """A second identical part. On a board the catalogue model comes across for the
+    same reason the model field does -- another Amiga 500 board is another Amiga 500
+    board -- and the revision and the chips do not, because those are read off the
+    board in your hand rather than off the one it was copied from."""
     src = get_or_404(db, Part, aid)
-    data = {k: getattr(src, k) for k in PART_FIELDS if k not in DUP_EXCLUDE}
+    data = {k: getattr(src, k) for k in PART_FIELDS
+            if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS}
     obj = Part(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()
     specdb.write(db, obj)
+    machinedb.duplicated_from(db, src, obj)
     add_log(db, obj.asset_id, f"created as a duplicate of {aid}", kind="created")
     add_log(db, aid, f"duplicated to {obj.asset_id}", kind="duplicate")
     db.commit()

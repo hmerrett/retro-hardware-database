@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% import "_colours.html" as C %}
+{% import "_machine.html" as M %}
 {% block title %}{{ title }} — Retro Hardware Database{% endblock %}
 {% block content %}
 <p><a href="javascript:history.back()">&larr; back</a></p>
@@ -74,6 +75,18 @@ until you submit.</p>
       {% for t in type_order %}<option value="{{ t }}"{{ ' selected' if t == ptype else '' }}>{{ type_labels.get(t, t) }}</option>{% endfor %}
     </select>
   </fieldset>
+
+  {# A board is the one part the catalogue can name, and it goes first for the same
+     reason it does on a machine's form: picking a model fills in half of what
+     follows and puts the right board revisions and sockets on screen for the rest.
+     A bare board on a shelf is filed here as what it is -- "Amiga 500, Rev 6A,
+     these chips" -- rather than as a sentence in the notes. #}
+  {% if machine_board %}
+  <fieldset>
+    <legend>Catalogue</legend>
+    {{ M.picker(machine_groups, machine_saved, machine_catalogue, board=true) }}
+  </fieldset>
+  {% endif %}
 
   <fieldset>
     <legend>Identity</legend>
@@ -447,4 +460,7 @@ until you submit.</p>
   })();
 </script>
 {% if ptype == 'storage' %}{{ C.script(bezel_swatches) }}{% endif %}
+{# No memory box on this form for the model's standard sizes to be offered on: what
+   a machine was sold with is a fact about the machine, not about its board. #}
+{% if machine_board %}{{ M.script(machine_catalogue, machine_saved, machine_widths, '', true) }}{% endif %}
 {% endblock %}

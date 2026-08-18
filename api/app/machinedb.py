@@ -1,44 +1,57 @@
-"""Map a machine's catalogue identity between its rows and plain values.
+"""Map an asset's catalogue identity between its rows and plain values.
 
 The same split as specstruct/specdb, entry/ramdb and drivedb: machines owns the
-catalogue and the rendering, this module owns the database. The computer_variant
-row and the computer_chip rows are the source of truth; computers.variant is a
-rendered cache of them, kept for the machine page, the label, the search index and
-the REST/MCP wire format.
+catalogue and the rendering, this module owns the database. The asset_variant row
+and the asset_chip rows are the source of truth; the asset's own `variant` column
+is a rendered cache of them, kept for the item page, the label, the search index
+and the REST/MCP wire format.
 
-    write(db, computer, model_key=..., chips=...)   values -> rows, and the string
-    read(db, computer)                              rows -> values
-    clear(db, computer)                             forget the catalogue entirely
-    refresh(db, computer)                           re-render the string alone
+    write(db, asset, model_key=..., chips=...)   values -> rows, and the string
+    read(db, asset)                              rows -> values
+    clear(db, asset)                             forget the catalogue entirely
+    refresh(db, asset)                           re-render the string alone
+
+`asset` is a computer or a part, and every function here takes either. That is the
+whole of what the tables being keyed by a plain asset_id buys: a sealed Spectrum
+and the Amiga 500 board on the shelf beside it are the same sort of answer to the
+same question, so they are read and written by the same code rather than by two
+copies of it that would drift. Both kinds of row carry a `variant` column for the
+rendering to land in, which is why refresh() needs to know nothing about which it
+has been handed.
+
+What a part is asked is a subset: the model, the board issue and the chips. Style
+and region are facts about an assembled machine in a case (see AssetVariant), so
+nothing offers them for a board -- but nothing here refuses them either, because
+the caller that knows which kind of asset it is holding is the one at the door.
 
 Passing None for any field leaves it as it is, the convention ramdb and drivedb
 already use: a caller that knows only the board issue must not wipe the chips.
 
-Nothing here parses computers.variant back into rows. That is the mistake migration
-0011 was written to undo -- the display string had become the storage, so renaming a
-label silently orphaned records -- and the reason the rows hold stable slugs and the
-string is written one way only.
+Nothing here parses the rendered string back into rows. That is the mistake
+migration 0011 was written to undo -- the display string had become the storage, so
+renaming a label silently orphaned records -- and the reason the rows hold stable
+slugs and the string is written one way only.
 """
 from __future__ import annotations
 
 from . import machines
-from .models import ComputerChip, ComputerVariant
+from .models import AssetChip, AssetVariant
 
-# What read() gives for a machine the catalogue knows nothing about, so callers can
+# What read() gives for an asset the catalogue knows nothing about, so callers can
 # treat "no catalogue row" and "a row saying nothing" alike.
 BLANK = {"model_key": "", "issue": "", "style": "", "region": "", "chips": {},
          "sockets": {}}
 
 
-def read(db, computer):
-    """A machine's catalogue identity as a dict: the model key, the board issue,
+def read(db, asset):
+    """An asset's catalogue identity as a dict: the model key, the board issue,
     the style, the region, {role: variant} for the chips in catalogue order, and
     {role: bool} for the ones whose mounting has been looked at -- a socket a
     person has not answered for is absent rather than false."""
-    row = db.get(ComputerVariant, computer.asset_id)
-    chips = (db.query(ComputerChip)
-             .filter(ComputerChip.computer_id == computer.asset_id)
-             .order_by(ComputerChip.id).all())
+    row = db.get(AssetVariant, asset.asset_id)
+    chips = (db.query(AssetChip)
+             .filter(AssetChip.asset_id == asset.asset_id)
+             .order_by(AssetChip.id).all())
     if row is None and not chips:
         return dict(BLANK)
     key = row.model_key if row else ""
@@ -53,31 +66,31 @@ def read(db, computer):
                         if held.get(role) is not None}}
 
 
-def read_many(db, computers):
-    """{asset_id: identity} for a whole list of machines in two queries, so a list
+def read_many(db, assets):
+    """{asset_id: identity} for a whole list of assets in two queries, so a list
     page or the API's list endpoint does not fall into a query per row -- the same
-    reason specdb has its bulk lookups. Machines with no catalogue row are absent
+    reason specdb has its bulk lookups. Assets with no catalogue row are absent
     rather than blank, so a caller can tell "not a catalogue machine" from "a
     catalogue machine nothing is known about"."""
-    ids = [c.asset_id for c in computers]
+    ids = [a.asset_id for a in assets]
     if not ids:
         return {}
     out = {}
-    for row in (db.query(ComputerVariant)
-                .filter(ComputerVariant.computer_id.in_(ids)).all()):
-        out[row.computer_id] = {"model_key": row.model_key or "",
-                                "issue": row.issue or "", "style": row.style or "",
-                                "region": row.region or "", "chips": {},
-                                "sockets": {}}
-    for row in (db.query(ComputerChip)
-                .filter(ComputerChip.computer_id.in_(ids))
-                .order_by(ComputerChip.id).all()):
+    for row in (db.query(AssetVariant)
+                .filter(AssetVariant.asset_id.in_(ids)).all()):
+        out[row.asset_id] = {"model_key": row.model_key or "",
+                             "issue": row.issue or "", "style": row.style or "",
+                             "region": row.region or "", "chips": {},
+                             "sockets": {}}
+    for row in (db.query(AssetChip)
+                .filter(AssetChip.asset_id.in_(ids))
+                .order_by(AssetChip.id).all()):
         if row.variant:
-            out.setdefault(row.computer_id,
+            out.setdefault(row.asset_id,
                            dict(BLANK) | {"chips": {}, "sockets": {}})
-            out[row.computer_id]["chips"][row.role] = row.variant
+            out[row.asset_id]["chips"][row.role] = row.variant
             if row.socketed is not None:
-                out[row.computer_id]["sockets"][row.role] = bool(row.socketed)
+                out[row.asset_id]["sockets"][row.role] = bool(row.socketed)
     for identity in out.values():
         identity["chips"] = dict(machines.in_role_order(identity["model_key"],
                                                         identity["chips"]))
@@ -94,8 +107,13 @@ def recorded(db):
     a radio button once one machine records it. Two queries, both distinct, because
     this is read on every edit form.
 
-    Keyed by the model the machine is filed as now -- a chip is only evidence about
-    the model it was found in.
+    Every asset teaches, machine and board alike. A Rev 6A read off a bare board is
+    the same evidence about what Amiga 500 boards say as one read out of a whole
+    Amiga -- it is the same board either way -- and which object it was found on is
+    exactly what does not matter about it.
+
+    Keyed by the model the asset is filed as now: a chip is only evidence about the
+    model it was found in.
     """
     out = {}
 
@@ -103,31 +121,28 @@ def recorded(db):
         return out.setdefault(key, {"issues": [], "styles": [], "regions": [],
                                     "chips": {}})
 
-    variants = (db.query(ComputerVariant.model_key, ComputerVariant.issue,
-                         ComputerVariant.style, ComputerVariant.region)
-                .filter(ComputerVariant.model_key != "").distinct().all())
+    variants = (db.query(AssetVariant.model_key, AssetVariant.issue,
+                         AssetVariant.style, AssetVariant.region)
+                .filter(AssetVariant.model_key != "").distinct().all())
     for key, issue, style, region in variants:
         got = bucket(key)
         for field, value in (("issues", issue), ("styles", style),
                              ("regions", region)):
             if (value or "").strip():
                 got[field].append(value.strip())
-    chips = (db.query(ComputerVariant.model_key, ComputerChip.role,
-                      ComputerChip.variant)
-             .join(ComputerChip,
-                   ComputerChip.computer_id == ComputerVariant.computer_id)
-             .filter(ComputerVariant.model_key != "").distinct().all())
+    chips = (db.query(AssetVariant.model_key, AssetChip.role, AssetChip.variant)
+             .join(AssetChip, AssetChip.asset_id == AssetVariant.asset_id)
+             .filter(AssetVariant.model_key != "").distinct().all())
     for key, role, variant in chips:
         if (variant or "").strip():
             bucket(key)["chips"].setdefault(role, []).append(variant.strip())
     return out
 
 
-def write(db, computer, model_key=None, issue=None, style=None, region=None,
+def write(db, asset, model_key=None, issue=None, style=None, region=None,
           chips=None, sockets=None):
-    """Store what is known about a machine's catalogue identity and re-render the
-    cache. The computer must already be flushed so its asset_id exists for the
-    foreign key.
+    """Store what is known about an asset's catalogue identity and re-render the
+    cache. The asset must already be flushed so its asset_id exists.
 
     Clearing the model clears everything: a machine that is no longer filed as a
     Spectrum has no Spectrum board issue and no Spectrum ULA, and leaving those
@@ -137,12 +152,12 @@ def write(db, computer, model_key=None, issue=None, style=None, region=None,
     has the SID it had.
     """
     if model_key is not None and not (model_key or "").strip():
-        clear(db, computer)
+        clear(db, asset)
         return
-    aid = computer.asset_id
-    row = db.get(ComputerVariant, aid)
+    aid = asset.asset_id
+    row = db.get(AssetVariant, aid)
     if row is None:
-        row = ComputerVariant(computer_id=aid)
+        row = AssetVariant(asset_id=aid)
         db.add(row)
     for field, value in (("model_key", model_key), ("issue", issue),
                          ("style", style), ("region", region)):
@@ -153,49 +168,48 @@ def write(db, computer, model_key=None, issue=None, style=None, region=None,
         # survive the rewrite: an answer in this call wins, and a socket this call
         # says nothing about keeps the answer it already had rather than going back
         # to "nobody has looked".
-        was = {c.role: c.socketed for c in db.query(ComputerChip).filter(
-            ComputerChip.computer_id == aid).all()}
-        db.query(ComputerChip).filter(
-            ComputerChip.computer_id == aid).delete(synchronize_session=False)
+        was = {c.role: c.socketed for c in db.query(AssetChip).filter(
+            AssetChip.asset_id == aid).all()}
+        db.query(AssetChip).filter(
+            AssetChip.asset_id == aid).delete(synchronize_session=False)
         given = _flags(sockets)
         for role, variant in _pairs(chips):
             if variant:
                 held = given[role] if role in given else was.get(role)
-                db.add(ComputerChip(computer_id=aid, role=role, variant=variant,
-                                    socketed=held))
+                db.add(AssetChip(asset_id=aid, role=role, variant=variant,
+                                 socketed=held))
     elif sockets is not None:
         # Told only how the chips are held, which is an answer of its own: the
         # variants stay exactly as they are.
         given = _flags(sockets)
-        for row in db.query(ComputerChip).filter(
-                ComputerChip.computer_id == aid).all():
+        for row in db.query(AssetChip).filter(AssetChip.asset_id == aid).all():
             if row.role in given:
                 row.socketed = given[row.role]
     db.flush()
     if model_key is not None:
         _drop_foreign_chips(db, aid, row.model_key)
-    refresh(db, computer)
+    refresh(db, asset)
 
 
-def clear(db, computer):
-    """Forget that a machine was ever a catalogue model: the row, its chips and the
+def clear(db, asset):
+    """Forget that an asset was ever a catalogue model: the row, its chips and the
     rendered string."""
-    aid = computer.asset_id
-    for model in (ComputerChip, ComputerVariant):
+    aid = asset.asset_id
+    for model in (AssetChip, AssetVariant):
         db.query(model).filter(
-            model.computer_id == aid).delete(synchronize_session=False)
+            model.asset_id == aid).delete(synchronize_session=False)
     db.flush()
-    computer.variant = ""
+    asset.variant = ""
 
 
-def refresh(db, computer):
-    """Re-render computers.variant from the rows behind it. Called on every write,
-    and by app.resync when the catalogue's own words have changed underneath a
-    machine that has not been edited since."""
-    v = read(db, computer)
-    computer.variant = machines.render(v["model_key"], v["issue"], v["style"],
-                                       v["region"], v["chips"])
-    return computer.variant
+def refresh(db, asset):
+    """Re-render the asset's variant string from the rows behind it. Called on every
+    write, and by app.resync when the catalogue's own words have changed underneath
+    something that has not been edited since."""
+    v = read(db, asset)
+    asset.variant = machines.render(v["model_key"], v["issue"], v["style"],
+                                    v["region"], v["chips"])
+    return asset.variant
 
 
 def _flags(sockets):
@@ -219,9 +233,9 @@ def _pairs(chips):
 
 
 def _drop_foreign_chips(db, aid, model_key):
-    """Delete the chip rows whose socket the machine's model does not have."""
+    """Delete the chip rows whose socket the asset's model does not have."""
     keep = set(machines.roles(model_key))
-    rows = db.query(ComputerChip).filter(ComputerChip.computer_id == aid).all()
+    rows = db.query(AssetChip).filter(AssetChip.asset_id == aid).all()
     for row in rows:
         if row.role not in keep:
             db.delete(row)
@@ -229,13 +243,13 @@ def _drop_foreign_chips(db, aid, model_key):
 
 
 def duplicated_from(db, src, dest):
-    """Give a duplicate of a machine the model its original is filed as, and
+    """Give a duplicate of an asset the model its original is filed as, and
     nothing else.
 
     A second machine of the same model is the same model -- that is what the
     duplicate button means -- but the board issue, the style and the chips in it are
-    this machine's own, found by opening this machine. Copying them across would
-    write down a ULA nobody has looked at.
+    this one's own, found by opening this one. Copying them across would write down
+    a ULA nobody has looked at.
     """
     key = read(db, src)["model_key"]
     if key:

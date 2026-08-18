@@ -58,8 +58,8 @@ from . import entry
 
 CATALOGUE_FILE = Path(__file__).resolve().parent / "machines.yaml"
 
-# What the columns behind these answers hold (see models.ComputerVariant and
-# models.ComputerChip). Checked here as well as in the tests, because a suggestion
+# What the columns behind these answers hold (see models.AssetVariant and
+# models.AssetChip). Checked here as well as in the tests, because a suggestion
 # too long for its column would fail on save rather than at the keyboard, and the
 # person it would fail for is the one who edited the file.
 _LIMITS = {"key": 64, "issues": 64, "styles": 64, "regions": 32, "socket": 32,
