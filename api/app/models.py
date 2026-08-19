@@ -410,3 +410,32 @@ class LogEntry(Base):
     created_at = Column(DateTime, index=True)
     kind = Column(String(16), default="change")
     message = Column(Text, default="")
+
+
+class LogPhoto(Base):
+    """A photograph hung on one history entry.
+
+    The portrait on `computers.image` answers "which one is this?"; these answer
+    "what happened to it?" -- the board before the recap, the crack in the case as
+    it was found, the label under the lid that settled which revision it is. So
+    they are not gallery photographs of the object and are never counted among
+    them, and the entry's own message is their caption: a photograph of a repair
+    with the repair written beside it needs nothing further said about it.
+
+    Unlike log_entry's asset_id this is a real foreign key, because a log entry is
+    a row in one table rather than an identity in the shared register, and the id
+    here means nothing without it. The delete path still clears these by hand --
+    it has to read `rel` before the rows go, since the files behind them cannot be
+    rolled back.
+
+    `rel` is the path under the images directory, and it lives in `log/` rather
+    than in `computers/` or `parts/`. That is the whole of why this table can
+    exist safely: those two folders are read by stem, so a photograph of a recap
+    filed beside a part would be claimed as one of that part's gallery pictures
+    and counted as its portrait.
+    """
+    __tablename__ = "log_photo"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    log_id = Column(Integer, ForeignKey("log_entry.id", ondelete="CASCADE"),
+                    nullable=False, index=True)
+    rel = Column(String(255), nullable=False)

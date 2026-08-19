@@ -2838,7 +2838,7 @@ class TestChoosingPhotos:
         """The submit hides itself from the script above rather than being absent, so
         the form still works where that script never runs."""
         page = client.get(f"/parts/{part()['asset_id']}").text
-        assert '<button class="btn sm" type="submit" id="photo-upload-go">' in page
+        assert '<button class="btn sm" type="submit" data-send-go>' in page
 
 
 class TestTheCodeThatPutsAPhoneOnTheItem:
@@ -3952,7 +3952,7 @@ class TestAHistoryThatReadsAsOneSitting:
     def log_rows(client, aid, kind="computers"):
         page = client.get(f"/{kind}/{aid}").text
         section = page.split("History", 1)[1]
-        return re.findall(r"<td style=\"white-space:pre-line\">(.*?)</td>", section)
+        return re.findall(r'<div class="logmsg">(.*?)</div>', section)
 
     @staticmethod
     def repeat(db, aid, message, times, apart_minutes=1, day=1):
@@ -4023,6 +4023,289 @@ class TestAHistoryThatReadsAsOneSitting:
         aid = part()["asset_id"]
         self.repeat(db, aid, "deleted a photo", 4)
         assert "deleted 4 photos" in self.log_rows(client, aid, "parts")
+
+
+class TestPhotographsOnTheHistory:
+    """The portrait says which one this is; a photograph on a history entry says what
+    happened to it. The board before the recap, the crack it arrived with, the label
+    under the lid that settled the revision -- all of it already has a line in the
+    history saying what it was, and that line is the caption.
+
+    They are not the item's photographs and are never counted among them: they live
+    under images/log/, keyed to the entry rather than to the asset, so nothing that
+    reads an asset's folder by stem can claim one.
+    """
+
+    @staticmethod
+    def image(name="shot.jpg"):
+        import io
+
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new("RGB", (400, 300), (60, 90, 120)).save(buf, "JPEG", quality=90)
+        buf.seek(0)
+        return (name, buf, "image/jpeg")
+
+    @staticmethod
+    def entries(db, aid, kind=None):
+        """The rows, oldest first. Rolled back first so the reads that follow a POST
+        see what the app committed rather than this session's older snapshot."""
+        from app.models import LogEntry
+        db.rollback()
+        q = db.query(LogEntry).filter(LogEntry.asset_id == aid)
+        if kind:
+            q = q.filter(LogEntry.kind == kind)
+        return q.order_by(LogEntry.id).all()
+
+    def notes(self, db, aid):
+        """The written ones only: creating anything writes a change entry of its own,
+        which is not what these tests are hanging photographs on."""
+        return self.entries(db, aid, "note")
+
+    @staticmethod
+    def shots(db, log_id):
+        from app.models import LogPhoto
+        db.rollback()
+        return [p.rel for p in db.query(LogPhoto).filter(LogPhoto.log_id == log_id)
+                .order_by(LogPhoto.id)]
+
+    def note(self, client, aid, message, files=None, kind="computers"):
+        return client.post(f"/{kind}/{aid}/note", data={"message": message},
+                           files=files, follow_redirects=False)
+
+    def test_a_note_and_its_photographs_arrive_together(self, client, computer, db):
+        """One gesture: the sentence and the pictures of what it describes."""
+        from app import main
+        aid = computer()["asset_id"]
+        self.note(client, aid, "recapped the PSU", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        assert row.message == "recapped the PSU"
+        [rel] = self.shots(db, row.id)
+        assert rel.startswith("log/")
+        assert (main.IMAGES_DIR / rel).exists()
+
+    def test_several_photographs_go_on_the_one_entry(self, client, computer, db):
+        aid = computer()["asset_id"]
+        self.note(client, aid, "before and after",
+                  [("photos", self.image("a.jpg")), ("photos", self.image("b.jpg"))])
+        [row] = self.notes(db, aid)
+        assert len(self.shots(db, row.id)) == 2
+
+    def test_a_part_carries_them_the_same_way(self, client, part, db):
+        aid = part()["asset_id"]
+        self.note(client, aid, "reflowed the socket", {"photos": self.image()},
+                  kind="parts")
+        [row] = self.notes(db, aid)
+        assert len(self.shots(db, row.id)) == 1
+
+    def test_it_is_not_one_of_the_item_s_own_photographs(self, client, computer, db):
+        """The whole reason for a folder of its own. computers/ is read by stem, so a
+        photograph of a repair filed there would have become one of the machine's
+        gallery pictures and -- being the first -- its portrait."""
+        from app import main
+        aid = computer()["asset_id"]
+        self.note(client, aid, "found a bulged cap", {"photos": self.image()})
+        assert main.detect_images("computers", aid) == []
+        assert not client.get(f"/api/computers/{aid}").json()["image"]
+
+    def test_the_count_of_photographs_in_the_register_does_not_absorb_it(
+            self, client, computer, db):
+        """A picture of a recap is not a picture of the machine, and the figure that
+        says how many photographs the collection has means the second thing."""
+        from app import main
+        aid = computer()["asset_id"]
+        before = main._collection_stats(db)["photos"]
+        self.note(client, aid, "cleaned the keyboard", {"photos": self.image()})
+        db.rollback()
+        assert main._collection_stats(db)["photos"] == before
+
+    def test_a_note_with_no_words_writes_nothing_at_all(self, client, computer, db):
+        """The message is the caption, so an entry without one is an entry about
+        nothing -- and there is nothing for the photographs to be filed against."""
+        from app.models import LogPhoto
+        aid = computer()["asset_id"]
+        self.note(client, aid, "   ", {"photos": self.image()})
+        assert self.notes(db, aid) == []
+        assert db.query(LogPhoto).count() == 0
+
+    def test_a_file_that_is_not_an_image_writes_no_entry_either(self, client,
+                                                               computer, db):
+        """Checked before the entry is written, as a create form's are: a refused
+        upload should not leave a note behind saying something was photographed."""
+        import io
+        aid = computer()["asset_id"]
+        r = self.note(client, aid, "with a text file",
+                      {"photos": ("notes.txt", io.BytesIO(b"nope"), "text/plain")})
+        assert r.status_code == 400
+        assert self.notes(db, aid) == []
+
+    def test_the_page_shows_them_under_the_line_they_belong_to(self, client,
+                                                              computer, db):
+        aid = computer()["asset_id"]
+        self.note(client, aid, "the underside", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        [rel] = self.shots(db, row.id)
+        page = client.get(f"/computers/{aid}").text
+        assert f"/images/{rel}" in page
+        # The entry's message is the caption, and it is what a reader who cannot see
+        # the photograph is told about it.
+        assert 'alt="the underside"' in page
+
+    def test_one_can_be_hung_on_an_entry_already_written(self, client, computer, db):
+        """The swap the register logged last week, photographed when the lid next
+        came off."""
+        aid = computer()["asset_id"]
+        self.note(client, aid, "fitted a new PSU")
+        [row] = self.notes(db, aid)
+        r = client.post(f"/items/{aid}/log/{row.id}/photo",
+                        files={"photos": self.image()}, follow_redirects=False)
+        assert r.headers["location"] == f"/computers/{aid}"
+        assert len(self.shots(db, row.id)) == 1
+
+    def test_a_part_s_entry_redirects_back_to_the_part(self, client, part, db):
+        aid = part()["asset_id"]
+        self.note(client, aid, "tested", kind="parts")
+        [row] = self.notes(db, aid)
+        r = client.post(f"/items/{aid}/log/{row.id}/photo",
+                        files={"photos": self.image()}, follow_redirects=False)
+        assert r.headers["location"] == f"/parts/{aid}"
+
+    def test_an_entry_of_another_asset_is_not_somewhere_to_put_it(self, client,
+                                                                  computer, db):
+        """The id in the URL is checked against the entry's. An entry id on its own
+        would let a photograph of one machine be hung on another's history."""
+        mine, theirs = computer()["asset_id"], computer()["asset_id"]
+        self.note(client, mine, "mine")
+        [row] = self.notes(db, mine)
+        r = client.post(f"/items/{theirs}/log/{row.id}/photo",
+                        files={"photos": self.image()}, follow_redirects=False)
+        assert r.status_code == 404
+        assert self.shots(db, row.id) == []
+
+    def test_removing_one_takes_the_row_and_the_file(self, client, computer, db):
+        from app import main
+        aid = computer()["asset_id"]
+        self.note(client, aid, "a duplicate shot", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        [rel] = self.shots(db, row.id)
+        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
+                    follow_redirects=False)
+        assert self.shots(db, row.id) == []
+        assert not (main.IMAGES_DIR / rel).exists()
+        # The entry itself stays: what happened still happened.
+        assert len(self.notes(db, aid)) == 1
+
+    def test_a_photograph_on_another_entry_is_not_this_one_s_to_delete(
+            self, client, computer, db):
+        aid = computer()["asset_id"]
+        self.note(client, aid, "first", {"photos": self.image()})
+        self.note(client, aid, "second")
+        first, second = self.notes(db, aid)
+        [rel] = self.shots(db, first.id)
+        r = client.post(f"/items/{aid}/log/{second.id}/photo-delete",
+                        data={"image": rel}, follow_redirects=False)
+        assert r.status_code == 404
+        assert self.shots(db, first.id) == [rel]
+
+    def test_the_removal_is_not_itself_written_into_the_history(self, client,
+                                                               computer, db):
+        """An entry gaining or losing a photograph is an edit to the record, not
+        something that happened to the machine. A history that logged its own editing
+        would grow a line for every line it has."""
+        aid = computer()["asset_id"]
+        self.note(client, aid, "one photo", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        [rel] = self.shots(db, row.id)
+        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
+                    follow_redirects=False)
+        assert [e.message for e in self.notes(db, aid)] == ["one photo"]
+
+    def test_an_entry_carrying_photographs_is_never_folded(self, client, computer,
+                                                           db):
+        """Folding rewrites several entries as one sentence. The photographs would
+        then be lost with the entries that are no longer shown, or gathered under a
+        line that is not the one they were taken for."""
+        from app.models import LogEntry
+        from datetime import datetime
+        from app import main
+        aid = computer()["asset_id"]
+        when = datetime(2026, 8, 1, 12, 0)
+        for i in range(3):
+            db.add(LogEntry(asset_id=aid, created_at=when.replace(minute=i),
+                            kind="change", message="deleted a photo"))
+        db.commit()
+        middle = [e for e in self.entries(db, aid)
+                  if e.message == "deleted a photo"][1]
+        client.post(f"/items/{aid}/log/{middle.id}/photo",
+                    files={"photos": self.image()}, follow_redirects=False)
+        db.rollback()
+        lines = [len(e.photos) for e in main._history(db, aid)
+                 if e.message == "deleted a photo"]
+        assert lines == [0, 1, 0]
+
+    def test_the_api_lists_what_an_entry_carries(self, client, computer, db):
+        aid = computer()["asset_id"]
+        self.note(client, aid, "with a picture", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        [written] = [e for e in client.get(f"/api/items/{aid}/log").json()
+                     if e["kind"] == "note"]
+        assert written["message"] == "with a picture"
+        assert written["photos"] == self.shots(db, row.id)
+
+    def test_deleting_the_machine_takes_them_off_the_disk(self, client, computer,
+                                                          db):
+        """They go the way every other photograph of a deleted record goes: the rows
+        first, because a file cannot be rolled back."""
+        from app import main
+        from app.models import LogPhoto
+        aid = computer(disposed=True)["asset_id"]
+        self.note(client, aid, "before it went", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        [rel] = self.shots(db, row.id)
+        r = client.delete(f"/api/computers/{aid}")
+        assert r.status_code == 200
+        db.rollback()
+        assert db.query(LogPhoto).count() == 0
+        assert not (main.IMAGES_DIR / rel).exists()
+
+    def test_deleting_a_part_takes_its_own_with_it(self, client, part, db):
+        from app import main
+        aid = part(disposed=True)["asset_id"]
+        self.note(client, aid, "as found", {"photos": self.image()}, kind="parts")
+        [row] = self.notes(db, aid)
+        [rel] = self.shots(db, row.id)
+        client.delete(f"/api/parts/{aid}")
+        assert not (main.IMAGES_DIR / rel).exists()
+
+    def test_the_confirmation_page_counts_them_among_what_goes(self, client,
+                                                               computer, db):
+        """The page can only promise what the delete actually does, and the delete
+        takes these off the disk too."""
+        aid = computer(disposed=True)["asset_id"]
+        self.note(client, aid, "one for the record", {"photos": self.image()})
+        page = client.get(f"/computers/{aid}/delete").text
+        assert "<strong>1</strong> photo" in page
+
+    def test_an_entry_s_photographs_cannot_be_claimed_by_a_longer_id(self):
+        """Entry 12's photographs are 12.jpg and 12-2.jpg; entry 120's are 120.jpg.
+        The hyphen is what keeps the second from swallowing the first, which is the
+        whole of why a log entry's id can stand where an asset id stands."""
+        from app import main
+        listing = [("12", "12.jpg"), ("12-2", "12-2.jpg"), ("120", "120.jpg")]
+        assert main.pick_images("log", "12", listing) == ["log/12.jpg",
+                                                          "log/12-2.jpg"]
+        assert main.pick_images("log", "120", listing) == ["log/120.jpg"]
+
+    def test_they_are_marked_like_any_other_photograph_of_the_collection(self):
+        """The watermark is about where a photograph goes, not which panel of the
+        site it was shown on."""
+        from app import main
+        assert main._is_own_photo("log/1.jpg") == main._is_own_photo("computers/A.jpg")
+
+    def test_the_note_bar_offers_the_picker(self, client, computer):
+        page = client.get(f"/computers/{computer()['asset_id']}").text
+        assert 'class="notebar"' in page and 'enctype="multipart/form-data"' in page
+        assert 'name="photos"' in page
 
 
 class TestWhereTheFilesSit:

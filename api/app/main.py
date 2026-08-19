@@ -39,8 +39,8 @@ from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
 from .db import get_db
 from .ids import next_asset_id
 from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
-                     ComputerRamChip, ComputerRamModule, LogEntry, Part,
-                     PartPort, PartSlot, StorageSpec, StoredFile)
+                     ComputerRamChip, ComputerRamModule, LogEntry, LogPhoto,
+                     Part, PartPort, PartSlot, StorageSpec, StoredFile)
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
 import contextlib
 
@@ -289,6 +289,14 @@ PART_DERIVED_FIELDS = {"variant"}
 # development, which the hardcoded absolute paths used to make impossible.
 IMAGES_DIR = Path(os.getenv("RHDB_IMAGES_DIR", "/app/images"))
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+
+# The three folders photographs live in, and why the third is not one of the first
+# two. A folder under here is read by filename: everything in computers/ whose stem
+# is an asset id belongs to that asset, and the first of them is its portrait. That
+# is exactly what a photograph hung on a history entry must not be -- a picture of
+# a recap is not a picture of the part -- so it is filed under the entry's own id
+# in a folder nothing scans by asset id. See models.LogPhoto.
+LOG_KIND = "log"
 
 # GoAccess writes a self-contained traffic report here (read-only mount from the
 # shared volume). The route is login-only via the auth gate above.
@@ -1104,9 +1112,13 @@ def _wm_forget(rel: str):
 
 
 def _is_own_photo(rel: str) -> bool:
+    # A photograph on a history entry is marked like any other: it is this
+    # collection's own photograph of its own machine, taken by whoever did the
+    # work, and the mark is there for where a photograph goes rather than for
+    # which page of the site it was shown on.
     ext = Path(rel).suffix.lower()
     return (WATERMARK and ext in IMAGE_EXTS
-            and (rel.startswith(("computers/", "parts/")))
+            and (rel.startswith(("computers/", "parts/", LOG_KIND + "/")))
             and not is_reference(rel))
 
 
@@ -1163,11 +1175,18 @@ def _now():
 
 
 def add_log(db, asset_id, message, kind="change"):
-    """Record a dated history entry for an asset. The caller commits."""
+    """Record a dated history entry for an asset, and hand the row back for
+    anything that wants to hang photographs on it. The caller commits.
+
+    An empty message writes nothing and returns None: there is no such thing as an
+    entry that does not say anything, and a caller with photographs and no words to
+    file them under has nothing to file them against.
+    """
     if not message:
-        return
-    db.add(LogEntry(asset_id=asset_id, created_at=_now(),
-                    kind=kind, message=message))
+        return None
+    db.add(row := LogEntry(asset_id=asset_id, created_at=_now(),
+                           kind=kind, message=message))
+    return row
 
 
 def item_log(db, asset_id):
@@ -1193,7 +1212,20 @@ def _folded_message(message, n):
     return plural if hit else f"{message} ×{n}"
 
 
-def _fold_log(entries):
+def log_photos(db, log_ids):
+    """{log entry id: [photo path]} for a page's worth of entries, in one query and
+    in the order they were attached."""
+    if not log_ids:
+        return {}
+    out = {}
+    for log_id, rel in (db.query(LogPhoto.log_id, LogPhoto.rel)
+                        .filter(LogPhoto.log_id.in_(log_ids))
+                        .order_by(LogPhoto.id)):
+        out.setdefault(log_id, []).append(rel)
+    return out
+
+
+def _fold_log(entries, photos=None):
     """The history as a page shows it, with a run of the same thing done over and
     over collapsed into one line.
 
@@ -1210,24 +1242,41 @@ def _fold_log(entries):
 
     The record itself is untouched: the rows stay one per action, and the API's log
     still lists them. This is how the page reads them out.
+
+    An entry carrying photographs is never folded either, into or out of. Folding
+    rewrites several entries as one sentence, and the photographs would then either
+    be lost with the entries that are no longer shown or be gathered under a line
+    that is not the one they were taken for. `photos` is what log_photos read, so
+    an entry with none behaves exactly as it did before this existed.
     """
+    photos = photos or {}
     out = []
     for e in entries:
         last = out[-1] if out else None
-        if (last is not None and e.kind != "note" and last.kind == e.kind
+        mine = photos.get(e.id) or []
+        if (last is not None and not mine and not last.photos
+                and e.kind != "note" and last.kind == e.kind
                 and last.message == e.message and last.created_at and e.created_at
                 and last.oldest - e.created_at <= FOLD_WINDOW):
             last.count += 1
             last.oldest = e.created_at
             continue
-        out.append(SimpleNamespace(created_at=e.created_at, kind=e.kind,
-                                   message=e.message, count=1,
+        out.append(SimpleNamespace(id=e.id, created_at=e.created_at, kind=e.kind,
+                                   message=e.message, count=1, photos=mine,
                                    oldest=e.created_at))
     # Newest first, so a run's own stamp is the last time it was done; the count in
     # the message says the rest.
     for e in out:
         e.message = _folded_message(e.message, e.count)
     return out
+
+
+def _history(db, asset_id):
+    """One item's history as its page wants it: folded, with each entry's
+    photographs on it. Two queries whatever the history is long -- the entries, and
+    the photographs of all of them at once."""
+    entries = item_log(db, asset_id)
+    return _fold_log(entries, log_photos(db, [e.id for e in entries]))
 
 
 def log_stamp(created_at, authed):
@@ -1636,8 +1685,14 @@ def api_delete_part(aid: str, db: Session = Depends(get_db)):
 
 @app.get("/api/items/{aid}/log", tags=["log"])
 def api_item_log(aid: str, db: Session = Depends(get_db)):
+    """One asset's history, entry by entry and unfolded -- the record as it was
+    written, not as a page reads it out. `photos` are the paths of anything hung on
+    the entry, to be fetched from /images/ like any other photograph."""
+    entries = item_log(db, aid)
+    photos = log_photos(db, [e.id for e in entries])
     return [{"created_at": e.created_at.isoformat() if e.created_at else None,
-             "kind": e.kind, "message": e.message} for e in item_log(db, aid)]
+             "kind": e.kind, "message": e.message,
+             "photos": photos.get(e.id, [])} for e in entries]
 
 
 def folder_images(kind):
@@ -1729,6 +1784,50 @@ def _attach_photos(db, obj, kind, uploads):
         obj.image = first
     if uploads:
         add_log(db, obj.asset_id, f"added {len(uploads)} photo(s)")
+
+
+# --- photographs of what happened, as against the portrait of the thing ------
+# These reuse everything the gallery photographs use -- the same storage, the same
+# watermark, the same resized copies -- and differ in one thing only: the folder
+# they go in, and therefore that nothing reading an asset's folder can mistake one
+# for a picture of the asset. The log entry's id stands where an asset id stands,
+# so _photo_target's <id>.jpg, <id>-2.jpg naming works unchanged, and entry 12's
+# photographs cannot be claimed by entry 120 because the second name always has the
+# hyphen in it.
+
+def _attach_log_photos(db, row, uploads):
+    """Store photographs against a history entry. Returns how many were kept.
+
+    The entry is flushed first: the photographs are filed under its id, and until
+    the insert has gone to the database there is no id to file them under. Nothing
+    is committed here -- the caller does that, once the entry and its photographs
+    are both written.
+    """
+    if row is None or not uploads:
+        return 0
+    db.flush()
+    for up in uploads:
+        db.add(LogPhoto(log_id=row.id, rel=_save_photo(LOG_KIND, str(row.id), up)))
+    return len(uploads)
+
+
+def _drop_log_photos(db, asset_id):
+    """Clear the photographs hung on one asset's history, and return their paths for
+    the caller to delete once the transaction is safe.
+
+    By hand rather than by the foreign key's cascade, for the reason the log entries
+    themselves are: the paths have to be read while the rows are still there, since
+    a file is the one thing here that cannot be rolled back.
+    """
+    ids = [i for (i,) in db.query(LogEntry.id)
+           .filter(LogEntry.asset_id == asset_id)]
+    if not ids:
+        return []
+    rels = [rel for (rel,) in db.query(LogPhoto.rel)
+            .filter(LogPhoto.log_id.in_(ids)).order_by(LogPhoto.id)]
+    db.query(LogPhoto).filter(LogPhoto.log_id.in_(ids)).delete(
+        synchronize_session=False)
+    return rels
 
 
 def _fetch_reference_photo(kind, asset_id, url):
@@ -1962,11 +2061,13 @@ def _clear_part_rows(db, part, also_going=()):
     for model in specdb.SPEC_TABLES:
         db.query(model).filter(model.part_id == aid).delete(synchronize_session=False)
     # By hand rather than by cascade, for the reason log_entry is: these are keyed
-    # by an asset id from the shared register, which no one table can own.
+    # by an asset id from the shared register, which no one table can own. The
+    # log's own photographs go first, while there are still entries to find them by.
+    photos = _drop_log_photos(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
         db.query(model).filter(
             model.asset_id == aid).delete(synchronize_session=False)
-    photos = detect_images("parts", aid)
+    photos += detect_images("parts", aid)
     db.delete(part)
     return photos
 
@@ -1990,6 +2091,7 @@ def _clear_computer_rows(db, c, with_parts=()):
             add_log(db, p.asset_id, f"came out of {aid}, which was deleted")
     for model in (ComputerDrive, ComputerRamModule, ComputerRamChip):
         db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
+    photos += _drop_log_photos(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
         db.query(model).filter(
             model.asset_id == aid).delete(synchronize_session=False)
@@ -2839,7 +2941,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "link_candidates": link_candidates, "images": images,
         "ref_marks": reference_marks("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
-        "log": _fold_log(item_log(db, aid)), "nav": _item_nav(db, aid),
+        "log": _history(db, aid), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer")})
@@ -3084,6 +3186,14 @@ def _confirms_url(text, kind, aid) -> bool:
     return path.upper() == f"/{kind}/{aid}".upper()
 
 
+def _asset_log_photos(db, asset_id):
+    """The photographs hung on one asset's history, read without touching them --
+    what _drop_log_photos will return when the record is actually deleted."""
+    return [rel for (rel,) in db.query(LogPhoto.rel)
+            .join(LogEntry, LogEntry.id == LogPhoto.log_id)
+            .filter(LogEntry.asset_id == asset_id).order_by(LogPhoto.id)]
+
+
 def _log_count(db, asset_ids):
     if not asset_ids:
         return 0
@@ -3110,14 +3220,19 @@ def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
     # when the box is ticked: it is still in the collection, and the rule here is
     # that only what has already been marked as gone can go.
     deletable = [p for p in inside if p.disposed]
+    # The photographs hung on the history count here too. They are not shown in the
+    # gallery and are not the portrait, but they are files, they go when the record
+    # goes, and the page's promise is "deleted from disk" -- so leaving them out
+    # would be under-promising what the button does.
     return {"kind": kind, "obj": obj, "aid": aid,
             "name": entry.display_name(to_dict(obj)),
             "url": _abs_url(request, f"/{kind}/{aid}"),
-            "photos": detect_images(kind, aid),
+            "photos": detect_images(kind, aid) + _asset_log_photos(db, aid),
             "logs": _log_count(db, [aid]),
             "inside": inside, "deletable": deletable,
             "kept": [p for p in inside if not p.disposed],
             "parts_photos": sum(len(detect_images("parts", p.asset_id))
+                                + len(_asset_log_photos(db, p.asset_id))
                                 for p in deletable),
             "parts_logs": _log_count(db, [p.asset_id for p in deletable]),
             "children": children, "with_parts": with_parts, "error": error,
@@ -3182,12 +3297,84 @@ async def gui_delete_computer(aid: str, request: Request,
     return RedirectResponse("/", status_code=303)
 
 
+# --- writing the history, and hanging photographs on it ----------------------
+# A note and its photographs go in one gesture, because the entry's message is
+# their caption and writing the caption is the same act as choosing them. The two
+# routes below are the other half: a photograph for an entry that is already
+# written -- the swap the register logged last week, photographed when the lid next
+# came off -- and taking one back off again.
+#
+# Those two are under /items/, not under /computers/ or /parts/, because a history
+# entry belongs to an asset id from the shared register rather than to either
+# table, which is the whole reason log_entry has no foreign key. /items/<id> is
+# already the register-wide address the QR codes print and the JSON log is read
+# from. They are POSTs, so the auth gate has them whatever the prefix.
+
+def _note_with_photos(db, aid, form):
+    """A note and whatever came with it. Every upload is checked before the entry is
+    written, so a rejected file leaves no half-written history behind; and an empty
+    message writes nothing at all, photographs included, because there would be no
+    entry for them to be the caption of."""
+    uploads = _chosen_photos(form)
+    row = add_log(db, aid, (form.get("message", "") or "").strip(), kind="note")
+    _attach_log_photos(db, row, uploads)
+    db.commit()
+
+
+def _asset_page(db, aid):
+    """Where an asset's page is, for a route that serves either kind."""
+    for kind, cls in (("computers", Computer), ("parts", Part)):
+        if db.get(cls, aid):
+            return f"/{kind}/{aid}"
+    raise HTTPException(404, f"no asset {aid}")
+
+
+def _log_entry_or_404(db, aid, log_id):
+    """One history entry, and the page to go back to. The asset id in the URL is
+    checked against the entry's rather than taken on trust: an entry id on its own
+    would let a photograph of one machine be hung on another machine's history."""
+    aid = (aid or "").upper()
+    where = _asset_page(db, aid)
+    row = db.get(LogEntry, log_id)
+    if row is None or row.asset_id != aid:
+        raise HTTPException(404, f"no history entry {log_id} for {aid}")
+    return row, where
+
+
+@app.post("/items/{aid}/log/{log_id}/photo", include_in_schema=False)
+async def gui_log_photo(aid: str, log_id: int, request: Request,
+                        db: Session = Depends(get_db)):
+    row, where = _log_entry_or_404(db, aid, log_id)
+    _attach_log_photos(db, row, _chosen_photos(await request.form()))
+    db.commit()
+    return RedirectResponse(where, status_code=303)
+
+
+@app.post("/items/{aid}/log/{log_id}/photo-delete", include_in_schema=False)
+async def gui_log_photo_delete(aid: str, log_id: int, request: Request,
+                               db: Session = Depends(get_db)):
+    row, where = _log_entry_or_404(db, aid, log_id)
+    form = await request.form()
+    photo = (db.query(LogPhoto).filter(LogPhoto.log_id == row.id,
+                                       LogPhoto.rel == form.get("image", ""))
+             .first())
+    if photo is None:
+        raise HTTPException(404, "no such photo on this history entry")
+    rel = photo.rel
+    db.delete(photo)
+    # Nothing is written to the history about this, either way round. An entry
+    # gaining or losing a photograph is an edit to the record rather than something
+    # that happened to the machine, and a history that logged its own editing would
+    # grow a line for every line it already has.
+    db.commit()  # the row first: a file cannot be rolled back
+    _purge_photos([rel])
+    return RedirectResponse(where, status_code=303)
+
+
 @app.post("/computers/{aid}/note", include_in_schema=False)
 async def gui_computer_note(aid: str, request: Request, db: Session = Depends(get_db)):
     get_or_404(db, Computer, aid)
-    form = await request.form()
-    add_log(db, aid, (form.get("message", "") or "").strip(), kind="note")
-    db.commit()
+    _note_with_photos(db, aid, await request.form())
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
@@ -3790,7 +3977,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "candidates": candidates, "computers": computers,
         "images": images, "ref_marks": reference_marks("parts", aid),
         "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
-        "log": _fold_log(item_log(db, aid)), "nav": _item_nav(db, aid),
+        "log": _history(db, aid), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, p.asset_id, p.manufacturer,
@@ -3941,9 +4128,7 @@ async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_
 @app.post("/parts/{aid}/note", include_in_schema=False)
 async def gui_part_note(aid: str, request: Request, db: Session = Depends(get_db)):
     get_or_404(db, Part, aid)
-    form = await request.form()
-    add_log(db, aid, (form.get("message", "") or "").strip(), kind="note")
-    db.commit()
+    _note_with_photos(db, aid, await request.form())
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
 

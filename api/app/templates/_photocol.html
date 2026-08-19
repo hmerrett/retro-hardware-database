@@ -77,12 +77,12 @@
        The native file input is behind its own label, which is how the button says
        "choose files" rather than whatever the browser calls it. #}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
-          enctype="multipart/form-data" id="photo-upload">
+          enctype="multipart/form-data" id="photo-upload" data-autosend>
       <label class="btn sm filebtn">choose files
         <input type="file" name="photos" accept="image/*" multiple required>
       </label>
-      <button class="btn sm" type="submit" id="photo-upload-go">upload</button>
-      <span class="hint" id="photo-upload-busy" hidden>uploading…</span>
+      <button class="btn sm" type="submit" data-send-go>upload</button>
+      <span class="hint" data-send-busy hidden>uploading…</span>
     </form>
     {% if obj.url %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image">

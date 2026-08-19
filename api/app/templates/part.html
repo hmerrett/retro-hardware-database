@@ -142,24 +142,7 @@
        driver disk it needs, the manual for it -- and the history is a log to be
        consulted rather than read, which is why it is last on the page. #}
     {% include "_files.html" %}
-    {% call PN.panel('History') %}
-      {% if request.state.authed %}
-      <form method="post" action="/parts/{{ p.asset_id }}/note" class="notebar">
-        <input name="message" placeholder="add a note, e.g. tested, cleaned, recapped" required>
-        <button class="btn sm" type="submit">add note</button>
-      </form>
-      {% endif %}
-      {% if log %}
-      <table class="kv">
-        {% for e in log %}
-        <tr>
-          <td class="muted" style="white-space:nowrap;vertical-align:top">{{ log_stamp(e.created_at, request.state.authed) }}</td>
-          <td style="white-space:pre-line">{% if e.kind == 'note' %}<span class="chip">note</span> {% endif %}{{ e.message }}</td>
-        </tr>
-        {% endfor %}
-      </table>
-      {% else %}<p class="muted" style="margin:0">No history yet.</p>{% endif %}
-    {% endcall %}
+    {% include "_history.html" %}
   </div>
   {% set obj = p %}{% set kind = "parts" %}
   {% include "_photocol.html" %}

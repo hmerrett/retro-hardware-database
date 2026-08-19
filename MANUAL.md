@@ -679,6 +679,11 @@ left alone.
 
 ## 10. Photographs
 
+This section is about an item's own photographs: the ones in the Photographs
+panel, which answer *which one is this?* A photograph of something that happened
+to it — a recap, a repair, damage found on arrival — belongs on the history entry
+that says what happened, and is described in [section 13](#13-history).
+
 **Upload** by choosing the files — that is the whole gesture, the upload goes as
 soon as they are picked. Several at once is fine.
 
@@ -704,7 +709,7 @@ advertises, downscales it and files it as a reference image. It bypasses nothing
 so a site behind bot protection simply returns nothing.
 
 **Watermarking.** Your own photographs are stamped with the site logo as they are
-served; reference images are not. Set `RHDB_WATERMARK=0` to serve everything
+served, and so are the ones on history entries; reference images are not. Set `RHDB_WATERMARK=0` to serve everything
 untouched. The originals on disk are never modified — the watermark is applied to
 a cached copy.
 
@@ -788,9 +793,37 @@ nothing.
 `cleaned`, `recapped`, `bought a replacement PSU for it`. Notes are marked as
 notes; everything else is an automatic change record.
 
+### Photographs on an entry
+
+**An entry can carry photographs of what it describes.** The board before the
+recap, the crack the machine arrived with, the label under the lid that settled
+which revision it is. Type the note and choose the photographs in the same
+gesture — the **photos** button sits in the note box, and both go when you press
+**add note**. There is no caption box, because the entry's own message is the
+caption: writing one would be writing the sentence twice.
+
+**An entry already written takes one too**, from the small camera button at the
+right of its line — the swap the register logged last week, photographed when the
+lid next came off. That upload goes the moment the photograph is picked, the way
+the gallery's do. The trash button under a picture takes it back off, file and
+all; neither is written into the history, because an entry gaining or losing a
+photograph is an edit to the record rather than something that happened to the
+machine.
+
+**These are not the item's photographs.** They are not in the gallery, one is
+never the item's default picture, they are not counted among the collection's
+photographs, and an item whose whole history is photographed still counts as
+never photographed on the statistics page. A picture of a repair is not a picture
+of the machine. They are kept apart on disk for the same reason, so nothing can
+mistake one for the other. Click one to open the original full size, as with any
+other photograph here; rotate and crop are not offered, because those are edits
+to a picture *of* something rather than to a picture of a moment.
+
 **A run of the same thing done in one sitting reads as one line.** Ten
 photographs deleted one after another is "deleted 10 photographs", not ten
-consecutive identical entries.
+consecutive identical entries. An entry carrying photographs is never folded this
+way, in or out: folding rewrites several entries as one sentence, and the
+photographs would end up under a line that is not the one they were taken for.
 
 **A visitor sees the date; whoever can edit also sees the time of day.** The
 gallery's recency sort keys are trimmed to match, so an anonymous visitor and a
@@ -833,8 +866,9 @@ irreversible one, so nothing goes that has not already been marked as gone once,
 deliberately, on an earlier day.
 
 The confirmation page lists exactly what will go — the photographs, which are
-deleted from disk, and the history with them — and asks you to **paste the item's
-own URL** into a box. Nothing about that asks the database a question it does not
+deleted from disk, the history, and the photographs hung on the history, which
+are counted with the rest because they are files and they go too — and asks you
+to **paste the item's own URL** into a box. Nothing about that asks the database a question it does not
 already know the answer to; the point is that deleting the wrong thing takes a
 deliberate act, so a delete cannot be a stray click on a page you landed on by
 accident.
@@ -920,7 +954,7 @@ schema is at `/openapi.json`.
 |---|---|---|
 | `GET`, `POST` | `/api/computers`, `/api/parts` | list, or create — the server assigns the asset tag |
 | `GET`, `PATCH`, `DELETE` | `/api/computers/{id}`, `/api/parts/{id}` | fetch, partial update, delete |
-| `GET` | `/api/items/{id}/log` | an item's history |
+| `GET` | `/api/items/{id}/log` | an item's history, with any photographs on each entry |
 | `GET` | `/api/machines` | the catalogue of known home machines and consoles, and the variations each was built in |
 | `GET` | `/api/files` | the files kept beside the register |
 

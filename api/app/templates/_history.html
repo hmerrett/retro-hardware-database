@@ -1,0 +1,85 @@
+{# What has happened to this item, and how to add to it. Expects: item (the record
+   as a dict), kind, log (as _history() folded it).
+
+   Last on the page, because a history is a log to be consulted rather than read.
+   Shared by computer.html and part.html: the same note bar and the same table stood
+   in both of them word for word, and a photograph on a history entry is exactly the
+   kind of change that would have landed in one and not the other.
+
+   A photograph here is not a photograph of the item. The gallery in the column
+   beside this one answers "which one is this?"; these answer "what happened to it?",
+   and the entry's own message is their caption -- which is why the note box and the
+   picker are one form. Write what you did and choose the photographs of it in the
+   same gesture, the way it happened. #}
+{% import "_icons.html" as I %}
+{% import "_panel.html" as PN %}
+{% call PN.panel('History') %}
+  {% if request.state.authed %}
+  <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note" class="notebar"
+        enctype="multipart/form-data">
+    <input name="message" placeholder="add a note, e.g. tested, cleaned, recapped" required>
+    {# Not sent the moment they are picked, as the gallery's are: these have a
+       caption still to be typed, and an upload that went before the sentence did
+       would file them under nothing. #}
+    <span class="newphotos">
+      <label class="btn sm filebtn">photos
+        <input type="file" name="photos" accept="image/*" multiple>
+      </label>
+      <span class="hint" data-photo-count></span>
+    </span>
+    <button class="btn sm" type="submit">add note</button>
+  </form>
+  {% endif %}
+  {% if log %}
+  <table class="kv">
+    {% for e in log %}
+    <tr>
+      <td class="muted" style="white-space:nowrap;vertical-align:top">{{ log_stamp(e.created_at, request.state.authed) }}</td>
+      <td>
+        <div class="logline">
+          <div class="logmsg">{% if e.kind == 'note' %}<span class="chip">note</span> {% endif %}{{ e.message }}</div>
+          {# Offered on a single entry only. A folded line is several entries read
+             out as one sentence, and there is no one of them a photograph would
+             belong to. #}
+          {% if request.state.authed and e.count == 1 %}
+          <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo"
+                enctype="multipart/form-data" class="logadd" data-autosend>
+            <label class="iconbtn filebtn" title="Attach a photograph to this entry">
+              {{ I.ico('camera') }}
+              <input type="file" name="photos" accept="image/*" multiple required
+                     aria-label="Attach a photograph to this entry">
+            </label>
+            <button class="btn sm" type="submit" data-send-go>attach</button>
+            <span class="hint" data-send-busy hidden>uploading…</span>
+          </form>
+          {% endif %}
+        </div>
+        {% if e.photos %}
+        <div class="logshots">
+          {% for img in e.photos %}
+          <div class="logshot">
+            {# No data-kind or data-aid: the lightbox's rotate and crop tools act on
+               one of an item's own photographs, and this is not one. It opens the
+               original all the same, which is what a photograph of a board is for. #}
+            <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
+                 srcset="{{ img_srcset(img, [300, 500]) }}" sizes="120px"
+                 data-full="{{ img_url(img) }}" alt="{{ e.message }}"
+                 loading="lazy" decoding="async"
+                 tabindex="0" role="button" aria-label="View this photo full size">
+            {% if request.state.authed %}
+            <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo-delete"
+                  onsubmit="return confirm('Delete this photo? This cannot be undone.')">
+              <input type="hidden" name="image" value="{{ img }}">
+              <button class="iconbtn danger" type="submit" title="Delete photo" aria-label="Delete photo">{{ I.ico('trash') }}</button>
+            </form>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted" style="margin:0">No history yet.</p>{% endif %}
+{% endcall %}

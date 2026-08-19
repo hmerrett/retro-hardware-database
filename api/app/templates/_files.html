@@ -27,7 +27,7 @@
      because they are what the upload is filed under, and the button below stays in
      the markup for a browser that runs no script. #}
   <form class="fileform" method="post" action="/files" enctype="multipart/form-data"
-        id="file-upload">
+        id="file-upload" data-autosend>
     <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
     <input type="hidden" name="aid" value="{{ item.asset_id }}">
     <input name="tags" value="{{ display_name(item) }}"
@@ -36,8 +36,8 @@
     <label class="btn sm filebtn">choose files
       <input type="file" name="uploads" multiple required>
     </label>
-    <button class="btn sm" type="submit" id="file-upload-go">upload</button>
-    <span class="hint" id="file-upload-busy" hidden>uploading…</span>
+    <button class="btn sm" type="submit" data-send-go>upload</button>
+    <span class="hint" data-send-busy hidden>uploading…</span>
   </form>
   <p class="hint">a driver, a manual, a ROM dump. It is filed under the names above
     rather than under this item, and a name covers anything with it in — file one

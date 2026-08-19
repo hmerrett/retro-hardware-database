@@ -409,7 +409,7 @@
   .filebtn input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%;
     opacity: 0; cursor: pointer; font-size: 0; }
   .filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
-  #photo-upload.sending .filebtn, #file-upload.sending .filebtn { pointer-events: none; opacity: .55; }
+  form.sending .filebtn { pointer-events: none; opacity: .55; }
   /* The choose-files button on a create form. It is a label, and the block styling
      every other label in form.edit gets would otherwise flatten it. */
   .newphotos { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
@@ -539,7 +539,25 @@
   legend { color: var(--muted); font-size: 13px; padding: 0 6px; }
   .inline-form { display: inline; }
   .notebar { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap; }
+  /* A history line: what happened, with the picker for a photograph of it out at
+     the right where it is reachable without being read. */
+  .logline { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+  .logmsg { white-space: pre-line; min-width: 0; }
+  .logadd { flex: none; }
+  .logadd .iconbtn { width: 24px; height: 24px; border-radius: 6px; }
+  .logadd .iconbtn svg { width: 13px; height: 13px; }
+  /* Smaller than the gallery's strip: these belong to a line of the log, and a
+     photograph the size of the sentence beside it would be reading the log by its
+     pictures. The lightbox is a click away for the one that matters. */
+  .logshots { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 2px; }
+  .logshot { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .logshots img { width: 120px; height: 88px; border-radius: 6px; border: 1px solid var(--line); object-fit: cover; }
+  .logshot .iconbtn { width: 22px; height: 22px; border-radius: 6px; }
+  .logshot .iconbtn svg { width: 12px; height: 12px; }
   .notebar input { flex: 1; min-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+  /* The invisible file input covering the picker is not a box to type in, whatever
+     the rule above says about inputs in here. */
+  .notebar .filebtn input[type=file] { flex: none; min-width: 0; padding: 0; border: 0; }
 
   /* Last, so it outranks the sizes set above. iOS zooms the page in when it
      focuses a control whose text is under 16px, and does not zoom back out when
@@ -1342,17 +1360,18 @@
   // having to find a button was two gestures for one intention; the button stays in
   // the markup for a browser that never runs this, and hides itself here.
   //
-  // Both forms behave the same way, so they are the same few lines twice rather
-  // than two scripts that could drift. The file form has boxes of its own above the
-  // picker -- the names it is filed under, and a note -- which is why the picker is
-  // last in it: by the time it is reached, what it needs has been said.
+  // Any form marked data-autosend behaves this way, rather than a named few: the
+  // history grew one of these per entry, and a list of ids would have had to be
+  // written by the page instead of by the form that wants the behaviour. The file
+  // form has boxes of its own above the picker -- the names it is filed under, and a
+  // note -- which is why the picker is last in it: by the time it is reached, what
+  // it needs has been said. The note bar is deliberately not marked: its photographs
+  // are waiting on a caption still being typed.
   (function () {
-    for (const id of ['photo-upload', 'file-upload']) {
-      const form = document.getElementById(id);
-      if (!form) continue;
+    for (const form of document.querySelectorAll('form[data-autosend]')) {
       const input = form.querySelector('input[type=file]');
-      const go = document.getElementById(id + '-go');
-      const busy = document.getElementById(id + '-busy');
+      const go = form.querySelector('[data-send-go]');
+      const busy = form.querySelector('[data-send-busy]');
       if (go) go.hidden = true;
       let sent = false;
       input.addEventListener('change', () => {
