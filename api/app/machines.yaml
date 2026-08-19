@@ -885,7 +885,12 @@ families:
         os: MS-DOS 3.2 / DOS Plus / GEM
         ram: [512K]
         issues: []
-        styles: [single drive (SD), twin drive (DD), 10MB disk (HD10), 20MB disk (HD20)]
+        styles:
+          - single drive (SD)
+          - twin drive (DD)
+          - 10MB disk (HD10)
+          - 20MB disk (HD20)
+          - Schneider PC1512 (Germany)
         chips:
           - socket: cpu
             variants: [Intel 8086]

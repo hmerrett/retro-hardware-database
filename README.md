@@ -28,7 +28,8 @@ different kinds of object:
   machine it is; the tagged parts say what is fitted in it today.
 
 The database does all three. It knows four hundred machines —
-Britain, Europe, America and Japan, from the Altair to the PlayStation 3,
+Britain, Europe, America and Japan, from the Altair to the DOS machines
+being made in Shenzhen now,
 home computers and consoles and the branded PCs that were documented well enough
 to have versions of themselves — and the variations each was built in, so filing a
 machine against one of them fills in what is already known and asks only about
