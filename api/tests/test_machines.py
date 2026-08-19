@@ -9,6 +9,7 @@ the same record behind.
 """
 import sys
 import textwrap
+from datetime import date
 from pathlib import Path
 from typing import ClassVar
 
@@ -41,13 +42,16 @@ class TestCatalogueConsistency:
         rather than an arithmetic. Its job is to catch a year typed with a digit
         missing or a digit too many.
 
-        It ended at 2000 while the catalogue ended at the 16-bit machines. Sony's
-        console line is one machine that kept going -- a PlayStation is 1994 and a
-        PS3 is 2006, and they are the same family sold by the same company -- so
-        the far end moved once, deliberately, for machines actually added."""
+        It was a fixed year, and it moved twice in a day -- for Sony's console line,
+        which is one family running from 1994 to 2006, and again for the DOS
+        machines being made in Shenzhen now. So the far end is simply this year:
+        nothing was made in the future, and a fixed ceiling was only ever standing
+        in for that while sounding like a statement about what belongs here. What
+        belongs is the documented-model rule, which is a judgement rather than an
+        arithmetic, and this test was never the place it was made."""
         m = machines.model(key)
         assert m["model"] and m["manufacturer"] and m["family"]
-        assert isinstance(m["year"], int) and 1969 < m["year"] < 2010
+        assert isinstance(m["year"], int) and 1969 < m["year"] <= date.today().year
 
     @pytest.mark.parametrize("key", machines.keys())
     def test_every_memory_size_is_a_figure_the_register_can_read(self, key):
@@ -1386,6 +1390,32 @@ class TestReadingATypedRecordAgainstTheCatalogue:
         found = [k for k, _s, _e in machines.suggest("Compaq", "Portable 486/66")]
         assert found[0] == "compaq-portable-486"
         assert "compaq-portable" in found          # still offered, just not first
+
+    def test_a_machine_is_found_under_its_other_name(self):
+        """Half the styles in the catalogue are second names: an Olivetti M24 is an
+        AT&T 6300 in America, a Victor 9000 is a Sirius 1 here, a VTech Laser 3000
+        is a Dick Smith Cat in Australia, and a Tandon PCX has TM 6001A on the
+        plate. Somebody typing what is in front of them types one of those as often
+        as the name the catalogue happens to file it under."""
+        assert self.best("Tandon", "TM6001A") == "tandon-pcx"
+        assert self.best("AT&T", "6300") == "olivetti-m24"
+        assert self.best("Sony", "Sirius 1") == "victor-9000"
+        assert self.best("Dick Smith", "Cat") == "laser-3000"
+
+    def test_a_style_is_only_read_against_the_whole_name(self):
+        """The other half of the styles are configurations, not names -- "386SX-20",
+        "two drives", "mono". Tested against a bare model box those find anything:
+        a Pocket 386 typed as model "386sx-40" matched the PS/1 Model 2121, whose
+        styles list its two clock speeds."""
+        assert self.best("Pocket DOS", "386sx-40") == "pocket-386"
+        assert "ps1-2121" not in [k for k, _s, _e in
+                                  machines.suggest("Pocket DOS", "386sx-40")]
+
+    def test_a_name_beats_the_same_score_reached_through_a_style(self):
+        """A style is the second answer to what a machine is called, so where a
+        model's own name is as good a match it wins. Nothing in the catalogue is
+        filed under a style."""
+        assert machines._BY_STYLE < 1
 
     def test_a_machine_the_catalogue_does_not_know_gets_no_answer(self):
         """The point of the floor. A whitebox clone, an office PC from after the

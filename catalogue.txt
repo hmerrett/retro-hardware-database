@@ -3,7 +3,7 @@ THE MACHINE CATALOGUE
 
 Every machine the register knows as a model -- home computers,
 consoles and the branded PCs that were documented well enough to have
-versions of themselves: 400 machines from 76 makers, 1975 to 2006.
+versions of themselves: 403 machines from 77 makers, 1975 to 2024.
 Filing a machine against one of these fills in what is already known
 about that model, and asks only about what varies between two of them
 -- the board issue, the case, the region, the chips in the sockets.
@@ -116,6 +116,10 @@ Didaktik   -- 2
 Dragon   -- 3
 ----------------------------------------------------------------------
   32, 64, Dragon 64 (Tano) [Tano]
+
+DZT   -- 3
+----------------------------------------------------------------------
+  Book 8088, Hand 386, Pocket 386
 
 EACA   -- 2
 ----------------------------------------------------------------------

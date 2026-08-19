@@ -569,21 +569,26 @@ _NUMBER_SHARED = 0.3
 _DIGITS = re.compile(r"\d+")
 
 
-def _forms(maker, name):
-    """The ways of writing one machine's name worth comparing: maker and model
-    together, the model on its own, and each of those with any aside taken off.
+def _whole(maker, name):
+    """One machine's name written out in full -- the maker and the model together --
+    and the same again with any aside taken off.
 
     Folded, which is what absorbs the trailing space in "IBM " -- two of those are
     in the live register, and a space is not a different manufacturer."""
     out = set()
-    for form in (" ".join(p for p in (maker, name) if (p or "").strip()), name):
-        folded = _fold(form)
-        if folded:
-            out.add(folded)
-            bare = _fold(_ASIDE.sub("", folded))
-            if bare:
-                out.add(bare)
+    folded = _fold(" ".join(p for p in (maker, name) if (p or "").strip()))
+    if folded:
+        out.add(folded)
+        bare = _fold(_ASIDE.sub("", folded))
+        if bare:
+            out.add(bare)
     return out
+
+
+def _forms(maker, name):
+    """Every way of writing it worth comparing: in full, and the model on its own
+    for the many records whose maker box says what the model box already implies."""
+    return _whole(maker, name) | _whole("", name)
 
 
 def _alike(a, b):
@@ -619,6 +624,15 @@ def _alike(a, b):
     return min(score, 1.0)
 
 
+# What a match on a style is worth against a match on the name. A style is where a
+# machine's other names live -- an Olivetti M24 is an AT&T 6300, a Victor 9000 is a
+# Sirius 1, a Tandon PCX is a TM 6001A -- and somebody typing what is on the badge
+# in front of them has typed one of those as often as not. It is still the second
+# answer to "what is this called", so a model whose own name is as good a match
+# wins.
+_BY_STYLE = 0.95
+
+
 def suggest(manufacturer, model, limit=3):
     """Which catalogue models a typed manufacturer and model might mean, best first,
     as [(key, score, exact)]: a score from 0 to 1, and `exact` for a model whose
@@ -631,11 +645,22 @@ def suggest(manufacturer, model, limit=3):
     want = _forms(manufacturer, model)
     if not want:
         return []
+    # Styles are matched against the whole of what was typed and never against the
+    # model box alone. A style is a second name for the machine -- "AT&T 6300",
+    # "Sirius 1", "TM 6001A" -- but it is also where a configuration ends up
+    # ("386SX-20", "two drives"), and a bare model box tested against those finds
+    # the PS/1 for a machine whose model box happens to read "386sx-40".
+    whole = _whole(manufacturer, model)
     scored = []
     for key in _ORDER:
         m = _MODELS[key]
         have = _forms(m.get("manufacturer", ""), m["model"]) | {_fold(m["full_name"])}
         score = max(_alike(a, b) for a in want for b in have)
+        for style in m["styles"]:
+            also = _whole(m.get("manufacturer", ""), style)
+            if also and whole:
+                score = max(score, _BY_STYLE * max(_alike(a, b)
+                                                   for a in whole for b in also))
         if score >= MATCH_FLOOR:
             scored.append((key, round(score, 3), bool(want & have)))
     # The same name first, whatever the scores say. A machine typed as "BBC Micro

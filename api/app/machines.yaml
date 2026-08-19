@@ -3356,6 +3356,58 @@ families:
         issues: []
         styles: [Tano Dragon (US, NTSC)]
 
+  - key: dzt
+    name: DZT
+    manufacturer: DZT
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 8088, Intel 80C88, NEC V20, ALi M6117]
+    models:
+      - key: book-8088
+        model: Book 8088
+        year: 2023
+        cpu: Intel 8088-4.77
+        chassis: 7-inch clamshell laptop, CGA on an LCD
+        os: MS-DOS 6.22 / Windows 3.0
+        ram: [640K]
+        issues: [v1, v2]
+        styles: [Book 8088 v1, 'Book 8088 v2 (CGA/MDA switch)']
+        chips:
+          - socket: cpu
+            note: >-
+              socketed, and the first thing most owners do is put a V20 in it. The
+              board is Sergey Kiselev's open-source Micro 8088, which the first
+              batch shipped without saying
+            variants: [Intel 8088, Intel 80C88, NEC V20]
+      - key: hand-386
+        model: Hand 386
+        year: 2023
+        cpu: ALi M6117-40
+        chassis: handheld with a thumb keyboard, the shape of a 2DS
+        os: MS-DOS 6.22 / Windows 3.1
+        ram: [8MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            note: >-
+              a 386SX core in an ALi M6117, which is an embedded part from the
+              nineties rather than a 386 anybody soldered in 1991
+            variants: [ALi M6117]
+      - key: pocket-386
+        model: Pocket 386
+        year: 2024
+        cpu: ALi M6117-40
+        chassis: 7-inch clamshell with an ISA slot, a parallel port and OPL3 sound
+        os: MS-DOS 6.22 / Windows 95
+        ram: [8MiB]
+        issues: []
+        styles: [PT386MD]
+        chips:
+          - socket: cpu
+            variants: [ALi M6117]
+
   - key: eaca
     name: EACA
     manufacturer: EACA
@@ -6733,12 +6785,13 @@ families:
         os: MS-DOS 3.2
         ram: [256K, 640K]
         issues: []
-        styles: [PCX, PCX-10 (10MB disk), PCX-20 (20MB disk)]
+        styles: [TM 6001A, TM 6004A, PCX-10 (10MB disk), PCX-20 (20MB disk)]
         chips:
           - socket: cpu
             note: >-
               the drive maker's own PC, built from the parts it was already
-              selling everybody else
+              selling everybody else. TM 600xA is the number on the plate -- the
+              same machine, so a TM 6001A and a TM 6004A are both a PCX
             variants: [Intel 8088, NEC V20]
       - key: tandon-pca
         model: PCA
