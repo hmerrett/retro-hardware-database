@@ -986,7 +986,11 @@ def robots_txt(request: Request):
         "Disallow: /api\n"
         "Disallow: /docs\n"
         "Disallow: /openapi.json\n"
-        "Disallow: /login\n"
+        # /login is deliberately not here. It answers with a noindex meta tag, and
+        # a crawler has to be let in to be told to stay out: disallowed, it was kept
+        # out of sight rather than out of the index, and Search Console filed it
+        # under "blocked by robots.txt" every time a link to it was followed. /logout
+        # keeps its line -- it is POST-only, so a crawler has nothing to fetch there.
         "Disallow: /logout\n"
         "Disallow: /traffic\n"
         # Filtered slices of the gallery: the items in them are indexed already.

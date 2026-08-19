@@ -2159,7 +2159,7 @@ class TestPagesAndDiscovery:
         body = client.get("/sitemap.xml").text
         assert f"/computers/{c}</loc>" in body and f"/parts/{p}</loc>" in body
 
-    def test_the_sitemap_omits_pages_it_asks_robots_to_skip(self, client):
+    def test_the_sitemap_omits_pages_it_does_not_want_indexed(self, client):
         body = client.get("/sitemap.xml").text
         assert "/login" not in body and "/edit" not in body
 
