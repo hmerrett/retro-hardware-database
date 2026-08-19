@@ -281,7 +281,7 @@ and chip sockets with the part numbers that turn up in them. It runs from the
 which is one family that kept going, rather than for the era in general.
 
 **What is in it, and what is not.** Home computers and consoles, and the branded
-PCs that were documented well enough to have versions of themselves — an IBM
+PCs that were sold under a model name — an IBM
 5170, a Compaq Deskpro 386, an Amstrad PC1640. The line is not "home machine or
 PC"; it is whether the thing was sold as a model somebody wrote down. A whitebox
 clone was not, and is not in here and never will be: it is described by the parts

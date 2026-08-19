@@ -3660,14 +3660,16 @@ class TestTheCataloguePage:
         aid = computer()["asset_id"]
         client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": "c64"}})
         page = client.get("/machines").text
-        assert "1 here" in page
+        assert 'title="1 in the register"' in page
+        assert ">(1)</a>" in page
         assert '/browse?f=model&amp;v=c64' in page
         assert db.get(Computer, aid) is not None
 
     def test_a_model_nothing_is_filed_as_says_nothing(self, client):
         """Most of the catalogue is machines this collection has not got, which is
         the ordinary state and reads as a catalogue rather than as a gap."""
-        assert "here</a>" not in client.get("/machines").text
+        page = client.get("/machines").text
+        assert 'class="got"' not in page
 
     def test_the_count_leads_to_the_machines_behind_it(self, client, computer, part):
         """A board files as a model the same way a whole machine does, so both turn

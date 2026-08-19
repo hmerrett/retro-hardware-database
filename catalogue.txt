@@ -2,11 +2,11 @@ THE MACHINE CATALOGUE
 ======================================================================
 
 Every machine the register knows as a model -- home computers,
-consoles and the branded PCs that were documented well enough to have
-versions of themselves: 403 machines from 77 makers, 1975 to 2024.
-Filing a machine against one of these fills in what is already known
-about that model, and asks only about what varies between two of them
--- the board issue, the case, the region, the chips in the sockets.
+consoles and the branded PCs that were sold under a model name: 403
+machines from 77 makers, 1975 to 2024. Filing a machine against one of
+these fills in what is already known about the model, and asks only
+what differs between two of the same -- the board issue, the case, the
+region, the chips in the sockets.
 
 Listed alphabetically by maker, and alphabetically within each maker.
 Where a machine was built by someone other than the maker it is filed

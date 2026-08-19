@@ -353,7 +353,7 @@
   .cat table { width: 100%; border-collapse: collapse; font-size: 13px;
     table-layout: fixed; }
   .cat td { padding: 1px 0; vertical-align: top; }
-  .cat td.yr, .cat td.cpu, .cat td.got { color: var(--muted); }
+  .cat td.yr, .cat td.cpu { color: var(--muted); }
   .cat td.lbl { padding-right: 8px; overflow-wrap: anywhere; }
   .cat td.yr { width: 3.4em; }
   /* Sized to the strings that are actually in there: one model name reaches 28
@@ -361,7 +361,13 @@
      room and the odd long one wraps rather than every year being nudged out of
      line to spare it. */
   .cat td.cpu { width: 14em; font-size: 12px; overflow-wrap: anywhere; }
-  .cat td.got { width: 4.2em; text-align: right; white-space: nowrap; }
+  /* How many of the model are held, in brackets after its name: a count is worth
+     nothing without the thing it counts, and against the name it needs no word to
+     say what it is of. Quiet ink until hovered, like the rest of the site's
+     figures, so the page reads as a catalogue and not as a tally. */
+  .cat td.lbl a.got { color: var(--muted); text-decoration: none;
+    font-size: 12px; white-space: nowrap; }
+  .cat td.lbl a.got:hover { color: var(--accent); text-decoration: underline; }
   /* A model the register actually holds one of. The mark is the ink, not a
      colour: this page is read in both themes and by people who cannot tell the
      two apart. */

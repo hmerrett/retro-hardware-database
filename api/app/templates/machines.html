@@ -17,16 +17,15 @@
 <div class="hero">
   <div class="n">{{ n_models }}</div>
   <div class="of">machines the catalogue names, from {{ n_families }} families —
-    home computers, consoles and the branded PCs that were documented well enough
-    to have versions of themselves</div>
+    home computers, consoles and the branded PCs that were sold under a model
+    name</div>
 </div>
 
 <p class="cover">Filing a machine against one of these fills in what is already
-  known about that model and asks only about what varies between two of them: the
+  known about the model, and asks only what differs between two of the same: the
   board issue, the case or keyboard style, the region, and the part in each chip
-  socket. <span class="muted">A machine the catalogue does not name is not a lesser
-  record — it is described by its parts, which for a nameless clone is all there
-  is to say.</span></p>
+  socket. <span class="muted">A machine the catalogue does not name is described
+  by its parts, which for a whitebox clone is all there is to say.</span></p>
 
 <div class="cat">
   {% for family in families %}
@@ -35,12 +34,13 @@
     <table>
       {% for m in family.models %}
       <tr{% if held[m.key] %} class="have"{% endif %}>
-        <td class="lbl">{{ m.model }}</td>
+        <td class="lbl">{{ m.model }}{% if held[m.key] %} <a class="got"
+          href="/browse?f=model&amp;v={{ m.key | urlencode }}"
+          title="{{ held[m.key] }} in the register"
+          aria-label="{{ m.model }}: {{ held[m.key] }} in the register"
+          >({{ held[m.key] }})</a>{% endif %}</td>
         <td class="yr">{{ m.year }}</td>
         <td class="cpu">{{ m.cpu }}</td>
-        <td class="got">{% if held[m.key] %}<a
-          href="/browse?f=model&amp;v={{ m.key | urlencode }}"
-          >{{ held[m.key] }} here</a>{% endif %}</td>
       </tr>
       {% endfor %}
     </table>
