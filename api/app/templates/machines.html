@@ -31,7 +31,7 @@
 <div class="cat">
   {% for family in families %}
   <section>
-    <h2>{{ family.name }} <span class="muted">{{ family.models | length }}</span></h2>
+    <h2>{{ family.name }}</h2>
     <table>
       {% for m in family.models %}
       <tr{% if held[m.key] %} class="have"{% endif %}>

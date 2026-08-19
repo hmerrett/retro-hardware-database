@@ -346,12 +346,22 @@
   .cat section { break-inside: avoid; display: inline-block; width: 100%;
     margin-bottom: 14px; }
   .cat h2 { font-size: 14px; margin: 0 0 3px; }
-  .cat table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  /* One table per family, and every one of them the same table: fixed columns, so
+     the years line up down the whole page and across the gap between the two
+     columns of it. Sized to content it read as a dozen little tables that happened
+     to be stacked. */
+  .cat table { width: 100%; border-collapse: collapse; font-size: 13px;
+    table-layout: fixed; }
   .cat td { padding: 1px 0; vertical-align: top; }
   .cat td.yr, .cat td.cpu, .cat td.got { color: var(--muted); }
+  .cat td.lbl { padding-right: 8px; overflow-wrap: anywhere; }
   .cat td.yr { width: 3.4em; }
-  .cat td.cpu { font-size: 12px; }
-  .cat td.got { text-align: right; white-space: nowrap; }
+  /* Sized to the strings that are actually in there: one model name reaches 28
+     characters and a couple of dozen CPUs pass 19, so the CPU column gets the
+     room and the odd long one wraps rather than every year being nudged out of
+     line to spare it. */
+  .cat td.cpu { width: 14em; font-size: 12px; overflow-wrap: anywhere; }
+  .cat td.got { width: 4.2em; text-align: right; white-space: nowrap; }
   /* A model the register actually holds one of. The mark is the ink, not a
      colour: this page is read in both themes and by people who cannot tell the
      two apart. */

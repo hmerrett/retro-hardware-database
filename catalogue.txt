@@ -3,7 +3,7 @@ THE MACHINE CATALOGUE
 
 Every machine the register knows as a model -- home computers,
 consoles and the branded PCs that were documented well enough to have
-versions of themselves: 372 machines from 76 makers, 1975 to 1998.
+versions of themselves: 400 machines from 76 makers, 1975 to 2006.
 Filing a machine against one of these fills in what is already known
 about that model, and asks only about what varies between two of them
 -- the board issue, the case, the region, the chips in the sockets.
@@ -68,9 +68,9 @@ Bandai   -- 1
 ----------------------------------------------------------------------
   RX-78 Gundam
 
-Camputers   -- 1
+Camputers   -- 3
 ----------------------------------------------------------------------
-  Lynx 48K
+  Lynx 48K, Lynx 96K, Lynx 128K
 
 Casio   -- 3
 ----------------------------------------------------------------------
@@ -80,15 +80,19 @@ Coleco   -- 2
 ----------------------------------------------------------------------
   Adam, ColecoVision
 
-Commodore  (Commodore 8-bit)   -- 11
+Commodore  (Commodore 8-bit)   -- 12
 ----------------------------------------------------------------------
-  16, 64, 64 Games System, 64C, 116, 128, 128D, MAX Machine, Plus/4,
-  SX-64, VIC-20
+  16, 64, 64 Games System, 64C, 116, 128, 128D, 128DCR, MAX Machine,
+  Plus/4, SX-64, VIC-20
 
 Commodore  (Commodore Amiga)   -- 11
 ----------------------------------------------------------------------
   Amiga 500, Amiga 500+, Amiga 600, Amiga 1000, Amiga 1200, Amiga
   1500, Amiga 2000, Amiga 3000, Amiga 4000, CD32, CDTV
+
+Commodore  (Commodore PC)   -- 5
+----------------------------------------------------------------------
+  PC 10, PC 20, PC 40-III, PC Colt, PC-1
 
 Commodore  (Commodore PET)   -- 6
 ----------------------------------------------------------------------
@@ -312,10 +316,10 @@ Sega   -- 11
   Game Gear, Mark III, Master System, Master System II, Mega Drive,
   Mega Drive 2, Nomad, Pico, Saturn, SC-3000, SG-1000
 
-Sharp   -- 11
+Sharp   -- 16
 ----------------------------------------------------------------------
   MZ-80A, MZ-80B, MZ-80K, MZ-700, MZ-800, MZ-2500, PC-1211, PC-1500,
-  X1, X1turbo, X68000
+  PC-4501, PC-4502, PC-4521, PC-5000, PC-7000, X1, X1turbo, X68000
 
 Sinclair   -- 11
 ----------------------------------------------------------------------
@@ -327,9 +331,10 @@ SNK   -- 2
 ----------------------------------------------------------------------
   Neo Geo AES, Neo Geo CD
 
-Sony   -- 1
+Sony   -- 10
 ----------------------------------------------------------------------
-  SMC-70
+  PlayStation, PlayStation 2, PlayStation 3, PSone, PSP, SMC-70, VAIO
+  C1 PictureBook, VAIO PCG-505, VAIO PCV-90, VAIO Z505
 
 Sord   -- 1
 ----------------------------------------------------------------------
@@ -381,9 +386,10 @@ Videoton   -- 1
 ----------------------------------------------------------------------
   TV Computer
 
-VTech   -- 4
+VTech   -- 10
 ----------------------------------------------------------------------
-  CreatiVision, Laser 128, Laser 200, Laser 310
+  CreatiVision, Laser 110, Laser 128, Laser 200, Laser 210, Laser 310,
+  Laser 350, Laser 500, Laser 700, Laser 3000
 
 Zenith Data Systems   -- 6
 ----------------------------------------------------------------------

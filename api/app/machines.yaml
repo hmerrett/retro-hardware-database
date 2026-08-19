@@ -2095,6 +2095,33 @@ families:
             label: CPU
             variants: z80
 
+      - key: camputers-lynx-96
+        model: Lynx 96K
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: wedge with a full-travel keyboard
+        os: Lynx BASIC
+        ram: [96K]
+        issues: []
+        styles: [Lynx 96K, Lynx 96K with the 192K expansion]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+      - key: camputers-lynx-128
+        model: Lynx 128K
+        year: 1983
+        cpu: Zilog Z80A-4
+        chassis: wedge with a full-travel keyboard
+        os: Lynx BASIC / CP/M 2.2
+        ram: [128K]
+        issues: []
+        styles: [Lynx 128K]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+
   - key: casio
     name: Casio
     manufacturer: Casio
@@ -2368,7 +2395,7 @@ families:
         os: Commodore BASIC 7.0 / CP/M 3.0
         ram: [128K]
         issues: []
-        styles: [plastic 128D, metal 128DCR]
+        styles: [plastic 128D]
         chips:
           - socket: cpu
             variants: [MOS 8502]
@@ -2390,6 +2417,40 @@ families:
             label: Z80
             note: the second processor, for the CP/M side
             variants: [Zilog Z80A, Zilog Z80B]
+      - key: c128dcr
+        model: 128DCR
+        year: 1987
+        cpu: MOS 8502-2.04
+        chassis: metal desktop with a built-in 1571 and a detachable keyboard
+        os: Commodore BASIC 7.0 / CP/M 3.0
+        ram: [128K]
+        issues: [250477]
+        styles: [128DCR]
+        chips:
+          - socket: cpu
+            variants: [MOS 8502]
+          - socket: vic
+            label: VIC-IIe
+            note: >-
+              the cost-reduced board, which is the whole of what DCR means: one
+              board where the plastic 128D had two, and a fan where it had none
+            variants: [MOS 8564 (NTSC), MOS 8566 (PAL)]
+          - socket: vdc
+            label: VDC
+            variants: [MOS 8568]
+          - socket: sid
+            variants: [MOS 8580R5]
+          - socket: cia
+            variants: [MOS 6526, MOS 8521]
+          - socket: pla
+            variants: [MOS 8721]
+          - socket: kernal
+            variants: [318020-05]
+          - socket: cpu2
+            label: Z80
+            note: the second processor, for the CP/M side
+            variants: [Zilog Z80B]
+
       - key: max-machine
         model: MAX Machine
         year: 1982
@@ -2716,6 +2777,86 @@ families:
             variants: [8372A (ECS, 1MB)]
           - socket: kickstart
             variants: [1.3 (CDTV)]
+
+  - key: commodore-pc
+    name: Commodore PC
+    manufacturer: Commodore
+    regions: [UK, Europe, US]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 8088, NEC V20, Intel 80286, Intel 80386SX, Intel 80386DX]
+      - socket: fpu
+        label: FPU
+        variants: [Intel 8087, Intel 80287, Intel 80387]
+    models:
+      - key: commodore-pc-10
+        model: PC 10
+        year: 1984
+        cpu: Intel 8088-4.77
+        chassis: desktop, five expansion slots
+        os: MS-DOS 3.2
+        ram: [256K, 512K, 640K]
+        issues: []
+        styles: [PC 10, PC 10-I, PC 10-II, PC 10-III]
+        chips:
+          - socket: cpu
+            note: >-
+              the same company as the 64, selling the machine the 64 was sold
+              against
+            variants: [Intel 8088, NEC V20]
+      - key: commodore-pc-20
+        model: PC 20
+        year: 1985
+        cpu: Intel 8088-4.77
+        chassis: desktop with a 10MB fixed disk
+        os: MS-DOS 3.2
+        ram: [256K, 640K]
+        issues: []
+        styles: [PC 20, PC 20-II, PC 20-III]
+        chips:
+          - socket: cpu
+            variants: [Intel 8088, NEC V20]
+      - key: commodore-pc-1
+        model: PC-1
+        year: 1987
+        cpu: Intel 8088-4.77
+        chassis: compact desktop, no expansion slots without the side unit
+        os: MS-DOS 3.2 / GW-BASIC
+        ram: [512K, 640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 8088, NEC V20]
+          - socket: fpu
+            variants: []
+      - key: commodore-colt
+        model: PC Colt
+        year: 1988
+        cpu: NEC V20-7.16
+        chassis: desktop, the PC-1 with slots put back
+        os: MS-DOS 3.3
+        ram: [640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [NEC V20]
+      - key: commodore-pc-40-iii
+        model: PC 40-III
+        year: 1989
+        cpu: Intel 80286-12
+        chassis: desktop with onboard VGA
+        os: MS-DOS 4
+        ram: [1MiB, 4MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
 
   - key: commodore-pet
     name: Commodore PET
@@ -6006,6 +6147,78 @@ families:
             label: ADPCM
             variants: [OKI MSM6258]
 
+      - key: sharp-pc-5000
+        model: PC-5000
+        year: 1983
+        cpu: Intel 8088-4.77
+        chassis: clamshell portable with an 8-line LCD and bubble-memory cartridges
+        os: MS-DOS 2.0
+        ram: [128K, 256K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              a clamshell with a hinged screen two years before anyone called that
+              a laptop, and the memory in it is bubble memory rather than a disk
+            variants: [Intel 8088]
+      - key: sharp-pc-7000
+        model: PC-7000
+        year: 1985
+        cpu: Intel 8086-7.37
+        chassis: luggable with a fold-down backlit LCD
+        os: MS-DOS 2.11
+        ram: [320K, 704K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8086]
+      - key: sharp-pc-4501
+        model: PC-4501
+        year: 1987
+        cpu: NEC V40-7.16
+        chassis: laptop, one drive, no backlight and no keypad
+        os: MS-DOS 3.2
+        ram: [256K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the bare one of the PC-4500 three, and later one of the first
+              laptops sold under a thousand dollars
+            variants: [NEC V40]
+      - key: sharp-pc-4502
+        model: PC-4502
+        year: 1987
+        cpu: NEC V40-7.16
+        chassis: laptop, two drives, backlit, with a numeric keypad
+        os: MS-DOS 3.2
+        ram: [640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC V40]
+      - key: sharp-pc-4521
+        model: PC-4521
+        year: 1987
+        cpu: NEC V40-7.16
+        chassis: laptop, one drive and a 20MB fixed disk, backlit
+        os: MS-DOS 3.2
+        ram: [640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC V40]
+
   - key: sinclair
     name: Sinclair ZX
     manufacturer: Sinclair
@@ -6248,7 +6461,7 @@ families:
   - key: sony
     name: Sony
     manufacturer: Sony
-    regions: [NTSC-J (Japan), PAL (Europe)]
+    regions: [NTSC-J (Japan), NTSC (US), PAL (Europe)]
     models:
       - key: sony-smc-70
         model: SMC-70
@@ -6266,6 +6479,183 @@ families:
               the machine Sony's 3.5-inch disc arrived on, three years before the
               Macintosh made it the standard
             variants: z80
+
+      - key: sony-playstation
+        model: PlayStation
+        year: 1994
+        cpu: LSI CW33300-33
+        chassis: grey console with a lid over the disc
+        os: none -- games boot from the disc
+        ram: [2MiB]
+        issues:
+          - PU-7
+          - PU-8
+          - PU-16
+          - PU-18
+          - PU-20
+          - PU-22
+          - PU-23
+          - PM-41
+          - PM-41(2)
+        styles:
+          - SCPH-1000 (Japan)
+          - SCPH-1001 (US)
+          - SCPH-1002 (PAL)
+          - SCPH-5502
+          - SCPH-7502
+          - SCPH-9002
+          - Net Yaroze (black)
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the board revision is what a collector reads a PlayStation by -- an
+              early PU-8 has the shielded laser and the parallel port, a PM-41 has
+              neither
+            variants: [LSI CW33300, Sony CXD8530BQ, Sony CXD8530CQ]
+          - socket: gpu
+            label: GPU
+            variants: [Sony CXD8514Q, Sony CXD8561Q, Sony CXD8561BQ, Sony CXD8561CQ]
+          - socket: spu
+            label: Sound
+            variants: [Sony CXD2922Q, Sony CXD2925Q, Sony CXD2938Q]
+      - key: sony-psone
+        model: PSone
+        year: 2000
+        cpu: Sony CXD2938Q-33
+        chassis: the PlayStation shrunk, with a screen that clips on the back
+        os: none -- games boot from the disc
+        ram: [2MiB]
+        issues: [PM-41, PM-41(2)]
+        styles: [SCPH-100, SCPH-101, SCPH-102]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sony CXD2938Q]
+          - socket: gpu
+            label: GPU
+            variants: [Sony CXD8561CQ]
+          - socket: spu
+            variants: []
+      - key: sony-playstation-2
+        model: PlayStation 2
+        year: 2000
+        cpu: Sony Emotion Engine-294
+        chassis: black console, upright or flat
+        os: none -- games boot from the disc
+        ram: [32MiB]
+        issues: [GH-001, GH-003, GH-006, GH-010, GH-022, GH-032, GH-051, GH-071]
+        styles:
+          - SCPH-10000 (Japan)
+          - SCPH-30001
+          - SCPH-39001
+          - SCPH-50001
+          - SCPH-70000 (slim)
+          - SCPH-90000 (slim)
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the fat ones read their own discs badly as they age; which GH board
+              is in it says which laser and which fix
+            variants: [Sony Emotion Engine, Sony EE+GS (later slim)]
+          - socket: gpu
+            label: Graphics Synthesiser
+            variants: [Sony GS, Sony EE+GS (combined)]
+      - key: sony-psp
+        model: PSP
+        year: 2004
+        cpu: Sony Allegrex-333
+        chassis: handheld with a 4.3-inch widescreen and a UMD drive
+        os: PSP system software
+        ram: [32MiB, 64MiB]
+        issues: [TA-079, TA-081, TA-082, TA-085, TA-086, TA-088, TA-090]
+        styles: [PSP-1000, PSP-2000 (slim), PSP-3000, PSP-Go, PSP-E1000]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sony Allegrex CXD2962GG]
+      - key: sony-playstation-3
+        model: PlayStation 3
+        year: 2006
+        cpu: Sony Cell BE-3200
+        chassis: black console, fat, slim or super slim
+        os: PlayStation 3 system software
+        ram: [256MiB]
+        issues: [COK-001, COK-002, COK-003, DIA-001, DYN-001, SEM-001, JSD-001]
+        styles:
+          - CECHA (plays PS2 discs)
+          - CECHB (plays PS2 discs)
+          - CECHC
+          - CECHE
+          - CECH-2000 (slim)
+          - CECH-3000 (slim)
+          - CECH-4000 (super slim)
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              only the first boards play a PlayStation 2 disc, and only the very
+              first do it in hardware -- which is the one thing to look for
+            variants: [Sony Cell BE]
+          - socket: gpu
+            label: RSX
+            variants: [NVIDIA RSX 90nm, NVIDIA RSX 65nm, NVIDIA RSX 40nm]
+      - key: sony-vaio-pcv-90
+        model: VAIO PCV-90
+        year: 1996
+        cpu: Intel Pentium-200
+        chassis: desktop, the first machine to carry the name
+        os: Windows 95
+        ram: [32MiB, 64MiB]
+        issues: []
+        styles: [PCV-70, PCV-90]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel Pentium]
+      - key: sony-vaio-pcg-505
+        model: VAIO PCG-505
+        year: 1997
+        cpu: Intel Pentium MMX-133
+        chassis: magnesium subnotebook, four panels and no drive in it
+        os: Windows 95
+        ram: [32MiB, 64MiB]
+        issues: []
+        styles: [PCG-505, PCG-505G, PCG-505GX, PCG-505EX]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel Pentium MMX]
+      - key: sony-vaio-c1
+        model: VAIO C1 PictureBook
+        year: 1998
+        cpu: Intel Pentium MMX-233
+        chassis: half-width subnotebook with a camera on the lid
+        os: Windows 98
+        ram: [64MiB, 128MiB]
+        issues: []
+        styles: [PCG-C1, PCG-C1X, PCG-C1XS, PCG-C1VE]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the first consumer laptop with a camera built into it, which is the
+              reason it has a name rather than a number
+            variants: [Intel Pentium MMX, Transmeta Crusoe (later C1)]
+      - key: sony-vaio-z505
+        model: VAIO Z505
+        year: 1999
+        cpu: Intel Celeron-333
+        chassis: magnesium subnotebook, 12.1-inch screen
+        os: Windows 98
+        ram: [64MiB, 128MiB]
+        issues: []
+        styles: [PCG-Z505S, PCG-Z505SX, PCG-Z505HS]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel Celeron, Intel Pentium III]
 
   - key: sord
     name: Sord
@@ -7031,6 +7421,106 @@ families:
           - socket: vdp
             label: Video (VDG)
             variants: [Motorola MC6847]
+
+      - key: laser-110
+        model: Laser 110
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with chiclet keys
+        os: Microsoft BASIC in ROM
+        ram: [4K]
+        issues: []
+        styles: [Laser 110 (mono)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: laser-210
+        model: Laser 210
+        year: 1983
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with chiclet keys
+        os: Microsoft BASIC in ROM
+        ram: [16K]
+        issues: []
+        styles: [Laser 210, VZ-200 (Australia), Salora Fellow (Finland)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: laser-350
+        model: Laser 350
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with moulded keys
+        os: Laser BASIC in ROM
+        ram: [16K]
+        issues: []
+        styles: [Laser 350]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: laser-500
+        model: Laser 500
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with moulded keys and a numeric keypad
+        os: Laser BASIC in ROM
+        ram: [64K]
+        issues: []
+        styles: [Laser 500]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: laser-700
+        model: Laser 700
+        year: 1984
+        cpu: Zilog Z80A-3.58
+        chassis: wedge with a built-in disk drive
+        os: Laser BASIC / CP/M
+        ram: [128K]
+        issues: []
+        styles: [Laser 700]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: z80
+          - socket: vdp
+            label: Video (VDG)
+            variants: [Motorola MC6847]
+      - key: laser-3000
+        model: Laser 3000
+        year: 1983
+        cpu: MOS 6502A-2
+        chassis: desktop with a detachable keyboard
+        os: Laser BASIC / Apple II software
+        ram: [64K, 128K]
+        issues: []
+        styles: [Laser 3000, Dick Smith Cat (Australia)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              a 6502 in a family of Z80s, because this one is an Apple II
+              compatible and the rest of the Lasers are not compatible with
+              anything
+            variants: [MOS 6502A, Synertek SY6502A]
+          - socket: vdp
+            variants: []
 
   - key: zenith
     name: Zenith Data Systems

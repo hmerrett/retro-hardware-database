@@ -35,12 +35,19 @@ class TestCatalogueConsistency:
 
     @pytest.mark.parametrize("key", machines.keys())
     def test_a_model_says_what_it_is(self, key):
-        """The window is the microcomputer era, wide enough at both ends for the
-        Altair that started it and the last of the 16-bit machines, and narrow
-        enough that a year typed with a digit missing is caught."""
+        """The window runs from the Altair that started it to the last machine
+        anybody here would call retro, and its job is not to police what belongs in
+        the catalogue -- that is the documented-model rule, and it is a judgement
+        rather than an arithmetic. Its job is to catch a year typed with a digit
+        missing or a digit too many.
+
+        It ended at 2000 while the catalogue ended at the 16-bit machines. Sony's
+        console line is one machine that kept going -- a PlayStation is 1994 and a
+        PS3 is 2006, and they are the same family sold by the same company -- so
+        the far end moved once, deliberately, for machines actually added."""
         m = machines.model(key)
         assert m["model"] and m["manufacturer"] and m["family"]
-        assert isinstance(m["year"], int) and 1969 < m["year"] < 2000
+        assert isinstance(m["year"], int) and 1969 < m["year"] < 2010
 
     @pytest.mark.parametrize("key", machines.keys())
     def test_every_memory_size_is_a_figure_the_register_can_read(self, key):

@@ -274,10 +274,11 @@ to the machine, so building out a PC is a straight run down the list.
 
 ## 6. Machines the catalogue names
 
-The catalogue holds getting on for four hundred machines, from seventy-odd
-makers, and for each model its standard memory sizes, board issues, case and
-keyboard styles, regions, and chip sockets with the part numbers that turn up in
-them. It runs from the 1975 Altair to the end of the century.
+The catalogue holds four hundred machines, from seventy-odd makers, and for each
+model its standard memory sizes, board issues, case and keyboard styles, regions,
+and chip sockets with the part numbers that turn up in them. It runs from the
+1975 Altair to the PlayStation 3 — the far end moved for Sony's console line,
+which is one family that kept going, rather than for the era in general.
 
 **What is in it, and what is not.** Home computers and consoles, and the branded
 PCs that were documented well enough to have versions of themselves — an IBM
