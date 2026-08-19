@@ -708,6 +708,10 @@ takes the lead image from a Wikipedia page, or the preview image any other site
 advertises, downscales it and files it as a reference image. It bypasses nothing,
 so a site behind bot protection simply returns nothing.
 
+**Photographs and the count of what is photographed.** An item's own photographs
+are its portrait; the ones on history entries are not, and `/stats` counts them
+separately for that reason — see [section 15](#15-statistics).
+
 **Watermarking.** Your own photographs are stamped with the site logo as they are
 served, and so are the ones on history entries; reference images are not. Set `RHDB_WATERMARK=0` to serve everything
 untouched. The originals on disk are never modified — the watermark is applied to
@@ -887,12 +891,19 @@ part still in the collection is kept whatever the box says.
 
 - **A headline** — how many things, how many machines, how many parts, how many
   photographs.
+- **Portrait coverage** — how many things still here have no photograph of
+  themselves, and a link to exactly which ones. This is the one figure on the page
+  that is a job rather than a curiosity, so it is always shown rather than being
+  dealt into the shuffle below it; see [below](#what-counts-as-a-portrait).
 - **Eight things about it** — a pool of figures nobody strictly needs (most and
   least reliable maker, the longest wait between a thing being made and arriving
   here, what every floppy would hold if each had a disk in it), from which the
-  page draws eight at random on each visit. A figure only joins the pool when it
-  has something to say, so a young register offers fewer rather than offering
-  blanks. Reload to shuffle.
+  page draws eight at random on each visit. It used to hold the coverage figure
+  too; that one was promoted out, because a work queue that appears on some visits
+  and not others is no use as a work queue, and a figure both fixed and shuffled
+  would come up twice on one page. A figure only joins the pool when it has
+  something to say, so a young register offers fewer rather than offering blanks.
+  Reload to shuffle.
 - **Ranked charts** — makers by parts held, what the parts are, expansion buses,
   ports, condition, and makers by how much of their hardware still works.
 
@@ -908,6 +919,22 @@ opposite. And only parts still in the register, since a disposed one may have
 been sold in perfect working order. A maker needs five parts to qualify;
 "Unknown" and "Generic" are not makers. The caption on the page says so, because
 a league table whose entry conditions are hidden is an opinion with a bar chart.
+
+### What counts as a portrait
+
+A portrait is a photograph of the object itself, in the object's own folder, named
+for its tag — what the item page and the gallery card show. **A photograph on a
+history entry is not a portrait.** Those live in a folder of their own, filed under
+the entry rather than under the thing, and they answer a different question: an
+object with six pictures of its recap and nothing else is still an object nobody
+has photographed in the sense this figure means. See [section 10](#10-photographs)
+for the difference and [section 13](#13-history) for the history side of it.
+
+The figure and the list behind it are the same question asked once. Both read the
+files on disk, which is what the item page draws; the "default photo" recorded
+against an item is a note of which file was chosen, not the answer to whether there
+is one. Both count only what is still here, so a disposed item is not on the queue
+— its record can keep its picture, but nobody can go and take a new one.
 
 ### Everything counts what it says it counts
 

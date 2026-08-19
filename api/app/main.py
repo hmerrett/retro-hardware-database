@@ -370,20 +370,65 @@ def _maker_reliability(db):
     return rows
 
 
-def _photo_counts(db, asset_ids):
-    """How many photographs each asset has, from one pass over the two folders.
+def _stem_owner(stem, ids):
+    """Whose photograph a filename is, or None. A photo is <asset_id>.<ext> or
+    <asset_id>-<something>.<ext>, so the owner is the stem itself or the stem with
+    its suffix taken off -- and the tags are matched against the register rather
+    than guessed at with a regex, because an asset id is whatever ids.py says it is
+    and not a shape this function should be repeating.
 
-    A photo is <asset_id>.<ext> or <asset_id>-<something>.<ext>, so the stem is the
-    tag itself or the tag with a suffix -- and the tags are matched against the
-    register rather than guessed at with a regex, because an asset id is whatever
-    ids.py says it is and not a shape this function should be repeating."""
+    The suffix comes off one hyphen at a time rather than all at once, so that
+    RH-0001-back-left belongs to the machine exactly as RH-0001-2 does. This has to
+    answer precisely what pick_images answers: the count of what is photographed and
+    the list of what is not are the same question asked twice, and a file with two
+    hyphens in its name is not a place for them to start disagreeing."""
+    while stem:
+        if stem in ids:
+            return stem
+        stem = stem.rpartition("-")[0]
+    return None
+
+
+def _photo_counts(ids_by_kind):
+    """How many portraits each asset has, from one pass over each folder named.
+
+    Keyed by kind, because a photograph belongs to the folder it is in: a picture in
+    parts/ is a picture of a part, and matching it against every tag in the register
+    would let it stand as some machine's portrait.
+
+    Only computers/ and parts/ are ever read, which is how a photograph on a history
+    entry stays out of this: it lives in log/, filed under the entry's id rather
+    than the asset's. That is deliberate and load-bearing rather than an oversight
+    of two folder names. Six photographs of a recap say what happened to a machine;
+    they do not say which machine this is, so an object with six of them and no
+    portrait is still an object nobody has photographed in the sense this counts."""
     counts = {}
-    for kind in ("computers", "parts"):
+    for kind, ids in ids_by_kind.items():
         for stem, _name in folder_images(kind):
-            aid = stem if stem in asset_ids else stem.rsplit("-", 1)[0]
-            if aid in asset_ids:
+            aid = _stem_owner(stem, ids)
+            if aid:
                 counts[aid] = counts.get(aid, 0) + 1
     return counts
+
+
+# The portrait is the file named after the tag, and the filesystem is what says so.
+# There is an `image` column beside it, but that is a note of which file was chosen
+# last, not the choosing itself -- promoting a photo renames files, and the column
+# is written afterwards. On the live register a dozen rows have a photograph on disk
+# and a blank column, filed by the import tools, which never wrote it. The item page
+# draws the file; so does the gallery card; so does this.
+def _portraits(db):
+    """(counts, missing): how many portraits each thing still here has, and the tags
+    of the ones that have none.
+
+    Held items only -- see _held. The count of what is unphotographed is a job list,
+    and a disposed item cannot be photographed, so putting one on the list is handing
+    somebody work they cannot do."""
+    ids = {"computers": {a for (a,) in _held(db.query(Computer.asset_id), Computer)},
+           "parts": {a for (a,) in _held(db.query(Part.asset_id), Part)}}
+    counts = _photo_counts(ids)
+    missing = {a for group in ids.values() for a in group if a not in counts}
+    return counts, missing
 
 
 def _big_total(kb):
@@ -568,7 +613,14 @@ def _facts(db, st, this_year):
             + ", ".join(entry.type_label(t) for t in lonely[:3]),
             f"/browse?f=type&v={quote(lonely[0])}")
 
-    shots = _photo_counts(db, held_ids)
+    # How many things have no portrait used to be a figure in here. It is on the
+    # page in its own right now, above the tiles: a work queue that only appears on
+    # some visits is not a work queue. It is not in the pool as well, because drawn
+    # beside the standing line it would read as the shuffle repeating itself -- the
+    # very fault the `seen` guard in gui_stats exists to prevent, and one that guard
+    # cannot catch, since it compares tiles with each other and not with the rest of
+    # the page. What is photographed is still spoken for here, twice.
+    shots = st["portraits"]
     if shots:
         aid, n = max(shots.items(), key=lambda kv: (kv[1], kv[0]))
         obj = db.get(Computer, aid) or db.get(Part, aid)
@@ -576,11 +628,6 @@ def _facts(db, st, this_year):
             kind = "computers" if isinstance(obj, Computer) else "parts"
             add("Most photographed", named(obj), f"{n} pictures of it",
                 f"/{kind}/{obj.asset_id}")
-    bare = len(held_ids) - len(shots)
-    if bare and held_ids:
-        add("Never photographed", str(bare),
-            f"{round(100 * bare / len(held_ids))}% of the register, waiting for a "
-            "camera", "/browse?f=nophotos")
     if shots and st["photos"] and len(held_ids):
         add("Photographs per thing", f"{st['photos'] / len(held_ids):.1f}",
             f"{st['photos']} pictures of {len(held_ids)} things", "/browse?f=photos")
@@ -834,6 +881,16 @@ def _collection_stats(db):
     oldest_held = _held(db.query(Part).filter(Part.acquired_date.isnot(None)),
                         Part).order_by(Part.acquired_date).first()
     photos = sum(len(folder_images(k)) for k in ("computers", "parts"))
+    # Portrait coverage: the one figure on the page that is a job rather than a
+    # curiosity, so the page shows it every visit rather than dealing it into the
+    # shuffle. Both halves come from here -- the standing line and the pool's
+    # figures about photographs -- so the page cannot disagree with itself about
+    # what a photograph is.
+    portraits, unphotographed = _portraits(db)
+    # A share that rounds to nothing is still one thing nobody has photographed, and
+    # "0% of the register, waiting for a camera" beside a count of 1 reads as a bug
+    # rather than as a nearly-finished job.
+    share = 100 * len(unphotographed) / ((n_computers + n_parts) or 1)
     # Most parts are spares on a shelf, so "parts per machine" over the whole
     # register would say 19 and mean nothing. Only the fitted ones divide.
     fitted = _held(db.query(func.count(Part.asset_id))
@@ -855,6 +912,8 @@ def _collection_stats(db):
         "slots": slots, "boards": boards, "chips": chips,
         "drives": drives, "gotek": gotek,
         "working": working, "disposed": disposed, "photos": photos,
+        "portraits": portraits, "unphotographed": len(unphotographed),
+        "unphotographed_pct": "under 1" if 0 < share < 0.5 else str(round(share)),
         "fullest": (fullest_machine, fullest[1]) if fullest_machine else None,
         "oldest_held": oldest_held,
         "fitted": fitted, "spares": n_parts - fitted,
@@ -2539,8 +2598,14 @@ def _browse_view(db, key: str, val: str):
         return ("Photographed", "items with at least one photograph on file", None,
                 lambda r: bool(r["image"]))
     if key == "nophotos":
-        return ("Not photographed yet", "everything still waiting for a camera",
-                None, lambda r: not r["image"])
+        # The queue behind the coverage figure, and it reads the same answer the
+        # figure did rather than a row test that resembles it: one pass over the two
+        # folders, then a set lookup per row, the way _tagged works. Held only, so
+        # unlike its opposite above this view excludes the disposed -- a record of
+        # something gone can still have its picture, but nobody can go and take one.
+        missing = _portraits(db)[1]
+        return ("Not photographed yet", "everything still here waiting for a camera",
+                None, lambda r: r["obj"].asset_id in missing)
     if key == "source":
         return (f"Came from {val}", "as recorded in the source field", None,
                 lambda r: (r["obj"].source or "") == val)

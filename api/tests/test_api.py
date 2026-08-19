@@ -3487,6 +3487,157 @@ class TestFollowingAFigureToItsItems:
         assert 'content="noindex, follow"' in client.get("/browse?f=all").text
 
 
+class TestEveryObjectHasItsPortrait:
+    """How many things still here have no photograph of themselves, and which ones.
+
+    Every object in the register is meant to have a portrait: that is what makes the
+    register checkable against the shelf by somebody who was not there when it was
+    written. So this figure is not a curiosity like the rest of /stats -- it is a job
+    list, it stands outside the shuffle, and the queue behind it has to be the same
+    answer as the number, not a second opinion that resembles it.
+
+    The truth is the filesystem, because that is what the item page and the gallery
+    card draw. The `image` column is a note of which file was chosen last, and on the
+    live register a dozen rows have a photograph on disk and a blank column.
+    """
+
+    @pytest.fixture
+    def shoot(self):
+        """Put a photograph on disk under a name of the test's choosing. The
+        register is emptied between tests; the image folders are not, so what a test
+        writes it takes away again."""
+        written = []
+
+        def make(kind, stem):
+            folder = main.IMAGES_DIR / kind
+            folder.mkdir(parents=True, exist_ok=True)
+            f = folder / f"{stem}.jpg"
+            f.write_bytes(b"not really a jpeg")
+            written.append(f)
+            return f
+        yield make
+        for f in written:
+            f.unlink(missing_ok=True)
+
+    @staticmethod
+    def standing(page):
+        """The coverage line under the headline, whitespace flattened the way a
+        browser reads it."""
+        m = re.search(r'<p class="cover">(.*?)</p>', page, re.S)
+        return " ".join(m.group(1).split()) if m else ""
+
+    def counted(self, page):
+        m = re.search(r'<span class="n">(\d+)</span>', self.standing(page))
+        return int(m.group(1)) if m else None
+
+    @staticmethod
+    def queued(page):
+        """The asset ids the queue behind the figure lists."""
+        return sorted(href.rsplit("/", 1)[1]
+                      for href in re.findall(r'class="card" href="([^"]+)"', page))
+
+    def test_the_figure_is_on_the_page_every_visit(self, client, computer):
+        """The tiles are eight drawn from a pool of dozens, so a figure in there is
+        on the page perhaps a quarter of the time. A work queue that turns up on some
+        visits and not others is not a work queue."""
+        computer()
+        for _ in range(12):
+            assert "have no portrait yet" in self.standing(client.get("/stats").text)
+
+    def test_it_is_not_dealt_into_the_shuffle_as_well(self, client, db, computer,
+                                                      part):
+        """Promoted out, not copied out. A figure in both places would come up beside
+        itself on a fair fraction of renders, which reads as the shuffle being broken
+        -- and gui_stats' own guard against that compares tiles with each other, not
+        with the rest of the page, so it could not catch this one."""
+        computer()
+        part()
+        pool = main._facts(db, main._collection_stats(db), date.today().year)
+        assert pool                                   # or this proves nothing
+        assert not [f for f in pool if f["href"] == "/browse?f=nophotos"]
+
+    def test_the_figure_and_the_queue_are_the_same_answer(self, client, computer,
+                                                          part, shoot):
+        """The whole point of the stage. The headline said five and the list behind
+        it named fourteen, which means one of them was wrong and a visitor had no way
+        to tell which."""
+        seen = part()["asset_id"]
+        shoot("parts", seen)
+        unseen = sorted([computer()["asset_id"], part()["asset_id"]])
+        assert self.counted(client.get("/stats").text) == 2
+        assert self.queued(client.get("/browse?f=nophotos").text) == unseen
+
+    def test_what_has_gone_is_not_waiting_for_a_camera(self, client, part):
+        """A disposed item is a record of something that has left, and nobody can go
+        and photograph it. It was the disposed that made the two numbers differ: the
+        figure counted only what is held, the list counted everything."""
+        gone = part(model="binned")["asset_id"]
+        client.patch(f"/api/parts/{gone}", json={"disposed": True})
+        here = part(model="here")["asset_id"]
+        assert self.counted(client.get("/stats").text) == 1
+        assert self.queued(client.get("/browse?f=nophotos").text) == [here]
+
+    def test_a_photograph_of_what_happened_is_not_a_portrait(self, client, computer):
+        """Six pictures of a recap say what happened to a machine. They do not say
+        which machine this is, so an object with nothing but those is still an object
+        nobody has photographed in the sense this figure means.
+
+        Two things keep them out and either would do it alone -- they are in log/,
+        which the count never reads, and they are filed under the history entry's id
+        rather than the asset's -- so this is a lock on the promise rather than on
+        one line of it. That is the point: the promise is what someone reading the
+        figure relies on, and the next person to touch either half should find out
+        here that both halves were meant."""
+        import io
+
+        from PIL import Image
+        aid = computer()["asset_id"]
+        buf = io.BytesIO()
+        Image.new("RGB", (400, 300), (60, 90, 120)).save(buf, "JPEG", quality=90)
+        buf.seek(0)
+        client.post(f"/computers/{aid}/note", data={"message": "recapped it"},
+                    files={"photos": ("shot.jpg", buf, "image/jpeg")},
+                    follow_redirects=False)
+        assert self.counted(client.get("/stats").text) == 1
+        assert self.queued(client.get("/browse?f=nophotos").text) == [aid]
+
+    def test_a_photograph_named_for_the_side_it_shows_still_counts(self, client,
+                                                                   part, shoot):
+        """RH-0001-back-left is the part's photograph the same way RH-0001-2 is, and
+        the gallery has always thought so. The count used to take one hyphen off the
+        stem and not the second, so a folder of them would have left the part in the
+        queue while its picture was on its page."""
+        aid = part()["asset_id"]
+        shoot("parts", f"{aid}-back-left")
+        assert main.detect_images("parts", aid) == [f"parts/{aid}-back-left.jpg"]
+        assert "Every one of them" in self.standing(client.get("/stats").text)
+        assert self.queued(client.get("/browse?f=nophotos").text) == []
+
+    def test_a_photograph_in_the_wrong_folder_is_nobody_s_portrait(self, client,
+                                                                   computer, shoot):
+        """A picture in parts/ is a picture of a part. Filed under a machine's tag it
+        is not the machine's portrait -- the machine's page does not show it -- so it
+        must not answer the machine's question either."""
+        aid = computer()["asset_id"]
+        shoot("parts", aid)
+        assert main.detect_images("computers", aid) == []
+        assert self.counted(client.get("/stats").text) == 1
+        assert self.queued(client.get("/browse?f=nophotos").text) == [aid]
+
+    def test_a_register_that_is_all_photographed_says_so(self, client, part, shoot):
+        """The end of the job is a state worth rendering, not a blank."""
+        shoot("parts", part()["asset_id"])
+        line = self.standing(client.get("/stats").text)
+        assert "Every one of them" in line and "no portrait" not in line
+
+    def test_an_empty_register_claims_nothing(self, client):
+        """"Every one of them has had its portrait taken" is true of nothing and
+        reads as a boast on a fresh install."""
+        page = client.get("/stats")
+        assert page.status_code == 200
+        assert self.standing(page.text) == ""
+
+
 class TestSearchTerms:
     """A query is the set of things that must all appear."""
 

@@ -49,10 +49,36 @@
     <a href="/browse?f=photos">{{ st.photos }} photographs</a> between them</div>
 </div>
 
+{# Portrait coverage stands outside the shuffle, and it is the only figure here
+   that does. Everything below is a curiosity; this is a job -- a register where
+   every object has its portrait can be checked against the shelf by anybody, and
+   this number is how far off that it is. A queue that turns up on some visits and
+   not others is not a queue, so it is on the page every time and it is deliberately
+   not dealt into the pool as well: drawn alongside this line it would read as the
+   shuffle repeating itself.
+
+   Nothing at all on an empty register: "every one of them has had its portrait
+   taken" is true of nothing, and reads like a boast on a fresh install. #}
+{% if st.n_total %}
+<p class="cover">
+  {% if st.unphotographed %}
+  <a href="/browse?f=nophotos"><span class="n">{{ st.unphotographed }}</span> of them
+    have no portrait yet</a> — {{ st.unphotographed_pct }}% of the register, waiting
+    for a camera.
+  {% else %}
+  <span class="n">Every one of them</span> has had its portrait taken.
+  {% endif %}
+  <span class="muted">A photograph on a history entry does not count: it says what
+    happened to a thing, not which thing this is.</span>
+</p>
+{% endif %}
+
 {# One pool, shuffled. There used to be a fixed set of tiles here and an odder,
    shuffled set underneath -- which flattered the fixed half ("spares on the shelf" is
    no more a headline than "longest wait") and buried the interesting figures below
    the fold. Now every figure takes its chance, and the page is different each visit.
+   The one figure that was promoted back out of the pool is above, and it earned that
+   by being a job rather than a fact.
 
    Same quiet links throughout: every figure leads to the things it counted. #}
 <div class="flex" style="margin-top:26px">
