@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Machines the catalogue names — Retro Hardware Database{% endblock %}
+{% block content %}
+
+{#
+  The catalogue, read rather than picked from. Everywhere else in the site the
+  catalogue is a menu on a form; this is the list itself, for the question asked
+  before anything is typed -- does it know my machine? So it is one page, no
+  paging and no filter but the browser's own find, because a list you can search
+  with ctrl-F is worth more than a list with a search box on it.
+
+  A model that something in the register is filed as says so and links to them.
+  The rest are simply what was made and is not here, which is most of it, and
+  reads as the catalogue rather than as a gap.
+#}
+
+<div class="hero">
+  <div class="n">{{ n_models }}</div>
+  <div class="of">machines the catalogue names, from {{ n_families }} families —
+    home computers, consoles and the branded PCs that were documented well enough
+    to have versions of themselves</div>
+</div>
+
+<p class="cover">Filing a machine against one of these fills in what is already
+  known about that model and asks only about what varies between two of them: the
+  board issue, the case or keyboard style, the region, and the part in each chip
+  socket. <span class="muted">A machine the catalogue does not name is not a lesser
+  record — it is described by its parts, which for a nameless clone is all there
+  is to say.</span></p>
+
+<div class="cat">
+  {% for family in families %}
+  <section>
+    <h2>{{ family.name }} <span class="muted">{{ family.models | length }}</span></h2>
+    <table>
+      {% for m in family.models %}
+      <tr{% if held[m.key] %} class="have"{% endif %}>
+        <td class="lbl">{{ m.model }}</td>
+        <td class="yr">{{ m.year }}</td>
+        <td class="cpu">{{ m.cpu }}</td>
+        <td class="got">{% if held[m.key] %}<a
+          href="/browse?f=model&amp;v={{ m.key | urlencode }}"
+          >{{ held[m.key] }} here</a>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </section>
+  {% endfor %}
+</div>
+
+<p class="hint">Listed by maker, and within a maker by name — with numbers read as
+numbers, so an Amiga 500 comes before an Amiga 1000. Every list the catalogue
+holds names what is commonly seen rather than everything that exists, so a board
+issue or a chip from outside one is recorded by typing it, and what is typed once
+is offered ever after. The catalogue itself is <code>api/app/machines.yaml</code>,
+and the same list is at <a href="/api/machines">/api/machines</a> for anything
+that would rather read JSON.</p>
+{% endblock %}

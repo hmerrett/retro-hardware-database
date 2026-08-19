@@ -1,11 +1,12 @@
 THE MACHINE CATALOGUE
 ======================================================================
 
-Every home computer and console the register knows about: 304 machines
-from 69 makers, 1975 to 1995. Filing a machine against one of these
-fills in what is already known about that model, and asks only about
-what varies between two of them -- the board issue, the case, the
-region, the chips in the sockets.
+Every machine the register knows as a model -- home computers,
+consoles and the branded PCs that were documented well enough to have
+versions of themselves: 372 machines from 76 makers, 1975 to 1998.
+Filing a machine against one of these fills in what is already known
+about that model, and asks only about what varies between two of them
+-- the board issue, the case, the region, the chips in the sockets.
 
 Listed alphabetically by maker, and alphabetically within each maker.
 Where a machine was built by someone other than the maker it is filed
@@ -26,6 +27,10 @@ Amstrad   -- 13
   464 Plus, 6128 Plus, CPC 464, CPC 472, CPC 664, CPC 6128, GX4000,
   NC100 Notepad, NC200 Notebook, PCW 8256, PCW 8512, PCW 9256, PCW
   9512
+
+Amstrad  (Amstrad PC)   -- 7
+----------------------------------------------------------------------
+  PC1512, PC1640, PC2086, PC2286, PC2386, PPC512, PPC640
 
 Apple  (Apple II)   -- 7
 ----------------------------------------------------------------------
@@ -88,6 +93,13 @@ Commodore  (Commodore Amiga)   -- 11
 Commodore  (Commodore PET)   -- 6
 ----------------------------------------------------------------------
   3032, 4032, 8032, 8296, B128, PET 2001
+
+Compaq   -- 18
+----------------------------------------------------------------------
+  Contura, Deskpro, Deskpro 286, Deskpro 386, Deskpro 386s, Deskpro
+  486, Deskpro EN, LTE, LTE Lite, Portable, Portable 386, Portable
+  486, Portable II, Portable III, Portable Plus, Presario, ProLinea,
+  SLT/286
 
 Compukit   -- 1
 ----------------------------------------------------------------------
@@ -153,6 +165,10 @@ GCE   -- 1
 ----------------------------------------------------------------------
   Vectrex
 
+GRiD   -- 2
+----------------------------------------------------------------------
+  Compass 1101, GRiDCASE 2
+
 Grundy   -- 1
 ----------------------------------------------------------------------
   NewBrain AD
@@ -164,6 +180,22 @@ Heathkit   -- 2
 Hitachi   -- 1
 ----------------------------------------------------------------------
   Basic Master Level 3
+
+IBM  (IBM PC)   -- 7
+----------------------------------------------------------------------
+  PC 5150, PC Convertible 5140, PC XT/286 5162, PC/AT 5170, PC/XT
+  5160, PCjr 4860, Portable PC 5155
+
+IBM  (IBM PS/1)   -- 2
+----------------------------------------------------------------------
+  PS/1 Model 2011, PS/1 Model 2121
+
+IBM  (IBM PS/2)   -- 9
+----------------------------------------------------------------------
+  PS/2 Model 25 (8525), PS/2 Model 30 286 (8530-286), PS/2 Model 30
+  (8530), PS/2 Model 35 SX (8535), PS/2 Model 50 (8550), PS/2 Model 55
+  SX (8555), PS/2 Model 60 (8560), PS/2 Model 70 (8570), PS/2 Model 80
+  (8580)
 
 IMSAI   -- 1
 ----------------------------------------------------------------------
@@ -235,9 +267,13 @@ Ohio Scientific   -- 1
 ----------------------------------------------------------------------
   Superboard II
 
-Olivetti   -- 2
+Olivetti   -- 4
 ----------------------------------------------------------------------
-  M10, M20
+  M10, M20, M21, M24
+
+Opus   -- 4
+----------------------------------------------------------------------
+  PC II, PC III Turbo, PC IV Turbo, PC V Turbo
 
 Oric   -- 3
 ----------------------------------------------------------------------
@@ -303,6 +339,10 @@ Spectravideo   -- 2
 ----------------------------------------------------------------------
   SV-318, SV-328
 
+Tandon   -- 4
+----------------------------------------------------------------------
+  PAC 386SX, PCA, PCA/12, PCX
+
 Tandy   -- 10
 ----------------------------------------------------------------------
   Color Computer, Color Computer 2, Color Computer 3, MC-10, TRS-80
@@ -329,9 +369,13 @@ Tomy   -- 1
 ----------------------------------------------------------------------
   Tutor
 
-Toshiba   -- 2
+Toshiba   -- 8
 ----------------------------------------------------------------------
-  Pasopia, Pasopia 7
+  Pasopia, Pasopia 7, T1000, T1100, T1200, T3100, T3200, T5200
+
+Victor   -- 1
+----------------------------------------------------------------------
+  9000 (Sirius 1)
 
 Videoton   -- 1
 ----------------------------------------------------------------------
@@ -340,4 +384,8 @@ Videoton   -- 1
 VTech   -- 4
 ----------------------------------------------------------------------
   CreatiVision, Laser 128, Laser 200, Laser 310
+
+Zenith Data Systems   -- 6
+----------------------------------------------------------------------
+  eaZy PC, SupersPort, Z-100, Z-150, Z-171, Z-386
 

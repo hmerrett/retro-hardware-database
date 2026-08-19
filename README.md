@@ -23,12 +23,17 @@ different kinds of object:
   A ZX Spectrum is a sealed machine, and what identifies one is its board issue,
   its case, the region it was sold in and the part numbers in its chip sockets —
   not a pile of tagged components. Nobody shelves a ULA on its own.
+- **A branded PC is described both ways at once.** An IBM 5170 has a planar type,
+  a BIOS date and a badge, and it also has cards in it. The catalogue says which
+  machine it is; the tagged parts say what is fitted in it today.
 
-The database does both. It knows about three hundred home machines and consoles
-— Britain, Europe, America and Japan, from the Altair to the Neo Geo — and the
-documented variations each was built in, so filing a machine against one of them
-fills in what is already known and asks only about what varies. The catalogue is a
-single YAML file with instructions at the top of it, so adding the machines your
+The database does all three. It knows getting on for four hundred machines —
+Britain, Europe, America and Japan, from the Altair to the end of the century,
+home computers and consoles and the branded PCs that were documented well enough
+to have versions of themselves — and the variations each was built in, so filing a
+machine against one of them fills in what is already known and asks only about
+what varies. The whole list is on one page at `/machines`. The catalogue itself is
+a single YAML file with instructions at the top of it, so adding the machines your
 collection has needs a text editor and nothing else.
 
 ## What you get

@@ -10,6 +10,7 @@ the same record behind.
 import sys
 import textwrap
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 
@@ -1315,6 +1316,146 @@ class TestResync:
         assert resync.plan_variant(db) == []
 
 
+class TestReadingATypedRecordAgainstTheCatalogue:
+    """Most of this register was typed before the catalogue existed: a maker and a
+    model in two free-text boxes, which is how a person writes down what is on the
+    badge. machines.suggest is how the two are introduced -- it proposes, a person
+    decides, and nothing here writes anything.
+
+    The cases are all real ones out of the live register, because a matcher tuned
+    against invented names is tuned against nothing.
+    """
+
+    @staticmethod
+    def best(maker, model):
+        found = machines.suggest(maker, model)
+        return found[0][0] if found else None
+
+    def test_the_same_name_written_the_same_way_is_the_top_match(self):
+        assert self.best("Amstrad", "PC1640") == "amstrad-pc1640"
+        assert self.best("Commodore", "Amiga 500") == "amiga-500"
+        assert self.best("IBM", "PS/2 Model 80") == "ps2-8580"
+
+    def test_a_trailing_space_is_not_a_different_manufacturer(self):
+        """Two records in the live register carry one -- "IBM " and "Amstrad " --
+        and a space is not a maker. _fold absorbs it, as it does for everything
+        else that asks whether two answers are the same answer."""
+        assert self.best("Amstrad ", "PC2286") == "amstrad-pc2286"
+        assert machines.suggest("IBM ", "5170") == machines.suggest("IBM", "5170")
+
+    def test_a_number_is_not_a_near_miss(self):
+        """The one that made this need a scorer of its own. Letter by letter "IBM
+        5170" is slightly closer to "IBM PC 5150" than to "IBM PC/AT 5170", because
+        the wrong one is shorter -- and a 5170 is not almost a 5150."""
+        found = {k: s for k, s, _e in machines.suggest("IBM", "5170")}
+        assert self.best("IBM", "5170") == "ibm-5170"
+        assert "ibm-5150" not in found
+        assert self.best("Amstrad", "PC1512") == "amstrad-pc1512"
+
+    def test_a_model_that_says_more_than_the_catalogue_does_still_matches(self):
+        """"Olivetti Personal Computer M21" is what is on the badge, in full. The
+        catalogue calls it the M21, and difflib's ratio halves for the extra
+        words."""
+        assert self.best("Olivetti", "Personal Computer M21") == "olivetti-m21"
+
+    def test_an_aside_in_the_model_box_does_not_hide_the_match(self):
+        """"GRiDCASE 2 (Philips PC200)" is somebody recording a second opinion
+        beside the name rather than naming the machine that."""
+        key, score, exact = machines.suggest("Grid", "GRiDCASE 2 (Philips PC200)")[0]
+        assert (key, exact) == ("grid-gridcase-2", True)
+        assert score == 1.0
+
+    def test_the_same_name_beats_a_name_it_is_inside_of(self):
+        """A machine typed as "BBC Micro Model B" is as wholly inside "BBC Micro
+        Model B+" as it is inside itself, and only one of those is what somebody
+        wrote down."""
+        assert self.best("Acorn", "BBC Micro Model B") == "bbc-model-b"
+        assert self.best("Compaq", "Deskpro 386") == "compaq-deskpro-386"
+
+    def test_a_fuller_model_beats_the_line_it_belongs_to(self):
+        """"Compaq Portable" is a real machine and a real prefix of the one on the
+        record, so both are offered -- but the record carries a number and the
+        model that shares it is the better reading."""
+        found = [k for k, _s, _e in machines.suggest("Compaq", "Portable 486/66")]
+        assert found[0] == "compaq-portable-486"
+        assert "compaq-portable" in found          # still offered, just not first
+
+    def test_a_machine_the_catalogue_does_not_know_gets_no_answer(self):
+        """The point of the floor. A whitebox clone, an office PC from after the
+        era and a modern reproduction have nothing to be filed as, and saying so is
+        the correct outcome rather than a failure to match."""
+        assert machines.suggest("Mitac", "MiStation 4052F/M") == []
+        assert machines.suggest("IBM ", "ThinkCentre 8183-21G") == []
+        assert machines.suggest("Intel", "Xpress System Deskside LX Base 8TE16F") == []
+
+    def test_nothing_typed_suggests_nothing(self):
+        assert machines.suggest("", "") == []
+        assert machines.suggest("   ", None) == []
+
+    def test_every_score_is_a_fraction(self):
+        for maker, model in (("IBM", "5170"), ("Acorn", "BBC Micro Model B"),
+                             ("Compaq", "Portable 486/66"), ("Opus", "PCV Turbo")):
+            for _key, score, _exact in machines.suggest(maker, model):
+                assert machines.MATCH_FLOOR <= score <= 1.0
+
+    def test_where_the_record_and_the_catalogue_disagree_is_reported(self):
+        """Shown so a person can see it, and never acted on. Two IBM 5170s in this
+        register are dated 1985 and 1988; the AT came out in 1984, and all three of
+        those are true of something."""
+        differs = {field: (mine, theirs) for field, mine, theirs
+                   in machines.disagreements("ibm-5170",
+                                             {"manufacturer": "IBM", "year": 1988,
+                                              "model": "5170"})}
+        assert differs["year"] == ("1988", "1984")
+        assert differs["model"] == ("5170", "PC/AT 5170")
+        assert "manufacturer" not in differs        # those two agree
+
+    def test_a_blank_field_is_not_a_disagreement(self):
+        """A record that says nothing about its CPU is not contradicting the
+        catalogue about it."""
+        assert machines.disagreements("ibm-5170", {"cpu": "", "year": None}) == []
+
+    def test_an_unknown_model_has_nothing_to_disagree_about(self):
+        assert machines.disagreements("no-such-model", {"year": 1990}) == []
+
+
+class TestTheBrandedPcsAreInTheCatalogue:
+    """The machines the register holds that were filed as free text before, and the
+    rule they were let in under: a documented branded model belongs in the
+    catalogue, a whitebox clone does not. Both halves of that are worth pinning --
+    what was added, and what was deliberately not.
+    """
+
+    HELD: ClassVar = ["ibm-5170", "ps2-8530", "ps2-8555-sx", "ps2-8580",
+                      "ps1-2121",
+                      "amstrad-pc1640", "amstrad-pc2286",
+                      "compaq-portable-486", "olivetti-m21", "opus-pc-v-turbo",
+                      "grid-gridcase-2", "victor-9000"]
+
+    @pytest.mark.parametrize("key", HELD)
+    def test_a_machine_this_collection_holds_can_be_filed(self, key):
+        assert machines.model(key) is not None
+
+    def test_ibms_keys_are_its_own_machine_types(self):
+        """Keys are forever, so they are built from the maker's own stable
+        designation rather than from a marketing name that moved: IBM's four-digit
+        machine type is on the plate and was never reused."""
+        for key, number in (("ibm-5150", "5150"), ("ibm-5160", "5160"),
+                            ("ibm-5170", "5170"), ("ps2-8530", "8530"),
+                            ("ps2-8555-sx", "8555"), ("ps2-8580", "8580")):
+            assert number in machines.model(key)["model"], key
+
+    def test_the_line_is_the_model_and_not_the_era(self):
+        """A PC in the catalogue is not a contradiction of what the catalogue is
+        for. It is there because it was sold as a model somebody documented, which
+        is the only test any of these pass."""
+        pcs = [m for m in machines.models() if m["year"] >= 1981
+               and m["family"] in ("IBM PC", "IBM PS/2", "Compaq", "Amstrad PC")]
+        assert len(pcs) > 20
+        for m in pcs:
+            assert m["manufacturer"] and m["cpu"]
+
+
 class TestTheListOfWhatIsInIt:
     """catalogue.txt is the catalogue in plain text -- makers and machines, no
     detail -- for the question that gets asked far more often than any question
@@ -1329,6 +1470,57 @@ class TestTheListOfWhatIsInIt:
         assert have == wanted, ("catalogue.txt is out of step with"
                                 " api/app/machines.yaml -- run"
                                 " `python tools/catalogue_list.py`")
+
+
+class TestTheToolThatAdoptsAMachine:
+    """tools/adopt_machines.py, which is the one thing here that writes to a real
+    register from the command line. What it picks up and what it leaves alone is
+    therefore worth pinning down away from the confirming, which a person does.
+
+    The matching itself is machines.suggest, tested above; this is the sieve in
+    front of it.
+    """
+
+    @staticmethod
+    def tool():
+        sys.path.insert(0, str(ROOT / "tools"))
+        import adopt_machines
+        return adopt_machines
+
+    def rows(self, **over):
+        base = {"asset_id": "RH-0001", "manufacturer": "IBM", "model": "5170",
+                "year": 1985, "disposed": False, "machine": None}
+        return [base | over]
+
+    def test_a_machine_with_no_model_is_what_it_is_for(self):
+        assert len(self.tool().unfiled(self.rows())) == 1
+
+    def test_a_machine_already_filed_is_left_alone(self):
+        """Not "proposed again and skipped" -- not shown at all. The catalogue
+        model on it is somebody's answer, and re-asking a settled question is how a
+        settled question gets un-settled by a tired thumb."""
+        filed = self.rows(machine={"model_key": "ibm-5170"})
+        assert self.tool().unfiled(filed) == []
+
+    def test_what_has_gone_is_not_worth_cataloguing(self):
+        assert self.tool().unfiled(self.rows(disposed=True)) == []
+
+    def test_one_machine_can_be_asked_about_on_its_own(self):
+        both = [*self.rows(), dict(self.rows()[0], asset_id="RH-0002")]
+        got = self.tool().unfiled(both, only="rh-0002")
+        assert [c["asset_id"] for c in got] == ["RH-0002"]
+
+    def test_the_report_carries_the_disagreements_with_it(self):
+        """What the person deciding needs in front of them: the proposal, and every
+        way the record already contradicts it."""
+        [first, *_] = self.tool().report(self.rows()[0])
+        assert first["key"] == "ibm-5170"
+        assert first["name"] == "IBM PC/AT 5170"
+        assert ("year", "1985", "1984") in first["differs"]
+
+    def test_a_machine_the_catalogue_cannot_place_reports_nothing(self):
+        assert self.tool().report(self.rows(manufacturer="Mitac",
+                                            model="MiStation 4052F/M")[0]) == []
 
 
 class TestTheFileTheCatalogueIsWrittenIn:

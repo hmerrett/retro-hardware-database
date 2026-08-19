@@ -73,6 +73,12 @@ tag. Nobody shelves a ULA on its own, photographs one, or gives it an asset
 number, and a register that made you do so would claim to hold forty more objects
 than it does.
 
+**A branded PC is described both ways at once.** An IBM 5170 is a box with cards
+in it *and* a machine with a planar type, a BIOS date and a badge — so it gets a
+catalogue identity saying which machine it is and tagged parts saying what is
+fitted in it, and neither answers the other's question. A clone nobody documented
+gets the first description only, because there is no model to name it as.
+
 So a machine can be filed against a **catalogue model** instead, and its
 variations recorded as attributes. See [section 6](#6-machines-the-catalogue-names).
 
@@ -223,7 +229,7 @@ nothing until you submit it.
 
 | Field | What goes in it |
 |---|---|
-| **Catalogue model** | If this is a home computer or console the catalogue knows, pick it here first — it fills in half of what follows. See [section 6](#6-machines-the-catalogue-names). |
+| **Catalogue model** | If the catalogue knows this machine — a home computer, a console, a branded PC — pick it here first — it fills in half of what follows. See [section 6](#6-machines-the-catalogue-names). |
 | **Name** | A display name. Overrides maker + model on the page and in lists. Leave blank and the machine is called "Compaq Deskpro 386". |
 | **Manufacturer** | Or `Custom build`. |
 | **Model** | |
@@ -268,10 +274,25 @@ to the machine, so building out a PC is a straight run down the list.
 
 ## 6. Machines the catalogue names
 
-The catalogue holds a little over three hundred home computers and consoles, from
-seventy-odd makers, and for each model its standard memory sizes, board issues,
-case and keyboard styles, regions, and chip sockets with the part numbers that
-turn up in them. It runs from the 1975 Altair to the last of the 16-bit machines.
+The catalogue holds getting on for four hundred machines, from seventy-odd
+makers, and for each model its standard memory sizes, board issues, case and
+keyboard styles, regions, and chip sockets with the part numbers that turn up in
+them. It runs from the 1975 Altair to the end of the century.
+
+**What is in it, and what is not.** Home computers and consoles, and the branded
+PCs that were documented well enough to have versions of themselves — an IBM
+5170, a Compaq Deskpro 386, an Amstrad PC1640. The line is not "home machine or
+PC"; it is whether the thing was sold as a model somebody wrote down. A whitebox
+clone was not, and is not in here and never will be: it is described by the parts
+in it, which is all there is to say about it.
+
+A branded PC gets both descriptions, and they do not compete. The catalogue
+identity says *which machine this is* — the planar type, the BIOS date, the badge
+on the front. The parts tagged into it say *what is fitted in it today*. Nothing
+about how PC parts are recorded changes; the catalogue is one more thing the
+machine can answer.
+
+**The whole list is at [/machines](#the-list-of-what-it-knows)** — see below.
 
 | | |
 |---|---|
@@ -298,6 +319,22 @@ Pick a model from the menu at the top of the machine form and two things happen:
 A model that has no such socket says so and is not asked: a VIC-20 has no SID, a
 ZX80 no ULA. A model can replace its family's chip for a socket with its own — a
 Spectrum +2A has Amstrad's gate array where the family has a Ferranti ULA.
+
+### The list of what it knows
+
+`/machines` is the catalogue read rather than picked from: every model it names,
+by maker, with the year and the CPU, on one page. It is **public** — there is
+nothing of the register on it, since it is a list of what was made rather than of
+what is here — and it has no search box, because a list you can search with your
+browser's own find is worth more than a list with a filter on it.
+
+Where the register holds something filed as a model, the row says so and the
+count leads to it. Machines and bare boards both, since a motherboard files
+against a model the same way a whole machine does.
+
+Two other shapes of the same list: `catalogue.txt` in the repository, and
+[`/api/machines`](#17-the-rest-api) for anything that would rather read JSON —
+public for the same reason the page is.
 
 ### Why they are boxes and not menus
 
@@ -982,7 +1019,7 @@ schema is at `/openapi.json`.
 | `GET`, `POST` | `/api/computers`, `/api/parts` | list, or create — the server assigns the asset tag |
 | `GET`, `PATCH`, `DELETE` | `/api/computers/{id}`, `/api/parts/{id}` | fetch, partial update, delete |
 | `GET` | `/api/items/{id}/log` | an item's history, with any photographs on each entry |
-| `GET` | `/api/machines` | the catalogue of known home machines and consoles, and the variations each was built in |
+| `GET` | `/api/machines` | the catalogue of machines known as models — home computers, consoles, documented branded PCs — and the variations each was built in. Public, like [/machines](#the-list-of-what-it-knows), because none of it is about this register |
 | `GET` | `/api/files` | the files kept beside the register |
 
 `GET /api/parts?computer_id=RH-4K7Q` and `?type=sound` filter the list.
@@ -1117,6 +1154,29 @@ docker compose exec api python -m app.thumbs
 
 The copies live in a dot-directory under `images/` and are excluded from backups,
 since they can always be made again from the originals.
+
+### adopt_machines.py
+
+Goes through the machines that have **no catalogue model** and proposes one for
+each, from what is typed in their manufacturer and model boxes. It writes nothing
+until you pick a match by number.
+
+```sh
+python tools/adopt_machines.py             # go through them, asking
+python tools/adopt_machines.py --list      # the report only; writes nothing
+python tools/adopt_machines.py RH-4K7Q     # just this one
+```
+
+Confirming writes **one field**: the model key. Not the manufacturer, not the
+model, not the year, not the CPU — the machine in front of you is the authority on
+those and the catalogue is a starting point. Where the two disagree, the
+disagreement is printed and the record is left exactly as it is: two IBM 5170s in
+this register are dated 1985 and 1988, the catalogue says the AT came out in
+1984, and all three are true of something.
+
+A machine the catalogue does not know is left uncatalogued, which is a correct
+state and not a failure. Disposed machines and bare boards are left out — a board
+is filed by reading it, not by matching a name.
 
 ### catalogue_list.py
 

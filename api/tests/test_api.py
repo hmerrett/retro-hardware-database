@@ -3638,6 +3638,71 @@ class TestEveryObjectHasItsPortrait:
         assert self.standing(page.text) == ""
 
 
+class TestTheCataloguePage:
+    """The catalogue read rather than picked from: every machine the register knows
+    as a model, on one page.
+
+    It exists because "does it know my machine?" is asked before anything is typed,
+    and the two answers that existed -- a text file in the repository and a JSON
+    endpoint -- are not answers you can give somebody with a link.
+    """
+
+    def test_every_model_in_the_catalogue_is_on_it(self, client):
+        from app import machines
+        page = client.get("/machines").text
+        for m in machines.models():
+            assert html.escape(m["model"]) in page, m["key"]
+
+    def test_it_says_which_of_them_are_actually_here(self, client, computer, db):
+        """The other view of the catalogue: not what was made, but how much of it
+        is on the shelf."""
+        from app.models import Computer
+        aid = computer()["asset_id"]
+        client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": "c64"}})
+        page = client.get("/machines").text
+        assert "1 here" in page
+        assert '/browse?f=model&amp;v=c64' in page
+        assert db.get(Computer, aid) is not None
+
+    def test_a_model_nothing_is_filed_as_says_nothing(self, client):
+        """Most of the catalogue is machines this collection has not got, which is
+        the ordinary state and reads as a catalogue rather than as a gap."""
+        assert "here</a>" not in client.get("/machines").text
+
+    def test_the_count_leads_to_the_machines_behind_it(self, client, computer, part):
+        """A board files as a model the same way a whole machine does, so both turn
+        up here -- that is what the catalogue's board side is for."""
+        c = computer()["asset_id"]
+        p = part(type="motherboard")["asset_id"]
+        client.patch(f"/api/computers/{c}", json={"machine": {"model_key": "amiga-500"}})
+        client.patch(f"/api/parts/{p}", json={"machine": {"model_key": "amiga-500"}})
+        page = client.get("/browse?f=model&v=amiga-500").text
+        assert sorted(re.findall(r'class="card" href="[^"]*/([A-Z0-9-]+)"', page)) \
+            == sorted([c, p])
+
+    def test_a_model_the_catalogue_never_had_is_a_404(self, client):
+        assert client.get("/browse?f=model&v=zx-spectrum-1024k").status_code == 404
+
+    def test_it_is_public(self, client, monkeypatch):
+        """The whole point of the page. It holds nothing of the register -- it is
+        what was made, not what is here -- so there is nothing on it to sign in
+        for, and the JSON behind it is public for the same reason."""
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        for path in ("/machines", "/api/machines"):
+            r = client.get(path, follow_redirects=False)
+            assert r.status_code == 200, path
+
+    def test_the_rest_of_the_api_is_still_not(self, client, monkeypatch):
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        assert client.get("/api/computers", follow_redirects=False).status_code == 401
+
+    def test_it_is_offered_to_search_engines(self, client):
+        assert "/machines</loc>" in client.get("/sitemap.xml").text
+        assert "Disallow: /machines" not in client.get("/robots.txt").text
+
+
 class TestSearchTerms:
     """A query is the set of things that must all appear."""
 

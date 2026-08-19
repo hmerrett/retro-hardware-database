@@ -194,6 +194,14 @@ def _is_public_read(request: Request) -> bool:
                 "/favicon.ico",
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
         return True
+    # The catalogue, in both the shapes it is offered in. This is the one corner of
+    # the JSON API that is public, and it is public because there is nothing of the
+    # register in it: /api/machines answers with what was made rather than with what
+    # is here, the same list that is in the repository as machines.yaml and
+    # catalogue.txt. Putting the page behind the login and not the data behind it
+    # would be a lock on a door in a field.
+    if path in ("/machines", "/api/machines"):
+        return True
     if path.startswith(("/images/", "/static/")):
         return True
     # The files kept beside the register read like the photographs do: a driver or
@@ -998,7 +1006,8 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     # Newest change per asset, for <lastmod>.
     last = dict(db.query(
         LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id))
-    urls = [(f"{base}/", None), (f"{base}/stats", None)]
+    urls = [(f"{base}/", None), (f"{base}/stats", None),
+            (f"{base}/machines", None)]
     for c in db.query(Computer.asset_id).order_by(Computer.asset_id):
         urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
     for p in db.query(Part.asset_id).order_by(Part.asset_id):
@@ -1544,11 +1553,37 @@ def _part_out(db, part, identity=None):
     return to_dict(part) | {"machine": _machine_out(db, part, identity)}
 
 
+@app.get("/machines", response_class=HTMLResponse, include_in_schema=False)
+def gui_machines(request: Request, db: Session = Depends(get_db)):
+    """Every machine the catalogue names, on one page, and which of them are here.
+
+    catalogue.txt answers this question in a text file and /api/machines answers it
+    in JSON; this is the same question asked in a browser, which is where it
+    actually gets asked -- "does it know my machine?" is what somebody wants to
+    know before they type one in, and reading a JSON document to find out is not a
+    reasonable thing to ask of anybody.
+
+    The count of what is held against each model comes from the register, so the
+    page doubles as the other view of the catalogue: not what was made, but how
+    much of it is on the shelf."""
+    held = Counter()
+    for row in db.query(AssetVariant.model_key).filter(AssetVariant.model_key != ""):
+        held[row[0]] += 1
+    families = [{"name": name, "models": group} for name, group in machines.grouped()]
+    return templates.TemplateResponse(request, "machines.html", {
+        "families": families, "held": held,
+        "n_models": len(machines.keys()), "n_families": len(families),
+        "og": _og(request, "Machines the catalogue names",
+                  f"{len(machines.keys())} machines the register knows as models, "
+                  "with the board issues, styles and chips each was built in.")})
+
+
 @app.get("/api/machines", tags=["computers"])
 def api_list_machines():
-    """The catalogue of known home machines and consoles: every model, with the
-    memory sizes, board issues, case and keyboard styles, regions and chip sockets
-    it was built in. `key` is what a computer's `machine.model_key` is set to.
+    """The catalogue of machines the register knows as models -- home computers,
+    consoles and the documented branded PCs -- with the memory sizes, board issues,
+    case and keyboard styles, regions and chip sockets each was built in. `key` is
+    what a computer's `machine.model_key` is set to.
 
     Every list names what is commonly seen rather than everything that exists, so a
     board issue or a chip from outside one is recorded as it is given."""
@@ -2675,6 +2710,17 @@ def _browse_view(db, key: str, val: str):
         return ("Items with an acquisition date",
                 "when each of these arrived, as recorded", None,
                 lambda r: r["obj"].acquired_date is not None)
+    if key == "model":
+        # Everything filed as one catalogue model, machines and bare boards alike:
+        # asset_variant is keyed by a plain asset id and does not care which it has,
+        # which is the whole of what stage 1 bought. An unknown key is a 404 rather
+        # than an empty page, the same as a machine that is not there.
+        m = machines.model(val)
+        if m is None:
+            return None
+        return (m["full_name"], "everything in the register filed as this model",
+                None, _tagged(db.query(AssetVariant.asset_id)
+                              .filter(AssetVariant.model_key == val)))
     if key == "in":
         machine = db.get(Computer, (val or "").upper())
         if machine is None:

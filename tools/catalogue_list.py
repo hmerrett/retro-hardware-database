@@ -35,7 +35,9 @@ def render(families):
 
     out = ["THE MACHINE CATALOGUE", "=" * WIDTH, ""]
     out.append(textwrap.fill(
-        f"Every home computer and console the register knows about: {models}"
+        f"Every machine the register knows as a model -- home computers, consoles"
+        f" and the branded PCs that were documented well enough to have versions of"
+        f" themselves: {models}"
         f" machines from {len(makers)} makers, {min(years)} to {max(years)}. Filing"
         " a machine against one of these fills in what is already known about that"
         " model, and asks only about what varies between two of them -- the board"

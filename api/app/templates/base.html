@@ -339,6 +339,24 @@
   .tile .k { color: var(--muted); font-size: 12px; }
   .tile .v { font-size: 21px; font-weight: 600; margin-top: 3px; }
   .tile .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  /* The catalogue read as a list. Two columns where there is room, because the
+     families are short and a single column of them is a very long page; each one
+     stays whole rather than breaking across the columns mid-family. */
+  .cat { columns: 2; column-gap: 34px; margin: 18px 0 24px; }
+  .cat section { break-inside: avoid; display: inline-block; width: 100%;
+    margin-bottom: 14px; }
+  .cat h2 { font-size: 14px; margin: 0 0 3px; }
+  .cat table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cat td { padding: 1px 0; vertical-align: top; }
+  .cat td.yr, .cat td.cpu, .cat td.got { color: var(--muted); }
+  .cat td.yr { width: 3.4em; }
+  .cat td.cpu { font-size: 12px; }
+  .cat td.got { text-align: right; white-space: nowrap; }
+  /* A model the register actually holds one of. The mark is the ink, not a
+     colour: this page is read in both themes and by people who cannot tell the
+     two apart. */
+  .cat tr.have td.lbl { font-weight: 600; }
+  @media (max-width: 720px) { .cat { columns: 1; } }
   .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr));
     gap: 22px 34px; margin-bottom: 24px; }
   .rank h3 { font-size: 14px; margin: 0 0 2px; }
@@ -625,6 +643,7 @@
     <span>Retro Hardware Database</span>
   </a>
   <a href="/stats">numbers</a>
+  <a href="/machines">machines</a>
   <a href="/files">files</a>
   <a href="/docs">API docs</a>
   <span class="hdr-gap"></span>

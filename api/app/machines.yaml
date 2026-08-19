@@ -1,4 +1,7 @@
-# The catalogue of home computers and consoles this register knows about.
+# The catalogue of machines this register knows as models: home computers,
+# consoles, and the branded PCs that were documented well enough to have
+# versions of themselves. A whitebox clone is not in here and never will be --
+# it is described by the parts in it, which is all there is to say about it.
 #
 # ---------------------------------------------------------------------------
 # ADDING A MACHINE
@@ -858,6 +861,120 @@ families:
           - socket: fdc
             label: Floppy controller
             variants: [NEC D765AC]
+
+  - key: amstrad-pc
+    name: Amstrad PC
+    manufacturer: Amstrad
+    regions: [UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 8086, NEC V30, Intel 80286, Intel 80386SX]
+      - socket: fpu
+        label: FPU
+        note: >-
+          the empty socket next to the processor; empty is the usual answer, and
+          worth writing down as such
+        variants: [Intel 8087, Intel 80287, Intel 80387SX]
+    models:
+      - key: amstrad-pc1512
+        model: PC1512
+        year: 1986
+        cpu: Intel 8086-8
+        chassis: desktop, with the power supply in the monitor
+        os: MS-DOS 3.2 / DOS Plus / GEM
+        ram: [512K]
+        issues: []
+        styles: [single drive (SD), twin drive (DD), 10MB disk (HD10), 20MB disk (HD20)]
+        chips:
+          - socket: cpu
+            variants: [Intel 8086]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: amstrad-pc1640
+        model: PC1640
+        year: 1987
+        cpu: Intel 8086-8
+        chassis: desktop, with the power supply in the monitor
+        os: MS-DOS 3.2 / GEM
+        ram: [640K]
+        issues: []
+        styles: [single drive (SD), twin drive (DD), 20MB disk (HD20), 30MB disk (HD30)]
+        chips:
+          - socket: cpu
+            variants: [Intel 8086]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: amstrad-pc2086
+        model: PC2086
+        year: 1988
+        cpu: Intel 8086-8
+        chassis: desktop with a separate power supply and VGA on the board
+        os: MS-DOS 3.3 / GEM
+        ram: [640K]
+        issues: []
+        styles: [single drive, 30MB disk]
+        chips:
+          - socket: cpu
+            variants: [Intel 8086]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: amstrad-pc2286
+        model: PC2286
+        year: 1989
+        cpu: Intel 80286-12
+        chassis: desktop with three expansion slots
+        os: MS-DOS 3.3 / GEM
+        ram: [1MiB]
+        issues: []
+        styles: [single drive, 30MB disk, 40MB disk]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: amstrad-pc2386
+        model: PC2386
+        year: 1989
+        cpu: Intel 80386SX-20
+        chassis: desktop with VGA and a hard disk as standard
+        os: MS-DOS 4 / GEM
+        ram: [1MiB, 4MiB]
+        issues: []
+        styles: [40MB disk, 65MB disk]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SX]
+          - socket: fpu
+            variants: [Intel 80387SX]
+      - key: amstrad-ppc512
+        model: PPC512
+        year: 1987
+        cpu: NEC V30-8
+        chassis: luggable with a fold-up LCD and a handle, run from ten C cells
+        os: MS-DOS 3.3
+        ram: [512K]
+        issues: []
+        styles: [one drive, two drives]
+        chips:
+          - socket: cpu
+            variants: [NEC V30]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: amstrad-ppc640
+        model: PPC640
+        year: 1987
+        cpu: NEC V30-8
+        chassis: luggable with a fold-up LCD, a modem and a handle
+        os: MS-DOS 3.3
+        ram: [640K]
+        issues: []
+        styles: [one drive, two drives, with modem]
+        chips:
+          - socket: cpu
+            variants: [NEC V30]
+          - socket: fpu
+            variants: [Intel 8087]
 
   - key: apple
     name: Apple II
@@ -2716,6 +2833,289 @@ families:
           - socket: basic-rom
             variants: [BASIC 1.0, BASIC 2.0]
 
+  - key: compaq
+    name: Compaq
+    manufacturer: Compaq
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants:
+          - Intel 8088
+          - Intel 8086
+          - Intel 80C86
+          - Intel 80286
+          - Intel 80386DX
+          - Intel 80386SX
+          - Intel 80486DX
+          - Intel 80486DX2
+      - socket: fpu
+        label: FPU
+        note: >-
+          the socket beside the processor; on a Deskpro it is usually still empty
+        variants: [Intel 8087, Intel 80287, Intel 80387, Intel 80387SX]
+    models:
+      - key: compaq-portable
+        model: Portable
+        year: 1983
+        cpu: Intel 8088-4.77
+        chassis: sewing-machine luggable with a 9-inch amber CRT
+        os: Compaq MS-DOS 1.13
+        ram: [128K, 256K, 640K]
+        issues: []
+        styles: [one drive, two drives]
+        chips:
+          - socket: cpu
+            variants: [Intel 8088]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: compaq-portable-plus
+        model: Portable Plus
+        year: 1983
+        cpu: Intel 8088-4.77
+        chassis: the Portable with a 10MB fixed disk where the second drive was
+        os: Compaq MS-DOS 2.0
+        ram: [128K, 640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 8088]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: compaq-portable-ii
+        model: Portable II
+        year: 1986
+        cpu: Intel 80286-8
+        chassis: luggable, half the weight of the first one
+        os: Compaq MS-DOS 3.1
+        ram: [256K, 640K, 4MiB]
+        issues: []
+        styles: [Model 1, Model 2, Model 3, Model 4]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: compaq-portable-iii
+        model: Portable III
+        year: 1987
+        cpu: Intel 80286-12
+        chassis: lunchbox with a fold-down orange gas plasma screen
+        os: Compaq MS-DOS 3.2
+        ram: [640K, 6MiB]
+        issues: []
+        styles: [Model 20, Model 40]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: compaq-portable-386
+        model: Portable 386
+        year: 1988
+        cpu: Intel 80386DX-20
+        chassis: the Portable III shell with a 386 in it
+        os: Compaq MS-DOS 3.31
+        ram: [1MiB, 2MiB, 10MiB]
+        issues: []
+        styles: [Model 40, Model 100]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386DX]
+          - socket: fpu
+            variants: [Intel 80387]
+      - key: compaq-portable-486
+        model: Portable 486
+        year: 1991
+        cpu: Intel 80486DX-33
+        chassis: lunchbox portable, the last of the line
+        os: MS-DOS 5
+        ram: [4MiB, 8MiB, 32MiB]
+        issues: []
+        styles:
+          - Portable 486 (mono)
+          - Portable 486c (colour)
+          - Portable 486/66 (mono)
+          - Portable 486/66c (colour)
+        chips:
+          - socket: cpu
+            note: >-
+              socketed on all four, and the 66 is a DX2 rather than a faster DX
+            variants: [Intel 80486DX, Intel 80486DX2]
+          - socket: fpu
+            variants: []
+      - key: compaq-deskpro
+        model: Deskpro
+        year: 1984
+        cpu: Intel 8086-8
+        chassis: desktop
+        os: Compaq MS-DOS 2.11
+        ram: [128K, 640K]
+        issues: []
+        styles: [Model 1, Model 2, Model 3, Model 4]
+        chips:
+          - socket: cpu
+            variants: [Intel 8086]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: compaq-deskpro-286
+        model: Deskpro 286
+        year: 1985
+        cpu: Intel 80286-8
+        chassis: desktop
+        os: Compaq MS-DOS 3.1
+        ram: [640K, 2MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: compaq-deskpro-386
+        model: Deskpro 386
+        year: 1986
+        cpu: Intel 80386DX-16
+        chassis: desktop
+        os: Compaq MS-DOS 3.1
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: [Deskpro 386/16, Deskpro 386/20, Deskpro 386/25, Deskpro 386/33]
+        chips:
+          - socket: cpu
+            note: >-
+              the first PC built on Intel's 386, and out a year before IBM's
+            variants: [Intel 80386DX]
+          - socket: fpu
+            variants: [Intel 80387]
+      - key: compaq-deskpro-386s
+        model: Deskpro 386s
+        year: 1988
+        cpu: Intel 80386SX-16
+        chassis: desktop
+        os: Compaq MS-DOS 3.31
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SX]
+          - socket: fpu
+            variants: [Intel 80387SX]
+      - key: compaq-deskpro-486
+        model: Deskpro 486
+        year: 1989
+        cpu: Intel 80486DX-25
+        chassis: desktop or tower
+        os: MS-DOS 4
+        ram: [4MiB, 8MiB, 16MiB]
+        issues: []
+        styles: [desktop, tower (486/33L)]
+        chips:
+          - socket: cpu
+            variants: [Intel 80486DX, Intel 80486DX2]
+          - socket: fpu
+            variants: []
+      - key: compaq-deskpro-en
+        model: Deskpro EN
+        year: 1998
+        cpu: Intel Pentium II-350
+        chassis: desktop, small form factor or minitower
+        os: Windows 95 / 98 / NT 4
+        ram: [32MiB, 64MiB, 128MiB]
+        issues: []
+        styles: [desktop, small form factor, minitower]
+        chips:
+          - socket: cpu
+            variants: [Intel Pentium II, Intel Pentium III, Intel Celeron]
+          - socket: fpu
+            variants: []
+      - key: compaq-slt-286
+        model: SLT/286
+        year: 1988
+        cpu: Intel 80286-12
+        chassis: clamshell laptop with a detachable keyboard
+        os: MS-DOS 3.31
+        ram: [1MiB, 2MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: compaq-lte
+        model: LTE
+        year: 1989
+        cpu: Intel 80C86-9.54
+        chassis: notebook, the first of the size that stayed
+        os: MS-DOS 4.01
+        ram: [640K, 2MiB]
+        issues: []
+        styles: [LTE, LTE/286]
+        chips:
+          - socket: cpu
+            variants: [Intel 80C86, Intel 80C286]
+          - socket: fpu
+            variants: []
+      - key: compaq-lte-lite
+        model: LTE Lite
+        year: 1992
+        cpu: Intel 80386SL-25
+        chassis: notebook
+        os: MS-DOS 5
+        ram: [4MiB, 8MiB]
+        issues: []
+        styles: [LTE Lite 20, LTE Lite 25, LTE Lite 4/25, LTE Lite 4/33]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SL, Intel 80486SL]
+          - socket: fpu
+            variants: []
+      - key: compaq-contura
+        model: Contura
+        year: 1992
+        cpu: Intel 80486SL-25
+        chassis: notebook
+        os: MS-DOS 5 / Windows 3.1
+        ram: [4MiB, 8MiB]
+        issues: []
+        styles: [Contura 3/25, Contura 4/25, Contura Aero]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SL, Intel 80486SL, Intel 80486DX2]
+          - socket: fpu
+            variants: []
+      - key: compaq-prolinea
+        model: ProLinea
+        year: 1992
+        cpu: Intel 80486SX-25
+        chassis: desktop
+        os: MS-DOS 5 / Windows 3.1
+        ram: [4MiB, 8MiB, 16MiB]
+        issues: []
+        styles: [ProLinea 3/25, ProLinea 4/25, ProLinea 4/33, ProLinea 4/50]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SX, Intel 80486SX, Intel 80486DX2]
+          - socket: fpu
+            variants: [Intel 80487SX]
+      - key: compaq-presario
+        model: Presario
+        year: 1993
+        cpu: Intel 80486SX-25
+        chassis: all-in-one or desktop, sold through the high street
+        os: MS-DOS 6 / Windows 3.1
+        ram: [4MiB, 8MiB, 16MiB]
+        issues: []
+        styles: [all-in-one, desktop, minitower]
+        chips:
+          - socket: cpu
+            variants: [Intel 80486SX, Intel 80486DX2, Intel Pentium]
+          - socket: fpu
+            variants: []
+
   - key: compukit
     name: Compukit
     manufacturer: Compukit
@@ -3221,6 +3621,40 @@ families:
               which is why a failed 6522 is a Vectrex with no picture
             variants: [MOS 6522, Synertek SY6522]
 
+  - key: grid
+    name: GRiD
+    manufacturer: GRiD
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 8086, Intel 80C86, Intel 80286, Intel 80386SX]
+    models:
+      - key: grid-compass-1101
+        model: Compass 1101
+        year: 1982
+        cpu: Intel 8086-8
+        chassis: magnesium clamshell with an electroluminescent display
+        os: GRiD-OS
+        ram: [256K, 512K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 8086]
+      - key: grid-gridcase-2
+        model: GRiDCASE 2
+        year: 1985
+        cpu: Intel 8086-8
+        chassis: rugged clamshell portable with a CGA LCD
+        os: MS-DOS 3
+        ram: [512K, 640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 8086, Intel 80C86]
+
   - key: grundy
     name: Grundy
     manufacturer: Grundy
@@ -3290,6 +3724,308 @@ families:
           - socket: cpu
             label: CPU
             variants: [Motorola MC6800, Hitachi HD6800]
+
+  - key: ibm-pc
+    name: IBM PC
+    manufacturer: IBM
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 8088, Intel 8088-2, NEC V20, Intel 80286, Intel 80C88]
+      - socket: fpu
+        label: FPU
+        note: >-
+          the empty socket beside the processor. Empty is the ordinary answer and
+          is worth recording as such, because the question gets asked twice
+          otherwise
+        variants: [Intel 8087, Intel 80287]
+    models:
+      - key: ibm-5150
+        model: PC 5150
+        year: 1981
+        cpu: Intel 8088-4.77
+        chassis: desktop, five expansion slots, a cassette port nobody used
+        os: IBM PC DOS 1.0 / Cassette BASIC in ROM
+        ram: [16K, 64K, 256K, 640K]
+        issues: [16K-64K planar, 64K-256K planar]
+        styles: []
+        chips:
+          - socket: bios
+            label: BIOS ROM
+            note: >-
+              the date in the ROM is how a board of this age is dated, and the
+              three of them are not interchangeable
+            variants: [BIOS 04/24/81, BIOS 10/19/81, BIOS 10/27/82]
+      - key: ibm-5155
+        model: Portable PC 5155
+        year: 1984
+        cpu: Intel 8088-4.77
+        chassis: luggable with a 9-inch amber CRT, an XT board inside
+        os: IBM PC DOS 2.1
+        ram: [256K, 640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: bios
+            label: BIOS ROM
+            variants: [BIOS 11/08/82]
+      - key: ibm-5160
+        model: PC/XT 5160
+        year: 1983
+        cpu: Intel 8088-4.77
+        chassis: desktop, eight expansion slots, a fixed disk as standard
+        os: IBM PC DOS 2.0
+        ram: [64K, 256K, 640K]
+        issues: [64K-256K planar, 256K-640K planar]
+        styles: []
+        chips:
+          - socket: bios
+            label: BIOS ROM
+            variants: [BIOS 11/08/82, BIOS 01/10/86, BIOS 05/09/86]
+      - key: ibm-5162
+        model: PC XT/286 5162
+        year: 1986
+        cpu: Intel 80286-6
+        chassis: XT case, AT board, no wait states
+        os: IBM PC DOS 3.2
+        ram: [640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: bios
+            label: BIOS ROM
+            variants: [BIOS 04/21/86]
+      - key: ibm-5170
+        model: PC/AT 5170
+        year: 1984
+        cpu: Intel 80286-6
+        chassis: desktop, eight slots, a key lock on the front
+        os: IBM PC DOS 3.0
+        ram: [256K, 512K, 640K]
+        issues:
+          - Type 1 planar (6 MHz)
+          - Type 2 planar (6 MHz)
+          - Type 3 planar (8 MHz)
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80286, Intel 80286-8]
+          - socket: bios
+            label: BIOS ROM
+            note: >-
+              01/10/84 is the original, 06/10/85 the one that knows about 3.5-inch
+              drives, 11/15/85 the 8 MHz board's
+            variants: [BIOS 01/10/84, BIOS 06/10/85, BIOS 11/15/85]
+      - key: ibm-5140
+        model: PC Convertible 5140
+        year: 1986
+        cpu: Intel 80C88-4.77
+        chassis: clamshell laptop with a detachable LCD, run from a battery
+        os: IBM PC DOS 3.2
+        ram: [256K, 512K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80C88]
+          - socket: fpu
+            variants: []
+      - key: ibm-4860
+        model: PCjr 4860
+        year: 1984
+        cpu: Intel 8088-4.77
+        chassis: home machine with a wireless keyboard and cartridge slots
+        os: IBM PC DOS 2.1 / Cartridge BASIC
+        ram: [64K, 128K]
+        issues: []
+        styles: [chiclet keyboard, typewriter keyboard (replacement)]
+        chips:
+          - socket: fpu
+            variants: []
+          - socket: video
+            label: Video Gate Array
+            variants: [IBM VGA (PCjr gate array)]
+
+  - key: ibm-ps1
+    name: IBM PS/1
+    manufacturer: IBM
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 80286, Intel 80386SX, Intel 80486SX, Intel 80486DX]
+    models:
+      - key: ps1-2011
+        model: PS/1 Model 2011
+        year: 1990
+        cpu: Intel 80286-10
+        chassis: all-in-one, the machine under the monitor, sold to be plugged in
+        os: IBM PC DOS 4 with the PS/1 shell in ROM
+        ram: [512K, 1MiB, 2MiB]
+        issues: []
+        styles: [two floppies, 30MB disk]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+      - key: ps1-2121
+        model: PS/1 Model 2121
+        year: 1992
+        cpu: Intel 80386SX-16
+        chassis: desktop with the monitor on top
+        os: IBM PC DOS 5 / Windows 3.0
+        ram: [2MiB, 6MiB]
+        issues: []
+        styles: [386SX-16, 386SX-20]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SX]
+
+  - key: ibm-ps2
+    name: IBM PS/2
+    manufacturer: IBM
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants:
+          - Intel 8086
+          - Intel 80286
+          - Intel 80386SX
+          - Intel 80386DX
+          - Intel 80486DX
+      - socket: fpu
+        label: FPU
+        variants: [Intel 8087, Intel 80287, Intel 80387SX, Intel 80387]
+    models:
+      - key: ps2-8525
+        model: PS/2 Model 25 (8525)
+        year: 1987
+        cpu: Intel 8086-8
+        chassis: all-in-one with a 12-inch monitor built into it
+        os: IBM PC DOS 3.3
+        ram: [512K, 640K]
+        issues: []
+        styles: [mono, colour, Model 25 286]
+        chips:
+          - socket: cpu
+            variants: [Intel 8086]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: ps2-8530
+        model: PS/2 Model 30 (8530)
+        year: 1987
+        cpu: Intel 8086-8
+        chassis: low desktop, ISA slots rather than Micro Channel
+        os: IBM PC DOS 3.3
+        ram: [640K]
+        issues: []
+        styles: [8530-002 (two floppies), 8530-021 (20MB disk)]
+        chips:
+          - socket: cpu
+            variants: [Intel 8086]
+          - socket: fpu
+            variants: [Intel 8087]
+      - key: ps2-8530-286
+        model: PS/2 Model 30 286 (8530-286)
+        year: 1988
+        cpu: Intel 80286-10
+        chassis: low desktop, ISA slots
+        os: IBM PC DOS 4
+        ram: [1MiB, 4MiB]
+        issues: []
+        styles: [8530-E01, 8530-E21, 8530-E31]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: ps2-8535
+        model: PS/2 Model 35 SX (8535)
+        year: 1991
+        cpu: Intel 80386SX-20
+        chassis: low desktop, ISA slots
+        os: IBM PC DOS 5
+        ram: [2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SX]
+          - socket: fpu
+            variants: [Intel 80387SX]
+      - key: ps2-8550
+        model: PS/2 Model 50 (8550)
+        year: 1987
+        cpu: Intel 80286-10
+        chassis: desktop, Micro Channel
+        os: IBM PC DOS 3.3 / OS/2
+        ram: [1MiB, 2MiB]
+        issues: [Model 50 planar, Model 50 Z planar]
+        styles: [Model 50, Model 50 Z]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: ps2-8555-sx
+        model: PS/2 Model 55 SX (8555)
+        year: 1989
+        cpu: Intel 80386SX-16
+        chassis: desktop, Micro Channel
+        os: IBM PC DOS 4 / OS/2
+        ram: [2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [8555-031, 8555-061, 8555-081, 8555-LT0]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SX]
+          - socket: fpu
+            variants: [Intel 80387SX]
+      - key: ps2-8560
+        model: PS/2 Model 60 (8560)
+        year: 1987
+        cpu: Intel 80286-10
+        chassis: floor-standing, Micro Channel
+        os: IBM PC DOS 3.3 / OS/2
+        ram: [1MiB, 2MiB]
+        issues: []
+        styles: [8560-041, 8560-071]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+          - socket: fpu
+            variants: [Intel 80287]
+      - key: ps2-8570
+        model: PS/2 Model 70 (8570)
+        year: 1988
+        cpu: Intel 80386DX-16
+        chassis: desktop, Micro Channel
+        os: IBM PC DOS 4 / OS/2
+        ram: [2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [70-121 (16 MHz), 70-061 (20 MHz), 70-A21 (25 MHz)]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386DX, Intel 80486DX]
+          - socket: fpu
+            variants: [Intel 80387]
+      - key: ps2-8580
+        model: PS/2 Model 80 (8580)
+        year: 1987
+        cpu: Intel 80386DX-16
+        chassis: floor-standing tower, Micro Channel
+        os: IBM PC DOS 3.3 / OS/2
+        ram: [1MiB, 2MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [8580-041, 8580-071, 8580-111, 8580-311]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386DX]
+          - socket: fpu
+            variants: [Intel 80387]
 
   - key: imsai
     name: IMSAI
@@ -4418,6 +5154,96 @@ families:
               a 16-bit Zilog rather than an Intel, which made it a good machine
               that could not run a line of PC software
             variants: [Zilog Z8001]
+      - key: olivetti-m21
+        model: M21
+        year: 1984
+        cpu: Intel 8086-8
+        chassis: portable with a 9-inch amber screen and a detachable keyboard
+        os: MS-DOS 2.11
+        ram: [128K, 256K, 640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              a true 16-bit 8086 at 8 MHz where IBM's PC had an 8088 at 4.77, which
+              is the whole reason anyone bought one
+            variants: [Intel 8086]
+      - key: olivetti-m24
+        model: M24
+        year: 1983
+        cpu: Intel 8086-8
+        chassis: desktop with a detachable keyboard
+        os: MS-DOS 2.11
+        ram: [128K, 256K, 640K]
+        issues: []
+        styles: [M24, M24 SP (10 MHz), AT&T 6300 (US), Xerox 6060 (US)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 8086]
+          - socket: fpu
+            label: FPU
+            variants: [Intel 8087]
+
+  - key: opus
+    name: Opus
+    manufacturer: Opus
+    regions: [UK]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 8088, NEC V20, Intel 80286, Intel 80386SX, Intel 80386DX]
+    models:
+      - key: opus-pc-ii
+        model: PC II
+        year: 1987
+        cpu: Intel 8088-4.77
+        chassis: desktop
+        os: MS-DOS 3.2
+        ram: [512K, 640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 8088, NEC V20]
+      - key: opus-pc-iii-turbo
+        model: PC III Turbo
+        year: 1988
+        cpu: Intel 8088-10
+        chassis: desktop
+        os: MS-DOS 3.3
+        ram: [640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 8088, NEC V20]
+      - key: opus-pc-iv-turbo
+        model: PC IV Turbo
+        year: 1989
+        cpu: Intel 80286-12
+        chassis: desktop
+        os: MS-DOS 3.3
+        ram: [640K, 1MiB, 4MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+      - key: opus-pc-v-turbo
+        model: PC V Turbo
+        year: 1991
+        cpu: Intel 80386SX-16
+        chassis: desktop
+        os: MS-DOS 5
+        ram: [1MiB, 2MiB, 4MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80386SX, Intel 80386DX]
 
   - key: oric
     name: Oric
@@ -5500,6 +6326,70 @@ families:
         issues: []
         styles: [SV-328, SV-328 Mark II]
 
+  - key: tandon
+    name: Tandon
+    manufacturer: Tandon
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants: [Intel 8088, NEC V20, Intel 80286, Intel 80386SX, Intel 80386DX]
+    models:
+      - key: tandon-pcx
+        model: PCX
+        year: 1985
+        cpu: Intel 8088-4.77
+        chassis: desktop, two floppy drives
+        os: MS-DOS 3.2
+        ram: [256K, 640K]
+        issues: []
+        styles: [PCX, PCX-10 (10MB disk), PCX-20 (20MB disk)]
+        chips:
+          - socket: cpu
+            note: >-
+              the drive maker's own PC, built from the parts it was already
+              selling everybody else
+            variants: [Intel 8088, NEC V20]
+      - key: tandon-pca
+        model: PCA
+        year: 1986
+        cpu: Intel 80286-8
+        chassis: desktop
+        os: MS-DOS 3.2
+        ram: [512K, 640K, 1MiB]
+        issues: []
+        styles: [PCA, PCA20 (20MB disk), PCA40 (40MB disk)]
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+      - key: tandon-pca-12
+        model: PCA/12
+        year: 1988
+        cpu: Intel 80286-12
+        chassis: desktop
+        os: MS-DOS 3.3
+        ram: [1MiB, 4MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80286]
+      - key: tandon-pac-386sx
+        model: PAC 386SX
+        year: 1989
+        cpu: Intel 80386SX-16
+        chassis: desktop with bays for two Personal Data Pac removable hard disks
+        os: MS-DOS 3.3
+        ram: [1MiB, 4MiB]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            note: >-
+              the machine built around Tandon's removable Data Pac, which is the
+              part of it anyone remembers
+            variants: [Intel 80386SX]
+
   - key: tandy
     name: Tandy
     manufacturer: Tandy
@@ -5931,6 +6821,121 @@ families:
           - socket: psg
             label: Sound
             variants: [General Instrument AY-3-8910]
+      - key: toshiba-t1000
+        model: T1000
+        year: 1987
+        cpu: Intel 80C88-4.77
+        chassis: laptop with a fold-up LCD, DOS in ROM
+        os: MS-DOS 2.11 in ROM
+        ram: [512K]
+        issues: []
+        styles: [T1000, T1000LE, T1000SE, T1000XE]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 80C88]
+      - key: toshiba-t1100
+        model: T1100
+        year: 1985
+        cpu: Intel 80C88-4.77
+        chassis: laptop with a 9-inch mono LCD and one 3.5-inch drive
+        os: MS-DOS 2.11
+        ram: [256K, 512K, 640K]
+        issues: []
+        styles: [T1100, T1100 Plus]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the machine usually called the first mass-market laptop, and the one
+              that decided a laptop had a 3.5-inch drive in it
+            variants: [Intel 80C88]
+      - key: toshiba-t1200
+        model: T1200
+        year: 1987
+        cpu: Intel 80C86-9.54
+        chassis: laptop with a backlit LCD and a 20MB fixed disk
+        os: MS-DOS 3.2
+        ram: [640K, 1MiB, 2MiB]
+        issues: []
+        styles: [T1200, T1200F (two floppies), T1200H (hard disk)]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 80C86]
+      - key: toshiba-t3100
+        model: T3100
+        year: 1986
+        cpu: Intel 80286-8
+        chassis: mains-only portable with an orange gas plasma screen
+        os: MS-DOS 3.2
+        ram: [640K, 1MiB, 2MiB]
+        issues: []
+        styles: [T3100, T3100e, T3100SX]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 80286]
+      - key: toshiba-t3200
+        model: T3200
+        year: 1987
+        cpu: Intel 80286-12
+        chassis: mains-only portable, gas plasma, with two expansion slots
+        os: MS-DOS 3.3
+        ram: [1MiB, 4MiB]
+        issues: []
+        styles: [T3200, T3200SX, T3200SXC]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 80286]
+      - key: toshiba-t5200
+        model: T5200
+        year: 1988
+        cpu: Intel 80386DX-20
+        chassis: mains-only portable, gas plasma, the top of the line
+        os: MS-DOS 3.3
+        ram: [2MiB, 8MiB]
+        issues: []
+        styles: [T5200, T5200/100]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel 80386DX]
+          - socket: fpu
+            label: FPU
+            variants: [Intel 80387]
+
+  - key: victor
+    name: Victor
+    manufacturer: Victor
+    regions: [US, UK, Europe]
+    models:
+      - key: victor-9000
+        model: 9000 (Sirius 1)
+        year: 1982
+        cpu: Intel 8088-5
+        chassis: desktop with a detachable keyboard and an 800x400 mono monitor
+        os: MS-DOS 1.25 / CP/M-86
+        ram: [128K, 256K, 512K, 896K]
+        issues: []
+        styles: [Victor 9000 (US), Sirius 1 (UK/Europe)]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              Chuck Peddle's machine after the PET, and a better one than the PC
+              it lost to -- 8088 at 5 MHz, a display nobody matched for years
+            variants: [Intel 8088]
+          - socket: fdc
+            label: Floppy controller
+            note: >-
+              the drives run at nine speeds and pack up to 1.2MB on a 5.25-inch
+              disk, which is why no other machine can read one
+            variants: [NEC D765AC]
+          - socket: psg
+            label: Sound
+            variants: [General Instrument AY-3-8910]
 
   - key: videoton
     name: Videoton
@@ -6026,3 +7031,94 @@ families:
           - socket: vdp
             label: Video (VDG)
             variants: [Motorola MC6847]
+
+  - key: zenith
+    name: Zenith Data Systems
+    manufacturer: Zenith Data Systems
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        variants:
+          - Intel 8088
+          - Intel 80C88
+          - NEC V40
+          - Intel 80286
+          - Intel 80386DX
+          - Intel 80386SX
+    models:
+      - key: zenith-z100
+        model: Z-100
+        year: 1982
+        cpu: Intel 8088-5
+        chassis: all-in-one or low profile, with S-100 slots
+        os: Z-DOS / CP/M-85 / CP/M-86
+        ram: [128K, 192K, 768K]
+        issues: []
+        styles: [all-in-one, low profile]
+        chips:
+          - socket: cpu
+            note: >-
+              two processors on the board, an 8085 and an 8088, either of which
+              could be running
+            variants: [Intel 8088]
+      - key: zenith-z150
+        model: Z-150
+        year: 1983
+        cpu: Intel 8088-4.77
+        chassis: desktop
+        os: MS-DOS 2.11
+        ram: [128K, 256K, 640K]
+        issues: []
+        styles: [Z-150, Z-158, Z-160 (portable)]
+        chips:
+          - socket: cpu
+            variants: [Intel 8088]
+      - key: zenith-z171
+        model: Z-171
+        year: 1985
+        cpu: Intel 80C88-4.77
+        chassis: lunchbox portable with two 5.25-inch drives and a blue LCD
+        os: MS-DOS 2.11
+        ram: [256K, 640K]
+        issues: []
+        styles: []
+        chips:
+          - socket: cpu
+            variants: [Intel 80C88]
+      - key: zenith-eazy-pc
+        model: eaZy PC
+        year: 1987
+        cpu: NEC V40-7.16
+        chassis: all-in-one with the monitor built in and no expansion slots
+        os: MS-DOS 3.2
+        ram: [512K, 640K]
+        issues: []
+        styles: [one drive, two drives, 20MB disk]
+        chips:
+          - socket: cpu
+            variants: [NEC V40]
+      - key: zenith-supersport
+        model: SupersPort
+        year: 1988
+        cpu: Intel 8088-8
+        chassis: laptop with a backlit LCD
+        os: MS-DOS 3.3
+        ram: [640K, 1MiB, 2MiB]
+        issues: []
+        styles: [SupersPort, SupersPort 286, SupersPort SX]
+        chips:
+          - socket: cpu
+            variants: [Intel 8088, Intel 80286, Intel 80386SX]
+      - key: zenith-z386
+        model: Z-386
+        year: 1988
+        cpu: Intel 80386DX-16
+        chassis: desktop or tower
+        os: MS-DOS 3.3
+        ram: [1MiB, 4MiB, 8MiB]
+        issues: []
+        styles: [Z-386/16, Z-386/20, Z-386/25, Z-386/33]
+        chips:
+          - socket: cpu
+            variants: [Intel 80386DX]

@@ -1,4 +1,5 @@
-"""The catalogue of known home machines, and the variations each was built in.
+"""The catalogue of machines the register knows as models, and the variations each
+was built in.
 
 A PC is described by what is fitted in it -- a board, a card, a drive -- and the
 register asks for those one at a time, each with its own asset tag. A home
@@ -7,6 +8,18 @@ machine that was built in a handful of documented forms, and what a collector
 records about one is which of those forms it is: which board issue, which ULA,
 16K or 48K, rubber keys or moulded ones. None of that is a part to tag, and none
 of it means much except against a list of what was made.
+
+A branded PC is both of those at once, and the two descriptions compose rather
+than compete. An IBM 5170 is as documented and as varianted as any Amiga -- three
+planar types, three BIOS dates, a lock on the front -- and it is also a box with
+cards in it. The catalogue identity says which machine this is; the tagged parts
+say what is fitted in it today, and neither answers the other's question. So the
+line drawn here is not "home machine or PC". It is whether the thing was sold as
+a model somebody documented: a Deskpro 386 was, and the beige tower somebody
+screwed together out of a magazine advert was not, and that one is described by
+its parts alone. This file therefore holds machines wherever they were sold and
+whatever they were sold for -- a Spectrum, a PS/2 Model 80, an Olivetti M24 on an
+accountant's desk.
 
 So there is a list. It is not in here: it is in **machines.yaml**, next to this
 file, written so that adding a machine to the register's catalogue needs nothing
@@ -509,6 +522,149 @@ def _extend(known, seen):
         if value and folded not in have:
             extra.setdefault(folded, value.strip())
     return [*known, *sorted(extra.values(), key=str.lower)]
+
+
+# --- reading a typed record against the catalogue ---------------------------
+# Most of the register was typed before the catalogue existed, as a maker and a
+# model in two free-text boxes, and most of those machines are in here under a key.
+# This is how the two are introduced: not by rewriting what somebody typed -- the
+# machine in front of them was the authority and still is -- but by proposing which
+# model it looks like, for a person to agree with or not.
+
+# How alike two names have to be before the catalogue will mention one at all. It
+# is deliberately generous, because the job of this number is to decide what a
+# person is shown rather than what is filed: "IBM 5170" and "IBM PC/AT 5170" are
+# one machine written twice, while "Amstrad PC1640" and "Amstrad PC1512" are two
+# machines that differ in three characters, and no threshold tells those apart. So
+# everything above the floor is offered with its score and nothing above any score
+# is ever filed without somebody saying yes.
+MATCH_FLOOR = 0.7
+
+# A parenthetical in a model box is somebody recording a second opinion beside the
+# name -- "GRiDCASE 2 (Philips PC200)" -- rather than part of what the machine is
+# called. Compared both ways, so it neither hides the match nor pretends it was
+# not written down.
+_ASIDE = re.compile(r"\s*\([^)]*\)")
+
+# What the numbers in a name are worth. Nearly every machine in here is named with
+# a number in it, and a number is the one part of a name that is never a near-miss:
+# a 5170 is not almost a 5150, a PC1640 is not almost a PC1512, and letter by
+# letter those pairs are as alike as two spellings of one machine. The same
+# reasoning _by_name follows when it sorts an Amiga 500 before an Amiga 1000 --
+# digits are read as digits and not as characters.
+#
+# Three cases, and all three are marked rather than decided, because a person who
+# can see the machine settles it: the names disagree about a number, one of them
+# is silent about a number the other carries ("Compaq Portable" is a real machine
+# and so is the Portable 486/66 typed on the record), or they share one, which is
+# the strongest thing two of these names can have in common.
+# How much of a name has to line up in one unbroken run before "this name is
+# inside that one" is worth believing. Below it the measure is the plain ratio:
+# "Nascom 2" shares a couple of letters and a digit with half the register, and at
+# eight characters long that is most of it.
+_RUN_MIN = 5
+_NUMBERS_DIFFER = 0.8
+_NUMBER_MISSING = 0.85
+_NUMBER_SHARED = 0.3
+_DIGITS = re.compile(r"\d+")
+
+
+def _forms(maker, name):
+    """The ways of writing one machine's name worth comparing: maker and model
+    together, the model on its own, and each of those with any aside taken off.
+
+    Folded, which is what absorbs the trailing space in "IBM " -- two of those are
+    in the live register, and a space is not a different manufacturer."""
+    out = set()
+    for form in (" ".join(p for p in (maker, name) if (p or "").strip()), name):
+        folded = _fold(form)
+        if folded:
+            out.add(folded)
+            bare = _fold(_ASIDE.sub("", folded))
+            if bare:
+                out.add(bare)
+    return out
+
+
+def _alike(a, b):
+    """How alike two folded names are, 0 to 1.
+
+    Two measures, the better of them taken. difflib's ratio asks how much of the
+    two strings together is shared, which is the right question about a misspelling
+    and the wrong one about "Olivetti Personal Computer M21" against "Olivetti M21"
+    -- the same machine, one of them with the words off the badge left in, and a
+    ratio that halves for the extra words. So the second measure asks how much of
+    the shorter name is inside the longer, which is what those two really differ by.
+
+    Then the numbers: if both names carry digits and share none of them, they are
+    not two ways of writing one machine however alike the letters are. Marked down
+    rather than thrown away, because it is still worth offering to somebody who can
+    see the machine."""
+    m = difflib.SequenceMatcher(None, a, b)
+    # The longest single run rather than every scrap that lines up: a short name
+    # made of common letters can find a matching character in almost anything, and
+    # adding those up says "Didaktik M" is inside "IBM 5170".
+    run = m.find_longest_match(0, len(a), 0, len(b)).size
+    score = m.ratio()
+    if run >= _RUN_MIN:
+        score = max(score, run / min(len(a), len(b)))
+    mine, theirs = set(_DIGITS.findall(a)), set(_DIGITS.findall(b))
+    shared = mine & theirs
+    if shared:
+        score += (1 - score) * _NUMBER_SHARED * len(shared) / len(mine)
+    elif mine and theirs:
+        score *= _NUMBERS_DIFFER
+    elif mine or theirs:
+        score *= _NUMBER_MISSING
+    return min(score, 1.0)
+
+
+def suggest(manufacturer, model, limit=3):
+    """Which catalogue models a typed manufacturer and model might mean, best first,
+    as [(key, score, exact)]: a score from 0 to 1, and `exact` for a model whose
+    name is the same name once case, spacing and asides are set aside.
+
+    Nothing here writes anything or reads a database: it is a question about two
+    strings, asked of the catalogue, and what is done with the answer belongs to
+    whoever asked -- tools/adopt_machines.py asks it of a person, one machine at a
+    time."""
+    want = _forms(manufacturer, model)
+    if not want:
+        return []
+    scored = []
+    for key in _ORDER:
+        m = _MODELS[key]
+        have = _forms(m.get("manufacturer", ""), m["model"]) | {_fold(m["full_name"])}
+        score = max(_alike(a, b) for a in want for b in have)
+        if score >= MATCH_FLOOR:
+            scored.append((key, round(score, 3), bool(want & have)))
+    # The same name first, whatever the scores say. A machine typed as "BBC Micro
+    # Model B" is as wholly inside "BBC Micro Model B+" as it is inside itself, and
+    # of those two only one of them is what somebody wrote down. Then by score, then
+    # by key -- so the same register gives the same report twice.
+    scored.sort(key=lambda kv: (not kv[2], -kv[1], kv[0]))
+    return scored[:limit]
+
+
+def disagreements(key, record):
+    """Where a typed record and the catalogue say different things about the same
+    machine, as [(field, what the record says, what the catalogue says)].
+
+    Shown in the report and never acted on. A catalogue year is what the model
+    came out; the year on a record is what somebody read off the machine, and the
+    machine wins -- two IBM 5170s in this register are dated 1985 and 1988, which
+    is a fact about those two machines rather than a mistake about the AT."""
+    m = model(key)
+    if not m:
+        return []
+    out = []
+    for field in ("manufacturer", "model", "year", "cpu"):
+        mine, theirs = record.get(field), m.get(field)
+        if mine in (None, "") or theirs in (None, ""):
+            continue
+        if _fold(str(mine)) != _fold(str(theirs)):
+            out.append((field, str(mine), str(theirs)))
+    return out
 
 
 def with_recorded(catalogue, recorded):
