@@ -1874,21 +1874,73 @@ class TestTheShuffledFigures:
         return main._facts(db, main._collection_stats(db), date.today().year)
 
     def furnish(self, client, computer, part):
-        """Enough of everything that most of the pool has something to say."""
+        """Enough of everything that most of the pool has something to say.
+
+        Deliberately broad rather than minimal: the sweep below is only as good as
+        the figures this answers, and a group of them that stays silent here is a
+        group whose links nothing checks. So there is a board with a board's specs,
+        one card of each kind, drives that state a speed and a geometry, a machine
+        that names its processor and what it boots, and provenance on some of it
+        and not on the rest."""
         c = computer(year=1991, condition="Working", acquired_date="2026-05-01",
-                     manufacturer="IBM", model="PS/2", drives='2x 3.5" 1.44MB')
+                     manufacturer="IBM", model="PS/2", drives='2x 3.5" 1.44MB',
+                     os="MS DOS 5.0", cpu="Intel 80286-6", chassis="luggable",
+                     topbench=42, machine={"model_key": "ps2-8530"})
         client.post(f"/computers/{c['asset_id']}/edit", data={"ramchip:41256": "18"},
                     follow_redirects=False)
         client.post(f"/computers/{c['asset_id']}/note", data={"message": "cleaned"},
                     follow_redirects=False)
+        # A machine with nothing fitted, and one with a card standing in for a disk.
+        # The Amstrad repeats the IBM's processor, because "the commonest processor"
+        # needs two machines to agree before it is a commonest anything.
+        computer(year=1989, manufacturer="Amstrad", model="PC1512",
+                 installed_ram="640KB", cpu="Intel 80286-6")
+        flash = computer(year=1987, manufacturer="Olivetti", model="M21",
+                         drives='1x CF 1GB')
+        part(computer_id=flash["asset_id"], type="video", model="anachronism",
+             year=2024, specs="Chip: RP2040 | Interface: 8-bit ISA | Connector: VGA")
         for i in range(6):
             part(manufacturer="Goodco", model=f"g{i}", condition="Working",
                  year=1988, acquired_date="2026-02-0%d" % (i + 1), source="a rally",
                  computer_id=c["asset_id"])
         for i in range(6):
             part(manufacturer="Dudco", model=f"d{i}", condition="Faulty", year=1990)
+        # Fitted to a machine of its own year, which is a figure of its own.
+        part(manufacturer="Goodco", model="contemporary", year=1991,
+             computer_id=c["asset_id"])
         part(type="storage", model="Big", specs="Kind: Hard disk | Capacity: 4GB")
         part(type="storage", model="Small", specs="Kind: Hard disk | Capacity: 20MB")
+        # A board with everything a board is asked, so the whole board group fires.
+        board = part(type="motherboard", manufacturer="IBM", model="Planar",
+                     year=1991, condition="Working", url="https://example.test/b",
+                     summary="the board out of it", source="eBay order no. 1-2-3",
+                     specs="Form factor: Baby-AT | Chipset: discrete | "
+                           "CPU family: 286-class | BIOS: Award | Cache: 256KB | "
+                           "Onboard video: VGA | Slots: 6x 16-bit ISA | "
+                           "RAM slots: 4x 30-pin SIMM | Ports: 2x Serial")
+        part(type="motherboard", model="Bare", year=1990,
+             specs="Form factor: proprietary")
+        part(parent_id=board["asset_id"], type="other", model="riser",
+             source="Self-made", disk_image="boot.img")
+        # Two of the same thing, which is what the duplicate figures count.
+        for i in range(2):
+            part(type="sound", manufacturer="Creative", model="CT2830", year=1994,
+                 specs=f"Chip: CT1747{i} | Interface: 16-bit ISA")
+        part(type="network", manufacturer="3Com", model="Etherlink III",
+             specs="Interface: 16-bit ISA")
+        part(type="network", manufacturer="Intel", model="Pro/100",
+             specs="Interface: PCI")
+        part(type="io", model="Multi-IO", specs="Interface: 8-bit ISA")
+        part(type="video", manufacturer="Trident", model="TVGA9000i", year=1992,
+             specs="Chip: TVGA9000i | Interface: 16-bit ISA | "
+                   "Connector: VGA, CGA | Memory: 512KB")
+        part(type="storage", model="Spinner", year=1993,
+             specs="Kind: Hard disk | Interface: MFM | Capacity: 40MB | "
+                   "Speed: 3600rpm | CHS: 977/5/17")
+        part(type="storage", model="Reader",
+             specs="Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 48x")
+        part(type="storage", model="Slowreader",
+             specs="Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 2x")
         return c
 
     def test_every_figure_in_the_pool_leads_somewhere_real(self, client, db,
@@ -1902,6 +1954,74 @@ class TestTheShuffledFigures:
         for c in pool:
             if c["href"]:
                 assert client.get(c["href"]).status_code == 200, (c["k"], c["href"])
+
+    def test_the_fixture_reaches_every_group_of_figures(self, client, db, computer,
+                                                       part):
+        """The sweep above proves the links work; this proves the sweep saw them.
+
+        One figure named from each themed group. Enough of the pool would still
+        answer with an empty spec table that a group falling silent -- a join
+        written wrong, a column renamed -- would otherwise pass unnoticed, its
+        links unvisited."""
+        self.furnish(client, computer, part)
+        keys = {c["k"] for c in self.pool(db)}
+        for expected in ("The usual board shape", "Video outputs counted",
+                         "The fastest spindle here", "The 640 KiB club",
+                         "The biggest anachronism", "Made here rather than bought",
+                         "Parts with a link out", "Broken and kept anyway"):
+            assert expected in keys, expected
+
+    def test_a_figure_about_the_register_itself_need_not_link(self, client, db,
+                                                              computer, part):
+        """Most tiles are links; the ones counting history entries are not, because
+        an entry in a history is not an item the gallery can show. A link to
+        everything would be a link that lied about what it counted."""
+        self.furnish(client, computer, part)
+        pool = {c["k"]: c for c in self.pool(db)}
+        assert pool["The register is younger than everything in it"]["href"] is None
+        assert pool["Parts with a link out"]["href"]
+
+    def test_a_binned_board_is_not_a_board_the_collection_has(self, client, db,
+                                                              computer, part):
+        """The themed groups read the spec tables, and a spec row has no disposed
+        flag of its own -- so each of them joins back to the part that owns it. One
+        group checked here stands for all of them: the join is the same join."""
+        from app import main
+        self.furnish(client, computer, part)
+        gone = part(type="motherboard", model="Doomed",
+                    specs="Form factor: Baby-AT | BIOS: Award")
+        before = {c["k"]: c["s"] for c in self.pool(db)}
+        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"},
+                    follow_redirects=False)
+        db.expire_all()
+        after = {c["k"]: c["s"] for c in self.pool(db)}
+        assert before["Whose BIOS it usually is"] != after["Whose BIOS it usually is"]
+        assert main._facts  # the pool is still built, not merely smaller
+
+    def test_a_tile_with_no_link_still_renders_as_a_tile(self, client, monkeypatch):
+        """The figures about the register carry no href, which is a shape the tile
+        markup has to answer for: not a link with an empty destination, but a plain
+        tile. Forced rather than waited for -- a draw of eight from a hundred cannot
+        be relied on to include the one under test."""
+        from app import main
+        monkeypatch.setattr(main, "_facts", lambda *_a: [
+            {"k": "Entries in the register", "v": "12", "s": "no page to show",
+             "href": None}])
+        page = client.get("/stats").text
+        assert '<div class="tile">' in page
+        assert 'class="tile" href=""' not in page
+
+    def test_every_condition_beyond_the_two_above_gets_a_figure(self, client, db,
+                                                                part):
+        """Four of the six values in entry.CONDITIONS have a figure naming them, and
+        they name it as a string. A value renamed there would turn these into counts
+        that are always nought -- and a figure that never fires never fails."""
+        from app import entry
+        for cond in entry.CONDITIONS:
+            part(model=f"p-{cond}", condition=cond)
+        keys = {c["k"] for c in self.pool(db)}
+        assert {"Broken and kept anyway", "Works, but not all of it", "Brought back",
+                "Good only for parts", "Still working", "Never tested"} <= keys
 
     def test_no_figure_is_offered_with_nothing_to_say(self, client, db):
         """An empty register answers none of them rather than answering them

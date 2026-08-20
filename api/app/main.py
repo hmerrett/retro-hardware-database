@@ -39,8 +39,9 @@ from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
 from .db import get_db
 from .ids import next_asset_id
 from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
-                     ComputerRamChip, ComputerRamModule, LogEntry, LogPhoto,
-                     Part, PartPort, PartSlot, StorageSpec, StoredFile)
+                     ComputerRamChip, ComputerRamModule, IoSpec, LogEntry, LogPhoto,
+                     MotherboardSpec, NetworkSpec, Part, PartPort, PartRamSlot,
+                     PartSlot, SoundSpec, StorageSpec, StoredFile, VideoSpec)
 from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
 import contextlib
 
@@ -348,6 +349,10 @@ def _all_years(db, held=True):
 # fact about the maker. The caption on the page says the threshold, because a
 # ranking whose entry condition is hidden is a ranking that flatters itself.
 RELIABILITY_MIN = 5
+# Ways of attaching a disk that died with the 1980s, named rather than worked out:
+# what makes MFM historic is not something the database can derive. Read by the
+# figure and by the /browse view behind it, so both mean the same four things.
+LEGACY_DISK_BUSES = ("MFM", "RLL", "ESDI", "XTA")
 # Not makers. These stand in the maker field for "we do not know" or "nobody in
 # particular", and a league table of manufacturers should not have them in it.
 NOT_A_MAKER = {"unknown", "generic", "various", "noname", "no name", "n/a", "-", "?"}
@@ -809,6 +814,774 @@ def _facts(db, st, this_year):
             f"{round(100 * untested / st['n_parts'])}% of the parts, plugged into "
             "nothing yet", "/browse?f=condition&v=Untested")
 
+    # The rest of the pool, by theme. Split out because one function of forty
+    # figures had stopped being readable, not because these are a lesser sort of
+    # figure: the page shuffles the whole pool together and does not know which
+    # function a tile came from.
+    out += _facts_boards(db, st)
+    out += _facts_cards(db, st)
+    out += _facts_drives(db, st)
+    out += _facts_machines(db, st)
+    out += _facts_ages(db, st, this_year)
+    out += _facts_provenance(db, st)
+    out += _facts_register(db, st)
+    out += _facts_condition(db, st)
+    return out
+# --- the pointless department, by theme -------------------------------------
+# The pool above grew out of one function, and past about forty figures that
+# stopped being readable. What follows is the same thing in themed groups: each
+# returns a list of figures and is skippable on its own, and each keeps the rules
+# the pool has always had -- held items only (see _held), a figure omitted rather
+# than shown empty, and quantities read from typed columns rather than parsed back
+# out of text.
+#
+# A figure that is about the whole register rather than about any set of items
+# passes no href. The tiles have always been links; a handful of them now are not,
+# because "1327 entries in the register" leads nowhere the gallery can show, and a
+# link to everything would be a link that lied about what it counted.
+
+def _fact(k, v, s, href=None):
+    """One figure for the pool, in the shape the template reads."""
+    return {"k": k, "v": v, "s": s, "href": href}
+
+
+def _named(obj):
+    return entry.display_name(to_dict(obj))
+
+
+def _spec_rank(db, model, column, *conds):
+    """(value, count) for one text column of a spec table, commonest first.
+
+    The join back to `parts` is not decoration: a spec row has no disposed flag of
+    its own, so without it a binned board's chipset would still be a chipset the
+    collection claims to hold."""
+    q = (db.query(column, func.count(column))
+         .join(Part, Part.asset_id == model.part_id)
+         .filter(column.isnot(None), column != ""))
+    for c in conds:
+        q = q.filter(c)
+    return sorted(_held(q, Part).group_by(column).all(), key=lambda r: (-r[1], r[0]))
+
+
+def _spec_count(db, model, *conds):
+    """How many held parts have a spec row matching."""
+    q = db.query(func.count(model.part_id)).join(Part, Part.asset_id == model.part_id)
+    for c in conds:
+        q = q.filter(c)
+    return _held(q, Part).scalar() or 0
+
+
+def _commas(db, model, column):
+    """A Counter over a text column that holds a comma-separated list.
+
+    Video connectors are written 'VGA, EGA, Composite' -- one field, several
+    answers -- so counting the column whole would file that card under a fourth
+    kind of output rather than under the three it has. Ports and buses have proper
+    child tables and are counted there; this is for the fields that do not."""
+    out = Counter()
+    for (v,) in _held(db.query(column).join(Part, Part.asset_id == model.part_id)
+                      .filter(column.isnot(None), column != ""), Part):
+        for one in (x.strip() for x in v.split(",")):
+            if one:
+                out[one] += 1
+    return out
+
+
+def _facts_boards(db, st):
+    """Figures about motherboards: what shape they are, whose BIOS they answer to,
+    and what can be plugged into them.
+
+    The board is the part everything else in a machine hangs off, and it is the
+    best represented category in the register, so it carries more of these than
+    anything else does."""
+    out = []
+    shapes = _spec_rank(db, MotherboardSpec, MotherboardSpec.form_factor)
+    if shapes:
+        n_shaped = sum(n for _s, n in shapes)
+        # "proprietary" -- the last of entry.MOBO_FORM_FACTORS -- is not a form
+        # factor so much as the absence of one, and it is the commonest answer here.
+        # Counted by prefix, so whatever was typed after the word lands in the same
+        # pile; everything else counts as a named shape, including the spellings the
+        # canonical list does not have ("Baby AT", "PC104"), because a shape someone
+        # wrote down is still a shape.
+        odd = sum(n for s, n in shapes if s.lower().startswith("proprietary"))
+        if odd:
+            out.append(_fact("Boards that fit nothing else", str(odd),
+                             f"of {n_shaped} with a shape recorded, built to a plan "
+                             "of their maker's own", "/browse?f=boards"))
+        named_shapes = [(s, n) for s, n in shapes
+                        if not s.lower().startswith("proprietary")]
+        if named_shapes:
+            out.append(_fact("The usual board shape", named_shapes[0][0],
+                             f"{named_shapes[0][1]} boards, the commonest of the "
+                             f"{len(named_shapes)} named shapes here",
+                             f"/browse?f=formfactor&v={quote(named_shapes[0][0])}"))
+
+    bios = _spec_rank(db, MotherboardSpec, MotherboardSpec.bios)
+    if bios:
+        out.append(_fact("Whose BIOS it usually is", bios[0][0],
+                         f"{bios[0][1]} of the {sum(n for _b, n in bios)} boards that say",
+                         f"/browse?f=bios&v={quote(bios[0][0])}"))
+
+    fam = _spec_rank(db, MotherboardSpec, MotherboardSpec.cpu_family)
+    if fam:
+        out.append(_fact("The commonest class of board", fam[0][0],
+                         f"{fam[0][1]} of the {sum(n for _f, n in fam)} that name one",
+                         f"/browse?f=family&v={quote(fam[0][0])}"))
+
+    chipsets = _spec_rank(db, MotherboardSpec, MotherboardSpec.chipset)
+    if len(chipsets) >= 3:
+        out.append(_fact("Chipsets named", str(len(chipsets)),
+                         f"across {sum(n for _c, n in chipsets)} boards — hardly any "
+                         "two of them agree", "/browse?f=boards"))
+
+    cache = _held(db.query(func.sum(MotherboardSpec.cache_kb),
+                           func.count(MotherboardSpec.part_id))
+                  .join(Part, Part.asset_id == MotherboardSpec.part_id)
+                  .filter(MotherboardSpec.cache_kb.isnot(None),
+                          MotherboardSpec.cache_kb > 0), Part).first()
+    if cache and cache[0]:
+        out.append(_fact("Cache on the boards, added up",
+                         entry.fmt_kb(int(cache[0]), True),
+                         f"across the {cache[1]} boards that have any",
+                         "/browse?f=cache"))
+
+    onboard = _spec_count(db, MotherboardSpec,
+                          MotherboardSpec.onboard_video.isnot(None),
+                          MotherboardSpec.onboard_video != "")
+    if onboard:
+        out.append(_fact("Boards with the video already on them", str(onboard),
+                         "no card required, which was once the remarkable part",
+                         "/browse?f=onboardvideo"))
+
+    boards = {a for (a,) in _held(db.query(MotherboardSpec.part_id)
+                                  .join(Part, Part.asset_id == MotherboardSpec.part_id),
+                                  Part)}
+    slotted = {a for (a,) in db.query(PartSlot.part_id).distinct()}
+    bare = boards - slotted
+    if bare and boards:
+        out.append(_fact("Boards with nowhere to expand", str(len(bare)),
+                         f"of {len(boards)}: whatever they do, they do already",
+                         "/browse?f=noslots"))
+
+    per_board = sorted(_held(db.query(PartSlot.part_id, func.sum(PartSlot.count))
+                             .join(Part, Part.asset_id == PartSlot.part_id), Part)
+                       .group_by(PartSlot.part_id).all(), key=lambda r: -r[1])
+    if per_board:
+        top = int(per_board[0][1])
+        tied = [p for p, n in per_board if int(n) == top]
+        holder = db.get(Part, tied[0])
+        out.append(_fact("Most slots on one board", str(top),
+                         f"shared by {len(tied)} boards" if len(tied) > 1
+                         else _named(holder),
+                         "/browse?f=slots" if len(tied) > 1
+                         else f"/parts/{holder.asset_id}"))
+
+    # ISA outlasted its own replacements: a board here is likelier to have an ISA
+    # slot than any other kind, forty years after the first one.
+    isa = _held(db.query(func.sum(PartSlot.count))
+                .join(Part, Part.asset_id == PartSlot.part_id)
+                .filter(PartSlot.bus.like("%ISA%")), Part).scalar() or 0
+    if isa and st["slots"]:
+        out.append(_fact("Slots that are ISA", str(int(isa)),
+                         f"of {st['slots']}, {round(100 * int(isa) / st['slots'])}% — "
+                         "the bus that would not die", "/browse?f=slots"))
+
+    sockets = sorted(_held(db.query(PartRamSlot.slot_type, func.sum(PartRamSlot.count))
+                           .join(Part, Part.asset_id == PartRamSlot.part_id), Part)
+                     .group_by(PartRamSlot.slot_type).all(),
+                     key=lambda r: (-r[1], r[0]))
+    if sockets:
+        total = int(sum(n for _s, n in sockets))
+        holders = _held(db.query(func.count(func.distinct(PartRamSlot.part_id)))
+                        .join(Part, Part.asset_id == PartRamSlot.part_id),
+                        Part).scalar() or 0
+        out.append(_fact("Memory sockets", str(total),
+                         f"on {holders} boards, filled or empty",
+                         "/browse?f=ramslots"))
+        out.append(_fact("The usual memory socket", sockets[0][0],
+                         f"{int(sockets[0][1])} of {total} sockets",
+                         f"/browse?f=ramslot&v={quote(sockets[0][0])}"))
+        thirty = next((int(n) for s, n in sockets if s.startswith("30-pin")), 0)
+        if thirty:
+            out.append(_fact("30-pin SIMM sockets", str(thirty),
+                             "filled four to a bank on a 32-bit board, two on a 286",
+                             "/browse?f=ramslot&v=" + quote("30-pin SIMM")))
+    return out
+
+
+def _facts_cards(db, st):
+    """Figures about the things that go in the slots: video, sound, network and I/O.
+
+    These read the per-type spec tables, which is where the typed form files what a
+    card is asked. The four tables share the shape of several columns -- `interface`
+    for the bus, `chip` for the silicon -- so the questions that span all four are
+    counted in one pass over them at the end, rather than four times over."""
+    out = []
+
+    # --- what a graphics card is ------------------------------------------
+    outputs = _commas(db, VideoSpec, VideoSpec.connector)
+    if outputs:
+        best, n = outputs.most_common(1)[0]
+        out.append(_fact("Video outputs counted", str(sum(outputs.values())),
+                         f"most often {best}, on {n} cards",
+                         "/browse?f=type&v=video"))
+    multi = _spec_count(db, VideoSpec, VideoSpec.connector.like("%,%"))
+    if multi:
+        out.append(_fact("Cards that hedge their bets", str(multi),
+                         "more than one kind of output on the same bracket",
+                         "/browse?f=type&v=video"))
+    # Cards whose outputs a VGA monitor will not take: MDA, CGA, EGA and composite
+    # are all a different signal on a different plug, and a card with none of the
+    # later ones is a card from before the standard that outlasted them.
+    prevga = _spec_count(db, VideoSpec, VideoSpec.connector.isnot(None),
+                         VideoSpec.connector != "",
+                         ~VideoSpec.connector.like("%VGA%"),
+                         ~VideoSpec.connector.like("%DVI%"))
+    if prevga:
+        out.append(_fact("Graphics cards from before VGA", str(prevga),
+                         "nothing a VGA monitor would accept", "/browse?f=prevga"))
+
+    chips = _spec_rank(db, VideoSpec, VideoSpec.chip)
+    if len(chips) >= 3:
+        out.append(_fact("Graphics chips named", str(len(chips)),
+                         f"across {sum(n for _c, n in chips)} cards",
+                         "/browse?f=type&v=video"))
+        if chips[0][1] > 1:
+            out.append(_fact("The commonest graphics chip", chips[0][0],
+                             f"{chips[0][1]} cards carry it",
+                             "/browse?f=type&v=video"))
+
+    vram = [kb for (kb,) in
+            _held(db.query(VideoSpec.memory_kb)
+                  .join(Part, Part.asset_id == VideoSpec.part_id)
+                  .filter(VideoSpec.memory_kb.isnot(None),
+                          VideoSpec.memory_kb > 0), Part)]
+    if vram:
+        out.append(_fact("Video memory, everything added up",
+                         entry.fmt_kb(sum(vram), True),
+                         f"across the {len(vram)} cards that state any",
+                         "/browse?f=vram"))
+        # The commonest amount, not the total: the same question the register asks
+        # of a machine's memory, and ties share the honour there for the same reason.
+        sizes = Counter(vram)
+        top = max(sizes.values())
+        tied = sorted(kb for kb, n in sizes.items() if n == top)
+        out.append(_fact("The usual amount of video memory",
+                         " / ".join(entry.fmt_kb(kb, True) for kb in tied),
+                         f"{top} cards" + (" each" if len(tied) > 1 else "")
+                         + f", of {len(vram)} that state any",
+                         "/browse?f=vramsize&v=" + ",".join(str(kb) for kb in tied)))
+    if len(vram) >= 2 and max(vram) > min(vram):
+        out.append(_fact("Biggest and smallest video memory",
+                         f"{entry.fmt_kb(max(vram), True)} / "
+                         f"{entry.fmt_kb(min(vram), True)}",
+                         f"a factor of {round(max(vram) / min(vram)):,} between them",
+                         "/browse?f=vram"))
+
+    # --- and of the other three -------------------------------------------
+    sound = _spec_rank(db, SoundSpec, SoundSpec.chip)
+    if sound and sound[0][1] > 1:
+        out.append(_fact("The commonest sound chip", sound[0][0],
+                         f"{sound[0][1]} of the {sum(n for _c, n in sound)} cards "
+                         "that name one", "/browse?f=type&v=sound"))
+    nets = _spec_rank(db, NetworkSpec, NetworkSpec.interface)
+    if len(nets) >= 2:
+        out.append(_fact("Network cards, either side of the changeover",
+                         f"{nets[0][1]} / {nets[1][1]}",
+                         f"{nets[0][0]} against {nets[1][0]}",
+                         "/browse?f=type&v=network"))
+
+    # --- and what is true of all four -------------------------------------
+    # One pass, four counters: how many cards there are at all, how many say which
+    # bus, how many of those are ISA, and how many never had their chip written
+    # down. Counted together because the figures below have to agree about how many
+    # cards there are -- read as two tiles in one draw, 165 and 166 look like a bug.
+    ISA_BUSES = ("8-bit ISA", "16-bit ISA", "ISA")
+    n_cards = named_bus = on_isa = chip_blank = 0
+    for model in (VideoSpec, SoundSpec, NetworkSpec, IoSpec):
+        n_cards += _spec_count(db, model)
+        named_bus += _spec_count(db, model, model.interface.isnot(None),
+                                 model.interface != "")
+        on_isa += _spec_count(db, model, model.interface.in_(ISA_BUSES))
+        chip_blank += _spec_count(db, model, (model.chip.is_(None))
+                                  | (model.chip == ""))
+
+    # The whole changeover in one figure: a card here is still likelier to be ISA
+    # than anything else, PCI having arrived late enough that most of this was
+    # already on the shelf.
+    if on_isa and named_bus:
+        out.append(_fact("Cards that never left ISA", str(on_isa),
+                         f"of {named_bus} with a bus recorded, "
+                         f"{round(100 * on_isa / named_bus)}% of them",
+                         "/browse?f=cards"))
+    # Whose chip it is goes unrecorded far more often on a serial card than on a
+    # graphics card, and the figure says which way round that is.
+    if chip_blank and n_cards:
+        out.append(_fact("Cards whose chip nobody has written down", str(chip_blank),
+                         f"of {n_cards}: mostly the serial and network cards, where "
+                         "nobody thinks to look", "/browse?f=nochip"))
+    # Whimsy, and it says so: cards and slots are counted honestly and then set
+    # against each other as though any card went in any slot, which no card does.
+    # Only while there are slots to spare -- the other way round is a different
+    # remark about a different collection, and this one would read as nonsense.
+    if n_cards and st["slots"] and st["slots"] > n_cards:
+        out.append(_fact("If every card were plugged in",
+                         f"{st['slots'] - n_cards} slots",
+                         f"would still be empty — {n_cards} cards against "
+                         f"{st['slots']} slots, never mind which bus fits which",
+                         "/browse?f=cards"))
+
+    # --- ports, which are on the boards as well as on the cards -----------
+    ports = _held(db.query(func.sum(PartPort.count),
+                           func.count(func.distinct(PartPort.part_id)))
+                  .join(Part, Part.asset_id == PartPort.part_id), Part).first()
+    if ports and ports[0]:
+        # The ranked list further down the page is capped, so this total is bigger
+        # than its bars add up to. Said out loud -- but only when it is true, which
+        # is why it is compared against that list rather than asserted about it.
+        shown = sum(n for _p, n, _v in st["ports"])
+        out.append(_fact("Ports counted", str(int(ports[0])),
+                         f"on {ports[1]} boards and cards"
+                         + (f" — the list below ranks only the commonest "
+                            f"{len(st['ports'])}" if int(ports[0]) > shown else ""),
+                         "/browse?f=ports"))
+    per_carrier = sorted(_held(db.query(PartPort.part_id, func.sum(PartPort.count))
+                               .join(Part, Part.asset_id == PartPort.part_id), Part)
+                         .group_by(PartPort.part_id).all(), key=lambda r: -r[1])
+    if per_carrier and int(per_carrier[0][1]) > 1:
+        holder = db.get(Part, per_carrier[0][0])
+        if holder:
+            out.append(_fact("Most ports on one thing", str(int(per_carrier[0][1])),
+                             _named(holder), f"/parts/{holder.asset_id}"))
+    return out
+
+
+def _facts_drives(db, st):
+    """Figures about drives beyond the totals above: how they attach, how fast they
+    turn, and what shape they claim to be."""
+    out = []
+    # Interfaces that were obsolete before most of this collection was made, and
+    # are still represented in it. Named explicitly rather than inferred: what
+    # makes MFM historic is not anything the database can work out.
+    GONE = ("MFM", "RLL", "ESDI", "XTA")
+    old = _spec_rank(db, StorageSpec, StorageSpec.interface,
+                     StorageSpec.interface.in_(GONE))
+    if old:
+        out.append(_fact("Drives on an interface nobody uses",
+                         str(sum(n for _i, n in old)),
+                         ", ".join(i for i, _n in old) + " — all of them dead ends",
+                         "/browse?f=legacydisk"))
+
+    rpm = sorted(_held(db.query(StorageSpec.speed_rpm)
+                       .join(Part, Part.asset_id == StorageSpec.part_id)
+                       .filter(StorageSpec.speed_rpm.isnot(None),
+                               StorageSpec.speed_rpm > 0), Part).all())
+    if rpm:
+        out.append(_fact("The fastest spindle here", f"{max(rpm)[0]:,} rpm",
+                         f"of the {len(rpm)} drives that admit to a speed",
+                         "/browse?f=rpm"))
+
+    speeds = sorted(x for (x,) in
+                    _held(db.query(StorageSpec.speed_x)
+                          .join(Part, Part.asset_id == StorageSpec.part_id)
+                          .filter(StorageSpec.speed_x.isnot(None),
+                                  StorageSpec.speed_x > 0), Part))
+    if len(speeds) >= 2 and speeds[-1] > speeds[0]:
+        out.append(_fact("Fastest and slowest optical drive",
+                         f"{speeds[-1]}× / {speeds[0]}×",
+                         f"a factor of {round(speeds[-1] / speeds[0])} between them, "
+                         "and about ten years", "/browse?f=optical"))
+
+    # Whimsy, in the manner of every floppy at once: a real column, added up for no
+    # reason anybody needs. Cylinders are the one part of CHS that varies enough to
+    # be worth summing.
+    geom = _held(db.query(func.count(StorageSpec.part_id), func.sum(StorageSpec.chs_c))
+                 .join(Part, Part.asset_id == StorageSpec.part_id)
+                 .filter(StorageSpec.chs_c.isnot(None), StorageSpec.chs_c > 0),
+                 Part).first()
+    if geom and geom[1]:
+        out.append(_fact("Cylinders, added up", f"{int(geom[1]):,}",
+                         f"across the {geom[0]} drives that state their geometry",
+                         "/browse?f=geometry"))
+
+    flash = _held(db.query(func.sum(ComputerDrive.count))
+                  .join(Computer, Computer.asset_id == ComputerDrive.computer_id)
+                  .filter(ComputerDrive.kind.in_(("CF", "SD"))), Computer).scalar()
+    if flash:
+        out.append(_fact("Flash standing in for a disk", str(int(flash)),
+                         "cards in machines that were built before the format",
+                         "/browse?f=flash"))
+    return out
+
+
+def _facts_machines(db, st):
+    """Figures about the whole machines. There are far fewer of these than there are
+    parts, so anything counted here is counted against a small number and says so."""
+    out = []
+    n = st["n_computers"]
+
+    ram = Counter(kb for (kb,) in
+                  _held(db.query(Computer.installed_ram_kb)
+                        .filter(Computer.installed_ram_kb.isnot(None)), Computer))
+    # 640 KiB is the line DOS drew and a great many machines stopped exactly on.
+    if ram.get(640):
+        out.append(_fact("The 640 KiB club", str(ram[640]),
+                         "machines fitted with exactly as much as DOS could use",
+                         "/browse?f=ram&v=640"))
+    if len(ram) >= 2:
+        least, most = min(ram), max(ram)
+        out.append(_fact("The least memory in anything", entry.fmt_kb(least, True),
+                         f"and the most is {entry.fmt_kb(most, True)}, "
+                         f"a factor of {round(most / least):,}",
+                         "/browse?f=ramfitted"))
+
+    os_rank = sorted(_held(db.query(Computer.os, func.count(Computer.asset_id))
+                           .filter(Computer.os.isnot(None), Computer.os != ""),
+                           Computer).group_by(Computer.os).all(),
+                     key=lambda r: (-r[1], r[0]))
+    if os_rank and n:
+        out.append(_fact("Machines with an operating system on them",
+                         str(sum(x for _o, x in os_rank)),
+                         f"of {n}; the rest are bare metal as they stand",
+                         "/browse?f=os"))
+    dos = _held(db.query(func.count(Computer.asset_id))
+                .filter(Computer.os.like("%DOS%")), Computer).scalar() or 0
+    if dos:
+        out.append(_fact("Machines running DOS of some sort", str(dos),
+                         "MS-DOS, FreeDOS or the like, as recorded",
+                         "/browse?f=dos"))
+
+    cpus = sorted(_held(db.query(Computer.cpu, func.count(Computer.asset_id))
+                        .filter(Computer.cpu.isnot(None), Computer.cpu != ""),
+                        Computer).group_by(Computer.cpu).all(),
+                  key=lambda r: (-r[1], r[0]))
+    if cpus and cpus[0][1] > 1:
+        out.append(_fact("The commonest processor", cpus[0][0],
+                         f"{cpus[0][1]} of the {sum(x for _c, x in cpus)} machines "
+                         "that name one", "/browse?f=cpu"))
+
+    chassis = sorted(_held(db.query(Computer.chassis, func.count(Computer.asset_id))
+                           .filter(Computer.chassis.isnot(None),
+                                   Computer.chassis != ""), Computer)
+                     .group_by(Computer.chassis).all(),
+                     key=lambda r: (-r[1], r[0]))
+    if chassis:
+        out.append(_fact("What shape the machines are", chassis[0][0],
+                         f"{chassis[0][1]} of {sum(x for _c, x in chassis)}, and "
+                         f"{len(chassis) - 1} other shapes besides",
+                         f"/browse?f=chassis&v={quote(chassis[0][0])}"))
+    # Portable in the sense the word had at the time, which is to say heavy.
+    portable = sum(x for c, x in chassis if c.lower() in ("laptop", "luggable"))
+    if portable:
+        out.append(_fact("Portable, in the period sense", str(portable),
+                         "laptops and luggables, the latter being portable only in "
+                         "that it had a handle", "/browse?f=portable"))
+
+    known = db.query(func.count(func.distinct(AssetVariant.asset_id))).scalar() or 0
+    if known and n:
+        out.append(_fact("Machines the catalogue knows", str(known),
+                         f"of {n} filed as a model it can name",
+                         "/browse?f=variant"))
+
+    fitted_in = {c for (c,) in _held(db.query(Part.computer_id)
+                                     .filter(Part.computer_id.isnot(None)), Part)}
+    all_machines = {a for (a,) in _held(db.query(Computer.asset_id), Computer)}
+    empty = all_machines - fitted_in
+    if empty and all_machines:
+        out.append(_fact("Machines with nothing in them", str(len(empty)),
+                         f"of {len(all_machines)}: nothing tagged is fitted to them",
+                         "/browse?f=emptymachines"))
+
+    bench = _held(db.query(func.count(Computer.asset_id))
+                  .filter(Computer.topbench.isnot(None)), Computer).scalar() or 0
+    if bench and n:
+        out.append(_fact("Machines actually benchmarked", str(bench),
+                         f"of {n}: TopBench has to be run, and mostly has not been",
+                         "/browse?f=benchmarked"))
+    return out
+
+
+def _facts_ages(db, st, this_year):
+    """Figures about when all this was made, and about the gaps between the dates on
+    things that ended up in the same box."""
+    out = []
+    years = _all_years(db)
+    if years:
+        span = max(years) - min(years) + 1
+        if span > len(set(years)):
+            out.append(_fact("Years represented", str(len(set(years))),
+                             f"of the {span} the collection spans — "
+                             f"{span - len(set(years))} with nothing made in them",
+                             "/browse?f=year"))
+        modern = sum(1 for y in years if y >= 2000)
+        if modern:
+            out.append(_fact("Made this century", str(modern),
+                             f"of the {len(years)} things with a year on them",
+                             "/browse?f=century"))
+        recent = sum(1 for y in years if y >= this_year - 10)
+        if recent:
+            out.append(_fact("Made in the last ten years", str(recent),
+                             "new parts for old machines, still being made",
+                             "/browse?f=recent"))
+
+    machine_years = [y for (y,) in _held(db.query(Computer.year)
+                                         .filter(Computer.year.isnot(None)),
+                                         Computer)]
+    part_years = [y for (y,) in _held(db.query(Part.year)
+                                      .filter(Part.year.isnot(None)), Part)]
+    if machine_years and part_years:
+        mm, mp = round(sum(machine_years) / len(machine_years)), \
+            round(sum(part_years) / len(part_years))
+        if mm != mp:
+            older = "machines" if mm < mp else "parts"
+            out.append(_fact(f"The {older} are the older half", f"{mm} / {mp}",
+                             "average year of a machine against a part",
+                             "/browse?f=year"))
+
+    # Machines as well as parts: "thing" means both everywhere else on this page,
+    # and a working machine of 1981 would be a strange one to leave out of a figure
+    # about the oldest thing that still works.
+    working = []
+    for model, kind in ((Computer, "computers"), (Part, "parts")):
+        oldest = _held(db.query(model).filter(model.year.isnot(None),
+                                              model.condition == "Working"),
+                       model).order_by(model.year).first()
+        if oldest:
+            working.append((oldest.year, oldest, kind))
+    if working:
+        year, obj, kind = min(working, key=lambda w: w[0])
+        out.append(_fact("The oldest thing that still works", str(year),
+                         _named(obj), f"/{kind}/{obj.asset_id}"))
+
+    # The gap between a part's year and its machine's. Both dates in one row,
+    # because the figure is the difference and a difference needs both ends.
+    pairs = _held(db.query(Part, Computer)
+                  .join(Computer, Computer.asset_id == Part.computer_id)
+                  .filter(Part.year.isnot(None), Computer.year.isnot(None),
+                          Computer.disposed.is_(False)), Part).all()
+    if pairs:
+        ahead = [(p.year - c.year, p, c) for p, c in pairs if p.year > c.year]
+        if ahead:
+            gap, p, c = max(ahead, key=lambda r: r[0])
+            out.append(_fact("The biggest anachronism", f"{gap} years",
+                             f"{_named(p)} of {p.year}, fitted to a machine from "
+                             f"{c.year}", f"/computers/{c.asset_id}"))
+        together = sum(1 for p, c in pairs if p.year == c.year)
+        if together:
+            out.append(_fact("Parts as old as their machine", str(together),
+                             f"of {len(pairs)} where both dates are known, made the "
+                             "same year as the thing they are in",
+                             "/browse?f=born"))
+        before = sum(1 for p, c in pairs if p.year < c.year)
+        if before:
+            out.append(_fact("Parts older than their machine", str(before),
+                             "already out of date the day they were fitted",
+                             "/browse?f=older"))
+    return out
+
+
+def _facts_provenance(db, st):
+    """Where things came from and when they turned up. Provenance is the field
+    least often filled in, and the figure about how often is one of the more
+    honest ones here."""
+    out = []
+    nowhere = _held(db.query(func.count(Part.asset_id))
+                    .filter((Part.source == "") | (Part.source.is_(None))),
+                    Part).scalar() or 0
+    if nowhere and st["n_parts"]:
+        out.append(_fact("Parts with no idea where they came from", str(nowhere),
+                         f"{round(100 * nowhere / st['n_parts'])}% of them: no source "
+                         "recorded at all", "/browse?f=nosource"))
+    # Two conventions of this register's source field rather than anything the
+    # schema knows: an order number is written "eBay order no. ...", and something
+    # built here is "Self-made". Both figures simply stand down on a register that
+    # writes provenance some other way, which is what every figure here does.
+    bought = _held(db.query(func.count(Part.asset_id))
+                   .filter(Part.source.like("eBay%")), Part).scalar() or 0
+    if bought:
+        out.append(_fact("Bought from strangers", str(bought),
+                         "traced to an eBay order number",
+                         "/browse?f=sourcelike&v=eBay"))
+    made = _held(db.query(func.count(Part.asset_id))
+                 .filter(Part.source.like("Self-made%")), Part).scalar() or 0
+    if made:
+        out.append(_fact("Made here rather than bought", str(made),
+                         "built on the bench it sits on",
+                         "/browse?f=sourcelike&v=Self-made"))
+
+    arrivals = [d for (d,) in _held(db.query(Part.acquired_date)
+                                    .filter(Part.acquired_date.isnot(None)), Part)]
+    if arrivals and st["n_parts"]:
+        out.append(_fact("Parts with an arrival date", str(len(arrivals)),
+                         f"of {st['n_parts']}; the rest were simply there one day",
+                         "/browse?f=held"))
+        # Ties share the honour, as they do for the usual amount of memory: two days
+        # with nine arrivals each are both the day things arrive.
+        days = Counter(d.strftime("%A") for d in arrivals)
+        top = max(days.values())
+        winners = sorted(d for d, x in days.items() if x == top)
+        if len(winners) == 1:
+            out.append(_fact(f"Things arrive on a {winners[0]}", str(top),
+                             "more of them than on any other day", "/browse?f=held"))
+        else:
+            out.append(_fact("The day things arrive", " / ".join(winners),
+                             f"tied on {top} arrivals each", "/browse?f=held"))
+        busiest, count = Counter(arrivals).most_common(1)[0]
+        if count > 1:
+            out.append(_fact("The busiest single day", str(count),
+                             f"parts all dated {busiest}", "/browse?f=held"))
+    return out
+
+
+def _facts_register(db, st):
+    """Figures about the register rather than about the hardware: how much has been
+    written down, how much has been photographed, and how new all the writing is.
+
+    These are the figures with no gallery view behind them -- an entry in a
+    history is not an item -- so the first few pass no link at all.
+
+    The entry counts are also the one place _held does not apply: they count what
+    has been written, and a note about something since disposed was still written.
+    The figures about parts below are about the collection again, and do."""
+    out = []
+    entries = db.query(func.count(LogEntry.id)).scalar() or 0
+    started = db.query(func.min(LogEntry.created_at)).scalar()
+    if entries and started:
+        days = max((date.today() - started.date()).days, 1)
+        out.append(_fact("The register is younger than everything in it",
+                         f"{days} days",
+                         f"{entries:,} entries written since {started.date()}"))
+    kinds = dict(db.query(LogEntry.kind, func.count(LogEntry.id))
+                 .group_by(LogEntry.kind).all())
+    if kinds.get("note"):
+        out.append(_fact("Notes written by hand", str(kinds["note"]),
+                         f"of {entries:,} entries; the rest are the database "
+                         "recording its own changes"))
+    longest_note = (db.query(LogEntry.asset_id, func.length(LogEntry.message))
+                    .filter(LogEntry.kind == "note")
+                    .order_by(func.length(LogEntry.message).desc()).first())
+    if longest_note and longest_note[1] and longest_note[0]:
+        obj = db.get(Computer, longest_note[0]) or db.get(Part, longest_note[0])
+        if obj:
+            kind = "computers" if isinstance(obj, Computer) else "parts"
+            out.append(_fact("The longest note anyone has written",
+                             f"{longest_note[1]} characters", _named(obj),
+                             f"/{kind}/{obj.asset_id}"))
+
+    shots = st["portraits"]
+    if shots:
+        once = sum(1 for x in shots.values() if x == 1)
+        if once:
+            out.append(_fact("Things photographed exactly once", str(once),
+                             f"of {len(shots)} photographed at all: one angle and no "
+                             "more", "/browse?f=photos"))
+        many = sum(1 for x in shots.values() if x >= 5)
+        if many:
+            out.append(_fact("Things photographed five times or more", str(many),
+                             "properly documented, as opposed to merely recorded",
+                             "/browse?f=photos"))
+
+    unwritten = _held(db.query(func.count(Part.asset_id))
+                      .filter(Part.summary == "", Part.notes == ""), Part).scalar() or 0
+    if unwritten and st["n_parts"]:
+        out.append(_fact("Parts nobody has written a word about", str(unwritten),
+                         f"{round(100 * unwritten / st['n_parts'])}% of them: no "
+                         "summary and no notes", "/browse?f=unwritten"))
+    linked = _held(db.query(func.count(Part.asset_id))
+                   .filter(Part.url != "", Part.url.isnot(None)), Part).scalar() or 0
+    if linked:
+        out.append(_fact("Parts with a link out", str(linked),
+                         "somebody else's page about the same thing",
+                         "/browse?f=links"))
+    images = _held(db.query(func.count(Part.asset_id))
+                   .filter(Part.disk_image != "", Part.disk_image.isnot(None)),
+                   Part).scalar() or 0
+    if images:
+        out.append(_fact("Disk images kept", str(images),
+                         "the contents as well as the object",
+                         "/browse?f=diskimages"))
+    nested = _held(db.query(func.count(Part.asset_id))
+                   .filter(Part.parent_id.isnot(None)), Part).scalar() or 0
+    if nested:
+        out.append(_fact("Parts fitted to another part", str(nested),
+                         "a riser, a daughterboard, or a chip on a carrier",
+                         "/browse?f=subparts"))
+
+    dupes = sorted(_held(db.query(Part.manufacturer, Part.model,
+                                  func.count(Part.asset_id))
+                         .filter(Part.model != "", Part.model.isnot(None)), Part)
+                   .group_by(Part.manufacturer, Part.model).all(),
+                   key=lambda r: -r[2])
+    repeated = [r for r in dupes if r[2] > 1]
+    if repeated:
+        out.append(_fact("Things there is more than one of", str(len(repeated)),
+                         f"models held twice or more, of {len(dupes)} in the register",
+                         "/browse?f=dupes"))
+        top = repeated[0][2]
+        tied = sorted(f"{r[0]} {r[1]}".strip() for r in repeated if r[2] == top)
+        if len(tied) == 1:
+            said = tied[0]
+        elif len(tied) == 2:
+            said = f"{tied[0]} and {tied[1]}, tied"
+        else:
+            said = f"{tied[0]} and {len(tied) - 1} others, tied"
+        out.append(_fact("The most duplicated thing here", str(top), said,
+                         "/browse?f=dupes"))
+
+    # The other end of the longest name, which is counted the same way in the pool
+    # above. A second walk over every held object rather than one walk answering
+    # both, because at this size it costs nothing and the two figures belong to
+    # different groups.
+    names = []
+    for model in (Computer, Part):
+        for obj in _held(db.query(model), model):
+            names.append((len(_named(obj)), obj,
+                          "computers" if model is Computer else "parts"))
+    short = min(names, key=lambda n: n[0], default=None)
+    if short and short[0] > 1:
+        out.append(_fact("Shortest name in the register", f"{short[0]} characters",
+                         _named(short[1]), f"/{short[2]}/{short[1].asset_id}"))
+    return out
+
+
+def _facts_condition(db, st):
+    """Figures about what state it is all in, beyond the working share on the page
+    above and the two reliability tables below it."""
+    out = []
+    rel = _maker_reliability(db)
+    perfect = [r for r in rel if r[3] == 100]
+    if perfect and len(rel) > len(perfect):
+        out.append(_fact("Makers with a clean sheet", str(len(perfect)),
+                         f"of {len(rel)} with {RELIABILITY_MIN}+ parts here, every "
+                         "one of them working"))
+
+    # Four of the six values in entry.CONDITIONS, each with a sentence of its own,
+    # because each says something the working share does not: what was kept anyway,
+    # and what was worked on. Working and Untested already have figures above.
+    for label, key, blurb in (
+            ("Broken and kept anyway", "Faulty",
+             "known bad and still on the shelf"),
+            ("Works, but not all of it", "Partially working",
+             "the most honest category there is"),
+            ("Brought back", "Restored",
+             "working, but it did not arrive that way"),
+            ("Good only for parts", "For parts/repair",
+             "kept for what can be taken off it")):
+        n = _held(db.query(func.count(Part.asset_id))
+                  .filter(Part.condition == key), Part).scalar() or 0
+        if n:
+            out.append(_fact(label, str(n), blurb,
+                             f"/browse?f=condition&v={quote(key)}"))
+
+    spare_types = sorted(_held(db.query(Part.type, func.count(Part.asset_id))
+                               .filter(Part.computer_id.is_(None)), Part)
+                         .group_by(Part.type).all(), key=lambda r: (-r[1], r[0]))
+    if spare_types and st["spares"]:
+        out.append(_fact("The commonest thing to have spare",
+                         entry.type_label(spare_types[0][0]),
+                         f"{spare_types[0][1]} of {st['spares']} on the shelf",
+                         f"/browse?f=sparetype&v={quote(spare_types[0][0])}"))
     return out
 
 
@@ -2734,6 +3507,221 @@ def _browse_view(db, key: str, val: str):
                 (f"/computers/{machine.asset_id}", name),
                 lambda r: r["kind"] == "part"
                 and r["obj"].computer_id == machine.asset_id)
+    # --- the views behind the themed figures ------------------------------
+    # One per group in the pool, in the same order. Most are a set of asset ids
+    # read straight out of the table the figure was counted from, which is what
+    # _tagged is for: the figure and the page behind it then cannot disagree, since
+    # both are the same query.
+    if key == "boards":
+        return ("Motherboards", "everything with a board's specs on file", None,
+                _tagged(db.query(MotherboardSpec.part_id)))
+    if key == "formfactor":
+        return (f"Boards built to {val}", "as recorded in the form factor field",
+                None, _tagged(db.query(MotherboardSpec.part_id)
+                              .filter(MotherboardSpec.form_factor == val)))
+    if key == "bios":
+        return (f"Boards with a {val} BIOS", "as recorded in the BIOS field", None,
+                _tagged(db.query(MotherboardSpec.part_id)
+                        .filter(MotherboardSpec.bios == val)))
+    if key == "family":
+        return (f"Boards for a {val} processor", "as recorded in the CPU family field",
+                None, _tagged(db.query(MotherboardSpec.part_id)
+                              .filter(MotherboardSpec.cpu_family == val)))
+    if key == "cache":
+        return ("Boards with cache on them",
+                "the boards the cache total is added up from", None,
+                _tagged(db.query(MotherboardSpec.part_id)
+                        .filter(MotherboardSpec.cache_kb.isnot(None),
+                                MotherboardSpec.cache_kb > 0)))
+    if key == "onboardvideo":
+        return ("Boards with video on the board", "no expansion card required", None,
+                _tagged(db.query(MotherboardSpec.part_id)
+                        .filter(MotherboardSpec.onboard_video.isnot(None),
+                                MotherboardSpec.onboard_video != "")))
+    if key == "noslots":
+        # The difference between two sets rather than a NOT EXISTS: the figure is
+        # worked out that way too, and this page has to show the same boards.
+        slotted = {a for (a,) in db.query(PartSlot.part_id).distinct()}
+        return ("Boards with no expansion slots", "nothing can be added to these",
+                None, _tagged(db.query(MotherboardSpec.part_id)
+                              .filter(MotherboardSpec.part_id.notin_(slotted))
+                              if slotted else db.query(MotherboardSpec.part_id)))
+    if key == "ramslots":
+        return ("Boards with memory sockets", "the boards those sockets are on", None,
+                _tagged(db.query(PartRamSlot.part_id).distinct()))
+    if key == "ramslot":
+        return (f"Boards with {val} sockets", "the boards those sockets are on", None,
+                _tagged(db.query(PartRamSlot.part_id)
+                        .filter(PartRamSlot.slot_type == val)))
+    if key == "cards":
+        # Everything with a card's specs on file, of any of the four kinds: the
+        # population the figures about cards are counted against, rather than any
+        # one of their answers. The four share the shape of most of the questions --
+        # which bus, whose chip -- so they share a view.
+        ids = set()
+        for spec in (VideoSpec, SoundSpec, NetworkSpec, IoSpec):
+            ids |= {a for (a,) in db.query(spec.part_id)}
+        return ("Expansion cards", "video, sound, network and I/O together", None,
+                lambda r: r["obj"].asset_id in ids)
+    if key == "vram":
+        return ("Graphics cards with their memory recorded",
+                "the cards the video memory total is added up from", None,
+                _tagged(db.query(VideoSpec.part_id)
+                        .filter(VideoSpec.memory_kb.isnot(None),
+                                VideoSpec.memory_kb > 0)))
+    if key == "vramsize":
+        sizes = sorted({int(x) for x in val.split(",") if x.strip().isdigit()})
+        return (("Graphics cards with " + " or ".join(entry.fmt_kb(kb, True)
+                                                     for kb in sizes))
+                if sizes else "Graphics cards by memory",
+                "read from the typed memory column, not from the text", None,
+                _tagged(db.query(VideoSpec.part_id)
+                        .filter(VideoSpec.memory_kb.in_(sizes) if sizes
+                                else VideoSpec.memory_kb.isnot(None))))
+    if key == "prevga":
+        # The same four LIKEs the figure is counted with, so the page cannot show a
+        # different set of cards from the one the number claimed.
+        return ("Graphics cards from before VGA",
+                "MDA, CGA, EGA or composite, and nothing later", None,
+                _tagged(db.query(VideoSpec.part_id)
+                        .filter(VideoSpec.connector.isnot(None),
+                                VideoSpec.connector != "",
+                                ~VideoSpec.connector.like("%VGA%"),
+                                ~VideoSpec.connector.like("%DVI%"))))
+    if key == "nochip":
+        ids = set()
+        for spec in (VideoSpec, SoundSpec, NetworkSpec, IoSpec):
+            ids |= {a for (a,) in db.query(spec.part_id)
+                    .filter((spec.chip.is_(None)) | (spec.chip == ""))}
+        return ("Cards with no chip recorded", "nobody has written down what is on "
+                "them", None, lambda r: r["obj"].asset_id in ids)
+    if key == "ports":
+        return ("Boards and cards with ports", "the things those ports are on", None,
+                _tagged(db.query(PartPort.part_id).distinct()))
+    if key == "legacydisk":
+        return ("Drives on a dead interface",
+                "MFM, RLL, ESDI and XTA: none of them survived the 1990s", None,
+                _tagged(db.query(StorageSpec.part_id)
+                        .filter(StorageSpec.interface.in_(LEGACY_DISK_BUSES))))
+    if key == "rpm":
+        return ("Drives with a spindle speed recorded", "mechanical disks that say",
+                None, _tagged(db.query(StorageSpec.part_id)
+                              .filter(StorageSpec.speed_rpm.isnot(None),
+                                      StorageSpec.speed_rpm > 0)))
+    if key == "optical":
+        return ("Optical drives", "everything that takes a disc", None,
+                _tagged(db.query(StorageSpec.part_id)
+                        .filter(StorageSpec.kind == entry.OPTICAL_KIND)))
+    if key == "geometry":
+        return ("Drives with their geometry on file",
+                "cylinders, heads and sectors as the drive reports them", None,
+                _tagged(db.query(StorageSpec.part_id)
+                        .filter(StorageSpec.chs_c.isnot(None), StorageSpec.chs_c > 0)))
+    if key == "flash":
+        return ("Machines with a card standing in for a drive",
+                "CF or SD where a disk or a floppy used to be", None,
+                _tagged(db.query(ComputerDrive.computer_id)
+                        .filter(ComputerDrive.kind.in_(("CF", "SD"))).distinct()))
+    if key == "os":
+        return ("Machines with an operating system recorded",
+                "what each of them boots, as last seen", None,
+                lambda r: r["kind"] == "computer" and bool(r["obj"].os))
+    if key == "dos":
+        return ("Machines running DOS", "MS-DOS, FreeDOS or the like", None,
+                lambda r: r["kind"] == "computer" and "DOS" in (r["obj"].os or ""))
+    if key == "cpu":
+        return ("Machines with their processor recorded",
+                "the machines the processor figures are counted from", None,
+                lambda r: r["kind"] == "computer" and bool(r["obj"].cpu))
+    if key == "chassis":
+        return (f"Machines in a {val} case", "as recorded in the chassis field", None,
+                lambda r: r["kind"] == "computer" and (r["obj"].chassis or "") == val)
+    if key == "portable":
+        return ("Machines meant to be carried",
+                "laptops and luggables, the second word doing a lot of work", None,
+                lambda r: r["kind"] == "computer"
+                and (r["obj"].chassis or "").lower() in ("laptop", "luggable"))
+    if key == "benchmarked":
+        return ("Machines with a TopBench score", "the ones it has been run on", None,
+                lambda r: r["kind"] == "computer" and r["obj"].topbench is not None)
+    if key == "variant":
+        return ("Filed as a catalogue model",
+                "machines and boards the catalogue can name", None,
+                _tagged(db.query(AssetVariant.asset_id)))
+    if key == "emptymachines":
+        fitted = {c for (c,) in _held(db.query(Part.computer_id)
+                                      .filter(Part.computer_id.isnot(None)), Part)}
+        return ("Machines with nothing fitted",
+                "no part in the register is installed in these", None,
+                lambda r: r["kind"] == "computer"
+                and r["obj"].asset_id not in fitted)
+    if key == "century":
+        return ("Made in this century", "2000 or later, by the year on the record",
+                None, lambda r: (r["obj"].year or 0) >= 2000)
+    if key == "recent":
+        cutoff = date.today().year - 10
+        return ("Made in the last ten years",
+                f"{cutoff} or later — new parts for old machines", None,
+                lambda r: (r["obj"].year or 0) >= cutoff)
+    if key in ("born", "older"):
+        # Both compare a fitted part's year against its machine's, so both are the
+        # same join with one operator changed.
+        gaps = (db.query(Part.asset_id, Part.year - Computer.year)
+                .join(Computer, Computer.asset_id == Part.computer_id)
+                .filter(Part.year.isnot(None), Computer.year.isnot(None)).all())
+        if key == "born":
+            ids = {a for a, gap in gaps if gap == 0}
+            return ("Fitted to a machine of its own year",
+                    "part and machine made the same year", None,
+                    lambda r: r["obj"].asset_id in ids)
+        ids = {a for a, gap in gaps if gap is not None and gap < 0}
+        return ("Older than the machine it is in",
+                "made before the thing it was fitted to", None,
+                lambda r: r["obj"].asset_id in ids)
+    if key == "nosource":
+        return ("Parts with no recorded source",
+                "nothing on file about where they came from", None,
+                lambda r: r["kind"] == "part" and not (r["obj"].source or "").strip())
+    if key == "unwritten":
+        return ("Parts with nothing written about them",
+                "no summary and no notes", None,
+                lambda r: r["kind"] == "part" and not (r["obj"].summary or "")
+                and not (r["obj"].notes or ""))
+    if key == "links":
+        return ("Parts with a link out", "somebody else's page about the same thing",
+                None, lambda r: r["kind"] == "part" and bool(r["obj"].url))
+    if key == "diskimages":
+        return ("Parts with a disk image kept", "the contents as well as the object",
+                None, lambda r: r["kind"] == "part" and bool(r["obj"].disk_image))
+    if key == "subparts":
+        return ("Parts fitted to another part",
+                "a daughterboard, a riser, or a chip on a carrier", None,
+                lambda r: r["kind"] == "part" and bool(r["obj"].parent_id))
+    if key == "sourcelike":
+        # A prefix, not the whole field: "eBay order no. 19-14922-72542" is one
+        # order and there are dozens of them, but "bought on eBay" is one answer.
+        # Folded, because the figures behind this are counted with SQL LIKE, which
+        # is case-insensitive under both engines the app runs on. A bare
+        # str.startswith is not, and would show fewer items than the number claimed.
+        fold = val.lower()
+        return (f"Came from {val}", "everything whose source starts with this", None,
+                lambda r: (r["obj"].source or "").lower().startswith(fold))
+    if key == "sparetype":
+        return (f"{entry.type_label(val)} on the shelf",
+                "not fitted to anything", None,
+                lambda r: r["kind"] == "part" and r["cat"] == val
+                and not r["obj"].computer_id)
+    if key == "dupes":
+        # Every maker-and-model held more than once, which is the set the figure
+        # counted rather than a resemblance to it.
+        repeated = {(m or "", mo or "") for m, mo, n in
+                    _held(db.query(Part.manufacturer, Part.model,
+                                   func.count(Part.asset_id))
+                          .filter(Part.model.isnot(None), Part.model != ""), Part)
+                    .group_by(Part.manufacturer, Part.model).all() if n > 1}
+        return ("Held more than once", "the same maker and model, twice or more", None,
+                lambda r: r["kind"] == "part"
+                and ((r["obj"].manufacturer or ""), (r["obj"].model or "")) in repeated)
     return None
 
 

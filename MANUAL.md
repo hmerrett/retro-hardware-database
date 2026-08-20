@@ -933,21 +933,31 @@ part still in the collection is kept whatever the box says.
   themselves, and a link to exactly which ones. This is the one figure on the page
   that is a job rather than a curiosity, so it is always shown rather than being
   dealt into the shuffle below it; see [below](#what-counts-as-a-portrait).
-- **Eight things about it** — a pool of figures nobody strictly needs (most and
-  least reliable maker, the longest wait between a thing being made and arriving
-  here, what every floppy would hold if each had a disk in it), from which the
-  page draws eight at random on each visit. It used to hold the coverage figure
-  too; that one was promoted out, because a work queue that appears on some visits
-  and not others is no use as a work queue, and a figure both fixed and shuffled
-  would come up twice on one page. A figure only joins the pool when it has
-  something to say, so a young register offers fewer rather than offering blanks.
-  Reload to shuffle.
+- **Eight things about it** — a pool of a hundred-odd figures nobody strictly
+  needs (most and least reliable maker, the longest wait between a thing being
+  made and arriving here, what every floppy would hold if each had a disk in it,
+  which boards fit nothing but the case they came out of, how many parts nobody
+  has written a word about, how many slots would still be empty if every card
+  here were plugged in at once), from which the page draws eight at random on
+  each visit. The pool is built in themed groups — the boards, the cards, the drives,
+  the machines, how old it all is, where it came from, the register itself, and
+  what state it is in — but they are shuffled together, and the page does not know
+  or care which group a tile came from. It used to hold the coverage figure too;
+  that one was promoted out, because a work queue that appears on some visits and
+  not others is no use as a work queue, and a figure both fixed and shuffled would
+  come up twice on one page. A figure only joins the pool when it has something to
+  say, so a young register offers fewer rather than offering blanks, and no two
+  tiles in one draw show the same number. Reload to shuffle.
 - **Ranked charts** — makers by parts held, what the parts are, expansion buses,
   ports, condition, and makers by how much of their hardware still works.
 
-**Every number is a link** to the items it counted, shown in the same grid as the
-gallery. That is the point of the page: a figure you cannot get behind is a
-figure you cannot check.
+**Almost every number is a link** to the items it counted, shown in the same grid
+as the gallery. That is the point of the page: a figure you cannot get behind is a
+figure you cannot check. The handful that are not links are the ones about the
+register rather than about the hardware — how many entries have been written, how
+many of those were written by hand — because an entry in a history is not an item
+the gallery can show, and a link to everything would be a link that lied about
+what it counted.
 
 ### About the reliability chart
 
