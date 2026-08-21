@@ -192,8 +192,10 @@
     // holding something back, which is the only time the number is news -- and
     // it says so as a fraction, because "383 items" under "23 computers · 387
     // parts" was 383 against 410 with nothing on the page explaining the gap.
+    // Bracketed rather than led by a separator: on a phone this wraps to a line
+    // of its own, and a leading bullet then sits orphaned at the start of it.
     count.textContent = shown === cards.length
-      ? '' : '· showing ' + shown + ' of ' + cards.length;
+      ? '' : '(showing ' + shown + ' of ' + cards.length + ')';
     empty.style.display = shown ? 'none' : '';
     remember();
   }
