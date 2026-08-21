@@ -490,8 +490,22 @@
   .nophoto img.ph { width: 76px; height: 76px; object-fit: contain; opacity: .5; }
   .nophoto .hint { margin: 0; }
 
-  /* The paragraph about a model, where a page has room to simply print it. */
-  p.summary { margin: 0 0 10px; }
+  /* The paragraph about a model, printed under the name on the page of a machine
+     that is one. Its own class, not .summary: that one is the prose about this
+     particular unit, and `p.summary` outranked it -- so styling the model's
+     paragraph had quietly restyled every item's own.
+
+     Held to a readable measure rather than the page's full width. Prose set
+     across 1000px of monospace runs to about 120 characters a line, which is
+     roughly twice what an eye tracks back from comfortably; the cookie notice
+     already uses 70ch for the same reason. */
+  /* Muted, like the same paragraph on the catalogue page, and for the reason the
+     rest of the site mutes things: it is reference about the model rather than a
+     fact about the object in front of you. That also tells it apart from the
+     item's own summary directly beneath, which is in the page's ink because it is
+     about this particular unit. Position gives the prominence; the ink says which
+     kind of statement it is. */
+  p.model-summary { margin: 10px 0 4px; max-width: 74ch; color: var(--muted); }
 
   /* The same paragraph on the catalogue page, folded away: four hundred rows are
      read by eye and by ctrl-F, and a paragraph under every one of them would be a

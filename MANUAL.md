@@ -358,7 +358,10 @@ did that its neighbours did not, and what a collector would look for. Folded
 away rather than laid out, because four hundred paragraphs at once would be a
 different page for a different job — but the browser's own find still reaches
 into the folds and opens the one it lands in. The same paragraph is printed in
-full in the **Machine** panel on a machine you actually hold.
+full directly under the name on the page of a machine you actually hold — in
+muted ink, because it is reference about the model rather than a fact about the
+object in front of you. The item's **own** summary sits below it in the page's
+ink, that one being about this particular unit.
 
 The folds are plain `<details>` elements and need no JavaScript. They briefly
 did need a CSS `:has()` rule, which worked in Chrome and in current Safari and
