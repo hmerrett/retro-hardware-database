@@ -32,14 +32,14 @@
     {{ fld('topbench', 'TopBench score', "what this machine scores in TopBench, the DOS benchmark — leave it blank until it has actually been run on this machine", type='number') }}
   </div>
   <label>Memory modules (SIMMs / SIPPs)</label>
-  <p class="hint">enter how many of each fitted module; the total is computed.</p>
+  <p class="hint">how many of each; the total is computed.</p>
   <div class="countgrid">
     {% for slug, kb, label in ram_modules %}
     <label><span>{{ label }}</span> <input type="number" min="0" name="rammod:{{ slug }}" value="{{ ram_mod_counts.get(slug, '') }}"></label>
     {% endfor %}
   </div>
   <label>RAM chips (installed directly)</label>
-  <p class="hint">for DRAM soldered/socketed on the board, not on SIMMs. Enter how many of each; a banks-of-9 count is treated as parity.</p>
+  <p class="hint">DRAM on the board rather than on SIMMs. A banks-of-9 count is treated as parity.</p>
   <div class="countgrid">
     {% for pn, kb, org in ram_chips %}
     <label><span>{{ pn }} <span class="muted">({{ org }})</span></span> <input type="number" min="0" name="ramchip:{{ pn }}" value="{{ ram_counts.get(pn, '') }}"></label>
@@ -47,9 +47,9 @@
   </div>
   <label for="installed_ram">Installed RAM — other / notes</label>
   <input id="installed_ram" name="installed_ram" value="{{ ram_free }}">
-  <p class="hint">free-form fallback for anything the grids above do not cover (DIMMs, unusual sizes) or just a plain total like 16MiB. All three are combined.</p>
+  <p class="hint">anything the grids above miss — DIMMs, odd sizes, or a plain total like 16MiB. All three are combined.</p>
   <label>Drives</label>
-  <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove that drive.</p>
+  <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove it.</p>
   <div class="hscroll">
   <table class="drives">
     <tr><th>How many</th><th>Kind</th><th>Form factor</th><th>Size</th><th>Media</th><th>Speed</th><th>Make / model</th><th>Bezel — shade, and yellowing</th></tr>
@@ -115,8 +115,6 @@
     </label>
     <span class="hint" data-photo-count></span>
   </div>
-  <p class="hint">optional, and saved with the machine. More can be added, rotated
-    and cropped from its page afterwards.</p>
   {% endif %}
   <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
 </form>

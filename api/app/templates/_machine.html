@@ -29,16 +29,14 @@
 <label for="mach_model">{{ 'Board from a known machine' if board else 'Known machine' }}</label>
 {% if board %}
 <p class="hint">which machine this board is out of — a Spectrum, a C64, an Amiga 500.
-  Pick the model and its documented board revisions and chip sockets appear below, so
-  a spare on the shelf is filed as what it is rather than as a line of free text.
-  Leave it at <em>not a catalogue model</em> for a PC board, which is described by
-  its chipset and its slots instead.</p>
+  Picking one offers that model's documented board revisions and chip sockets. Leave it
+  at <em>not a catalogue model</em> for a PC board, described by its chipset and slots
+  instead.</p>
 {% else %}
-<p class="hint">a Spectrum, a C64, a CPC, a Mega Drive — pick the model and its
-  documented variations appear below, with the manufacturer, year, CPU and chassis
-  filled into any of those boxes still empty. Leave it at <em>not a catalogue
-  model</em> for a PC or a custom build: those are described by the parts fitted in
-  them instead.</p>
+<p class="hint">a Spectrum, a C64, a CPC, a Mega Drive. Picking one offers that
+  model's documented variations, and fills the manufacturer, year, CPU and chassis into
+  any of those boxes still empty. Leave it at <em>not a catalogue model</em> for a PC or
+  a custom build.</p>
 {% endif %}
 <select id="mach_model" name="mach_model" data-machine-pick>
   <option value="">— not a catalogue model —</option>
@@ -56,10 +54,8 @@
   {% endif %}
 </select>
 <div data-machine-vars></div>
-<noscript><p class="hint">The board issue{{ '' if board else ', the case style' }} and the chips are picked
-  from lists built for whichever model is chosen above, which needs JavaScript.
-  Choosing a model still works without it, and whatever is already recorded about
-  this {{ 'board' if board else 'machine' }} is left as it is.</p></noscript>
+<noscript><p class="hint">The variation pickers need JavaScript. Choosing a model
+  still works without it, and whatever is already recorded here is left alone.</p></noscript>
 {% endmacro %}
 
 {# Build the variation fields for the model picked, and offer what the catalogue knows
@@ -210,11 +206,10 @@
         html += '<label>Chips fitted</label>' +
           '<p class="hint">the sockets worth writing down on this model, each ' +
           'offering the numbers that turn up in it. Leave one at <em>not ' +
-          'recorded</em> until it has been looked at — a guess here is worse than ' +
-          'nothing — and use <em>custom</em> for a marking the list does not have, ' +
-          'which puts it on the list for next time. Tick the ones sitting in a ' +
-          'socket; a chip named with the box left clear is recorded as soldered to ' +
-          'the board.</p>';
+          'recorded</em> until it has been looked at — a guess is worse than ' +
+          'nothing. Use <em>custom</em> for a marking the list has not got; it ' +
+          'joins the list next time. Tick the ones in a socket — a chip named with ' +
+          'the box clear is recorded as soldered down.</p>';
         for (const chip of model.chips) {
           html += field(`chip:${chip.role}`, chip.label, chip.note,
                         was.chips[chip.role] || '', chip.variants,

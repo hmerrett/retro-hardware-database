@@ -117,9 +117,9 @@
   {{ rank('Condition', 'as recorded, parts only', st.conditions, 'parts', 'condition') }}
 </div>
 
-<p class="hint">Counted live from the catalogue, and only from what is still here:
-a disposed item is a record of something gone, so it is left out of every figure bar
-the count of disposals itself. Quantities come from typed columns rather than being
-read back out of text, so a figure here is the same figure the database sorts on.
-Every number leads to the things it counted.</p>
+{# What is left out changes how every figure reads, and that the figures are
+   links is deliberately not visible -- both worth a line. That they are counted
+   live, and which columns they are counted from, are not. #}
+<p class="hint">Disposed items are left out of every figure but the count of
+disposals. Every number leads to what it counted.</p>
 {% endblock %}

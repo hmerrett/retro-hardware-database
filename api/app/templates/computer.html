@@ -93,7 +93,7 @@
          side. A card each, small enough to sit two or three across: what is written
          on a chip is a part number, and a tick says how it is held. #}
       {% if machine.chips %}
-      <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each, socket by socket</p>
+      <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each</p>
       {{ P.chipcards(machine.chips) }}
       {% endif %}
       {# Here rather than beside the edit button at the top, because this is the panel
@@ -102,7 +102,7 @@
          Behind a page, which says what will move and takes the board's photograph. #}
       {% if detachable %}
       <p class="hint" style="margin:12px 0 0"><a href="/computers/{{ c.asset_id }}/detach-board">detach the board…</a>
-        — give the board in it an asset tag of its own, once it is actually out</p>
+        — give it an asset tag of its own</p>
       {% endif %}
     {% endcall %}
     {% endif %}

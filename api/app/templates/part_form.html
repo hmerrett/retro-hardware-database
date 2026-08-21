@@ -60,9 +60,8 @@
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
 {% if from_part %}
-<p class="hint">Started from <a href="/parts/{{ from_part }}">{{ from_part }}</a>. Its
-photos, source, acquired date and notes are not carried over, and nothing is saved
-until you submit.</p>
+<p class="hint">Started from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.
+Photos, source, acquired date and notes are not carried over.</p>
 {% endif %}
 
 <form class="edit" method="post" enctype="multipart/form-data" action="{{ action }}">
@@ -153,16 +152,16 @@ until you submit.</p>
            columns on the drive row. #}
         {{ C.pair('drive_', '', '', bezel_colours, yellowing, bezel_colour_labels,
                   yellowing_labels) }}
-        <p class="hint">a bezel named in the description ("beige", "yellowed") is read
-          from there too; a menu wins over the text where both say something.</p>
+        <p class="hint">a bezel named in the description is read from there too; a menu
+          wins where both say something.</p>
         {{ C.chart(bezel_colours, yellowing) }}
       </div>
       <div id="part-bezel" hidden>
         <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
         {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
                   bezel_colours, yellowing, bezel_colour_labels, yellowing_labels) }}
-        <p class="hint">a full-height drive shows its bezel; a bare 3.5" disk that
-          never had one has nothing to record here.</p>
+        <p class="hint">a full-height drive shows its bezel; a bare 3.5" disk never
+          had one.</p>
         {{ C.chart(bezel_colours, yellowing) }}
       </div>
     </div>
@@ -175,13 +174,13 @@ until you submit.</p>
        not somewhere to leave text nobody can see. The make and model go in
        Identity above, and reach a machine's drive row from there. #}
     <div id="drive-desc-row" hidden>
-      <label for="drive_desc">Drive description <span class="muted">(anything the pickers cannot say; goes on the computer's Drives field, or stays as the part's own if there is no machine to fit it to)</span></label>
+      <label for="drive_desc">Drive description <span class="muted">(anything the pickers cannot say — it goes on the machine's Drives field)</span></label>
       <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
              placeholder="e.g. SS/DD; 3.5in 1.44MB floppy">
       {# Said here, where the box it is about is: a bay or a capacity written into
          the prose is still read out of it, and a picker set above wins over it. #}
-      <p class="hint">a size or capacity named here is read from the text too; a
-        picker above wins over it where both say something.</p>
+      <p class="hint">a size named here is read from the text too; a picker above
+        wins where both say something.</p>
     </div>
 
     <div class="ask" data-kinds="{{ disk_image_kinds|join('|') }}" hidden>
@@ -299,8 +298,6 @@ until you submit.</p>
       </label>
       <span class="hint" data-photo-count></span>
     </div>
-    <p class="hint">optional, and saved with the part. More can be added, rotated
-      and cropped from its page afterwards.</p>
     {% endif %}
   </fieldset>
 

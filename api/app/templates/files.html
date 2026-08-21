@@ -5,12 +5,11 @@
   <h2 style="margin:0">Files</h2>
   <span class="muted">{{ files|length }}</span>
 </div>
-<p class="hint">Drivers, manuals, ROM dumps and utility disks. Each is filed under
-  the names it is for rather than under one asset, and a name covers anything with
-  it in: <em>Creative Labs Sound Blaster</em> reaches the AWE32 and the Pro alike,
-  whatever the spacing and capitals. An asset id as the name pins one to a single
-  unit.{% if tag %} Showing what something called <em>{{ tag }}</em> would be
-  offered. <a href="/files">show everything</a>.{% endif %}</p>
+<p class="hint">Drivers, manuals, ROM dumps and utility disks, filed under the names
+  they are for rather than under one asset. A name covers anything with it in, whatever
+  the spacing and capitals: <em>Creative Labs Sound Blaster</em> reaches the AWE32 and
+  the Pro alike. An asset id as the name pins one to a single unit.{% if tag %} Showing
+  what <em>{{ tag }}</em> would be offered. <a href="/files">show everything</a>.{% endif %}</p>
 
 {% if files %}
 <table>
@@ -43,7 +42,6 @@
 </table>
 {% else %}
 <p class="muted">{% if tag %}Nothing is filed under that name.{% else %}No files
-  yet. Upload one from the page of the machine or part it belongs to, and it will
-  show on every item of that name.{% endif %}</p>
+  yet. Upload one from the page of the machine or part it belongs to.{% endif %}</p>
 {% endif %}
 {% endblock %}

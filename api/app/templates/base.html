@@ -982,10 +982,9 @@
    asking about a thing that has not happened. #}
 {% if not request.state.noticed %}
 <div id="cookienote">
-  <p><strong>Cookies.</strong> Nothing is kept in your browser until you choose
-    something. Pick a sort order or the dark theme and it is remembered, so the page
-    opens as you left it. First party only — no analytics, no advertising, nothing
-    shared with anyone{% if auth_enabled %}; signing in to edit adds a session
+  <p><strong>Cookies.</strong> Nothing is stored until you choose something — a sort
+    order, the dark theme. First party only: no analytics, no advertising, nothing
+    shared with anyone{% if auth_enabled %}. Signing in to edit adds a session
     cookie{% endif %}.</p>
   <button class="btn sm" id="cookieok" type="button">Got it</button>
 </div>

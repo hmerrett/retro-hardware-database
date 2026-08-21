@@ -19,11 +19,6 @@
   <div class="of">machine models, in {{ n_families }} families</div>
 </div>
 
-<p class="cover">Filing a machine against one of these fills in the model's specs
-  and asks only what differs between two of the same: board issue, case, region, the
-  part in each socket. <span class="muted">Anything else is described by its
-  parts.</span></p>
-
 <div class="cat">
   {% for family in families %}
   <section>
@@ -86,10 +81,4 @@
     }, true);
   })();
 </script>
-
-<p class="hint">Listed by maker, then by name — with numbers read as numbers, so an
-Amiga 500 comes before an Amiga 1000. A board issue or a chip from outside these
-lists is recorded by typing it. The catalogue itself is
-<code>api/app/machines.yaml</code>, and the same list is at
-<a href="/api/machines">/api/machines</a> as JSON.</p>
 {% endblock %}
