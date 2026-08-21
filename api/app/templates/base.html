@@ -86,8 +86,12 @@
      proportions whatever it is put next to. Height is the dimension pinned
      because it is the one the banner's other items are measured against. */
   header .brand img { height: 34px; width: auto; display: block; }
-  /* A phone spends its width on the name, not on both. */
-  @media (max-width: 380px) { header .brand span { display: none; } }
+  /* A phone spends its width on the search box, not on the name: the logo is
+     still the way home, the page's own heading says where you are, and the name
+     is in the title bar and at the foot of the page. Dropping it is what lets
+     the banner be one row on a phone instead of two -- and the second row was
+     costing more than the words on it were worth. */
+  @media (max-width: 620px) { header .brand span { display: none; } }
   /* Everything after this spans the gap to the right edge. A flexible span rather
      than `margin-left: auto`, because the search bar carries an auto margin of its
      own for the line it wraps onto -- and a grown span leaves no free space for
@@ -101,10 +105,11 @@
   header .hdr-search input[type=search] { width: 230px; min-width: 0; padding: 5px 9px;
     border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 13px;
     background: transparent; color: inherit; }
-  /* On a phone the bar has a row to itself either way, so let it have all of it. */
+  /* On a phone the bar shares the banner's one row with the logo and takes
+     whatever is left of it. */
   @media (max-width: 620px) {
-    header .hdr-search { flex: 1 1 100%; }
-    header .hdr-search input[type=search] { flex: 1; width: auto; }
+    header .hdr-search { flex: 1 1 auto; }
+    header .hdr-search input[type=search] { flex: 1; width: auto; min-width: 0; }
   }
   /* The first few matches, offered while you are still typing. It hangs off the
      input rather than pushing the page down, and is wider than the box it hangs
@@ -396,6 +401,9 @@
      names -- wider than a phone. Let it shrink; the chosen line still fits. */
   select { max-width: 100%; }
   .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
+  /* Two menus, one row, on a phone: which category and in what order are one
+     sentence, and a row each spent two lines of the screen saying it. */
+  @media (max-width: 620px) { .toolbar select.fill { flex: 1 1 140px; } }
   .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
   .thumbs img { width: 150px; height: 110px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
   .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
@@ -598,6 +606,100 @@
      the rule above says about inputs in here. */
   .notebar .filebtn input[type=file] { flex: none; min-width: 0; padding: 0; border: 0; }
 
+  /* --- The banner, in three bands -----------------------------------------
+     Places on the left, finding in the middle, doing on the right. It grew
+     instead to fourteen controls in one flat row, all wearing .btn sm, so
+     nothing in it was ranked and the eye had to read the lot to find the one
+     it wanted. What is neither a place nor a job -- the theme, the traffic
+     log, the way out -- now sits behind one button: a permanent seat in the
+     banner has to be worth reading past on every page, and those were not. */
+  header .hdr-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  /* Where you are. Said in weight rather than colour, because the banner is
+     read in both themes and by people who cannot tell the two apart. */
+  header .hdr-nav a[aria-current="page"] { font-weight: 700; color: var(--fg); }
+  header .hdr-desk { display: inline-flex; align-items: center; gap: 6px; }
+  header .hdr-desk .dots { min-width: 34px; text-align: center; line-height: 1.15; }
+  /* Clear of the name: the section you are in is set in bold, and against the
+     brand -- which is bold too -- it read as the last word of it. */
+  header .hdr-nav { margin-left: 6px; }
+  header .hdr-desk form { margin: 0; }
+
+  /* A menu that opens without a script, because <details> already does that.
+     The script below only closes it -- on Escape, and on a click landing
+     anywhere else -- which is the part the element does not do for itself. */
+  .menu { position: relative; }
+  .menu > summary { list-style: none; cursor: pointer; }
+  .menu > summary::-webkit-details-marker { display: none; }
+  .menu > summary::marker { content: ""; }
+  .menupop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 950;
+    min-width: 178px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 10px 30px #00000026; padding: 4px; }
+  :root[data-theme="dark"] .menupop { box-shadow: 0 10px 30px #00000080; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .menupop { box-shadow: 0 10px 30px #00000080; }
+  }
+  .menupop a, .menupop button { display: block; width: 100%; text-align: left;
+    padding: 7px 9px; border: 0; border-radius: 7px; background: transparent;
+    color: inherit; font: inherit; font-size: 13px; text-decoration: none;
+    white-space: nowrap; cursor: pointer; }
+  .menupop a:hover, .menupop button:hover { background: var(--btn-hover); }
+  .menupop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 3px; }
+  .menupop form { margin: 0; }
+
+  /* The quiet end of the page: the one link here is for whoever is writing
+     against the register rather than reading it, which is not a thing to spend
+     a seat in the banner on. */
+  footer.site { border-top: 1px solid var(--line); margin-top: 34px;
+    padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 4px 14px;
+    align-items: baseline; font-size: 13px; color: var(--muted); }
+
+  /* --- The phone's own row of controls ------------------------------------
+     At the bottom, where the thumb is. Measured before this existed, the
+     banner on a 390px screen wrapped to four rows and 165px, and the first
+     card began 340px down -- two fifths of the screen spent on chrome. Worse,
+     the one control a phone is really here for was the last thing on the last
+     row: scanning a label is what you do while holding the thing, and it was
+     further from your thumb than anything else on the page. */
+  .tabbar, #sheet { display: none; }
+  @media (max-width: 620px) {
+    header .hdr-nav, header .hdr-desk { display: none; }
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+      display: flex; background: var(--bg); border-top: 1px solid var(--line);
+      padding: 3px 2px calc(3px + env(safe-area-inset-bottom, 0px)); }
+    .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 3px; padding: 6px 2px; border: 0;
+      background: none; color: var(--muted); font: inherit; font-size: 11px;
+      text-decoration: none; cursor: pointer; }
+    .tabbar svg { width: 21px; height: 21px; display: block; }
+    .tabbar [aria-current="page"], .tabbar .on { color: var(--accent); }
+    /* Room under the last card for the bar that would otherwise sit on it, and
+       the cookie notice lifted clear of the same bar. */
+    body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    #cookienote { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    /* Everything else, in one list rather than a menu inside a menu: a sheet
+       you have to go two taps into is not simpler than the row it replaced. */
+    #sheet { position: fixed; inset: 0; z-index: 80; display: flex;
+      flex-direction: column; justify-content: flex-end; background: #00000066; }
+    #sheet[hidden] { display: none !important; }
+    #sheet .sheet-body { background: var(--bg); border-top: 1px solid var(--line);
+      border-radius: 14px 14px 0 0; padding: 8px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+      max-height: 82vh; overflow-y: auto; }
+    #sheet a, #sheet button { display: block; width: 100%; text-align: left;
+      padding: 11px 12px; border: 0; border-radius: 9px; background: transparent;
+      color: inherit; font: inherit; font-size: 15px; text-decoration: none;
+      cursor: pointer; }
+    #sheet a:active, #sheet button:active { background: var(--btn-hover); }
+    #sheet a[aria-current="page"] { font-weight: 700; }
+    #sheet hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
+    #sheet form { margin: 0; }
+    /* Sized as a target and drawn as a grip: the bar is 38px of the 44 tall box
+       around it, which is what a thumb is actually aiming at. */
+    #sheet .sheet-grip { display: block; width: 100%; height: 22px; padding: 0;
+      border: 0; background: none; cursor: pointer; }
+    #sheet .sheet-grip::before { content: ""; display: block; width: 38px; height: 4px;
+      border-radius: 999px; background: var(--line); margin: 9px auto; }
+  }
+
   /* Last, so it outranks the sizes set above. iOS zooms the page in when it
      focuses a control whose text is under 16px, and does not zoom back out when
      the box is left -- so on a phone every tap on a field left the page scaled up
@@ -651,6 +753,15 @@
 </script>
 </head>
 <body>
+{% import "_icons.html" as I %}
+{# Which of the site's sections this page belongs to, so the banner and the
+   phone's bar can both say where you are. Prefix rather than exact match, so an
+   item's own page still lights the section it was reached through -- except the
+   gallery, which is only itself. #}
+{% set _p = request.url.path %}
+{% macro here(seg) -%}
+{%- if (seg == '/' and _p == '/') or (seg != '/' and _p.startswith(seg)) %} aria-current="page"{% endif -%}
+{%- endmacro %}
 <header>
   {# The sticker and the name together: the logo says 2600.me, which is where this
      is, and the words say what it is. #}
@@ -658,37 +769,16 @@
     <img src="/static/logo-256.png?v={{ icon_ver }}" alt="2600.me" width="248" height="256">
     <span>Retro Hardware Database</span>
   </a>
-  <a href="/stats">numbers</a>
-  <a href="/machines">machines</a>
-  <a href="/files">files</a>
-  <a href="/docs">API docs</a>
+  {# The places. Four links, one of them lit. API docs is not among them: it is
+     for whoever is writing against the register rather than reading it, and it
+     lives at the foot of the page. #}
+  <nav class="hdr-nav" aria-label="Sections">
+    <a href="/"{{ here('/') }}>browse</a>
+    <a href="/stats"{{ here('/stats') }}>numbers</a>
+    <a href="/machines"{{ here('/machines') }}>machines</a>
+    <a href="/files"{{ here('/files') }}>files</a>
+  </nav>
   <span class="hdr-gap"></span>
-  {% if request.state.authed %}
-  <a class="btn sm primary" href="/computers/new">+ Computer</a>
-  <a class="btn sm" href="/parts/new">+ Part</a>
-  {% endif %}
-  {# Two buttons the browser normally provides and the installed app does not: the
-     manifest asks for display:standalone, so on a phone's home screen there is no
-     address bar to reload from and no browser menu to share out of. They are shown
-     in an ordinary tab as well -- a share button that copies the link is worth
-     having on a desktop too, and one button that is occasionally redundant reads
-     better than one that appears only in a mode you cannot see you are in. #}
-  <button id="share-page" class="btn sm" type="button"
-          title="Share this page" aria-label="Share this page">⤴</button>
-  <button id="reload-page" class="btn sm" type="button"
-          title="Reload this page" aria-label="Reload this page">↻</button>
-  <button id="theme-toggle" class="btn sm" type="button" title="Toggle light / dark">☾</button>
-  {% if auth_enabled %}
-  {% if request.state.authed %}
-  <a class="btn sm" href="/traffic">traffic</a>
-  <form method="post" action="/logout" style="margin:0"><button class="btn sm" type="submit">log out</button></form>
-  {% else %}
-  {# Carrying where you are, so logging in puts you back on it. That matters most
-     to a phone that has arrived by scanning an item's code and would otherwise be
-     handed the gallery and left to find the thing in its hands again. #}
-  <a class="btn sm" href="/login?next={{ request.url.path | urlencode }}">log in</a>
-  {% endif %}
-  {% endif %}
   {# Enter searches the register from wherever you are: the server reads every field
      of every item plus its history, including the prose summaries. On the gallery
      the same box also filters what is already on the page as you type, which is
@@ -701,13 +791,101 @@
            aria-controls="suggest" aria-autocomplete="list">
     {# Reading a label instead of typing its number. Hidden until the script has
        found a camera to open, so it never offers what it cannot do. #}
-    <button type="button" class="btn sm" id="scan-open" hidden
+    <button type="button" class="btn sm scan-open" hidden
             title="Scan a label's QR code">scan</button>
     {# The first few matches, filled in by the script below. #}
     <div id="suggest" role="listbox" aria-label="Search suggestions" hidden></div>
   </form>
+  {# The jobs, on a desktop. Adding a thing is one button offering the two kinds
+     rather than two buttons: they are one intention, and as a pair they were
+     also what broke across the line when the banner wrapped -- the primary
+     action orphaned at the end of one row with its twin beginning the next. #}
+  <div class="hdr-desk">
+    {% if request.state.authed %}
+    <details class="menu">
+      <summary class="btn sm primary" role="button">+ New</summary>
+      <div class="menupop">
+        <a href="/computers/new">+ Computer</a>
+        <a href="/parts/new">+ Part</a>
+      </div>
+    </details>
+    {% endif %}
+    <details class="menu">
+      <summary class="btn sm dots" role="button" title="More" aria-label="More">⋯</summary>
+      <div class="menupop">
+        <button type="button" class="js-theme">Dark theme</button>
+        {# Two jobs the browser normally does and the installed app cannot: the
+           manifest asks for display:standalone, so on a phone's home screen
+           there is no address bar to reload from and no browser menu to share
+           out of. Shown only in that mode now -- in a tab they duplicate
+           controls the browser is already drawing, and the argument for keeping
+           the redundant pair on screen stopped paying once there were a dozen
+           other things to read past first. #}
+        <button type="button" class="js-share" hidden>Share this page</button>
+        <button type="button" class="js-reload" hidden>Reload</button>
+        {% if auth_enabled %}
+        <hr>
+        {% if request.state.authed %}
+        <a href="/traffic">traffic</a>
+        <form method="post" action="/logout"><button type="submit">log out</button></form>
+        {% else %}
+        {# Carrying where you are, so logging in puts you back on it. That matters
+           most to a phone that has arrived by scanning an item's code and would
+           otherwise be handed the gallery and left to find the thing in its
+           hands again. #}
+        <a href="/login?next={{ request.url.path | urlencode }}">log in</a>
+        {% endif %}
+        {% endif %}
+      </div>
+    </details>
+  </div>
 </header>
 <main>{% block content %}{% endblock %}</main>
+
+<footer class="site">
+  <span>Retro Hardware Database</span>
+  <a href="/docs">API docs</a>
+</footer>
+
+{# The phone's row of controls. Four things: the shelf, the search box up in the
+   banner, the camera, and one list holding everything else. "Find" scrolls the
+   banner back into view and puts the cursor in the box rather than duplicating
+   the box down here -- two search fields on one page is two places for a query
+   to be, and only one of them would have the suggestion list attached. #}
+<nav class="tabbar" aria-label="Main">
+  <a href="/"{{ here('/') }}>{{ I.ico('grid') }}<span>Browse</span></a>
+  <button type="button" id="tab-find">{{ I.ico('search') }}<span>Find</span></button>
+  <button type="button" class="scan-open" hidden>{{ I.ico('scan') }}<span>Scan</span></button>
+  <button type="button" id="tab-more" aria-expanded="false" aria-controls="sheet">{{ I.ico('more') }}<span>More</span></button>
+</nav>
+
+<div id="sheet" hidden>
+  <div class="sheet-body" role="dialog" aria-modal="true" aria-label="More">
+    <button type="button" class="sheet-grip" id="sheet-shut" aria-label="Close"></button>
+    {% if request.state.authed %}
+    <a href="/computers/new">+ Computer</a>
+    <a href="/parts/new">+ Part</a>
+    <hr>
+    {% endif %}
+    <a href="/stats"{{ here('/stats') }}>numbers</a>
+    <a href="/machines"{{ here('/machines') }}>machines</a>
+    <a href="/files"{{ here('/files') }}>files</a>
+    <a href="/docs">API docs</a>
+    <hr>
+    <button type="button" class="js-theme">Dark theme</button>
+    <button type="button" class="js-share" hidden>Share this page</button>
+    <button type="button" class="js-reload" hidden>Reload</button>
+    {% if auth_enabled %}
+    <hr>
+    {% if request.state.authed %}
+    <a href="/traffic">traffic</a>
+    <form method="post" action="/logout"><button type="submit">log out</button></form>
+    {% else %}
+    <a href="/login?next={{ request.url.path | urlencode }}">log in</a>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
 
 {# Left out of the markup entirely once dismissed -- the server knows from the cookie
    -- rather than shipped on every page and hidden by a script.
@@ -1240,14 +1418,16 @@
   // than with the page: it is by far the largest asset on the site, and almost
   // every visit is someone reading rather than holding a drive.
   (function () {
-    const open = document.getElementById('scan-open');
+    // Two buttons open this now -- the one beside the search box and the one in
+    // the phone's bar -- so they are found by class and share every handler.
+    const opens = [...document.querySelectorAll('.scan-open')];
     const box = document.getElementById('scanner');
-    if (!open || !box) return;
-    // A camera is the whole feature, so without one the button never appears. This
+    if (!opens.length || !box) return;
+    // A camera is the whole feature, so without one the buttons never appear. This
     // also covers plain http, where getUserMedia does not exist at all -- a
     // capability check rather than a guess about which phone this is.
     if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
-    open.hidden = false;
+    opens.forEach(function (b) { b.hidden = false; });
 
     const video = document.getElementById('scan-video');
     const note = document.getElementById('scan-note');
@@ -1328,7 +1508,7 @@
       timer = setTimeout(tick, 120);
     }
 
-    open.addEventListener('click', function () {
+    function begin() {
       found = false;
       box.hidden = false;
       document.body.style.overflow = 'hidden';
@@ -1357,7 +1537,8 @@
             ? 'The camera is busy in another app.'
             : 'Could not start scanning. Your phone’s own camera app opens a label’s code too.';
       });
-    });
+    }
+    opens.forEach(function (b) { b.addEventListener('click', begin); });
 
     shut.addEventListener('click', stop);
     document.addEventListener('keydown', function (e) {
@@ -1457,54 +1638,77 @@
 </script>
 <script>
   (function () {
-    var btn = document.getElementById('theme-toggle');
+    // In a menu now rather than on the banner, so it says which theme it would
+    // switch to in words. Two of them -- the desktop menu and the phone's sheet --
+    // and both have to relabel when either is used.
+    var btns = [].slice.call(document.querySelectorAll('.js-theme'));
+    if (!btns.length) return;
     function effective() {
       var ds = document.documentElement.dataset.theme;
       if (ds) return ds;
       return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
-    function refresh() { btn.textContent = effective() === 'dark' ? '☀' : '☾'; }
-    btn.addEventListener('click', function () {
-      var next = effective() === 'dark' ? 'light' : 'dark';
-      document.documentElement.dataset.theme = next;
-      try { localStorage.setItem('theme', next); } catch (e) {}
-      refresh();
+    function refresh() {
+      var word = effective() === 'dark' ? 'Light theme' : 'Dark theme';
+      btns.forEach(function (b) { b.textContent = word; });
+    }
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var next = effective() === 'dark' ? 'light' : 'dark';
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem('theme', next); } catch (e) {}
+        refresh();
+      });
     });
     refresh();
   })();
 </script>
 <script>
-  /* Share, and reload.
+  /* Share, and reload -- and only where the browser is not already offering both.
 
-     Share hands the page to whatever the device shares with -- the phone's own
-     sheet, which is how an item's link gets into a message or a forum post. A
-     desktop browser has no share sheet, so there the link goes on the clipboard
-     instead and the button says so for a moment. Either way what is shared is the
-     page you are on, filters and all: a gallery narrowed to the Spectrums is a
-     thing worth sending someone.
+     The manifest asks for display:standalone, so on a phone's home screen there
+     is no address bar to reload from and no browser menu to share out of. In an
+     ordinary tab there is both, and a pair of buttons duplicating them used to
+     be shown anyway on the argument that a control appearing only in a mode you
+     cannot see you are in reads worse than one that is occasionally redundant.
+     That was a fair trade at six controls in the banner. At fourteen it was not,
+     so the pair is now gated on the mode it was built for and the two menus hide
+     the entries when they are not needed.
 
-     Reload is reload. It is here because the app is installed standalone and has
-     no address bar to press it in. */
+     Share hands the page to whatever the device shares with, which is how an
+     item's link gets into a message or a forum post; where there is no share
+     sheet the link goes on the clipboard and the button says so for a moment.
+     Either way what is shared is the page you are on, filters and all: a gallery
+     narrowed to the Spectrums is a thing worth sending someone. */
   (function () {
-    var share = document.getElementById('share-page');
-    var reload = document.getElementById('reload-page');
-    if (reload) {
-      reload.addEventListener('click', function () { location.reload(); });
-    }
-    if (!share) return;
+    var standalone = matchMedia('(display-mode: standalone)').matches
+      || matchMedia('(display-mode: minimal-ui)').matches
+      || window.navigator.standalone === true;
+    if (!standalone) return;
 
-    var face = share.textContent;
+    var shares = [].slice.call(document.querySelectorAll('.js-share'));
+    var reloads = [].slice.call(document.querySelectorAll('.js-reload'));
+    reloads.forEach(function (b) {
+      b.hidden = false;
+      b.addEventListener('click', function () { location.reload(); });
+    });
+    if (!shares.length) return;
+    shares.forEach(function (b) { b.hidden = false; });
+
+    var faces = shares.map(function (b) { return b.textContent; });
     var timer = null;
     function say(word) {
       clearTimeout(timer);
-      share.textContent = word;
-      timer = setTimeout(function () { share.textContent = face; }, 1600);
+      shares.forEach(function (b) { b.textContent = word; });
+      timer = setTimeout(function () {
+        shares.forEach(function (b, i) { b.textContent = faces[i]; });
+      }, 1600);
     }
 
     function copy(url) {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(url).then(function () { say('copied'); },
-                                                function () { say('copy failed'); });
+        navigator.clipboard.writeText(url).then(function () { say('Copied'); },
+                                                function () { say('Copy failed'); });
         return;
       }
       // Older browsers, and any page not served over HTTPS: a hidden input is
@@ -1519,18 +1723,94 @@
       var done = false;
       try { done = document.execCommand('copy'); } catch (e) {}
       box.remove();
-      say(done ? 'copied' : 'copy failed');
+      say(done ? 'Copied' : 'Copy failed');
     }
 
-    share.addEventListener('click', function () {
-      var url = location.href;
-      if (navigator.share) {
-        // A share the person backs out of rejects, and is not a failure worth
-        // reporting -- they closed the sheet on purpose.
-        navigator.share({title: document.title, url: url}).catch(function () {});
-        return;
+    shares.forEach(function (b) {
+      b.addEventListener('click', function () {
+        var url = location.href;
+        if (navigator.share) {
+          // A share the person backs out of rejects, and is not a failure worth
+          // reporting -- they closed the sheet on purpose.
+          navigator.share({title: document.title, url: url}).catch(function () {});
+          return;
+        }
+        copy(url);
+      });
+    });
+  })();
+</script>
+<script>
+  // Closing the banner's menus. <details> opens itself; what it will not do is
+  // shut when the choice has been made somewhere else, so Escape and a click
+  // landing outside are wired here. One handler for every menu on the page.
+  (function () {
+    var menus = [].slice.call(document.querySelectorAll('details.menu'));
+    if (!menus.length) return;
+    function shut(except) {
+      menus.forEach(function (m) { if (m !== except) m.open = false; });
+    }
+    // mousedown, not click: a click on a link inside a menu would otherwise be
+    // preceded by this closing the menu out from under the pointer.
+    document.addEventListener('mousedown', function (e) {
+      if (!e.target.closest('details.menu')) shut(null);
+    });
+    // Only one open at a time -- two popups over each other name nothing useful.
+    menus.forEach(function (m) {
+      m.addEventListener('toggle', function () { if (m.open) shut(m); });
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var open = menus.filter(function (m) { return m.open; });
+      if (!open.length) return;
+      e.stopPropagation();
+      open.forEach(function (m) {
+        m.open = false;
+        var s = m.querySelector('summary');
+        if (s) s.focus();
+      });
+    });
+  })();
+</script>
+<script>
+  // The phone's bar. Find puts the cursor in the banner's own search box rather
+  // than opening a second one; More opens the sheet that holds everything the
+  // banner used to spell out.
+  (function () {
+    var find = document.getElementById('tab-find');
+    var more = document.getElementById('tab-more');
+    var sheet = document.getElementById('sheet');
+    if (find) {
+      find.addEventListener('click', function () {
+        var box = document.getElementById('q');
+        if (!box) return;
+        // Scroll first, then focus: focusing alone scrolls the box into view by
+        // the browser's own reckoning, which on a page part-way down lands it
+        // hard under the top edge.
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        box.focus();
+      });
+    }
+    if (!more || !sheet) return;
+    function open(on) {
+      sheet.hidden = !on;
+      more.setAttribute('aria-expanded', on ? 'true' : 'false');
+      more.classList.toggle('on', on);
+      document.body.style.overflow = on ? 'hidden' : '';
+      if (on) {
+        var first = sheet.querySelector('a, button');
+        if (first) first.focus();
       }
-      copy(url);
+    }
+    more.addEventListener('click', function () { open(sheet.hidden); });
+    var shut = document.getElementById('sheet-shut');
+    if (shut) shut.addEventListener('click', function () { open(false); });
+    // The backdrop is the sheet itself; the panel inside it stops the tap.
+    sheet.addEventListener('click', function (e) {
+      if (!e.target.closest('.sheet-body')) open(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !sheet.hidden) { e.stopPropagation(); open(false); }
     });
   })();
 </script>

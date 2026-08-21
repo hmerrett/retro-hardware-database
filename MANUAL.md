@@ -117,12 +117,29 @@ the page does not open on a screenful of placeholder icons.
 
 ### The header
 
-- **numbers** — the [statistics page](#15-statistics).
-- **files** — everything [kept beside the register](#11-files).
-- **API docs** — the interactive API console (login required).
-- The **☾ button** toggles light and dark.
-- **+ Computer** and **+ Part** appear once you are logged in.
-- **traffic** and **log out** likewise.
+On a desktop the banner reads in three bands: where you can go on the left, the
+search box in the middle, and what you can do on the right.
+
+- **browse**, **numbers**, **machines**, **files** — the four sections. The one
+  you are in is shown in bold.
+- **Search anything…** and **scan** — see [Finding things](#3-finding-things).
+  The scan button appears only where there is a camera to use.
+- **+ New** — offers Computer or Part. Logged in only.
+- **⋯** — the theme, **traffic** and **log out**, and (in the installed app,
+  where the browser provides neither) share and reload.
+- **API docs** — the interactive API console (login required), at the foot of
+  the page.
+
+### The header on a phone
+
+The banner keeps the name and the search box; everything else moves to a bar
+across the bottom of the screen, where your thumb already is.
+
+- **Browse** — the gallery.
+- **Find** — scrolls back up and puts the cursor in the search box.
+- **Scan** — reads a label's code. Appears only where there is a camera.
+- **More** — one list holding the sections, **+ Computer**, **+ Part**, the
+  theme, **traffic** and **log out**.
 
 ### Moving between items
 

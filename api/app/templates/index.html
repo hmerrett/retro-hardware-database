@@ -6,6 +6,14 @@
 <div class="flex">
   <h2 style="margin:0">{{ heading | default('Inventory') }}</h2>
   <span class="muted">{{ n_computers }} computers · {{ n_parts }} parts</span>
+  {# How many of them the filters are letting through, said as a fraction so it
+     reconciles with the pair of figures beside it. On its own it did not: the
+     line read "23 computers · 387 parts" and then, further down, "383 items",
+     which is 410 against 383 with nothing on the page accounting for the
+     difference -- the disposed ones, hidden by default. Worse, it sat directly
+     after the "show disposed" tickbox and read as part of its label, so the
+     page appeared to say there were 383 disposed items. #}
+  <span class="count" id="count"></span>
 </div>
 {% if note %}
 <p class="hint" style="margin:5px 0 0">{{ note }}{% if crumb %} —
@@ -19,11 +27,11 @@
    searches every field of every item plus its history -- including the prose
    summaries, which are too bulky to ship to the browser for filtering. #}
 <div class="toolbar">
-  <select id="cat">
+  <select id="cat" class="fill">
     <option value="">All categories</option>
     {% for key, label in cats %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
   </select>
-  <select id="sort">
+  <select id="sort" class="fill">
     {# First, and so the default: a shelf is more interesting shuffled than in the
        order things were last touched, and the collection has more in it than the
        dozen items a recency sort ever shows. Picking it again deals a new hand. #}
@@ -40,7 +48,6 @@
   </select>
   <label class="muted"><input type="checkbox" id="showdisposed"{{ ' checked' if show_disposed }}>
     show disposed</label>
-  <span class="count" id="count"></span>
 </div>
 
 {% if searched %}
@@ -179,7 +186,14 @@
       el.style.display = ok ? '' : 'none';
       if (ok) shown++;
     }
-    count.textContent = shown + ' item' + (shown === 1 ? '' : 's');
+    // Silent while everything is showing: the line beside the heading already
+    // says how many there are, and a second figure agreeing with it is a figure
+    // to read and reconcile for nothing. It speaks only when the filters are
+    // holding something back, which is the only time the number is news -- and
+    // it says so as a fraction, because "383 items" under "23 computers · 387
+    // parts" was 383 against 410 with nothing on the page explaining the gap.
+    count.textContent = shown === cards.length
+      ? '' : '· showing ' + shown + ' of ' + cards.length;
     empty.style.display = shown ? 'none' : '';
     remember();
   }
