@@ -38,6 +38,19 @@
 
 <div class="detail">
   <div class="detail-main">
+    {# What the model is -- but only where the object has nothing said about it of
+       its own. The two are different kinds of statement, and printing both left an
+       item with a paragraph about the model followed by a paragraph about the thing
+       in front of you, which reads as the page saying everything twice. The
+       specific one wins; this is what fills the gap where there is no specific one
+       yet. Read from the catalogue rather than the record, so correcting it
+       corrects every item filed as the model.
+
+       At the top of the main column rather than above the whole grid, so the
+       photographs sit level with it on a desktop instead of being pushed below,
+       and so a phone -- where the photo column leads -- shows the picture first,
+       exactly as it does on every other item page. #}
+    {% if machine and machine.summary and not p.summary %}<p class="model-summary">{{ machine.summary }}</p>{% endif %}
     {% if p.summary %}<p class="summary">{{ p.summary }}</p>{% endif %}
     {# The part's own facts, in a panel like every other section: what the register
        knows about it, and where it is installed. #}

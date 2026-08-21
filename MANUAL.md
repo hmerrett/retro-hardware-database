@@ -358,10 +358,13 @@ did that its neighbours did not, and what a collector would look for. Folded
 away rather than laid out, because four hundred paragraphs at once would be a
 different page for a different job — but the browser's own find still reaches
 into the folds and opens the one it lands in. The same paragraph is printed in
-full directly under the name on the page of a machine you actually hold — in
-muted ink, because it is reference about the model rather than a fact about the
-object in front of you. The item's **own** summary sits below it in the page's
-ink, that one being about this particular unit.
+full at the top of an item's own page, in muted ink, because it is reference
+about the model rather than a fact about the object in front of you.
+
+**Only where the item has no summary of its own.** The two are different kinds of
+statement and a page never shows both: whatever you have written about this
+particular object wins, and the model's paragraph is what fills the gap until you
+write one. Machines and catalogue-filed boards behave identically.
 
 The folds are plain `<details>` elements and need no JavaScript. They briefly
 did need a CSS `:has()` rule, which worked in Chrome and in current Safari and

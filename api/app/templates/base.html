@@ -490,22 +490,28 @@
   .nophoto img.ph { width: 76px; height: 76px; object-fit: contain; opacity: .5; }
   .nophoto .hint { margin: 0; }
 
-  /* The paragraph about a model, printed under the name on the page of a machine
-     that is one. Its own class, not .summary: that one is the prose about this
-     particular unit, and `p.summary` outranked it -- so styling the model's
-     paragraph had quietly restyled every item's own.
+  /* The paragraph about a model, at the top of the main column on the page of an
+     item that is one -- so the photographs sit level with it rather than being
+     pushed below, and so a phone (where the photo column leads) shows the picture
+     first, as it does on every other item page.
 
-     Held to a readable measure rather than the page's full width. Prose set
-     across 1000px of monospace runs to about 120 characters a line, which is
-     roughly twice what an eye tracks back from comfortably; the cookie notice
-     already uses 70ch for the same reason. */
-  /* Muted, like the same paragraph on the catalogue page, and for the reason the
-     rest of the site mutes things: it is reference about the model rather than a
-     fact about the object in front of you. That also tells it apart from the
-     item's own summary directly beneath, which is in the page's ink because it is
-     about this particular unit. Position gives the prominence; the ink says which
-     kind of statement it is. */
-  p.model-summary { margin: 10px 0 4px; max-width: 74ch; color: var(--muted); }
+     Its own class, not .summary: that one is the prose about this particular
+     object, and `p.summary` outranked it -- so styling the model's paragraph had
+     quietly restyled every item's own.
+
+     Muted, like the same paragraph on the catalogue page, and for the reason the
+     rest of the site mutes things: it is reference about the model, not a fact
+     about the object in front of you. It stands in for the item's own summary
+     where there is not one -- the two are never both on a page, an item having
+     either something said about it or the model's paragraph in the meantime -- and
+     the muted ink is what says which of the two you are reading.
+
+     No top margin, because the photo column beside it starts at the top of its
+     own and a margin here would drop the text half a line below the picture it is
+     meant to be level with. No width limit either: the column is about 74
+     characters of this typeface already, and a narrower paragraph would stop short
+     of the right edge every panel under it reaches. */
+  p.model-summary { margin: 0 0 12px; color: var(--muted); }
 
   /* The same paragraph on the catalogue page, folded away: four hundred rows are
      read by eye and by ctrl-F, and a paragraph under every one of them would be a
@@ -612,6 +618,14 @@
   .summary { margin: 4px 0 14px; }
   .detail { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; margin-top: 6px; }
   .detail-main { min-width: 0; }
+  /* Both columns start at the same line, whatever happens to be first in them. A
+     panel carries a top margin to separate it from the section above, and at the
+     top of a column there is nothing above it -- so the photographs sat fourteen
+     pixels below a model's paragraph, and on an item with no paragraph both
+     columns sat fourteen pixels below the heading instead. */
+  .detail > .detail-main > .panel:first-child,
+  .detail > .photo-col > .panel:first-child,
+  .detail > .detail-main > p.summary:first-child { margin-top: 0; }
   .photo-col { min-width: 0; }
   .detail-main td.wrap { overflow-wrap: anywhere; }
   .detail-main table td:first-child { white-space: nowrap; }

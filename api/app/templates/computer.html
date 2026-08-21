@@ -24,16 +24,6 @@
   {% endif %}
 </div>
 
-{# What the model is, directly under the name of the thing itself: it is the
-   sentence that says why anybody kept one, and inside the Machine panel it sat
-   below the fitted parts and the photographs on a phone. Read from the catalogue
-   rather than the record, so correcting it corrects every machine filed as one --
-   which is also why it is not the same paragraph as `c.summary` below, that one
-   being about this particular unit rather than the model. #}
-{% if machine and machine.summary %}
-<p class="model-summary">{{ machine.summary }}</p>
-{% endif %}
-
 {% if c.disposed %}
 <div class="banner">Disposed{% if c.disposed_at %} {{ c.disposed_at }}{% endif %}{% if c.disposed_note %} — {{ c.disposed_note }}{% endif %}
   {% if request.state.authed %}
@@ -55,6 +45,19 @@
 
 <div class="detail">
   <div class="detail-main">
+    {# What the model is -- but only where the object has nothing said about it of
+       its own. The two are different kinds of statement, and printing both left an
+       item with a paragraph about the model followed by a paragraph about the thing
+       in front of you, which reads as the page saying everything twice. The
+       specific one wins; this is what fills the gap where there is no specific one
+       yet. Read from the catalogue rather than the record, so correcting it
+       corrects every item filed as the model.
+
+       At the top of the main column rather than above the whole grid, so the
+       photographs sit level with it on a desktop instead of being pushed below,
+       and so a phone -- where the photo column leads -- shows the picture first,
+       exactly as it does on every other item page. #}
+    {% if machine and machine.summary and not c.summary %}<p class="model-summary">{{ machine.summary }}</p>{% endif %}
     {% if c.summary %}<p class="summary">{{ c.summary }}</p>{% endif %}
     {# The machine's own facts. A panel like every other section of the page, so what
        the register knows about it and what is fitted in it are read the same way. #}
