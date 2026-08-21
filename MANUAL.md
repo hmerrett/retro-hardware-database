@@ -360,6 +360,12 @@ different page for a different job — but the browser's own find still reaches
 into the folds and opens the one it lands in. The same paragraph is printed in
 full in the **Machine** panel on a machine you actually hold.
 
+The folds are plain `<details>` elements and need no JavaScript. They briefly
+did need a CSS `:has()` rule, which worked in Chrome and in current Safari and
+not in older Safari, where the marker flipped and revealed nothing — so the
+paragraph now lives inside the element that hides it, which has worked
+everywhere for a decade.
+
 Two other shapes of the same list: `catalogue.txt` in the repository, and
 [`/api/machines`](#17-the-rest-api) for anything that would rather read JSON —
 public for the same reason the page is.
