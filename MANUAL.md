@@ -99,7 +99,9 @@ on its own](#a-board-on-its-own).
 
 The front page is every item as a photo card. Items with no photograph get a
 placeholder icon appropriate to what they are: a board, a chip, a card, a floppy,
-a disc, a keyboard.
+a disc, a keyboard. The item's own page draws the same icon where the photograph
+would be, so a card and the page it opens show the same picture and the column
+keeps its shape whether or not anybody has been round with a camera yet.
 
 The toolbar above the grid gives you:
 
@@ -120,8 +122,9 @@ the page does not open on a screenful of placeholder icons.
 On a desktop the banner reads in three bands: where you can go on the left, the
 search box in the middle, and what you can do on the right.
 
-- **browse**, **numbers**, **machines**, **files** — the four sections. The one
-  you are in is shown in bold.
+- **browse**, **numbers**, **models**, **files** — the four sections. The one
+  you are in is shown in bold. **models** is the catalogue of machines the
+  register knows as models; **browse** is the machines it actually holds.
 - **Search anything…** and **scan** — see [Finding things](#3-finding-things).
   The scan button appears only where there is a camera to use.
 - **+ New** — offers Computer or Part. Logged in only.
@@ -138,8 +141,8 @@ across the bottom of the screen, where your thumb already is.
 - **Browse** — the gallery.
 - **Find** — scrolls back up and puts the cursor in the search box.
 - **Scan** — reads a label's code. Appears only where there is a camera.
-- **More** — one list holding the sections, **+ Computer**, **+ Part**, the
-  theme, **traffic** and **log out**.
+- **More** — one list holding the sections (**numbers**, **models**, **files**),
+  **+ Computer**, **+ Part**, the theme, **traffic** and **log out**.
 
 ### Moving between items
 
@@ -350,6 +353,13 @@ Where the register holds something filed as a model, the row says so and the
 count leads to it. Machines and bare boards both, since a motherboard files
 against a model the same way a whole machine does.
 
+A **▸** after a model's name opens a paragraph on what it is: what the machine
+did that its neighbours did not, and what a collector would look for. Folded
+away rather than laid out, because four hundred paragraphs at once would be a
+different page for a different job — but the browser's own find still reaches
+into the folds and opens the one it lands in. The same paragraph is printed in
+full in the **Machine** panel on a machine you actually hold.
+
 Two other shapes of the same list: `catalogue.txt` in the repository, and
 [`/api/machines`](#17-the-rest-api) for anything that would rather read JSON —
 public for the same reason the page is.
@@ -489,6 +499,12 @@ A few things worth knowing before you start:
 - **A family's chip sockets are asked of every model in it**, so the Z80 is written
   once for all the Spectrums. A model can name a different part for one socket, or
   give it an empty list to say it has not got that socket at all.
+- **`summary:` is optional and is prose, not specification.** Around 75 words on
+  what makes the model worth holding — what it did that its neighbours did not.
+  Leave it out rather than guess: an invented significance is worse than none,
+  and the pages that show it fall back to the specs. It is deliberately kept out
+  of the catalogue JSON the edit forms download, which the paragraphs would
+  otherwise double in size for no reader.
 - After correcting wording that machines are already filed under, run
   `python -m app.resync --write` to bring their rendered lines into step
   (section 20).

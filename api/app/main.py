@@ -2368,6 +2368,7 @@ def api_list_machines():
                           "models": [{"key": m["key"], "model": m["model"],
                                       "year": m["year"],
                                       "manufacturer": m["manufacturer"],
+                                      "summary": m["summary"],
                                       "ram": [lbl for lbl, _kb in m["ram"]],
                                       "issues": m["issues"], "styles": m["styles"],
                                       "regions": m["regions"],
@@ -3205,6 +3206,17 @@ def _storage_placeholder(kind):
     return entry.placeholder_for("storage")
 
 
+def _part_placeholder(db, part):
+    """The stand-in drawing for one part, routed exactly as the gallery routes it.
+
+    One row read rather than the whole table: the gallery wants every storage part's
+    Kind at once and this wants one, and asking the same question two ways is how
+    a card and the page it opens come to disagree about what a thing looks like."""
+    if (part.type or "") != "storage":
+        return entry.placeholder_for(part.type or "other")
+    return _storage_placeholder(specdb.scalars(db, part).get("kind"))
+
+
 def _cats_for(rows):
     """Options for the toolbar's category menu: only the kinds actually present, so
     a filtered page does not offer to filter down to nothing."""
@@ -3943,6 +3955,10 @@ def _machine_page(db, obj):
         "model": (m["model"] if m else v["model_key"]),
         "family": m["family"] if m else "",
         "year": m["year"] if m else None,
+        # What the model is, where the catalogue has it written. Read from the
+        # catalogue and not the record, like every label here: the paragraph is
+        # about the model, so correcting it corrects every machine filed as one.
+        "summary": m.get("summary", "") if m else "",
         "rows": [(label, value) for label, value in
                  ((machines.ISSUE_KEY, v["issue"]), (machines.STYLE_KEY, v["style"]),
                   (machines.REGION_KEY, v["region"])) if value],
@@ -4042,6 +4058,10 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "motherboard": motherboard, "form_factor": form_factor,
         "free_boards": free_boards,
         "link_candidates": link_candidates, "images": images,
+        # The drawing to stand in for a photograph nobody has taken yet -- the same
+        # one the gallery card for this item is already wearing, so the two places
+        # it appears agree about what it is a picture of.
+        "placeholder": entry.placeholder_for("computer"),
         "ref_marks": reference_marks("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
         "log": _history(db, aid), "nav": _item_nav(db, aid),
@@ -5078,7 +5098,8 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
         "candidates": candidates, "computers": computers,
-        "images": images, "ref_marks": reference_marks("parts", aid),
+        "images": images, "placeholder": _part_placeholder(db, p),
+        "ref_marks": reference_marks("parts", aid),
         "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
         "log": _history(db, aid), "nav": _item_nav(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,

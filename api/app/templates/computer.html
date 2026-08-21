@@ -68,6 +68,12 @@
        Spectrum's board issue or a C64's SID is written down. #}
     {% if machine %}
     {% call PN.panel('Machine') %}
+      {# What the model is, before what this particular one of them is. The specs
+         below say which build is on the shelf; this says why anybody kept one.
+         Above the table rather than under it, because it is the sentence that
+         makes the rows worth reading, and absent for most models -- the catalogue
+         carries a paragraph only where one could be written accurately. #}
+      {% if machine.summary %}<p class="summary">{{ machine.summary }}</p>{% endif %}
       <table class="kv">
         <tr><th>Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
         {% for label, value in machine.rows %}

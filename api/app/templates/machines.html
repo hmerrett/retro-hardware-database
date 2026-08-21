@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Known machines — Retro Hardware Database{% endblock %}
+{% block title %}Machine models — Retro Hardware Database{% endblock %}
 {% block content %}
 
 {#
@@ -16,7 +16,7 @@
 
 <div class="hero">
   <div class="n">{{ n_models }}</div>
-  <div class="of">known machines, in {{ n_families }} families</div>
+  <div class="of">machine models, in {{ n_families }} families</div>
 </div>
 
 <p class="cover">Filing a machine against one of these fills in the model's specs
@@ -30,15 +30,28 @@
     <h2>{{ family.name }}</h2>
     <table>
       {% for m in family.models %}
-      <tr{% if held[m.key] %} class="have"{% endif %}>
-        <td class="lbl">{{ m.model }}{% if held[m.key] %} <a class="got"
-          href="/browse?f=model&amp;v={{ m.key | urlencode }}"
-          title="{{ held[m.key] }} in the register"
-          aria-label="{{ m.model }}: {{ held[m.key] }} in the register"
-          >({{ held[m.key] }})</a>{% endif %}</td>
-        <td class="yr">{{ m.year }}</td>
-        <td class="cpu">{{ m.cpu }}</td>
-      </tr>
+      {# A tbody per model rather than a row, because the paragraph needs the whole
+         width of the table and the name it belongs to has only the first column.
+         The fold is a details element next to the name and the paragraph is a row
+         of its own spanning all three columns; the CSS ties the two together, so
+         it still needs no script. Kept as a table because the fixed columns are
+         what line the years and the CPUs up down the page and across the gap
+         between the two columns of it. #}
+      <tbody class="m">
+        <tr{% if held[m.key] %} class="have"{% endif %}>
+          <td class="lbl">{{ m.model }}{% if held[m.key] %} <a class="got"
+            href="/browse?f=model&amp;v={{ m.key | urlencode }}"
+            title="{{ held[m.key] }} in the register"
+            aria-label="{{ m.model }}: {{ held[m.key] }} in the register"
+            >({{ held[m.key] }})</a>{% endif %}{% if m.summary %}
+            <details class="why"><summary
+              aria-label="What the {{ m.model }} is"></summary></details>{% endif %}</td>
+          <td class="yr">{{ m.year }}</td>
+          <td class="cpu">{{ m.cpu }}</td>
+        </tr>
+        {% if m.summary %}<tr class="why-body"><td colspan="3">
+          <p>{{ m.summary }}</p></td></tr>{% endif %}
+      </tbody>
       {% endfor %}
     </table>
   </section>

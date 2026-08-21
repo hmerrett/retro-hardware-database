@@ -81,7 +81,7 @@ _LIMITS = {"key": 64, "issues": 64, "styles": 64, "regions": 32, "socket": 32,
 _TOP_FIELDS = {"lists", "families"}
 _FAMILY_FIELDS = {"key", "name", "manufacturer", "regions", "chips", "models"}
 _MODEL_FIELDS = {"key", "model", "manufacturer", "year", "cpu", "chassis", "os",
-                 "ram", "issues", "styles", "chips"}
+                 "ram", "issues", "styles", "chips", "summary"}
 _CHIP_FIELDS = {"socket", "label", "note", "variants"}
 
 
@@ -277,6 +277,12 @@ def load(path=None):
                 "cpu": _text(mod.get("cpu"), mat, "cpu"),
                 "chassis": _text(mod.get("chassis"), mat, "chassis"),
                 "os": _text(mod.get("os"), mat, "os"),
+                # What makes the model worth holding, in a paragraph. Optional and
+                # often absent: a summary nobody could write accurately is better
+                # missing than invented, and the pages that show it fall back to
+                # the specs, which were never the interesting part but are at
+                # least true.
+                "summary": _text(mod.get("summary"), mat, "summary"),
                 "ram": _ram(mod.get("ram"), lists, mat),
                 "issues": _strings(mod.get("issues"), lists, mat, "issues"),
                 "styles": _strings(mod.get("styles"), lists, mat, "styles"),

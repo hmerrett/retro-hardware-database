@@ -477,6 +477,50 @@
   .qr-card .qr-code svg { display: block; width: 132px; height: 132px; }
   .qr-card p { margin: 0; }
   .qr-card .qr-url { overflow-wrap: anywhere; margin-top: 6px; }
+  /* An item nobody has photographed. The drawing is the card's, drawn at the
+     size the photograph would have been so the column keeps its shape either
+     way -- a page that changed width according to whether anyone had been round
+     with a camera would be a different page for the same kind of thing. */
+  .nophoto { display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 8px; padding: 30px 12px 34px; }
+  .nophoto img.ph { width: 76px; height: 76px; object-fit: contain; opacity: .5; }
+  .nophoto .hint { margin: 0; }
+
+  /* The paragraph about a model, where a page has room to simply print it. */
+  p.summary { margin: 0 0 10px; }
+
+  /* The same paragraph on the catalogue page, folded away: four hundred rows are
+     read by eye and by ctrl-F, and a paragraph under every one of them would be a
+     different page for a different job. The marker is a triangle after the name
+     rather than a word, because the name is the thing being scanned.
+
+     The fold and the paragraph it opens are in different rows of the table -- the
+     name has one column and the paragraph needs all three -- so :has() on the
+     model's tbody is what joins them. Both start hidden and the whole mechanism
+     is behind @supports: a browser without :has() would otherwise be handed a
+     marker that does nothing, or four hundred paragraphs at once. Without it the
+     page is exactly what it was before any of this, which is a fair thing to
+     degrade to. */
+  .cat details.why, .cat tr.why-body { display: none; }
+  @supports selector(:has(*)) {
+    .cat details.why { display: inline; }
+    .cat tbody.m:has(details.why[open]) > tr.why-body { display: table-row; }
+  }
+  .cat details.why > summary { display: inline; list-style: none; cursor: pointer;
+    color: var(--muted); font-size: 11px; padding: 0 3px; }
+  .cat details.why > summary::-webkit-details-marker { display: none; }
+  .cat details.why > summary::marker { content: ""; }
+  .cat details.why > summary::after { content: "\25B8"; }
+  .cat details.why[open] > summary::after { content: "\25BE"; }
+  .cat details.why > summary:hover { color: var(--accent); }
+  .cat details.why > summary:focus-visible { outline: 2px solid var(--accent);
+    outline-offset: 2px; border-radius: 3px; }
+  .cat tr.why-body > td { padding: 2px 0 9px; }
+  /* Not bold, whatever the row above is doing: .have sets the name in weight and
+     a paragraph of it would be shouting. */
+  .cat tr.why-body p { margin: 0; font-size: 12px; font-weight: 400;
+    color: var(--muted); line-height: 1.45; }
+
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -775,7 +819,10 @@
   <nav class="hdr-nav" aria-label="Sections">
     <a href="/"{{ here('/') }}>browse</a>
     <a href="/stats"{{ here('/stats') }}>numbers</a>
-    <a href="/machines"{{ here('/machines') }}>machines</a>
+    {# "models" rather than "machines": the page is the list of machine models the
+       catalogue knows, and beside "browse" -- which is the machines actually held --
+       "machines" read as a second way into the same shelf. #}
+    <a href="/machines"{{ here('/machines') }}>models</a>
     <a href="/files"{{ here('/files') }}>files</a>
   </nav>
   <span class="hdr-gap"></span>
@@ -868,7 +915,7 @@
     <hr>
     {% endif %}
     <a href="/stats"{{ here('/stats') }}>numbers</a>
-    <a href="/machines"{{ here('/machines') }}>machines</a>
+    <a href="/machines"{{ here('/machines') }}>models</a>
     <a href="/files"{{ here('/files') }}>files</a>
     <a href="/docs">API docs</a>
     <hr>

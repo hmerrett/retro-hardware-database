@@ -68,9 +68,24 @@
     </div>
     {% endif %}
   {% endcall %}
+  {% else %}
+  {# Nothing photographed yet. The panel used to be left out altogether, which
+     said nothing at all: the column simply was not there, and a page with no
+     picture read as a page still loading rather than as a thing nobody has
+     photographed. The drawing is the one on the item's own gallery card, so
+     arriving here from the card lands on the same picture it was clicked on. #}
+  {% call PN.panel('Photographs') %}
+    <div class="nophoto">
+      <img class="ph" src="/static/{{ placeholder }}" alt="" aria-hidden="true">
+      <p class="hint">No photograph yet.</p>
+    </div>
+  {% endcall %}
   {% endif %}
   {% if request.state.authed %}
-  {% call PN.panel('Photographs' if not images else 'Add photographs') %}
+  {# Always 'Add photographs' now: it used to take the plain title when there was
+     nothing above it to be the second panel of, and there always is one since the
+     placeholder started standing in for a photograph nobody has taken. #}
+  {% call PN.panel('Add photographs') %}
   <div class="photo-actions">
     {# Choosing the photos is the whole gesture: the upload goes as soon as they are
        picked, so the button below is only there for a browser with no JavaScript.
