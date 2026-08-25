@@ -131,7 +131,8 @@
     {% if children or build_host %}
     {% call PN.panel('Mounted parts', children | length, flush=true) %}
       {% if children %}
-      {{ P.cards(children, 'detach', 'unmount', '/parts/' + p.asset_id, request.state.authed) }}
+      {{ P.cards(children, 'detach', 'unmount', '/parts/' + p.asset_id,
+                 request.state.authed, thumbs) }}
       {% else %}<div class="pbody"><p class="muted" style="margin:0">Nothing mounted on this card yet.</p></div>{% endif %}
       {% if build_host %}
       <div class="pbody">

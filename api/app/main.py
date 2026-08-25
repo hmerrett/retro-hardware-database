@@ -3217,6 +3217,39 @@ def _part_placeholder(db, part):
     return _storage_placeholder(specdb.scalars(db, part).get("kind"))
 
 
+def part_thumbs(db, parts):
+    """The picture to put on each part's card in a list of them, by asset id.
+
+    A list of parts said what each one was and never showed it: "PT-0031 · storage /
+    drive, Teac FD-235HF" names a floppy drive without saying whether the one in this
+    machine is beige or grey, full-height or slim, or photographed at all. The
+    picture is the fastest way to know which of four identical-sounding drives you
+    are looking at, and the gallery card for the same part has been carrying it all
+    along.
+
+    The same reading the gallery makes of the same parts -- one folder scan and one
+    query for every storage part's Kind, rather than either per row -- so a part's
+    card in a machine and its card on the shelf cannot come to wear different
+    pictures. Where nobody has photographed it, the drawing stands in, exactly as it
+    does there; and a photograph of the model rather than of this unit says so, for
+    the same reason it says so everywhere else it is shown.
+    """
+    listing = folder_images("parts")
+    kinds = specdb.storage_kinds(db)
+    thumbs = {}
+    for p in parts:
+        imgs = pick_images("parts", p.asset_id, listing)
+        rel = imgs[0] if imgs else ""
+        ptype = p.type or "other"
+        thumbs[p.asset_id] = {
+            "img": rel, "ref": is_reference(rel),
+            "icon": _favicon_for_rel(rel),
+            "ph": (_storage_placeholder(kinds.get(p.asset_id)) if ptype == "storage"
+                   else entry.placeholder_for(ptype)),
+        }
+    return thumbs
+
+
 def _cats_for(rows):
     """Options for the toolbar's category menu: only the kinds actually present, so
     a filtered page does not offer to filter down to nothing."""
@@ -4056,6 +4089,8 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "files": filesdb.for_item(db, cdict), "fileerr": bool(fileerr),
         "c": c, "parts": [p for p in parts if p is not motherboard],
         "motherboard": motherboard, "form_factor": form_factor,
+        # A picture for each of them, read once for the page rather than per card.
+        "thumbs": part_thumbs(db, parts),
         "free_boards": free_boards,
         "link_candidates": link_candidates, "images": images,
         # The drawing to stand in for a photograph nobody has taken yet -- the same
@@ -5095,6 +5130,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
     return templates.TemplateResponse(request, "part.html", {
         "machine": _machine_page(db, p),
         "p": p, "parent": parent, "host": host, "children": children,
+        "thumbs": part_thumbs(db, children),
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
         "candidates": candidates, "computers": computers,

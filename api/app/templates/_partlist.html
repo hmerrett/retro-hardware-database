@@ -19,8 +19,20 @@
 
 {# Parts. `endpoint`/`label` are what taking one out is called -- unlinked from a
    machine, unmounted from the card it sits on -- and `authed` is passed in because
-   an imported macro does not see the request. #}
-{% macro cards(parts, endpoint, label, back, authed) %}
+   an imported macro does not see the request.
+
+   `thumbs` is a picture for each of them by asset id (see part_thumbs), and the way
+   through to that part's own page, where its photographs are. A list of parts is
+   otherwise the one place on this site that describes hardware without showing it:
+   four Teac floppy drives read as four near-identical lines of text, and which is
+   which is a thing you can see in a quarter of a second and cannot read at all.
+   The drawing stands in where nobody has photographed it, as it does on the gallery
+   card for the same part -- a card with no picture at all would read as a card still
+   loading rather than as a thing nobody has photographed.
+
+   Left out (the edit form, which carries these sections only while there is nothing
+   in them to draw) and the cards are the plain text they always were. #}
+{% macro cards(parts, endpoint, label, back, authed, thumbs={}) %}
 <div class="itemcards">
   {% for p in parts %}
   <article class="itemcard">
@@ -32,9 +44,26 @@
       <form method="post" action="/parts/{{ p.asset_id }}/{{ endpoint }}"><input type="hidden" name="next" value="{{ back }}"><button class="btn sm" type="submit">{{ label }}</button></form>
       {% endif %}
     </header>
-    <h4>{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}</h4>
-    {% set pairs = parse_specs(p.specs) %}
-    {% if pairs %}{{ speclist(pairs) }}{% endif %}
+    <div class="cardmain">
+      {% set t = thumbs.get(p.asset_id) if thumbs else none %}
+      {% if t %}
+      <a class="cardthumb" href="/parts/{{ p.asset_id }}"
+         aria-label="{{ p.asset_id }} — its own page and its photographs">
+        {% if t.img %}<img src="{{ img_url(t.img, THUMB_CARD) }}" alt=""
+             loading="lazy" decoding="async">
+        {% else %}<img class="ph" src="/static/{{ t.ph }}" alt="" aria-hidden="true"
+             loading="lazy">{% endif %}
+        {% if t.ref %}<span class="ref-badge{{ ' icon' if t.icon else '' }}"
+          title="Illustrative image, not this exact unit">{% if t.icon %}<img
+          src="/images/{{ t.icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
+      </a>
+      {% endif %}
+      <div class="cardtext">
+        <h4>{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}</h4>
+        {% set pairs = parse_specs(p.specs) %}
+        {% if pairs %}{{ speclist(pairs) }}{% endif %}
+      </div>
+    </div>
   </article>
   {% endfor %}
 </div>

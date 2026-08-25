@@ -206,6 +206,34 @@
      one unbreakable word to a browser and would otherwise widen the card. */
   .itemcard > h4 { margin: 0 10px; font-size: 14px; font-weight: 600;
     overflow-wrap: anywhere; }
+  /* A part's picture beside what is written about it, and the way through to its
+     own page. A list of parts was the one place here that described hardware
+     without showing any: four Teac drives read as four near-identical lines, and
+     telling them apart is something the eye does instantly with a photograph and
+     cannot do at all with a model number. Small -- this is a list to be scanned,
+     not a gallery -- and 4:3 like the gallery card, so the same photograph is
+     cropped the same way in both places. */
+  .itemcard > .cardmain { display: flex; align-items: flex-start; gap: 11px;
+    margin: 0 10px; }
+  .cardmain > .cardtext { flex: 1 1 auto; min-width: 0; }
+  .cardtext > h4 { margin: 0; font-size: 14px; font-weight: 600;
+    overflow-wrap: anywhere; }
+  .cardtext > dl.specs { margin: 7px 0 0; }
+  .cardthumb { flex: none; width: 92px; aspect-ratio: 4 / 3; position: relative;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background: var(--chip); border: 1px solid var(--line); border-radius: 8px; }
+  .cardthumb:hover { border-color: var(--accent); }
+  .cardthumb > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* The stand-in drawing is a symbol rather than a picture, so it sits small and
+     quiet in the middle of the space instead of filling it -- the same treatment,
+     and the same proportion, the gallery gives it. */
+  .cardthumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
+  /* The "not this exact unit" mark, sized for a thumbnail a quarter the width of
+     the gallery's: the same badge at the same size would cover the photograph it
+     is qualifying. */
+  .cardthumb .ref-badge { top: 3px; left: 3px; font-size: 9px; padding: 2px 5px; }
+  .cardthumb .ref-badge.icon { padding: 2px; }
+  .cardthumb .ref-badge.icon img { width: 12px; height: 12px; }
   .itemcard > .cardrow { margin: 7px 10px 0; display: flex; flex-wrap: wrap;
     align-items: center; gap: 5px 8px; font-size: 13px; }
   .itemcard > .cardrow > .lbl { color: var(--muted); font-size: 12px; }
