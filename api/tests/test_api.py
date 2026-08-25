@@ -4112,6 +4112,22 @@ class TestTheBigPhotoView:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
 
+    def test_the_whole_overlay_takes_the_gesture_not_just_the_photo(self, client,
+                                                                     part):
+        """On a phone most of what is on screen is the black around the photo, so
+        a flick that starts there is still a flick -- and left to itself the phone
+        scrolls the page underneath while the photo sits there doing nothing."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert "box.addEventListener('pointerdown'" in page
+            assert "box.addEventListener('pointermove'" in page
+            assert re.search(r"#lightbox \{[^}]*touch-action: none", page, re.S)
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
     def test_the_movement_is_dropped_for_anyone_who_asked_for_less_of_it(
             self, client, part):
         """The glide, the spring at the edges and the eased zoom are all feel, and
@@ -4807,6 +4823,35 @@ class TestFilesReadLikeThePartsDo:
         page = client.get(f"/computers/{aid}").text
         assert '<span class="chip">Creative Labs Sound Blaster</span>' in page
         assert 'name="tags"' not in page
+
+
+class TestPagesAreNotKeptByBrowsers:
+    """A page carrying no cache headers at all is a page a browser may keep for as
+    long as it likes -- there is nothing in the answer to say otherwise. Safari
+    does keep them, hardest of all on a phone, and the result is a deploy that
+    went out, a server holding the new code, and a reader still running last
+    week's. `no-cache` is not "do not store": it is "ask me first"."""
+
+    def test_a_page_is_asked_for_every_time(self, client, part):
+        for path in ("/", f"/parts/{part()['asset_id']}", "/machines", "/files"):
+            r = client.get(path)
+            assert r.headers["cache-control"] == "no-cache", path
+
+    def test_but_a_stamped_photograph_is_still_kept_for_a_year(self, client,
+                                                              tmp_path):
+        """The opposite rule, on purpose: those URLs carry the version in them, so
+        they can never go stale and never need asking about."""
+        from PIL import Image
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Acme", "model": "PC"}).json()["asset_id"]
+        src = tmp_path / "big.jpg"
+        Image.new("RGB", (400, 300), (30, 60, 120)).save(src, "JPEG")
+        with src.open("rb") as fh:
+            client.post(f"/computers/{aid}/photo",
+                        files={"photos": ("big.jpg", fh, "image/jpeg")},
+                        follow_redirects=False)
+        head = client.get(f"/images/computers/{aid}.jpg?v=123").headers["cache-control"]
+        assert "immutable" in head and "no-cache" not in head
 
 
 class TestPhotographsAreServedAtTheSizeAsked:

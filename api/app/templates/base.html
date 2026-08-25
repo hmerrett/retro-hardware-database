@@ -583,7 +583,11 @@
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  #lightbox { position: fixed; inset: 0; background: #000000d8; display: none; align-items: center; justify-content: center; z-index: 1000; }
+  /* touch-action: none across the whole overlay, not only the photo in the middle
+     of it: a flick that starts on the black above or below the photo is still a
+     flick, and left to itself the phone would scroll the page underneath with it. */
+  #lightbox { position: fixed; inset: 0; background: #000000d8; display: none;
+    align-items: center; justify-content: center; z-index: 1000; touch-action: none; }
   #lightbox.open { display: flex; }
   /* The stage is the whole of the window the photo may use, not the photo's own
      box: a tall photo on a wide screen sits in the middle of it with a black band
@@ -1546,7 +1550,7 @@
     // A photo is draggable to a browser by default, which fights panning.
     img.addEventListener('dragstart', e => e.preventDefault());
 
-    stage.addEventListener('pointerdown', e => {
+    box.addEventListener('pointerdown', e => {
       if (cropping()) return;
       lastKind = e.pointerType || 'mouse';
       halt();                       // a finger on a moving photo stops it
@@ -1577,10 +1581,10 @@
       // of its own accord, and a pointer can be gone before we ask -- which is no
       // loss, since a tap that quick had nothing to pan with.
       if (pan || pinch || drag) {
-        try { stage.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+        try { box.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
       }
     });
-    stage.addEventListener('pointermove', e => {
+    box.addEventListener('pointermove', e => {
       if (!held.has(e.pointerId)) return;
       held.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 12) tap = null;
@@ -1642,8 +1646,10 @@
       if (flick && !held.size) {
         const dy = flick.dy || 0;
         const rested = e.timeStamp - flick.t > 80;   // stopped before it let go
+        const gone = e.type === 'pointerup'
+          && (Math.abs(dy) > AWAY || (!rested && Math.abs(vy) > FLICK));
         tap = null;
-        if (Math.abs(dy) > AWAY || (!rested && Math.abs(vy) > FLICK)) letItGo(dy || vy);
+        if (gone) letItGo(dy || vy);
         else { vy = 0; glideTo(fitted(), 260); }
         stage.classList.remove('panning');
         return;
@@ -1666,8 +1672,8 @@
         anchor = null;
       }
     }
-    stage.addEventListener('pointerup', letGo);
-    stage.addEventListener('pointercancel', letGo);
+    box.addEventListener('pointerup', letGo);
+    box.addEventListener('pointercancel', letGo);
     // The stage is sized in vw/vh, so a turn of the phone changes what the photo
     // is being centred in and can leave a zoomed one parked outside its bounds.
     addEventListener('resize', () => { halt(); applyZoom(); });
@@ -1687,7 +1693,9 @@
     prev.addEventListener('click', e => { e.stopPropagation(); step(-1); });
     next.addEventListener('click', e => { e.stopPropagation(); step(1); });
     box.querySelector('.lb-close').addEventListener('click', close);
-    box.addEventListener('click', e => { if (e.target === box) close(); });
+    box.addEventListener('click', e => {
+      if (!dragged && e.target === box) close();
+    });
     // The stage reaches beyond the photo now, so the black beside a tall one is
     // the stage rather than the backdrop -- and a click there still closes, as it
     // did when that click landed on the backdrop itself. Not while zoomed, where

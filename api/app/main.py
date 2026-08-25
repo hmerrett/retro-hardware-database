@@ -220,6 +220,27 @@ def _is_public_read(request: Request) -> bool:
 
 
 @app.middleware("http")
+async def no_stale_pages(request: Request, call_next):
+    """Every page, freshly asked for.
+
+    The pages carried no cache headers at all, and a response with neither
+    freshness nor a validator is one a browser may cache for as long as it
+    likes -- Safari does, and does it hardest on a phone. The site was
+    deployed, the code was on the server, and the reader had yesterday's
+    Javascript. `no-cache` is not "do not store": it is "ask me first", which
+    is what a page whose whole point is that it changes wants.
+
+    Only the pages. Photographs and static files carry their own headers, and
+    those say the opposite on purpose -- they are stamped with a version, so
+    they may be kept for a year (see `img_url` and `_static_headers`).
+    """
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("text/html"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
+
+
+@app.middleware("http")
 async def auth_gate(request: Request, call_next):
     """Public read-only browsing; login required to edit. Browsers use a session
     cookie (login page + logout); the API and tools use HTTP Basic."""
