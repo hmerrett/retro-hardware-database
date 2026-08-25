@@ -4072,6 +4072,41 @@ class TestTheBigPhotoView:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
 
+    def test_a_mac_trackpad_is_answered_in_both_of_the_ways_it_is_reported(
+            self, client, part):
+        """A pinch on a trackpad reaches the page as ctrl+wheel in Chrome and in
+        Firefox, and as Safari's own gesture events, which are non-standard and
+        the only report Safari sends -- so both are listened for. The wheel is
+        swallowed whichever it turns out to be: left alone, a sideways one is
+        Safari swiping back out of the page, and one with a modifier is the
+        browser zooming the page, banner and all."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert "addEventListener('gesturestart'" in page
+            assert "addEventListener('gesturechange'" in page
+            assert "e.ctrlKey || e.metaKey" in page
+            assert re.search(r"'wheel', e => \{\s*if \(cropping\(\)\) return;"
+                             r"\s*(//[^\n]*\n\s*)*e.preventDefault\(\);", page)
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_the_movement_is_dropped_for_anyone_who_asked_for_less_of_it(
+            self, client, part):
+        """The glide, the spring at the edges and the eased zoom are all feel, and
+        feel is exactly what a reader who has asked their system for less movement
+        does not want. They get the same photo, put where it belongs at once."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            assert "matchMedia('(prefers-reduced-motion: reduce)')" in \
+                client.get(f"/parts/{aid}").text
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
     def test_the_editing_tools_are_only_for_the_logged_in(self, client, part,
                                                           monkeypatch):
         from app import main

@@ -161,8 +161,10 @@ Click any photograph to open it as large as the window allows. From there:
 | Gesture | Does |
 |---|---|
 | Double-click, double-tap | Zoom in and out |
-| Wheel, trackpad, two-finger pinch | Zoom |
-| Drag | Move about the enlarged photo |
+| Pinch — two fingers, or a trackpad | Zoom |
+| Scroll, two-finger scroll | Zoom in from the whole photograph, and move about it once you are in |
+| `⌘` or `ctrl` with a scroll | Zoom, at any point |
+| Drag, flick | Move about the enlarged photograph |
 | `+` `-` `0` | Zoom in, out, reset |
 | ← → , sideways swipe | The other photographs of this item (arrow keys move about the photo instead while zoomed in) |
 | `Esc` | Close |
@@ -171,6 +173,12 @@ A tall photograph opens on a wide screen with a black band down either side, and
 a wide one on a phone with a band above and below. Zooming in spends those bands
 rather than magnifying inside them: the photograph spreads into the whole window,
 and a double-click or double-tap goes straight to filling it.
+
+It moves like something with weight, on a trackpad as on a phone. A flick carries
+on and slows; an edge pulled past resists, and springs back when let go; a pinch
+past the last of the zoom stretches a little and is taken back. If your system is
+set to reduce motion, none of that happens — the photograph is simply where it
+should be, at once.
 
 The zoom belongs to the big view only, so the gallery and item pages still
 pinch-zoom the way any web page does.
