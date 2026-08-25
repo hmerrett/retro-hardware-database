@@ -63,8 +63,20 @@ services:
     depends_on:
       - api
 
-  # Turns Caddy's access log into a self-contained HTML traffic report every
-  # minute; the app serves it (login-only) at /stats.
+  # Turns Caddy's access log into a self-contained HTML traffic report; the app
+  # serves it (login-only) at /traffic.
+  #
+  # The rolled-over logs go in beside the live one, so the report reaches back as
+  # far as Caddy still keeps rather than only to the last roll -- a fortnight of
+  # visitors used to vanish from it the moment access.log passed 10MiB. This build
+  # of GoAccess has no zlib, so the archives are unpacked here and the whole lot
+  # arrives on stdin; the glob is in date order because the roll names are
+  # timestamps.
+  #
+  # That makes every run a run over the entire retained history, tens of seconds
+  # of it on this two-core box, which is why the wait between runs is five minutes
+  # and not one. The report is built alongside and moved into place, a rename
+  # being the one way a reader cannot catch it half-written.
   goaccess:
     image: allinurl/goaccess:latest
     restart: unless-stopped
@@ -73,10 +85,12 @@ services:
       - |
         while true; do
           if [ -s /logs/access.log ]; then
-            goaccess /logs/access.log -o /report/index.html \
-              --log-format=CADDY --html-report-title="db.2600.me traffic"
+            { zcat /logs/access-*.log.gz 2>/dev/null; cat /logs/access.log; } \
+              | goaccess - -o /report/index.html.new \
+                  --log-format=CADDY --html-report-title="db.2600.me traffic" \
+              && mv /report/index.html.new /report/index.html
           fi
-          sleep 60
+          sleep 300
         done
     volumes:
       - caddy_logs:/logs:ro

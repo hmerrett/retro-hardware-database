@@ -93,7 +93,7 @@ db.example.com {
 	log {
 		output file /var/log/caddy/access.log {
 			roll_size 10MiB
-			roll_keep 5
+			roll_keep 15
 		}
 		format json
 	}
@@ -348,9 +348,12 @@ from `docker-compose.yml`; nothing else depends on it.
 
 ### Traffic statistics
 
-The `goaccess` service turns Caddy's access log into an HTML report every minute,
-which the app serves at `/traffic` behind the login. Remove that service from
-`docker-compose.yml` if you would rather not keep access logs.
+The `goaccess` service turns Caddy's access logs into an HTML report every five
+minutes, which the app serves at `/traffic` behind the login. It reads the
+rolled-over logs as well as the live one, so the report covers however much
+history `roll_keep` above is holding on to -- raise it for a longer view, at a
+little more disk and a little more work per rebuild. Remove the service from
+`docker-compose.yml` if you would rather not keep access logs at all.
 
 ---
 

@@ -24,10 +24,14 @@
 }
 
 db.2600.me {
+	# How far back the traffic report can see, in the end: GoAccess is given the
+	# rolled-over logs as well as the live one, so it reaches back exactly as far
+	# as these keep. A roll is a little under three days at present, so fifteen of
+	# them is about six weeks, for some ten megabytes on disk.
 	log {
 		output file /var/log/caddy/access.log {
 			roll_size 10MiB
-			roll_keep 5
+			roll_keep 15
 		}
 		format json
 	}

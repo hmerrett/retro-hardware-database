@@ -91,7 +91,7 @@ docker compose
 ├── api       FastAPI + uvicorn                   (127.0.0.1:8000)
 │             the web GUI, the JSON API and the photos
 ├── mcp       tool server over the REST API       (127.0.0.1:8001)
-└── goaccess  traffic report, rebuilt every minute
+└── goaccess  traffic report, rebuilt every five minutes
 ```
 
 Only Caddy is exposed to the internet. Everything else listens on localhost and

@@ -318,8 +318,8 @@ def gui_traffic():
     if not report.exists():
         return HTMLResponse(
             "<p style='font-family:system-ui;margin:2rem'>No traffic report yet "
-            "&mdash; it is generated from the access log every minute, so check "
-            "back shortly.</p>")
+            "&mdash; it is generated from the access logs every five minutes, so "
+            "check back shortly.</p>")
     return HTMLResponse(report.read_text(encoding="utf-8"))
 
 

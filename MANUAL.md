@@ -1039,7 +1039,9 @@ drives), the note under the heading says whose they are.
 ### Traffic
 
 `/traffic`, behind the login, is a GoAccess report built from the proxy's access
-log and rebuilt every minute.
+logs and rebuilt every five minutes. It covers the last six weeks or so: the
+proxy keeps fifteen rolled-over logs behind the live one, and the report is built
+from all of them.
 
 ---
 
