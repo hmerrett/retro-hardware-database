@@ -4093,6 +4093,25 @@ class TestTheBigPhotoView:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
 
+    def test_a_photograph_on_a_phone_is_flicked_away_to_close_it(self, client, part):
+        """A photograph at its own size on a phone is not on a page you can leave,
+        and the close button is a small target in a corner. So it goes the way
+        anything goes on iOS: pushed off the screen, coming with the finger and
+        letting the page behind show through, and back again if the finger changes
+        its mind. Zoomed in, the same drag moves about the photograph, so this is
+        the fitted one only -- and a mouse is left out, having a button and a key
+        for the job."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert "function away(dx, dy)" in page
+            assert "e.pointerType !== 'mouse'" in page
+            assert "Math.abs(dy) > AWAY" in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
     def test_the_movement_is_dropped_for_anyone_who_asked_for_less_of_it(
             self, client, part):
         """The glide, the spring at the edges and the eased zoom are all feel, and

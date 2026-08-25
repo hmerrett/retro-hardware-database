@@ -167,6 +167,7 @@ Click any photograph to open it as large as the window allows. From there:
 | Drag, flick | Move about the enlarged photograph |
 | `+` `-` `0` | Zoom in, out, reset |
 | ← → , sideways swipe | The other photographs of this item (arrow keys move about the photo instead while zoomed in) |
+| Flick up or down | Close, on a phone: the photograph comes with your finger and the page shows through behind it. Let go short of the mark and it goes back |
 | `Esc` | Close |
 
 A tall photograph opens on a wide screen with a black band down either side, and

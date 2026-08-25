@@ -1112,7 +1112,9 @@
     function open(i) { idx = i; box.classList.add('open'); show(); }
     function close() {
       cropMode(false); resetZoom();
+      box.style.backgroundColor = '';
       box.classList.remove('open'); img.src = '';
+      dragged = false;
     }
     function step(d) {
       if (mode) return;
@@ -1212,6 +1214,10 @@
     let scale = 1, tx = 0, ty = 0, vx = 0, vy = 0;
     const held = new Map();
     let pan = null, pinch = null, tap = null, lastTap = 0, lastKind = 'mouse';
+    // A flick away: how far along it the photo is, 0 to 1, and whether the gesture
+    // in hand has moved at all -- a drag that ends on the backdrop is not a click
+    // on the backdrop, whatever the browser makes of it.
+    let drag = null, dim = 0, dragged = false;
     let frame = null, mark = 0, tween = null, anchor = null, idle = null;
     // A Safari trackpad gesture in progress, and how long ago the last one ended:
     // it also sends wheels for the same fingers, and the wheels are to be ignored.
@@ -1226,9 +1232,16 @@
     // Measured and divided back rather than read from offsetWidth, which rounds
     // to whole pixels -- half a pixel there is half a pixel times the zoom here,
     // and it shows as a hairline of backdrop against an edge said to be flush.
+    //
+    // Divided by the zoom it was last drawn at, which is not always the zoom it
+    // is about to be drawn at: cropping and stepping to the next photograph both
+    // set the zoom back to 1 and then ask where the photo goes, and dividing the
+    // old measurement by the new number said the photo was several times the size
+    // of the window -- so it was pinned to the left edge, being too big to centre.
+    let shown = 1;
     function fitBox() {
       const r = fit.getBoundingClientRect();
-      return { w: r.width / scale, h: r.height / scale };
+      return { w: r.width / shown, h: r.height / shown };
     }
     // What it would take to fill the window -- 1 for a photo the shape of the
     // window, more for one that opened with bands beside it or above and below.
@@ -1282,6 +1295,10 @@
     // further up: this one is the transform, that one is the selection box.)
     function paint() {
       fit.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      shown = scale;
+      // The backdrop goes with the photo on its way out, so what is being
+      // uncovered is the page it came from rather than a black sheet.
+      box.style.backgroundColor = dim ? `rgba(0, 0, 0, ${(0.85 * (1 - dim)).toFixed(3)})` : '';
       stage.classList.toggle('zoomed', zoomed());
       if (!zoomed()) stage.classList.remove('panning');
     }
@@ -1343,17 +1360,26 @@
     const easing = t => 1 - Math.pow(1 - t, 3);
     function tweening(now) {
       const t = Math.min(1, (now - tween.at) / tween.ms), k = easing(t);
-      scale = tween.from.scale + (tween.to.scale - tween.from.scale) * k;
-      tx = tween.from.tx + (tween.to.tx - tween.from.tx) * k;
-      ty = tween.from.ty + (tween.to.ty - tween.from.ty) * k;
+      const at = (a, b) => a + (b - a) * k;
+      scale = at(tween.from.scale, tween.to.scale);
+      tx = at(tween.from.tx, tween.to.tx);
+      ty = at(tween.from.ty, tween.to.ty);
+      dim = at(tween.from.dim || 0, tween.to.dim || 0);
       if (t < 1) return true;
+      const done = tween.then;
       tween = null;
+      if (done) done();
       return false;
     }
-    function glideTo(to, ms) {
+    function glideTo(to, ms, then) {
       halt();
-      if (still.matches || !ms) { scale = to.scale; tx = to.tx; ty = to.ty; applyZoom(); return; }
-      tween = { from: { scale: scale, tx: tx, ty: ty }, to: to, at: performance.now(), ms: ms };
+      if (still.matches || !ms) {
+        scale = to.scale; tx = to.tx; ty = to.ty; dim = to.dim || 0;
+        applyZoom();
+        if (then) then();
+        return;
+      }
+      tween = { from: here(), to: to, at: performance.now(), ms: ms, then: then };
       run();
     }
 
@@ -1370,8 +1396,11 @@
         ty: pin((cy - r.top) - ((cy - r.top) - from.ty) * k, l.y),
       };
     }
-    const here = () => ({ scale: scale, tx: tx, ty: ty });
-    const fitted = () => { const l = limits(1); return { scale: 1, tx: l.x.min, ty: l.y.min }; };
+    const here = () => ({ scale: scale, tx: tx, ty: ty, dim: dim });
+    const fitted = () => {
+      const l = limits(1);
+      return { scale: 1, tx: l.x.min, ty: l.y.min, dim: 0 };
+    };
     // Straight there, for the wheel and the pinch: they are being turned by hand,
     // and easing something already under the hand only makes it feel loose.
     function zoomAbout(want, cx, cy, from, driftX, driftY) {
@@ -1396,8 +1425,8 @@
     }
     function resetZoom() {
       halt();
-      scale = 1; tx = 0; ty = 0;
-      pan = pinch = tap = null;
+      scale = 1; tx = 0; ty = 0; dim = 0;
+      pan = pinch = tap = drag = null;
       applyZoom();
     }
     // Letting go: anything pinched past the end of the zoom is eased back to it
@@ -1410,6 +1439,31 @@
       if (scale > top || scale < 1) glideTo(aimAt(scale, at.x, at.y, here()), 260);
       else run();
     }
+    // --- flicking it away ----------------------------------------------------
+    // A photo at its own size on a phone is not on a page you can leave, so the
+    // way out is the way out of anything on iOS: push it off the screen. It comes
+    // with the finger, shrinking and letting the page behind show through as it
+    // goes, and it goes back if the finger changes its mind. Zoomed in the same
+    // drag is how the photo is moved about, so this is for the fitted one only.
+    const AWAY = 90;       // px down or up past which letting go lets it go
+    const FLICK = 0.5;     // px/ms -- or this fast, however far it got
+    function away(dx, dy) {
+      const t = Math.min(1, Math.abs(dy) / 500);
+      const s = 1 - 0.3 * t;
+      const l = limits(s);
+      scale = s;
+      tx = l.x.min + dx * 0.5;   // it follows sideways as well, at half the rate
+      ty = l.y.min + dy;
+      dim = t;
+      paint();
+    }
+    function letItGo(dy) {
+      const way = dy < 0 ? -1 : 1;
+      const r = stageBox();
+      glideTo({ scale: scale * 0.8, tx: tx, ty: ty + way * r.height * 0.5, dim: 1 },
+              200, close);
+    }
+
     // In goes at least far enough to fill the window, so a double tap on a tall
     // photo spends the bands either side of it rather than magnifying them.
     function toggleZoom(cx, cy) {
@@ -1496,8 +1550,12 @@
       if (cropping()) return;
       lastKind = e.pointerType || 'mouse';
       halt();                       // a finger on a moving photo stops it
+      dragged = false;              // this gesture has not moved anywhere yet
       held.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (held.size === 2) {
+        // A second finger means a pinch, not a flick away: put back whatever the
+        // first one had started before taking the zoom from where it really is.
+        if (drag) { drag = null; dim = 0; scale = 1; applyZoom(); }
         const [a, b] = [...held.values()];
         pinch = { d: gap(a, b), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2,
                   scale: scale, tx: tx, ty: ty };
@@ -1509,12 +1567,16 @@
           pan = { x: e.clientX, y: e.clientY, tx: tx, ty: ty,
                   px: e.clientX, py: e.clientY, t: e.timeStamp };
           stage.classList.add('panning');
+        } else if (e.pointerType !== 'mouse') {
+          // A mouse is left out: it has a corner to click and a key to press, and
+          // a dragged mouse here has always meant nothing at all.
+          drag = { x: e.clientX, y: e.clientY, py: e.clientY, t: e.timeStamp, axis: null };
         }
       }
       // Capture so a drag that leaves the photo keeps panning it. Touch does this
       // of its own accord, and a pointer can be gone before we ask -- which is no
       // loss, since a tap that quick had nothing to pan with.
-      if (pan || pinch) {
+      if (pan || pinch || drag) {
         try { stage.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
       }
     });
@@ -1522,6 +1584,28 @@
       if (!held.has(e.pointerId)) return;
       held.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 12) tap = null;
+      if (drag && held.size === 1) {
+        const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+        // Which gesture this is gets decided once, at the first movement worth
+        // reading, and then stays decided: sideways is the next photograph, and
+        // is left to the swipe below, which asks the same question of the whole
+        // gesture at the end of it.
+        if (!drag.axis && Math.hypot(dx, dy) > 10) {
+          drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        }
+        if (drag.axis === 'y') {
+          const dt = e.timeStamp - drag.t;
+          if (dt > 0) {
+            vy = vy * 0.2 + ((e.clientY - drag.py) / dt) * 0.8;
+            drag.py = e.clientY; drag.t = e.timeStamp;
+          }
+          drag.dy = dy;
+          dragged = true;
+          away(dx, dy);
+          e.preventDefault();
+          return;
+        }
+      }
       if (pinch && held.size >= 2) {
         const [a, b] = [...held.values()];
         if (!pinch.d) return;
@@ -1532,6 +1616,7 @@
                   mx - pinch.cx, my - pinch.cy);
         e.preventDefault();
       } else if (pan) {
+        dragged = true;
         const l = limits();
         tx = slack(pan.tx + (e.clientX - pan.x), l.x, l.w);
         ty = slack(pan.ty + (e.clientY - pan.y), l.y, l.h);
@@ -1550,8 +1635,19 @@
     function letGo(e) {
       if (!held.has(e.pointerId)) return;
       const wasPanning = !!pan, wasPinch = !!pinch;
+      const flick = drag && drag.axis === 'y' ? drag : null;
       const restedAt = pan ? pan.t : 0;   // when the hand last actually moved
       held.delete(e.pointerId);
+      if (!held.size) drag = null;
+      if (flick && !held.size) {
+        const dy = flick.dy || 0;
+        const rested = e.timeStamp - flick.t > 80;   // stopped before it let go
+        tap = null;
+        if (Math.abs(dy) > AWAY || (!rested && Math.abs(vy) > FLICK)) letItGo(dy || vy);
+        else { vy = 0; glideTo(fitted(), 260); }
+        stage.classList.remove('panning');
+        return;
+      }
       if (held.size < 2) pinch = null;
       if (!held.size) { pan = null; stage.classList.remove('panning'); }
       // Double-tap, the touch counterpart of a double-click: two taps in the same
@@ -1597,6 +1693,7 @@
     // did when that click landed on the backdrop itself. Not while zoomed, where
     // the same click is the end of a drag.
     stage.addEventListener('click', e => {
+      if (dragged) return;          // the end of a drag, not a click on the black
       if (e.target !== img && !cropping() && !zoomed()) close();
     });
     // Zoomed in, the arrows move about the photo rather than off it -- 0 zooms back
