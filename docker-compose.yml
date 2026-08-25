@@ -76,7 +76,9 @@ services:
   # That makes every run a run over the entire retained history, tens of seconds
   # of it on this two-core box, which is why the wait between runs is five minutes
   # and not one. The report is built alongside and moved into place, a rename
-  # being the one way a reader cannot catch it half-written.
+  # being the one way a reader cannot catch it half-written. It is built under a
+  # name ending .html because GoAccess decides what it is writing from the
+  # extension and refuses anything but .html, .json or .csv.
   goaccess:
     image: allinurl/goaccess:latest
     restart: unless-stopped
@@ -86,9 +88,9 @@ services:
         while true; do
           if [ -s /logs/access.log ]; then
             { zcat /logs/access-*.log.gz 2>/dev/null; cat /logs/access.log; } \
-              | goaccess - -o /report/index.html.new \
+              | goaccess - -o /report/index-new.html \
                   --log-format=CADDY --html-report-title="db.2600.me traffic" \
-              && mv /report/index.html.new /report/index.html
+              && mv /report/index-new.html /report/index.html
           fi
           sleep 300
         done
