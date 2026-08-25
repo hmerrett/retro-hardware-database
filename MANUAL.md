@@ -167,6 +167,11 @@ Click any photograph to open it as large as the window allows. From there:
 | ← → , sideways swipe | The other photographs of this item (arrow keys move about the photo instead while zoomed in) |
 | `Esc` | Close |
 
+A tall photograph opens on a wide screen with a black band down either side, and
+a wide one on a phone with a band above and below. Zooming in spends those bands
+rather than magnifying inside them: the photograph spreads into the whole window,
+and a double-click or double-tap goes straight to filling it.
+
 The zoom belongs to the big view only, so the gallery and item pages still
 pinch-zoom the way any web page does.
 

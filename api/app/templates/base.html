@@ -585,17 +585,25 @@
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
   #lightbox { position: fixed; inset: 0; background: #000000d8; display: none; align-items: center; justify-content: center; z-index: 1000; }
   #lightbox.open { display: flex; }
-  /* touch-action: none because the overlay does its own pinch: left to itself the
-     browser would zoom the whole page, scrollbars, header and all. */
-  #lightbox .lb-stage { position: relative; line-height: 0; max-width: 92vw; max-height: 84vh;
+  /* The stage is the whole of the window the photo may use, not the photo's own
+     box: a tall photo on a wide screen sits in the middle of it with a black band
+     either side, and the zoom is free to spend those bands rather than staying
+     shut inside the shape the photo arrived in. touch-action: none because the
+     overlay does its own pinch: left to itself the browser would zoom the whole
+     page, scrollbars, header and all. */
+  #lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;
     touch-action: none; }
-  /* Zoom rides on the image's own transform from its top-left corner, so the stage
-     keeps the untransformed box that the pan bounds and the crop maths measure
-     against -- and, while zoomed, crops the enlarged photo to that box. */
+  /* Zoom and pan ride on this wrapper's transform from the stage's top-left
+     corner, so the pan bounds and the crop maths always measure against one
+     untransformed box. The centring is the transform's doing too -- laying the
+     photo out in the middle and then scaling from a corner would fight it. */
+  #lightbox .lb-fit { position: absolute; left: 0; top: 0; line-height: 0;
+    transform-origin: 0 0; }
   #lightbox img { max-width: 92vw; max-height: 84vh; border-radius: 8px; box-shadow: 0 6px 40px #000;
-    display: block; width: auto; height: auto; transform-origin: 0 0;
+    display: block; width: auto; height: auto;
     cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
-  #lightbox .lb-stage.zoomed { overflow: hidden; }
+  #lightbox .lb-stage.zoomed { overflow: hidden; cursor: grab; }
+  #lightbox .lb-stage.zoomed.panning { cursor: grabbing; }
   #lightbox .lb-stage.zoomed img { cursor: grab; }
   #lightbox .lb-stage.zoomed.panning img { cursor: grabbing; }
   #lightbox .lb-stage.cropping { cursor: crosshair; touch-action: none; }
@@ -604,7 +612,7 @@
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); cursor: move; }
   #lb-crop .handle { position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px;
     background: #fff; border: 1px solid #333; border-radius: 2px; cursor: se-resize; }
-  #lightbox .lb-tools { position: absolute; bottom: 2vh; left: 50%; transform: translateX(-50%);
+  #lightbox .lb-tools { position: absolute; z-index: 2; bottom: 2vh; left: 50%; transform: translateX(-50%);
     display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
     background: #000000a8; padding: 7px 10px; border-radius: 10px; max-width: 94vw; }
   #lightbox .lb-tools form { margin: 0; display: flex; gap: 8px; align-items: center; }
@@ -634,7 +642,9 @@
      rules above would outrank the browser's own `[hidden] { display: none }`, which
      is why there is one of our own at the top of this stylesheet. */
   #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
-  #lightbox button { position: absolute; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
+  /* Above the stage, which spans nearly the whole window and would otherwise
+     swallow the clicks meant for an arrow standing over it. */
+  #lightbox button { position: absolute; z-index: 2; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
   #lightbox .lb-nav { top: 50%; transform: translateY(-50%); font-size: 38px; padding: 6px 16px; }
   #lightbox .lb-prev { left: 3vw; } #lightbox .lb-next { right: 3vw; }
   #lightbox .lb-close { top: 3vh; right: 3vw; font-size: 30px; padding: 2px 12px; }
@@ -1027,8 +1037,10 @@
   <button class="lb-close" title="Close (Esc)">×</button>
   <button class="lb-nav lb-prev" title="Previous (←)">‹</button>
   <div class="lb-stage" id="lb-stage">
-    <img alt="">
-    <div id="lb-crop" hidden><div class="handle"></div></div>
+    <div class="lb-fit" id="lb-fit">
+      <img alt="">
+      <div id="lb-crop" hidden><div class="handle"></div></div>
+    </div>
   </div>
   <button class="lb-nav lb-next" title="Next (→)">›</button>
   {% if request.state.authed %}
@@ -1059,6 +1071,7 @@
   (function () {
     const box = document.getElementById('lightbox');
     const stage = document.getElementById('lb-stage');
+    const fit = document.getElementById('lb-fit');
     const img = box.querySelector('img');
     const prev = box.querySelector('.lb-prev');
     const next = box.querySelector('.lb-next');
@@ -1189,15 +1202,30 @@
     const zoomed = () => scale > 1;
     const cropping = () => stage.classList.contains('cropping');
     function stageBox() { return stage.getBoundingClientRect(); }
+    // The photo's box before any of this ran, and the one every sum below works
+    // in: a transform leaves layout alone, so this is the same box at any zoom.
+    function fitBox() { return { w: fit.offsetWidth, h: fit.offsetHeight }; }
+    // What it would take to fill the window -- 1 for a photo the shape of the
+    // window, more for one that opened with bands beside it or above and below.
+    function fillScale() {
+      const r = stageBox(), b = fitBox();
+      if (!b.w || !b.h) return 1;
+      return Math.max(1, Math.max(r.width / b.w, r.height / b.h));
+    }
+    // Far enough to fill the window, wherever that is further than the plain limit.
+    const ceiling = () => Math.max(MAX_ZOOM, fillScale());
     function gap(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
-    // The photo may sit anywhere that still covers the stage, and nowhere that
-    // would show a strip of backdrop down one side of it.
+    // Each axis in its own right: enlarged past the window, the photo may sit
+    // anywhere that still covers it and nowhere that would show a strip of
+    // backdrop down that side; still smaller than the window -- which is where
+    // the bands beside a tall photo live -- it sits in the middle of it.
     function applyZoom() {
-      const r = stageBox();
-      tx = Math.min(0, Math.max(r.width * (1 - scale), tx));
-      ty = Math.min(0, Math.max(r.height * (1 - scale), ty));
-      img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+      const r = stageBox(), b = fitBox();
+      const w = b.w * scale, h = b.h * scale;
+      tx = w <= r.width ? (r.width - w) / 2 : Math.min(0, Math.max(r.width - w, tx));
+      ty = h <= r.height ? (r.height - h) / 2 : Math.min(0, Math.max(r.height - h, ty));
+      fit.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
       stage.classList.toggle('zoomed', zoomed());
       if (!zoomed()) stage.classList.remove('panning');
     }
@@ -1205,7 +1233,7 @@
     // take a drift for a gesture whose own centre has moved since it began.
     function zoomAbout(want, cx, cy, from, driftX, driftY) {
       const r = stageBox();
-      const next = Math.min(MAX_ZOOM, Math.max(1, want));
+      const next = Math.min(ceiling(), Math.max(1, want));
       const k = next / from.scale;
       tx = (cx - r.left) - ((cx - r.left) - from.tx) * k + (driftX || 0);
       ty = (cy - r.top) - ((cy - r.top) - from.ty) * k + (driftY || 0);
@@ -1220,9 +1248,11 @@
       pan = pinch = tap = null;
       applyZoom();
     }
+    // In goes at least far enough to fill the window, so a double tap on a tall
+    // photo spends the bands either side of it rather than magnifying them.
     function toggleZoom(cx, cy) {
       if (zoomed()) resetZoom();
-      else zoomBy(TAP_ZOOM, cx, cy);
+      else zoomBy(Math.max(TAP_ZOOM, fillScale()), cx, cy);
     }
     function zoomKeys(factor) {
       const r = stageBox();
@@ -1307,9 +1337,12 @@
     }
     stage.addEventListener('pointerup', letGo);
     stage.addEventListener('pointercancel', letGo);
-    // The stage is sized in vw/vh, so a turn of the phone can leave the photo
-    // parked outside its new bounds.
-    addEventListener('resize', () => { if (zoomed()) applyZoom(); });
+    // The stage is sized in vw/vh, so a turn of the phone changes what the photo
+    // is being centred in and can leave a zoomed one parked outside its bounds.
+    addEventListener('resize', applyZoom);
+    // A photo's size is not known until it has loaded, and the centring is worked
+    // out from it -- so it is worked out again once there is something to measure.
+    img.addEventListener('load', applyZoom);
 
     // --- getting about ------------------------------------------------------
     // The photo itself is the way in -- there is no separate button for it, so it
@@ -1324,6 +1357,13 @@
     next.addEventListener('click', e => { e.stopPropagation(); step(1); });
     box.querySelector('.lb-close').addEventListener('click', close);
     box.addEventListener('click', e => { if (e.target === box) close(); });
+    // The stage reaches beyond the photo now, so the black beside a tall one is
+    // the stage rather than the backdrop -- and a click there still closes, as it
+    // did when that click landed on the backdrop itself. Not while zoomed, where
+    // the same click is the end of a drag.
+    stage.addEventListener('click', e => {
+      if (e.target !== img && !cropping() && !zoomed()) close();
+    });
     // Zoomed in, the arrows move about the photo rather than off it -- 0 zooms back
     // out and hands them back. + and - are there for a keyboard with no wheel.
     function nudge(dx, dy) { tx += dx; ty += dy; applyZoom(); }

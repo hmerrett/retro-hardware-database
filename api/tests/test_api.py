@@ -4055,6 +4055,23 @@ class TestTheBigPhotoView:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
 
+    def test_the_zoom_is_not_shut_inside_the_photo_shape(self, client, part):
+        """A tall photo opens with a black band either side of it, and zooming in
+        used to magnify within that same tall rectangle -- the band stayed black
+        and most of the screen went unused. The zoom rides on a wrapper inside a
+        stage sized to the window rather than on the photo's own box, which is
+        what lets the enlarged photo spread into the band."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert '<div class="lb-fit" id="lb-fit">' in page
+            assert "#lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
+            assert "fit.style.transform = " in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
     def test_the_editing_tools_are_only_for_the_logged_in(self, client, part,
                                                           monkeypatch):
         from app import main
