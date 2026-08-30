@@ -252,7 +252,12 @@ def create_part(
     say); both blank means standalone. specs is free text formatted
     'Key: value | Key: value'. Storage parts are mechanical hard disks and tape
     (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
-    family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports.
+    family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports; a
+    screen (type 'display') carries Type (CRT, LCD, OLED), Panel (the mask or panel
+    it is built with -- a Trinitron is a CRT with an aperture grille, and both are
+    recorded), Screen size (the diagonal in inches), Aspect, Resolution, Refresh,
+    Dot pitch, Interface, Picture (colour, or the phosphor of a monochrome tube),
+    Colour and Yellowing.
 
     A motherboard, and only a motherboard, can also be filed against the catalogue
     that list_machine_models returns: machine_model_key is which machine the board

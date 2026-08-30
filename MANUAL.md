@@ -298,7 +298,7 @@ Save the machine and its page offers, under **Motherboard** and **Parts**:
 
 - **Create motherboard**, or **Link existing board** if you have an unlinked one.
 - **Add:** storage/drive, video card, sound card, network card, I/O card, other
-  expansion card, cpu, ram, peripheral.
+  expansion card, cpu, ram, display, peripheral.
 - **Link existing part** — type an asset tag or a name.
 
 Creating a part from here links it to the machine automatically and returns you
@@ -731,6 +731,42 @@ Interface is required because "every SCSI drive" should stay a question the
 collection can answer. The list is IDE, SATA, SCSI, MFM, RLL, ESDI, 34-pin
 floppy, 26-pin floppy, CF, SD, USB, Proprietary — with a custom box.
 
+### Display
+
+A monitor, a fitted panel, the tube out of an all-in-one. Two of these fields
+describe what makes the picture rather than one, because they are two questions.
+
+- **Type** — CRT, LCD, Plasma, OLED, Electroluminescent, VFD, LED matrix, E-paper
+- **Tube or panel** — how that technology is built: Shadow mask, Aperture grille
+  (Trinitron), Aperture grille (Diamondtron), Slot mask, TN, IPS, VA, DSTN, STN
+- **Screen size** — the diagonal in inches, as the thing was sold: `14"`, `13.3"`.
+  Stored as a number, so "every 14-inch and under" is a query.
+- **Aspect ratio** — 4:3, 5:4, 16:10, 16:9, 3:2
+- **Resolution** — a panel's native one, or the most a tube will do
+- **Refresh rate** — the highest it will do at that resolution, e.g. `85 Hz`
+- **Dot pitch** — in millimetres, e.g. `0.28`. Also stored as a number.
+- **Interface** — VGA (HD-15), DVI-D/I/A, HDMI, DisplayPort, the 9-pin TTL cables
+  of an MDA/CGA/EGA monitor, 13W3, BNC, SCART, S-Video, Composite, Component, RGB
+  DIN, RF. Comma-separate a monitor with more than one socket.
+- **Picture** — Colour, or which phosphor a monochrome screen has: Green, Amber,
+  White, Paper white, Greyscale
+- **Bezel** — the same two menus a drive gets, and the same colour chart. See
+  [the bezel](#the-bezel).
+
+Type and Tube are kept apart on purpose. A Trinitron is a CRT — it is a CRT with
+an aperture grille where a cheaper tube has a shadow mask — so filing one under a
+single field would take it out of the count of CRTs the moment you typed the
+trade name. Kept apart, *every CRT* and *every aperture grille* are both
+questions the collection can answer.
+
+Every box is a suggestion rather than a menu: the lists name what turns up, and a
+screen that is none of them is typed in and kept as it was written.
+
+The three numbers are stored as numbers — tenths of an inch, whole Hz,
+micrometres — and read back in the units you would write, so `21"` reopens as
+`21"` and `0.28` reopens as `0.28 mm`. See [where specifications are
+stored](#where-specifications-are-stored).
+
 ### Cooling, Peripheral, Other
 
 A free-text specs box, written as `Key: value | Key: value`.
@@ -753,9 +789,9 @@ part does not corrupt what is already there.
 
 Not in one text field. Each part type has a table of typed columns —
 `motherboard_spec`, `cpu_spec`, `ram_spec`, `video_spec`, `sound_spec`,
-`network_spec`, `io_spec`, `storage_spec` — with child tables for the things that
-are naturally lists (slots, RAM slots, ports) and key/value rows for anything
-free-form.
+`network_spec`, `io_spec`, `storage_spec`, `display_spec` — with child tables for
+the things that are naturally lists (slots, RAM slots, ports) and key/value rows
+for anything free-form.
 
 That is what makes "every board with a VLB slot" a query rather than a text
 search, and what makes the [statistics page](#15-statistics) count things rather

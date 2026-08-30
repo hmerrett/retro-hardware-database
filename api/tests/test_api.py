@@ -2255,6 +2255,116 @@ class TestAStoragePartsBezel:
         assert 'class="swatch"' not in client.get(f"/parts/{aid}").text
 
 
+class TestADisplayPart:
+    """A screen is a part with a table of its own, which is what makes "every CRT",
+    "every 14-inch and under" and "every Trinitron" questions rather than text
+    searches. Filed as a peripheral, which is where monitors used to go, none of
+    them were answerable.
+    """
+
+    def test_the_form_records_what_a_screen_is(self, client):
+        r = client.post("/parts/new",
+                        data={"type": "display", "manufacturer": "Sony",
+                              "model": "GDM-F520", "spec_type": "CRT",
+                              "spec_panel": "Aperture grille (Trinitron)",
+                              "spec_screen_size": '21"', "spec_aspect": "4:3",
+                              "spec_resolution": "1600×1200",
+                              "spec_refresh": "85 Hz", "spec_dot_pitch": "0.24",
+                              "spec_interface": "VGA (HD-15), BNC",
+                              "spec_picture": "Colour"},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == (
+            'Type: CRT | Panel: Aperture grille (Trinitron) | Screen size: 21" | '
+            "Aspect: 4:3 | Resolution: 1600×1200 | Refresh: 85 Hz | "
+            "Dot pitch: 0.24 mm | Interface: VGA (HD-15), BNC | Picture: Colour")
+
+    def test_the_numbers_land_in_typed_columns(self, db, part):
+        """Not in the string. A screen size sorts against other screen sizes, which
+        is the whole point of the table."""
+        from app.models import DisplaySpec
+        aid = part(type="display",
+                   specs='Screen size: 13.3" | Refresh: 60 | '
+                         "Dot pitch: 0.28 mm")["asset_id"]
+        row = db.get(DisplaySpec, aid)
+        assert (row.screen_in_tenths, row.refresh_hz, row.dot_pitch_um) == \
+            (133, 60, 280)
+
+    def test_a_trinitron_is_still_found_by_asking_for_crts(self, db, part):
+        from app.models import DisplaySpec
+        part(type="display", model="GDM-F520",
+             specs="Type: CRT | Panel: Aperture grille (Trinitron)")
+        part(type="display", model="1084S", specs="Type: CRT | Panel: Shadow mask")
+        part(type="display", model="ThinkVision", specs="Type: LCD | Panel: IPS")
+        crts = db.query(DisplaySpec).filter(DisplaySpec.tech == "CRT").all()
+        assert len(crts) == 2
+
+    def test_the_form_reopens_on_what_it_saved(self, client, part):
+        """Rendered as a person writes them, so saving again does not drift: the
+        box says 21", not 210."""
+        aid = part(type="display",
+                   specs='Type: CRT | Screen size: 21" | Dot pitch: 0.25 mm | '
+                         "Refresh: 85 Hz")["asset_id"]
+        page = client.get(f"/parts/{aid}/edit").text
+        assert 'id="spec_screen_size" name="spec_screen_size" value="21&#34;"' in page
+        assert 'id="spec_dot_pitch" name="spec_dot_pitch" value="0.25 mm"' in page
+        assert 'id="spec_refresh" name="spec_refresh" value="85 Hz"' in page
+
+    def test_editing_a_screen_keeps_its_numbers(self, client, part):
+        aid = part(type="display", specs='Type: CRT | Screen size: 14"')["asset_id"]
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "display", "spec_type": "CRT",
+                          "spec_screen_size": '14"', "spec_picture": "Amber"},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            'Type: CRT | Screen size: 14" | Picture: Amber'
+
+    def test_a_screen_records_a_bezel_like_a_drive(self, client):
+        r = client.post("/parts/new",
+                        data={"type": "display", "spec_type": "CRT",
+                              "spec_colour": "Beige",
+                              "spec_yellowing": "Heavily yellowed"},
+                        follow_redirects=False)
+        aid = r.headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            "Type: CRT | Colour: Beige | Yellowing: Heavily yellowed"
+
+    def test_the_page_shows_the_swatch_for_the_pair(self, client, part):
+        from app import entry
+        aid = part(type="display",
+                   specs="Colour: Beige | Yellowing: Yellowed")["asset_id"]
+        css = entry.bezel_css("Beige", "Yellowed")
+        assert client.get(f"/parts/{aid}").text.count(
+            f'style="background:{css}"') == 2
+
+    def test_a_screen_with_no_photograph_gets_a_monitor(self, client, part):
+        """Rather than the box every unrecognised type falls back to."""
+        aid = part(type="display", model="1084S")["asset_id"]
+        assert "placeholders/monitor.svg" in client.get(f"/parts/{aid}").text
+
+    def test_the_small_label_leads_with_the_size_and_the_tube(self):
+        """What identifies a monitor across a room. Joined on one line, because "a
+        21-inch Trinitron CRT" is one thing said and not three."""
+        from app import labels
+        _, lines = labels.small_body(
+            {"asset_id": "RH-0044", "name": "Sony GDM-F520", "type": "display",
+             "specs": 'Type: CRT | Panel: Aperture grille (Trinitron) | '
+                      'Screen size: 21" | Resolution: 1600×1200 | '
+                      "Interface: VGA (HD-15)"}, False)
+        assert lines == ['21" Aperture grille (Trinitron) CRT', "1600×1200",
+                         "VGA (HD-15)"]
+
+    def test_it_reaches_the_printed_label(self, client, part):
+        aid = part(type="display", model="GDM-F520",
+                   specs='Type: CRT | Screen size: 21"')["asset_id"]
+        pdf = client.get(f"/parts/{aid}/label.pdf?small=1")
+        assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
+
+    def test_the_type_menu_offers_it(self, client):
+        assert '<option value="display"' in client.get("/parts/new").text
+
+
 class TestPagesAndDiscovery:
     def test_the_index_lists_what_exists(self, client, computer, part):
         computer(model="Findable")

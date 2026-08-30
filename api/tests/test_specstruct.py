@@ -145,9 +145,10 @@ class TestTheTwoSortsOfDriveSpeed:
         assert specstruct.parse("storage", once).scalars["speed_x"] == 48
 
 
-class TestAStorageBezel:
+class TestABezel:
     """A full-height drive shows its bezel on the front of the machine, so a storage
-    part records the same two things a fitted drive row does.
+    part records the same two things a fitted drive row does -- and so does a
+    display, which is the same beige plastic gone the same colour.
     """
 
     def test_the_two_keys_map_to_their_own_columns(self):
@@ -165,9 +166,17 @@ class TestAStorageBezel:
         assert render("storage", "Yellowing: Browned") == "Yellowing: Browned"
         assert render("storage", "Colour: Black") == "Colour: Black"
 
-    def test_a_bezel_is_only_a_storage_thing(self):
-        """Nothing else in the register has a bezel, so on any other type the keys
-        stay verbatim attributes rather than being quietly adopted."""
+    def test_a_display_records_the_same_two(self):
+        """A monitor's front is plastic that was made in a shade and has yellowed
+        since, exactly as a drive's bezel is, so it answers in the same words."""
+        st = specstruct.parse("display", "Type: CRT | Colour: Beige | "
+                                         "Yellowing: Yellowed")
+        assert st.scalars == {"tech": "CRT", "colour": "Beige",
+                              "yellowing": "Yellowed"}
+
+    def test_a_type_with_no_bezel_keeps_the_keys_verbatim(self):
+        """A card has no plastic to describe, so on a type that is not asked the
+        keys stay attributes rather than being quietly adopted."""
         st = specstruct.parse("video", "Chip: S3 | Colour: Beige")
         assert st.attributes == [("Colour", "Beige")]
 
@@ -220,3 +229,88 @@ class TestDriveCapacityFromGeometry:
         twice = specstruct.format("storage", specstruct.parse("storage", once))
         assert once == twice
         assert specstruct.parse("storage", once).scalars["capacity_kb"] == 20910
+
+
+class TestADisplay:
+    """A screen: what makes the picture, how big it is, and what it will show.
+
+    The two questions about the picture-making are kept apart on purpose. A
+    Trinitron is a CRT with an aperture grille in it, and if the trade name went in
+    the same field as the technology then filing one would take it out of the count
+    of CRTs -- so the tube or panel construction is its own column and both
+    questions stay answerable.
+    """
+
+    def test_the_technology_and_the_tube_are_separate_columns(self):
+        st = specstruct.parse("display", "Type: CRT | "
+                                         "Panel: Aperture grille (Trinitron)")
+        assert st.scalars == {"tech": "CRT",
+                              "panel": "Aperture grille (Trinitron)"}
+
+    def test_a_trinitron_still_counts_as_a_crt(self):
+        """The whole reason for two columns: asking for every CRT finds this one."""
+        st = specstruct.parse("display", "Type: CRT | Panel: Aperture grille "
+                                         "(Trinitron) | Screen size: 21\"")
+        assert st.scalars["tech"] == "CRT"
+
+    @pytest.mark.parametrize("text,tenths", [
+        ('14"', 140), ("14", 140), ('13.3"', 133), ("15in", 150),
+        ("17 inch", 170), ("21.5", 215),
+    ])
+    def test_a_screen_size_is_tenths_of_an_inch(self, text, tenths):
+        assert specstruct.parse(
+            "display", f"Screen size: {text}").scalars["screen_in_tenths"] == tenths
+
+    def test_a_whole_size_does_not_render_a_fraction(self):
+        """A 14" monitor is a 14-inch monitor, not a 14.0-inch one."""
+        assert render("display", "Screen size: 14") == 'Screen size: 14"'
+
+    def test_a_fractional_size_survives_the_round_trip(self):
+        assert render("display", 'Screen size: 13.3"') == 'Screen size: 13.3"'
+
+    @pytest.mark.parametrize("text,hz", [("85", 85), ("85 Hz", 85), ("60hz", 60)])
+    def test_a_refresh_rate_is_whole_hertz(self, text, hz):
+        assert specstruct.parse(
+            "display", f"Refresh: {text}").scalars["refresh_hz"] == hz
+
+    @pytest.mark.parametrize("text,um", [
+        ("0.28", 280), ("0.28 mm", 280), ("0.25mm", 250), ("280um", 280),
+        ("280 µm", 280),
+    ])
+    def test_a_dot_pitch_is_micrometres_however_it_is_written(self, text, um):
+        assert specstruct.parse(
+            "display", f"Dot pitch: {text}").scalars["dot_pitch_um"] == um
+
+    def test_a_dot_pitch_reads_back_in_millimetres(self):
+        """Which is how it is written on the box and how anyone would type it."""
+        assert render("display", "Dot pitch: 280um") == "Dot pitch: 0.28 mm"
+
+    def test_a_resolution_is_kept_as_written(self):
+        """A multisync tube does 640x480 through 1280x1024, and picking one of those
+        to store as two numbers would be recording a fact nobody stated."""
+        st = specstruct.parse("display", "Resolution: 640×480 to 1280×1024")
+        assert st.scalars["resolution"] == "640×480 to 1280×1024"
+
+    def test_a_size_that_is_not_a_number_is_kept_not_dropped(self):
+        st = specstruct.parse("display", "Screen size: 9-inch-ish, unbadged")
+        assert st.scalars["screen_in_tenths"] is None
+        assert st.attributes == [("Screen size", "9-inch-ish, unbadged")]
+
+    def test_the_canonical_order_runs_picture_size_signal_plastic(self):
+        assert render("display", 'Yellowing: Yellowed | Interface: VGA (HD-15) | '
+                                 'Screen size: 17" | Type: CRT') == \
+            'Type: CRT | Screen size: 17" | Interface: VGA (HD-15) | ' \
+            'Yellowing: Yellowed'
+
+    def test_it_reads_back_as_it_renders(self):
+        specs = ('Type: CRT | Panel: Aperture grille (Trinitron) | '
+                 'Screen size: 21" | Aspect: 4:3 | Resolution: 1600×1200 | '
+                 'Refresh: 85 Hz | Dot pitch: 0.25 mm | Interface: VGA (HD-15), '
+                 'BNC | Picture: Colour | Colour: Beige | Yellowing: Yellowed')
+        assert render("display", specs) == specs
+
+    def test_a_screen_is_not_measured_like_a_drive(self):
+        """Only a display has a screen size, so the key stays an attribute on
+        anything else rather than being read as inches."""
+        st = specstruct.parse("storage", 'Kind: Hard disk | Screen size: 14"')
+        assert st.attributes == [("Screen size", '14"')]

@@ -39,6 +39,12 @@ SCALARS = {
     "storage": {"Kind": "kind", "Interface": "interface", "Protocol": "protocol",
                 "Capacity": "capacity_kb", "Media": "media", "Speed": "speed_rpm",
                 "Role": "role", "Colour": "colour", "Yellowing": "yellowing"},
+    "display": {"Type": "tech", "Panel": "panel",
+                "Screen size": "screen_in_tenths", "Aspect": "aspect",
+                "Resolution": "resolution", "Refresh": "refresh_hz",
+                "Dot pitch": "dot_pitch_um", "Interface": "interface",
+                "Picture": "picture", "Colour": "colour",
+                "Yellowing": "yellowing"},
 }
 
 # --- numeric columns -------------------------------------------------------
@@ -50,6 +56,16 @@ KHZ_COLS = {"speed_khz", "fsb_khz"}
 NS_COLS = {"speed_ns"}
 RPM_COLS = {"speed_rpm"}
 X_COLS = {"speed_x"}
+# Tenths of an inch, because a screen is sold by a number that is not always whole:
+# a 14" tube and a 13.3" panel are both ordinary things to own, and a column of
+# whole inches could hold only one of them.
+IN10_COLS = {"screen_in_tenths"}
+HZ_COLS = {"refresh_hz"}
+# Micrometres, for the same reason the inches are tenths: a dot pitch is written in
+# hundredths of a millimetre (0.28) and read back in them, and the integer column
+# underneath is what makes "anything finer than 0.28" a comparison rather than a
+# string match.
+UM_COLS = {"dot_pitch_um"}
 INT_COLS = {"cores"}
 
 # Where one display key has more than one column behind it. A drive's Speed is
@@ -86,6 +102,11 @@ ORDER = {
     "io": ["Chip", "Interface", "Ports"],
     "storage": ["Kind", "Interface", "Protocol", "Capacity", "CHS", "Media",
                 "Speed", "Role", "Colour", "Yellowing"],
+    # What the picture is made of, then how big it is, then what it will show, then
+    # how it plugs in -- and the plastic last, the way a drive's is, because the
+    # bezel is what the thing looks like rather than what it does.
+    "display": ["Type", "Panel", "Screen size", "Aspect", "Resolution", "Refresh",
+                "Dot pitch", "Interface", "Picture", "Colour", "Yellowing"],
 }
 # Which column a display key reads from in format() (first alias wins).
 DISPLAY_COL = {t: {} for t in SCALARS}
@@ -107,6 +128,15 @@ _RPM_RE = re.compile(r"^\s*(\d+)\s*(?:rpm)?\s*$", re.I)
 # The x is what tells an optical speed from a spindle speed, so it is required
 # here where rpm is not: a bare number is rpm, as it always was.
 _X_RE = re.compile(r"^\s*(\d+)\s*[x×]\s*$", re.I)
+# A screen size, in whatever way the inch mark gets typed -- the ASCII quote, the
+# typographic one, the prime, or the word. A bare number is inches: nobody measures
+# a screen in anything else.
+_INCH_RE = re.compile(r'^\s*([\d.]+)\s*(?:"|”|″|in|inch|inches)?\s*$', re.I)
+_HZ_RE = re.compile(r"^\s*(\d+)\s*(?:hz)?\s*$", re.I)
+# A dot pitch is written in millimetres and a bare number is therefore millimetres,
+# the same way a bare clock speed is MHz. Micrometres are read back only when they
+# are asked for by name.
+_UM_RE = re.compile(r"^\s*([\d.]+)\s*(mm|µm|μm|um)?\s*$", re.I)
 
 
 class Struct:
@@ -148,6 +178,29 @@ def _to_khz(text):
         return None
 
 
+def _to_in10(text):
+    """'14"'->140, '13.3in'->133, '15'->150."""
+    m = _INCH_RE.match(text or "")
+    if not m:
+        return None
+    try:
+        return round(float(m.group(1)) * 10)
+    except ValueError:
+        return None
+
+
+def _to_um(text):
+    """'0.28mm'->280, '0.25'->250, '280um'->280."""
+    m = _UM_RE.match(text or "")
+    if not m:
+        return None
+    mult = 1 if (m.group(2) or "").lower() in ("µm", "μm", "um") else 1000
+    try:
+        return round(float(m.group(1)) * mult)
+    except ValueError:
+        return None
+
+
 def _simple_int(pattern):
     def parse(text):
         m = pattern.match(text or "")
@@ -164,6 +217,16 @@ def _fmt_khz(khz):
     if round(float(text) * 1000) == khz:
         return f"{text} MHz"
     return f"{khz} kHz"
+
+
+def _fmt_in10(tenths):
+    """Whole inches where the tenths are zero, so a 14" monitor is not a 14.0" one."""
+    return f'{tenths // 10}"' if tenths % 10 == 0 else f'{tenths / 10:g}"'
+
+
+def _fmt_um(um):
+    """Millimetres, which is how a dot pitch is written and read: 280 -> '0.28 mm'."""
+    return f"{um / 1000:g} mm"
 
 
 def numeric_handler(col, display=False):
@@ -186,6 +249,12 @@ def numeric_handler(col, display=False):
         return _simple_int(_RPM_RE), (lambda n: f"{n} rpm")
     if col in X_COLS:
         return _simple_int(_X_RE), (lambda n: f"{n}×")
+    if col in IN10_COLS:
+        return _to_in10, _fmt_in10
+    if col in HZ_COLS:
+        return _simple_int(_HZ_RE), (lambda n: f"{n} Hz")
+    if col in UM_COLS:
+        return _to_um, _fmt_um
     if col in INT_COLS:
         return _simple_int(re.compile(r"^\s*(\d+)")), str
     return None

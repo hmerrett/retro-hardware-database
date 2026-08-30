@@ -60,10 +60,19 @@ SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
 # Speed is the one key two of them answer -- 7200 rpm on a disk, 48× on an optical
 # drive -- and it goes last, beside the medium it belongs with, where the squeeze
 # takes it first: it is the least of what identifies a drive at arm's length.
+#
+# A screen is the same sort of object: what identifies one across a room is how big
+# it is and what makes the picture, joined on one line because "a 14-inch Trinitron"
+# is one thing said and not two. The resolution follows, and the interface last,
+# where the squeeze takes it -- a cable is the easiest thing to establish by looking
+# at the back.
 SMALL_SPECS = {"storage": ((("Capacity", ""),),
                            (("CHS", "CHS "),),
                            (("Form factor", ""), ("Size", "")),
-                           (("Media", ""), ("Speed", "")))}
+                           (("Media", ""), ("Speed", ""))),
+               "display": ((("Screen size", ""), ("Panel", ""), ("Type", "")),
+                           (("Resolution", ""), ("Refresh", "")),
+                           (("Interface", ""),))}
 
 
 def _pairs_of(part):

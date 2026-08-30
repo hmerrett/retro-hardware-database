@@ -31,12 +31,13 @@ PART_COLUMNS = [
 
 TYPE_ORDER = [
     "motherboard", "cpu", "ram", "video", "sound", "network", "io",
-    "storage", "cooler", "peripheral", "other",
+    "storage", "display", "cooler", "peripheral", "other",
 ]
 
 TYPE_LABELS = {
     "motherboard": "Motherboard", "cpu": "CPU", "ram": "Memory", "video": "Video",
     "sound": "Sound", "network": "Network", "io": "I/O", "storage": "Storage",
+    "display": "Display",
     "optical": "Optical drive", "floppy": "Floppy drive", "psu": "Power supply",
     "cooler": "Cooling", "peripheral": "Peripheral", "other": "Other",
 }

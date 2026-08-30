@@ -56,6 +56,11 @@
 <datalist id="dl_video_conn">{% for o in vocab.video_connectors %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_ifaces">{% for o in vocab.storage_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_proto">{% for o in vocab.storage_protocols %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_display_types">{% for o in vocab.display_types %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_display_panels">{% for o in vocab.display_panels %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_display_pictures">{% for o in vocab.display_pictures %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_display_aspects">{% for o in vocab.display_aspects %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_display_ifaces">{% for o in vocab.display_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_makes">{% for o in makes %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
@@ -253,6 +258,32 @@ Photos, source, acquired date and notes are not carried over.</p>
       {{ sf('spec_ports', 'Ports', 'Ports', 'letters — ' + port_legend) }}{% endif %}
     {% if ptype == 'network' %}{{ sf('spec_connector', 'Connector', 'Connector', 'e.g. 10BASE-T, BNC, AUI') }}{% endif %}
     {% if ptype == 'io' %}{{ sf('spec_ports', 'Ports', 'Ports', 'letters — ' + port_legend + ' (e.g. IFSSP)') }}{% endif %}
+  </fieldset>
+
+  {% elif ptype == 'display' %}
+  {# Two fields for what makes the picture, not one: a Trinitron is a CRT with an
+     aperture grille in it, and asked as a single question it would stop being a
+     CRT the moment somebody typed its trade name. Every box here is a suggestion
+     rather than a menu -- the lists name what turns up, and a screen that is none
+     of them is typed in and kept as written. #}
+  <fieldset>
+    <legend>Display</legend>
+    {{ sf('spec_type', 'Type', 'Type', 'what makes the picture', 'dl_display_types') }}
+    {{ sf('spec_panel', 'Panel', 'Tube or panel', 'how it is built — a shadow mask, an aperture grille (Trinitron), TN, IPS', 'dl_display_panels') }}
+    {{ sf('spec_screen_size', 'Screen size', 'Screen size', 'the diagonal, in inches, as it was sold — e.g. 14", 13.3"') }}
+    {{ sf('spec_aspect', 'Aspect', 'Aspect ratio', '', 'dl_display_aspects') }}
+    {{ sf('spec_resolution', 'Resolution', 'Resolution', 'a panel\'s native one, or the most a tube will do — e.g. 1024×768') }}
+    {{ sf('spec_refresh', 'Refresh', 'Refresh rate', 'the highest it will do at that resolution — e.g. 85 Hz') }}
+    {{ sf('spec_dot_pitch', 'Dot pitch', 'Dot pitch', 'in millimetres — e.g. 0.28') }}
+    {{ sf('spec_interface', 'Interface', 'Interface', 'how it attaches; comma-separate several', 'dl_display_ifaces') }}
+    {{ sf('spec_picture', 'Picture', 'Picture', 'colour, or which phosphor a monochrome screen has', 'dl_display_pictures') }}
+    <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+    {# The same two menus a drive gets, going to the same two vocabularies: a
+       monitor's front is the largest piece of beige plastic most collections own,
+       and it goes the same colour as everything else. #}
+    {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
+              bezel_colours, yellowing, bezel_colour_labels, yellowing_labels) }}
+    {{ C.chart(bezel_colours, yellowing) }}
   </fieldset>
 
   {% else %}
@@ -456,7 +487,7 @@ Photos, source, acquired date and notes are not carried over.</p>
     narrow();
   })();
 </script>
-{% if ptype == 'storage' %}{{ C.script(bezel_swatches) }}{% endif %}
+{% if ptype in ('storage', 'display') %}{{ C.script(bezel_swatches) }}{% endif %}
 {# No memory box on this form for the model's standard sizes to be offered on: what
    a machine was sold with is a fact about the machine, not about its board. #}
 {% if machine_board %}{{ M.script(machine_catalogue, machine_saved, machine_widths, '', true) }}{% endif %}

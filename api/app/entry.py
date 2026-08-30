@@ -15,12 +15,13 @@ from collections import Counter
 
 TYPE_ORDER = [
     "motherboard", "cpu", "ram", "video", "sound", "network", "io",
-    "storage", "cooler", "peripheral", "other",
+    "storage", "display", "cooler", "peripheral", "other",
 ]
 
 TYPE_LABELS = {
     "motherboard": "Motherboard", "cpu": "CPU", "ram": "Memory", "video": "Video",
     "sound": "Sound", "network": "Network", "io": "I/O", "storage": "Storage",
+    "display": "Display",
     "optical": "Optical drive", "floppy": "Floppy drive", "psu": "Power supply",
     "cooler": "Cooling", "peripheral": "Peripheral", "other": "Other",
 }
@@ -72,6 +73,46 @@ STORAGE_INTERFACES = ["IDE", "SATA", "SCSI", "MFM", "RLL", "ESDI",
 STORAGE_KINDS = ["Hard disk", "SD/CF card", "Tape", "Optical", "Floppy/Gotek"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
+
+# --- displays ---------------------------------------------------------------
+# A screen is asked two questions about what makes the picture, not one, because
+# they are two questions: what the technology is, and how that technology is
+# arranged. A Trinitron is a CRT -- it is a CRT with an aperture grille instead of
+# a shadow mask -- and folding the second answer into the first would mean the
+# register could no longer answer "every CRT" once somebody filed one as a
+# Trinitron. So the tube or panel construction is its own field, and "every CRT"
+# and "every aperture grille" are both questions the collection can answer.
+DISPLAY_TYPES = ["CRT", "LCD", "Plasma", "OLED", "Electroluminescent", "VFD",
+                 "LED matrix", "E-paper"]
+
+# How the tube or the panel is built. The CRT masks first, then the panel
+# technologies, because that is the order the collection runs in. Trinitron and
+# Diamondtron are named beside the thing they are -- they are Sony's and
+# Mitsubishi's aperture grilles -- so that looking for either finds it, and so that
+# a grille filed under a trade name is still a grille.
+DISPLAY_PANELS = ["Shadow mask", "Aperture grille (Trinitron)",
+                  "Aperture grille (Diamondtron)", "Aperture grille", "Slot mask",
+                  "TN", "IPS", "VA", "DSTN (passive)", "STN (passive)"]
+
+# What comes out of it, which on this hardware is as often one colour as it is all
+# of them. A green screen and an amber one are different objects to look at and
+# different objects to want, and neither is "monochrome" to anybody who has owned
+# one -- so the phosphor is named rather than the absence of colour.
+DISPLAY_PICTURES = ["Colour", "Green", "Amber", "White", "Paper white",
+                    "Greyscale"]
+
+# The shape of the picture, which for everything in this collection's period is
+# one of the first two.
+DISPLAY_ASPECTS = ["4:3", "5:4", "16:10", "16:9", "3:2"]
+
+# How it attaches, oldest first: the digital TTL cables of an IBM monitor, the
+# analogue VGA that replaced them and everything since, then the ways a home
+# computer or a console put a picture on a screen. Comma-separated where a monitor
+# has more than one socket, which by the DVI years most of them did.
+DISPLAY_INTERFACES = ["VGA (HD-15)", "DVI-D", "DVI-I", "DVI-A", "HDMI",
+                      "DisplayPort", "9-pin TTL (MDA)", "9-pin TTL (CGA)",
+                      "9-pin TTL (EGA)", "13W3", "BNC", "SCART", "S-Video",
+                      "Composite", "Component", "RGB DIN", "RF"]
 
 # --- optical drives --------------------------------------------------------
 # What an optical drive is known by: the discs it takes, and how fast it reads
@@ -189,9 +230,10 @@ def storage_asks(kind):
 # Either can be recorded without the other: an unrestored find often shows only
 # how yellow it is, and a pristine spare only what shade it is.
 #
-# Shared by a machine's drive rows (drivedb) and by storage parts (the Colour and
-# Yellowing specs), so a drive fitted in a machine and the same drive on the shelf
-# are described in the same words.
+# Shared by a machine's drive rows (drivedb), by storage parts and by displays (the
+# Colour and Yellowing specs), so a drive fitted in a machine and the same drive on
+# the shelf are described in the same words -- and so is the monitor sat on top of
+# it, which is the same plastic, made in the same beige, gone the same colour.
 BEZEL_COLOURS = [
     {"label": "Black", "hex": "#1a1b1d",
      "note": "black plastic or a painted bezel"},
@@ -693,6 +735,7 @@ PLACEHOLDER = {
     "computer": "computer", "motherboard": "board", "cpu": "chip", "ram": "ram",
     "video": "card", "sound": "card", "network": "card", "io": "card",
     "storage": "drive", "optical": "disc", "floppy": "floppy", "psu": "psu",
+    "display": "monitor",
     "cooler": "fan", "peripheral": "keyboard", "other": "box",
 }
 

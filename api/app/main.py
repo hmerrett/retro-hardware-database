@@ -4025,7 +4025,7 @@ def _machine_page(db, obj):
 
 def _bezel_ctx():
     """The bezel vocabularies and their swatches, for any form that records one:
-    a machine's drive rows and a storage part both do."""
+    a machine's drive rows, a storage part and a display all do."""
     return {"bezel_colours": entry.BEZEL_COLOURS, "yellowing": entry.YELLOWING,
             "bezel_colour_labels": entry.BEZEL_COLOUR_LABELS,
             "yellowing_labels": entry.YELLOWING_LABELS,
@@ -4763,6 +4763,10 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
             "storage_interfaces": entry.STORAGE_INTERFACES,
             "storage_kinds": entry.STORAGE_KINDS, "storage_protocols": entry.STORAGE_PROTOCOLS,
             "peripheral_interfaces": entry.PERIPHERAL_INTERFACES,
+            "display_types": entry.DISPLAY_TYPES, "display_panels": entry.DISPLAY_PANELS,
+            "display_pictures": entry.DISPLAY_PICTURES,
+            "display_aspects": entry.DISPLAY_ASPECTS,
+            "display_interfaces": entry.DISPLAY_INTERFACES,
         },
         # Every question a drive is asked, for the form to build itself from.
         "storage_asks": _storage_asks_ctx(),
@@ -4883,6 +4887,9 @@ def _assemble_specs(ptype, form, extra=()):
         "storage": ["Kind", "Description", "Form factor", "Size", "Interface",
                     "Protocol", "Capacity", "CHS", "Media", "Speed", "Role",
                     "Colour", "Yellowing"],
+        "display": ["Type", "Panel", "Screen size", "Aspect", "Resolution",
+                    "Refresh", "Dot pitch", "Interface", "Picture", "Colour",
+                    "Yellowing"],
     }.get(ptype)
     # 'other' / 'peripheral' keep a free-text specs box (no data loss).
     if managed is None:

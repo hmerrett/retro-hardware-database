@@ -209,6 +209,50 @@ class StorageSpec(Base):
     yellowing = Column(String(32))
 
 
+class DisplaySpec(Base):
+    """A screen: a monitor, a fitted panel, the tube out of an all-in-one.
+
+    Two fields describe the picture-making rather than one. `tech` is CRT or LCD or
+    OLED, and `panel` is how that technology is arranged -- a shadow mask, an
+    aperture grille, TN or IPS. A Trinitron is a CRT with a grille in it, and filing
+    one under a single field would mean it stopped counting as a CRT; kept apart,
+    "every CRT" and "every aperture grille" are both answerable.
+
+    `picture` is what colour comes out. A green screen and an amber one are
+    different things to own, so the phosphor is named rather than the absence of
+    colour being noted.
+
+    The three numbers are stored the way every other quantity here is -- as plain
+    integers in a small unit, so they sort and compare in SQL, with specstruct
+    rendering them back to the units a person writes. A screen size is in tenths of
+    an inch because a 13.3" panel exists and a whole-inch column could not hold it;
+    a dot pitch is in micrometres because 0.28 mm is not an integer and the pitch is
+    what separates a good tube from a tired one.
+
+    `resolution` is text, deliberately. A fixed panel has one native resolution and
+    could be two numbers, but a multisync CRT does 640x480 through 1280x1024 and
+    picking one of those to store would be inventing a fact: what goes here is what
+    the monitor claims, in its own words.
+
+    `colour` and `yellowing` are the same two the drive rows and storage parts hold,
+    from entry.BEZEL_COLOURS and entry.YELLOWING. A monitor's front is the largest
+    piece of beige plastic in most collections and it yellows like everything else,
+    so it is described in the words the register already uses for plastic."""
+    __tablename__ = "display_spec"
+    part_id = _part_fk()
+    tech = Column(String(64))
+    panel = Column(String(64))
+    screen_in_tenths = Column(Integer)
+    aspect = Column(String(16))
+    resolution = Column(String(64))
+    refresh_hz = Column(Integer)
+    dot_pitch_um = Column(Integer)
+    interface = Column(String(255))
+    picture = Column(String(32))
+    colour = Column(String(32))
+    yellowing = Column(String(32))
+
+
 class PartSlot(Base):
     __tablename__ = "part_slot"
     id = Column(Integer, primary_key=True, autoincrement=True)

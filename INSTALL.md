@@ -157,8 +157,8 @@ the short version is:
    regions and chip sockets on screen. If it is a PC, leave that menu alone and
    describe it in the boxes.
 2. **Then add what is fitted in it.** The machine's page has an "Add" row —
-   motherboard, storage, video, sound, network, I/O, CPU, RAM, peripheral. Each
-   part gets its own asset tag and its own page.
+   motherboard, storage, video, sound, network, I/O, CPU, RAM, display,
+   peripheral. Each part gets its own asset tag and its own page.
 3. **Photograph it from your phone.** Every item page ends in a QR code of its
    own URL while you are logged in. Scan it with your phone, log in there once,
    and the photo buttons on that page shoot straight from the camera.

@@ -13,7 +13,7 @@ search and the REST/MCP wire format.
 from __future__ import annotations
 
 from . import specstruct
-from .models import (CpuSpec, IoSpec, MotherboardSpec, NetworkSpec,
+from .models import (CpuSpec, DisplaySpec, IoSpec, MotherboardSpec, NetworkSpec,
                      PartAttribute, PartPort, PartRamSlot, PartSlot, RamSpec,
                      SoundSpec, StorageSpec, VideoSpec)
 
@@ -21,7 +21,7 @@ from .models import (CpuSpec, IoSpec, MotherboardSpec, NetworkSpec,
 SPEC_MODEL = {
     "motherboard": MotherboardSpec, "cpu": CpuSpec, "ram": RamSpec,
     "video": VideoSpec, "sound": SoundSpec, "network": NetworkSpec,
-    "io": IoSpec, "storage": StorageSpec,
+    "io": IoSpec, "storage": StorageSpec, "display": DisplaySpec,
 }
 SPEC_TABLES = [*list(SPEC_MODEL.values()), PartSlot, PartRamSlot, PartPort, PartAttribute]
 
