@@ -170,6 +170,10 @@ Click any photograph to open it as large as the window allows. From there:
 | Flick up or down | Close, on a phone: the photograph comes with your finger and the page shows through behind it. Let go short of the mark and it goes back |
 | `Esc` | Close |
 
+Logged in, the big view is also the editor: a toolbar along the bottom rotates,
+crops and deletes the photograph you are looking at. See [what a photo can
+have done to it](#10-photographs).
+
 A tall photograph opens on a wide screen with a black band down either side, and
 a wide one on a phone with a band above and below. Zooming in spends those bands
 rather than magnifying inside them: the photograph spreads into the whole window,
@@ -834,7 +838,12 @@ logging in, rather than dumped on the gallery.
   identified the badge is that site's favicon. They are never watermarked.
 - **🗑 delete**.
 
-**Rotate and crop** are in the full-size view: two rotate buttons and a crop tool.
+**Rotate, crop and delete** are in the full-size view: two rotate buttons, a crop
+tool, and a delete at the far end of the row. Rotating and cropping return you to
+the same photograph still open, so a run of corrections is one gesture after
+another; deleting cannot, so it asks first and puts you back on the item page.
+The delete steps out of the row while you are cropping, where it would otherwise
+be sitting next to **apply crop**.
 
 **Fetch photo from reference** appears when the item has a reference URL. It
 takes the lead image from a Wikipedia page, or the preview image any other site
@@ -953,8 +962,9 @@ photographs, and an item whose whole history is photographed still counts as
 never photographed on the statistics page. A picture of a repair is not a picture
 of the machine. They are kept apart on disk for the same reason, so nothing can
 mistake one for the other. Click one to open the original full size, as with any
-other photograph here; rotate and crop are not offered, because those are edits
-to a picture *of* something rather than to a picture of a moment.
+other photograph here; the big view's toolbar — rotate, crop, delete — is not
+offered, because those act on a picture *of* something rather than on a picture of
+a moment. The trash button under the thumbnail is how one of these goes.
 
 **A run of the same thing done in one sitting reads as one line.** Ten
 photographs deleted one after another is "deleted 10 photographs", not ten

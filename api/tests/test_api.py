@@ -4340,6 +4340,75 @@ class TestTheBigPhotoView:
         page = client.get(f"/parts/{part()['asset_id']}").text
         assert "[hidden] { display: none !important; }" in page
 
+    def test_the_row_offers_a_delete(self, client, part):
+        """Beside crop and the rotates, so a photograph that turned out badly goes
+        from where you are looking at it rather than from the column behind."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert 'id="lb-delete"' in page
+            assert 'data-act="photo-delete"' in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_it_asks_first(self, client, part):
+        """The one tool in the row that cannot be undone, so it is the one that
+        asks -- the same question the column's own delete asks."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert page.count("Delete this photo? This cannot be undone.") >= 1
+        assert re.search(r'id="lb-delete"[^>]*\n?\s*onsubmit="return confirm',
+                         page) is not None
+
+    def test_it_is_only_for_the_logged_in(self, client, part, monkeypatch):
+        from app import main
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            monkeypatch.setattr(main, "AUTH_ENABLED", True)
+            assert 'id="lb-delete"' not in client.get(f"/parts/{aid}").text
+        finally:
+            monkeypatch.setattr(main, "AUTH_ENABLED", False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_it_carries_no_next_because_there_is_nowhere_to_return_to(
+            self, client, part):
+        """Its neighbours come back to the same photograph still open. A deleted one
+        will not be there, so this form does not ask to be sent back to it -- and
+        the script that fills the toolbar in has to cope with that."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        form = page.split('id="lb-delete"')[1].split("</form>")[0]
+        assert "name=\"image\"" in form and "name=\"next\"" not in form
+        assert "const nxt = f.querySelector('[name=next]');" in page
+        assert "if (nxt) nxt.value = back;" in page
+
+    def test_deleting_from_the_view_lands_back_on_the_item(self, client, part):
+        """Not on the photograph, which is the whole difference from a rotate."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        r = client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == f"/parts/{aid}"
+        assert client.get(f"/images/{rel}").status_code == 404
+        assert "deleted a photo" in [
+            e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+
+    def test_it_steps_out_of_the_row_while_cropping(self, client, part):
+        """Cropping puts an apply button where the row was. A delete left standing
+        beside it is a misclick waiting to happen, so it goes with the crop
+        button it sits next to."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert "if (del) del.hidden = on;" in page
+
+    def test_it_reads_as_the_destructive_one(self, client, part):
+        """Colour is what says this tool is not like its neighbours, and the
+        register's warning shade is unreadable on a black toolbar unlightened."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert "#lightbox .lb-tools .btn.danger" in page
+        assert 'class="btn sm danger"' in page
+
     def test_there_is_no_separate_button_to_open_the_view(self, client, part):
         """The photo is the way in: a button beside it did nothing that clicking it
         does not. It is focusable so the keyboard has a way in as well."""

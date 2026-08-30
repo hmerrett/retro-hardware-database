@@ -623,6 +623,11 @@
   #lightbox .lb-tools .btn { position: static; background: #ffffff1f; color: #fff;
     border-color: #ffffff33; }
   #lightbox .lb-tools .btn.primary { background: var(--accent); border-color: var(--accent); }
+  /* The register's warning colour, lightened: #b45300 is legible on a white page
+     and all but invisible on a black toolbar. The shade is what says at a glance
+     that this one tool is not like the others in the row. */
+  #lightbox .lb-tools .btn.danger { color: #ffb37a; border-color: #ffb37a55; }
+  #lightbox .lb-tools .btn.danger:hover { background: #b4530066; border-color: #ffb37aaa; }
   /* Scanning a label's code: a fullscreen overlay like the photo view, and for the
      same reason -- on a phone, aiming a camera wants the whole screen. Above the
      lightbox's z-index so the two can never argue about which is in front. */
@@ -1067,6 +1072,20 @@
       <button class="btn sm primary" type="submit" id="lb-crop-apply" disabled>apply crop</button>
       <button class="btn sm" type="button" id="lb-crop-off">cancel</button>
     </form>
+    {# Last in the row, and the only one here that cannot be undone -- so it is put
+       at the far end from the rotates, coloured differently, and asks before it
+       goes. It steps out of the row while cropping rather than standing beside
+       "apply crop" waiting to be hit instead of it.
+
+       No `next` on this one, unlike its neighbours. They come back to the same
+       photograph still open, which is what makes a run of corrections bearable;
+       there is no coming back to a photograph that has been deleted, so the server
+       returns to the item page and the big view closes behind it. #}
+    <form method="post" class="lb-act" data-act="photo-delete" id="lb-delete"
+          onsubmit="return confirm('Delete this photo? This cannot be undone.')">
+      <input type="hidden" name="image">
+      <button class="btn sm danger" type="submit" title="Delete this photograph">delete</button>
+    </form>
     <span class="lb-hint" id="lb-hint"></span>
   </div>
   {% endif %}
@@ -1085,6 +1104,7 @@
     const cropOn = document.getElementById('lb-crop-on');
     const cropOff = document.getElementById('lb-crop-off');
     const cropApply = document.getElementById('lb-crop-apply');
+    const del = document.getElementById('lb-delete');
     const hint = document.getElementById('lb-hint');
     const shots = Array.from(document.querySelectorAll('img.zoomable'));
     if (!shots.length) return;
@@ -1108,7 +1128,9 @@
         tools.querySelectorAll('form.lb-act').forEach(f => {
           f.action = `/${d.kind}/${d.aid}/${f.dataset.act}`;
           f.querySelector('[name=image]').value = d.rel || '';
-          f.querySelector('[name=next]').value = back;
+          // Not every tool has somewhere to come back to: see the delete form.
+          const nxt = f.querySelector('[name=next]');
+          if (nxt) nxt.value = back;
         });
       }
       if (hint) hint.textContent = multi ? `${idx + 1} of ${shots.length}` : '';
@@ -1136,6 +1158,7 @@
       cropLayer.hidden = true;
       if (cropForm) cropForm.hidden = !on;
       if (cropOn) cropOn.hidden = on;
+      if (del) del.hidden = on;
       if (cropApply) cropApply.disabled = true;
     }
     const clamp = v => Math.min(1, Math.max(0, v));
