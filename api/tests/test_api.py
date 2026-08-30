@@ -4588,15 +4588,44 @@ class TestAPageNoticesItHasChanged:
 
     def test_a_photograph_moves_it_too(self, client, part):
         """The case this is really for: the phone adds a picture, the desktop is
-        still showing the page without it."""
+        still showing the page without it.
+
+        The whole loop is checked in a browser rather than here -- two separate
+        sessions, the photograph uploaded through the picker in one and the other
+        refreshing itself -- because two browsers is not something pytest can drive.
+        What is worth pinning down here is the part that decides it: the page is
+        built with one token, a photograph arrives from somewhere else, and the
+        token the page will ask for no longer matches the one it holds.
+        """
         aid = part()["asset_id"]
-        was = self.token(client, aid)
+        built_with = re.search(r'const BUILT = "([^"]+)"',
+                               client.get(f"/parts/{aid}").text).group(1)
+        assert built_with == self.token(client, aid)
         rel = TestAPhotographIsNeverHalfWritten.upload(client, aid)
         try:
-            assert self.token(client, aid) != was
+            assert self.token(client, aid) != built_with
+            # And the page served now agrees with itself again.
+            assert re.search(r'const BUILT = "([^"]+)"',
+                             client.get(f"/parts/{aid}").text).group(1) == \
+                self.token(client, aid)
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
+
+    def test_deleting_or_cropping_a_photograph_moves_it_as_well(self, client, part):
+        """Every edit to a photograph is a change to the record, and the phone is
+        not the only place they happen."""
+        aid = part()["asset_id"]
+        rel = TestAPhotographIsNeverHalfWritten.upload(client, aid)
+        after_upload = self.token(client, aid)
+        client.post(f"/parts/{aid}/photo-crop",
+                    data={"image": rel, "x": "0", "y": "0", "w": "0.6", "h": "0.6"},
+                    follow_redirects=False)
+        after_crop = self.token(client, aid)
+        assert after_crop != after_upload
+        client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                    follow_redirects=False)
+        assert self.token(client, aid) != after_crop
 
     def test_a_file_moves_it_although_it_belongs_to_no_item(self, client, part):
         """A driver is filed against a model rather than against the card on the
