@@ -248,6 +248,29 @@ code.
 Above it all, when logged in: **edit**, **duplicate**, **small label** and **full
 label**.
 
+### When it changes while you are looking at it
+
+The register gets used from two places at once: you scan the label with a phone
+and photograph the thing while the desktop still shows its page. The desktop used
+to sit there showing a record that was no longer true.
+
+An item page now notices. It asks a small endpoint what the record amounts to now
+and compares that with what it was built from — a photograph added, rotated,
+cropped or deleted, a field edited, a note written, a file uploaded. It asks every
+fifteen seconds, and once immediately whenever the tab is looked at again, which
+is the moment that matters: you photograph on the phone, turn back to the desktop,
+and the check has already run by the time your eyes arrive. A tab in the
+background asks nothing at all.
+
+It reloads on its own only when that takes nothing away from you. If the
+full-size view is open, or you are part-way through a note, a search or any other
+box, it says **This record has changed** at the foot of the page and waits — a
+page that reloaded itself mid-sentence would be worse than one that is out of
+date. Clicking **Reload** loads it, and so does simply clicking away from
+whatever you were in the middle of.
+
+The gallery is not given this: there is no one record for it to be watching.
+
 ### Duplicating
 
 The copy button on an item page creates a second record of the same thing
@@ -849,6 +872,10 @@ be sitting next to **apply crop**.
 takes the lead image from a Wikipedia page, or the preview image any other site
 advertises, downscales it and files it as a reference image. It bypasses nothing,
 so a site behind bot protection simply returns nothing.
+
+**Taken on the phone, seen on the desktop.** An item page open elsewhere notices a
+photograph arriving and refreshes itself — see [when it changes while you are
+looking at it](#when-it-changes-while-you-are-looking-at-it).
 
 **Photographs and the count of what is photographed.** An item's own photographs
 are its portrait; the ones on history entries are not, and `/stats` counts them

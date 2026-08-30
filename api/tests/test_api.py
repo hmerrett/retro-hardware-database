@@ -4424,6 +4424,234 @@ class TestTheBigPhotoView:
                         follow_redirects=False)
 
 
+class TestAPhotographIsNeverHalfWritten:
+    """Cropping used to rewrite the photograph on top of itself. Saving onto a path
+    truncates it first, so for as long as the encoder ran -- a tenth of a second for
+    a phone photograph -- what was on disk was a fragment of a JPEG, and a fragment
+    is what anything reading it at that moment got.
+
+    That is not an error anybody notices. A fragment decodes to a picture that is
+    half grey, so it is served, and both caches are built from whatever the file
+    says when they look at it. Worse, an image URL carries a `?v=` stamp and is sent
+    `immutable` for a year, so a browser handed the half-grey one keeps it.
+
+    It was intermittent because it needed a reader inside that window -- another
+    tab, a phone on the same item, the gallery. Writing beside the file and moving
+    it into place closes the window: a reader holds either the whole old photograph
+    or the whole new one.
+    """
+
+    @staticmethod
+    def upload(client, aid, size=(1400, 1000)):
+        import io
+        from PIL import Image
+        buf = io.BytesIO()
+        # Noise rather than flat colour: a flat JPEG is small enough to write in one
+        # go, and would hide the very window this is about.
+        import random
+        rnd = random.Random(7)
+        im = Image.new("RGB", size)
+        im.putdata([(rnd.randrange(256), rnd.randrange(256), rnd.randrange(256))
+                    for _ in range(size[0] * size[1])])
+        im.save(buf, "JPEG", quality=95)
+        buf.seek(0)
+        client.post(f"/parts/{aid}/photo",
+                    files={"photos": (f"{aid}.jpg", buf, "image/jpeg")},
+                    follow_redirects=False)
+        return f"parts/{aid}.jpg"
+
+    def test_a_reader_never_sees_a_fragment(self, client, part):
+        """The regression itself, read where the bug was: on disk.
+
+        Readers open the photograph over and over while it is cropped over and over.
+        Every read must be a whole picture -- one size or the other, depending which
+        side of a crop it landed -- and never a fragment.
+
+        Deliberately not read over HTTP. Starlette's FileResponse takes the length
+        from one stat and the bytes from a later open, so a file replaced between
+        the two sends a short body: measured, 62 times in 18,155 reads while a file
+        was replaced 400 times as fast as the disk would take it. That is a
+        different fault from this one and a far smaller one -- a short body is a
+        failed response, which a browser reports and does not cache, where a
+        fragment on disk is a picture that is half grey, gets cached, and stays.
+        """
+        import threading
+        from app.main import IMAGES_DIR
+        from PIL import Image
+        aid = part()["asset_id"]
+        rel = self.upload(client, aid)
+        src = IMAGES_DIR / rel
+        seen, broken = [], []
+        stop = threading.Event()
+
+        def read():
+            while not stop.is_set():
+                try:
+                    with Image.open(src) as im:
+                        im.load()
+                        seen.append(im.size)
+                except Exception as err:
+                    # Any failure at all counts: a fragment is the bug.
+                    broken.append(f"{type(err).__name__}: {err}")
+
+        readers = [threading.Thread(target=read) for _ in range(3)]
+        for t in readers:
+            t.start()
+        try:
+            for _ in range(6):
+                client.post(f"/parts/{aid}/photo-crop",
+                            data={"image": rel, "x": "0", "y": "0",
+                                  "w": "1", "h": "0.8"}, follow_redirects=False)
+        finally:
+            stop.set()
+            for t in readers:
+                t.join()
+        assert not broken, f"readers saw {len(broken)} broken images: {broken[:5]}"
+        assert seen, "the readers never managed to read anything"
+
+    def test_nothing_half_written_is_left_lying_in_the_folder(self, client, part):
+        """The photograph is written beside itself first. That temporary file must
+        not be mistaken for one of the item's photographs while it exists, and must
+        not survive the move."""
+        from app.main import IMAGES_DIR
+        aid = part()["asset_id"]
+        rel = self.upload(client, aid)
+        client.post(f"/parts/{aid}/photo-crop",
+                    data={"image": rel, "x": "0", "y": "0", "w": "1", "h": "0.5"},
+                    follow_redirects=False)
+        assert not list((IMAGES_DIR / "parts").glob("*.part"))
+        # And were one there mid-write, the folder listing would pass over it.
+        (IMAGES_DIR / "parts" / f"{aid}.jpg.part").write_bytes(b"not an image")
+        try:
+            from app.main import folder_images
+            assert not [n for _stem, n in folder_images("parts")
+                        if n.endswith(".part")]
+            assert client.get(f"/parts/{aid}").status_code == 200
+        finally:
+            (IMAGES_DIR / "parts" / f"{aid}.jpg.part").unlink()
+
+    def test_the_crop_still_actually_crops(self, client, part):
+        """Writing it somewhere else first must not change what comes out."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, aid, size=(1000, 800))
+        client.post(f"/parts/{aid}/photo-crop",
+                    data={"image": rel, "x": "0", "y": "0", "w": "0.5", "h": "0.5"},
+                    follow_redirects=False)
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(client.get(f"/images/{rel}").content)) as im:
+            assert im.size == (500, 400)
+
+    def test_a_copy_is_dated_by_what_it_was_made_from(self, client, part):
+        """A cached copy carries the mtime of the photograph it was made from, not
+        the clock. A photograph replaced while a copy was being made would otherwise
+        leave that copy -- of the picture before the crop -- looking newer than the
+        photograph, and therefore fresh forever."""
+        import os
+        from app.main import IMAGES_DIR, WM_CACHE, _watermarked_file
+        aid = part()["asset_id"]
+        rel = self.upload(client, aid)
+        src = IMAGES_DIR / rel
+        # Backdate the photograph: a copy taking the clock would come out newer.
+        os.utime(src, (1_600_000_000, 1_600_000_000))
+        (WM_CACHE / rel).unlink(missing_ok=True)
+        made = _watermarked_file(rel)
+        assert made.stat().st_mtime == src.stat().st_mtime
+
+class TestAPageNoticesItHasChanged:
+    """The register is used from two places at once: you scan the label with a phone
+    and photograph the thing while the desktop shows its page. The desktop had no way
+    to know, so it sat there showing a record that was no longer true.
+
+    Every change already writes a history entry, so the highest id in an item's
+    history is a change token with no new column behind it. The page carries the one
+    it was built with and asks whether it still holds.
+    """
+
+    def token(self, client, aid):
+        r = client.get(f"/items/{aid}/version")
+        assert r.status_code == 200
+        return r.json()["v"]
+
+    def test_the_page_carries_the_token_it_was_built_with(self, client, part):
+        aid = part()["asset_id"]
+        page = client.get(f"/parts/{aid}").text
+        assert f'const BUILT = "{self.token(client, aid)}"' in page
+        assert f'const AID = "{aid}"' in page
+
+    def test_a_change_moves_it(self, client, part):
+        aid = part(model="Before")["asset_id"]
+        was = self.token(client, aid)
+        client.post(f"/parts/{aid}/edit", data={"type": "other", "model": "After"},
+                    follow_redirects=False)
+        assert self.token(client, aid) != was
+
+    def test_a_photograph_moves_it_too(self, client, part):
+        """The case this is really for: the phone adds a picture, the desktop is
+        still showing the page without it."""
+        aid = part()["asset_id"]
+        was = self.token(client, aid)
+        rel = TestAPhotographIsNeverHalfWritten.upload(client, aid)
+        try:
+            assert self.token(client, aid) != was
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_a_file_moves_it_although_it_belongs_to_no_item(self, client, part):
+        """A driver is filed against a model rather than against the card on the
+        shelf, so nothing about it reaches that item's history -- and an item page
+        shows it all the same."""
+        import io
+        aid = part(manufacturer="Creative", model="SB16")["asset_id"]
+        was = self.token(client, aid)
+        client.post("/files", files={"uploads": ("sb16.zip", io.BytesIO(b"x"),
+                                                 "application/zip")},
+                    data={"tags": "SB16"}, follow_redirects=False)
+        assert self.token(client, aid) != was
+
+    def test_reading_the_page_does_not_move_it(self, client, part):
+        """Or every page would reload itself for ever."""
+        aid = part()["asset_id"]
+        was = self.token(client, aid)
+        client.get(f"/parts/{aid}")
+        client.get(f"/parts/{aid}")
+        assert self.token(client, aid) == was
+
+    def test_an_item_that_is_gone_still_answers(self, client, part):
+        """A page whose item has been deleted asks this too. A 404 would leave it
+        sitting there for ever; a token that cannot match sends it to reload and
+        find out properly."""
+        aid = part()["asset_id"]
+        was = self.token(client, aid)
+        # Deleting takes a disposal first and the item's own URL as the
+        # confirmation -- see _confirms_url.
+        client.post(f"/parts/{aid}/dispose", data={"note": "gone"},
+                    follow_redirects=False)
+        r = client.post(f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"},
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text[:200]
+        assert client.get(f"/parts/{aid}").status_code == 404
+        assert self.token(client, aid) != was
+
+    def test_it_is_asked_only_of_an_item_page(self, client, part):
+        """The gallery has no one item to ask about, so it is not given the script."""
+        part()
+        assert 'const AID' not in client.get("/").text
+
+    def test_it_waits_rather_than_reloading_under_your_hands(self, client, part):
+        """A page that reloaded itself mid-crop or mid-sentence would be worse than
+        one that is out of date."""
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert "document.querySelector('#lightbox.open')" in page
+        assert 'id="changed"' in page
+
+    def test_it_only_asks_while_it_is_being_looked_at(self, client, part):
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert "document.visibilityState !== 'visible'" in page
+        assert "visibilitychange" in page
+
+
 class TestATopBenchScore:
     """The one measured number on a machine's record: what it scores in TopBench,
     the DOS benchmark. A typed column like `year`, so it is held to the same rules

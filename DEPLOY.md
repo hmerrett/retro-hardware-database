@@ -140,6 +140,12 @@ Four hundred photographs take a couple of minutes. Without it the first person t
 open the gallery waits while every one of them is resized, and each resize
 competes with the page they are waiting for.
 
+Both photograph caches are named after what went into them, so a change to how a
+copy is made simply misses the old directory instead of needing anyone to remember
+to clear it. A deploy that bumps either one therefore leaves every copy to be made
+again — which is exactly when the warm-up above is worth running rather than
+leaving the first visitor to pay for it.
+
 **The rendered caches** — a part's specs line, a machine's memory, a machine's
 catalogue line. These only drift when the words behind them change: the machine
 catalogue in `api/app/machines.yaml`, or how a figure is rendered.

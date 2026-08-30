@@ -350,6 +350,14 @@
     justify-content: center; flex-wrap: wrap; }
   #cookienote p { margin: 0; color: var(--muted); font-size: 12px; max-width: 70ch; }
   #cookienote .btn { flex: none; }
+  /* Said quietly, at the bottom, and only when reloading on its own would take
+     something away from you -- see the script. It sits above the cookie notice's
+     z-index for the one page that could show both. */
+  #changed { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px;
+    z-index: 70; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 999px; box-shadow: 0 4px 20px #0003; padding: 7px 8px 7px 14px;
+    display: flex; gap: 10px; align-items: center; font-size: 13px; }
+  #changed .btn { flex: none; }
   /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
      text wears an ink token. */
   .hero { margin: 18px 0 6px; }
@@ -1019,6 +1027,82 @@
     {% endif %}
   </div>
 </div>
+
+{# Something changed this record while you were looking at it -- most often you
+   yourself, on a phone, photographing the thing the desktop is showing. The page
+   asks a small endpoint what the record's history amounts to now and compares it
+   with what it was built from.
+
+   It asks only while the tab is being looked at, and once the moment it is looked
+   at again, which is when it matters: you photograph on the phone and turn back to
+   the desktop, and the check has already run by the time your eyes arrive. A tab in
+   the background costs nothing.
+
+   It reloads on its own only when doing so takes nothing away from you. Mid-crop,
+   mid-sentence in a note, or with a photograph open full size, a page that reloaded
+   itself would be worse than a page that was out of date -- so it says so instead
+   and waits to be asked. #}
+{% if live_aid %}
+<div id="changed" hidden>
+  <span>This record has changed.</span>
+  <button class="btn sm primary" type="button" id="changed-go">Reload</button>
+</div>
+<script>
+  (function () {
+    const AID = {{ live_aid | tojson }};
+    const BUILT = {{ live_v | tojson }};
+    const EVERY = 15000;
+    const bar = document.getElementById('changed');
+    const go = document.getElementById('changed-go');
+    if (go) go.addEventListener('click', () => location.reload());
+
+    // Anything a reload would take away from you. The lightbox, because a crop is
+    // set up inside it. A control you are in the middle of using. And any box with
+    // something typed in it that is not saved anywhere yet -- a note half written,
+    // a search half typed -- whether or not the cursor is still in it, because
+    // walking away from the keyboard is not abandoning the sentence.
+    //
+    // Compared against defaultValue rather than emptiness: a box the page rendered
+    // with something already in it is not something you typed.
+    const TYPED = 'input:not([type=hidden]):not([type=file]):not([type=radio])'
+                + ':not([type=checkbox]), textarea';
+    function busy() {
+      if (document.querySelector('#lightbox.open')) return true;
+      const on = document.activeElement;
+      if (on && /^(INPUT|TEXTAREA|SELECT)$/.test(on.tagName) && on.type !== 'hidden') {
+        return true;
+      }
+      return [...document.querySelectorAll(TYPED)]
+        .some(el => (el.value || '') !== (el.defaultValue || ''));
+    }
+
+    let stale = false;
+    async function look() {
+      if (stale || document.visibilityState !== 'visible') return;
+      let now;
+      try {
+        const r = await fetch(`/items/${encodeURIComponent(AID)}/version`,
+                              { cache: 'no-store' });
+        if (!r.ok) return;
+        now = (await r.json()).v;
+      } catch (e) { return; }        // offline, or the server restarting: try later
+      if (!now || now === BUILT) return;
+      stale = true;                  // stop asking; the answer will not change back
+      if (busy()) { if (bar) bar.hidden = false; } else { location.reload(); }
+    }
+
+    setInterval(look, EVERY);
+    // The one that does the real work: back from the phone, and it has already run.
+    document.addEventListener('visibilitychange', look);
+    window.addEventListener('focus', look);
+    // And if the page went stale while you were busy, take the first moment you
+    // are not -- clicking away from the box you were typing in is that moment.
+    document.addEventListener('click', () => {
+      if (stale && bar && !bar.hidden && !busy()) location.reload();
+    });
+  })();
+</script>
+{% endif %}
 
 {# Left out of the markup entirely once dismissed -- the server knows from the cookie
    -- rather than shipped on every page and hidden by a script.

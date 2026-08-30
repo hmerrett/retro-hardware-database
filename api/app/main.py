@@ -1903,8 +1903,12 @@ WM_OPACITY = 0.55
 WM_MARGIN = 0.03
 # Bumped when the compositing itself changes rather than the numbers above, so the
 # cache misses and every copy is rebuilt. 2: EXIF orientation is baked in, which
-# every photo cached before it was is missing.
-WM_BUILD = 2
+# every photo cached before it was is missing. 3: every copy made before photographs
+# were written atomically may have been composited from a fragment of one -- a
+# photograph half-written by a crop happening at that moment -- and a fragment
+# decodes to a picture that is half grey rather than to an error. Nothing can tell
+# those copies from the good ones by looking at them, so they all go.
+WM_BUILD = 3
 
 # The cache lives under a directory named after those numbers, and after the mark
 # itself. A cached copy is otherwise only rebuilt when its source photo changes, so
@@ -1926,6 +1930,47 @@ if WATERMARK:
 thumbs.sweep(IMAGES_DIR)
 
 
+def _write_atomically(dst: Path, write):
+    """Write an image file by way of a temporary one beside it, then move it into
+    place. `write` is handed the temporary path.
+
+    Every image here is read while something else is writing it: a photograph is
+    served to one browser while another crops it, and both caches are built from
+    whatever the file says at the moment they look at it. Saving straight onto the
+    path truncates it first, so for as long as the encoder is running -- a tenth of
+    a second for a phone photograph, and longer for a big one -- what is on disk is
+    a fragment of a JPEG. A reader that arrives in that window does not get an
+    error it can retry: it gets a fragment, and a fragment decodes to a picture
+    that is half grey. Served under a `?v=` URL, which is `immutable` for a year,
+    that half-grey picture is then kept by the browser and never asked for again.
+
+    os.replace is atomic on POSIX: a reader holds either the whole old file or the
+    whole new one and never half of either, and one that opened the old file keeps
+    reading it safely after the swap. thumbs._make has done this since it was
+    written; this is the same rule for the three paths that had not learned it.
+    """
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    # Not a .jpeg/.png: folder_images picks photographs out of the directory by
+    # extension, so a half-written one must not look like a photograph to it.
+    tmp = dst.with_name(dst.name + ".part")
+    try:
+        write(tmp)
+        os.replace(tmp, dst)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp.unlink(missing_ok=True)
+        raise
+
+
+def _image_format(path: Path, opened=None) -> str:
+    """The format to encode as. Taken from the file that was opened where there is
+    one, and from the extension otherwise -- it cannot be left to Pillow to infer,
+    because what it would infer it from is the temporary name ending in .part."""
+    from PIL import Image
+    return (opened.format if opened is not None and opened.format
+            else Image.registered_extensions().get(path.suffix.lower(), "JPEG"))
+
+
 def _make_watermark(src_path: Path, dst_path: Path):
     from PIL import Image, ImageOps
     # Bake in EXIF orientation, exactly as editing a photo does. This copy is
@@ -1944,11 +1989,13 @@ def _make_watermark(src_path: Path, dst_path: Path):
     layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
     layer.paste(mark, (w - mark.width - margin, h - mark.height - margin), mark)
     out = Image.alpha_composite(base, layer)
-    dst_path.parent.mkdir(parents=True, exist_ok=True)
     if dst_path.suffix.lower() in (".jpg", ".jpeg"):
-        out.convert("RGB").save(dst_path, "JPEG", quality=88)
+        rgb = out.convert("RGB")
+        _write_atomically(dst_path,
+                          lambda tmp: rgb.save(tmp, "JPEG", quality=88))
     else:
-        out.save(dst_path)
+        fmt = _image_format(dst_path)
+        _write_atomically(dst_path, lambda tmp: out.save(tmp, fmt))
 
 
 def _watermarked_file(rel: str) -> Path:
@@ -1957,8 +2004,16 @@ def _watermarked_file(rel: str) -> Path:
     src = IMAGES_DIR / rel
     dst = WM_CACHE / rel
     try:
-        if not dst.exists() or dst.stat().st_mtime < src.stat().st_mtime:
+        # Read once, before the copy is made, and stamped onto the copy after: what
+        # this says is "made from the photograph as it stood at that moment". Taking
+        # the clock instead would date a copy later than a photograph that had been
+        # replaced while it was being made, and that copy -- of the picture before
+        # the crop -- would then look fresh forever.
+        stamp = src.stat().st_mtime
+        if not dst.exists() or dst.stat().st_mtime < stamp:
             _make_watermark(src, dst)
+            with contextlib.suppress(OSError):
+                os.utime(dst, (stamp, stamp))
         return dst
     except Exception:
         return src
@@ -2019,6 +2074,11 @@ def serve_image(path: str, v: str = "", w: int = 0):
     # a photograph.
     if w:
         served = thumbs.served_path(IMAGES_DIR, path, w, served)
+    # A copy can still go between being chosen and being opened -- deleting a
+    # photograph takes its copies with it. The original is the same picture and is
+    # still here; a slower answer beats a broken one.
+    if not served.exists():
+        served = full
     return FileResponse(served, headers=_image_cache(bool(v)))
 
 
@@ -2642,8 +2702,14 @@ def _save_photo(kind, asset_id, upload: UploadFile):
     if ext not in IMAGE_EXTS:
         raise HTTPException(400, f"unsupported image type: {ext}")
     path, rel = _photo_target(kind, asset_id, ext)
-    with open(path, "wb") as f:
-        shutil.copyfileobj(upload.file, f)
+
+    def write(tmp):
+        with open(tmp, "wb") as f:
+            shutil.copyfileobj(upload.file, f)
+
+    # A page loading while this one is still arriving reads the folder and finds
+    # whatever is in it; until the move, what is in it is not this photograph.
+    _write_atomically(path, write)
     return rel
 
 
@@ -3017,12 +3083,21 @@ def _edit_image(kind, asset_id, rel, fn):
     src = IMAGES_DIR / rel
     with Image.open(src) as im:
         out = fn(ImageOps.exif_transpose(im))
+        fmt = _image_format(src, im)
         kwargs = {}
         if src.suffix.lower() in (".jpg", ".jpeg"):
             out = out.convert("RGB")
             kwargs = {"quality": 90}
-        out.save(src, **kwargs)
-    _wm_forget(rel)
+        # Never onto `src` itself: it is being served to other browsers while this
+        # runs, and a truncated photograph is what they would be handed and then
+        # keep. See _write_atomically.
+        _write_atomically(src, lambda tmp: out.save(tmp, fmt, **kwargs))
+    # Deliberately not _wm_forget: the copies are dated by the photograph they were
+    # made from, so replacing it has already made them stale and they rebuild on
+    # the next request. Unlinking them here raced with anyone reading -- a request
+    # that had chosen a copy to serve found it deleted out from under it between
+    # choosing and opening, and answered a broken image. _wm_forget is for the case
+    # the freshness check cannot see, which is a photograph that is gone.
 
 
 def _rotate_op(direction):
@@ -3067,6 +3142,37 @@ def _do_photo_crop(db, model, kind, aid, form):
     _edit_image(kind, aid, form.get("image", ""), _crop_op(x, y, w, h))
     add_log(db, aid, "cropped a photo")
     db.commit()
+
+
+def _change_token(db, aid: str) -> str:
+    """What an item's page was built from, as one short string.
+
+    Every change to an asset writes a history entry -- a field edited, a photograph
+    added, rotated, cropped or deleted -- so the highest id in that item's history
+    already answers "has anything happened to this?" without a column being added
+    anywhere. Files are the one thing an item page shows that is not filed against
+    it (a driver belongs to a model, not to the card on the shelf), so the register
+    of files is counted alongside: the newest id, and how many there are, because
+    deleting one that is not the newest leaves the maximum where it was.
+
+    Cheap on purpose. This is asked every few seconds by every open page, and it is
+    two indexed aggregates over columns that are already there.
+    """
+    logged = db.query(func.max(LogEntry.id)).filter(LogEntry.asset_id == aid).scalar()
+    newest = db.query(func.max(StoredFile.id)).scalar()
+    count = db.query(func.count(StoredFile.id)).scalar()
+    return f"{logged or 0}.{newest or 0}.{count or 0}"
+
+
+@app.get("/items/{aid}/version", include_in_schema=False)
+def gui_item_version(aid: str, db: Session = Depends(get_db)):
+    """The token above, for a page to compare against the one it was built with.
+
+    Public, like the page it belongs to: it says that something changed, never what.
+    No 404 for an unknown asset -- a page whose item has been deleted asks this too,
+    and the honest answer is a token that will not match, which sends it to reload
+    and find out properly."""
+    return {"v": _change_token(db, (aid or "").upper())}
 
 
 # --- QR target: one stable /items/<id> URL for either kind ------------------
@@ -4121,6 +4227,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "ref_marks": reference_marks("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
         "log": _history(db, aid), "nav": _item_nav(db, aid),
+        "live_aid": aid, "live_v": _change_token(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer")})
@@ -5166,6 +5273,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "ref_marks": reference_marks("parts", aid),
         "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
         "log": _history(db, aid), "nav": _item_nav(db, aid),
+        "live_aid": aid, "live_v": _change_token(db, aid),
         "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, p.asset_id, p.manufacturer,

@@ -33,6 +33,7 @@ the whole point of having a 24-megapixel photograph of a motherboard.
 from __future__ import annotations
 
 import contextlib
+import os
 import shutil
 from pathlib import Path
 
@@ -58,8 +59,12 @@ QUALITY = 80
 
 # Bumped when something about how these are made changes, so old copies are missed
 # rather than served -- the same reasoning as the watermark cache's directory name,
-# which learned it the hard way twice.
-BUILD = 2
+# which learned it the hard way twice. 3: these are made from the watermarked copy,
+# and every one of those made before photographs were written atomically may have
+# been composited from a photograph a crop was half way through writing. A fragment
+# of a JPEG decodes to a picture rather than to an error, so a bad copy cannot be
+# told from a good one; they all go and are made again.
+BUILD = 3
 
 
 def cache_dir(images_dir: Path) -> Path:
@@ -106,9 +111,19 @@ def served_path(images_dir: Path, rel: str, width, source: Path) -> Path:
     # several times the size for no gain.
     dst = dst.with_suffix(".jpg")
     try:
-        if dst.exists() and dst.stat().st_mtime >= source.stat().st_mtime:
+        # Read before the copy is made and stamped onto it after, so a copy says
+        # which version of the photograph it was made from rather than when it
+        # happened to finish. A photograph replaced while this was encoding would
+        # otherwise leave a copy of the old one dated later than the new original,
+        # and it would look fresh forever. (main._watermarked_file does the same.)
+        stamp = source.stat().st_mtime
+        if dst.exists() and dst.stat().st_mtime >= stamp:
             return dst
-        return dst if _make(source, dst, width) else source
+        if not _make(source, dst, width):
+            return source
+        with contextlib.suppress(OSError):
+            os.utime(dst, (stamp, stamp))
+        return dst
     except Exception:
         return source
 
