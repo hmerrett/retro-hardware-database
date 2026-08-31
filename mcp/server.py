@@ -255,7 +255,8 @@ def create_part(
     family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports; a
     screen (type 'display') carries Type (CRT, LCD, OLED), Panel (the mask or panel
     it is built with -- a Trinitron is a CRT with an aperture grille, and both are
-    recorded), Screen size (the diagonal in inches), Aspect, Resolution, Refresh,
+    recorded), Screen size (the diagonal in inches), Aspect, Resolution, Refresh and
+    Sync (the rates it will do, comma-separated, or the range a multiscan claims),
     Dot pitch, Interface, Picture (colour, or the phosphor of a monochrome tube),
     Colour and Yellowing.
 

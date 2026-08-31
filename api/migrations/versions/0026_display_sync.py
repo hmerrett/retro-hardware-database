@@ -5,16 +5,16 @@ The sync rate says whether it will make one at all: a plain VGA monitor takes 31
 and nothing else, and a machine putting out the TV rate of 15 kHz gets a black
 screen off it however good the tube is.
 
-Which is a fact about a collection rather than about a datasheet. The Acorn AKF18
-in this one does 15 kHz *and* 31 kHz, so it drives a BBC Micro and a PC both; the
-14-inch beside it does only the one, and pairing it with the wrong machine is a
-mistake worth being able to look up rather than rediscover behind a desk.
+Which is a fact about a collection rather than about a datasheet. Which machine can
+be plugged into which screen is worth looking up rather than rediscovering behind a
+desk, and nothing else on a monitor's record answers it: an Acorn AKF18 takes
+15-38 kHz and so drives a BBC Micro and a PC both, where the 14-inch beside it may
+take only the one rate and show nothing off the other machine.
 
-Text, and a list, for the reason `interface` is: the answer is more than one. Two
-discrete rates are what a dual-sync tube has -- not a range between them, and not
-one rate with the other rounded away -- and a true multisync quotes a range instead
-(30-70 kHz), which no single kHz integer could hold either. So the rates are stored
-as they are ticked, comma-separated, in the words the vocabulary offers.
+Text, and a list, for the reason `interface` is: the answer is more than one. A tube
+that lists a few rates has them and nothing between them, and a multiscan quotes a
+continuous range instead -- neither of which a single kHz integer could hold. So the
+rates are stored as they are given, comma-separated or as the range claimed.
 
 Nothing is backfilled. A screen already filed says nothing about its sync rate
 because nobody was asked, and guessing 31 kHz from "VGA (HD-15)" would put a fact

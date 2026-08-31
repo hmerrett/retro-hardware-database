@@ -41,7 +41,7 @@ SCALARS = {
                 "Role": "role", "Colour": "colour", "Yellowing": "yellowing"},
     "display": {"Type": "tech", "Panel": "panel",
                 "Screen size": "screen_in_tenths", "Aspect": "aspect",
-                "Resolution": "resolution", "Refresh": "refresh_hz",
+                "Resolution": "resolution", "Refresh": "refresh",
                 "Sync": "sync", "Dot pitch": "dot_pitch_um",
                 "Interface": "interface",
                 "Picture": "picture", "Colour": "colour",
@@ -61,7 +61,6 @@ X_COLS = {"speed_x"}
 # a 14" tube and a 13.3" panel are both ordinary things to own, and a column of
 # whole inches could hold only one of them.
 IN10_COLS = {"screen_in_tenths"}
-HZ_COLS = {"refresh_hz"}
 # Micrometres, for the same reason the inches are tenths: a dot pitch is written in
 # hundredths of a millimetre (0.28) and read back in them, and the integer column
 # underneath is what makes "anything finer than 0.28" a comparison rather than a
@@ -134,7 +133,6 @@ _X_RE = re.compile(r"^\s*(\d+)\s*[x×]\s*$", re.I)
 # typographic one, the prime, or the word. A bare number is inches: nobody measures
 # a screen in anything else.
 _INCH_RE = re.compile(r'^\s*([\d.]+)\s*(?:"|”|″|in|inch|inches)?\s*$', re.I)
-_HZ_RE = re.compile(r"^\s*(\d+)\s*(?:hz)?\s*$", re.I)
 # A dot pitch is written in millimetres and a bare number is therefore millimetres,
 # the same way a bare clock speed is MHz. Micrometres are read back only when they
 # are asked for by name.
@@ -253,8 +251,6 @@ def numeric_handler(col, display=False):
         return _simple_int(_X_RE), (lambda n: f"{n}×")
     if col in IN10_COLS:
         return _to_in10, _fmt_in10
-    if col in HZ_COLS:
-        return _simple_int(_HZ_RE), (lambda n: f"{n} Hz")
     if col in UM_COLS:
         return _to_um, _fmt_um
     if col in INT_COLS:

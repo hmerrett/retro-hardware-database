@@ -127,22 +127,30 @@ DISPLAY_RESOLUTIONS = ["640×480", "800×600", "1024×768", "1152×864", "1280×
                        "1400×1050", "1600×1200", "1920×1080", "1920×1200",
                        "720×348 (Hercules)", "320×200 (CGA)"]
 
-# What a monitor will do at the resolution above. 60 is where a panel sits and a
-# tube flickers; 85 is where a tube stops flickering, and is the number worth
-# recording about one.
-DISPLAY_REFRESH = ["60 Hz", "70 Hz", "72 Hz", "75 Hz", "85 Hz", "100 Hz", "120 Hz"]
+# What a monitor will do at the resolution above, and like the line rate below it,
+# usually more than one thing. 50 Hz is where the television-rate modes of a home
+# computer sit and where anything driven at 15 kHz has to be met; 60 is where a
+# panel sits and a tube flickers; 85 is where a tube stops flickering, and is the
+# figure worth recording about one. A screen that does several is ticked several
+# times, and a multiscan quoting a range (the AKF18's 47–90 Hz) says so in the box.
+DISPLAY_REFRESH = ["50 Hz", "60 Hz", "70 Hz", "72 Hz", "75 Hz", "85 Hz", "100 Hz",
+                   "120 Hz"]
 
 # The line rates a screen will lock to -- the horizontal figure to the vertical one
-# above, and the answer that decides what a monitor can be plugged into at all. A
-# plain VGA monitor does 31 kHz and nothing else; an Acorn AKF18 does 15 kHz as
-# well, which is what lets one tube show a BBC mode and a VGA one, and makes it a
-# monitor an Archimedes can use rather than one it cannot. That is a fact about the
-# screen worth being able to ask for, so it is ticked rather than described.
+# above, and the answer that decides whether a machine can drive the screen at all
+# rather than how well. A plain VGA monitor takes 31 kHz and nothing else, and a
+# machine putting out the 15 kHz of a television gets a black screen off the best
+# tube in the house.
 #
-# Round figures, because they are what the hardware is known by: the TV rate is
-# 15.625 kHz in PAL and 15.734 in NTSC, and both are "a 15 kHz monitor" to anyone
-# who has owned one. A tube quoting a continuous range says so in the custom box,
-# the way a multisync's resolution does.
+# The answer comes in two shapes, which is why this is ticks with a box beside them.
+# A screen that lists a few rates and nothing between them is ticked, and neither of
+# its rates implies the other. A multiscan quotes a continuous range instead and
+# types it in the box: the Acorn AKF18 is 15-38 kHz by its own user guide, which is
+# every rate in this list up to the SVGA modes and not a set at all.
+#
+# Round figures in the list, because they are what the hardware is known by: the TV
+# rate is 15.625 kHz in PAL and 15.734 in NTSC, and both are "a 15 kHz monitor" to
+# anyone who has owned one.
 DISPLAY_SYNCS = ["15 kHz", "24 kHz", "31 kHz", "35 kHz", "38 kHz", "48 kHz",
                  "56 kHz", "64 kHz", "80 kHz"]
 
@@ -178,13 +186,19 @@ DISPLAY_ASKS = [
      "hint": "a panel's native one, or the most a tube will do",
      "options": DISPLAY_RESOLUTIONS, "max": 64,
      "placeholder": "e.g. 640×480 to 1280×1024"},
+    # Ticked rather than chosen, for the reason the line rate is: a screen that
+    # does 50 Hz for a television-rate mode and 85 for its best VGA one does both,
+    # and the highest of them is not the useful half on its own -- whether a machine
+    # putting out 50 Hz will be met is the question a record of it should answer.
     {"key": "Refresh", "label": "Refresh rate",
-     "hint": "the highest it will do at that resolution",
-     "options": DISPLAY_REFRESH, "max": 32, "placeholder": "e.g. 66 Hz"},
-    # One of the two questions a screen may answer more than once, and the reason
-    # the AKF18 is two monitors in one case: 15 kHz and 31 kHz are separate rates
-    # it locks to, not a range between them, so they are two ticks. A monitor that
-    # does quote a range (30–70 kHz) types it in the box.
+     "hint": "tick every rate it will do",
+     "options": DISPLAY_REFRESH, "multi": True, "max": 255,
+     "placeholder": "e.g. 47–90 Hz, 66 Hz"},
+    # One of the two questions a screen may answer more than once. A tube that
+    # locks to 15 kHz and to 31 kHz is two monitors in one case, and being made to
+    # choose would mean recording the half that is less useful -- so the rates are
+    # ticked. A multiscan that quotes a range (the AKF18's 15–38 kHz) types it in
+    # the box instead of ticking every figure inside it.
     {"key": "Sync", "label": "Sync rate",
      "hint": "tick every line rate it will lock to",
      "options": DISPLAY_SYNCS, "multi": True, "max": 255,

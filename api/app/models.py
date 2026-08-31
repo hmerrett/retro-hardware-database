@@ -222,7 +222,7 @@ class DisplaySpec(Base):
     different things to own, so the phosphor is named rather than the absence of
     colour being noted.
 
-    The three numbers are stored the way every other quantity here is -- as plain
+    The two numbers are stored the way every other quantity here is -- as plain
     integers in a small unit, so they sort and compare in SQL, with specstruct
     rendering them back to the units a person writes. A screen size is in tenths of
     an inch because a 13.3" panel exists and a whole-inch column could not hold it;
@@ -234,12 +234,17 @@ class DisplaySpec(Base):
     picking one of those to store would be inventing a fact: what goes here is what
     the monitor claims, in its own words.
 
-    `sync` is text for the reason `interface` is: a screen answers it more than
-    once. An Acorn AKF18 locks to 15 kHz and to 31 kHz -- two rates, not a range
-    between them -- and that pair is what makes one tube able to show a BBC mode
-    and a VGA one. A single kHz integer could hold neither the pair nor the range a
-    multisync quotes instead, so the rates are stored as they are ticked,
-    comma-separated, and the question "every 15 kHz monitor" is asked of the string.
+    `refresh` and `sync` are text for the reason `interface` is: a screen answers
+    them more than once. A refresh rate was a whole-Hz integer while it was the one
+    highest figure, and stopped being able to be when a screen was allowed to say it
+    does 50 Hz and 85 Hz both -- which is the answer that matters on hardware driven
+    at television rates, and the answer an integer holding the highest would drop.
+
+    The same goes for the line rate. A tube that locks to 15 kHz and to 31 kHz has two rates and nothing
+    between them, while a multiscan quotes a range instead -- an Acorn AKF18 is
+    15-38 kHz -- and a single kHz integer could hold neither. So the rates are
+    stored as they are given, comma-separated or as the range the monitor claims,
+    and "every 15 kHz monitor" is asked of the string.
 
     `colour` and `yellowing` are the same two the drive rows and storage parts hold,
     from entry.BEZEL_COLOURS and entry.YELLOWING. A monitor's front is the largest
@@ -252,7 +257,7 @@ class DisplaySpec(Base):
     screen_in_tenths = Column(Integer)
     aspect = Column(String(16))
     resolution = Column(String(64))
-    refresh_hz = Column(Integer)
+    refresh = Column(String(255))
     sync = Column(String(255))
     dot_pitch_um = Column(Integer)
     interface = Column(String(255))

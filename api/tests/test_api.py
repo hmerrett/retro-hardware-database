@@ -2328,15 +2328,27 @@ class TestADisplayPart:
                 assert f'value="{escape(option)}"' in page, \
                     f'{ask["key"]}: {option}'
 
-    def test_a_dual_sync_screen_records_both_rates(self, client, db):
-        """The AKF18 case, and the reason the rates are ticked: it locks to 15 kHz
-        and to 31 kHz, which is what lets one tube take a BBC mode and a VGA one.
-        Made to choose, a record of it would have to leave out the half that makes
-        it worth owning."""
+    def test_a_screen_records_every_refresh_rate_it_does(self, client, db):
+        """The 50 Hz is the point: a tube that meets a television-rate mode and also
+        does 85 Hz at its best VGA one is two useful screens, and recording only the
+        higher figure would answer the question nobody driving an Archimedes asks."""
         from app.models import DisplaySpec
         aid = client.post("/parts/new",
-                          data={"type": "display", "manufacturer": "Acorn",
-                                "model": "AKF18", "spec_type": "CRT",
+                          data={"type": "display", "spec_type": "CRT",
+                                "spec_refresh": ["50 Hz", "60 Hz", "85 Hz"]},
+                          follow_redirects=False
+                          ).headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            "Type: CRT | Refresh: 50 Hz, 60 Hz, 85 Hz"
+        assert db.get(DisplaySpec, aid).refresh == "50 Hz, 60 Hz, 85 Hz"
+
+    def test_a_screen_with_two_rates_records_both(self, client, db):
+        """The reason the rates are ticked rather than chosen between: a tube that
+        locks to 15 kHz and to 31 kHz does both, and made to choose, its record
+        would have to leave out the half that makes it worth owning."""
+        from app.models import DisplaySpec
+        aid = client.post("/parts/new",
+                          data={"type": "display", "spec_type": "CRT",
                                 "spec_screen_size": '14"',
                                 "spec_sync": ["15 kHz", "31 kHz"],
                                 "spec_interface": ["9-pin TTL (CGA)"]},
@@ -2347,26 +2359,31 @@ class TestADisplayPart:
             "Interface: 9-pin TTL (CGA)")
         assert db.get(DisplaySpec, aid).sync == "15 kHz, 31 kHz"
 
-    def test_a_monitor_quoting_a_range_types_it_beside_the_ticks(self, client):
-        """A true multisync answers with a range rather than a set, and the box
-        takes it -- the same box a socket the list cannot name goes in."""
+    def test_a_multiscan_records_the_range_it_claims(self, client, db):
+        """An Acorn AKF18 is 15-38 kHz by its user guide -- a range, not a set --
+        and ticking every figure inside it would be recording rates nobody stated.
+        So the box takes the range, the same box a socket the list cannot name goes
+        in."""
+        from app.models import DisplaySpec
         aid = client.post("/parts/new",
-                          data={"type": "display",
-                                "spec_sync_custom": "30–70 kHz"},
+                          data={"type": "display", "manufacturer": "Acorn",
+                                "model": "AKF18", "spec_type": "CRT",
+                                "spec_sync_custom": "15–38 kHz"},
                           follow_redirects=False
                           ).headers["location"].rsplit("/", 1)[-1]
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == "Sync: 30–70 kHz"
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            "Type: CRT | Sync: 15–38 kHz"
+        assert db.get(DisplaySpec, aid).sync == "15–38 kHz"
 
     def test_the_numbers_land_in_typed_columns(self, db, part):
         """Not in the string. A screen size sorts against other screen sizes, which
-        is the whole point of the table."""
+        is the whole point of the table. The two rates are not among them: each holds
+        a set or a range, and so is text -- see the two tests above."""
         from app.models import DisplaySpec
         aid = part(type="display",
-                   specs='Screen size: 13.3" | Refresh: 60 | '
-                         "Dot pitch: 0.28 mm")["asset_id"]
+                   specs='Screen size: 13.3" | Dot pitch: 0.28 mm')["asset_id"]
         row = db.get(DisplaySpec, aid)
-        assert (row.screen_in_tenths, row.refresh_hz, row.dot_pitch_um) == \
-            (133, 60, 280)
+        assert (row.screen_in_tenths, row.dot_pitch_um) == (133, 280)
 
     def test_a_trinitron_is_still_found_by_asking_for_crts(self, db, part):
         from app.models import DisplaySpec

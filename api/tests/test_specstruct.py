@@ -268,10 +268,16 @@ class TestADisplay:
     def test_a_fractional_size_survives_the_round_trip(self):
         assert render("display", 'Screen size: 13.3"') == 'Screen size: 13.3"'
 
-    @pytest.mark.parametrize("text,hz", [("85", 85), ("85 Hz", 85), ("60hz", 60)])
-    def test_a_refresh_rate_is_whole_hertz(self, text, hz):
-        assert specstruct.parse(
-            "display", f"Refresh: {text}").scalars["refresh_hz"] == hz
+    def test_a_refresh_rate_is_kept_as_written(self):
+        """It stopped being one whole number when a screen was allowed to say it
+        does several: 50 Hz for a television-rate mode and 85 for its best VGA one
+        are both true of the same tube, and an integer could hold one of them."""
+        st = specstruct.parse("display", "Refresh: 50 Hz, 85 Hz")
+        assert st.scalars["refresh"] == "50 Hz, 85 Hz"
+
+    def test_a_refresh_range_is_kept_as_written(self):
+        st = specstruct.parse("display", "Refresh: 47–90 Hz")
+        assert st.scalars["refresh"] == "47–90 Hz"
 
     @pytest.mark.parametrize("text,um", [
         ("0.28", 280), ("0.28 mm", 280), ("0.25mm", 250), ("280um", 280),
