@@ -730,8 +730,12 @@
   .notebar { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap; }
   /* A history line: what happened, with the picker for a photograph of it out at
      the right where it is reachable without being read. */
-  .logline { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
-  .logmsg { white-space: pre-line; min-width: 0; }
+  /* The message takes the slack, which puts both controls together at the right.
+     space-between spread three children instead, so the picker sat out in the middle
+     of the line with the delete button away at the end -- two buttons for the same
+     entry, reading as though they belonged to different things. */
+  .logline { display: flex; gap: 8px; align-items: flex-start; }
+  .logmsg { white-space: pre-line; min-width: 0; flex: 1; }
   .logadd { flex: none; }
   /* Both controls on a history line are the same size, because to the eye they are
      the same kind of thing: one puts a photograph on the entry and one takes the
