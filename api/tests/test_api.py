@@ -2255,6 +2255,31 @@ class TestAStoragePartsBezel:
         assert 'class="swatch"' not in client.get(f"/parts/{aid}").text
 
 
+class TestTheBuildWalk:
+    """The banner that lands you on the next step after creating a machine. It reads
+    "give it a motherboard, then add its expansion cards", which is a PC's shape."""
+
+    def test_a_pc_is_walked_through_building_it_out(self, client, computer):
+        aid = computer(manufacturer="Compaq", model="Deskpro 386")["asset_id"]
+        assert "Build walk" in client.get(f"/computers/{aid}?build=1").text
+
+    def test_a_catalogue_machine_is_not(self, client, computer):
+        """A Spectrum is a sealed thing described by what it was built as. It has no
+        board to link and nothing on a shelf goes in one -- which is why its board
+        and parts sections are not even on the page while nothing is fitted, and why
+        pointing somebody at them is pointing at the wrong machine."""
+        aid = computer(manufacturer="Sinclair", model="ZX Spectrum 48K",
+                       machine={"model_key": "zx-spectrum-48k"})["asset_id"]
+        page = client.get(f"/computers/{aid}?build=1").text
+        assert "Build walk" not in page
+
+    def test_the_banner_is_only_for_whoever_is_signed_in(self, client, computer):
+        """It is an instruction to do the next thing, and a reader has nothing to do."""
+        aid = computer(manufacturer="Compaq", model="Deskpro 386")["asset_id"]
+        assert "Build walk" in client.get(f"/computers/{aid}?build=1").text
+        assert "Build walk" not in client.get(f"/computers/{aid}").text
+
+
 class TestASerialNumber:
     """The one field on a record that belongs to the object rather than to the
     model, and so the one that tells two of the same thing apart."""

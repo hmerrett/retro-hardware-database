@@ -36,7 +36,13 @@
 </div>
 {% endif %}
 
-{% if build and request.state.authed %}
+{# Not on a machine the catalogue names. The walk's next step is a motherboard and
+   then expansion cards, which is a PC's shape -- and a catalogue machine is a sealed
+   thing described by what it was built as, whose board and parts sections are not
+   even on this page while nothing is fitted (see below). Telling somebody who has
+   just filed a Spectrum to give it a motherboard points them at the wrong machine,
+   and at two sections they cannot see. #}
+{% if build and request.state.authed and not machine %}
 <div class="build-banner">
   <strong>Build walk.</strong> Next: give it a motherboard below, then add its
   storage and expansion cards by category.
