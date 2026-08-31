@@ -70,9 +70,19 @@
      `hidden` means hidden everywhere. */
   [hidden] { display: none !important; }
   /* Form controls don't inherit font-family by default, so they'd fall back to
-     the browser's sans-serif; keep everything on the site's monospace. */
-  button, input, select, textarea { font-family: inherit; }
-  ::file-selector-button { font-family: inherit; }
+     the browser's sans-serif; keep everything on the site's monospace.
+
+     Nor do they inherit line-height: a button is laid out at the browser's own
+     `normal`, which is about 1.15, while everything else on the page is at 1.5.
+     Four and a half pixels, and invisible until two of them stand side by side --
+     which is exactly where a button lives. "photos" is a label and "add note" is a
+     button, they sit in the same bar with the same class on them, and one was
+     shorter than the other. The same pair is in the photo column, the toolbars and
+     the lightbox: every `<a class="btn">` and every file picker was the tall one
+     and every submit button was the short one. Inherited here, once, so a button
+     is the height of the words in it like everything else. */
+  button, input, select, textarea { font-family: inherit; line-height: inherit; }
+  ::file-selector-button { font-family: inherit; line-height: inherit; }
   body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; margin: 0; line-height: 1.5; background: var(--bg); color: var(--fg); }
   /* Centred, not baseline-aligned: a flex box takes its baseline from its first
      item and an image's baseline is its bottom edge, so on `baseline` the logo
@@ -745,7 +755,13 @@
   fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0; padding: 8px 14px 14px; }
   legend { color: var(--muted); font-size: 13px; padding: 0 6px; }
   .inline-form { display: inline; }
-  .notebar { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap; }
+  /* Centred, because the box to type in is taller than the buttons beside it and a
+     flex row left to itself stretches its children to match. The picker was safe --
+     it sits inside .newphotos, which centres its own -- so "add note" grew to the
+     height of the input and "photos" did not, and the pair looked wrong next to
+     each other on any screen wide enough to keep them on one line. */
+  .notebar { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap;
+    align-items: center; }
   /* A history line: what happened, with the picker for a photograph of it out at
      the right where it is reachable without being read. */
   /* The message takes the slack, which puts both controls together at the right.
@@ -787,7 +803,12 @@
      read in both themes and by people who cannot tell the two apart. */
   header .hdr-nav a[aria-current="page"] { font-weight: 700; color: var(--fg); }
   header .hdr-desk { display: inline-flex; align-items: center; gap: 6px; }
-  header .hdr-desk .dots { min-width: 34px; text-align: center; line-height: 1.15; }
+  /* No line-height of its own any more. It had 1.15, which is the browser's
+     `normal` -- the height every <button> beside it used to be, and matching them
+     was the point. They are the page's 1.5 now, and holding the tighter figure here
+     would leave the one control in the banner that is a <summary> standing five
+     pixels shorter than the two it sits between. */
+  header .hdr-desk .dots { min-width: 34px; text-align: center; }
   /* Clear of the name: the section you are in is set in bold, and against the
      brand -- which is bold too -- it read as the last word of it. */
   header .hdr-nav { margin-left: 6px; }
