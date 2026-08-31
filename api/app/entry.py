@@ -15,9 +15,17 @@ from markupsafe import Markup, escape
 
 # --- type vocabulary -------------------------------------------------------
 
+# A power supply is back in here, and it is worth saying why it left. The four in
+# the flat-file register were mostly generic -- two rows reading "Generic power
+# supply, Form factor: AT" -- and a type whose every member is generic is a type
+# that earns nothing, so it went and took them with it. What is worth filing is a
+# supply that is a documented model: a Delta DPS-300SB-1, a Kentex KTX-9006-81 with
+# 1992 on the label and a machine it belongs to. Same rule as the catalogue's, and
+# the label and the drawing for it were never taken out. It is not a step in the
+# build walk, though: nobody builds a machine out by being asked for its PSU.
 TYPE_ORDER = [
     "motherboard", "cpu", "ram", "video", "sound", "network", "io",
-    "storage", "display", "cooler", "peripheral", "other",
+    "storage", "display", "psu", "cooler", "peripheral", "other",
 ]
 
 TYPE_LABELS = {

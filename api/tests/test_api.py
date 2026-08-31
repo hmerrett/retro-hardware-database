@@ -4857,6 +4857,19 @@ class TestChangingAPartsType:
         page = client.get(f"/parts/{aid}/edit?type=gizmo").text
         assert 'name="spec_size"' in page
 
+    def test_a_power_supply_stays_one(self, client, part):
+        """A type the form does not offer is a type the form quietly changes: the
+        select has no option to match it, so the browser sends the first one and a
+        Delta 300W becomes a motherboard on the next save. Power supplies were out
+        of the vocabulary and back in it, and this is the round trip that says so."""
+        aid = part(type="psu", manufacturer="Delta Electronics Ltd",
+                   model="DPS-300SB-1 B Rev. 00")["asset_id"]
+        page = client.get(f"/parts/{aid}/edit").text
+        assert '<option value="psu" selected>Power supply</option>' in page
+        client.post(f"/parts/{aid}/edit", data={"type": "psu", "condition": "Working"},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{aid}").json()["type"] == "psu"
+
     def test_what_the_old_type_recorded_comes_across(self, client, part):
         """The bug behind the question. Structured specs are read from the table the
         old type owns, and only what would not fit there is an attribute -- so
