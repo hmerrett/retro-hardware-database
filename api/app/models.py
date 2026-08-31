@@ -30,6 +30,13 @@ class Computer(Base):
     manufacturer = Column(String(255), default="")
     model = Column(String(255), default="")
     year = Column(SmallInteger)
+    # What the maker stamped on this particular one, as against the model, which is
+    # what it is one of. The only identity field that is never true of a second
+    # object -- which is why a duplicate does not carry it across, and why it is
+    # worth having: a machine can be looked up by the number on its own back, and a
+    # warranty date, a factory or a production run can be read off it later by
+    # somebody who knows how.
+    serial = Column(String(64), default="")
     chassis = Column(String(64), default="")
     os = Column(String(255), default="")
     cpu = Column(String(255), default="")
@@ -84,6 +91,10 @@ class Part(Base):
     model = Column(String(255), default="")
     name = Column(String(255), default="")
     year = Column(SmallInteger)
+    # The number on this one, for the reason a machine has one (see Computer.serial).
+    # A part is where it matters most often: two identical SIMMs are told apart by
+    # nothing else, and a drive's own label is the only place its date code lives.
+    serial = Column(String(64), default="")
     specs = Column(Text, default="")
     # The rendered cache of the catalogue rows, in exactly the relation to
     # asset_variant / asset_chip that computers.variant is: written from them on

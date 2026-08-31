@@ -81,6 +81,8 @@ class ComputerIn(BaseModel):
     manufacturer: str = ""
     model: str = ""
     year: int | None = None
+    # The number on this particular machine, not a fact about the model.
+    serial: str = ""
     chassis: str = ""
     os: str = ""
     cpu: str = ""
@@ -148,6 +150,7 @@ class PartIn(BaseModel):
     model: str = ""
     name: str = ""
     year: int | None = None
+    serial: str = ""
     specs: str = ""
     condition: str = ""
     source: str = ""

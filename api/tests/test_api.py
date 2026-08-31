@@ -2255,6 +2255,60 @@ class TestAStoragePartsBezel:
         assert 'class="swatch"' not in client.get(f"/parts/{aid}").text
 
 
+class TestASerialNumber:
+    """The one field on a record that belongs to the object rather than to the
+    model, and so the one that tells two of the same thing apart."""
+
+    def test_a_machine_records_and_shows_one(self, client, computer):
+        aid = computer(manufacturer="Acorn", model="A5000",
+                       serial="27-AKD52-1234567")["asset_id"]
+        assert client.get(f"/api/computers/{aid}").json()["serial"] == \
+            "27-AKD52-1234567"
+        assert "27-AKD52-1234567" in client.get(f"/computers/{aid}").text
+
+    def test_a_part_does_too(self, client, part):
+        aid = part(type="display", model="AKF18", serial="AKF18-9901234")["asset_id"]
+        assert client.get(f"/api/parts/{aid}").json()["serial"] == "AKF18-9901234"
+        assert "AKF18-9901234" in client.get(f"/parts/{aid}").text
+
+    def test_both_forms_ask_for_one(self, client, computer, part):
+        cid = computer(manufacturer="Acorn", model="A5000",
+                       serial="27-AKD52-1234567")["asset_id"]
+        pid = part(type="cpu", serial="L4210229")["asset_id"]
+        for page in (client.get(f"/computers/{cid}/edit").text,
+                     client.get(f"/parts/{pid}/edit").text):
+            assert 'name="serial"' in page
+        assert 'value="27-AKD52-1234567"' in client.get(f"/computers/{cid}/edit").text
+        assert 'value="L4210229"' in client.get(f"/parts/{pid}/edit").text
+
+    def test_the_form_can_take_a_serial_back_off(self, client, part):
+        aid = part(type="cpu", manufacturer="Intel", serial="L4210229")["asset_id"]
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "cpu", "manufacturer": "Intel", "serial": ""},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{aid}").json()["serial"] == ""
+
+    def test_a_duplicate_does_not_carry_the_serial_across(self, client, part):
+        """The whole point of the field: no two objects ever wore the same number,
+        so a copy that inherited one would be asserting something false about the
+        second thing -- and the copy is made to be filled in, not to be believed."""
+        aid = part(type="ram", model="72-pin SIMM", serial="M366-0031")["asset_id"]
+        copy = client.post(f"/parts/{aid}/duplicate", follow_redirects=False
+                           ).headers["location"].rsplit("/", 1)[-1]
+        got = client.get(f"/api/parts/{copy}").json()
+        assert got["model"] == "72-pin SIMM"
+        assert got["serial"] == ""
+
+    def test_an_item_is_found_by_its_serial(self, client, computer):
+        """A machine can be looked up by the number on its own back, which is the
+        question a serial is written down to answer."""
+        computer(manufacturer="Acorn", model="A5000", serial="27-AKD52-1234567")
+        computer(manufacturer="Acorn", model="A5000", serial="27-AKD52-7654321")
+        page = client.get("/machines?q=27-AKD52-1234567").text
+        assert "27-AKD52-7654321" not in page
+        assert page.count("RH-") >= 1
+
+
 class TestNotesKeepTheirLines:
     """A note is typed into a textarea, in paragraphs. It was stored with its
     newlines and then read back as one run-on line, because a table cell does not

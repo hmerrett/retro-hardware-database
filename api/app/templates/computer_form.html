@@ -19,6 +19,10 @@
   {{ fld('manufacturer', 'Manufacturer', "or 'Custom build'") }}
   {{ fld('model', 'Model') }}
   {{ fld('year', 'Year', type='number') }}
+  {# With the identity rather than with the provenance below, because it is read off
+     the back of the machine in the same sitting as the model is -- and because it
+     answers "which of the two A5000s is this?", which is an identity question. #}
+  {{ fld('serial', 'Serial number', "as stamped on this machine — not a fact about the model") }}
   {{ fld('chassis', 'Chassis / case', "desktop, tower, mini-tower, breadbin…") }}
   {{ fld('os', 'Operating system') }}
   {{ fld('cpu', 'CPU', "an attribute, not a part. Maker model-MHz — e.g. Intel 486DX2-66, Intel 80286-6, or 2x Pentium III 500") }}

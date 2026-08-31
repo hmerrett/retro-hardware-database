@@ -106,6 +106,7 @@ def create_computer(
     manufacturer: str | None = None,
     model: str | None = None,
     year: int | None = None,
+    serial: str | None = None,
     chassis: str | None = None,
     os: str | None = None,
     cpu: str | None = None,
@@ -138,6 +139,10 @@ def create_computer(
     out otherwise: an unmeasured machine has no score, and one must never be
     guessed from the CPU.
 
+    serial is the number stamped on this particular machine, which is the one field
+    here that is not a fact about the model. Only ever from the object itself: it
+    cannot be inferred from anything else, and a wrong one is worse than none.
+
     For a home computer or a console -- a Spectrum, a C64, an Apple IIe, an MSX --
     the machine_* arguments file it against the catalogue that list_machine_models
     returns: machine_model_key is that model's key, machine_issue the board as its
@@ -155,6 +160,7 @@ def update_computer(
     manufacturer: str | None = None,
     model: str | None = None,
     year: int | None = None,
+    serial: str | None = None,
     chassis: str | None = None,
     os: str | None = None,
     cpu: str | None = None,
@@ -231,6 +237,7 @@ def create_part(
     model: str | None = None,
     name: str | None = None,
     year: int | None = None,
+    serial: str | None = None,
     specs: str | None = None,
     condition: str | None = None,
     source: str | None = None,
@@ -250,8 +257,9 @@ def create_part(
     """Create a part. The server assigns the asset id. computer_id installs it in a
     computer and parent_id mounts it on another part (a disk on a controller card,
     say); both blank means standalone. specs is free text formatted
-    'Key: value | Key: value'. Storage parts are mechanical hard disks and tape
-    (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
+    'Key: value | Key: value'. serial is the number marked on this particular one,
+    read off the object and never inferred. Storage parts are mechanical hard disks
+    and tape (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
     family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports; a
     screen (type 'display') carries Type (CRT, LCD, OLED), Panel (the mask or panel
     it is built with -- a Trinitron is a CRT with an aperture grille, and both are
@@ -280,6 +288,7 @@ def update_part(
     model: str | None = None,
     name: str | None = None,
     year: int | None = None,
+    serial: str | None = None,
     specs: str | None = None,
     condition: str | None = None,
     source: str | None = None,

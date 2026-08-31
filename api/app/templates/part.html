@@ -56,7 +56,7 @@
        knows about it, and where it is installed. #}
     {% call PN.panel('Details') %}
     <table class="kv">
-    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
+    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
       {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
     {% endfor %}
     {% if p.computer_id %}<tr><th>Installed in</th><td><a href="/computers/{{ p.computer_id }}">{{ p.computer_id }}</a>

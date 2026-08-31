@@ -64,7 +64,7 @@
     {% call PN.panel('Details') %}
     <table class="kv">
     {% for k, v in [('Manufacturer', c.manufacturer), ('Model', c.model), ('Year', c.year),
-                    ('Form factor', form_factor),
+                    ('Serial', c.serial), ('Form factor', form_factor),
                     ('Chassis', c.chassis), ('CPU', c.cpu), ('TopBench', c.topbench),
                     ('Installed RAM', c.installed_ram),
                     ('Drives', c.drives), ('OS', c.os), ('Condition', c.condition),

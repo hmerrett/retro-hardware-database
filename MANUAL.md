@@ -276,7 +276,8 @@ The gallery is not given this: there is no one record for it to be watching.
 The copy button on an item page creates a second record of the same thing
 immediately, with a new tag: same maker, model, specs, condition, and so on, but
 none of the things that belong to the particular object — no photographs, no
-history, no acquisition date, and for a machine, none of its parts.
+history, no acquisition date, no serial number, and for a machine, none of its
+parts.
 
 If you would rather edit before saving, the new-part form takes a `from`
 parameter — the "start from this one" route — which fills the form in and saves
@@ -295,6 +296,7 @@ nothing until you submit it.
 | **Manufacturer** | Or `Custom build`. |
 | **Model** | |
 | **Year** | |
+| **Serial number** | The number stamped on *this* machine. The one field that is not a fact about the model, and the one that tells two of the same machine apart. Searchable, so a machine can be found by the number on its own back. |
 | **Chassis / case** | desktop, tower, mini-tower, breadbin… |
 | **Operating system** | |
 | **CPU** | An attribute of the machine, not a part — unless you have the chip out on a shelf, in which case it is also a part. Write it as maker model-MHz: `Intel 486DX2-66`, `Intel 80286-6`, `2x Pentium III 500`. |
@@ -702,9 +704,16 @@ so a drive on the shelf and one fitted in a machine are described alike.
 **+ Part** in the header, or one of the "Add" buttons on a machine's page.
 
 Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
-**Name** (optional; defaults to maker + model), **Year**, **Condition**,
-**Source**, **Acquired date**, **Reference URL**, **Summary**, **Notes**,
-**Installed in** and **Mounted on**.
+**Name** (optional; defaults to maker + model), **Year**, **Serial number**,
+**Condition**, **Source**, **Acquired date**, **Reference URL**, **Summary**,
+**Notes**, **Installed in** and **Mounted on**.
+
+**Serial number** is the number marked on that particular one — the only field
+that is never true of a second object, which is why the **duplicate** button
+leaves it behind along with the photographs and the provenance. It is worth the
+typing where nothing else tells two things apart: which of two identical SIMMs
+came out of which machine, or whether the drive back from a repair is the drive
+that went. It is searchable like every other field.
 
 What differs by type is the specification section.
 

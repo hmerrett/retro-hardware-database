@@ -5241,8 +5241,8 @@ async def _part_from_form(form, ptype, extra=()):
     data = {"type": ptype,
             "computer_id": form.get("computer_id", "") or None,
             "parent_id": form.get("parent_id", "") or None}
-    for f in ("manufacturer", "model", "name", "year", "condition", "source",
-              "acquired_date", "url", "summary", "notes", "disk_image"):
+    for f in ("manufacturer", "model", "name", "year", "serial", "condition",
+              "source", "acquired_date", "url", "summary", "notes", "disk_image"):
         data[f] = _coerce(f, form.get(f, ""))
     for f in ("manufacturer", "model"):
         data[f] = entry.deshout(data[f])
@@ -5428,10 +5428,11 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
 # A duplicate is a second identical unit, so it copies what describes the model --
 # the fields, the specs, a machine's fitted memory and drives -- and nothing that
 # belongs to the original object: its photos, its disposal, its provenance
-# (source / acquired date / notes), and where it sits. A second card is a second
-# card, not another card in the same slot, so the copy starts unplaced.
+# (source / acquired date / notes), its serial number, and where it sits. A second
+# card is a second card, not another card in the same slot, so the copy starts
+# unplaced -- and no two objects ever wore the same serial.
 DUP_EXCLUDE = {"image", "disposed", "disposed_at", "disposed_note", "source",
-               "acquired_date", "notes", "computer_id", "parent_id"}
+               "acquired_date", "notes", "serial", "computer_id", "parent_id"}
 
 
 @app.post("/parts/{aid}/duplicate", include_in_schema=False)

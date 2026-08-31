@@ -121,6 +121,11 @@ Photos, source, acquired date and notes are not carried over.</p>
     <input id="name" name="name" value="{{ (p.name if p else '') or '' }}">
     <label for="year">Year</label>
     <input id="year" name="year" type="number" value="{{ (p.year if p else '') or '' }}">
+    {# Last in the identity, and never carried across by the duplicate button: two
+       of the same card are the same card in every field above this one and in none
+       of them here. #}
+    <label for="serial">Serial number <span class="muted">(as marked on this one)</span></label>
+    <input id="serial" name="serial" value="{{ (p.serial if p else '') or '' }}">
   </fieldset>
 
   <!-- Storage: kind first; floppy/optical/SD-CF route to the computer's drives -->
