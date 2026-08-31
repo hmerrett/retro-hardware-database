@@ -62,6 +62,11 @@ templates.env.globals.update(
     # from a URL the app made, and no template should have to remember that.
     qr_svg=lambda data: Markup(labels.qr_svg(data)),
     today=lambda: date.today().isoformat())
+# A filter rather than a global, because it reads as one thing done to another at
+# every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --
+# prose, notes, spec values, history entries -- and never for an attribute, which
+# cannot hold an anchor and would only get the escaping.
+templates.env.filters["linked"] = entry.linked
 
 AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
 AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")

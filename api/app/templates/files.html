@@ -17,7 +17,7 @@
   {% for f in files %}
   <tr>
     <td><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
-      {% if f.note %}<br><span class="hint">{{ f.note }}</span>{% endif %}</td>
+      {% if f.note %}<br><span class="hint">{{ f.note | linked }}</span>{% endif %}</td>
     {# The chips lead to everything else under that name; the box below them is how
        a file put under the wrong one is corrected -- which has to be possible from
        here, since a wrongly filed file appears on no item page to correct it on. #}

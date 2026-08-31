@@ -259,6 +259,15 @@ code.
 Above it all, when logged in: **edit**, **duplicate**, **small label** and **full
 label**.
 
+A URL written into any of that — a summary, a note, a spec value, where the item
+came from, a history entry — is a link you can follow. Anything with a scheme in
+front of it (`http://`, `https://`, `ftp://`, `mailto:`), anything beginning
+`www.`, and anything with the shape of an email address. Off-site links open in a
+tab of their own, so following one out of the register does not lose your place in
+it. Nothing else is touched, and that is deliberate: `config.sys` and `1.44MB`
+have a hostname's shape and neither is one, so a bare hostname stays text. Put the
+`www.` or the scheme in front of it and it is a link.
+
 ### When it changes while you are looking at it
 
 The register gets used from two places at once: you scan the label with a phone

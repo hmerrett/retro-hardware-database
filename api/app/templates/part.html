@@ -27,7 +27,7 @@
 </div>
 
 {% if p.disposed %}
-<div class="banner">Disposed{% if p.disposed_at %} {{ p.disposed_at }}{% endif %}{% if p.disposed_note %} — {{ p.disposed_note }}{% endif %}
+<div class="banner">Disposed{% if p.disposed_at %} {{ p.disposed_at }}{% endif %}{% if p.disposed_note %} — {{ p.disposed_note | linked }}{% endif %}
   {% if request.state.authed %}
   <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/restore">
     <button class="btn sm" type="submit">restore</button></form>
@@ -50,14 +50,14 @@
        photographs sit level with it on a desktop instead of being pushed below,
        and so a phone -- where the photo column leads -- shows the picture first,
        exactly as it does on every other item page. #}
-    {% if machine and machine.summary and not p.summary %}<p class="model-summary">{{ machine.summary }}</p>{% endif %}
-    {% if p.summary %}<p class="summary">{{ p.summary }}</p>{% endif %}
+    {% if machine and machine.summary and not p.summary %}<p class="model-summary">{{ machine.summary | linked }}</p>{% endif %}
+    {% if p.summary %}<p class="summary">{{ p.summary | linked }}</p>{% endif %}
     {# The part's own facts, in a panel like every other section: what the register
        knows about it, and where it is installed. #}
     {% call PN.panel('Details') %}
     <table class="kv">
     {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
-      {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
+      {% if v %}<tr><th>{{ k }}</th><td>{{ v | linked }}</td></tr>{% endif %}
     {% endfor %}
     {% if p.computer_id %}<tr><th>Installed in</th><td><a href="/computers/{{ p.computer_id }}">{{ p.computer_id }}</a>
       {% if request.state.authed %}
@@ -69,7 +69,7 @@
       {% endif %}</td></tr>{% endif %}
     {% if p.disk_image %}<tr><th>Disk image</th><td>{{ p.disk_image }}</td></tr>{% endif %}
     {% if p.url %}<tr><th>Reference</th><td class="wrap"><a href="{{ p.url }}" target="_blank">{{ p.url }}</a></td></tr>{% endif %}
-    {% if p.notes %}<tr><th>Notes</th><td class="lines">{{ p.notes }}</td></tr>{% endif %}
+    {% if p.notes %}<tr><th>Notes</th><td class="lines">{{ p.notes | linked }}</td></tr>{% endif %}
     </table>
 
     {% if request.state.authed and computers %}
@@ -101,7 +101,7 @@
       <table class="kv">
         <tr><th>Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
         {% for label, value in machine.rows %}
-        <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+        <tr><th>{{ label }}</th><td>{{ value | linked }}</td></tr>
         {% endfor %}
       </table>
       {% if machine.chips %}
@@ -121,7 +121,7 @@
       <table class="kv">
         {% for k, v in spec_pairs %}
         <tr><th>{{ k or '—' }}</th>
-          <td>{% if bezel and k in ('Colour', 'Yellowing') %}{{ CL.dot(bezel, specs.get('Colour', '') or 'yellowing, on a shade nobody recorded') }} {% endif %}{{ v }}</td></tr>
+          <td>{% if bezel and k in ('Colour', 'Yellowing') %}{{ CL.dot(bezel, specs.get('Colour', '') or 'yellowing, on a shade nobody recorded') }} {% endif %}{{ v | linked }}</td></tr>
         {% endfor %}
       </table>
     {% endcall %}

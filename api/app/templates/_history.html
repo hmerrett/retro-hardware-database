@@ -37,7 +37,7 @@
       <td class="muted" style="white-space:nowrap;vertical-align:top">{{ log_stamp(e.created_at, request.state.authed) }}</td>
       <td>
         <div class="logline">
-          <div class="logmsg">{% if e.kind == 'note' %}<span class="chip">note</span> {% endif %}{{ e.message }}</div>
+          <div class="logmsg">{% if e.kind == 'note' %}<span class="chip">note</span> {% endif %}{{ e.message | linked }}</div>
           {# Offered on a single entry only. A folded line is several entries read
              out as one sentence, and there is no one of them a photograph would
              belong to. #}

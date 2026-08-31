@@ -25,7 +25,7 @@
 </div>
 
 {% if c.disposed %}
-<div class="banner">Disposed{% if c.disposed_at %} {{ c.disposed_at }}{% endif %}{% if c.disposed_note %} — {{ c.disposed_note }}{% endif %}
+<div class="banner">Disposed{% if c.disposed_at %} {{ c.disposed_at }}{% endif %}{% if c.disposed_note %} — {{ c.disposed_note | linked }}{% endif %}
   {% if request.state.authed %}
   <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/restore">
     <button class="btn sm" type="submit">restore</button></form>
@@ -63,8 +63,8 @@
        photographs sit level with it on a desktop instead of being pushed below,
        and so a phone -- where the photo column leads -- shows the picture first,
        exactly as it does on every other item page. #}
-    {% if machine and machine.summary and not c.summary %}<p class="model-summary">{{ machine.summary }}</p>{% endif %}
-    {% if c.summary %}<p class="summary">{{ c.summary }}</p>{% endif %}
+    {% if machine and machine.summary and not c.summary %}<p class="model-summary">{{ machine.summary | linked }}</p>{% endif %}
+    {% if c.summary %}<p class="summary">{{ c.summary | linked }}</p>{% endif %}
     {# The machine's own facts. A panel like every other section of the page, so what
        the register knows about it and what is fitted in it are read the same way. #}
     {% call PN.panel('Details') %}
@@ -75,11 +75,11 @@
                     ('Installed RAM', c.installed_ram),
                     ('Drives', c.drives), ('OS', c.os), ('Condition', c.condition),
                     ('Source', c.source), ('Acquired', c.acquired_date)] %}
-      {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
+      {% if v %}<tr><th>{{ k }}</th><td>{{ v | linked }}</td></tr>{% endif %}
     {% endfor %}
     {# Out of the list above, and last in it as it was, because this is the one value
        that is written in more than one line and has to be shown in them. #}
-    {% if c.notes %}<tr><th>Notes</th><td class="lines">{{ c.notes }}</td></tr>{% endif %}
+    {% if c.notes %}<tr><th>Notes</th><td class="lines">{{ c.notes | linked }}</td></tr>{% endif %}
     {% if c.url %}<tr><th>Reference</th><td class="wrap"><a href="{{ c.url }}" target="_blank">{{ c.url }}</a></td></tr>{% endif %}
     </table>
     {% endcall %}
@@ -93,7 +93,7 @@
       <table class="kv">
         <tr><th>Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
         {% for label, value in machine.rows %}
-        <tr><th>{{ label }}</th><td>{{ value }}</td></tr>
+        <tr><th>{{ label }}</th><td>{{ value | linked }}</td></tr>
         {% endfor %}
       </table>
       {# Kept apart from the rows above, because the CPU row there says which

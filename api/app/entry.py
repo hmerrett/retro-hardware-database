@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from collections import Counter
 
+from markupsafe import Markup, escape
+
 # --- type vocabulary -------------------------------------------------------
 
 TYPE_ORDER = [
@@ -845,3 +847,82 @@ PLACEHOLDER = {
 
 def placeholder_for(kind_or_type: str) -> str:
     return "placeholders/" + PLACEHOLDER.get(kind_or_type, "box") + ".svg"
+
+
+# --- links in what people wrote --------------------------------------------
+# A URL typed into a note, a summary or a history entry is a URL you meant to
+# follow, and until this it was text to be selected and pasted. The register is
+# full of them: where a board came from, the forum thread that identified a chip,
+# the FTP archive a ROM dump is out of.
+#
+# What counts as one is deliberately narrow. Anything with a scheme in front of it
+# is unambiguous -- http, https, ftp, ftps, sftp, mailto -- and beyond those only
+# two shapes are taken, both of them shapes nobody writes by accident: a host
+# beginning www., and an address with an @ and a dotted domain after it. Bare
+# hostnames are not, because half the part numbers in here have a domain's shape
+# and none of them is one: config.sys, 1.44MB, 74LS00.rev2.
+#
+# Only these schemes, and never whatever a text box happens to say before a colon:
+# javascript: is a scheme too, and this text arrives from a form.
+_LINK_RE = re.compile(r"""
+    (?<![\w@.-])                                # not mid-word, nor an address's tail
+    (?:
+        (?:https?|ftps?|sftp)://[^\s<>"']+      # said outright
+      | mailto:[^\s<>"']+
+      | www\.[^\s<>"']+                         # the shorthand everybody writes
+      | [\w.+%-]+@[\w-]+(?:\.[\w-]+)+           # an email address
+    )
+""", re.VERBOSE | re.IGNORECASE)
+
+# Punctuation that ends the sentence rather than the URL. A closing bracket is the
+# URL's own as long as one opened inside it, which is what tells
+# "http://x/Amiga_(computer)" from "(see http://x/p)" -- and, a bracket at a time,
+# tells both of them from "(see http://x/Amiga_(computer))".
+_LINK_TAIL = ".,;:!?'\"”’)]}>"
+
+
+def _link_end(url: str) -> str:
+    while url and url[-1] in _LINK_TAIL:
+        if url[-1] == ")" and url.count("(") >= url.count(")"):
+            break
+        url = url[:-1]
+    return url
+
+
+def linked(text) -> Markup:
+    """What was written, with every link in it clickable and nothing else changed.
+
+    Returns markup, so it escapes as it goes: the text came out of a form and is
+    never allowed to arrive as markup of its own. Anything that is not a string --
+    a year, a date, the None of an empty column -- is read as what it prints as,
+    since the details tables hand this whole rows at a time.
+
+    An off-site link opens in a tab of its own, as the reference link on an item's
+    page always has: the register is a thing you are working through, and following
+    a note out of it should not lose your place in it.
+    """
+    s = "" if text is None else str(text)
+    out, at = [], 0
+    for m in _LINK_RE.finditer(s):
+        url = _link_end(m.group(0))
+        if not url:
+            continue
+        out.append(escape(s[at:m.start()]))
+        low = url.lower()
+        if low.startswith("www."):
+            # http, not https: a host that has TLS redirects to it, and one that
+            # never got round to it is simply unreachable the other way about --
+            # and the hosts written down in here are museum pieces as often as not.
+            href, tab = "http://" + url, True
+        elif low.startswith("mailto:"):
+            href, tab = url, False
+        elif "://" in url:
+            href, tab = url, True
+        else:
+            href, tab = "mailto:" + url, False
+        out.append(Markup(
+            '<a class="url" href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
+            if tab else '<a class="url" href="{}">{}</a>').format(href, url))
+        at = m.start() + len(url)
+    out.append(escape(s[at:]))
+    return Markup("").join(out)

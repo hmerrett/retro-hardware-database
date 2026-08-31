@@ -75,7 +75,7 @@
 {% macro speclist(pairs) %}
 <dl class="specs">
   {% for k, v in pairs %}
-  <div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{{ v }}</dd></div>
+  <div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{{ v | linked }}</dd></div>
   {% endfor %}
 </dl>
 {% endmacro %}
@@ -100,7 +100,7 @@
       {% endif %}
     </header>
     <h4><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a></h4>
-    {% if f.note %}<div class="cardrow"><span>{{ f.note }}</span></div>{% endif %}
+    {% if f.note %}<div class="cardrow"><span>{{ f.note | linked }}</span></div>{% endif %}
     <div class="cardrow">
       <span class="lbl">Filed under</span>
       {% if authed %}

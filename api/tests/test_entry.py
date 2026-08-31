@@ -353,3 +353,92 @@ class TestWhatEachKindOfDriveIsAsked:
         floppy = {a["key"] for a in entry.storage_asks("Floppy/Gotek")}
         assert "Size" in floppy and "Capacity" not in floppy
         assert "Capacity" in {a["key"] for a in entry.storage_asks("Hard disk")}
+
+
+class TestLinksInWhatPeopleWrote:
+    """A URL typed into a note or a summary is one you meant to follow. What counts
+    as one is narrow on purpose: a scheme said outright, the www. shorthand, or an
+    address with an @ in it. Half the part numbers in the register have a domain's
+    shape and none of them is one."""
+
+    @pytest.mark.parametrize("text,href", [
+        ("see http://example.test/a", "http://example.test/a"),
+        ("see https://example.test/a", "https://example.test/a"),
+        ("ftp://ftp.funet.fi/pub/cbm/", "ftp://ftp.funet.fi/pub/cbm/"),
+        ("ftps://x.test/a", "ftps://x.test/a"),
+        ("sftp://x.test/a", "sftp://x.test/a"),
+        ("mailto:bob@shop.test", "mailto:bob@shop.test"),
+        # The two shapes with no scheme in front of them, given the one they meant.
+        ("www.zx81.co.uk", "http://www.zx81.co.uk"),
+        ("bob.smith+kit@vintage-shop.co.uk", "mailto:bob.smith+kit@vintage-shop.co.uk"),
+    ])
+    def test_what_becomes_a_link(self, text, href):
+        assert f'href="{href}"' in str(entry.linked(text))
+
+    @pytest.mark.parametrize("text", [
+        # Every one of these is the shape of a hostname and none of them is one.
+        "boots from config.sys",
+        "a 1.44MB floppy",
+        "marked 74LS00.rev2",
+        "vintage-computer.com",          # a bare host: too many false friends
+        "user@host, no dotted domain",
+        "@handle",
+        # Schemes are a fixed list, because this text came out of a form.
+        "javascript:alert(1)",
+        "data:text/html,<script>alert(1)</script>",
+        "file:///etc/passwd",
+        "nothing here at all",
+    ])
+    def test_what_does_not(self, text):
+        assert "<a " not in str(entry.linked(text))
+
+    @pytest.mark.parametrize("text,shown", [
+        ("http://x.test/p.", "http://x.test/p"),
+        ("http://x.test/p, and", "http://x.test/p"),
+        ("(see http://x.test/p)", "http://x.test/p"),
+        ("http://x.test/p]", "http://x.test/p"),
+        ("is it http://x.test/p?", "http://x.test/p"),
+        # A bracket that opened inside the URL is the URL's own.
+        ("https://x.test/Amiga_(computer)", "https://x.test/Amiga_(computer)"),
+        ("(see https://x.test/Amiga_(computer))", "https://x.test/Amiga_(computer)"),
+    ])
+    def test_where_the_url_stops_and_the_sentence_carries_on(self, text, shown):
+        out = str(entry.linked(text))
+        assert f'href="{shown}"' in out and f">{shown}</a>" in out
+
+    def test_the_rest_of_the_sentence_is_kept(self):
+        out = str(entry.linked("bought at www.shop.test/x — a bit bent"))
+        assert out.startswith("bought at <a ")
+        assert out.endswith("</a> — a bit bent")
+
+    def test_a_link_opens_in_a_tab_of_its_own_and_an_address_does_not(self):
+        assert 'target="_blank" rel="noopener noreferrer"' in str(
+            entry.linked("http://x.test/p"))
+        assert "target=" not in str(entry.linked("bob@shop.test"))
+
+    def test_the_lines_a_note_was_typed_in_are_left_alone(self):
+        out = str(entry.linked("first http://x.test/a\nsecond www.y.test/b"))
+        assert out.count("<a ") == 2 and "\n" in out
+
+    @pytest.mark.parametrize("text", [
+        "<script>alert(1)</script>",
+        "http://x.test/a <script>alert(1)</script>",
+        "<b>bold</b> http://x.test/a",
+    ])
+    def test_nothing_out_of_a_text_box_arrives_as_markup(self, text):
+        out = str(entry.linked(text))
+        assert "<script>" not in out and "<b>" not in out
+        assert "&lt;" in out
+
+    def test_a_url_cannot_break_out_of_its_own_href(self):
+        # The quote ends the URL rather than the attribute: the charset a URL is
+        # read with has no room for one.
+        out = str(entry.linked('http://x.test/p" onmouseover="alert(1)'))
+        assert 'href="http://x.test/p"' in out
+        assert "onmouseover=&#34;alert(1)" in out or "onmouseover=&quot;alert(1)" in out
+
+    @pytest.mark.parametrize("value,shown", [(None, ""), (1987, "1987")])
+    def test_what_is_not_a_string_at_all(self, value, shown):
+        """The details tables hand this whole rows at a time -- a year, a date, the
+        None of a column nobody filled in."""
+        assert str(entry.linked(value)) == shown

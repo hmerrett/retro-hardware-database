@@ -41,7 +41,7 @@
       {% if m.summary %}
       <details class="mrow{{ ' have' if held[m.key] }}">
         <summary>{{ line }}</summary>
-        <p>{{ m.summary }}</p>
+        <p>{{ m.summary | linked }}</p>
       </details>
       {% else %}
       <div class="mrow{{ ' have' if held[m.key] }}">{{ line }}</div>

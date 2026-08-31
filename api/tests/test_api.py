@@ -2359,6 +2359,57 @@ class TestNotesKeepTheirLines:
         assert "two lines\nnot one" in cell
 
 
+class TestALinkInWhatWasTypedIsALink:
+    """A URL in a note, a summary, a source or a history entry is one you meant to
+    follow, and it used to be text to select and paste. The linkifier is unit-tested
+    in test_entry; what these check is that the pages it belongs on have it, and that
+    the text around it is still text."""
+
+    def _cell(self, page, th):
+        cell = page[page.index(f"<th>{th}</th>"):]
+        return cell[:cell.index("</td>")]
+
+    def test_a_url_in_a_parts_notes(self, client, part):
+        aid = part(type="cpu", notes="datasheet at http://x.test/74ls00.pdf")["asset_id"]
+        cell = self._cell(client.get(f"/parts/{aid}").text, "Notes")
+        assert ('<a class="url" href="http://x.test/74ls00.pdf" target="_blank"'
+                ' rel="noopener noreferrer">http://x.test/74ls00.pdf</a>') in cell
+
+    def test_a_url_in_a_machines_summary(self, client, computer):
+        aid = computer(manufacturer="Acorn", model="A5000",
+                       summary="the story is at www.acorn.test/a5000")["asset_id"]
+        page = client.get(f"/computers/{aid}").text
+        assert '<a class="url" href="http://www.acorn.test/a5000"' in page
+
+    def test_a_url_in_the_source_it_came_from(self, client, part):
+        aid = part(source="https://www.ebay.test/itm/12345")["asset_id"]
+        cell = self._cell(client.get(f"/parts/{aid}").text, "Source")
+        assert 'href="https://www.ebay.test/itm/12345"' in cell
+
+    def test_a_url_in_a_history_note(self, client, part):
+        aid = part()["asset_id"]
+        client.post(f"/parts/{aid}/note",
+                    data={"message": "recapped, see http://forum.test/t/9911"},
+                    follow_redirects=False)
+        page = client.get(f"/parts/{aid}").text
+        msg = page[page.index('class="logmsg"'):]
+        msg = msg[:msg.index("</div>")]
+        assert 'href="http://forum.test/t/9911"' in msg
+
+    def test_a_part_number_is_not_a_hostname(self, client, part):
+        aid = part(type="cpu", notes="boots from config.sys on a 1.44MB floppy")["asset_id"]
+        cell = self._cell(client.get(f"/parts/{aid}").text, "Notes")
+        assert "<a " not in cell
+        assert "boots from config.sys on a 1.44MB floppy" in cell
+
+    def test_the_note_around_the_link_is_still_text(self, client, part):
+        aid = part(type="cpu",
+                   notes="<b>bent pin</b> — http://x.test/p\nsecond line")["asset_id"]
+        cell = self._cell(client.get(f"/parts/{aid}").text, "Notes")
+        assert "<b>" not in cell and "&lt;b&gt;bent pin&lt;/b&gt;" in cell
+        assert 'class="lines"' in cell and "\nsecond line" in cell
+
+
 class TestADisplayPart:
     """A screen is a part with a table of its own, which is what makes "every CRT",
     "every 14-inch and under" and "every Trinitron" questions rather than text

@@ -152,6 +152,12 @@
     main { padding: 14px 12px; }
   }
   a { color: var(--accent); }
+  /* A link found in what somebody wrote -- a note, a summary, a history entry, a
+     spec value; anything the `linked` filter has been through. It breaks anywhere
+     rather than setting a minimum width for whatever it sits in: a URL is one
+     unbreakable word to a browser, and a long one in a note would otherwise push
+     a table column or a card wider than the phone it is being read on. */
+  a.url { overflow-wrap: anywhere; }
   /* Names like "TMC/MyComp/MyNix/Megastar AI5TV" are one unbreakable word to a
      browser, and a heading is a flex item that will not shrink below it. */
   h1, h2, h3 { overflow-wrap: anywhere; }
