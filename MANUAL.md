@@ -1229,6 +1229,15 @@ sensible for local development.
 - **The JSON API and the docs** also accept HTTP Basic, which is how the tool
   server and the command-line tools authenticate.
 
+Both doors keep your place. Logging in returns you to the page you were asking
+for — which matters most to a phone that has arrived by scanning a label and would
+otherwise be handed the gallery and told to find the thing in its hands again — and
+logging out leaves you on the page you were reading rather than at the front door.
+A search in the address counts as part of where you were. The exception is a page
+the login was what let you see: logging out of an edit form leaves you on the item
+it was editing, and out of a new form or a delete confirmation, which have no item
+behind them, on the gallery.
+
 Editing controls simply do not appear when you are not logged in.
 
 ---

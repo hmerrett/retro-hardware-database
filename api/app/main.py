@@ -193,9 +193,15 @@ def _is_public_read(request: Request) -> bool:
     static assets. Editing GETs (new/edit forms, delete confirmations, labels),
     the JSON API and /docs stay private, and every write (POST/PATCH/DELETE)
     requires login."""
-    if request.method != "GET":
-        return False
-    path = request.url.path
+    return request.method == "GET" and _public_page(request.url.path)
+
+
+def _public_page(path: str) -> bool:
+    """Whether a visitor who is not logged in may see this path at all.
+
+    A question of its own because logging out asks it too: the way out lands on the
+    page you were on, and "the page you were on" is only somewhere to land if it is
+    still somewhere you can look at."""
     if path in ("/", "/stats", "/browse", "/suggest", "/robots.txt", "/sitemap.xml",
                 "/favicon.ico",
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
@@ -299,9 +305,31 @@ async def gui_do_login(request: Request):
     return resp
 
 
+def _way_out(nxt: str) -> str:
+    """Where logging out lands: the page it was done from, the way logging in puts
+    you back on the page you asked for. The two are the same courtesy and they are
+    now the same sentence.
+
+    Unless that page was one the login was what let you see. An edit form is not
+    somewhere to land -- the gate would bounce you straight back to the login you
+    have just left -- but there is an item behind every edit form, and that is a
+    page anybody may read, so that is where it goes. Anything else with a door on
+    it (a new form, a delete confirmation, a label) has nothing behind it and falls
+    back to the gallery."""
+    nxt = _safe_next(nxt)
+    path = urlparse(nxt).path
+    if _public_page(path):
+        return nxt
+    item, _, last = path.rpartition("/")
+    if last == "edit" and _public_page(item):
+        return item
+    return "/"
+
+
 @app.post("/logout", include_in_schema=False)
-def gui_logout():
-    resp = RedirectResponse("/", status_code=303)
+async def gui_logout(request: Request):
+    form = await request.form()
+    resp = RedirectResponse(_way_out(form.get("next", "") or ""), status_code=303)
     resp.delete_cookie(COOKIE)
     return resp
 

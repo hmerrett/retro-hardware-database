@@ -956,6 +956,12 @@
    item's own page still lights the section it was reached through -- except the
    gallery, which is only itself. #}
 {% set _p = request.url.path %}
+{# Where you are, for the way in and the way out both: logging in comes back to it,
+   and logging out stays on it rather than dropping you at the front door. The query
+   counts as part of where you are -- the gallery with a search in the address is not
+   the gallery -- and the server decides what to do with it, since a page that only
+   the login let you see is not somewhere to be left standing. #}
+{% set _back = _p ~ ('?' ~ request.url.query if request.url.query else '') %}
 {% macro here(seg) -%}
 {%- if (seg == '/' and _p == '/') or (seg != '/' and _p.startswith(seg)) %} aria-current="page"{% endif -%}
 {%- endmacro %}
@@ -1027,13 +1033,13 @@
         <hr>
         {% if request.state.authed %}
         <a href="/traffic">traffic</a>
-        <form method="post" action="/logout"><button type="submit">log out</button></form>
+        <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
         {% else %}
         {# Carrying where you are, so logging in puts you back on it. That matters
            most to a phone that has arrived by scanning an item's code and would
            otherwise be handed the gallery and left to find the thing in its
            hands again. #}
-        <a href="/login?next={{ request.url.path | urlencode }}">log in</a>
+        <a href="/login?next={{ _back | urlencode }}">log in</a>
         {% endif %}
         {% endif %}
       </div>
@@ -1079,9 +1085,9 @@
     <hr>
     {% if request.state.authed %}
     <a href="/traffic">traffic</a>
-    <form method="post" action="/logout"><button type="submit">log out</button></form>
+    <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
     {% else %}
-    <a href="/login?next={{ request.url.path | urlencode }}">log in</a>
+    <a href="/login?next={{ _back | urlencode }}">log in</a>
     {% endif %}
     {% endif %}
   </div>

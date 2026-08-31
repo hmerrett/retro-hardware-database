@@ -3437,6 +3437,65 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
         assert f'href="/login?next=/parts/{aid}"' in client.get(f"/parts/{aid}").text
 
 
+class TestLoggingOutStaysWhereYouAre:
+    """Logging in comes back to the page you asked for. Logging out dropped you at
+    the front door, whatever you had been reading -- and the two are the same
+    courtesy from opposite ends."""
+
+    def test_it_goes_back_to_the_page_it_was_done_from(self, client, part):
+        aid = part()["asset_id"]
+        r = client.post("/logout", data={"next": f"/parts/{aid}"},
+                        follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == f"/parts/{aid}"
+
+    def test_a_search_is_part_of_where_you_were(self, client):
+        """The gallery with a search in the address is not the gallery."""
+        r = client.post("/logout", data={"next": "/?q=amiga&sort=year"},
+                        follow_redirects=False)
+        assert r.headers["location"] == "/?q=amiga&sort=year"
+
+    def test_an_edit_form_lands_on_the_item_it_was_editing(self, client, part):
+        """The form is behind the login, so going back to it would bounce straight
+        to the login just left. The item behind it is public, and is what was being
+        looked at anyway."""
+        aid = part()["asset_id"]
+        r = client.post("/logout", data={"next": f"/parts/{aid}/edit"},
+                        follow_redirects=False)
+        assert r.headers["location"] == f"/parts/{aid}"
+
+    @pytest.mark.parametrize("nxt", [
+        "/computers/new",            # nothing behind it yet
+        "/parts/RH-0001/delete",     # a door, not a page
+        "/computers/RH-0001/label.pdf",
+        "/api/parts", "/docs",
+        "//evil.test/x", "https://evil.test/x", "",   # and not off the site at all
+    ])
+    def test_anything_else_is_the_gallery(self, client, nxt):
+        r = client.post("/logout", data={"next": nxt}, follow_redirects=False)
+        assert r.headers["location"] == "/"
+
+    def _as_logged_in(self, monkeypatch):
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main, "_check_cookie", lambda request: True)
+        monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
+
+    def test_the_form_carries_the_page_it_is_on(self, client, part, monkeypatch):
+        self._as_logged_in(monkeypatch)
+        aid = part()["asset_id"]
+        page = client.get(f"/parts/{aid}?photo=front.jpg").text
+        assert (f'<input type="hidden" name="next"'
+                f' value="/parts/{aid}?photo=front.jpg">') in page
+
+    def test_the_way_in_carries_it_the_same_way(self, client, part, monkeypatch):
+        from app import main
+        aid = part()["asset_id"]
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
+        page = client.get(f"/parts/{aid}?photo=front.jpg").text
+        assert f'href="/login?next=/parts/{aid}%3Fphoto%3Dfront.jpg"' in page
+
+
 class TestPhotographsOnACreateForm:
     """A thing has no asset tag until it is saved, so photographs chosen while it is
     being created cannot upload as they are picked the way they do on an item's own
