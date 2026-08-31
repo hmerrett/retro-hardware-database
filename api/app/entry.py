@@ -114,6 +114,73 @@ DISPLAY_INTERFACES = ["VGA (HD-15)", "DVI-D", "DVI-I", "DVI-A", "HDMI",
                       "9-pin TTL (EGA)", "13W3", "BNC", "SCART", "S-Video",
                       "Composite", "Component", "RGB DIN", "RF"]
 
+# The sizes screens were actually sold in. A tube was sold by the size of the tube
+# and a panel by the picture, which is why 14" and 15" both exist and why the
+# laptop and industrial sizes are down at the bottom of the list.
+DISPLAY_SIZES = ['9"', '12"', '14"', '15"', '17"', '19"', '20"', '21"', '22"',
+                 '24"', '5"', '7"', '10"', '13.3"']
+
+# The modes a screen of this period is described by. A multisync tube does a range
+# and says so in the custom box: what belongs here is the one figure a monitor is
+# known by, which for a panel is the only one it has.
+DISPLAY_RESOLUTIONS = ["640×480", "800×600", "1024×768", "1152×864", "1280×1024",
+                       "1400×1050", "1600×1200", "1920×1080", "1920×1200",
+                       "720×348 (Hercules)", "320×200 (CGA)"]
+
+# What a monitor will do at the resolution above. 60 is where a panel sits and a
+# tube flickers; 85 is where a tube stops flickering, and is the number worth
+# recording about one.
+DISPLAY_REFRESH = ["60 Hz", "70 Hz", "72 Hz", "75 Hz", "85 Hz", "100 Hz", "120 Hz"]
+
+# The pitches quoted on the box, finest first, because finer is the thing being
+# claimed. A grille is measured horizontally and a mask diagonally, so the two are
+# not quite comparable -- which is an argument for recording both this and the
+# panel type, not for recording neither.
+DISPLAY_PITCHES = ["0.20 mm", "0.22 mm", "0.24 mm", "0.25 mm", "0.26 mm",
+                   "0.27 mm", "0.28 mm", "0.31 mm", "0.39 mm"]
+
+# What a screen is asked, and with what. One table, on the pattern STORAGE_ASKS
+# set: the form builds itself from it and the server reads every answer back
+# through it, so a control on screen and a control read cannot come apart. Doing
+# those two separately is what went wrong twice on the storage form.
+#
+#   key      the spec key the answer is recorded under
+#   options  the list it is picked from; every one of these also takes "custom"
+#   multi    several answers rather than one -- checkboxes instead of radios
+#   max      how long a custom answer may be: the width of the column it lands in
+DISPLAY_ASKS = [
+    {"key": "Type", "label": "Type", "hint": "what makes the picture",
+     "options": DISPLAY_TYPES, "max": 64,
+     "placeholder": "e.g. LCoS, DLP, Nixie"},
+    {"key": "Panel", "label": "Tube or panel", "hint": "how it is built",
+     "options": DISPLAY_PANELS, "max": 64,
+     "placeholder": "e.g. Cromaclear, black matrix"},
+    {"key": "Screen size", "label": "Screen size",
+     "hint": "the diagonal, as it was sold", "options": DISPLAY_SIZES, "max": 32,
+     "placeholder": 'e.g. 13.3", 16"'},
+    {"key": "Aspect", "label": "Aspect ratio", "hint": "the shape of the picture",
+     "options": DISPLAY_ASPECTS, "max": 16, "placeholder": "e.g. 5:3"},
+    {"key": "Resolution", "label": "Resolution",
+     "hint": "a panel's native one, or the most a tube will do",
+     "options": DISPLAY_RESOLUTIONS, "max": 64,
+     "placeholder": "e.g. 640×480 to 1280×1024"},
+    {"key": "Refresh", "label": "Refresh rate",
+     "hint": "the highest it will do at that resolution",
+     "options": DISPLAY_REFRESH, "max": 32, "placeholder": "e.g. 66 Hz"},
+    {"key": "Dot pitch", "label": "Dot pitch", "hint": "in millimetres",
+     "options": DISPLAY_PITCHES, "max": 32, "placeholder": "e.g. 0.297 mm"},
+    # The one a screen may answer more than once, and most of them do: a monitor
+    # of the DVI years has a VGA socket beside it, and a home-computer monitor
+    # takes composite as well as RGB. Radios would make you choose which of a
+    # machine's sockets to lie about, so these are checkboxes.
+    {"key": "Interface", "label": "Interface", "hint": "tick every socket it has",
+     "options": DISPLAY_INTERFACES, "multi": True, "max": 255,
+     "placeholder": "e.g. 6-pin DIN, EGA/CGA switchable"},
+    {"key": "Picture", "label": "Picture",
+     "hint": "colour, or which phosphor a monochrome screen has",
+     "options": DISPLAY_PICTURES, "max": 32, "placeholder": "e.g. Blue-white"},
+]
+
 # --- optical drives --------------------------------------------------------
 # What an optical drive is known by: the discs it takes, and how fast it reads
 # them. Neither is a capacity -- a CD-ROM drive is not a 650MB anything, it is a

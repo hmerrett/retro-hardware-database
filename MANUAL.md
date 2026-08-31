@@ -760,21 +760,26 @@ floppy, 26-pin floppy, CF, SD, USB, Proprietary — with a custom box.
 
 ### Display
 
-A monitor, a fitted panel, the tube out of an all-in-one. Two of these fields
-describe what makes the picture rather than one, because they are two questions.
+A monitor, a fitted panel, the tube out of an all-in-one. Everything here is
+picked from a list rather than typed, the way a drive's fields are, with **custom**
+and a box beside it for the hardware the list does not name.
 
 - **Type** — CRT, LCD, Plasma, OLED, Electroluminescent, VFD, LED matrix, E-paper
 - **Tube or panel** — how that technology is built: Shadow mask, Aperture grille
-  (Trinitron), Aperture grille (Diamondtron), Slot mask, TN, IPS, VA, DSTN, STN
-- **Screen size** — the diagonal in inches, as the thing was sold: `14"`, `13.3"`.
-  Stored as a number, so "every 14-inch and under" is a query.
+  (Trinitron), Aperture grille (Diamondtron), Aperture grille, Slot mask, TN, IPS,
+  VA, DSTN, STN
+- **Screen size** — the diagonal, as the thing was sold: 9" through 24", plus the
+  small ones. Stored as a number, so "every 14-inch and under" is a query.
 - **Aspect ratio** — 4:3, 5:4, 16:10, 16:9, 3:2
-- **Resolution** — a panel's native one, or the most a tube will do
-- **Refresh rate** — the highest it will do at that resolution, e.g. `85 Hz`
-- **Dot pitch** — in millimetres, e.g. `0.28`. Also stored as a number.
-- **Interface** — VGA (HD-15), DVI-D/I/A, HDMI, DisplayPort, the 9-pin TTL cables
-  of an MDA/CGA/EGA monitor, 13W3, BNC, SCART, S-Video, Composite, Component, RGB
-  DIN, RF. Comma-separate a monitor with more than one socket.
+- **Resolution** — a panel's native one, or the most a tube will do. A multisync
+  monitor that does a range says so in the custom box.
+- **Refresh rate** — the highest it will do at that resolution, 60 Hz to 120 Hz
+- **Dot pitch** — 0.20 mm to 0.39 mm. Also stored as a number, so "anything finer
+  than 0.28" is a comparison rather than a text search.
+- **Interface** — **tick every socket it has**, not one of them. VGA (HD-15),
+  DVI-D/I/A, HDMI, DisplayPort, the 9-pin TTL cables of an MDA/CGA/EGA monitor,
+  13W3, BNC, SCART, S-Video, Composite, Component, RGB DIN, RF — plus a box for
+  anything else, which joins the ticked ones.
 - **Picture** — Colour, or which phosphor a monochrome screen has: Green, Amber,
   White, Paper white, Greyscale
 - **Bezel** — the same two menus a drive gets, and the same colour chart. See
@@ -782,12 +787,18 @@ describe what makes the picture rather than one, because they are two questions.
 
 Type and Tube are kept apart on purpose. A Trinitron is a CRT — it is a CRT with
 an aperture grille where a cheaper tube has a shadow mask — so filing one under a
-single field would take it out of the count of CRTs the moment you typed the
+single field would take it out of the count of CRTs the moment you picked the
 trade name. Kept apart, *every CRT* and *every aperture grille* are both
 questions the collection can answer.
 
-Every box is a suggestion rather than a menu: the lists name what turns up, and a
-screen that is none of them is typed in and kept as it was written.
+**Interface is ticked rather than chosen** because a screen genuinely answers it
+more than once: a monitor of the DVI years has a VGA socket beside it, and a
+home-computer monitor takes composite as well as RGB. A single choice would make
+you decide which of its sockets to leave out.
+
+An answer already on a record that is not in the list — one typed before the list
+said otherwise — reopens on **custom** with the box filled in, so nothing is lost
+by editing a screen somebody else wrote up.
 
 The three numbers are stored as numbers — tenths of an inch, whole Hz,
 micrometres — and read back in the units you would write, so `21"` reopens as

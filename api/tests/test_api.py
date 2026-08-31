@@ -2263,14 +2263,16 @@ class TestADisplayPart:
     """
 
     def test_the_form_records_what_a_screen_is(self, client):
+        """Every answer picked from the group it is offered in, and the sockets
+        ticked rather than chosen between."""
         r = client.post("/parts/new",
                         data={"type": "display", "manufacturer": "Sony",
                               "model": "GDM-F520", "spec_type": "CRT",
                               "spec_panel": "Aperture grille (Trinitron)",
                               "spec_screen_size": '21"', "spec_aspect": "4:3",
                               "spec_resolution": "1600×1200",
-                              "spec_refresh": "85 Hz", "spec_dot_pitch": "0.24",
-                              "spec_interface": "VGA (HD-15), BNC",
+                              "spec_refresh": "85 Hz", "spec_dot_pitch": "0.25 mm",
+                              "spec_interface": ["VGA (HD-15)", "BNC"],
                               "spec_picture": "Colour"},
                         follow_redirects=False)
         assert r.status_code == 303
@@ -2278,7 +2280,53 @@ class TestADisplayPart:
         assert client.get(f"/api/parts/{aid}").json()["specs"] == (
             'Type: CRT | Panel: Aperture grille (Trinitron) | Screen size: 21" | '
             "Aspect: 4:3 | Resolution: 1600×1200 | Refresh: 85 Hz | "
-            "Dot pitch: 0.24 mm | Interface: VGA (HD-15), BNC | Picture: Colour")
+            "Dot pitch: 0.25 mm | Interface: VGA (HD-15), BNC | Picture: Colour")
+
+    def test_an_answer_that_is_not_offered_is_typed_beside_custom(self, client):
+        aid = client.post("/parts/new",
+                          data={"type": "display", "spec_type": "custom",
+                                "spec_type_custom": "Nixie tube",
+                                "spec_screen_size": "custom",
+                                "spec_screen_size_custom": '2.5"'},
+                          follow_redirects=False
+                          ).headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            'Type: Nixie tube | Screen size: 2.5"'
+
+    def test_a_socket_the_list_does_not_name_joins_the_ticked_ones(self, client):
+        aid = client.post("/parts/new",
+                          data={"type": "display",
+                                "spec_interface": ["SCART", "RF"],
+                                "spec_interface_custom": "6-pin DIN"},
+                          follow_redirects=False
+                          ).headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            "Interface: SCART, RF, 6-pin DIN"
+
+    def test_an_answer_never_offered_is_refused_rather_than_kept(self, client):
+        """A group's answer is checked against the list it was offered from, the
+        same way a drive's is: something posted straight at the endpoint that was
+        never on the form is not an answer to the question that was asked."""
+        aid = client.post("/parts/new",
+                          data={"type": "display", "spec_type": "Cathode ray",
+                                "spec_aspect": "4:3"},
+                          follow_redirects=False
+                          ).headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == "Aspect: 4:3"
+
+    def test_the_groups_are_built_from_the_one_table(self, client):
+        """The form and the server read the same list, so a question cannot appear
+        on screen that the server passes over."""
+        from app import entry
+        page = client.get("/parts/new?type=display").text
+        for ask in entry.DISPLAY_ASKS:
+            field = "spec_" + ask["key"].lower().replace(" ", "_")
+            kind = "checkbox" if ask.get("multi") else "radio"
+            assert f'type="{kind}" name="{field}"' in page, ask["key"]
+            from markupsafe import escape
+            for option in ask["options"]:
+                assert f'value="{escape(option)}"' in page, \
+                    f'{ask["key"]}: {option}'
 
     def test_the_numbers_land_in_typed_columns(self, db, part):
         """Not in the string. A screen size sorts against other screen sizes, which
@@ -2301,15 +2349,37 @@ class TestADisplayPart:
         assert len(crts) == 2
 
     def test_the_form_reopens_on_what_it_saved(self, client, part):
-        """Rendered as a person writes them, so saving again does not drift: the
-        box says 21", not 210."""
+        """The answers come back checked, in the units a person writes: the group
+        sits on 21", not on 210."""
         aid = part(type="display",
                    specs='Type: CRT | Screen size: 21" | Dot pitch: 0.25 mm | '
                          "Refresh: 85 Hz")["asset_id"]
         page = client.get(f"/parts/{aid}/edit").text
-        assert 'id="spec_screen_size" name="spec_screen_size" value="21&#34;"' in page
-        assert 'id="spec_dot_pitch" name="spec_dot_pitch" value="0.25 mm"' in page
-        assert 'id="spec_refresh" name="spec_refresh" value="85 Hz"' in page
+        for field, value in (("spec_type", "CRT"), ("spec_screen_size", '21"'),
+                             ("spec_dot_pitch", "0.25 mm"),
+                             ("spec_refresh", "85 Hz")):
+            # markupsafe, not html.escape: Jinja writes a quote as &#34;.
+            from markupsafe import escape
+            assert re.search(
+                f'name="{field}" value="{re.escape(str(escape(value)))}"'
+                r'[^>]*\schecked', page), field
+
+    def test_a_saved_answer_from_outside_the_list_reopens_on_custom(self, client,
+                                                                    part):
+        """Somebody else's record, or one typed before the list said otherwise, is
+        not lost by being reopened: the group chooses custom and the box holds it."""
+        aid = part(type="display", specs="Type: Vacuum fluorescent")["asset_id"]
+        page = client.get(f"/parts/{aid}/edit").text
+        assert re.search(r'name="spec_type" value="custom"[^>]*\schecked', page)
+        assert 'id="spec_type_custom" name="spec_type_custom"' in page
+        assert "Vacuum fluorescent" in page
+        # And saving it again keeps it.
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "display", "spec_type": "custom",
+                          "spec_type_custom": "Vacuum fluorescent"},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            "Type: Vacuum fluorescent"
 
     def test_editing_a_screen_keeps_its_numbers(self, client, part):
         aid = part(type="display", specs='Type: CRT | Screen size: 14"')["asset_id"]

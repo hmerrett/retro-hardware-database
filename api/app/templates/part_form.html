@@ -50,17 +50,33 @@
          value="{{ cur if custom else '' }}" placeholder="{{ placeholder }}" hidden>
 {% endmacro %}
 
+{# pick()'s sibling for a question that has more than one answer at once. A monitor
+   of the DVI years has a VGA socket beside it and a home-computer monitor takes
+   composite as well as RGB, so making you choose one would be making you record
+   something untrue. Whatever the list cannot name goes in the box, and comes back
+   into it: the stored value is the ticked ones and the typed ones, comma-separated,
+   and anything not on the list is by definition the typed part. #}
+{% macro picks(field, key, label, hint, options, placeholder, maxlength) %}
+  {% set cur = spec_keys.get(key, '') %}
+  {% set chosen = cur.split(',') | map('trim') | select | list %}
+  {% set extra = chosen | reject('in', options) | list %}
+  <label>{{ label }} <span class="muted">({{ hint }})</span></label>
+  <div class="checks">
+    {% for o in options %}
+    <label><input type="checkbox" name="{{ field }}" value="{{ o }}"
+                  {{ ' checked' if o in chosen else '' }}> {{ o }}</label>
+    {% endfor %}
+  </div>
+  <input id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
+         value="{{ extra | join(', ') }}" placeholder="{{ placeholder }}">
+{% endmacro %}
+
 <datalist id="dl_form_factors">{% for o in vocab.form_factors %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_cpu_families">{% for o in vocab.cpu_families %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_card_ifaces">{% for o in vocab.card_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_video_conn">{% for o in vocab.video_connectors %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_ifaces">{% for o in vocab.storage_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_proto">{% for o in vocab.storage_protocols %}<option value="{{ o }}">{% endfor %}</datalist>
-<datalist id="dl_display_types">{% for o in vocab.display_types %}<option value="{{ o }}">{% endfor %}</datalist>
-<datalist id="dl_display_panels">{% for o in vocab.display_panels %}<option value="{{ o }}">{% endfor %}</datalist>
-<datalist id="dl_display_pictures">{% for o in vocab.display_pictures %}<option value="{{ o }}">{% endfor %}</datalist>
-<datalist id="dl_display_aspects">{% for o in vocab.display_aspects %}<option value="{{ o }}">{% endfor %}</datalist>
-<datalist id="dl_display_ifaces">{% for o in vocab.display_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_makes">{% for o in makes %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
@@ -261,22 +277,26 @@ Photos, source, acquired date and notes are not carried over.</p>
   </fieldset>
 
   {% elif ptype == 'display' %}
-  {# Two fields for what makes the picture, not one: a Trinitron is a CRT with an
-     aperture grille in it, and asked as a single question it would stop being a
-     CRT the moment somebody typed its trade name. Every box here is a suggestion
-     rather than a menu -- the lists name what turns up, and a screen that is none
-     of them is typed in and kept as written. #}
-  <fieldset>
+  {# Built from entry.DISPLAY_ASKS, the one table the server reads every answer back
+     through -- so a group on screen and a group read cannot come apart. Offered
+     rather than typed: what a screen is has short, known answers, and a list you
+     pick from is quicker than a box and says what the register expects. Every group
+     carries "custom" for the hardware the list does not name, and an answer already
+     recorded from outside the list chooses it and fills the box, so a form reopens
+     on what it saved. #}
+  <fieldset id="fs-display">
     <legend>Display</legend>
-    {{ sf('spec_type', 'Type', 'Type', 'what makes the picture', 'dl_display_types') }}
-    {{ sf('spec_panel', 'Panel', 'Tube or panel', 'how it is built — a shadow mask, an aperture grille (Trinitron), TN, IPS', 'dl_display_panels') }}
-    {{ sf('spec_screen_size', 'Screen size', 'Screen size', 'the diagonal, in inches, as it was sold — e.g. 14", 13.3"') }}
-    {{ sf('spec_aspect', 'Aspect', 'Aspect ratio', '', 'dl_display_aspects') }}
-    {{ sf('spec_resolution', 'Resolution', 'Resolution', 'a panel\'s native one, or the most a tube will do — e.g. 1024×768') }}
-    {{ sf('spec_refresh', 'Refresh', 'Refresh rate', 'the highest it will do at that resolution — e.g. 85 Hz') }}
-    {{ sf('spec_dot_pitch', 'Dot pitch', 'Dot pitch', 'in millimetres — e.g. 0.28') }}
-    {{ sf('spec_interface', 'Interface', 'Interface', 'how it attaches; comma-separate several', 'dl_display_ifaces') }}
-    {{ sf('spec_picture', 'Picture', 'Picture', 'colour, or which phosphor a monochrome screen has', 'dl_display_pictures') }}
+    {% for ask in display_asks %}
+    <div class="ask">
+      {% if ask.multi %}
+        {{ picks(ask.field, ask.key, ask.label, ask.hint, ask.options,
+                 ask.placeholder, ask.max) }}
+      {% else %}
+        {{ pick(ask.field, ask.key, ask.label, ask.hint, ask.options,
+                ask.placeholder, ask.max) }}
+      {% endif %}
+    </div>
+    {% endfor %}
     <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
     {# The same two menus a drive gets, going to the same two vocabularies: a
        monitor's front is the largest piece of beige plastic most collections own,
@@ -441,6 +461,23 @@ Photos, source, acquired date and notes are not carried over.</p>
     });
     toggle();
   }
+
+  // A screen's groups: "custom" reveals the box it needs and takes the cursor
+  // there. The same gesture the drive form has, without the rest of that form's
+  // machinery -- what a screen is asked does not depend on the answers, so there is
+  // nothing here to show and hide but the boxes themselves.
+  document.querySelectorAll('#fs-display .ask').forEach(function (ask) {
+    const box = ask.querySelector('input[id$=_custom]');
+    const radios = ask.querySelectorAll('input[type=radio]');
+    if (!box || !radios.length) return;      // the checkbox group keeps its box
+    const sync = function (focus) {
+      const on = ask.querySelector('input[type=radio][value=custom]:checked');
+      box.hidden = !on;
+      if (focus && on) box.focus();
+    };
+    radios.forEach(r => r.addEventListener('change', () => sync(true)));
+    sync(false);
+  });
 
   // Entering a make and model already in the collection almost always means a
   // second of the same thing, so offer to start from it rather than retyping its

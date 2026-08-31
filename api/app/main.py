@@ -4827,6 +4827,42 @@ def _storage_asks_ctx():
             for ask in entry.STORAGE_ASKS]
 
 
+# The field each display ask posts, named for its spec key like every other field
+# on this form. One mapping, used to build the form and to read it back.
+DISPLAY_FIELDS = {ask["key"]: _spec_field(ask["key"]) for ask in entry.DISPLAY_ASKS}
+DISPLAY_ASK_BY_KEY = {ask["key"]: ask for ask in entry.DISPLAY_ASKS}
+
+
+def _display_asks_ctx():
+    """entry.DISPLAY_ASKS dressed for the form: the field each group posts."""
+    return [ask | {"field": DISPLAY_FIELDS[ask["key"]]} for ask in entry.DISPLAY_ASKS]
+
+
+def _picked_display(form, ask):
+    """What one of a screen's groups chose.
+
+    One of the offered answers, or whatever was typed beside "custom" for the
+    hardware the list does not name. Blank when nothing was picked, which is how an
+    answer is taken back off again.
+
+    An answer is checked against the list it was offered from before it is kept, the
+    same way a drive's is: a value posted straight to the endpoint that was never on
+    the form is not an answer to the question that was asked.
+    """
+    field = DISPLAY_FIELDS[ask["key"]]
+    custom = " ".join((form.get(field + "_custom", "") or "").split())
+    if ask.get("multi"):
+        # Several sockets, in the order the list offers them, and then whatever the
+        # list could not name -- so the rendering is stable whichever order they
+        # were ticked in.
+        ticked = [v for v in form.getlist(field) if v in ask["options"]]
+        return ", ".join([*ticked, *([custom] if custom else [])])
+    raw = (form.get(field, "") or "").strip()
+    if raw == "custom":
+        return custom
+    return raw if raw in ask["options"] else ""
+
+
 def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
     # Existing values come from the typed tables, not from re-parsing the string.
     mb_slots, mb_ram, mb_ports, mb_cpufams = {}, {}, {}, []
@@ -4870,13 +4906,11 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
             "storage_interfaces": entry.STORAGE_INTERFACES,
             "storage_kinds": entry.STORAGE_KINDS, "storage_protocols": entry.STORAGE_PROTOCOLS,
             "peripheral_interfaces": entry.PERIPHERAL_INTERFACES,
-            "display_types": entry.DISPLAY_TYPES, "display_panels": entry.DISPLAY_PANELS,
-            "display_pictures": entry.DISPLAY_PICTURES,
-            "display_aspects": entry.DISPLAY_ASPECTS,
-            "display_interfaces": entry.DISPLAY_INTERFACES,
         },
         # Every question a drive is asked, for the form to build itself from.
         "storage_asks": _storage_asks_ctx(),
+        # And every question a screen is asked, the same way.
+        "display_asks": _display_asks_ctx(),
         "bezel_kinds": list(entry.BEZEL_KINDS),
         "disk_image_kinds": list(entry.DISK_IMAGE_KINDS),
         "row_kinds": [k for k in entry.STORAGE_KINDS
@@ -5012,7 +5046,11 @@ def _assemble_specs(ptype, form, extra=()):
         # 'Type' spec vs the part type, etc.).
         field = fields.get(key) or _spec_field(key)
         raw = None
-        if ptype == "storage" and key in PICK_FIELDS:
+        if ptype == "display" and key in DISPLAY_ASK_BY_KEY:
+            # Picked from a group rather than typed into one box. Its answer stands,
+            # blank included -- that is how a value is taken back off.
+            raw = _picked_display(form, DISPLAY_ASK_BY_KEY[key])
+        elif ptype == "storage" and key in PICK_FIELDS:
             # Picked from a radio group with a box beside it, not typed into one
             # input, and read only for the kinds the group is offered for. Where it
             # is offered its answer stands, blank included -- that is how a value is
