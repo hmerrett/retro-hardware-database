@@ -1728,6 +1728,13 @@
     // And the same trip the other way round, on opening.
     function arrive(el) {
       if (still.matches) return;
+      // Nothing to see, nothing to move. A thumbnail still being decoded -- one just
+      // scrolled to and tapped inside the same moment -- leaves no stand-in behind
+      // the photo, and an original that has not arrived yet leaves nothing in front
+      // of it: the trip would be an empty box growing out of a thumbnail, which is
+      // worse than simply being open, and being open is what this did before any of
+      // it. The photo lands the moment it has loaded, as it always did.
+      if (!fit.style.backgroundImage && !(img.complete && img.naturalWidth)) return;
       const to = fitted();
       nest = nestAt(el);
       if (!nest) return;
