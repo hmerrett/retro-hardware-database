@@ -2186,10 +2186,13 @@ def _fold_log(entries, photos=None):
                 and last.oldest - e.created_at <= FOLD_WINDOW):
             last.count += 1
             last.oldest = e.created_at
+            # Every row the one line stands for, so that deleting it removes what it
+            # says it is rather than one twentieth of it.
+            last.ids.append(e.id)
             continue
         out.append(SimpleNamespace(id=e.id, created_at=e.created_at, kind=e.kind,
                                    message=e.message, count=1, photos=mine,
-                                   oldest=e.created_at))
+                                   oldest=e.created_at, ids=[e.id]))
     # Newest first, so a run's own stamp is the last time it was done; the count in
     # the message says the rest.
     for e in out:
@@ -4657,6 +4660,47 @@ async def gui_log_photo_delete(aid: str, log_id: int, request: Request,
     return RedirectResponse(where, status_code=303)
 
 
+@app.post("/items/{aid}/log/delete", include_in_schema=False)
+async def gui_log_delete(aid: str, request: Request, db: Session = Depends(get_db)):
+    """Remove history entries.
+
+    Several ids rather than one, because a run of the same thing done in one sitting
+    reads as a single line and has to delete as one: "deleted 10 photographs" that
+    took one row away and came back saying nine would be a button that does not do
+    what it says.
+
+    Every id is checked against this asset before anything goes, the way hanging a
+    photograph on an entry is -- an id on its own would let one machine's history be
+    deleted from another machine's page.
+
+    Nothing is written to the history about this, which is the rule a history entry
+    losing a photograph already follows: editing the record is not something that
+    happened to the machine, and a history that logged its own editing would grow a
+    line for every line it lost.
+    """
+    aid = (aid or "").upper()
+    where = _asset_page(db, aid)
+    form = await request.form()
+    ids = [int(i) for i in form.getlist("id") if str(i).strip().isdigit()]
+    rows = (db.query(LogEntry).filter(LogEntry.id.in_(ids),
+                                      LogEntry.asset_id == aid).all()
+            if ids else [])
+    if not rows:
+        raise HTTPException(404, f"no such history entry for {aid}")
+    # The photographs hung on them go too, and their paths are read while the rows
+    # are still there: a file is the one thing here that cannot be rolled back.
+    found = [r.id for r in rows]
+    rels = [rel for (rel,) in db.query(LogPhoto.rel)
+            .filter(LogPhoto.log_id.in_(found)).order_by(LogPhoto.id)]
+    db.query(LogPhoto).filter(LogPhoto.log_id.in_(found)).delete(
+        synchronize_session=False)
+    for row in rows:
+        db.delete(row)
+    db.commit()   # the rows first, then the files
+    _purge_photos(rels)
+    return RedirectResponse(where, status_code=303)
+
+
 @app.post("/computers/{aid}/note", include_in_schema=False)
 async def gui_computer_note(aid: str, request: Request, db: Session = Depends(get_db)):
     get_or_404(db, Computer, aid)
@@ -5319,10 +5363,20 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
 
 
 @app.get("/parts/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
-def gui_edit_part(aid: str, request: Request, db: Session = Depends(get_db)):
+def gui_edit_part(aid: str, request: Request, type: str = "",
+                  db: Session = Depends(get_db)):
+    """The edit form. `type` builds it for a type other than the one the part is
+    filed under, which is what the type menu asks for: what a part is asked depends
+    on its type, so changing that has to fetch the form again to have the new
+    type's fields on screen at all. Nothing is saved by looking -- the record still
+    says what it always did until the form is submitted.
+
+    Only a type the register knows. A made-up one would fall through to the
+    free-text box and then become the part's type on save, which is a way to file a
+    SIMM as a "gizmo" by editing a URL."""
     p = get_or_404(db, Part, aid)
-    ctx = _part_form_ctx(db, p, p.type or "other", p.computer_id or "",
-                         p.parent_id or "")
+    ptype = type if type in entry.TYPE_ORDER else (p.type or "other")
+    ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")
     ctx["title"] = f"Edit {aid}"
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
@@ -5334,7 +5388,22 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     ptype = form.get("type", p.type) or "other"
     _require_storage_interface(ptype, form)
     # Unmanaged keys live in part_attribute; carry them across the edit.
-    data = await _part_from_form(form, ptype, specdb.read(db, p).attributes)
+    #
+    # Retyping is the case that needs more than those. A part's structured specs are
+    # read from the table its old type owns, and only what would not fit there is an
+    # attribute -- so on the way to a type with different questions, everything that
+    # did fit was being dropped on the floor. Retyping a video card to a display kept
+    # nothing but what the display form itself asked: the chip it was built round and
+    # how much memory it had simply went.
+    #
+    # So when the type changes, everything the old type recorded comes across as
+    # unmanaged, and _append_unmanaged keeps whatever the new form has no question
+    # for. A key both types ask about is left to the form, because that is the answer
+    # somebody has just given to a question they were actually shown.
+    old_type = p.type or "other"
+    carried = (specdb.pairs(db, p) if ptype != old_type
+               else specdb.read(db, p).attributes)
+    data = await _part_from_form(form, ptype, carried)
     if ptype == "storage" and (form.get("kind", "") or ""):
         data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind"))
     old = {k: getattr(p, k) for k in data}

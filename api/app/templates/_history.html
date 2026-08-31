@@ -53,6 +53,23 @@
             <span class="hint" data-send-busy hidden>uploading…</span>
           </form>
           {% endif %}
+          {# Offered on a folded line as well as a single entry, and it takes every
+             row the line stands for: a line reading "×10" that removed one of them
+             and came back saying nine would not be doing what it says. Nothing is
+             written to the history about it -- the same rule an entry losing a
+             photograph follows. #}
+          {% if request.state.authed %}
+          <form method="post" action="/items/{{ item.asset_id }}/log/delete"
+                {# A single-quoted string inside the attribute, as the photo
+                   deletes do. `tojson` is for a script block: it leaves double
+                   quotes alone, which inside a double-quoted attribute ends it. #}
+                onsubmit="return confirm('{{ 'Delete this history entry?' if e.count == 1 else 'Delete all ' ~ e.count ~ ' of these history entries?' }} This cannot be undone.')">
+            {% for i in e.ids %}<input type="hidden" name="id" value="{{ i }}">{% endfor %}
+            <button class="iconbtn danger" type="submit"
+                    title="{{ 'Delete this history entry' if e.count == 1 else 'Delete these ' ~ e.count ~ ' history entries' }}"
+                    aria-label="Delete history entry">{{ I.ico('trash') }}</button>
+          </form>
+          {% endif %}
         </div>
         {% if e.photos %}
         <div class="logshots">

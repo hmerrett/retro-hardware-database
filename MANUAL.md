@@ -809,6 +809,21 @@ stored](#where-specifications-are-stored).
 
 A free-text specs box, written as `Key: value | Key: value`.
 
+### Changing a part's type
+
+The **Type** menu at the top of the form rebuilds it with that type's fields —
+what a part is asked depends on what it is, so the fields for the new type are not
+on the page until the form is fetched again. Nothing is saved by doing it; the
+record still says what it always did until you press **Save**. If you have typed
+anything since opening the form, it asks first, because fetching the form again
+means asking the server and the server cannot know what is in your boxes.
+
+**What was already recorded comes with it.** A value the new type also asks about
+is offered back through its own control — a monitor filed as *other* with
+`Type: CRT` on it arrives at the Display form with CRT already chosen. A value the
+new type has no question for is kept anyway, as an extra spec on the record, so
+retyping a video card to a display does not lose the chip it was built round.
+
 ### Quick entry
 
 Two fields take shorthand and expand it for you:
@@ -1003,6 +1018,18 @@ mistake one for the other. Click one to open the original full size, as with any
 other photograph here; the big view's toolbar — rotate, crop, delete — is not
 offered, because those act on a picture *of* something rather than on a picture of
 a moment. The trash button under the thumbnail is how one of these goes.
+
+**Deleting an entry.** Each line has a trash button when you are logged in. A
+history is written by the register rather than by hand, so it collects lines nobody
+wants — a correction made twice, a photograph added and taken off again. Deleting
+one takes any photographs hung on it as well, and a folded line takes the whole run
+it stands for: a line reading *×10* that removed one of them and came back saying
+nine would not be doing what it says.
+
+Nothing is written to the history about the deletion. That is the same rule an
+entry gaining or losing a photograph follows — editing the record is not something
+that happened to the machine, and a history that logged its own editing would grow
+a line for every line it lost.
 
 **A run of the same thing done in one sitting reads as one line.** Ten
 photographs deleted one after another is "deleted 10 photographs", not ten

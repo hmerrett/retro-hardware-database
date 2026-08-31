@@ -4628,6 +4628,183 @@ class TestAPhotographIsNeverHalfWritten:
         made = _watermarked_file(rel)
         assert made.stat().st_mtime == src.stat().st_mtime
 
+class TestChangingAPartsType:
+    """What a part is asked depends on what it is, so the type menu has to fetch the
+    form again to have the new type's fields on screen at all. It did that on a new
+    part and did nothing whatever on an existing one -- so retyping an old monitor
+    to Display left the free-text specs box sitting there, with no way to reach the
+    groups that had replaced it.
+    """
+
+    def test_the_form_can_be_built_for_another_type(self, client, part):
+        aid = part(type="other", model="1084S", specs="Type: CRT")["asset_id"]
+        assert 'name="specs"' in client.get(f"/parts/{aid}/edit").text
+        page = client.get(f"/parts/{aid}/edit?type=display").text
+        assert 'name="specs"' not in page
+        assert 'name="spec_type"' in page
+
+    def test_looking_does_not_change_the_record(self, client, part):
+        """Nothing is saved until the form is submitted."""
+        aid = part(type="other", model="1084S")["asset_id"]
+        client.get(f"/parts/{aid}/edit?type=display")
+        assert client.get(f"/api/parts/{aid}").json()["type"] == "other"
+
+    def test_a_type_the_register_does_not_know_is_ignored(self, client, part):
+        """It would render the free-text box and then become the part's type on
+        save, which is a way to file a SIMM as a gizmo by editing a URL."""
+        aid = part(type="ram", specs="Size: 4MiB")["asset_id"]
+        page = client.get(f"/parts/{aid}/edit?type=gizmo").text
+        assert 'name="spec_size"' in page
+
+    def test_what_the_old_type_recorded_comes_across(self, client, part):
+        """The bug behind the question. Structured specs are read from the table the
+        old type owns, and only what would not fit there is an attribute -- so
+        retyping used to drop everything that did fit. A video card became a display
+        and lost the chip it was built round."""
+        aid = part(type="video",
+                   specs="Chip: S3 Trio64 | Interface: PCI | Memory: 2MiB")["asset_id"]
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "display", "spec_type": "CRT"},
+                    follow_redirects=False)
+        specs = client.get(f"/api/parts/{aid}").json()["specs"]
+        assert "Chip: S3 Trio64" in specs and "Memory: 2 MiB" in specs
+        assert specs.startswith("Type: CRT")
+
+    def test_a_key_both_types_ask_about_is_left_to_the_form(self, client, part):
+        """It is the answer somebody has just given to a question they were shown."""
+        aid = part(type="video", specs="Chip: S3 | Interface: PCI")["asset_id"]
+        # The old value is offered back through the group, so it survives by being
+        # answered rather than by being carried.
+        page = client.get(f"/parts/{aid}/edit?type=display").text
+        assert re.search(r'id="spec_interface_custom"[^>]*value="PCI"', page)
+        client.post(f"/parts/{aid}/edit",
+                    data={"type": "display", "spec_type": "CRT",
+                          "spec_interface_custom": "PCI"}, follow_redirects=False)
+        assert "Interface: PCI" in client.get(f"/api/parts/{aid}").json()["specs"]
+
+    def test_an_ordinary_edit_still_carries_only_its_attributes(self, client, part):
+        """Saving without retyping behaves exactly as it did."""
+        aid = part(type="video", specs="Chip: S3 | Voltage: 5V")["asset_id"]
+        client.post(f"/parts/{aid}/edit", data={"type": "video", "spec_chip": "S3"},
+                    follow_redirects=False)
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
+            "Chip: S3 | Voltage: 5V"
+
+    def test_the_menu_asks_before_it_throws_away_what_you_typed(self, client, part):
+        page = client.get(f"/parts/{part()['asset_id']}/edit").text
+        assert "Anything you have entered since opening it will be lost." in page
+        assert "window.location.pathname + u.search" in page
+
+
+class TestDeletingAHistoryEntry:
+    """A history is written by the register rather than by hand, so it collects lines
+    nobody wants: a correction made twice, a photograph added and taken off again.
+    """
+
+    def ids_for(self, db, aid, message):
+        from app.models import LogEntry
+        return [i for (i,) in db.query(LogEntry.id)
+                .filter(LogEntry.asset_id == aid, LogEntry.message == message)]
+
+    def messages(self, client, aid):
+        return [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+
+    def test_one_entry_goes(self, client, db, part):
+        aid = part()["asset_id"]
+        for i in range(3):
+            client.post(f"/parts/{aid}/note", data={"message": f"note {i}"},
+                        follow_redirects=False)
+        r = client.post(f"/items/{aid}/log/delete",
+                        data={"id": self.ids_for(db, aid, "note 1")},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert self.messages(client, aid) == ["note 2", "note 0", "created"]
+
+    def test_a_folded_run_goes_as_the_one_line_it_reads_as(self, client, db, part):
+        """A run of the same thing done in one sitting reads as a single line, so it
+        has to delete as one: "deleted 3 photographs" that removed one of them and
+        came back saying two would not be doing what it says."""
+        aid = part()["asset_id"]
+        # All three uploaded first and then all three removed, so the removals are
+        # next to each other in the history -- only adjacent entries fold.
+        rels = [TestAPhotographIsNeverHalfWritten.upload(client, aid, (60, 40))
+                for _ in range(3)]
+        for rel in rels:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+        deleted = self.ids_for(db, aid, "deleted a photo")
+        assert len(deleted) == 3, deleted
+        # The page reads them as one line and offers every id behind that one line.
+        page = client.get(f"/parts/{aid}").text
+        forms = [f.split("</form>")[0] for f in page.split("/log/delete")[1:]]
+        assert any(all(f'value="{i}"' in form for i in deleted) for form in forms), \
+            "no single form carried the whole run"
+        client.post(f"/items/{aid}/log/delete", data={"id": deleted},
+                    follow_redirects=False)
+        assert "deleted a photo" not in self.messages(client, aid)
+
+    def test_it_cannot_reach_another_items_history(self, client, db, part):
+        """An id on its own would let one machine's history be deleted from
+        another machine's page."""
+        mine, theirs = part()["asset_id"], part()["asset_id"]
+        client.post(f"/parts/{theirs}/note", data={"message": "theirs"},
+                    follow_redirects=False)
+        ids = self.ids_for(db, theirs, "theirs")
+        r = client.post(f"/items/{mine}/log/delete", data={"id": ids},
+                        follow_redirects=False)
+        assert r.status_code == 404
+        assert "theirs" in self.messages(client, theirs)
+
+    def test_nothing_is_written_about_the_deleting(self, client, db, part):
+        """The rule an entry losing a photograph already follows: editing the record
+        is not something that happened to the machine, and a history that logged its
+        own editing would grow a line for every line it lost."""
+        aid = part()["asset_id"]
+        client.post(f"/parts/{aid}/note", data={"message": "gone"},
+                    follow_redirects=False)
+        client.post(f"/items/{aid}/log/delete",
+                    data={"id": self.ids_for(db, aid, "gone")},
+                    follow_redirects=False)
+        assert self.messages(client, aid) == ["created"]
+
+    def test_the_photographs_on_it_go_with_it(self, client, db, part):
+        """A photograph hung on an entry means nothing without the entry, and the
+        file behind it is the one thing here that cannot be rolled back."""
+        import io
+        from app.models import LogPhoto
+        from PIL import Image
+        aid = part()["asset_id"]
+        client.post(f"/parts/{aid}/note", data={"message": "recapped"},
+                    follow_redirects=False)
+        log_id = self.ids_for(db, aid, "recapped")[0]
+        buf = io.BytesIO()
+        Image.new("RGB", (60, 40), (10, 20, 30)).save(buf, "JPEG")
+        buf.seek(0)
+        client.post(f"/items/{aid}/log/{log_id}/photo",
+                    files={"photos": ("x.jpg", buf, "image/jpeg")},
+                    follow_redirects=False)
+        db.expire_all()
+        rels = [r for (r,) in db.query(LogPhoto.rel)
+                .filter(LogPhoto.log_id == log_id)]
+        assert rels, "the photograph did not attach"
+        assert client.get(f"/images/{rels[0]}").status_code == 200
+        client.post(f"/items/{aid}/log/delete", data={"id": [log_id]},
+                    follow_redirects=False)
+        assert client.get(f"/images/{rels[0]}").status_code == 404
+        db.expire_all()
+        assert not db.query(LogPhoto).filter(LogPhoto.log_id == log_id).count()
+
+    def test_it_is_only_for_the_logged_in(self, client, part, monkeypatch):
+        from app import main
+        aid = part()["asset_id"]
+        assert "log/delete" in client.get(f"/parts/{aid}").text
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        try:
+            assert "log/delete" not in client.get(f"/parts/{aid}").text
+        finally:
+            monkeypatch.setattr(main, "AUTH_ENABLED", False)
+
+
 class TestAPageNoticesItHasChanged:
     """The register is used from two places at once: you scan the label with a phone
     and photograph the thing while the desktop shows its page. The desktop had no way

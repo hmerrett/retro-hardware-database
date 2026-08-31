@@ -356,13 +356,57 @@ Photos, source, acquired date and notes are not carried over.</p>
 </form>
 
 <script>
-  // Changing the type reloads the form with that type's fields.
+  // Changing the type fetches the form again with that type's fields, on an
+  // existing part as on a new one. It has to: what a part is asked depends on its
+  // type, and the fields for the new one are not on the page to be shown. Before
+  // this, the menu did nothing at all on an existing part -- so retyping an old
+  // monitor to Display left the free-text box on screen and no way to reach the
+  // groups that had replaced it.
+  //
+  // The path is whatever is already in the address bar, so the same handler serves
+  // the new form, the edit form, and the new form started from another part -- and
+  // whatever else is in the query (computer_id, parent_id, from) rides along.
   const pt = document.getElementById('ptype');
-  if (pt) pt.addEventListener('change', () => {
-    const u = new URL(window.location.href);
-    u.searchParams.set('type', pt.value);
-    {% if not p %}window.location.href = '/parts/new' + u.search;{% endif %}
-  });
+  if (pt) {
+    // What the menu was on, so declining can put it back where it was.
+    let was = pt.value;
+    // Anything typed, ticked or chosen since the form was opened. Fetching the form
+    // again means asking the server, and the server cannot know what is in the
+    // boxes -- so it is worth saying so before it goes. Compared against what the
+    // page was rendered with rather than against being empty: a field that arrived
+    // filled in is not something you typed.
+    const edited = () => [...document.querySelectorAll('form.edit input, ' +
+                                'form.edit select, form.edit textarea')]
+      .some(el => {
+        if (el === pt || el.disabled) return false;
+        if (el.type === 'file') return el.files && el.files.length;
+        if (el.type === 'radio' || el.type === 'checkbox') {
+          return el.checked !== el.defaultChecked;
+        }
+        if (el.tagName === 'SELECT') {
+          // Against the option the markup marked, not against defaultSelected on
+          // each one: a menu whose markup marks nothing still shows its first
+          // option, and that option's defaultSelected stays false -- so every
+          // untouched "not recorded" menu on the form read as edited.
+          const def = [...el.options].find(o => o.defaultSelected) || el.options[0];
+          return el.value !== (def ? def.value : '');
+        }
+        return (el.value || '') !== (el.defaultValue || '');
+      });
+
+    pt.addEventListener('change', () => {
+      if (edited() && !window.confirm(
+            'Changing the type builds this form again with that type\'s fields. '
+            + 'Anything you have entered since opening it will be lost.')) {
+        pt.value = was;
+        return;
+      }
+      was = pt.value;
+      const u = new URL(window.location.href);
+      u.searchParams.set('type', pt.value);
+      window.location.href = window.location.pathname + u.search;
+    });
+  }
   // Storage: two questions, kept apart because answering them as one went wrong
   // twice. What is asked comes from the kind -- entry.STORAGE_ASKS says which kinds
   // each group belongs to, and the server reads each back on the same condition, so
