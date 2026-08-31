@@ -862,7 +862,11 @@
      the photo lightbox is the last place on this site to do that. Typing on a
      phone at 16px is no bad thing anyway; on a pointer it stays 14 and nothing
      about the desktop layout moves. Every rule that sets a control's size is
-     restated here because they are more specific than a bare `input` would be. */
+     restated here because they are more specific than a bare `input` would be --
+     and being more specific is exactly how three of them were missed: the boxes in
+     an item's Files panel and the tag editor beside a file kept their 14px and went
+     on zooming the page, which is the whole complaint this block exists to answer.
+     A control given a size by a class belongs in this list. */
   @media (pointer: coarse) {
     input, select, textarea,
     form.edit input, form.edit select, form.edit textarea,
@@ -870,7 +874,10 @@
     table.drives input, table.drives select,
     header .hdr-search input[type=search],
     .toolbar input[list], .toolbar select,
-    .photo-actions input[name=note], .notebar input { font-size: 16px; }
+    .photo-actions input[name=note], .notebar input,
+    .fileform input[type=text], .fileform input:not([type]),
+    .inline-form input[name=tags],
+    .itemcard > .cardrow input { font-size: 16px; }
   }
 </style>
 <script>
