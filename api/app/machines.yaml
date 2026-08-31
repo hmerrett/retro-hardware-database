@@ -4899,6 +4899,38 @@ families:
               which is why a failed 6522 is a Vectrex with no picture
             variants: [MOS 6522, Synertek SY6522]
 
+  - key: getac
+    name: Getac
+    manufacturer: Getac
+    regions: [US, UK, Europe]
+    models:
+      - key: getac-m230
+        model: M230
+        summary: >-
+          A fully rugged notebook from the Toughbook years: magnesium alloy case and
+          chassis, every port sealed under its own plug, rubber bumpers on all four
+          corners, IP54 and MIL-STD-810F. What set it apart was the screen — 14.1
+          inches, or a 15-inch SXGA+, where the rugged class stopped at 13.3 — in a
+          case 1.8 inches thick. Built for fire, police and utility fleets rather
+          than for people.
+        year: 2007
+        cpu: Intel Core Duo L2400 1.66GHz
+        chassis: fully rugged magnesium clamshell, 1.8 inches thick
+        os: Windows XP Professional
+        ram: [512MiB, 1GiB, 2GiB]
+        issues: []
+        styles: [14.1-inch XGA, 15-inch SXGA+]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel Core Duo L2400, Intel Core 2 Duo L7400]
+          - socket: video
+            label: Graphics
+            note: >-
+              the Intel is what most of them have; the ATI was the option, for the
+              graphical work some fleets bought them for
+            variants: [Intel GMA950, ATI M54]
+
   - key: grid
     name: GRiD
     manufacturer: GRiD

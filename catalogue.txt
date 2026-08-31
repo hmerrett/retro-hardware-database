@@ -2,8 +2,8 @@ THE MACHINE CATALOGUE
 ======================================================================
 
 Every machine the register knows as a model -- home computers,
-consoles and the branded PCs that were sold under a model name: 403
-machines from 77 makers, 1975 to 2024. Filing a machine against one of
+consoles and the branded PCs that were sold under a model name: 404
+machines from 78 makers, 1975 to 2024. Filing a machine against one of
 these fills in what is already known about the model, and asks only
 what differs between two of the same -- the board issue, the case, the
 region, the chips in the sockets.
@@ -172,6 +172,10 @@ Fujitsu   -- 6
 GCE   -- 1
 ----------------------------------------------------------------------
   Vectrex
+
+Getac   -- 1
+----------------------------------------------------------------------
+  M230
 
 GRiD   -- 2
 ----------------------------------------------------------------------
