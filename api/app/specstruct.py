@@ -42,7 +42,8 @@ SCALARS = {
     "display": {"Type": "tech", "Panel": "panel",
                 "Screen size": "screen_in_tenths", "Aspect": "aspect",
                 "Resolution": "resolution", "Refresh": "refresh_hz",
-                "Dot pitch": "dot_pitch_um", "Interface": "interface",
+                "Sync": "sync", "Dot pitch": "dot_pitch_um",
+                "Interface": "interface",
                 "Picture": "picture", "Colour": "colour",
                 "Yellowing": "yellowing"},
 }
@@ -106,7 +107,8 @@ ORDER = {
     # how it plugs in -- and the plastic last, the way a drive's is, because the
     # bezel is what the thing looks like rather than what it does.
     "display": ["Type", "Panel", "Screen size", "Aspect", "Resolution", "Refresh",
-                "Dot pitch", "Interface", "Picture", "Colour", "Yellowing"],
+                "Sync", "Dot pitch", "Interface", "Picture", "Colour",
+                "Yellowing"],
 }
 # Which column a display key reads from in format() (first alias wins).
 DISPLAY_COL = {t: {} for t in SCALARS}

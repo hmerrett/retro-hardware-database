@@ -774,6 +774,11 @@ and a box beside it for the hardware the list does not name.
 - **Resolution** — a panel's native one, or the most a tube will do. A multisync
   monitor that does a range says so in the custom box.
 - **Refresh rate** — the highest it will do at that resolution, 60 Hz to 120 Hz
+- **Sync rate** — **tick every line rate it will lock to**, 15 kHz through 80 kHz,
+  with a box for a monitor that quotes a range instead. This is the field that says
+  whether a machine can drive the screen at all rather than how well: an Acorn
+  AKF18 does 15 kHz *and* 31 kHz, so a BBC mode and a VGA one both come up on it,
+  where a plain VGA monitor shows nothing at 15 kHz however good its tube is.
 - **Dot pitch** — 0.20 mm to 0.39 mm. Also stored as a number, so "anything finer
   than 0.28" is a comparison rather than a text search.
 - **Interface** — **tick every socket it has**, not one of them. VGA (HD-15),
@@ -791,10 +796,12 @@ single field would take it out of the count of CRTs the moment you picked the
 trade name. Kept apart, *every CRT* and *every aperture grille* are both
 questions the collection can answer.
 
-**Interface is ticked rather than chosen** because a screen genuinely answers it
-more than once: a monitor of the DVI years has a VGA socket beside it, and a
-home-computer monitor takes composite as well as RGB. A single choice would make
-you decide which of its sockets to leave out.
+**Interface and sync rate are ticked rather than chosen** because a screen
+genuinely answers both more than once: a monitor of the DVI years has a VGA socket
+beside it, a home-computer monitor takes composite as well as RGB, and a dual-sync
+tube locks to 15 kHz and to 31 kHz — two separate rates, not a range between them.
+A single choice would make you decide which of its sockets, or which of its rates,
+to leave out.
 
 An answer already on a record that is not in the list — one typed before the list
 said otherwise — reopens on **custom** with the box filled in, so nothing is lost

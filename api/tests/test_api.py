@@ -2328,6 +2328,35 @@ class TestADisplayPart:
                 assert f'value="{escape(option)}"' in page, \
                     f'{ask["key"]}: {option}'
 
+    def test_a_dual_sync_screen_records_both_rates(self, client, db):
+        """The AKF18 case, and the reason the rates are ticked: it locks to 15 kHz
+        and to 31 kHz, which is what lets one tube take a BBC mode and a VGA one.
+        Made to choose, a record of it would have to leave out the half that makes
+        it worth owning."""
+        from app.models import DisplaySpec
+        aid = client.post("/parts/new",
+                          data={"type": "display", "manufacturer": "Acorn",
+                                "model": "AKF18", "spec_type": "CRT",
+                                "spec_screen_size": '14"',
+                                "spec_sync": ["15 kHz", "31 kHz"],
+                                "spec_interface": ["9-pin TTL (CGA)"]},
+                          follow_redirects=False
+                          ).headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == (
+            'Type: CRT | Screen size: 14" | Sync: 15 kHz, 31 kHz | '
+            "Interface: 9-pin TTL (CGA)")
+        assert db.get(DisplaySpec, aid).sync == "15 kHz, 31 kHz"
+
+    def test_a_monitor_quoting_a_range_types_it_beside_the_ticks(self, client):
+        """A true multisync answers with a range rather than a set, and the box
+        takes it -- the same box a socket the list cannot name goes in."""
+        aid = client.post("/parts/new",
+                          data={"type": "display",
+                                "spec_sync_custom": "30–70 kHz"},
+                          follow_redirects=False
+                          ).headers["location"].rsplit("/", 1)[-1]
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == "Sync: 30–70 kHz"
+
     def test_the_numbers_land_in_typed_columns(self, db, part):
         """Not in the string. A screen size sorts against other screen sizes, which
         is the whole point of the table."""

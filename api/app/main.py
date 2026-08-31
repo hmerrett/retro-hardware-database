@@ -5073,8 +5073,8 @@ def _assemble_specs(ptype, form, extra=()):
                     "Protocol", "Capacity", "CHS", "Media", "Speed", "Role",
                     "Colour", "Yellowing"],
         "display": ["Type", "Panel", "Screen size", "Aspect", "Resolution",
-                    "Refresh", "Dot pitch", "Interface", "Picture", "Colour",
-                    "Yellowing"],
+                    "Refresh", "Sync", "Dot pitch", "Interface", "Picture",
+                    "Colour", "Yellowing"],
     }.get(ptype)
     # 'other' / 'peripheral' keep a free-text specs box (no data loss).
     if managed is None:
