@@ -2255,6 +2255,31 @@ class TestAStoragePartsBezel:
         assert 'class="swatch"' not in client.get(f"/parts/{aid}").text
 
 
+class TestNotesKeepTheirLines:
+    """A note is typed into a textarea, in paragraphs. It was stored with its
+    newlines and then read back as one run-on line, because a table cell does not
+    show them without being told to."""
+
+    def test_a_parts_notes_are_shown_in_the_lines_they_were_typed_in(self, client,
+                                                                     part):
+        aid = part(type="cpu",
+                   notes="recapped 2026-08\nsocket cleaned\nstill untested")["asset_id"]
+        page = client.get(f"/parts/{aid}").text
+        cell = page[page.index("<th>Notes</th>"):]
+        cell = cell[:cell.index("</td>")]
+        assert 'class="lines"' in cell
+        assert "recapped 2026-08\nsocket cleaned\nstill untested" in cell
+
+    def test_a_machines_notes_are_too(self, client, computer):
+        aid = computer(manufacturer="Acorn", model="A5000",
+                       notes="two lines\nnot one")["asset_id"]
+        page = client.get(f"/computers/{aid}").text
+        cell = page[page.index("<th>Notes</th>"):]
+        cell = cell[:cell.index("</td>")]
+        assert 'class="lines"' in cell
+        assert "two lines\nnot one" in cell
+
+
 class TestADisplayPart:
     """A screen is a part with a table of its own, which is what makes "every CRT",
     "every 14-inch and under" and "every Trinitron" questions rather than text

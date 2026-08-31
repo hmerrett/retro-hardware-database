@@ -69,7 +69,7 @@
       {% endif %}</td></tr>{% endif %}
     {% if p.disk_image %}<tr><th>Disk image</th><td>{{ p.disk_image }}</td></tr>{% endif %}
     {% if p.url %}<tr><th>Reference</th><td class="wrap"><a href="{{ p.url }}" target="_blank">{{ p.url }}</a></td></tr>{% endif %}
-    {% if p.notes %}<tr><th>Notes</th><td>{{ p.notes }}</td></tr>{% endif %}
+    {% if p.notes %}<tr><th>Notes</th><td class="lines">{{ p.notes }}</td></tr>{% endif %}
     </table>
 
     {% if request.state.authed and computers %}

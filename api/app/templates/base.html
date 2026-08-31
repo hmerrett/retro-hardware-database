@@ -683,6 +683,10 @@
   .detail > .detail-main > p.summary:first-child { margin-top: 0; }
   .photo-col { min-width: 0; }
   .detail-main td.wrap { overflow-wrap: anywhere; }
+  /* Notes are typed into a textarea, in paragraphs, and were read back as one run-on
+     line: the newlines were stored all along, and a table cell simply does not show
+     them. The same rendering a history entry's message has always had. */
+  .detail-main td.lines { white-space: pre-line; }
   .detail-main table td:first-child { white-space: nowrap; }
   /* An item page is a stack of key/value tables -- the record, the catalogue
      machine, the chips fitted, the history -- and an auto-laid table sizes its

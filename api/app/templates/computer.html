@@ -68,9 +68,12 @@
                     ('Chassis', c.chassis), ('CPU', c.cpu), ('TopBench', c.topbench),
                     ('Installed RAM', c.installed_ram),
                     ('Drives', c.drives), ('OS', c.os), ('Condition', c.condition),
-                    ('Source', c.source), ('Acquired', c.acquired_date), ('Notes', c.notes)] %}
+                    ('Source', c.source), ('Acquired', c.acquired_date)] %}
       {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
     {% endfor %}
+    {# Out of the list above, and last in it as it was, because this is the one value
+       that is written in more than one line and has to be shown in them. #}
+    {% if c.notes %}<tr><th>Notes</th><td class="lines">{{ c.notes }}</td></tr>{% endif %}
     {% if c.url %}<tr><th>Reference</th><td class="wrap"><a href="{{ c.url }}" target="_blank">{{ c.url }}</a></td></tr>{% endif %}
     </table>
     {% endcall %}
