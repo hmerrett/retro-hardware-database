@@ -729,8 +729,13 @@
   .logline { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
   .logmsg { white-space: pre-line; min-width: 0; }
   .logadd { flex: none; }
-  .logadd .iconbtn { width: 24px; height: 24px; border-radius: 6px; }
-  .logadd .iconbtn svg { width: 13px; height: 13px; }
+  /* Both controls on a history line are the same size, because to the eye they are
+     the same kind of thing: one puts a photograph on the entry and one takes the
+     entry away. Sized to the line, not to the picker's own form -- scoped to the
+     form, the delete button beside it kept the 30px default and the pair sat there
+     visibly mismatched. */
+  .logline .iconbtn { width: 24px; height: 24px; border-radius: 6px; }
+  .logline .iconbtn svg { width: 13px; height: 13px; }
   /* Smaller than the gallery's strip: these belong to a line of the log, and a
      photograph the size of the sentence beside it would be reading the log by its
      pictures. The lightbox is a click away for the one that matters. */
