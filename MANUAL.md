@@ -167,8 +167,19 @@ Click any photograph to open it as large as the window allows. From there:
 | Drag, flick | Move about the enlarged photograph |
 | `+` `-` `0` | Zoom in, out, reset |
 | ← → , sideways swipe | The other photographs of this item (arrow keys move about the photo instead while zoomed in) |
-| Flick up or down | Close, on a phone: the photograph comes with your finger and the page shows through behind it. Let go short of the mark and it goes back |
+| Flick up or down | Close, on a phone: the photograph comes with your finger and the page shows through behind it. Let go past the mark and it drops back into its thumbnail; short of the mark it springs back out to the window |
 | `Esc` | Close |
+
+It opens out of the photograph you clicked, and shuts back into it. The big view
+grows from that thumbnail, and however you leave — flicked away, `Esc`, the ×, a
+click on the black beside the photograph — it shrinks back into the same one,
+cropping to the thumbnail's shape as it goes, so what was on the screen a moment
+ago is where your eye already is. Walk on to another photograph with the arrows
+and it is that one's thumbnail it returns to, scrolled back into view if it had
+gone off the page: the item page is left showing the photograph you were actually
+looking at. The thumbnail's own copy stands in behind the big view until the
+original has loaded, which is why the first moment of a photograph you have not
+opened before is a soft one.
 
 Logged in, the big view is also the editor: a toolbar along the bottom rotates,
 crops and deletes the photograph you are looking at. See [what a photo can

@@ -608,9 +608,16 @@
   /* Zoom and pan ride on this wrapper's transform from the stage's top-left
      corner, so the pan bounds and the crop maths always measure against one
      untransformed box. The centring is the transform's doing too -- laying the
-     photo out in the middle and then scaling from a corner would fight it. */
+     photo out in the middle and then scaling from a corner would fight it.
+
+     Its background is the thumbnail's own copy, stretched to the size the photo
+     is about to be and showing through until the original has arrived: the photo
+     grows out of the thumbnail on the way in, and a box with nothing in it yet has
+     nothing to grow. The radius is the photo's own, so the corners of the stand-in
+     do not show past it. */
   #lightbox .lb-fit { position: absolute; left: 0; top: 0; line-height: 0;
-    transform-origin: 0 0; will-change: transform; }
+    transform-origin: 0 0; will-change: transform;
+    border-radius: 8px; background-size: 100% 100%; background-repeat: no-repeat; }
   #lightbox img { max-width: 92vw; max-height: 84vh; border-radius: 8px; box-shadow: 0 6px 40px #000;
     display: block; width: auto; height: auto;
     cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
@@ -659,6 +666,11 @@
      rules above would outrank the browser's own `[hidden] { display: none }`, which
      is why there is one of our own at the top of this stylesheet. */
   #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
+  /* The buttons fade with the backdrop. A photo on its way home to its thumbnail is
+     uncovering the page it belongs to, and a close button and a toolbar standing
+     over that page belong to nothing -- besides which they are in the way of
+     watching it go. --chrome is written by the script, a frame at a time. */
+  #lightbox .lb-close, #lightbox .lb-nav, #lightbox .lb-tools { opacity: var(--chrome, 1); }
   /* Above the stage, which spans nearly the whole window and would otherwise
      swallow the clicks meant for an arrow standing over it. */
   #lightbox button { position: absolute; z-index: 2; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
@@ -1219,6 +1231,7 @@
 
     function show() {
       const el = current();
+      stand(el);                  // something to look at until the original lands
       img.src = el.dataset.full || el.src;
       const multi = shots.length > 1;
       prev.style.display = next.style.display = multi ? '' : 'none';
@@ -1239,15 +1252,35 @@
       }
       if (hint) hint.textContent = multi ? `${idx + 1} of ${shots.length}` : '';
     }
-    function open(i) { idx = i; box.classList.add('open'); show(); }
+    // Opened by hand, from a thumbnail: the photo grows out of the one that was
+    // clicked. Opened by the page itself -- coming back from a rotate with the same
+    // photograph still open -- there was no gesture and there is nothing to grow out
+    // of, so it is simply already there, as it was before the reload.
+    function open(i, from) {
+      idx = i;
+      going = false;
+      box.classList.add('open');
+      show();
+      if (from) arrive(from);
+    }
+    // The way out is back into the thumbnail, and out of the way only once it has
+    // arrived: the eye keeps hold of which of the photographs on the page this was.
     function close() {
+      if (going) return;
+      cropMode(false);
+      goHome();
+    }
+    // The overlay actually put away. What the trip home ends with, and what stands
+    // in for the trip where there is no thumbnail to go to.
+    function shut() {
       cropMode(false); resetZoom();
       box.style.backgroundColor = '';
       box.classList.remove('open'); img.src = '';
-      dragged = false;
+      bare();
+      dragged = false; going = false;
     }
     function step(d) {
-      if (mode) return;
+      if (mode || going) return;
       idx = (idx + d + shots.length) % shots.length;
       show();
     }
@@ -1340,6 +1373,8 @@
     const PULL = 0.55;     // how hard that edge resisted going past in the first place
     const GIVE = 0.3;      // and the most a pinch may stretch past the last of the zoom
     const EASE = 300;      // ms for a zoom asked for by tap or key rather than dragged
+    const TRAVEL = 300;    // ms for the trip between a thumbnail and the big view
+    const CORNER = 8;      // px: the corner the big view's photo is cut with, as the CSS has it
     const still = matchMedia('(prefers-reduced-motion: reduce)');
 
     let scale = 1, tx = 0, ty = 0, vx = 0, vy = 0;
@@ -1349,6 +1384,12 @@
     // in hand has moved at all -- a drag that ends on the backdrop is not a click
     // on the backdrop, whatever the browser makes of it.
     let drag = null, dim = 0, dragged = false;
+    // The thumbnail this photograph belongs to, measured at the start of a trip to
+    // or from it, and how far into that trip the photo is: 0 out in the big view, 1
+    // sitting in the thumbnail's box and cut down to it. `going` is a trip home in
+    // progress, which nothing may interrupt -- a photo caught halfway home would
+    // hang there over a page it had already half uncovered.
+    let nest = null, crop = 0, cut = false, going = false, faded = -1;
     let frame = null, mark = 0, tween = null, anchor = null, idle = null;
     // A Safari trackpad gesture in progress, and how long ago the last one ended:
     // it also sends wheels for the same fingers, and the wheels are to be ignored.
@@ -1427,9 +1468,16 @@
     function paint() {
       fit.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
       shown = scale;
-      // The backdrop goes with the photo on its way out, so what is being
-      // uncovered is the page it came from rather than a black sheet.
-      box.style.backgroundColor = dim ? `rgba(0, 0, 0, ${(0.85 * (1 - dim)).toFixed(3)})` : '';
+      clipTo();                   // and cut to the thumbnail's shape, if it is going there
+      // The backdrop goes with the photo on its way out, so what is being uncovered
+      // is the page it came from rather than a black sheet, and the buttons go with
+      // it. Only when it has actually changed, though: this is every frame of every
+      // pan and zoom as well, and none of those are uncovering anything.
+      if (dim !== faded) {
+        faded = dim;
+        box.style.backgroundColor = dim ? `rgba(0, 0, 0, ${(0.85 * (1 - dim)).toFixed(3)})` : '';
+        box.style.setProperty('--chrome', (1 - dim).toFixed(3));
+      }
       stage.classList.toggle('zoomed', zoomed());
       if (!zoomed()) stage.classList.remove('panning');
     }
@@ -1496,6 +1544,7 @@
       tx = at(tween.from.tx, tween.to.tx);
       ty = at(tween.from.ty, tween.to.ty);
       dim = at(tween.from.dim || 0, tween.to.dim || 0);
+      crop = at(tween.from.crop || 0, tween.to.crop || 0);
       if (t < 1) return true;
       const done = tween.then;
       tween = null;
@@ -1505,7 +1554,7 @@
     function glideTo(to, ms, then) {
       halt();
       if (still.matches || !ms) {
-        scale = to.scale; tx = to.tx; ty = to.ty; dim = to.dim || 0;
+        scale = to.scale; tx = to.tx; ty = to.ty; dim = to.dim || 0; crop = to.crop || 0;
         applyZoom();
         if (then) then();
         return;
@@ -1527,10 +1576,10 @@
         ty: pin((cy - r.top) - ((cy - r.top) - from.ty) * k, l.y),
       };
     }
-    const here = () => ({ scale: scale, tx: tx, ty: ty, dim: dim });
+    const here = () => ({ scale: scale, tx: tx, ty: ty, dim: dim, crop: crop });
     const fitted = () => {
       const l = limits(1);
-      return { scale: 1, tx: l.x.min, ty: l.y.min, dim: 0 };
+      return { scale: 1, tx: l.x.min, ty: l.y.min, dim: 0, crop: 0 };
     };
     // Straight there, for the wheel and the pinch: they are being turned by hand,
     // and easing something already under the hand only makes it feel loose.
@@ -1556,8 +1605,8 @@
     }
     function resetZoom() {
       halt();
-      scale = 1; tx = 0; ty = 0; dim = 0;
-      pan = pinch = tap = drag = null;
+      scale = 1; tx = 0; ty = 0; dim = 0; crop = 0;
+      pan = pinch = tap = drag = nest = null;
       applyZoom();
     }
     // Letting go: anything pinched past the end of the zoom is eased back to it
@@ -1576,6 +1625,10 @@
     // with the finger, shrinking and letting the page behind show through as it
     // goes, and it goes back if the finger changes its mind. Zoomed in the same
     // drag is how the photo is moved about, so this is for the fitted one only.
+    //
+    // Off the screen is not where it ends up, though, and which edge it was pushed
+    // towards stops mattering the moment it is let go: it has one place to be, and
+    // that is the thumbnail it came out of. The next section is the trip there.
     const AWAY = 90;       // px down or up past which letting go lets it go
     const FLICK = 0.5;     // px/ms -- or this fast, however far it got
     function away(dx, dy) {
@@ -1588,11 +1641,116 @@
       dim = t;
       paint();
     }
-    function letItGo(dy) {
-      const way = dy < 0 ? -1 : 1;
+
+    // --- there and back ------------------------------------------------------
+    // The big view opens out of the thumbnail that was clicked and shuts back into
+    // it, and a photo let go of goes there rather than on off the edge of the
+    // screen: one photograph moving between two places on the page, instead of a
+    // black sheet with a picture on it appearing over the top of everything. Both
+    // ways are the same sums and the same tween the zoom itself uses.
+    //
+    // A thumbnail crops what it shows -- 150 by 110 of a photograph that is neither
+    // -- so shrinking the photo onto one is not enough on its own: it has to be cut
+    // down to the thumbnail's shape on the way, or it would arrive the wrong shape
+    // and change shape on landing. That is what `crop` is for.
+
+    // The thumbnail's box, in the numbers the transform wants: the zoom that puts
+    // the photo in it, where that leaves the photo's top-left corner, how much of
+    // the photo the box does not show, and the corner the box is cut with. Measured
+    // when the trip starts rather than when the photo opened, because the page may
+    // have been scrolled in between.
+    function nestAt(el) {
+      const r = el.getBoundingClientRect(), b = fitBox(), s = stageBox();
+      if (!r.width || !r.height || !b.w || !b.h) return null;
+      const cs = getComputedStyle(el);
+      // A thumbnail that crops (object-fit: cover, which is the strip and the log)
+      // shows the middle of the photograph at whatever zoom fills its box. One that
+      // fits the whole photograph in (the main photo, which is contain) shows all of
+      // it, smaller, with the box's spare width or height left over either side --
+      // and it is the picture the photo has to land on rather than the box, so the
+      // zoom is the smaller of the two instead.
+      const fills = cs.objectFit !== 'contain';
+      const k = fills ? Math.max(r.width / b.w, r.height / b.h)
+                      : Math.min(r.width / b.w, r.height / b.h);
+      return {
+        scale: k,
+        tx: (r.left + r.width / 2 - s.left) - b.w * k / 2,
+        ty: (r.top + r.height / 2 - s.top) - b.h * k / 2,
+        cutX: Math.max(0, (b.w - r.width / k) / 2),
+        cutY: Math.max(0, (b.h - r.height / k) / 2),
+        round: parseFloat(cs.borderTopLeftRadius) || 0,
+      };
+    }
+    // The cut itself, written out with the transform each frame. Nothing at all is
+    // cut at crop 0, and nothing may be: an inset of nought still clips, and the
+    // shadow the photo casts in the big view lies outside its own box.
+    function clipTo() {
+      if (!nest || crop <= 0) {
+        if (cut) { fit.style.clipPath = 'none'; cut = false; }
+        return;
+      }
+      const x = nest.cutX * crop, y = nest.cutY * crop;
+      // The corner is wanted in pixels on the screen -- the big view's own eight out
+      // here, the thumbnail's once home -- and this is drawn inside a transform that
+      // multiplies it by whatever zoom the photo is at on the way.
+      const r = (CORNER + (nest.round - CORNER) * crop) / (scale || 1);
+      fit.style.clipPath = `inset(${y.toFixed(2)}px ${x.toFixed(2)}px round ${r.toFixed(2)}px)`;
+      cut = true;
+    }
+    // Where this photograph goes home to: its own thumbnail, which after a walk
+    // through the arrows is not the one the big view was opened on. A thumbnail
+    // scrolled off the page is put back on it first -- under a backdrop that is
+    // still up, so there is nothing of that to see, and it leaves the photo
+    // somewhere to go and the page showing what was being looked at.
+    function homeward() {
+      if (still.matches) return null;
+      const el = current();
+      const r = el.getBoundingClientRect();
+      if (r.bottom < 0 || r.top > innerHeight) el.scrollIntoView({ block: 'center' });
+      nest = nestAt(el);
+      if (!nest) return null;
+      return { scale: nest.scale, tx: nest.tx, ty: nest.ty, dim: 1, crop: 1 };
+    }
+    // Home, and then away. The one way out of the big view, whether the photo was
+    // flicked, clicked away or dismissed with a key.
+    function goHome() {
+      const home = homeward();
+      if (!home) { shut(); return; }
+      going = true;
+      glideTo(home, TRAVEL, shut);
+    }
+    // And the same trip the other way round, on opening.
+    function arrive(el) {
+      if (still.matches) return;
+      const to = fitted();
+      nest = nestAt(el);
+      if (!nest) return;
+      scale = nest.scale; tx = nest.tx; ty = nest.ty; dim = 1; crop = 1;
+      paint();
+      glideTo(to, TRAVEL);
+    }
+    // Something to look at from the first frame. The original is the whole
+    // photograph, three or four thousand pixels of it, and a trip out of a thumbnail
+    // cannot start on an empty box -- so the thumbnail's own copy stands in behind
+    // the photo, stretched to the size the photo is about to be, until the original
+    // paints over it. The size has to be said out loud in pixels: an <img> with
+    // nothing loaded yet has no size of its own, and every sum here is measured off
+    // the box. The copies keep the photograph's shape, so the stand-in fills that
+    // box exactly rather than having to be cropped to it.
+    function stand(el) {
+      const a = el.naturalWidth && el.naturalHeight ? el.naturalWidth / el.naturalHeight : 0;
       const r = stageBox();
-      glideTo({ scale: scale * 0.8, tx: tx, ty: ty + way * r.height * 0.5, dim: 1 },
-              200, close);
+      if (!a || !r.width) { bare(); return; }
+      const w = Math.min(r.width, r.height * a);
+      img.style.width = w + 'px';
+      img.style.height = (w / a) + 'px';
+      fit.style.backgroundImage =
+        `url("${(el.currentSrc || el.src).replace(/["\\]/g, '\\$&')}")`;
+    }
+    // The stand-in taken away, once the photograph itself is there to be measured.
+    function bare() {
+      img.style.width = img.style.height = '';
+      fit.style.backgroundImage = '';
     }
 
     // In goes at least far enough to fill the window, so a double tap on a tall
@@ -1678,7 +1836,7 @@
     img.addEventListener('dragstart', e => e.preventDefault());
 
     box.addEventListener('pointerdown', e => {
-      if (cropping()) return;
+      if (cropping() || going) return;   // a photo on its way home is not to be caught
       lastKind = e.pointerType || 'mouse';
       halt();                       // a finger on a moving photo stops it
       dragged = false;              // this gesture has not moved anywhere yet
@@ -1776,7 +1934,7 @@
         const gone = e.type === 'pointerup'
           && (Math.abs(dy) > AWAY || (!rested && Math.abs(vy) > FLICK));
         tap = null;
-        if (gone) letItGo(dy || vy);
+        if (gone) goHome();
         else { vy = 0; glideTo(fitted(), 260); }
         stage.classList.remove('panning');
         return;
@@ -1805,16 +1963,23 @@
     // is being centred in and can leave a zoomed one parked outside its bounds.
     addEventListener('resize', () => { halt(); applyZoom(); });
     // A photo's size is not known until it has loaded, and the centring is worked
-    // out from it -- so it is worked out again once there is something to measure.
-    img.addEventListener('load', applyZoom);
+    // out from it -- so it is worked out again once there is something to measure,
+    // and the thumbnail standing in for it in the meantime is taken away. Not the
+    // centring mid-trip, though: on its way out of a thumbnail the photo is nowhere
+    // near the middle of the window on purpose, and putting it there would snatch it
+    // out of the air.
+    img.addEventListener('load', () => {
+      bare();
+      if (tween) paint(); else applyZoom();
+    });
 
     // --- getting about ------------------------------------------------------
     // The photo itself is the way in -- there is no separate button for it, so it
     // answers to the keyboard as well as to a click or a tap.
     shots.forEach((el, i) => {
-      el.addEventListener('click', () => open(i));
+      el.addEventListener('click', () => open(i, el));
       el.addEventListener('keydown', e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(i); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(i, el); }
       });
     });
     prev.addEventListener('click', e => { e.stopPropagation(); step(-1); });
@@ -1838,7 +2003,7 @@
       glideTo({ scale: scale, tx: pin(tx + dx, l.x), ty: pin(ty + dy, l.y) }, 180);
     }
     document.addEventListener('keydown', e => {
-      if (!box.classList.contains('open')) return;
+      if (!box.classList.contains('open') || going) return;
       if (e.key === 'Escape') { cropping() ? cropMode(false) : close(); }
       else if (e.key === '+' || e.key === '=') zoomKeys(STEP_ZOOM);
       else if (e.key === '-' || e.key === '_') zoomKeys(1 / STEP_ZOOM);
@@ -1865,7 +2030,9 @@
       touch = null;
     }, { passive: true });
 
-    // Arriving from a rotate or a crop: reopen on the photo just edited.
+    // Arriving from a rotate or a crop: reopen on the photo just edited. Already
+    // open, as far as anyone watching is concerned, so it opens where it was rather
+    // than climbing out of its thumbnail again.
     const want = new URLSearchParams(location.search).get('photo');
     if (want) {
       const at = shots.findIndex(el => (el.dataset.rel || '') === want);
