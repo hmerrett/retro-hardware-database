@@ -5532,6 +5532,20 @@ class TestPhotographsOnTheHistory:
         # the photograph is told about it.
         assert 'alt="the underside"' in page
 
+    def test_it_hangs_in_the_column_the_date_is_in(self, client, computer, db):
+        """There was nothing in that column below the timestamp, and the entry beside
+        it is a line or two of words: a picture underneath the sentence pushed the
+        next entry down the page with a column of white space next to it."""
+        aid = computer()["asset_id"]
+        self.note(client, aid, "the underside", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        [rel] = self.shots(db, row.id)
+        page = client.get(f"/computers/{aid}").text
+        cell = page[page.index('<td class="logwhen">'):]
+        assert f"/images/{rel}" in cell[:cell.index("</td>")]
+        # Which is to say: before the words, not after them.
+        assert page.index(f"/images/{rel}") < page.index('class="logmsg"')
+
     def test_one_can_be_hung_on_an_entry_already_written(self, client, computer, db):
         """The swap the register logged last week, photographed when the lid next
         came off."""

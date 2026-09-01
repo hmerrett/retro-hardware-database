@@ -775,6 +775,11 @@
      space-between spread three children instead, so the picker sat out in the middle
      of the line with the delete button away at the end -- two buttons for the same
      entry, reading as though they belonged to different things. */
+  /* The date column. nowrap so a stamp is one line, and top-aligned because the
+     entry beside it may run to several. The photographs of the entry hang under it
+     -- see _history.html -- and they wrap on their own, a flex row paying no
+     attention to what white-space says. */
+  .logwhen { white-space: nowrap; vertical-align: top; }
   .logline { display: flex; gap: 8px; align-items: flex-start; }
   .logmsg { white-space: pre-line; min-width: 0; flex: 1; }
   .logadd { flex: none; }
