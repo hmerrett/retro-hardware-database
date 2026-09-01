@@ -5500,14 +5500,71 @@ class TestPhotographsOnTheHistory:
         db.rollback()
         assert main._collection_stats(db)["photos"] == before
 
-    def test_a_note_with_no_words_writes_nothing_at_all(self, client, computer, db):
-        """The message is the caption, so an entry without one is an entry about
-        nothing -- and there is nothing for the photographs to be filed against."""
+    def test_photographs_with_no_words_are_an_entry_of_their_own(self, client,
+                                                                 computer, db):
+        """A photograph of the thing is a thing said about it. It used to need a
+        sentence typed beside it before the register would keep it at all."""
         from app.models import LogPhoto
         aid = computer()["asset_id"]
         self.note(client, aid, "   ", {"photos": self.image()})
+        [row] = self.entries(db, aid, "photo")
+        assert row.message == ""
+        assert self.shots(db, row.id) and db.query(LogPhoto).count() == 1
+        # and not filed as a note: a note is somebody's words
         assert self.notes(db, aid) == []
+
+    def test_it_gets_a_line_and_a_time_of_its_own(self, client, computer, db):
+        """Separate entries, so the log says when the photograph was taken rather
+        than when the sentence above it happened to be written."""
+        aid = computer()["asset_id"]
+        self.note(client, aid, "recapped it")
+        self.note(client, aid, "", {"photos": self.image()})
+        words, pictures = self.notes(db, aid)[0], self.entries(db, aid, "photo")[0]
+        assert words.id != pictures.id
+        assert self.shots(db, words.id) == [] and self.shots(db, pictures.id) != []
+
+    def test_neither_half_needs_the_other(self, client, computer, db):
+        """Words alone, photographs alone, and both together in one gesture -- three
+        entries, and the one with words keeps its photographs as its caption."""
+        aid = computer()["asset_id"]
+        self.note(client, aid, "words only")
+        self.note(client, aid, "", {"photos": self.image()})
+        self.note(client, aid, "both", {"photos": self.image("second.jpg")})
+        notes = self.notes(db, aid)
+        assert [n.message for n in notes] == ["words only", "both"]
+        assert self.shots(db, notes[0].id) == [] and self.shots(db, notes[1].id) != []
+        assert len(self.entries(db, aid, "photo")) == 1
+
+    def test_nothing_at_all_still_writes_nothing_at_all(self, client, computer, db):
+        """An empty box and no photographs is somebody pressing the button by
+        accident, not an entry about nothing."""
+        from app.models import LogPhoto
+        aid = computer()["asset_id"]
+        self.note(client, aid, "  ")
+        assert self.notes(db, aid) == [] and self.entries(db, aid, "photo") == []
         assert db.query(LogPhoto).count() == 0
+
+    def test_the_last_photograph_off_a_photograph_entry_takes_the_entry(
+            self, client, computer, db):
+        """The photographs are what it said. An entry with words keeps its line,
+        because the words are still what it said."""
+        aid = computer()["asset_id"]
+        self.note(client, aid, "", {"photos": self.image()})
+        [row] = self.entries(db, aid, "photo")
+        [rel] = self.shots(db, row.id)
+        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
+                    follow_redirects=False)
+        assert self.entries(db, aid, "photo") == []
+
+    def test_a_worded_entry_keeps_its_line_when_its_photograph_goes(self, client,
+                                                                   computer, db):
+        aid = computer()["asset_id"]
+        self.note(client, aid, "recapped it", {"photos": self.image()})
+        [row] = self.notes(db, aid)
+        [rel] = self.shots(db, row.id)
+        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
+                    follow_redirects=False)
+        assert [n.message for n in self.notes(db, aid)] == ["recapped it"]
 
     def test_a_file_that_is_not_an_image_writes_no_entry_either(self, client,
                                                                computer, db):
@@ -5532,19 +5589,29 @@ class TestPhotographsOnTheHistory:
         # the photograph is told about it.
         assert 'alt="the underside"' in page
 
-    def test_it_hangs_in_the_column_the_date_is_in(self, client, computer, db):
-        """There was nothing in that column below the timestamp, and the entry beside
-        it is a line or two of words: a picture underneath the sentence pushed the
-        next entry down the page with a column of white space next to it."""
+    def test_it_hangs_in_the_entry_s_own_column_and_not_the_date_s(self, client,
+                                                                   computer, db):
+        """A row across the entry, under whatever it says. The date column holds the
+        date: a photograph in there stacks down a column 120px wide."""
         aid = computer()["asset_id"]
         self.note(client, aid, "the underside", {"photos": self.image()})
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
         page = client.get(f"/computers/{aid}").text
-        cell = page[page.index('<td class="logwhen">'):]
-        assert f"/images/{rel}" in cell[:cell.index("</td>")]
-        # Which is to say: before the words, not after them.
-        assert page.index(f"/images/{rel}") < page.index('class="logmsg"')
+        stamp = page[page.index('<td class="logwhen">'):]
+        assert f"/images/{rel}" not in stamp[:stamp.index("</td>")]
+        assert page.index('class="logmsg"') < page.index(f"/images/{rel}")
+
+    def test_a_photograph_has_no_delete_of_its_own(self, client, computer, db):
+        """One button a line, at the right, where a line of words has it. On a
+        photograph entry that button is the photographs."""
+        aid = computer()["asset_id"]
+        self.note(client, aid, "", {"photos": self.image()})
+        [row] = self.entries(db, aid, "photo")
+        page = client.get(f"/computers/{aid}").text
+        assert f"/log/{row.id}/photo-delete" not in page
+        assert '<span class="chip">photo</span>' in page
+        assert page.count("/log/delete") >= 1
 
     def test_one_can_be_hung_on_an_entry_already_written(self, client, computer, db):
         """The swap the register logged last week, photographed when the lid next

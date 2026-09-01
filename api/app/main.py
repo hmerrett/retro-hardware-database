@@ -2133,15 +2133,24 @@ def _now():
     return datetime.now(UTC).replace(tzinfo=None)
 
 
+# An entry whose content is the photographs on it rather than any words. A kind of
+# its own rather than a note that happens to be blank, so that everything which asks
+# what an entry is gets an answer: the page draws it its own chip, the fold leaves it
+# alone, and add_log knows where the rule about empty messages stops.
+PHOTO_ENTRY = "photo"
+
+
 def add_log(db, asset_id, message, kind="change"):
     """Record a dated history entry for an asset, and hand the row back for
     anything that wants to hang photographs on it. The caller commits.
 
     An empty message writes nothing and returns None: there is no such thing as an
-    entry that does not say anything, and a caller with photographs and no words to
-    file them under has nothing to file them against.
+    entry that does not say anything. Except a photograph entry, which says it
+    without words -- a picture of the board with the capacitor missing is a thing
+    said about the board, and it used to need a sentence typed beside it before the
+    register would keep it.
     """
-    if not message:
+    if not message and kind != PHOTO_ENTRY:
         return None
     db.add(row := LogEntry(asset_id=asset_id, created_at=_now(),
                            kind=kind, message=message))
@@ -4633,12 +4642,21 @@ async def gui_delete_computer(aid: str, request: Request,
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
 def _note_with_photos(db, aid, form):
-    """A note and whatever came with it. Every upload is checked before the entry is
-    written, so a rejected file leaves no half-written history behind; and an empty
-    message writes nothing at all, photographs included, because there would be no
-    entry for them to be the caption of."""
+    """Whatever the note bar was filled in with: words, photographs, or both.
+
+    Neither half needs the other. Words alone are a note, as they always were.
+    Photographs alone are an entry of their own with its own time on it, because a
+    photograph of the thing is a thing said about it -- and having to type a sentence
+    first was a toll on the commonest gesture in the register. Both together stay one
+    entry: they were one gesture, and the words are the caption.
+
+    Nothing at all writes nothing at all. Every upload is still checked before the
+    entry is written, so a refused file leaves no half-written history behind."""
     uploads = _chosen_photos(form)
-    row = add_log(db, aid, (form.get("message", "") or "").strip(), kind="note")
+    message = (form.get("message", "") or "").strip()
+    if not message and not uploads:
+        return
+    row = add_log(db, aid, message, kind="note" if message else PHOTO_ENTRY)
     _attach_log_photos(db, row, uploads)
     db.commit()
 
@@ -4684,6 +4702,14 @@ async def gui_log_photo_delete(aid: str, log_id: int, request: Request,
         raise HTTPException(404, "no such photo on this history entry")
     rel = photo.rel
     db.delete(photo)
+    # A photograph entry is its photographs. Take the last one off it and there is
+    # nothing left that it said, so the entry goes too rather than standing in the
+    # log as a chip with nothing beside it. An entry with words keeps its line: the
+    # words are still what it said.
+    if row.kind == PHOTO_ENTRY:
+        db.flush()
+        if not db.query(LogPhoto).filter(LogPhoto.log_id == row.id).count():
+            db.delete(row)
     # Nothing is written to the history about this, either way round. An entry
     # gaining or losing a photograph is an edit to the record rather than something
     # that happened to the machine, and a history that logged its own editing would

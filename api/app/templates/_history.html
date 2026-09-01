@@ -17,10 +17,13 @@
   {% if request.state.authed %}
   <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note" class="notebar"
         enctype="multipart/form-data">
-    <input name="message" placeholder="add a note, e.g. tested, cleaned, recapped" required>
-    {# Not sent the moment they are picked, as the gallery's are: these have a
-       caption still to be typed, and an upload that went before the sentence did
-       would file them under nothing. #}
+    {# Not required any more: photographs on their own are an entry, so the way
+       to file one is to choose it and press the button. #}
+    <input name="message" placeholder="add a note, or just photographs">
+    {# Not sent the moment they are picked, as the gallery's are: there may be a
+       caption still to be typed, and the words have to travel with the photographs
+       to land on the same entry. Nothing waits on anything else, though -- press
+       the button with only photographs chosen and the photographs are the entry. #}
     <span class="newphotos">
       <label class="btn sm filebtn">photos
         <input type="file" name="photos" accept="image/*" multiple>
@@ -34,40 +37,12 @@
   <table class="kv">
     {% for e in log %}
     <tr>
-      {# The photographs go here, under the date, because this column had nothing
-         in it below the timestamp and the entry beside it is one line of words: a
-         picture underneath the sentence pushed the next entry down the page for no
-         reason, with a column of white space next to it. Muted on the stamp rather
-         than on the cell -- the icons under it draw in currentColor and would go
-         grey along with it. #}
-      <td class="logwhen"><span class="muted">{{ log_stamp(e.created_at, request.state.authed) }}</span>
-        {% if e.photos %}
-        <div class="logshots">
-          {% for img in e.photos %}
-          <div class="logshot">
-            {# No data-kind or data-aid: the lightbox's rotate and crop tools act on
-               one of an item's own photographs, and this is not one. It opens the
-               original all the same, which is what a photograph of a board is for. #}
-            <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
-                 srcset="{{ img_srcset(img, [300, 500]) }}" sizes="120px"
-                 data-full="{{ img_url(img) }}" alt="{{ e.message }}"
-                 loading="lazy" decoding="async"
-                 tabindex="0" role="button" aria-label="View this photo full size">
-            {% if request.state.authed %}
-            <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo-delete"
-                  onsubmit="return confirm('Delete this photo? This cannot be undone.')">
-              <input type="hidden" name="image" value="{{ img }}">
-              <button class="iconbtn danger" type="submit" title="Delete photo" aria-label="Delete photo">{{ I.ico('trash') }}</button>
-            </form>
-            {% endif %}
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-      </td>
+      <td class="logwhen"><span class="muted">{{ log_stamp(e.created_at, request.state.authed) }}</span></td>
       <td>
         <div class="logline">
-          <div class="logmsg">{% if e.kind == 'note' %}<span class="chip">note</span> {% endif %}{{ e.message | linked }}</div>
+          {# A photograph entry has no words in it: the chip is the whole of the
+             sentence, and the pictures below are what it says. #}
+          <div class="logmsg">{% if e.kind == 'note' %}<span class="chip">note</span> {% elif e.kind == 'photo' %}<span class="chip">photo</span>{% endif %}{{ e.message | linked }}</div>
           {# Offered on a single entry only. A folded line is several entries read
              out as one sentence, and there is no one of them a photograph would
              belong to. #}
@@ -101,6 +76,24 @@
           </form>
           {% endif %}
         </div>
+        {# In a row across the entry's own column, wrapping onto another row when
+           there are more than fit. No delete of their own: the line has one, at the
+           right where a line of words has it, and on a photograph entry that button
+           is the photographs -- taking the entry away takes them with it. #}
+        {% if e.photos %}
+        <div class="logshots">
+          {% for img in e.photos %}
+          {# No data-kind or data-aid: the lightbox's rotate and crop tools act on
+             one of an item's own photographs, and this is not one. It opens the
+             original all the same, which is what a photograph of a board is for. #}
+          <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
+               srcset="{{ img_srcset(img, [300, 500]) }}" sizes="120px"
+               data-full="{{ img_url(img) }}" alt="{{ e.message or display_name(item) }}"
+               loading="lazy" decoding="async"
+               tabindex="0" role="button" aria-label="View this photo full size">
+          {% endfor %}
+        </div>
+        {% endif %}
       </td>
     </tr>
     {% endfor %}

@@ -1031,24 +1031,30 @@ nothing.
 
 **You can add a note** from the box at the top of the History panel — `tested`,
 `cleaned`, `recapped`, `bought a replacement PSU for it`. Notes are marked as
-notes; everything else is an automatic change record.
+notes; everything else is an automatic change record. Photographs go in from the
+same box, and neither half needs the other: words on their own, photographs on
+their own, or both together.
 
 ### Photographs on an entry
 
-**An entry can carry photographs of what it describes.** The board before the
-recap, the crack the machine arrived with, the label under the lid that settled
-which revision it is. Type the note and choose the photographs in the same
-gesture — the **photos** button sits in the note box, and both go when you press
-**add note**. There is no caption box, because the entry's own message is the
-caption: writing one would be writing the sentence twice.
+**A photograph is an entry in its own right.** Choose one with the **photos**
+button in the note box and press **add note** with the box empty: the log gets a
+line of its own, marked *photo*, with its own time on it and the pictures in a row
+across it. A photograph of the board with the capacitor missing is a thing said
+about the board, and it used to need a sentence typing beside it before the
+register would keep it at all.
+
+**Or with words, in the one gesture.** Type the note and choose the photographs
+together and they stay one entry: the board before the recap with what you did to
+it written beside it. There is no caption box, because the entry's own message is
+the caption — writing one would be writing the sentence twice.
 
 **An entry already written takes one too**, from the small camera button at the
 right of its line — the swap the register logged last week, photographed when the
 lid next came off. That upload goes the moment the photograph is picked, the way
-the gallery's do. The trash button under a picture takes it back off, file and
-all; neither is written into the history, because an entry gaining or losing a
-photograph is an edit to the record rather than something that happened to the
-machine.
+the gallery's do. Nothing is written into the history about it, because an entry
+gaining or losing a photograph is an edit to the record rather than something that
+happened to the machine.
 
 **These are not the item's photographs.** They are not in the gallery, one is
 never the item's default picture, they are not counted among the collection's
@@ -1058,7 +1064,9 @@ of the machine. They are kept apart on disk for the same reason, so nothing can
 mistake one for the other. Click one to open the original full size, as with any
 other photograph here; the big view's toolbar — rotate, crop, delete — is not
 offered, because those act on a picture *of* something rather than on a picture of
-a moment. The trash button under the thumbnail is how one of these goes.
+a moment. The way one of these goes is with the line it belongs to: there is one
+trash button a line, at the right, and on a photograph entry that button is the
+photographs.
 
 **Deleting an entry.** Each line has a trash button when you are logged in. A
 history is written by the register rather than by hand, so it collects lines nobody

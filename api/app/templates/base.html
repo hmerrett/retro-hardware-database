@@ -775,10 +775,8 @@
      space-between spread three children instead, so the picker sat out in the middle
      of the line with the delete button away at the end -- two buttons for the same
      entry, reading as though they belonged to different things. */
-  /* The date column. nowrap so a stamp is one line, and top-aligned because the
-     entry beside it may run to several. The photographs of the entry hang under it
-     -- see _history.html -- and they wrap on their own, a flex row paying no
-     attention to what white-space says. */
+  /* The date column: nowrap so a stamp is one line, and top-aligned because what
+     is beside it -- words, photographs, or both -- runs to as many as it needs. */
   .logwhen { white-space: nowrap; vertical-align: top; }
   .logline { display: flex; gap: 8px; align-items: flex-start; }
   .logmsg { white-space: pre-line; min-width: 0; flex: 1; }
@@ -790,14 +788,15 @@
      visibly mismatched. */
   .logline .iconbtn { width: 24px; height: 24px; border-radius: 6px; }
   .logline .iconbtn svg { width: 13px; height: 13px; }
-  /* Smaller than the gallery's strip: these belong to a line of the log, and a
+  /* A row of them across the entry, wrapping onto another row where there are more
+     than fit. No wrapper around each any more: they had a delete button underneath
+     and now the line's own one, at the right, is the only one there is.
+
+     Smaller than the gallery's strip: these belong to a line of the log, and a
      photograph the size of the sentence beside it would be reading the log by its
      pictures. The lightbox is a click away for the one that matters. */
   .logshots { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 2px; }
-  .logshot { display: flex; flex-direction: column; align-items: center; gap: 3px; }
   .logshots img { width: 120px; height: 88px; border-radius: 6px; border: 1px solid var(--line); object-fit: cover; }
-  .logshot .iconbtn { width: 22px; height: 22px; border-radius: 6px; }
-  .logshot .iconbtn svg { width: 12px; height: 12px; }
   .notebar input { flex: 1; min-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
   /* The invisible file input covering the picker is not a box to type in, whatever
      the rule above says about inputs in here. */
