@@ -563,7 +563,7 @@
      meant to be level with. No width limit either: the column is about 74
      characters of this typeface already, and a narrower paragraph would stop short
      of the right edge every panel under it reaches. */
-  p.model-summary { margin: 0 0 12px; color: var(--muted); }
+  p.model-summary { margin: 0 0 12px; color: var(--muted); white-space: pre-line; }
 
   /* The same paragraph on the catalogue page, folded away: four hundred rows are
      read by eye and by ctrl-F, and a paragraph under every one of them would be a
@@ -698,7 +698,14 @@
   .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
     margin: 16px 0; }
   .itemnav { margin-left: auto; display: flex; gap: 6px; }
-  .summary { margin: 4px 0 14px; }
+  /* A summary is typed into a textarea, in paragraphs, exactly as a note is -- and
+     until now it was read back as one run-on line for exactly the reason the notes
+     cell was: a paragraph collapses the newlines somebody typed into it. The same
+     pre-line the notes cell has. It honours a CRLF as readily as a bare newline,
+     because a browser turns both into one line break while it is parsing, long
+     before the CSS is asked what to do with them -- which is why nothing on the way
+     in has to strip the carriage returns a textarea sends. */
+  .summary { margin: 4px 0 14px; white-space: pre-line; }
   .detail { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; margin-top: 6px; }
   .detail-main { min-width: 0; }
   /* Both columns start at the same line, whatever happens to be first in them. A
