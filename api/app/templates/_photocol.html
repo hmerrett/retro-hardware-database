@@ -107,6 +107,30 @@
     {% if imgerr %}<p class="hint">No image found at the reference URL.</p>{% endif %}
   </div>
   {% endcall %}
+  {# What is going to be done to this thing. The panel sits above Disposal because
+     the two are the ends of opposite tenses and this is the one used weekly, and it
+     is inside the same `authed` block as everything else in this column -- which is
+     the whole of what keeps a plan off the public page. One box whether or not it
+     is already on the list: writing the note is how something joins it, so there is
+     no separate act of flagging to give a button of its own. #}
+  {% call PN.panel('Future project') %}
+    <div class="photo-actions" style="margin-top:0">
+    <form method="post" action="/items/{{ obj.asset_id }}/project">
+      <input name="note" value="{{ obj.project_note }}"
+             placeholder="what needs doing — recap, belt, needs a PSU…"
+             aria-label="what needs doing to {{ obj.asset_id }}">
+      <button class="btn sm" type="submit">{{ 'save' if obj.project else 'add to projects' }}</button>
+    </form>
+    {% if obj.project %}
+    <form method="post" action="/items/{{ obj.asset_id }}/unproject"
+          onsubmit="return confirm('Take this off the project list? Its note goes with it.')">
+      <button class="btn sm" type="submit">off the list</button>
+    </form>
+    <p class="hint">On the <a href="/projects">project list</a>. Nobody who is not
+      logged in sees this, on the page or in a search.</p>
+    {% endif %}
+    </div>
+  {% endcall %}
   {% if not obj.disposed %}
   {% call PN.panel('Disposal') %}
     <div class="photo-actions" style="margin-top:0">

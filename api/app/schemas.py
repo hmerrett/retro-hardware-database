@@ -2,7 +2,10 @@
 a POST can omit them; PATCH handlers use model_dump(exclude_unset=True) so only
 supplied fields change. year is a plain integer, acquired_date and disposed_at
 are ISO dates (all three take null for "not recorded"), and disposed is a
-boolean flag whose optional detail lives in disposed_note. A part's
+boolean flag whose optional detail lives in disposed_note. `project` and
+`project_note` are the same shape for the other tense -- what is going to be done
+to the thing rather than what became of it -- and are the one pair the GUI shows
+only to a reader who is logged in. A part's
 computer_id / parent_id accept "" or null for "standalone"; both store NULL.
 
 A computer's installed_ram is rendered from its fitted modules and chips, so it
@@ -101,6 +104,11 @@ class ComputerIn(BaseModel):
     disposed: bool = False
     disposed_at: date | None = None
     disposed_note: str = ""
+    # What is planned for this one and what needs doing to it. The whole of the API
+    # is behind the login, so these read and write here like any other pair of
+    # columns; it is the GUI that has a public half to keep them out of.
+    project: bool = False
+    project_note: str = ""
     machine: MachineIn | None = None
 
 
@@ -163,6 +171,11 @@ class PartIn(BaseModel):
     disposed_at: date | None = None
     disposed_note: str = ""
     disk_image: str = ""
+    # What is planned for this one and what needs doing to it. The whole of the API
+    # is behind the login, so these read and write here like any other pair of
+    # columns; it is the GUI that has a public half to keep them out of.
+    project: bool = False
+    project_note: str = ""
     machine: BoardIn | None = None
 
     @field_validator("computer_id", "parent_id", mode="before")

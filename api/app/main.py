@@ -347,6 +347,15 @@ COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
 # nothing that copies or writes a part's columns wholesale may set it.
 PART_DERIVED_FIELDS = {"variant"}
 
+# The columns that are on an item's record but not on its page, unless whoever is
+# reading it is logged in: what is planned for the thing, as against what it is (see
+# models.Computer.project). Everything else an item holds is public, so the only
+# thing this set has to do is keep these two out of the places a column otherwise
+# reaches by default -- the change log, which is shown to everybody, and the search
+# index, which anybody may query. Both read the set rather than naming the columns,
+# so a third private column is added here and is private everywhere at once.
+PRIVATE_COLUMNS = {"project", "project_note"}
+
 # Container paths by default (the `images` volume and the goaccess report mount);
 # overridable so the app can be imported and run outside Docker for local
 # development, which the hardcoded absolute paths used to make impossible.
@@ -2356,9 +2365,19 @@ def _coerce(field, raw):
 def _field_diffs(old, new, keys, semantic_specs=False):
     """A one-change-per-line diff of old vs new field values, for the change log.
     specs is broken down per spec key; re-canonicalising an unchanged specs
-    string produces no diff."""
+    string produces no diff.
+
+    The private columns are dropped here rather than at each of the four callers,
+    because this is the one place a change becomes a line in the log and a rule kept
+    in one place is a rule that holds. An item's history is shown to whoever opens
+    its page, and the whole point of those columns is that they are not: a line
+    reading "project_note: → recap, one leg already green" would put the plan on the
+    public page, and put it there for good, the log being the part of the register
+    that nothing rewrites."""
     lines = []
     for k in keys:
+        if k in PRIVATE_COLUMNS:
+            continue
         ov, nv = old.get(k) or "", new.get(k) or ""
         if semantic_specs and k == "specs":
             o, n = dict(entry.parse_specs(ov)), dict(entry.parse_specs(nv))
@@ -3454,11 +3473,16 @@ def search_terms(query):
     return terms
 
 
-def _haystack(db, obj, history):
+def _haystack(db, obj, history, authed=False):
     """Everything written about one item, as one lowercase string: every text
     column, its rendered specs or memory and drives, and its history. This is what
-    makes a search over "any field" true rather than nearly true."""
-    fields = [str(getattr(obj, c.name) or "") for c in obj.__table__.columns]
+    makes a search over "any field" true rather than nearly true.
+
+    "Any field" means every field the reader is looking at anyway. The project
+    columns are the only thing an item's page keeps back, so they are the only
+    thing kept back here, and only from a reader who is not logged in."""
+    fields = [str(getattr(obj, c.name) or "") for c in obj.__table__.columns
+              if authed or c.name not in PRIVATE_COLUMNS]
     fields += history.get(obj.asset_id, [])
     if isinstance(obj, Part):
         fields.append(entry.type_label(obj.type or "other"))
@@ -3475,18 +3499,22 @@ def _history_by_asset(db):
     return out
 
 
-def _search(db, rows, query):
+def _search(db, rows, query, authed=False):
     """The rows whose text contains every term. Done in Python over the rows the
     page already loaded: at this size it is a few hundred string searches, and it
     matches exactly what a reader would call a match rather than what SQL collation
-    would."""
+    would.
+
+    `authed` decides how much of each row there is to match against, and is carried
+    all the way down rather than defaulted here, so the two searches on this site
+    cannot come to disagree about what is private (see _haystack)."""
     terms = search_terms(query)
     if not terms:
         return rows
     history = _history_by_asset(db)
     kept = []
     for r in rows:
-        hay = _haystack(db, r["obj"], history)
+        hay = _haystack(db, r["obj"], history, authed)
         if all(t in hay for t in terms):
             kept.append(r)
     return kept
@@ -3514,7 +3542,7 @@ def _suggest_tier(obj, name, raw):
     return 3 if raw in ident else 4
 
 
-def _suggest(db, query, limit=SUGGEST_LIMIT):
+def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
     """The first few items a query matches, and how many it matches in all.
 
     Deliberately the same match the search bar itself performs -- every field of
@@ -3534,7 +3562,7 @@ def _suggest(db, query, limit=SUGGEST_LIMIT):
     hits = []
     for obj, kind in ([(c, "computer") for c in db.query(Computer).all()]
                       + [(p, "part") for p in db.query(Part).all()]):
-        if not all(t in _haystack(db, obj, history) for t in terms):
+        if not all(t in _haystack(db, obj, history, authed) for t in terms):
             continue
         name = entry.display_name(to_dict(obj))
         hits.append({"obj": obj, "kind": kind, "name": name,
@@ -3576,8 +3604,8 @@ def _suggest(db, query, limit=SUGGEST_LIMIT):
 
 
 @app.get("/suggest", include_in_schema=False)
-def gui_suggest(q: str = "", db: Session = Depends(get_db)):
-    items, total = _suggest(db, q)
+def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)):
+    items, total = _suggest(db, q, authed=request.state.authed)
     return {"q": q, "items": items, "total": total}
 
 
@@ -3586,7 +3614,7 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
     rows = _catalogue_rows(db, precise_times=request.state.authed)
     total = len(rows)
     if q.strip():
-        rows = _search(db, rows, q)
+        rows = _search(db, rows, q, request.state.authed)
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
     return _grid_page(
         request, rows, q=q, searched=bool(q.strip()), total=total,
@@ -4661,12 +4689,34 @@ def _note_with_photos(db, aid, form):
     db.commit()
 
 
+def _asset_find(db, aid):
+    """One asset from the shared register and the page it lives on, whichever of
+    the two tables it turns out to be in -- or None for no such asset.
+
+    What a route serving either kind actually wants: the log routes below only
+    needed the address, but a route that changes something needs the row as well,
+    and looking it up twice is how the two come to be about different items."""
+    aid = (aid or "").strip().upper()
+    for kind, cls in (("computers", Computer), ("parts", Part)):
+        obj = db.get(cls, aid)
+        if obj is not None:
+            return obj, f"/{kind}/{aid}"
+    return None
+
+
+def _asset_or_404(db, aid):
+    """The same, for the callers that have nothing to say about a miss. Which is
+    most of them: an id in a URL that is not an asset is a broken link, while an id
+    typed into a box is a typo, and only the second has anywhere useful to go."""
+    found = _asset_find(db, aid)
+    if found is None:
+        raise HTTPException(404, f"no asset {(aid or '').strip().upper()}")
+    return found
+
+
 def _asset_page(db, aid):
     """Where an asset's page is, for a route that serves either kind."""
-    for kind, cls in (("computers", Computer), ("parts", Part)):
-        if db.get(cls, aid):
-            return f"/{kind}/{aid}"
-    raise HTTPException(404, f"no asset {aid}")
+    return _asset_or_404(db, aid)[1]
 
 
 def _log_entry_or_404(db, aid, log_id):
@@ -5490,8 +5540,14 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
 # (source / acquired date / notes), its serial number, and where it sits. A second
 # card is a second card, not another card in the same slot, so the copy starts
 # unplaced -- and no two objects ever wore the same serial.
+#
+# The plan is on that list for the same reason: it is a fact about the object. A
+# copy of an Amiga board that needs recapping is a record of a second board, and
+# nobody has looked at that one -- inheriting "recap, one leg already green" would
+# be the register asserting a fault that has never been seen.
 DUP_EXCLUDE = {"image", "disposed", "disposed_at", "disposed_note", "source",
-               "acquired_date", "notes", "serial", "computer_id", "parent_id"}
+               "acquired_date", "notes", "serial", "computer_id", "parent_id",
+               "project", "project_note"}
 
 
 @app.post("/parts/{aid}/duplicate", include_in_schema=False)
@@ -5758,6 +5814,162 @@ def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
                             spec_pairs=specdb.pairs(db, p, display=True))
     return Response(pdf, media_type="application/pdf", headers={
         "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
+
+
+# --- the things waiting to be worked on -------------------------------------
+# A flag, the note saying what the plan is, and the page that gathers them: the
+# half of a collection that is a list of intentions rather than a list of objects
+# (see models.Computer.project for why that half is worth a column).
+#
+# Private, the whole of it, and in four places rather than one -- because a thing
+# is only private if it is private everywhere it is written down. /projects is not
+# on _public_page's list, so the gate sends an anonymous visitor to the login; the
+# routes here are POSTs, which that same gate already requires a login for; the
+# item page's panel is inside its `authed` block; and a search leaves the two
+# columns out for anybody not logged in (see PRIVATE_COLUMNS). Miss any one of the
+# four and the other three are decoration.
+#
+# Nothing is written to the history, which is the one place the register's usual
+# habit is deliberately broken. Every other change worth knowing about lands in the
+# log -- but an item's history is shown to whoever opens its page, so an entry
+# reading "flagged as a future project -- recap, one leg already green" would put
+# the plan on the public page by the back door, and put it there for good, since
+# the log is the part of the register nothing rewrites. The plan lives in its own
+# column, and the column is behind the login.
+#
+# Under /items/, for the reason the history routes are: what is flagged is an asset
+# in the shared register, and a machine and the board lifted out of it answer the
+# question the same way. One route each rather than one per table.
+
+
+def _project_back(form, where):
+    """Where a project form returns to: the page it was submitted from, so one pair
+    of buttons serves the item's page and the list without either knowing which it
+    is on. The item itself when nothing says otherwise."""
+    nxt = (form.get("next") or "").strip()
+    return _safe_next(nxt) if nxt else where
+
+
+@app.post("/items/{aid}/project", include_in_schema=False)
+async def gui_project_set(aid: str, request: Request, db: Session = Depends(get_db)):
+    """Put an item on the list, or rewrite the note of one already on it.
+
+    One route for the two because they are one gesture typed twice. Flagging
+    something is only ever done by writing the first version of its note -- nobody
+    marks a machine as a project and has nothing whatever to say about why -- so the
+    box on the item's page and the box on the list are the same box, and this is
+    what both of them submit to."""
+    obj, where = _asset_or_404(db, aid)
+    form = await request.form()
+    obj.project = True
+    obj.project_note = (form.get("note") or "").strip()
+    db.commit()
+    return RedirectResponse(_project_back(form, where), status_code=303)
+
+
+@app.post("/items/{aid}/unproject", include_in_schema=False)
+async def gui_project_clear(aid: str, request: Request, db: Session = Depends(get_db)):
+    """Take an item off the list.
+
+    The note goes with it rather than being left behind a cleared flag. It said what
+    was going to be done, and once the item is off the list either it has been done
+    -- in which case it belongs in the history, written by hand and in the past
+    tense, which is a different sentence from the one here -- or it is not going to
+    be, and a plan nobody is following is not worth keeping. Left behind, it would
+    also be silently inherited by the next flagging, which is how a drive comes to
+    be on the list for a fault it had in 2019."""
+    obj, where = _asset_or_404(db, aid)
+    form = await request.form()
+    obj.project = False
+    obj.project_note = ""
+    db.commit()
+    return RedirectResponse(_project_back(form, where), status_code=303)
+
+
+def _project_rows(db):
+    """Everything on the list, as rows to draw.
+
+    Machines and parts in one list rather than two. What is waiting to be worked on
+    is a single queue -- an afternoon at the bench goes on whatever is next, and
+    whether the next thing is a computer or a card is not how anybody chooses. In
+    register order, so a machine and the board out of it sit near each other on the
+    list they are both on.
+
+    The picture is read exactly as the gallery and the parts lists read it: one
+    folder scan for each kind, one query for every storage part's Kind, and the
+    drawing standing in where nobody has photographed the thing (see part_thumbs).
+    A list of projects without pictures would be the same wall of near-identical
+    model numbers those lists were fixed for."""
+    listings = {kind: folder_images(kind) for kind in ("computers", "parts")}
+    kinds = specdb.storage_kinds(db)
+    rows = []
+    for kind, cls in (("computers", Computer), ("parts", Part)):
+        for obj in db.query(cls).filter(cls.project.is_(True)).all():
+            imgs = pick_images(kind, obj.asset_id, listings[kind])
+            rel = imgs[0] if imgs else ""
+            if kind == "computers":
+                cat = "Computer"
+                ph = entry.placeholder_for("computer")
+            else:
+                ptype = obj.type or "other"
+                cat = entry.type_label(ptype)
+                ph = (_storage_placeholder(kinds.get(obj.asset_id))
+                      if ptype == "storage" else entry.placeholder_for(ptype))
+            rows.append({
+                "aid": obj.asset_id, "url": f"/{kind}/{obj.asset_id}",
+                "name": entry.display_name(to_dict(obj)), "cat": cat,
+                "note": obj.project_note or "", "img": rel,
+                "ref": is_reference(rel), "icon": _favicon_for_rel(rel),
+                "ph": ph, "disposed": bool(obj.disposed),
+            })
+    rows.sort(key=lambda r: r["aid"])
+    return rows
+
+
+def _projects_page(request, db, error="", status=200):
+    """The list, drawn. A function rather than the route's body because the add box
+    has to render it again when what was typed is not an asset tag, with the box
+    still holding what was typed."""
+    return templates.TemplateResponse(request, "projects.html", {
+        "rows": _project_rows(db), "register": _register_order(db),
+        "error": error, "noindex": True,
+    }, status_code=status)
+
+
+@app.get("/projects", response_class=HTMLResponse, include_in_schema=False)
+def gui_projects(request: Request, db: Session = Depends(get_db)):
+    return _projects_page(request, db)
+
+
+@app.post("/projects/add", include_in_schema=False)
+async def gui_project_add(request: Request, db: Session = Depends(get_db)):
+    """Flag an item from the list's own page rather than from the item's.
+
+    The two ways in answer different questions. Standing at an item, having just
+    seen what is wrong with it, is the ordinary way something joins the list, and
+    that is the panel on the item page. This is the other one: sitting with the list
+    open, remembering the drive in the box under the desk. Asking for it by its
+    asset tag is the whole point -- the alternative is finding its page, flagging it
+    there and navigating back, by which time the second thing you remembered has
+    gone."""
+    form = await request.form()
+    found = _asset_find(db, form.get("aid", ""))
+    if found is None:
+        # Back to the list saying so, rather than a 404 page. A mistyped tag is the
+        # ordinary way to get this wrong and the answer to it is the box to type it
+        # in again, which is on the page that was already open.
+        return _projects_page(request, db, error=(form.get("aid") or "").strip(),
+                              status=400)
+    obj, _ = found
+    obj.project = True
+    note = (form.get("note") or "").strip()
+    # Only when there is one. Typing the tag of something already on the list and
+    # nothing else means "this too", not "and forget what it said" -- which is what
+    # writing the blank through would mean.
+    if note:
+        obj.project_note = note
+    db.commit()
+    return RedirectResponse("/projects", status_code=303)
 
 
 # --- files kept beside the register -----------------------------------------

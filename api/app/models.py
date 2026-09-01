@@ -75,6 +75,26 @@ class Computer(Base):
                       server_default="0")
     disposed_at = Column(Date)
     disposed_note = Column(Text, nullable=False, default="", server_default="")
+    # Whether this is one of the things waiting to be worked on, and what the plan
+    # is. The pair sits in the same relation to each other as disposed and
+    # disposed_note: a flag the whole register can be asked at once, and the free
+    # text that is the actual content of the intention -- "recap, one leg already
+    # green", "needs a PSU before it can even be tried".
+    #
+    # A plan is worth a column of its own rather than a line in `notes` because it
+    # is the one thing written here that is about the future. Everything else the
+    # record holds is a description of what is, and a description can be read in
+    # any order; a list of intentions is only useful gathered up, and a sentence
+    # buried in the middle of a paragraph about a machine's condition cannot be
+    # gathered.
+    #
+    # Both are private, in a way nothing else on this table is: an item page is
+    # public and these two are left out of it, out of the search index and out of
+    # the history unless somebody is logged in (see main._haystack and the panel
+    # in _photocol.html). What is here is a description of the collection and can
+    # be read by anybody; what is planned for it is not finished being decided.
+    project = Column(Boolean, nullable=False, default=False, server_default="0")
+    project_note = Column(Text, nullable=False, default="", server_default="")
 
 
 class Part(Base):
@@ -114,6 +134,13 @@ class Part(Base):
     disposed_at = Column(Date)
     disposed_note = Column(Text, nullable=False, default="", server_default="")
     disk_image = Column(String(255), default="")
+    # The same pair the machines have, and for the same reason (see
+    # Computer.project). A part is if anything where it comes up more often: a
+    # recap is a thing done to a board, a belt is a thing done to a drive, and a
+    # capacitor kit ordered for one card is a plan about that card rather than
+    # about whatever it is currently plugged into.
+    project = Column(Boolean, nullable=False, default=False, server_default="0")
+    project_note = Column(Text, nullable=False, default="", server_default="")
 
 
 # --- normalised spec tables ------------------------------------------------

@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% import "_panel.html" as PN %}
+{% block title %}Future projects — Retro Hardware Database{% endblock %}
+{% block content %}
+
+{# The list of intentions, as against the list of objects every other page here
+   draws. Everything else on this site describes what a thing is and what became of
+   it, in the past and present tense; this is the one page written in the future
+   one, and it is the page you open on a Saturday morning to decide what the
+   afternoon is going to be spent on.
+
+   Behind the login, all of it -- there is no anonymous half of this page to draw,
+   the way an item page has one. See the section in main.py for the four places that
+   is enforced and why it takes four.
+
+   Machines and parts in one list, in register order. What is next at the bench is
+   next whether it is a computer or the card out of one, and sorting the queue by
+   which table a thing is in would be sorting it by something nobody is asking. #}
+
+<div class="flex">
+  <h2 style="margin:0">Future projects</h2>
+  <span class="muted">{{ rows|length }}</span>
+</div>
+<p class="hint">What is waiting to be worked on, and what needs doing to it: the
+  recap, the belt, the machine that would run if it had a power supply. Private —
+  none of this is on an item's own page for anybody who is not logged in, and none
+  of it is in the search or the history. Taking something off the list takes its
+  note with it, so what was actually done is worth writing into that item's history
+  where it will stay.</p>
+
+{% call PN.panel('Add one') %}
+  {# By asset tag, with the whole register behind the box. The other way in is the
+     panel on the item's own page, which is where something joins the list when you
+     are standing at it; this is for the one you have just remembered, where finding
+     its page first and coming back is how the second thing you remembered gets
+     lost. #}
+  <form method="post" action="/projects/add" class="notebar">
+    <input name="aid" list="dl_assets" required placeholder="asset tag"
+           value="{{ error }}" aria-label="the asset tag of the item to add"
+           style="flex:0 1 150px">
+    <input name="note" placeholder="what needs doing — recap, belt, needs a PSU…"
+           aria-label="what needs doing to it">
+    <button class="btn sm" type="submit">add</button>
+  </form>
+  {% if error %}<p class="hint">There is no item with the tag <strong>{{ error }}</strong>.
+    Nothing was added.</p>{% endif %}
+  <datalist id="dl_assets">
+    {% for aid, kind, name in register %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}
+  </datalist>
+{% endcall %}
+
+{% if rows %}
+<div class="itemcards">
+  {% for r in rows %}
+  <article class="itemcard">
+    <header>
+      <a href="{{ r.url }}">{{ r.aid }}</a>
+      <span class="muted">· {{ r.cat }}</span>
+      {# A disposed thing can still be on the list -- a board is worth recapping
+         after the case it came in has gone -- but the list should say so, since
+         "waiting to be worked on" reads oddly next to something that has left. #}
+      {% if r.disposed %}<span class="chip">disposed</span>{% endif %}
+      <form method="post" action="/items/{{ r.aid }}/unproject"
+            onsubmit="return confirm('Take {{ r.aid }} off the project list? Its note goes with it.')">
+        <input type="hidden" name="next" value="/projects">
+        <button class="btn sm" type="submit">off the list</button>
+      </form>
+    </header>
+    <div class="cardmain">
+      <a class="cardthumb" href="{{ r.url }}"
+         aria-label="{{ r.aid }} — its own page and its photographs">
+        {% if r.img %}<img src="{{ img_url(r.img, THUMB_CARD) }}" alt=""
+             loading="lazy" decoding="async">
+        {% else %}<img class="ph" src="/static/{{ r.ph }}" alt="" aria-hidden="true"
+             loading="lazy">{% endif %}
+        {% if r.ref %}<span class="ref-badge{{ ' icon' if r.icon else '' }}"
+          title="Illustrative image, not this exact unit">{% if r.icon %}<img
+          src="/images/{{ r.icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
+      </a>
+      <div class="cardtext">
+        <h4><a href="{{ r.url }}">{{ r.name }}</a></h4>
+      </div>
+    </div>
+    {# The note as an editable box rather than as text with an edit button beside
+       it. A plan is the thing on this page most often wrong -- half of it is done,
+       or the fault turned out to be something else -- and the list is where you are
+       standing when you find that out. The same box the item's own page carries,
+       submitting to the same route. #}
+    <div class="cardrow">
+      <span class="lbl">Plan</span>
+      <form method="post" action="/items/{{ r.aid }}/project">
+        <input type="hidden" name="next" value="/projects">
+        <input name="note" value="{{ r.note }}"
+               placeholder="what needs doing" aria-label="what needs doing to {{ r.aid }}">
+        <button class="btn sm" type="submit">save</button>
+      </form>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<p class="muted">Nothing is on the list. Flag something from its own page, or add
+  it by asset tag above.</p>
+{% endif %}
+{% endblock %}

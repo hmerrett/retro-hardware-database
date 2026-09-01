@@ -26,6 +26,15 @@
   {% endif %}
 </div>
 
+{# The plan for this one, where the disposal banner says what became of it. Only
+   for a reader who is logged in: the item page is public and this is the private
+   half of the register (see main.py's project section). #}
+{% if request.state.authed and p.project %}
+<div class="plan-banner">Future project{% if p.project_note %} — {{ p.project_note | linked }}{% endif %}
+  <a class="btn sm" href="/projects">the list</a>
+</div>
+{% endif %}
+
 {% if p.disposed %}
 <div class="banner">Disposed{% if p.disposed_at %} {{ p.disposed_at }}{% endif %}{% if p.disposed_note %} — {{ p.disposed_note | linked }}{% endif %}
   {% if request.state.authed %}
