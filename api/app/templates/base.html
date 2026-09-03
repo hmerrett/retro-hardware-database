@@ -1314,6 +1314,9 @@
     // of, so it is simply already there, as it was before the reload.
     function open(i, from) {
       idx = i;
+      // A trip home caught still running is abandoned rather than finished: what it
+      // promised was to put the overlay away, and the overlay is wanted open.
+      if (tween) tween.then = null;
       going = false;
       box.classList.add('open');
       show();
@@ -1439,7 +1442,12 @@
     // A flick away: how far along it the photo is, 0 to 1, and whether the gesture
     // in hand has moved at all -- a drag that ends on the backdrop is not a click
     // on the backdrop, whatever the browser makes of it.
-    let drag = null, dim = 0, dragged = false;
+    //
+    // And where the press this click belongs to landed. A pan takes the pointer
+    // capture, and a captured pointer sends its click to the overlay whatever it
+    // was aimed at -- so a click on a zoomed photo arrives looking exactly like a
+    // click on the black behind it, which is the one click that means close.
+    let drag = null, dim = 0, dragged = false, downOn = null;
     // The thumbnail this photograph belongs to, measured at the start of a trip to
     // or from it, and how far into that trip the photo is: 0 out in the big view, 1
     // sitting in the thumbnail's box and cut down to it. `going` is a trip home in
@@ -1552,10 +1560,17 @@
     function run() {
       if (frame === null) { mark = performance.now(); frame = requestAnimationFrame(tick); }
     }
+    // Stop where it stands. A trip home cut short here is still finished, though:
+    // the overlay is put away by the `then` the trip carries, and dropping that on
+    // the floor left `going` true with nothing left running to ever clear it --
+    // and `going` is what makes the photo uninterruptible, so the big view stayed
+    // up with a photo frozen halfway home and every way out of it refusing.
     function halt() {
       if (frame !== null) cancelAnimationFrame(frame);
       clearTimeout(idle);
+      const done = tween && tween.then;
       frame = null; tween = null; idle = null; vx = vy = 0;
+      if (done) done();
     }
     function tick(now) {
       // A dropped frame or a backgrounded tab must not fling the photo across the
@@ -1829,8 +1844,14 @@
 
     // Mice only: a phone that reports a double tap as a double click as well would
     // otherwise zoom in on the tap and straight back out on the click.
-    stage.addEventListener('dblclick', e => {
+    //
+    // On the overlay rather than on the stage, because panning a zoomed photo holds
+    // the pointer capture and a captured pointer's double click is delivered to the
+    // overlay -- so the stage never heard the one double click that matters, the one
+    // asking to come back out of a zoom. It went in and would not come out.
+    box.addEventListener('dblclick', e => {
       if (cropping() || lastKind !== 'mouse') return;
+      if (e.target.closest('button, #lb-tools')) return;
       e.preventDefault();
       toggleZoom(e.clientX, e.clientY);
     });
@@ -1852,6 +1873,7 @@
       // swipe back to the previous page, and ctrl or cmd with one is the browser
       // zooming the page, scrollbars, banner and all.
       e.preventDefault();
+      if (going) return;         // a photo on its way home is not to be caught
       if (gesturing()) return;   // Safari sends gestures and wheels both; take one
       // Lines and pages to pixels first, or a wheel that reports in lines would
       // creep while one reporting in pixels jumps.
@@ -1875,7 +1897,7 @@
     // events already handling it -- hence the check for fingers down, which a
     // trackpad has none of and a phone always has two.
     box.addEventListener('gesturestart', e => {
-      if (cropping() || held.size) return;
+      if (cropping() || held.size || going) return;
       e.preventDefault();
       halt();
       gest = { scale: scale, tx: tx, ty: ty, x: e.clientX, y: e.clientY };
@@ -1900,6 +1922,11 @@
 
     box.addEventListener('pointerdown', e => {
       if (cropping() || going) return;   // a photo on its way home is not to be caught
+      downOn = e.target;
+      // The chrome answers for its own presses. Taking the capture below would send
+      // their clicks to the overlay instead, leaving the close button and the
+      // toolbar dead for as long as the photo was zoomed in.
+      if (e.target.closest('button, #lb-tools')) return;
       lastKind = e.pointerType || 'mouse';
       halt();                       // a finger on a moving photo stops it
       dragged = false;              // this gesture has not moved anywhere yet
@@ -2049,7 +2076,7 @@
     next.addEventListener('click', e => { e.stopPropagation(); step(1); });
     box.querySelector('.lb-close').addEventListener('click', close);
     box.addEventListener('click', e => {
-      if (!dragged && e.target === box) close();
+      if (!dragged && e.target === box && downOn === box) close();
     });
     // The stage reaches beyond the photo now, so the black beside a tall one is
     // the stage rather than the backdrop -- and a click there still closes, as it

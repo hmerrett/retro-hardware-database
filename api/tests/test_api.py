@@ -4552,6 +4552,68 @@ class TestTheBigPhotoView:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
 
+    def test_a_trip_home_cut_short_still_puts_the_overlay_away(self, client, part):
+        """The overlay closes by sending the photo back into its thumbnail, and
+        while that is running the photo is uninterruptible -- which is the flag
+        every way out of the big view checks before doing anything. Anything that
+        stopped the movement threw away the trip's promise to put the overlay away
+        with it, and the flag was left set for good: a photo frozen halfway home,
+        over a page that could not be reached, and neither Escape nor the close
+        button nor a click on the black would answer. A trackpad was enough to do
+        it -- it goes on sending its momentum for a moment after the fingers lift,
+        and that momentum landed in the middle of the trip."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            # Stopped mid-trip, the trip is finished rather than dropped
+            assert "const done = tween && tween.then;" in page
+            assert re.search(r"frame = null; tween = null; idle = null; vx = vy = 0;"
+                             r"\s*if \(done\) done\(\);", page)
+            # and the things that stop it leave a photo on its way home alone
+            assert re.search(r"e\.preventDefault\(\);\s*if \(going\) return;", page)
+            assert "if (cropping() || held.size || going) return;" in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_the_double_click_that_comes_back_out_of_a_zoom_is_heard(self, client,
+                                                                     part):
+        """Double click to go in, double click to come back out -- except the way
+        back out was never heard. Panning a zoomed photo holds the pointer capture,
+        and a captured pointer's click and double click are delivered to the
+        element holding the capture rather than to the photo under the mouse, so a
+        listener on the stage saw the one going in and none of the ones coming
+        out. It is on the overlay, which is where they arrive."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert "box.addEventListener('dblclick'" in page
+            assert "stage.addEventListener('dblclick'" not in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
+    def test_a_click_on_a_zoomed_photo_is_not_a_click_on_the_black(self, client,
+                                                                    part):
+        """The same pointer capture makes a click on a zoomed photo arrive looking
+        exactly like a click on the backdrop, which is the one click that means
+        close -- so a zoomed photo dismissed itself at a touch. What the press
+        landed on says which it was. The chrome keeps its own presses for the same
+        reason: captured, the close button's own click went to the overlay instead
+        of to the button."""
+        aid = part()["asset_id"]
+        rel = self.upload(client, "parts", aid)
+        try:
+            page = client.get(f"/parts/{aid}").text
+            assert "downOn = e.target;" in page
+            assert "if (!dragged && e.target === box && downOn === box) close();" in page
+            assert "if (e.target.closest('button, #lb-tools')) return;" in page
+        finally:
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
+                        follow_redirects=False)
+
     def test_the_whole_overlay_takes_the_gesture_not_just_the_photo(self, client,
                                                                      part):
         """On a phone most of what is on screen is the black around the photo, so
