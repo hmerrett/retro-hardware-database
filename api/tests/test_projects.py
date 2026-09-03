@@ -1,322 +1,877 @@
-"""The half of the collection that is a list of intentions.
+"""Projects: the work, as against the things it is done to.
 
-An item can be flagged as something waiting to be worked on, with a note saying
-what needs doing, and /projects gathers them into the one page that is written in
-the future tense.
+A project is the third thing an id in the register can name, and almost everything
+these tests are about follows from that. It keeps a history through the code the
+machines use, it resolves at /items/<id>, and it cannot be handed an id an asset
+already holds -- none of which is project code, which is exactly what is worth
+having tests for.
 
-Most of what is worth testing here is that it is private. The register is a public
-catalogue with a login over the editing, and a plan is the first thing on it that
-is neither -- so a column that would otherwise reach the change log, the search
-index and the item's own page by default has to be kept out of all three. The
-class below that name is the point of the feature as much as the flag is: three of
-those four doors standing shut is a thing that is not private.
+The rest is what a project has that an asset does not: a list of things it is
+about, a list of jobs, and a pile of things on order with what they cost.
 """
-import re
+import io
 
-from app import main
+from app import ids, main, projects
+from app.models import Project, ProjectAsset, ProjectOrder, ProjectTask
 
 
-def flag(client, aid, note="", **extra):
-    r = client.post(f"/items/{aid}/project", data={"note": note, **extra},
+def make(client, name="Recap the +2A", **fields):
+    """A saved project; returns its asset id."""
+    r = client.post("/projects/new", data={"name": name, **fields},
                     follow_redirects=False)
     assert r.status_code == 303, r.text
-    return r
+    return r.headers["location"].rsplit("/", 1)[-1]
 
 
-def unflag(client, aid, **extra):
-    r = client.post(f"/items/{aid}/unproject", data=extra, follow_redirects=False)
-    assert r.status_code == 303, r.text
-    return r
+def page(client, aid):
+    r = client.get(f"/projects/{aid}")
+    assert r.status_code == 200, r.text
+    return r.text
 
 
-def listed(client):
-    """The asset tags on the project page, in the order it draws them."""
-    return re.findall(r'<a href="/(?:computers|parts)/([A-Z0-9-]+)">\1</a>',
-                      client.get("/projects").text)
-
-
-def visitor(monkeypatch):
-    """Nobody logged in. The fixtures run with the login switched off, so the gate
-    lets everything through until a test says otherwise."""
+def as_visitor(monkeypatch):
+    """Nobody signed in. The test database has no credentials configured, so the
+    gate lets everything through until it is told there are some."""
     monkeypatch.setattr(main, "AUTH_ENABLED", True)
 
 
-class TestFlaggingSomething:
-    def test_a_machine_joins_the_list_with_its_note(self, client, computer):
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap, one leg already green")
-        got = client.get(f"/api/computers/{c['asset_id']}").json()
-        assert got["project"] is True
-        assert got["project_note"] == "recap, one leg already green"
+class TestARegisterAsset:
+    """The claim the whole design rests on: a project is an id in the same register,
+    so the things keyed by a register id work on it without being taught to."""
 
-    def test_a_part_does_too(self, client, part):
-        """One route for both kinds, because what is flagged is an asset in the
-        shared register rather than a row in one of the two tables."""
-        p = part(model="FD-235HF", type="storage")
-        flag(client, p["asset_id"], "needs a belt")
-        got = client.get(f"/api/parts/{p['asset_id']}").json()
-        assert got["project"] is True and got["project_note"] == "needs a belt"
+    def test_the_allocator_will_not_reuse_a_projects_id(self, client, db,
+                                                        monkeypatch):
+        aid = make(client)
+        seq = iter([aid, "RH-ZZZ9"])
+        monkeypatch.setattr(ids, "_random_id", lambda: next(seq))
+        # Offered the project's id first, it must go round again: an id shared with
+        # a project would put one record's history on the other's page.
+        assert ids.next_asset_id(db) == "RH-ZZZ9"
 
-    def test_saving_again_rewrites_the_note(self, client, computer):
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap")
-        flag(client, c["asset_id"], "recapped; now the floppy")
-        got = client.get(f"/api/computers/{c['asset_id']}").json()
-        assert got["project_note"] == "recapped; now the floppy"
+    def test_items_resolves_a_project(self, client):
+        aid = make(client)
+        r = client.get(f"/items/{aid}", follow_redirects=False)
+        assert r.status_code == 307
+        assert r.headers["location"] == f"/projects/{aid}"
 
-    def test_taking_it_off_takes_the_note_with_it(self, client, computer):
-        """A plan nobody is following is not worth keeping, and one left behind a
-        cleared flag would be silently inherited by the next flagging."""
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap")
-        unflag(client, c["asset_id"])
-        got = client.get(f"/api/computers/{c['asset_id']}").json()
-        assert got["project"] is False and got["project_note"] == ""
+    def test_items_still_resolves_the_two_asset_kinds(self, client, computer, part):
+        c, p = computer()["asset_id"], part()["asset_id"]
+        assert client.get(f"/items/{c}", follow_redirects=False
+                          ).headers["location"] == f"/computers/{c}"
+        assert client.get(f"/items/{p}", follow_redirects=False
+                          ).headers["location"] == f"/parts/{p}"
 
-    def test_it_lands_back_on_the_item_it_was_done_from(self, client, part):
-        p = part(model="FD-235HF")
-        r = flag(client, p["asset_id"], "belt")
-        assert r.headers["location"] == f"/parts/{p['asset_id']}"
+    def test_an_id_that_is_nothing_is_still_a_404(self, client):
+        assert client.get("/items/RH-NONE", follow_redirects=False).status_code == 404
 
-    def test_it_lands_where_it_was_told_to(self, client, part):
-        """The same pair of buttons is on the item page and on the list, so where
-        it goes back to is whatever the form carried."""
-        p = part(model="FD-235HF")
-        r = flag(client, p["asset_id"], "belt", next="/projects")
-        assert r.headers["location"] == "/projects"
 
-    def test_a_tag_that_is_not_an_asset_is_not_found(self, client):
-        assert client.post("/items/ZZ-9999/project", data={"note": "x"}).status_code == 404
+class TestItsHistory:
+    """Written by add_log and read by _history, neither of which knows what a
+    project is. These tests are here because that is a thing to keep true."""
+
+    def test_a_new_project_says_it_was_created(self, client):
+        assert "created" in page(client, make(client))
+
+    def test_a_note_lands_on_it(self, client):
+        aid = make(client)
+        client.post(f"/projects/{aid}/note", data={"message": "ordered the caps"},
+                    follow_redirects=False)
+        html = page(client, aid)
+        assert "ordered the caps" in html
+        assert "note" in html
+
+    def test_a_photograph_alone_is_an_entry(self, client):
+        """The note bar's other half, which a project gets for the same free."""
+        aid = make(client)
+        buf = io.BytesIO()
+        from PIL import Image
+        Image.new("RGB", (200, 150), (80, 80, 80)).save(buf, "JPEG")
+        buf.seek(0)
+        client.post(f"/projects/{aid}/note", data={"message": ""},
+                    files={"photos": ("board.jpg", buf, "image/jpeg")},
+                    follow_redirects=False)
+        assert "logshots" in page(client, aid)
+
+    def test_an_edit_is_recorded_as_a_diff(self, client):
+        aid = make(client, name="Recap the +2A")
+        client.post(f"/projects/{aid}/edit",
+                    data={"name": "Recap the +2A", "status": "active"},
+                    follow_redirects=False)
+        assert "status: planned → active" in page(client, aid)
+
+
+class TestWhatItIsAbout:
+    """Membership. A project need own nothing, and what it does own is a computer
+    or a part -- which is why project_asset holds a bare register id."""
+
+    def test_a_project_can_be_about_nothing(self, client):
+        assert "Nothing attached yet" in page(client, make(client))
+
+    def test_a_computer_goes_in_and_shows_on_both_pages(self, client, computer):
+        aid, c = make(client), computer(model="Spectrum +2A")["asset_id"]
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
+                    follow_redirects=False)
+        assert c in page(client, aid)
+        # And the machine says what it is spoken for, which is the whole reason the
+        # panel exists: you find out a board is promised while looking at the board.
+        assert f"/projects/{aid}" in client.get(f"/computers/{c}").text
+
+    def test_a_part_goes_in_the_same_way(self, client, part):
+        aid, p = make(client), part(model="Gotek")["asset_id"]
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": p},
+                    follow_redirects=False)
+        assert p in page(client, aid)
+        assert f"/projects/{aid}" in client.get(f"/parts/{p}").text
+
+    def test_the_note_says_why_it_is_there(self, client, part):
+        aid, p = make(client), part(model="A500 board")["asset_id"]
+        client.post(f"/projects/{aid}/add-item",
+                    data={"asset_id": p, "note": "donor for the keyboard"},
+                    follow_redirects=False)
+        assert "donor for the keyboard" in page(client, aid)
+
+    def test_adding_it_twice_leaves_it_in_once(self, client, db, part):
+        aid, p = make(client), part()["asset_id"]
+        for _ in range(2):
+            client.post(f"/projects/{aid}/add-item", data={"asset_id": p},
+                        follow_redirects=False)
+        assert db.query(ProjectAsset).filter(
+            ProjectAsset.project_id == aid).count() == 1
+
+    def test_an_id_that_is_nothing_is_refused(self, client, db):
+        """A project is about things that exist. A typo'd id stored here would be a
+        membership that renders as nothing for ever."""
+        aid = make(client)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": "RH-XXXX"},
+                    follow_redirects=False)
+        assert db.query(ProjectAsset).count() == 0
+
+    def test_a_project_is_not_an_item_of_another_project(self, client, db):
+        """Members are computers and parts. Nesting projects is a different idea and
+        the lookup would not find one anyway -- this pins that down."""
+        one, two = make(client, "One"), make(client, "Two")
+        client.post(f"/projects/{one}/add-item", data={"asset_id": two},
+                    follow_redirects=False)
+        assert db.query(ProjectAsset).count() == 0
+        # The same request with a real asset does add one, so the zero above is the
+        # rule refusing rather than the route being broken.
+        c = client.post("/computers/new", data={"model": "Real"},
+                        follow_redirects=False
+                        ).headers["location"].split("/computers/")[1].split("?")[0]
+        client.post(f"/projects/{one}/add-item", data={"asset_id": c},
+                    follow_redirects=False)
+        assert db.query(ProjectAsset).count() == 1
+
+    def test_taking_it_out_says_so_on_both(self, client, computer):
+        aid, c = make(client), computer()["asset_id"]
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
+                    follow_redirects=False)
+        client.post(f"/projects/{aid}/remove-item", data={"asset_id": c},
+                    follow_redirects=False)
+        assert "let go of" in page(client, aid)
+        assert "no longer wanted for" in client.get(f"/computers/{c}").text
+
+    def test_deleting_the_computer_forgets_the_membership(self, client, db,
+                                                          computer):
+        """project_asset.asset_id has no foreign key behind it, so nothing in the
+        database will do this. If the delete path stops calling forget_asset, the
+        project keeps a row pointing at a machine that no longer exists."""
+        aid, c = make(client), computer()["asset_id"]
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
+                    follow_redirects=False)
+        # Or the count below would be zero for the wrong reason.
+        assert db.query(ProjectAsset).count() == 1
+        client.post(f"/computers/{c}/dispose", data={"disposed_note": "gone"},
+                    follow_redirects=False)
+        client.post(f"/computers/{c}/delete", data={"confirm": f"/computers/{c}"},
+                    follow_redirects=False)
+        from app.models import Computer
+        assert db.get(Computer, c) is None
+        assert db.query(ProjectAsset).count() == 0
+        assert client.get(f"/projects/{aid}").status_code == 200
+
+    def test_deleting_a_part_forgets_it_too(self, client, db, part):
+        from app.models import Part
+        aid, p = make(client), part()["asset_id"]
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": p},
+                    follow_redirects=False)
+        assert db.query(ProjectAsset).count() == 1
+        client.post(f"/parts/{p}/dispose", data={"disposed_note": "gone"},
+                    follow_redirects=False)
+        client.post(f"/parts/{p}/delete", data={"confirm": f"/parts/{p}"},
+                    follow_redirects=False)
+        # The part really went, so the empty membership table means what it says.
+        assert db.get(Part, p) is None
+        assert db.query(ProjectAsset).count() == 0
+
+
+class TestTasks:
+    def test_one_is_added_and_shown(self, client):
+        aid = make(client)
+        client.post(f"/projects/{aid}/task", data={"text": "order the caps"},
+                    follow_redirects=False)
+        assert "order the caps" in page(client, aid)
+
+    def test_a_blank_one_is_not_a_task(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/task", data={"text": "   "},
+                    follow_redirects=False)
+        assert db.query(ProjectTask).count() == 0
+
+    def test_ticking_it_dates_it(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/task", data={"text": "desolder"},
+                    follow_redirects=False)
+        t = db.query(ProjectTask).one()
+        client.post(f"/projects/{aid}/task/{t.id}/toggle", follow_redirects=False)
+        db.expire_all()
+        t = db.query(ProjectTask).one()
+        assert t.done and t.done_at is not None
+
+    def test_putting_it_back_clears_the_date(self, client, db):
+        """A job that is not done has no day it was done on. Leaving the old one
+        behind would show a task as outstanding while still claiming a completion
+        date."""
+        aid = make(client)
+        client.post(f"/projects/{aid}/task", data={"text": "desolder"},
+                    follow_redirects=False)
+        t = db.query(ProjectTask).one()
+        for _ in range(2):
+            client.post(f"/projects/{aid}/task/{t.id}/toggle",
+                        follow_redirects=False)
+        db.expire_all()
+        t = db.query(ProjectTask).one()
+        assert not t.done and t.done_at is None
+
+    def test_it_can_be_dropped(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/task", data={"text": "nonsense"},
+                    follow_redirects=False)
+        t = db.query(ProjectTask).one()
+        client.post(f"/projects/{aid}/task/{t.id}/delete", follow_redirects=False)
+        assert db.query(ProjectTask).count() == 0
+
+    def test_another_projects_task_cannot_be_ticked_from_here(self, client, db):
+        """A bare row id would otherwise reach across projects, the way a bare log
+        entry id would reach across machines."""
+        one, two = make(client, "One"), make(client, "Two")
+        client.post(f"/projects/{one}/task", data={"text": "mine"},
+                    follow_redirects=False)
+        t = db.query(ProjectTask).one()
+        r = client.post(f"/projects/{two}/task/{t.id}/toggle",
+                        follow_redirects=False)
+        assert r.status_code == 404
+
+
+class TestOrders:
+    def test_one_is_added_with_what_it_cost(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/order",
+                    data={"description": "Gotek", "supplier": "eBay",
+                          "cost": "£12.99"}, follow_redirects=False)
+        o = db.query(ProjectOrder).one()
+        assert o.description == "Gotek" and o.cost_p == 1299
+        html = page(client, aid)
+        assert "Gotek" in html and "£12.99" in html
+
+    def test_it_is_dated_today_unless_told_otherwise(self, client, db):
+        from datetime import date
+        aid = make(client)
+        client.post(f"/projects/{aid}/order", data={"description": "caps"},
+                    follow_redirects=False)
+        assert db.query(ProjectOrder).one().ordered_at == date.today()
+
+    def test_a_blank_description_is_not_an_order(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/order", data={"description": " "},
+                    follow_redirects=False)
+        assert db.query(ProjectOrder).count() == 0
+
+    def test_marking_it_in_dates_it_and_back_again_clears_it(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
+                    follow_redirects=False)
+        o = db.query(ProjectOrder).one()
+        client.post(f"/projects/{aid}/order/{o.id}/delivered",
+                    follow_redirects=False)
+        db.expire_all()
+        assert db.query(ProjectOrder).one().delivered_at is not None
+        client.post(f"/projects/{aid}/order/{o.id}/delivered",
+                    follow_redirects=False)
+        db.expire_all()
+        o = db.query(ProjectOrder).one()
+        assert not o.delivered and o.delivered_at is None
+
+    def test_nothing_becomes_a_part_by_arriving(self, client, db):
+        """An order is a note about a purchase, not a half-made asset. What turns up
+        is added to the register the ordinary way."""
+        from app.models import Part
+        aid = make(client)
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
+                    follow_redirects=False)
+        o = db.query(ProjectOrder).one()
+        client.post(f"/projects/{aid}/order/{o.id}/delivered",
+                    follow_redirects=False)
+        assert db.query(Part).count() == 0
+
+    def test_it_can_be_cancelled(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/order", data={"description": "wrong thing"},
+                    follow_redirects=False)
+        o = db.query(ProjectOrder).one()
+        client.post(f"/projects/{aid}/order/{o.id}/delete", follow_redirects=False)
+        assert db.query(ProjectOrder).count() == 0
+
+    def test_another_projects_order_cannot_be_ticked_from_here(self, client, db):
+        one, two = make(client, "One"), make(client, "Two")
+        client.post(f"/projects/{one}/order", data={"description": "mine"},
+                    follow_redirects=False)
+        o = db.query(ProjectOrder).one()
+        assert client.post(f"/projects/{two}/order/{o.id}/delivered",
+                           follow_redirects=False).status_code == 404
+
+    def test_the_total_says_how_much_of_it_is_a_total(self, client):
+        """A figure quietly missing the unpriced lines would look exactly as
+        authoritative as one that was not."""
+        aid = make(client)
+        client.post(f"/projects/{aid}/order",
+                    data={"description": "Gotek", "cost": "12.00"},
+                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "caps"},
+                    follow_redirects=False)
+        html = page(client, aid)
+        assert "£12.00 so far" in html
+        assert "1 line whose cost was not written down" in html
+
+
+class TestMoney:
+    """Pence as integers, for the reason every other quantity here is an integer in
+    a small unit: it adds up and sorts exactly."""
+
+    def test_what_gets_typed_into_a_cost_box(self):
+        assert projects.parse_money("12.99") == 1299
+        assert projects.parse_money("£12.99") == 1299
+        assert projects.parse_money("1,250") == 125000
+        assert projects.parse_money(" 12 ") == 1200
+        assert projects.parse_money("12.5") == 1250
+        assert projects.parse_money(".99") == 99
+
+    def test_nothing_and_nonsense_are_both_not_recorded(self):
+        for raw in ("", "   ", None, "free", "12.34.56", "-5", "."):
+            assert projects.parse_money(raw) is None
+
+    def test_not_recorded_is_not_zero(self):
+        """The distinction the total depends on: a line with no price is unknown,
+        and counting it as free would make the total smaller than the truth."""
+        assert projects.parse_money("") is None
+        assert projects.parse_money("0") == 0
+
+    def test_it_is_written_back_the_way_it_is_read(self):
+        assert projects.money(1299) == "£12.99"
+        assert projects.money(1200) == "£12.00"
+        assert projects.money(5) == "£0.05"
+        assert projects.money(125000) == "£1,250.00"
+        assert projects.money(None) == ""
+
+
+class TestTheForm:
+    def test_a_project_needs_a_name(self, client, db):
+        """The only thing it can be found by: a machine falls back to its
+        manufacturer and model and then to its id, and a project has neither."""
+        r = client.post("/projects/new", data={"name": "  "},
+                        follow_redirects=False)
+        assert r.status_code == 200
+        assert "Give it a name" in r.text
+        assert db.query(Project).count() == 0
+
+    def test_what_was_typed_survives_the_refusal(self, client):
+        r = client.post("/projects/new",
+                        data={"name": "", "summary": "the one with the bad caps"},
+                        follow_redirects=False)
+        assert "the one with the bad caps" in r.text
+
+    def test_an_unknown_status_falls_back_rather_than_being_stored(self, client, db):
+        aid = make(client, status="halfway")
+        assert db.get(Project, aid).status == projects.DEFAULT_STATUS
+
+    def test_the_three_dates_are_independent(self, client, db):
+        """A project can be finished without ever having been started -- the part
+        turned up and it took an evening. None is worked out from another."""
+        aid = make(client, finished_at="2026-08-01")
+        p = db.get(Project, aid)
+        assert p.finished_at is not None
+        assert p.started_at is None and p.target_date is None
 
 
 class TestTheList:
-    def test_it_gathers_machines_and_parts_into_one_queue(self, client, computer,
-                                                          part):
-        """What is next at the bench is next whether it is a computer or the card
-        out of one, so they are one list rather than two."""
-        c = computer(model="A500")
-        p = part(model="FD-235HF")
-        flag(client, c["asset_id"], "recap")
-        flag(client, p["asset_id"], "belt")
-        assert sorted(listed(client)) == sorted([c["asset_id"], p["asset_id"]])
+    def test_what_is_in_hand_comes_before_what_is_over(self, client):
+        make(client, "Zebra job", status="active")
+        make(client, "Alpha job", status="done")
+        html = client.get("/projects").text
+        assert html.index("Zebra job") < html.index("Alpha job")
 
-    def test_what_is_not_flagged_is_not_on_it(self, client, computer):
-        computer(model="A500")
-        flagged = computer(model="A1200")
-        flag(client, flagged["asset_id"], "recap")
-        assert listed(client) == [flagged["asset_id"]]
-
-    def test_the_notes_are_on_it(self, client, computer):
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap, one leg already green")
-        assert "recap, one leg already green" in client.get("/projects").text
-
-    def test_an_empty_list_says_so(self, client, computer):
-        computer(model="A500")
-        assert "Nothing is on the list" in client.get("/projects").text
-
-    def test_something_can_be_added_by_its_tag(self, client, part):
-        """The other way in: sitting with the list open, remembering the drive in
-        the box under the desk."""
-        p = part(model="FD-235HF")
-        r = client.post("/projects/add",
-                        data={"aid": p["asset_id"], "note": "belt"},
+    def test_it_counts_what_is_still_coming(self, client):
+        aid = make(client)
+        for d in ("one", "two"):
+            client.post(f"/projects/{aid}/order", data={"description": d},
                         follow_redirects=False)
-        assert r.status_code == 303 and r.headers["location"] == "/projects"
-        assert listed(client) == [p["asset_id"]]
+        assert "still coming" in page(client, aid)
 
-    def test_a_tag_is_read_however_it_is_typed(self, client, part):
-        p = part(model="FD-235HF")
-        client.post("/projects/add", data={"aid": f"  {p['asset_id'].lower()}  "},
+    def test_an_empty_register_says_so(self, client):
+        assert "No projects yet" in client.get("/projects").text
+
+
+class TestTheRestOfTheSiteKnows:
+    """Public means findable. A section anybody may read but no crawler is told
+    about is public in the auth rules and private in practice."""
+
+    def test_the_sitemap_carries_the_projects(self, client):
+        aid = make(client)
+        xml = client.get("/sitemap.xml").text
+        assert "/projects</loc>" in xml
+        assert f"/projects/{aid}</loc>" in xml
+
+    def test_a_projects_lastmod_comes_from_its_own_history(self, client):
+        """Its history is log_entry keyed by its own register id, so it reads out of
+        the same query the machines do rather than needing one of its own."""
+        aid = make(client)
+        xml = client.get("/sitemap.xml").text
+        block = xml.split(f"/projects/{aid}</loc>")[1].split("</url>")[0]
+        assert "<lastmod>" in block
+
+    def test_the_new_project_form_is_kept_out_of_the_index(self, client):
+        assert "Disallow: /projects/new" in client.get("/robots.txt").text
+
+
+class TestDeleting:
+    def test_it_takes_its_own_history_with_it(self, client, db):
+        """log_entry is keyed by a plain register id with nothing to cascade from,
+        so the route clears it by hand. Left behind, the entries would attach
+        themselves to whatever asset was next given that id."""
+        from app.models import LogEntry
+        aid = make(client)
+        client.post(f"/projects/{aid}/note", data={"message": "a note"},
                     follow_redirects=False)
-        assert listed(client) == [p["asset_id"]]
+        client.post(f"/projects/{aid}/delete", follow_redirects=False)
+        assert db.query(LogEntry).filter(LogEntry.asset_id == aid).count() == 0
 
-    def test_a_tag_that_is_not_an_asset_says_so_and_adds_nothing(self, client,
+    def test_it_takes_its_tasks_and_orders(self, client, db):
+        aid = make(client)
+        client.post(f"/projects/{aid}/task", data={"text": "a job"},
+                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "a thing"},
+                    follow_redirects=False)
+        client.post(f"/projects/{aid}/delete", follow_redirects=False)
+        assert db.query(ProjectTask).count() == 0
+        assert db.query(ProjectOrder).count() == 0
+
+    def test_it_leaves_the_hardware_alone(self, client, db, computer):
+        """Deleting the plan is not disposing of the machine."""
+        from app.models import Computer
+        aid, c = make(client), computer()["asset_id"]
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
+                    follow_redirects=False)
+        client.post(f"/projects/{aid}/delete", follow_redirects=False)
+        assert db.get(Computer, c) is not None
+        assert db.query(ProjectAsset).count() == 0
+
+    def test_there_is_no_disposal_step_in_front_of_it(self, client, db):
+        """Unlike a machine. Abandoning a project is already a status it can be left
+        in, so the only thing delete is left to mean is that it was a mistake."""
+        aid = make(client)
+        assert client.post(f"/projects/{aid}/delete",
+                           follow_redirects=False).status_code == 303
+        assert db.query(Project).count() == 0
+
+
+class TestWhoSeesWhat:
+    """Projects read like the rest of the site. What a visitor is not shown is what
+    a thing cost -- which is on the page rather than in the auth rules."""
+
+    def test_a_visitor_may_read_the_list(self, client, monkeypatch):
+        aid = make(client)
+        as_visitor(monkeypatch)
+        assert client.get("/projects").status_code == 200
+        assert client.get(f"/projects/{aid}").status_code == 200
+
+    def test_a_visitor_is_sent_to_the_login_to_edit(self, client, monkeypatch):
+        aid = make(client)
+        as_visitor(monkeypatch)
+        for url in ("/projects/new", f"/projects/{aid}/edit"):
+            r = client.get(url, follow_redirects=False)
+            assert r.status_code == 303 and "/login" in r.headers["location"]
+
+    def test_a_visitor_cannot_write(self, client, monkeypatch):
+        aid = make(client)
+        as_visitor(monkeypatch)
+        for url in (f"/projects/{aid}/task", f"/projects/{aid}/order",
+                    f"/projects/{aid}/add-item", f"/projects/{aid}/delete",
+                    f"/projects/{aid}/note"):
+            r = client.post(url, data={}, follow_redirects=False)
+            assert r.status_code == 303 and "/login" in r.headers["location"], url
+
+    def test_what_it_cost_is_not_shown_to_a_visitor(self, client, monkeypatch):
+        """The projects are public because what is being built is worth reading
+        about. What it cost is between the owner and the receipt."""
+        aid = make(client)
+        client.post(f"/projects/{aid}/order",
+                    data={"description": "Gotek", "cost": "12.99"},
+                    follow_redirects=False)
+        as_visitor(monkeypatch)
+        html = client.get(f"/projects/{aid}").text
+        assert "Gotek" in html
+        assert "12.99" not in html
+
+    def test_a_visitor_sees_whether_it_has_arrived(self, client, monkeypatch):
+        """The rest of the row is as public as the machine it is destined for."""
+        aid = make(client)
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
+                    follow_redirects=False)
+        as_visitor(monkeypatch)
+        assert "on order" in client.get(f"/projects/{aid}").text
+
+
+class TestBeingFound:
+    """A project is searched by the same words a machine is, and reached from the
+    same box. What it does not do is become a card in the gallery: the grid is a
+    wall of photographs of things owned, and a plan is not one of those."""
+
+    def test_the_suggestion_list_offers_a_project(self, client):
+        make(client, "Recap the +2A")
+        items = client.get("/suggest?q=recap").json()["items"]
+        assert any(i["cat"] == "Project" and "Recap" in i["name"] for i in items)
+
+    def test_a_suggested_project_links_to_its_page(self, client):
+        aid = make(client, "Recap the +2A")
+        item = next(i for i in client.get("/suggest?q=recap").json()["items"]
+                    if i["cat"] == "Project")
+        assert item["url"] == f"/projects/{aid}"
+        assert item["icon"].endswith("project.svg")
+
+    def test_a_project_is_found_by_something_on_order(self, client):
+        """The question somebody stood in front of a parcel actually asks."""
+        aid = make(client, "Amiga floppy swap")
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek SFR1M44"},
+                    follow_redirects=False)
+        assert any(i["cat"] == "Project"
+                   for i in client.get("/suggest?q=gotek").json()["items"])
+
+    def test_a_project_is_found_by_a_job_on_its_list(self, client):
+        aid = make(client, "Nondescript")
+        client.post(f"/projects/{aid}/task", data={"text": "desolder the RIFA"},
+                    follow_redirects=False)
+        assert any(i["cat"] == "Project"
+                   for i in client.get("/suggest?q=rifa").json()["items"])
+
+    def test_a_project_is_found_by_its_status_in_words(self, client):
+        """'active' is what the column holds; 'in progress' is what a person types."""
+        make(client, "Halfway house", status="active")
+        assert any(i["cat"] == "Project" for i in
+                   client.get("/suggest?q=in+progress").json()["items"])
+
+    def test_the_projects_page_sifts_itself(self, client):
+        make(client, "Recap the +2A")
+        make(client, "486 DOS build")
+        html = client.get("/projects?q=recap").text
+        assert "Recap the +2A" in html
+        assert "486 DOS build" not in html
+
+    def test_sifting_reaches_the_orders_too(self, client):
+        aid = make(client, "Nondescript")
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
+                    follow_redirects=False)
+        make(client, "Something else")
+        html = client.get("/projects?q=gotek").text
+        assert "Nondescript" in html and "Something else" not in html
+
+    def test_a_search_matching_nothing_says_so(self, client):
+        make(client)
+        assert "Nothing matches that" in client.get("/projects?q=zzzz").text
+
+    def test_the_gallery_says_when_projects_match_as_well(self, client, computer):
+        """A search bar that says 'anything' and quietly means 'the shelf' would be
+        a search bar that lies."""
+        computer(model="Spectrum")
+        make(client, "Spectrum recap")
+        html = client.get("/?q=spectrum").text
+        assert "project" in html
+        assert "/projects?q=spectrum" in html
+
+    def test_the_gallery_stays_a_gallery(self, client):
+        """The project matched, and did not become a card."""
+        aid = make(client, "Recap the +2A")
+        html = client.get("/?q=recap").text
+        assert f'href="/projects/{aid}"' not in html.split('class="grid"')[1]
+
+    def test_a_project_does_not_leak_into_a_machines_search_text(self, client,
                                                                  computer):
-        computer(model="A500")
-        r = client.post("/projects/add", data={"aid": "ZZ-9999", "note": "x"})
-        assert r.status_code == 400
-        assert "ZZ-9999" in r.text and "no item with the tag" in r.text
-        assert listed(client) == []
-
-    def test_adding_one_already_on_the_list_keeps_its_note(self, client, part):
-        """Typing a tag and nothing else means "this too", not "and forget what it
-        said"."""
-        p = part(model="FD-235HF")
-        flag(client, p["asset_id"], "belt")
-        client.post("/projects/add", data={"aid": p["asset_id"], "note": ""},
+        """Both are keyed by a register id, so a history read for the wrong one
+        would put a project's notes in a machine's haystack."""
+        c = computer(model="Unrelated")["asset_id"]
+        aid = make(client, "Distinctivewording")
+        client.post(f"/projects/{aid}/note", data={"message": "peculiarphrase"},
                     follow_redirects=False)
-        got = client.get(f"/api/parts/{p['asset_id']}").json()
-        assert got["project_note"] == "belt"
+        rows = client.get("/?q=peculiarphrase").text.split('class="grid"')[1]
+        assert c not in rows
 
 
-class TestItIsPrivate:
-    """Four doors, and the feature is only private with all four shut."""
+class TestTheFigures:
+    def test_the_projects_show_up_among_the_facts(self, client, db):
+        from app import main
+        aid = make(client, status="active")
+        client.post(f"/projects/{aid}/task", data={"text": "a job"},
+                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "a thing"},
+                    follow_redirects=False)
+        facts = main._facts_projects(db, {})
+        headings = {f["k"] for f in facts}
+        assert "Projects on the go" in headings
+        assert "Jobs still on the list" in headings
+        assert "Things in the post" in headings
 
-    def test_a_visitor_is_sent_to_the_login(self, client, monkeypatch):
-        visitor(monkeypatch)
-        r = client.get("/projects", follow_redirects=False)
-        assert r.status_code == 303 and "/login" in r.headers["location"]
+    def test_an_empty_register_contributes_no_project_figures(self, client, db):
+        """A figure is omitted rather than shown as a zero, the rule the whole
+        pool follows."""
+        from app import main
+        assert main._facts_projects(db, {}) == []
 
-    def test_a_visitor_may_not_flag_or_unflag_anything(self, client, computer,
-                                                       monkeypatch):
-        c = computer(model="A500")
-        visitor(monkeypatch)
-        for path in (f"/items/{c['asset_id']}/project",
-                     f"/items/{c['asset_id']}/unproject", "/projects/add"):
-            r = client.post(path, data={}, follow_redirects=False)
-            assert r.status_code == 303 and "/login" in r.headers["location"], path
+    def test_no_figure_says_what_anything_cost(self, client, db):
+        """/stats is public and the cost column on a project page is not. A total
+        spent would put on the most public page of the site the one figure the item
+        page takes care to withhold."""
+        from app import main
+        aid = make(client)
+        client.post(f"/projects/{aid}/order",
+                    data={"description": "Gotek", "cost": "999.99"},
+                    follow_redirects=False)
+        blob = " ".join(f"{f['k']} {f['v']} {f['s']}"
+                        for f in main._facts_projects(db, {}))
+        assert "999" not in blob and "£" not in blob
+        # The rendered figure, not a bare "999": the chip's border-radius is 999px
+        # and a substring test on the whole page would fail on the stylesheet.
+        assert projects.money(99999) not in client.get("/stats").text
 
-    def test_an_item_page_keeps_the_plan_from_a_visitor(self, client, computer,
-                                                        monkeypatch):
-        """The item's own page is public. The plan is the one thing on the record
-        that is not on it."""
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap, one leg already green")
-        visitor(monkeypatch)
-        page = client.get(f"/computers/{c['asset_id']}").text
-        assert "recap, one leg already green" not in page
-        assert "Future project" not in page
-
-    def test_the_same_page_shows_it_to_whoever_is_logged_in(self, client, computer):
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap, one leg already green")
-        page = client.get(f"/computers/{c['asset_id']}").text
-        assert "recap, one leg already green" in page
-        assert "Future project" in page
-
-    def test_a_part_page_is_the_same_both_ways(self, client, part, monkeypatch):
-        p = part(model="FD-235HF")
-        flag(client, p["asset_id"], "needs a belt")
-        assert "needs a belt" in client.get(f"/parts/{p['asset_id']}").text
-        visitor(monkeypatch)
-        assert "needs a belt" not in client.get(f"/parts/{p['asset_id']}").text
-
-    def test_a_visitors_search_does_not_match_the_note(self, client, computer,
-                                                       monkeypatch):
-        """The search reads every field of every item, which is what makes "any
-        field" true -- and would hand back the private half of the register a word
-        at a time if it read these two as well."""
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recapzzz")
-        visitor(monkeypatch)
-        assert c["asset_id"] not in client.get("/?q=recapzzz").text
-
-    def test_the_same_search_finds_it_for_whoever_is_logged_in(self, client,
-                                                               computer):
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recapzzz")
-        assert c["asset_id"] in client.get("/?q=recapzzz").text
-
-    def test_the_suggestion_list_keeps_it_back_too(self, client, computer,
-                                                   monkeypatch):
-        """The box under the search bar performs the same match as the bar itself,
-        so it had to learn the same manners."""
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recapzzz")
-        assert client.get("/suggest?q=recapzzz").json()["total"] == 1
-        visitor(monkeypatch)
-        assert client.get("/suggest?q=recapzzz").json()["total"] == 0
-
-    def test_nothing_about_it_reaches_the_history(self, client, computer):
-        """The history is shown to anybody who opens the item's page, and is the
-        part of the register nothing rewrites -- so a line about the plan would put
-        it on the public page for good."""
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap, one leg already green")
-        unflag(client, c["asset_id"])
-        log = client.get(f"/api/items/{c['asset_id']}/log").json()
-        written = " ".join(e["message"] for e in log)
-        assert "recap" not in written and "project" not in written
-
-    def test_a_patch_through_the_api_writes_nothing_to_the_history_either(
-            self, client, computer):
-        """The same rule, at the other door. The diff is taken in one place for
-        exactly this reason."""
-        c = computer(model="A500")
-        client.patch(f"/api/computers/{c['asset_id']}",
-                     json={"project": True, "project_note": "recap"})
-        log = client.get(f"/api/items/{c['asset_id']}/log").json()
-        written = " ".join(e["message"] for e in log)
-        assert "recap" not in written and "project" not in written
-
-    def test_an_ordinary_edit_beside_it_is_still_logged(self, client, computer):
-        """Only the two columns are kept out of the log, not the change they
-        arrived with."""
-        c = computer(model="A500")
-        client.patch(f"/api/computers/{c['asset_id']}",
-                     json={"project": True, "project_note": "recap",
-                           "condition": "working"})
-        written = " ".join(e["message"] for e in
-                           client.get(f"/api/items/{c['asset_id']}/log").json())
-        assert "condition" in written and "recap" not in written
-
-    def test_a_visitor_is_not_offered_the_page_in_the_menu(self, client,
-                                                           monkeypatch):
-        visitor(monkeypatch)
-        assert 'href="/projects"' not in client.get("/").text
-
-    def test_whoever_is_logged_in_is(self, client):
-        assert 'href="/projects"' in client.get("/").text
+    def test_the_longest_note_tile_survives_it_being_on_a_project(self, client, db):
+        """log_entry is keyed by a register id, so the longest note can perfectly
+        well be on a project. Looked for in two tables only, the tile would vanish
+        on the day it was."""
+        from app import main
+        aid = make(client, "Wordy")
+        client.post(f"/projects/{aid}/note", data={"message": "x" * 300},
+                    follow_redirects=False)
+        facts = main._facts_register(db, {"portraits": {}, "n_parts": 0})
+        tile = next(f for f in facts
+                    if f["k"] == "The longest note anyone has written")
+        assert tile["href"] == f"/projects/{aid}"
+        assert tile["s"] == "Wordy"
 
 
-class TestADuplicateIsNotASecondPlan:
-    def test_a_copied_machine_starts_off_the_list(self, client, computer):
-        """A duplicate is a record of a second object, and nobody has looked at that
-        one yet -- inheriting the note would assert a fault that has not been seen.
-        The same reason the serial and the disposal do not come across."""
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap")
-        r = client.post(f"/computers/{c['asset_id']}/duplicate",
-                        follow_redirects=False)
-        copy = r.headers["location"].rsplit("/", 1)[1]
-        got = client.get(f"/api/computers/{copy}").json()
-        assert got["project"] is False and got["project_note"] == ""
+class TestTheApi:
+    """The same things the pages do, for the tool server and for scripts."""
 
-    def test_a_copied_part_does_too(self, client, part):
-        p = part(model="FD-235HF")
-        flag(client, p["asset_id"], "belt")
-        r = client.post(f"/parts/{p['asset_id']}/duplicate", follow_redirects=False)
-        copy = r.headers["location"].rsplit("/", 1)[1]
-        got = client.get(f"/api/parts/{copy}").json()
-        assert got["project"] is False and got["project_note"] == ""
+    def new(self, client, **fields):
+        r = client.post("/api/projects", json={"name": "API project", **fields})
+        assert r.status_code == 200, r.text
+        return r.json()
 
+    def test_a_project_is_created_and_read_back(self, client):
+        p = self.new(client, summary="the one with the caps")
+        got = client.get(f"/api/projects/{p['asset_id']}").json()
+        assert got["name"] == "API project"
+        assert got["summary"] == "the one with the caps"
+        assert got["items"] == [] and got["tasks"] == [] and got["orders"] == []
 
-class TestTheApiCarriesThem:
-    """The whole of the API is behind the login, so there they read and write like
-    any other pair of columns."""
+    def test_the_status_reads_back_in_words_as_well(self, client):
+        """A caller should not have to hold this module's vocabulary to know that
+        'active' reads 'in progress'."""
+        p = self.new(client, status="active")
+        assert p["status"] == "active" and p["status_label"] == "in progress"
 
-    def test_a_machine_can_be_created_on_the_list(self, client, computer):
-        c = computer(model="A500", project=True, project_note="recap")
-        assert c["project"] is True and c["project_note"] == "recap"
+    def test_an_unknown_status_is_stored_as_planned(self, client):
+        assert self.new(client, status="halfway")["status"] == "planned"
 
-    def test_a_part_can_be_patched_onto_it(self, client, part):
-        p = part(model="FD-235HF")
-        got = client.patch(f"/api/parts/{p['asset_id']}",
-                           json={"project": True, "project_note": "belt"}).json()
-        assert got["project"] is True and got["project_note"] == "belt"
+    def test_a_project_needs_a_name(self, client):
+        assert client.post("/api/projects", json={"name": "  "}).status_code == 422
+        assert client.post("/api/projects", json={}).status_code == 422
 
-    def test_an_item_starts_off_the_list(self, client, computer):
-        assert computer(model="A500")["project"] is False
+    def test_a_patch_changes_only_what_it_names(self, client):
+        p = self.new(client, summary="kept")
+        r = client.patch(f"/api/projects/{p['asset_id']}", json={"status": "active"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "active" and r.json()["summary"] == "kept"
 
-    def test_a_patch_that_says_nothing_about_it_leaves_it_alone(self, client,
+    def test_a_patch_cannot_take_the_name_away(self, client):
+        p = self.new(client)
+        assert client.patch(f"/api/projects/{p['asset_id']}",
+                            json={"name": ""}).status_code == 422
+
+    def test_a_patch_is_written_into_the_history(self, client):
+        p = self.new(client)
+        client.patch(f"/api/projects/{p['asset_id']}", json={"status": "done"})
+        log = client.get(f"/api/items/{p['asset_id']}/log").json()
+        assert any("status: planned → done" in e["message"] for e in log)
+
+    def test_the_list_can_be_narrowed_to_what_is_open(self, client):
+        self.new(client, name="Going", status="active")
+        self.new(client, name="Over", status="done")
+        names = {p["name"] for p in
+                 client.get("/api/projects", params={"open": True}).json()}
+        assert names == {"Going"}
+        shut = {p["name"] for p in
+                client.get("/api/projects", params={"open": False}).json()}
+        assert shut == {"Over"}
+
+    def test_the_list_can_be_narrowed_to_one_status(self, client):
+        self.new(client, name="Stuck", status="stalled")
+        self.new(client, name="Going", status="active")
+        got = client.get("/api/projects", params={"status": "stalled"}).json()
+        assert [p["name"] for p in got] == ["Stuck"]
+
+    def test_deleting_takes_the_history_and_leaves_the_hardware(self, client, db,
                                                                 computer):
-        c = computer(model="A500", project=True, project_note="recap")
-        got = client.patch(f"/api/computers/{c['asset_id']}",
-                           json={"condition": "working"}).json()
-        assert got["project"] is True and got["project_note"] == "recap"
+        from app.models import Computer, LogEntry
+        p = self.new(client)
+        c = computer()["asset_id"]
+        client.post(f"/api/projects/{p['asset_id']}/items", json={"asset_id": c})
+        assert client.delete(f"/api/projects/{p['asset_id']}").status_code == 200
+        assert db.query(LogEntry).filter(
+            LogEntry.asset_id == p["asset_id"]).count() == 0
+        assert db.get(Computer, c) is not None
+        assert db.query(ProjectAsset).count() == 0
 
 
-class TestTheEditFormLeavesItAlone:
-    def test_saving_the_edit_form_does_not_clear_the_plan(self, client, computer):
-        """The form has no box for it, and a field the form does not carry is a
-        field the save loop skips -- but the plan is the first column where that
-        going wrong would silently throw something away."""
-        c = computer(model="A500")
-        flag(client, c["asset_id"], "recap")
-        r = client.post(f"/computers/{c['asset_id']}/edit",
-                        data={"model": "A500", "condition": "working"},
-                        follow_redirects=False)
-        assert r.status_code == 303
-        got = client.get(f"/api/computers/{c['asset_id']}").json()
-        assert got["project"] is True and got["project_note"] == "recap"
+class TestTheApiLists:
+    def new(self, client, **fields):
+        return client.post("/api/projects",
+                           json={"name": "API project", **fields}).json()
+
+    def test_an_item_goes_in_and_reads_back_with_its_kind(self, client, computer):
+        p = self.new(client)
+        c = computer(model="Spectrum")["asset_id"]
+        got = client.post(f"/api/projects/{p['asset_id']}/items",
+                          json={"asset_id": c, "note": "the patient"}).json()
+        assert got["items"] == [{"asset_id": c, "kind": "computers",
+                                 "name": "Acme Spectrum", "note": "the patient"}]
+
+    def test_a_part_reads_back_under_its_own_kind(self, client, part):
+        """So a caller can build a link without knowing which table holds it."""
+        p = self.new(client)
+        pt = part(model="Gotek")["asset_id"]
+        got = client.post(f"/api/projects/{p['asset_id']}/items",
+                          json={"asset_id": pt}).json()
+        assert got["items"][0]["kind"] == "parts"
+
+    def test_an_asset_that_is_nothing_is_refused(self, client):
+        p = self.new(client)
+        r = client.post(f"/api/projects/{p['asset_id']}/items",
+                        json={"asset_id": "RH-XXXX"})
+        assert r.status_code == 404
+
+    def test_adding_the_same_one_twice_is_not_an_error(self, client, part):
+        """A caller retrying a request wants the state it asked for, not a row
+        about how it got there."""
+        p = self.new(client)
+        pt = part()["asset_id"]
+        for _ in range(2):
+            r = client.post(f"/api/projects/{p['asset_id']}/items",
+                            json={"asset_id": pt})
+            assert r.status_code == 200
+        assert len(r.json()["items"]) == 1
+
+    def test_an_item_comes_out_again(self, client, part):
+        p = self.new(client)
+        pt = part()["asset_id"]
+        client.post(f"/api/projects/{p['asset_id']}/items", json={"asset_id": pt})
+        got = client.delete(f"/api/projects/{p['asset_id']}/items/{pt}").json()
+        assert got["items"] == []
+
+    def test_a_task_is_added_ticked_and_dropped(self, client):
+        p = self.new(client)
+        t = client.post(f"/api/projects/{p['asset_id']}/tasks",
+                        json={"text": "desolder"}).json()
+        assert t["done"] is False and t["done_at"] is None
+        ticked = client.patch(f"/api/projects/{p['asset_id']}/tasks/{t['id']}",
+                              json={"done": True}).json()
+        assert ticked["done"] and ticked["done_at"]
+        back = client.patch(f"/api/projects/{p['asset_id']}/tasks/{t['id']}",
+                            json={"done": False}).json()
+        assert not back["done"] and back["done_at"] is None
+        assert client.delete(
+            f"/api/projects/{p['asset_id']}/tasks/{t['id']}").status_code == 200
+        assert client.get(f"/api/projects/{p['asset_id']}").json()["tasks"] == []
+
+    def test_a_blank_task_is_refused(self, client):
+        p = self.new(client)
+        assert client.post(f"/api/projects/{p['asset_id']}/tasks",
+                           json={"text": "  "}).status_code == 422
+
+    def test_another_projects_task_is_not_reachable(self, client):
+        one, two = self.new(client, name="One"), self.new(client, name="Two")
+        t = client.post(f"/api/projects/{one['asset_id']}/tasks",
+                        json={"text": "mine"}).json()
+        assert client.patch(f"/api/projects/{two['asset_id']}/tasks/{t['id']}",
+                            json={"done": True}).status_code == 404
+
+    def test_an_order_carries_its_cost_in_pence(self, client):
+        """Pence as an integer, because that is what the column holds and what it
+        holds is exact."""
+        p = self.new(client)
+        o = client.post(f"/api/projects/{p['asset_id']}/orders",
+                        json={"description": "Gotek", "supplier": "eBay",
+                              "cost_p": 1299, "qty": 2}).json()
+        assert o["cost_p"] == 1299 and o["qty"] == 2
+        assert o["ordered_at"] and not o["delivered"]
+
+    def test_an_order_with_no_price_reads_back_as_null_not_zero(self, client):
+        p = self.new(client)
+        o = client.post(f"/api/projects/{p['asset_id']}/orders",
+                        json={"description": "braid"}).json()
+        assert o["cost_p"] is None
+
+    def test_an_order_is_marked_in_and_back_out(self, client):
+        p = self.new(client)
+        o = client.post(f"/api/projects/{p['asset_id']}/orders",
+                        json={"description": "Gotek"}).json()
+        got = client.patch(f"/api/projects/{p['asset_id']}/orders/{o['id']}",
+                           json={"delivered": True}).json()
+        assert got["delivered"] and got["delivered_at"]
+        back = client.patch(f"/api/projects/{p['asset_id']}/orders/{o['id']}",
+                            json={"delivered": False}).json()
+        assert not back["delivered"] and back["delivered_at"] is None
+
+    def test_marking_it_in_writes_the_history(self, client):
+        p = self.new(client)
+        o = client.post(f"/api/projects/{p['asset_id']}/orders",
+                        json={"description": "Gotek"}).json()
+        client.patch(f"/api/projects/{p['asset_id']}/orders/{o['id']}",
+                     json={"delivered": True})
+        log = client.get(f"/api/items/{p['asset_id']}/log").json()
+        assert any("arrived: Gotek" in e["message"] for e in log)
+
+    def test_a_blank_order_is_refused(self, client):
+        p = self.new(client)
+        assert client.post(f"/api/projects/{p['asset_id']}/orders",
+                           json={"description": ""}).status_code == 422
+
+    def test_an_order_is_cancelled(self, client):
+        p = self.new(client)
+        o = client.post(f"/api/projects/{p['asset_id']}/orders",
+                        json={"description": "wrong thing"}).json()
+        client.delete(f"/api/projects/{p['asset_id']}/orders/{o['id']}")
+        assert client.get(f"/api/projects/{p['asset_id']}").json()["orders"] == []
+
+    def test_another_projects_order_is_not_reachable(self, client):
+        one, two = self.new(client, name="One"), self.new(client, name="Two")
+        o = client.post(f"/api/projects/{one['asset_id']}/orders",
+                        json={"description": "mine"}).json()
+        assert client.delete(
+            f"/api/projects/{two['asset_id']}/orders/{o['id']}").status_code == 404
+
+    def test_the_whole_api_is_private(self, client, monkeypatch):
+        """Unlike the pages. The register's JSON is behind the login and the
+        projects are no exception -- which is also what keeps the costs in it from
+        being readable by anyone who guessed the URL."""
+        p = self.new(client)
+        as_visitor(monkeypatch)
+        assert client.get("/api/projects").status_code == 401
+        assert client.get(f"/api/projects/{p['asset_id']}").status_code == 401

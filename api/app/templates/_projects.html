@@ -1,0 +1,17 @@
+{# The projects one computer or part is spoken for by. Expects: in_projects.
+
+   The other end of the panel on a project's own page, and worth its own section
+   for a reason the project side does not have: somebody looking at a board wants
+   to know it is already promised to something before they put it in a machine, and
+   without this they would have to find the project that promised it to know.
+
+   Nothing is shown when it is in none, which is most of them -- an empty panel on
+   every item page would be a section saying "no" over and over. #}
+{% import "_panel.html" as PN %}
+{% if in_projects %}
+{% call PN.panel('Projects') %}
+  <p style="margin:0">{% for pr in in_projects %}<a class="chip st-{{ pr.status }}"
+     href="/projects/{{ pr.asset_id }}">{{ pr.name or pr.asset_id }}</a>
+  {% endfor %}</p>
+{% endcall %}
+{% endif %}

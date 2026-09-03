@@ -1,4 +1,9 @@
-"""Allocate an asset id, unique across BOTH tables (computers + parts).
+"""Allocate an asset id, unique across every table in the register.
+
+The register is computers, parts and projects. The third is not an object on a
+shelf and never gets a printed label, but it draws from the same pool because an
+id is what /items/<id> resolves and what the history is keyed by: two things
+sharing one would put one's notes on the other's page.
 
 Historic ids are sequential (RH-0001); newly created ones are RH- followed by
 four random uppercase alphanumeric characters, e.g. RH-K7Q2. Ids are treated
@@ -11,7 +16,7 @@ each confusable pair keeps a single form.
 import secrets
 import string
 
-from .models import Computer, Part
+from .models import Computer, Part, Project
 
 PREFIX = "RH-"
 _CONFUSABLE = set("ILO")
@@ -25,7 +30,7 @@ def _random_id():
 
 def next_asset_id(db):
     taken = set()
-    for model in (Computer, Part):
+    for model in (Computer, Part, Project):
         for (aid,) in db.query(model.asset_id).all():
             taken.add(aid)
     for _ in range(10000):

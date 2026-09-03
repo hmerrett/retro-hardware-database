@@ -18,15 +18,16 @@ own server is [INSTALL.md](INSTALL.md).
 9. [Adding a part](#9-adding-a-part)
 10. [Photographs](#10-photographs)
 11. [Files](#11-files)
-12. [Labels and QR codes](#12-labels-and-qr-codes)
-13. [History](#13-history)
-14. [Disposing, restoring and deleting](#14-disposing-restoring-and-deleting)
-15. [Statistics](#15-statistics)
-16. [Logging in](#16-logging-in)
-17. [The REST API](#17-the-rest-api)
-18. [The tool server](#18-the-tool-server)
-19. [Command-line tools](#19-command-line-tools)
-20. [Housekeeping](#20-housekeeping)
+12. [Projects](#12-projects)
+13. [Labels and QR codes](#13-labels-and-qr-codes)
+14. [History](#14-history)
+15. [Disposing, restoring and deleting](#15-disposing-restoring-and-deleting)
+16. [Statistics](#16-statistics)
+17. [Logging in](#17-logging-in)
+18. [The REST API](#18-the-rest-api)
+19. [The tool server](#19-the-tool-server)
+20. [Command-line tools](#20-command-line-tools)
+21. [Housekeeping](#21-housekeeping)
 
 ---
 
@@ -122,12 +123,15 @@ the page does not open on a screenful of placeholder icons.
 On a desktop the banner reads in three bands: where you can go on the left, the
 search box in the middle, and what you can do on the right.
 
-- **browse**, **numbers**, **models**, **files** — the four sections. The one
-  you are in is shown in bold. **models** is the catalogue of machines the
-  register knows as models; **browse** is the machines it actually holds.
-- **Search anything…** and **scan** — see [Finding things](#3-finding-things).
+- **browse**, **projects**, **numbers**, **models**, **files** — the sections.
+  The one you are in is shown in bold. **models** is the catalogue of machines the
+  register knows as models; **browse** is the machines it actually holds;
+  **projects** is what is being done to them — see
+  [section 12](#12-projects). **projects** sits next to **browse** because the two
+  are a pair: what is owned, and the work in hand.
+- **Search anything…** and **scan** — see [Finding things](#3-searching).
   The scan button appears only where there is a camera to use.
-- **+ New** — offers Computer or Part. Logged in only.
+- **+ New** — offers Computer, Part or Project. Logged in only.
 - **⋯** — the theme, **traffic** and **log out**, and (in the installed app,
   where the browser provides neither) share and reload.
 - **API docs** — the interactive API console (login required), at the foot of
@@ -141,8 +145,9 @@ across the bottom of the screen, where your thumb already is.
 - **Browse** — the gallery.
 - **Find** — scrolls back up and puts the cursor in the search box.
 - **Scan** — reads a label's code. Appears only where there is a camera.
-- **More** — one list holding the sections (**numbers**, **models**, **files**),
-  **+ Computer**, **+ Part**, the theme, **traffic** and **log out**.
+- **More** — one list holding the sections (**projects**, **numbers**,
+  **models**, **files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
+  **traffic** and **log out**.
 
 ### Moving between items
 
@@ -211,12 +216,19 @@ history — specs, notes, source, condition, disposal reasons, the lot. Search f
 `8580R5` and you get the C64 that part number is fitted in. Search for `recapped`
 and you get everything whose history says so.
 
+Projects are searched by the same words, and the match reaches their jobs and the
+things they have on order as well as their own text — so `Gotek` finds the project
+with one in the post. They do not become cards in the gallery, which stays a wall
+of photographs of things owned; the line above the results says how many projects
+matched and links to them. See [section 12](#12-projects).
+
 **On the gallery, typing filters the cards as you type**, without a round trip.
 That filter reads a condensed blob on each card rather than the full text, so it
 is the faster, narrower answer; press Enter for the real one.
 
-**Type two characters** and a dropdown offers the first ten matches. Arrow keys
-and Enter walk them; the last line says how many more there are. It runs exactly
+**Type two characters** and a dropdown offers the first ten matches — computers,
+parts and projects alike. Arrow keys and Enter walk them; the last line says how
+many more there are. It runs exactly
 the same search Enter does, so the list is a preview of the real answer rather
 than a second, narrower search that disagrees with it. What it adds is an order:
 what you typed being an asset tag, or the start of a name, comes before a hit
@@ -251,7 +263,7 @@ Down the main column:
   written up.
 - **Mounted parts** — on a part's page: what is mounted on this card.
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
-- **History** — [everything that has happened to it](#13-history).
+- **History** — [everything that has happened to it](#14-history).
 
 Down the side column: the photographs, the disposal box, and the item's own QR
 code.
@@ -436,7 +448,7 @@ paragraph now lives inside the element that hides it, which has worked
 everywhere for a decade.
 
 Two other shapes of the same list: `catalogue.txt` in the repository, and
-[`/api/machines`](#17-the-rest-api) for anything that would rather read JSON —
+[`/api/machines`](#18-the-rest-api) for anything that would rather read JSON —
 public for the same reason the page is.
 
 ### Why they are boxes and not menus
@@ -582,7 +594,7 @@ A few things worth knowing before you start:
   otherwise double in size for no reader.
 - After correcting wording that machines are already filed under, run
   `python -m app.resync --write` to bring their rendered lines into step
-  (section 20).
+  (section 21).
 
 ---
 
@@ -624,7 +636,7 @@ A floppy's capacity is the exception, because it is a name rather than a
 measurement — see section 8.
 
 Once the units changed, every string already stored still said `KB`. Bring them
-into line in one pass with `python -m app.resync --write` (section 20).
+into line in one pass with `python -m app.resync --write` (section 21).
 
 ---
 
@@ -888,7 +900,7 @@ the things that are naturally lists (slots, RAM slots, ports) and key/value rows
 for anything free-form.
 
 That is what makes "every board with a VLB slot" a query rather than a text
-search, and what makes the [statistics page](#15-statistics) count things rather
+search, and what makes the [statistics page](#16-statistics) count things rather
 than guess at them.
 
 The `Key: value | ...` string you see on the page is a rendering of those
@@ -909,7 +921,7 @@ left alone.
 This section is about an item's own photographs: the ones in the Photographs
 panel, which answer *which one is this?* A photograph of something that happened
 to it — a recap, a repair, damage found on arrival — belongs on the history entry
-that says what happened, and is described in [section 13](#13-history).
+that says what happened, and is described in [section 14](#14-history).
 
 **Upload** by choosing the files — that is the whole gesture, the upload goes as
 soon as they are picked. Several at once is fine.
@@ -946,7 +958,7 @@ looking at it](#when-it-changes-while-you-are-looking-at-it).
 
 **Photographs and the count of what is photographed.** An item's own photographs
 are its portrait; the ones on history entries are not, and `/stats` counts them
-separately for that reason — see [section 15](#15-statistics).
+separately for that reason — see [section 16](#16-statistics).
 
 **Watermarking.** Your own photographs are stamped with the site logo as they are
 served, and so are the ones on history entries; reference images are not. Set `RHDB_WATERMARK=0` to serve everything
@@ -993,7 +1005,227 @@ from the upload; the name you uploaded is kept as data, and used for the downloa
 
 ---
 
-## 12. Labels and QR codes
+## 12. Projects
+
+Everything so far has described what is owned. A project describes what is
+intended: a repair, a build, a machine wanted and not yet found.
+
+The two are different kinds of statement and are asked different questions. A
+Spectrum has a board issue and a ULA; "recap the +2A" has a state, a list of jobs
+and a pile of things on order. So a project is a record of its own, at
+**projects** in the header, rather than more fields on a machine.
+
+That page has two halves, and most of this section is about the first. The
+**projects** are named pieces of work, and they are public. **Wanting work**
+below them is a private queue of things you have flagged as needing something —
+lighter, quicker, and described further down.
+
+**A project need own nothing.** That is the point of it. The idea comes months
+before the hardware — a plan to build a 486 exists long before there is a 486 to
+point at — so a project can be written down on the evening it is had, and the
+computers and parts attached to it as they turn up. A project with nothing in it
+is the ordinary case at the start, not an unfinished one.
+
+Only the name is asked for. It is the only thing a project can be found by: a
+machine falls back to its manufacturer and model and then to its asset tag, and a
+project has neither.
+
+### The states
+
+| Status | What it means |
+|---|---|
+| **planned** | Written down, not started. |
+| **in progress** | Work has begun. |
+| **stalled** | Waiting — on a part, on the weather, on the will. |
+| **done** | Finished. |
+| **abandoned** | Given up on. |
+
+**stalled** earns its place because it is the true state of most projects most of
+the time, and calling that "in progress" would make the in-progress list a lie and
+the whole status useless. **abandoned** is kept apart from **done** for the same
+reason: a project given up on is not a project finished, and folding the two
+together would mean never being able to ask what was actually built.
+
+The list page leads with what is in hand and dims what is over — which is not the
+order the status menu offers, because a menu is read in the order a project lives
+and a list is read to find out what to do next.
+
+### Three dates
+
+**Started** is when work began, which is not when the project was thought of.
+**Wanted by** is a hope rather than a record. **Finished** is when it was done.
+
+None of the three is worked out from another, and any can be blank while the
+others are not — a project can be finished without ever having been recorded as
+started, because the part turned up and it took an evening.
+
+### What it is about
+
+Add any computer or part in the register. A note beside each says why it is there —
+*the patient*, *donor for the keyboard* — which is a fact about the pairing rather
+than about either end of it, and so has nowhere else to live.
+
+The same thing can be in two projects: a PSU can be wanted by both, and a machine
+being restored can also be the machine a spare board is destined for.
+
+It reads both ways. The project lists what it is about, and **each item's own page
+gains a Projects panel** saying what it is spoken for — so you find out a board is
+already promised while looking at the board, rather than having to find the project
+that promised it. Nothing is drawn on an item that is in no project, which is most
+of them.
+
+Taking an item out, or deleting the project altogether, leaves the hardware alone.
+Deleting the plan is not disposing of the machine.
+
+### Tasks
+
+A sentence and a tick, and deliberately nothing else. A task list that asks for a
+priority, an estimate and an owner is a task list nobody writes anything in.
+
+Outstanding jobs sort above finished ones, because the list is read to find out
+what to do next and a long tail of ticked lines between you and it is the thing
+that stops task lists being read at all. Ticking one dates it with today; putting
+it back clears that date, since a job that is not done has no day it was done on.
+
+### On order
+
+What has been bought for the project, and whether it has turned up.
+
+Each line records what it is, who from, when it was ordered, when it is due, and
+what it cost. What is still coming sorts first, soonest first; a line with no
+expected date sorts last among them, because it is not due sooner than one that is
+due — it is simply not known.
+
+**Nothing becomes a part by arriving.** When the Gotek turns up you add it to the
+register the ordinary way and tick the order, which keeps an order a note about a
+purchase rather than a half-made asset, and keeps the register a list of things
+that exist.
+
+#### What it cost
+
+This is the one place in the whole register that records money.
+
+Everything else here describes what a thing *is*. An order describes a
+transaction, and what it cost is most of what there is to say about one. It is
+stored as a whole number of pence, for the reason every other quantity in the
+database is stored as an integer in a small fixed unit: it adds up and sorts
+exactly, which a decimal of pounds does not.
+
+The cost is for **the whole line as paid**, not a unit price — four SIMMs for
+twelve pounds is a quantity of 4 and a cost of £12. That is the figure on the
+receipt, and dividing it to store a unit price would invent a number nobody
+quoted.
+
+Leaving it blank means **not written down**, which is not the same as free. The
+total under the table says so: it gives what has been spent and then how many
+lines had no figure, because a total quietly counting unpriced lines as zero would
+be smaller than the truth and would look exactly as authoritative.
+
+**The costs are private.** Projects are public to read, like the rest of the site
+— what is being built is worth reading about — but the cost column and the total
+are drawn only for whoever is signed in. A visitor sees what was ordered, who from
+and whether it arrived. The JSON API is behind the login in its entirety, so the
+figures are not readable there either.
+
+### Its history
+
+A project keeps a history exactly as a computer or a part does, at the foot of its
+page: the same note bar, the same photographs hung on entries, the same folding of
+a run of identical actions into one line. See [section 14](#14-history) — there is
+nothing different to learn.
+
+That is not a coincidence of design so much as the whole of it. A project is given
+an asset tag from the same pool the computers and parts draw from, and the history
+is keyed by that tag rather than by any one table — so a project could keep a
+history without a line of code being written for it.
+
+The history is also written for you as you work: taking an item on, ticking a job,
+ordering something and marking it in all leave a dated line. Membership is recorded
+on both sides — the project says what it took on, and the machine says what it is
+wanted for.
+
+### Wanting work
+
+Below the projects, on the same page, is the other and lighter half: a queue of
+computers and parts flagged as needing something done to them.
+
+**A flag and a note**, on the item itself — the same shape `disposed` and
+`disposed_note` already have. It is for the thing you have just noticed: a board
+that wants a recap, a drive that needs a belt, a machine that would run if it had
+a power supply. Flag it in a second from the item's own page, while you are
+standing at it, or from the box on the projects page by typing its asset tag —
+which is the one you have just remembered rather than the one you are looking at.
+
+Machines and parts sit in one queue, in register order. An afternoon at the bench
+goes on whatever is next, and whether the next thing is a computer or the card out
+of one is not how anybody chooses.
+
+The note is an editable box wherever it is shown, because a plan is the thing most
+often wrong — half of it is done, or the fault turned out to be something else —
+and the list is where you are standing when you find that out. Taking something off
+the queue takes its note with it: either the work was done, in which case it belongs
+in that item's history written in the past tense, or it is not going to be, and a
+plan nobody is following is not worth keeping.
+
+A duplicate does not inherit the flag, for the reason it does not inherit the
+serial or the disposal: a copy is a record of a second object that nobody has
+looked at yet.
+
+#### The queue is private, and the projects are not
+
+This is the one place on the site where two things side by side are read by
+different people, so it is worth being plain about which is which.
+
+**A project is public.** It is a piece of work worth reading about, and its page,
+its tasks and its orders are all readable by anybody — bar what each thing cost.
+
+**The queue is not.** It is what is wrong with your things, in your own words, and
+it is drawn only for a reader who is logged in. That privacy is kept in four
+places, not one, because a thing is only private if it is private everywhere it is
+written down:
+
+- the routes that set and clear the flag are POSTs, so the login gate has them;
+- the panel on an item's own page is inside that page's logged-in block;
+- the queue on the projects page is inside one too;
+- and the search leaves both columns out for anybody not logged in — the bar, the
+  dropdown and the history all read the same set.
+
+**Nothing about the flag is written to the history**, which is the one place the
+register's usual habit is deliberately broken. Every other change worth knowing
+about lands in the log, but an item's history is shown to whoever opens its page
+and is the part of the register nothing rewrites — so a line reading *"flagged as
+a future project — recap, one leg already green"* would put the plan on the public
+page by the back door, and put it there for good.
+
+The whole API is behind the login, so it carries both columns like any other pair.
+
+### Two sizes of the same idea
+
+The queue and the projects are not rivals, and neither replaces the other.
+
+A flagged item is something **noticed** — one sentence, no ceremony, thirty
+seconds. A project is a piece of work **committed to**: it has a name, a state, a
+list of jobs and a shopping list against it. Most things stay in the queue for
+ever, and that is fine; a few earn a project, and when one does, the queue says so
+— each flagged item shows a chip for any project that has taken it on.
+
+Start in the queue. Promote to a project when it turns out to be a piece of work
+rather than a note.
+
+### Finding one
+
+Projects are searched by the same words everything else is. Typing in the header
+box offers them in the suggestion list alongside the machines, and the match reaches
+**the jobs and the things on order as well as the project's own words** — so typing
+*Gotek* finds the project with one in the post.
+
+A whole-page search from the header lands on the gallery, which stays a gallery:
+projects are not cards there, because that grid is a wall of photographs of things
+owned and a plan is not one of those. Instead the line above the results says how
+many projects matched and links to them. The projects page has a search box of its
+own for sifting without leaving it.
+
+## 13. Labels and QR codes
 
 Every item page has two printer buttons: **small label** and **full label**, each
 a PDF.
@@ -1014,11 +1246,11 @@ site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set
 it correctly before you print anything.**
 
 For bulk printing, or for printing from the machine the label printer is attached
-to, see [command-line tools](#19-command-line-tools).
+to, see [command-line tools](#20-command-line-tools).
 
 ---
 
-## 13. History
+## 14. History
 
 Every item has a dated history, and it fills itself in. Creating, editing,
 photographing, linking, unlinking, disposing and restoring all write a line
@@ -1096,7 +1328,7 @@ History is searchable, which is often the point of writing it. Searching
 
 ---
 
-## 14. Disposing, restoring and deleting
+## 15. Disposing, restoring and deleting
 
 ### Disposal
 
@@ -1142,7 +1374,7 @@ part still in the collection is kept whatever the box says.
 
 ---
 
-## 15. Statistics
+## 16. Statistics
 
 `/stats` is the collection by numbers, and it is public.
 
@@ -1195,7 +1427,7 @@ history entry is not a portrait.** Those live in a folder of their own, filed un
 the entry rather than under the thing, and they answer a different question: an
 object with six pictures of its recap and nothing else is still an object nobody
 has photographed in the sense this figure means. See [section 10](#10-photographs)
-for the difference and [section 13](#13-history) for the history side of it.
+for the difference and [section 14](#14-history) for the history side of it.
 
 The figure and the list behind it are the same question asked once. Both read the
 files on disk, which is what the item page draws; the "default photo" recorded
@@ -1219,7 +1451,7 @@ from all of them.
 
 ---
 
-## 16. Logging in
+## 17. Logging in
 
 **Reads are public. Writes need a login.**
 
@@ -1250,7 +1482,7 @@ Editing controls simply do not appear when you are not logged in.
 
 ---
 
-## 17. The REST API
+## 18. The REST API
 
 Interactive documentation and a console are at `/docs` (login required). The
 schema is at `/openapi.json`.
@@ -1262,6 +1494,13 @@ schema is at `/openapi.json`.
 | `GET` | `/api/items/{id}/log` | an item's history, with any photographs on each entry |
 | `GET` | `/api/machines` | the catalogue of machines known as models — home computers, consoles, documented branded PCs — and the variations each was built in. Public, like [/machines](#the-list-of-what-it-knows), because none of it is about this register |
 | `GET` | `/api/files` | the files kept beside the register |
+| `GET`, `POST` | `/api/projects` | list, or start one. `?open=true` for the ones neither finished nor abandoned, `?status=stalled` for one state |
+| `GET`, `PATCH`, `DELETE` | `/api/projects/{id}` | fetch (with its items, tasks and orders), partial update, delete |
+| `POST`, `DELETE` | `/api/projects/{id}/items`, `/api/projects/{id}/items/{asset_id}` | put a computer or part in a project, or take it out |
+| `POST` | `/api/projects/{id}/tasks` | add a job |
+| `PATCH`, `DELETE` | `/api/projects/{id}/tasks/{task_id}` | tick, reword or drop one |
+| `POST` | `/api/projects/{id}/orders` | record something bought |
+| `PATCH`, `DELETE` | `/api/projects/{id}/orders/{order_id}` | mark it in, change it, or cancel it |
 
 `GET /api/parts?computer_id=RH-4K7Q` and `?type=sound` filter the list.
 
@@ -1286,7 +1525,7 @@ curl -u user:pass https://db.example.com/api/parts?type=video
 
 ---
 
-## 18. The tool server
+## 19. The tool server
 
 The `mcp` service wraps the REST API and exposes it as a set of tools over the
 Model Context Protocol, on `http://localhost:8001/mcp` (streamable HTTP
@@ -1302,6 +1541,12 @@ The tools are:
 - `list_machine_models` — the catalogue behind the `machine_*` arguments of
   `create_computer` and `update_computer`, which file a Spectrum, a C64 or a Mega
   Drive against a model and record its board issue, style, region and chips
+- `list_projects` (filter by `status`, or `open=true` for what is still going),
+  `get_project`, `create_project`, `update_project`, `delete_project`
+- `add_project_item`, `remove_project_item` — what a project is about
+- `add_project_task`, `update_project_task` (tick it), `delete_project_task`
+- `add_project_order`, `mark_project_order_delivered`, `delete_project_order` —
+  `cost_p` is pence as a whole number, and is the cost of the whole line as paid
 
 It stores nothing of its own. Every call is an HTTP request to the API, so the
 tool server, the GUI and the command-line tools all work against the same
@@ -1310,7 +1555,7 @@ database and obey the same rules. `create_*` assigns the next asset tag;
 
 ---
 
-## 19. Command-line tools
+## 20. Command-line tools
 
 The scripts in `tools/` talk to the REST API over the network, so they can run on
 whichever machine has the hardware attached — the one with the label printers, or
@@ -1435,7 +1680,7 @@ machine is added. Add one, run this, and commit both; a test fails if you forget
 Unlike the other scripts here it reads the catalogue file directly rather than the
 API, so it needs no network and no login.
 
-## 20. Housekeeping
+## 21. Housekeeping
 
 ### Derived values
 

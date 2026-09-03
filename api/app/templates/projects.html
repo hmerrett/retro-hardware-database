@@ -1,32 +1,101 @@
 {% extends "base.html" %}
 {% import "_panel.html" as PN %}
-{% block title %}Future projects — Retro Hardware Database{% endblock %}
+{% block title %}Projects — Retro Hardware Database{% endblock %}
 {% block content %}
 
-{# The list of intentions, as against the list of objects every other page here
-   draws. Everything else on this site describes what a thing is and what became of
-   it, in the past and present tense; this is the one page written in the future
-   one, and it is the page you open on a Saturday morning to decide what the
-   afternoon is going to be spent on.
+{# Two sizes of the same idea, on one page.
 
-   Behind the login, all of it -- there is no anonymous half of this page to draw,
-   the way an item page has one. See the section in main.py for the four places that
-   is enforced and why it takes four.
+   A project is a piece of work committed to: it has a name, a state, a list of
+   jobs and a pile of things on order against it. The queue below is a thing merely
+   noticed -- a board that wants a recap, flagged in a second while standing at it.
+   One becomes the other often enough that they belong together, and each flagged
+   item says which project has already claimed it.
+
+   They differ in who may read them. A project is worth reading about and this page
+   is public. The queue is a private note about the collection -- what is wrong with
+   things, in the owner's own words -- and is drawn for a signed-in reader only. See
+   the section in main.py for the four places that privacy is kept and why it takes
+   four. #}
+
+<div class="flex">
+  <h2 style="margin:0">Projects</h2>
+  <span class="muted">{% if live %}{{ live }} in hand{% else %}none in hand{% endif %}{% if rows|length != live %} · {{ rows|length }} altogether{% endif %}</span>
+  <span style="flex:1"></span>
+  {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ Project</a>{% endif %}
+</div>
+<p class="hint">The work, as against the collection: a repair, a build, a machine
+  wanted and not yet found. A project need own nothing — the idea comes before the
+  hardware — and computers and parts are attached to it as they turn up.
+  {% if not request.state.authed %}What each thing cost is shown to whoever keeps the
+  register.{% endif %}</p>
+
+{# Its own box rather than the banner's. The banner searches the register and lands
+   on the gallery; this sifts the page you are already on, and it reaches the jobs
+   and the things on order as well as the project's own words — so "Gotek" finds
+   the project with one in the post. It sifts the queue below as well. #}
+<form class="toolbar" method="get" action="/projects">
+  <input name="q" value="{{ q | default('') }}" class="fill"
+         placeholder="search projects — a name, a job, something on order"
+         aria-label="search projects">
+  <button class="btn" type="submit">search</button>
+  {% if searched %}<a class="btn" href="/projects">clear</a>{% endif %}
+</form>
+{% if searched %}
+<p class="hint">Searched every field, the history, the jobs and the orders of all
+  {{ total }} projects for <strong>{{ q }}</strong> — {{ rows | length }} matched.</p>
+{% endif %}
+
+{% if rows %}
+<table>
+  <tr>
+    <th>Project</th><th class="tight">Status</th>
+    <th class="tight">Items</th><th class="tight">Tasks</th><th class="tight">On order</th>
+  </tr>
+  {% for r in rows %}
+  {# The finished and the given-up-on are dimmed rather than hidden. They are the
+     answer to "what have I actually built", which is worth being able to read
+     without going looking for it — but not at the cost of the list's top being
+     about them. #}
+  <tr class="{{ 'closed' if r.p.status in closed_states else '' }}">
+    <td>
+      <a href="/projects/{{ r.p.asset_id }}">{{ r.p.name or r.p.asset_id }}</a>
+      <span class="muted">{{ r.p.asset_id }}</span>
+      {% if r.p.summary %}<br><span class="hint">{{ r.p.summary | linked }}</span>{% endif %}
+    </td>
+    <td class="tight"><span class="chip st-{{ r.p.status }}">{{ status_label(r.p.status) }}</span></td>
+    <td class="tight muted">{{ r.assets or '—' }}</td>
+    {# Done over total, not a percentage: eleven of twelve is a different thing to
+       know than 92%, and it is the one that says how much is left. #}
+    <td class="tight muted">{% if r.tasks %}{{ r.tasks_done }}/{{ r.tasks }}{% else %}—{% endif %}</td>
+    {# What is still coming, which is the only number a pile of orders is ever
+       asked for. The total is on the project's own page. #}
+    <td class="tight muted">{% if r.orders_out %}{{ r.orders_out }}{% elif r.orders %}all in{% else %}—{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">{% if searched %}No project matches that.{% else %}No projects yet.{% if request.state.authed %}
+  <a href="/projects/new">Start one</a>.{% endif %}{% endif %}</p>
+{% endif %}
+
+{% if request.state.authed %}
+{# The queue. Everything below this line is private, and the whole of it is inside
+   this one block for that reason.
 
    Machines and parts in one list, in register order. What is next at the bench is
    next whether it is a computer or the card out of one, and sorting the queue by
    which table a thing is in would be sorting it by something nobody is asking. #}
-
-<div class="flex">
-  <h2 style="margin:0">Future projects</h2>
-  <span class="muted">{{ rows|length }}</span>
+<div class="flex" style="margin-top:26px">
+  <h2 style="margin:0">Wanting work</h2>
+  <span class="muted">{{ wanting|length }}</span>
+  <span class="chip">private</span>
 </div>
 <p class="hint">What is waiting to be worked on, and what needs doing to it: the
-  recap, the belt, the machine that would run if it had a power supply. Private —
-  none of this is on an item's own page for anybody who is not logged in, and none
-  of it is in the search or the history. Taking something off the list takes its
-  note with it, so what was actually done is worth writing into that item's history
-  where it will stay.</p>
+  recap, the belt, the machine that would run if it had a power supply. None of this
+  is on an item's own page for anybody who is not logged in, and none of it is in
+  the search or the history — unlike the projects above, which are public. Taking
+  something off the list takes its note with it, so what was actually done is worth
+  writing into that item's history where it will stay.</p>
 
 {% call PN.panel('Add one') %}
   {# By asset tag, with the whole register behind the box. The other way in is the
@@ -49,9 +118,9 @@
   </datalist>
 {% endcall %}
 
-{% if rows %}
+{% if wanting %}
 <div class="itemcards">
-  {% for r in rows %}
+  {% for r in wanting %}
   <article class="itemcard">
     <header>
       <a href="{{ r.url }}">{{ r.aid }}</a>
@@ -60,6 +129,12 @@
          after the case it came in has gone -- but the list should say so, since
          "waiting to be worked on" reads oddly next to something that has left. #}
       {% if r.disposed %}<span class="chip">disposed</span>{% endif %}
+      {# Which project has already taken this on, if any. The whole reason the two
+         halves share a page: a thing noticed becomes a piece of work, and without
+         this you would have no way of telling from the queue which of them already
+         had. #}
+      {% for pr in claimed.get(r.aid, []) %}<a class="chip st-{{ pr.status }}"
+         href="/projects/{{ pr.asset_id }}">{{ pr.name or pr.asset_id }}</a>{% endfor %}
       <form method="post" action="/items/{{ r.aid }}/unproject"
             onsubmit="return confirm('Take {{ r.aid }} off the project list? Its note goes with it.')">
         <input type="hidden" name="next" value="/projects">
@@ -99,7 +174,9 @@
   {% endfor %}
 </div>
 {% else %}
-<p class="muted">Nothing is on the list. Flag something from its own page, or add
-  it by asset tag above.</p>
+<p class="muted">{% if searched %}Nothing on the list matches that.{% else %}
+  Nothing is on the list. Flag something from its own page, or add it by asset
+  tag above.{% endif %}</p>
+{% endif %}
 {% endif %}
 {% endblock %}

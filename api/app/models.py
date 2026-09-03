@@ -7,7 +7,7 @@ The column set began as a mirror of the flat-file system's CSV schema, where
 everything was a string; quantities and dates are being given real types as the
 data proves clean enough to convert."""
 from sqlalchemy import (Boolean, Column, Date, DateTime, ForeignKey, Integer,
-                        SmallInteger, String, Text)
+                        SmallInteger, String, Text, UniqueConstraint)
 
 from .db import Base
 
@@ -534,3 +534,139 @@ class LogPhoto(Base):
     log_id = Column(Integer, ForeignKey("log_entry.id", ondelete="CASCADE"),
                     nullable=False, index=True)
     rel = Column(String(255), nullable=False)
+
+
+# --- projects: the work, as against the things it is done to -----------------
+# A machine is something owned and a project is something intended, and the two
+# are described by different facts: a Spectrum has a board issue and a ULA, and
+# "recap the +2A" has a state, a list of jobs and a pile of things on order. So
+# these are tables of their own rather than more columns on `computers`.
+#
+# What they share is the register. A project takes an asset id from the same
+# allocator the two asset tables draw from, which is what lets it keep a history
+# without a line of new code: log_entry is keyed by a plain asset id precisely
+# because no one table owns the register, and a project is now a third thing that
+# id can mean.
+
+
+class Project(Base):
+    """A piece of work: a repair, a build, a machine wanted and not yet found.
+
+    It need own nothing. A project with no computers and no parts attached is the
+    ordinary case at the start -- the idea comes before the hardware, and a plan to
+    build a 486 exists for months before there is a 486 to point at. Which is why
+    the assets are a table beside this one rather than columns in it, and why
+    nothing here is required except the name.
+
+    `status` is a slug from projects.STATUSES, not a label, for the reason
+    ComputerRamModule.module is: the words on screen are free to be reworded
+    without orphaning anybody's rows.
+
+    Three dates, because they answer three questions and any of them can be
+    unknown while the others are not. `started_at` is when work began, which is not
+    when the project was thought of; `target_date` is when it is wanted by, which
+    is a hope rather than a record; `finished_at` is when it was done, and is the
+    only one that can be read off the history afterwards. A project can be finished
+    without ever having been started -- the part turned up and it took an evening --
+    and none of the three is inferred from another."""
+    __tablename__ = "projects"
+    asset_id = Column(String(16), primary_key=True)
+    name = Column(String(255), nullable=False, default="", server_default="")
+    status = Column(String(16), nullable=False, default="planned",
+                    server_default="planned")
+    summary = Column(Text, default="")
+    notes = Column(Text, default="")
+    started_at = Column(Date)
+    target_date = Column(Date)
+    finished_at = Column(Date)
+
+
+class ProjectAsset(Base):
+    """One computer or part that a project is about.
+
+    `asset_id` is a plain column and not a foreign key, for the reason log_entry's
+    is: it names something in the shared register, and the register is two tables.
+    Which of them holds it is looked up, exactly as /items/<id> looks it up.
+
+    `project_id` is a real foreign key, because a project is a row in one table and
+    a membership means nothing without it -- the same split AssetVariant and
+    LogPhoto make for the same reason.
+
+    Many-to-many on purpose: the same PSU can be wanted by two projects, and a
+    machine being restored is also the machine the spare board is destined for.
+    The unique constraint is on the pair, so a thing is in a project once however
+    many times it is added.
+
+    `note` is why this one is in this project -- 'donor for the keyboard', 'needs
+    the recap' -- which is a fact about the pairing rather than about either end of
+    it, and so has nowhere else to live."""
+    __tablename__ = "project_asset"
+    __table_args__ = (UniqueConstraint("project_id", "asset_id",
+                                       name="uq_project_asset"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(String(16),
+                        ForeignKey("projects.asset_id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    asset_id = Column(String(16), nullable=False, index=True)
+    note = Column(String(255), nullable=False, default="", server_default="")
+
+
+class ProjectTask(Base):
+    """One job, and whether it is done.
+
+    Deliberately only a sentence and a tick. A task list that asks for a priority,
+    an estimate and an owner is a task list nobody writes anything in, and there is
+    one person here. What a job needs is to be written down in the words it will be
+    recognised by and ticked when it is over.
+
+    `done_at` is a date rather than a timestamp: the history already holds the
+    minute anything happened, and what a finished job is worth remembering by is
+    the day."""
+    __tablename__ = "project_task"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(String(16),
+                        ForeignKey("projects.asset_id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    text = Column(Text, nullable=False, default="")
+    done = Column(Boolean, nullable=False, default=False, server_default="0")
+    done_at = Column(Date)
+
+
+class ProjectOrder(Base):
+    """Something bought for a project, and whether it has turned up.
+
+    This is the one place in the register that records money. Everything else here
+    describes what a thing is; an order describes a transaction, and what it cost
+    is most of what there is to say about one. `cost_p` is an integer of pence for
+    the reason every other quantity in this schema is an integer in a small unit
+    named by the column suffix (_kb, _khz, _ns, _rpm): so it sorts and adds up
+    exactly, which a float of pounds does not. NULL is a cost not recorded, which
+    is not the same as free.
+
+    `qty` multiplies it. The cost is the cost of the line as paid -- four SIMMs for
+    twelve pounds is qty 4 and 1200, not 300 -- because that is the figure on the
+    receipt, and dividing it to store a unit price would be inventing a number that
+    was never quoted.
+
+    Delivery is a flag and a date rather than a state machine. What is wanted from a
+    pile of ordered things is which of them are still coming, and a tick answers it.
+
+    Nothing here links to a part. When the Gotek arrives it is added to the register
+    the ordinary way, and this row is ticked -- which keeps an order a note about
+    a purchase rather than a half-made asset, and keeps the register a list of
+    things that exist."""
+    __tablename__ = "project_order"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(String(16),
+                        ForeignKey("projects.asset_id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    description = Column(String(255), nullable=False, default="")
+    supplier = Column(String(255), nullable=False, default="", server_default="")
+    url = Column(Text, default="")
+    qty = Column(Integer, nullable=False, default=1, server_default="1")
+    cost_p = Column(Integer)
+    ordered_at = Column(Date)
+    expected_at = Column(Date)
+    delivered = Column(Boolean, nullable=False, default=False, server_default="0")
+    delivered_at = Column(Date)
+    note = Column(String(255), nullable=False, default="", server_default="")

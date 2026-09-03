@@ -161,6 +161,30 @@
     header { padding: 10px 12px; }
     main { padding: 14px 12px; }
   }
+  /* An order has seven things to say and a phone has room for about three across.
+     Sideways scrolling was the first answer and the wrong one: what fell off the
+     right-hand edge was the "mark in" button, which is the entire reason to open
+     this panel on a phone -- you are stood at the door with the parcel. So each
+     order becomes a block instead, its description on its own line and the rest
+     read underneath it, each labelled by the column heading it has lost. */
+  @media (max-width: 560px) {
+    .ordertable, .ordertable tbody, .ordertable tr, .ordertable td { display: block; width: auto; }
+    /* The heading row. There is no thead to hide -- the table writes its headings
+       as the first row, the way every other table here does. */
+    .ordertable tr:first-child { display: none; }
+    .ordertable tr { border-top: 1px solid var(--line); padding: 7px 0; }
+    .ordertable td { border: 0; padding: 1px 0; white-space: normal; }
+    .ordertable td.money { text-align: left; }
+    /* A value with nothing in it says nothing, and a stack of blank labelled lines
+       under every order would say it four times. */
+    .ordertable td:empty { display: none; }
+    .ordertable td[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; }
+    /* The two buttons side by side rather than one under the other: they are a pair
+       of actions on the order above them, not two more of its facts. Marked on the
+       cells, since the two forms are in cells of their own and it is the cells that
+       have just been told to be blocks. */
+    .ordertable td.act { display: inline-block; margin: 4px 6px 0 0; vertical-align: middle; }
+  }
   a { color: var(--accent); }
   /* A link found in what somebody wrote -- a note, a summary, a history entry, a
      spec value; anything the `linked` filter has been through. It breaks anywhere
@@ -450,6 +474,43 @@
   .muted { color: var(--muted); }
   .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
   .banner { background: #b4530022; border: 1px solid #b45300aa; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  /* A project's state, as a chip. Tinted rather than coloured in: these sit in a
+     table beside names and summaries, and a solid block of colour on every row
+     would make a list of ordinary projects read as a page of warnings. The text
+     stays the page's own colour, which is what lets one rule serve both themes --
+     a tint this faint is a background in either, and a fixed foreground would have
+     needed a dark-mode twin for each. */
+  .chip.st-active { background: #2563eb2e; }
+  .chip.st-stalled { background: #b453002e; }
+  .chip.st-done { background: #1a7f372e; }
+  .chip.st-abandoned { color: var(--muted); }
+  /* Finished and given-up-on projects, and jobs already ticked: still there to be
+     read, just not competing with what is still in hand. */
+  tr.closed td, tr.done td { opacity: .62; }
+  tr.done .tasktext { text-decoration: line-through; }
+  /* The bar at the foot of a panel that adds a row to it -- an item, a task, an
+     order. The same shape as the note bar under the history, because it is the same
+     gesture: type the thing, press the button, it is in the list above. */
+  .addbar { display: flex; gap: 6px; margin: 10px 0 0; flex-wrap: wrap; align-items: center; }
+  .addbar input, .addbar select { flex: 1; min-width: 160px; padding: 6px 8px;
+    border: 1px solid var(--line); border-radius: 6px; background: transparent;
+    color: inherit; font: inherit; }
+  /* An order has seven fields and most of them are short. Left to the rule above
+     they would each claim a sixth of the row and the description -- the one field
+     that is a sentence -- would be the same width as the quantity. */
+  .orderbar input[name=description] { flex: 3 1 220px; }
+  .orderbar input[name=qty] { flex: 0 0 68px; min-width: 0; }
+  .orderbar input[name=cost] { flex: 0 0 96px; min-width: 0; }
+  .orderbar input[name=expected_at] { flex: 0 0 150px; min-width: 0; }
+  /* Money reads down a column, so it is set right and in figures of one width --
+     otherwise £9.99 and £110.00 cannot be compared at a glance, which is the only
+     reason to put them one above the other. */
+  td.money { text-align: right; font-variant-numeric: tabular-nums; }
+  /* The one column in each of these tables that is a sentence, told to take the
+     slack. A table at width:100% shares its spare room out among every column, so
+     without this a 20px tick button sat in a 120px column and the words it belonged
+     to were pushed a third of the way across the page. */
+  td.tasktext, td.orderwhat { width: 100%; }
   .build-banner { background: #3b82f622; border: 1px solid #3b82f6aa; border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
   /* What is going to be done to a thing, as against what became of it. Its own
      colour rather than the disposal banner's, because the two are opposite tenses
@@ -458,7 +519,13 @@
      a reader who is logged in -- see the panel in _photocol.html. */
   .plan-banner { background: #15803d22; border: 1px solid #15803daa; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
-  .toolbar input[list], .toolbar select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
+  /* input[list] was every text box a toolbar had until the projects page put a
+     plain search field in one; a search box is not a picker and has no datalist. */
+  .toolbar input[type=text], .toolbar input[list], .toolbar input:not([type]),
+  .toolbar select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
+  /* The one thing in the row that should take the leftover width -- the query, not
+     the buttons beside it. */
+  .toolbar input.fill { flex: 1 1 240px; }
   /* A picker is as wide as its widest option, and the options here are whole item
      names -- wider than a phone. Let it shrink; the chosen line still fits. */
   select { max-width: 100%; }
@@ -989,22 +1056,20 @@
     <img src="/static/logo-256.png?v={{ icon_ver }}" alt="2600.me" width="248" height="256">
     <span>Retro Hardware Database</span>
   </a>
-  {# The places. Four links, one of them lit. API docs is not among them: it is
-     for whoever is writing against the register rather than reading it, and it
-     lives at the foot of the page. #}
+  {# The places, one of them lit. API docs is not among them: it is for whoever is
+     writing against the register rather than reading it, and it lives at the foot
+     of the page. #}
   <nav class="hdr-nav" aria-label="Sections">
     <a href="/"{{ here('/') }}>browse</a>
+    {# Next to browse rather than out at the end, because the two are the pair: what
+       is owned, and what is being done to it. #}
+    <a href="/projects"{{ here('/projects') }}>projects</a>
     <a href="/stats"{{ here('/stats') }}>numbers</a>
     {# "models" rather than "machines": the page is the list of machine models the
        catalogue knows, and beside "browse" -- which is the machines actually held --
        "machines" read as a second way into the same shelf. #}
     <a href="/machines"{{ here('/machines') }}>models</a>
     <a href="/files"{{ here('/files') }}>files</a>
-    {# Last, and only for whoever can see it. The other four are the collection as
-       anybody may read it; this one is the working list behind the login, and a
-       link to a page that would only bounce a visitor to a login form is not a
-       place -- it is a locked door drawn on the wall. #}
-    {% if request.state.authed %}<a href="/projects"{{ here('/projects') }}>projects</a>{% endif %}
   </nav>
   <span class="hdr-gap"></span>
   {# Enter searches the register from wherever you are: the server reads every field
@@ -1035,6 +1100,7 @@
       <div class="menupop">
         <a href="/computers/new">+ Computer</a>
         <a href="/parts/new">+ Part</a>
+        <a href="/projects/new">+ Project</a>
       </div>
     </details>
     {% endif %}
@@ -1093,12 +1159,13 @@
     {% if request.state.authed %}
     <a href="/computers/new">+ Computer</a>
     <a href="/parts/new">+ Part</a>
+    <a href="/projects/new">+ Project</a>
     <hr>
     {% endif %}
+    <a href="/projects"{{ here('/projects') }}>projects</a>
     <a href="/stats"{{ here('/stats') }}>numbers</a>
     <a href="/machines"{{ here('/machines') }}>models</a>
     <a href="/files"{{ here('/files') }}>files</a>
-    {% if request.state.authed %}<a href="/projects"{{ here('/projects') }}>projects</a>{% endif %}
     <a href="/docs">API docs</a>
     <hr>
     <button type="button" class="js-theme">Dark theme</button>

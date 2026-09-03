@@ -35,14 +35,17 @@ from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
-               ramdb, specdb, specstruct, thumbs)
+               projects, ramdb, specdb, specstruct, thumbs)
 from .db import get_db
 from .ids import next_asset_id
 from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
                      ComputerRamChip, ComputerRamModule, IoSpec, LogEntry, LogPhoto,
                      MotherboardSpec, NetworkSpec, Part, PartPort, PartRamSlot,
-                     PartSlot, SoundSpec, StorageSpec, StoredFile, VideoSpec)
-from .schemas import ComputerIn, ComputerOut, PartIn, PartOut
+                     PartSlot, Project, ProjectAsset, ProjectOrder, ProjectTask,
+                     SoundSpec, StorageSpec, StoredFile, VideoSpec)
+from .schemas import (ComputerIn, ComputerOut, PartIn, PartOut, ProjectIn,
+                      ProjectItemIn, ProjectOrderIn, ProjectOrderOut,
+                      ProjectOut, ProjectTaskIn, ProjectTaskOut)
 import contextlib
 
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
@@ -61,7 +64,13 @@ templates.env.globals.update(
     # Markup here rather than |safe at each use: the markup is ours, built by segno
     # from a URL the app made, and no template should have to remember that.
     qr_svg=lambda data: Markup(labels.qr_svg(data)),
-    today=lambda: date.today().isoformat())
+    today=lambda: date.today().isoformat(),
+    # A project's vocabulary, so a status reads as words in every place one is
+    # shown and the money is written the same way on the list page and the item.
+    money=projects.money, status_label=projects.status_label,
+    # The statuses that mean a project is over, so the pages that dim a finished
+    # one do not each keep their own idea of which those are.
+    closed_states=projects.CLOSED)
 # A filter rather than a global, because it reads as one thing done to another at
 # every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --
 # prose, notes, spec values, history entries -- and never for an attribute, which
@@ -224,7 +233,14 @@ def _public_page(path: str) -> bool:
         return True
     if path.startswith("/items/"):
         return True
-    if path.startswith(("/computers/", "/parts/")):
+    # Projects read like the rest of the site: what is being built and what is
+    # waiting on a part is as much of the collection as the shelf is. The editing
+    # GETs come out by the same rule the asset pages follow, and every write is a
+    # POST and so already behind the login. What a visitor is not shown is on the
+    # page rather than here -- see project.html on what an order costs.
+    if path == "/projects":
+        return True
+    if path.startswith(("/computers/", "/parts/", "/projects/")):
         return not (path.endswith(("/new", "/delete"))
                     or "/edit" in path or "/label.pdf" in path)
     return False
@@ -888,6 +904,7 @@ def _facts(db, st, this_year):
     out += _facts_ages(db, st, this_year)
     out += _facts_provenance(db, st)
     out += _facts_register(db, st)
+    out += _facts_projects(db, st)
     out += _facts_condition(db, st)
     return out
 # --- the pointless department, by theme -------------------------------------
@@ -1525,11 +1542,17 @@ def _facts_register(db, st):
                     .filter(LogEntry.kind == "note")
                     .order_by(func.length(LogEntry.message).desc()).first())
     if longest_note and longest_note[1] and longest_note[0]:
-        obj = db.get(Computer, longest_note[0]) or db.get(Part, longest_note[0])
-        if obj:
-            kind = "computers" if isinstance(obj, Computer) else "parts"
+        # All three kinds, because log_entry is keyed by a register id and a project
+        # writes notes through the same bar a machine does. Looking in two tables
+        # only would not be wrong so much as quietly incomplete: the tile would
+        # disappear on the day the longest note happened to be on a project.
+        obj = next((o for _, cls in REGISTER
+                    if (o := db.get(cls, longest_note[0])) is not None), None)
+        if obj is not None:
+            kind = next(k for k, cls in REGISTER if isinstance(obj, cls))
             out.append(_fact("The longest note anyone has written",
-                             f"{longest_note[1]} characters", _named(obj),
+                             f"{longest_note[1]} characters",
+                             obj.name if isinstance(obj, Project) else _named(obj),
                              f"/{kind}/{obj.asset_id}"))
 
     shots = st["portraits"]
@@ -1605,6 +1628,63 @@ def _facts_register(db, st):
     if short and short[0] > 1:
         out.append(_fact("Shortest name in the register", f"{short[0]} characters",
                          _named(short[1]), f"/{short[2]}/{short[1].asset_id}"))
+    return out
+
+
+def _facts_projects(db, st):
+    """Figures about the work rather than about the hardware: what is on the go,
+    what is still to do, and what is in the post.
+
+    No money here, on purpose. /stats is a public page and what a thing cost is the
+    one fact on a project that is not -- see project.html, where the cost column is
+    drawn for a signed-in reader only. A total spent would put on the most public
+    page of the site exactly the figure the item page takes care to withhold.
+
+    Everything is counted across all projects rather than per project, because a
+    figure about one project is a fact about that project's own page."""
+    out = []
+    open_n = (db.query(func.count(Project.asset_id))
+              .filter(Project.status.notin_(projects.CLOSED)).scalar() or 0)
+    total = db.query(func.count(Project.asset_id)).scalar() or 0
+    if open_n:
+        out.append(_fact("Projects on the go", str(open_n),
+                         f"of {total} written down: repairs, builds and machines "
+                         "still being looked for", "/projects"))
+    done = (db.query(func.count(Project.asset_id))
+            .filter(Project.status == "done").scalar() or 0)
+    if done:
+        out.append(_fact("Projects actually finished", str(done),
+                         f"of {total}, which is the figure a pile of half-done "
+                         "machines is measured against", "/projects"))
+    todo = (db.query(func.count(ProjectTask.id))
+            .filter(ProjectTask.done.is_(False)).scalar() or 0)
+    ticked = (db.query(func.count(ProjectTask.id))
+              .filter(ProjectTask.done.is_(True)).scalar() or 0)
+    if todo:
+        out.append(_fact("Jobs still on the list", str(todo),
+                         f"against {ticked} ticked off", "/projects"))
+    coming = (db.query(func.count(ProjectOrder.id))
+              .filter(ProjectOrder.delivered.is_(False)).scalar() or 0)
+    if coming:
+        out.append(_fact("Things in the post", str(coming),
+                         "ordered for a project and not here yet", "/projects"))
+    spoken_for = (db.query(func.count(func.distinct(ProjectAsset.asset_id)))
+                  .scalar() or 0)
+    if spoken_for:
+        out.append(_fact("Things spoken for by a project", str(spoken_for),
+                         "not spare, whatever the shelf says", "/projects"))
+    # The one that says something a count cannot: how long the oldest unfinished
+    # project has been unfinished. Only a started one -- a project nobody has begun
+    # is not overdue, it is an idea.
+    oldest = (db.query(Project).filter(Project.status.notin_(projects.CLOSED),
+                                       Project.started_at.isnot(None))
+              .order_by(Project.started_at).first())
+    if oldest is not None:
+        days = (date.today() - oldest.started_at).days
+        if days > 0:
+            out.append(_fact("The project that has been going longest",
+                             f"{days} days", oldest.name,
+                             f"/projects/{oldest.asset_id}"))
     return out
 
 
@@ -1835,6 +1915,7 @@ def robots_txt(request: Request):
         "Disallow: /suggest\n"
         "Disallow: /computers/new\n"
         "Disallow: /parts/new\n"
+        "Disallow: /projects/new\n"
         "Disallow: /*/edit\n"
         f"Sitemap: {base}/sitemap.xml\n")
     return Response(body, media_type="text/plain")
@@ -1847,11 +1928,15 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     last = dict(db.query(
         LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id))
     urls = [(f"{base}/", None), (f"{base}/stats", None),
-            (f"{base}/machines", None)]
+            (f"{base}/machines", None), (f"{base}/projects", None)]
     for c in db.query(Computer.asset_id).order_by(Computer.asset_id):
         urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
     for p in db.query(Part.asset_id).order_by(Part.asset_id):
         urls.append((f"{base}/parts/{p.asset_id}", last.get(p.asset_id)))
+    # The projects read out of the same `last`, because a project's history is
+    # log_entry keyed by its own register id -- the same rows, the same query.
+    for pr in db.query(Project.asset_id).order_by(Project.asset_id):
+        urls.append((f"{base}/projects/{pr.asset_id}", last.get(pr.asset_id)))
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for loc, ts in urls:
@@ -2355,7 +2440,8 @@ def _coerce(field, raw):
     if field in ("year", "topbench"):
         v = (raw or "").strip()
         return int(v) if v.isdigit() else None
-    if field in ("acquired_date", "disposed_at"):
+    if field in ("acquired_date", "disposed_at",
+                 "started_at", "target_date", "finished_at"):
         return _parse_date(raw)
     if field == "disposed":
         return (raw or "").strip() not in ("", "0", "false")
@@ -3087,6 +3173,10 @@ def _clear_part_rows(db, part, also_going=()):
     # by an asset id from the shared register, which no one table can own. The
     # log's own photographs go first, while there are still entries to find them by.
     photos = _drop_log_photos(db, aid)
+    # A project that was about this part stops being about it. By hand for the same
+    # reason: project_asset.asset_id is a plain register id with no foreign key
+    # behind it, so nothing in the database will clear it.
+    projects.forget_asset(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
         db.query(model).filter(
             model.asset_id == aid).delete(synchronize_session=False)
@@ -3115,6 +3205,7 @@ def _clear_computer_rows(db, c, with_parts=()):
     for model in (ComputerDrive, ComputerRamModule, ComputerRamChip):
         db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
     photos += _drop_log_photos(db, aid)
+    projects.forget_asset(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
         db.query(model).filter(
             model.asset_id == aid).delete(synchronize_session=False)
@@ -3243,14 +3334,15 @@ def gui_item_version(aid: str, db: Session = Depends(get_db)):
 
 @app.get("/items/{aid}", include_in_schema=False)
 def gui_item(aid: str, db: Session = Depends(get_db)):
-    """The URL printed on labels: resolve an asset id to its page whether it's a
-    computer or a part. Keeps the same /items/<id> scheme the old QR codes used."""
-    aid = aid.upper()
-    if db.get(Computer, aid):
-        return RedirectResponse(f"/computers/{aid}", status_code=307)
-    if db.get(Part, aid):
-        return RedirectResponse(f"/parts/{aid}", status_code=307)
-    raise HTTPException(404, f"no asset {aid}")
+    """The URL printed on labels: resolve an asset id to its page, whichever of the
+    three things in the register it turns out to name. Keeps the same /items/<id>
+    scheme the old QR codes used.
+
+    A project is in here despite never being printed on a label, because this is the
+    register-wide address and a project holds a register id. Its history is written
+    through /items/<id> like everything else's, and a route that could not find it
+    would be a page whose note bar posted into nowhere."""
+    return RedirectResponse(_asset_page(db, aid.upper()), status_code=307)
 
 
 def _register_order(db):
@@ -3486,6 +3578,14 @@ def _haystack(db, obj, history, authed=False):
     fields += history.get(obj.asset_id, [])
     if isinstance(obj, Part):
         fields.append(entry.type_label(obj.type or "other"))
+    if isinstance(obj, Project):
+        # The status as it is written on screen as well as the slug it is stored
+        # as: "in progress" is what somebody would type, and 'active' is what the
+        # column holds. And the jobs and the orders, because a project keeps words
+        # in child tables the way a part keeps them in its specs -- see
+        # projects.searchable for why the things on order are worth reaching.
+        fields.append(projects.status_label(obj.status))
+        fields += projects.searchable(db, obj.asset_id)
     # Joined by newline, not by space: with a space, a quoted phrase could match
     # across the seam between two fields -- a part whose model is "Etherlink" and
     # whose name begins "III" would answer to "etherlink iii", which it is not.
@@ -3537,8 +3637,12 @@ def _suggest_tier(obj, name, raw):
         return 1
     if name.lower().startswith(raw):
         return 2
-    ident = " ".join([obj.asset_id or "", name, obj.manufacturer or "",
-                      obj.model or ""]).lower()
+    # getattr rather than attribute access: a project is identified by its name
+    # alone -- it is not one of a model and has no maker -- and this is asked of
+    # every kind of thing the register holds.
+    ident = " ".join([obj.asset_id or "", name,
+                      getattr(obj, "manufacturer", "") or "",
+                      getattr(obj, "model", "") or ""]).lower()
     return 3 if raw in ident else 4
 
 
@@ -3560,8 +3664,14 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
     raw = " ".join((query or "").lower().split())
 
     hits = []
+    # All three kinds the register holds. A project is offered here and not in the
+    # gallery grid, and the two are not in tension: the grid is a wall of
+    # photographs of things owned, which a plan is not, while this list is a row of
+    # names -- and "search anything" ought to reach the thing you are building as
+    # well as the parts you are building it from.
     for obj, kind in ([(c, "computer") for c in db.query(Computer).all()]
-                      + [(p, "part") for p in db.query(Part).all()]):
+                      + [(p, "part") for p in db.query(Part).all()]
+                      + [(pr, "project") for pr in db.query(Project).all()]):
         if not all(t in _haystack(db, obj, history, authed) for t in terms):
             continue
         name = entry.display_name(to_dict(obj))
@@ -3572,13 +3682,26 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
     # arithmetic of negating a timestamp that may be missing.
     hits.sort(key=lambda h: latest.get(h["obj"].asset_id) or datetime.min,
               reverse=True)
-    hits.sort(key=lambda h: (h["tier"], bool(h["obj"].disposed)))
+    # A project is never disposed of -- it has no such flag -- so it sorts with the
+    # things that are still here, which is what it is.
+    hits.sort(key=lambda h: (h["tier"], bool(getattr(h["obj"], "disposed", False))))
 
     shown = hits[:limit]
     listings, kinds = {}, None
     out = []
     for h in shown:
-        obj, folder = h["obj"], "computers" if h["kind"] == "computer" else "parts"
+        obj = h["obj"]
+        # A project has no photograph folder of its own: what is hung on its history
+        # is a picture of the work, not a portrait of a thing, and the folder scan
+        # below reads portraits. So it is drawn as its icon, always.
+        if h["kind"] == "project":
+            out.append({
+                "url": f"/projects/{obj.asset_id}", "aid": obj.asset_id,
+                "name": h["name"], "cat": "Project", "year": "",
+                "disposed": False, "img": "",
+                "icon": "/static/placeholders/project.svg"})
+            continue
+        folder = "computers" if h["kind"] == "computer" else "parts"
         if folder not in listings:
             listings[folder] = folder_images(folder)
         imgs = pick_images(folder, obj.asset_id, listings[folder])
@@ -3613,11 +3736,20 @@ def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)):
 def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
     rows = _catalogue_rows(db, precise_times=request.state.authed)
     total = len(rows)
+    hit_projects = 0
     if q.strip():
         rows = _search(db, rows, q, request.state.authed)
+        # Counted, not shown. The grid is a wall of photographs of things owned and
+        # a project is not one of those, so it does not become a card here -- but a
+        # search that quietly ignored a whole section of the site would be a search
+        # bar that says "anything" and means "the shelf". The line the page draws
+        # from this points at /projects with the same query.
+        hit_projects = len(_projects_matching(db, projects.summaries(db), q,
+                                              request.state.authed))
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
     return _grid_page(
         request, rows, q=q, searched=bool(q.strip()), total=total,
+        hit_projects=hit_projects,
         og=_og(request, "Retro Hardware Database",
                f"{n_computers} computers and {len(rows) - n_computers} parts "
                "in the collection."))
@@ -4287,6 +4419,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "machine": machine, "detachable": detachable,
         "item": (cdict := to_dict(c)), "kind": "computers",
         "files": filesdb.for_item(db, cdict), "fileerr": bool(fileerr),
+        "in_projects": projects.projects_for(db, aid),
         "c": c, "parts": [p for p in parts if p is not motherboard],
         "motherboard": motherboard, "form_factor": form_factor,
         # A picture for each of them, read once for the page rather than per card.
@@ -4689,33 +4822,49 @@ def _note_with_photos(db, aid, form):
     db.commit()
 
 
-def _asset_find(db, aid):
-    """One asset from the shared register and the page it lives on, whichever of
-    the two tables it turns out to be in -- or None for no such asset.
+# The three things an id in the register can name, and where each one's page is.
+# One list, because every route that takes a bare asset id has to agree about this
+# -- the QR target, the history photograph routes, and the version poll all walk it.
+REGISTER = (("computers", Computer), ("parts", Part), ("projects", Project))
 
-    What a route serving either kind actually wants: the log routes below only
-    needed the address, but a route that changes something needs the row as well,
-    and looking it up twice is how the two come to be about different items."""
+# The two of them that can be put on the list of things wanting work. A project is
+# in the register and answers at /items/<id> like the others, but it cannot be
+# flagged as one: it is already what the flag points at, and `Project` has no such
+# column -- so a route handed one would set an attribute on the instance, commit
+# nothing, and redirect as though it had worked.
+FLAGGABLE = REGISTER[:2]
+
+
+def _asset_find(db, aid, kinds=REGISTER):
+    """One thing from the shared register and the page it lives on, whichever kind
+    it turns out to be -- or None for no such asset.
+
+    What a route serving more than one kind actually wants: the log routes below
+    only needed the address, but a route that changes something needs the row as
+    well, and looking it up twice is how the two come to be about different items.
+
+    `kinds` narrows which tables are searched, for the callers that can only act on
+    some of them."""
     aid = (aid or "").strip().upper()
-    for kind, cls in (("computers", Computer), ("parts", Part)):
+    for kind, cls in kinds:
         obj = db.get(cls, aid)
         if obj is not None:
             return obj, f"/{kind}/{aid}"
     return None
 
 
-def _asset_or_404(db, aid):
+def _asset_or_404(db, aid, kinds=REGISTER):
     """The same, for the callers that have nothing to say about a miss. Which is
     most of them: an id in a URL that is not an asset is a broken link, while an id
     typed into a box is a typo, and only the second has anywhere useful to go."""
-    found = _asset_find(db, aid)
+    found = _asset_find(db, aid, kinds)
     if found is None:
         raise HTTPException(404, f"no asset {(aid or '').strip().upper()}")
     return found
 
 
 def _asset_page(db, aid):
-    """Where an asset's page is, for a route that serves either kind."""
+    """Where a register id's page is, for a route that serves any of the kinds."""
     return _asset_or_404(db, aid)[1]
 
 
@@ -5459,6 +5608,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "thumbs": part_thumbs(db, children),
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
+        "in_projects": projects.projects_for(db, aid),
         "candidates": candidates, "computers": computers,
         "images": images, "placeholder": _part_placeholder(db, p),
         "ref_marks": reference_marks("parts", aid),
@@ -5822,12 +5972,20 @@ def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
 # (see models.Computer.project for why that half is worth a column).
 #
 # Private, the whole of it, and in four places rather than one -- because a thing
-# is only private if it is private everywhere it is written down. /projects is not
-# on _public_page's list, so the gate sends an anonymous visitor to the login; the
-# routes here are POSTs, which that same gate already requires a login for; the
-# item page's panel is inside its `authed` block; and a search leaves the two
-# columns out for anybody not logged in (see PRIVATE_COLUMNS). Miss any one of the
-# four and the other three are decoration.
+# is only private if it is private everywhere it is written down. The routes here
+# are POSTs, which the gate already requires a login for; the item page's panel is
+# inside its `authed` block; the queue on /projects is drawn inside one too; and a
+# search leaves the two columns out for anybody not logged in (see
+# PRIVATE_COLUMNS). Miss any one of the four and the other three are decoration.
+#
+# The first of those four used to be the page itself, which was off _public_page
+# altogether. It is on it now, because the named projects moved onto the same page
+# and those are public -- a piece of work is worth reading about. So the door moved
+# rather than closing: what a visitor may now reach is the page, and what is still
+# kept from them is the queue on it, drawn only for a signed-in reader. That is a
+# weaker guard than a locked page and it is worth knowing it is weaker, which is
+# why it is written down here: the queue is one `{% if %}` in projects.html, and
+# anything else that comes to draw these two columns has to remember for itself.
 #
 # Nothing is written to the history, which is the one place the register's usual
 # habit is deliberately broken. Every other change worth knowing about lands in the
@@ -5859,7 +6017,7 @@ async def gui_project_set(aid: str, request: Request, db: Session = Depends(get_
     marks a machine as a project and has nothing whatever to say about why -- so the
     box on the item's page and the box on the list are the same box, and this is
     what both of them submit to."""
-    obj, where = _asset_or_404(db, aid)
+    obj, where = _asset_or_404(db, aid, FLAGGABLE)
     form = await request.form()
     obj.project = True
     obj.project_note = (form.get("note") or "").strip()
@@ -5878,7 +6036,7 @@ async def gui_project_clear(aid: str, request: Request, db: Session = Depends(ge
     be, and a plan nobody is following is not worth keeping. Left behind, it would
     also be silently inherited by the next flagging, which is how a drive comes to
     be on the list for a fault it had in 2019."""
-    obj, where = _asset_or_404(db, aid)
+    obj, where = _asset_or_404(db, aid, FLAGGABLE)
     form = await request.form()
     obj.project = False
     obj.project_note = ""
@@ -5926,21 +6084,6 @@ def _project_rows(db):
     return rows
 
 
-def _projects_page(request, db, error="", status=200):
-    """The list, drawn. A function rather than the route's body because the add box
-    has to render it again when what was typed is not an asset tag, with the box
-    still holding what was typed."""
-    return templates.TemplateResponse(request, "projects.html", {
-        "rows": _project_rows(db), "register": _register_order(db),
-        "error": error, "noindex": True,
-    }, status_code=status)
-
-
-@app.get("/projects", response_class=HTMLResponse, include_in_schema=False)
-def gui_projects(request: Request, db: Session = Depends(get_db)):
-    return _projects_page(request, db)
-
-
 @app.post("/projects/add", include_in_schema=False)
 async def gui_project_add(request: Request, db: Session = Depends(get_db)):
     """Flag an item from the list's own page rather than from the item's.
@@ -5959,7 +6102,7 @@ async def gui_project_add(request: Request, db: Session = Depends(get_db)):
         # ordinary way to get this wrong and the answer to it is the box to type it
         # in again, which is on the page that was already open.
         return _projects_page(request, db, error=(form.get("aid") or "").strip(),
-                              status=400)
+                              status=400)  # defined below, with the page it draws
     obj, _ = found
     obj.project = True
     note = (form.get("note") or "").strip()
@@ -6081,3 +6224,676 @@ def api_list_files(tag: str = "", db: Session = Depends(get_db)):
              "tags": f.tags, "created_at": f.created_at,
              "url": f"/files/{f.id}/{quote(f.filename)}"}
             for f in filesdb.all_files(db, tag)]
+
+
+# --- projects: the work, as against the things it is done to ------------------
+# Everything above this line describes what is owned. A project describes what is
+# intended, and it is the one kind of record here that can be about nothing yet:
+# the idea comes months before the hardware, and a plan to build a 486 has to be
+# writable on the evening it is had rather than on the day the board turns up.
+#
+# It is a register asset, which is what makes this section short. A project takes
+# an id from the same allocator, so its history, its notes and the photographs on
+# them are the code the machines already use, unaltered -- _history.html renders
+# here word for word because the note bar posts to /<kind>/<id>/note and this is
+# simply a third kind. app/projects.py owns the vocabulary, the money and the
+# reading of the three child tables; what is here is what a person does with one.
+
+PROJECT_FIELDS = ("name", "status", "summary", "notes",
+                  "started_at", "target_date", "finished_at")
+
+
+def _project_from_form(form):
+    data = {k: _coerce(k, form.get(k, "")) for k in PROJECT_FIELDS}
+    data["name"] = (data["name"] or "").strip()
+    data["status"] = projects.clean_status(data["status"])
+    return data
+
+
+def _project_form_ctx(p, title, error=""):
+    return {"p": p, "title": title, "statuses": projects.STATUSES, "error": error}
+
+
+def _project_named(p):
+    """A project in a sentence written in another item's history. The name, because
+    that is what it is known by, with the id so the line still points somewhere when
+    two projects are called nearly the same thing."""
+    return f"{p.name or 'a project'} ({p.asset_id})"
+
+
+def _projects_matching(db, rows, query, authed=False):
+    """The project rows whose text contains every term.
+
+    The same match the gallery makes of a machine -- every column, plus the history
+    -- with the jobs and the things on order folded in by _haystack. Done in Python
+    over the rows the page has already loaded, for the reason _search is: at this
+    size it is a few dozen string searches, and it matches what a reader would call
+    a match rather than what SQL collation would.
+
+    `authed` is passed through for the reason every other caller passes it: a
+    project has no private columns of its own, but _haystack decides that by asking
+    PRIVATE_COLUMNS rather than by asking what kind of row it has, and a search that
+    reached further for a visitor than for the owner would be a strange thing to
+    leave lying about."""
+    terms = search_terms(query)
+    if not terms:
+        return rows
+    history = _history_by_asset(db)
+    return [r for r in rows
+            if all(t in _haystack(db, r["p"], history, authed) for t in terms)]
+
+
+def _wanting_matching(rows, query):
+    """The flagged rows a query keeps. A plainer match than the projects get: these
+    are not register records with a history behind them, they are a name, a category
+    and a sentence about what needs doing, and that is the whole of what there is to
+    search."""
+    terms = search_terms(query)
+    if not terms:
+        return rows
+    return [r for r in rows
+            if all(t in " ".join([r["aid"], r["name"], r["cat"],
+                                  r["note"]]).lower() for t in terms)]
+
+
+def _projects_page(request, db, q="", error="", status=200):
+    """The page, drawn. Both halves of it.
+
+    A function rather than the route's body because the add box has to render it
+    again when what was typed is not an asset tag, with the box still holding what
+    was typed.
+
+    The two halves are two sizes of the same idea. The queue is a thing noticed --
+    a board that wants a recap, flagged in a second while standing at it -- and a
+    project is a piece of work committed to, with a name, a list of jobs and things
+    on order against it. One becomes the other often enough that they belong on one
+    page, and each flagged item says which project has already claimed it.
+
+    They differ in who may read them, and that is not an inconsistency. A project is
+    a piece of work worth reading about and the page is public. The queue is a
+    private note about the collection -- what is wrong with things, in the owner's
+    own words -- and it is drawn for a signed-in reader only, which is the fourth of
+    the four places that privacy is kept (see the section above)."""
+    rows = projects.summaries(db)
+    total = len(rows)
+    if q.strip():
+        rows = _projects_matching(db, rows, q, request.state.authed)
+    live = [r for r in rows if r["p"].status not in projects.CLOSED]
+    wanting, claimed = [], {}
+    if request.state.authed:
+        wanting = _project_rows(db)
+        if q.strip():
+            wanting = _wanting_matching(wanting, q)
+        claimed = projects.projects_by_asset(db, [r["aid"] for r in wanting])
+    return templates.TemplateResponse(request, "projects.html", {
+        "rows": rows, "live": len(live), "q": q, "searched": bool(q.strip()),
+        "total": total, "wanting": wanting, "claimed": claimed,
+        "register": _register_order(db) if request.state.authed else [],
+        "error": error,
+        "og": _og(request, "Projects", "Repairs, builds and things on order — "
+                                       "the work, as against the collection")},
+        status_code=status)
+
+
+@app.get("/projects", response_class=HTMLResponse, include_in_schema=False)
+def gui_projects(request: Request, q: str = "", db: Session = Depends(get_db)):
+    """Everything planned, in hand or finished, and -- for whoever keeps the
+    register -- the queue of things noticed as wanting work.
+
+    `q` narrows both, and is a box of its own rather than the banner's: the banner
+    searches the register and lands on the gallery, and a page of projects wants to
+    be siftable without leaving it."""
+    return _projects_page(request, db, q)
+
+
+@app.get("/projects/new", response_class=HTMLResponse, include_in_schema=False)
+def gui_new_project(request: Request):
+    return templates.TemplateResponse(request, "project_form.html",
+                                      _project_form_ctx(None, "New project"))
+
+
+@app.post("/projects/new", include_in_schema=False)
+async def gui_create_project(request: Request, db: Session = Depends(get_db)):
+    """A project needs a name and nothing else.
+
+    A name because it is the only thing a project can be found by: a machine
+    falls back to its manufacturer and model and then to its asset id, and a
+    project has neither -- an untitled one is a row nobody will ever recognise
+    again. Everything else can be filled in later or never."""
+    form = await request.form()
+    data = _project_from_form(form)
+    if not data["name"]:
+        return templates.TemplateResponse(
+            request, "project_form.html",
+            _project_form_ctx(data, "New project", "Give it a name — it is the "
+                                                   "only thing it can be found by."))
+    obj = Project(asset_id=next_asset_id(db), **data)
+    db.add(obj)
+    add_log(db, obj.asset_id, "created", "created")
+    db.commit()
+    return RedirectResponse(f"/projects/{obj.asset_id}", status_code=303)
+
+
+@app.get("/projects/{aid}", response_class=HTMLResponse, include_in_schema=False)
+def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    order_rows = projects.orders(db, p.asset_id)
+    spent, unpriced = projects.spend(order_rows)
+    task_rows = projects.tasks(db, p.asset_id)
+    # Offered in the "add an item" box: everything in the register that is not
+    # already in this project. Only for whoever is signed in -- it is the contents
+    # of a form nobody else is shown -- and only as (id, name) pairs, because a
+    # menu of a few hundred assets should not be a few hundred loaded rows.
+    choices = []
+    if request.state.authed:
+        here = {a for (a,) in db.query(ProjectAsset.asset_id)
+                .filter(ProjectAsset.project_id == p.asset_id)}
+        for cls in (Computer, Part):
+            for row in db.query(cls.asset_id, cls.name, cls.manufacturer,
+                                cls.model).order_by(cls.asset_id):
+                if row.asset_id in here:
+                    continue
+                choices.append((row.asset_id, entry.display_name({
+                    "asset_id": row.asset_id, "name": row.name,
+                    "manufacturer": row.manufacturer, "model": row.model})))
+        choices.sort(key=lambda c: c[1].lower())
+    return templates.TemplateResponse(request, "project.html", {
+        "p": p, "item": to_dict(p), "kind": "projects",
+        "members": projects.members(db, p.asset_id),
+        "tasks": task_rows,
+        "tasks_done": sum(1 for t in task_rows if t.done),
+        "orders": order_rows,
+        "orders_out": sum(1 for o in order_rows if not o.delivered),
+        "spent": spent, "unpriced": unpriced,
+        "choices": choices,
+        "log": _history(db, p.asset_id),
+        "og": _og(request, p.name or p.asset_id,
+                  p.summary or projects.status_label(p.status))})
+
+
+@app.get("/projects/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
+def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    return templates.TemplateResponse(request, "project_form.html",
+                                      _project_form_ctx(p, "Edit project"))
+
+
+@app.post("/projects/{aid}/edit", include_in_schema=False)
+async def gui_update_project(aid: str, request: Request,
+                             db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    form = await request.form()
+    data = _project_from_form(form)
+    if not data["name"]:
+        return templates.TemplateResponse(
+            request, "project_form.html",
+            _project_form_ctx(p, "Edit project", "Give it a name — it is the "
+                                                 "only thing it can be found by."))
+    before = to_dict(p)
+    for k, v in data.items():
+        setattr(p, k, v)
+    add_log(db, p.asset_id, _field_diffs(before, to_dict(p), PROJECT_FIELDS))
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.post("/projects/{aid}/note", include_in_schema=False)
+async def gui_project_note(aid: str, request: Request,
+                           db: Session = Depends(get_db)):
+    """The same note bar the machines have, posting to the same shape of URL, which
+    is why _history.html needed nothing said to it about projects."""
+    get_or_404(db, Project, aid)
+    _note_with_photos(db, aid, await request.form())
+    return RedirectResponse(f"/projects/{aid}", status_code=303)
+
+
+@app.post("/projects/{aid}/delete", include_in_schema=False)
+async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
+    """Delete a project outright, with no disposal step in front of it.
+
+    A machine has to be marked disposed before it can be deleted, because deleting
+    one is claiming a physical object has left the collection and that is a thing
+    worth being sure about. A project is a plan. Abandoning one is already a status
+    it can be put in and kept in, so the only reason left to delete is that it was
+    written by mistake -- and a confirmation is enough for that.
+
+    Its tasks, orders and memberships go by the foreign key's cascade. Its history
+    does not: log_entry is keyed by a plain register id with nothing to cascade
+    from, so it is cleared here by hand, photographs first while there are still
+    entries to find them by -- exactly as the two asset delete paths do it."""
+    p = get_or_404(db, Project, aid)
+    photos = _drop_log_photos(db, p.asset_id)
+    db.query(LogEntry).filter(LogEntry.asset_id == p.asset_id).delete(
+        synchronize_session=False)
+    db.delete(p)
+    db.commit()  # the rows first: if this raises, the photographs are still there
+    _purge_photos(photos)
+    return RedirectResponse("/projects", status_code=303)
+
+
+# --- what a project is about -------------------------------------------------
+# Membership is written on both sides: the project's history says what it took on
+# and the item's says what it was wanted for. Two entries rather than one because
+# they are read in two different places, and somebody looking at a board wants to
+# know why it is spoken for without having to find the project that spoke for it.
+
+
+@app.post("/projects/{aid}/add-item", include_in_schema=False)
+async def gui_project_add_item(aid: str, request: Request,
+                               db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    form = await request.form()
+    asset_id = (form.get("asset_id", "") or "").strip().upper()
+    note = (form.get("note", "") or "").strip()
+    if projects.add_asset(db, p.asset_id, asset_id, note):
+        what = _asset_named(db, asset_id)
+        add_log(db, p.asset_id, f"took on {what}" + (f" — {note}" if note else ""))
+        add_log(db, asset_id, f"wanted for {_project_named(p)}"
+                              + (f" — {note}" if note else ""))
+        db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.post("/projects/{aid}/remove-item", include_in_schema=False)
+async def gui_project_remove_item(aid: str, request: Request,
+                                  db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    form = await request.form()
+    asset_id = (form.get("asset_id", "") or "").strip().upper()
+    if projects.drop_asset(db, p.asset_id, asset_id):
+        add_log(db, p.asset_id, f"let go of {_asset_named(db, asset_id)}")
+        add_log(db, asset_id, f"no longer wanted for {_project_named(p)}")
+        db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+def _asset_named(db, asset_id):
+    """A computer or part in a sentence written in a project's history: what it is
+    called, and its id. Falls back to the bare id for something that has since
+    gone, so a history line never reads as a blank."""
+    for cls in (Computer, Part):
+        if (obj := db.get(cls, asset_id)) is not None:
+            return f"{entry.display_name(to_dict(obj))} ({asset_id})"
+    return asset_id
+
+
+# --- the jobs, and the things on order ---------------------------------------
+
+
+def _task_or_404(db, p, tid):
+    row = db.get(ProjectTask, tid)
+    # The project id is checked rather than taken on trust, for the reason a history
+    # entry's asset id is: a bare row id would otherwise let one project's task be
+    # ticked from another project's page.
+    if row is None or row.project_id != p.asset_id:
+        raise HTTPException(404, f"no task {tid} in {p.asset_id}")
+    return row
+
+
+def _order_or_404(db, p, oid):
+    row = db.get(ProjectOrder, oid)
+    if row is None or row.project_id != p.asset_id:
+        raise HTTPException(404, f"no order {oid} in {p.asset_id}")
+    return row
+
+
+@app.post("/projects/{aid}/task", include_in_schema=False)
+async def gui_project_add_task(aid: str, request: Request,
+                               db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    form = await request.form()
+    text = (form.get("text", "") or "").strip()
+    if text:
+        db.add(ProjectTask(project_id=p.asset_id, text=text))
+        add_log(db, p.asset_id, f"to do: {_short(text)}")
+        db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.post("/projects/{aid}/task/{tid}/toggle", include_in_schema=False)
+def gui_project_toggle_task(aid: str, tid: int, db: Session = Depends(get_db)):
+    """Tick a job, or put it back.
+
+    Un-ticking clears the date rather than keeping it. A job that is not done has
+    no day it was done on, and leaving the old one behind would mean a task showing
+    as outstanding while still claiming a completion date."""
+    p = get_or_404(db, Project, aid)
+    row = _task_or_404(db, p, tid)
+    row.done = not row.done
+    row.done_at = date.today() if row.done else None
+    add_log(db, p.asset_id, ("done: " if row.done else "back on the list: ")
+            + _short(row.text))
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.post("/projects/{aid}/task/{tid}/delete", include_in_schema=False)
+def gui_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    row = _task_or_404(db, p, tid)
+    add_log(db, p.asset_id, f"dropped: {_short(row.text)}")
+    db.delete(row)
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.post("/projects/{aid}/order", include_in_schema=False)
+async def gui_project_add_order(aid: str, request: Request,
+                                db: Session = Depends(get_db)):
+    """Something bought for this project. Only the description is required: an
+    order written down the moment it is placed rarely has a delivery date yet, and
+    a form that insisted on one would be filled in later or not at all."""
+    p = get_or_404(db, Project, aid)
+    form = await request.form()
+    description = (form.get("description", "") or "").strip()
+    if not description:
+        return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+    qty = (form.get("qty", "") or "").strip()
+    row = ProjectOrder(
+        project_id=p.asset_id, description=description[:255],
+        supplier=(form.get("supplier", "") or "").strip()[:255],
+        url=(form.get("url", "") or "").strip(),
+        qty=int(qty) if qty.isdigit() and int(qty) > 0 else 1,
+        cost_p=projects.parse_money(form.get("cost", "")),
+        ordered_at=_parse_date(form.get("ordered_at", "")) or date.today(),
+        expected_at=_parse_date(form.get("expected_at", "")),
+        note=(form.get("note", "") or "").strip()[:255])
+    db.add(row)
+    add_log(db, p.asset_id, f"ordered {_short(description)}"
+            + (f" from {row.supplier}" if row.supplier else ""))
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.post("/projects/{aid}/order/{oid}/delivered", include_in_schema=False)
+def gui_project_order_delivered(aid: str, oid: int,
+                                db: Session = Depends(get_db)):
+    """The tick. What arrives is added to the register the ordinary way -- this row
+    is a note about a purchase, not a half-made asset -- so all that happens here is
+    that it stops being one of the things still coming."""
+    p = get_or_404(db, Project, aid)
+    row = _order_or_404(db, p, oid)
+    row.delivered = not row.delivered
+    row.delivered_at = date.today() if row.delivered else None
+    add_log(db, p.asset_id, ("arrived: " if row.delivered else "still coming: ")
+            + _short(row.description))
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.post("/projects/{aid}/order/{oid}/delete", include_in_schema=False)
+def gui_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
+    p = get_or_404(db, Project, aid)
+    row = _order_or_404(db, p, oid)
+    add_log(db, p.asset_id, f"cancelled: {_short(row.description)}")
+    db.delete(row)
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+# --- JSON API: projects ------------------------------------------------------
+# The same thing the pages do, for the tool server and for scripts. Full CRUD on
+# the project, and endpoints of their own for the three lists it holds.
+#
+# The lists are not fields of the project on the way in, which is the one place
+# this departs from how a computer's drives and memory are written. A drive row is
+# a description of a machine and is rewritten wholesale every time the machine is
+# described; a task is a row somebody ticks. A caller that read the list, changed
+# one line and posted the lot back would silently drop whatever was added in
+# between -- so each is added, changed and removed one at a time, by its own id.
+
+PROJECT_TAGS = ["projects"]
+
+
+def _project_out(db, p):
+    """A project as it reads back: its own columns, the status in words, and its
+    three lists. Four queries whatever it holds."""
+    return to_dict(p) | {
+        "status_label": projects.status_label(p.status),
+        "items": [{"asset_id": obj.asset_id, "kind": kind,
+                   "name": entry.display_name(to_dict(obj)), "note": row.note}
+                  for kind, obj, row in projects.members(db, p.asset_id)],
+        "tasks": projects.tasks(db, p.asset_id),
+        "orders": projects.orders(db, p.asset_id),
+    }
+
+
+def _api_project(db, aid):
+    return get_or_404(db, Project, aid)
+
+
+def _api_task(db, p, tid):
+    row = db.get(ProjectTask, tid)
+    if row is None or row.project_id != p.asset_id:
+        raise HTTPException(404, f"no task {tid} in {p.asset_id}")
+    return row
+
+
+def _api_order(db, p, oid):
+    row = db.get(ProjectOrder, oid)
+    if row is None or row.project_id != p.asset_id:
+        raise HTTPException(404, f"no order {oid} in {p.asset_id}")
+    return row
+
+
+@app.get("/api/projects", response_model=list[ProjectOut], tags=PROJECT_TAGS)
+def api_list_projects(status: str | None = None, open: bool | None = None,
+                      db: Session = Depends(get_db)):
+    """Every project, with what each is about, what is to be done and what is on
+    order. `status` narrows it to one state; `open=true` to the ones not finished
+    or abandoned, which is the question a list of projects is usually asked."""
+    q = db.query(Project)
+    if status:
+        q = q.filter(Project.status == status)
+    if open is not None:
+        q = (q.filter(Project.status.notin_(projects.CLOSED)) if open
+             else q.filter(Project.status.in_(projects.CLOSED)))
+    return [_project_out(db, p) for p in q.order_by(Project.name,
+                                                    Project.asset_id).all()]
+
+
+@app.post("/api/projects", response_model=ProjectOut, tags=PROJECT_TAGS)
+def api_create_project(data: ProjectIn, db: Session = Depends(get_db)):
+    """Start a project. Only the name is required -- it is the only thing a
+    project can be found by, having no manufacturer or model to fall back on."""
+    fields = data.model_dump()
+    fields["name"] = (fields.get("name") or "").strip()
+    if not fields["name"]:
+        raise HTTPException(422, "a project needs a name")
+    fields["status"] = projects.clean_status(fields.get("status"))
+    obj = Project(asset_id=next_asset_id(db), **fields)
+    db.add(obj)
+    add_log(db, obj.asset_id, "created", "created")
+    db.commit()
+    db.refresh(obj)
+    return _project_out(db, obj)
+
+
+@app.get("/api/projects/{aid}", response_model=ProjectOut, tags=PROJECT_TAGS)
+def api_get_project(aid: str, db: Session = Depends(get_db)):
+    return _project_out(db, _api_project(db, aid))
+
+
+@app.patch("/api/projects/{aid}", response_model=ProjectOut, tags=PROJECT_TAGS)
+def api_update_project(aid: str, data: ProjectIn, db: Session = Depends(get_db)):
+    p = _api_project(db, aid)
+    fields = data.model_dump(exclude_unset=True)
+    if "name" in fields:
+        fields["name"] = (fields["name"] or "").strip()
+        if not fields["name"]:
+            raise HTTPException(422, "a project needs a name")
+    if "status" in fields:
+        fields["status"] = projects.clean_status(fields["status"])
+    old = to_dict(p)
+    for k, v in fields.items():
+        setattr(p, k, v)
+    add_log(db, aid, _field_diffs(old, to_dict(p), list(fields)))
+    db.commit()
+    db.refresh(p)
+    return _project_out(db, p)
+
+
+@app.delete("/api/projects/{aid}", tags=PROJECT_TAGS)
+def api_delete_project(aid: str, db: Session = Depends(get_db)):
+    """Delete a project. Its tasks, orders and memberships go with it by the
+    foreign key; its history goes by hand, log_entry having nothing to cascade
+    from. The hardware it was about is untouched -- deleting the plan is not
+    disposing of the machine."""
+    p = _api_project(db, aid)
+    photos = _drop_log_photos(db, aid)
+    db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(
+        synchronize_session=False)
+    db.delete(p)
+    db.commit()
+    _purge_photos(photos)
+    return {"deleted": aid, "photos": len(photos)}
+
+
+# --- JSON API: what a project is about ---------------------------------------
+
+
+@app.post("/api/projects/{aid}/items", response_model=ProjectOut, tags=PROJECT_TAGS)
+def api_project_add_item(aid: str, data: ProjectItemIn,
+                         db: Session = Depends(get_db)):
+    """Put a computer or part in a project. An asset id that is in neither table is
+    refused rather than stored: a project is about things that exist, and a
+    membership pointing at nothing would render as nothing for ever.
+
+    Adding one already in it is not an error -- the project ends up in the state
+    asked for, which is what a caller retrying a request wants."""
+    p = _api_project(db, aid)
+    asset_id = (data.asset_id or "").strip().upper()
+    if not any(db.get(cls, asset_id) for cls in (Computer, Part)):
+        raise HTTPException(404, f"no computer or part {data.asset_id}")
+    if projects.add_asset(db, aid, asset_id, data.note):
+        add_log(db, aid, f"took on {_asset_named(db, asset_id)}")
+        add_log(db, asset_id, f"wanted for {_project_named(p)}")
+        db.commit()
+    return _project_out(db, p)
+
+
+@app.delete("/api/projects/{aid}/items/{asset_id}", response_model=ProjectOut,
+            tags=PROJECT_TAGS)
+def api_project_drop_item(aid: str, asset_id: str, db: Session = Depends(get_db)):
+    p = _api_project(db, aid)
+    asset_id = (asset_id or "").strip().upper()
+    if projects.drop_asset(db, aid, asset_id):
+        add_log(db, aid, f"let go of {_asset_named(db, asset_id)}")
+        add_log(db, asset_id, f"no longer wanted for {_project_named(p)}")
+        db.commit()
+    return _project_out(db, p)
+
+
+# --- JSON API: the jobs and the things on order ------------------------------
+
+
+@app.post("/api/projects/{aid}/tasks", response_model=ProjectTaskOut,
+          tags=PROJECT_TAGS)
+def api_project_add_task(aid: str, data: ProjectTaskIn,
+                         db: Session = Depends(get_db)):
+    p = _api_project(db, aid)
+    text = (data.text or "").strip()
+    if not text:
+        raise HTTPException(422, "a task needs something written in it")
+    db.add(row := ProjectTask(project_id=p.asset_id, text=text,
+                              done=bool(data.done)))
+    if row.done:
+        row.done_at = date.today()
+    add_log(db, aid, f"to do: {_short(text)}")
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.patch("/api/projects/{aid}/tasks/{tid}", response_model=ProjectTaskOut,
+           tags=PROJECT_TAGS)
+def api_project_update_task(aid: str, tid: int, data: ProjectTaskIn,
+                            db: Session = Depends(get_db)):
+    """Reword a job or tick it. Un-ticking clears the date as well: a job that is
+    not done has no day it was done on."""
+    p = _api_project(db, aid)
+    row = _api_task(db, p, tid)
+    fields = data.model_dump(exclude_unset=True)
+    if "text" in fields and (text := (fields["text"] or "").strip()):
+        row.text = text
+    if "done" in fields and fields["done"] is not None:
+        was = bool(row.done)
+        row.done = bool(fields["done"])
+        row.done_at = date.today() if row.done else None
+        if was != row.done:
+            add_log(db, aid, ("done: " if row.done else "back on the list: ")
+                    + _short(row.text))
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.delete("/api/projects/{aid}/tasks/{tid}", tags=PROJECT_TAGS)
+def api_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
+    p = _api_project(db, aid)
+    row = _api_task(db, p, tid)
+    add_log(db, aid, f"dropped: {_short(row.text)}")
+    db.delete(row)
+    db.commit()
+    return {"deleted": tid}
+
+
+@app.post("/api/projects/{aid}/orders", response_model=ProjectOrderOut,
+          tags=PROJECT_TAGS)
+def api_project_add_order(aid: str, data: ProjectOrderIn,
+                          db: Session = Depends(get_db)):
+    """Record something bought for a project. Only the description is required: an
+    order written down as it is placed rarely has a delivery date yet.
+
+    Nothing here becomes a part. When it arrives it is added to the register the
+    ordinary way and this row is ticked -- which keeps an order a note about a
+    purchase rather than a half-made asset."""
+    p = _api_project(db, aid)
+    fields = data.model_dump(exclude_unset=True)
+    description = (fields.get("description") or "").strip()
+    if not description:
+        raise HTTPException(422, "an order needs a description")
+    delivered = bool(fields.pop("delivered", False))
+    row = ProjectOrder(project_id=p.asset_id, **(fields | {
+        "description": description,
+        "ordered_at": fields.get("ordered_at") or date.today(),
+        "delivered": delivered,
+        "delivered_at": date.today() if delivered else None}))
+    db.add(row)
+    add_log(db, aid, f"ordered {_short(description)}"
+            + (f" from {row.supplier}" if row.supplier else ""))
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.patch("/api/projects/{aid}/orders/{oid}", response_model=ProjectOrderOut,
+           tags=PROJECT_TAGS)
+def api_project_update_order(aid: str, oid: int, data: ProjectOrderIn,
+                             db: Session = Depends(get_db)):
+    """Change an order, or mark it in. Setting `delivered` dates it; clearing it
+    clears the date, for the reason un-ticking a task does."""
+    p = _api_project(db, aid)
+    row = _api_order(db, p, oid)
+    fields = data.model_dump(exclude_unset=True)
+    delivered = fields.pop("delivered", None)
+    for k, v in fields.items():
+        setattr(row, k, v)
+    if delivered is not None and bool(delivered) != bool(row.delivered):
+        row.delivered = bool(delivered)
+        row.delivered_at = date.today() if row.delivered else None
+        add_log(db, aid, ("arrived: " if row.delivered else "still coming: ")
+                + _short(row.description))
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@app.delete("/api/projects/{aid}/orders/{oid}", tags=PROJECT_TAGS)
+def api_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
+    p = _api_project(db, aid)
+    row = _api_order(db, p, oid)
+    add_log(db, aid, f"cancelled: {_short(row.description)}")
+    db.delete(row)
+    db.commit()
+    return {"deleted": oid}

@@ -190,3 +190,110 @@ class PartOut(PartIn):
     asset_id: str
     machine: BoardOut | None = None
     variant: str = ""
+
+
+# --- projects ----------------------------------------------------------------
+# A project is not an asset and its shape says so: no manufacturer, no model, no
+# condition, no disposal. What it has instead is a state, three dates, and three
+# lists -- what it is about, what is to be done, and what has been bought.
+#
+# The three lists are read-only in ProjectOut and written through endpoints of
+# their own, which is the one place these shapes depart from ComputerIn's habit of
+# taking everything at once. A task is a row a person ticks, not a field of the
+# project: sending the whole list back to change one of them would mean a caller
+# that read the list, edited it and posted it could silently drop a job somebody
+# else added in between.
+
+
+class ProjectIn(BaseModel):
+    """A project as it arrives. Every field is optional so a PATCH can name one.
+
+    `status` is a slug from app/projects.py -- planned, active, stalled, done,
+    abandoned -- and anything else is stored as `planned` rather than refused, the
+    same forgiveness the GUI's menu gives. The three dates are independent: a
+    project can be finished without ever having been started."""
+    name: str = ""
+    status: str = ""
+    summary: str = ""
+    notes: str = ""
+    started_at: date | None = None
+    target_date: date | None = None
+    finished_at: date | None = None
+
+
+class ProjectItemOut(BaseModel):
+    """One computer or part a project is about. `kind` is the URL segment its page
+    lives under, so a caller can build a link without knowing which of the two
+    tables holds it."""
+    asset_id: str
+    kind: str
+    name: str
+    note: str = ""
+
+
+class ProjectItemIn(BaseModel):
+    asset_id: str
+    note: str = ""
+
+
+class ProjectTaskIn(BaseModel):
+    text: str = ""
+    done: bool | None = None
+
+
+class ProjectTaskOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    text: str
+    done: bool
+    done_at: date | None = None
+
+
+class ProjectOrderIn(BaseModel):
+    """Something bought for a project.
+
+    `cost_p` is pence, as an integer, because that is what the column holds and
+    what it holds is exact -- see the migration on why every quantity in this
+    schema is an integer in a small unit. Null is a cost not recorded, which is not
+    the same as zero, and a total is entitled to say how many of its lines are
+    null rather than counting them as free.
+
+    `qty` multiplies nothing: the cost is the cost of the line as paid. Four SIMMs
+    for twelve pounds is qty 4 and cost_p 1200."""
+    description: str = ""
+    supplier: str = ""
+    url: str = ""
+    qty: int = 1
+    cost_p: int | None = None
+    ordered_at: date | None = None
+    expected_at: date | None = None
+    delivered: bool | None = None
+    note: str = ""
+
+
+class ProjectOrderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    description: str
+    supplier: str = ""
+    url: str = ""
+    qty: int = 1
+    cost_p: int | None = None
+    ordered_at: date | None = None
+    expected_at: date | None = None
+    delivered: bool = False
+    delivered_at: date | None = None
+    note: str = ""
+
+
+class ProjectOut(ProjectIn):
+    model_config = ConfigDict(from_attributes=True)
+    asset_id: str
+    # The status as it is written on screen beside the slug it is stored as, for
+    # the reason MachineOut carries the catalogue's own words: a caller should not
+    # have to hold this module's vocabulary to know that `active` reads
+    # "in progress".
+    status_label: str = ""
+    items: list[ProjectItemOut] = []
+    tasks: list[ProjectTaskOut] = []
+    orders: list[ProjectOrderOut] = []

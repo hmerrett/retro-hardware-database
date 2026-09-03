@@ -49,6 +49,10 @@ collection has needs a text editor and nothing else.
   QR code back to the item.
 - **Files** kept beside the register — a driver disk, a manual, a ROM dump —
   tagged with the hardware they are for, so every matching item offers them.
+- **Projects** — the work, as against the collection: a repair, a build, a
+  machine wanted and not yet found, with a list of jobs and a list of things on
+  order to tick off as they arrive. A project need own nothing; computers and
+  parts are attached to it as they turn up.
 - **A history** of every change, plus free-text notes, dated.
 - **Disposal** that keeps the record when the thing itself is gone, and a
   separate, deliberate delete for records that should never have existed.

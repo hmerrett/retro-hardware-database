@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Retro Hardware Database{% endblock %}
+{% block content %}
+<p><a href="javascript:history.back()">&larr; back</a></p>
+<h2>{{ title }}</h2>
+{# What was typed, kept, when the form comes back refused. `p` is the record on an
+   edit and the rejected form's own values on a create -- both read the same way,
+   which is why the create path hands back a dict shaped like the row. #}
+{% if error %}<div class="banner">{{ error }}</div>{% endif %}
+<form class="edit" method="post"
+      action="{{ ('/projects/' + p.asset_id + '/edit') if p and p.asset_id else '/projects/new' }}">
+  {% macro fld(key, label, hint='', type='text') %}
+    <label for="{{ key }}">{{ label }}</label>
+    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (p[key] if p else '') or '' }}">
+    {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
+  {% endmacro %}
+  <label for="name">Name</label>
+  <input id="name" name="name" value="{{ (p['name'] if p else '') or '' }}" required>
+  <p class="hint">what you would call it out loud — "recap the +2A", "486 build".
+    The only thing a project can be found by, so it is the one field that is asked for.</p>
+  <label for="status">Status</label>
+  <select id="status" name="status">
+    {% set cur = (p['status'] if p else '') or 'planned' %}
+    {% for slug, label in statuses %}<option value="{{ slug }}"{{ ' selected' if slug == cur else '' }}>{{ label }}</option>{% endfor %}
+  </select>
+  {# Three dates rather than one, because they answer three questions and any of
+     them can be unknown while the others are not. None is worked out from another:
+     a project can be finished without ever having been started -- the part turned
+     up and it took an evening. #}
+  {{ fld('started_at', 'Started', "when work actually began — not when you thought of it", type='date') }}
+  {{ fld('target_date', 'Wanted by', "a hope rather than a record; leave it blank if there is no date on it", type='date') }}
+  {{ fld('finished_at', 'Finished', type='date') }}
+  <label for="summary">Summary</label>
+  <textarea id="summary" name="summary" style="min-height:90px">{{ (p['summary'] if p else '') or '' }}</textarea>
+  <p class="hint">the line shown at the top of the page and beside it in the list</p>
+  <label for="notes">Notes</label>
+  <textarea id="notes" name="notes">{{ (p['notes'] if p else '') or '' }}</textarea>
+  <p class="hint">the standing description. What happened on a particular evening is
+    a note on the history instead, at the foot of the project's own page.</p>
+  <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
+</form>
+{% endblock %}

@@ -53,6 +53,13 @@
 {% if searched %}
 <p class="hint" id="searchnote">Searched every field and the history of all
   {{ total }} items for <strong>{{ q }}</strong> — {{ rows | length }} matched.
+  {# The projects are searched by the same words and are not cards here: the grid
+     is a wall of photographs of things owned, and a plan is not one of those. So
+     they are counted and pointed at instead, which is what stops a search bar that
+     says "anything" from quietly meaning "the shelf". #}
+  {% if hit_projects %}<a href="/projects?q={{ q | urlencode }}">{{ hit_projects }}
+    project{{ '' if hit_projects == 1 else 's' }}</a>
+    {{ 'matches' if hit_projects == 1 else 'match' }} too.{% endif %}
   <a href="/">clear</a></p>
 {% endif %}
 

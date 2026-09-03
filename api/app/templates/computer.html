@@ -139,6 +139,11 @@
     {# Above the history, because the files are part of what this machine is -- the
        driver disk it needs, the manual for it -- and the history is a log to be
        consulted rather than read, which is why it is last on the page. #}
+    {# Above the files and the history, because being spoken for by a project is a
+       fact about the thing now -- it changes what you may do with it -- while the
+       files and the history are things to be consulted. Draws nothing at all when
+       it is in no project, which is most of them. #}
+    {% include "_projects.html" %}
     {% include "_files.html" %}
     {% include "_history.html" %}
   </div>

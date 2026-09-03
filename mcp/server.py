@@ -326,5 +326,174 @@ def delete_part(asset_id: str) -> dict:
     return _request("DELETE", f"/api/parts/{asset_id}")
 
 
+# --- projects ---------------------------------------------------------------
+# The work, as against the things it is done to. A project is the third kind of
+# thing in the register: it takes an asset id like a computer or a part, keeps a
+# history like one, and is about neither -- it is a repair, a build, or a machine
+# still being looked for.
+#
+# The three lists a project holds are written one row at a time rather than sent
+# whole. A task is a row somebody ticks, not a field of the project, and a tool
+# that read the list, changed one line and posted the lot back would silently drop
+# whatever had been added in between.
+
+
+@mcp.tool()
+def list_projects(status: str | None = None, open: bool | None = None) -> list[dict]:
+    """List projects -- repairs, builds and machines still being looked for -- each
+    with what it is about, what is still to do and what is on order.
+
+    status is one of planned, active, stalled, done, abandoned. open=true is the
+    ones neither finished nor abandoned, which is usually the question being asked;
+    call it with no arguments for everything."""
+    return _request("GET", "/api/projects",
+                    params=_clean({"status": status, "open": open}))
+
+
+@mcp.tool()
+def get_project(asset_id: str) -> dict:
+    """Fetch one project by its asset id, with its items, tasks and orders."""
+    return _request("GET", f"/api/projects/{asset_id}")
+
+
+@mcp.tool()
+def create_project(
+    name: str,
+    status: str | None = None,
+    summary: str | None = None,
+    notes: str | None = None,
+    started_at: str | None = None,
+    target_date: str | None = None,
+    finished_at: str | None = None,
+) -> dict:
+    """Start a project. Only the name is required -- it is the only thing a project
+    can be found by, having no manufacturer or model to fall back on.
+
+    status defaults to planned; the others are planned, active, stalled, done and
+    abandoned. The three dates are ISO (YYYY-MM-DD) and independent of each other:
+    started_at is when work began, target_date is when it is wanted by, finished_at
+    is when it was done, and a project can be finished without ever having been
+    recorded as started.
+
+    A project need own nothing. Create it first and add the hardware with
+    add_project_item as it turns up."""
+    fields = _clean(locals())
+    return _request("POST", "/api/projects", json=fields)
+
+
+@mcp.tool()
+def update_project(
+    asset_id: str,
+    name: str | None = None,
+    status: str | None = None,
+    summary: str | None = None,
+    notes: str | None = None,
+    started_at: str | None = None,
+    target_date: str | None = None,
+    finished_at: str | None = None,
+) -> dict:
+    """Partial-update a project: only the fields you pass are changed. Use this to
+    move it between states -- status='active' when work starts, 'done' when it is
+    over."""
+    fields = _clean(locals())
+    fields.pop("asset_id")
+    return _request("PATCH", f"/api/projects/{asset_id}", json=fields)
+
+
+@mcp.tool()
+def delete_project(asset_id: str) -> dict:
+    """Delete a project with its tasks, orders and history. The computers and parts
+    it was about are untouched -- deleting the plan is not disposing of the
+    hardware. Irreversible; set status='abandoned' to record that it was given up
+    on instead."""
+    return _request("DELETE", f"/api/projects/{asset_id}")
+
+
+@mcp.tool()
+def add_project_item(project_id: str, asset_id: str,
+                     note: str | None = None) -> dict:
+    """Say that a project is about a computer or a part, e.g. the machine being
+    repaired or the board being used as a donor. note says why it is there.
+
+    The asset must already be in the register: a project is about things that
+    exist. Returns the project as it now stands."""
+    return _request("POST", f"/api/projects/{project_id}/items",
+                    json=_clean({"asset_id": asset_id, "note": note}))
+
+
+@mcp.tool()
+def remove_project_item(project_id: str, asset_id: str) -> dict:
+    """Take a computer or part out of a project. The item itself is untouched."""
+    return _request("DELETE", f"/api/projects/{project_id}/items/{asset_id}")
+
+
+@mcp.tool()
+def add_project_task(project_id: str, text: str, done: bool = False) -> dict:
+    """Add a job to a project's list. Deliberately just a sentence and a tick --
+    write it in the words it will be recognised by."""
+    return _request("POST", f"/api/projects/{project_id}/tasks",
+                    json={"text": text, "done": done})
+
+
+@mcp.tool()
+def update_project_task(project_id: str, task_id: int, text: str | None = None,
+                        done: bool | None = None) -> dict:
+    """Tick a job off, put it back, or reword it. Ticking dates it with today;
+    un-ticking clears that date, because a job that is not done has no day it was
+    done on."""
+    return _request("PATCH", f"/api/projects/{project_id}/tasks/{task_id}",
+                    json=_clean({"text": text, "done": done}))
+
+
+@mcp.tool()
+def delete_project_task(project_id: str, task_id: int) -> dict:
+    """Remove a job from a project's list altogether. To record that it was done,
+    tick it with update_project_task instead."""
+    return _request("DELETE", f"/api/projects/{project_id}/tasks/{task_id}")
+
+
+@mcp.tool()
+def add_project_order(
+    project_id: str,
+    description: str,
+    supplier: str | None = None,
+    url: str | None = None,
+    qty: int | None = None,
+    cost_p: int | None = None,
+    ordered_at: str | None = None,
+    expected_at: str | None = None,
+    note: str | None = None,
+) -> dict:
+    """Record something bought for a project.
+
+    cost_p is PENCE, as a whole number: £12.99 is 1299. It is the cost of the whole
+    line as paid, not a unit price -- four SIMMs for twelve pounds is qty=4 and
+    cost_p=1200. Leave it out for a cost not written down, which is not the same as
+    free: the totals count unpriced lines separately rather than as zero.
+
+    ordered_at defaults to today. Nothing here becomes a part: when it arrives, tick
+    it with mark_project_order_delivered and add the item to the register the
+    ordinary way with create_part."""
+    fields = _clean(locals())
+    fields.pop("project_id")
+    return _request("POST", f"/api/projects/{project_id}/orders", json=fields)
+
+
+@mcp.tool()
+def mark_project_order_delivered(project_id: str, order_id: int,
+                                 delivered: bool = True) -> dict:
+    """Tick an order as arrived, dating it today; pass delivered=false to put it
+    back to still coming, which clears that date."""
+    return _request("PATCH", f"/api/projects/{project_id}/orders/{order_id}",
+                    json={"delivered": delivered})
+
+
+@mcp.tool()
+def delete_project_order(project_id: str, order_id: int) -> dict:
+    """Remove an order from a project -- a cancelled order, or one entered by
+    mistake. To record that it arrived, tick it instead."""
+    return _request("DELETE", f"/api/projects/{project_id}/orders/{order_id}")
+
+
 if __name__ == "__main__":
     mcp.run(transport="streamable-http", host=MCP_HOST, port=MCP_PORT)
