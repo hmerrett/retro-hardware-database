@@ -219,7 +219,11 @@ def computer_lines(comp, parts, form_factor=""):
     string only so a caller that has not looked it up still gets a label."""
     kids = sorted((p for p in parts if p.get("computer_id") == comp["asset_id"]),
                   key=lambda p: p.get("type", ""))
-    lines = ["Type: Computer"]
+    # No "Type: Computer" first line any more: the word now runs up the end of the
+    # label, and the bullet was saying it a second time in the most valuable line on
+    # the label. A part keeps its Type line, which says what sort of part -- Storage,
+    # Video -- and so completes the word at the end rather than repeating it.
+    lines = []
     for p in kids:
         if form_factor:
             break
@@ -323,25 +327,72 @@ def project_lines(project):
 
 # --- drawing ---------------------------------------------------------------
 
-def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont):
+# The word that says which of the three things a label is for, printed up one end
+# of it. A tag on a shelf answers "which one is this?" and a code answers "tell me
+# everything"; neither answers "what am I holding?", which is the question a
+# stranger to the collection asks first and the question a box of mixed stickers
+# raises every time. Up the end rather than in the body because it is not one of
+# the facts -- it is what sort of thing the other facts are about -- and because
+# the end of a label is the part of it still showing when the rest is face down.
+KIND_WORDS = {COMPUTER: "COMPUTER", PART: "PART", PROJECT: "PROJECT"}
+
+
+def _vertical(c, x0, x1, y, text, font, size):
+    """One word running bottom to top, centred in the strip between x0 and x1 and
+    on `y` along its length.
+
+    Rotated rather than set as a column of stacked letters: a word reads as a word
+    when its letters are joined, and the strip along a label's end is the one place
+    with room for it that costs the body nothing.
+
+    Rotated -90 and not +90. The page is already turned a quarter of the way round
+    (see rotated_page: a 6x4 label prints on a 4x6 sheet), and turning the word the
+    same way again stands it the right way up but pointing the other way down the
+    label, which on paper is upside down against everything beside it. The two
+    rotations have to disagree for the word to agree with the body.
+
+    Centred by measuring rather than by an offset picked to look right: the glyphs
+    stand to one side of the baseline, so which side and how far both change with
+    the type size, and a hand-tuned number is one that silently stops being centred
+    the moment anybody changes the size."""
+    ascent = pdfmetrics.getAscent(font) / 1000.0 * size
+    c.saveState()
+    c.translate(x0 + (x1 - x0 - ascent) / 2, y)
+    c.rotate(-90)
+    c.setFont(font, size)
+    c.drawCentredString(0, 0, text)
+    c.restoreState()
+
+
+def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont, kind=None):
     margin = 0.22 * inch
     qr_size = min(H - 2 * margin, 2.1 * inch)
     qr_x = W - margin - qr_size
-    text_w = qr_x - margin - 0.10 * inch
+    # The strip the word stands in, taken off the left of the text rather than out
+    # of the QR: the code has a size below which a phone stops seeing it, and the
+    # body has lines it can afford to wrap one word earlier.
+    word = KIND_WORDS.get(kind, "")
+    strip = 0.30 * inch if word else 0.0
+    text_x = margin + strip
+    text_w = qr_x - text_x - 0.10 * inch
     bottom = margin + 0.16 * inch
     c.setLineWidth(1)
     c.setStrokeColorRGB(0.65, 0.65, 0.65)
     c.roundRect(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8,
                 stroke=1, fill=0)
     c.setFillColorRGB(0, 0, 0)
+    if word:
+        c.setFillColorRGB(0.45, 0.45, 0.45)
+        _vertical(c, margin, margin + strip, H / 2, word, hfont, 15)
+        c.setFillColorRGB(0, 0, 0)
     aid_size = _fit(c, asset_id, hfont, 24, 12, text_w)
     y = H - margin - aid_size + 4
     c.setFont(hfont, aid_size)
-    c.drawString(margin, y, asset_id)
+    c.drawString(text_x, y, asset_id)
     c.setFont(hfont, 12)
     for line in _wrap(c, title, hfont, 12, text_w)[:2]:
         y -= 16
-        c.drawString(margin, y, line)
+        c.drawString(text_x, y, line)
     y -= 5
     for raw in lines:
         for i, line in enumerate(_wrap(c, "• " + raw, bfont, 9, text_w)[:2]):
@@ -349,7 +400,7 @@ def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont):
                 break
             y -= 12
             c.setFont(bfont, 9)
-            c.drawString(margin if i == 0 else margin + 8, y,
+            c.drawString(text_x if i == 0 else text_x + 8, y,
                          line if i == 0 else "  " + line)
         if y - 12 < bottom:
             break
@@ -381,7 +432,8 @@ def _small_body_lines(c, title, tags, bfont, tw, avail):
         size -= 0.5
 
 
-def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=()):
+def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=(),
+                  kind=None):
     my = 1.2 * mm
     mx = my + safe * mm
     c.setFillColorRGB(0, 0, 0)
@@ -390,6 +442,17 @@ def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=()
                 mask="auto")
     tx = mx + qr + 1.5 * mm
     tw = W - tx - mx
+    # The far end from the code, which is the only end with room on a 51mm label.
+    # The strip comes out of the text column, so a long name wraps a word sooner --
+    # the alternative was shrinking the QR, and a code that will not scan is worth
+    # less than a name that takes an extra line.
+    word = KIND_WORDS.get(kind, "")
+    if word:
+        strip = 3.2 * mm
+        tw -= strip
+        c.setFillColorRGB(0.4, 0.4, 0.4)
+        _vertical(c, W - mx - strip, W - mx, H / 2, word, hfont, 5.5)
+        c.setFillColorRGB(0, 0, 0)
     aid_size = _fit(c, asset_id, hfont, 11, 5, tw)
     y = H - my - aid_size
     c.setFont(hfont, aid_size)
@@ -426,7 +489,7 @@ def render_pdf(asset, parts, kind, small=False, form_factor="",
     if small:
         name, tags = small_body(asset, kind, spec_pairs)
         _render_small(c, spec["w"], spec["h"], asset["asset_id"], name, url,
-                      hfont, bfont, spec.get("safe_mm", 0), tags=tags)
+                      hfont, bfont, spec.get("safe_mm", 0), tags=tags, kind=kind)
     else:
         if kind == COMPUTER:
             lines = computer_lines(asset, parts, form_factor)
@@ -435,7 +498,7 @@ def render_pdf(asset, parts, kind, small=False, form_factor="",
         else:
             lines = part_lines(asset, spec_pairs)
         _render_full(c, spec["w"], spec["h"], asset["asset_id"], title, lines,
-                     url, hfont, bfont)
+                     url, hfont, bfont, kind=kind)
     c.restoreState()
     c.showPage()
     c.save()

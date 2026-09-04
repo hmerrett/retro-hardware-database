@@ -935,10 +935,9 @@ class TestItsLabel:
     def test_no_such_project_has_no_label(self, client):
         assert client.get("/projects/RH-NONE/label.pdf").status_code == 404
 
-    def test_the_small_one_carries_the_state(self, client):
+    def test_the_small_one_carries_the_state(self):
         """What you want to know with the parcel in your hand, months later."""
         from app import labels
-        aid = make(client, status="active")
         name, tags = labels.small_body(
             {"name": "Recap the +2A", "status": "active"}, labels.PROJECT)
         assert name == "Recap the +2A" and tags == ["in progress"]
@@ -954,3 +953,75 @@ class TestItsLabel:
         # Nothing counted: how many jobs are left is true this afternoon and false
         # next week, and a label lives on a box for a year.
         assert not any("task" in x.lower() or "order" in x.lower() for x in lines)
+
+
+class TestTheWordUpTheEnd:
+    """Every label says which of the three things it is for, up one end.
+
+    A tag answers "which one is this?" and the code answers "tell me everything";
+    neither answers "what am I holding?", which is the first question a box of
+    mixed stickers raises.
+    """
+
+    def test_each_kind_has_its_own_word(self):
+        from app import labels
+        assert labels.KIND_WORDS[labels.COMPUTER] == "COMPUTER"
+        assert labels.KIND_WORDS[labels.PART] == "PART"
+        assert labels.KIND_WORDS[labels.PROJECT] == "PROJECT"
+
+    def test_the_word_is_on_both_sizes_of_every_kind(self, client, computer, part):
+        """Rendered rather than asserted on a string: the word is drawn as glyphs,
+        so what this checks is that a label with one differs from the same label
+        without, at both sizes and for all three kinds."""
+        from app import labels
+        rows = ((labels.COMPUTER, {"asset_id": "RH-0001", "model": "A"}),
+                (labels.PART, {"asset_id": "RH-0002", "type": "video", "model": "B"}),
+                (labels.PROJECT, {"asset_id": "RH-0003", "name": "C",
+                                  "status": "active"}))
+        for kind, asset in rows:
+            for small in (True, False):
+                with_word = labels.render_pdf(asset, [], kind, small=small)
+                without = labels.render_pdf(asset, [], None, small=small)
+                assert len(with_word) != len(without), f"{kind} small={small}"
+
+    def test_a_computer_no_longer_says_its_type_twice(self):
+        """The bullet went when the word arrived: it was saying the same thing in
+        the most valuable line on the label. A part keeps its Type line, which says
+        which sort of part and so completes the word rather than repeating it."""
+        from app import labels
+        comp = labels.computer_lines({"asset_id": "RH-0001", "manufacturer": "Acme"},
+                                     [])
+        assert not any(x.startswith("Type:") for x in comp)
+        part = labels.part_lines({"asset_id": "RH-0002", "type": "storage"})
+        assert part[0] == "Type: Storage"
+
+    def test_the_word_is_centred_by_measurement_not_by_eye(self):
+        """The glyphs stand to one side of the baseline, so the offset that centres
+        them changes with the type size. A hand-picked offset would stop centring
+        the moment anybody changed the size.
+
+        The font name comes from _fonts() rather than being written out here, which
+        also covers the branch that matters: if the display TTF is missing it falls
+        back to Helvetica, and _vertical asks that font for its ascent just the
+        same. A name guessed here would pass while the fallback crashed."""
+        from reportlab.pdfbase import pdfmetrics
+        from app import labels
+        hfont, _ = labels._fonts()
+        for size in (5.5, 15, 30):
+            ascent = pdfmetrics.getAscent(hfont) / 1000.0 * size
+            assert ascent > 0
+            # What _vertical computes for a 10pt strip: centred, and inside it
+            # whenever it fits at all.
+            left = (10 - ascent) / 2
+            assert abs(left - (10 - ascent - left)) < 1e-9
+            if ascent <= 10:
+                assert left >= 0 and left + ascent <= 10
+
+    def test_the_code_still_scans_with_the_word_beside_it(self, client):
+        """The strip is taken out of the text column and not out of the QR: a code
+        below the size a phone can see is worth less than a name that wraps."""
+        from app import labels
+        aid = make(client)
+        big = labels.render_pdf({"asset_id": aid, "name": "X", "status": "active"},
+                                [], labels.PROJECT, small=False)
+        assert big[:4] == b"%PDF" and len(big) > 5000

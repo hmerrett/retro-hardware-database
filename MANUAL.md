@@ -1237,6 +1237,19 @@ a PDF.
   capacity go on one line the way a drive is spoken of — `3.5" 1.44MB`; a hard
   disk's capacity and CHS geometry keep a line each.
 
+Both sizes, and all three kinds, carry **the word `COMPUTER`, `PART` or `PROJECT`
+running up one end**. A tag answers *which one is this*, and the code answers
+*tell me everything*; neither answers *what am I holding*, which is the first
+question a drawer of mixed stickers raises and the only one a stranger to the
+collection can ask. It sits up the end rather than among the lines because it is
+not one of the facts — it is what sort of thing the other facts are about — and
+because the end of a label is the part still showing when the rest is face down.
+
+A part keeps its `Type:` line, which says *which sort* of part — Storage, Video —
+and so finishes the word rather than repeating it. A computer's `Type: Computer`
+line has gone, the word at the end having made it the label saying the same thing
+twice in its most valuable line.
+
 **The QR code encodes `<base_url>/items/<asset_tag>/`**, which the app resolves
 to the right computer, part or project page. Because only the tag is taken from a
 scanned code, labels printed against an older URL still resolve.
