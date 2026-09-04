@@ -70,15 +70,22 @@ SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
 #
 # A screen is the same sort of object: what identifies one across a room is how big
 # it is and what makes the picture, joined on one line because "a 14-inch Trinitron"
-# is one thing said and not two. The resolution follows, and the interface last,
-# where the squeeze takes it -- a cable is the easiest thing to establish by looking
-# at the back.
+# is one thing said and not two. The resolution follows, then what it will run at,
+# and the interface last where the squeeze takes it -- a cable is the easiest thing
+# to establish by looking at the back.
+#
+# The resolution and the refresh had a line between them, which was the joining rule
+# applied where it does not hold: "320x200 (CGA)" and "50 Hz, 60 Hz" are two things
+# said, not one, and together they are wider than the label. Joined they wrapped
+# mid-figure -- "320x200 (CGA) 50" and then "Hz, 60 Hz" -- which reads as a fault in
+# the label rather than as two facts.
 SMALL_SPECS = {"storage": ((("Capacity", ""),),
                            (("CHS", "CHS "),),
                            (("Form factor", ""), ("Size", "")),
                            (("Media", ""), ("Speed", ""))),
                "display": ((("Screen size", ""), ("Panel", ""), ("Type", "")),
-                           (("Resolution", ""), ("Refresh", "")),
+                           (("Resolution", ""),),
+                           (("Refresh", ""),),
                            (("Interface", ""),))}
 
 
@@ -414,24 +421,49 @@ def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont, kind=None):
     c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
 
 
-def _small_body_lines(c, title, tags, bfont, tw, avail):
-    """(size, lines) for a small label's body: the name wrapped, then each spec on a
-    line of its own.
+def _clip(c, text, font, size, max_w):
+    """`text` cut down until it fits, with an ellipsis to say it was.
 
-    The type size is chosen against the height actually available with those lines
-    already counted, so a long name shrinks the type rather than pushing a spec off
-    the label -- on a drive the specs are what is being looked for. The name always
-    keeps at least one line, and where even the floor will not fit, it is the name
-    that is clipped and the last spec that is dropped.
+    The last resort, for a run with no space in it to break at -- a resolution, a
+    part number. Losing the end of a spec is bad; drawing it off the side of the
+    label is worse, because there it is lost with nothing to say so, and on the way
+    out it crosses whatever else is printed there."""
+    if c.stringWidth(text, font, size) <= max_w:
+        return text
+    while text and c.stringWidth(text + "…", font, size) > max_w:
+        text = text[:-1]
+    return (text.rstrip() + "…") if text.strip() else ""
+
+
+def _small_body_lines(c, title, tags, bfont, tw, avail):
+    """(size, lines) for a small label's body: the name, then the specs, each
+    wrapped to the width there actually is.
+
+    The type size is chosen against the height available with every line counted,
+    so a long name shrinks the type rather than pushing a spec off the label -- on a
+    drive the specs are what is being looked for. The name always keeps at least one
+    line, and where even the floor will not fit, it is the name that is clipped and
+    the last spec that is dropped.
+
+    The specs are wrapped and not taken on trust, which they used to be. Only the
+    name was ever measured, on the assumption that a spec line is short -- true of
+    "3.5\" 1.44MB" and false of a monitor's "320x200 (CGA) 50 Hz, 60 Hz", which is
+    wider than the label. An unmeasured line does not stop at the edge: it is drawn
+    straight past it, through whatever else is printed on the way, and off into the
+    part of the page the printer will never reach.
     """
     size = 6.5
     while True:
         room = max(1, int(avail // (size + 1.5)))
-        keep = list(tags[:max(0, room - 1)])
+        spec_lines = [ln for t in tags for ln in _wrap(c, t, bfont, size, tw)]
+        keep = spec_lines[:max(0, room - 1)]
         for_name = max(1, room - len(keep))
         lines = _wrap(c, title, bfont, size, tw)
         if len(lines) <= for_name or size <= 4.5:
-            return size, [*lines[:for_name], *keep]
+            out = [*lines[:for_name], *keep]
+            # At the floor a single unbreakable run can still be too wide, and this
+            # is the only place left to deal with it.
+            return size, [_clip(c, x, bfont, size, tw) for x in out]
         size -= 0.5
 
 

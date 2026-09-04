@@ -1235,7 +1235,15 @@ a PDF.
 - **The small label** (51×19 mm by default, sized for a DYMO LabelWriter) carries
   the QR code, the asset tag and the make and model. A drive's bay size and
   capacity go on one line the way a drive is spoken of — `3.5" 1.44MB`; a hard
-  disk's capacity and CHS geometry keep a line each.
+  disk's capacity and CHS geometry keep a line each; a screen's resolution and the
+  rates it will run at keep a line each too, being two things said rather than one.
+
+  Everything on it is measured against the width there actually is. A line too long
+  wraps, and where it has nowhere to break — a resolution, a part number — it is cut
+  with an ellipsis to say so. Nothing is drawn past the edge, which is what used to
+  happen: a line wider than the label was printed straight off the side of it,
+  through whatever else was in the way, and the part you could not see was lost with
+  nothing to indicate it.
 
 Both sizes, and all three kinds, carry **the word `COMPUTER`, `PART` or `PROJECT`
 running up one end**, in black like everything else on the label — a label printer

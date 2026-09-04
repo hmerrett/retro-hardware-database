@@ -1085,3 +1085,86 @@ class TestTheWordUpTheEnd:
         big = labels.render_pdf({"asset_id": aid, "name": "X", "status": "active"},
                                 [], labels.PROJECT, small=False)
         assert big[:4] == b"%PDF" and len(big) > 5000
+
+
+class TestASmallLabelStaysOnTheLabel:
+    """The name was measured against the width available and the spec lines were
+    not, on the assumption that a spec is short. True of a floppy's `3.5" 1.44MB`
+    and false of a monitor's `320x200 (CGA) 50 Hz, 60 Hz`, which is wider than the
+    label -- and an unmeasured line is not stopped by the edge, it is drawn straight
+    through whatever else is printed and off the side.
+    """
+
+    def specs(self, **pairs):
+        return list(pairs.items())
+
+    def lines_for(self, spec_pairs, name="Digivision XCD12/008/A3", ptype="display"):
+        """What the small label would actually print, at the size it would use."""
+        from reportlab.pdfgen import canvas
+        from app import labels
+        hfont, bfont = labels._fonts()
+        c = canvas.Canvas("/dev/null")
+        asset = {"asset_id": "RH-MN11", "type": ptype, "name": name,
+                 "spec_pairs": spec_pairs}
+        title, tags = labels.small_body(asset, labels.PART, spec_pairs)
+        # The width the renderer leaves for the body on a 51mm label with the word.
+        from reportlab.lib.units import mm
+        my, safe = 1.2 * mm, labels.SMALL["safe_mm"] * mm
+        mx = my + safe
+        qr = labels.SMALL["h"] - 2 * my
+        tw = labels.SMALL["w"] - (mx + qr + 1.5 * mm) - mx - 3.2 * mm - 1.0 * mm
+        size, lines = labels._small_body_lines(c, title, tags, bfont, tw,
+                                               labels.SMALL["h"] - 2 * my - 11)
+        return size, lines, tw, bfont, c
+
+    def test_a_monitors_specs_all_fit_inside_the_label(self):
+        """RH-MN11's own label, which is what showed this up: the resolution line
+        ran off the end and through the word at the other end on the way."""
+        size, lines, tw, bfont, c = self.lines_for(self.specs(**{
+            "Screen size": '12"', "Panel": "Shadow mask", "Type": "CRT",
+            "Resolution": "320x200 (CGA)", "Refresh": "50 Hz, 60 Hz",
+            "Interface": "DE9 RGB"}))
+        for line in lines:
+            assert c.stringWidth(line, bfont, size) <= tw, line
+
+    def test_the_refresh_gets_a_line_of_its_own(self):
+        """Joined to the resolution it wrapped mid-figure -- "320x200 (CGA) 50" and
+        then "Hz, 60 Hz" -- which reads as a fault rather than as two facts."""
+        from app import labels
+        _, tags = labels.small_body(
+            {"asset_id": "RH-MN11", "type": "display"}, labels.PART,
+            [("Resolution", "320x200 (CGA)"), ("Refresh", "50 Hz, 60 Hz")])
+        assert "320x200 (CGA)" in tags and "50 Hz, 60 Hz" in tags
+
+    def test_a_drives_specs_are_unchanged(self):
+        """The joining that does hold: a floppy is "a 3.5-inch 1.44MB", one thing
+        said and not two."""
+        from app import labels
+        _, tags = labels.small_body(
+            {"asset_id": "RH-KP3D", "type": "storage"}, labels.PART,
+            [("Form factor", '3.5"'), ("Size", "1.44MB")])
+        assert tags == ['3.5" 1.44MB']
+
+    def test_a_run_with_nowhere_to_break_is_cut_and_says_so(self):
+        """A resolution or a part number has no space in it to wrap at. Losing the
+        end of one is bad; drawing it off the side of the label is worse, because
+        there it is lost with nothing to say so."""
+        size, lines, tw, bfont, c = self.lines_for(
+            [("Resolution", "1" * 40)], name="X Y")
+        assert any(x.endswith("…") for x in lines), lines
+        for line in lines:
+            assert c.stringWidth(line, bfont, size) <= tw, line
+
+    def test_every_kind_of_part_stays_inside(self):
+        for ptype, pairs in (
+                ("storage", [("Capacity", "42.8MB"), ("CHS", "820/6/17"),
+                             ("Speed", "3600 rpm")]),
+                ("storage", [("Form factor", '3.5"'), ("Size", "1.44MB")]),
+                ("display", [("Screen size", '21"'), ("Panel", "Aperture grille"),
+                             ("Type", "CRT"), ("Resolution", "1600x1200"),
+                             ("Refresh", "60 Hz, 75 Hz, 85 Hz"),
+                             ("Interface", "BNC, DE15")])):
+            size, lines, tw, bfont, c = self.lines_for(
+                pairs, name="A Rather Long Manufacturer Name XYZ-9000", ptype=ptype)
+            for line in lines:
+                assert c.stringWidth(line, bfont, size) <= tw, (ptype, line)
