@@ -254,3 +254,31 @@ class TestTheApiCarriesIt:
     def test_the_api_lists_private_ones(self, client):
         client.post("/api/projects", json={"name": "X", "private": True})
         assert len(client.get("/api/projects").json()) == 1
+
+
+class TestTheMigrationDidNotAnnounceThem:
+    """0031 wrote "wanted for <name> (<tag>)" into the history of every item it
+    converted, on the reasoning that a plan with a page of its own no longer needs
+    the register to be quiet about it. The project it made was private, and an
+    item's history is public -- so the line announced a private project, and its
+    tag, on the page of the machine it was about. 0032 takes them back out.
+
+    Tested through the app rather than through the migration, because what matters
+    is the invariant the app is supposed to keep and not the SQL that broke it."""
+
+    def test_no_public_history_names_a_private_project(self, client, db, part):
+        from app.models import LogEntry
+        pt = part(model="Widget")["asset_id"]
+        aid = quick(client, "a job", aid=pt, name="Hiddenzzz")
+        written = " ".join(
+            m for (m,) in db.query(LogEntry.message).filter(LogEntry.asset_id == pt))
+        assert aid not in written and "Hiddenzzz" not in written
+
+    def test_a_private_projects_tag_is_not_on_the_item_page(self, client, part,
+                                                            monkeypatch):
+        """The tag alone is a disclosure: it says there is something there, and it
+        is the one thing needed to try the door."""
+        pt = part(model="Widget")["asset_id"]
+        aid = quick(client, "a job", aid=pt, name="Hiddenzzz")
+        visitor(monkeypatch)
+        assert aid not in client.get(f"/parts/{pt}").text

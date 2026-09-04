@@ -85,13 +85,15 @@ def upgrade():
                 bind.execute(sa.text(
                     "INSERT INTO project_task (project_id, text, done)"
                     " VALUES (:p, :t, 0)"), {"p": pid, "t": note.strip()})
-            # The history the flag deliberately never wrote, written now: the plan
-            # has stopped being private-by-omission and is a project with a page,
-            # so there is no longer a reason for the register to be quiet about it.
-            bind.execute(sa.text(
-                "INSERT INTO log_entry (asset_id, created_at, kind, message)"
-                " VALUES (:a, NOW(), 'change', :m)"),
-                {"a": asset_id, "m": f"wanted for {called} ({pid})"})
+            # Nothing is written to the item's own history, which is where this
+            # first got it wrong. The reasoning was that the plan has stopped being
+            # private-by-omission and is a project with a page, so the register need
+            # not be quiet about it -- but the project this makes is private, and an
+            # item's history is public and is the part of the register nothing
+            # rewrites. A line there naming it would announce a private project, and
+            # its tag, on the page of the very machine it is about: door five of the
+            # five, opened by the migration that closed the other four (see
+            # main._member_log, and 0032, which clears the lines this once wrote).
     for table in ("computers", "parts"):
         op.drop_column(table, "project")
         op.drop_column(table, "project_note")
