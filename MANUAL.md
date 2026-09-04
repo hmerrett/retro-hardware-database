@@ -1238,7 +1238,9 @@ a PDF.
   disk's capacity and CHS geometry keep a line each.
 
 Both sizes, and all three kinds, carry **the word `COMPUTER`, `PART` or `PROJECT`
-running up one end**. A tag answers *which one is this*, and the code answers
+running up one end**, in black like everything else on the label — a label printer
+has no grey to print, only a head that is on or off, so anything grey comes out as
+a dither and a dithered word at five point is a smudge. A tag answers *which one is this*, and the code answers
 *tell me everything*; neither answers *what am I holding*, which is the first
 question a drawer of mixed stickers raises and the only one a stranger to the
 collection can ask. It sits up the end rather than among the lines because it is

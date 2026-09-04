@@ -334,6 +334,11 @@ def project_lines(project):
 # raises every time. Up the end rather than in the body because it is not one of
 # the facts -- it is what sort of thing the other facts are about -- and because
 # the end of a label is the part of it still showing when the rest is face down.
+#
+# Black, like everything else on the label. It was grey, on the reasoning that a
+# category is quieter than a fact -- which is true on a screen and false on a
+# thermal printer, where there is no grey to print: the head is on or off, so grey
+# comes out as a dither, and a dithered word at five and a half point is a smudge.
 KIND_WORDS = {COMPUTER: "COMPUTER", PART: "PART", PROJECT: "PROJECT"}
 
 
@@ -382,9 +387,7 @@ def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont, kind=None):
                 stroke=1, fill=0)
     c.setFillColorRGB(0, 0, 0)
     if word:
-        c.setFillColorRGB(0.45, 0.45, 0.45)
-        _vertical(c, margin, margin + strip, H / 2, word, hfont, 15)
-        c.setFillColorRGB(0, 0, 0)
+        _vertical(c, margin, margin + strip, H / 2, word, hfont, 13)
     aid_size = _fit(c, asset_id, hfont, 24, 12, text_w)
     y = H - margin - aid_size + 4
     c.setFont(hfont, aid_size)
@@ -449,10 +452,14 @@ def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=()
     word = KIND_WORDS.get(kind, "")
     if word:
         strip = 3.2 * mm
-        tw -= strip
-        c.setFillColorRGB(0.4, 0.4, 0.4)
-        _vertical(c, W - mx - strip, W - mx, H / 2, word, hfont, 5.5)
-        c.setFillColorRGB(0, 0, 0)
+        # A millimetre further in than the text stops. `safe_mm` is the allowance
+        # the body keeps from the ends of the tape, and it is enough for a line of
+        # words that can afford to lose a hair off a descender; a single word set
+        # across the tape cannot, since half a letter missing makes the word
+        # unreadable rather than merely tight. So this keeps its own margin, wider.
+        edge = mx + 1.0 * mm
+        tw -= strip + 1.0 * mm
+        _vertical(c, W - edge - strip, W - edge, H / 2, word, hfont, 5.0)
     aid_size = _fit(c, asset_id, hfont, 11, 5, tw)
     y = H - my - aid_size
     c.setFont(hfont, aid_size)

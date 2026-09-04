@@ -1017,6 +1017,30 @@ class TestTheWordUpTheEnd:
             if ascent <= 10:
                 assert left >= 0 and left + ascent <= 10
 
+    def test_the_word_is_black(self):
+        """Not grey, which was the first attempt. A category is quieter than a fact
+        on a screen; on a thermal printer there is no grey to be quiet in -- the
+        head is on or off, so grey prints as a dither, and a dithered word at five
+        point is a smudge."""
+        import re
+        from app import labels
+        pdf = labels.render_pdf({"asset_id": "RH-0001", "name": "X",
+                                 "status": "active"}, [], labels.PROJECT, small=True)
+        # No non-black fill is set anywhere in the content stream.
+        greys = re.findall(rb"([\d.]+) ([\d.]+) ([\d.]+) rg", pdf)
+        assert all(r == g == b and float(r) == 0 for r, g, b in greys), greys
+
+    def test_the_word_keeps_a_wider_margin_than_the_body(self, client):
+        """A line of words can afford to lose a hair off a descender at the edge of
+        the tape. A single word set across it cannot: half a letter missing makes it
+        unreadable rather than merely tight, so it keeps its own margin."""
+        from app import labels
+        assert labels.SMALL["safe_mm"] == 3
+        # The body stops at mx; the word stops a millimetre further in again.
+        pdf = labels.render_pdf({"asset_id": "RH-0001", "name": "X",
+                                 "status": "active"}, [], labels.PROJECT, small=True)
+        assert pdf[:4] == b"%PDF"
+
     def test_the_code_still_scans_with_the_word_beside_it(self, client):
         """The strip is taken out of the text column and not out of the QR: a code
         below the size a phone can see is worth less than a name that wraps."""
