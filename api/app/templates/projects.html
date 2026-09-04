@@ -3,7 +3,11 @@
 {% block title %}Projects — Retro Hardware Database{% endblock %}
 {% block content %}
 
-{# Two sizes of the same idea, on one page.
+{# Two sizes of the same idea, on one page. Neither is introduced in prose above
+   the table -- the heading says what they are and the columns say what is known
+   about each, and a paragraph explaining why a project is allowed to own nothing
+   was answering a question nobody had yet. That reasoning is in the manual, where
+   somebody who does have the question can go and find it.
 
    A project is a piece of work committed to: it has a name, a state, a list of
    jobs and a pile of things on order against it. The queue below is a thing merely
@@ -23,12 +27,6 @@
   <span style="flex:1"></span>
   {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ Project</a>{% endif %}
 </div>
-<p class="hint">The work, as against the collection: a repair, a build, a machine
-  wanted and not yet found. A project need own nothing — the idea comes before the
-  hardware — and computers and parts are attached to it as they turn up.
-  {% if not request.state.authed %}What each thing cost is shown to whoever keeps the
-  register.{% endif %}</p>
-
 {# Its own box rather than the banner's. The banner searches the register and lands
    on the gallery; this sifts the page you are already on, and it reaches the jobs
    and the things on order as well as the project's own words — so "Gotek" finds
@@ -90,12 +88,15 @@
   <span class="muted">{{ wanting|length }}</span>
   <span class="chip">private</span>
 </div>
-<p class="hint">What is waiting to be worked on, and what needs doing to it: the
-  recap, the belt, the machine that would run if it had a power supply. None of this
-  is on an item's own page for anybody who is not logged in, and none of it is in
-  the search or the history — unlike the projects above, which are public. Taking
-  something off the list takes its note with it, so what was actually done is worth
-  writing into that item's history where it will stay.</p>
+{# Two sentences, where there were three. The one that went described what the
+   queue is, which the heading above and the cards below both already say. These
+   two stay because neither is visible from the page: what the `private` chip
+   actually covers, and what taking something off the list destroys. #}
+<p class="hint">None of this is on an item's own page for anybody who is not
+  logged in, and none of it is in the search or the history — unlike the projects
+  above, which are public. Taking something off the list takes its note with it, so
+  what was actually done is worth writing into that item's history, where it will
+  stay.</p>
 
 {% call PN.panel('Add one') %}
   {# By asset tag, with the whole register behind the box. The other way in is the
