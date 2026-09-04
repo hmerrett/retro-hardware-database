@@ -3,23 +3,18 @@
 {% block title %}Projects — Retro Hardware Database{% endblock %}
 {% block content %}
 
-{# Two sizes of the same idea, on one page. Neither is introduced in prose above
-   the table -- the heading says what they are and the columns say what is known
-   about each, and a paragraph explaining why a project is allowed to own nothing
-   was answering a question nobody had yet. That reasoning is in the manual, where
-   somebody who does have the question can go and find it.
+{# One list, where there were two.
 
-   A project is a piece of work committed to: it has a name, a state, a list of
-   jobs and a pile of things on order against it. The queue below is a thing merely
-   noticed -- a board that wants a recap, flagged in a second while standing at it.
-   One becomes the other often enough that they belong together, and each flagged
-   item says which project has already claimed it.
+   A flag on an item and a project were two sizes of the same idea sharing a page,
+   and getting from the smaller to the larger meant retyping it. The quick box below
+   makes the larger one directly -- with the item on it and the sentence as its
+   first job -- so there is nothing left to promote.
 
-   They differ in who may read them. A project is worth reading about and this page
-   is public. The queue is a private note about the collection -- what is wrong with
-   things, in the owner's own words -- and is drawn for a signed-in reader only. See
-   the section in main.py for the four places that privacy is kept and why it takes
-   four. #}
+   What the flag really carried, besides a sentence, was privacy: it was the one
+   thing on a public item page kept back from a visitor. That is a column on the
+   project now, so the quick box can go on being the place you write something you
+   have not decided to publish. See _visible in main.py for the five places a
+   private project is kept out of, and why it is only private with all five. #}
 
 <div class="flex">
   <h2 style="margin:0">Projects</h2>
@@ -27,10 +22,41 @@
   <span style="flex:1"></span>
   {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ Project</a>{% endif %}
 </div>
+
+{% if request.state.authed %}
+{# The quick way in, and the ordinary one. You are at the bench, you have just seen
+   what is wrong with something, and finding its page to write it down is how the
+   second thing you noticed gets lost -- so this is a tag, a name and a job, and the
+   only one of the three it insists on is the job.
+
+   What it makes is private, always. A line typed in five seconds has not been
+   considered for publication; the edit form is where a project is deliberately
+   published. #}
+{% call PN.panel('Note something down') %}
+  <form method="post" action="/projects/quick" class="addbar quickbar">
+    <input name="aid" list="dl_assets" placeholder="asset tag — optional"
+           value="{{ error }}" aria-label="the computer or part this is about">
+    <input name="name" placeholder="what to call it — optional"
+           aria-label="what to call the project">
+    <input name="job" required placeholder="what needs doing — recap, belt, needs a PSU…"
+           aria-label="the first job">
+    <button class="btn sm" type="submit">note it</button>
+  </form>
+  {% if error %}<p class="hint">There is no computer or part with the tag
+    <strong>{{ error }}</strong>. Nothing was created.</p>{% endif %}
+  <datalist id="dl_assets">
+    {% for aid, kind, name in register %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}
+  </datalist>
+  <p class="hint">Starts private and named after the item if you do not name it.
+    A project need own nothing, so the tag is optional — but at a bench it is
+    usually both: this drive, this fault.</p>
+{% endcall %}
+{% endif %}
+
 {# Its own box rather than the banner's. The banner searches the register and lands
    on the gallery; this sifts the page you are already on, and it reaches the jobs
    and the things on order as well as the project's own words — so "Gotek" finds
-   the project with one in the post. It sifts the queue below as well. #}
+   the project with one in the post. #}
 <form class="toolbar" method="get" action="/projects">
   <input name="q" value="{{ q | default('') }}" class="fill"
          placeholder="search projects — a name, a job, something on order"
@@ -66,6 +92,10 @@
     <td class="name">
       <a href="/projects/{{ r.p.asset_id }}">{{ r.p.name or r.p.asset_id }}</a>
       <span class="muted">{{ r.p.asset_id }}</span>
+      {# Said on the row rather than only on the project's own page: the whole list
+         is a mix now, and which of them a visitor can see is worth being able to
+         read down at a glance. #}
+      {% if r.p.private %}<span class="chip">private</span>{% endif %}
       {% if r.p.summary %}<br><span class="hint">{{ r.p.summary | linked }}</span>{% endif %}
     </td>
     <td class="tight meta"><span class="chip st-{{ r.p.status }}">{{ status_label(r.p.status) }}</span></td>
@@ -84,108 +114,4 @@
   <a href="/projects/new">Start one</a>.{% endif %}{% endif %}</p>
 {% endif %}
 
-{% if request.state.authed %}
-{# The queue. Everything below this line is private, and the whole of it is inside
-   this one block for that reason.
-
-   Machines and parts in one list, in register order. What is next at the bench is
-   next whether it is a computer or the card out of one, and sorting the queue by
-   which table a thing is in would be sorting it by something nobody is asking. #}
-<div class="flex" style="margin-top:26px">
-  <h2 style="margin:0">Wanting work</h2>
-  <span class="muted">{{ wanting|length }}</span>
-  <span class="chip">private</span>
-</div>
-{# Two sentences, where there were three. The one that went described what the
-   queue is, which the heading above and the cards below both already say. These
-   two stay because neither is visible from the page: what the `private` chip
-   actually covers, and what taking something off the list destroys. #}
-<p class="hint">None of this is on an item's own page for anybody who is not
-  logged in, and none of it is in the search or the history — unlike the projects
-  above, which are public. Taking something off the list takes its note with it, so
-  what was actually done is worth writing into that item's history, where it will
-  stay.</p>
-
-{% call PN.panel('Add one') %}
-  {# By asset tag, with the whole register behind the box. The other way in is the
-     panel on the item's own page, which is where something joins the list when you
-     are standing at it; this is for the one you have just remembered, where finding
-     its page first and coming back is how the second thing you remembered gets
-     lost. #}
-  <form method="post" action="/projects/add" class="notebar">
-    <input name="aid" list="dl_assets" required placeholder="asset tag"
-           value="{{ error }}" aria-label="the asset tag of the item to add"
-           style="flex:0 1 150px">
-    <input name="note" placeholder="what needs doing — recap, belt, needs a PSU…"
-           aria-label="what needs doing to it">
-    <button class="btn sm" type="submit">add</button>
-  </form>
-  {% if error %}<p class="hint">There is no item with the tag <strong>{{ error }}</strong>.
-    Nothing was added.</p>{% endif %}
-  <datalist id="dl_assets">
-    {% for aid, kind, name in register %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}
-  </datalist>
-{% endcall %}
-
-{% if wanting %}
-<div class="itemcards">
-  {% for r in wanting %}
-  <article class="itemcard">
-    <header>
-      <a href="{{ r.url }}">{{ r.aid }}</a>
-      <span class="muted">· {{ r.cat }}</span>
-      {# A disposed thing can still be on the list -- a board is worth recapping
-         after the case it came in has gone -- but the list should say so, since
-         "waiting to be worked on" reads oddly next to something that has left. #}
-      {% if r.disposed %}<span class="chip">disposed</span>{% endif %}
-      {# Which project has already taken this on, if any. The whole reason the two
-         halves share a page: a thing noticed becomes a piece of work, and without
-         this you would have no way of telling from the queue which of them already
-         had. #}
-      {% for pr in claimed.get(r.aid, []) %}<a class="chip st-{{ pr.status }}"
-         href="/projects/{{ pr.asset_id }}">{{ pr.name or pr.asset_id }}</a>{% endfor %}
-      <form method="post" action="/items/{{ r.aid }}/unproject"
-            onsubmit="return confirm('Take {{ r.aid }} off the project list? Its note goes with it.')">
-        <input type="hidden" name="next" value="/projects">
-        <button class="btn sm" type="submit">off the list</button>
-      </form>
-    </header>
-    <div class="cardmain">
-      <a class="cardthumb" href="{{ r.url }}"
-         aria-label="{{ r.aid }} — its own page and its photographs">
-        {% if r.img %}<img src="{{ img_url(r.img, THUMB_CARD) }}" alt=""
-             loading="lazy" decoding="async">
-        {% else %}<img class="ph" src="/static/{{ r.ph }}" alt="" aria-hidden="true"
-             loading="lazy">{% endif %}
-        {% if r.ref %}<span class="ref-badge{{ ' icon' if r.icon else '' }}"
-          title="Illustrative image, not this exact unit">{% if r.icon %}<img
-          src="/images/{{ r.icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
-      </a>
-      <div class="cardtext">
-        <h4><a href="{{ r.url }}">{{ r.name }}</a></h4>
-      </div>
-    </div>
-    {# The note as an editable box rather than as text with an edit button beside
-       it. A plan is the thing on this page most often wrong -- half of it is done,
-       or the fault turned out to be something else -- and the list is where you are
-       standing when you find that out. The same box the item's own page carries,
-       submitting to the same route. #}
-    <div class="cardrow">
-      <span class="lbl">Plan</span>
-      <form method="post" action="/items/{{ r.aid }}/project">
-        <input type="hidden" name="next" value="/projects">
-        <input name="note" value="{{ r.note }}"
-               placeholder="what needs doing" aria-label="what needs doing to {{ r.aid }}">
-        <button class="btn sm" type="submit">save</button>
-      </form>
-    </div>
-  </article>
-  {% endfor %}
-</div>
-{% else %}
-<p class="muted">{% if searched %}Nothing on the list matches that.{% else %}
-  Nothing is on the list. Flag something from its own page, or add it by asset
-  tag above.{% endif %}</p>
-{% endif %}
-{% endif %}
 {% endblock %}

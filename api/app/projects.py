@@ -173,14 +173,21 @@ def projects_by_asset(db, asset_ids):
     return out
 
 
-def projects_for(db, asset_id):
+def projects_for(db, asset_id, authed=True):
     """The projects one computer or part is in, for the panel on its own page.
 
-    Ordered by name so the chips on an item page do not shuffle between reloads."""
-    return (db.query(Project).join(ProjectAsset,
-                                   ProjectAsset.project_id == Project.asset_id)
-            .filter(ProjectAsset.asset_id == asset_id)
-            .order_by(Project.name, Project.asset_id).all())
+    Ordered by name so the chips on an item page do not shuffle between reloads.
+
+    A private one is left out for a visitor. An item page is public, so without this
+    a project kept off the list, out of the search and out of the sitemap would name
+    itself on the page of every machine it is about -- which is the whole of what
+    was being kept back, said in the one place nobody thought to look."""
+    q = (db.query(Project).join(ProjectAsset,
+                                ProjectAsset.project_id == Project.asset_id)
+         .filter(ProjectAsset.asset_id == asset_id))
+    if not authed:
+        q = q.filter(Project.private.is_(False))
+    return q.order_by(Project.name, Project.asset_id).all()
 
 
 def add_asset(db, project_id, asset_id, note=""):
@@ -234,7 +241,7 @@ def _counts(db, model, *conds):
     return dict(q.all())
 
 
-def summaries(db):
+def summaries(db, authed=True):
     """Every project with the numbers its row on the list page shows, in five
     queries however many there are: the projects, then one grouped count per thing
     counted. Written this way rather than as a property on the model because a list
@@ -243,8 +250,16 @@ def summaries(db):
 
     The order is the one the page is read in: what is in hand first, closed at the
     bottom, and within each the ones touched most recently -- which here means by
-    name, since a project has no update stamp of its own that is not its history."""
-    rows = db.query(Project).order_by(Project.name, Project.asset_id).all()
+    name, since a project has no update stamp of its own that is not its history.
+
+    `authed` false leaves out the private ones. Defaulted to true because every
+    caller that is not a page is the owner's own -- the API is behind the login
+    entire -- and a default that hides things from the code that is entitled to see
+    them is a default that gets worked around."""
+    q = db.query(Project)
+    if not authed:
+        q = q.filter(Project.private.is_(False))
+    rows = q.order_by(Project.name, Project.asset_id).all()
     assets = _counts(db, ProjectAsset)
     tasks_all = _counts(db, ProjectTask)
     tasks_done = _counts(db, ProjectTask, ProjectTask.done.is_(True))

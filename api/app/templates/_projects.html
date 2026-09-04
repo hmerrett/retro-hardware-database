@@ -1,17 +1,39 @@
-{# The projects one computer or part is spoken for by. Expects: in_projects.
+{# What this item is spoken for, and the quickest way to speak for it.
 
-   The other end of the panel on a project's own page, and worth its own section
-   for a reason the project side does not have: somebody looking at a board wants
-   to know it is already promised to something before they put it in a machine, and
-   without this they would have to find the project that promised it to know.
+   The other end of the Items panel on a project's page, and worth its own section
+   for a reason that side does not have: somebody looking at a board wants to know
+   it is already promised to something before they put it in a machine, and without
+   this they would have to find the project that promised it to know.
 
-   Nothing is shown when it is in none, which is most of them -- an empty panel on
-   every item page would be a section saying "no" over and over. #}
+   The box below is what the item used to carry as a `project` flag and a
+   `project_note` -- the same gesture, at the same moment, from the same place. What
+   it makes now is a project, with this item on it and the sentence as its first
+   job, so there is nothing to promote by hand later. It starts private, as the flag
+   was, and the project's own edit form is where that is deliberately cleared.
+
+   `in_projects` has already had the private ones taken out of it for a visitor (see
+   projects.projects_for): an item page is public, and this is the one place a
+   project kept out of the list, the search and the sitemap could still name itself.
+   The box is inside the `authed` block for the ordinary reason -- it is a form. #}
 {% import "_panel.html" as PN %}
-{% if in_projects %}
+{% if in_projects or request.state.authed %}
 {% call PN.panel('Projects') %}
-  <p style="margin:0">{% for pr in in_projects %}<a class="chip st-{{ pr.status }}"
+  {% if in_projects %}
+  <p style="margin:0 0 8px">{% for pr in in_projects %}<a class="chip st-{{ pr.status }}"
      href="/projects/{{ pr.asset_id }}">{{ pr.name or pr.asset_id }}</a>
   {% endfor %}</p>
+  {% elif not request.state.authed %}
+  <p class="muted" style="margin:0">Not part of any project.</p>
+  {% endif %}
+  {% if request.state.authed %}
+  <form class="addbar" method="post" action="/projects/quick">
+    <input type="hidden" name="aid" value="{{ item.asset_id }}">
+    <input name="job" required placeholder="what needs doing — recap, belt, needs a PSU…"
+           aria-label="what needs doing to {{ item.asset_id }}">
+    <button class="btn sm" type="submit">note it</button>
+  </form>
+  <p class="hint">Makes a private project about this one, with that as its first
+    job. Name it and publish it later if it turns out to be worth reading about.</p>
+  {% endif %}
 {% endcall %}
 {% endif %}

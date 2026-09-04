@@ -1015,10 +1015,9 @@ Spectrum has a board issue and a ULA; "recap the +2A" has a state, a list of job
 and a pile of things on order. So a project is a record of its own, at
 **projects** in the header, rather than more fields on a machine.
 
-That page has two halves, and most of this section is about the first. The
-**projects** are named pieces of work, and they are public. **Wanting work**
-below them is a private queue of things you have flagged as needing something —
-lighter, quicker, and described further down.
+One list, and one kind of thing on it. A project can be as small as a sentence
+noticed at the bench or as large as a build with a shopping list, and it can be
+public or private — see *Noting something down* and *Private projects* below.
 
 **A project need own nothing.** That is the point of it. The idea comes months
 before the hardware — a plan to build a 486 exists long before there is a 486 to
@@ -1144,73 +1143,57 @@ ordering something and marking it in all leave a dated line. Membership is recor
 on both sides — the project says what it took on, and the machine says what it is
 wanted for.
 
-### Wanting work
+### Noting something down
 
-Below the projects, on the same page, is the other and lighter half: a queue of
-computers and parts flagged as needing something done to them.
+Most projects start as one sentence at the bench: a board that wants a recap, a
+drive that needs a belt, a machine that would run if it had a power supply.
 
-**A flag and a note**, on the item itself — the same shape `disposed` and
-`disposed_note` already have. It is for the thing you have just noticed: a board
-that wants a recap, a drive that needs a belt, a machine that would run if it had
-a power supply. Flag it in a second from the item's own page, while you are
-standing at it, or from the box on the projects page by typing its asset tag —
-which is the one you have just remembered rather than the one you are looking at.
+The box at the top of the projects page is for exactly that. It takes an **asset
+tag** (optional), a **name** (optional) and **what needs doing** (the only one it
+insists on), and makes a project with the item attached and the sentence as its
+first job. Leave the name out and it is named after the item; leave the tag out
+too and the job names it. The same box is on every computer's and part's own page,
+under **Projects**, with the tag already filled in — because standing at the thing
+having just seen what is wrong with it is when this actually gets written.
 
-Machines and parts sit in one queue, in register order. An afternoon at the bench
-goes on whatever is next, and whether the next thing is a computer or the card out
-of one is not how anybody chooses.
+There used to be two lists here: a lightweight queue of flagged items, and
+projects. They were the same idea at two sizes, and getting from one to the other
+meant retyping it. Now the quick box makes the real thing straight away.
 
-The note is an editable box wherever it is shown, because a plan is the thing most
-often wrong — half of it is done, or the fault turned out to be something else —
-and the list is where you are standing when you find that out. Taking something off
-the queue takes its note with it: either the work was done, in which case it belongs
-in that item's history written in the past tense, or it is not going to be, and a
-plan nobody is following is not worth keeping.
+### Private projects
 
-A duplicate does not inherit the flag, for the reason it does not inherit the
-serial or the disposal: a copy is a record of a second object that nobody has
-looked at yet.
+**What the quick box makes is private.** A line typed in five seconds has not been
+considered for publication, and the safe default for something unconsidered is that
+nobody else reads it. The edit form is where you clear the tick, which is the act
+of publishing.
 
-#### The queue is private, and the projects are not
+A private project is kept out of **five** places, and it is only private with all
+five:
 
-This is the one place on the site where two things side by side are read by
-different people, so it is worth being plain about which is which.
+- the projects list leaves it out;
+- its own page answers a stranger with a 404 — not a login prompt, because somebody
+  who guessed the tag should not be told there is something there to guess at;
+- the search and the suggestion list drop it, and so does the "projects also match"
+  line on the gallery;
+- the sitemap does not name it — that is the one of the five read by machines
+  rather than people, where a tag is an invitation;
+- and the **Projects** panel on the pages of the machines it is about does not name
+  it, which is the one a private record could otherwise announce itself in while
+  being correctly hidden everywhere else.
 
-**A project is public.** It is a piece of work worth reading about, and its page,
-its tasks and its orders are all readable by anybody — bar what each thing cost.
+There is a sixth thing it does, quieter than the others. **An item's history names
+a project exactly while that project is public.** An item page is public and so is
+its history, and the history is the part of the register nothing rewrites — so a
+line reading *"wanted for Recap the +2A (RH-J0Y7)"* would publish the name and
+publish it for good. A private project writes nothing there; publishing one writes
+the lines that were held back, and withdrawing one takes them out again. That
+delete is the only place the register rewrites its own log, and it is the point: a
+name taken out of publication cannot be left behind in the one public place it was
+written.
 
-**The queue is not.** It is what is wrong with your things, in your own words, and
-it is drawn only for a reader who is logged in. That privacy is kept in four
-places, not one, because a thing is only private if it is private everywhere it is
-written down:
-
-- the routes that set and clear the flag are POSTs, so the login gate has them;
-- the panel on an item's own page is inside that page's logged-in block;
-- the queue on the projects page is inside one too;
-- and the search leaves both columns out for anybody not logged in — the bar, the
-  dropdown and the history all read the same set.
-
-**Nothing about the flag is written to the history**, which is the one place the
-register's usual habit is deliberately broken. Every other change worth knowing
-about lands in the log, but an item's history is shown to whoever opens its page
-and is the part of the register nothing rewrites — so a line reading *"flagged as
-a future project — recap, one leg already green"* would put the plan on the public
-page by the back door, and put it there for good.
-
-The whole API is behind the login, so it carries both columns like any other pair.
-
-### Two sizes of the same idea
-
-The queue and the projects are not rivals, and neither replaces the other.
-
-A flagged item is something **noticed** — one sentence, no ceremony, thirty
-seconds. A project is a piece of work **committed to**: it has a name, a state, a
-list of jobs and a shopping list against it. Most things stay in the queue for
-ever, and that is fine; a few earn a project, and when one does, the queue says so
-— each flagged item shows a chip for any project that has taken it on.
-
-Start in the queue. Promote to a project when it turns out to be a piece of work
-rather than a note.
+The whole JSON API is behind the login, so it carries `private` like any other
+field and lists private projects normally. What the flag governs is what the public
+site shows.
 
 ### Finding one
 

@@ -24,15 +24,6 @@
   {% endif %}
 </div>
 
-{# The plan for this one, where the disposal banner says what became of it. Only
-   for a reader who is logged in: the item page is public and this is the private
-   half of the register (see main.py's project section). #}
-{% if request.state.authed and c.project %}
-<div class="plan-banner">Future project{% if c.project_note %} — {{ c.project_note | linked }}{% endif %}
-  <a class="btn sm" href="/projects">the list</a>
-</div>
-{% endif %}
-
 {% if c.disposed %}
 <div class="banner">Disposed{% if c.disposed_at %} {{ c.disposed_at }}{% endif %}{% if c.disposed_note %} — {{ c.disposed_note | linked }}{% endif %}
   {% if request.state.authed %}

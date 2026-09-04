@@ -30,6 +30,16 @@
   {{ fld('started_at', 'Started', "when work actually began — not when you thought of it", type='date') }}
   {{ fld('target_date', 'Wanted by', "a hope rather than a record; leave it blank if there is no date on it", type='date') }}
   {{ fld('finished_at', 'Finished', type='date') }}
+  {# A tickbox rather than a menu beside the status, because it is not one of the
+     states a project passes through -- it is who may read it, which is true or false
+     at every one of them. The quick box on the list page sets it; this is where it
+     is deliberately cleared, which is the act of publishing. #}
+  <label class="socketed"><input type="checkbox" name="private" value="1"
+    {{ 'checked' if (p['private'] if p else False) else '' }}> Private</label>
+  <p class="hint">kept off the public list, out of the search and the sitemap, off
+    the pages of the machines it is about, and its own page answers a visitor as
+    though it were not there. The register is a public catalogue; what is wrong with
+    a thing, in your own words, does not have to be part of it.</p>
   <label for="summary">Summary</label>
   <textarea id="summary" name="summary" style="min-height:90px">{{ (p['summary'] if p else '') or '' }}</textarea>
   <p class="hint">the line shown at the top of the page and beside it in the list</p>

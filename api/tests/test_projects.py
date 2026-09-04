@@ -1102,7 +1102,7 @@ class TestASmallLabelStaysOnTheLabel:
         """What the small label would actually print, at the size it would use."""
         from reportlab.pdfgen import canvas
         from app import labels
-        hfont, bfont = labels._fonts()
+        _hfont, bfont = labels._fonts()
         c = canvas.Canvas("/dev/null")
         asset = {"asset_id": "RH-MN11", "type": ptype, "name": name,
                  "spec_pairs": spec_pairs}

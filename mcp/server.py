@@ -345,7 +345,11 @@ def list_projects(status: str | None = None, open: bool | None = None) -> list[d
 
     status is one of planned, active, stalled, done, abandoned. open=true is the
     ones neither finished nor abandoned, which is usually the question being asked;
-    call it with no arguments for everything."""
+    call it with no arguments for everything.
+
+    Private ones are listed here like any other: this server talks to the API, which
+    is behind the login entire. What `private` governs is what the public site
+    shows."""
     return _request("GET", "/api/projects",
                     params=_clean({"status": status, "open": open}))
 
@@ -360,6 +364,7 @@ def get_project(asset_id: str) -> dict:
 def create_project(
     name: str,
     status: str | None = None,
+    private: bool | None = None,
     summary: str | None = None,
     notes: str | None = None,
     started_at: str | None = None,
@@ -375,6 +380,12 @@ def create_project(
     is when it was done, and a project can be finished without ever having been
     recorded as started.
 
+    private=true keeps it off the public site: out of the projects list, out of the
+    search, out of the sitemap, off the pages of the machines it is about, and its
+    own page answers a stranger as though it were not there. Use it for what is
+    wrong with a thing in the owner's own words, which is not finished being decided;
+    leave it off for work worth reading about.
+
     A project need own nothing. Create it first and add the hardware with
     add_project_item as it turns up."""
     fields = _clean(locals())
@@ -386,6 +397,7 @@ def update_project(
     asset_id: str,
     name: str | None = None,
     status: str | None = None,
+    private: bool | None = None,
     summary: str | None = None,
     notes: str | None = None,
     started_at: str | None = None,
@@ -394,7 +406,7 @@ def update_project(
 ) -> dict:
     """Partial-update a project: only the fields you pass are changed. Use this to
     move it between states -- status='active' when work starts, 'done' when it is
-    over."""
+    over -- and private=false to publish one that was kept back."""
     fields = _clean(locals())
     fields.pop("asset_id")
     return _request("PATCH", f"/api/projects/{asset_id}", json=fields)
