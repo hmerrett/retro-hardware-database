@@ -161,6 +161,28 @@
     header { padding: 10px 12px; }
     main { padding: 14px 12px; }
   }
+  /* The projects list, stacked. Five columns across a 390px screen gave the name a
+     fifth of it, so "Megadrive translucent case" came down the page one word at a
+     time -- and three of the four columns taking that width off it were, on most
+     rows, saying nothing at all. Stacked, the name and the summary get the whole
+     width and what is left goes underneath on one line: the status always, and each
+     count only where there is one. */
+  @media (max-width: 560px) {
+    .projtable, .projtable tbody, .projtable tr, .projtable td { display: block; width: auto; }
+    /* The headings row. There is no thead -- the table writes its headings as its
+       first row, as every other table here does -- and stacked they would be five
+       lines of the wrong thing before the first project. */
+    .projtable tr:first-child { display: none; }
+    .projtable tr { border-top: 1px solid var(--line); padding: 9px 0; }
+    .projtable td { border: 0; padding: 0; white-space: normal; }
+    /* Nothing to say, so nothing said. This is what the empty cells are for. */
+    .projtable td.count:empty { display: none; }
+    .projtable td.count:empty::after { content: none; }
+    /* The status and the counts on one line under the name rather than a line each,
+       because together they are one short sentence about the project. */
+    .projtable td.meta { display: inline-block; margin: 6px 12px 0 0; vertical-align: middle; }
+    .projtable td.meta[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; }
+  }
   /* An order has seven things to say and a phone has room for about three across.
      Sideways scrolling was the first answer and the wrong one: what fell off the
      right-hand edge was the "mark in" button, which is the entire reason to open
@@ -511,6 +533,12 @@
      without this a 20px tick button sat in a 120px column and the words it belonged
      to were pushed a third of the way across the page. */
   td.tasktext, td.orderwhat { width: 100%; }
+  /* The name and its summary take the slack, as the task and order text do. */
+  .projtable td.name { width: 100%; }
+  /* A count of nothing, drawn rather than written into the cell. The cell is left
+     genuinely empty so that a phone can drop it: an em dash is content, and content
+     is not something :empty can see past. */
+  .projtable td.count:empty::after { content: "\2014"; }
   .build-banner { background: #3b82f622; border: 1px solid #3b82f6aa; border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
   /* What is going to be done to a thing, as against what became of it. Its own
      colour rather than the disposal banner's, because the two are opposite tenses

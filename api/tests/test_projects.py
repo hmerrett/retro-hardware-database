@@ -421,6 +421,42 @@ class TestTheList:
         assert "No projects yet" in client.get("/projects").text
 
 
+class TestTheListOnAPhone:
+    """Five columns across a 390px screen gave the name a fifth of it, and three of
+    the four columns taking that width were usually saying nothing. The rows stack
+    on a phone instead -- which turns on the count cells being genuinely empty."""
+
+    def test_a_count_of_nothing_is_an_empty_cell_not_a_dash(self, client):
+        """The dash is drawn by the stylesheet. Written into the cell it would be
+        content, and content is not something `:empty` can see past -- so the phone
+        rule that drops the cell would never match and the row would carry three
+        columns of nothing across the narrowest screen."""
+        make(client, "Bare")
+        html = client.get("/projects").text
+        row = html.split("Bare")[1].split("</tr>")[0]
+        # Nothing at all between the tags, not even a space: a whitespace text node
+        # is a child, and a cell with a child is not :empty.
+        for label in ("items", "tasks", "on order"):
+            assert f'data-label="{label}"></td>' in row
+        assert "—" not in row
+
+    def test_a_count_that_exists_is_written_in(self, client):
+        aid = make(client, "Busy")
+        client.post(f"/projects/{aid}/task", data={"text": "a job"},
+                    follow_redirects=False)
+        row = client.get("/projects").text.split("Busy")[1].split("</tr>")[0]
+        assert 'data-label="tasks">0/1</td>' in row
+
+    def test_the_columns_are_labelled_for_the_stacked_view(self, client):
+        """Stacked, a bare "0/1" under a name says nothing. The label the column
+        heading carried is put back on the cell, and the stylesheet shows it only
+        at the width where the heading row is hidden."""
+        make(client, "Labelled")
+        html = client.get("/projects").text
+        for label in ("items", "tasks", "on order"):
+            assert f'data-label="{label}"' in html
+
+
 class TestTheRestOfTheSiteKnows:
     """Public means findable. A section anybody may read but no crawler is told
     about is public in the auth rules and private in practice."""

@@ -44,7 +44,15 @@
 {% endif %}
 
 {% if rows %}
-<table>
+{# Five columns on a desktop, and on a phone the same rows stacked -- see the
+   `projtable` rules in base.html. A name given a fifth of a 390px screen wraps to
+   one word a line, and three of the four columns doing that to it are usually
+   saying nothing at all.
+
+   Which is why a count of nothing is written as an empty cell here and the dash is
+   drawn by the stylesheet: an empty cell is something a phone can drop, and "—"
+   is not. #}
+<table class="projtable">
   <tr>
     <th>Project</th><th class="tight">Status</th>
     <th class="tight">Items</th><th class="tight">Tasks</th><th class="tight">On order</th>
@@ -55,19 +63,19 @@
      without going looking for it — but not at the cost of the list's top being
      about them. #}
   <tr class="{{ 'closed' if r.p.status in closed_states else '' }}">
-    <td>
+    <td class="name">
       <a href="/projects/{{ r.p.asset_id }}">{{ r.p.name or r.p.asset_id }}</a>
       <span class="muted">{{ r.p.asset_id }}</span>
       {% if r.p.summary %}<br><span class="hint">{{ r.p.summary | linked }}</span>{% endif %}
     </td>
-    <td class="tight"><span class="chip st-{{ r.p.status }}">{{ status_label(r.p.status) }}</span></td>
-    <td class="tight muted">{{ r.assets or '—' }}</td>
+    <td class="tight meta"><span class="chip st-{{ r.p.status }}">{{ status_label(r.p.status) }}</span></td>
+    <td class="tight muted meta count" data-label="items">{{ r.assets or '' }}</td>
     {# Done over total, not a percentage: eleven of twelve is a different thing to
        know than 92%, and it is the one that says how much is left. #}
-    <td class="tight muted">{% if r.tasks %}{{ r.tasks_done }}/{{ r.tasks }}{% else %}—{% endif %}</td>
+    <td class="tight muted meta count" data-label="tasks">{% if r.tasks %}{{ r.tasks_done }}/{{ r.tasks }}{% endif %}</td>
     {# What is still coming, which is the only number a pile of orders is ever
        asked for. The total is on the project's own page. #}
-    <td class="tight muted">{% if r.orders_out %}{{ r.orders_out }}{% elif r.orders %}all in{% else %}—{% endif %}</td>
+    <td class="tight muted meta count" data-label="on order">{% if r.orders_out %}{{ r.orders_out }}{% elif r.orders %}all in{% endif %}</td>
   </tr>
   {% endfor %}
 </table>
