@@ -1238,8 +1238,30 @@ a PDF.
   disk's capacity and CHS geometry keep a line each.
 
 **The QR code encodes `<base_url>/items/<asset_tag>/`**, which the app resolves
-to the right computer or part page. Because only the tag is taken from a scanned
-code, labels printed against an older URL still resolve.
+to the right computer, part or project page. Because only the tag is taken from a
+scanned code, labels printed against an older URL still resolve.
+
+### A project has one too
+
+A project's page carries the same two buttons, and its label is made by the same
+code and carries the same kind of code.
+
+What it is *for* is different, though. A machine's label goes on the machine; a
+project's goes on **the things you have bought for it**. Stick the small one on
+the jiffy bag as it arrives, and months later scanning it opens the project it was
+bought for, with its orders on it — which answers the question a mystery box under
+the desk actually raises, which is not "what is this" but "what did I buy this
+for".
+
+The small one is the default here, as it is for a part, since it is going on a
+parcel rather than being read across a room. It carries the tag, the project's
+name and its state — *in progress* against *done* being most of what you want to
+know before opening the box. The full one adds the dates and the summary.
+
+Nothing counted goes on either: how many jobs are left and how many things are
+still in the post are true this afternoon and false next week, and a label is
+printed once and then lives on a box for a year. The code is there for everything
+that moves.
 
 `<base_url>` comes from `RHDB_BASE_URL` in `.env` for labels rendered by the
 site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set

@@ -5073,7 +5073,7 @@ def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)):
         d["spec_pairs"] = specdb.pairs(db, p, display=True)
         rows.append(d)
     pdf = labels.render_pdf(
-        to_dict(c), rows, is_computer=True, small=bool(small),
+        to_dict(c), rows, labels.COMPUTER, small=bool(small),
         form_factor=(specdb.scalars(db, board).get("form_factor", "")
                      if board else ""))
     return Response(pdf, media_type="application/pdf", headers={
@@ -5960,7 +5960,7 @@ async def gui_part_photo_crop(aid: str, request: Request,
 @app.get("/parts/{aid}/label.pdf", include_in_schema=False)
 def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    pdf = labels.render_pdf(to_dict(p), [], is_computer=False, small=bool(small),
+    pdf = labels.render_pdf(to_dict(p), [], labels.PART, small=bool(small),
                             spec_pairs=specdb.pairs(db, p, display=True))
     return Response(pdf, media_type="application/pdf", headers={
         "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
@@ -6435,6 +6435,24 @@ async def gui_update_project(aid: str, request: Request,
     add_log(db, p.asset_id, _field_diffs(before, to_dict(p), PROJECT_FIELDS))
     db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@app.get("/projects/{aid}/label.pdf", include_in_schema=False)
+def gui_project_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
+    """A printable label for a project, so a thing bought for one can carry a
+    sticker saying what it is for.
+
+    The same label the machines and the parts get, made by the same code and
+    carrying the same /items/<id> code -- which is the whole reason a project was
+    given a register id in the first place. Scanning the sticker on a parcel opens
+    the project it was bought for, with its orders on it.
+
+    Small by default, as a part's is. A machine gets the 6x4 by default because it
+    is filed on a shelf and read across a room; this is going on a jiffy bag."""
+    p = get_or_404(db, Project, aid)
+    pdf = labels.render_pdf(to_dict(p), [], labels.PROJECT, small=bool(small))
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
 
 
 @app.post("/projects/{aid}/note", include_in_schema=False)

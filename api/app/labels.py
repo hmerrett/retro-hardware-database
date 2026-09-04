@@ -23,6 +23,13 @@ from reportlab.pdfgen import canvas
 
 from .entry import display_name, parse_specs, type_label
 from .machines import ISSUE_KEY, REGION_KEY, STYLE_KEY
+from .projects import status_label
+
+# The three kinds of thing a label can be for. This was an `is_computer` boolean
+# while there were two, and stopped being able to be the day a project wanted a
+# sticker: "not a computer" had quietly meant "a part", and a two-valued flag
+# cannot hold a third answer without one of its two starting to lie.
+COMPUTER, PART, PROJECT = "computer", "part", "project"
 
 # The three answers in a catalogue machine's line that are not a chip, and so get a
 # line of their own on a label (see computer_lines).
@@ -247,16 +254,22 @@ def computer_lines(comp, parts, form_factor=""):
     return lines
 
 
-def small_body(asset, is_computer, spec_pairs=None):
+def small_body(asset, kind, spec_pairs=None):
     """(name, [spec lines]) for the small label's text below the asset id.
 
     Separate values rather than one sentence: each spec goes on a line of its own,
     so a shelf of drives reads down the capacities instead of finding each one at
     whatever point the name happened to stop wrapping. The list is empty for the
     types whose name already says what you want, and holds only what is recorded.
+
+    A project's one line is its state. A sticker on a parcel is read months later
+    with the parcel in your hand, and "in progress" against "done" is the whole of
+    what you want to know before opening it.
     """
     name = display_name(asset)
-    wanted = () if is_computer else SMALL_SPECS.get(asset.get("type", ""), ())
+    if kind == PROJECT:
+        return name, [status_label(asset.get("status", ""))]
+    wanted = () if kind == COMPUTER else SMALL_SPECS.get(asset.get("type", ""), ())
     if not wanted:
         return name, []
     if spec_pairs is None:
@@ -287,6 +300,24 @@ def part_lines(part, spec_pairs=None):
         lines.append(f"Installed in: {part['computer_id']}")
     if part.get("condition"):
         lines.append(f"Condition: {part['condition']}")
+    return lines
+
+
+def project_lines(project):
+    """The full label's body for a project.
+
+    Its own columns and nothing counted: how many jobs are left and how many things
+    are still in the post are true this afternoon and false next week, and a label
+    is printed once and then lives on a box for a year. What is put on it is what
+    will still be true when it is read -- what the project is called, what state it
+    was in, and the dates -- and the QR code is there for everything that moves."""
+    lines = [f"Status: {status_label(project.get('status', ''))}"]
+    for label, key in (("Started", "started_at"), ("Wanted by", "target_date"),
+                       ("Finished", "finished_at")):
+        if project.get(key):
+            lines.append(f"{label}: {project[key]}")
+    if project.get("summary"):
+        lines.append(project["summary"])
     return lines
 
 
@@ -372,12 +403,18 @@ def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=()
         c.drawString(tx, y, line)
 
 
-def render_pdf(asset, parts, is_computer, small=False, form_factor="",
+def render_pdf(asset, parts, kind, small=False, form_factor="",
                spec_pairs=None) -> bytes:
-    """Render one label PDF and return its bytes. `asset` is the computer/part
-    row (dict); `parts` is the full parts list (used for a computer's build).
-    `form_factor` and `spec_pairs` come from the typed spec tables when the caller
-    has them, so the label does not re-parse the specs string."""
+    """Render one label PDF and return its bytes. `asset` is the computer, part or
+    project row (dict) and `kind` says which; `parts` is the full parts list (used
+    for a computer's build). `form_factor` and `spec_pairs` come from the typed
+    spec tables when the caller has them, so the label does not re-parse the specs
+    string.
+
+    A project's label is made here beside the other two rather than somewhere of
+    its own, because the whole of what a label is -- an asset id, a name, and a QR
+    code back to /items/<id> -- is true of a project exactly as it is of a machine.
+    What differs is the few lines of body text, which is what `kind` picks."""
     hfont, bfont = _fonts()
     spec = SMALL if small else FULL
     title = display_name(asset)
@@ -387,12 +424,16 @@ def render_pdf(asset, parts, is_computer, small=False, form_factor="",
     c.saveState()
     _apply_rotation(c, spec["w"], spec["h"], spec["rotate"])
     if small:
-        name, tags = small_body(asset, is_computer, spec_pairs)
+        name, tags = small_body(asset, kind, spec_pairs)
         _render_small(c, spec["w"], spec["h"], asset["asset_id"], name, url,
                       hfont, bfont, spec.get("safe_mm", 0), tags=tags)
     else:
-        lines = (computer_lines(asset, parts, form_factor) if is_computer
-                 else part_lines(asset, spec_pairs))
+        if kind == COMPUTER:
+            lines = computer_lines(asset, parts, form_factor)
+        elif kind == PROJECT:
+            lines = project_lines(asset)
+        else:
+            lines = part_lines(asset, spec_pairs)
         _render_full(c, spec["w"], spec["h"], asset["asset_id"], title, lines,
                      url, hfont, bfont)
     c.restoreState()

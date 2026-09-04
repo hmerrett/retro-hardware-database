@@ -12,6 +12,13 @@
   {% if request.state.authed %}
   <span class="hdr-actions">
     <a class="iconbtn" href="/projects/{{ p.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
+    {# The same two the machines and the parts carry, in the same place and the same
+       order. What a project's label is for is different, though: a machine's goes on
+       the machine, and this one goes on the things bought for the project -- stick it
+       on the jiffy bag and the code opens the project it was bought for, orders and
+       all. Small first, because that is the one that fits a parcel. #}
+    <a class="iconbtn lbl-s" href="/projects/{{ p.asset_id }}/label.pdf?small=1" target="_blank" title="Small label (PDF) — for a parcel or a part bought for this" aria-label="Small label">{{ I.ico('printer') }}</a>
+    <a class="iconbtn lbl-l" href="/projects/{{ p.asset_id }}/label.pdf?small=0" target="_blank" title="Full label (PDF)" aria-label="Full label">{{ I.ico('printer') }}</a>
     {# No disposal step in front of it, unlike a machine: abandoning a project is
        already a status it can be left in, so the only thing left for delete to mean
        is that the project was written by mistake. #}

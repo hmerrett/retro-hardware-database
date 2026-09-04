@@ -875,3 +875,82 @@ class TestTheApiLists:
         as_visitor(monkeypatch)
         assert client.get("/api/projects").status_code == 401
         assert client.get(f"/api/projects/{p['asset_id']}").status_code == 401
+
+
+class TestItsLabel:
+    """A sticker for a project, so a thing bought for one can say what it is for.
+
+    The same label the machines and parts get, from the same code and carrying the
+    same /items/<id> code -- which is what the register id was for."""
+
+    def test_a_project_has_one(self, client):
+        aid = make(client)
+        r = client.get(f"/projects/{aid}/label.pdf")
+        assert r.status_code == 200
+        assert r.headers["content-type"] == "application/pdf"
+        assert r.content[:4] == b"%PDF"
+
+    def test_it_comes_small_by_default(self, client):
+        """A machine's is the 6x4 by default because it is read across a room. This
+        one is going on a jiffy bag."""
+        aid = make(client)
+        small = client.get(f"/projects/{aid}/label.pdf").content
+        explicit = client.get(f"/projects/{aid}/label.pdf?small=1").content
+        assert len(small) == len(explicit)
+        assert client.get(f"/projects/{aid}/label.pdf?small=0").content != small
+
+    def test_the_full_one_is_offered_too(self, client):
+        aid = make(client)
+        r = client.get(f"/projects/{aid}/label.pdf?small=0")
+        assert r.status_code == 200 and r.content[:4] == b"%PDF"
+
+    def test_the_page_offers_both(self, client):
+        aid = make(client)
+        html = page(client, aid)
+        assert f"/projects/{aid}/label.pdf?small=1" in html
+        assert f"/projects/{aid}/label.pdf?small=0" in html
+
+    def test_the_code_on_it_is_the_register_address(self, client):
+        """Not /projects/<id>. The label carries /items/<id>, as every other label
+        here does, so a sticker printed today still resolves if the page it leads to
+        is ever moved."""
+        from app import labels
+        aid = make(client)
+        assert labels.item_url(aid).endswith(f"/items/{aid}/")
+
+    def test_scanning_it_reaches_the_project(self, client):
+        aid = make(client)
+        r = client.get(f"/items/{aid}", follow_redirects=False)
+        assert r.status_code == 307
+        assert r.headers["location"] == f"/projects/{aid}"
+
+    def test_a_label_is_not_public(self, client, monkeypatch):
+        """Printing is an owner's action, and the label carries the summary. The
+        same rule the machines' labels follow."""
+        aid = make(client)
+        as_visitor(monkeypatch)
+        r = client.get(f"/projects/{aid}/label.pdf", follow_redirects=False)
+        assert r.status_code == 303 and "/login" in r.headers["location"]
+
+    def test_no_such_project_has_no_label(self, client):
+        assert client.get("/projects/RH-NONE/label.pdf").status_code == 404
+
+    def test_the_small_one_carries_the_state(self, client):
+        """What you want to know with the parcel in your hand, months later."""
+        from app import labels
+        aid = make(client, status="active")
+        name, tags = labels.small_body(
+            {"name": "Recap the +2A", "status": "active"}, labels.PROJECT)
+        assert name == "Recap the +2A" and tags == ["in progress"]
+
+    def test_the_full_one_carries_the_dates_it_has(self, client):
+        from app import labels
+        lines = labels.project_lines({"name": "X", "status": "active",
+                                      "started_at": "2026-08-14",
+                                      "summary": "the caps are gone"})
+        assert "Status: in progress" in lines
+        assert "Started: 2026-08-14" in lines
+        assert "the caps are gone" in lines
+        # Nothing counted: how many jobs are left is true this afternoon and false
+        # next week, and a label lives on a box for a year.
+        assert not any("task" in x.lower() or "order" in x.lower() for x in lines)
