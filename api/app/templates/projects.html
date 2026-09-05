@@ -23,6 +23,77 @@
   {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ Project</a>{% endif %}
 </div>
 
+{% if suggestion %}
+{# One project, suggested. A list of twenty in hand is a list nobody picks from --
+   every one of them is a decision, and the decision is what stops the evening
+   before it starts. So the page picks one, and it picks badly on purpose: the draw
+   is weighted towards the ones nothing has been written about for longest, and
+   towards the ones whose status says stalled, because the point of a nudge is the
+   thing you had forgotten rather than the one you were doing yesterday.
+
+   Drawn on every visit, so looking again gets another. The photographs are the
+   items', a project having none of its own: it is a piece of work, and what can be
+   photographed is the hardware it is about.
+
+   A visitor sees the same suggestion, drawn from the public ones only -- which is
+   the same rule the list below follows. #}
+{% call PN.panel('Something to do today') %}
+  <div class="today">
+    {% if suggestion.photos %}
+    <div class="todayshots">
+      {% for shot in suggestion.photos %}
+      <a class="cardthumb" href="{{ shot.url }}">
+        <img src="{{ img_url(shot.rel, THUMB_CARD) }}"
+             srcset="{{ img_srcset(shot.rel, [300, 500]) }}" sizes="130px"
+             alt="{{ shot.alt }}" loading="lazy">
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+    <div class="todaytext">
+      <h3><a href="/projects/{{ suggestion.p.asset_id }}">{{ suggestion.p.name or suggestion.p.asset_id }}</a></h3>
+      <p class="todaymeta">
+        <span class="chip st-{{ suggestion.p.status }}">{{ status_label(suggestion.p.status) }}</span>
+        <span class="muted">{{ suggestion.p.asset_id }}</span>
+        {% if suggestion.p.private %}<span class="chip">private</span>{% endif %}
+        {# A dot between the tag and the sentence after it. Without one they read as
+           a single string -- "RH-PQS0 nothing written for 37 days" -- which is a
+           thing the tag appears to be saying rather than two facts side by side. #}
+        {# How long it has been ignored, said plainly, because it is the reason this
+           one was drawn and not another. #}
+        {% if suggestion.quiet_days is not none %}
+        <span class="muted" aria-hidden="true">·</span>
+        <span class="muted">{% if suggestion.quiet_days < 1 %}written about today
+          {% elif suggestion.quiet_days == 1 %}nothing written for a day
+          {% else %}nothing written for {{ suggestion.quiet_days }} days{% endif %}</span>
+        {% endif %}
+      </p>
+      {% if suggestion.p.summary %}<p class="hint">{{ suggestion.p.summary | linked }}</p>{% endif %}
+      {% if suggestion.members %}
+      <p class="todaymeta">{% for m in suggestion.members %}<a class="chip"
+         href="{{ m.url }}">{{ m.name }}</a>
+      {% endfor %}</p>
+      {% endif %}
+      {% if suggestion.tasks %}
+      {# What is actually left, rather than a count of it: "recap the PSU" is a thing
+         somebody can decide to do this evening, and "3 tasks" is not. #}
+      <ul class="todaytasks">
+        {% for t in suggestion.tasks %}<li>{{ t.text }}</li>{% endfor %}
+        {% if suggestion.tasks_left > suggestion.tasks | length %}
+        <li class="muted">and {{ suggestion.tasks_left - (suggestion.tasks | length) }} more</li>
+        {% endif %}
+      </ul>
+      {% elif suggestion.orders_out %}
+      <p class="hint">Nothing to do on it yet — {{ suggestion.orders_out }}
+        {{ 'thing' if suggestion.orders_out == 1 else 'things' }} still on order.</p>
+      {% else %}
+      <p class="hint">No jobs written down on it yet.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endcall %}
+{% endif %}
+
 {% if request.state.authed %}
 {# The quick way in, and the ordinary one. You are at the bench, you have just seen
    what is wrong with something, and finding its page to write it down is how the
