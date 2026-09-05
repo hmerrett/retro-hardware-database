@@ -467,7 +467,16 @@ IMAGES_DIR = Path(os.getenv("RHDB_IMAGES_DIR", "/app/images"))
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 # Pillow's format names for those extensions, so an upload can be checked for what
 # it actually is rather than only for what it is named.
-IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "GIF"}
+#
+# MPO is on the list because a phone camera puts one out and calls it .jpg. A
+# Multi-Picture Object is a JPEG with a second image appended -- what a portrait or
+# HDR shot writes -- and every viewer, this site included, shows the first frame and
+# ignores the rest. Pillow reports the format as MPO, so a photograph uploaded
+# straight off a phone was refused as "unsupported image type: MPO", which is the
+# one source most photographs here come from. Nothing else changes: it is stored as
+# it arrived, and the edit path re-encodes a rotated or cropped copy as an ordinary
+# single-frame JPEG, which is what one image is.
+IMAGE_FORMATS = {"JPEG", "MPO", "PNG", "WEBP", "GIF"}
 
 # The three folders photographs live in, and why the third is not one of the first
 # two. A folder under here is read by filename: everything in computers/ whose stem
