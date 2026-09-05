@@ -49,6 +49,18 @@ class TestWhatIsOffered:
         computer(source="  eBay  ")
         assert sources(db) == ["eBay"]
 
+    def test_the_minority_spelling_does_not_win_by_being_stored_first(
+            self, client, db, computer):
+        """The one the database would have picked. MariaDB's collation folds case
+        and ignores trailing spaces, so GROUP BY had already merged these three
+        before we saw them and handed back whichever row it read first as the
+        label -- which made "the spelling used most" a fact about the storage
+        engine. Written first here, and outnumbered, so it must lose."""
+        computer(source="EBAY")
+        for _ in range(3):
+            computer(source="eBay")
+        assert sources(db) == ["eBay"]
+
     def test_nothing_is_offered_for_a_field_left_blank(self, client, db, computer):
         computer(source="")
         assert sources(db) == []
