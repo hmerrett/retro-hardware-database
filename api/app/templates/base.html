@@ -517,6 +517,28 @@
   .addbar input, .addbar select { flex: 1; min-width: 160px; padding: 6px 8px;
     border: 1px solid var(--line); border-radius: 6px; background: transparent;
     color: inherit; font: inherit; }
+  /* The suggestion at the top of the projects page: photographs on the left, what
+     the project is and what is left to do on the right. It wraps to one column on a
+     phone rather than squeezing both, because a 92px thumbnail beside a wrapped
+     line of chips is neither a picture nor a sentence. */
+  .today { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+  .todayshots { display: flex; gap: 6px; flex: none; }
+  /* Bigger than the ones in a list of parts: this is one project being shown off
+     rather than a column to be scanned down. */
+  .todayshots .cardthumb { width: 130px; }
+  .todaytext { flex: 1 1 260px; min-width: 0; }
+  .todaytext > h3 { margin: 0 0 6px; font-size: 17px; }
+  .todaymeta { margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 5px 8px;
+    align-items: center; font-size: 13px; }
+  /* The jobs, as jobs. Marked with a hollow box rather than a bullet, the same
+     shape a task wears on a project's own page, so the list reads as things to be
+     ticked rather than as prose. */
+  .todaytasks { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; }
+  .todaytasks li { padding-left: 20px; position: relative; margin: 3px 0; }
+  .todaytasks li::before { content: "○"; position: absolute; left: 2px;
+    color: var(--muted); }
+  .todaytasks li.muted::before { content: ""; }
+  @media (max-width: 520px) { .todayshots .cardthumb { width: 104px; } }
   /* The work box notes several jobs at once -- faults arrive as a list, not as a
      sentence -- so it is a textarea, and it takes the whole row rather than being
      squeezed to a sixth of one beside the menu and the button. */
