@@ -137,5 +137,7 @@ and applies the migrations on start.
 
 Thank you to Jonathan (@theretroloft) for advice, guidance and contributions. 
 
+If it is not already obvious, much of this code is written using modern tools such as Claude. While the usual disclaimers apply, it is reviewed by humans and in use on multiple deployments on the public Internet. 
+
 The label display font is Audiowide (SIL Open Font License; see
 `tools/assets/fonts/OFL.txt`).
