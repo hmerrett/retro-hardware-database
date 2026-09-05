@@ -561,10 +561,13 @@ class Project(Base):
     # property of the project rather than of the whole section, and a project can be
     # published later by clearing it.
     #
-    # False by default, because a project written out in full on the form is the
-    # deliberate kind. The quick box on the projects page sets it true: a line
-    # typed at the bench in five seconds has not been considered for publication,
-    # and the safe default for something unconsidered is private.
+    # False by default, everywhere. The quick box used to set it true on the
+    # argument that a line typed at a bench in five seconds has not been considered
+    # for publication -- but the register is a public catalogue, what is wrong with
+    # a machine is a good part of what is interesting about it, and that default was
+    # undone by hand on nearly every project. So keeping one back is a decision now
+    # rather than a starting point (ADR-0004); everything below is unchanged, and
+    # is what a project that is meant to be unreadable still gets.
     #
     # This replaces the `project` / `project_note` pair that computers and parts
     # carried, which said the same thing about an item rather than about the work

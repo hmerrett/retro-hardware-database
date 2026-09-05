@@ -1,6 +1,7 @@
 # 0003 — Work is noted at check-in
 
-**Status:** Accepted
+**Status:** Accepted — privacy default amended by
+[ADR-0004](0004-work-projects-are-public.md)
 **Date:** 2026-09-05
 
 ## Context
@@ -26,13 +27,14 @@ one job to a line, and a picker of the projects still in hand.
 
 - Empty makes nothing. Most things arrive with nothing wrong, and a project per
   arrival would turn `/projects` into a second copy of the register.
-- Text with no project picked raises a **private, planned** project called
+- Text with no project picked raises a **planned** project called
   **`Work required by item: <what the item is called>`**, with the item on it and
   each line a job. (It named the item's *tag* at first; migration 0033 renamed
   those and the code follows. A tag is a line you have to look up before it means
   anything, and a list of them is a list of lookups.)
-  Private for the reason the quick box's projects are: a sentence typed while
-  unpacking has not been considered for publication.
+  It was private, for the reason the quick box's projects were; ADR-0004 reversed
+  that and they are public, with the tick on a project's own form for the one that
+  should not be read.
 - A picked project takes the item and the jobs instead, so nothing is retyped.
 - The same two fields (`work_needed`, `work_project`) are on the create endpoints
   of the JSON API and on the MCP `create_computer` / `create_part` tools, because

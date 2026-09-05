@@ -29,9 +29,9 @@
    second thing you noticed gets lost -- so this is a tag, a name and a job, and the
    only one of the three it insists on is the job.
 
-   What it makes is private, always. A line typed in five seconds has not been
-   considered for publication; the edit form is where a project is deliberately
-   published. #}
+   What it makes is public, like everything else here. The tick on a project's own
+   form is what keeps one back, and it is a decision rather than a starting point
+   (ADR-0004). #}
 {% call PN.panel('Note something down') %}
   <form method="post" action="/projects/quick" class="addbar quickbar">
     <input name="aid" list="dl_assets" placeholder="asset tag — optional"
@@ -47,7 +47,8 @@
   <datalist id="dl_assets">
     {% for aid, kind, name in register %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}
   </datalist>
-  <p class="hint">Starts private and named after the item if you do not name it.
+  <p class="hint">Named after the item if you do not name it, and readable by
+    anybody — tick <em>private</em> on its own form for one that should not be.
     A project need own nothing, so the tag is optional — but at a bench it is
     usually both: this drive, this fault.</p>
 {% endcall %}

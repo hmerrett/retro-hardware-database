@@ -25,6 +25,20 @@ def quick(client, job="needs a belt", **extra):
     return r.headers["location"].rsplit("/", 1)[-1]
 
 
+def hidden(client, job="a private job", name="Hidden", aid=None):
+    """A private project. Nothing here is private by default any more (ADR-0004),
+    so the tests below that are about privacy make one on purpose -- which is what
+    an owner does, and the only way one comes to be private now.
+
+    Through the API rather than by writing the column, so it goes down the same path
+    the tick on the form does and the histories of its items are brought into line
+    with it."""
+    pid = quick(client, job, name=name, **({"aid": aid} if aid else {}))
+    r = client.patch(f"/api/projects/{pid}", json={"private": True})
+    assert r.status_code == 200, r.text
+    return pid
+
+
 def visitor(monkeypatch):
     """Nobody logged in. The fixtures run with the login switched off, so the gate
     lets everything through until a test says otherwise."""
@@ -88,15 +102,22 @@ class TestNotingSomethingDown:
         html = client.get(f"/projects/{aid}").text
         assert "took on" in html and "to do: needs a belt" in html
 
-    def test_the_items_history_stays_quiet_while_it_is_private(self, client, part):
+    def test_the_items_history_says_what_it_is_wanted_for(self, client, part):
+        """A project made this way is public now, and an item's history names a
+        project exactly while that project is public -- so the line goes in at the
+        moment the project takes the item on."""
+        pt = part(model="Widget")["asset_id"]
+        quick(client, "needs a belt", aid=pt, name="Openzzz")
+        assert "wanted for Openzzz" in client.get(f"/parts/{pt}").text
+
+    def test_a_private_one_leaves_it_quiet(self, client, part):
         """An item page is public and so is its history, and the history is the part
         of the register nothing rewrites. A line naming a private project there
         would publish the name, and publish it for good."""
         pt = part(model="Widget")["asset_id"]
-        quick(client, "needs a belt", aid=pt, name="Hiddenzzz")
+        hidden(client, "needs a belt", name="Hiddenzzz", aid=pt)
         page = client.get(f"/parts/{pt}").text
-        assert "wanted for" not in page and "Hiddenzzz" not in page.split(
-            "History")[-1]
+        assert "Hiddenzzz" not in page.split("History")[-1]
 
     def test_the_box_is_on_the_page_for_whoever_is_logged_in(self, client):
         assert "/projects/quick" in client.get("/projects").text
@@ -107,22 +128,26 @@ class TestNotingSomethingDown:
 
 
 class TestItIsPrivate:
-    """Five doors, and the feature is only private with all five shut."""
+    """Five doors, and a project is only private with all five shut.
 
-    def test_what_the_quick_box_makes_starts_private(self, client, db):
-        """A line typed in five seconds has not been considered for publication,
-        and the safe default for something unconsidered is that nobody reads it."""
-        assert db.get(Project, quick(client, "a job")).private is True
+    What has changed is how one comes to be private: by the tick on its own form,
+    and not by having been typed quickly (ADR-0004). The doors themselves are what
+    they were, and are what these test."""
 
-    def test_what_the_form_makes_does_not(self, client, db):
-        """The deliberate kind. Filling in a form is the considering."""
+    def test_what_the_quick_box_makes_is_public(self, client, db):
+        """The register is a public catalogue of old machines, and what is wrong
+        with one is a good part of what is interesting about it. A default that hid
+        the work was undone by hand on nearly every project."""
+        assert db.get(Project, quick(client, "a job")).private is False
+
+    def test_what_the_form_makes_is_too(self, client, db):
         r = client.post("/projects/new", data={"name": "Recap the +2A"},
                         follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
         assert db.get(Project, aid).private is False
 
     def test_a_visitor_does_not_see_it_on_the_list(self, client, monkeypatch):
-        quick(client, "a private job", name="Hidden")
+        hidden(client)
         client.post("/projects/new", data={"name": "Shown"},
                     follow_redirects=False)
         visitor(monkeypatch)
@@ -132,7 +157,7 @@ class TestItIsPrivate:
     def test_its_own_page_answers_a_visitor_with_a_404(self, client, monkeypatch):
         """Not a 403 and not the login: somebody who guessed the tag should not be
         told there is something there to guess at."""
-        aid = quick(client, "a private job")
+        aid = hidden(client)
         visitor(monkeypatch)
         assert client.get(f"/projects/{aid}").status_code == 404
 
@@ -144,7 +169,7 @@ class TestItIsPrivate:
         assert client.get(f"/projects/{aid}").status_code == 200
 
     def test_a_visitors_search_does_not_match_it(self, client, monkeypatch):
-        quick(client, "recapzzz", name="Hiddenzzz")
+        hidden(client, "recapzzz", name="Hiddenzzz")
         visitor(monkeypatch)
         # The project's name, not the query: the search box echoes the query back
         # into its own value, so looking for that would find it every time.
@@ -152,14 +177,14 @@ class TestItIsPrivate:
         assert client.get("/suggest?q=recapzzz").json()["total"] == 0
 
     def test_the_same_search_finds_it_for_whoever_is_logged_in(self, client):
-        quick(client, "recapzzz")
+        hidden(client, "recapzzz")
         assert client.get("/suggest?q=recapzzz").json()["total"] == 1
 
     def test_the_gallery_does_not_count_it_for_a_visitor(self, client, monkeypatch):
         """The line above the gallery results says how many projects also matched.
         Counting a private one would say there is something there without showing
         it, which is the same leak said as a number."""
-        quick(client, "recapzzz", name="Hiddenzzz")
+        hidden(client, "recapzzz", name="Hiddenzzz")
         visitor(monkeypatch)
         note = client.get("/?q=recapzzz").text
         assert "/projects?q=recapzzz" not in note
@@ -168,13 +193,13 @@ class TestItIsPrivate:
     def test_it_is_not_in_the_sitemap(self, client):
         """The one of the five read by machines rather than people, where a tag is
         an invitation."""
-        hidden = quick(client, "a private job")
+        kept_back = hidden(client)
         shown = client.post("/projects/new", data={"name": "Shown"},
                             follow_redirects=False
                             ).headers["location"].rsplit("/", 1)[-1]
         xml = client.get("/sitemap.xml").text
         assert f"/projects/{shown}</loc>" in xml
-        assert hidden not in xml
+        assert kept_back not in xml
 
     def test_it_is_not_named_on_the_page_of_the_machine_it_is_about(
             self, client, part, monkeypatch):
@@ -183,7 +208,7 @@ class TestItIsPrivate:
         machine it is about -- the whole of what was being kept back, said in the one
         place nobody thought to look."""
         pt = part(model="Widget")["asset_id"]
-        quick(client, "needs a belt", aid=pt, name="Hidden")
+        hidden(client, "needs a belt", aid=pt)
         assert "Hidden" in client.get(f"/parts/{pt}").text
         visitor(monkeypatch)
         # Nowhere on the page: not the panel, and not the history either.
@@ -193,7 +218,7 @@ class TestItIsPrivate:
                                                         monkeypatch):
         """Clearing the tick is the act of publishing, and it has to reach all five
         doors -- otherwise it half-publishes, which is worse than either."""
-        aid = quick(client, "a job", name="Hidden")
+        aid = hidden(client, "a job")
         client.post(f"/projects/{aid}/edit", data={"name": "Hidden"},
                     follow_redirects=False)
         assert db.get(Project, aid).private is False
@@ -208,7 +233,7 @@ class TestPublishingAndWithdrawing:
 
     def test_publishing_writes_the_line_that_was_held_back(self, client, part):
         pt = part(model="Widget")["asset_id"]
-        aid = quick(client, "needs a belt", aid=pt, name="Nowpublic")
+        aid = hidden(client, "needs a belt", aid=pt, name="Nowpublic")
         assert "wanted for" not in client.get(f"/parts/{pt}").text
         client.post(f"/projects/{aid}/edit", data={"name": "Nowpublic"},
                     follow_redirects=False)
@@ -271,7 +296,7 @@ class TestTheMigrationDidNotAnnounceThem:
     def test_no_public_history_names_a_private_project(self, client, db, part):
         from app.models import LogEntry
         pt = part(model="Widget")["asset_id"]
-        aid = quick(client, "a job", aid=pt, name="Hiddenzzz")
+        aid = hidden(client, "a job", aid=pt, name="Hiddenzzz")
         written = " ".join(
             m for (m,) in db.query(LogEntry.message).filter(LogEntry.asset_id == pt))
         assert aid not in written and "Hiddenzzz" not in written
@@ -281,7 +306,7 @@ class TestTheMigrationDidNotAnnounceThem:
         """The tag alone is a disclosure: it says there is something there, and it
         is the one thing needed to try the door."""
         pt = part(model="Widget")["asset_id"]
-        aid = quick(client, "a job", aid=pt, name="Hiddenzzz")
+        aid = hidden(client, "a job", aid=pt, name="Hiddenzzz")
         visitor(monkeypatch)
         assert aid not in client.get(f"/parts/{pt}").text
 
@@ -406,10 +431,12 @@ class TestNotingWorkWhileCheckingIn:
         second = project_of(db, new_computer(client, work_needed="recap"))
         assert first.name == second.name and first.asset_id != second.asset_id
 
-    def test_it_starts_private(self, client, db):
-        """The same rule the quick box follows, for the same reason: a fault typed
-        in while unpacking has not been considered for publication."""
-        assert project_of(db, new_computer(client, work_needed="recap")).private
+    def test_it_is_public(self, client, db):
+        """The same rule the quick box follows, and the register is a public
+        catalogue: what a machine needs doing is a fact about it worth reading, and
+        the tick on the project's own form is there for the one that is not."""
+        assert project_of(db, new_computer(client, work_needed="recap")).private \
+            is False
 
     def test_it_starts_planned(self, client, db):
         """Nothing has been done to it yet -- it has only just come through the
