@@ -6441,6 +6441,114 @@ def _projects_matching(db, rows, query, authed=False):
             if all(t in _haystack(db, r["p"], history, authed) for t in terms)]
 
 
+# How many photographs the suggestion at the top of the projects page carries, and
+# how many of the project's jobs it lists. Enough to say what the thing is and what
+# is left to do on it; more would be the project's own page, drawn twice.
+TODAY_PHOTOS = 3
+TODAY_TASKS = 3
+
+# The longest a silence counts for in the draw. A project nobody has touched for
+# three years is not thirty times more overdue than one left a month ago -- past
+# some point it is simply "not for a while", and without a ceiling the oldest
+# project would win every draw and the feature would be a fixture.
+TODAY_QUIET_CAP = 180
+
+# What being stalled is worth, as against merely being quiet. Stalled is the state
+# somebody chose to record: it says out loud that this one is waiting on a part, the
+# weather or the will, and those are exactly the ones that never come up again on
+# their own.
+TODAY_STALLED_WEIGHT = 2
+
+
+def _project_of_the_day(db, authed):
+    """One project to suggest, drawn now, or None if there is nothing in hand.
+
+    Weighted towards the neglected, because the point of a nudge is the thing you
+    had forgotten and not the one you were doing yesterday. A project's weight is
+    how long its history has been quiet, capped, doubled if its status says stalled;
+    a project touched today weighs one, which keeps it in the draw rather than
+    excluding it -- what was worked on this morning is still a reasonable answer to
+    what to do this afternoon.
+
+    Drawn on every visit rather than once a day. It is a suggestion and not a queue:
+    looking again for another one is a thing somebody will want to do, and the
+    weighting means the same project coming up twice running is unlikely rather than
+    impossible.
+
+    A visitor is offered only the public ones, for the reason the list below them
+    is filtered (see _visible)."""
+    q = _visible(db.query(Project).filter(Project.status.notin_(projects.CLOSED)),
+                 authed)
+    pool = q.all()
+    if not pool:
+        return None
+    # The last thing written about each of them, in one query: a project's history
+    # is what says when it was last thought about at all.
+    last = dict(db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
+                .filter(LogEntry.asset_id.in_([p.asset_id for p in pool]))
+                .group_by(LogEntry.asset_id))
+    now = _now()
+    weights = []
+    for p in pool:
+        seen = last.get(p.asset_id)
+        quiet = (now - seen).days if seen else TODAY_QUIET_CAP
+        weight = min(max(quiet, 0), TODAY_QUIET_CAP) + 1
+        if p.status == "stalled":
+            weight *= TODAY_STALLED_WEIGHT
+        weights.append(weight)
+    return random.choices(pool, weights=weights, k=1)[0]
+
+
+def _today_panel(db, project):
+    """What the suggestion shows: the project, a photograph or three of the things
+    it is about, the jobs still to do, and how long it has been quiet.
+
+    The photographs are the items', because a project has none of its own -- it is a
+    piece of work, and what can be photographed is the hardware it is about. One
+    each from as many items as there are, then more from the first, so a project
+    about three machines shows the three rather than three views of one."""
+    if project is None:
+        return None
+    members = projects.members(db, project.asset_id)
+    shots, seen = [], set()
+    for wanted in (1, TODAY_PHOTOS):
+        for kind, obj, _row in members:
+            for rel in detect_images(kind, obj.asset_id)[:wanted]:
+                if rel in seen:
+                    continue
+                seen.add(rel)
+                # Each picture is a way through to the thing it is of, not to the
+                # project: somebody looking at a photograph of a drive wants the
+                # drive's page, and the project's name above it is already a link.
+                shots.append({"rel": rel, "url": f"/{kind}/{obj.asset_id}",
+                              "alt": entry.display_name(to_dict(obj))})
+                if len(shots) == TODAY_PHOTOS:
+                    break
+            if len(shots) == TODAY_PHOTOS:
+                break
+        if len(shots) == TODAY_PHOTOS:
+            break
+    tasks = [t for t in projects.tasks(db, project.asset_id) if not t.done]
+    orders_out = sum(1 for o in projects.orders(db, project.asset_id)
+                     if not o.delivered)
+    last = (db.query(func.max(LogEntry.created_at))
+            .filter(LogEntry.asset_id == project.asset_id).scalar())
+    return {
+        "p": project,
+        "members": [{"url": f"/{kind}/{obj.asset_id}",
+                     "name": entry.display_name(to_dict(obj))}
+                    for kind, obj, _row in members],
+        "photos": shots,
+        "tasks": tasks[:TODAY_TASKS], "tasks_left": len(tasks),
+        "orders_out": orders_out,
+        # Whole days, and None for a project nothing has ever been written about --
+        # which cannot happen through the app (creating one writes a line) but can
+        # through a restore, and "quiet for 20361 days" would be a strange thing for
+        # a page to say about it.
+        "quiet_days": (_now() - last).days if last else None,
+    }
+
+
 def _projects_page(request, db, q="", error="", status=200):
     """The page, drawn.
 
@@ -6464,8 +6572,14 @@ def _projects_page(request, db, q="", error="", status=200):
     if q.strip():
         rows = _projects_matching(db, rows, q, request.state.authed)
     live = [r for r in rows if r["p"].status not in projects.CLOSED]
+    # Not while the page is a set of search results, and not while it is telling
+    # somebody their asset tag was wrong: both of those are the page answering a
+    # question that was asked, and a suggestion above the answer is an interruption.
+    suggestion = (None if (q.strip() or error) else
+                  _today_panel(db, _project_of_the_day(db, request.state.authed)))
     return templates.TemplateResponse(request, "projects.html", {
         "rows": rows, "live": len(live), "q": q, "searched": bool(q.strip()),
+        "suggestion": suggestion,
         "total": total, "error": error,
         "register": _register_order(db) if request.state.authed else [],
         "og": _og(request, "Projects", "Repairs, builds and things on order — "

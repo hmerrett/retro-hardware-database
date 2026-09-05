@@ -421,6 +421,12 @@ class TestTheList:
         assert "No projects yet" in client.get("/projects").text
 
 
+def table_row(html, name):
+    """One project's row out of the list, by the name in it."""
+    table = html.split('<table class="projtable">')[1]
+    return table.split(name)[1].split("</tr>")[0]
+
+
 class TestTheListOnAPhone:
     """Five columns across a 390px screen gave the name a fifth of it, and three of
     the four columns taking that width were usually saying nothing. The rows stack
@@ -433,7 +439,10 @@ class TestTheListOnAPhone:
         columns of nothing across the narrowest screen."""
         make(client, "Bare")
         html = client.get("/projects").text
-        row = html.split("Bare")[1].split("</tr>")[0]
+        # From the table, not the page: the suggestion above it names a project too
+        # (see the "Something to do today" panel), and the first "Bare" on the page
+        # is as likely to be that one.
+        row = table_row(html, "Bare")
         # Nothing at all between the tags, not even a space: a whitespace text node
         # is a child, and a cell with a child is not :empty.
         for label in ("items", "tasks", "on order"):
@@ -444,7 +453,7 @@ class TestTheListOnAPhone:
         aid = make(client, "Busy")
         client.post(f"/projects/{aid}/task", data={"text": "a job"},
                     follow_redirects=False)
-        row = client.get("/projects").text.split("Busy")[1].split("</tr>")[0]
+        row = table_row(client.get("/projects").text, "Busy")
         assert 'data-label="tasks">0/1</td>' in row
 
     def test_the_columns_are_labelled_for_the_stacked_view(self, client):
