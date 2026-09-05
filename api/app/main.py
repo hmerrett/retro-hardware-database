@@ -6492,11 +6492,9 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
     it and the sentence as its first job -- rather than a flag that has to be
     turned into one by hand later.
 
-    Private, always. A line typed in five seconds has not been considered for
-    publication, and the safe default for something unconsidered is that nobody
-    else reads it; the edit form is where a project is deliberately published. That
-    is also what keeps this a fair replacement for the flag, which was private in
-    the same way and for the same reason.
+    Public, like everything else in the register: the tick on a project's own form
+    is what keeps one back, and it is a decision rather than a starting point (see
+    _take_on_work, which this goes through, and ADR-0004).
 
     The asset tag is optional. A project need own nothing -- the idea comes before
     the hardware -- and the commonest thing to want at a bench is both: this drive,
@@ -6827,8 +6825,16 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
 
     The one path everything that notes work runs down -- the quick box, both entry
     forms, both edit forms and the API -- so the item lands on the project, the
-    history is written from both ends and the privacy rule is kept the same way
-    wherever the sentence was typed.
+    history is written from both ends and the same rules apply wherever the sentence
+    was typed.
+
+    Public, like everything else in the register. These started private, on the
+    argument that a line typed at a bench in five seconds has not been considered
+    for publication. In practice the register is a public catalogue of old machines,
+    what is wrong with one is a good part of what is interesting about it, and a
+    default that hides the work meant undoing it by hand on nearly every project.
+    The tick on a project's own form still keeps one back; it is a decision now
+    rather than a starting point (ADR-0004).
 
     Commits nothing. Every caller is in the middle of saving something else and owns
     the transaction; a commit here would be a half-saved machine with a project
@@ -6836,7 +6842,7 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
     if project is None:
         project = Project(asset_id=next_asset_id(db),
                           name=(name or _work_project_name(db, asset_id))[:255],
-                          status="planned", private=True)
+                          status="planned", private=False)
         db.add(project)
         add_log(db, project.asset_id, "created", "created")
     if asset_id and projects.add_asset(db, project.asset_id, asset_id):
