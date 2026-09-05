@@ -3743,11 +3743,18 @@ class TestStartingFromAnExistingPart:
         assert "Started from" in page and src["asset_id"] in page
 
     def test_nothing_of_the_original_object_is_offered(self, client, part):
+        """The boxes, specifically, and not the whole page. `source` carries a pick
+        list of everywhere the collection has ever got anything from, and "eBay" is
+        on it -- being offered the answer is the opposite of being given it, which
+        is the distinction this test is about."""
+        import re
         src = part(manufacturer="Tseng", model="ET4000", source="eBay",
                    acquired_date="2026-01-05", notes="a bit bent")
         page = client.get(f"/parts/new?from={src['asset_id']}").text
-        assert 'value="eBay"' not in page
-        assert "2026-01-05" not in page
+        for field in ("source", "acquired_date"):
+            box = re.search(rf'<input[^>]*\bname="{field}"[^>]*>', page, re.S)
+            assert box, field
+            assert re.search(r'value="[^"]+"', box.group(0)) is None, box.group(0)
         assert "a bit bent" not in page
 
     def test_opening_the_prefilled_form_changes_nothing(self, client, part):

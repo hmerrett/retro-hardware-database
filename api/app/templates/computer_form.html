@@ -7,25 +7,35 @@
 <h2>{{ title }}</h2>
 <form class="edit" method="post" enctype="multipart/form-data"
       action="{{ ('/computers/' + c.asset_id + '/edit') if c else '/computers/new' }}">
-  {% macro fld(key, label, hint='', type='text') %}
+  {# `dl` names a pick list of what has already been answered to this box (see
+     main._answers_given). autocomplete="off" is for the browser's own memory of
+     what you have typed into a box called `source` on any site, which would
+     otherwise be offered instead of the list -- these are answers from the
+     register, and they are the ones worth having. #}
+  {% macro fld(key, label, hint='', type='text', dl='') %}
     <label for="{{ key }}">{{ label }}</label>
-    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (c[key] if c else '') or '' }}">
+    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (c[key] if c else '') or '' }}"
+           {%- if dl and dl in DL %} list="dl_{{ dl }}" autocomplete="off"{% endif %}>
     {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
   {% endmacro %}
+  {% set DL = dl | default({}) %}
+  {% for name, values in DL.items() %}
+  <datalist id="dl_{{ name }}">{% for v in values %}<option value="{{ v }}">{% endfor %}</datalist>
+  {% endfor %}
   {# First, because picking a model fills in half of what follows and puts the right
      variations on screen for the rest. #}
   {{ M.picker(machine_groups, machine_saved, machine_catalogue) }}
   {{ fld('name', 'Name', "display name; overrides manufacturer + model") }}
-  {{ fld('manufacturer', 'Manufacturer', "or 'Custom build'") }}
-  {{ fld('model', 'Model') }}
+  {{ fld('manufacturer', 'Manufacturer', "or 'Custom build'", dl='makes') }}
+  {{ fld('model', 'Model', dl='models') }}
   {{ fld('year', 'Year', type='number') }}
   {# With the identity rather than with the provenance below, because it is read off
      the back of the machine in the same sitting as the model is -- and because it
      answers "which of the two A5000s is this?", which is an identity question. #}
   {{ fld('serial', 'Serial number', "as stamped on this machine — not a fact about the model") }}
-  {{ fld('chassis', 'Chassis / case', "desktop, tower, mini-tower, breadbin…") }}
-  {{ fld('os', 'Operating system') }}
-  {{ fld('cpu', 'CPU', "an attribute, not a part. Maker model-MHz — e.g. Intel 486DX2-66, Intel 80286-6, or 2x Pentium III 500") }}
+  {{ fld('chassis', 'Chassis / case', "desktop, tower, mini-tower, breadbin…", dl='chassis') }}
+  {{ fld('os', 'Operating system', dl='os') }}
+  {{ fld('cpu', 'CPU', "an attribute, not a part. Maker model-MHz — e.g. Intel 486DX2-66, Intel 80286-6, or 2x Pentium III 500", dl='cpu') }}
   {# Beside the CPU, because that is mostly what decides it. Shown only while the
      machine is not a catalogue model -- TopBench is a DOS program, the catalogue
      holds nothing that runs one, and "not a catalogue model" is how this form
@@ -100,7 +110,7 @@
     {% if cur and cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
     {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
   </select>
-  {{ fld('source', 'Source', "where / how acquired") }}
+  {{ fld('source', 'Source', "where / how acquired", dl='source') }}
   {{ fld('acquired_date', 'Acquired date', type='date') }}
   {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
   <label for="summary">Summary</label>
