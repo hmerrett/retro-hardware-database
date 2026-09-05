@@ -4577,6 +4577,10 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "item": (cdict := to_dict(c)), "kind": "computers",
         "files": filesdb.for_item(db, cdict), "fileerr": bool(fileerr),
         "in_projects": projects.projects_for(db, aid, request.state.authed),
+        # For the picker in that panel, which only an owner is shown -- so a
+        # visitor's page does not ask the question at all.
+        "work_projects": (projects.open_projects(db) if request.state.authed
+                          else []),
         "c": c, "parts": [p for p in parts if p is not motherboard],
         "motherboard": motherboard, "form_factor": form_factor,
         # A picture for each of them, read once for the page rather than per card.
@@ -5773,6 +5777,10 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
         "in_projects": projects.projects_for(db, aid, request.state.authed),
+        # For the picker in that panel, which only an owner is shown -- so a
+        # visitor's page does not ask the question at all.
+        "work_projects": (projects.open_projects(db) if request.state.authed
+                          else []),
         "candidates": candidates, "computers": computers,
         "images": images, "placeholder": _part_placeholder(db, p),
         "ref_marks": reference_marks("parts", aid),
@@ -6357,9 +6365,17 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
 
     The asset tag is optional. A project need own nothing -- the idea comes before
     the hardware -- and the commonest thing to want at a bench is both: this drive,
-    this fault."""
+    this fault.
+
+    `project` names one already going for the item and the jobs to go on instead of
+    raising another. The panel on an item's page offers it as a menu; the box on the
+    projects page does not, because a list of projects is not where you are standing
+    when you find out a part is for one of them.
+
+    One route for both boxes and for the entry forms, so what gets made does not
+    depend on which of them was to hand."""
     form = await request.form()
-    job = (form.get("job") or "").strip()
+    jobs = _work_lines(form.get("job"))
     asset_id = (form.get("aid") or "").strip().upper()
     name = (form.get("name") or "").strip()
     found = _asset_find(db, asset_id, FLAGGABLE) if asset_id else None
@@ -6368,15 +6384,18 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
         # ordinary way to get this wrong and the answer to it is the box to type it
         # in again, which is on the page that was already open.
         return _projects_page(request, db, error=asset_id, status=400)
+    picked = (form.get("project") or "").strip().upper()
+    project = db.get(Project, picked) if picked else None
     if not name:
-        # Named after what it is about, where you did not say. A project called
-        # "Chinon FZ-357A" is at least findable; one called nothing is not.
-        name = (entry.display_name(to_dict(found[0])) if found
-                else job[:60] or "Untitled project")
-    # The same one path the entry forms note work down; what differs here is only
-    # the name, because this box has one and they have not.
-    obj = _take_on_work(db, asset_id if found is not None else "",
-                        [job] if job else [], name=name)
+        # Named after what it is about, where you did not say -- the same name the
+        # entry forms give one, because this is the same gesture and a project
+        # should not be called two different things depending on which box raised
+        # it. Where there is no item, the job names it: a project called nothing is
+        # a row nobody will recognise again.
+        name = (_work_project_name(asset_id) if found
+                else (jobs[0][:60] if jobs else "") or "Untitled project")
+    obj = _take_on_work(db, asset_id if found is not None else "", jobs,
+                        project, name=name)
     db.commit()
     return RedirectResponse(f"/projects/{obj.asset_id}", status_code=303)
 

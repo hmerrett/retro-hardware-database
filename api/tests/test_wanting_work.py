@@ -50,11 +50,14 @@ class TestNotingSomethingDown:
 
     def test_it_is_named_after_the_item_when_you_do_not_name_it(self, client, db,
                                                                 part):
-        """A project called "Chinon FZ-357A" is at least findable. One called
-        nothing is not."""
+        """One name for the gesture, whichever box it was typed in. This box has a
+        name field and the entry forms have not, so it used to name a project after
+        the item ("Chinon FZ-357A") where they name it after the tag -- which meant
+        the same sentence about the same drive made two differently-named projects
+        depending on where you happened to be standing."""
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
-        assert db.get(Project, quick(client, "needs a belt",
-                                     aid=pt)).name == "Chinon FZ-357A"
+        assert db.get(Project, quick(client, "needs a belt", aid=pt)).name == \
+            f"Work required by item: {pt}"
 
     def test_a_name_you_give_it_wins(self, client, db, part):
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
@@ -282,6 +285,53 @@ class TestTheMigrationDidNotAnnounceThem:
         aid = quick(client, "a job", aid=pt, name="Hiddenzzz")
         visitor(monkeypatch)
         assert aid not in client.get(f"/parts/{pt}").text
+
+
+class TestTheBoxOnAnItemsOwnPage:
+    """The panel on a computer's or a part's page. The same route the projects page
+    posts to, and now the same two questions the entry forms ask: what needs doing,
+    and whether it is a piece of work of its own."""
+
+    def note(self, client, aid, job, **extra):
+        r = client.post("/projects/quick",
+                        data={"aid": aid, "job": job, **extra},
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text
+        return r.headers["location"].rsplit("/", 1)[-1]
+
+    def test_a_line_is_a_job_here_too(self, client, db, part):
+        pt = part(model="Widget")["asset_id"]
+        pid = self.note(client, pt, "recap\nnew belt")
+        assert [t.text for t in db.query(ProjectTask)
+                .filter(ProjectTask.project_id == pid)
+                .order_by(ProjectTask.id)] == ["recap", "new belt"]
+
+    def test_the_jobs_can_go_on_a_project_already_going(self, client, db, part):
+        """The question this page is the right one to ask: you are looking at the
+        board, and whether it is spoken for is a fact about the board."""
+        pt = part(model="Widget")["asset_id"]
+        existing = client.post("/api/projects",
+                               json={"name": "A500"}).json()["asset_id"]
+        assert self.note(client, pt, "fit it", project=existing) == existing
+        assert db.query(Project).count() == 1
+
+    def test_the_picker_offers_the_projects_in_hand(self, client, part):
+        pt = part(model="Widget")["asset_id"]
+        live = client.post("/api/projects",
+                           json={"name": "Livezzz"}).json()["asset_id"]
+        done = client.post("/api/projects",
+                           json={"name": "Donezzz",
+                                 "status": "done"}).json()["asset_id"]
+        page = client.get(f"/parts/{pt}").text
+        assert live in page and done not in page
+
+    def test_a_visitor_is_not_asked(self, client, part, monkeypatch):
+        """The panel is a form, and the picker would name every open project --
+        including the private ones -- on a public page."""
+        pt = part(model="Widget")["asset_id"]
+        client.post("/api/projects", json={"name": "Privatezzz", "private": True})
+        visitor(monkeypatch)
+        assert "Privatezzz" not in client.get(f"/parts/{pt}").text
 
 
 # --- the same gesture, one step earlier ---------------------------------------

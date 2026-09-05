@@ -37,7 +37,14 @@ one job to a line, and a picker of the projects still in hand.
   gained a `projects` list of tags so a caller can reach what it just made.
 - Everything above runs through one function (`main._take_on_work`), which is what
   keeps the history, the membership and the privacy rule identical wherever the
-  sentence was typed.
+  sentence was typed. The box on an item's own page and the quick box on
+  `/projects` go through it too, and both gained the same shape: one job to a line,
+  and — on the item page, where the question belongs — the picker of projects
+  already going.
+- One name for the gesture. The quick box used to name an unnamed project after the
+  item ("Chinon FZ-357A"); it now names it after the tag like the rest, so the same
+  sentence about the same drive does not make two differently-named projects
+  depending on which box was to hand. A name typed in the box still wins.
 
 A bad project tag is treated differently on the two sides on purpose: the API
 **refuses** it (404, before anything is written), because a caller that named a

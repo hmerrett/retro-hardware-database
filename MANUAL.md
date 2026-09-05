@@ -1153,11 +1153,15 @@ drive that needs a belt, a machine that would run if it had a power supply.
 
 The box at the top of the projects page is for exactly that. It takes an **asset
 tag** (optional), a **name** (optional) and **what needs doing** (the only one it
-insists on), and makes a project with the item attached and the sentence as its
-first job. Leave the name out and it is named after the item; leave the tag out
-too and the job names it. The same box is on every computer's and part's own page,
-under **Projects**, with the tag already filled in — because standing at the thing
-having just seen what is wrong with it is when this actually gets written.
+insists on), and makes a project with the item attached and each line of it a job.
+Leave the name out and, where you gave a tag, it is called *Work required by item:
+RH-XXXX*; leave the tag out too and the first job names it.
+
+The same box is on every computer's and part's own page, under **Projects**, with
+the tag already filled in — because standing at the thing having just seen what is
+wrong with it is when this actually gets written. That one also carries the menu of
+**projects already going**, so a board you are looking at can be spoken for by the
+build it is destined for without leaving its page.
 
 There used to be two lists here: a lightweight queue of flagged items, and
 projects. They were the same idea at two sizes, and getting from one to the other
@@ -1175,7 +1179,9 @@ still in hand.
 
 - Leave the box empty and nothing happens, which is most arrivals.
 - Write something and you get a **private** project called
-  *Work required by item: RH-XXXX*, with the machine on it and each line a job.
+  *Work required by item: RH-XXXX*, with the machine on it and each line a job —
+  the same name and the same thing the box on an item's own page makes, because it
+  is the same gesture.
   Rename it on its own form if it turns into a piece of work with a character of
   its own; publish it there too.
 - Or pick a project from the menu, and the item and the jobs go on that one
