@@ -7363,6 +7363,37 @@ families:
               schools actually met
             variants: [Intel 80186]
 
+  - key: rmc
+    name: RMC
+    manufacturer: RMC
+    # No regions. A machine is filed by region when the same model was built
+    # differently for different television standards; this one is a single
+    # worldwide product that outputs whatever the core asks for.
+    regions: []
+    chips:
+      - socket: fpga
+        label: FPGA board
+        note: >-
+          the DE10-Nano that plugs into the carrier and does the actual work --
+          the one part of the machine that is not soldered to it
+        variants: [Terasic DE10-Nano]
+    models:
+      - key: mister-multisystem-2
+        model: Multisystem 2
+        summary: >-
+          An all-in-one MiSTer, built around the Terasic DE10-Nano FPGA board that
+          the project otherwise expects you to assemble yourself from a stack of
+          separate parts. RMC's carrier gives it the ports the stack never had --
+          controllers, video, storage and expansion on one board in one case. What
+          it is at any moment is whichever core is loaded, so it is catalogued here
+          as the hardware it is rather than as the machines it becomes.
+        year: 2024
+        manufacturer: RMC
+        cpu: Intel Cyclone V SoC
+        os: MiSTer
+        issues: []
+        styles: []
+
   - key: robotron
     name: Robotron
     manufacturer: Robotron
