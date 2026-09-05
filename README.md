@@ -135,5 +135,7 @@ and applies the migrations on start.
 
 ## Licence and credits
 
+Thank you to Jonathan (@theretroloft) for advice, guidance and contributions. 
+
 The label display font is Audiowide (SIL Open Font License; see
 `tools/assets/fonts/OFL.txt`).
