@@ -108,22 +108,30 @@ so "every board with a VLB slot" is a question the database can answer.
 
 ## Development
 
+The tests run the whole app against MariaDB, the engine production uses, and build
+their schema by running the real migrations, so a test run also proves the
+migrations reach head from an empty database. Point `DATABASE_URL` at a MariaDB the
+tests may build and empty (they drop its tables and migrate). A throwaway
+container is the simplest:
+
 ```sh
+docker run -d --name rhdb-test -p 3306:3306 \
+  -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=rhdb_test mariadb:11
+
 python3 -m venv .venv-test
 .venv-test/bin/pip install -r api/requirements.txt -r api/requirements-dev.txt
-.venv-test/bin/pytest
+
+DATABASE_URL=mysql+pymysql://root:test@127.0.0.1:3306/rhdb_test \
+MIGRATION_TEST_DATABASE_URL=mysql+pymysql://root:test@127.0.0.1:3306/ \
+  .venv-test/bin/pytest
 .venv-test/bin/ruff check .
 ```
 
-The tests run the whole app against a throwaway SQLite database. Both the tests
-and the linter run in CI on every push and pull request.
+Both the tests and the linter run in CI on every push and pull request, against a
+MariaDB service container.
 
-To run the app directly, without Docker:
-
-```sh
-cd api && pip install -r requirements.txt
-DATABASE_URL=sqlite:///dev.db uvicorn app.main:app --reload
-```
+To run the app itself, use the Docker Compose stack above; it brings up MariaDB
+and applies the migrations on start.
 
 ## Licence and credits
 

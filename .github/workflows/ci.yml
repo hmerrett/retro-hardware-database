@@ -10,8 +10,24 @@ permissions:
   contents: read
 
 jobs:
+  # One engine end to end: the suite runs against MariaDB (what production uses)
+  # and builds its schema by running the real migrations, so every run also proves
+  # the migrations reach head from empty and match the models. MariaDB's DDL
+  # auto-commits, so a migration that fails partway leaves a half-applied schema --
+  # exactly how a data-cleanup step once broke every fresh install.
   test:
     runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_DATABASE: retro
+          MARIADB_ROOT_PASSWORD: rootpw
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -28,4 +44,12 @@ jobs:
       - name: Lint
         run: ruff check .
       - name: Test
+        env:
+          DATABASE_URL: mysql+pymysql://root:rootpw@127.0.0.1:3306/retro
+          MIGRATION_TEST_DATABASE_URL: mysql+pymysql://root:rootpw@127.0.0.1:3306/
         run: pytest
+      # Fails the build if a pinned runtime dependency has a known vulnerability.
+      # If that ever blocks unrelated work, bump the offending pin -- or move this
+      # to a scheduled run.
+      - name: Audit dependencies
+        run: pip-audit -r api/requirements.txt

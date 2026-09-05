@@ -5,8 +5,10 @@ services:
     environment:
       MARIADB_DATABASE: ${DB_NAME:-retro}
       MARIADB_USER: ${DB_USER:-retro}
-      MARIADB_PASSWORD: ${DB_PASSWORD:-retro}
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpw}
+      # Passwords have no default: without them Compose stops with the message
+      # below rather than silently bringing the database up on a known password.
+      MARIADB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env (see .env.example)}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD in .env (see .env.example)}
     volumes:
       - dbdata:/var/lib/mysql
     healthcheck:
@@ -19,7 +21,7 @@ services:
     build: ./api
     restart: unless-stopped
     environment:
-      DATABASE_URL: mysql+pymysql://${DB_USER:-retro}:${DB_PASSWORD:-retro}@db:3306/${DB_NAME:-retro}
+      DATABASE_URL: mysql+pymysql://${DB_USER:-retro}:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:3306/${DB_NAME:-retro}
       RHDB_BASE_URL: ${RHDB_BASE_URL:-https://db.2600.me}
       RHDB_AUTH_USER: ${RHDB_AUTH_USER:-}
       RHDB_AUTH_PASSWORD: ${RHDB_AUTH_PASSWORD:-}
