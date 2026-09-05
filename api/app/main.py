@@ -16,6 +16,7 @@ import random
 import re
 import secrets
 import shutil
+import tempfile
 import time
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
@@ -2176,13 +2177,29 @@ def _write_atomically(dst: Path, write):
 
     os.replace is atomic on POSIX: a reader holds either the whole old file or the
     whole new one and never half of either, and one that opened the old file keeps
-    reading it safely after the swap. thumbs._make has done this since it was
-    written; this is the same rule for the three paths that had not learned it.
+    reading it safely after the swap. thumbs._write_atomically is the same function
+    for the copies thumbs makes, which cannot import this one.
+
+    And a temporary of its own for every writer, rather than one name they all
+    share. Two writers arrive at the same destination whenever a cached copy goes
+    stale, which is what every copy of a photograph does the moment it is cropped:
+    the reloaded page asks for the same photograph at several widths at once, and
+    each of those requests rebuilds the same watermarked file. Sharing `<name>.part`
+    meant the second writer truncated the first's file underneath it -- and once the
+    first renamed that file into place, the second went on writing into the file now
+    being served. What a reader got in that window was a fragment, and a fragment
+    decodes to a picture that is half grey. A refresh a moment later found the
+    copies settled and looked fine, which is what made it look like the browser's
+    fault. With a temporary each, os.replace is last-writer-wins with whole files,
+    and nothing ever writes into the file being read.
     """
     dst.parent.mkdir(parents=True, exist_ok=True)
     # Not a .jpeg/.png: folder_images picks photographs out of the directory by
     # extension, so a half-written one must not look like a photograph to it.
-    tmp = dst.with_name(dst.name + ".part")
+    fd, name = tempfile.mkstemp(dir=dst.parent, prefix=f"{dst.name}.",
+                                suffix=".part")
+    os.close(fd)
+    tmp = Path(name)
     try:
         write(tmp)
         os.replace(tmp, dst)
@@ -3181,13 +3198,20 @@ def img_url(rel, width=None):
     `width` asks for a copy no wider than that many pixels -- see thumbs.py. Leave
     it out for the original, which is what the lightbox wants and what everything
     wanted before there were copies to ask for.
+
+    Milliseconds, not seconds. The stamp is what makes a year-long, `immutable`
+    cache safe -- the URL of a photograph that has changed is a different URL -- and
+    in whole seconds two edits inside one second were the same URL for two different
+    pictures. Turning a photograph twice takes rather less than a second, so the
+    second turn was shown the first one's copy and kept it; a refresh was the only
+    thing that put it right, which made a stale cache look like a corrupt file.
     """
     if not rel:
         return ""
     ts = 0
     for p in (IMAGES_DIR / rel, _ref_sidecar(rel)):
         with contextlib.suppress(OSError):
-            ts = max(ts, int(p.stat().st_mtime))
+            ts = max(ts, p.stat().st_mtime_ns // 1_000_000)
     query = f"?v={ts}" if ts else ""
     if width:
         query += ("&" if query else "?") + f"w={int(width)}"
