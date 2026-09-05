@@ -1,29 +1,17 @@
 {
-	email h@2600.me
+	# Where Let's Encrypt writes about certificates. From the environment, because
+	# it is this installation's address and not a fact about the software.
+	email {$RHDB_ACME_EMAIL}
 }
 
-# The bare domain and its www, which are not sites of their own: the register is
-# what is at 2600.me, and anyone arriving at either of these is looking for it. 301
-# rather than 302, because this is not a temporary arrangement -- browsers and search
-# engines are meant to remember it and stop asking.
-#
-# {uri} rather than a bare host, so a path survives the trip: an old link to
-# 2600.me/parts/RH-0001 lands on that part rather than on the front page having
-# quietly lost where it was going.
-#
-# Both names need a certificate of their own, which needs their A records pointing
-# at this host first: the challenge is fetched over HTTP from wherever the name
-# resolves to, so until it resolves here the answer comes from somewhere else or
-# from nowhere. Caddy retries in the background, backing off as it goes, and says
-# which of the two it is in its log (a refused connection means the name still
-# points at the old host; NXDOMAIN means there is no record yet). db.2600.me below
-# is unaffected throughout -- a certificate that cannot be had for one site does not
-# disturb another, and its own is already issued and renewing.
-2600.me, www.2600.me {
-	redir https://db.2600.me{uri} permanent
-}
+# Whatever else this particular installation puts in front of the app: other names
+# it answers to, a 301 from a domain it used to live at, a staging host. Those are
+# facts about one deployment, so they live in files that are not in git -- see
+# caddy/conf.d/README.md. The glob always matches at least the empty file kept
+# beside that README, so a deployment that adds nothing still parses.
+import /etc/caddy/conf.d/*.caddy
 
-db.2600.me {
+{$RHDB_DOMAIN} {
 	# How far back the traffic report can see, in the end: GoAccess is given the
 	# rolled-over logs as well as the live one, so it reaches back exactly as far
 	# as these keep. A roll is a little under three days at present, so fifteen of

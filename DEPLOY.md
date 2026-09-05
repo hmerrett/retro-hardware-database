@@ -1,8 +1,14 @@
-# Deploying db.2600.me
+# Deploying
 
-The site runs on a single cloud box under docker-compose. The server holds a
-normal git checkout of this repo, so deploying is: get the new code onto the
-box, then rebuild the containers.
+The runbook for a server you have already installed on (see
+[INSTALL.md](INSTALL.md) for the first time). The site runs on a single box under
+docker-compose, which holds a normal git checkout of this repo, so deploying is:
+get the new code onto the box, then rebuild the containers.
+
+Everything about *your* box -- its name, its passwords, its logo, any extra names
+Caddy answers -- is in `.env`, `caddy/conf.d/` and `branding/`, none of which are in
+git. So the commands below are the same wherever it is installed, and where one
+needs your domain it takes it from `.env` (`$RHDB_DOMAIN`).
 
 ## The normal flow
 
@@ -22,7 +28,7 @@ box, then rebuild the containers.
 To get onto the box:
 
 ```sh
-ssh root@db.2600.me      # or: ssh root@<server-ip>
+ssh root@<your-server>   # the box, by name or by IP
 cd /root/retro-hardware-db-2
 ```
 
@@ -56,11 +62,13 @@ docker image prune -f            # tidy up old layers
   Then check it took, rather than trusting that it did:
   `docker compose exec caddy cat /etc/caddy/Caddyfile`.
 
-## The bare domain
+## Extra names
 
-`2600.me` and `www.2600.me` are not sites of their own: Caddy answers both with a
-301 to `https://db.2600.me{uri}`, so a path survives the trip and an old link lands
-where it was going rather than on the front page.
+Any name besides `$RHDB_DOMAIN` -- a bare domain redirecting to the www, the
+address the collection used to live at -- is a block in `caddy/conf.d/*.caddy`,
+which Caddy imports and git ignores. `caddy/conf.d/README.md` has the shape of one.
+A redirect there should carry `{uri}` so a path survives the trip and an old link
+lands where it was going rather than on the front page.
 
 Each name needs its own certificate, and getting one needs its A record pointing at
 this host: the ACME challenge is fetched over HTTP from wherever the name resolves,
@@ -70,7 +78,7 @@ quickest way to have it try again at once is to recreate the container:
 
 ```sh
 docker compose up -d --force-recreate caddy
-docker compose logs caddy --tail=40 | grep -i 2600.me
+docker compose logs caddy --tail=40 | grep -i "$RHDB_DOMAIN"
 ```
 
 The log says which problem it is: `Connection refused` at another address means the
@@ -161,10 +169,10 @@ docker compose exec api python -m app.resync --write   # apply
 docker compose ps                 # container status
 docker compose logs -f api        # follow app logs
 docker compose logs -f caddy      # TLS / proxy logs
-curl -I https://db.2600.me/       # should return 200
+curl -I "https://$RHDB_DOMAIN/"   # should return 200
 ```
 
-Traffic stats are at <https://db.2600.me/stats> (login required).
+Traffic stats are at `https://$RHDB_DOMAIN/stats` (login required).
 
 ## Rolling back
 

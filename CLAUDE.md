@@ -8,7 +8,9 @@ This file is loaded automatically. Read it first, then the rule files under
 A self-hosted catalogue for a retro-computer collection. Every machine, card,
 drive and chip gets an asset tag, a page, photographs and a dated history; you
 print a QR label and scanning it opens the item's page. Browsing is public;
-editing needs a login. Live at db.2600.me.
+editing needs a login. It is self-hosted: the domain, the credentials and the
+branding belong to the installation and live outside the repo (`.env`,
+`caddy/conf.d/`, `branding/`), never in git.
 
 ## Stack
 

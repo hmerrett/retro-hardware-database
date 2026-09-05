@@ -22,7 +22,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: mysql+pymysql://${DB_USER:-retro}:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:3306/${DB_NAME:-retro}
-      RHDB_BASE_URL: ${RHDB_BASE_URL:-https://db.2600.me}
+      RHDB_BASE_URL: ${RHDB_BASE_URL:-https://${RHDB_DOMAIN:?set RHDB_DOMAIN in .env (see .env.example)}}
       RHDB_AUTH_USER: ${RHDB_AUTH_USER:-}
       RHDB_AUTH_PASSWORD: ${RHDB_AUTH_PASSWORD:-}
       RHDB_SECRET_KEY: ${RHDB_SECRET_KEY:-}
@@ -35,6 +35,11 @@ services:
       # volume, like the photographs: a rebuild replaces the image, not the data.
       - files:/app/files
       - goaccess_report:/app/stats:ro
+      # This installation's own logo, icons and share card, if it has any. Read
+      # only: branding is dropped in from outside, never written by the app. A file
+      # here is served in place of the one that ships under the same name, and
+      # logo-512.png is also what the photo watermark is made from.
+      - ./branding:/app/branding:ro
     depends_on:
       db:
         condition: service_healthy
@@ -57,8 +62,18 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      # The name this site answers to, and the address Let's Encrypt writes to about
+      # its certificates. Both belong to the installation rather than to the code,
+      # so the Caddyfile reads them from here -- and both fail fast, because a proxy
+      # brought up on somebody else's domain is not a working site.
+      RHDB_DOMAIN: ${RHDB_DOMAIN:?set RHDB_DOMAIN in .env (see .env.example)}
+      RHDB_ACME_EMAIL: ${RHDB_ACME_EMAIL:?set RHDB_ACME_EMAIL in .env (see .env.example)}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Anything this installation adds to the proxy -- other names, a redirect from
+      # a domain it used to live at. Not in git: see caddy/conf.d/README.md.
+      - ./caddy/conf.d:/etc/caddy/conf.d:ro
       - caddy_data:/data
       - caddy_config:/config
       - caddy_logs:/var/log/caddy
@@ -91,7 +106,7 @@ services:
           if [ -s /logs/access.log ]; then
             { zcat /logs/access-*.log.gz 2>/dev/null; cat /logs/access.log; } \
               | goaccess - -o /report/index-new.html \
-                  --log-format=CADDY --html-report-title="db.2600.me traffic" \
+                  --log-format=CADDY --html-report-title="${RHDB_DOMAIN} traffic" \
               && mv /report/index-new.html /report/index.html
           fi
           sleep 300

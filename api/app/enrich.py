@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import io
 import ipaddress
+import os
 import re
 import socket
 from urllib.parse import quote, unquote, urljoin, urlparse
@@ -17,7 +18,13 @@ from urllib.parse import quote, unquote, urljoin, urlparse
 import httpx
 from PIL import Image
 
-USER_AGENT = "RetroHardwareDB/1.0 (+https://db.2600.me)"
+# What we call ourselves when fetching somebody else's page. The convention is to
+# say where the request came from so the other end can find out who is asking; that
+# is this installation's own address, from the environment, and nothing at all when
+# it has not been set -- naming a site that is not this one would send strangers to
+# a stranger.
+_SITE = (os.getenv("RHDB_BASE_URL") or "").strip().rstrip("/")
+USER_AGENT = f"RetroHardwareDB/1.0 (+{_SITE})" if _SITE else "RetroHardwareDB/1.0"
 MAX_PX = 1000
 
 

@@ -20,6 +20,11 @@ if not _DB_URL or _DB_URL.startswith("sqlite"):
         "mysql+pymysql://root:pw@db:3306/retro_test"
     )
 os.environ["RHDB_IMAGES_DIR"] = str(_TMP / "images")
+# An empty branding directory, which is what an installation that has not put its
+# own logo in has. It must exist before the app is imported: the static mount is
+# built at start-up and only looks here if there is a here to look in.
+(_TMP / "branding").mkdir(parents=True, exist_ok=True)
+os.environ["RHDB_BRANDING_DIR"] = str(_TMP / "branding")
 os.environ["RHDB_FILES_DIR"] = str(_TMP / "files")
 os.environ["RHDB_BASE_URL"] = "https://example.test"
 os.environ.pop("RHDB_AUTH_USER", None)
