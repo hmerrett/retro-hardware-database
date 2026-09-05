@@ -128,6 +128,8 @@ def create_computer(
     machine_style: str | None = None,
     machine_region: str | None = None,
     machine_chips: dict[str, str] | None = None,
+    work_needed: str | None = None,
+    work_project: str | None = None,
 ) -> dict:
     """Create a computer. The server assigns the asset id from the register shared
     with parts. CPU, installed_ram and drives (floppy/optical/CF-SD, ';'-separated)
@@ -149,7 +151,16 @@ def create_computer(
     make marked it ('Issue 6A', 'ASSY 250425', 'VA6'), machine_style the case or
     keyboard it was built with, machine_region the market it was sold in, and
     machine_chips a {role: part number} map for its sockets ({'ula':
-    'Ferranti 6C001E-7'}). A role that model has no socket for is refused."""
+    'Ferranti 6C001E-7'}). A role that model has no socket for is refused.
+
+    work_needed is what the thing needs doing, one job to a line, written at the
+    moment it is checked in -- 'recap the PSU', 'new belt', 'keyboard sticks'. It
+    raises a private project about this item with each line as a job on it, called
+    "Work required by item: <tag>", and the reply's `projects` names it. Only what
+    somebody actually said is wrong: a fault is an observation, never a guess from
+    the age or the model. work_project puts it on a project already going instead of
+    raising one -- what a part bought for a build in hand is for -- and takes that
+    project's asset id; one that does not exist is refused."""
     return _request("POST", "/api/computers", json=_machine(_clean(locals())))
 
 
@@ -253,6 +264,8 @@ def create_part(
     machine_model_key: str | None = None,
     machine_issue: str | None = None,
     machine_chips: dict[str, str] | None = None,
+    work_needed: str | None = None,
+    work_project: str | None = None,
 ) -> dict:
     """Create a part. The server assigns the asset id. computer_id installs it in a
     computer and parent_id mounts it on another part (a disk on a controller card,
@@ -274,7 +287,16 @@ def create_part(
     250425'), and machine_chips a {role: part number} map for its sockets. That is
     how a bare Amiga 500 board on a shelf is recorded as what it is. The case style
     and the region are not asked of a board -- they are facts about a whole machine
-    in a case."""
+    in a case.
+
+    work_needed is what this one needs doing, one job to a line, written as it is
+    checked in -- 'pins bent', 'recap'. It raises a private project about this part
+    with each line as a job on it, called "Work required by item: <tag>", and the
+    reply's `projects` names it. Only what somebody actually said is wrong: a fault
+    is an observation, never a guess from the age or the model. work_project puts it
+    on a project already going instead of raising one -- what a part bought for a
+    build in hand is for -- and takes that project's asset id; one that does not
+    exist is refused."""
     return _request("POST", "/api/parts", json=_machine(_clean(locals())))
 
 

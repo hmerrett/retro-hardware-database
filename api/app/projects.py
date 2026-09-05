@@ -316,3 +316,16 @@ def spend(rows):
     total = sum(o.cost_p for o in rows if o.cost_p is not None)
     unpriced = sum(1 for o in rows if o.cost_p is None)
     return total, unpriced
+
+
+def open_projects(db):
+    """The projects a thing arriving today could be joining: the ones still in hand,
+    by name.
+
+    Closed ones are left out rather than sorted to the bottom. This feeds the picker
+    on the entry forms, where the question is "is this for something I am already
+    doing?" -- and a finished project is not something, while a list of every project
+    ever finished is a menu nobody reads to the end of. A project taken up again is
+    reopened on its own page, which puts it back here."""
+    return (db.query(Project).filter(Project.status.notin_(CLOSED))
+            .order_by(Project.name, Project.asset_id).all())

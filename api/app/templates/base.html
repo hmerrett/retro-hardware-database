@@ -517,6 +517,12 @@
   .addbar input, .addbar select { flex: 1; min-width: 160px; padding: 6px 8px;
     border: 1px solid var(--line); border-radius: 6px; background: transparent;
     color: inherit; font: inherit; }
+  /* The work box notes several jobs at once -- faults arrive as a list, not as a
+     sentence -- so it is a textarea, and it takes the whole row rather than being
+     squeezed to a sixth of one beside the menu and the button. */
+  .addbar textarea { flex: 1 1 100%; min-height: 52px; resize: vertical;
+    padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: inherit; font: inherit; }
   /* An order has seven fields and most of them are short. Left to the rule above
      they would each claim a sixth of the row and the description -- the one field
      that is a sentence -- would be the same width as the quantity. */
