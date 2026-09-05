@@ -104,6 +104,26 @@ class ComputerIn(BaseModel):
     machine: MachineIn | None = None
 
 
+class WorkIn(BaseModel):
+    """What a thing needs doing, asked at the moment it is entered.
+
+    A create carries this and an update does not, which is why it is a shape of its
+    own rather than two more fields on ComputerIn: the note belongs to checking
+    something in -- it is thought while the machine is being unpacked -- and a field
+    that a PATCH accepted and ignored would be a worse answer than one it refuses.
+    An item that already exists has its own page, with the same box on it.
+
+    work_needed is one job to a line. work_project names a project already going for
+    the item to join instead of raising one of its own; a tag that names no project
+    is refused rather than filed elsewhere."""
+    work_needed: str = ""
+    work_project: str = ""
+
+
+class ComputerCreate(ComputerIn, WorkIn):
+    pass
+
+
 class MachineOut(BaseModel):
     """What a machine's catalogue identity reads back as: what is stored, plus the
     catalogue's own words for it. model and family come from app/machines.py rather
@@ -124,6 +144,11 @@ class MachineOut(BaseModel):
 class ComputerOut(ComputerIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
+    # The projects this one is on, by tag. Tags rather than names because a name is
+    # edited and a tag is not, and because the project itself is one GET away -- so
+    # a caller that has just noted work down can reach what it made without going
+    # looking for it by name.
+    projects: list[str] = []
     installed_ram_kb: int | None = None
     installed_ram_note: str = ""
     drives_note: str = ""
@@ -172,11 +197,17 @@ class PartIn(BaseModel):
         return v or None
 
 
+class PartCreate(PartIn, WorkIn):
+    pass
+
+
 class PartOut(PartIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
     machine: BoardOut | None = None
     variant: str = ""
+    # By tag, for the reason a computer's are (see ComputerOut).
+    projects: list[str] = []
 
 
 # --- projects ----------------------------------------------------------------

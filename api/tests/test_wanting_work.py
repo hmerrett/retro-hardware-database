@@ -15,7 +15,7 @@ could show it. The class below that name is the point of the feature as much as 
 quick box is: four of those five doors standing shut is a thing that is not private.
 """
 from app import main
-from app.models import Project, ProjectAsset, ProjectTask
+from app.models import Computer, Project, ProjectAsset, ProjectTask
 
 
 def quick(client, job="needs a belt", **extra):
@@ -50,11 +50,14 @@ class TestNotingSomethingDown:
 
     def test_it_is_named_after_the_item_when_you_do_not_name_it(self, client, db,
                                                                 part):
-        """A project called "Chinon FZ-357A" is at least findable. One called
-        nothing is not."""
+        """One name for the gesture, whichever box it was typed in. This box has a
+        name field and the entry forms have not, so it used to name a project after
+        the item ("Chinon FZ-357A") where they name it after the tag -- which meant
+        the same sentence about the same drive made two differently-named projects
+        depending on where you happened to be standing."""
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
-        assert db.get(Project, quick(client, "needs a belt",
-                                     aid=pt)).name == "Chinon FZ-357A"
+        assert db.get(Project, quick(client, "needs a belt", aid=pt)).name == \
+            f"Work required by item: {pt}"
 
     def test_a_name_you_give_it_wins(self, client, db, part):
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
@@ -282,3 +285,294 @@ class TestTheMigrationDidNotAnnounceThem:
         aid = quick(client, "a job", aid=pt, name="Hiddenzzz")
         visitor(monkeypatch)
         assert aid not in client.get(f"/parts/{pt}").text
+
+
+class TestTheBoxOnAnItemsOwnPage:
+    """The panel on a computer's or a part's page. The same route the projects page
+    posts to, and now the same two questions the entry forms ask: what needs doing,
+    and whether it is a piece of work of its own."""
+
+    def note(self, client, aid, job, **extra):
+        r = client.post("/projects/quick",
+                        data={"aid": aid, "job": job, **extra},
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text
+        return r.headers["location"].rsplit("/", 1)[-1]
+
+    def test_a_line_is_a_job_here_too(self, client, db, part):
+        pt = part(model="Widget")["asset_id"]
+        pid = self.note(client, pt, "recap\nnew belt")
+        assert [t.text for t in db.query(ProjectTask)
+                .filter(ProjectTask.project_id == pid)
+                .order_by(ProjectTask.id)] == ["recap", "new belt"]
+
+    def test_the_jobs_can_go_on_a_project_already_going(self, client, db, part):
+        """The question this page is the right one to ask: you are looking at the
+        board, and whether it is spoken for is a fact about the board."""
+        pt = part(model="Widget")["asset_id"]
+        existing = client.post("/api/projects",
+                               json={"name": "A500"}).json()["asset_id"]
+        assert self.note(client, pt, "fit it", project=existing) == existing
+        assert db.query(Project).count() == 1
+
+    def test_the_picker_offers_the_projects_in_hand(self, client, part):
+        pt = part(model="Widget")["asset_id"]
+        live = client.post("/api/projects",
+                           json={"name": "Livezzz"}).json()["asset_id"]
+        done = client.post("/api/projects",
+                           json={"name": "Donezzz",
+                                 "status": "done"}).json()["asset_id"]
+        page = client.get(f"/parts/{pt}").text
+        assert live in page and done not in page
+
+    def test_a_visitor_is_not_asked(self, client, part, monkeypatch):
+        """The panel is a form, and the picker would name every open project --
+        including the private ones -- on a public page."""
+        pt = part(model="Widget")["asset_id"]
+        client.post("/api/projects", json={"name": "Privatezzz", "private": True})
+        visitor(monkeypatch)
+        assert "Privatezzz" not in client.get(f"/parts/{pt}").text
+
+
+# --- the same gesture, one step earlier ---------------------------------------
+# Noting what a thing needs is a check-in gesture: it is thought at the moment the
+# machine comes off the doorstep and is typed into the form that files it. The quick
+# box above needs an asset tag, which is a thing that does not exist yet while that
+# form is on screen -- so the note waited for a second visit, and a note that waits
+# is a note that is lost. The box on the entry forms is the same note taken there.
+
+
+def new_computer(client, **extra):
+    """A machine through the entry form, as somebody checking one in files it."""
+    r = client.post("/computers/new",
+                    data={"manufacturer": "Acme", "model": "PC", **extra},
+                    follow_redirects=False)
+    assert r.status_code == 303, r.text
+    return r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
+
+
+def new_part(client, **extra):
+    r = client.post("/parts/new",
+                    data={"type": "other", "model": "Widget", **extra},
+                    follow_redirects=False)
+    assert r.status_code == 303, r.text
+    return r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
+
+
+def tasks_of(db, project_id):
+    return [t.text for t in db.query(ProjectTask)
+            .filter(ProjectTask.project_id == project_id)
+            .order_by(ProjectTask.id)]
+
+
+def project_of(db, asset_id):
+    """The one project an item is in, or None. Asserts there are not two, because
+    every test below is about a single gesture and a second project would mean the
+    gesture ran twice."""
+    rows = db.query(ProjectAsset).filter(ProjectAsset.asset_id == asset_id).all()
+    assert len(rows) <= 1, [r.project_id for r in rows]
+    return db.get(Project, rows[0].project_id) if rows else None
+
+
+class TestNotingWorkWhileCheckingIn:
+    def test_a_machine_arrives_with_its_faults_written_down(self, client, db):
+        aid = new_computer(client, work_needed="recap the PSU")
+        p = project_of(db, aid)
+        assert p is not None
+        assert tasks_of(db, p.asset_id) == ["recap the PSU"]
+
+    def test_the_project_is_named_after_the_item(self, client, db):
+        """The form has no name box: what is being described is the work, and the
+        only thing known about it at that moment is which item it is for. The tag is
+        in the name rather than only in the membership so the project is findable by
+        it -- the label on the machine is what somebody has in their hand."""
+        aid = new_computer(client, work_needed="recap the PSU")
+        assert project_of(db, aid).name == f"Work required by item: {aid}"
+
+    def test_it_starts_private(self, client, db):
+        """The same rule the quick box follows, for the same reason: a fault typed
+        in while unpacking has not been considered for publication."""
+        assert project_of(db, new_computer(client, work_needed="recap")).private
+
+    def test_it_starts_planned(self, client, db):
+        """Nothing has been done to it yet -- it has only just come through the
+        door -- and calling that 'in progress' would make the in-hand list a lie."""
+        assert project_of(db, new_computer(client, work_needed="recap")).status \
+            == "planned"
+
+    def test_a_line_is_a_job(self, client, db):
+        """What somebody types while looking at a machine is a list, because faults
+        arrive as a list. One box, one job to a line, in the order they were seen."""
+        aid = new_computer(client, work_needed="recap\nnew belt\n\nkeyboard sticks")
+        assert tasks_of(db, project_of(db, aid).asset_id) == [
+            "recap", "new belt", "keyboard sticks"]
+
+    def test_an_empty_box_makes_nothing(self, client, db):
+        """Most machines are checked in with nothing wrong with them, and a project
+        per arrival would make the projects page useless."""
+        new_computer(client, work_needed="   ")
+        assert db.query(Project).count() == 0
+
+    def test_a_part_is_checked_in_the_same_way(self, client, db):
+        pid = new_part(client, work_needed="pins bent")
+        assert tasks_of(db, project_of(db, pid).asset_id) == ["pins bent"]
+
+    def test_the_machine_is_saved_either_way(self, client, db):
+        """The note is a second thing the form does, not a condition of the first.
+        A machine entered with a fault is still a machine."""
+        aid = new_computer(client, work_needed="recap")
+        assert db.get(Computer, aid).model == "PC"
+
+
+class TestCheckingInOntoAProjectAlreadyGoing:
+    """The other half of check-in: the thing that has just arrived is often the
+    thing an existing project was waiting for. Retyping it into a new project of its
+    own would leave the PSU and the machine it was bought for on two lists."""
+
+    def existing(self, client, **fields):
+        body = {"name": "A500 restoration"} | fields
+        return client.post("/api/projects", json=body).json()["asset_id"]
+
+    def test_the_item_joins_the_project_that_was_named(self, client, db):
+        pid = self.existing(client)
+        aid = new_computer(client, work_needed="test it", work_project=pid)
+        assert project_of(db, aid).asset_id == pid
+
+    def test_no_second_project_is_made(self, client, db):
+        pid = self.existing(client)
+        new_computer(client, work_needed="test it", work_project=pid)
+        assert [p.asset_id for p in db.query(Project)] == [pid]
+
+    def test_the_jobs_go_on_that_project(self, client, db):
+        pid = self.existing(client)
+        new_computer(client, work_needed="test it\nfit the PSU", work_project=pid)
+        assert tasks_of(db, pid) == ["test it", "fit the PSU"]
+
+    def test_a_project_can_be_named_with_no_job_at_all(self, client, db):
+        """"This is for that" is a complete thought. The part that has just arrived
+        is spoken for, and there is nothing to do to it yet."""
+        pid = self.existing(client)
+        aid = new_part(client, work_project=pid)
+        assert project_of(db, aid).asset_id == pid and tasks_of(db, pid) == []
+
+    def test_a_public_project_says_so_on_the_item(self, client, db):
+        """Membership writes the item's side of the history exactly as adding it
+        from the project's own page does -- and only for a project anybody may
+        read, which is the invariant _member_log keeps."""
+        from app.models import LogEntry
+        pid = self.existing(client, private=False)
+        aid = new_computer(client, work_project=pid)
+        written = " ".join(m for (m,) in db.query(LogEntry.message)
+                           .filter(LogEntry.asset_id == aid))
+        assert "wanted for" in written and pid in written
+
+    def test_a_private_project_stays_quiet(self, client, db):
+        from app.models import LogEntry
+        pid = self.existing(client, private=True)
+        aid = new_computer(client, work_project=pid)
+        written = " ".join(m for (m,) in db.query(LogEntry.message)
+                           .filter(LogEntry.asset_id == aid))
+        assert pid not in written
+
+    def test_a_tag_that_names_no_project_still_keeps_the_note(self, client, db):
+        """The picker cannot produce this; a hand-made post can. Losing the machine
+        that was being entered -- photographs and all -- because of it would be a
+        poor trade, so the note becomes a project of its own and the entry stands."""
+        aid = new_computer(client, work_needed="recap", work_project="RH-ZZZZ")
+        p = project_of(db, aid)
+        assert p is not None and tasks_of(db, p.asset_id) == ["recap"]
+
+    def test_the_form_offers_the_projects_in_hand(self, client):
+        """A closed project is not something a machine arriving today is joining,
+        and a picker of every project ever finished is a picker nobody reads."""
+        live = self.existing(client, name="Livezzz")
+        done = self.existing(client, name="Donezzz", status="done")
+        page = client.get("/computers/new").text
+        assert live in page and done not in page
+
+
+class TestNotingWorkOnAnItemThatExists:
+    """The same box on the edit form. Redundant with the panel on the item's own
+    page, and there because the form is where somebody is already typing."""
+
+    def test_the_edit_form_notes_work_too(self, client, db):
+        aid = new_computer(client)
+        r = client.post(f"/computers/{aid}/edit",
+                        data={"manufacturer": "Acme", "model": "PC",
+                              "work_needed": "recap"}, follow_redirects=False)
+        assert r.status_code == 303
+        assert tasks_of(db, project_of(db, aid).asset_id) == ["recap"]
+
+    def test_saving_again_does_not_write_it_twice(self, client, db):
+        """The box is write-only: it is never filled in with what is already on the
+        project, so an ordinary save leaves the jobs alone. A box that echoed them
+        back would add every job a second time on the next save."""
+        aid = new_computer(client, work_needed="recap")
+        client.post(f"/computers/{aid}/edit",
+                    data={"manufacturer": "Acme", "model": "PC2"})
+        assert tasks_of(db, project_of(db, aid).asset_id) == ["recap"]
+
+    def test_a_part_edit_notes_work_too(self, client, db):
+        pid = new_part(client)
+        r = client.post(f"/parts/{pid}/edit",
+                        data={"type": "other", "model": "Widget",
+                              "work_needed": "pins bent"}, follow_redirects=False)
+        assert r.status_code == 303
+        assert tasks_of(db, project_of(db, pid).asset_id) == ["pins bent"]
+
+
+class TestNotingWorkThroughTheApi:
+    """Check-in happens through the MCP server as often as through the form -- a
+    machine dictated at the bench rather than typed -- and the note has to travel
+    with it there too, or the same second visit is needed."""
+
+    def test_a_computer_arrives_with_its_faults(self, client, db):
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Acme", "model": "PC",
+                                "work_needed": "recap"}).json()["asset_id"]
+        assert tasks_of(db, project_of(db, aid).asset_id) == ["recap"]
+
+    def test_a_part_does_too(self, client, db):
+        pid = client.post("/api/parts",
+                          json={"type": "other", "model": "Widget",
+                                "work_needed": "pins bent"}).json()["asset_id"]
+        assert tasks_of(db, project_of(db, pid).asset_id) == ["pins bent"]
+
+    def test_an_existing_project_can_be_named(self, client, db):
+        pid = client.post("/api/projects", json={"name": "A500"}).json()["asset_id"]
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Acme", "model": "PC",
+                                "work_project": pid}).json()["asset_id"]
+        assert project_of(db, aid).asset_id == pid
+
+    def test_a_project_that_does_not_exist_is_refused(self, client, db):
+        """Unlike the form, which cannot mistype one. A caller that named a project
+        meant that project, and quietly filing the work somewhere else would be a
+        worse answer than being told."""
+        r = client.post("/api/computers",
+                        json={"manufacturer": "Acme", "model": "PC",
+                              "work_project": "RH-ZZZZ"})
+        assert r.status_code == 404
+
+    def test_nothing_is_created_when_it_is_refused(self, client, db):
+        """The refusal comes before the machine is written, so a typo'd project tag
+        does not leave a half-entered computer behind."""
+        client.post("/api/computers", json={"manufacturer": "Acme", "model": "PC",
+                                            "work_project": "RH-ZZZZ"})
+        assert db.query(Computer).count() == 0
+
+    def test_the_item_reads_back_with_its_projects(self, client, db):
+        """What the note did, said in the reply -- otherwise a caller that has just
+        raised a project has no way to reach it but a search."""
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Acme", "model": "PC",
+                                "work_needed": "recap"}).json()["asset_id"]
+        got = client.get(f"/api/computers/{aid}").json()
+        assert got["projects"] == [project_of(db, aid).asset_id]
+
+    def test_the_list_reads_back_with_them_as_well(self, client, db):
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Acme", "model": "PC",
+                                "work_needed": "recap"}).json()["asset_id"]
+        rows = client.get("/api/computers").json()
+        assert rows[0]["projects"] == [project_of(db, aid).asset_id]

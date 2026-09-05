@@ -19,3 +19,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   *Accepted*
 - [0002](0002-migrations-must-not-assume-specific-data.md) — Migrations must not
   assume specific data — *Accepted*
+- [0003](0003-work-is-noted-at-check-in.md) — Work is noted at check-in —
+  *Accepted*
