@@ -43,7 +43,7 @@
     <button class="btn sm" type="submit">note it</button>
   </form>
   <p class="hint">Raises a private project about this one — <em>Work required by
-    item: {{ item.asset_id }}</em>, each line a job on it. Rename it and publish it
+    item: {{ display_name(item) }}</em>, each line a job on it. Rename it and publish it
     later if it turns out to be worth reading about, or put the jobs on a project
     already going instead.</p>
   {% endif %}

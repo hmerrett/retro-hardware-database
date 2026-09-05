@@ -50,14 +50,13 @@ class TestNotingSomethingDown:
 
     def test_it_is_named_after_the_item_when_you_do_not_name_it(self, client, db,
                                                                 part):
-        """One name for the gesture, whichever box it was typed in. This box has a
-        name field and the entry forms have not, so it used to name a project after
-        the item ("Chinon FZ-357A") where they name it after the tag -- which meant
-        the same sentence about the same drive made two differently-named projects
-        depending on where you happened to be standing."""
+        """One name for the gesture, whichever box it was typed in -- and the item's
+        own name in it, not its tag. "Work required by item: Chinon FZ-357A" is a
+        line that can be read down a list; the same line ending RH-9QD4 is one that
+        has to be looked up first."""
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
         assert db.get(Project, quick(client, "needs a belt", aid=pt)).name == \
-            f"Work required by item: {pt}"
+            "Work required by item: Chinon FZ-357A"
 
     def test_a_name_you_give_it_wins(self, client, db, part):
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
@@ -383,11 +382,29 @@ class TestNotingWorkWhileCheckingIn:
 
     def test_the_project_is_named_after_the_item(self, client, db):
         """The form has no name box: what is being described is the work, and the
-        only thing known about it at that moment is which item it is for. The tag is
-        in the name rather than only in the membership so the project is findable by
-        it -- the label on the machine is what somebody has in their hand."""
+        only thing known about it at that moment is which item it is for. So the
+        item names it, by what it is called."""
         aid = new_computer(client, work_needed="recap the PSU")
+        assert project_of(db, aid).name == "Work required by item: Acme PC"
+
+    def test_a_thing_with_no_name_yet_falls_back_to_its_tag(self, client, db):
+        """A machine entered with nothing filled in but a fault has no name to be
+        called after. Its tag is what it has, and a project named after nothing at
+        all is a row nobody will recognise again."""
+        r = client.post("/computers/new", data={"work_needed": "recap"},
+                        follow_redirects=False)
+        aid = r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
         assert project_of(db, aid).name == f"Work required by item: {aid}"
+
+    def test_two_of_the_same_machine_are_told_apart_by_their_own_tags(self, client,
+                                                                     db):
+        """Two projects can come out with the same name, where the collection holds
+        two of the same model. That is what the project's own tag beside it on every
+        list is for; inventing a distinction in the name would be inventing it in
+        the wrong place."""
+        first = project_of(db, new_computer(client, work_needed="recap"))
+        second = project_of(db, new_computer(client, work_needed="recap"))
+        assert first.name == second.name and first.asset_id != second.asset_id
 
     def test_it_starts_private(self, client, db):
         """The same rule the quick box follows, for the same reason: a fault typed
@@ -576,3 +593,114 @@ class TestNotingWorkThroughTheApi:
                                 "work_needed": "recap"}).json()["asset_id"]
         rows = client.get("/api/computers").json()
         assert rows[0]["projects"] == [project_of(db, aid).asset_id]
+
+
+# --- the ones already written -------------------------------------------------
+
+
+def _migration_0033():
+    """The rename migration, loaded from its file. Migrations are not a package on
+    the path, and importing it by name here would mean adding one just to be able
+    to test what it does -- which is worth testing: it is the only code in the
+    register that rewrites something somebody could have typed."""
+    import importlib.util
+    from pathlib import Path
+    path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
+            / "0033_work_projects_named_after_the_thing.py")
+    spec = importlib.util.spec_from_file_location("m0033", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_migration(db, direction="upgrade"):
+    """Run it against the session's own connection, the way alembic runs one."""
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    module = _migration_0033()
+    ctx = MigrationContext.configure(db.connection())
+    with Operations.context(ctx):
+        getattr(module, direction)()
+    db.commit()
+
+
+class TestRenamingTheOnesAlreadyWritten:
+    """Migration 0033. The projects raised before the name changed still say the
+    tag, and nothing about them says to leave them that way -- so it brings them
+    into line, on whatever database it is run against and on none in particular.
+    """
+
+    def old_style(self, client, db, **fields):
+        """An item and a project named after its tag, as the app used to write it."""
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Amstrad", "model": "PC1640"}
+                          | fields).json()["asset_id"]
+        pid = client.post("/api/projects",
+                          json={"name": f"Work required by item: {aid}"}
+                          ).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
+        return aid, pid
+
+    def test_it_says_what_the_thing_is(self, client, db):
+        _, pid = self.old_style(client, db)
+        run_migration(db)
+        assert db.get(Project, pid).name == "Work required by item: Amstrad PC1640"
+
+    def test_a_name_somebody_chose_is_left_alone(self, client, db):
+        """The rule is narrow on purpose: only the exact old form, built from the
+        tag of an item the project is actually about. A project called something
+        else that happens to start with those words was named by a person."""
+        aid, _ = self.old_style(client, db)
+        pid = client.post("/api/projects",
+                          json={"name": "Work required by item: the beige one"}
+                          ).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
+        run_migration(db)
+        assert db.get(Project, pid).name == "Work required by item: the beige one"
+
+    def test_a_project_naming_another_items_tag_is_left_alone(self, client, db):
+        """Named after one thing and about another is not a project this migration
+        knows anything about."""
+        other = client.post("/api/computers",
+                            json={"model": "X"}).json()["asset_id"]
+        aid, _ = self.old_style(client, db)
+        pid = client.post("/api/projects",
+                          json={"name": f"Work required by item: {other}"}
+                          ).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
+        run_migration(db)
+        assert db.get(Project, pid).name == f"Work required by item: {other}"
+
+    def test_a_thing_with_no_name_keeps_its_tag(self, client, db):
+        """There is nothing else to call it, and a rename to the same thing is not
+        a rename."""
+        aid = client.post("/api/computers", json={}).json()["asset_id"]
+        pid = client.post("/api/projects",
+                          json={"name": f"Work required by item: {aid}"}
+                          ).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
+        run_migration(db)
+        assert db.get(Project, pid).name == f"Work required by item: {aid}"
+
+    def test_running_it_twice_changes_nothing_the_second_time(self, client, db):
+        _, pid = self.old_style(client, db)
+        run_migration(db)
+        once = db.get(Project, pid).name
+        run_migration(db)
+        db.expire_all()
+        assert db.get(Project, pid).name == once
+
+    def test_it_goes_back(self, client, db):
+        """A downgrade reads the tag off the membership, because the name no longer
+        holds one to read -- which is the whole of what changed."""
+        aid, pid = self.old_style(client, db)
+        run_migration(db)
+        run_migration(db, "downgrade")
+        db.expire_all()
+        assert db.get(Project, pid).name == f"Work required by item: {aid}"
+
+    def test_an_empty_database_is_left_alone(self, db):
+        """A fresh install has none of these, and a migration that assumes rows
+        exist is the bug ADR-0002 is about."""
+        run_migration(db)
+        assert db.query(Project).count() == 0
