@@ -8,8 +8,9 @@
    The box below is what the item used to carry as a `project` flag and a
    `project_note` -- the same gesture, at the same moment, from the same place. What
    it makes now is a project, with this item on it and the sentence as its first
-   job, so there is nothing to promote by hand later. It starts private, as the flag
-   was, and the project's own edit form is where that is deliberately cleared.
+   job, so there is nothing to promote by hand later. What it makes is public, as
+   everything else here is; the project's own form is where one is deliberately kept
+   back (ADR-0004).
 
    `in_projects` has already had the private ones taken out of it for a visitor (see
    projects.projects_for): an item page is public, and this is the one place a
@@ -42,10 +43,10 @@
     </select>
     <button class="btn sm" type="submit">note it</button>
   </form>
-  <p class="hint">Raises a private project about this one — <em>Work required by
-    item: {{ display_name(item) }}</em>, each line a job on it. Rename it and publish it
-    later if it turns out to be worth reading about, or put the jobs on a project
-    already going instead.</p>
+  <p class="hint">Raises a project about this one — <em>Work required by item:
+    {{ display_name(item) }}</em>, each line a job on it, readable by anybody. Rename
+    it on its own form, or tick <em>private</em> there if it should not be read; or
+    put the jobs on a project already going instead.</p>
   {% endif %}
 {% endcall %}
 {% endif %}

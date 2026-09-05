@@ -342,7 +342,7 @@ nothing until you submit it.
 | **Summary** | The prose shown at the top of the page. |
 | **Notes** | Anything else. |
 | **Work needed** | What it needs doing, one job to a line — `recap`, `new belt`, `keyboard sticks`. Leave it empty if there is nothing to do. See [checking something in](#checking-something-in). |
-| **…as part of** | Which project those jobs go on. Left at *a project of its own*, they raise a new private one about this machine; pick a project already going and the machine joins that instead. |
+| **…as part of** | Which project those jobs go on. Left at *a project of its own*, they raise a new one about this machine; pick a project already going and the machine joins that instead. |
 | **Photographs** | Only on the new-machine form — there is no tag to file them under until it is saved. Afterwards they upload from the machine's own page. |
 
 ### About TopBench
@@ -1179,9 +1179,10 @@ So the forms for a computer and a part carry the same gesture at the foot:
 still in hand.
 
 - Leave the box empty and nothing happens, which is most arrivals.
-- Write something and you get a **private** project called
+- Write something and you get a project called
   *Work required by item: Amstrad PC1640* — the machine's own name, not its tag —
-  with the machine on it and each line a job. The same name and the same thing the
+  with the machine on it and each line a job. Readable by anybody, like the rest of
+  the register; tick **private** on its own form for one that should not be. The same name and the same thing the
   box on an item's own page makes, because it is the same gesture. A machine with
   nothing filled in yet has no name to be called after, so that one falls back to
   its tag; and two of the same model give two projects called the same thing, told
@@ -1202,13 +1203,15 @@ cannot write the same job twice. To read what a thing needs, look at the
 
 ### Private projects
 
-**What the quick box makes is private.** A line typed in five seconds has not been
-considered for publication, and the safe default for something unconsidered is that
-nobody else reads it. The edit form is where you clear the tick, which is the act
-of publishing.
+**Every project is public unless you say otherwise**, which is the tick on its own
+form. They used to start private when made from a quick box, on the reasoning that
+a line typed in five seconds has not been considered for publication — but this is
+a public catalogue of old machines, what is wrong with one is a good part of what
+is worth reading about it, and the tick was being cleared on nearly every project.
+So keeping one back is a decision now rather than a starting point (ADR-0004).
 
-A private project is kept out of **five** places, and it is only private with all
-five:
+What *private* does is unchanged. A private project is kept out of **five** places,
+and it is only private with all five:
 
 - the projects list leaves it out;
 - its own page answers a stranger with a 404 — not a login prompt, because somebody
