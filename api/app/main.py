@@ -4423,6 +4423,7 @@ def _computer_form_ctx(c, title, db=None):
             "drive_speeds": drivedb.SPEEDS, **_bezel_ctx(), **_machine_ctx(c, db),
             # The projects in hand, for the work box at the foot of the form.
             "work_projects": projects.open_projects(db) if db is not None else [],
+            "dl": _datalists(db, computer=True) if db is not None else {},
             **_boardparts_ctx(db, c)}
 
 
@@ -4640,6 +4641,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "machine": machine, "detachable": detachable,
         "item": (cdict := to_dict(c)), "kind": "computers",
         "files": filesdb.for_item(db, cdict), "fileerr": bool(fileerr),
+        "dl_filenotes": _answers_given(db, StoredFile.note),
         "in_projects": projects.projects_for(db, aid, request.state.authed),
         # For the picker in that panel, which only an owner is shown -- so a
         # visitor's page does not ask the question at all.
@@ -5308,13 +5310,51 @@ def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)):
 
 # --- GUI: parts (guided, typed entry) --------------------------------------
 
+def _answers_given(db, *columns, limit=200):
+    """Every answer already given to a free-text field, commonest first, for the
+    pick list on the box that asks it.
+
+    A field answered the same way over and over wants to offer its own past
+    answers. `source` is the case that asked for this: 154 of them, in 69
+    spellings, among which "Pete Farm" sixteen times and "Farm Pete" eight -- one
+    person and one provenance, recorded as two, and now unfindable as one. A list
+    does not stop anybody typing something new (it is a datalist, not a menu); it
+    only makes the answer already given the easier one to give again.
+
+    Commonest first, because a datalist is offered in the order it is written and
+    the answer given twenty times is the likelier one. Case and surrounding space
+    fold together for the counting, and the spelling offered back is the one used
+    most -- so "eBay" wins over "ebay" by being what was actually typed, rather
+    than by any rule about capitals.
+
+    Capped: this goes into the markup of every form that asks, and two hundred is
+    already past what anybody scrolls.
+    """
+    counts, spellings = Counter(), {}
+    for column in columns:
+        for value, n in db.query(column, func.count()).group_by(column):
+            text = (value or "").strip()
+            if not text:
+                continue
+            key = text.casefold()
+            counts[key] += n
+            spellings.setdefault(key, Counter())[text] += n
+    return [spellings[key].most_common(1)[0][0]
+            for key, _ in counts.most_common(limit)]
+
+
 def _known_makes(db):
     """The manufacturers and (make, model) pairs already recorded, for the new-part
     form's pick lists and for spotting that a part being entered is a second of
     something already here. One representative asset id per pair, so the form can
-    offer to start from it."""
-    makes = [m for (m,) in db.query(Part.manufacturer).distinct()
-             .order_by(Part.manufacturer) if (m or "").strip()]
+    offer to start from it.
+
+    The makes come from both tables. A part's maker and a machine's are the same
+    kind of fact and often the same company -- the Amstrad that made the machine
+    made the board in it -- so a make used only on computers is still worth
+    offering here; the (make, model) pairs stay parts-only, because what they are
+    for is starting a new part from an identical one."""
+    makes = _answers_given(db, Part.manufacturer, Computer.manufacturer)
     pairs = (db.query(Part.manufacturer, Part.model, Part.type,
                       func.max(Part.asset_id))
              .filter(Part.manufacturer != "", Part.model != "")
@@ -5322,6 +5362,26 @@ def _known_makes(db):
     known = [{"m": mk, "d": md, "t": t, "id": aid} for mk, md, t, aid in pairs]
     models = sorted({p["d"] for p in known})
     return makes, models, known
+
+
+def _datalists(db, computer=False):
+    """The pick lists a form's free-text boxes are offered, in one place because
+    two forms ask several of the same questions.
+
+    `computer` adds the three a machine is asked and a part is not. A part's
+    equivalent of them is its typed spec table, which has its own vocabularies."""
+    lists = {"source": _answers_given(db, Computer.source, Part.source)}
+    if computer:
+        lists |= {
+            "makes": _answers_given(db, Computer.manufacturer, Part.manufacturer),
+            # A machine's models only. A list of every card and drive model as well
+            # would bury "PC1512" in a thousand answers to a different question.
+            "models": _answers_given(db, Computer.model),
+            "chassis": _answers_given(db, Computer.chassis),
+            "os": _answers_given(db, Computer.os),
+            "cpu": _answers_given(db, Computer.cpu),
+        }
+    return lists
 
 
 # How long a typed "custom" answer may be: the column the answer lands in. The four
@@ -5428,6 +5488,7 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
         "makes": makes, "models": models, "known": known,
         "conditions": entry.CONDITIONS,
         "work_projects": projects.open_projects(db),
+        "dl": _datalists(db),
         "vocab": {
             "form_factors": entry.MOBO_FORM_FACTORS, "cpu_families": cpu_families,
             "ram_slots": entry.RAM_SLOT_TYPES, "card_interfaces": entry.CARD_INTERFACES,
@@ -5840,6 +5901,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "thumbs": part_thumbs(db, children),
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
+        "dl_filenotes": _answers_given(db, StoredFile.note),
         "in_projects": projects.projects_for(db, aid, request.state.authed),
         # For the picker in that panel, which only an owner is shown -- so a
         # visitor's page does not ask the question at all.
@@ -6522,6 +6584,9 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
         choices.sort(key=lambda c: c[1].lower())
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "item": to_dict(p), "kind": "projects",
+        # Who things have been bought from before: the same kind of field as an
+        # item's source, and answered the same few ways.
+        "dl_suppliers": _answers_given(db, ProjectOrder.supplier),
         "members": projects.members(db, p.asset_id),
         "tasks": task_rows,
         "tasks_done": sum(1 for t in task_rows if t.done),
