@@ -1146,6 +1146,27 @@ ordering something and marking it in all leave a dated line. Membership is recor
 on both sides — the project says what it took on, and the machine says what it is
 wanted for.
 
+### Something to do today
+
+At the top of the projects page, one project picked out: a photograph or three of
+the things it is about, what state it is in, how long it has been since anything
+was written about it, and the first few jobs still unticked. The name and the
+pictures are all links — to the project, and to the machines themselves.
+
+A list of twenty projects in hand is a list nobody picks from, because every one of
+them is a decision and the decision is what stops the evening before it starts.
+
+**The draw is deliberately unfair.** A project is likelier to come up the longer its
+history has been quiet, and likelier again if its status is *stalled* — the state
+that means waiting on a part, the weather or the will, and the one that never comes
+up again on its own. A project written about today is still in the draw, only
+rarely: what you worked on this morning is a fair answer to what to do this
+afternoon.
+
+It draws afresh on every visit, so reloading the page gets another suggestion.
+Finished and abandoned projects are never offered, the panel steps aside while you
+are searching the list, and a visitor is only ever shown a public one.
+
 ### Noting something down
 
 Most projects start as one sentence at the bench: a board that wants a recap, a
