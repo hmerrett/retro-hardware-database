@@ -6518,7 +6518,7 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
         # should not be called two different things depending on which box raised
         # it. Where there is no item, the job names it: a project called nothing is
         # a row nobody will recognise again.
-        name = (_work_project_name(asset_id) if found
+        name = (_work_project_name(db, asset_id) if found
                 else (jobs[0][:60] if jobs else "") or "Untitled project")
     obj = _take_on_work(db, asset_id if found is not None else "", jobs,
                         project, name=name)
@@ -6755,14 +6755,23 @@ def _publish_log(db, project):
             add_log(db, asset_id, f"wanted for {_project_named(project)}")
 
 
+def _asset_display(db, asset_id):
+    """What a computer or part is called, or None if the register has no such
+    thing. The name is a fact about the item and is asked for in two voices -- a
+    sentence in a history, and the name of a project about it -- so it is read in
+    one place."""
+    for cls in (Computer, Part):
+        if (obj := db.get(cls, asset_id)) is not None:
+            return entry.display_name(to_dict(obj))
+    return None
+
+
 def _asset_named(db, asset_id):
     """A computer or part in a sentence written in a project's history: what it is
     called, and its id. Falls back to the bare id for something that has since
     gone, so a history line never reads as a blank."""
-    for cls in (Computer, Part):
-        if (obj := db.get(cls, asset_id)) is not None:
-            return f"{entry.display_name(to_dict(obj))} ({asset_id})"
-    return asset_id
+    name = _asset_display(db, asset_id)
+    return f"{name} ({asset_id})" if name else asset_id
 
 
 # --- work noted while checking something in -----------------------------------
@@ -6776,16 +6785,22 @@ def _asset_named(db, asset_id):
 # box again.
 
 
-def _work_project_name(asset_id):
+def _work_project_name(db, asset_id):
     """What a project raised from an item's own form is called.
 
     The form asks for no name: what is being described is the work, and the only
-    thing known about it at that moment is which item it is for. The tag goes into
-    the name as well as into the membership because the name is what a project is
-    found by, and the tag is the thing in the collector's hand -- the label stuck on
-    the machine. Rename it on its own form once it is a piece of work with a
-    character of its own."""
-    return f"Work required by item: {asset_id}"
+    thing known about it at that moment is which item it is for. So the item names
+    it -- what the thing is called, not its tag. "Work required by item: Amstrad
+    PC1640" is a line somebody can read down a list and recognise; the same line
+    ending RH-J8JA is one they have to look up, and a list of them is a list of
+    lookups.
+
+    The tag is the fallback, through display_name, for a thing entered with no
+    maker, model or name of its own yet -- and the project's own tag is beside it on
+    every list it appears in, which is what tells two machines of the same model
+    apart. Rename it on its own form once it is a piece of work with a character of
+    its own."""
+    return f"Work required by item: {_asset_display(db, asset_id) or asset_id}"
 
 
 def _work_lines(raw):
@@ -6811,7 +6826,7 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
     beside it if what follows fails."""
     if project is None:
         project = Project(asset_id=next_asset_id(db),
-                          name=(name or _work_project_name(asset_id))[:255],
+                          name=(name or _work_project_name(db, asset_id))[:255],
                           status="planned", private=True)
         db.add(project)
         add_log(db, project.asset_id, "created", "created")

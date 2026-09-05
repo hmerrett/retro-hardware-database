@@ -27,7 +27,10 @@ one job to a line, and a picker of the projects still in hand.
 - Empty makes nothing. Most things arrive with nothing wrong, and a project per
   arrival would turn `/projects` into a second copy of the register.
 - Text with no project picked raises a **private, planned** project called
-  **`Work required by item: RH-XXXX`**, with the item on it and each line a job.
+  **`Work required by item: <what the item is called>`**, with the item on it and
+  each line a job. (It named the item's *tag* at first; migration 0033 renamed
+  those and the code follows. A tag is a line you have to look up before it means
+  anything, and a list of them is a list of lookups.)
   Private for the reason the quick box's projects are: a sentence typed while
   unpacking has not been considered for publication.
 - A picked project takes the item and the jobs instead, so nothing is retyped.
@@ -60,9 +63,10 @@ the worse failure.
   same thing, and only their defaults differ (the entry forms have no name to
   offer, so the item's tag names the project).
 - Projects raised this way all read `Work required by item: …` until they are
-  renamed, which is a flat-sounding list — accepted deliberately: the tag is what
-  is in your hand at the bench, and a project worth a better name gets one on its
-  own form.
+  renamed, which is a flat-sounding list — accepted deliberately: a project worth a
+  better name gets one on its own form. Two of the same model give two projects
+  with the same name; the project's own tag is beside it on every list, which is
+  where that distinction belongs.
 - The work box is **write-only** — never filled in with what the project already
   says — so an ordinary save cannot add the same job twice. That also means the
   edit form is not a way to *read* what a thing needs; the item's own page is.
