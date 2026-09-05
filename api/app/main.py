@@ -44,9 +44,9 @@ from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
                      MotherboardSpec, NetworkSpec, Part, PartPort, PartRamSlot,
                      PartSlot, Project, ProjectAsset, ProjectOrder, ProjectTask,
                      SoundSpec, StorageSpec, StoredFile, VideoSpec)
-from .schemas import (ComputerIn, ComputerOut, PartIn, PartOut, ProjectIn,
-                      ProjectItemIn, ProjectOrderIn, ProjectOrderOut,
-                      ProjectOut, ProjectTaskIn, ProjectTaskOut)
+from .schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate,
+                      PartIn, PartOut, ProjectIn, ProjectItemIn, ProjectOrderIn,
+                      ProjectOrderOut, ProjectOut, ProjectTaskIn, ProjectTaskOut)
 import contextlib
 
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
@@ -2638,16 +2638,36 @@ def _machine_out(db, asset, identity=None):
     return v | {"model": m.get("model", ""), "family": m.get("family", "")}
 
 
-def _computer_out(db, computer, identity=None):
-    """One computer as the API returns it: its own columns, and the catalogue
-    identity read from its rows rather than from the line rendered off them."""
-    return to_dict(computer) | {"machine": _machine_out(db, computer, identity)}
+def _project_ids(db, asset_id, prefetched=None):
+    """The projects an item is on, as tags, for the API's read shape.
+
+    `prefetched` is the whole page's answer in one query, which is what the list
+    endpoints hand in: asking per row would be a query per machine on the page that
+    would notice, the same reason machinedb.read_many exists.
+
+    Nothing is hidden here. A private project is kept back from the public pages,
+    and the API is behind the login entire -- there is nobody on this side of it to
+    keep anything from."""
+    if prefetched is not None:
+        return [p.asset_id for p in prefetched.get(asset_id, [])]
+    return [p.asset_id for p in projects.projects_for(db, asset_id)]
 
 
-def _part_out(db, part, identity=None):
-    """One part as the API returns it. The same two pieces as a computer's, and for
-    a part that is not a board `machine` is simply null."""
-    return to_dict(part) | {"machine": _machine_out(db, part, identity)}
+def _computer_out(db, computer, identity=None, in_projects=None):
+    """One computer as the API returns it: its own columns, the catalogue identity
+    read from its rows rather than from the line rendered off them, and what it is
+    on the list of."""
+    return to_dict(computer) | {
+        "machine": _machine_out(db, computer, identity),
+        "projects": _project_ids(db, computer.asset_id, in_projects)}
+
+
+def _part_out(db, part, identity=None, in_projects=None):
+    """One part as the API returns it. The same pieces as a computer's, and for a
+    part that is not a board `machine` is simply null."""
+    return to_dict(part) | {
+        "machine": _machine_out(db, part, identity),
+        "projects": _project_ids(db, part.asset_id, in_projects)}
 
 
 @app.get("/machines", response_class=HTMLResponse, include_in_schema=False)
@@ -2703,15 +2723,21 @@ def api_list_machines():
 @app.get("/api/computers", response_model=list[ComputerOut], tags=["computers"])
 def api_list_computers(db: Session = Depends(get_db)):
     rows = db.query(Computer).order_by(Computer.asset_id).all()
-    # One pair of queries for the whole list rather than a pair per machine.
+    # One pair of queries for the whole list rather than a pair per machine, and the
+    # memberships in one more for the same reason.
     identities = machinedb.read_many(db, rows)
-    return [_computer_out(db, c, identities.get(c.asset_id, dict(machinedb.BLANK)))
+    in_projects = projects.projects_by_asset(db, [c.asset_id for c in rows])
+    return [_computer_out(db, c, identities.get(c.asset_id, dict(machinedb.BLANK)),
+                          in_projects)
             for c in rows]
 
 
 @app.post("/api/computers", response_model=ComputerOut, tags=["computers"])
-def api_create_computer(data: ComputerIn, db: Session = Depends(get_db)):
+def api_create_computer(data: ComputerCreate, db: Session = Depends(get_db)):
     fields = data.model_dump()
+    # Read before anything is written, so a project tag that names nothing is a 404
+    # rather than a machine entered and a note dropped.
+    jobs, work = _work_from_api(db, fields)
     ram = fields.pop("installed_ram", "")
     drives = fields.pop("drives", "")
     machine = data.machine
@@ -2724,6 +2750,8 @@ def api_create_computer(data: ComputerIn, db: Session = Depends(get_db)):
     if machine is not None:
         _machine_from_api(db, obj, machine)
     add_log(db, obj.asset_id, "created", "created")
+    if jobs or work is not None:
+        _take_on_work(db, obj.asset_id, jobs, work)
     db.commit()
     db.refresh(obj)
     return _computer_out(db, obj)
@@ -2803,7 +2831,9 @@ def api_list_parts(computer_id: str | None = None, type: str | None = None,
         q = q.filter(Part.type == type)
     rows = q.order_by(Part.asset_id).all()
     identities = machinedb.read_many(db, rows)
-    return [_part_out(db, p, identities.get(p.asset_id, dict(machinedb.BLANK)))
+    in_projects = projects.projects_by_asset(db, [p.asset_id for p in rows])
+    return [_part_out(db, p, identities.get(p.asset_id, dict(machinedb.BLANK)),
+                      in_projects)
             for p in rows]
 
 
@@ -2819,8 +2849,9 @@ def _check_links(db, fields):
 
 
 @app.post("/api/parts", response_model=PartOut, tags=["parts"])
-def api_create_part(data: PartIn, db: Session = Depends(get_db)):
+def api_create_part(data: PartCreate, db: Session = Depends(get_db)):
     fields = data.model_dump()
+    jobs, work = _work_from_api(db, fields)
     machine = fields.pop("machine")
     _check_links(db, fields)
     obj = Part(asset_id=next_asset_id(db), **fields)
@@ -2830,6 +2861,8 @@ def api_create_part(data: PartIn, db: Session = Depends(get_db)):
     if machine is not None:
         _board_from_api(db, obj, data.machine)
     add_log(db, obj.asset_id, "created", "created")
+    if jobs or work is not None:
+        _take_on_work(db, obj.asset_id, jobs, work)
     db.commit()
     db.refresh(obj)
     return _part_out(db, obj)
@@ -4324,6 +4357,8 @@ def _computer_form_ctx(c, title, db=None):
             "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
             "drive_sizes": drivedb.SIZES, "drive_media": drivedb.MEDIA,
             "drive_speeds": drivedb.SPEEDS, **_bezel_ctx(), **_machine_ctx(c, db),
+            # The projects in hand, for the work box at the foot of the form.
+            "work_projects": projects.open_projects(db) if db is not None else [],
             **_boardparts_ctx(db, c)}
 
 
@@ -4491,6 +4526,9 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     if (mach := _machine_from_form(form)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
+    # After the flush above, because a membership is refused for an asset that is not
+    # in the register yet -- and this one is being entered as we speak.
+    _work_from_form(db, obj, form)
     db.commit()
     if photos:
         _attach_photos(db, obj, "computers", photos)
@@ -4589,6 +4627,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
                         COMPUTER_DIFF_FIELDS)
     if diff:
         add_log(db, aid, diff)
+    _work_from_form(db, c, form)
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
@@ -5320,6 +5359,7 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
         "action": action or (f"/parts/{obj.asset_id}/edit" if obj else "/parts/new"),
         "makes": makes, "models": models, "known": known,
         "conditions": entry.CONDITIONS,
+        "work_projects": projects.open_projects(db),
         "vocab": {
             "form_factors": entry.MOBO_FORM_FACTORS, "cpu_families": cpu_families,
             "ram_slots": entry.RAM_SLOT_TYPES, "card_interfaces": entry.CARD_INTERFACES,
@@ -5660,6 +5700,10 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
                 # were chosen belong to the machine the drive went into.
                 if photos:
                     _attach_photos(db, c, "computers", photos)
+                # And for the same reason, work noted while adding it is the
+                # machine's: the drive is a field on that record and has no tag of
+                # its own for a project to be about.
+                _work_from_form(db, c, form)
                 db.commit()
                 return RedirectResponse(f"/computers/{computer_id}?build=1",
                                         status_code=303)
@@ -5687,6 +5731,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
             (mach := _machine_from_form(form, board=True)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
+    _work_from_form(db, obj, form)
     db.commit()
     if photos:
         _attach_photos(db, obj, "parts", photos)
@@ -5799,6 +5844,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     diff = _field_diffs(old, {k: getattr(p, k) for k in data}, list(data), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
+    _work_from_form(db, p, form)
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
@@ -6327,17 +6373,10 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
         # "Chinon FZ-357A" is at least findable; one called nothing is not.
         name = (entry.display_name(to_dict(found[0])) if found
                 else job[:60] or "Untitled project")
-    obj = Project(asset_id=next_asset_id(db), name=name[:255], status="planned",
-                  private=True)
-    db.add(obj)
-    add_log(db, obj.asset_id, "created", "created")
-    if found is not None:
-        projects.add_asset(db, obj.asset_id, asset_id)
-        add_log(db, obj.asset_id, f"took on {_asset_named(db, asset_id)}")
-        _member_log(db, obj, asset_id)
-    if job:
-        db.add(ProjectTask(project_id=obj.asset_id, text=job))
-        add_log(db, obj.asset_id, f"to do: {_short(job)}")
+    # The same one path the entry forms note work down; what differs here is only
+    # the name, because this box has one and they have not.
+    obj = _take_on_work(db, asset_id if found is not None else "",
+                        [job] if job else [], name=name)
     db.commit()
     return RedirectResponse(f"/projects/{obj.asset_id}", status_code=303)
 
@@ -6576,6 +6615,103 @@ def _asset_named(db, asset_id):
         if (obj := db.get(cls, asset_id)) is not None:
             return f"{entry.display_name(to_dict(obj))} ({asset_id})"
     return asset_id
+
+
+# --- work noted while checking something in -----------------------------------
+# The quick box above is this gesture from a page that already exists. What follows
+# is the same one from the two forms that make a page, which is where the thought
+# actually arrives: what is wrong with a machine is seen while it is being unpacked,
+# and the form that files it is on screen at the time. Asking for the item's tag
+# first meant the note had to wait for a second visit to a page that did not exist
+# yet, and a note that waits is a note that is lost -- which is the whole reason the
+# flag on an item existed before 0031, and the reason this is not simply the quick
+# box again.
+
+
+def _work_project_name(asset_id):
+    """What a project raised from an item's own form is called.
+
+    The form asks for no name: what is being described is the work, and the only
+    thing known about it at that moment is which item it is for. The tag goes into
+    the name as well as into the membership because the name is what a project is
+    found by, and the tag is the thing in the collector's hand -- the label stuck on
+    the machine. Rename it on its own form once it is a piece of work with a
+    character of its own."""
+    return f"Work required by item: {asset_id}"
+
+
+def _work_lines(raw):
+    """The jobs out of a work box, one to a line.
+
+    Faults arrive as a list -- recap, belt, keyboard sticks -- and one box holding
+    all three as a sentence would make a single task that can only ever be half
+    ticked off. Blank lines go, so a trailing newline is not a job with nothing in
+    it."""
+    return [line.strip() for line in (raw or "").splitlines() if line.strip()]
+
+
+def _take_on_work(db, asset_id, jobs, project=None, name=""):
+    """Put an item and its jobs on a project, making one if none was given.
+
+    The one path everything that notes work runs down -- the quick box, both entry
+    forms, both edit forms and the API -- so the item lands on the project, the
+    history is written from both ends and the privacy rule is kept the same way
+    wherever the sentence was typed.
+
+    Commits nothing. Every caller is in the middle of saving something else and owns
+    the transaction; a commit here would be a half-saved machine with a project
+    beside it if what follows fails."""
+    if project is None:
+        project = Project(asset_id=next_asset_id(db),
+                          name=(name or _work_project_name(asset_id))[:255],
+                          status="planned", private=True)
+        db.add(project)
+        add_log(db, project.asset_id, "created", "created")
+    if asset_id and projects.add_asset(db, project.asset_id, asset_id):
+        add_log(db, project.asset_id, f"took on {_asset_named(db, asset_id)}")
+        _member_log(db, project, asset_id)
+    for job in jobs:
+        db.add(ProjectTask(project_id=project.asset_id, text=job))
+        add_log(db, project.asset_id, f"to do: {_short(job)}")
+    return project
+
+
+def _work_from_form(db, obj, form):
+    """The work box on an entry or edit form, acted on once the item itself is saved.
+
+    Nothing typed and nothing picked makes nothing, which is the ordinary case: most
+    things arrive with nothing wrong, and a project per arrival would turn the
+    projects page from a list of work into a second copy of the register.
+
+    A picked project that names nothing becomes a project of its own rather than an
+    error. The menu cannot produce one -- only a hand-made post can -- and refusing
+    at this point would throw away the entry being made, photographs and all, over
+    the convenience half of the gesture. The sentence is the part worth keeping."""
+    jobs = _work_lines(form.get("work_needed", ""))
+    picked = (form.get("work_project", "") or "").strip().upper()
+    project = db.get(Project, picked) if picked else None
+    if not jobs and project is None:
+        return None
+    return _take_on_work(db, obj.asset_id, jobs, project)
+
+
+def _work_from_api(db, fields):
+    """`work_needed` / `work_project` off a create body: the jobs, and the project
+    they go on, taken out of the fields on their way past.
+
+    The project is checked here, before the item is written, and a tag that names
+    nothing is a 404. Unlike the form, a caller here typed the tag -- and one that
+    named a project meant that project, so filing the work somewhere else quietly
+    would be a worse answer than being told. Checking first is what keeps the typo
+    from leaving a half-entered machine behind it."""
+    jobs = _work_lines(fields.pop("work_needed", "") or "")
+    picked = (fields.pop("work_project", "") or "").strip().upper()
+    project = None
+    if picked:
+        project = db.get(Project, picked)
+        if project is None:
+            raise HTTPException(404, f"projects {picked} not found")
+    return jobs, project
 
 
 # --- the jobs, and the things on order ---------------------------------------

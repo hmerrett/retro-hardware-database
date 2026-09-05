@@ -341,6 +341,8 @@ nothing until you submit it.
 | **Reference URL** | Wikipedia, The Retro Web, a forum thread. Also what the "fetch photo from reference" button reads. |
 | **Summary** | The prose shown at the top of the page. |
 | **Notes** | Anything else. |
+| **Work needed** | What it needs doing, one job to a line — `recap`, `new belt`, `keyboard sticks`. Leave it empty if there is nothing to do. See [checking something in](#checking-something-in). |
+| **…as part of** | Which project those jobs go on. Left at *a project of its own*, they raise a new private one about this machine; pick a project already going and the machine joins that instead. |
 | **Photographs** | Only on the new-machine form — there is no tag to file them under until it is saved. Afterwards they upload from the machine's own page. |
 
 ### About TopBench
@@ -738,7 +740,8 @@ so a drive on the shelf and one fitted in a machine are described alike.
 Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
 **Name** (optional; defaults to maker + model), **Year**, **Serial number**,
 **Condition**, **Source**, **Acquired date**, **Reference URL**, **Summary**,
-**Notes**, **Installed in** and **Mounted on**.
+**Notes**, **Installed in** and **Mounted on** — and, at the foot of the form,
+**Work needed** and **…as part of** ([checking something in](#checking-something-in)).
 
 **Serial number** is the number marked on that particular one — the only field
 that is never true of a second object, which is why the **duplicate** button
@@ -1160,6 +1163,33 @@ There used to be two lists here: a lightweight queue of flagged items, and
 projects. They were the same idea at two sizes, and getting from one to the other
 meant retyping it. Now the quick box makes the real thing straight away.
 
+### Checking something in
+
+Both boxes above want an asset tag, so both need the thing to exist already. But
+what is wrong with a machine is usually seen while it is being unpacked — before
+it has a tag at all, with the entry form open in front of you.
+
+So the forms for a computer and a part carry the same gesture at the foot:
+**Work needed**, one job to a line, and **…as part of**, a menu of the projects
+still in hand.
+
+- Leave the box empty and nothing happens, which is most arrivals.
+- Write something and you get a **private** project called
+  *Work required by item: RH-XXXX*, with the machine on it and each line a job.
+  Rename it on its own form if it turns into a piece of work with a character of
+  its own; publish it there too.
+- Or pick a project from the menu, and the item and the jobs go on that one
+  instead — which is what a part bought for a build already in hand actually is.
+  The menu offers open projects only; a finished one is not something a machine
+  arriving today is joining.
+
+The same two fields are on the **edit** form, and on `POST /api/computers` and
+`POST /api/parts` as `work_needed` and `work_project` — so a machine dictated to
+the MCP server arrives with its faults written down like one typed in. The box is
+write-only: it never shows what the project already says, so saving a form again
+cannot write the same job twice. To read what a thing needs, look at the
+**Projects** panel on its own page.
+
 ### Private projects
 
 **What the quick box makes is private.** A line typed in five seconds has not been
@@ -1545,6 +1575,16 @@ A part takes one too, and only a motherboard may: it asks for `model_key`,
 whole machine in a case. Both read back with `variant`, the rendered line, which
 is written from the rows and ignored if you send it.
 
+`POST` to `/api/computers` or `/api/parts` also takes `work_needed` (one job to a
+line) and `work_project` (the tag of a project already going), which do what the
+same two fields on the entry form do — see [checking something
+in](#checking-something-in). A `work_project` naming no project is refused with a
+404 and nothing is created; unlike the form, a caller here typed the tag, and
+filing the work somewhere else quietly would be the worse answer. `PATCH` does not
+take them: the note belongs to checking something in, and an item that already
+exists has the box on its own page. Every computer and part reads back with
+`projects`, the tags of the projects it is on.
+
 Authenticate with HTTP Basic:
 
 ```sh
@@ -1575,6 +1615,11 @@ The tools are:
 - `add_project_task`, `update_project_task` (tick it), `delete_project_task`
 - `add_project_order`, `mark_project_order_delivered`, `delete_project_order` —
   `cost_p` is pence as a whole number, and is the cost of the whole line as paid
+
+`create_computer` and `create_part` also take `work_needed` and `work_project`, so
+a machine dictated as it comes out of the box arrives with its faults written down
+— [checking something in](#checking-something-in). A fault is something somebody
+observed, never something inferred from the age or the model.
 
 It stores nothing of its own. Every call is an HTTP request to the API, so the
 tool server, the GUI and the command-line tools all work against the same
