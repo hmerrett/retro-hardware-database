@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy db.2600.me: pull the latest code and rebuild the running stack.
+# Deploy this installation: pull the latest code and rebuild the running stack.
 #
 # Run it on the server, from the repo root:
 #     ./deploy.sh
@@ -21,4 +21,6 @@ docker image prune -f >/dev/null || true
 echo "==> Recent api logs"
 docker compose logs --tail=20 api
 
-echo "==> Done. Live at https://db.2600.me/"
+# The domain is this installation's, and .env is where it lives.
+SITE="$(grep -E '^RHDB_DOMAIN=' .env 2>/dev/null | cut -d= -f2-)"
+echo "==> Done. Live at https://${SITE:-<your domain>}/"

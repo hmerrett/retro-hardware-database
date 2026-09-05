@@ -25,3 +25,11 @@ backups/
 /FINDINGS.md
 /HARDENING-NOTES.md
 /docs/superpowers/
+
+# Local Caddy blocks (other names, redirects) belong to the deployment, not the repo
+caddy/conf.d/*.caddy
+!caddy/conf.d/empty.caddy
+
+# This installation's own logo, icons and share card
+branding/*
+!branding/README.md

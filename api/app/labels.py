@@ -99,7 +99,12 @@ _font_ready = False
 
 
 def base_url() -> str:
-    return (os.getenv("RHDB_BASE_URL") or "https://db.2600.me").rstrip("/")
+    """Where the QR codes point. From the environment, because it is a fact about
+    this installation and nothing else -- a label is printed once and stuck on a
+    machine for years, so a default belonging to some other site would be a wrong
+    address that cannot be corrected without reprinting. Falls back to the address
+    the app listens on, which is at least this installation."""
+    return (os.getenv("RHDB_BASE_URL") or "http://localhost:8000").rstrip("/")
 
 
 def item_url(asset_id: str) -> str:

@@ -299,7 +299,7 @@ class TestTheDeleteConfirmation:
         assert client.post(f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"},
                            follow_redirects=False).status_code == 303
 
-    @pytest.mark.parametrize("typed", ["http://db.2600.me/parts/{aid}",
+    @pytest.mark.parametrize("typed", ["http://another.example/parts/{aid}",
                                        "http://testserver/parts/{aid}/",
                                        "http://testserver/parts/{aid}?from=gallery",
                                        "  http://testserver/parts/{aid}  "])
