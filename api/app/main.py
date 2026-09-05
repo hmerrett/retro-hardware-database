@@ -5327,18 +5327,27 @@ def _answers_given(db, *columns, limit=200):
     most -- so "eBay" wins over "ebay" by being what was actually typed, rather
     than by any rule about capitals.
 
+    The counting is done here rather than by the query it would obviously be done
+    by. MariaDB's collation folds case and ignores trailing spaces, so GROUP BY on
+    the column has already merged "eBay", "ebay" and "eBay " before we see them,
+    and what comes back as the group's label is whichever row it happened to read
+    first -- which makes "the spelling used most" whatever the storage engine felt
+    like that morning. Reading the values and counting them here makes the rule
+    ours. It is a column of a few hundred short strings; the query it replaces was
+    not saving anything worth this.
+
     Capped: this goes into the markup of every form that asks, and two hundred is
     already past what anybody scrolls.
     """
     counts, spellings = Counter(), {}
     for column in columns:
-        for value, n in db.query(column, func.count()).group_by(column):
+        for (value,) in db.query(column):
             text = (value or "").strip()
             if not text:
                 continue
             key = text.casefold()
-            counts[key] += n
-            spellings.setdefault(key, Counter())[text] += n
+            counts[key] += 1
+            spellings.setdefault(key, Counter())[text] += 1
     return [spellings[key].most_common(1)[0][0]
             for key, _ in counts.most_common(limit)]
 
