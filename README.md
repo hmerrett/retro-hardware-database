@@ -7,8 +7,8 @@ own, photographs, and a dated history of everything that has happened to it. You
 print a small label with a QR code, stick it on the thing, and scanning that code
 opens its page.
 
-The live instance is <https://db.2600.me>. Browsing is public; editing needs a
-login.
+Browsing is public; editing needs a login. It is a self-hosted thing: you run it
+on your own domain, with your own collection in it and your own logo on it.
 
 ## What it is for
 
@@ -83,8 +83,8 @@ To run it properly, on your own server, with your own collection in it, see
 **[MANUAL.md](MANUAL.md)** is the full manual: what every field means, how each
 feature works, the REST API, and the command-line tools.
 
-**[DEPLOY.md](DEPLOY.md)** is the runbook for the db.2600.me box specifically —
-how to ship a change to the live site.
+**[DEPLOY.md](DEPLOY.md)** is the runbook for shipping a change to a server you
+have already installed on — the day-to-day of running the thing.
 
 ## How it is built
 

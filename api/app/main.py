@@ -133,7 +133,7 @@ def _og(request: Request, title: str, description: str = "", image_rel: str | No
         # shared link is never the bare text preview it used to be.
         path, og["image_w"], og["image_h"] = SITE_CARD
         og["image"] = _abs_url(request, f"{path}?v={SITE_CARD_VER}")
-        og["image_alt"] = "2600.me — the Retro Hardware Database"
+        og["image_alt"] = "The Retro Hardware Database"
     return og
 
 
@@ -2055,6 +2055,30 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
+# Where a deployment puts its own logo, icons and card, if it has any.
+#
+# What ships in `static/` is a placeholder: this is somebody's own catalogue,
+# running on their own domain, and the artwork on the page should be able to be
+# theirs. A file dropped in here under the same name as a shipped one is served
+# instead of it -- `logo-512.png` is also what the photo watermark is made from and
+# what tools/make_icons.py builds the icon set out of, so replacing that one file is
+# most of the job. Nothing here is in git (the directory is .gitignored), which is
+# the point: an installation's branding belongs to the installation.
+#
+# Read at start-up, like the rest of the configuration. Restart the app after
+# changing what is in here -- the version stamps that let icons and watermarks be
+# cached for a year are hashes of the artwork, taken once.
+BRANDING_DIR = Path(os.getenv("RHDB_BRANDING_DIR", "/app/branding"))
+
+
+def branded(name: str) -> Path:
+    """The deployment's own copy of a static file if it has one, else the shipped
+    one. Names only -- never a path from a request, which the static mount checks
+    for itself."""
+    own = BRANDING_DIR / name
+    return own if own.is_file() else STATIC_DIR / name
+
+
 
 def _file_ver(path: Path) -> str:
     """Short content hash of a file, or '0' if it is not there. Used to name things
@@ -2067,22 +2091,22 @@ def _file_ver(path: Path) -> str:
         return "0"
 
 
-templates.env.globals["icon_ver"] = _file_ver(STATIC_DIR / "favicon.ico")
+templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
 # Social sites cache a card hard, so its URL carries the artwork's hash too.
-SITE_CARD_VER = _file_ver(STATIC_DIR / SITE_CARD[0].removeprefix("/static/"))
+SITE_CARD_VER = _file_ver(branded(SITE_CARD[0].removeprefix("/static/")))
 _ICON_CACHE = {"Cache-Control": "public, max-age=86400"}
 
 
 # Browsers and crawlers request these at the domain root regardless of markup.
 @app.get("/favicon.ico", include_in_schema=False)
 def favicon():
-    return FileResponse(STATIC_DIR / "favicon.ico", headers=_ICON_CACHE)
+    return FileResponse(branded("favicon.ico"), headers=_ICON_CACHE)
 
 
 @app.get("/apple-touch-icon.png", include_in_schema=False)
 @app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
 def apple_touch_icon():
-    return FileResponse(STATIC_DIR / "apple-touch-icon.png", headers=_ICON_CACHE)
+    return FileResponse(branded("apple-touch-icon.png"), headers=_ICON_CACHE)
 
 
 class _CachedStatic(StaticFiles):
@@ -2112,7 +2136,14 @@ class _CachedStatic(StaticFiles):
 
 for sub in ("computers", "parts"):
     (IMAGES_DIR / sub).mkdir(parents=True, exist_ok=True)
-app.mount("/static", _CachedStatic(directory=str(STATIC_DIR)), name="static")
+_static = _CachedStatic(directory=str(STATIC_DIR))
+# The deployment's own artwork first, the shipped placeholders behind it. This is
+# StaticFiles' own search list, so a name that is not overridden falls through to
+# what ships, and the traversal checks are the ones it already makes on every
+# request -- a directory in front of another is exactly what `packages` does.
+if BRANDING_DIR.is_dir():
+    _static.all_directories = [str(BRANDING_DIR), *_static.all_directories]
+app.mount("/static", _static, name="static")
 
 # Our own photos are served with a small RHDB watermark composited in a corner,
 # so shared/saved copies carry attribution. Originals on disk are never altered;
@@ -2122,9 +2153,9 @@ WATERMARK = os.getenv("RHDB_WATERMARK", "1").lower() not in ("0", "false", "no",
 # The logo at its own proportions (tools/make_icons.py writes it), not the squared
 # app icon: a mark letterbox-padded inside a square would sit on the photo smaller
 # than the numbers below ask for. Falls back to the square icon if it is missing.
-WM_SRC = STATIC_DIR / "logo-512.png"
+WM_SRC = branded("logo-512.png")
 if not WM_SRC.exists():
-    WM_SRC = STATIC_DIR / "icon-512.png"
+    WM_SRC = branded("icon-512.png")
 
 # A proportion of the photo's short edge, so the mark stays legible on a 5712px
 # photo and unobtrusive on a small one, with a floor for the very small.

@@ -1084,10 +1084,13 @@
 {%- if (seg == '/' and _p == '/') or (seg != '/' and _p.startswith(seg)) %} aria-current="page"{% endif -%}
 {%- endmacro %}
 <header>
-  {# The sticker and the name together: the logo says 2600.me, which is where this
-     is, and the words say what it is. #}
+  {# The mark and the name together. What ships is a placeholder; an installation
+     drops its own logo-256.png into the branding directory and this becomes theirs
+     (see main.branded and INSTALL.md). Which is why the alt text says what the
+     picture is rather than naming anybody's site. #}
   <a class="brand" href="/">
-    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="2600.me" width="248" height="256">
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="Retro Hardware Database"
+         width="248" height="256">
     <span>Retro Hardware Database</span>
   </a>
   {# The places, one of them lit. API docs is not among them: it is for whoever is

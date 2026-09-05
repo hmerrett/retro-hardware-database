@@ -35,11 +35,12 @@ git clone https://github.com/<your-fork>/retro-hardware-db.git
 cd retro-hardware-db
 ```
 
-Any directory will do. On the live box it is `/root/retro-hardware-db-2`.
+Any directory will do.
 
-If you want to keep your own changes (your hostname, your logo) without them
-fighting the upstream repo every time you pull, fork it first and clone your
-fork.
+Your hostname, your credentials and your logo all live outside the repo — in
+`.env`, in `caddy/conf.d/` and in `branding/`, none of which are in git — so
+pulling an update never fights with them, and you do not need a fork of your own
+to keep them.
 
 ## 3. Configure it
 
@@ -61,8 +62,10 @@ Now edit `.env`. Every setting, and what it does:
 | `RHDB_AUTH_USER` | The username you log in to the site with. |
 | `RHDB_AUTH_PASSWORD` | Its password. **Set both, or the site is world-editable.** |
 | `RHDB_SECRET_KEY` | Signs your browser login cookie. Generate one with `openssl rand -hex 32`. |
-| `RHDB_BASE_URL` | The public URL of your site, e.g. `https://db.example.com`. |
-| `RHDB_WATERMARK` | `1` to stamp your own photos with your site logo as they are served, `0` to serve them untouched. |
+| `RHDB_DOMAIN` | The name this site answers to, e.g. `db.example.com`. Caddy serves it and gets its certificate. |
+| `RHDB_ACME_EMAIL` | Where Let's Encrypt writes about those certificates. |
+| `RHDB_BASE_URL` | The public URL of your site. Defaults to `https://$RHDB_DOMAIN`; set it only if they differ. |
+| `RHDB_WATERMARK` | `1` to stamp your own photos with your site logo as they are served, `0` to serve them untouched. The logo is whatever is in `branding/`, or the shipped placeholder. |
 
 Two of these matter more than they look:
 
@@ -80,32 +83,23 @@ creates its own tables.
 
 ## 4. Set your hostname
 
-Edit `caddy/Caddyfile`. It ships configured for `db.2600.me`; replace that with
-your own name, and put your own email address at the top (Let's Encrypt uses it
-for expiry warnings):
+Nothing to edit: `caddy/Caddyfile` serves whatever `.env` says, so the two lines
+you already set are the whole of it.
 
-```
-{
-	email you@example.com
-}
-
-db.example.com {
-	log {
-		output file /var/log/caddy/access.log {
-			roll_size 10MiB
-			roll_keep 15
-		}
-		format json
-	}
-
-	encode zstd gzip
-
-	reverse_proxy api:8000
-}
+```sh
+RHDB_DOMAIN=db.example.com          # the name this site answers to
+RHDB_ACME_EMAIL=you@example.com     # Let's Encrypt writes here about certificates
 ```
 
-Delete the `2600.me, www.2600.me` block unless you also want a bare domain
-redirecting to your site — if you do, change both names to yours.
+Caddy gets a certificate for that name and renews it, and the app takes
+`https://$RHDB_DOMAIN` as its public address unless `RHDB_BASE_URL` says otherwise
+— which is what the QR codes on your printed labels encode, so it is worth getting
+right before you print any.
+
+If you want other names as well — a bare domain redirecting to the www, or the
+address the collection used to live at — put a block in `caddy/conf.d/*.caddy`,
+which is imported and is not in git. See `caddy/conf.d/README.md` for the shape of
+one.
 
 Then point DNS at the box: an **A record** for `db.example.com` at your server's
 IPv4 address (and an AAAA record if it has IPv6). Caddy fetches its certificate
@@ -257,24 +251,32 @@ The database is not rolled back with it. If a migration was the problem,
 
 ### The logo and icons
 
-Everything branded is generated from one master image,
-`api/app/static/app-icon.png` — the favicons, the app icons, the header logo, the
-photo watermark, and the card a shared link previews as. Replace that file with
-your own transparent PNG, then regenerate the set:
+What ships is a placeholder — a beige machine with a bare prompt on its screen,
+which says "retro hardware" and nothing about whose collection this is. Your own
+artwork goes in the **`branding/`** directory, which is not in git: a file there is
+served in place of the one that ships under the same name, so an update never
+overwrites your logo and your logo never shows up in a pull request.
+
+Everything branded comes from one master image. Drop yours in as
+`branding/app-icon.png` (transparent PNG, roughly square), then build the set:
 
 ```sh
-docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
+docker run --rm -v "$PWD/branding:/static" -v "$PWD/tools:/tools" \
   retro-hardware-db-2-api python /tools/make_icons.py
-docker compose up -d --build
+docker compose up -d --force-recreate api
 ```
 
-(Anywhere with Pillow installed, `RHDB_STATIC=api/app/static python3
+That writes the favicons, the app icons, the header logo, the photo watermark and
+the card a shared link previews as — all into `branding/`. Replace any of them by
+hand instead if you would rather; `branding/README.md` says what each one is.
+(Anywhere with Pillow installed, `RHDB_STATIC=branding python3
 tools/make_icons.py` does the same without Docker.)
 
-Nothing needs cache-clearing afterwards: the version marker in the page head
-follows the icon's hash, and the watermark cache directory is named partly after
-the mark's, so photographs already served are re-marked rather than keeping the
-old logo.
+The restart is the only step that matters: the version stamps are hashes of the
+artwork, read once at start-up. Nothing needs cache-clearing beyond that — the
+marker in the page head follows the icon's hash, and the watermark cache directory
+is named partly after the mark's, so photographs already served are re-marked
+rather than keeping the old logo.
 
 ### The machine catalogue
 
