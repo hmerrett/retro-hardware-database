@@ -35,6 +35,7 @@ from __future__ import annotations
 import contextlib
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 # What the templates may ask for, and why each one is there. The card in the
@@ -81,6 +82,31 @@ def sweep(images_dir: Path):
                 shutil.rmtree(stale, ignore_errors=True)
 
 
+def _write_atomically(dst: Path, write):
+    """Write a file by way of a temporary one beside it, then move it into place.
+    `write` is handed the temporary path.
+
+    main._write_atomically, which this cannot import (main imports this module) and
+    which carries the full reasoning. In short: a copy is written aside so a request
+    arriving while it is being encoded never reads a half-made one, and the
+    temporary is unique to the writer so two requests rebuilding the same stale copy
+    -- which is what a page reloaded straight after a crop does -- cannot write into
+    each other's file, or into the one being served.
+    """
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(dir=dst.parent, prefix=f"{dst.name}.",
+                                suffix=".part")
+    os.close(fd)
+    tmp = Path(name)
+    try:
+        write(tmp)
+        os.replace(tmp, dst)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp.unlink(missing_ok=True)
+        raise
+
+
 def _make(src: Path, dst: Path, width: int) -> bool:
     """Write a copy of `src` no wider than `width`. False if the source is already
     that small, which is not a failure -- it means serve the source."""
@@ -90,12 +116,10 @@ def _make(src: Path, dst: Path, width: int) -> bool:
             return False
         im = im.convert("RGB") if im.mode in ("RGBA", "P", "LA") else im
         im.thumbnail((width, width), Image.LANCZOS)
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dst.with_name(dst.name + ".part")
         # Written aside and moved into place, so a second request arriving while
         # this one is still encoding never reads a half-written file.
-        im.save(tmp, "JPEG", quality=QUALITY, optimize=True)
-        tmp.replace(dst)
+        _write_atomically(dst, lambda tmp:
+                          im.save(tmp, "JPEG", quality=QUALITY, optimize=True))
     return True
 
 
