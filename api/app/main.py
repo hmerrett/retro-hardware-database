@@ -16,6 +16,7 @@ import random
 import re
 import secrets
 import shutil
+import time
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -151,8 +152,24 @@ def _jsonld(og, asset_id, brand, category):
     return d
 
 # Signed-cookie session for the browser (the API/tools keep using HTTP Basic).
-SECRET_KEY = (os.getenv("RHDB_SECRET_KEY")
-              or hashlib.sha256(f"{AUTH_USER}:{AUTH_PASS}:rhdb".encode()).hexdigest())
+def _resolve_secret_key(secret: str, auth_enabled: bool) -> str:
+    """The key that signs the session cookie. It must not be derived from the
+    credentials: the cookie's payload is a constant, so a key made from the
+    password would turn any leaked cookie into an offline oracle for it, with no
+    rate limit to slow the guessing. Require it explicitly when auth is on; when
+    the app runs open the cookie gates nothing, so a throwaway per-process key
+    will do."""
+    if secret:
+        return secret
+    if auth_enabled:
+        raise RuntimeError(
+            "RHDB_SECRET_KEY must be set when authentication is enabled. "
+            "Generate one with: openssl rand -hex 32"
+        )
+    return secrets.token_hex(32)
+
+
+SECRET_KEY = _resolve_secret_key(os.getenv("RHDB_SECRET_KEY", ""), AUTH_ENABLED)
 COOKIE = "rhdb_session"
 # The two cookies the site sets for a visitor who is only reading, both first party,
 # both holding a choice that visitor made themselves and nothing else. Neither is
@@ -168,6 +185,52 @@ templates.env.globals["sort_cookie"] = SORT_COOKIE
 templates.env.globals["notice_cookie"] = NOTICE_COOKIE
 SESSION_MAX_AGE = 60 * 60 * 24 * 30
 _signer = URLSafeTimedSerializer(SECRET_KEY, salt="rhdb-session")
+
+
+class _RateLimiter:
+    """A sliding-window limiter for login attempts, keyed by client IP. In-memory,
+    which suits a single-worker deployment; a restart clears it, which is fine for
+    slowing a guessing attack rather than accounting for one."""
+
+    def __init__(self, max_attempts: int, window: float):
+        self.max_attempts = max_attempts
+        self.window = window
+        self._hits: dict[str, list[float]] = {}
+
+    def _fresh(self, key: str, now: float) -> list[float]:
+        hits = [t for t in self._hits.get(key, []) if now - t < self.window]
+        self._hits[key] = hits
+        return hits
+
+    def check(self, key: str, now: float | None = None) -> bool:
+        """Whether another attempt is allowed for this key right now."""
+        now = time.monotonic() if now is None else now
+        return len(self._fresh(key, now)) < self.max_attempts
+
+    def record(self, key: str, now: float | None = None) -> None:
+        now = time.monotonic() if now is None else now
+        self._fresh(key, now).append(now)
+
+    def reset(self, key: str) -> None:
+        self._hits.pop(key, None)
+
+
+# 10 tries in five minutes is generous for a person and slow for a guesser.
+LOGIN_MAX_ATTEMPTS = int(os.getenv("RHDB_LOGIN_MAX_ATTEMPTS", "10"))
+LOGIN_WINDOW = int(os.getenv("RHDB_LOGIN_WINDOW", "300"))
+_login_limiter = _RateLimiter(LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW)
+
+
+def _client_ip(request: Request) -> str:
+    """The visitor's address, for rate-limiting. Behind Caddy every request's
+    immediate peer is Caddy, which appends the real client to X-Forwarded-For, so
+    the rightmost entry is the one a client cannot forge (anything it sends itself
+    sits to the left of what Caddy adds). Fall back to the peer address when there
+    is no proxy, as in local dev."""
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.rsplit(",", 1)[-1].strip()
+    return request.client.host if request.client else "?"
 
 
 def _check_basic(request: Request) -> bool:
@@ -275,8 +338,18 @@ async def auth_gate(request: Request, call_next):
     api_path = _is_api_path(path)
     # Browser paths trust the session cookie only, so logout is reliable; the API
     # and docs also accept HTTP Basic for the MCP server and command-line tools.
-    request.state.authed = (not AUTH_ENABLED or _check_cookie(request)
-                            or (api_path and _check_basic(request)))
+    has_basic = request.headers.get("authorization", "").startswith("Basic ")
+    basic_ok = api_path and has_basic and _check_basic(request)
+    request.state.authed = (not AUTH_ENABLED or _check_cookie(request) or basic_ok)
+    # A wrong Basic credential is a guess at the API's door; rate-limit it as the
+    # login form is. Only counted when a Basic header was actually sent and wrong,
+    # so ordinary anonymous reads are untouched.
+    if AUTH_ENABLED and api_path and has_basic and not basic_ok:
+        ip = _client_ip(request)
+        if not _login_limiter.check(ip):
+            return Response("Too many failed attempts, try again later",
+                            status_code=429)
+        _login_limiter.record(ip)
     # Read here so the notice can be left out of the markup altogether once it has
     # been dismissed, rather than shipped on every page and hidden by a script.
     request.state.noticed = NOTICE_COOKIE in request.cookies
@@ -307,13 +380,21 @@ def gui_login(request: Request, next: str = "/"):
 async def gui_do_login(request: Request):
     form = await request.form()
     nxt = _safe_next(form.get("next", "/") or "/")
+    ip = _client_ip(request)
+    if not _login_limiter.check(ip):
+        return templates.TemplateResponse(request, "login.html",
+                                          {"next": nxt, "error": True,
+                                           "rate_limited": True, "noindex": True},
+                                          status_code=429)
     ok = (AUTH_ENABLED
           and secrets.compare_digest(form.get("username", ""), AUTH_USER)
           and secrets.compare_digest(form.get("password", ""), AUTH_PASS))
     if not ok:
+        _login_limiter.record(ip)
         return templates.TemplateResponse(request, "login.html",
                                           {"next": nxt, "error": True, "noindex": True},
                                           status_code=401)
+    _login_limiter.reset(ip)
     resp = RedirectResponse(nxt, status_code=303)
     resp.set_cookie(COOKIE, _signer.dumps("ok"), max_age=SESSION_MAX_AGE,
                     httponly=True, samesite="lax",
@@ -384,6 +465,9 @@ def _visible(query, authed):
 # development, which the hardcoded absolute paths used to make impossible.
 IMAGES_DIR = Path(os.getenv("RHDB_IMAGES_DIR", "/app/images"))
 IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+# Pillow's format names for those extensions, so an upload can be checked for what
+# it actually is rather than only for what it is named.
+IMAGE_FORMATS = {"JPEG", "PNG", "WEBP", "GIF"}
 
 # The three folders photographs live in, and why the third is not one of the first
 # two. A folder under here is read by filename: everything in computers/ whose stem
@@ -2852,6 +2936,24 @@ def _photo_target(kind, asset_id, ext):
     return folder / name, f"{kind}/{name}"
 
 
+def _verify_image(source):
+    """Confirm something really is one of the image types we accept, by decoding it
+    rather than trusting its name -- an SVG or an HTML page renamed .png would
+    otherwise be stored and then served with an image content-type. `source` is a
+    path or an open binary file. Raises 400 if it is not a valid, accepted image."""
+    from PIL import Image
+    try:
+        with Image.open(source) as im:
+            fmt = im.format
+            im.verify()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(400, "not a valid image file") from exc
+    if fmt not in IMAGE_FORMATS:
+        raise HTTPException(400, f"unsupported image type: {fmt}")
+
+
 def _save_photo(kind, asset_id, upload: UploadFile):
     ext = Path(upload.filename or "").suffix.lower() or ".jpg"
     if ext not in IMAGE_EXTS:
@@ -2861,6 +2963,10 @@ def _save_photo(kind, asset_id, upload: UploadFile):
     def write(tmp):
         with open(tmp, "wb") as f:
             shutil.copyfileobj(upload.file, f)
+        # Refuse anything whose bytes are not really the image its name claims;
+        # _write_atomically drops the temporary file if this raises, so nothing
+        # half-written is moved into place.
+        _verify_image(tmp)
 
     # A page loading while this one is still arriving reads the folder and finds
     # whatever is in it; until the move, what is in it is not this photograph.
@@ -2882,6 +2988,13 @@ def _chosen_photos(form):
         ext = Path(up.filename or "").suffix.lower() or ".jpg"
         if ext not in IMAGE_EXTS:
             raise HTTPException(400, f"unsupported image type: {ext}")
+        # Content-check here too, before the item is committed, so a file that is
+        # not really an image leaves nothing created (see the docstring above).
+        up.file.seek(0)
+        try:
+            _verify_image(up.file)
+        finally:
+            up.file.seek(0)
     return ups
 
 

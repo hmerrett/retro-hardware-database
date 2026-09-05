@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import hashlib
 import io
+import ipaddress
 import re
+import socket
 from urllib.parse import quote, unquote, urljoin, urlparse
 
 import httpx
@@ -17,6 +19,54 @@ from PIL import Image
 
 USER_AGENT = "RetroHardwareDB/1.0 (+https://db.2600.me)"
 MAX_PX = 1000
+
+
+def _public_ip(host: str) -> bool:
+    """Whether every address the host resolves to is a public one. A host that
+    resolves to a private, loopback, link-local, reserved, multicast or
+    unspecified address is refused -- that is where the internal services and the
+    cloud metadata endpoint live."""
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0].split("%")[0])
+        except ValueError:
+            return False
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            return False
+    return True
+
+
+def _safe_url(url: str) -> bool:
+    """A URL we are willing to fetch on a user's behalf: http(s) only, with a
+    hostname that resolves solely to public addresses. This is the SSRF guard --
+    the reference URL comes from whoever edited the item."""
+    p = urlparse(url or "")
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return False
+    return _public_ip(p.hostname)
+
+
+def _safe_get(client, url, **kw):
+    """client.get, but validating the target and every redirect hop against
+    _safe_url: a public URL can 302 to an internal one, so redirects are followed
+    by hand rather than by httpx. Returns None if the chain leaves what is public
+    or runs too long."""
+    for _ in range(6):
+        if not _safe_url(url):
+            return None
+        resp = client.get(url, **kw)
+        if resp.is_redirect and "location" in resp.headers:
+            url = urljoin(url, resp.headers["location"])
+            continue
+        return resp
+    return None
 
 # SHA1s of "please send a picture" placeholder images to ignore.
 SKIP_SHA1 = {
@@ -26,8 +76,9 @@ SKIP_SHA1 = {
 
 
 def _client():
+    # Redirects are followed by _safe_get instead, so each hop can be checked.
     return httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30.0,
-                        follow_redirects=True)
+                        follow_redirects=False)
 
 
 def _wikipedia_image(client, url):
@@ -38,16 +89,16 @@ def _wikipedia_image(client, url):
     host = urlparse(url).hostname or "en.wikipedia.org"
     lang = host.split(".")[0] if host.endswith("wikipedia.org") else "en"
     api = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{quote(title)}"
-    resp = client.get(api)
-    if resp.status_code >= 400:
+    resp = _safe_get(client, api)
+    if resp is None or resp.status_code >= 400:
         return None
     data = resp.json()
     return (data.get("originalimage") or data.get("thumbnail") or {}).get("source")
 
 
 def _og_image(client, url):
-    resp = client.get(url)
-    if resp.status_code >= 400:
+    resp = _safe_get(client, url)
+    if resp is None or resp.status_code >= 400:
         return None
     html = resp.text
     for prop in ("og:image", "twitter:image"):
@@ -64,8 +115,8 @@ def _favicon_url(client, url):
     """Best link to the site's icon: a declared <link rel=icon/apple-touch-icon>,
     else the conventional /favicon.ico."""
     try:
-        resp = client.get(url)
-        if resp.status_code < 400:
+        resp = _safe_get(client, url)
+        if resp is not None and resp.status_code < 400:
             best = None
             for m in re.finditer(r"<link\b([^>]+)>", resp.text, re.I):
                 attrs = m.group(1)
@@ -98,8 +149,8 @@ def fetch_favicon(url):
             icon_url = _favicon_url(client, url)
             if not icon_url:
                 return None
-            resp = client.get(icon_url)
-            if resp.status_code >= 400 or not resp.content:
+            resp = _safe_get(client, icon_url)
+            if resp is None or resp.status_code >= 400 or not resp.content:
                 return None
             img = Image.open(io.BytesIO(resp.content))
             # For multi-size .ico, pick the largest frame available.
@@ -131,8 +182,8 @@ def fetch_jpeg(url):
                 img_url = _og_image(client, url)
             if not img_url:
                 return None
-            resp = client.get(img_url)
-            if resp.status_code >= 400 or not resp.content:
+            resp = _safe_get(client, img_url)
+            if resp is None or resp.status_code >= 400 or not resp.content:
                 return None
             raw = resp.content
     except Exception:
