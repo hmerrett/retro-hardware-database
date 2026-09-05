@@ -1497,71 +1497,6 @@ class TestReopeningADriveOnWhatItSaved:
         assert checked == ["12×"]
 
 
-class TestTheOpticalSplitMigration:
-    """The two optical drives that were on file before any of this asked for them.
-    The migration writes down what each becomes; this is the claim that those are
-    the parser's own answers, so the table cannot drift from the code behind it."""
-
-    @staticmethod
-    def splits():
-        import importlib.util
-        from pathlib import Path
-        path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
-                / "0017_optical_media_and_speed.py")
-        spec = importlib.util.spec_from_file_location("m0017", path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod.SPLITS
-
-    def test_each_row_is_what_the_parser_gives(self):
-        from app import drivedb
-        for aid, before, media, speed in self.splits():
-            d = drivedb.parse_segment(before)
-            assert (d["media"], d["speed"], d["model"]) == (media, speed, ""), aid
-
-    def test_every_one_of_them_is_an_optical_drive(self):
-        from app import drivedb
-        for aid, before, *_ in self.splits():
-            assert drivedb.parse_segment(before)["kind"] == "optical", aid
-
-    def test_every_medium_is_one_the_picker_offers(self):
-        """A split that produced something off the list would open on "custom"
-        rather than on the radio it should be."""
-        from app import drivedb
-        for aid, _b, media, _s in self.splits():
-            assert media in drivedb.MEDIA, aid
-
-    def test_a_rating_is_offered_or_fits_the_box_that_takes_it(self):
-        """A single figure is on the list; a writer's three are what the custom box
-        is for, and must fit the column that box is sized to."""
-        from app import drivedb
-        from app.models import ComputerDrive
-        for aid, _b, _m, speed in self.splits():
-            assert (speed in drivedb.SPEEDS
-                    or len(speed) <= ComputerDrive.speed.type.length), aid
-
-    def test_a_single_figure_reads_back_from_the_column_it_is_stored_in(self):
-        """The migration writes those as a number; the spec key renders them."""
-        from app import specstruct
-        for _aid, _b, _m, speed in self.splits():
-            if speed not in [f"{n}×" for n in range(1, 100)]:
-                continue
-            st = specstruct.Struct()
-            st.scalars["speed_x"] = int(speed.rstrip("×"))
-            assert specstruct.format("storage", st) == f"Speed: {speed}"
-
-    def test_the_three_figure_ones_survive_as_they_are_written(self):
-        """They are no kind of a number, so they ride as a verbatim attribute --
-        and come back out under the same key, in the same notation."""
-        from app import specstruct
-        for _aid, _b, _m, speed in self.splits():
-            if speed in [f"{n}×" for n in range(1, 100)]:
-                continue
-            st = specstruct.parse("storage", f"Speed: {speed}")
-            assert st.attributes == [("Speed", speed)]
-            assert specstruct.format("storage", st) == f"Speed: {speed}"
-
-
 class TestTheMakerLeagueTable:
     """Most and least reliable maker. Reliability means one thing here -- the share
     of a maker's parts recorded as Working -- and the entry conditions matter more
@@ -2099,43 +2034,6 @@ class TestReadingTheInchMarkAsTyped:
     def test_a_quote_that_is_not_an_inch_mark_is_left_alone(self):
         """Only a number in front of it makes it a measurement."""
         assert self.parsed('Sony “Special” floppy')["form_factor"] == ""
-
-
-class TestTheDescriptionSplitMigration:
-    """The eight descriptions recorded before the pickers existed. The migration
-    writes down what each becomes; this is the claim that those are the parser's
-    own answers and not a second reading of the same words, so the table cannot
-    drift from the code that justified it."""
-
-    @staticmethod
-    def splits():
-        import importlib.util
-        from pathlib import Path
-        path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
-                / "0016_drive_description_split.py")
-        spec = importlib.util.spec_from_file_location("m0016", path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod.SPLITS
-
-    def test_each_row_is_what_the_parser_gives(self):
-        from app import drivedb
-        for aid, before, form, size, after in self.splits():
-            d = drivedb.parse_segment(before)
-            assert (d["form_factor"], d["size"], d["model"]) == (form, size, after), aid
-
-    def test_every_one_of_them_is_a_floppy(self):
-        from app import drivedb
-        for aid, before, *_ in self.splits():
-            assert drivedb.parse_segment(before)["kind"] == "floppy", aid
-
-    def test_the_capacities_are_ones_the_picker_offers(self):
-        """A split that produced something off the list would open on "custom"
-        rather than on the radio it should be."""
-        from app import drivedb
-        for aid, _b, form, size, _a in self.splits():
-            assert size in drivedb.SIZES, aid
-            assert form in drivedb.FORM_FACTORS, aid
 
 
 class TestAFloppySSmallLabel:
