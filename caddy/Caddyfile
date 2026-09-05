@@ -42,5 +42,18 @@ db.2600.me {
 	# zstd first for a browser that takes it, gzip for everything else.
 	encode zstd gzip
 
+	# Security headers Caddy does not add on its own. HSTS tells a browser to
+	# reach this name over HTTPS only, for a year. nosniff stops a browser
+	# second-guessing a declared content-type (the file downloads already send it;
+	# this covers everything). The referrer policy keeps the path off cross-site
+	# requests. SAMEORIGIN refuses framing by other sites. A full Content-Security-
+	# Policy waits on the inline CSS/JS moving out of base.html into static files.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "SAMEORIGIN"
+	}
+
 	reverse_proxy api:8000
 }

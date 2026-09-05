@@ -1,17 +1,24 @@
-"""Test fixtures: the whole app against a throwaway SQLite database.
+"""Test fixtures: the whole app against a MariaDB database.
 
 The engine is built from DATABASE_URL when app.db is imported, so the environment
 has to be set before anything from app is imported -- hence the assignments above
-the imports. Tables come from the models rather than from Alembic: the migrations
-are deliberately MariaDB-specific (REGEXP, STR_TO_DATE, MODIFY), and what these
-tests check is the app's behaviour, not the migration path.
+the imports. The suite runs on MariaDB, the engine production uses, and builds its
+schema by running the real Alembic migrations, so every run also proves the
+migrations reach head and match the models. Point DATABASE_URL at a MariaDB
+database the tests may build and empty (CI provides one; locally, the compose db).
 """
 import os
 import tempfile
 from pathlib import Path
 
 _TMP = Path(tempfile.mkdtemp(prefix="rhdb-test-"))
-os.environ["DATABASE_URL"] = f"sqlite:///{_TMP / 'test.db'}"
+_DB_URL = os.environ.get("DATABASE_URL", "")
+if not _DB_URL or _DB_URL.startswith("sqlite"):
+    raise RuntimeError(
+        "The test suite runs against MariaDB. Set DATABASE_URL to a MariaDB "
+        "database the tests can build and empty, e.g. "
+        "mysql+pymysql://root:pw@db:3306/retro_test"
+    )
 os.environ["RHDB_IMAGES_DIR"] = str(_TMP / "images")
 os.environ["RHDB_FILES_DIR"] = str(_TMP / "files")
 os.environ["RHDB_BASE_URL"] = "https://example.test"
@@ -19,25 +26,49 @@ os.environ.pop("RHDB_AUTH_USER", None)
 os.environ.pop("RHDB_AUTH_PASSWORD", None)
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
-from sqlalchemy import event
+from sqlalchemy import event, text
 
 from app import main
 from app.db import Base, SessionLocal, engine
 
+_ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
+
 
 @event.listens_for(engine, "connect")
-def _sqlite_foreign_keys(dbapi_connection, _record):
-    """SQLite ignores foreign keys unless asked, and ON DELETE SET NULL is one of
-    the things under test."""
-    dbapi_connection.execute("PRAGMA foreign_keys=ON")
+def _read_committed(dbapi_connection, _record):
+        """Many tests hold the long-lived `db` fixture session and then make writes
+        through the app's own session (the `client`). Under MariaDB's default
+        REPEATABLE READ the `db` session keeps reading the snapshot its transaction
+        opened with and never sees those writes. READ COMMITTED matches how the app
+        actually behaves -- a fresh session per request -- so the observing session
+        sees committed writes. SQLite's visibility model made this moot."""
+        cur = dbapi_connection.cursor()
+        cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+        cur.close()
+
+
+def _reset_and_migrate():
+    """Empty the database, then bring it to head with the real migrations, so the
+    schema under test is the one the migrations produce."""
+    with engine.begin() as conn:
+        conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+        for (name,) in conn.execute(text("SHOW TABLES")).all():
+            conn.execute(text(f"DROP TABLE IF EXISTS `{name}`"))
+        conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+    cfg = Config(str(_ALEMBIC_INI))
+    # script_location is relative in alembic.ini and would otherwise resolve from
+    # the working directory (the suite runs from the repo root, not api/).
+    cfg.set_main_option("script_location", str(_ALEMBIC_INI.parent / "migrations"))
+    command.upgrade(cfg, "head")
 
 
 @pytest.fixture(scope="session", autouse=True)
 def _schema():
-    Base.metadata.create_all(engine)
+    _reset_and_migrate()
     yield
-    Base.metadata.drop_all(engine)
 
 
 @pytest.fixture(autouse=True)
@@ -47,6 +78,14 @@ def _clean_tables():
     with engine.begin() as conn:
         for table in reversed(Base.metadata.sorted_tables):
             conn.execute(table.delete())
+
+
+@pytest.fixture(autouse=True)
+def _reset_login_limiter():
+    """The login limiter is module-level, shared state; clear it so one test's
+    failed logins don't count against another's."""
+    main._login_limiter._hits.clear()
+    yield
 
 
 @pytest.fixture
