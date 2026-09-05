@@ -77,6 +77,7 @@
 <datalist id="dl_video_conn">{% for o in vocab.video_connectors %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_ifaces">{% for o in vocab.storage_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_proto">{% for o in vocab.storage_protocols %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_sources">{% for o in dl.source %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_makes">{% for o in makes %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
@@ -333,7 +334,12 @@ Photos, source, acquired date and notes are not carried over.</p>
       {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
     </select>
     <label for="source">Source</label>
-    <input id="source" name="source" value="{{ (p.source if p else '') or '' }}">
+    {# Offered where it came from before -- the same list the machine form gets,
+       because a job lot arrives as a machine and a box of cards together and is one
+       provenance. autocomplete="off" keeps the browser's own memory of the word
+       "source" out of the way of the register's answers. #}
+    <input id="source" name="source" list="dl_sources" autocomplete="off"
+           value="{{ (p.source if p else '') or '' }}">
     <label for="acquired_date">Acquired date</label>
     <input id="acquired_date" name="acquired_date" type="date" value="{{ (p.acquired_date if p else '') or '' }}">
     <label for="url">Reference URL</label>

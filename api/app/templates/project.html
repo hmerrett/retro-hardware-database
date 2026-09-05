@@ -174,7 +174,9 @@
     {% if request.state.authed %}
     <form class="addbar orderbar" method="post" action="/projects/{{ p.asset_id }}/order">
       <input name="description" placeholder="what you have ordered" required>
-      <input name="supplier" placeholder="who from">
+      <input name="supplier" placeholder="who from" list="dl_suppliers"
+             autocomplete="off">
+      <datalist id="dl_suppliers">{% for o in dl_suppliers | default([]) %}<option value="{{ o }}">{% endfor %}</datalist>
       <input name="qty" type="number" min="1" value="1" aria-label="how many" title="how many">
       <input name="cost" placeholder="£ paid" aria-label="what the line cost" title="what the whole line cost, as paid">
       <input name="expected_at" type="date" aria-label="expected" title="when it is due">
