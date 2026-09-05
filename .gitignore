@@ -20,3 +20,8 @@ tools/imports/*.TXT
 
 # Local backups
 backups/
+
+# Hand-off notes shared with the maintainer directly, kept out of the repo
+/FINDINGS.md
+/HARDENING-NOTES.md
+/docs/superpowers/
