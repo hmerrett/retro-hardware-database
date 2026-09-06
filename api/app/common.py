@@ -3,6 +3,7 @@ small query helpers, the image-folder location and listing, and the collection
 constants. Kept in one dependency-free place so the feature modules (stats,
 search, photos) and main can all import them downward without a circular import.
 """
+import hashlib
 import os
 from pathlib import Path
 
@@ -140,3 +141,31 @@ def _big_total(kb):
 # The three things an id in the register can name. One list, because every route
 # that takes a bare asset id has to agree about this.
 REGISTER = (("computers", Computer), ("parts", Part), ("projects", Project))
+
+
+# --- static files and per-deployment branding ------------------------------
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+# Where a deployment puts its own logo, icons and card, if it has any. What ships
+# in static/ is a placeholder; a file dropped here under the same name is served
+# instead of it. Read at start-up, like the rest of the configuration; nothing
+# here is in git.
+BRANDING_DIR = Path(os.getenv("RHDB_BRANDING_DIR", "/app/branding"))
+
+
+def branded(name: str) -> Path:
+    """The deployment's own copy of a static file if it has one, else the shipped
+    one. Names only -- never a path from a request, which the static mount checks
+    for itself."""
+    own = BRANDING_DIR / name
+    return own if own.is_file() else STATIC_DIR / name
+
+
+def _file_ver(path: Path) -> str:
+    """Short content hash of a file, or '0' if it is not there. Used to name things
+    after the artwork that went into them, so replacing the artwork misses every
+    cache keyed on it -- the browser's favicon cache is famously sticky, and a
+    watermark already composited into a served photo is stickier still."""
+    try:
+        return hashlib.md5(path.read_bytes()).hexdigest()[:8]
+    except OSError:
+        return "0"

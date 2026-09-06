@@ -10,7 +10,6 @@ Two surfaces over the same MariaDB:
 Interactive API docs live at /docs (OpenAPI).
 """
 import base64
-import hashlib
 import os
 import random
 import re
@@ -39,9 +38,9 @@ from sqlalchemy.orm import Session
 from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct, thumbs)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    IMAGE_EXTS, IMAGES_DIR, LEGACY_DISK_BUSES, REGISTER,
-    RELIABILITY_MIN, _all_years, _held, _maker_reliability,
-    _portraits, _visible, folder_images, to_dict)
+    BRANDING_DIR, IMAGE_EXTS, IMAGES_DIR, LEGACY_DISK_BUSES, REGISTER,
+    RELIABILITY_MIN, STATIC_DIR, _all_years, _file_ver, _held, _maker_reliability,
+    _portraits, _visible, branded, folder_images, to_dict)
 from .db import get_db
 from .ids import next_asset_id
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
@@ -612,42 +611,6 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     return Response("\n".join(lines), media_type="application/xml")
 
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
-
-# Where a deployment puts its own logo, icons and card, if it has any.
-#
-# What ships in `static/` is a placeholder: this is somebody's own catalogue,
-# running on their own domain, and the artwork on the page should be able to be
-# theirs. A file dropped in here under the same name as a shipped one is served
-# instead of it -- `logo-512.png` is also what the photo watermark is made from and
-# what tools/make_icons.py builds the icon set out of, so replacing that one file is
-# most of the job. Nothing here is in git (the directory is .gitignored), which is
-# the point: an installation's branding belongs to the installation.
-#
-# Read at start-up, like the rest of the configuration. Restart the app after
-# changing what is in here -- the version stamps that let icons and watermarks be
-# cached for a year are hashes of the artwork, taken once.
-BRANDING_DIR = Path(os.getenv("RHDB_BRANDING_DIR", "/app/branding"))
-
-
-def branded(name: str) -> Path:
-    """The deployment's own copy of a static file if it has one, else the shipped
-    one. Names only -- never a path from a request, which the static mount checks
-    for itself."""
-    own = BRANDING_DIR / name
-    return own if own.is_file() else STATIC_DIR / name
-
-
-
-def _file_ver(path: Path) -> str:
-    """Short content hash of a file, or '0' if it is not there. Used to name things
-    after the artwork that went into them, so replacing the artwork misses every
-    cache keyed on it -- the browser's favicon cache is famously sticky, and a
-    watermark already composited into a served photo is stickier still."""
-    try:
-        return hashlib.md5(path.read_bytes()).hexdigest()[:8]
-    except OSError:
-        return "0"
 
 
 templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
