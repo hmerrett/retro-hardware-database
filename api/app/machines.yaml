@@ -7155,6 +7155,42 @@ families:
         issues: []
         styles: [Executive, Executive 2]
 
+  - key: packard-bell
+    name: Packard Bell
+    manufacturer: Packard Bell
+    regions: [US, UK, Europe]
+    chips:
+      - socket: cpu
+        label: CPU
+        note: >-
+          a 3.3V Pentium socket: the chip of the period drops straight in, so a
+          regulator daughterboard under it is somebody running a later
+          low-voltage part and is worth recording as one
+        variants: [Intel Pentium, Intel Pentium MMX, Intel Pentium OverDrive]
+      - socket: video
+        label: Video
+        note: >-
+          on the board rather than on a card, which is why an LPX machine of this
+          sort has its slots still empty
+        variants: [Cirrus Logic CL-GD5430, Cirrus Logic CL-GD5440]
+    models:
+      - key: packard-bell-executive-mm-923d
+        model: Executive MM 923 D
+        summary: >-
+          Packard Bell at its mid-nineties height, when it was the biggest name in
+          retail PC sales and almost unknown to anybody who bought direct: a Pentium
+          on an LPX board with the graphics, the sound and the CD-ROM already fitted,
+          so the carton held the whole computer. Assembled in France for the European
+          market. Ordinary then and uncommon now — they were bought to be used up, and
+          nobody thought to keep one.
+        year: 1996
+        cpu: Intel Pentium-100
+        chassis: LPX pizza-box desktop, the cards on a riser
+        os: Windows 95
+        ram: [8MiB, 16MiB]
+        issues: []
+        styles: []
+
   - key: philips
     name: Philips
     manufacturer: Philips
