@@ -50,15 +50,26 @@ about the photograph and reverting would silently undo that other edit too.
 
 ## Consequences
 
-- The improvement is modest by design: on real photographs from the collection,
-  contrast rose 6–12% and average brightness moved by under 2 points. It is a
-  tidy-up, not a transformation, and a photograph that needs real work still needs
-  a real editor.
+- On real photographs from the collection, contrast rises 10–19% and saturation
+  20–40%, while average brightness moves by under 2 points. Colour is where the
+  life comes from; the levels stretch is nearly a no-op on a real photograph,
+  because one already spans so much of the range that the honest scale works out
+  at about 1.02. It earns its place on the genuinely flat frame — a hazy or
+  underlit shot — and is capped at ×4 so a photograph of one flat surface does not
+  have its sensor noise multiplied sixteenfold.
+- Still a tidy-up rather than a transformation: a photograph that needs real work
+  needs a real editor.
 - Storage grows by one extra copy per photograph *currently* tuned — a slot, not a
   history. It is reclaimed by reverting, by any other edit, or by deleting the
   photo.
 - "Revert" is available for a while and then quietly is not. The button's absence
   is the only thing that says so; that is the cost of not keeping a full history.
-- Revisit if a full undo stack is ever wanted, or if the damping proves too timid
-  on genuinely bad photographs — the constants are named at the top of
-  `api/app/enhance.py` and are the only thing that would need to move.
+- Revisit if a full undo stack is ever wanted, or if the strength proves wrong
+  again — the constants are named at the top of `api/app/enhance.py` and are the
+  only thing that would need to move. `_STRETCH` in particular is now blended
+  against doing nothing rather than by moving the ends of the range part of the
+  way: the latter reads naturally and is inverted, because pushing the top end
+  towards 255 widens the range being mapped onto the full scale and so stretches
+  *less*. A larger setting meant a weaker fix, and no test caught it, because they
+  all asked only that contrast went up at all. One now asks that the knob turns
+  the way it is labelled.

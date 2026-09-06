@@ -12,7 +12,7 @@ import io
 import pytest
 from PIL import Image, ImageStat
 
-from app import main
+from app import enhance, main
 from app.enhance import _KEY_HI, _KEY_LO, tuneup
 
 
@@ -91,6 +91,49 @@ def test_it_copes_with_the_other_modes_a_stored_image_can_be_in(mode):
     """Not every photograph in the collection is a plain RGB JPEG: there are
     greyscale scans and PNGs with an alpha channel."""
     assert tuneup(flat_photograph().convert(mode)).mode == "RGB"
+
+
+def test_a_stronger_stretch_setting_gives_more_contrast_not_less(monkeypatch):
+    """A guard on the direction of the knob, which was once backwards.
+
+    The levels curve used to be damped by moving the ends part of the way towards
+    0 and 255. That is inverted: pushing the top end towards 255 widens the range
+    being mapped onto the full scale, so it stretches *less*. Raising the constant
+    to make the fix bolder made it weaker instead, and nothing said so, because
+    every other test only asked that contrast went up at all.
+    """
+    im = flat_photograph()
+    got = []
+    for strength in (0.2, 0.5, 0.9):
+        monkeypatch.setattr(enhance, "_STRETCH", strength)
+        got.append(_contrast(enhance._levels(im)))
+    assert got == sorted(got), f"contrast did not rise with the setting: {got}"
+    assert got[-1] > got[0] * 1.5
+
+
+def test_an_already_colourful_photograph_gets_less_of_the_colour_boost():
+    """Pushed hard, a strong single colour clips to a flat block and loses its
+    detail -- which shows up as the measured saturation going *down*. So the
+    boost is full on a flat frame and eases off on a vivid one."""
+    drab = Image.new("RGB", (40, 40))
+    drab.putdata([(120 + (i % 12), 118 + (i % 12), 116 + (i % 12)) for i in range(1600)])
+    vivid = Image.new("RGB", (40, 40))
+    vivid.putdata([(200 + (i % 40), 20 + (i % 30), 15 + (i % 30)) for i in range(1600)])
+
+    assert enhance._colour_boost(drab) > enhance._colour_boost(vivid)
+    assert enhance._colour_boost(drab) <= enhance._COLOUR_MAX
+    assert enhance._colour_boost(vivid) >= enhance._COLOUR_MIN
+
+
+def test_the_fix_makes_colours_more_saturated_not_less():
+    """The point of the whole last stage. Measured on a frame with real colour in
+    it rather than the grey test card, and it must not clip its way backwards."""
+    im = Image.new("RGB", (60, 40))
+    im.putdata([(90 + (i * 5) % 60, 120 + (i * 3) % 50, 70 + (i * 7) % 40)
+                for i in range(2400)])
+    before = ImageStat.Stat(im.convert("HSV").getchannel("S")).mean[0]
+    after = ImageStat.Stat(tuneup(im).convert("HSV").getchannel("S")).mean[0]
+    assert after > before
 
 
 # --- the button ------------------------------------------------------------

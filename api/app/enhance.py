@@ -1,16 +1,19 @@
 """One-touch tuneup: the automatic levels-and-colour fix a phone does.
 
 Global adjustments only -- a white point per channel, black and white points, and
-a midtone gamma, then a little more saturation and contrast. The local,
+a midtone gamma, then more saturation and a little more contrast. The local,
 region-aware work a phone also does (shadow and highlight recovery, subject
 detection) would need numpy or OpenCV; for a photograph of an object on a bench
 under one light, the global part is nearly all of the improvement, and it keeps
 Pillow, which is here already, as the only dependency.
 
-Deliberately conservative. These are catalogue photographs, and what is being
-photographed is usually beige, grey or black plastic filling most of the frame --
-exactly the case where an eager automatic fix decides the subject is a fault and
-corrects it away.
+Conservative about the exposure and the colour cast, and not about the colour
+itself -- they are separate questions, and damping them together is what made the
+first version of this come out muted. These are catalogue photographs: what is in
+front of the camera is usually beige, grey or black plastic filling most of the
+frame, which is exactly the case where an eager automatic fix decides the subject
+is a fault and corrects it away. But a green board, a yellow warning label and the
+red buttons on a console are what the photograph is *of*, and those should carry.
 """
 
 from PIL import Image, ImageEnhance, ImageStat
@@ -33,12 +36,13 @@ _BALANCE = 0.6
 # speckle spread over many pixels, while a clipped highlight is usually real.
 _BLACK_CUT, _BLACK_TOP = 0.004, 0.001
 
-# How far the ends are actually moved towards the ends of the range. Damped, and
-# for a reason beyond taste: the brightness is put back afterwards by a bounded
-# gamma, and a stretch taken all the way is a hole that gamma cannot climb out of
-# -- a bright frame pulled to an average of 89 could not be returned past 130.
-# Damping keeps the correction and the restoration in proportion to each other.
-_STRETCH = 0.75
+# How much of a full black-and-white-point stretch to apply, blended against doing
+# nothing: 0 leaves the picture alone, 1 maps its ends onto 0 and 255. Short of the
+# whole way because the ends were measured with a cut taken off each (_BLACK_CUT),
+# so a full stretch clips whatever sits beyond them. See _levels for why this is
+# expressed as a blend rather than by moving the ends part of the way, which is the
+# natural-looking form and is inverted.
+_STRETCH = 0.85
 
 # The band of average brightness a photograph is allowed to end up in. A frame
 # already inside it keeps the brightness it had; one outside is brought to the
@@ -48,6 +52,26 @@ _KEY_LO, _KEY_HI = 96.0, 168.0
 # How far the midtone gamma may go in either direction. A frame needing more than
 # this is not one an automatic fix should be rescuing on its own.
 _GAMMA_MIN, _GAMMA_MAX = 0.6, 1.7
+
+# The most the range may be multiplied by. Only a frame with almost no range at
+# all reaches this -- a photograph of one flat surface, where the honest scale is
+# sixteen and what would actually be amplified sixteenfold is the sensor noise and
+# the JPEG banding. A real photograph is nowhere near it: the ones in this
+# collection already span so much of the range that the scale works out at about
+# 1.02, which is why the stretch is nearly a no-op on them and the life in the
+# picture comes from the colour and the contrast below.
+_GAIN_MAX = 4.0
+
+# The last of it: more colour, and a little more bite. The colour is worth having
+# -- a green board, a yellow warning label, the red buttons on a console are what
+# the photograph is of -- but a flat frame and a vivid one want very different
+# amounts of it, and one figure for both is what makes an automatic fix look
+# cheap. So the boost is full on a flat frame and eases off as the frame is
+# already colourful: pushed hard, a saturated green cutting mat clips to a single
+# flat teal and *loses* detail, which measures as saturation going down.
+_COLOUR_MAX, _COLOUR_MIN = 1.34, 1.10
+_SAT_FLAT, _SAT_VIVID = 40.0, 95.0
+_CONTRAST = 1.12
 
 
 def _mean(im: Image.Image) -> float:
@@ -121,10 +145,15 @@ def _levels(im: Image.Image) -> Image.Image:
     low, high = _ends(hist, total)
     if high - low < 16:  # no range to speak of; the gain would be absurd
         return im
-    low -= low * _STRETCH
-    high += (255 - high) * _STRETCH
-    scale = 255 / (high - low)
-    curve = [min(255, max(0, round((value - low) * scale))) for value in range(256)]
+    scale = min(255 / (high - low), _GAIN_MAX)
+    # Blended against doing nothing, rather than by moving the ends part of the
+    # way. Moving the ends is the tempting way to write this and it is inverted:
+    # pushing `high` towards 255 *widens* the range being mapped onto 0..255 and
+    # so stretches less, which made a larger _STRETCH mean a weaker fix.
+    curve = []
+    for value in range(256):
+        full = (value - low) * scale
+        curve.append(min(255, max(0, round(value + (full - value) * _STRETCH))))
     return im.point(curve * 3)
 
 
@@ -170,12 +199,19 @@ def _key(mean: float) -> float:
     return min(_KEY_HI, max(_KEY_LO, mean))
 
 
+def _colour_boost(im: Image.Image) -> float:
+    """How much more colour this particular frame can take. See _COLOUR_MAX."""
+    saturation = ImageStat.Stat(im.convert("HSV").getchannel("S")).mean[0]
+    spread = (saturation - _SAT_FLAT) / (_SAT_VIVID - _SAT_FLAT)
+    eased = min(1.0, max(0.0, spread))
+    return _COLOUR_MAX - (_COLOUR_MAX - _COLOUR_MIN) * eased
+
+
 def tuneup(im: Image.Image) -> Image.Image:
     """The whole fix, on an already upright image. Returns a new RGB image."""
     im = im.convert("RGB")
     im = _balanced(im)
     aim = _key(_mean(im))
     im = _keyed(_levels(im), aim)
-    # The last of it, as a phone does: a touch more colour and a touch more bite.
-    im = ImageEnhance.Color(im).enhance(1.12)
-    return ImageEnhance.Contrast(im).enhance(1.06)
+    im = ImageEnhance.Color(im).enhance(_colour_boost(im))
+    return ImageEnhance.Contrast(im).enhance(_CONTRAST)
