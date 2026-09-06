@@ -33,11 +33,15 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from markupsafe import Markup
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import case, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct, thumbs)
+from .common import (  # shared foundations; re-exported here so existing call-sites resolve
+    IMAGE_EXTS, IMAGES_DIR, LEGACY_DISK_BUSES, REGISTER,
+    RELIABILITY_MIN, _all_years, _big_total, _held, _maker_reliability,
+    _portraits, _visible, folder_images, to_dict)
 from .db import get_db
 from .ids import next_asset_id
 from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
@@ -457,15 +461,10 @@ PART_DERIVED_FIELDS = {"variant"}
 # item is wanted for one. Miss any one and the other four are decoration.
 
 
-def _visible(query, authed):
-    """A project query narrowed to what this reader may see."""
-    return query if authed else query.filter(Project.private.is_(False))
 
 # Container paths by default (the `images` volume and the goaccess report mount);
 # overridable so the app can be imported and run outside Docker for local
 # development, which the hardcoded absolute paths used to make impossible.
-IMAGES_DIR = Path(os.getenv("RHDB_IMAGES_DIR", "/app/images"))
-IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp", ".gif")
 # Pillow's format names for those extensions, so an upload can be checked for what
 # it actually is rather than only for what it is named.
 #
@@ -503,135 +502,14 @@ def gui_traffic():
     return HTMLResponse(report.read_text(encoding="utf-8"))
 
 
-# Disposed items are records of things that have gone. A figure about the collection
-# is about what is in it, so everything on /stats counts only what is still held --
-# the exceptions being the figures that are *about* disposal, which say so where they
-# are written. This is the filter, in one place, so "still here" means one thing.
-def _held(query, model):
-    return query.filter(model.disposed.is_(False))
-
-
-def _all_years(db, held=True):
-    """Every year recorded against anything still here, machines and parts together."""
-    out = []
-    for model in (Computer, Part):
-        q = db.query(model.year).filter(model.year.isnot(None))
-        out += [y for (y,) in (_held(q, model) if held else q)]
-    return out
 
 
 # --- the pointless department -----------------------------------------------
 # Figures that answer nothing anyone needs to know, which is the point of them. A
 # page of totals says how big the collection is; these say what it is like.
 
-# How many parts a maker needs before its record means anything. Below this a maker
-# with one working card would top the table on a sample of one, which is not a
-# fact about the maker. The caption on the page says the threshold, because a
-# ranking whose entry condition is hidden is a ranking that flatters itself.
-RELIABILITY_MIN = 5
-# Ways of attaching a disk that died with the 1980s, named rather than worked out:
-# what makes MFM historic is not something the database can derive. Read by the
-# figure and by the /browse view behind it, so both mean the same four things.
-LEGACY_DISK_BUSES = ("MFM", "RLL", "ESDI", "XTA")
-# Not makers. These stand in the maker field for "we do not know" or "nobody in
-# particular", and a league table of manufacturers should not have them in it.
-NOT_A_MAKER = {"unknown", "generic", "various", "noname", "no name", "n/a", "-", "?"}
 
 
-def _maker_reliability(db):
-    """(maker, parts, working, percent) per maker, best record first.
-
-    Reliability here means one thing and only one: the share of that maker's parts
-    whose condition is recorded as Working. Not "Restored" -- a part that had to be
-    restored is evidence of the opposite -- and only parts still in the register,
-    because a disposed one may have been sold in perfect order.
-
-    Ties are settled by sample size: with equal records, the maker who earned it
-    over more parts has made the better case."""
-    rows = []
-    for maker, n, working in (
-            db.query(Part.manufacturer, func.count(Part.asset_id),
-                     func.sum(case((Part.condition == "Working", 1), else_=0)))
-            .filter(Part.manufacturer.isnot(None), Part.manufacturer != "",
-                    Part.condition.isnot(None), Part.condition != "",
-                    Part.disposed.is_(False))
-            .group_by(Part.manufacturer)):
-        if n < RELIABILITY_MIN or (maker or "").strip().lower() in NOT_A_MAKER:
-            continue
-        rows.append((maker, n, int(working or 0), round(100 * (working or 0) / n)))
-    rows.sort(key=lambda r: (-r[3], -r[1], r[0]))
-    return rows
-
-
-def _stem_owner(stem, ids):
-    """Whose photograph a filename is, or None. A photo is <asset_id>.<ext> or
-    <asset_id>-<something>.<ext>, so the owner is the stem itself or the stem with
-    its suffix taken off -- and the tags are matched against the register rather
-    than guessed at with a regex, because an asset id is whatever ids.py says it is
-    and not a shape this function should be repeating.
-
-    The suffix comes off one hyphen at a time rather than all at once, so that
-    RH-0001-back-left belongs to the machine exactly as RH-0001-2 does. This has to
-    answer precisely what pick_images answers: the count of what is photographed and
-    the list of what is not are the same question asked twice, and a file with two
-    hyphens in its name is not a place for them to start disagreeing."""
-    while stem:
-        if stem in ids:
-            return stem
-        stem = stem.rpartition("-")[0]
-    return None
-
-
-def _photo_counts(ids_by_kind):
-    """How many portraits each asset has, from one pass over each folder named.
-
-    Keyed by kind, because a photograph belongs to the folder it is in: a picture in
-    parts/ is a picture of a part, and matching it against every tag in the register
-    would let it stand as some machine's portrait.
-
-    Only computers/ and parts/ are ever read, which is how a photograph on a history
-    entry stays out of this: it lives in log/, filed under the entry's id rather
-    than the asset's. That is deliberate and load-bearing rather than an oversight
-    of two folder names. Six photographs of a recap say what happened to a machine;
-    they do not say which machine this is, so an object with six of them and no
-    portrait is still an object nobody has photographed in the sense this counts."""
-    counts = {}
-    for kind, ids in ids_by_kind.items():
-        for stem, _name in folder_images(kind):
-            aid = _stem_owner(stem, ids)
-            if aid:
-                counts[aid] = counts.get(aid, 0) + 1
-    return counts
-
-
-# The portrait is the file named after the tag, and the filesystem is what says so.
-# There is an `image` column beside it, but that is a note of which file was chosen
-# last, not the choosing itself -- promoting a photo renames files, and the column
-# is written afterwards. On the live register a dozen rows have a photograph on disk
-# and a blank column, filed by the import tools, which never wrote it. The item page
-# draws the file; so does the gallery card; so does this.
-def _portraits(db):
-    """(counts, missing): how many portraits each thing still here has, and the tags
-    of the ones that have none.
-
-    Held items only -- see _held. The count of what is unphotographed is a job list,
-    and a disposed item cannot be photographed, so putting one on the list is handing
-    somebody work they cannot do."""
-    ids = {"computers": {a for (a,) in _held(db.query(Computer.asset_id), Computer)},
-           "parts": {a for (a,) in _held(db.query(Part.asset_id), Part)}}
-    counts = _photo_counts(ids)
-    missing = {a for group in ids.values() for a in group if a not in counts}
-    return counts, missing
-
-
-def _big_total(kb):
-    """A grand total in the unit a person would say it in. entry.fmt_kb keeps a
-    non-round figure in MiB, which is right for one drive -- 2096128 KiB is the 2047
-    MiB BIOS limit, not "2 GiB" -- and unreadable for the sum of every drive there
-    is, where it gives "124222 MiB"."""
-    if kb >= 1024 * 1024:
-        return f"{kb / (1024 * 1024):.1f} {entry.GIB}"
-    return entry.fmt_kb(kb, True)
 
 
 def _facts(db, st, this_year):
@@ -2368,8 +2246,6 @@ def get_or_404(db, model, aid):
     return obj
 
 
-def to_dict(obj):
-    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 
 def _now():
@@ -2978,15 +2854,6 @@ def api_item_log(aid: str, db: Session = Depends(get_db)):
              "photos": photos.get(e.id, [])} for e in entries]
 
 
-def folder_images(kind):
-    """(stem, filename) for every photo in one of the image folders, in a single
-    pass. A page showing many assets reads the folder once and picks from the
-    result rather than scanning it per row."""
-    folder = IMAGES_DIR / kind
-    if not folder.exists():
-        return []
-    return [(f.stem, f.name) for f in folder.iterdir()
-            if f.suffix.lower() in IMAGE_EXTS]
 
 
 def pick_images(kind, asset_id, listing):
@@ -5051,10 +4918,6 @@ def _note_with_photos(db, aid, form):
     db.commit()
 
 
-# The three things an id in the register can name, and where each one's page is.
-# One list, because every route that takes a bare asset id has to agree about this
-# -- the QR target, the history photograph routes, and the version poll all walk it.
-REGISTER = (("computers", Computer), ("parts", Part), ("projects", Project))
 
 # The two of them that can be put on the list of things wanting work. A project is
 # in the register and answers at /items/<id> like the others, but it cannot be
