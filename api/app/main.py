@@ -2092,6 +2092,7 @@ def _file_ver(path: Path) -> str:
 
 
 templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
+templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
 # Social sites cache a card hard, so its URL carries the artwork's hash too.
 SITE_CARD_VER = _file_ver(branded(SITE_CARD[0].removeprefix("/static/")))
 _ICON_CACHE = {"Cache-Control": "public, max-age=86400"}
