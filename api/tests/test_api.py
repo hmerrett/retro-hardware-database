@@ -16,6 +16,17 @@ import pytest
 from app import main
 
 
+def served(client, page):
+    """A page together with the static CSS/JS it links, so an assertion about a
+    style or a script holds whether that content is inline or in a static file.
+    Lets these tests keep checking what actually reaches the browser as the CSS
+    and JS move out of the templates."""
+    out = [page]
+    for url in re.findall(r'(?:href|src)="(/static/[^"?#]+\.(?:css|js))', page):
+        out.append(client.get(url).text)
+    return "\n".join(out)
+
+
 class TestTypedColumns:
     def test_year_and_date_come_back_typed(self, computer):
         c = computer(year=1991, acquired_date="2026-05-16")
@@ -1702,7 +1713,7 @@ class TestTheCookieNotice:
     def test_it_does_not_block_the_page(self, client, computer):
         """A notice, not a gate: no overlay, and the cards are reachable behind it."""
         computer(model="A")
-        page = client.get("/").text
+        page = served(client, client.get("/").text)
         note = page[page.index('id="cookienote"'):]
         assert "position: fixed" in page and 'class="card"' in page
         assert "Got it" in note[:600]
@@ -4409,7 +4420,7 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            page = client.get(f"/parts/{aid}").text
+            page = served(client, client.get(f"/parts/{aid}").text)
             assert '<div class="lb-fit" id="lb-fit">' in page
             assert "#lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
             assert "fit.style.transform = " in page
@@ -4527,7 +4538,7 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            page = client.get(f"/parts/{aid}").text
+            page = served(client, client.get(f"/parts/{aid}").text)
             assert "box.addEventListener('pointerdown'" in page
             assert "box.addEventListener('pointermove'" in page
             assert re.search(r"#lightbox \{[^}]*touch-action: none", page, re.S)
@@ -4634,7 +4645,7 @@ class TestTheBigPhotoView:
         `[hidden] { display: none }` -- which showed every control at once whatever
         mode it was in, and later left the upload button on screen too. One rule
         answers both, so it has to stay in the stylesheet."""
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "[hidden] { display: none !important; }" in page
 
     def test_the_row_offers_a_delete(self, client, part):
@@ -4702,7 +4713,7 @@ class TestTheBigPhotoView:
     def test_it_reads_as_the_destructive_one(self, client, part):
         """Colour is what says this tool is not like its neighbours, and the
         register's warning shade is unreadable on a black toolbar unlightened."""
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "#lightbox .lb-tools .btn.danger" in page
         assert 'class="btn sm danger"' in page
 
