@@ -1,0 +1,1019 @@
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff; --fg: #1a1c20; --line: #e3e6eb; --muted: #6b7280; --accent: #2563eb;
+    --btn: #00000010; --btn-hover: #00000020; --chip: #00000010;
+    /* The band a panel's title sits on: a shade stronger than the strip on a
+       card, so a section's own heading is not read as the first thing in it. */
+    --band: #0000001c;
+    --fill: #2563eb; --track: #2563eb1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
+      --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
+      --fill: #1b81ff; --track: #1b81ff2b;
+    }
+  }
+  :root[data-theme="light"] { color-scheme: light; }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
+    --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
+    --fill: #1b81ff; --track: #1b81ff2b;
+  }
+  * { box-sizing: border-box; }
+  /* `[hidden] { display: none }` is a browser rule, so any author rule that sets
+     display -- .btn, .lb-tools form, .photo-actions form -- outranks it and leaves
+     the element on screen with its hidden attribute set. That has now caught the
+     crop toolbar and the upload button, so it is said once here, loudly, and
+     `hidden` means hidden everywhere. */
+  [hidden] { display: none !important; }
+  /* Form controls don't inherit font-family by default, so they'd fall back to
+     the browser's sans-serif; keep everything on the site's monospace.
+
+     Nor do they inherit line-height: a button is laid out at the browser's own
+     `normal`, which is about 1.15, while everything else on the page is at 1.5.
+     Four and a half pixels, and invisible until two of them stand side by side --
+     which is exactly where a button lives. "photos" is a label and "add note" is a
+     button, they sit in the same bar with the same class on them, and one was
+     shorter than the other. The same pair is in the photo column, the toolbars and
+     the lightbox: every `<a class="btn">` and every file picker was the tall one
+     and every submit button was the short one. Inherited here, once, so a button
+     is the height of the words in it like everything else. */
+  button, input, select, textarea { font-family: inherit; line-height: inherit; }
+  ::file-selector-button { font-family: inherit; line-height: inherit; }
+  body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; margin: 0; line-height: 1.5; background: var(--bg); color: var(--fg); }
+  /* Centred, not baseline-aligned: a flex box takes its baseline from its first
+     item and an image's baseline is its bottom edge, so on `baseline` the logo
+     hangs the whole brand half its own height above the rest of the bar. Centres
+     line up the logo, the links and the buttons whatever heights they happen to
+     be. */
+  header { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+  header a { text-decoration: none; }
+  header .brand { font-weight: 600; display: inline-flex; align-items: center; gap: 9px; }
+  /* Sized by height, width auto: the logo is not square and must keep its own
+     proportions whatever it is put next to. Height is the dimension pinned
+     because it is the one the banner's other items are measured against. */
+  header .brand img { height: 34px; width: auto; display: block; }
+  /* A phone spends its width on the search box, not on the name: the logo is
+     still the way home, the page's own heading says where you are, and the name
+     is in the title bar and at the foot of the page. Dropping it is what lets
+     the banner be one row on a phone instead of two -- and the second row was
+     costing more than the words on it were worth. */
+  @media (max-width: 620px) { header .brand span { display: none; } }
+  /* Everything after this spans the gap to the right edge. A flexible span rather
+     than `margin-left: auto`, because the search bar carries an auto margin of its
+     own for the line it wraps onto -- and a grown span leaves no free space for
+     that margin to claim, so on the banner's first line the buttons still sit hard
+     against the right edge as they always did. */
+  header .hdr-gap { flex: 1 1 0; }
+  /* The search bar rides in the banner so a search can start from any page: what
+     you want next is rarely what you are looking at. Last of all, hard right --
+     and, on the line it wraps onto, right by its own margin. */
+  header .hdr-search { display: flex; align-items: center; gap: 6px; margin: 0 0 0 auto; }
+  header .hdr-search input[type=search] { width: 230px; min-width: 0; padding: 5px 9px;
+    border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 13px;
+    background: transparent; color: inherit; }
+  /* On a phone the bar shares the banner's one row with the logo and takes
+     whatever is left of it. */
+  @media (max-width: 620px) {
+    header .hdr-search { flex: 1 1 auto; }
+    header .hdr-search input[type=search] { flex: 1; width: auto; min-width: 0; }
+  }
+  /* The first few matches, offered while you are still typing. It hangs off the
+     input rather than pushing the page down, and is wider than the box it hangs
+     from because a machine's name is longer than the room to type it. Right-
+     aligned to the input's right edge, which is the one that does not move. */
+  header .hdr-search { position: relative; }
+  #suggest { position: absolute; top: calc(100% + 6px); right: 0; z-index: 900;
+    min-width: 100%; width: 380px; max-width: calc(100vw - 24px);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 10px 30px #00000026; overflow: hidden; padding: 4px; }
+  :root[data-theme="dark"] #suggest { box-shadow: 0 10px 30px #00000080; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) #suggest { box-shadow: 0 10px 30px #00000080; }
+  }
+  #suggest .sg { display: flex; align-items: center; gap: 9px; padding: 6px 7px;
+    border-radius: 7px; text-decoration: none; color: inherit; }
+  /* One highlight for both ways of choosing: the mouse sets the same marker the
+     arrow keys do, so the row under the pointer and the row Enter would open can
+     never be two different rows. */
+  #suggest .sg[aria-selected="true"] { background: var(--btn-hover); }
+  #suggest .sg img { width: 38px; height: 28px; flex: none; border-radius: 4px;
+    object-fit: cover; background: var(--chip); }
+  #suggest .sg img.ph { object-fit: contain; padding: 4px; opacity: .55; }
+  #suggest .sg .t { min-width: 0; flex: 1; }
+  /* One line each, clipped: a wrapped name would make the rows different heights
+     and the list a different length for every query. */
+  #suggest .sg .nm, #suggest .sg .sub { overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; }
+  #suggest .sg .nm { font-size: 13px; }
+  #suggest .sg .sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+  #suggest .sg-more { display: block; padding: 6px 8px 5px; font-size: 12px;
+    color: var(--muted); border-top: 1px solid var(--line); margin: 4px 3px 0;
+    text-decoration: none; }
+  #suggest .sg-more:hover { color: var(--accent); }
+  #suggest .sg-none { padding: 8px; font-size: 13px; color: var(--muted); }
+  main { max-width: 1000px; margin: 0 auto; padding: 18px; }
+  /* A phone spends its width on content, not on margins. */
+  @media (max-width: 480px) {
+    header { padding: 10px 12px; }
+    main { padding: 14px 12px; }
+  }
+  /* The projects list, stacked. Five columns across a 390px screen gave the name a
+     fifth of it, so "Megadrive translucent case" came down the page one word at a
+     time -- and three of the four columns taking that width off it were, on most
+     rows, saying nothing at all. Stacked, the name and the summary get the whole
+     width and what is left goes underneath on one line: the status always, and each
+     count only where there is one. */
+  @media (max-width: 560px) {
+    .projtable, .projtable tbody, .projtable tr, .projtable td { display: block; width: auto; }
+    /* The headings row. There is no thead -- the table writes its headings as its
+       first row, as every other table here does -- and stacked they would be five
+       lines of the wrong thing before the first project. */
+    .projtable tr:first-child { display: none; }
+    .projtable tr { border-top: 1px solid var(--line); padding: 9px 0; }
+    .projtable td { border: 0; padding: 0; white-space: normal; }
+    /* Nothing to say, so nothing said. This is what the empty cells are for. */
+    .projtable td.count:empty { display: none; }
+    .projtable td.count:empty::after { content: none; }
+    /* The status and the counts on one line under the name rather than a line each,
+       because together they are one short sentence about the project. */
+    .projtable td.meta { display: inline-block; margin: 6px 12px 0 0; vertical-align: middle; }
+    .projtable td.meta[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; }
+  }
+  /* An order has seven things to say and a phone has room for about three across.
+     Sideways scrolling was the first answer and the wrong one: what fell off the
+     right-hand edge was the "mark in" button, which is the entire reason to open
+     this panel on a phone -- you are stood at the door with the parcel. So each
+     order becomes a block instead, its description on its own line and the rest
+     read underneath it, each labelled by the column heading it has lost. */
+  @media (max-width: 560px) {
+    .ordertable, .ordertable tbody, .ordertable tr, .ordertable td { display: block; width: auto; }
+    /* The heading row. There is no thead to hide -- the table writes its headings
+       as the first row, the way every other table here does. */
+    .ordertable tr:first-child { display: none; }
+    .ordertable tr { border-top: 1px solid var(--line); padding: 7px 0; }
+    .ordertable td { border: 0; padding: 1px 0; white-space: normal; }
+    .ordertable td.money { text-align: left; }
+    /* A value with nothing in it says nothing, and a stack of blank labelled lines
+       under every order would say it four times. */
+    .ordertable td:empty { display: none; }
+    .ordertable td[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; }
+    /* The two buttons side by side rather than one under the other: they are a pair
+       of actions on the order above them, not two more of its facts. Marked on the
+       cells, since the two forms are in cells of their own and it is the cells that
+       have just been told to be blocks. */
+    .ordertable td.act { display: inline-block; margin: 4px 6px 0 0; vertical-align: middle; }
+  }
+  a { color: var(--accent); }
+  /* A link found in what somebody wrote -- a note, a summary, a history entry, a
+     spec value; anything the `linked` filter has been through. It breaks anywhere
+     rather than setting a minimum width for whatever it sits in: a URL is one
+     unbreakable word to a browser, and a long one in a note would otherwise push
+     a table column or a card wider than the phone it is being read on. */
+  a.url { overflow-wrap: anywhere; }
+  /* Names like "TMC/MyComp/MyNix/Megastar AI5TV" are one unbreakable word to a
+     browser, and a heading is a flex item that will not shrink below it. */
+  h1, h2, h3 { overflow-wrap: anywhere; }
+  table { border-collapse: collapse; width: 100%; }
+  /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
+     sets the column's minimum width, and a table refuses to shrink below it. On a
+     phone that is what pushes the whole page sideways, so let such a run break.
+     break-word, not anywhere: `anywhere` also drops the column's min-content width
+     to a single character, which lets the layout squeeze a narrow column until its
+     heading reads one letter per line. Where a column really must be allowed to
+     collapse that far, .wrap opts into it. */
+  th, td { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+  /* Short columns never wrap: their content is a word or two, and wrapping them
+     buys no room while making the table look broken. */
+  td.tight, th.tight { white-space: nowrap; }
+  .detail-main table th { white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  /* A section of an item page. The title sits on a band across the top and what
+     belongs to the section is inside the border, so a page of them says which level
+     anything is at -- which a column of headings and gaps could not. */
+  .panel { border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+    margin-top: 14px; }
+  .panel > header { background: var(--band); padding: 6px 11px; display: flex;
+    flex-wrap: wrap; align-items: baseline; gap: 2px 9px; }
+  .panel > header h3 { margin: 0; font-size: 14px; }
+  .panel > header .muted { font-size: 13px; }
+  .panel .pbody { padding: 9px 11px; }
+  /* Under a band of its own, a table's first rule is a second line saying the same
+     thing. */
+  .panel .pbody > table tr:first-child > * { border-top: 0; }
+  .panel .pbody > p:first-child, .panel .pbody > .toolbar:first-child { margin-top: 0; }
+  .panel .pbody > p:last-child { margin-bottom: 0; }
+
+  /* One thing in a list of them -- a part fitted in a machine, a file kept beside
+     the register, a chip in one of a machine's sockets. Everything about it is
+     inside one border, which is the thing a table could not say: laid out as rows,
+     a part was five loose cells with a rule somewhere in the middle of it, and
+     nothing on the page told you which rule ended one and began the next. */
+  .itemcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  .itemcard { border: 1px solid var(--line); border-radius: 12px; padding-bottom: 9px;
+    overflow: hidden; }
+  /* The strip the eye lands on when it is looking for a tag: what this thing is
+     called in the register and what kind of thing it is, with the way of taking it
+     out at the far end. */
+  .itemcard > header { display: flex; flex-wrap: wrap; align-items: center;
+    gap: 3px 8px; background: var(--chip); padding: 5px 10px; font-size: 13px;
+    margin-bottom: 8px; }
+  .itemcard > header form { margin: 0 0 0 auto; }
+  .itemcard > header .grow { flex: 1; }
+  /* The name is the thing itself and carries the weight; the strip above it is
+     labelling. anywhere, because a name like "TMC/MyComp/MyNix/Megastar AI5TV" is
+     one unbreakable word to a browser and would otherwise widen the card. */
+  .itemcard > h4 { margin: 0 10px; font-size: 14px; font-weight: 600;
+    overflow-wrap: anywhere; }
+  /* A part's picture beside what is written about it, and the way through to its
+     own page. A list of parts was the one place here that described hardware
+     without showing any: four Teac drives read as four near-identical lines, and
+     telling them apart is something the eye does instantly with a photograph and
+     cannot do at all with a model number. Small -- this is a list to be scanned,
+     not a gallery -- and 4:3 like the gallery card, so the same photograph is
+     cropped the same way in both places. */
+  .itemcard > .cardmain { display: flex; align-items: flex-start; gap: 11px;
+    margin: 0 10px; }
+  .cardmain > .cardtext { flex: 1 1 auto; min-width: 0; }
+  .cardtext > h4 { margin: 0; font-size: 14px; font-weight: 600;
+    overflow-wrap: anywhere; }
+  .cardtext > dl.specs { margin: 7px 0 0; }
+  .cardthumb { flex: none; width: 92px; aspect-ratio: 4 / 3; position: relative;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    background: var(--chip); border: 1px solid var(--line); border-radius: 8px; }
+  .cardthumb:hover { border-color: var(--accent); }
+  .cardthumb > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* The stand-in drawing is a symbol rather than a picture, so it sits small and
+     quiet in the middle of the space instead of filling it -- the same treatment,
+     and the same proportion, the gallery gives it. */
+  .cardthumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
+  /* The "not this exact unit" mark, sized for a thumbnail a quarter the width of
+     the gallery's: the same badge at the same size would cover the photograph it
+     is qualifying. */
+  .cardthumb .ref-badge { top: 3px; left: 3px; font-size: 9px; padding: 2px 5px; }
+  .cardthumb .ref-badge.icon { padding: 2px; }
+  .cardthumb .ref-badge.icon img { width: 12px; height: 12px; }
+  .itemcard > .cardrow { margin: 7px 10px 0; display: flex; flex-wrap: wrap;
+    align-items: center; gap: 5px 8px; font-size: 13px; }
+  .itemcard > .cardrow > .lbl { color: var(--muted); font-size: 12px; }
+  .itemcard > .cardrow form { display: flex; flex: 1 1 260px; align-items: center;
+    gap: 6px; min-width: 0; margin: 0; }
+  .itemcard > .cardrow input { flex: 1 1 200px; min-width: 0; padding: 4px 7px;
+    border: 1px solid var(--line); border-radius: 6px; font: inherit;
+    font-size: 13px; background: transparent; color: inherit; }
+  /* A list that is the panel's own content: the box is already drawn, so the cards
+     give theirs up and keep their bands -- edge to edge, one rule between one and
+     the next, the way a table's rows sit under its heading. A list nested deeper
+     than that (the chips inside the machine panel) keeps its cards whole, which is
+     what tells the two apart. */
+  .panel > .itemcards { gap: 0; margin: 0; }
+  .panel > .itemcards > .itemcard { border: 0; border-radius: 0; }
+  .panel > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
+  /* What follows such a list in the same panel -- the upload form under the files --
+     is a different thing and says so. */
+  .panel > .itemcards + .pbody { border-top: 1px solid var(--line); }
+  /* Where the things in a list are small enough to sit side by side -- a machine's
+     chip sockets, where what is written in one is a part number. */
+  .cardgrid { display: grid; gap: 10px; margin-top: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
+  .panel > .cardgrid { margin: 0; padding: 11px; }
+  /* The specs themselves: label and value paired, as many pairs across as the width
+     allows, in tracks so the pairs line up down the page instead of landing wherever
+     the previous value happened to end. min(Npx, 100%) for the same reason the count
+     grids use it -- a narrower screen than one track drops to one column rather than
+     hanging off the side. */
+  dl.specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+    gap: 2px 18px; margin: 7px 10px 0; }
+  dl.specs > div { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  /* The label is the quiet half: it is the same six words down every part in the
+     list, and what is being read is the values beside them. */
+  dl.specs dt { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
+  .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap; }
+  .btn:hover { background: var(--btn-hover); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.sm { padding: 3px 8px; font-size: 13px; }
+  .row-actions a { font-size: 13px; margin-right: 8px; }
+  form.edit label { display: block; margin: 10px 0 3px; color: var(--muted); font-size: 13px; }
+  form.edit input, form.edit textarea, form.edit select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: transparent; color: inherit; }
+  form.edit textarea { min-height: 60px; }
+  /* min(Npx, 100%) rather than a bare Npx: on a screen narrower than one column
+     the track would otherwise keep its floor and hang off the side of the page. */
+  .countgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 6px 16px; margin: 4px 0 10px; }
+  /* Said with the form in front of them, and the same for .checks below. These
+     groups only ever appear inside form.edit, whose own `label` and `input` rules
+     are a class plus two elements to a bare class plus one -- so they were quietly
+     winning, and had been all along: a "how many" box filled its whole column
+     instead of being 60px, and a checkbox came out 106px wide with its own words
+     underneath it. The group's own layout is the one that should apply. */
+  form.edit .countgrid label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
+  form.edit .countgrid input { width: 60px; padding: 4px 6px; }
+  /* The chips fitted in a catalogue machine. The same shape as a count grid but with
+     room in it: what goes in the box is a part number rather than a count, and the
+     label beside it carries the line about what that chip does. */
+  .chipgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 8px 16px; margin: 4px 0 10px; }
+  form.edit .chipgrid label { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
+  form.edit .chipgrid label > span:first-child { flex: 1; }
+  form.edit .chipgrid label .hint { display: block; margin: 0; }
+  form.edit .chipgrid input { width: 140px; flex: none; padding: 4px 6px; }
+  table.drives { margin: 4px 0 10px; }
+  table.drives th, table.drives td { padding: 4px 8px 4px 0; border: 0; }
+  table.drives input, table.drives select { width: 100%; padding: 4px 6px; }
+  table.drives td:first-child input { width: 70px; }
+  /* The drive rows do not fit a phone, and squeezed to fit they show two characters
+     of a model and none of the bezel. The row keeps its usable widths and the table
+     scrolls sideways instead. */
+  .hscroll { overflow-x: auto; }
+  @media (max-width: 860px) { table.drives { min-width: 800px; } }
+  /* Drive bezel colours. A swatch is a literal colour rather than a themed one, so
+     it wears a border: black on a dark page and white on a light one both need an
+     edge to be a swatch at all. */
+  .swatch { display: inline-block; width: 22px; height: 15px; border-radius: 3px;
+    border: 1px solid var(--line); vertical-align: middle; flex: none; }
+  .swatch.none { background: repeating-linear-gradient(45deg,
+    transparent 0 3px, var(--line) 3px 4px); }
+  /* Shade and yellowing sit together with the swatch that combines them; they wrap
+     rather than shrink, because two half-width menus name nothing useful. */
+  .bezel-cell { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .bezel-cell select { min-width: 0; flex: 1 1 104px; }
+  /* 'Heavily yellowed' is a wider word than any shade, and a menu that clips its
+     own longest option is a menu you have to open to read. */
+  .bezel-cell select[data-bezel=yellowing] { flex: 1 1 152px; }
+  .cc-ladder { display: inline-flex; gap: 3px; flex: none; }
+  .colourchart { margin: 2px 0 10px; }
+  .colourchart summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .colourchart .cc-grp { margin: 12px 0 5px; font-size: 12px; color: var(--muted); }
+  .cc-grid { display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
+    gap: 8px 18px; }
+  .cc-item { display: flex; align-items: flex-start; gap: 8px; }
+  .cc-item .swatch { width: 32px; height: 21px; margin-top: 2px; }
+  .cc-lbl { font-size: 13px; line-height: 1.35; }
+  .cc-lbl .hint { display: block; }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
+  form.edit .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
+  /* The tickbox that rides under a chip's answer. Its own width, like the radios
+     above it: everything else in an edit form is a full-width box, which on a
+     checkbox puts the label a column away from the thing it names. */
+  form.edit label.socketed { display: flex; align-items: center; gap: 5px;
+    margin: 0 0 10px; color: inherit; font-size: 13px; }
+  form.edit label.socketed input { width: auto; }
+  form.edit .checks input { width: auto; }
+  .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  /* The cookie notice. A slim bar rather than a panel over the page: nothing is
+     stored until the reader chooses something, so there is nothing to hold them up
+     for -- it is a notice, not a gate. */
+  #cookienote { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: var(--bg); border-top: 1px solid var(--line);
+    padding: 9px 14px; display: flex; gap: 12px; align-items: center;
+    justify-content: center; flex-wrap: wrap; }
+  #cookienote p { margin: 0; color: var(--muted); font-size: 12px; max-width: 70ch; }
+  #cookienote .btn { flex: none; }
+  /* Said quietly, at the bottom, and only when reloading on its own would take
+     something away from you -- see the script. It sits above the cookie notice's
+     z-index for the one page that could show both. */
+  #changed { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px;
+    z-index: 70; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 999px; box-shadow: 0 4px 20px #0003; padding: 7px 8px 7px 14px;
+    display: flex; gap: 10px; align-items: center; font-size: 13px; }
+  #changed .btn { flex: none; }
+  /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
+     text wears an ink token. */
+  .hero { margin: 18px 0 6px; }
+  .hero .n { font-size: 54px; line-height: 1; font-weight: 600; letter-spacing: -1px; }
+  .hero .of { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  /* The standing figure under the headline: the one number here that is a job
+     rather than a curiosity, so it is set in the page's own ink while the small
+     print beside it stays muted. */
+  .cover { font-size: 14px; margin: 10px 0 0; }
+  .cover .n { font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(196px, 100%), 1fr));
+    gap: 10px; margin: 16px 0 26px; }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
+  /* Every figure leads to the items behind it, quietly: a page of numbers should
+     read as numbers, so the links wear the ink around them until hovered. */
+  a.tile, .hero a, .cover a, .rank td.lbl a { color: inherit; text-decoration: none; }
+  a.tile { display: block; }
+  a.tile:hover { border-color: var(--accent); }
+  .hero a:hover, .cover a:hover, .rank td.lbl a:hover { color: var(--accent); text-decoration: underline; }
+  .tile .k { color: var(--muted); font-size: 12px; }
+  .tile .v { font-size: 21px; font-weight: 600; margin-top: 3px; }
+  .tile .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  /* The catalogue read as a list. Two columns where there is room, because the
+     families are short and a single column of them is a very long page; each one
+     stays whole rather than breaking across the columns mid-family. */
+  .cat { columns: 2; column-gap: 34px; margin: 18px 0 24px; }
+  .cat section { break-inside: avoid; display: inline-block; width: 100%;
+    margin-bottom: 14px; }
+  .cat h2 { font-size: 14px; margin: 0 0 3px; }
+  /* One line per model, and every one of them the same grid: fixed tracks, so
+     the years line up down the whole page and across the gap between the two
+     columns of it. This was a table with `table-layout: fixed` doing that job,
+     and it had to stop being one: a model's paragraph needs the whole width and
+     its name has only the first track, so the paragraph could not live in the
+     row. A grid line inside the fold's own summary lines up identically and
+     lets the paragraph be an ordinary block underneath it. */
+  .cat .models { font-size: 13px; }
+  .cat .mrow { border-top: 1px solid var(--line); padding: 1px 0;
+    break-inside: avoid; }
+  .cat .line { display: grid; grid-template-columns: minmax(0, 1fr) 3.4em 14em;
+    align-items: baseline; }
+  .cat .nm { padding-right: 8px; overflow-wrap: anywhere; }
+  .cat .yr, .cat .cpu { color: var(--muted); }
+  /* Sized to the strings that are actually in there: one model name reaches 28
+     characters and a couple of dozen CPUs pass 19, so the CPU column gets the
+     room and the odd long one wraps rather than every year being nudged out of
+     line to spare it. */
+  .cat .cpu { font-size: 12px; overflow-wrap: anywhere; }
+  /* How many of the model are held, in brackets after its name: a count is worth
+     nothing without the thing it counts, and against the name it needs no word to
+     say what it is of. Quiet ink until hovered, like the rest of the site's
+     figures, so the page reads as a catalogue and not as a tally. */
+  .cat .nm a.got { color: var(--muted); text-decoration: none;
+    font-size: 12px; white-space: nowrap; }
+  .cat .nm a.got:hover { color: var(--accent); text-decoration: underline; }
+  /* A model the register actually holds one of. The mark is the ink, not a
+     colour: this page is read in both themes and by people who cannot tell the
+     two apart. */
+  .cat .mrow.have .nm { font-weight: 600; }
+  @media (max-width: 720px) { .cat { columns: 1; } }
+  .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr));
+    gap: 22px 34px; margin-bottom: 24px; }
+  .rank h3 { font-size: 14px; margin: 0 0 2px; }
+  .rank .cap { color: var(--muted); font-size: 12px; margin: 0 0 9px; }
+  .rank table { border-collapse: separate; border-spacing: 0 2px; }
+  .rank td { border: 0; padding: 0 8px 0 0; vertical-align: middle; font-size: 13px; }
+  .rank td.lbl { white-space: nowrap; color: var(--fg); }
+  .rank td.bar { width: 100%; }
+  .rank td.num { text-align: right; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .rank .track { background: var(--track); border-radius: 0 3px 3px 0; height: 14px; }
+  .rank .fill { background: var(--fill); height: 14px; border-radius: 0 4px 4px 0;
+    min-width: 3px; }
+  .muted { color: var(--muted); }
+  .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+  .banner { background: #b4530022; border: 1px solid #b45300aa; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  /* A project's state, as a chip. Tinted rather than coloured in: these sit in a
+     table beside names and summaries, and a solid block of colour on every row
+     would make a list of ordinary projects read as a page of warnings. The text
+     stays the page's own colour, which is what lets one rule serve both themes --
+     a tint this faint is a background in either, and a fixed foreground would have
+     needed a dark-mode twin for each. */
+  .chip.st-active { background: #2563eb2e; }
+  .chip.st-stalled { background: #b453002e; }
+  .chip.st-done { background: #1a7f372e; }
+  .chip.st-abandoned { color: var(--muted); }
+  /* Finished and given-up-on projects, and jobs already ticked: still there to be
+     read, just not competing with what is still in hand. */
+  tr.closed td, tr.done td { opacity: .62; }
+  tr.done .tasktext { text-decoration: line-through; }
+  /* The bar at the foot of a panel that adds a row to it -- an item, a task, an
+     order. The same shape as the note bar under the history, because it is the same
+     gesture: type the thing, press the button, it is in the list above. */
+  .addbar { display: flex; gap: 6px; margin: 10px 0 0; flex-wrap: wrap; align-items: center; }
+  .addbar input, .addbar select { flex: 1; min-width: 160px; padding: 6px 8px;
+    border: 1px solid var(--line); border-radius: 6px; background: transparent;
+    color: inherit; font: inherit; }
+  /* The suggestion at the top of the projects page: photographs on the left, what
+     the project is and what is left to do on the right. It wraps to one column on a
+     phone rather than squeezing both, because a 92px thumbnail beside a wrapped
+     line of chips is neither a picture nor a sentence. */
+  .today { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+  .todayshots { display: flex; gap: 6px; flex: none; }
+  /* Bigger than the ones in a list of parts: this is one project being shown off
+     rather than a column to be scanned down. */
+  .todayshots .cardthumb { width: 130px; }
+  .todaytext { flex: 1 1 260px; min-width: 0; }
+  .todaytext > h3 { margin: 0 0 6px; font-size: 17px; }
+  .todaymeta { margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 5px 8px;
+    align-items: center; font-size: 13px; }
+  /* The jobs, as jobs. Marked with a hollow box rather than a bullet, the same
+     shape a task wears on a project's own page, so the list reads as things to be
+     ticked rather than as prose. */
+  .todaytasks { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; }
+  .todaytasks li { padding-left: 20px; position: relative; margin: 3px 0; }
+  .todaytasks li::before { content: "○"; position: absolute; left: 2px;
+    color: var(--muted); }
+  .todaytasks li.muted::before { content: ""; }
+  @media (max-width: 520px) { .todayshots .cardthumb { width: 104px; } }
+  /* The work box notes several jobs at once -- faults arrive as a list, not as a
+     sentence -- so it is a textarea, and it takes the whole row rather than being
+     squeezed to a sixth of one beside the menu and the button. */
+  .addbar textarea { flex: 1 1 100%; min-height: 52px; resize: vertical;
+    padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: transparent; color: inherit; font: inherit; }
+  /* An order has seven fields and most of them are short. Left to the rule above
+     they would each claim a sixth of the row and the description -- the one field
+     that is a sentence -- would be the same width as the quantity. */
+  .orderbar input[name=description] { flex: 3 1 220px; }
+  .orderbar input[name=qty] { flex: 0 0 68px; min-width: 0; }
+  .orderbar input[name=cost] { flex: 0 0 96px; min-width: 0; }
+  .orderbar input[name=expected_at] { flex: 0 0 150px; min-width: 0; }
+  /* Money reads down a column, so it is set right and in figures of one width --
+     otherwise £9.99 and £110.00 cannot be compared at a glance, which is the only
+     reason to put them one above the other. */
+  td.money { text-align: right; font-variant-numeric: tabular-nums; }
+  /* The one column in each of these tables that is a sentence, told to take the
+     slack. A table at width:100% shares its spare room out among every column, so
+     without this a 20px tick button sat in a 120px column and the words it belonged
+     to were pushed a third of the way across the page. */
+  td.tasktext, td.orderwhat { width: 100%; }
+  /* The name and its summary take the slack, as the task and order text do. */
+  .projtable td.name { width: 100%; }
+  /* A count of nothing, drawn rather than written into the cell. The cell is left
+     genuinely empty so that a phone can drop it: an em dash is content, and content
+     is not something :empty can see past. */
+  .projtable td.count:empty::after { content: "\2014"; }
+  .build-banner { background: #3b82f622; border: 1px solid #3b82f6aa; border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
+  /* What is going to be done to a thing, as against what became of it. Its own
+     colour rather than the disposal banner's, because the two are opposite tenses
+     and somebody who has learnt that the orange band means "gone" should not have
+     to read the words to find out that this one means the opposite. Drawn only for
+     a reader who is logged in -- see the panel in _photocol.html. */
+  .plan-banner { background: #15803d22; border: 1px solid #15803daa; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
+  /* input[list] was every text box a toolbar had until the projects page put a
+     plain search field in one; a search box is not a picker and has no datalist. */
+  .toolbar input[type=text], .toolbar input[list], .toolbar input:not([type]),
+  .toolbar select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
+  /* The one thing in the row that should take the leftover width -- the query, not
+     the buttons beside it. */
+  .toolbar input.fill { flex: 1 1 240px; }
+  /* A picker is as wide as its widest option, and the options here are whole item
+     names -- wider than a phone. Let it shrink; the chosen line still fits. */
+  select { max-width: 100%; }
+  .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
+  /* Two menus, one row, on a phone: which category and in what order are one
+     sentence, and a row each spent two lines of the screen saying it. */
+  @media (max-width: 620px) { .toolbar select.fill { flex: 1 1 140px; } }
+  .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+  .thumbs img { width: 150px; height: 110px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
+  .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
+  .thumb-item .btn.sm { font-size: 11px; padding: 1px 7px; }
+  .photo-primary { position: relative; }
+  .photo-ctrls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+  .photo-ctrls form { margin: 0; }
+  .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+    padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--btn); color: inherit; cursor: pointer; }
+  .iconbtn:hover { background: var(--btn-hover); }
+  .iconbtn svg { width: 16px; height: 16px; display: block; }
+  .iconbtn.on { border-color: var(--accent); color: var(--accent); }
+  .iconbtn.danger:hover { background: #b4530033; border-color: #b45300aa; }
+  .iconbtn.lbl-s svg { width: 13px; height: 13px; }
+  .iconbtn.lbl-l svg { width: 19px; height: 19px; }
+  .hdr-actions { display: inline-flex; align-items: center; gap: 6px; align-self: center; }
+  .hdr-actions form { margin: 0; }
+  /* A destructive button says so at rest, not only under the pointer: the whole
+     value of the colour is being read before the click, not during it. (The
+     icon-button variant above stays plain until hover on purpose -- a row of
+     photo tools would be all warning and no hierarchy otherwise.) */
+  .btn.danger { color: #b45300; border-color: #b45300aa; }
+  .btn.danger:hover { background: #b4530033; border-color: #b45300aa; }
+  .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
+    font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; pointer-events: none; }
+  /* Icon variant: a fixed-size source-site favicon, same size at any thumbnail scale. */
+  .ref-badge.icon { padding: 3px; border-radius: 6px; display: inline-flex; }
+  .ref-badge.icon img { width: 18px; height: 18px; display: block; border-radius: 3px; object-fit: contain; }
+  .photo-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-top: 10px; max-width: 320px; }
+  .photo-actions form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 0; }
+  .photo-actions input[name=note] { padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+  /* The file input sits invisible over its own label, so the button wears the
+     site's own wording and styling instead of the browser's ("Choose Files",
+     capitals and all) -- and keeps a real input, so it is still focusable, still
+     opens the picker, and still works with no JavaScript. */
+  /* The upload row in a Files section: a line of controls that wraps rather than
+     one input per line, since together they are one sentence -- these files, filed
+     under these names, described like this. */
+  .fileform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin: 10px 0 0; }
+  .fileform input[name=tags] { flex: 2 1 260px; }
+  .fileform input[name=note] { flex: 1 1 180px; }
+  .fileform input[type=text], .fileform input:not([type]) { padding: 5px 7px;
+    border: 1px solid var(--line); border-radius: 6px; background: transparent;
+    color: inherit; font: inherit; }
+  .inline-form input[name=tags] { padding: 3px 7px; border: 1px solid var(--line);
+    border-radius: 6px; background: transparent; color: inherit; font: inherit;
+    font-size: 13px; min-width: 200px; }
+  .filebtn { position: relative; overflow: hidden; }
+  .filebtn input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; font-size: 0; }
+  .filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+  form.sending .filebtn { pointer-events: none; opacity: .55; }
+  /* The choose-files button on a create form. It is a label, and the block styling
+     every other label in form.edit gets would otherwise flatten it. */
+  .newphotos { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+  form.edit label.filebtn { display: inline-block; width: auto; margin: 0;
+    color: inherit; font-size: 13px; }
+  .newphotos .hint { margin: 0; }
+  .photo-actions .hint { margin: 0; }
+  /* The phone code at the foot of the photo column. Stacked rather than side by
+     side: the column is 320px, which is not enough for a readable line beside a
+     code big enough to scan. Its own white card whatever the theme is doing: the
+     SVG paints a white quiet zone of its own, and a card that stopped at the edge
+     of it would read as a printing mistake in the dark. */
+  /* Its heading is an aside in a sidebar, not one of the page's sections, so it
+     takes the 13px the column's other labels use rather than the h3 default. */
+  .qr-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+  .qr-card .qr-code { background: #fff; padding: 4px; border-radius: 8px;
+    border: 1px solid var(--line); line-height: 0; }
+  .qr-card .qr-code svg { display: block; width: 132px; height: 132px; }
+  .qr-card p { margin: 0; }
+  .qr-card .qr-url { overflow-wrap: anywhere; margin-top: 6px; }
+  /* An item nobody has photographed. The drawing is the card's, drawn at the
+     size the photograph would have been so the column keeps its shape either
+     way -- a page that changed width according to whether anyone had been round
+     with a camera would be a different page for the same kind of thing. */
+  .nophoto { display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 8px; padding: 30px 12px 34px; }
+  .nophoto img.ph { width: 76px; height: 76px; object-fit: contain; opacity: .5; }
+  .nophoto .hint { margin: 0; }
+
+  /* The paragraph about a model, at the top of the main column on the page of an
+     item that is one -- so the photographs sit level with it rather than being
+     pushed below, and so a phone (where the photo column leads) shows the picture
+     first, as it does on every other item page.
+
+     Its own class, not .summary: that one is the prose about this particular
+     object, and `p.summary` outranked it -- so styling the model's paragraph had
+     quietly restyled every item's own.
+
+     Muted, like the same paragraph on the catalogue page, and for the reason the
+     rest of the site mutes things: it is reference about the model, not a fact
+     about the object in front of you. It stands in for the item's own summary
+     where there is not one -- the two are never both on a page, an item having
+     either something said about it or the model's paragraph in the meantime -- and
+     the muted ink is what says which of the two you are reading.
+
+     No top margin, because the photo column beside it starts at the top of its
+     own and a margin here would drop the text half a line below the picture it is
+     meant to be level with. No width limit either: the column is about 74
+     characters of this typeface already, and a narrower paragraph would stop short
+     of the right edge every panel under it reaches. */
+  p.model-summary { margin: 0 0 12px; color: var(--muted); white-space: pre-line; }
+
+  /* The same paragraph on the catalogue page, folded away: four hundred rows are
+     read by eye and by ctrl-F, and a paragraph under every one of them would be a
+     different page for a different job. The marker is a triangle after the name
+     rather than a word, because the name is the thing being scanned.
+
+     The paragraph is inside the details element, so the browser's own disclosure
+     does the hiding and nothing here depends on :has(). It did, briefly: the fold
+     and the paragraph were in two rows of a table, joined by :has() on the row
+     group, and it worked in Chrome and in current WebKit and not in the Safari
+     somebody actually had -- :has() has to re-evaluate upwards when the `open`
+     attribute changes, and older WebKit did not. A marker that flips and reveals
+     nothing is a worse failure than not having the feature, and it is not a
+     failure any amount of testing in one engine would have found. Native
+     disclosure has worked everywhere for a decade; the marker below is a plain
+     descendant selector, which is the thing that did keep working. */
+  .cat details.mrow > summary { list-style: none; cursor: pointer; }
+  .cat details.mrow > summary::-webkit-details-marker { display: none; }
+  .cat details.mrow > summary::marker { content: ""; }
+  /* The marker rides after the name inside the grid's first track, so it cannot
+     push the years out of line. Joined to the name by a non-breaking space, not an
+     ordinary one: the longest name in the catalogue -- "PS/2 Model 30 286
+     (8530-286)" -- fills its track exactly, and on a plain space the triangle
+     wrapped to a line of its own underneath, reading as a row with no name in it. */
+  .cat details.mrow > summary .nm::after { content: "\00A0\25B8"; color: var(--muted);
+    font-size: 11px; font-weight: 400;
+    /* The marker rides in the 8px gutter the name already keeps from the year,
+       rather than claiming width of its own: at its own width it pushed the one
+       name that fills its track exactly -- "PS/2 Model 30 286 (8530-286)" -- onto
+       a second line, which the same page without a marker does not do. */
+    margin-right: -8px; }
+  .cat details.mrow[open] > summary .nm::after { content: "\00A0\25BE"; }
+  .cat details.mrow > summary:hover .nm { color: var(--accent); }
+  .cat details.mrow > summary:focus-visible { outline: 2px solid var(--accent);
+    outline-offset: 2px; border-radius: 3px; }
+  /* Not bold, whatever the line above is doing: .have sets the name in weight and
+     a paragraph of it would be shouting. */
+  .cat details.mrow > p { margin: 2px 0 8px; font-size: 12px; font-weight: 400;
+    color: var(--muted); line-height: 1.45; }
+
+  .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
+  img.zoomable { cursor: zoom-in; }
+  img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  /* touch-action: none across the whole overlay, not only the photo in the middle
+     of it: a flick that starts on the black above or below the photo is still a
+     flick, and left to itself the phone would scroll the page underneath with it. */
+  #lightbox { position: fixed; inset: 0; background: #000000d8; display: none;
+    align-items: center; justify-content: center; z-index: 1000; touch-action: none; }
+  #lightbox.open { display: flex; }
+  /* The stage is the whole of the window the photo may use, not the photo's own
+     box: a tall photo on a wide screen sits in the middle of it with a black band
+     either side, and the zoom is free to spend those bands rather than staying
+     shut inside the shape the photo arrived in. touch-action: none because the
+     overlay does its own pinch: left to itself the browser would zoom the whole
+     page, scrollbars, header and all. */
+  #lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;
+    touch-action: none; }
+  /* Zoom and pan ride on this wrapper's transform from the stage's top-left
+     corner, so the pan bounds and the crop maths always measure against one
+     untransformed box. The centring is the transform's doing too -- laying the
+     photo out in the middle and then scaling from a corner would fight it.
+
+     Its background is the thumbnail's own copy, stretched to the size the photo
+     is about to be and showing through until the original has arrived: the photo
+     grows out of the thumbnail on the way in, and a box with nothing in it yet has
+     nothing to grow. The radius is the photo's own, so the corners of the stand-in
+     do not show past it. */
+  #lightbox .lb-fit { position: absolute; left: 0; top: 0; line-height: 0;
+    transform-origin: 0 0; will-change: transform;
+    border-radius: 8px; background-size: 100% 100%; background-repeat: no-repeat; }
+  #lightbox img { max-width: 92vw; max-height: 84vh; border-radius: 8px; box-shadow: 0 6px 40px #000;
+    display: block; width: auto; height: auto;
+    cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
+  #lightbox .lb-stage.zoomed { overflow: hidden; cursor: grab; }
+  #lightbox .lb-stage.zoomed.panning { cursor: grabbing; }
+  #lightbox .lb-stage.zoomed img { cursor: grab; }
+  #lightbox .lb-stage.zoomed.panning img { cursor: grabbing; }
+  #lightbox .lb-stage.cropping { cursor: crosshair; touch-action: none; }
+  #lightbox .lb-stage.cropping img { cursor: crosshair; }
+  #lb-crop { position: absolute; border: 2px solid #fff; box-sizing: border-box;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); cursor: move; }
+  #lb-crop .handle { position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px;
+    background: #fff; border: 1px solid #333; border-radius: 2px; cursor: se-resize; }
+  #lightbox .lb-tools { position: absolute; z-index: 2; bottom: 2vh; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
+    background: #000000a8; padding: 7px 10px; border-radius: 10px; max-width: 94vw; }
+  #lightbox .lb-tools form { margin: 0; display: flex; gap: 8px; align-items: center; }
+  #lightbox .lb-tools .btn { position: static; background: #ffffff1f; color: #fff;
+    border-color: #ffffff33; }
+  #lightbox .lb-tools .btn.primary { background: var(--accent); border-color: var(--accent); }
+  /* The register's warning colour, lightened: #b45300 is legible on a white page
+     and all but invisible on a black toolbar. The shade is what says at a glance
+     that this one tool is not like the others in the row. */
+  #lightbox .lb-tools .btn.danger { color: #ffb37a; border-color: #ffb37a55; }
+  #lightbox .lb-tools .btn.danger:hover { background: #b4530066; border-color: #ffb37aaa; }
+  /* Scanning a label's code: a fullscreen overlay like the photo view, and for the
+     same reason -- on a phone, aiming a camera wants the whole screen. Above the
+     lightbox's z-index so the two can never argue about which is in front. */
+  #scanner { position: fixed; inset: 0; background: #000000ee; z-index: 1100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; padding: 16px; }
+  #scanner .scan-stage { position: relative; width: min(92vw, 420px); aspect-ratio: 1;
+    overflow: hidden; border-radius: 12px; background: #000; }
+  #scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* An aiming guide, not the edge of what is read: the decode takes the whole
+     square, so a code touching this border still scans. Dark hairlines either side
+     of the white one, because a white frame over a label -- which is mostly white
+     -- is a frame nobody can see. */
+  #scanner .scan-frame { position: absolute; inset: 12%; border: 2px solid #ffffffd9;
+    border-radius: 10px; pointer-events: none;
+    box-shadow: 0 0 0 1px #00000073, inset 0 0 0 1px #00000073; }
+  #scanner .scan-note { color: #fff; margin: 0; text-align: center; max-width: 34em;
+    font-size: 14px; line-height: 1.45; }
+  #scanner .btn { background: #ffffff1f; color: #fff; border-color: #ffffff33; }
+  /* Crop swaps its button for its apply/cancel form with the hidden attribute; the
+     rules above would outrank the browser's own `[hidden] { display: none }`, which
+     is why there is one of our own at the top of this stylesheet. */
+  #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
+  /* The buttons fade with the backdrop. A photo on its way home to its thumbnail is
+     uncovering the page it belongs to, and a close button and a toolbar standing
+     over that page belong to nothing -- besides which they are in the way of
+     watching it go. --chrome is written by the script, a frame at a time. */
+  #lightbox .lb-close, #lightbox .lb-nav, #lightbox .lb-tools { opacity: var(--chrome, 1); }
+  /* Above the stage, which spans nearly the whole window and would otherwise
+     swallow the clicks meant for an arrow standing over it. */
+  #lightbox button { position: absolute; z-index: 2; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
+  #lightbox .lb-nav { top: 50%; transform: translateY(-50%); font-size: 38px; padding: 6px 16px; }
+  #lightbox .lb-prev { left: 3vw; } #lightbox .lb-next { right: 3vw; }
+  #lightbox .lb-close { top: 3vh; right: 3vw; font-size: 30px; padding: 2px 12px; }
+  /* The way back, and the way on to the next item: one row, the pair pushed to the
+     far end so they fall under the thumb on a phone. */
+  .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
+    margin: 16px 0; }
+  .itemnav { margin-left: auto; display: flex; gap: 6px; }
+  /* A summary is typed into a textarea, in paragraphs, exactly as a note is -- and
+     until now it was read back as one run-on line for exactly the reason the notes
+     cell was: a paragraph collapses the newlines somebody typed into it. The same
+     pre-line the notes cell has. It honours a CRLF as readily as a bare newline,
+     because a browser turns both into one line break while it is parsing, long
+     before the CSS is asked what to do with them -- which is why nothing on the way
+     in has to strip the carriage returns a textarea sends. */
+  .summary { margin: 4px 0 14px; white-space: pre-line; }
+  .detail { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; margin-top: 6px; }
+  .detail-main { min-width: 0; }
+  /* Both columns start at the same line, whatever happens to be first in them. A
+     panel carries a top margin to separate it from the section above, and at the
+     top of a column there is nothing above it -- so the photographs sat fourteen
+     pixels below a model's paragraph, and on an item with no paragraph both
+     columns sat fourteen pixels below the heading instead. */
+  .detail > .detail-main > .panel:first-child,
+  .detail > .photo-col > .panel:first-child,
+  .detail > .detail-main > p.summary:first-child { margin-top: 0; }
+  .photo-col { min-width: 0; }
+  .detail-main td.wrap { overflow-wrap: anywhere; }
+  /* Notes are typed into a textarea, in paragraphs, and were read back as one run-on
+     line: the newlines were stored all along, and a table cell simply does not show
+     them. The same rendering a history entry's message has always had. */
+  .detail-main td.lines { white-space: pre-line; }
+  .detail-main table td:first-child { white-space: nowrap; }
+  /* An item page is a stack of key/value tables -- the record, the catalogue
+     machine, the chips fitted, the history -- and an auto-laid table sizes its
+     label column to its own longest word, so each one found a different edge and
+     the values stepped in and out down the page. One declared width, one column,
+     read as one list. The parts grid is a real grid and keeps its own widths. */
+  .detail-main table.kv { table-layout: fixed; }
+  .detail-main table.kv tr > *:first-child { width: 176px; }
+  /* A yes/no column: the answer is one character, so the column is only as wide as
+     the word that heads it. */
+  .detail-main table.kv .tick { width: 92px; text-align: center; }
+  /* A section folded away because it has nothing in it. It reads as the heading it
+     replaces, so the page still says what is missing rather than going quiet. */
+  .detail-main details.fold > summary { cursor: pointer; font-weight: 500; }
+  .detail-main details.fold > .section:first-of-type { margin-top: 14px; }
+  @media (max-width: 720px) {
+    .detail { grid-template-columns: 1fr; }
+    .detail .photo-col { order: -1; }
+    /* The column leads the page at this width, and a code that opens the page you
+       are already reading is not worth the first screenful of it. */
+    .photo-qr { display: none; }
+  }
+  .section { margin-top: 24px; }
+  /* Wraps because the title row carries the heading, its chips and -- when logged
+     in -- the edit/print buttons, which is more than a phone's width. */
+  .flex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 14px; margin-top: 14px; }
+  .card { display: block; background: transparent; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; }
+  .card:hover { border-color: var(--accent); }
+  .card .thumb { aspect-ratio: 4 / 3; background: var(--chip); display: flex; align-items: center; justify-content: center; position: relative; }
+  .card .thumb > img { width: 100%; height: 100%; object-fit: cover; }
+  .card .thumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
+  .card .body { padding: 9px 11px; }
+  .card .aid { font-size: 12px; color: var(--muted); }
+  .card .nm { font-size: 14px; margin: 2px 0 7px; line-height: 1.3; }
+  .card[data-disposed="1"] { opacity: .5; }
+  .count { color: var(--muted); font-size: 13px; }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0; padding: 8px 14px 14px; }
+  legend { color: var(--muted); font-size: 13px; padding: 0 6px; }
+  .inline-form { display: inline; }
+  /* Centred, because the box to type in is taller than the buttons beside it and a
+     flex row left to itself stretches its children to match. The picker was safe --
+     it sits inside .newphotos, which centres its own -- so "add note" grew to the
+     height of the input and "photos" did not, and the pair looked wrong next to
+     each other on any screen wide enough to keep them on one line. */
+  .notebar { display: flex; gap: 6px; margin: 6px 0 12px; flex-wrap: wrap;
+    align-items: center; }
+  /* A history line: what happened, with the picker for a photograph of it out at
+     the right where it is reachable without being read. */
+  /* The message takes the slack, which puts both controls together at the right.
+     space-between spread three children instead, so the picker sat out in the middle
+     of the line with the delete button away at the end -- two buttons for the same
+     entry, reading as though they belonged to different things. */
+  /* The date column: nowrap so a stamp is one line, and top-aligned because what
+     is beside it -- words, photographs, or both -- runs to as many as it needs. */
+  .logwhen { white-space: nowrap; vertical-align: top; }
+  .logline { display: flex; gap: 8px; align-items: flex-start; }
+  .logmsg { white-space: pre-line; min-width: 0; flex: 1; }
+  .logadd { flex: none; }
+  /* Both controls on a history line are the same size, because to the eye they are
+     the same kind of thing: one puts a photograph on the entry and one takes the
+     entry away. Sized to the line, not to the picker's own form -- scoped to the
+     form, the delete button beside it kept the 30px default and the pair sat there
+     visibly mismatched. */
+  .logline .iconbtn { width: 24px; height: 24px; border-radius: 6px; }
+  .logline .iconbtn svg { width: 13px; height: 13px; }
+  /* A row of them across the entry, wrapping onto another row where there are more
+     than fit. No wrapper around each any more: they had a delete button underneath
+     and now the line's own one, at the right, is the only one there is.
+
+     Smaller than the gallery's strip: these belong to a line of the log, and a
+     photograph the size of the sentence beside it would be reading the log by its
+     pictures. The lightbox is a click away for the one that matters. */
+  .logshots { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 2px; }
+  .logshots img { width: 120px; height: 88px; border-radius: 6px; border: 1px solid var(--line); object-fit: cover; }
+  .notebar input { flex: 1; min-width: 220px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit; font: inherit; }
+  /* The invisible file input covering the picker is not a box to type in, whatever
+     the rule above says about inputs in here. */
+  .notebar .filebtn input[type=file] { flex: none; min-width: 0; padding: 0; border: 0; }
+
+  /* --- The banner, in three bands -----------------------------------------
+     Places on the left, finding in the middle, doing on the right. It grew
+     instead to fourteen controls in one flat row, all wearing .btn sm, so
+     nothing in it was ranked and the eye had to read the lot to find the one
+     it wanted. What is neither a place nor a job -- the theme, the traffic
+     log, the way out -- now sits behind one button: a permanent seat in the
+     banner has to be worth reading past on every page, and those were not. */
+  header .hdr-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+  /* Where you are. Said in weight rather than colour, because the banner is
+     read in both themes and by people who cannot tell the two apart. */
+  header .hdr-nav a[aria-current="page"] { font-weight: 700; color: var(--fg); }
+  header .hdr-desk { display: inline-flex; align-items: center; gap: 6px; }
+  /* No line-height of its own any more. It had 1.15, which is the browser's
+     `normal` -- the height every <button> beside it used to be, and matching them
+     was the point. They are the page's 1.5 now, and holding the tighter figure here
+     would leave the one control in the banner that is a <summary> standing five
+     pixels shorter than the two it sits between. */
+  header .hdr-desk .dots { min-width: 34px; text-align: center; }
+  /* Clear of the name: the section you are in is set in bold, and against the
+     brand -- which is bold too -- it read as the last word of it. */
+  header .hdr-nav { margin-left: 6px; }
+  header .hdr-desk form { margin: 0; }
+
+  /* A menu that opens without a script, because <details> already does that.
+     The script below only closes it -- on Escape, and on a click landing
+     anywhere else -- which is the part the element does not do for itself. */
+  .menu { position: relative; }
+  .menu > summary { list-style: none; cursor: pointer; }
+  .menu > summary::-webkit-details-marker { display: none; }
+  .menu > summary::marker { content: ""; }
+  .menupop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 950;
+    min-width: 178px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; box-shadow: 0 10px 30px #00000026; padding: 4px; }
+  :root[data-theme="dark"] .menupop { box-shadow: 0 10px 30px #00000080; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) .menupop { box-shadow: 0 10px 30px #00000080; }
+  }
+  .menupop a, .menupop button { display: block; width: 100%; text-align: left;
+    padding: 7px 9px; border: 0; border-radius: 7px; background: transparent;
+    color: inherit; font: inherit; font-size: 13px; text-decoration: none;
+    white-space: nowrap; cursor: pointer; }
+  .menupop a:hover, .menupop button:hover { background: var(--btn-hover); }
+  .menupop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 3px; }
+  .menupop form { margin: 0; }
+
+  /* The quiet end of the page: the one link here is for whoever is writing
+     against the register rather than reading it, which is not a thing to spend
+     a seat in the banner on. */
+  footer.site { border-top: 1px solid var(--line); margin-top: 34px;
+    padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 4px 14px;
+    align-items: baseline; font-size: 13px; color: var(--muted); }
+
+  /* --- The phone's own row of controls ------------------------------------
+     At the bottom, where the thumb is. Measured before this existed, the
+     banner on a 390px screen wrapped to four rows and 165px, and the first
+     card began 340px down -- two fifths of the screen spent on chrome. Worse,
+     the one control a phone is really here for was the last thing on the last
+     row: scanning a label is what you do while holding the thing, and it was
+     further from your thumb than anything else on the page. */
+  .tabbar, #sheet { display: none; }
+  @media (max-width: 620px) {
+    header .hdr-nav, header .hdr-desk { display: none; }
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+      display: flex; background: var(--bg); border-top: 1px solid var(--line);
+      padding: 3px 2px calc(3px + env(safe-area-inset-bottom, 0px)); }
+    .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column;
+      align-items: center; gap: 3px; padding: 6px 2px; border: 0;
+      background: none; color: var(--muted); font: inherit; font-size: 11px;
+      text-decoration: none; cursor: pointer; }
+    .tabbar svg { width: 21px; height: 21px; display: block; }
+    .tabbar [aria-current="page"], .tabbar .on { color: var(--accent); }
+    /* Room under the last card for the bar that would otherwise sit on it, and
+       the cookie notice lifted clear of the same bar. */
+    body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    #cookienote { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    /* Everything else, in one list rather than a menu inside a menu: a sheet
+       you have to go two taps into is not simpler than the row it replaced. */
+    #sheet { position: fixed; inset: 0; z-index: 80; display: flex;
+      flex-direction: column; justify-content: flex-end; background: #00000066; }
+    #sheet[hidden] { display: none !important; }
+    #sheet .sheet-body { background: var(--bg); border-top: 1px solid var(--line);
+      border-radius: 14px 14px 0 0; padding: 8px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+      max-height: 82vh; overflow-y: auto; }
+    #sheet a, #sheet button { display: block; width: 100%; text-align: left;
+      padding: 11px 12px; border: 0; border-radius: 9px; background: transparent;
+      color: inherit; font: inherit; font-size: 15px; text-decoration: none;
+      cursor: pointer; }
+    #sheet a:active, #sheet button:active { background: var(--btn-hover); }
+    #sheet a[aria-current="page"] { font-weight: 700; }
+    #sheet hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
+    #sheet form { margin: 0; }
+    /* Sized as a target and drawn as a grip: the bar is 38px of the 44 tall box
+       around it, which is what a thumb is actually aiming at. */
+    #sheet .sheet-grip { display: block; width: 100%; height: 22px; padding: 0;
+      border: 0; background: none; cursor: pointer; }
+    #sheet .sheet-grip::before { content: ""; display: block; width: 38px; height: 4px;
+      border-radius: 999px; background: var(--line); margin: 9px auto; }
+  }
+
+  /* Last, so it outranks the sizes set above. iOS zooms the page in when it
+     focuses a control whose text is under 16px, and does not zoom back out when
+     the box is left -- so on a phone every tap on a field left the page scaled up
+     and scrolled sideways, and you had to pinch your way back. The site's own
+     type is 14px and the search box 13px, so every one of them tripped it.
+
+     Hand touch devices 16px controls rather than pin the viewport: the usual
+     `maximum-scale=1` also stops the zoom, but takes pinch-zoom away with it, and
+     the photo lightbox is the last place on this site to do that. Typing on a
+     phone at 16px is no bad thing anyway; on a pointer it stays 14 and nothing
+     about the desktop layout moves. Every rule that sets a control's size is
+     restated here because they are more specific than a bare `input` would be --
+     and being more specific is exactly how three of them were missed: the boxes in
+     an item's Files panel and the tag editor beside a file kept their 14px and went
+     on zooming the page, which is the whole complaint this block exists to answer.
+     A control given a size by a class belongs in this list. */
+  @media (pointer: coarse) {
+    input, select, textarea,
+    form.edit input, form.edit select, form.edit textarea,
+    form.edit .countgrid input, form.edit .chipgrid input,
+    table.drives input, table.drives select,
+    header .hdr-search input[type=search],
+    .toolbar input[list], .toolbar select,
+    .photo-actions input[name=note], .notebar input,
+    .fileform input[type=text], .fileform input:not([type]),
+    .inline-form input[name=tags],
+    .itemcard > .cardrow input { font-size: 16px; }
+  }
