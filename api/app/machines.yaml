@@ -2650,6 +2650,28 @@ families:
     manufacturer: Bandai
     regions: [NTSC-J (Japan)]
     models:
+      - key: wonderswan-color
+        model: WonderSwan Color
+        summary: >-
+          Bandai's colour handheld and the last machine Gunpei Yokoi had shaped before
+          his death. It kept the original WonderSwan's portrait-or-landscape controls,
+          added a reflective colour screen, and found a small but real Japanese market
+          on the back of Final Fantasy ports. The SwanCrystal is the later screen to
+          look for.
+        year: 2000
+        cpu: NEC V30MZ-3.07
+        chassis: handheld with portrait and landscape controls
+        os: cartridge
+        ram: [64K]
+        issues: []
+        styles: [WonderSwan Color, SwanCrystal]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC V30MZ]
+          - socket: display
+            label: Display
+            variants: [reflective FSTN colour LCD, SwanCrystal TFT LCD]
       - key: bandai-rx-78
         model: RX-78 Gundam
         summary: >-
@@ -5699,6 +5721,65 @@ families:
             label: Sound
             variants: [General Instrument AY-3-8914, General Instrument AY-3-8916]
 
+  - key: microsoft
+    name: Microsoft
+    manufacturer: Microsoft
+    regions: [NTSC-U (US), NTSC-J (Japan), PAL (Europe)]
+    models:
+      - key: xbox
+        model: Xbox
+        summary: >-
+          Microsoft's first console was almost a PC in a black box: a Pentium III-class
+          Intel CPU, Nvidia graphics, an internal hard disk and Ethernet before console
+          online play was ordinary. Xbox Live made the machine matter beyond Halo. The
+          clock capacitor is the service item; on early boards it leaks and eats traces.
+        year: 2001
+        cpu: Intel Pentium III-733
+        chassis: black console with an internal hard disk
+        os: Xbox dashboard
+        ram: [64MiB]
+        issues: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6]
+        styles: [Xbox, crystal Xbox, Halo special edition, Debug Kit]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Intel Pentium III Coppermine]
+          - socket: gpu
+            label: GPU
+            variants: [Nvidia NV2A]
+          - socket: mcp
+            label: MCPX
+            note: the southbridge and audio processor, and part of what made Xbox a PC cousin
+            variants: [Nvidia MCPX]
+          - socket: bios
+            label: TSOP
+            variants: [Sharp TSOP, ST TSOP, Hynix TSOP, Winbond TSOP]
+      - key: xbox-360
+        model: Xbox 360
+        summary: >-
+          The console that made HD games and online accounts feel normal. A three-core
+          PowerPC CPU, ATI Xenos graphics and Xbox Live Arcade pushed it ahead early in
+          the generation, but the first boards ran too hot and failed in huge numbers.
+          Jasper and later machines are the ones to keep; Xenon and Zephyr are history
+          with a warning label.
+        year: 2005
+        cpu: IBM Xenon-3200
+        chassis: white or black console with removable storage
+        os: Xbox 360 system software
+        ram: [512MiB]
+        issues: [Xenon, Zephyr, Falcon, Jasper, Trinity, Corona, Winchester]
+        styles: [Core, Premium, Elite, Arcade, S, E]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [IBM Xenon 90nm, IBM Xenon 65nm, Vejle combined CPU/GPU]
+          - socket: gpu
+            label: GPU
+            variants: [ATI Xenos 90nm, ATI Xenos 80nm, ATI Xenos 65nm, Vejle combined CPU/GPU]
+          - socket: nand
+            label: NAND
+            variants: [16MB NAND, 256MB NAND, 512MB NAND, 4GB eMMC]
+
   - key: memotech
     name: Memotech
     manufacturer: Memotech
@@ -6454,6 +6535,34 @@ families:
           - socket: vce
             label: VCE
             variants: [Hudson HuC6260]
+      - key: pc-fx
+        model: PC-FX
+        summary: >-
+          NEC and Hudson's CD console after the PC Engine, built around full-motion
+          video just as the rest of the market moved to texture-mapped 3D. The tower
+          case, V810 CPU and expansion slots make it look like a small computer, but it
+          sold only in Japan and never found much software beyond anime-heavy CD games.
+          It is uncommon and very much its own thing.
+        year: 1994
+        cpu: NEC V810-21.5
+        chassis: tower-style console with a front-loading CD-ROM drive
+        os: CD-ROM, with BIOS ROM
+        ram: [2MiB]
+        issues: []
+        styles: [PC-FX, PC-FXGA]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC V810]
+          - socket: vdc
+            label: VDC
+            variants: [Hudson HuC6270]
+          - socket: vce
+            label: VCE
+            variants: [Hudson HuC6271]
+          - socket: bios
+            label: BIOS ROM
+            variants: [PC-FX BIOS 1.00]
       - key: pc-6001
         model: PC-6001
         summary: >-
@@ -6652,6 +6761,77 @@ families:
     manufacturer: Nintendo
     regions: [NTSC-J (Japan), NTSC-U (US), PAL (Europe)]
     models:
+      - key: nintendo-2ds
+        model: 2DS
+        summary: >-
+          The budget 3DS with the hinge and stereoscopic screen removed. It plays the
+          3DS and DS library in a tough slate-shaped body, which made sense for children
+          and schools even if it looked strange beside the clamshell machines. Later New
+          2DS XL models brought the faster New 3DS hardware back into a cheaper shell.
+        year: 2013
+        cpu: Nintendo ARM11 MPCore-268
+        chassis: slate handheld with two screens and no autostereoscopic 3D
+        os: Nintendo 3DS system software
+        ram: [128MiB, 256MiB]
+        issues: []
+        styles: [2DS, New 2DS XL]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Nintendo CTR CPU, Nintendo RED CPU]
+          - socket: wifi
+            label: Wireless module
+            variants: [Nintendo 802.11b/g module]
+      - key: nintendo-3ds
+        model: 3DS
+        summary: >-
+          Nintendo's stereoscopic handheld: two screens again, but the top one gives
+          glasses-free 3D and the system carries cameras, motion sensors, StreetPass
+          and an eShop. It launched too expensively, recovered after a price cut, and
+          became the last great dedicated handheld line before the Switch changed the
+          shape of Nintendo hardware.
+        year: 2011
+        cpu: Nintendo ARM11 MPCore-268
+        chassis: clamshell handheld with autostereoscopic top screen
+        os: Nintendo 3DS system software
+        ram: [128MiB, 256MiB]
+        issues: []
+        styles: [3DS, 3DS XL, New 3DS, New 3DS XL]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: the New models have the faster CPU and extra memory
+            variants: [Nintendo CTR CPU, Nintendo KTR CPU]
+          - socket: wifi
+            label: Wireless module
+            variants: [Nintendo 802.11b/g module]
+      - key: nintendo-64
+        model: 64
+        summary: >-
+          Nintendo's cartridge console in the age of CD-ROM: a fast MIPS CPU, the
+          Reality Co-Processor, four controller ports and an analogue stick in the
+          box. The cartridges made loading instant and piracy hard, but kept games
+          expensive and storage tight. The Expansion Pak is the usual collector's
+          extra, and early analogue sticks wear loose.
+        year: 1996
+        cpu: NEC VR4300-93.75
+        chassis: cartridge console with four controller ports
+        os: cartridge
+        ram: [4MiB, 8MiB]
+        issues: []
+        styles: [Nintendo 64, coloured Funtastic shell, Pikachu edition]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [NEC VR4300]
+          - socket: rcp
+            label: Reality Co-Processor
+            note: the custom graphics, audio and I/O chip, under the big heatsink
+            variants: [Nintendo RCP]
+          - socket: pif
+            label: PIF
+            note: region lockout and controller/security interface
+            variants: [Nintendo PIF-NUS, Nintendo PIF(P)-NUS]
       - key: nes
         model: Entertainment System
         summary: >-
@@ -6680,6 +6860,49 @@ families:
               the 10NES, and the reason a front loader blinks at a cartridge that
               is perfectly good; on a lot of surviving machines it has been cut
             variants: [Nintendo 10NES CIC, disabled or removed]
+      - key: nintendo-ds
+        model: DS
+        summary: >-
+          Two screens, touch input, local wireless and Game Boy Advance compatibility:
+          Nintendo's answer to a market everyone thought Sony would take. The early
+          "phat" unit is chunky, the DS Lite is the refined one most people remember,
+          and both are full of hinge wear and yellowing touch screens now.
+        year: 2004
+        cpu: ARM946E-S-67
+        chassis: clamshell handheld with two screens and a touch panel
+        os: cartridge, PictoChat and firmware menu
+        ram: [4MiB]
+        issues: []
+        styles: [DS, DS Lite]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: the ARM9 runs DS software, with an ARM7 beside it for I/O and GBA compatibility
+            variants: [Nintendo NTR CPU, Nintendo USG CPU]
+          - socket: wifi
+            label: Wireless module
+            variants: [Nintendo 802.11 module]
+      - key: nintendo-dsi
+        model: DSi
+        summary: >-
+          The DS line becomes a small networked device: cameras, an SD slot, internal
+          storage, DSiWare and a faster clock, but no Game Boy Advance slot. It is the
+          point where Nintendo's handhelds stopped being only cartridge machines. The
+          DSi XL is the big-screen version, lovely to use and hard on pockets.
+        year: 2008
+        cpu: ARM946E-S-133
+        chassis: clamshell handheld with two cameras and an SD slot
+        os: Nintendo DSi system software
+        ram: [16MiB]
+        issues: []
+        styles: [DSi, DSi XL]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Nintendo TWL CPU]
+          - socket: nand
+            label: NAND
+            variants: [256MB NAND]
       - key: famicom
         model: Famicom
         summary: >-
@@ -6749,6 +6972,121 @@ families:
               neither a Z80 nor a 8080 but Sharp's own thing borrowing from both,
               with the sound and the LCD controller on the same die
             variants: [Sharp DMG-CPU, Sharp DMG-CPU A, Sharp DMG-CPU B, Sharp CPU MGB]
+      - key: game-boy-advance
+        model: Game Boy Advance
+        summary: >-
+          The Game Boy moved to a 32-bit ARM CPU in a wide landscape shell, but kept
+          backward compatibility with Game Boy and Game Boy Color cartridges. The
+          reflective screen is the ordinary complaint; the library and the battery
+          life are why it worked. The indigo launch model is common, and modified
+          backlit screens are everywhere now.
+        year: 2001
+        cpu: ARM7TDMI-16.78
+        chassis: landscape handheld with a reflective colour TFT
+        os: cartridge, with a boot ROM
+        ram: [32K, 256K]
+        issues: []
+        styles: [AGB-001, launch colours, limited editions]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the ARM7TDMI runs Advance games, while the older Game Boy hardware is
+              still present for backwards compatibility
+            variants: [Nintendo CPU AGB]
+      - key: game-boy-advance-sp
+        model: Game Boy Advance SP
+        summary: >-
+          The Advance rebuilt as a clamshell: smaller in a pocket, rechargeable, and
+          finally with its own light. The original AGS-001 front-lit screen made the
+          machine usable at night; the later AGS-101 backlit screen is the one people
+          seek out. The missing headphone socket means a small adapter is part of the
+          kit.
+        year: 2003
+        cpu: ARM7TDMI-16.78
+        chassis: clamshell handheld with a lit colour TFT
+        os: cartridge, with a boot ROM
+        ram: [32K, 256K]
+        issues: []
+        styles: [AGS-001 front-lit, AGS-101 backlit]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Nintendo CPU AGB, Nintendo CPU AGB B]
+          - socket: display
+            label: Display
+            note: the backlit AGS-101 panel is the desirable late version
+            variants: [AGS-001 front-lit TFT, AGS-101 backlit TFT]
+      - key: game-boy-color
+        model: Game Boy Color
+        summary: >-
+          The colour Game Boy arrived just in time for Pokemon to make the line feel
+          new again. It kept the old cartridges, doubled the CPU speed for Color games
+          and added infrared for the handful of titles that used it. The clear purple
+          shell is the one everybody remembers, and the screen is still reflective and
+          unlit.
+        year: 1998
+        cpu: Sharp LR35902-8.38
+        chassis: handheld with a colour LCD
+        os: cartridge, with a boot ROM
+        ram: [32K]
+        issues: []
+        styles: [CGB-001, Atomic Purple, launch colours, Pokemon editions]
+        chips:
+          - socket: cpu
+            label: CPU
+            note: >-
+              the Color CPU runs at the original Game Boy speed for old cartridges
+              and double speed for software that asks for it
+            variants: [Sharp CPU CGB]
+          - socket: ir
+            label: Infrared port
+            variants: [fitted]
+      - key: game-boy-pocket
+        model: Game Boy Pocket
+        summary: >-
+          The original Game Boy made properly pocketable: smaller, lighter, running
+          from two AAA cells and using a sharper grey LCD instead of the green DMG
+          screen. It plays the same monochrome cartridges and changes very little
+          electrically, but it is far nicer to carry. Early units missed the power LED;
+          Nintendo quietly put it back.
+        year: 1996
+        cpu: Sharp LR35902-4.19
+        chassis: smaller handheld with a mono LCD
+        os: cartridge, with a boot ROM
+        ram: [8K]
+        issues: []
+        styles: [MGB-001, early no power LED, coloured shells]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Sharp CPU MGB]
+      - key: gamecube
+        model: GameCube
+        summary: >-
+          Nintendo's compact disc console: a cube with a handle, four controller ports,
+          tiny optical discs and hardware that was much stronger than its toy-like case
+          suggested. The digital AV port on early models is the collector's detail, and
+          the Game Boy Player is the accessory that turns it into something more than a
+          GameCube.
+        year: 2001
+        cpu: IBM PowerPC Gekko-485
+        chassis: compact cube console with a top-loading optical drive
+        os: Nintendo GameCube disc
+        ram: [24MiB]
+        issues: [DOL-001, DOL-101]
+        styles: [indigo, black, platinum, Panasonic Q]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [IBM Gekko]
+          - socket: gpu
+            label: Flipper
+            note: the ATI/Nintendo system chip with graphics, audio DSP and embedded memory
+            variants: [ATI/Nintendo Flipper]
+          - socket: drive
+            label: Optical drive
+            variants: [Matsushita 8cm optical drive]
       - key: super-famicom
         model: Super Famicom
         summary: >-
@@ -6840,6 +7178,85 @@ families:
             label: VIP
             note: the chip that drives the two oscillating-mirror red LED displays
             variants: [Nintendo VIP]
+      - key: wii
+        model: Wii
+        summary: >-
+          The GameCube's efficient architecture turned into a small white console with
+          motion controls and a mass audience. It was weaker than the Xbox 360 and PS3
+          on paper and beat them both in the living room. Early models play GameCube
+          discs and take GameCube controllers; later family editions quietly remove
+          that useful half of the machine.
+        year: 2006
+        cpu: IBM PowerPC Broadway-729
+        chassis: compact slot-loading console
+        os: Wii system menu
+        ram: [88MiB]
+        issues: [RVL-CPU-01, RVL-CPU-20, RVL-CPU-40, RVK-CPU-01]
+        styles: [RVL-001 with GameCube ports, RVL-101 Family Edition, Wii Mini]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [IBM Broadway]
+          - socket: gpu
+            label: Hollywood
+            variants: [ATI/Nintendo Hollywood]
+          - socket: wifi
+            label: Wireless module
+            variants: [Broadcom Wi-Fi module]
+      - key: wii-u
+        model: Wii U
+        summary: >-
+          Nintendo's strange bridge between Wii and Switch: an HD console built around
+          a tablet controller that could mirror the game or become a second screen. The
+          idea was awkwardly explained and badly supported, but its best games became
+          the spine of the Switch library. The GamePad is essential, and flash storage
+          health is now part of owning one.
+        year: 2012
+        cpu: IBM Power multi-core-1240
+        chassis: compact HD console with a tablet GamePad
+        os: Wii U system software
+        ram: [2GiB]
+        issues: []
+        styles: [Basic 8GB, Premium 32GB, Deluxe 32GB]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [IBM Espresso]
+          - socket: gpu
+            label: GPU
+            variants: [AMD Latte]
+          - socket: nand
+            label: NAND
+            note: internal flash size tells Basic from Premium and Deluxe systems
+            variants: [8GB NAND, 32GB NAND]
+
+  - key: nokia
+    name: Nokia
+    manufacturer: Nokia
+    regions: [Europe, US]
+    models:
+      - key: n-gage
+        model: N-Gage
+        summary: >-
+          Nokia tried to make a Symbian phone into a handheld console years before that
+          made sense. The original side-talking model hid its game slot behind the
+          battery, while the QD fixed the shape and lost some features. As a games
+          machine it missed; as a glimpse of phones eating handheld gaming, it is
+          unexpectedly interesting.
+        year: 2003
+        cpu: ARM9-104
+        chassis: handheld phone-console with MMC game cards
+        os: Symbian OS Series 60
+        ram: [16MiB]
+        issues: []
+        styles: [N-Gage, N-Gage QD]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [ARM9]
+          - socket: radio
+            label: GSM radio
+            variants: [900/1800/1900MHz GSM, 850/1900MHz GSM]
 
   - key: ohio-scientific
     name: Ohio Scientific
@@ -7191,6 +7608,40 @@ families:
         issues: []
         styles: []
 
+  - key: panasonic
+    name: Panasonic
+    manufacturer: Panasonic
+    regions: [NTSC-U (US), NTSC-J (Japan), PAL (Europe)]
+    models:
+      - key: real-3do
+        model: REAL 3DO Interactive Multiplayer
+        summary: >-
+          The 3DO idea in its best-known Panasonic box: an expensive licensed CD
+          multimedia console with an ARM CPU, custom graphics chips and a launch price
+          that made every other problem worse. The library is odd, early-CD and very
+          of its moment. The FZ-1 is the imposing original; the FZ-10 is the cheaper
+          top-loading revision.
+        year: 1993
+        cpu: ARM60-12.5
+        chassis: CD console with daisy-chained controllers
+        os: 3DO Portfolio
+        ram: [2MiB]
+        issues: []
+        styles: [FZ-1, FZ-10, GoldStar 3DO, Sanyo TRY]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [ARM60]
+          - socket: madam
+            label: MADAM
+            variants: [3DO MADAM]
+          - socket: clio
+            label: CLIO
+            variants: [3DO CLIO]
+          - socket: drive
+            label: CD-ROM drive
+            variants: [single-speed CD-ROM, double-speed CD-ROM]
+
   - key: philips
     name: Philips
     manufacturer: Philips
@@ -7539,6 +7990,76 @@ families:
           part of why two Model 1s of different revisions do not sound alike
         variants: [Sanyo LA6510, Sony CXA1034, Rohm BA10324]
     models:
+      - key: sega-32x
+        model: 32X
+        summary: >-
+          Sega's mushroom-shaped Mega Drive upgrade: two SH-2 processors and extra
+          video hardware in a cartridge-slot add-on, released just as everyone was
+          waiting for Saturn. It is messy, cable-heavy and short-lived, but it makes
+          its own small library and the 32X CD corner of Sega collecting possible.
+          Missing link cables and power supplies are the usual problem.
+        year: 1994
+        cpu: Hitachi SH-2-23
+        chassis: cartridge-slot console add-on
+        os: cartridge, or 32X CD with Mega-CD
+        ram: [256K]
+        issues: []
+        styles: [32X, Super 32X, Genesis 32X]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Hitachi SH-2 (two fitted)]
+          - socket: vdp
+            label: VDP
+            variants: [Sega 315-5818]
+          - socket: pwm
+            label: PWM sound
+            variants: [Sega 315-5864, Rohm BA6166FS]
+          - socket: z80
+            variants: []
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+      - key: dreamcast
+        model: Dreamcast
+        summary: >-
+          Sega's last console and its cleanest break from the past: a 200MHz SH-4,
+          PowerVR graphics, GD-ROM, four controller ports and a modem in the box. It
+          was early to online play, friendly to arcade conversions, and loved too late
+          to save Sega's hardware business. The GD-ROM drive, controller ports and
+          clock battery are the usual service points.
+        year: 1998
+        cpu: Hitachi SH-4-200
+        chassis: console with a GD-ROM drive and built-in modem
+        os: GD-ROM, Sega OS or Windows CE on disc
+        ram: [16MiB]
+        issues: [VA0, VA1, VA2]
+        styles: [Dreamcast (Japan), Dreamcast (US), Dreamcast (PAL), Sakura Taisen edition]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Hitachi SH-4]
+          - socket: gpu
+            label: GPU
+            variants: [NEC PowerVR2 CLX2]
+          - socket: sound
+            label: Sound
+            variants: [Yamaha AICA]
+          - socket: gd-rom
+            label: GD-ROM drive
+            variants: [Yamaha GD-ROM]
+          - socket: modem
+            label: Modem
+            variants: [33.6K modem, 56K modem, Broadband Adapter]
+          - socket: z80
+            variants: []
+          - socket: vdp
+            variants: []
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
       - key: game-gear
         model: Game Gear
         summary: >-
@@ -7658,6 +8179,42 @@ families:
             label: Sound
             variants: [SN76489 (in the VDP)]
           - socket: z80
+            variants: []
+          - socket: fm
+            variants: []
+          - socket: amp
+            variants: []
+      - key: mega-cd
+        model: Mega-CD
+        summary: >-
+          The Mega Drive's CD-ROM half: a second 68000, more memory, PCM audio and
+          hardware scaling and rotation wrapped around a single-speed optical drive.
+          It helped teach console games the language of intros and full-motion video,
+          for better and worse. Model 1 units are handsome and fragile; Model 2 is the
+          practical one.
+        year: 1991
+        cpu: Motorola 68000-12.5
+        chassis: CD-ROM add-on for the Mega Drive
+        os: CD-ROM, with Mega-CD BIOS
+        ram: [768K]
+        issues: []
+        styles: [Mega-CD Model 1, Mega-CD 2, Sega CD Model 1, Sega CD Model 2, Wondermega]
+        chips:
+          - socket: cpu
+            label: Sub CPU
+            variants: [Motorola MC68000]
+          - socket: asic
+            label: ASIC
+            variants: [Sega 315-5476, Sega 315-5548]
+          - socket: pcm
+            label: PCM sound
+            variants: [Ricoh RF5C164]
+          - socket: bios
+            label: BIOS
+            variants: [Mega-CD BIOS, Sega CD BIOS]
+          - socket: z80
+            variants: []
+          - socket: vdp
             variants: []
           - socket: fm
             variants: []
@@ -8488,6 +9045,33 @@ families:
         ram: [7MiB]
         issues: []
         styles: [Neo Geo CD (front loader), Neo Geo CD (top loader), CDZ]
+      - key: neo-geo-pocket-color
+        model: Neo Geo Pocket Color
+        summary: >-
+          SNK's handheld done properly: colour, excellent battery life and a tiny clicky
+          arcade stick that still feels better than most portable controls. It had SNK
+          fighting games, Metal Slug and link features with Dreamcast, but arrived too
+          late and too small against Game Boy Color. The clear shells and boxed UK
+          stock are the collector's pieces.
+        year: 1999
+        cpu: Toshiba TLCS-900H-6.14
+        chassis: handheld with a colour reflective LCD and microswitched stick
+        os: cartridge, with BIOS ROM
+        ram: [16K]
+        issues: []
+        styles: [Neo Geo Pocket Color, New Neo Geo Pocket Color]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [Toshiba TLCS-900H]
+          - socket: z80
+            label: Sound CPU
+            variants: [Zilog Z80-compatible core]
+          - socket: psg
+            label: Sound
+            variants: [Toshiba T6W28]
+          - socket: fm
+            variants: []
 
   - key: sony
     name: Sony
@@ -8632,6 +9216,31 @@ families:
           - socket: cpu
             label: CPU
             variants: [Sony Allegrex CXD2962GG]
+      - key: sony-playstation-vita
+        model: PlayStation Vita
+        summary: >-
+          Sony's second handheld is the one that really was a small console: quad-core
+          ARM, SGX543 graphics, twin sticks, touch on the front and the back, and an
+          OLED screen on the first model. It never got the software Sony needed, but it
+          became a homebrew and indie favourite. The OLED PCH-1000 and lighter LCD
+          PCH-2000 are the useful split.
+        year: 2011
+        cpu: ARM Cortex-A9-444
+        chassis: handheld with twin analogue sticks and touch screens
+        os: PlayStation Vita system software
+        ram: [512MiB]
+        issues: []
+        styles: [PCH-1000 OLED, PCH-2000 LCD slim, PlayStation TV]
+        chips:
+          - socket: cpu
+            label: CPU
+            variants: [ARM Cortex-A9 quad-core]
+          - socket: gpu
+            label: GPU
+            variants: [PowerVR SGX543MP4+]
+          - socket: modem
+            label: Mobile data
+            variants: [Wi-Fi only, 3G/Wi-Fi]
       - key: sony-playstation-3
         model: PlayStation 3
         summary: >-
