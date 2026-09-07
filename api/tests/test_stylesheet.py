@@ -1,0 +1,134 @@
+"""Behaviour carried by the shared stylesheet rather than by one rendered page.
+
+Two invariants that a read-through keeps missing. Both are checked against the
+declarations themselves because that is where the behaviour lives: no page can be
+asked what size iOS thinks its search box is, or what contrast a button's text
+has against its own background.
+"""
+import re
+from pathlib import Path
+
+import pytest
+
+STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
+
+# A file picker shows a button, not text you type into, so its deliberate
+# `font-size: 0` is not a control that can zoom the page.
+NOT_TYPED_INTO = re.compile(r"input\[type=file\]")
+
+
+def css() -> str:
+    """The stylesheet with its comments removed, which otherwise match as rules."""
+    return re.sub(r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S)
+
+
+def rules(text: str) -> list[tuple[str, str]]:
+    """Every `selector { body }` pair, ignoring the `@media` wrappers themselves."""
+    return [
+        (head.strip(), body)
+        for head, body in re.findall(r"([^{}@]+)\{([^{}]*)\}", text)
+    ]
+
+
+def selectors(head: str) -> list[str]:
+    return [s.strip() for s in head.replace("\n", " ").split(",") if s.strip()]
+
+
+def touch_block() -> str:
+    """The `@media (pointer: coarse)` block that hands touch devices 16px."""
+    found = re.search(r"@media\s*\(pointer:\s*coarse\)\s*\{(.*?)\n  \}", css(), re.S)
+    assert found, "the coarse-pointer block has gone; touch devices zoom without it"
+    return found.group(1)
+
+
+def test_every_control_given_its_own_size_is_listed_for_touch():
+    """iOS zooms the page when it focuses a control whose text is under 16px, and
+    does not zoom back out. The stylesheet answers that with one coarse-pointer
+    block, but a rule that names a control through a class outranks the bare
+    `input` in it -- so every such rule has to be restated there, and the ones
+    added since were not. Anything that sizes a control belongs in that list."""
+    sized = {
+        selector
+        for head, body in rules(css())
+        if re.search(r"(?:^|[;\s])font(?:-size)?\s*:", body)
+        for selector in selectors(head)
+        if re.search(r"\b(?:input|select|textarea)\b", selector)
+        and not NOT_TYPED_INTO.search(selector)
+    }
+    listed = set(selectors(re.match(r"([^{}]+)\{", touch_block().strip()).group(1)))
+    assert sized - listed == set(), (
+        "these rules size a control but are not in the coarse-pointer block, so a "
+        "phone will zoom the page when one is tapped"
+    )
+
+
+def theme_variables(name: str) -> dict[str, str]:
+    """One theme's custom properties: `light`, or `dark` as the toggle sets it.
+
+    The dark values are stated twice -- once for `prefers-color-scheme` and once
+    for `[data-theme="dark"]` -- and a reader can land on either, so read the
+    explicit block and let the media query be checked against it below.
+    """
+    text = css()
+    if name == "light":
+        block = re.search(r":root\s*\{(.*?)\}", text, re.S)
+    else:
+        block = re.search(r':root\[data-theme="dark"\]\s*\{(.*?)\}', text, re.S)
+    assert block, f"the {name} theme's variable block has gone"
+    return dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+?)\s*;", block.group(1)))
+
+
+def luminance(colour: str) -> float:
+    """Relative luminance of a `#rgb`/`#rrggbb` colour, per WCAG 2."""
+    digits = colour.strip().lstrip("#")
+    if len(digits) == 3:
+        digits = "".join(d * 2 for d in digits)
+    assert len(digits) == 6, f"expected an opaque hex colour, got {colour!r}"
+    channels = []
+    for pair in (digits[0:2], digits[2:4], digits[4:6]):
+        c = int(pair, 16) / 255
+        channels.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = channels
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(one: str, two: str) -> float:
+    a, b = luminance(one), luminance(two)
+    lighter, darker = max(a, b), min(a, b)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_a_primary_button_reads_against_its_own_fill(theme):
+    """The dark theme's accent is a light blue, chosen to carry on a dark page.
+    White text on it came to 2.4:1 -- readable to whoever picked the colour and
+    to nobody at arm's length on a phone. The pair has to hold in both themes."""
+    variables = theme_variables(theme)
+    ratio = contrast(variables["--primary-fg"], variables["--accent"])
+    assert ratio >= 4.5, f"primary button text on its fill is {ratio:.1f}:1 in {theme}"
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_a_danger_control_reads_against_the_page(theme):
+    """The register's warning colour is a brown picked for a white page; on the
+    dark one it fell to 3.7:1 against the background it sits on."""
+    variables = theme_variables(theme)
+    ratio = contrast(variables["--danger"], variables["--bg"])
+    assert ratio >= 4.5, f"danger text on the page is {ratio:.1f}:1 in {theme}"
+
+
+def test_the_two_dark_theme_blocks_agree():
+    """Dark is declared twice: for the system preference and for the explicit
+    toggle. A colour fixed in one and forgotten in the other gives a reader whose
+    Mac is set to light and site to dark a different page from everyone else."""
+    preferred = re.search(
+        r"@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*"
+        r":root:not\(\[data-theme\]\)\s*\{(.*?)\}",
+        css(),
+        re.S,
+    )
+    assert preferred, "the prefers-color-scheme dark block has gone"
+    by_preference = dict(
+        re.findall(r"(--[\w-]+)\s*:\s*([^;]+?)\s*;", preferred.group(1))
+    )
+    assert by_preference == theme_variables("dark")

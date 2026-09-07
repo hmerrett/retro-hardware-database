@@ -5,13 +5,15 @@
     /* The band a panel's title sits on: a shade stronger than the strip on a
        card, so a section's own heading is not read as the first thing in it. */
     --band: #0000001c;
-    --fill: #2563eb; --track: #2563eb1f;
+    --fill: #2563eb; --track: #2563eb1f; --primary-fg: #fff;
+    --danger: #b45300; --danger-line: #b45300aa; --danger-hover: #b4530033;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
       --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
       --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
-      --fill: #1b81ff; --track: #1b81ff2b;
+      --fill: #1b81ff; --track: #1b81ff2b; --primary-fg: #15171c;
+      --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066;
     }
   }
   :root[data-theme="light"] { color-scheme: light; }
@@ -19,7 +21,8 @@
     color-scheme: dark;
     --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
     --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
-    --fill: #1b81ff; --track: #1b81ff2b;
+    --fill: #1b81ff; --track: #1b81ff2b; --primary-fg: #15171c;
+    --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066;
   }
   * { box-sizing: border-box; }
   /* `[hidden] { display: none }` is a browser rule, so any author rule that sets
@@ -293,7 +296,7 @@
   dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
   .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap; }
   .btn:hover { background: var(--btn-hover); }
-  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }
   form.edit label { display: block; margin: 10px 0 3px; color: var(--muted); font-size: 13px; }
@@ -544,6 +547,14 @@
   /* A picker is as wide as its widest option, and the options here are whole item
      names -- wider than a phone. Let it shrink; the chosen line still fits. */
   select { max-width: 100%; }
+  /* The popup's rows are painted by the browser, and some of them take our dark
+     foreground into the list while leaving its background the system light --
+     pale text on white, unreadable. `color-scheme` above asks for the right
+     surface and mostly gets it; state it here too for the ones it does not
+     reach. The control itself is left alone deliberately: a background of our
+     own costs the native chrome on some browsers, and the closed control is
+     already legible. */
+  option, optgroup { background: var(--bg); color: var(--fg); }
   .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
   /* Two menus, one row, on a phone: which category and in what order are one
      sentence, and a row each spent two lines of the screen saying it. */
@@ -560,7 +571,7 @@
   .iconbtn:hover { background: var(--btn-hover); }
   .iconbtn svg { width: 16px; height: 16px; display: block; }
   .iconbtn.on { border-color: var(--accent); color: var(--accent); }
-  .iconbtn.danger:hover { background: #b4530033; border-color: #b45300aa; }
+  .iconbtn.danger:hover { background: var(--danger-hover); border-color: var(--danger-line); }
   .iconbtn.lbl-s svg { width: 13px; height: 13px; }
   .iconbtn.lbl-l svg { width: 19px; height: 19px; }
   .hdr-actions { display: inline-flex; align-items: center; gap: 6px; align-self: center; }
@@ -569,8 +580,8 @@
      value of the colour is being read before the click, not during it. (The
      icon-button variant above stays plain until hover on purpose -- a row of
      photo tools would be all warning and no hierarchy otherwise.) */
-  .btn.danger { color: #b45300; border-color: #b45300aa; }
-  .btn.danger:hover { background: #b4530033; border-color: #b45300aa; }
+  .btn.danger { color: var(--danger); border-color: var(--danger-line); }
+  .btn.danger:hover { background: var(--danger-hover); border-color: var(--danger-line); }
   .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
     font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; pointer-events: none; }
   /* Icon variant: a fixed-size source-site favicon, same size at any thumbnail scale. */
@@ -1004,14 +1015,19 @@
      and being more specific is exactly how three of them were missed: the boxes in
      an item's Files panel and the tag editor beside a file kept their 14px and went
      on zooming the page, which is the whole complaint this block exists to answer.
-     A control given a size by a class belongs in this list. */
+     A control given a size by a class belongs in this list, and test_stylesheet.py
+     now fails when one is added without being listed -- three more had already
+     been missed by hand: the add bars on a project and the toolbar's plain search
+     field, which is why the check exists rather than another read-through. */
   @media (pointer: coarse) {
     input, select, textarea,
     form.edit input, form.edit select, form.edit textarea,
     form.edit .countgrid input, form.edit .chipgrid input,
     table.drives input, table.drives select,
     header .hdr-search input[type=search],
-    .toolbar input[list], .toolbar select,
+    .toolbar input[type=text], .toolbar input[list],
+    .toolbar input:not([type]), .toolbar select,
+    .addbar input, .addbar select, .addbar textarea,
     .photo-actions input[name=note], .notebar input,
     .fileform input[type=text], .fileform input:not([type]),
     .inline-form input[name=tags],
