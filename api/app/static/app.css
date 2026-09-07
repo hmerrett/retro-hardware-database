@@ -6,14 +6,14 @@
        card, so a section's own heading is not read as the first thing in it. */
     --band: #0000001c;
     --fill: #2563eb; --track: #2563eb1f; --primary-fg: #fff;
-    --danger: #b45300; --danger-line: #b45300aa; --danger-hover: #b4530033;
+    --danger: #b45300; --danger-line: #b45300aa; --danger-hover: #b4530033; --danger-wash: #b4530022;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme]) {
       --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
       --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
       --fill: #1b81ff; --track: #1b81ff2b; --primary-fg: #15171c;
-      --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066;
+      --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066; --danger-wash: #b4530040;
     }
   }
   :root[data-theme="light"] { color-scheme: light; }
@@ -22,7 +22,7 @@
     --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
     --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
     --fill: #1b81ff; --track: #1b81ff2b; --primary-fg: #15171c;
-    --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066;
+    --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066; --danger-wash: #b4530040;
   }
   * { box-sizing: border-box; }
   /* `[hidden] { display: none }` is a browser rule, so any author rule that sets
@@ -457,7 +457,11 @@
     min-width: 3px; }
   .muted { color: var(--muted); }
   .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
-  .banner { background: #b4530022; border: 1px solid #b45300aa; border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  /* Disposal notices, a rejected form, a refused login: every banner is a warning,
+     so it takes the warning colours rather than a pair of its own. The wash is
+     stronger in the dark theme than the light one: the same brown at a thirteenth
+     of its strength is a tint on white and nothing at all on black. */
+  .banner { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
   /* A project's state, as a chip. Tinted rather than coloured in: these sit in a
      table beside names and summaries, and a solid block of colour on every row
      would make a list of ordinary projects read as a page of warnings. The text
@@ -752,7 +756,11 @@
   #lightbox .lb-tools form { margin: 0; display: flex; gap: 8px; align-items: center; }
   #lightbox .lb-tools .btn { position: static; background: #ffffff1f; color: #fff;
     border-color: #ffffff33; }
-  #lightbox .lb-tools .btn.primary { background: var(--accent); border-color: var(--accent); }
+  /* The colour has to be restated here: the rule above is an id and two classes,
+     so its #fff outranks .btn.primary's and the fill would have carried white
+     text into the dark theme's pale accent -- 2.4:1, the reading that opened #21. */
+  #lightbox .lb-tools .btn.primary { background: var(--accent); color: var(--primary-fg);
+    border-color: var(--accent); }
   /* The register's warning colour, lightened: #b45300 is legible on a white page
      and all but invisible on a black toolbar. The shade is what says at a glance
      that this one tool is not like the others in the row. */
