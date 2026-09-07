@@ -546,11 +546,14 @@
   .toolbar input.fill { flex: 1 1 240px; }
   /* A picker is as wide as its widest option, and the options here are whole item
      names -- wider than a phone. Let it shrink; the chosen line still fits. */
-  /* A native menu is partly painted by the browser or operating system. Some of
-     them inherit our dark foreground but keep their light system popup, leaving
-     pale options on white. State both halves on the control and its popup rows;
-     the theme variables still let the same rule serve light and dark. */
-  select { max-width: 100%; background: var(--bg); color: var(--fg); }
+  select { max-width: 100%; }
+  /* The popup's rows are painted by the browser, and some of them take our dark
+     foreground into the list while leaving its background the system light --
+     pale text on white, unreadable. `color-scheme` above asks for the right
+     surface and mostly gets it; state it here too for the ones it does not
+     reach. The control itself is left alone deliberately: a background of our
+     own costs the native chrome on some browsers, and the closed control is
+     already legible. */
   option, optgroup { background: var(--bg); color: var(--fg); }
   .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
   /* Two menus, one row, on a phone: which category and in what order are one
