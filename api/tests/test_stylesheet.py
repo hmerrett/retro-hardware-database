@@ -132,3 +132,48 @@ def test_the_two_dark_theme_blocks_agree():
         re.findall(r"(--[\w-]+)\s*:\s*([^;]+?)\s*;", preferred.group(1))
     )
     assert by_preference == theme_variables("dark")
+
+
+def test_an_accent_fill_states_the_text_colour_on_it():
+    """A rule that fills something with the accent and leaves the foreground to be
+    inherited gets whatever the surrounding rule set, which in the lightbox was a
+    fixed white -- unreadable once the dark theme made the accent a pale blue. The
+    fill and the text on it are one decision and belong in one rule."""
+    silent = [
+        head
+        for head, body in rules(css())
+        if re.search(r"background(-color)?\s*:[^;]*var\(--accent\)", body)
+        and not re.search(r"(?:^|[;\s])color\s*:", body)
+    ]
+    assert silent == [], "these rules fill with the accent but do not say what colour the text on it is"
+
+
+def over(foreground: str, background: str) -> str:
+    """`foreground` composited onto an opaque `background`, as the browser paints it.
+
+    The warning wash is a translucent brown, so the colour a reader actually sees
+    is neither of the two named in the stylesheet.
+    """
+    digits = foreground.strip().lstrip("#")
+    if len(digits) in (3, 4):
+        digits = "".join(d * 2 for d in digits)
+    alpha = int(digits[6:8], 16) / 255 if len(digits) == 8 else 1.0
+    under = background.strip().lstrip("#")
+    if len(under) == 3:
+        under = "".join(d * 2 for d in under)
+    mixed = []
+    for i in (0, 2, 4):
+        top, bottom = int(digits[i : i + 2], 16), int(under[i : i + 2], 16)
+        mixed.append(round(alpha * top + (1 - alpha) * bottom))
+    return "#%02x%02x%02x" % tuple(mixed)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_a_warning_banner_can_be_read(theme):
+    """A banner carries the words of a disposal, a rejected form or a refused login
+    in the page's own foreground colour. Its wash is faint by design, so what has
+    to hold is the reading against the wash as painted, not against the page."""
+    variables = theme_variables(theme)
+    painted = over(variables["--danger-wash"], variables["--bg"])
+    ratio = contrast(variables["--fg"], painted)
+    assert ratio >= 4.5, f"banner text is {ratio:.1f}:1 on its own wash in {theme}"
