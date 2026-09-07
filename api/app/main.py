@@ -1726,6 +1726,12 @@ def reference_marks(kind, asset_id):
     return out
 
 
+def tuned_photos(kind, asset_id):
+    """The item's photos that still have a kept original, so the big view can
+    offer to put them back."""
+    return {rel for rel in detect_images(kind, asset_id) if has_original(rel)}
+
+
 def _favicon_for_rel(rel):
     """Cached source favicon path for a single image rel, or '' (for index cards)."""
     info = _read_ref(rel) if rel else None
@@ -1813,7 +1819,9 @@ def _move_with_sidecar(src: Path, dst: Path):
         sc.rename(dst.with_name(dst.name + ".ref"))
     for p in (src, dst):
         with contextlib.suppress(ValueError):
-            _wm_forget(str(p.relative_to(IMAGES_DIR)))
+            rel = str(p.relative_to(IMAGES_DIR))
+            _drop_original(rel)
+            _wm_forget(rel)
 
 
 def _set_primary_photo(kind, asset_id, rel):
@@ -1849,6 +1857,7 @@ def _delete_image(kind, asset_id, rel):
     if sc.exists():
         sc.unlink()
     p.unlink()
+    _drop_original(rel)
     _wm_forget(rel)
     new_primary = ""
     if was_primary:
@@ -1880,6 +1889,7 @@ def _purge_photos(rels):
             _ref_sidecar(rel).unlink(missing_ok=True)
         with contextlib.suppress(OSError):
             (IMAGES_DIR / rel).unlink(missing_ok=True)
+        _drop_original(rel)
         _wm_forget(rel)
 
 
@@ -1956,11 +1966,71 @@ def delete_computer(db, c, with_parts=()):
     return photos
 
 
-def _edit_image(kind, asset_id, rel, fn):
-    """Apply fn(PIL.Image)->PIL.Image to a photo in place (originals are not
-    kept), baking in EXIF orientation, then invalidate its watermark cache."""
+# Where a photograph's pre-tuneup self is kept. Under a dotted name, like the
+# watermark and resize caches, which is what keeps it off the wire: serve_image
+# refuses any path with a dotted segment, so an untouched -- and unwatermarked --
+# copy of every tuned photograph cannot be fetched by asking for it.
+ORIG_CACHE = IMAGES_DIR / ".orig"
+
+
+def _original_of(rel: str) -> Path:
+    return ORIG_CACHE / rel
+
+
+def has_original(rel: str) -> bool:
+    """Whether this photo can still be put back the way it was."""
+    return _original_of(rel).is_file()
+
+
+def _keep_original(rel: str):
+    """Copy a photograph aside before it is tuned, if it is not already there.
+
+    One slot, and the first copy wins: tuning an already-tuned photograph must
+    still revert to what came off the camera rather than to the previous tuning.
+    """
+    dst = _original_of(rel)
+    if dst.exists():
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    # Copied, not moved: the photograph carries on being served throughout.
+    shutil.copy2(IMAGES_DIR / rel, dst)
+
+
+def _drop_original(rel: str):
+    """Forget the kept copy. Called when it has stopped being the truth about this
+    photograph -- the file has been cropped, rotated, renamed or deleted since.
+    Reverting then would quietly undo that other edit as well, which is not what
+    the button says it does, so the offer is withdrawn instead."""
+    with contextlib.suppress(OSError):
+        _original_of(rel).unlink(missing_ok=True)
+
+
+def _restore_original(rel: str):
+    """Put the kept copy back and take the slot away with it."""
+    src = _original_of(rel)
+    if not src.is_file():
+        raise HTTPException(404, "nothing kept for this photo")
+    # Through the same atomic swap every other write here uses: this photograph is
+    # being served while it is replaced. See _write_atomically.
+    _write_atomically(IMAGES_DIR / rel, lambda tmp: shutil.copyfile(src, tmp))
+    with contextlib.suppress(OSError):
+        src.unlink(missing_ok=True)
+
+
+def _edit_image(kind, asset_id, rel, fn, revertible=False):
+    """Apply fn(PIL.Image)->PIL.Image to a photo in place, baking in EXIF
+    orientation, then invalidate its watermark cache.
+
+    `revertible` keeps a copy of the photograph as it was first, for the one edit
+    that offers to be undone. Every other edit is destructive as it always was,
+    and says so by dropping any copy an earlier tuneup left: see _drop_original.
+    """
     if rel not in detect_images(kind, asset_id):
         raise HTTPException(404, "no such photo for this item")
+    if revertible:
+        _keep_original(rel)
+    else:
+        _drop_original(rel)
     from PIL import Image, ImageOps
     src = IMAGES_DIR / rel
     with Image.open(src) as im:
@@ -2001,6 +2071,12 @@ def _crop_op(x, y, w, h):
     return crop
 
 
+def _tuneup_op():
+    """The one-touch tuneup. See app/enhance.py for what it actually does."""
+    from .enhance import tuneup
+    return tuneup
+
+
 def _photo_edit_redirect(kind, aid, image):
     """The photo editor used to be its own page. Rotating and cropping now live in
     the big view on the item page, so there is one crop implementation rather than
@@ -2023,6 +2099,31 @@ def _do_photo_crop(db, model, kind, aid, form):
         raise HTTPException(400, "bad crop box") from err
     _edit_image(kind, aid, form.get("image", ""), _crop_op(x, y, w, h))
     add_log(db, aid, "cropped a photo")
+    db.commit()
+
+
+def _do_photo_tuneup(db, model, kind, aid, form):
+    get_or_404(db, model, aid)
+    rel = form.get("image", "")
+    # Pressing it twice is the accident this guards: the file is re-encoded on
+    # every edit, so a second tuneup costs another generation of JPEG for a
+    # picture that has already had the fix. Nothing to do is not an error -- the
+    # photograph is in the state the button asks for -- so it returns quietly
+    # rather than sending back a failure for a button that appears to have worked.
+    if has_original(rel) and rel in detect_images(kind, aid):
+        return
+    _edit_image(kind, aid, rel, _tuneup_op(), revertible=True)
+    add_log(db, aid, "tuned a photo")
+    db.commit()
+
+
+def _do_photo_revert(db, model, kind, aid, form):
+    get_or_404(db, model, aid)
+    rel = form.get("image", "")
+    if rel not in detect_images(kind, aid):
+        raise HTTPException(404, "no such photo for this item")
+    _restore_original(rel)
+    add_log(db, aid, "reverted a tuned photo")
     db.commit()
 
 
@@ -3170,6 +3271,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         # it appears agree about what it is a picture of.
         "placeholder": entry.placeholder_for("computer"),
         "ref_marks": reference_marks("computers", aid),
+        "tuned": tuned_photos("computers", aid),
         "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
         "log": _history(db, aid), "nav": _item_nav(db, aid),
         "live_aid": aid, "live_v": _change_token(db, aid),
@@ -3785,6 +3887,24 @@ async def gui_computer_photo_rotate(aid: str, request: Request,
                                     db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_rotate(db, Computer, "computers", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
+                            status_code=303)
+
+
+@app.post("/computers/{aid}/photo-tuneup", include_in_schema=False)
+async def gui_computer_photo_tuneup(aid: str, request: Request,
+                                    db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_tuneup(db, Computer, "computers", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
+                            status_code=303)
+
+
+@app.post("/computers/{aid}/photo-revert", include_in_schema=False)
+async def gui_computer_photo_revert(aid: str, request: Request,
+                                    db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_revert(db, Computer, "computers", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
                             status_code=303)
 
@@ -4427,6 +4547,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "candidates": candidates, "computers": computers,
         "images": images, "placeholder": _part_placeholder(db, p),
         "ref_marks": reference_marks("parts", aid),
+        "tuned": tuned_photos("parts", aid),
         "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
         "log": _history(db, aid), "nav": _item_nav(db, aid),
         "live_aid": aid, "live_v": _change_token(db, aid),
@@ -4758,6 +4879,24 @@ async def gui_part_photo_rotate(aid: str, request: Request,
                                 db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_rotate(db, Part, "parts", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
+                            status_code=303)
+
+
+@app.post("/parts/{aid}/photo-tuneup", include_in_schema=False)
+async def gui_part_photo_tuneup(aid: str, request: Request,
+                                    db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_tuneup(db, Part, "parts", aid, form)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
+                            status_code=303)
+
+
+@app.post("/parts/{aid}/photo-revert", include_in_schema=False)
+async def gui_part_photo_revert(aid: str, request: Request,
+                                    db: Session = Depends(get_db)):
+    form = await request.form()
+    _do_photo_revert(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
                             status_code=303)
 

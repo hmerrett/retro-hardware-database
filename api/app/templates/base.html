@@ -342,6 +342,19 @@
       <input type="hidden" name="dir" value="cw">
       <button class="btn sm" type="submit" title="Rotate clockwise">⟳</button>
     </form>
+    {# One press, and the levels-and-colour fix a phone does. Beside the rotates
+       because it belongs with the corrections rather than with cropping, and it
+       is the one edit here that offers to be taken back: "revert" stands in its
+       place once there is a kept original to go back to, and goes again as soon
+       as another edit has made that original no longer the truth. #}
+    <form method="post" class="lb-act" data-act="photo-tuneup" id="lb-tune">
+      <input type="hidden" name="image"><input type="hidden" name="next">
+      <button class="btn sm" type="submit" title="Auto-fix levels and colour">tuneup</button>
+    </form>
+    <form method="post" class="lb-act" data-act="photo-revert" id="lb-untune" hidden>
+      <input type="hidden" name="image"><input type="hidden" name="next">
+      <button class="btn sm" type="submit" title="Put this photo back as it was">revert</button>
+    </form>
     <button class="btn sm" type="button" id="lb-crop-on">crop</button>
     <form method="post" class="lb-act" data-act="photo-crop" id="lb-crop-form" hidden>
       <input type="hidden" name="image"><input type="hidden" name="next">
@@ -377,6 +390,8 @@
     const prev = box.querySelector('.lb-prev');
     const next = box.querySelector('.lb-next');
     const tools = document.getElementById('lb-tools');
+    const tune = document.getElementById('lb-tune');
+    const untune = document.getElementById('lb-untune');
     const cropLayer = document.getElementById('lb-crop');
     const cropForm = document.getElementById('lb-crop-form');
     const cropOn = document.getElementById('lb-crop-on');
@@ -411,6 +426,11 @@
           const nxt = f.querySelector('[name=next]');
           if (nxt) nxt.value = back;
         });
+        // Read off the photo itself, so stepping through them with the arrows
+        // shows the right one of the pair without asking the server again.
+        const kept = d.tuned === '1';
+        if (tune) tune.hidden = kept;
+        if (untune) untune.hidden = !kept;
       }
       if (hint) hint.textContent = multi ? `${idx + 1} of ${shots.length}` : '';
     }

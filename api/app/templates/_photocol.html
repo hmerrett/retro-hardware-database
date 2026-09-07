@@ -1,5 +1,5 @@
 {# Photo column shared by computer.html and part.html.
-   Expects: obj, kind ("computers"/"parts"), images, ref_marks, imgerr. #}
+   Expects: obj, kind ("computers"/"parts"), images, ref_marks, tuned, imgerr. #}
 {% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
 {% macro badge(img) %}
@@ -47,7 +47,8 @@
            sizes="(max-width: 900px) 100vw, 620px"
            data-full="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
            tabindex="0" role="button" aria-label="View this photo full size"
-           data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}">
+           data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}"
+           {% if images[0] in tuned %}data-tuned="1"{% endif %}>
       {{ badge(images[0]) }}
       {{ ctrls(images[0], True) }}
     </div>
@@ -60,7 +61,8 @@
              data-full="{{ img_url(img) }}" alt="{{ obj.asset_id }}" loading="lazy"
              decoding="async"
              tabindex="0" role="button" aria-label="View this photo full size"
-             data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ img }}">
+             data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ img }}"
+             {% if img in tuned %}data-tuned="1"{% endif %}>
         {{ badge(img) }}
         {{ ctrls(img, False) }}
       </div>
