@@ -1015,14 +1015,19 @@
      and being more specific is exactly how three of them were missed: the boxes in
      an item's Files panel and the tag editor beside a file kept their 14px and went
      on zooming the page, which is the whole complaint this block exists to answer.
-     A control given a size by a class belongs in this list. */
+     A control given a size by a class belongs in this list, and test_stylesheet.py
+     now fails when one is added without being listed -- three more had already
+     been missed by hand: the add bars on a project and the toolbar's plain search
+     field, which is why the check exists rather than another read-through. */
   @media (pointer: coarse) {
     input, select, textarea,
     form.edit input, form.edit select, form.edit textarea,
     form.edit .countgrid input, form.edit .chipgrid input,
     table.drives input, table.drives select,
     header .hdr-search input[type=search],
-    .toolbar input[list], .toolbar select,
+    .toolbar input[type=text], .toolbar input[list],
+    .toolbar input:not([type]), .toolbar select,
+    .addbar input, .addbar select, .addbar textarea,
     .photo-actions input[name=note], .notebar input,
     .fileform input[type=text], .fileform input:not([type]),
     .inline-form input[name=tags],
