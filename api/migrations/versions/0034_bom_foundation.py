@@ -222,43 +222,16 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index("ix_part_bom_position_state_position_id",
-                  table_name="part_bom_position_state")
-    op.drop_index("ix_part_bom_position_state_reference_bom_id",
-                  table_name="part_bom_position_state")
-    op.drop_index("ix_part_bom_position_state_part_id",
-                  table_name="part_bom_position_state")
-    op.drop_index("ix_part_bom_position_state_observed_house_part_id",
-                  table_name="part_bom_position_state")
-    op.drop_index("ix_part_bom_position_state_observed_part_number_id",
-                  table_name="part_bom_position_state")
+    # Dropping each table also drops its indexes. MariaDB will not let an index
+    # be removed separately while a foreign key still depends on it.
     op.drop_table("part_bom_position_state")
-    op.drop_index("ix_part_bom_reference_bom_id", table_name="part_bom")
     op.drop_table("part_bom")
-    op.drop_index("ix_bom_position_evidence_source_id",
-                  table_name="bom_position_evidence")
-    op.drop_index("ix_bom_position_evidence_position_id",
-                  table_name="bom_position_evidence")
     op.drop_table("bom_position_evidence")
-    op.drop_index("ix_bom_position_reference_bom_id", table_name="bom_position")
-    op.drop_index("ix_bom_position_house_part_id", table_name="bom_position")
-    op.drop_index("ix_bom_position_part_number_id", table_name="bom_position")
-    op.drop_index("ix_bom_position_component_id", table_name="bom_position")
     op.drop_table("bom_position")
-    op.drop_index("ix_reference_bom_model_key", table_name="reference_bom")
     op.drop_table("reference_bom")
-    op.drop_index("ix_bom_source_file_id", table_name="bom_source")
     op.drop_table("bom_source")
-    op.drop_index("ix_bom_house_part_option_part_number_id",
-                  table_name="bom_house_part_option")
-    op.drop_index("ix_bom_house_part_option_house_part_id",
-                  table_name="bom_house_part_option")
     op.drop_table("bom_house_part_option")
-    op.drop_index("ix_bom_house_part_component_id", table_name="bom_house_part")
     op.drop_table("bom_house_part")
-    op.drop_index("ix_bom_part_marking_part_number_id",
-                  table_name="bom_part_marking")
     op.drop_table("bom_part_marking")
-    op.drop_index("ix_bom_part_number_component_id", table_name="bom_part_number")
     op.drop_table("bom_part_number")
     op.drop_table("bom_component")

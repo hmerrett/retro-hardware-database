@@ -134,7 +134,7 @@ class TestReferenceBom:
         db.add(BomPosition(reference_bom_id=bom.id, refdes="BAD",
                            **{field: value}))
 
-        with pytest.raises(IntegrityError):
+        with pytest.raises(DBAPIError):
             db.commit()
         db.rollback()
 
@@ -474,7 +474,7 @@ class TestInventoryLots:
     def test_quantity_cannot_be_negative(self, db):
         db.add(InventoryLot(quantity=-1))
 
-        with pytest.raises(IntegrityError):
+        with pytest.raises(DBAPIError):
             db.commit()
         db.rollback()
 

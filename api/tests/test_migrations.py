@@ -99,8 +99,9 @@ def test_existing_assets_survive_bom_and_inventory_migrations(scratch_db_url):
             "VALUES ('TEST-COMP', 'Existing computer', 'Example', 'System')"
         ))
         conn.execute(text(
-            "INSERT INTO parts (asset_id, computer_id, type, manufacturer, model, name) "
-            "VALUES ('TEST-PART', 'TEST-COMP', 'motherboard', "
+            "INSERT INTO parts (asset_id, computer_id, parent_id, type, "
+            "manufacturer, model, name) "
+            "VALUES ('TEST-PART', 'TEST-COMP', NULL, 'motherboard', "
             "'Example', 'Board', 'Existing board')"
         ))
 

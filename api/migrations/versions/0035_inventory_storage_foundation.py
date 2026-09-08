@@ -103,15 +103,10 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index("ix_inventory_item_lot_id", table_name="inventory_item")
+    # Dropping each table also drops its indexes. MariaDB will not let an index
+    # be removed separately while a foreign key still depends on it.
     op.drop_table("inventory_item")
-    op.drop_index("ix_inventory_lot_storage_location_id",
-                  table_name="inventory_lot")
-    op.drop_index("ix_inventory_lot_house_part_id", table_name="inventory_lot")
-    op.drop_index("ix_inventory_lot_part_number_id", table_name="inventory_lot")
-    op.drop_index("ix_inventory_lot_component_id", table_name="inventory_lot")
     op.drop_table("inventory_lot")
     op.execute("DROP TRIGGER IF EXISTS trg_storage_location_no_self_parent_update")
     op.execute("DROP TRIGGER IF EXISTS trg_storage_location_no_self_parent_insert")
-    op.drop_index("ix_storage_location_parent_id", table_name="storage_location")
     op.drop_table("storage_location")
