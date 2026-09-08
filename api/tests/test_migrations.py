@@ -193,8 +193,8 @@ def test_compatibility_migration_round_trip_preserves_existing_data(scratch_db_u
             "INSERT INTO computers (asset_id, name) VALUES ('COMPAT-COMP', 'Existing')"
         ))
         conn.execute(text(
-            "INSERT INTO parts (asset_id, computer_id, type, board_role) "
-            "VALUES ('COMPAT-PART', 'COMPAT-COMP', 'motherboard', 'repair')"
+            "INSERT INTO parts (asset_id, computer_id, parent_id, type, board_role) "
+            "VALUES ('COMPAT-PART', 'COMPAT-COMP', NULL, 'motherboard', 'repair')"
         ))
         conn.execute(text(
             "INSERT INTO bom_component (generic_name) VALUES ('Existing component')"

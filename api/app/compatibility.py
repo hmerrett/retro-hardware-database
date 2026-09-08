@@ -183,6 +183,7 @@ def set_status(db, relationship: ComponentCompatibility, status: str):
             for fact in facts):
         raise ValueError("verified compatibility requires direct or authoritative evidence")
     relationship.status = status
+    db.flush()
     return relationship
 
 
@@ -226,6 +227,7 @@ def set_house_mapping_status(db, option: BomHousePartOption, status: str):
     if status not in {"draft", "unknown"} and evidence_count == 0:
         raise ValueError("a promoted house-number mapping requires evidence")
     option.mapping_status = status
+    db.flush()
     return option
 
 
@@ -262,6 +264,7 @@ def set_production_use_status(db, production_use: ComponentProductionUse, status
     if status in EVIDENCE_REQUIRED_STATUSES and evidence_count == 0:
         raise ValueError("a non-draft production-use status requires evidence")
     production_use.status = status
+    db.flush()
     return production_use
 
 
