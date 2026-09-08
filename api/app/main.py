@@ -32,6 +32,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from . import __version__
 from . import (drivedb, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct, thumbs)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
@@ -64,7 +65,7 @@ from .schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate,
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
 # start); no create_all here.
 
-app = FastAPI(title="Retro Hardware Database API", version="0.3.0")
+app = FastAPI(title="Retro Hardware Database API", version=__version__)
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 templates.env.globals.update(
     display_name=entry.display_name, type_label=entry.type_label,
