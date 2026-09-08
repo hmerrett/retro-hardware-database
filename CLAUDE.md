@@ -18,8 +18,9 @@ branding belong to the installation and live outside the repo (`.env`,
   templates with a little plain JavaScript — **no frontend framework**. Do not
   introduce React/SPA tooling without an ADR; server-rendering is a deliberate
   choice (public, crawlable item pages).
-- **Database:** MariaDB in production and Docker. The test suite can also run on
-  SQLite for speed (see testing-standards).
+- **Database:** MariaDB in production, in Docker and in the test suite — the
+  suite runs on nothing else, and builds its schema from the real migrations
+  (ADR-0008, testing-standards).
 - **Delivery:** Docker Compose — Caddy (reverse proxy, automatic HTTPS) in front;
   the app, database and MCP server listen on localhost and are reached through it.
 

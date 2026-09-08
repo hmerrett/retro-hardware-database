@@ -15,12 +15,13 @@ CI (`.github/workflows/ci.yml`) runs on pull requests. The backend job shape is:
 
 1. install dependencies (from the pinned set / lockfile),
 2. `ruff check .` (and *adopt next:* `ruff format --check .`, `mypy app`),
-3. **`alembic upgrade head` against a real MariaDB** (a service container) — proves
-   a fresh database migrates cleanly,
-4. `pytest` — the suite, on MariaDB as well as SQLite,
-5. `pip-audit` against the pinned runtime dependencies.
+3. `pytest` against a **real MariaDB service container** — the suite builds its
+   schema by running the migrations from empty, so this covers both the migration
+   path and the tests (ADR-0008),
+4. `pip-audit` against the pinned runtime dependencies.
 
-Keep the fast SQLite unit run for quick feedback and the MariaDB run for fidelity
+There is no SQLite run: the suite is MariaDB-only, for fidelity, and the
+migrations are exercised on every run rather than in a step of their own
 (testing-standards).
 
 ## Dependencies

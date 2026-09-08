@@ -10,20 +10,20 @@ test isn't finished.
 
 ## How the suite runs
 
-- **Unit tests run on SQLite** by default — fast, no server, `pytest` just works.
-  `conftest.py` builds the schema from the models and honours a pre-set
-  `DATABASE_URL` so the same suite can also run on MariaDB.
-- **The real engine is MariaDB**, and the two differ (dialect, date functions,
-  and transaction isolation — MariaDB defaults to REPEATABLE READ, which is why
-  the tests set READ COMMITTED to match how the app behaves per request). So:
-- **CI runs the suite on MariaDB too**, and **runs the migrations** there
-  (`alembic upgrade head` from an empty database) — the SQLite run alone never
-  exercises the migration path, which is how the fresh-install bug slipped
-  through. See workflow-and-ci.
-  - *Decision still open:* whether to drop SQLite and run everything on MariaDB
-    (simpler, higher fidelity, but tests then need a database to run at all). If
-    taken, record it as an ADR and have the tests build their schema by running
-    the real migrations.
+- **The suite runs on MariaDB, and on nothing else** — the engine production uses
+  (ADR-0008). `conftest.py` raises on a missing or SQLite `DATABASE_URL` rather
+  than falling back, so a run cannot quietly test a different engine.
+- **The schema under test is built by the real Alembic migrations**, from an empty
+  database, not by `create_all` from the models. So every run also proves the
+  migrations reach head and match the models — the check that was missing when the
+  fresh-install bug reached a release (ADR-0002).
+- **`READ COMMITTED` is set per connection.** MariaDB defaults to REPEATABLE READ,
+  under which a long-lived test session never sees the app's committed writes.
+  READ COMMITTED matches how the app behaves: a fresh session per request.
+- **The tests need a database to run at all.** CI provides one as a service
+  container; locally it is the compose `db`. Point `DATABASE_URL` at one the tests
+  may build and empty — and say so in the contributing notes, so a first-time
+  contributor reads it rather than meeting it as a traceback.
 
 ## Conventions
 
