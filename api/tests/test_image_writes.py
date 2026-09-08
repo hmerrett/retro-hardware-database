@@ -24,7 +24,7 @@ edits inside one second produced the same URL for two different pictures.
 import os
 import threading
 
-from app import main, thumbs
+from app import main, photos, thumbs
 
 
 def racing_writers(call, dst, n=2):
@@ -137,7 +137,11 @@ def test_two_edits_in_the_same_second_get_different_urls(tmp_path, monkeypatch):
     went on showing the first. Which is why the picture came right on a refresh and
     nowhere else.
     """
+    # img_url now lives in app.photos (extracted from main), so that is the
+    # module whose IMAGES_DIR its global lookup actually reads; main's own copy
+    # is patched too, in case anything else in this path still reads it there.
     monkeypatch.setattr(main, "IMAGES_DIR", tmp_path)
+    monkeypatch.setattr(photos, "IMAGES_DIR", tmp_path)
     rel = "computers/RH-0001.jpg"
     photo = tmp_path / rel
     photo.parent.mkdir(parents=True)
