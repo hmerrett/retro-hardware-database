@@ -86,7 +86,7 @@ def _write_atomically(dst: Path, write):
     """Write a file by way of a temporary one beside it, then move it into place.
     `write` is handed the temporary path.
 
-    main._write_atomically, which this cannot import (main imports this module) and
+    photos._write_atomically, which this cannot import (photos imports this module) and
     which carries the full reasoning. In short: a copy is written aside so a request
     arriving while it is being encoded never reads a half-made one, and the
     temporary is unique to the writer so two requests rebuilding the same stale copy
@@ -139,7 +139,7 @@ def served_path(images_dir: Path, rel: str, width, source: Path) -> Path:
         # which version of the photograph it was made from rather than when it
         # happened to finish. A photograph replaced while this was encoding would
         # otherwise leave a copy of the old one dated later than the new original,
-        # and it would look fresh forever. (main._watermarked_file does the same.)
+        # and it would look fresh forever. (photos._watermarked_file does the same.)
         stamp = source.stat().st_mtime
         if dst.exists() and dst.stat().st_mtime >= stamp:
             return dst
@@ -211,7 +211,7 @@ def _main(argv=None):
     # Made from what the site would serve, which for a photograph of this
     # collection means the watermarked copy. Imported here so the module stays
     # importable without the app.
-    from .main import IMAGES_DIR, _is_own_photo, _watermarked_file
+    from .photos import IMAGES_DIR, _is_own_photo, _watermarked_file
     started = time.time()
     made, small = warm(
         IMAGES_DIR, [(rel, _watermarked_file(rel) if _is_own_photo(rel)
