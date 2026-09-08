@@ -2,8 +2,8 @@ THE MACHINE CATALOGUE
 ======================================================================
 
 Every machine the register knows as a model -- home computers,
-consoles and the branded PCs that were sold under a model name: 406
-machines from 80 makers, 1975 to 2024. Filing a machine against one of
+consoles and the branded PCs that were sold under a model name: 429
+machines from 83 makers, 1975 to 2024. Filing a machine against one of
 these fills in what is already known about the model, and asks only
 what differs between two of the same -- the board issue, the case, the
 region, the chips in the sockets.
@@ -64,9 +64,9 @@ Bally   -- 1
 ----------------------------------------------------------------------
   Astrocade
 
-Bandai   -- 1
+Bandai   -- 2
 ----------------------------------------------------------------------
-  RX-78 Gundam
+  RX-78 Gundam, WonderSwan Color
 
 Camputers   -- 3
 ----------------------------------------------------------------------
@@ -245,6 +245,10 @@ MGT   -- 1
 ----------------------------------------------------------------------
   SAM Coupé
 
+Microsoft   -- 2
+----------------------------------------------------------------------
+  Xbox, Xbox 360
+
 MITS   -- 1
 ----------------------------------------------------------------------
   Altair 8800
@@ -264,16 +268,22 @@ Nascom   -- 2
 ----------------------------------------------------------------------
   1, 2
 
-NEC   -- 12
+NEC   -- 13
 ----------------------------------------------------------------------
   PC Engine, PC Engine Duo, PC Engine SuperGrafx, PC-6001, PC-6601,
   PC-8001, PC-8801, PC-8801FH, PC-8801mkII SR, PC-9801, PC-9801VM,
-  PC-9821
+  PC-9821, PC-FX
 
-Nintendo   -- 7
+Nintendo   -- 19
 ----------------------------------------------------------------------
-  Entertainment System, Famicom, Game & Watch, Game Boy, Super
-  Famicom, Super NES, Virtual Boy
+  2DS, 3DS, 64, DS, DSi, Entertainment System, Famicom, Game & Watch,
+  Game Boy, Game Boy Advance, Game Boy Advance SP, Game Boy Color,
+  Game Boy Pocket, GameCube, Super Famicom, Super NES, Virtual Boy,
+  Wii, Wii U
+
+Nokia   -- 1
+----------------------------------------------------------------------
+  N-Gage
 
 Ohio Scientific   -- 1
 ----------------------------------------------------------------------
@@ -298,6 +308,10 @@ Osborne   -- 2
 Packard Bell   -- 1
 ----------------------------------------------------------------------
   Executive MM 923 D
+
+Panasonic   -- 1
+----------------------------------------------------------------------
+  REAL 3DO Interactive Multiplayer
 
 Philips   -- 3
 ----------------------------------------------------------------------
@@ -327,10 +341,11 @@ Science of Cambridge   -- 1
 ----------------------------------------------------------------------
   MK14
 
-Sega   -- 11
+Sega   -- 14
 ----------------------------------------------------------------------
-  Game Gear, Mark III, Master System, Master System II, Mega Drive,
-  Mega Drive 2, Nomad, Pico, Saturn, SC-3000, SG-1000
+  32X, Dreamcast, Game Gear, Mark III, Master System, Master System
+  II, Mega Drive, Mega Drive 2, Mega-CD, Nomad, Pico, Saturn, SC-3000,
+  SG-1000
 
 Sharp   -- 16
 ----------------------------------------------------------------------
@@ -343,14 +358,15 @@ Sinclair   -- 11
   ZX Spectrum +2 [Amstrad], ZX Spectrum +2A [Amstrad], ZX Spectrum +2B
   [Amstrad], ZX Spectrum +3 [Amstrad], ZX Spectrum+
 
-SNK   -- 2
+SNK   -- 3
 ----------------------------------------------------------------------
-  Neo Geo AES, Neo Geo CD
+  Neo Geo AES, Neo Geo CD, Neo Geo Pocket Color
 
-Sony   -- 10
+Sony   -- 11
 ----------------------------------------------------------------------
-  PlayStation, PlayStation 2, PlayStation 3, PSone, PSP, SMC-70, VAIO
-  C1 PictureBook, VAIO PCG-505, VAIO PCV-90, VAIO Z505
+  PlayStation, PlayStation 2, PlayStation 3, PlayStation Vita, PSone,
+  PSP, SMC-70, VAIO C1 PictureBook, VAIO PCG-505, VAIO PCV-90, VAIO
+  Z505
 
 Sord   -- 1
 ----------------------------------------------------------------------
