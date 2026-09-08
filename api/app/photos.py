@@ -20,7 +20,7 @@ from urllib.parse import quote, urlparse
 from fastapi import HTTPException, UploadFile
 from fastapi.responses import RedirectResponse
 
-from . import enrich, thumbs
+from . import enrich, entry, thumbs
 from .common import IMAGES_DIR, IMAGE_EXTS, branded, _file_ver, folder_images
 from .models import LogEntry, LogPhoto
 
@@ -269,6 +269,17 @@ def pick_images(kind, asset_id, listing):
 def detect_images(kind, asset_id):
     """Ordered photos for one asset."""
     return pick_images(kind, asset_id, folder_images(kind))
+
+
+def _storage_placeholder(kind):
+    """Which drive icon a storage part wears, read from its Kind spec: a floppy, a
+    disc and a disk are all "storage" and none of them look alike."""
+    kind = (kind or "").lower()
+    if "optical" in kind:
+        return entry.placeholder_for("optical")
+    if "floppy" in kind or "gotek" in kind:
+        return entry.placeholder_for("floppy")
+    return entry.placeholder_for("storage")
 
 
 def _photo_target(kind, asset_id, ext):

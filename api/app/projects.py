@@ -289,7 +289,7 @@ def searchable(db, project_id):
     """Everything written under a project that is not one of its own columns: the
     jobs on its list and the things it has on order, as plain lines.
 
-    Here rather than in main._haystack because it is a fact about a project's shape.
+    Here rather than in search._haystack because it is a fact about a project's shape.
     A machine's searchable text is its columns and its history, and a project has a
     third place words go: "Gotek" typed into the search bar should find the project
     with a Gotek on order, which is the question somebody standing in front of a
