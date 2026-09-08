@@ -1,0 +1,112 @@
+"""Inventory storage foundation
+
+Revision ID: 0035_inventory_storage
+Revises: 0034_bom_foundation
+Create Date: 2026-09-08
+"""
+from alembic import op
+import sqlalchemy as sa
+
+revision = "0035_inventory_storage"
+down_revision = "0034_bom_foundation"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    op.create_table(
+        "storage_location",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("parent_id", sa.Integer(), nullable=True),
+        sa.Column("name", sa.String(255), nullable=False),
+        sa.Column("kind", sa.String(64), nullable=True),
+        sa.Column("display_order", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.ForeignKeyConstraint(["parent_id"], ["storage_location.id"],
+                                ondelete="SET NULL"),
+    )
+    op.create_index("ix_storage_location_parent_id", "storage_location",
+                    ["parent_id"])
+    # MariaDB rejects a CHECK which refers to this table's auto-increment id.
+    # Triggers retain database-level protection for direct writes; the service
+    # helper additionally rejects longer ancestor/descendant cycles.
+    op.execute("""
+        CREATE TRIGGER trg_storage_location_no_self_parent_insert
+        BEFORE INSERT ON storage_location
+        FOR EACH ROW
+        BEGIN
+            IF NEW.parent_id IS NOT NULL AND NEW.parent_id = NEW.id THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'storage location cannot be its own parent';
+            END IF;
+        END
+    """)
+    op.execute("""
+        CREATE TRIGGER trg_storage_location_no_self_parent_update
+        BEFORE UPDATE ON storage_location
+        FOR EACH ROW
+        BEGIN
+            IF NEW.parent_id IS NOT NULL AND NEW.parent_id = NEW.id THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'storage location cannot be its own parent';
+            END IF;
+        END
+    """)
+    op.create_table(
+        "inventory_lot",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("component_id", sa.Integer(), nullable=True),
+        sa.Column("part_number_id", sa.Integer(), nullable=True),
+        sa.Column("house_part_id", sa.Integer(), nullable=True),
+        sa.Column("storage_location_id", sa.Integer(), nullable=True),
+        sa.Column("quantity", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("condition", sa.String(32), nullable=True),
+        sa.Column("test_status", sa.String(32), nullable=True),
+        sa.Column("acquired_date", sa.Date(), nullable=True),
+        sa.Column("source", sa.Text(), nullable=True),
+        sa.Column("active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.CheckConstraint("quantity >= 0",
+                           name="ck_inventory_lot_quantity_nonnegative"),
+        sa.ForeignKeyConstraint(["component_id"], ["bom_component.id"],
+                                ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["house_part_id"], ["bom_house_part.id"],
+                                ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["part_number_id"], ["bom_part_number.id"],
+                                ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["storage_location_id"], ["storage_location.id"],
+                                ondelete="SET NULL"),
+    )
+    op.create_index("ix_inventory_lot_component_id", "inventory_lot",
+                    ["component_id"])
+    op.create_index("ix_inventory_lot_part_number_id", "inventory_lot",
+                    ["part_number_id"])
+    op.create_index("ix_inventory_lot_house_part_id", "inventory_lot",
+                    ["house_part_id"])
+    op.create_index("ix_inventory_lot_storage_location_id", "inventory_lot",
+                    ["storage_location_id"])
+    op.create_table(
+        "inventory_item",
+        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+        sa.Column("lot_id", sa.Integer(), nullable=False),
+        sa.Column("item_code", sa.String(64), nullable=True),
+        sa.Column("condition", sa.String(32), nullable=True),
+        sa.Column("test_status", sa.String(32), nullable=True),
+        sa.Column("active", sa.Boolean(), nullable=False, server_default="1"),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.ForeignKeyConstraint(["lot_id"], ["inventory_lot.id"],
+                                ondelete="CASCADE"),
+        sa.UniqueConstraint("item_code", name="uq_inventory_item_code"),
+    )
+    op.create_index("ix_inventory_item_lot_id", "inventory_item", ["lot_id"])
+
+
+def downgrade():
+    # Dropping each table also drops its indexes. MariaDB will not let an index
+    # be removed separately while a foreign key still depends on it.
+    op.drop_table("inventory_item")
+    op.drop_table("inventory_lot")
+    op.execute("DROP TRIGGER IF EXISTS trg_storage_location_no_self_parent_update")
+    op.execute("DROP TRIGGER IF EXISTS trg_storage_location_no_self_parent_insert")
+    op.drop_table("storage_location")

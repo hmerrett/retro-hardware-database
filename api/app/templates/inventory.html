@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "_panel.html" as PN %}
+{% block title %}Inventory — Retro Hardware Database{% endblock %}
+{% block content %}
+<div class="flex">
+  <h2 style="margin:0">Inventory</h2>
+  <a class="btn sm" href="/storage-locations">Storage locations</a>
+</div>
+
+{% call PN.panel('Replacement Parts', rows | length, flush=true) %}
+{% if rows %}
+<table class="kv">
+  <tr>
+    <th>Component</th>
+    <th>Qty</th>
+    <th>Condition</th>
+    <th>Test</th>
+    <th>Storage</th>
+  </tr>
+  {% for row in rows %}
+  {% set lot = row.lot %}
+  <tr>
+    <td>
+      {{ row.label }}
+      {% if lot.notes %}<br><span class="muted">{{ lot.notes | linked }}</span>{% endif %}
+    </td>
+    <td>{{ lot.quantity }}</td>
+    <td>{{ lot.condition or 'unknown' }}</td>
+    <td>{{ lot.test_status or 'unknown' }}</td>
+    <td>{{ row.location_path or 'unknown' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="pbody"><p class="muted" style="margin:0">No inventory lots recorded yet.</p></div>
+{% endif %}
+{% endcall %}
+{% endblock %}

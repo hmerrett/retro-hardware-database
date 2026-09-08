@@ -6,8 +6,9 @@ a computer or a host part unlinks what pointed at it rather than orphaning it.
 The column set began as a mirror of the flat-file system's CSV schema, where
 everything was a string; quantities and dates are being given real types as the
 data proves clean enough to convert."""
-from sqlalchemy import (Boolean, Column, Date, DateTime, ForeignKey, Integer,
-                        SmallInteger, String, Text, UniqueConstraint)
+from sqlalchemy import (Boolean, CheckConstraint, Column, Date, DateTime, Float,
+                        ForeignKey, ForeignKeyConstraint, Integer, SmallInteger,
+                        String, Text, UniqueConstraint)
 
 from .db import Base
 
@@ -664,3 +665,303 @@ class ProjectOrder(Base):
     delivered = Column(Boolean, nullable=False, default=False, server_default="0")
     delivered_at = Column(Date)
     note = Column(String(255), nullable=False, default="", server_default="")
+
+
+# --- BOM foundation: reference data beside the physical register -------------
+# These tables deliberately do not turn Part into a BOM container. A Part remains
+# the physical board or item on the shelf; a ReferenceBom describes what a board
+# population should contain, and PartBom plus PartBomPositionState describe which
+# reference BOM a physical board is being checked against and only the deviations
+# somebody has actually recorded.
+
+
+class BomComponent(Base):
+    """A generic component identity: 74LS257, 4164 DRAM, 10uF electrolytic.
+
+    Manufacturer markings and house numbers live beside this rather than instead
+    of it, so the future question "which machines use a 74LS257?" does not depend
+    on every source having written the same vendor-specific part number.
+    """
+    __tablename__ = "bom_component"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    generic_name = Column(String(128), nullable=True)
+    category = Column(String(64), nullable=True)
+    specification = Column(Text)
+    package = Column(String(64), nullable=True)
+    notes = Column(Text)
+
+
+class BomPartNumber(Base):
+    """A manufacturer-specific orderable device tied to a generic component."""
+    __tablename__ = "bom_part_number"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    component_id = Column(Integer, ForeignKey("bom_component.id", ondelete="SET NULL"),
+                          nullable=True, index=True)
+    manufacturer = Column(String(255), nullable=True)
+    part_number = Column(String(128), nullable=True)
+    package = Column(String(64), nullable=True)
+    notes = Column(Text)
+
+
+class BomPartMarking(Base):
+    """A marking seen on or documented for a manufacturer-specific part."""
+    __tablename__ = "bom_part_marking"
+    __table_args__ = (UniqueConstraint("part_number_id", "marking",
+                                       name="uq_bom_part_marking"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    part_number_id = Column(Integer, ForeignKey("bom_part_number.id",
+                                                ondelete="CASCADE"),
+                            nullable=False, index=True)
+    marking = Column(String(128), nullable=False)
+    notes = Column(Text)
+
+
+class BomHousePart(Base):
+    """A house/stock number such as a Commodore service part number.
+
+    It is separate from BomPartNumber because a house number can approve several
+    manufacturers' devices, and several house numbers can point at the same
+    generic component.
+    """
+    __tablename__ = "bom_house_part"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    component_id = Column(Integer, ForeignKey("bom_component.id", ondelete="SET NULL"),
+                          nullable=True, index=True)
+    organization = Column(String(255), nullable=True)
+    house_number = Column(String(128), nullable=False)
+    notes = Column(Text)
+
+
+class BomHousePartOption(Base):
+    """One approved manufacturer part for a house/stock number."""
+    __tablename__ = "bom_house_part_option"
+    __table_args__ = (UniqueConstraint("house_part_id", "part_number_id",
+                                       name="uq_bom_house_part_option"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    house_part_id = Column(Integer, ForeignKey("bom_house_part.id",
+                                               ondelete="CASCADE"),
+                           nullable=False, index=True)
+    part_number_id = Column(Integer, ForeignKey("bom_part_number.id",
+                                                ondelete="CASCADE"),
+                            nullable=False, index=True)
+    notes = Column(Text)
+
+
+class BomSource(Base):
+    """Evidence that can support individual BOM assertions.
+
+    `file_id` reuses the existing file store for manuals, schematics and scans;
+    URL-only and physical-observation sources do not need a file.
+    """
+    __tablename__ = "bom_source"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_type = Column(String(64), nullable=False)
+    title = Column(String(255), nullable=False, default="", server_default="")
+    publisher = Column(String(255), nullable=True)
+    publication = Column(String(64), nullable=True)
+    url = Column(Text)
+    file_id = Column(Integer, ForeignKey("files.id", ondelete="SET NULL"),
+                     nullable=True, index=True)
+    locator = Column(String(255), nullable=True)
+    notes = Column(Text)
+
+
+class ReferenceBom(Base):
+    """A reference BOM for one documented board population.
+
+    It may name a catalogue model key, but it does not have to. A PCB revision is
+    only one of the fields: two PCB revisions may share one component population,
+    and one PCB revision may have more than one population variant.
+    """
+    __tablename__ = "reference_bom"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    model_key = Column(String(64), nullable=True, index=True)
+    manufacturer = Column(String(255), nullable=True)
+    platform = Column(String(255), nullable=True)
+    board_identifier = Column(String(128), nullable=True)
+    pcb_revision = Column(String(64), nullable=True)
+    population_variant = Column(String(64), nullable=True)
+    region = Column(String(64), nullable=True)
+    video_standard = Column(String(32), nullable=True)
+    name = Column(String(255), nullable=False, default="", server_default="")
+    status = Column(String(16), nullable=False, default="draft", server_default="draft")
+    notes = Column(Text)
+
+
+class BomPosition(Base):
+    """One expected position in a reference BOM.
+
+    Component columns are nullable on purpose. A source can prove that U13 exists
+    before anyone knows exactly which compatible part belongs there.
+    """
+    __tablename__ = "bom_position"
+    __table_args__ = (
+        UniqueConstraint("id", "reference_bom_id",
+                         name="uq_bom_position_id_reference_bom"),
+        UniqueConstraint("reference_bom_id", "refdes",
+                         name="uq_bom_position_refdes"),
+        CheckConstraint("x_norm IS NULL OR (x_norm >= 0 AND x_norm <= 1)",
+                        name="ck_bom_position_x_norm"),
+        CheckConstraint("y_norm IS NULL OR (y_norm >= 0 AND y_norm <= 1)",
+                        name="ck_bom_position_y_norm"),
+    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    reference_bom_id = Column(Integer, ForeignKey("reference_bom.id", ondelete="CASCADE"),
+                              nullable=False, index=True)
+    refdes = Column(String(32), nullable=False)
+    component_id = Column(Integer, ForeignKey("bom_component.id", ondelete="SET NULL"),
+                          nullable=True, index=True)
+    part_number_id = Column(Integer, ForeignKey("bom_part_number.id", ondelete="SET NULL"),
+                            nullable=True, index=True)
+    house_part_id = Column(Integer, ForeignKey("bom_house_part.id", ondelete="SET NULL"),
+                           nullable=True, index=True)
+    expected = Column(Text)
+    package = Column(String(64), nullable=True)
+    applicability = Column(String(255), nullable=True)
+    side = Column(String(16), nullable=True)
+    x_norm = Column(Float, nullable=True)
+    y_norm = Column(Float, nullable=True)
+    rotation = Column(Float, nullable=True)
+    region = Column(String(64), nullable=True)
+    notes = Column(Text)
+
+
+class BomPositionEvidence(Base):
+    """Evidence for a single expected BOM position."""
+    __tablename__ = "bom_position_evidence"
+    __table_args__ = (UniqueConstraint("position_id", "source_id", "locator",
+                                       name="uq_bom_position_evidence"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    position_id = Column(Integer, ForeignKey("bom_position.id", ondelete="CASCADE"),
+                         nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("bom_source.id", ondelete="CASCADE"),
+                       nullable=False, index=True)
+    locator = Column(String(255), nullable=False, default="", server_default="")
+    notes = Column(Text)
+
+
+class PartBom(Base):
+    """Which reference BOM a physical Part is being checked against.
+
+    `baseline_state` is the board-level starting population model:
+    unknown, expected-populated, or empty. It is not proof of inspection by
+    itself. `inspection_status` records the board-level inspection coverage:
+    uninspected, partial, or complete.
+    """
+    __tablename__ = "part_bom"
+    __table_args__ = (UniqueConstraint("part_id", "reference_bom_id",
+                                       name="uq_part_bom_reference"),)
+    part_id = Column(String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"),
+                     primary_key=True)
+    reference_bom_id = Column(Integer, ForeignKey("reference_bom.id", ondelete="CASCADE"),
+                              nullable=False, index=True)
+    baseline_state = Column(String(32), nullable=False, default="unknown",
+                            server_default="unknown")
+    inspection_status = Column(String(32), nullable=False, default="uninspected",
+                               server_default="uninspected")
+    notes = Column(Text)
+
+
+class PartBomPositionState(Base):
+    """Sparse physical-board state overlay for positions that differ or were checked.
+
+    No row means no exception has been recorded for that physical board position.
+    It does not rewrite the reference BOM and it does not claim every other
+    position has been individually inspected.
+    """
+    __tablename__ = "part_bom_position_state"
+    __table_args__ = (
+        UniqueConstraint("part_id", "position_id",
+                         name="uq_part_bom_position_state"),
+        ForeignKeyConstraint(["part_id", "reference_bom_id"],
+                             ["part_bom.part_id", "part_bom.reference_bom_id"],
+                             ondelete="CASCADE"),
+        ForeignKeyConstraint(["position_id", "reference_bom_id"],
+                             ["bom_position.id", "bom_position.reference_bom_id"],
+                             ondelete="CASCADE"),
+    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    part_id = Column(String(16), nullable=False, index=True)
+    reference_bom_id = Column(Integer, nullable=False, index=True)
+    position_id = Column(Integer, nullable=False, index=True)
+    state = Column(String(32), nullable=False)
+    observed_part_number_id = Column(Integer,
+                                     ForeignKey("bom_part_number.id",
+                                                ondelete="SET NULL"),
+                                     nullable=True, index=True)
+    observed_house_part_id = Column(Integer,
+                                    ForeignKey("bom_house_part.id",
+                                               ondelete="SET NULL"),
+                                    nullable=True, index=True)
+    observed = Column(Text)
+    notes = Column(Text)
+
+
+class StorageLocation(Base):
+    """A tree of user storage locations for physical inventory.
+
+    MariaDB cannot put a CHECK involving the auto-increment ``id`` column on
+    this table, so migration 0035 enforces direct self-parenting with INSERT and
+    UPDATE triggers. Longer cycles remain the responsibility of the supported
+    application write helper.
+    """
+    __tablename__ = "storage_location"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    parent_id = Column(Integer, ForeignKey("storage_location.id",
+                                           ondelete="SET NULL"),
+                       nullable=True, index=True)
+    name = Column(String(255), nullable=False)
+    kind = Column(String(64), nullable=True)
+    display_order = Column(Integer, nullable=False, default=0, server_default="0")
+    active = Column(Boolean, nullable=False, default=True, server_default="1")
+    notes = Column(Text)
+
+
+class InventoryLot(Base):
+    """A physical stock lot of interchangeable replacement components.
+
+    ``quantity`` is the total number of physical units, including any members
+    identified by InventoryItem rows. Traceable rows name units within this count;
+    they never add stock to it. Bulk lots need no InventoryItem rows at all.
+    """
+    __tablename__ = "inventory_lot"
+    __table_args__ = (
+        CheckConstraint("quantity >= 0", name="ck_inventory_lot_quantity_nonnegative"),
+    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    component_id = Column(Integer, ForeignKey("bom_component.id", ondelete="SET NULL"),
+                          nullable=True, index=True)
+    part_number_id = Column(Integer, ForeignKey("bom_part_number.id",
+                                                ondelete="SET NULL"),
+                            nullable=True, index=True)
+    house_part_id = Column(Integer, ForeignKey("bom_house_part.id",
+                                               ondelete="SET NULL"),
+                           nullable=True, index=True)
+    storage_location_id = Column(Integer, ForeignKey("storage_location.id",
+                                                     ondelete="SET NULL"),
+                                 nullable=True, index=True)
+    quantity = Column(Integer, nullable=False, default=0, server_default="0")
+    condition = Column(String(32), nullable=True)
+    test_status = Column(String(32), nullable=True)
+    acquired_date = Column(Date)
+    source = Column(Text)
+    active = Column(Boolean, nullable=False, default=True, server_default="1")
+    notes = Column(Text)
+
+
+class InventoryItem(Base):
+    """The optional identity of one physical member of an InventoryLot.
+
+    The number of these rows may not exceed the parent lot's quantity. That
+    cross-row count is enforced by the inventory service write helpers rather
+    than falsely presented as a database CHECK constraint.
+    """
+    __tablename__ = "inventory_item"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lot_id = Column(Integer, ForeignKey("inventory_lot.id", ondelete="CASCADE"),
+                    nullable=False, index=True)
+    item_code = Column(String(64), nullable=True, unique=True)
+    condition = Column(String(32), nullable=True)
+    test_status = Column(String(32), nullable=True)
+    active = Column(Boolean, nullable=False, default=True, server_default="1")
+    notes = Column(Text)

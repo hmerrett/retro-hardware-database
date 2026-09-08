@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% import "_panel.html" as PN %}
+{% block title %}BOM for {{ p.asset_id }} — Retro Hardware Database{% endblock %}
+{% block content %}
+<div class="crumbnav">
+  <a href="/parts/{{ p.asset_id }}">&larr; {{ p.asset_id }}</a>
+</div>
+<div class="flex">
+  <h2 style="margin:0">BOM Workbench</h2>
+  <span class="muted">{{ p.asset_id }}</span>
+</div>
+
+{% call PN.panel('Reference BOM') %}
+<table class="kv">
+  {% for k, v in [('Name', reference.name), ('Status', reference.status),
+                  ('Manufacturer', reference.manufacturer),
+                  ('Platform', reference.platform),
+                  ('Board / assembly', reference.board_identifier),
+                  ('PCB revision', reference.pcb_revision),
+                  ('Population variant', reference.population_variant),
+                  ('Region', reference.region),
+                  ('Video standard', reference.video_standard),
+                  ('Catalogue model', reference.model_key),
+                  ('Notes', reference.notes)] %}
+    {% if v %}<tr><th>{{ k }}</th><td>{{ v | linked }}</td></tr>{% endif %}
+  {% endfor %}
+</table>
+{% endcall %}
+
+{% call PN.panel('Expected Positions', rows | length, flush=true) %}
+{% if rows %}
+<table class="kv">
+  <tr>
+    <th>Ref</th>
+    <th>Expected</th>
+    <th>Evidence</th>
+    <th>Physical state</th>
+  </tr>
+  {% for row in rows %}
+  {% set pos = row.position %}
+    {% set state = row.state %}
+  <tr>
+    <th>{{ pos.refdes }}</th>
+    <td>
+      {{ row.expected or 'unknown' }}
+      {% if pos.package %}<br><span class="muted">{{ pos.package }}</span>{% endif %}
+      {% if pos.applicability %}<br><span class="muted">{{ pos.applicability }}</span>{% endif %}
+      {% if pos.side or pos.x_norm is not none or pos.y_norm is not none or pos.region %}
+      <br><span class="muted">
+        {{ [pos.side, pos.region] | select | join(' · ') }}
+        {% if pos.x_norm is not none and pos.y_norm is not none %}
+          {{ ' · ' if pos.side or pos.region else '' }}{{ '%.3f'|format(pos.x_norm) }}, {{ '%.3f'|format(pos.y_norm) }}
+        {% endif %}
+      </span>
+      {% endif %}
+    </td>
+    <td>
+      {% if row.evidence %}
+        {% for ev in row.evidence %}
+          <div>{{ ev.source.source_type }}{% if ev.source.title %}: {{ ev.source.title }}{% endif %}{% if ev.link.locator %} ({{ ev.link.locator }}){% elif ev.source.locator %} ({{ ev.source.locator }}){% endif %}</div>
+        {% endfor %}
+      {% else %}
+        <span class="muted">no evidence linked</span>
+      {% endif %}
+    </td>
+    <td>
+      {% if state %}
+        <span class="chip">{{ state.state }}</span>
+        {% if state.observed %}<br>{{ state.observed | linked }}{% endif %}
+        {% if state.notes %}<br><span class="muted">{{ state.notes | linked }}</span>{% endif %}
+      {% else %}
+        <span class="muted">{{ row.baseline_state }}</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="pbody"><p class="muted" style="margin:0">No positions recorded yet.</p></div>
+{% endif %}
+{% endcall %}
+{% endblock %}
