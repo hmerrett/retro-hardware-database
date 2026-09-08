@@ -7,6 +7,7 @@ sparse state overlay for one physical board.
 """
 from __future__ import annotations
 
+from . import compatibility
 from .models import (BomComponent, BomHousePart, BomPartNumber, BomPosition,
                      BomPositionEvidence, BomSource, ComponentEvent, InventoryItem,
                      InventoryLot, PartBom, PartBomPositionState, ReferenceBom)
@@ -197,5 +198,9 @@ def workbench(db, part):
                 items.get(states[pos.id].inventory_item_id)
                 if pos.id in states else None),
             "baseline_state": inherited_state_label(link),
+            "compatibility": (compatibility.direct_substitutes(
+                db, pos.part_number_id, reference=ref, position=pos)
+                if pos.part_number_id else []),
+            "inventory_candidates": compatibility.candidates_for_position(db, pos),
         } for pos in positions],
     }

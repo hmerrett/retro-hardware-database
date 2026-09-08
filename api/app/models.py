@@ -741,8 +741,14 @@ class BomHousePart(Base):
 class BomHousePartOption(Base):
     """One approved manufacturer part for a house/stock number."""
     __tablename__ = "bom_house_part_option"
-    __table_args__ = (UniqueConstraint("house_part_id", "part_number_id",
-                                       name="uq_bom_house_part_option"),)
+    __table_args__ = (
+        UniqueConstraint("house_part_id", "part_number_id",
+                         name="uq_bom_house_part_option"),
+        CheckConstraint(
+            "mapping_status IN ('draft', 'confirmed', 'production-supplier', "
+            "'probable', 'disputed', 'unknown')",
+            name="ck_bom_house_part_option_status"),
+    )
     id = Column(Integer, primary_key=True, autoincrement=True)
     house_part_id = Column(Integer, ForeignKey("bom_house_part.id",
                                                ondelete="CASCADE"),
@@ -750,6 +756,8 @@ class BomHousePartOption(Base):
     part_number_id = Column(Integer, ForeignKey("bom_part_number.id",
                                                 ondelete="CASCADE"),
                             nullable=False, index=True)
+    mapping_status = Column(String(24), nullable=False, default="draft",
+                            server_default="draft")
     notes = Column(Text)
 
 
@@ -1042,4 +1050,169 @@ class ComponentEvent(Base):
         nullable=True, index=True)
     project_id = Column(String(16), ForeignKey("projects.asset_id", ondelete="SET NULL"),
                         nullable=True, index=True)
+    notes = Column(Text)
+
+
+# --- Evidence-backed component compatibility --------------------------------
+# Compatibility is deliberately between manufacturer-specific identities. A
+# shared generic component is useful classification, never proof that two
+# devices can replace one another. Current physical observations remain on the
+# PartBomPositionState layer.
+
+
+class ComponentCompatibility(Base):
+    """A directional replacement claim, except exact equivalence when queried."""
+    __tablename__ = "component_compatibility"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_part_number_id", "target_part_number_id", "relationship_type",
+            "scope_reference_bom_id", "scope_position_id", "platform", "manufacturer",
+            "required_package", "region", "video_standard",
+            name="uq_component_compatibility_scope"),
+        UniqueConstraint("source_part_number_id", "target_part_number_id",
+                         "relationship_type", "scope_position_id",
+                         name="uq_component_compatibility_position"),
+        CheckConstraint("source_part_number_id <> target_part_number_id",
+                        name="ck_component_compatibility_not_self"),
+        CheckConstraint(
+            "relationship_type IN ('exact-equivalent', 'manufacturer-alternate', "
+            "'electrical-substitute', 'pin-compatible-substitute', "
+            "'functional-substitute', 'documented-service-substitute', "
+            "'production-alternate', 'conditional-substitute', 'incompatible')",
+            name="ck_component_compatibility_relationship"),
+        CheckConstraint("status IN ('draft', 'evidenced', 'verified', 'disputed', "
+                        "'deprecated')", name="ck_component_compatibility_status"),
+        CheckConstraint("scope_position_id IS NULL OR scope_reference_bom_id IS NOT NULL",
+                        name="ck_component_compatibility_position_scope"),
+        CheckConstraint(
+            "(function_compatible IS NULL OR function_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(pinout_compatible IS NULL OR pinout_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(package_compatible IS NULL OR package_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(voltage_compatible IS NULL OR voltage_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(logic_level_compatible IS NULL OR logic_level_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(timing_compatible IS NULL OR timing_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(frequency_compatible IS NULL OR frequency_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(thermal_current_compatible IS NULL OR thermal_current_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(analogue_compatible IS NULL OR analogue_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(firmware_content_compatible IS NULL OR firmware_content_compatible IN "
+            "('compatible', 'conditional', 'incompatible')) AND "
+            "(region_standard_compatible IS NULL OR region_standard_compatible IN "
+            "('compatible', 'conditional', 'incompatible'))",
+            name="ck_component_compatibility_dimensions"),
+        ForeignKeyConstraint(
+            ["scope_position_id", "scope_reference_bom_id"],
+            ["bom_position.id", "bom_position.reference_bom_id"],
+            name="fk_component_compatibility_position_scope", ondelete="CASCADE"),
+    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_part_number_id = Column(
+        Integer, ForeignKey("bom_part_number.id", ondelete="RESTRICT"),
+        nullable=False, index=True)
+    target_part_number_id = Column(
+        Integer, ForeignKey("bom_part_number.id", ondelete="RESTRICT"),
+        nullable=False, index=True)
+    relationship_type = Column(String(40), nullable=False)
+    status = Column(String(16), nullable=False, default="draft", server_default="draft")
+    function_compatible = Column(String(16), nullable=True)
+    pinout_compatible = Column(String(16), nullable=True)
+    package_compatible = Column(String(16), nullable=True)
+    voltage_compatible = Column(String(16), nullable=True)
+    logic_level_compatible = Column(String(16), nullable=True)
+    timing_compatible = Column(String(16), nullable=True)
+    frequency_compatible = Column(String(16), nullable=True)
+    thermal_current_compatible = Column(String(16), nullable=True)
+    analogue_compatible = Column(String(16), nullable=True)
+    firmware_content_compatible = Column(String(16), nullable=True)
+    region_standard_compatible = Column(String(16), nullable=True)
+    scope_reference_bom_id = Column(
+        Integer, ForeignKey("reference_bom.id", ondelete="CASCADE"), nullable=True,
+        index=True)
+    scope_position_id = Column(Integer, nullable=True, index=True)
+    platform = Column(String(255), nullable=True)
+    manufacturer = Column(String(255), nullable=True)
+    required_package = Column(String(64), nullable=True)
+    region = Column(String(64), nullable=True)
+    video_standard = Column(String(32), nullable=True)
+    caveat = Column(Text)
+    notes = Column(Text)
+
+
+class ComponentCompatibilityEvidence(Base):
+    """Evidence for one compatibility claim; sources cannot vanish underneath it."""
+    __tablename__ = "component_compatibility_evidence"
+    __table_args__ = (UniqueConstraint("compatibility_id", "source_id", "locator",
+                                       name="uq_component_compatibility_evidence"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    compatibility_id = Column(
+        Integer, ForeignKey("component_compatibility.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("bom_source.id", ondelete="RESTRICT"),
+                       nullable=False, index=True)
+    locator = Column(String(255), nullable=False, default="", server_default="")
+    directly_states_claim = Column(Boolean, nullable=False, default=False,
+                                   server_default="0")
+    notes = Column(Text)
+
+
+class BomHousePartOptionEvidence(Base):
+    """Evidence for an existing house-number to manufacturer-part mapping."""
+    __tablename__ = "bom_house_part_option_evidence"
+    __table_args__ = (UniqueConstraint("option_id", "source_id", "locator",
+                                       name="uq_bom_house_option_evidence"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    option_id = Column(Integer, ForeignKey("bom_house_part_option.id", ondelete="CASCADE"),
+                       nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("bom_source.id", ondelete="RESTRICT"),
+                       nullable=False, index=True)
+    locator = Column(String(255), nullable=False, default="", server_default="")
+    directly_states_mapping = Column(Boolean, nullable=False, default=False,
+                                     server_default="0")
+    notes = Column(Text)
+
+
+class ComponentProductionUse(Base):
+    """Evidence-backed historical use, separate from technical compatibility."""
+    __tablename__ = "component_production_use"
+    __table_args__ = (
+        UniqueConstraint("part_number_id", "reference_bom_id", "position_id",
+                         name="uq_component_production_use_scope"),
+        CheckConstraint("status IN ('draft', 'evidenced', 'verified', 'disputed', "
+                        "'deprecated')", name="ck_component_production_use_status"),
+        CheckConstraint("position_id IS NULL OR reference_bom_id IS NOT NULL",
+                        name="ck_component_production_use_position_scope"),
+        ForeignKeyConstraint(
+            ["position_id", "reference_bom_id"],
+            ["bom_position.id", "bom_position.reference_bom_id"],
+            name="fk_component_production_use_position_scope", ondelete="CASCADE"),
+    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    part_number_id = Column(Integer, ForeignKey("bom_part_number.id", ondelete="RESTRICT"),
+                            nullable=False, index=True)
+    reference_bom_id = Column(Integer, ForeignKey("reference_bom.id", ondelete="CASCADE"),
+                              nullable=False, index=True)
+    position_id = Column(Integer, nullable=True, index=True)
+    status = Column(String(16), nullable=False, default="draft", server_default="draft")
+    notes = Column(Text)
+
+
+class ComponentProductionUseEvidence(Base):
+    __tablename__ = "component_production_use_evidence"
+    __table_args__ = (UniqueConstraint("production_use_id", "source_id", "locator",
+                                       name="uq_component_production_use_evidence"),)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    production_use_id = Column(
+        Integer, ForeignKey("component_production_use.id", ondelete="CASCADE"),
+        nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("bom_source.id", ondelete="RESTRICT"),
+                       nullable=False, index=True)
+    locator = Column(String(255), nullable=False, default="", server_default="")
     notes = Column(Text)
