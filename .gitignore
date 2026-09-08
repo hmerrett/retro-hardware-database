@@ -26,6 +26,9 @@ backups/
 /HARDENING-NOTES.md
 /docs/superpowers/
 
+# Private Codex project continuity, synchronised locally rather than through Git
+/.codex/private-context.md
+
 # Local Caddy blocks (other names, redirects) belong to the deployment, not the repo
 caddy/conf.d/*.caddy
 !caddy/conf.d/empty.caddy
