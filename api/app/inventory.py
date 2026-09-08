@@ -1,8 +1,11 @@
 """Helpers for the physical replacement-part inventory layer."""
 from __future__ import annotations
 
-from .models import (BomComponent, BomHousePart, BomPartNumber, InventoryItem,
-                     InventoryLot, StorageLocation)
+from sqlalchemy import or_
+
+from .models import (BomComponent, BomHousePart, BomPartNumber, BomPosition,
+                     ComponentEvent, InventoryItem, InventoryLot, Part,
+                     PartBomPositionState, StorageLocation)
 
 CONDITIONS = ["new", "NOS", "used", "pulled", "refurbished", "unknown"]
 TEST_STATUSES = ["untested", "passed", "failed", "intermittent", "unknown"]
@@ -66,6 +69,8 @@ def _locked_lot(db, lot_id: int) -> InventoryLot:
 
 def add_inventory_item(db, lot_id: int, **fields) -> InventoryItem:
     """Identify one member of a lot without increasing that lot's total stock."""
+    if fields.get("lifecycle_status", "inventory") != "inventory":
+        raise ValueError("new traceable items must enter as loose inventory")
     db.flush()
     lot = _locked_lot(db, lot_id)
     if traceable_item_count(db, lot_id) >= lot.quantity:
@@ -77,6 +82,8 @@ def add_inventory_item(db, lot_id: int, **fields) -> InventoryItem:
 
 def move_inventory_item(db, item: InventoryItem, lot_id: int) -> None:
     """Move a tracked unit without letting the destination overstate identities."""
+    if item.lifecycle_status != "inventory":
+        raise ValueError("only a loose inventory item can move between lots")
     if item.lot_id == lot_id:
         return
     db.flush()
@@ -131,13 +138,38 @@ def inventory_rows(db):
                    .filter(BomHousePart.id.in_(house_part_ids)).all()} if house_part_ids else {}
     locations = {loc.id: loc for loc in db.query(StorageLocation)
                  .filter(StorageLocation.id.in_(location_ids)).all()} if location_ids else {}
-    return [{
-        "lot": lot,
-        "label": lot_label(components.get(lot.component_id),
-                           part_numbers.get(lot.part_number_id),
-                           house_parts.get(lot.house_part_id)),
-        "location_path": location_path(db, locations.get(lot.storage_location_id)),
-    } for lot in lots]
+    rows = []
+    for lot in lots:
+        item_rows = []
+        for item in db.query(InventoryItem).filter_by(lot_id=lot.id).order_by(
+                InventoryItem.id):
+            fitted = db.query(PartBomPositionState).filter_by(
+                inventory_item_id=item.id).one_or_none()
+            installed_part = db.get(Part, fitted.part_id) if fitted else None
+            installed_position = db.get(BomPosition, fitted.position_id) if fitted else None
+            origin = (db.query(ComponentEvent)
+                      .filter_by(inventory_item_id=item.id, event_type="harvested")
+                      .order_by(ComponentEvent.created_at, ComponentEvent.id)
+                      .first())
+            source_part = db.get(Part, origin.source_part_id) if origin else None
+            source_position = db.get(BomPosition, origin.source_position_id) if origin else None
+            item_rows.append({
+                "item": item,
+                "status": "installed" if fitted else item.lifecycle_status,
+                "installed_part": installed_part,
+                "installed_position": installed_position,
+                "source_part": source_part,
+                "source_position": source_position,
+            })
+        rows.append({
+            "lot": lot,
+            "label": lot_label(components.get(lot.component_id),
+                               part_numbers.get(lot.part_number_id),
+                               house_parts.get(lot.house_part_id)),
+            "location_path": location_path(db, locations.get(lot.storage_location_id)),
+            "tracked_items": item_rows,
+        })
+    return rows
 
 
 def storage_rows(db):
@@ -153,5 +185,14 @@ def usable_quantity_for_component(db, component_id: int) -> int:
                     InventoryLot.active.is_(True),
                     InventoryLot.quantity > 0)
             .all())
-    return sum(lot.quantity for lot in lots
-               if (lot.test_status or "").lower() not in UNUSABLE_TEST_STATUSES)
+    total = 0
+    for lot in lots:
+        if (lot.test_status or "").lower() in UNUSABLE_TEST_STATUSES:
+            continue
+        unavailable = (db.query(InventoryItem)
+                       .filter(InventoryItem.lot_id == lot.id,
+                               or_(InventoryItem.lifecycle_status != "inventory",
+                                   InventoryItem.active.is_(False)))
+                       .count())
+        total += max(0, lot.quantity - unavailable)
+    return total

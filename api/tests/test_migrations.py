@@ -123,3 +123,60 @@ def test_existing_assets_survive_bom_and_inventory_migrations(scratch_db_url):
         assert conn.execute(text("SELECT COUNT(*) FROM inventory_lot")).scalar_one() == 0
         assert conn.execute(text("SELECT COUNT(*) FROM storage_location")).scalar_one() == 0
     engine.dispose()
+
+
+def test_donor_migration_round_trip_preserves_foundation_data(scratch_db_url):
+    _assert_alembic(
+        _alembic(scratch_db_url, "upgrade", "0035_inventory_storage"),
+        "upgrade 0035_inventory_storage",
+    )
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO parts (asset_id, computer_id, parent_id, type, model) "
+            "VALUES ('DONOR-BASE', NULL, NULL, 'motherboard', 'Existing board')"
+        ))
+        conn.execute(text(
+            "INSERT INTO inventory_lot (quantity, `condition`) "
+            "VALUES (1, 'pulled')"
+        ))
+        lot_id = conn.execute(text("SELECT LAST_INSERT_ID()")).scalar_one()
+        conn.execute(text(
+            "INSERT INTO inventory_item (lot_id, item_code) "
+            "VALUES (:lot_id, 'EXISTING-ITEM')"
+        ), {"lot_id": lot_id})
+
+    _assert_alembic(_alembic(scratch_db_url, "upgrade", "head"), "upgrade head")
+    with engine.connect() as conn:
+        assert conn.execute(text(
+            "SELECT board_role FROM parts WHERE asset_id = 'DONOR-BASE'"
+        )).scalar_one() == "normal"
+        assert conn.execute(text(
+            "SELECT lifecycle_status FROM inventory_item "
+            "WHERE item_code = 'EXISTING-ITEM'"
+        )).scalar_one() == "inventory"
+        assert conn.execute(text("SELECT COUNT(*) FROM component_event")).scalar_one() == 0
+
+    _assert_alembic(
+        _alembic(scratch_db_url, "downgrade", "0035_inventory_storage"),
+        "downgrade 0035_inventory_storage",
+    )
+    with engine.connect() as conn:
+        assert conn.execute(text(
+            "SELECT model FROM parts WHERE asset_id = 'DONOR-BASE'"
+        )).scalar_one() == "Existing board"
+        assert conn.execute(text(
+            "SELECT COUNT(*) FROM inventory_item WHERE item_code = 'EXISTING-ITEM'"
+        )).scalar_one() == 1
+
+    _assert_alembic(_alembic(scratch_db_url, "upgrade", "head"), "re-upgrade head")
+    with engine.connect() as conn:
+        assert conn.execute(text(
+            "SELECT board_role FROM parts WHERE asset_id = 'DONOR-BASE'"
+        )).scalar_one() == "normal"
+        assert conn.execute(text(
+            "SELECT lifecycle_status FROM inventory_item "
+            "WHERE item_code = 'EXISTING-ITEM'"
+        )).scalar_one() == "inventory"
+        assert conn.execute(text("SELECT COUNT(*) FROM component_event")).scalar_one() == 0
+    engine.dispose()

@@ -16,6 +16,7 @@
     <th>Condition</th>
     <th>Test</th>
     <th>Storage</th>
+    <th>Traceable items</th>
   </tr>
   {% for row in rows %}
   {% set lot = row.lot %}
@@ -28,6 +29,22 @@
     <td>{{ lot.condition or 'unknown' }}</td>
     <td>{{ lot.test_status or 'unknown' }}</td>
     <td>{{ row.location_path or 'unknown' }}</td>
+    <td>
+      {% if row.tracked_items %}
+        {% for tracked in row.tracked_items %}
+        <div>
+          <strong>{{ tracked.item.item_code or ('item #' ~ tracked.item.id) }}</strong>
+          · {{ tracked.status }}
+          {% if tracked.source_part and tracked.source_position %}
+            <br><span class="muted">from <a href="/parts/{{ tracked.source_part.asset_id }}/bom">{{ tracked.source_part.asset_id }} / {{ tracked.source_position.refdes }}</a></span>
+          {% endif %}
+          {% if tracked.installed_part and tracked.installed_position %}
+            <br><span class="muted">fitted at <a href="/parts/{{ tracked.installed_part.asset_id }}/bom">{{ tracked.installed_part.asset_id }} / {{ tracked.installed_position.refdes }}</a></span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}<span class="muted">bulk / untracked</span>{% endif %}
+    </td>
   </tr>
   {% endfor %}
 </table>

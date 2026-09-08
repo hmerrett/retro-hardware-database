@@ -80,6 +80,10 @@ class Computer(Base):
 
 class Part(Base):
     __tablename__ = "parts"
+    __table_args__ = (
+        CheckConstraint("board_role IN ('normal', 'donor', 'repair')",
+                        name="ck_parts_board_role"),
+    )
     asset_id = Column(String(16), primary_key=True)
     computer_id = Column(String(16),
                          ForeignKey("computers.asset_id", ondelete="SET NULL"),
@@ -87,6 +91,8 @@ class Part(Base):
     parent_id = Column(String(16),
                        ForeignKey("parts.asset_id", ondelete="SET NULL"),
                        index=True)
+    board_role = Column(String(16), nullable=False, default="normal",
+                        server_default="normal")
     type = Column(String(32), default="")
     manufacturer = Column(String(255), default="")
     model = Column(String(255), default="")
@@ -873,6 +879,8 @@ class PartBomPositionState(Base):
     __table_args__ = (
         UniqueConstraint("part_id", "position_id",
                          name="uq_part_bom_position_state"),
+        UniqueConstraint("inventory_item_id",
+                         name="uq_part_bom_position_state_inventory_item"),
         ForeignKeyConstraint(["part_id", "reference_bom_id"],
                              ["part_bom.part_id", "part_bom.reference_bom_id"],
                              ondelete="CASCADE"),
@@ -895,6 +903,10 @@ class PartBomPositionState(Base):
                                     nullable=True, index=True)
     observed = Column(Text)
     notes = Column(Text)
+    inventory_item_id = Column(Integer,
+                               ForeignKey("inventory_item.id",
+                                          ondelete="SET NULL"),
+                               nullable=True)
 
 
 class StorageLocation(Base):
@@ -952,16 +964,82 @@ class InventoryLot(Base):
 class InventoryItem(Base):
     """The optional identity of one physical member of an InventoryLot.
 
+    ``lifecycle_status`` is authoritative for whether the item is loose,
+    installed, discarded or otherwise unavailable. A fitted item's exact current
+    position is the unique ``PartBomPositionState.inventory_item_id`` relationship.
+
     The number of these rows may not exceed the parent lot's quantity. That
     cross-row count is enforced by the inventory service write helpers rather
     than falsely presented as a database CHECK constraint.
     """
     __tablename__ = "inventory_item"
+    __table_args__ = (
+        CheckConstraint(
+            "lifecycle_status IN ('inventory', 'installed', 'discarded', "
+            "'unavailable')", name="ck_inventory_item_lifecycle"),
+    )
     id = Column(Integer, primary_key=True, autoincrement=True)
     lot_id = Column(Integer, ForeignKey("inventory_lot.id", ondelete="CASCADE"),
                     nullable=False, index=True)
     item_code = Column(String(64), nullable=True, unique=True)
     condition = Column(String(32), nullable=True)
     test_status = Column(String(32), nullable=True)
+    lifecycle_status = Column(String(16), nullable=False, default="inventory",
+                              server_default="inventory")
     active = Column(Boolean, nullable=False, default=True, server_default="1")
+    notes = Column(Text)
+
+
+class ComponentEvent(Base):
+    """An immutable provenance event for one physical component movement.
+
+    Current placement remains on ``PartBomPositionState`` and authoritative
+    lifecycle on ``InventoryItem``. Normal application workflows only append
+    these rows: they preserve how the component got there and are never edited to
+    impersonate current state.
+    """
+    __tablename__ = "component_event"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('acquired', 'harvested', 'added-to-inventory', "
+            "'moved', 'installed', 'removed', 'tested', 'marked-failed', "
+            "'discarded')", name="ck_component_event_type"),
+        ForeignKeyConstraint(["source_part_id", "source_reference_bom_id"],
+                             ["part_bom.part_id", "part_bom.reference_bom_id"],
+                             ondelete="SET NULL"),
+        ForeignKeyConstraint(["source_position_id", "source_reference_bom_id"],
+                             ["bom_position.id", "bom_position.reference_bom_id"],
+                             ondelete="SET NULL"),
+        ForeignKeyConstraint(["destination_part_id", "destination_reference_bom_id"],
+                             ["part_bom.part_id", "part_bom.reference_bom_id"],
+                             ondelete="SET NULL"),
+        ForeignKeyConstraint(["destination_position_id",
+                              "destination_reference_bom_id"],
+                             ["bom_position.id", "bom_position.reference_bom_id"],
+                             ondelete="SET NULL"),
+    )
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_type = Column(String(32), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, index=True)
+    event_date = Column(Date, nullable=True)
+    source_part_id = Column(String(16), nullable=True, index=True)
+    source_reference_bom_id = Column(Integer, nullable=True)
+    source_position_id = Column(Integer, nullable=True, index=True)
+    destination_part_id = Column(String(16), nullable=True, index=True)
+    destination_reference_bom_id = Column(Integer, nullable=True)
+    destination_position_id = Column(Integer, nullable=True, index=True)
+    inventory_lot_id = Column(Integer,
+                              ForeignKey("inventory_lot.id", ondelete="SET NULL"),
+                              nullable=True, index=True)
+    inventory_item_id = Column(Integer,
+                               ForeignKey("inventory_item.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
+    source_storage_location_id = Column(
+        Integer, ForeignKey("storage_location.id", ondelete="SET NULL"),
+        nullable=True, index=True)
+    destination_storage_location_id = Column(
+        Integer, ForeignKey("storage_location.id", ondelete="SET NULL"),
+        nullable=True, index=True)
+    project_id = Column(String(16), ForeignKey("projects.asset_id", ondelete="SET NULL"),
+                        nullable=True, index=True)
     notes = Column(Text)

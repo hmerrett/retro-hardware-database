@@ -7,8 +7,30 @@
 </div>
 <div class="flex">
   <h2 style="margin:0">BOM Workbench</h2>
-  <span class="muted">{{ p.asset_id }}</span>
+  <span class="muted">{{ p.asset_id }} · {{ p.board_role }} board</span>
 </div>
+
+{% if request.state.authed %}
+{% call PN.panel('Physical board setup') %}
+<form method="post" action="/parts/{{ p.asset_id }}/bom/setup" class="flex">
+  <label>Role
+    <select name="board_role">
+      {% for value in ['normal', 'donor', 'repair'] %}
+      <option value="{{ value }}"{% if p.board_role == value %} selected{% endif %}>{{ value }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>Starting population
+    <select name="baseline_state">
+      <option value="expected-populated"{% if link.baseline_state == 'expected-populated' %} selected{% endif %}>expected / present</option>
+      <option value="empty"{% if link.baseline_state == 'empty' %} selected{% endif %}>empty / missing</option>
+    </select>
+  </label>
+  <button class="btn primary" type="submit">Save setup</button>
+</form>
+<p class="hint">The baseline supplies the default. Only exceptions and inspected positions create rows.</p>
+{% endcall %}
+{% endif %}
 
 {% call PN.panel('Reference BOM') %}
 <table class="kv">
@@ -34,7 +56,8 @@
     <th>Ref</th>
     <th>Expected</th>
     <th>Evidence</th>
-    <th>Physical state</th>
+    <th>Physical state / observation</th>
+    {% if request.state.authed %}<th>Bench actions</th>{% endif %}
   </tr>
   {% for row in rows %}
   {% set pos = row.position %}
@@ -65,18 +88,74 @@
     </td>
     <td>
       {% if state %}
-        <span class="chip">{{ state.state }}</span>
+        <span class="chip">explicit: {{ state.state }}</span>
         {% if state.observed %}<br>{{ state.observed | linked }}{% endif %}
         {% if state.notes %}<br><span class="muted">{{ state.notes | linked }}</span>{% endif %}
+        {% if row.item %}<br><strong>Fitted:</strong> {{ row.fitted or 'identity unknown' }} · {{ row.item.item_code or ('#' ~ row.item.id) }}{% endif %}
       {% else %}
-        <span class="muted">{{ row.baseline_state }}</span>
+        <span class="muted">default: {{ row.baseline_state }}</span>
       {% endif %}
     </td>
+    {% if request.state.authed %}
+    <td>
+      <form method="post" action="/parts/{{ p.asset_id }}/bom/positions/{{ pos.id }}/state">
+        <select name="state">
+          {% for value in position_states %}<option value="{{ value }}"{% if state and state.state == value %} selected{% endif %}>{{ value }}</option>{% endfor %}
+        </select>
+        <input name="observed" value="{{ state.observed if state and state.observed else '' }}" placeholder="observed component">
+        <button class="btn sm" type="submit">Record</button>
+      </form>
+      {% if p.board_role in ['donor', 'repair'] and (not state or state.state not in ['missing', 'removed']) %}
+      <form method="post" action="/parts/{{ p.asset_id }}/bom/positions/{{ pos.id }}/harvest">
+        <input name="item_code" placeholder="item code (optional)">
+        <input type="date" name="event_date" aria-label="Harvest date">
+        <select name="lot_id">
+          <option value="">new exact lot</option>
+          {% for inventory_row in inventory_lots %}<option value="{{ inventory_row.lot.id }}">existing: {{ inventory_row.label }} · {{ inventory_row.lot.condition or 'unknown' }}</option>{% endfor %}
+        </select>
+        <select name="storage_location_id">
+          <option value="">unknown storage</option>
+          {% for location in storage_locations %}<option value="{{ location.location.id }}">{{ location.path }}</option>{% endfor %}
+        </select>
+        <input type="hidden" name="condition" value="pulled">
+        <button class="btn sm" type="submit">Harvest</button>
+      </form>
+      {% endif %}
+      {% if not row.item and available_items %}
+      <form method="post" action="/parts/{{ p.asset_id }}/bom/positions/{{ pos.id }}/install">
+        <select name="inventory_item_id">
+          {% for item in available_items %}<option value="{{ item.id }}">{{ item.item_code or ('item #' ~ item.id) }}</option>{% endfor %}
+        </select>
+        <input type="date" name="event_date" aria-label="Installation date">
+        <button class="btn sm" type="submit">Install</button>
+      </form>
+      {% endif %}
+    </td>
+    {% endif %}
   </tr>
   {% endfor %}
 </table>
 {% else %}
 <div class="pbody"><p class="muted" style="margin:0">No positions recorded yet.</p></div>
+{% endif %}
+{% endcall %}
+
+{% call PN.panel('Component History', events | length, flush=true) %}
+{% if events %}
+<table class="kv">
+  <tr><th>Date</th><th>Position</th><th>Event</th><th>Item</th><th>Notes</th></tr>
+  {% for row in events %}
+  <tr>
+    <td>{{ row.event.event_date or row.event.created_at.date() }}</td>
+    <td>{{ row.position.refdes if row.position else '—' }}</td>
+    <td>{{ row.event.event_type }}</td>
+    <td>{{ row.item.item_code or ('item #' ~ row.item.id) if row.item else '—' }}</td>
+    <td>{{ row.event.notes or '' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="pbody"><p class="muted" style="margin:0">No component movements recorded yet.</p></div>
 {% endif %}
 {% endcall %}
 {% endblock %}
