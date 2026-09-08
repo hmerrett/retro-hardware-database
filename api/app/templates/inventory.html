@@ -30,8 +30,8 @@
     <td>{{ lot.test_status or 'unknown' }}</td>
     <td>{{ row.location_path or 'unknown' }}</td>
     <td>
-      {% if row.items %}
-        {% for tracked in row.items %}
+      {% if row.tracked_items %}
+        {% for tracked in row.tracked_items %}
         <div>
           <strong>{{ tracked.item.item_code or ('item #' ~ tracked.item.id) }}</strong>
           · {{ tracked.status }}

@@ -167,7 +167,7 @@ def inventory_rows(db):
                                part_numbers.get(lot.part_number_id),
                                house_parts.get(lot.house_part_id)),
             "location_path": location_path(db, locations.get(lot.storage_location_id)),
-            "items": item_rows,
+            "tracked_items": item_rows,
         })
     return rows
 
