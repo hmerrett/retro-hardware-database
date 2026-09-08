@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_panel.html" as PN %}
+{% block title %}Storage Locations — Retro Hardware Database{% endblock %}
+{% block content %}
+<div class="flex">
+  <h2 style="margin:0">Storage Locations</h2>
+  <a class="btn sm" href="/inventory">Inventory</a>
+</div>
+
+{% call PN.panel('Locations', rows | length, flush=true) %}
+{% if rows %}
+<table class="kv">
+  <tr>
+    <th>Name</th>
+    <th>Kind</th>
+    <th>Path</th>
+    <th>State</th>
+  </tr>
+  {% for row in rows %}
+  {% set loc = row.location %}
+  <tr>
+    <td>
+      {{ loc.name }}
+      {% if loc.notes %}<br><span class="muted">{{ loc.notes | linked }}</span>{% endif %}
+    </td>
+    <td>{{ loc.kind or 'unknown' }}</td>
+    <td>{{ row.path }}</td>
+    <td>{{ 'active' if loc.active else 'inactive' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="pbody"><p class="muted" style="margin:0">No storage locations recorded yet.</p></div>
+{% endif %}
+{% endcall %}
+{% endblock %}

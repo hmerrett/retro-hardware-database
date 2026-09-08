@@ -35,8 +35,8 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import (drivedb, enrich, entry, filesdb, labels, machinedb, machines,
-               projects, ramdb, specdb, specstruct, thumbs)
+from . import (bom, drivedb, enrich, entry, filesdb, inventory, labels,
+               machinedb, machines, projects, ramdb, specdb, specstruct, thumbs)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
     BRANDING_DIR, IMAGE_EXTS, IMAGES_DIR, LEGACY_DISK_BUSES, REGISTER,
     RELIABILITY_MIN, STATIC_DIR, _all_years, _file_ver, _held, _maker_reliability,
@@ -4535,6 +4535,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
     return templates.TemplateResponse(request, "part.html", {
         "machine": _machine_page(db, p),
         "p": p, "parent": parent, "host": host, "children": children,
+        "bom_link": bom.link_for_part(db, p.asset_id),
         "thumbs": part_thumbs(db, children),
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
@@ -4555,6 +4556,33 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
                          images[0] if images else None)),
         "jsonld": _jsonld(og, p.asset_id, p.manufacturer,
                           entry.type_label(p.type) or "Computer part")})
+
+
+@app.get("/parts/{aid}/bom", response_class=HTMLResponse, include_in_schema=False)
+def gui_part_bom(aid: str, request: Request, db: Session = Depends(get_db)):
+    """A small proof workbench for the reference BOM linked to one physical board."""
+    p = get_or_404(db, Part, aid)
+    ctx = bom.workbench(db, p)
+    if ctx is None:
+        raise HTTPException(404, f"{aid} has no linked BOM")
+    return templates.TemplateResponse(request, "bom.html", {
+        "p": p, **ctx,
+        "og": _og(request, f"BOM for {entry.display_name(to_dict(p))}",
+                  ctx["reference"].name or "Reference BOM")})
+
+
+@app.get("/inventory", response_class=HTMLResponse, include_in_schema=False)
+def gui_inventory(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(request, "inventory.html", {
+        "rows": inventory.inventory_rows(db),
+        "og": _og(request, "Inventory", "Replacement-part inventory")})
+
+
+@app.get("/storage-locations", response_class=HTMLResponse, include_in_schema=False)
+def gui_storage_locations(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(request, "storage_locations.html", {
+        "rows": inventory.storage_rows(db),
+        "og": _og(request, "Storage locations", "Inventory storage hierarchy")})
 
 
 @app.get("/parts/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)

@@ -71,6 +71,11 @@
     {% if p.url %}<tr><th>Reference</th><td class="wrap"><a href="{{ p.url }}" target="_blank">{{ p.url }}</a></td></tr>{% endif %}
     {% if p.notes %}<tr><th>Notes</th><td class="lines">{{ p.notes | linked }}</td></tr>{% endif %}
     </table>
+    {% if bom_link %}
+    <div class="toolbar" style="margin-bottom:0">
+      <a class="btn sm" href="/parts/{{ p.asset_id }}/bom">BOM Workbench</a>
+    </div>
+    {% endif %}
 
     {% if request.state.authed and computers %}
     <div class="toolbar" style="margin-bottom:0">
