@@ -35,7 +35,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import (bom, drivedb, enrich, entry, filesdb, inventory, labels,
+from . import (bom, donor, drivedb, enrich, entry, filesdb, inventory, labels,
                machinedb, machines, projects, ramdb, specdb, specstruct, thumbs)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
     BRANDING_DIR, IMAGE_EXTS, IMAGES_DIR, LEGACY_DISK_BUSES, REGISTER,
@@ -46,7 +46,7 @@ from .ids import next_asset_id
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
 from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
                      ComputerRamChip, ComputerRamModule, IoSpec, LogEntry, LogPhoto,
-                     MotherboardSpec, NetworkSpec, Part, PartPort, PartRamSlot,
+                     InventoryItem, MotherboardSpec, NetworkSpec, Part, PartPort, PartRamSlot,
                      PartSlot, Project, ProjectAsset, ProjectOrder, ProjectTask,
                      SoundSpec, StorageSpec, StoredFile, VideoSpec)
 from .schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate,
@@ -4567,8 +4567,89 @@ def gui_part_bom(aid: str, request: Request, db: Session = Depends(get_db)):
         raise HTTPException(404, f"{aid} has no linked BOM")
     return templates.TemplateResponse(request, "bom.html", {
         "p": p, **ctx,
+        "position_states": bom.POSITION_STATES,
+        "storage_locations": inventory.storage_rows(db),
+        "inventory_lots": inventory.inventory_rows(db),
+        "available_items": db.query(InventoryItem).filter_by(
+            lifecycle_status="inventory", active=True).order_by(
+                InventoryItem.item_code, InventoryItem.id).all(),
         "og": _og(request, f"BOM for {entry.display_name(to_dict(p))}",
                   ctx["reference"].name or "Reference BOM")})
+
+
+@app.post("/parts/{aid}/bom/setup", include_in_schema=False)
+async def gui_setup_part_bom(aid: str, request: Request,
+                             db: Session = Depends(get_db)):
+    form = await request.form()
+    try:
+        donor.setup_board(db, aid.upper(), str(form.get("baseline_state", "")),
+                          role=str(form.get("board_role", "donor")))
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc)) from exc
+    return RedirectResponse(f"/parts/{aid}/bom", status_code=303)
+
+
+@app.post("/parts/{aid}/bom/positions/{position_id}/state",
+          include_in_schema=False)
+async def gui_set_part_bom_state(aid: str, position_id: int, request: Request,
+                                 db: Session = Depends(get_db)):
+    form = await request.form()
+    try:
+        donor.set_position_state(db, aid.upper(), position_id,
+                                 str(form.get("state", "unknown")),
+                                 observed=str(form.get("observed", "")) or None,
+                                 notes=str(form.get("notes", "")) or None)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc)) from exc
+    return RedirectResponse(f"/parts/{aid}/bom", status_code=303)
+
+
+@app.post("/parts/{aid}/bom/positions/{position_id}/harvest",
+          include_in_schema=False)
+async def gui_harvest_part_bom_position(aid: str, position_id: int,
+                                        request: Request,
+                                        db: Session = Depends(get_db)):
+    form = await request.form()
+    location = str(form.get("storage_location_id", "")).strip()
+    lot_id = str(form.get("lot_id", "")).strip()
+    try:
+        donor.harvest_position(
+            db, aid.upper(), position_id,
+            lot_id=int(lot_id) if lot_id else None,
+            storage_location_id=int(location) if location else None,
+            item_code=str(form.get("item_code", "")).strip() or None,
+            condition=str(form.get("condition", "pulled")),
+            event_date=(date.fromisoformat(str(form.get("event_date")))
+                        if form.get("event_date") else None),
+            notes=str(form.get("notes", "")).strip() or None)
+        db.commit()
+    except (ValueError, TypeError) as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc)) from exc
+    return RedirectResponse(f"/parts/{aid}/bom", status_code=303)
+
+
+@app.post("/parts/{aid}/bom/positions/{position_id}/install",
+          include_in_schema=False)
+async def gui_install_part_bom_position(aid: str, position_id: int,
+                                        request: Request,
+                                        db: Session = Depends(get_db)):
+    form = await request.form()
+    try:
+        donor.install_item(db, int(form.get("inventory_item_id", "")),
+                           aid.upper(), position_id,
+                           event_date=(date.fromisoformat(str(form.get("event_date")))
+                                       if form.get("event_date") else None),
+                           notes=str(form.get("notes", "")).strip() or None)
+        db.commit()
+    except (ValueError, TypeError) as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc)) from exc
+    return RedirectResponse(f"/parts/{aid}/bom", status_code=303)
 
 
 @app.get("/inventory", response_class=HTMLResponse, include_in_schema=False)

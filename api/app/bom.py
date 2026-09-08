@@ -8,8 +8,8 @@ sparse state overlay for one physical board.
 from __future__ import annotations
 
 from .models import (BomComponent, BomHousePart, BomPartNumber, BomPosition,
-                     BomPositionEvidence, BomSource, PartBom, ReferenceBom,
-                     PartBomPositionState)
+                     BomPositionEvidence, BomSource, ComponentEvent, InventoryItem,
+                     InventoryLot, PartBom, PartBomPositionState, ReferenceBom)
 
 REFERENCE_STATUSES = ["draft", "verified"]
 VERIFYING_STATUSES = {"verified", "trusted"}
@@ -144,9 +144,42 @@ def workbench(db, part):
     states = {s.position_id: s for s in
               db.query(PartBomPositionState)
               .filter(PartBomPositionState.part_id == part.asset_id).all()}
+    item_ids = {s.inventory_item_id for s in states.values()
+                if s.inventory_item_id is not None}
+    items = {item.id: item for item in db.query(InventoryItem)
+             .filter(InventoryItem.id.in_(item_ids)).all()} if item_ids else {}
+    item_lots = {item.id: db.get(InventoryLot, item.lot_id)
+                 for item in items.values()}
+
+    def fitted_label(item):
+        if item is None:
+            return ""
+        lot = item_lots.get(item.id)
+        if lot is None:
+            return ""
+        return component_label(db.get(BomComponent, lot.component_id),
+                               db.get(BomPartNumber, lot.part_number_id),
+                               db.get(BomHousePart, lot.house_part_id))
+    event_rows = []
+    events = (db.query(ComponentEvent)
+              .filter((ComponentEvent.source_part_id == part.asset_id)
+                      | (ComponentEvent.destination_part_id == part.asset_id))
+              .order_by(ComponentEvent.created_at.desc(), ComponentEvent.id.desc())
+              .all())
+    for event in events:
+        position_id = (event.source_position_id
+                       if event.source_part_id == part.asset_id
+                       else event.destination_position_id)
+        event_rows.append({
+            "event": event,
+            "position": db.get(BomPosition, position_id) if position_id else None,
+            "item": (db.get(InventoryItem, event.inventory_item_id)
+                     if event.inventory_item_id else None),
+        })
     return {
         "link": link,
         "reference": ref,
+        "events": event_rows,
         "rows": [{
             "position": pos,
             "component": components.get(pos.component_id),
@@ -158,6 +191,11 @@ def workbench(db, part):
                                         pos.expected),
             "evidence": evidence.get(pos.id, []),
             "state": states.get(pos.id),
+            "item": (items.get(states[pos.id].inventory_item_id)
+                     if pos.id in states else None),
+            "fitted": fitted_label(
+                items.get(states[pos.id].inventory_item_id)
+                if pos.id in states else None),
             "baseline_state": inherited_state_label(link),
         } for pos in positions],
     }
