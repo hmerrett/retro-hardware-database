@@ -180,3 +180,61 @@ def test_donor_migration_round_trip_preserves_foundation_data(scratch_db_url):
         )).scalar_one() == "inventory"
         assert conn.execute(text("SELECT COUNT(*) FROM component_event")).scalar_one() == 0
     engine.dispose()
+
+
+def test_compatibility_migration_round_trip_preserves_existing_data(scratch_db_url):
+    _assert_alembic(
+        _alembic(scratch_db_url, "upgrade", "0036_donor_workflow"),
+        "upgrade 0036_donor_workflow",
+    )
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO computers (asset_id, name) VALUES ('COMPAT-COMP', 'Existing')"
+        ))
+        conn.execute(text(
+            "INSERT INTO parts (asset_id, computer_id, parent_id, type, board_role) "
+            "VALUES ('COMPAT-PART', 'COMPAT-COMP', NULL, 'motherboard', 'repair')"
+        ))
+        conn.execute(text(
+            "INSERT INTO bom_component (generic_name) VALUES ('Existing component')"
+        ))
+        component_id = conn.execute(text("SELECT LAST_INSERT_ID()")).scalar_one()
+        conn.execute(text(
+            "INSERT INTO bom_part_number (component_id, manufacturer, part_number) "
+            "VALUES (:component_id, 'Existing maker', 'EXISTING-PN')"
+        ), {"component_id": component_id})
+
+    _assert_alembic(_alembic(scratch_db_url, "upgrade", "head"), "upgrade head")
+    with engine.connect() as conn:
+        assert conn.execute(text(
+            "SELECT board_role FROM parts WHERE asset_id = 'COMPAT-PART'"
+        )).scalar_one() == "repair"
+        assert conn.execute(text(
+            "SELECT part_number FROM bom_part_number WHERE part_number = 'EXISTING-PN'"
+        )).scalar_one() == "EXISTING-PN"
+        assert conn.execute(text(
+            "SELECT COUNT(*) FROM component_compatibility"
+        )).scalar_one() == 0
+        assert conn.execute(text(
+            "SELECT COUNT(*) FROM component_production_use"
+        )).scalar_one() == 0
+
+    _assert_alembic(
+        _alembic(scratch_db_url, "downgrade", "0036_donor_workflow"),
+        "downgrade 0036_donor_workflow",
+    )
+    with engine.connect() as conn:
+        assert conn.execute(text(
+            "SELECT COUNT(*) FROM parts WHERE asset_id = 'COMPAT-PART'"
+        )).scalar_one() == 1
+        assert conn.execute(text(
+            "SELECT COUNT(*) FROM bom_part_number WHERE part_number = 'EXISTING-PN'"
+        )).scalar_one() == 1
+
+    _assert_alembic(_alembic(scratch_db_url, "upgrade", "head"), "re-upgrade head")
+    with engine.connect() as conn:
+        assert conn.execute(text(
+            "SELECT COUNT(*) FROM component_compatibility"
+        )).scalar_one() == 0
+    engine.dispose()

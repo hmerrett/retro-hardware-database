@@ -55,6 +55,7 @@
   <tr>
     <th>Ref</th>
     <th>Expected</th>
+    <th>Compatibility</th>
     <th>Evidence</th>
     <th>Physical state / observation</th>
     {% if request.state.authed %}<th>Bench actions</th>{% endif %}
@@ -75,6 +76,27 @@
           {{ ' · ' if pos.side or pos.region else '' }}{{ '%.3f'|format(pos.x_norm) }}, {{ '%.3f'|format(pos.y_norm) }}
         {% endif %}
       </span>
+      {% endif %}
+    </td>
+    <td>
+      {% if row.compatibility %}
+        {% for fact in row.compatibility %}
+        <div>
+          <strong>{{ fact.candidate.manufacturer or '' }} {{ fact.candidate.part_number or 'unknown part' }}</strong>
+          · {{ fact.relationship.relationship_type }}
+          · {{ fact.relationship.status }}
+          {% if fact.relationship.caveat %}<br><span class="muted">{{ fact.relationship.caveat | linked }}</span>{% endif %}
+          {% if fact.evidence %}<br><span class="muted">{{ fact.evidence | length }} evidence source{{ '' if fact.evidence | length == 1 else 's' }}</span>{% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+        <span class="muted">no explicit compatibility claims</span>
+      {% endif %}
+      {% if row.inventory_candidates %}
+        <br><strong>Owned candidates</strong>
+        {% for candidate in row.inventory_candidates %}
+        <div>{{ candidate.part_number.manufacturer or '' }} {{ candidate.part_number.part_number or 'unknown part' }} · {{ candidate.classification }} · {{ candidate.usable_quantity }} available{% if candidate.fact and candidate.fact.relationship.caveat %}<br><span class="muted">{{ candidate.fact.relationship.caveat | linked }}</span>{% endif %}</div>
+        {% endfor %}
       {% endif %}
     </td>
     <td>
