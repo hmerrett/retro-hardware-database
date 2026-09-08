@@ -23,13 +23,36 @@ def upgrade():
         sa.Column("display_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("active", sa.Boolean(), nullable=False, server_default="1"),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.CheckConstraint("parent_id IS NULL OR parent_id != id",
-                           name="ck_storage_location_not_self_parent"),
         sa.ForeignKeyConstraint(["parent_id"], ["storage_location.id"],
                                 ondelete="SET NULL"),
     )
     op.create_index("ix_storage_location_parent_id", "storage_location",
                     ["parent_id"])
+    # MariaDB rejects a CHECK which refers to this table's auto-increment id.
+    # Triggers retain database-level protection for direct writes; the service
+    # helper additionally rejects longer ancestor/descendant cycles.
+    op.execute("""
+        CREATE TRIGGER trg_storage_location_no_self_parent_insert
+        BEFORE INSERT ON storage_location
+        FOR EACH ROW
+        BEGIN
+            IF NEW.parent_id IS NOT NULL AND NEW.parent_id = NEW.id THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'storage location cannot be its own parent';
+            END IF;
+        END
+    """)
+    op.execute("""
+        CREATE TRIGGER trg_storage_location_no_self_parent_update
+        BEFORE UPDATE ON storage_location
+        FOR EACH ROW
+        BEGIN
+            IF NEW.parent_id IS NOT NULL AND NEW.parent_id = NEW.id THEN
+                SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'storage location cannot be its own parent';
+            END IF;
+        END
+    """)
     op.create_table(
         "inventory_lot",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
@@ -88,5 +111,7 @@ def downgrade():
     op.drop_index("ix_inventory_lot_part_number_id", table_name="inventory_lot")
     op.drop_index("ix_inventory_lot_component_id", table_name="inventory_lot")
     op.drop_table("inventory_lot")
+    op.execute("DROP TRIGGER IF EXISTS trg_storage_location_no_self_parent_update")
+    op.execute("DROP TRIGGER IF EXISTS trg_storage_location_no_self_parent_insert")
     op.drop_index("ix_storage_location_parent_id", table_name="storage_location")
     op.drop_table("storage_location")

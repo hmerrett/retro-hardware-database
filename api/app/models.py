@@ -898,12 +898,14 @@ class PartBomPositionState(Base):
 
 
 class StorageLocation(Base):
-    """A tree of user storage locations for physical inventory."""
+    """A tree of user storage locations for physical inventory.
+
+    MariaDB cannot put a CHECK involving the auto-increment ``id`` column on
+    this table, so migration 0035 enforces direct self-parenting with INSERT and
+    UPDATE triggers. Longer cycles remain the responsibility of the supported
+    application write helper.
+    """
     __tablename__ = "storage_location"
-    __table_args__ = (
-        CheckConstraint("parent_id IS NULL OR parent_id != id",
-                        name="ck_storage_location_not_self_parent"),
-    )
     id = Column(Integer, primary_key=True, autoincrement=True)
     parent_id = Column(Integer, ForeignKey("storage_location.id",
                                            ondelete="SET NULL"),

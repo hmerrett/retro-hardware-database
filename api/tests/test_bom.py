@@ -1,6 +1,6 @@
 """The first BOM layer: reference assertions beside physical board state."""
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app import bom as bomlogic
 from app import inventory
@@ -362,6 +362,16 @@ class TestStorageLocations:
 
         with pytest.raises(ValueError, match="own parent"):
             inventory.set_location_parent(db, loc, loc.id)
+
+    def test_database_rejects_direct_self_parenting(self, db):
+        loc = StorageLocation(name="Direct loop")
+        db.add(loc)
+        db.flush()
+        loc.parent_id = loc.id
+
+        with pytest.raises(DBAPIError, match="cannot be its own parent"):
+            db.commit()
+        db.rollback()
 
     def test_path_updates_when_a_location_moves(self, db):
         first = StorageLocation(name="First workshop")
