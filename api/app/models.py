@@ -36,7 +36,9 @@ class Computer(Base):
     # worth having: a machine can be looked up by the number on its own back, and a
     # warranty date, a factory or a production run can be read off it later by
     # somebody who knows how.
-    serial = Column(String(64), default="")
+    # Not nullable: "" is the one spelling of a number nobody has written down, so
+    # the column cannot hold the second one the API used to choke on (0034).
+    serial = Column(String(64), nullable=False, default="", server_default="")
     chassis = Column(String(64), default="")
     os = Column(String(255), default="")
     cpu = Column(String(255), default="")
@@ -94,7 +96,7 @@ class Part(Base):
     # The number on this one, for the reason a machine has one (see Computer.serial).
     # A part is where it matters most often: two identical SIMMs are told apart by
     # nothing else, and a drive's own label is the only place its date code lives.
-    serial = Column(String(64), default="")
+    serial = Column(String(64), nullable=False, default="", server_default="")
     specs = Column(Text, default="")
     # The rendered cache of the catalogue rows, in exactly the relation to
     # asset_variant / asset_chip that computers.variant is: written from them on
