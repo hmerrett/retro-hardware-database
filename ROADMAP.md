@@ -99,7 +99,28 @@ match, a `CHANGELOG.md` started, then tag `v0.1.0`.
 ## After 0.1
 
 0.2 is shaped by what 0.1's installers report; guessing now would be inventing
-requirements.
+requirements. One item is decided already and waiting on the release:
+
+**Catalogue contributions without a pull request** (#29). Adding a machine
+currently means editing a file in the repository and opening a PR, which filters
+contributors by their comfort with git rather than by whether they know the
+hardware. The fix is a GitHub issue form (`.github/ISSUE_TEMPLATE/`) collecting
+the flat fields a model has — family, key, model, year, cpu, chassis, os, ram,
+issues, styles, sources — and an Action that turns a labelled submission into a
+pull request adding one catalogue file. CI validates it by loading it, which is
+the same validation the running site does and so costs nothing to write. A GitHub
+account is the prerequisite: no submission endpoint on the register, no
+credential in the app, no service to host.
+
+It needs `machines.yaml` split into per-family fragments first, so that a new
+machine is a new file rather than an edit to a 9,961-line one. The `chips:` block
+does not fit a flat form and is left to the pull request, where a maintainer's eye
+is worth most anyway.
+
+Not taken up from #29: the portable format, global identifiers and
+synchronisation. There is one catalogue, it ships with the code and it has one
+history, so duplicates only become possible once local-only entries exist — which
+is a decision to take when somebody has one worth protecting, not before.
 
 ## Out of scope
 
