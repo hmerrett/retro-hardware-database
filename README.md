@@ -135,7 +135,15 @@ and applies the migrations on start.
 
 ## Licence and credits
 
-Thank you to Jonathan (@theretroloft) for advice, guidance and contributions. 
+Licensed under the [GNU Affero General Public License v3.0](LICENSE). Use it,
+fork it, improve it and run it — including inside a business, a museum or another
+institution, where running it carries no obligations at all. If you modify it and
+make that modified version available to others over a network, the licence asks
+that you offer them its source, so improvements find their way back.
+
+Thank you to Jonathan (@theretroloft) for advice, guidance and contributions,
+and to Nathen (@Soopahfly) for the console catalogue entries, the dark-mode
+contrast fixes and various other contributions.
 
 If it is not already obvious, much of this code is written using modern tools such as Claude. While the usual disclaimers apply, it is reviewed by humans and in use on multiple deployments on the public Internet. 
 
