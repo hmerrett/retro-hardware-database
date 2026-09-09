@@ -63,3 +63,79 @@ def test_upgrade_head_on_empty_database(scratch_db_url):
         "alembic upgrade head failed on an empty database:\n"
         f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
     )
+
+
+# The revision 0034 builds on. Alembic identifies a migration by its `revision`
+# string, which is not the file name.
+BEFORE_SERIAL_FIX = "0033_work_project_names"
+
+
+def _alembic(url, *args):
+    """Run the alembic CLI against `url` and return the completed process."""
+    return subprocess.run(
+        ["alembic", *args], cwd=API_DIR, capture_output=True, text=True,
+        env={**os.environ, "DATABASE_URL": url},
+    )
+
+
+def test_serials_left_null_before_0034_are_backfilled(scratch_db_url):
+    """0034 settles an unrecorded serial on "" for rows that predate it.
+
+    0028 added the column nullable and backfilled nothing, so every row already in
+    a collection got NULL while every row written since got the model's "". The
+    API promised a string and a NULL row 500'd the whole list. Upgrading has to
+    bring the old rows into line, not just stop new ones happening.
+    """
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_SERIAL_FIX)
+    assert up.returncode == 0, f"upgrade to 0033 failed:\n{up.stderr}"
+
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        # Bare rows, which is what a collection that ran 0028 was left holding:
+        # every column defaulted and `serial` therefore NULL. parent_id is named
+        # only because the column carries a stray DEFAULT '' that its own foreign
+        # key then rejects -- unrelated to this migration, and not this test's
+        # business to trip over.
+        conn.execute(text("INSERT INTO computers (asset_id) VALUES ('RH-OLD1')"))
+        conn.execute(text("INSERT INTO computers (asset_id, serial) VALUES "
+                          "('RH-OLD2', 'SN-KEPT')"))
+        conn.execute(text("INSERT INTO parts (asset_id, parent_id) VALUES "
+                          "('RH-OLD3', NULL)"))
+
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+
+    with engine.begin() as conn:
+        rows = dict(conn.execute(text(
+            "SELECT asset_id, serial FROM computers UNION ALL "
+            "SELECT asset_id, serial FROM parts")).all())
+        assert rows == {"RH-OLD1": "", "RH-OLD2": "SN-KEPT", "RH-OLD3": ""}
+
+        # And the column can no longer hold the state that caused the bug.
+        for table in ("computers", "parts"):
+            nullable = conn.execute(text(
+                "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE "
+                "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND "
+                "COLUMN_NAME = 'serial'"), {"t": table}).scalar_one()
+            assert nullable == "NO", f"{table}.serial is still nullable"
+    engine.dispose()
+
+
+def test_the_serial_backfill_can_be_downgraded(scratch_db_url):
+    """0034's downgrade puts the column back as 0028 left it. It cannot know which
+    rows were NULL -- that is gone the moment they are written -- so it restores
+    the nullability and leaves the values alone, which is the honest half."""
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_SERIAL_FIX)
+    assert down.returncode == 0, f"downgrade from 0034 failed:\n{down.stderr}"
+
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        for table in ("computers", "parts"):
+            nullable = conn.execute(text(
+                "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE "
+                "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND "
+                "COLUMN_NAME = 'serial'"), {"t": table}).scalar_one()
+            assert nullable == "YES", f"{table}.serial did not go back to nullable"
+    engine.dispose()
