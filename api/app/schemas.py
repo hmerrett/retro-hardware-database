@@ -26,6 +26,20 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
+def _null_is_blank(v):
+    """A serial that reads as null is one nobody wrote down, which is "".
+
+    Belt to 0034's braces. That migration makes the column NOT NULL so the app's
+    own database cannot produce a null here again, but a database restored from a
+    backup taken before it can -- and this shape is read from ORM rows, so a single
+    null used to fail response validation for the entire list rather than for the
+    one row holding it. Coercing costs nothing and keeps the blast radius at the
+    row. On the way in it means a caller may send null for "not recorded", the
+    leniency PartIn's links already extend.
+    """
+    return "" if v is None else v
+
+
 class MachineIn(BaseModel):
     """A machine's catalogue identity as it arrives. Every field is optional so a
     caller can name a board issue without restating the model, and the fields it
@@ -102,6 +116,8 @@ class ComputerIn(BaseModel):
     disposed_at: date | None = None
     disposed_note: str = ""
     machine: MachineIn | None = None
+
+    _serial_null_is_blank = field_validator("serial", mode="before")(_null_is_blank)
 
 
 class WorkIn(BaseModel):
@@ -195,6 +211,8 @@ class PartIn(BaseModel):
     def _blank_link_is_none(cls, v):
         """A blank link means standalone, which the column stores as NULL."""
         return v or None
+
+    _serial_null_is_blank = field_validator("serial", mode="before")(_null_is_blank)
 
 
 class PartCreate(PartIn, WorkIn):

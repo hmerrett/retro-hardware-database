@@ -13,7 +13,7 @@ from typing import ClassVar
 
 import pytest
 
-from app import main
+from app import main, schemas
 
 
 def served(client, page):
@@ -5954,3 +5954,39 @@ class TestPhotographsAreServedAtTheSizeAsked:
         plain = client.get("/static/site.webmanifest").headers["cache-control"]
         assert "immutable" in stamped and "31536000" in stamped
         assert "immutable" not in plain
+
+
+class TestASerialThatWasNeverRecorded:
+    """0028 added `serial` nullable and backfilled nothing, while the model and the
+    response shape both said an unrecorded one is "". Two spellings of the same
+    state, and the API only spoke one: a single NULL row made
+    `GET /api/computers` a 500 for the whole list, which took the public REST API
+    and every MCP tool with it. 0034 settles it on "" and makes the column NOT
+    NULL; these hold both ends of that.
+    """
+
+    def test_an_unrecorded_serial_reads_back_blank(self, computer, part):
+        c = computer(model="No Number")
+        assert c["serial"] == ""
+        assert part(model="Also None")["serial"] == ""
+
+    def test_listing_survives_a_machine_with_no_serial(self, client, computer):
+        computer(model="No Number")
+        r = client.get("/api/computers")
+        assert r.status_code == 200
+        assert [m["serial"] for m in r.json()] == [""]
+
+    def test_listing_survives_a_part_with_no_serial(self, client, part):
+        part(model="Also None")
+        r = client.get("/api/parts")
+        assert r.status_code == 200
+        assert [p["serial"] for p in r.json()] == [""]
+
+    @pytest.mark.parametrize("shape", [schemas.ComputerOut, schemas.PartOut])
+    def test_a_null_from_an_older_database_still_reads_as_blank(self, shape):
+        """The belt to 0034's braces, and not reachable end-to-end once the column
+        is NOT NULL -- which is the point. A database restored from a backup taken
+        before 0034 carries NULLs into a schema that no longer allows them, and one
+        of those must not cost the caller the entire list. Asserted against the
+        shape directly because the schema will no longer let the row exist."""
+        assert shape.model_validate({"asset_id": "RH-0001", "serial": None}).serial == ""
