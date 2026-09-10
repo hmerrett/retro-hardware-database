@@ -455,6 +455,15 @@ class StoredFile(Base):
     size = Column(Integer, nullable=False, default=0)
     note = Column(String(255), nullable=False, default="", server_default="")
     created_at = Column(DateTime, index=True)
+    # Whether a visitor may see this one at all.
+    #
+    # The other way up from projects.private, and on purpose. A project is a piece
+    # of writing about the collection and is worth reading by default; an upload is
+    # whatever came out of a drawer, and the drawer holds receipts with an address
+    # on them as readily as it holds a driver disk. So nothing is published until
+    # somebody says it is, and the tick that says so is the only thing standing
+    # between a scanned invoice and the open web (ADR-0009).
+    public = Column(Boolean, nullable=False, default=False, server_default="0")
 
 
 class FileTag(Base):
