@@ -26,13 +26,33 @@ Install Docker if it is not already there:
 curl -fsSL https://get.docker.com | sh
 ```
 
-Check it works: `docker compose version` should print a version.
+On a cloud image you are usually a non-root user, and the installer leaves the
+Docker socket owned by root. Add yourself to the `docker` group, or every command
+below fails with `permission denied ... /var/run/docker.sock`:
+
+```sh
+sudo usermod -aG docker $USER
+```
+
+Then **log out and back in** — group membership is granted at login, so the
+session you ran that in still does not have it.
+
+Check it works:
+
+```sh
+docker ps
+```
+
+An empty table is the right answer. Check `docker ps`, not `docker compose
+version`: the version is printed by the command-line tool alone and succeeds
+whether or not you can reach the daemon, so it tells you nothing about the step
+that actually matters.
 
 ## 2. Get the code
 
 ```sh
-git clone https://github.com/<your-fork>/retro-hardware-db.git
-cd retro-hardware-db
+git clone https://github.com/hmerrett/retro-hardware-db-2.git
+cd retro-hardware-db-2
 ```
 
 Any directory will do.
@@ -79,7 +99,8 @@ Two of these matter more than they look:
 
 There is no separate database setup step. The database container creates the
 database and the user from these values the first time it starts, and the app
-creates its own tables.
+brings the schema up to date with Alembic before it serves anything — on a new
+install that means running every migration from empty.
 
 ## 4. Set your hostname
 
@@ -181,17 +202,18 @@ upgrading never touch it. But volumes live on one disk on one machine, so:
 tools/backup.sh
 ```
 
-writes two timestamped files into `./backups`:
+writes three timestamped files into `./backups`:
 
 - `db-<stamp>.sql.gz` — the whole database
 - `images-<stamp>.tgz` — the uploaded photographs
+- `files-<stamp>.tgz` — the drivers, manuals and receipts kept beside the register
 
 Set `RHDB_BACKUP_DIR` to write them somewhere else. **Copy them off the host** —
 a backup on the same disk as the thing it backs up is not a backup. A nightly
 cron entry and an `rsync` or `rclone` to somewhere else is enough:
 
 ```cron
-17 3 * * * cd /root/retro-hardware-db && ./tools/backup.sh >> /var/log/rhdb-backup.log 2>&1
+17 3 * * * cd /root/retro-hardware-db-2 && ./tools/backup.sh >> /var/log/rhdb-backup.log 2>&1
 ```
 
 Keep a copy of `.env` too. It is configuration rather than data, so the backup
@@ -204,13 +226,7 @@ Restoring is in the header comment of `tools/backup.sh`; the short form is:
 gunzip -c backups/db-<stamp>.sql.gz \
   | docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb -uroot
 docker compose exec -T api tar -xzf - -C /app < backups/images-<stamp>.tgz
-```
-
-Files uploaded beside the register (drivers, manuals, ROM dumps) are in a third
-volume, `files`, which the backup script does not yet cover. Back it up with:
-
-```sh
-docker compose exec -T api tar -czf - -C /app files > backups/files-$(date +%F).tgz
+docker compose exec -T api tar -xzf - -C /app < backups/files-<stamp>.tgz
 ```
 
 ## 8. Keeping it up to date
@@ -373,17 +389,21 @@ The site is at <http://localhost:8000> and the API console at
 blank in `.env` runs it with no login at all, which is the quickest way to have a
 look around.
 
-Or run the app on its own, with no containers and a SQLite file for a database:
+There is no SQLite path. Alembic owns the schema and its migrations are written
+for MariaDB, so the app no longer builds its own tables from the models
+(ADR-0008) — pointed at a SQLite file it starts and then answers every page with
+an error about a table that is not there. The suite refuses a SQLite
+`DATABASE_URL` outright for the same reason.
+
+To run the app outside a container against the database in one, publish the
+database's port in a compose override and point `DATABASE_URL` at it:
 
 ```sh
 cd api
 pip install -r requirements.txt
-DATABASE_URL=sqlite:///dev.db uvicorn app.main:app --reload
+DATABASE_URL=mysql+pymysql://retro:<your DB_PASSWORD>@127.0.0.1:3306/retro \
+  uvicorn app.main:app --reload
 ```
-
-Note that the Alembic migrations are written for MariaDB; on SQLite the app
-builds its tables from the models instead. That path is for development and for
-looking around, not for keeping a collection in.
 
 ---
 
