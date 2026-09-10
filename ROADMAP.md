@@ -24,13 +24,21 @@ decide before the work below can start.
 
 ## The work, in order
 
-**1. Walk the install on a clean host.** ADR-0002 exists because a fresh
-`docker compose up` crash-looped. CI proves the migrations reach head from empty,
-but nothing exercises the walk a person does: clone, fill `.env`, set the
-hostname, start it, log in, add an item, print a label, scan it. Do this *first*
-rather than last — a stale step is cheap to find now and expensive to find in a
-release. The `RHDB_SECRET_KEY` fail-fast and the compose `${VAR:?}` guards are
-already in place and can be trusted.
+**1. Make the repository public, then walk §2.** The walk was done on a clean
+Ubuntu 24.04 host (2026-09-10) and everything after §2 holds: all 35 migrations
+ran from empty with no crash-loop, Caddy had a certificate on the first attempt,
+and logging in, adding a machine from the catalogue, adding a part to it,
+printing a label and scanning it all worked. What it found is fixed — the missing
+`docker` group step, a check that passed without reaching the daemon, a SQLite
+development path that cannot work since Alembic took the schema, a backup script
+that left the `files` volume behind, and a QR scan that dropped to plain HTTP.
+
+What could not be walked is §2 itself: the repository is private, so `git clone`
+fails for anybody who is not the author, and the guide named the wrong repository
+besides. The licence is in place and the intent is a public release, so this is
+now a decision and a click rather than a piece of work — but until it is made,
+nobody can follow the guide from its second step, and the walk cannot be repeated
+end to end by a stranger.
 
 **2. Turn CI on for fork pull requests.** #25 arrived from a fork with four
 migrations and zero checks. Ten minutes of settings, and it protects everything
