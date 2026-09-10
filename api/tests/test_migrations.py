@@ -139,3 +139,57 @@ def test_the_serial_backfill_can_be_downgraded(scratch_db_url):
                 "COLUMN_NAME = 'serial'"), {"t": table}).scalar_one()
             assert nullable == "YES", f"{table}.serial did not go back to nullable"
     engine.dispose()
+
+
+# The revision 0035 builds on, by its `revision` string rather than its file name.
+BEFORE_PUBLIC_FILES = "0034_serial_not_null"
+
+
+def test_files_already_on_file_stay_public_across_0035(scratch_db_url):
+    """0035 keeps what is already there published, and starts everything after it
+    private.
+
+    Uploads were public from 0020 until this migration, and the collection's
+    drivers and manuals are linked from item pages and from printed QR labels. A
+    column defaulting to 0 with no backfill would have taken every one of them off
+    the site on the deployment that ran it -- so the rows that predate the flag are
+    published, and only new uploads inherit the default. Both halves are asserted
+    here because either alone is the wrong feature.
+    """
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_PUBLIC_FILES)
+    assert up.returncode == 0, f"upgrade to 0034 failed:\n{up.stderr}"
+
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO files (stored, filename, size) VALUES "
+                          "('abc123.zip', 'tvga.zip', 12)"))
+
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+
+    with engine.begin() as conn:
+        assert conn.execute(text(
+            "SELECT public FROM files WHERE filename = 'tvga.zip'")).scalar_one() == 1
+        # And the column an upload written after the migration lands in.
+        conn.execute(text("INSERT INTO files (stored, filename, size) VALUES "
+                          "('def456.pdf', 'receipt.pdf', 34)"))
+        assert conn.execute(text(
+            "SELECT public FROM files WHERE filename = 'receipt.pdf'")).scalar_one() == 0
+    engine.dispose()
+
+
+def test_the_public_flag_can_be_downgraded(scratch_db_url):
+    """Going back drops the column, which is the state where every file is public
+    again -- honest rather than safe, and the reason the migration says so."""
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_PUBLIC_FILES)
+    assert down.returncode == 0, f"downgrade from 0035 failed:\n{down.stderr}"
+
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        assert conn.execute(text(
+            "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE "
+            "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'files' AND "
+            "COLUMN_NAME = 'public'")).scalar_one() == 0
+    engine.dispose()
