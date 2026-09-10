@@ -5834,6 +5834,11 @@ class TestFilesReadLikeThePartsDo:
                                                       monkeypatch):
         aid = computer()["asset_id"]
         self.upload(client, aid, tags=f"{aid}, Creative Labs Sound Blaster")
+        # Published first, or there is no card for a visitor to be shown the
+        # chips on: an upload is kept back until it is ticked (ADR-0009).
+        fid = client.get("/api/files").json()[0]["id"]
+        client.post(f"/files/{fid}/public", data={"public": "1"},
+                    follow_redirects=False)
         monkeypatch.setattr(main, "AUTH_ENABLED", True)
         page = client.get(f"/computers/{aid}").text
         assert '<span class="chip">Creative Labs Sound Blaster</span>' in page

@@ -5,6 +5,10 @@ A driver is about a model, so a file is filed under the names it covers and ever
 item answering to one of them offers it. These tests are mostly about that matching
 -- who sees a file and who does not -- and about the two things that make serving
 somebody else's uploads back out of your own domain safe.
+
+Since 0035 there is a second sense of "who sees a file": the same box that takes a
+driver disk takes a receipt with an address on it, so nothing is published until
+it is ticked (ADR-0009). TestPublishingOne is that half.
 """
 from app import filesdb
 from app.models import FileTag, StoredFile
@@ -13,6 +17,16 @@ from app.models import FileTag, StoredFile
 def upload(client, name, body=b"driver bytes", tags="", note="", **extra):
     r = client.post("/files", files={"uploads": (name, body)},
                     data={"tags": tags, "note": note, **extra},
+                    follow_redirects=False)
+    assert r.status_code == 303, r.text
+    return r
+
+
+def publish(client, fid, public=True):
+    """Tick the box, or untick it. An unticked checkbox sends no field at all,
+    which is what the off case posts here."""
+    r = client.post(f"/files/{fid}/public",
+                    data={"public": "1"} if public else {},
                     follow_redirects=False)
     assert r.status_code == 303, r.text
     return r
@@ -261,6 +275,7 @@ class TestWhoMayDoWhat:
         p = part(manufacturer="Trident", model="TVGA8900")
         upload(client, "tvga.zip", tags="Trident TVGA8900")
         fid = ids_on(client, f"/parts/{p['asset_id']}").pop()
+        publish(client, fid)
         from app import main
         monkeypatch.setattr(main, "AUTH_ENABLED", True)
         assert client.get(f"/files/{fid}/tvga.zip").status_code == 200
@@ -275,6 +290,115 @@ class TestWhoMayDoWhat:
         monkeypatch.setattr(main, "AUTH_ENABLED", True)
         page = client.get(f"/parts/{p['asset_id']}").text
         assert "Files" in page and 'action="/files"' not in page
+
+
+
+
+class TestPublishingOne:
+    """Nothing is on the open web until somebody says so.
+
+    The register is a public catalogue and its drivers and manuals are part of
+    what it is for, but the box that takes them takes receipts too, and a receipt
+    carries a name and an address. So the tick, and these tests: that the default
+    is off, that the tick is the whole answer, and that a file kept back is kept
+    back everywhere rather than only where it is listed."""
+
+    def test_a_new_upload_is_not_public(self, client, part, monkeypatch):
+        p = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "tvga.zip", tags="Trident TVGA8900")
+        fid = ids_on(client, f"/parts/{p['asset_id']}").pop()
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        assert client.get(f"/files/{fid}/tvga.zip").status_code == 404
+        assert not ids_on(client, f"/parts/{p['asset_id']}")
+
+    def test_ticking_the_box_publishes_it(self, client, part, monkeypatch):
+        p = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "tvga.zip", body=b"driver", tags="Trident TVGA8900")
+        fid = ids_on(client, f"/parts/{p['asset_id']}").pop()
+        publish(client, fid)
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        assert client.get(f"/files/{fid}/tvga.zip").content == b"driver"
+        assert ids_on(client, f"/parts/{p['asset_id']}") == {fid}
+
+    def test_unticking_it_takes_it_back(self, client, part, monkeypatch):
+        """The point of a toggle rather than a publish button: something put up by
+        mistake has to come down, and come down everywhere."""
+        p = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "tvga.zip", tags="Trident TVGA8900")
+        fid = ids_on(client, f"/parts/{p['asset_id']}").pop()
+        publish(client, fid)
+        publish(client, fid, public=False)
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        assert client.get(f"/files/{fid}/tvga.zip").status_code == 404
+        assert not ids_on(client, f"/parts/{p['asset_id']}")
+        assert "tvga.zip" not in client.get("/files").text
+
+    def test_a_file_kept_back_is_not_reachable_by_its_tag(self, client, part,
+                                                          monkeypatch):
+        """The tag chips lead from an item page to /files?tag=..., which asks the
+        same question of the same names. A file hidden on the page and listed
+        under its own tag would be hidden in the one place nobody looks."""
+        upload(client, "receipt.pdf", tags="Trident TVGA8900")
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        assert "receipt.pdf" not in client.get("/files?tag=Trident TVGA8900").text
+
+    def test_an_unpublished_file_is_missing_rather_than_forbidden(self, client,
+                                                                  monkeypatch):
+        """404 and not 401. There is no account a visitor could log in to, so an
+        invitation to authenticate would say only that the file is there -- which
+        for a receipt filed under an asset id is most of what was being kept."""
+        upload(client, "invoice.pdf", tags="RH-0001")
+        fid = str(client.get("/api/files").json()[0]["id"])
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        r = client.get(f"/files/{fid}/invoice.pdf", follow_redirects=False)
+        assert r.status_code == 404
+        assert "www-authenticate" not in r.headers
+
+    def test_the_owner_is_shown_both(self, client, part):
+        """Whoever can publish has to be able to see what is not published, or
+        there is no page to tick the box on."""
+        p = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "public.zip", tags="Trident TVGA8900")
+        upload(client, "private.zip", tags="Trident TVGA8900")
+        publish(client, sorted(ids_on(client, f"/parts/{p['asset_id']}"))[0])
+        page = client.get(f"/parts/{p['asset_id']}").text
+        assert "public.zip" in page and "private.zip" in page
+        assert len(ids_on(client, "/files")) == 2
+
+    def test_only_the_owner_may_publish(self, client, part, monkeypatch):
+        upload(client, "tvga.zip", tags="Trident TVGA8900")
+        fid = str(client.get("/api/files").json()[0]["id"])
+        from app import main
+        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        r = client.post(f"/files/{fid}/public", data={"public": "1"},
+                        follow_redirects=False)
+        assert r.status_code == 303 and "/login" in r.headers["location"]
+        monkeypatch.setattr(main, "AUTH_ENABLED", False)
+        assert client.get("/api/files").json()[0]["public"] is False
+
+    def test_an_unpublished_file_is_not_cached_anywhere(self, client):
+        """The owner is the only person who can fetch one, and unticking the box
+        has to stop the copy being handed out -- which a cache holding it for the
+        hour the published header asks for would carry on doing."""
+        upload(client, "invoice.pdf", tags="RH-0001")
+        fid = client.get("/api/files").json()[0]["id"]
+        r = client.get(f"/files/{fid}/invoice.pdf")
+        assert r.headers["cache-control"] == "private, no-store"
+        publish(client, fid)
+        r = client.get(f"/files/{fid}/invoice.pdf")
+        assert r.headers["cache-control"] == "public, max-age=3600"
+
+    def test_the_wire_format_says_which(self, client):
+        upload(client, "manual.pdf", tags="Amstrad PCW 8256")
+        fid = client.get("/api/files").json()[0]["id"]
+        publish(client, fid)
+        assert client.get("/api/files").json()[0]["public"] is True
+
 
 
 class TestSizesRead:
