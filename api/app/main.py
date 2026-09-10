@@ -297,6 +297,12 @@ def _public_page(path: str) -> bool:
     # a manual is part of what the catalogue is for. Downloading one is public;
     # putting one there, re-filing it and deleting it are all POSTs, so they are
     # already behind the login by the rule above.
+    #
+    # Which file, though, is not a question a path can answer: the same route
+    # serves a manual and a receipt, and only the row knows which. So this says
+    # the door is open and `serve_file` asks who may come through it -- see
+    # ADR-0009. The list at /files is public for the same reason and thins itself
+    # the same way.
     if path == "/files" or path.startswith("/files/"):
         return True
     if path.startswith("/items/"):
@@ -2055,7 +2061,8 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
     return templates.TemplateResponse(request, "computer.html", {
         "machine": machine, "detachable": detachable,
         "item": (cdict := to_dict(c)), "kind": "computers",
-        "files": filesdb.for_item(db, cdict), "fileerr": bool(fileerr),
+        "files": filesdb.for_item(db, cdict, request.state.authed),
+        "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
         "in_projects": projects.projects_for(db, aid, request.state.authed),
         # For the picker in that panel, which only an owner is shown -- so a
@@ -3333,7 +3340,8 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "p": p, "parent": parent, "host": host, "children": children,
         "thumbs": part_thumbs(db, children),
         "item": (pdict := to_dict(p)), "kind": "parts",
-        "files": filesdb.for_item(db, pdict), "fileerr": bool(fileerr),
+        "files": filesdb.for_item(db, pdict, request.state.authed),
+        "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
         "in_projects": projects.projects_for(db, aid, request.state.authed),
         # For the picker in that panel, which only an owner is shown -- so a
@@ -3719,8 +3727,9 @@ def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
 # Drivers, manuals, ROM dumps. Not hung off an asset id: a file is tagged with the
 # names it is for and every item answering to one of them offers it, which is what
 # stops a collection with three of the same card holding the same driver three
-# times. app/filesdb.py owns the matching and the bytes; these are the four things
-# a person does with one.
+# times. app/filesdb.py owns the matching and the bytes; these are the five things
+# a person does with one -- the fifth being to publish it, since a file is kept
+# back from visitors until it is (ADR-0009).
 
 
 def _file_or_404(db, fid):
@@ -3731,7 +3740,8 @@ def _file_or_404(db, fid):
 
 
 @app.get("/files/{fid}/{name}", include_in_schema=False)
-def serve_file(fid: int, name: str, db: Session = Depends(get_db)):
+def serve_file(fid: int, name: str, request: Request,
+               db: Session = Depends(get_db)):
     """Hand over the bytes, always as a download and never as a page.
 
     An upload is whatever somebody sent, and some of what people send is HTML, or
@@ -3739,15 +3749,28 @@ def serve_file(fid: int, name: str, db: Session = Depends(get_db)):
     site's cookies. So: one content type for everything, an attachment
     disposition, and nosniff to stop the browser deciding it knows better. `name`
     is in the URL for the sake of the link reading like the file, and is not what
-    is opened -- the id is."""
+    is opened -- the id is.
+
+    An unpublished file is a 404 to a visitor rather than a 401, and the same 404
+    a missing id gets. There is nothing to log in *for* here -- the login is the
+    owner's, not an account a reader could hold -- so an invitation to authenticate
+    would only confirm that the file exists, which for the receipt this flag was
+    added to cover is most of what was being kept back."""
     row = _file_or_404(db, fid)
+    if not row.public and not request.state.authed:
+        raise HTTPException(404, f"file {fid} not found")
     path = filesdb.path_of(row)
     if not path.is_file():
         raise HTTPException(404)
     return FileResponse(path, media_type="application/octet-stream", headers={
         "Content-Disposition": f'attachment; filename="{_ascii_filename(row.filename)}"',
         "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "public, max-age=3600"})
+        # A published file may be kept by anything that sees it; an unpublished one
+        # may not be kept at all. The owner is the only person who can fetch one,
+        # and the point of unticking the box is that the copy stops being handed
+        # out -- which a shared cache holding it for the hour would carry on doing.
+        "Cache-Control": ("public, max-age=3600" if row.public
+                          else "private, no-store")})
 
 
 def _ascii_filename(name):
@@ -3795,6 +3818,21 @@ async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db
                             status_code=303)
 
 
+@app.post("/files/{fid}/public", include_in_schema=False)
+async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_db)):
+    """Publish one, or take it back.
+
+    The box on the page is the answer, so an absent field is "no": an unticked
+    checkbox sends nothing at all, which is the one form control whose off state
+    has to be read from its silence."""
+    row = _file_or_404(db, fid)
+    form = await request.form()
+    row.public = bool(form.get("public"))
+    db.commit()
+    return RedirectResponse(_safe_next(form.get("next") or "/files"),
+                            status_code=303)
+
+
 @app.post("/files/{fid}/delete", include_in_schema=False)
 async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_db)):
     row = _file_or_404(db, fid)
@@ -3810,7 +3848,7 @@ def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
     """Everything on file, for finding the driver whose card is not in front of
     you and for seeing what a tag is spelled as before typing it again."""
     return templates.TemplateResponse(request, "files.html", {
-        "files": filesdb.all_files(db, tag), "tag": tag,
+        "files": filesdb.all_files(db, tag, request.state.authed), "tag": tag,
         "og": _og(request, "Files", "Drivers, manuals and disks kept with the "
                                     "hardware they belong to")})
 
@@ -3821,7 +3859,7 @@ def api_list_files(tag: str = "", db: Session = Depends(get_db)):
     filed under. `tag` narrows it to one name, matched the way the pages match:
     ignoring case and spacing."""
     return [{"id": f.id, "filename": f.filename, "size": f.size, "note": f.note,
-             "tags": f.tags, "created_at": f.created_at,
+             "tags": f.tags, "created_at": f.created_at, "public": f.public,
              "url": f"/files/{f.id}/{quote(f.filename)}"}
             for f in filesdb.all_files(db, tag)]
 

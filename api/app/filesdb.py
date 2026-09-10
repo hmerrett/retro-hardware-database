@@ -25,6 +25,13 @@ Sound Blaster.
 The fold drops case and every space, because "Sound Blaster", "soundblaster" and
 "SOUND  BLASTER" are one name written by three people.
 
+A file is also either published or not, and starts unpublished. The register is a
+public catalogue, but this box takes receipts as readily as driver disks, so who
+may see one is asked here rather than left to the auth rules: `authed=False` is a
+visitor, and a visitor is shown the published ones alone. The download route asks
+the same question of the same column -- a listing that hides a file and a URL that
+still hands it over is not privacy (ADR-0009).
+
 This module owns the bytes too. The name on disk is generated and the uploaded name
 is only ever data -- see `save`.
 """
@@ -101,14 +108,16 @@ def _file_ids_for(db, keys):
             if tag_fold and any(tag_fold in key for key in keys)}
 
 
-def for_item(db, item):
+def for_item(db, item, authed=True):
     """Every file whose tags this item's names contain, newest first, each with its
-    tags attached as `.tags`."""
+    tags attached as `.tags`. A visitor is shown the published ones alone."""
     ids = _file_ids_for(db, keys_for(item))
     if not ids:
         return []
-    rows = (db.query(StoredFile).filter(StoredFile.id.in_(ids))
-            .order_by(StoredFile.created_at.desc(), StoredFile.id.desc()).all())
+    q = db.query(StoredFile).filter(StoredFile.id.in_(ids))
+    if not authed:
+        q = q.filter(StoredFile.public.is_(True))
+    rows = q.order_by(StoredFile.created_at.desc(), StoredFile.id.desc()).all()
     return with_tags(db, rows)
 
 
@@ -128,11 +137,15 @@ def with_tags(db, rows):
     return rows
 
 
-def all_files(db, tag=""):
+def all_files(db, tag="", authed=True):
     """Everything on file, newest first -- or, given a name, what something called
     that would be offered. The same rule the item pages use, so following a tag
-    from a page shows what that page shows and not a narrower list."""
+    from a page shows what that page shows and not a narrower list -- which is why
+    `authed` is asked here too: an unpublished file left in this list would be
+    reachable from the tag chip on the very page it was kept off."""
     q = db.query(StoredFile)
+    if not authed:
+        q = q.filter(StoredFile.public.is_(True))
     if fold(tag):
         ids = _file_ids_for(db, {fold(tag)})
         if not ids:
