@@ -13,7 +13,7 @@
 
 {% if files %}
 <table>
-  <tr><th>File</th><th>Filed under</th><th class="tight">Size</th><th class="tight">Added</th>{% if request.state.authed %}<th></th>{% endif %}</tr>
+  <tr><th>File</th><th>Filed under</th><th class="tight">Size</th><th class="tight">Added</th>{% if request.state.authed %}<th class="tight">Public</th><th></th>{% endif %}</tr>
   {% for f in files %}
   <tr>
     <td><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
@@ -32,6 +32,17 @@
     <td class="tight muted">{{ human_size(f.size) }}</td>
     <td class="tight muted">{{ log_stamp(f.created_at, request.state.authed) if f.created_at else '' }}</td>
     {% if request.state.authed %}
+    {# The column a visitor never sees, because a visitor is only ever shown the
+       ticked ones. It is the whole of what this page can tell you that the item
+       pages cannot: what is on the open web, in one list, sorted by nothing but
+       when it arrived. #}
+    <td class="tight"><form method="post" action="/files/{{ f.id }}/public" style="margin:0"
+              data-ticksend>
+        <input type="hidden" name="next" value="/files{{ ('?tag=' + tag|urlencode) if tag else '' }}">
+        <label class="tickbox"><input type="checkbox" name="public" value="1"
+          {{ 'checked' if f.public else '' }}
+          aria-label="{{ f.filename }} is public"></label>
+        <button class="btn sm" type="submit" data-send-go>save</button></form></td>
     <td><form method="post" action="/files/{{ f.id }}/delete" style="margin:0"
               onsubmit="return confirm('Delete {{ f.filename }}?')">
         <input type="hidden" name="next" value="/files">

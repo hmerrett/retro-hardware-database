@@ -36,17 +36,17 @@ already in place and can be trusted.
 migrations and zero checks. Ten minutes of settings, and it protects everything
 after it.
 
-**3. Implement ADR-0006 — file links and the private flag.** The only
-user-visible correctness item, and the only one that risks exposing something
-personal: files are associated by name-matching and are public, and a receipt can
-carry a name, an address or a card's last four digits.
+**3. Implement ADR-0006 — file links.** The only user-visible correctness item
+left in the file store. The half that risked exposing something personal is done:
+a file is published by hand and starts unpublished (ADR-0009 amends ADR-0006's
+default), the listing and the download are both gated, and an unpublished one is
+a 404 served `private, no-store`. What remains is the association under that gate,
+which is still a substring match recomputed per request.
 
 - `file_asset` and `file_model` join tables; asset ids as plain columns.
 - Backfill by running the existing matcher once and writing what it finds.
   Test-first: assert the fixture set's associations survive. Read the output
   before trusting it — it preserves the matcher's mistakes too.
-- `private` flag, defaulting public. Gate the file index and item pages, not only
-  the download; `Cache-Control: private, no-store` on those.
 - Demote tags to descriptive labels; rewrite the two docstrings that argue for
   name-matching.
 - Lift the `files` routes into `files.py` while in there — a free step of item 5,
