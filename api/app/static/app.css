@@ -266,6 +266,15 @@
   .itemcard > .cardrow input { flex: 1 1 200px; min-width: 0; padding: 4px 7px;
     border: 1px solid var(--line); border-radius: 6px; font: inherit;
     font-size: 13px; background: transparent; color: inherit; }
+  /* A tick is not a text box. The rule above dresses the row's inputs as boxes to
+     type in and lets them take the width, which a checkbox given the same
+     treatment accepts -- a bordered, stretched, empty rectangle with a tick
+     somewhere in it. */
+  .tickbox { display: inline-flex; align-items: center; gap: 6px; margin: 0;
+    font-size: 13px; }
+  .tickbox input[type=checkbox], .itemcard > .cardrow .tickbox input[type=checkbox] {
+    flex: 0 0 auto; width: auto; min-width: 0; padding: 0; border: 0;
+    border-radius: 0; }
   /* A list that is the panel's own content: the box is already drawn, so the cards
      give theirs up and keep their bands -- edge to edge, one rule between one and
      the next, the way a table's rows sit under its heading. A list nested deeper

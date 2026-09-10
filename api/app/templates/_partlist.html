@@ -111,6 +111,22 @@
       </form>
       {% else %}{% for t in f.tags %}<span class="chip">{{ t }}</span>{% endfor %}{% endif %}
     </div>
+    {# Who may see it. Only the owner is ever shown this row, and only the owner
+       has anything to read in it: a visitor is shown published files and nothing
+       else, so a tick beside one of them would say what every file they can see
+       already says. #}
+    {% if authed %}
+    <div class="cardrow">
+      <span class="lbl">Public</span>
+      <form method="post" action="/files/{{ f.id }}/public" data-ticksend>
+        <input type="hidden" name="next" value="{{ back }}">
+        <label class="tickbox"><input type="checkbox" name="public" value="1"
+          {{ 'checked' if f.public else '' }}>
+          {{ 'visitors can download this' if f.public else 'kept back from visitors' }}</label>
+        <button class="btn sm" type="submit" data-send-go>save</button>
+      </form>
+    </div>
+    {% endif %}
   </article>
   {% endfor %}
 </div>

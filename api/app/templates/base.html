@@ -1613,6 +1613,23 @@
       });
     }
   })();
+
+  // A tick is an answer, not a draft. Marked data-ticksend, a form with a checkbox
+  // in it sends the moment the box changes, for the reason the picker above does:
+  // the gesture was made, and hunting for a save button afterwards is the second
+  // half of one intention. The button stays in the markup and hides itself here,
+  // so a browser running none of this still has the two-gesture version.
+  (function () {
+    for (const form of document.querySelectorAll('form[data-ticksend]')) {
+      const box = form.querySelector('input[type=checkbox]');
+      const go = form.querySelector('[data-send-go]');
+      if (!box) continue;
+      if (go) go.hidden = true;
+      box.addEventListener('change', () => {
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+      });
+    }
+  })();
 </script>
 <script>
   // Photos picked on a create form are held until it is submitted, so the picker
