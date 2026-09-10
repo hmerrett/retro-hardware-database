@@ -1003,6 +1003,28 @@ tag it with that unit's asset tag. The upload box on an item page offers both:
 it arrives prefilled with what the item is called, and the hint reminds you of
 the tag.
 
+### Who can see a file
+
+**Nothing you upload is public until you tick the box beside it.** Every file has
+a **Public** tick — on its card in the Files panel, and in the Public column of
+the `/files` page — and it starts unticked. The tick takes effect the moment you
+click it; there is no save button to find afterwards.
+
+Until it is ticked, a visitor is not shown the file on any item page, does not
+see it in the file list, does not reach it by following a tag, and gets "not
+found" if they are given the link. You see all of your files, ticked or not,
+whenever you are logged in.
+
+This is because the same box takes a driver disk and a receipt, and a receipt has
+your name and address on it — and the way to attach one to a single machine
+(tagging it with the asset tag) is exactly the case where forgetting would matter
+most. Unticking a file takes it back down everywhere, immediately.
+
+Files that were already uploaded when this arrived are ticked: they were public
+before, and taking the collection's drivers and manuals off the site overnight
+would have been the wrong way to protect the handful that are receipts. Untick
+anything that should not have been there.
+
 Uploads are limited to 64 MiB each. The stored filename is generated, never taken
 from the upload; the name you uploaded is kept as data, and used for the download.
 

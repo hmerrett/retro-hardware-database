@@ -51,9 +51,19 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 - Pinned/locked and scanned (`pip-audit` in CI). Pinning gives control; scanning
   gives awareness — you need both.
 
-## Open decision for the owner
+## Uploaded files are published by hand
 
-Uploaded files (including anything pinned to an asset as a "receipt") are
-currently **public**. If receipts can carry names/addresses/payment details and
-should be private, that needs a private-file flag, a gate on the download route,
-and a marker in the files UI. Owner's call — don't change it silently.
+**A file is not public until it is ticked** (`files.public`, default false,
+ADR-0009). This was the open decision the owner has now made: the same box that
+takes a driver disk takes a receipt with a name, an address and a card's last
+four digits on it.
+
+- Gate the **listing and the download alike**. A file kept off an item page and
+  still fetchable at its URL is not private, and neither is one kept off the page
+  and listed under its own tag at `/files?tag=…`.
+- An unpublished file answers **404, not 401**. There is no account a reader could
+  hold, so an authentication prompt would only confirm the file exists.
+- Serve it `private, no-store`. Unticking the box has to stop the copy being
+  handed out, which a cache holding the published `max-age` would not.
+- The files already on file when 0035 ran were published by it, because they were
+  already public. Anything uploaded since starts private.

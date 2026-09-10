@@ -1,6 +1,7 @@
 # 0006 — Files are linked to what they are for, not named after it
 
-**Status:** Accepted
+**Status:** Accepted — privacy default amended by
+[ADR-0009](0009-a-file-is-published-by-hand.md)
 **Date:** 2026-09-08
 
 ## Context
