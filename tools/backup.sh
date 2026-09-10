@@ -5,11 +5,13 @@
 # Writes two timestamped files into ./backups (override with RHDB_BACKUP_DIR):
 #   db-<stamp>.sql.gz      the whole MariaDB database (computers + parts)
 #   images-<stamp>.tgz     the uploaded photos
+#   files-<stamp>.tgz      the drivers, manuals and receipts kept beside it
 #
 # Restore (into a running stack):
 #   gunzip -c backups/db-<stamp>.sql.gz \
 #     | docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb -uroot
 #   docker compose exec -T api tar -xzf - -C /app < backups/images-<stamp>.tgz
+#   docker compose exec -T api tar -xzf - -C /app < backups/files-<stamp>.tgz
 #
 # The dump carries its own CREATE DATABASE + USE, so it always lands on the live
 # database whatever you name on the command line. To inspect a snapshot beside
@@ -45,5 +47,14 @@ echo "==> Archiving photos"
 docker compose exec -T api tar -czf - -C /app --exclude="images/.*" images \
   > "$DEST/images-$STAMP.tgz"
 
+echo "==> Archiving files"
+# The drivers, manuals and ROM dumps kept beside the register: a third volume, and
+# for a while a third thing the installer was told to back up by hand. What made
+# that untenable is that the same store holds receipts, which are the one thing
+# here that cannot be downloaded again from anywhere.
+docker compose exec -T api tar -czf - -C /app files \
+  > "$DEST/files-$STAMP.tgz"
+
 echo "==> Done:"
-ls -lh "$DEST/db-$STAMP.sql.gz" "$DEST/images-$STAMP.tgz" | awk '{print "    " $9 "  (" $5 ")"}'
+ls -lh "$DEST/db-$STAMP.sql.gz" "$DEST/images-$STAMP.tgz" "$DEST/files-$STAMP.tgz" \
+  | awk '{print "    " $9 "  (" $5 ")"}'
