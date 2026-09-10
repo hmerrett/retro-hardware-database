@@ -49,6 +49,8 @@ collection has needs a text editor and nothing else.
   QR code back to the item.
 - **Files** kept beside the register — a driver disk, a manual, a ROM dump —
   tagged with the hardware they are for, so every matching item offers them.
+  Each one is private until you tick it public, because the same box takes the
+  receipt as takes the driver.
 - **Projects** — the work, as against the collection: a repair, a build, a
   machine wanted and not yet found, with a list of jobs and a list of things on
   order to tick off as they arrive. A project need own nothing; computers and

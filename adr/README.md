@@ -26,8 +26,11 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0005](0005-the-tuneup-is-conservative-and-takes-one-step-back.md) — The photo
   tuneup is conservative, and takes exactly one step back — *Accepted*
 - [0006](0006-files-are-linked-to-what-they-are-for.md) — Files are linked to what
-  they are for, not named after it — *Accepted*
+  they are for, not named after it — *Accepted* (privacy default amended by
+  [0009](0009-a-file-is-published-by-hand.md))
 - [0007](0007-the-register-records-what-is-owned.md) — The register records what is
   owned, not what it is made of — *Accepted*
 - [0008](0008-the-suite-runs-on-mariadb.md) — The suite runs on MariaDB, and builds
   its schema from the migrations — *Accepted*
+- [0009](0009-a-file-is-published-by-hand.md) — A file is published by hand —
+  *Accepted*
