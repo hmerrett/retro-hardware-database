@@ -18,15 +18,22 @@ from the test suite, so every line of it is executed by CI.
 
 ## 1. What this is
 
-A self-hosted catalogue for one person's retro-computer collection. Every machine,
-expansion card, drive and chip gets an asset tag, a page, photographs and a dated
-history. You print a QR label, stick it on the item, and scanning it opens that
-item's page. Browsing is public; editing needs a login.
+A self-hosted catalogue for a retro-computer collection and the workshop around
+it. Every machine, expansion card, drive and chip gets an asset tag, a page,
+photographs and a dated history. You print a QR label, stick it on the item, and
+scanning it opens that item's page. Browsing is public; editing needs a login.
 
-It began as a CSV file and grew into a web app, which is why some of its shape is
-historical rather than designed. The data-entry model — the vocabularies, the
-guided walk, the quick-entry shorthands — is a deliberate port of the flat-file
-system that preceded it, so that years of established habits kept working.
+**It is a product other people run** (ADR-0011) — not a hosted service with
+accounts, but something someone installs for their own collection, on their own
+machine, with their own data. That was not true at the start and the code still
+shows it in places; §8 lists where.
+
+It began as one person's CSV file and grew into a web app, which is why some of
+its shape is historical rather than designed. The data-entry model — the
+vocabularies, the guided walk, the quick-entry shorthands — is a deliberate port
+of the flat-file system that preceded it, so that years of established habits
+kept working. Those habits are one collector's, which is a thing to remember when
+another collector's shelf has something on it the model has no word for.
 
 Three kinds of thing live in the register:
 
@@ -226,13 +233,26 @@ breaking one turns CI red rather than merely being wrong.
 Things genuinely undecided, recorded here so they are not rediscovered:
 
 - **What 0.1 means** — which of the below must be true before it is cut.
-- **Configurable, not extensible** — settled: it will be open source and public,
-  and anyone may fork it. That decision is what makes a full inversion of the
-  spec-and-tests relationship optional rather than necessary.
 - **The specification is generated, not authored.** `api/openapi.json` is now
   pinned, so the shape cannot change silently, but the document is still a report
-  of the code rather than a definition the code is built to. Inverting it is
-  possible and nothing blocks it. *(ADR-0010)*
+  of the code rather than a definition the code is built to. Now that strangers
+  write against it, inverting it buys something real. *(ADR-0010, ADR-0011)*
+- **The database is someone else's choice.** MariaDB-only is a sound testing
+  decision for one installation and a hardware requirement for a product. No raw
+  SQL exists anywhere and the ORM is used throughout, so Postgres or SQLite is
+  probably close — but nothing proves it. *(ADR-0008, ADR-0011)*
+- **There is one username and one password**, from the environment, with no user
+  table. A workshop is often more than one person, and there is no way to add a
+  second without sharing the first. Whether that becomes accounts is a question to
+  answer deliberately.
+- **The vocabularies are one collector's**, ported from the flat-file system.
+  Another collection has things on it this model cannot name.
+- **The asset-id prefix is hard-coded** to `RH-` in `ids.py`. It stands for Retro
+  Hardware rather than anyone's initials, so it is not wrong for a stranger — but
+  it is not theirs either.
+- **Upgrades run against data nobody here has seen.** ADR-0002 already forbids a
+  migration assuming specific rows; the cost of breaking that is now someone
+  else's collection rather than a reimport.
 - **Most tests describe rather than require.** 1,220 of them, nearly all driving
   the app through the HTTP boundary. They are a real asset and they do test
   observable behaviour — but they were written after the code, so they ratify it.
@@ -245,7 +265,8 @@ Things genuinely undecided, recorded here so they are not rediscovered:
   environment. Fine for one person; a question the moment it is two.
 - **Accessibility** is partly true by accident — contrast and touch targets are
   tested, public pages have landmarks and alt text — and is not yet a rule anyone
-  is held to.
+  is held to. For a product other people run it is an obligation rather than a
+  courtesy, and it is wanted before 0.1.
 
 ## 9. Where decisions are written down
 
@@ -264,6 +285,7 @@ it was weighed against, and what it costs.
 | 0008 | The suite runs on MariaDB, and builds its schema from the migrations |
 | 0009 | A file is published by hand |
 | 0010 | The published API shape is kept in the repository |
+| 0011 | The register is a product other people run |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously
