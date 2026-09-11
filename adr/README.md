@@ -34,3 +34,9 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   its schema from the migrations — *Accepted*
 - [0009](0009-a-file-is-published-by-hand.md) — A file is published by hand —
   *Accepted*
+- [0010](0010-the-published-api-shape-is-kept-in-the-repository.md) — The published
+  API shape is kept in the repository — *Accepted*
+- [0012](0012-run-alongside-an-existing-reverse-proxy.md) — Run alongside an
+  existing reverse proxy — *Proposed*
+- [0013](0013-stay-server-rendered-polish-through-design.md) — Stay server-rendered;
+  polish comes from design, not a SPA — *Proposed*
