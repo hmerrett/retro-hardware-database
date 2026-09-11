@@ -50,3 +50,23 @@ class TestItsChecksCannotPassByAccident:
         """So a cron job or a CI step that restores to prove a backup fails loudly."""
         tail = _code().rsplit('if [ "$problems" -gt 0 ]; then', 1)[1]
         assert "exit 1" in tail.split("fi", 1)[0]
+
+
+class TestItLeavesTheSiteWorkingNotJustLoaded:
+    """Found by restoring a real production backup: the dump was two migrations
+    behind the running code. Every row count matched and the home page answered,
+    and /files was a 500 over a column the dump's schema did not have yet."""
+
+    def test_it_counts_against_the_dump_then_migrates_then_checks_the_pages(self):
+        """In that order. The counts are a check of the dump as it was, so they come
+        before a migration that may backfill; the pages are a check of the site as
+        it will serve, so they come after."""
+        code = _code()
+        counted = code.index('SELECT COUNT(*) FROM')
+        migrated = code.index("alembic upgrade head")
+        pages = code.index("for page in")
+        assert counted < migrated < pages
+
+    def test_it_checks_the_pages_the_home_page_hid_a_fault_behind(self):
+        pages = _code().split("for page in", 1)[1].split(";", 1)[0].split()
+        assert "/" in pages and "/files" in pages

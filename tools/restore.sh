@@ -18,11 +18,15 @@
 # It asks before replacing the database. RHDB_RESTORE_YES=1 skips the question,
 # for a script that has already made the decision.
 #
-# A backup nobody has restored is a hope rather than a backup. The checks at the
-# end are the point of this script as much as the restore is: every table's row
-# count against the dump, the schema version against the dump, every archived
-# photograph and file present at the size it was archived at, and the app
-# answering once it is all back.
+# A backup is usually older than the code it is restored into, so once the rows are
+# checked against the dump the schema is migrated forward to the code's version --
+# the step the app's entrypoint would otherwise take at its next restart, leaving
+# any page that reads a newer column broken until then.
+#
+# A backup nobody has restored is a hope rather than a backup. The checks are the
+# point of this script as much as the restore is: every table's row count and the
+# schema version against the dump, every archived photograph and file present at
+# the size it was archived at, and the public pages answering once it is all back.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -126,6 +130,22 @@ else
     problem "schema version is $got_version, the dump is at $want_version"
 fi
 
+# Counted above against the dump as it was; now brought up to the code that will
+# serve it. Found by restoring a real production backup: the dump was two
+# migrations behind the running code, every count matched, the home page answered,
+# and /files was a 500 over a column the dump's schema did not have yet.
+echo "==> Bringing the schema up to this code's version"
+if docker compose exec -T api alembic upgrade head </dev/null >/dev/null 2>&1; then
+    now_version="$(sql "SELECT version_num FROM alembic_version")"
+    if [ "$now_version" = "$want_version" ]; then
+        echo "    already at $now_version"
+    else
+        echo "    migrated $want_version -> $now_version"
+    fi
+else
+    problem "could not migrate from $want_version; if the backup is newer than this code, update the code first"
+fi
+
 echo "==> Checking photographs and files against their archives"
 # Every regular file in each archive, by path and size, has to be in the volume at
 # that size. Extra files in the volume are not a failure: they were there before.
@@ -152,12 +172,23 @@ for archive in "$IMAGES" "$FILES"; do
     fi
 done
 
-echo "==> Checking the app answers"
-status="$(docker compose exec -T api python -c \
-    "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/').status)" \
-    2>/dev/null || true)"
-[ "$status" = "200" ] && echo "    the home page answers 200" \
-    || problem "the home page did not answer 200 (got '${status:-nothing}')"
+echo "==> Checking the public pages answer"
+# More than the home page: it answered 200 over the broken schema described above,
+# while the file list did not. These are the pages a visitor can reach without a
+# login, and between them they read every kind of thing the register holds.
+for page in / /files /stats /projects /browse?f=all /sitemap.xml; do
+    status="$(docker compose exec -T api python -c \
+        "import sys, urllib.request, urllib.error
+try:
+    print(urllib.request.urlopen('http://127.0.0.1:8000' + sys.argv[1]).status)
+except urllib.error.HTTPError as e:
+    print(e.code)" "$page" </dev/null 2>/dev/null || true)"
+    if [ "$status" = "200" ]; then
+        printf '    %-16s 200\n' "$page"
+    else
+        problem "$page answered '${status:-nothing}', not 200"
+    fi
+done
 
 if [ "$problems" -gt 0 ]; then
     echo "==> Restored, with $problems problem(s) above. Do not trust this backup as it stands."
