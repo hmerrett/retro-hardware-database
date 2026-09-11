@@ -11,5 +11,8 @@ alembic upgrade head
 # still arrives, because Caddy bounces it up again, but the scan makes a cleartext
 # hop first. "*" is the whole of what can reach this port: the app is published on
 # 127.0.0.1 only and Caddy is the sole route to it.
+#
+# Anything passed to this script is handed on to uvicorn, which is how the
+# development override adds --reload without a second copy of this line.
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 \
-    --proxy-headers --forwarded-allow-ips="*"
+    --proxy-headers --forwarded-allow-ips="*" "$@"

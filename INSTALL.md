@@ -384,6 +384,14 @@ cp .env.example .env
 docker compose up --build
 ```
 
+To work on the code, layer the development override on top. The source is mounted
+into the container and the app reloads when a file is saved, so a change shows
+without a rebuild:
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
 The site is at <http://localhost:8000> and the API console at
 <http://localhost:8000/docs>. Leaving `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`
 blank in `.env` runs it with no login at all, which is the quickest way to have a

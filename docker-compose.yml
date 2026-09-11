@@ -17,6 +17,19 @@ services:
       timeout: 5s
       retries: 30
 
+  # Runs before the app, as root, and exits: it gives the photograph and file
+  # volumes to the user the app runs as (api/fix-volumes.sh). Only an install from
+  # before the app stopped running as root needs it -- its volumes are still
+  # root's -- and it changes nothing when nothing is wrong. `docker compose ps -a`
+  # shows it as exited, which is what finished looks like for this one.
+  api-init:
+    build: ./api
+    user: root
+    command: ["./fix-volumes.sh"]
+    volumes:
+      - images:/app/images
+      - files:/app/files
+
   api:
     build: ./api
     restart: unless-stopped
@@ -43,6 +56,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      api-init:
+        condition: service_completed_successfully
 
   mcp:
     build: ./mcp

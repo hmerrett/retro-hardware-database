@@ -24,12 +24,13 @@ from xml.sax.saxutils import escape
 
 from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
                      UploadFile)
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, RedirectResponse,
+                               Response)
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from markupsafe import Markup
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from . import __version__
@@ -282,6 +283,10 @@ def _public_page(path: str) -> bool:
     if path in ("/", "/stats", "/browse", "/suggest", "/robots.txt", "/sitemap.xml",
                 "/favicon.ico",
                 "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
+        return True
+    # The deploy smoke check and any uptime monitor hit this with no credentials
+    # at all -- it must answer before a login is possible, not redirect to one.
+    if path == "/healthz":
         return True
     # The catalogue, in both the shapes it is offered in. This is the one corner of
     # the JSON API that is public, and it is public because there is nothing of the
@@ -565,6 +570,22 @@ def robots_txt(request: Request):
         "Disallow: /*/edit\n"
         f"Sitemap: {base}/sitemap.xml\n")
     return Response(body, media_type="text/plain")
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz(db: Session = Depends(get_db)):
+    """Liveness plus database reachability, for a deploy's smoke check and any
+    uptime monitor. Deliberately public and content-free: it says up or down and
+    nothing else, so it needs no login and gives nothing away.
+
+    It touches the database rather than only answering, because a box that is up
+    but cannot reach MariaDB serves nothing but errors, and a check that called
+    that healthy would let a broken deploy through."""
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception:
+        return JSONResponse({"status": "unhealthy"}, status_code=503)
+    return {"status": "ok"}
 
 
 @app.get("/sitemap.xml", include_in_schema=False)
