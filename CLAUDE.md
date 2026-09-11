@@ -54,6 +54,8 @@ branding belong to the installation and live outside the repo (`.env`,
 - `.claude/rules/workflow-and-ci.md` — branches, commits, CI, dependencies.
 - `.claude/rules/docker-environments.md` — Compose, environments, secrets.
 - `.claude/rules/security-standards.md` — the security rules this app holds to.
+- `.claude/rules/accessibility-standards.md` — what the stylesheet tests enforce,
+  and what is expected of new markup.
 
 If a rule here and a rule file ever disagree, the specific rule file wins; if
 both are silent, ask.
