@@ -45,12 +45,15 @@ branding belong to the installation and live outside the repo (`.env`,
 - **Significant decisions become ADRs** (`adr/`), not just commit messages.
 - **Config comes from the environment**, never hard-coded; secrets never committed
   (`.env` is gitignored, `.env.example` is committed).
+- **Who may see something is decided, not defaulted.** If a request for a feature
+  that stores or shows user-supplied content does not say who may see it, ask
+  before building; if still unsure, private until published (security-standards).
 
 ## The standards (read the file when the task touches it)
 
 - `.claude/rules/backend-standards.md` — Python/FastAPI conventions, tooling.
 - `.claude/rules/database-standards.md` — models, sessions, **Alembic migrations**.
-- `.claude/rules/testing-standards.md` — how the suite runs; SQLite vs MariaDB.
+- `.claude/rules/testing-standards.md` — how the suite runs, on MariaDB alone.
 - `.claude/rules/workflow-and-ci.md` — branches, commits, CI, dependencies.
 - `.claude/rules/docker-environments.md` — Compose, environments, secrets.
 - `.claude/rules/security-standards.md` — the security rules this app holds to.
