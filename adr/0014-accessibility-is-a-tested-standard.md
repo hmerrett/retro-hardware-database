@@ -1,4 +1,4 @@
-# 0010 — Accessibility is a tested standard, not a set of habits
+# 0014 — Accessibility is a tested standard, not a set of habits
 
 **Status:** Proposed
 **Date:** 2026-09-11

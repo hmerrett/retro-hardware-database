@@ -67,4 +67,4 @@ Whether 0.1 commits to **WCAG 2.2 AA** as a target, or carries on as a set of
 habits with a few of them tested. That is a decision with a cost attached — AA
 asks for things this project has not looked at, reflow at 320px and a visible
 focus indicator of a stated size among them — so it belongs in an ADR and not in
-this file. Proposed as [ADR-0010](../../adr/0010-accessibility-is-a-tested-standard.md).
+this file. Proposed as [ADR-0014](../../adr/0014-accessibility-is-a-tested-standard.md).

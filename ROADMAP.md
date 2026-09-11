@@ -95,7 +95,7 @@ touch-size tests in `test_stylesheet.py` exist because each of those things
 shipped broken and a contributor reported one of them (#21). That is care living
 in whoever last looked at it, which is what `security-standards` was written to
 end — so `accessibility-standards` now records what is enforced and what is
-expected, and [ADR-0010](adr/0010-accessibility-is-a-tested-standard.md) proposes
+expected, and [ADR-0014](adr/0014-accessibility-is-a-tested-standard.md) proposes
 WCAG 2.2 AA as the target. **The ADR is Proposed and wants a decision**; the
 three gaps below are an afternoon either way.
 
