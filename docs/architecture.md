@@ -286,6 +286,9 @@ it was weighed against, and what it costs.
 | 0009 | A file is published by hand |
 | 0010 | The published API shape is kept in the repository |
 | 0011 | The register is a product other people run |
+| 0012 | Run alongside an existing reverse proxy *(proposed)* |
+| 0013 | Stay server-rendered; polish comes from design, not a SPA *(proposed)* |
+| 0014 | Accessibility is a tested standard, not a set of habits *(proposed)* |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously
