@@ -34,3 +34,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   its schema from the migrations — *Accepted*
 - [0009](0009-a-file-is-published-by-hand.md) — A file is published by hand —
   *Accepted*
+- [0010](0010-accessibility-is-a-tested-standard.md) — Accessibility is a tested
+  standard, not a set of habits — *Proposed*
