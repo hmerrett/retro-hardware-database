@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1222 behaviours, from 21 files.*
+*1239 behaviours, from 23 files.*
 
 
 ## Api
@@ -1135,7 +1135,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 3 behaviours*
+*test_deployment.py — 10 behaviours*
 
 
 **The api trusts its proxy**
@@ -1144,6 +1144,25 @@ Regenerate with:
 - they are read from the proxy rather than from localhost
 - the schema is brought up before the app serves  
   The other half of the entrypoint, and the reason a deploy needs no migration step of its own.
+
+**The app does not run as root**
+
+- the image ends as appuser
+- the app owns where it writes and not its own code  
+  The data directories are chowned by name, never /app as a whole: code the app can rewrite is code a compromise can rewrite.
+- an older install gets its volumes back before the app starts  
+  An install from before this has root-owned volumes.
+- the fix reaches the two volumes and nothing else  
+  It runs as root, so what it may touch is spelled out and kept small.
+- it looks before it changes anything  
+  A chown -R over every photograph on every start would be slow on a large collection and would churn the backup's view of what changed.
+
+**The development override**
+
+- it goes through the entrypoint  
+  So a development run migrates first and reads the proxy headers exactly as production does, rather than carrying its own copy of the uvicorn line that drifts from the real one.
+- it watches the code and not the photographs  
+  uvicorn watches its whole working directory unless told otherwise, and the photograph volume is inside it: every upload would restart the server.
 
 
 ## Drivedb
@@ -1445,6 +1464,17 @@ Regenerate with:
 **Sizes read**
 
 - a size is said the way it would be said
+
+
+## Healthz
+
+*test_healthz.py — 3 behaviours*
+
+- healthz ok when db reachable
+- healthz reports 503 when db unreachable  
+  A liveness check that returns 200 while the database is down is worse than useless -- it would let a broken deploy pass the smoke check.
+- healthz is public even when auth is enabled  
+  The deploy smoke check has no credentials -- it runs before any exist for that box.
 
 
 ## Image writes
@@ -2117,6 +2147,31 @@ Regenerate with:
 - reset clears a key
 - login blocks after too many failures
 - a good login clears the count
+
+
+## Restore script
+
+*test_restore_script.py — 7 behaviours*
+
+
+**It does nothing until the backup is whole**
+
+- every archive is read through before the database is loaded
+- it asks before replacing the database
+
+**Its checks cannot pass by accident**
+
+- the query in the table loop cannot read the loop s input  
+  `docker compose exec` reads standard input.
+- it counts the tables it checked against the dump
+- a problem makes it exit non zero  
+  So a cron job or a CI step that restores to prove a backup fails loudly.
+
+**It leaves the site working not just loaded**
+
+- it counts against the dump then migrates then checks the pages  
+  In that order.
+- it checks the pages the home page hid a fault behind
 
 
 ## Specstruct
