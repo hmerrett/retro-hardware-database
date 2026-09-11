@@ -36,7 +36,11 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   *Accepted*
 - [0010](0010-the-published-api-shape-is-kept-in-the-repository.md) — The published
   API shape is kept in the repository — *Accepted*
+- [0011](0011-the-register-is-a-product-other-people-run.md) — The register is a
+  product other people run — *Accepted*
 - [0012](0012-run-alongside-an-existing-reverse-proxy.md) — Run alongside an
   existing reverse proxy — *Proposed*
 - [0013](0013-stay-server-rendered-polish-through-design.md) — Stay server-rendered;
   polish comes from design, not a SPA — *Proposed*
+- [0014](0014-accessibility-is-a-tested-standard.md) — Accessibility is a tested
+  standard, not a set of habits — *Proposed*

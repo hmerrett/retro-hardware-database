@@ -63,8 +63,8 @@ which is still a substring match recomputed per request.
 **4. `uv` with a committed `uv.lock`, then `ruff format --check .` in CI.**
 Dependencies first, so everything after it builds from a pinned tree.
 
-**5. Finish splitting `main.py`.** 5,361 lines and 116 routes after
-`common`/`stats`/`photos`. It is why #25 collided with #26, so it pays for itself
+**5. Finish splitting `main.py`.** 4,851 lines and 122 routes after
+`common`/`stats`/`photos`/`search`. It is why #25 collided with #26, so it pays for itself
 in reduced conflict.
 
 *This needs a finish line or it will hold the release indefinitely.* Proposed:
@@ -90,16 +90,38 @@ the CSS half is already done. Two steps: move the inline JS to a cacheable stati
 file, then send the header from Caddy alongside those already there. Independent
 of items 5 and 6, so it can go earlier if the split runs long.
 
-**8. Docker environment separation.** Base plus `dev`/`prod` overrides, a
+**8. Close the accessibility gaps, and decide the target.** The contrast and
+touch-size tests in `test_stylesheet.py` exist because each of those things
+shipped broken and a contributor reported one of them (#21). That is care living
+in whoever last looked at it, which is what `security-standards` was written to
+end — so `accessibility-standards` now records what is enforced and what is
+expected, and [ADR-0014](adr/0014-accessibility-is-a-tested-standard.md) proposes
+WCAG 2.2 AA as the target. **The ADR is Proposed and wants a decision**; the
+three gaps below are an afternoon either way.
+
+- A skip link in `base.html` — a keyboard user currently tabs the whole header
+  on every page.
+- `scope` on the 43 `<th>` in the templates.
+- A `prefers-reduced-motion` block in `app.css`.
+- Tests for the first two in the suite, in the way `test_stylesheet.py` already
+  tests the stylesheet: these are gaps no single change surfaces, so a habit will
+  not catch them coming back.
+
+Sits beside item 7 rather than after it: both are `base.html` work, and the
+inline JavaScript that blocks the CSP is in the same file as the missing skip
+link.
+
+**9. Docker environment separation.** Base plus `dev`/`prod` overrides, a
 multi-stage Dockerfile with deps-before-source layering, a non-root user in prod,
 and a database healthcheck behind `depends_on: condition: service_healthy`.
 
-**9. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
+**10. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
 and MANUAL are detailed, which is exactly why they drift — and the drift is not
 only in the user-facing docs. This pass found `testing-standards`,
 `workflow-and-ci` and `CLAUDE.md` all describing a SQLite test run that no longer
 exists, and a README crediting contributors without ever stating the project's
-licence. So this item covers `.claude/rules/` and `CLAUDE.md` too.
+licence. So this item covers `.claude/rules/` and `CLAUDE.md` too — including
+`accessibility-standards`, which item 8 will have just changed.
 
 The release gate: item 1's walk repeated on a clean host, the docs corrected to
 match, a `CHANGELOG.md` started, then tag `v0.1.0`.

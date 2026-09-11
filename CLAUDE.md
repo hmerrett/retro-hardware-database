@@ -1,7 +1,8 @@
 # Retro Hardware Database — project guide for Claude
 
-This file is loaded automatically. Read it first, then the rule files under
-`.claude/rules/` when a task touches their area. British English throughout.
+This file is loaded automatically. Read it first, then **`docs/architecture.md`**
+— the map of what exists and which rules hold everywhere — then the rule files
+under `.claude/rules/` when a task touches their area. British English throughout.
 
 ## What this is
 
@@ -34,6 +35,15 @@ branding belong to the installation and live outside the repo (`.env`,
 - `api/migrations/` — Alembic migrations. `api/tests/` — the test suite.
 - `docker-compose.yml`, `caddy/Caddyfile` — the stack.
 - `.claude/rules/` — the standards below. `adr/` — architecture decision records.
+- `docs/architecture.md` — the map: the request's path through the app, the
+  register's one pool of asset ids, the data model and its derived-cache pattern,
+  every module and what it owns, the invariants, and what is still undecided.
+  Start here before changing anything. Its module inventory is checked by the
+  suite, so it cannot quietly come to describe code that is not there.
+- `docs/behaviour.md` — what the software does, case by case. **Generated** from
+  `api/tests/`, so every line of it is executed by CI; grep it rather than read
+  it. Rewrite with `RHDB_UPDATE_BEHAVIOUR=1 pytest api/tests/test_architecture.py`
+  when the tests change, never by hand.
 
 ## How we work
 
@@ -45,15 +55,20 @@ branding belong to the installation and live outside the repo (`.env`,
 - **Significant decisions become ADRs** (`adr/`), not just commit messages.
 - **Config comes from the environment**, never hard-coded; secrets never committed
   (`.env` is gitignored, `.env.example` is committed).
+- **Who may see something is decided, not defaulted.** If a request for a feature
+  that stores or shows user-supplied content does not say who may see it, ask
+  before building; if still unsure, private until published (security-standards).
 
 ## The standards (read the file when the task touches it)
 
 - `.claude/rules/backend-standards.md` — Python/FastAPI conventions, tooling.
 - `.claude/rules/database-standards.md` — models, sessions, **Alembic migrations**.
-- `.claude/rules/testing-standards.md` — how the suite runs; SQLite vs MariaDB.
+- `.claude/rules/testing-standards.md` — how the suite runs, on MariaDB alone.
 - `.claude/rules/workflow-and-ci.md` — branches, commits, CI, dependencies.
 - `.claude/rules/docker-environments.md` — Compose, environments, secrets.
 - `.claude/rules/security-standards.md` — the security rules this app holds to.
+- `.claude/rules/accessibility-standards.md` — what the stylesheet tests enforce,
+  and what is expected of new markup.
 
 If a rule here and a rule file ever disagree, the specific rule file wins; if
 both are silent, ask.
