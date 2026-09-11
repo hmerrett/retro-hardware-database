@@ -2,12 +2,14 @@
 #
 # Local backup of the Retro Hardware Database.
 #
-# Writes two timestamped files into ./backups (override with RHDB_BACKUP_DIR):
+# Writes three timestamped files into ./backups (override with RHDB_BACKUP_DIR):
 #   db-<stamp>.sql.gz      the whole MariaDB database (computers + parts)
 #   images-<stamp>.tgz     the uploaded photos
 #   files-<stamp>.tgz      the drivers, manuals and receipts kept beside it
 #
-# Restore (into a running stack):
+# Restore (into a running stack), and check it landed:
+#   tools/restore.sh <stamp>
+# which does, and then checks, the three steps below:
 #   gunzip -c backups/db-<stamp>.sql.gz \
 #     | docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb -uroot
 #   docker compose exec -T api tar -xzf - -C /app < backups/images-<stamp>.tgz
