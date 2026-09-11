@@ -1,0 +1,14 @@
+# Working on the code: the source is mounted over the copy in the image and the app
+# reloads when a file is saved, so a change shows without a rebuild. Layered on the
+# base file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# --reload-dir keeps the watch on the code. Left to itself uvicorn watches the whole
+# working directory, which includes the photograph volume, and every upload would
+# restart the server mid-request.
+services:
+  api:
+    volumes:
+      - ./api/app:/app/app
+    command: ["./entrypoint.sh", "--reload", "--reload-dir", "app"]
