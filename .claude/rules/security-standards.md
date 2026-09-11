@@ -51,6 +51,23 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 - Pinned/locked and scanned (`pip-audit` in CI). Pinning gives control; scanning
   gives awareness — you need both.
 
+## Who may see it is decided, not defaulted
+
+Anything new that stores or shows what somebody supplied -- an upload, a note, a
+field, a page -- decides who may see it as part of its design, not afterwards.
+
+- **If the request does not say, ask before building.** This applies with most
+  force to work done with an AI or agentic coding tool: a prompt that asks for a
+  feature and is silent on visibility has left the question open, and the tool
+  asks the owner rather than choosing an answer for them.
+- **When it is still unclear, least privilege.** Visible to the owner alone until
+  something publishes it. The failure modes are not symmetrical: a thing kept back
+  by mistake is noticed the next time the owner looks; a thing published by
+  mistake is noticed by nobody, possibly after a search engine has taken a copy.
+- **A public default needs its reasoning written down**, as an ADR. ADR-0004 is
+  what that looks like when the answer is public; ADR-0009 is what it looks like
+  when the same question, asked of uploads, comes out the other way.
+
 ## Uploaded files are published by hand
 
 **A file is not public until it is ticked** (`files.public`, default false,
