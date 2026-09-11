@@ -220,14 +220,31 @@ Keep a copy of `.env` too. It is configuration rather than data, so the backup
 script does not include it, but restoring without it means restoring with
 different passwords than the dump expects.
 
-Restoring is in the header comment of `tools/backup.sh`; the short form is:
+To restore one, with the stack running:
 
 ```sh
-gunzip -c backups/db-<stamp>.sql.gz \
-  | docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb -uroot
-docker compose exec -T api tar -xzf - -C /app < backups/images-<stamp>.tgz
-docker compose exec -T api tar -xzf - -C /app < backups/files-<stamp>.tgz
+tools/restore.sh <stamp>
 ```
+
+`<stamp>` is the part of the file names after `db-`. It checks the three files are
+whole before touching anything, asks before it replaces the database, and then
+checks what landed: every table's row count and the schema version against the
+dump, every photograph and file at the size it was archived at, and the site
+answering. The steps it runs are in the header of `tools/backup.sh` if you would
+rather do them by hand.
+
+**Try it once before you need it.** A backup nobody has restored is a hope. A
+second stack beside the real one costs nothing and touches nothing:
+
+```sh
+docker compose -p restore-test up -d api
+COMPOSE_PROJECT_NAME=restore-test tools/restore.sh <stamp>
+docker compose -p restore-test down -v
+```
+
+The test stack wants port 8000, which the real one holds, so stop the real `api`
+first (`docker compose stop api`) and start it again afterwards, or use a compose
+override that publishes the test stack's app on another port.
 
 ## 8. Keeping it up to date
 
