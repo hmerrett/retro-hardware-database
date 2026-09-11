@@ -24,6 +24,11 @@ There is no SQLite run: the suite is MariaDB-only, for fidelity, and the
 migrations are exercised on every run rather than in a step of their own
 (testing-standards).
 
+**The API's published shape is pinned** in `api/openapi.json` and checked by the
+suite (ADR-0010). A change a caller could see fails that test; record an intended
+one with `RHDB_UPDATE_OPENAPI=1 pytest api/tests/test_openapi_contract.py` and the
+diff of the file is the change being asked for.
+
 ## Dependencies
 
 - Pinned/locked (backend-standards). **Dependabot** (`.github/dependabot.yml`)
