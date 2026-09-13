@@ -47,7 +47,9 @@ branding belong to the installation and live outside the repo (`.env`,
 
 ## How we work
 
-- **Discuss the approach before writing code.** Ask when scope is ambiguous.
+- **For non-trivial changes, agree the approach before writing code.** Make routine
+  judgment calls yourself; ask only when different readings would lead to
+  materially different work.
 - **British English** in code, comments, docs and UI.
 - **Every change is tested.** Prefer test-first: write a test that fails before
   the change and passes after, and keep the whole suite green (testing-standards).
