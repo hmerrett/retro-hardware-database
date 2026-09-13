@@ -150,7 +150,8 @@ the feature modules and `main` can all import downward without a cycle.
 
 | module | what it owns |
 |---|---|
-| `main.py` | the FastAPI app, the middleware, and every route |
+| `main.py` | the FastAPI app, the middleware, and the routes not yet lifted out |
+| `routers/seo.py` | robots.txt, the sitemap, and the icons asked for at the domain root |
 | `models.py` | the ORM tables and their relationships |
 | `db.py` | the engine and the per-request session — the only place either is made |
 | `schemas.py` | the request and response shapes for `/api/*` |

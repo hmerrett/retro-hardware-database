@@ -39,7 +39,7 @@ def inventory() -> set[str]:
     assert MARKER in text, "the module inventory's marker has gone from the map"
     table = text.split(MARKER, 1)[1]
     table = table.split("\n\n", 2)[1] if "\n\n" in table else table
-    return set(re.findall(r"`([a-z_]+\.py)`", table))
+    return set(re.findall(r"`([a-z_]+(?:/[a-z_]+)*\.py)`", table))
 
 
 def test_the_map_lists_every_module_and_no_others():
@@ -47,7 +47,11 @@ def test_the_map_lists_every_module_and_no_others():
     read by whoever knows the code least. Both directions are checked -- a module
     added without a line in the inventory, and a line for one that has since gone."""
     listed = inventory()
-    actual = {p.name for p in MODULES.glob("*.py")} - UNLISTED
+    # rglob, and named relative to api/app: a route group is a module inside
+    # routers/, and a glob of the top level alone would let every one of them out
+    # of this check -- which is the half of the map most likely to grow.
+    actual = {str(p.relative_to(MODULES)) for p in MODULES.rglob("*.py")
+              if p.name not in UNLISTED}
     assert not actual - listed, f"modules the map does not list: {sorted(actual - listed)}"
     assert not listed - actual, f"the map lists modules that are gone: {sorted(listed - actual)}"
 
