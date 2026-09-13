@@ -43,6 +43,13 @@ jobs:
           pip install -r api/requirements.txt -r api/requirements-dev.txt
       - name: Lint
         run: ruff check .
+      # The backup round-trip test dumps and restores through MariaDB's own
+      # client (mariadb-dump/mariadb) -- the family production uses. The runner
+      # ships Oracle MySQL 8's mysqldump, whose default column-statistics query
+      # hits a table MariaDB has no equivalent of and fails against the MariaDB
+      # service; install MariaDB's client so the test uses the matching tool.
+      - name: Install MariaDB client
+        run: sudo apt-get update && sudo apt-get install -y mariadb-client
       - name: Test
         env:
           DATABASE_URL: mysql+pymysql://root:rootpw@127.0.0.1:3306/retro
