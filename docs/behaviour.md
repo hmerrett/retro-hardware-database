@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1239 behaviours, from 23 files.*
+*1240 behaviours, from 24 files.*
 
 
 ## Api
@@ -1108,6 +1108,13 @@ Regenerate with:
 - the files panel offers what files have been called
 - a visitor is offered nothing  
   The pick lists are on the forms, and the forms are behind the login -- so a public page cannot leak the list of everybody the collection has ever bought from.
+
+
+## Backup roundtrip
+
+*test_backup_roundtrip.py — 1 behaviours*
+
+- dump and restore roundtrip
 
 
 ## Branding
