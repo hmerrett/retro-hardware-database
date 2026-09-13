@@ -149,6 +149,10 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 # in static/ is a placeholder; a file dropped here under the same name is served
 # instead of it. Read at start-up, like the rest of the configuration; nothing
 # here is in git.
+# Public origin used to build the absolute URLs that social-media link previews
+# (Open Graph / Twitter cards) require; falls back to the request's own host.
+PUBLIC_BASE_URL = os.getenv("RHDB_BASE_URL", "").rstrip("/")
+
 BRANDING_DIR = Path(os.getenv("RHDB_BRANDING_DIR", "/app/branding"))
 
 

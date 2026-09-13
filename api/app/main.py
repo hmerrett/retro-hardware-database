@@ -20,7 +20,6 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import parse_qs, quote, urlparse
-from xml.sax.saxutils import escape
 
 from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
                      UploadFile)
@@ -37,10 +36,11 @@ from . import __version__
 from . import (drivedb, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct, thumbs)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    BRANDING_DIR, IMAGE_EXTS, IMAGES_DIR, REGISTER, RELIABILITY_MIN, STATIC_DIR,
-    _file_ver, _maker_reliability, _visible, branded, folder_images, to_dict)
+    BRANDING_DIR, IMAGE_EXTS, IMAGES_DIR, PUBLIC_BASE_URL, REGISTER, RELIABILITY_MIN,
+    STATIC_DIR, _file_ver, _maker_reliability, _visible, branded, folder_images, to_dict)
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
+from .routers import seo
 from .ids import next_asset_id
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
 from .photos import (  # photo/image helpers, lifted out of this module
@@ -100,9 +100,6 @@ AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
 AUTH_ENABLED = bool(AUTH_USER and AUTH_PASS)
 templates.env.globals["auth_enabled"] = AUTH_ENABLED
 
-# Public origin used to build the absolute URLs that social-media link previews
-# (Open Graph / Twitter cards) require; falls back to the request's own host.
-PUBLIC_BASE_URL = os.getenv("RHDB_BASE_URL", "").rstrip("/")
 
 
 def _abs_url(request: Request, path: str) -> str:
@@ -544,32 +541,6 @@ def gui_stats(request: Request, db: Session = Depends(get_db)):
         "og": _og(request, "The collection by numbers", blurb)})
 
 
-@app.get("/robots.txt", include_in_schema=False)
-def robots_txt(request: Request):
-    base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
-    body = (
-        "User-agent: *\n"
-        "Allow: /\n"
-        "Disallow: /api\n"
-        "Disallow: /docs\n"
-        "Disallow: /openapi.json\n"
-        # /login is deliberately not here. It answers with a noindex meta tag, and
-        # a crawler has to be let in to be told to stay out: disallowed, it was kept
-        # out of sight rather than out of the index, and Search Console filed it
-        # under "blocked by robots.txt" every time a link to it was followed. /logout
-        # keeps its line -- it is POST-only, so a crawler has nothing to fetch there.
-        "Disallow: /logout\n"
-        "Disallow: /traffic\n"
-        # Filtered slices of the gallery: the items in them are indexed already.
-        "Disallow: /browse\n"
-        # What the search bar reads while you type: JSON about pages already indexed.
-        "Disallow: /suggest\n"
-        "Disallow: /computers/new\n"
-        "Disallow: /parts/new\n"
-        "Disallow: /projects/new\n"
-        "Disallow: /*/edit\n"
-        f"Sitemap: {base}/sitemap.xml\n")
-    return Response(body, media_type="text/plain")
 
 
 @app.get("/healthz", include_in_schema=False)
@@ -588,35 +559,6 @@ def healthz(db: Session = Depends(get_db)):
     return {"status": "ok"}
 
 
-@app.get("/sitemap.xml", include_in_schema=False)
-def sitemap_xml(request: Request, db: Session = Depends(get_db)):
-    base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
-    # Newest change per asset, for <lastmod>.
-    last = dict(db.query(
-        LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id))
-    urls = [(f"{base}/", None), (f"{base}/stats", None),
-            (f"{base}/machines", None), (f"{base}/projects", None)]
-    for c in db.query(Computer.asset_id).order_by(Computer.asset_id):
-        urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
-    for p in db.query(Part.asset_id).order_by(Part.asset_id):
-        urls.append((f"{base}/parts/{p.asset_id}", last.get(p.asset_id)))
-    # The projects read out of the same `last`, because a project's history is
-    # log_entry keyed by its own register id -- the same rows, the same query.
-    # A private project is not named here. The sitemap is the one of the five that
-    # is read by machines rather than people, and a tag in it is an invitation.
-    for pr in (db.query(Project.asset_id).filter(Project.private.is_(False))
-               .order_by(Project.asset_id)):
-        urls.append((f"{base}/projects/{pr.asset_id}", last.get(pr.asset_id)))
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-    for loc, ts in urls:
-        lines.append("  <url>")
-        lines.append(f"    <loc>{escape(loc)}</loc>")
-        if ts:
-            lines.append(f"    <lastmod>{ts.strftime('%Y-%m-%d')}</lastmod>")
-        lines.append("  </url>")
-    lines.append("</urlset>")
-    return Response("\n".join(lines), media_type="application/xml")
 
 
 
@@ -625,19 +567,8 @@ templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
 templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
 # Social sites cache a card hard, so its URL carries the artwork's hash too.
 SITE_CARD_VER = _file_ver(branded(SITE_CARD[0].removeprefix("/static/")))
-_ICON_CACHE = {"Cache-Control": "public, max-age=86400"}
 
 
-# Browsers and crawlers request these at the domain root regardless of markup.
-@app.get("/favicon.ico", include_in_schema=False)
-def favicon():
-    return FileResponse(branded("favicon.ico"), headers=_ICON_CACHE)
-
-
-@app.get("/apple-touch-icon.png", include_in_schema=False)
-@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
-def apple_touch_icon():
-    return FileResponse(branded("apple-touch-icon.png"), headers=_ICON_CACHE)
 
 
 class _CachedStatic(StaticFiles):
@@ -4870,3 +4801,9 @@ def api_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
     db.delete(row)
     db.commit()
     return {"deleted": oid}
+
+
+# The route groups that have moved out of this module. Each is an APIRouter in
+# api/app/routers/, included here in the order it was declared in, so that lifting
+# the lot into a create_app() at the end of the split is mechanical.
+app.include_router(seo.router)
