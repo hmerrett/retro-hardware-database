@@ -4324,17 +4324,22 @@ def _work_project_name(db, asset_id):
 
     The form asks for no name: what is being described is the work, and the only
     thing known about it at that moment is which item it is for. So the item names
-    it -- what the thing is called, not its tag. "Work required by item: Amstrad
-    PC1640" is a line somebody can read down a list and recognise; the same line
-    ending RH-J8JA is one they have to look up, and a list of them is a list of
-    lookups.
+    it -- what the thing is called, not its tag. "Amstrad PC1640" is a line somebody
+    can read down a list and recognise; RH-J8JA is one they have to look up, and a
+    list of them is a list of lookups.
+
+    The item's name is the whole of it. It carried "Work required by item: " in
+    front until 0036 -- a phrase that read the same on every row it appeared on, and
+    so told a reader nothing, while pushing the only part that varies to where a
+    narrow column cuts it off. What the project is for is already said by the item
+    beside it and by its status, on every list it appears in.
 
     The tag is the fallback, through display_name, for a thing entered with no
     maker, model or name of its own yet -- and the project's own tag is beside it on
     every list it appears in, which is what tells two machines of the same model
     apart. Rename it on its own form once it is a piece of work with a character of
     its own."""
-    return f"Work required by item: {_asset_display(db, asset_id) or asset_id}"
+    return _asset_display(db, asset_id) or asset_id
 
 
 def _work_lines(raw):
