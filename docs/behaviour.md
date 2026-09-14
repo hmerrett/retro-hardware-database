@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1240 behaviours, from 24 files.*
+*1247 behaviours, from 24 files.*
 
 
 ## Api
@@ -2300,7 +2300,7 @@ Regenerate with:
 
 ## Wanting work
 
-*test_wanting_work.py — 69 behaviours*
+*test_wanting_work.py — 76 behaviours*
 
 
 **Noting something down**
@@ -2309,7 +2309,7 @@ Regenerate with:
   A project need own nothing -- the idea comes before the hardware -- so the asset tag is the optional half of this box, not the required one.
 - the item goes on it
 - it is named after the item when you do not name it  
-  One name for the gesture, whichever box it was typed in -- and the item's own name in it, not its tag.
+  One name for the gesture, whichever box it was typed in -- and the item's own name, not its tag.
 - a name you give it wins
 - with no item and no name the job names it
 - it lands on the project it just made
@@ -2441,3 +2441,17 @@ Regenerate with:
   A downgrade reads the tag off the membership, because the name no longer holds one to read -- which is the whole of what changed.
 - an empty database is left alone  
   A fresh install has none of these, and a migration that assumes rows exist is the bug ADR-0002 is about.
+
+**Dropping the prefix from the ones already written**
+
+- it says what the thing is called and nothing else
+- a name somebody chose is left alone  
+  The same narrow rule 0033 used: only the exact generated form for the item the project is actually about.
+- a thing with no name comes out as its tag  
+  display_name falls back to the tag, so the prefixed form for a nameless item held its tag -- and what it should say now is that tag alone.
+- a project about two things is left alone  
+  A project with two items on it was never named this way.
+- running it twice changes nothing the second time
+- it goes back
+- an empty database is left alone  
+  ADR-0002: a migration that assumes rows exist is the fresh-install bug.

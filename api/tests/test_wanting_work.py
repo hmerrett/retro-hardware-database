@@ -65,12 +65,11 @@ class TestNotingSomethingDown:
     def test_it_is_named_after_the_item_when_you_do_not_name_it(self, client, db,
                                                                 part):
         """One name for the gesture, whichever box it was typed in -- and the item's
-        own name in it, not its tag. "Work required by item: Chinon FZ-357A" is a
-        line that can be read down a list; the same line ending RH-9QD4 is one that
-        has to be looked up first."""
+        own name, not its tag. "Chinon FZ-357A" is a line that can be read down a
+        list; RH-9QD4 is one that has to be looked up first."""
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
         assert db.get(Project, quick(client, "needs a belt", aid=pt)).name == \
-            "Work required by item: Chinon FZ-357A"
+            "Chinon FZ-357A"
 
     def test_a_name_you_give_it_wins(self, client, db, part):
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
@@ -410,7 +409,7 @@ class TestNotingWorkWhileCheckingIn:
         only thing known about it at that moment is which item it is for. So the
         item names it, by what it is called."""
         aid = new_computer(client, work_needed="recap the PSU")
-        assert project_of(db, aid).name == "Work required by item: Acme PC"
+        assert project_of(db, aid).name == "Acme PC"
 
     def test_a_thing_with_no_name_yet_falls_back_to_its_tag(self, client, db):
         """A machine entered with nothing filled in but a fault has no name to be
@@ -419,7 +418,7 @@ class TestNotingWorkWhileCheckingIn:
         r = client.post("/computers/new", data={"work_needed": "recap"},
                         follow_redirects=False)
         aid = r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
-        assert project_of(db, aid).name == f"Work required by item: {aid}"
+        assert project_of(db, aid).name == aid
 
     def test_two_of_the_same_machine_are_told_apart_by_their_own_tags(self, client,
                                                                      db):
@@ -730,4 +729,102 @@ class TestRenamingTheOnesAlreadyWritten:
         """A fresh install has none of these, and a migration that assumes rows
         exist is the bug ADR-0002 is about."""
         run_migration(db)
+        assert db.query(Project).count() == 0
+
+
+# --- dropping the prefix ------------------------------------------------------
+
+
+def _migration_0036():
+    """The prefix-dropping migration, loaded from its file, for the reason
+    _migration_0033 is."""
+    import importlib.util
+    from pathlib import Path
+    path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
+            / "0036_work_projects_drop_the_prefix.py")
+    spec = importlib.util.spec_from_file_location("m0036", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_0036(db, direction="upgrade"):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    ctx = MigrationContext.configure(db.connection())
+    with Operations.context(ctx):
+        getattr(_migration_0036(), direction)()
+    db.commit()
+
+
+class TestDroppingThePrefixFromTheOnesAlreadyWritten:
+    """Migration 0036. The projects raised while the name carried "Work required by
+    item: " still carry it, and a list with both forms in it reads as two kinds of
+    project rather than one -- so it brings them into line, the way 0033 did."""
+
+    def prefixed(self, client, db, **fields):
+        """An item and a project named the way the app used to name one."""
+        aid = client.post("/api/computers",
+                          json={"manufacturer": "Amstrad", "model": "PC1640"}
+                          | fields).json()["asset_id"]
+        pid = client.post("/api/projects",
+                          json={"name": "Work required by item: Amstrad PC1640"}
+                          ).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
+        return aid, pid
+
+    def test_it_says_what_the_thing_is_called_and_nothing_else(self, client, db):
+        _, pid = self.prefixed(client, db)
+        run_0036(db)
+        assert db.get(Project, pid).name == "Amstrad PC1640"
+
+    def test_a_name_somebody_chose_is_left_alone(self, client, db):
+        """The same narrow rule 0033 used: only the exact generated form for the
+        item the project is actually about. Anything else was typed by a person."""
+        aid, _ = self.prefixed(client, db)
+        pid = client.post("/api/projects",
+                          json={"name": "Work required by item: the beige one"}
+                          ).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
+        run_0036(db)
+        assert db.get(Project, pid).name == "Work required by item: the beige one"
+
+    def test_a_thing_with_no_name_comes_out_as_its_tag(self, client, db):
+        """display_name falls back to the tag, so the prefixed form for a nameless
+        item held its tag -- and what it should say now is that tag alone."""
+        aid = client.post("/api/computers", json={}).json()["asset_id"]
+        pid = client.post("/api/projects",
+                          json={"name": f"Work required by item: {aid}"}
+                          ).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
+        run_0036(db)
+        assert db.get(Project, pid).name == aid
+
+    def test_a_project_about_two_things_is_left_alone(self, client, db):
+        """A project with two items on it was never named this way."""
+        _, pid = self.prefixed(client, db)
+        other = client.post("/api/computers",
+                            json={"model": "X"}).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": other})
+        run_0036(db)
+        assert db.get(Project, pid).name == "Work required by item: Amstrad PC1640"
+
+    def test_running_it_twice_changes_nothing_the_second_time(self, client, db):
+        _, pid = self.prefixed(client, db)
+        run_0036(db)
+        once = db.get(Project, pid).name
+        run_0036(db)
+        db.expire_all()
+        assert db.get(Project, pid).name == once
+
+    def test_it_goes_back(self, client, db):
+        _, pid = self.prefixed(client, db)
+        run_0036(db)
+        run_0036(db, "downgrade")
+        db.expire_all()
+        assert db.get(Project, pid).name == "Work required by item: Amstrad PC1640"
+
+    def test_an_empty_database_is_left_alone(self, db):
+        """ADR-0002: a migration that assumes rows exist is the fresh-install bug."""
+        run_0036(db)
         assert db.query(Project).count() == 0

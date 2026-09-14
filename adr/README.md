@@ -44,3 +44,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   polish comes from design, not a SPA — *Proposed*
 - [0014](0014-accessibility-is-a-tested-standard.md) — Accessibility is a tested
   standard, not a set of habits — *Proposed*
+- [0015](0015-a-work-project-is-called-what-the-item-is-called.md) — A work project
+  is called what the item is called — *Accepted* (amends
+  [0003](0003-work-is-noted-at-check-in.md)'s naming clause)

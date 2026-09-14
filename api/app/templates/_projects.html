@@ -43,10 +43,10 @@
     </select>
     <button class="btn sm" type="submit">note it</button>
   </form>
-  <p class="hint">Raises a project about this one — <em>Work required by item:
-    {{ display_name(item) }}</em>, each line a job on it, readable by anybody. Rename
-    it on its own form, or tick <em>private</em> there if it should not be read; or
-    put the jobs on a project already going instead.</p>
+  <p class="hint">Raises a project about this one — <em>{{ display_name(item) }}</em>,
+    each line a job on it, readable by anybody. Rename it on its own form, or tick
+    <em>private</em> there if it should not be read; or put the jobs on a project
+    already going instead.</p>
   {% endif %}
 {% endcall %}
 {% endif %}

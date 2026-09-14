@@ -1197,9 +1197,9 @@ drive that needs a belt, a machine that would run if it had a power supply.
 The box at the top of the projects page is for exactly that. It takes an **asset
 tag** (optional), a **name** (optional) and **what needs doing** (the only one it
 insists on), and makes a project with the item attached and each line of it a job.
-Leave the name out and, where you gave a tag, it is called *Work required by item:
-Amstrad PC1640* — after the thing, by whatever it is called; leave the tag out too
-and the first job names it.
+Leave the name out and, where you gave a tag, it is called *Amstrad PC1640* —
+after the thing, by whatever it is called; leave the tag out too and the first job
+names it.
 
 The same box is on every computer's and part's own page, under **Projects**, with
 the tag already filled in — because standing at the thing having just seen what is
@@ -1222,14 +1222,14 @@ So the forms for a computer and a part carry the same gesture at the foot:
 still in hand.
 
 - Leave the box empty and nothing happens, which is most arrivals.
-- Write something and you get a project called
-  *Work required by item: Amstrad PC1640* — the machine's own name, not its tag —
-  with the machine on it and each line a job. Readable by anybody, like the rest of
-  the register; tick **private** on its own form for one that should not be. The same name and the same thing the
-  box on an item's own page makes, because it is the same gesture. A machine with
-  nothing filled in yet has no name to be called after, so that one falls back to
-  its tag; and two of the same model give two projects called the same thing, told
-  apart by their own tags beside them on the list.
+- Write something and you get a project called *Amstrad PC1640* — the machine's
+  own name, not its tag — with the machine on it and each line a job. Readable by
+  anybody, like the rest of the register; tick **private** on its own form for one
+  that should not be. The same name and the same thing the box on an item's own
+  page makes, because it is the same gesture. A machine with nothing filled in yet
+  has no name to be called after, so that one falls back to its tag; and two of the
+  same model give two projects called the same thing, told apart by their own tags
+  beside them on the list.
   Rename it on its own form if it turns into a piece of work with a character of
   its own; publish it there too.
 - Or pick a project from the menu, and the item and the jobs go on that one
