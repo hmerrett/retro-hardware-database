@@ -155,9 +155,10 @@ def create_computer(
 
     work_needed is what the thing needs doing, one job to a line, written at the
     moment it is checked in -- 'recap the PSU', 'new belt', 'keyboard sticks'. It
-    raises a private project about this item with each line as a job on it, named
-    after the item -- what it is called, or its tag where it has no name yet -- and
-    the reply's `projects` names it. Only what
+    raises a project about this item with each line as a job on it, named after the
+    item -- what it is called, or its tag where it has no name yet -- and the
+    reply's `projects` names it. Readable by anybody, like the rest of the register
+    (ADR-0004); the tick on a project's own form is what keeps one back. Only what
     somebody actually said is wrong: a fault is an observation, never a guess from
     the age or the model. work_project puts it on a project already going instead of
     raising one -- what a part bought for a build in hand is for -- and takes that
@@ -291,10 +292,12 @@ def create_part(
     in a case.
 
     work_needed is what this one needs doing, one job to a line, written as it is
-    checked in -- 'pins bent', 'recap'. It raises a private project about this part
-    with each line as a job on it, named after the item -- what it is called, or
-    its tag where it has no name yet -- and the reply's `projects` names it. Only what somebody actually said is wrong: a fault
-    is an observation, never a guess from the age or the model. work_project puts it
+    checked in -- 'pins bent', 'recap'. It raises a project about this part with each
+    line as a job on it, named after the item -- what it is called, or its tag where
+    it has no name yet -- and the reply's `projects` names it. Readable by anybody,
+    like the rest of the register (ADR-0004); the tick on a project's own form is
+    what keeps one back. Only what somebody actually said is wrong: a fault is an
+    observation, never a guess from the age or the model. work_project puts it
     on a project already going instead of raising one -- what a part bought for a
     build in hand is for -- and takes that project's asset id; one that does not
     exist is refused."""
