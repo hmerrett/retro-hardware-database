@@ -41,7 +41,8 @@ one job to a line, and a picker of the projects still in hand.
 - The same two fields (`work_needed`, `work_project`) are on the create endpoints
   of the JSON API and on the MCP `create_computer` / `create_part` tools, because
   check-in happens by dictation as often as by typing. `ComputerOut` / `PartOut`
-  gained a `projects` list of tags so a caller can reach what it just made.
+  gained a `projects` list of tags so a caller can reach what it just made. (One
+  tag, `project`, since [ADR-0016](0016-one-project-to-a-thing.md).)
 - Everything above runs through one function (`main._take_on_work`), which is what
   keeps the history, the membership and the privacy rule identical wherever the
   sentence was typed. The box on an item's own page and the quick box on

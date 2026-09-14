@@ -597,17 +597,22 @@ class ProjectAsset(Base):
     a membership means nothing without it -- the same split AssetVariant and
     LogPhoto make for the same reason.
 
-    Many-to-many on purpose: the same PSU can be wanted by two projects, and a
-    machine being restored is also the machine the spare board is destined for.
-    The unique constraint is on the pair, so a thing is in a project once however
-    many times it is added.
+    One project to a thing (ADR-0016), which is what the unique constraint on
+    `asset_id` says. It was many-to-many, on the argument that the same PSU can be
+    wanted by two projects -- but a thing being in two places at once is a question
+    ("which of these is it actually on?") rather than an answer, and the work on a
+    thing is the work on a thing whichever project it was raised from. A project
+    still holds many things; it is only the other direction that is now one.
+
+    Still a join table rather than a column on the item, because the register is
+    two tables and this is the one place that is already handled: a column would
+    have to be added to computers and to parts, and every query would then ask both.
 
     `note` is why this one is in this project -- 'donor for the keyboard', 'needs
     the recap' -- which is a fact about the pairing rather than about either end of
     it, and so has nowhere else to live."""
     __tablename__ = "project_asset"
-    __table_args__ = (UniqueConstraint("project_id", "asset_id",
-                                       name="uq_project_asset"),)
+    __table_args__ = (UniqueConstraint("asset_id", name="uq_project_asset_item"),)
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(String(16),
                         ForeignKey("projects.asset_id", ondelete="CASCADE"),
@@ -626,12 +631,24 @@ class ProjectTask(Base):
 
     `done_at` is a date rather than a timestamp: the history already holds the
     minute anything happened, and what a finished job is worth remembering by is
-    the day."""
+    the day.
+
+    `asset_id` is the thing the job is about, where it is about one. Optional
+    because plenty of a project's jobs are not about any single item on it --
+    'order the caps', 'find a service manual' -- and a column that insisted would
+    turn those into a lie. Where it is set, the asset is one of the project's own
+    members, which is what lets an item's page show its own jobs rather than the
+    whole project's.
+
+    A plain column with no foreign key, like project_asset.asset_id and for the
+    same reason: the register is two tables, so there is no one table to point at.
+    The delete paths clear these by hand."""
     __tablename__ = "project_task"
     id = Column(Integer, primary_key=True, autoincrement=True)
     project_id = Column(String(16),
                         ForeignKey("projects.asset_id", ondelete="CASCADE"),
                         nullable=False, index=True)
+    asset_id = Column(String(16), index=True)
     text = Column(Text, nullable=False, default="")
     done = Column(Boolean, nullable=False, default=False, server_default="0")
     done_at = Column(Date)
