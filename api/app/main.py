@@ -968,8 +968,10 @@ def _machine_out(db, asset, identity=None):
     return v | {"model": m.get("model", ""), "family": m.get("family", "")}
 
 
-def _project_ids(db, asset_id, prefetched=None):
-    """The projects an item is on, as tags, for the API's read shape.
+def _project_id(db, asset_id, prefetched=None):
+    """The project an item is on, as a tag, or None. One of them (ADR-0016): this
+    was a list of tags while a thing could be on several, and a list that can only
+    ever hold one entry asks every caller to unpack a question that has one answer.
 
     `prefetched` is the whole page's answer in one query, which is what the list
     endpoints hand in: asking per row would be a query per machine on the page that
@@ -978,18 +980,18 @@ def _project_ids(db, asset_id, prefetched=None):
     Nothing is hidden here. A private project is kept back from the public pages,
     and the API is behind the login entire -- there is nobody on this side of it to
     keep anything from."""
-    if prefetched is not None:
-        return [p.asset_id for p in prefetched.get(asset_id, [])]
-    return [p.asset_id for p in projects.projects_for(db, asset_id)]
+    found = (prefetched.get(asset_id) if prefetched is not None
+             else projects.project_for(db, asset_id))
+    return found.asset_id if found is not None else None
 
 
 def _computer_out(db, computer, identity=None, in_projects=None):
     """One computer as the API returns it: its own columns, the catalogue identity
-    read from its rows rather than from the line rendered off them, and what it is
-    on the list of."""
+    read from its rows rather than from the line rendered off them, and the project
+    it is on."""
     return to_dict(computer) | {
         "machine": _machine_out(db, computer, identity),
-        "projects": _project_ids(db, computer.asset_id, in_projects)}
+        "project": _project_id(db, computer.asset_id, in_projects)}
 
 
 def _part_out(db, part, identity=None, in_projects=None):
@@ -997,7 +999,7 @@ def _part_out(db, part, identity=None, in_projects=None):
     part that is not a board `machine` is simply null."""
     return to_dict(part) | {
         "machine": _machine_out(db, part, identity),
-        "projects": _project_ids(db, part.asset_id, in_projects)}
+        "project": _project_id(db, part.asset_id, in_projects)}
 
 
 @app.get("/machines", response_class=HTMLResponse, include_in_schema=False)
@@ -1056,7 +1058,7 @@ def api_list_computers(db: Session = Depends(get_db)):
     # One pair of queries for the whole list rather than a pair per machine, and the
     # memberships in one more for the same reason.
     identities = machinedb.read_many(db, rows)
-    in_projects = projects.projects_by_asset(db, [c.asset_id for c in rows])
+    in_projects = projects.project_by_asset(db, [c.asset_id for c in rows])
     return [_computer_out(db, c, identities.get(c.asset_id, dict(machinedb.BLANK)),
                           in_projects)
             for c in rows]
@@ -1161,7 +1163,7 @@ def api_list_parts(computer_id: str | None = None, type: str | None = None,
         q = q.filter(Part.type == type)
     rows = q.order_by(Part.asset_id).all()
     identities = machinedb.read_many(db, rows)
-    in_projects = projects.projects_by_asset(db, [p.asset_id for p in rows])
+    in_projects = projects.project_by_asset(db, [p.asset_id for p in rows])
     return [_part_out(db, p, identities.get(p.asset_id, dict(machinedb.BLANK)),
                       in_projects)
             for p in rows]
@@ -2016,7 +2018,8 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "files": filesdb.for_item(db, cdict, request.state.authed),
         "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
-        "in_projects": projects.projects_for(db, aid, request.state.authed),
+        "on_project": projects.project_for(db, aid, request.state.authed),
+        "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
         # For the picker in that panel, which only an owner is shown -- so a
         # visitor's page does not ask the question at all.
         "work_projects": (projects.open_projects(db) if request.state.authed
@@ -3295,7 +3298,8 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "files": filesdb.for_item(db, pdict, request.state.authed),
         "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
-        "in_projects": projects.projects_for(db, aid, request.state.authed),
+        "on_project": projects.project_for(db, aid, request.state.authed),
+        "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
         # For the picker in that panel, which only an owner is shown -- so a
         # visitor's page does not ask the question at all.
         "work_projects": (projects.open_projects(db) if request.state.authed
@@ -4371,6 +4375,13 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
     Commits nothing. Every caller is in the middle of saving something else and owns
     the transaction; a commit here would be a half-saved machine with a project
     beside it if what follows fails."""
+    held = projects.project_for(db, asset_id) if asset_id else None
+    # The thing's own project, where nobody picked one and the thing has one. A job
+    # noted on an item's page belongs with the work already going on that item; a
+    # thing is on one project (ADR-0016), so raising a second about the same thing
+    # is the one answer that cannot be right.
+    if project is None:
+        project = held
     if project is None:
         project = Project(asset_id=next_asset_id(db),
                           name=(name or _work_project_name(db, asset_id))[:255],
@@ -4378,10 +4389,19 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
         db.add(project)
         add_log(db, project.asset_id, "created", "created")
     if asset_id and projects.add_asset(db, project.asset_id, asset_id):
+        if held is not None:
+            # Said on the project losing it too. A thing leaving is as much a fact
+            # about the old project as arriving is about the new one, and the old
+            # one's history is where somebody will look for where it went.
+            add_log(db, held.asset_id,
+                    f"{_asset_named(db, asset_id)} moved to {_project_named(project)}")
         add_log(db, project.asset_id, f"took on {_asset_named(db, asset_id)}")
         _member_log(db, project, asset_id)
     for job in jobs:
-        db.add(ProjectTask(project_id=project.asset_id, text=job))
+        # Against the thing, where there is one: an item's page lists its own jobs,
+        # and a job typed on that page is about that item by definition.
+        db.add(ProjectTask(project_id=project.asset_id, text=job,
+                           asset_id=asset_id or None))
         add_log(db, project.asset_id, f"to do: {_short(job)}")
     return project
 
@@ -4444,6 +4464,18 @@ def _order_or_404(db, p, oid):
     return row
 
 
+def _task_asset(db, project_id, raw):
+    """The thing a job names, checked against the project it is written on. None for
+    a job about no one thing in particular -- 'order the caps', 'find a manual' --
+    which is most of what a project-wide list holds."""
+    aid = (raw or "").strip().upper()
+    if not aid:
+        return None
+    if not projects.holds(db, project_id, aid):
+        raise HTTPException(422, f"{aid} is not on {project_id}")
+    return aid
+
+
 @app.post("/projects/{aid}/task", include_in_schema=False)
 async def gui_project_add_task(aid: str, request: Request,
                                db: Session = Depends(get_db)):
@@ -4451,7 +4483,9 @@ async def gui_project_add_task(aid: str, request: Request,
     form = await request.form()
     text = (form.get("text", "") or "").strip()
     if text:
-        db.add(ProjectTask(project_id=p.asset_id, text=text))
+        db.add(ProjectTask(project_id=p.asset_id, text=text,
+                           asset_id=_task_asset(db, p.asset_id,
+                                                form.get("asset", ""))))
         add_log(db, p.asset_id, f"to do: {_short(text)}")
         db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
@@ -4705,7 +4739,8 @@ def api_project_add_task(aid: str, data: ProjectTaskIn,
     if not text:
         raise HTTPException(422, "a task needs something written in it")
     db.add(row := ProjectTask(project_id=p.asset_id, text=text,
-                              done=bool(data.done)))
+                              done=bool(data.done),
+                              asset_id=_task_asset(db, p.asset_id, data.asset_id)))
     if row.done:
         row.done_at = date.today()
     add_log(db, aid, f"to do: {_short(text)}")

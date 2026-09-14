@@ -1201,11 +1201,15 @@ Leave the name out and, where you gave a tag, it is called *Amstrad PC1640* —
 after the thing, by whatever it is called; leave the tag out too and the first job
 names it.
 
-The same box is on every computer's and part's own page, under **Projects**, with
-the tag already filled in — because standing at the thing having just seen what is
-wrong with it is when this actually gets written. That one also carries the menu of
-**projects already going**, so a board you are looking at can be spoken for by the
-build it is destined for without leaving its page.
+The same box is on every computer's and part's own page, under **Work**, with the
+tag already filled in — because standing at the thing having just seen what is
+wrong with it is when this actually gets written. Where the thing already has a
+project, the jobs go on that one; where it has none, one is raised. That panel also
+carries the menu of **projects already going** — picking one **moves** the thing
+there, jobs and all, because a thing is on one project.
+
+**A thing is on one project; a project is about many things.** Putting a board on
+the big rebuild takes it off whatever it was on, and says so in both histories.
 
 There used to be two lists here: a lightweight queue of flagged items, and
 projects. They were the same idea at two sizes, and getting from one to the other
@@ -1241,8 +1245,11 @@ The same two fields are on the **edit** form, and on `POST /api/computers` and
 `POST /api/parts` as `work_needed` and `work_project` — so a machine dictated to
 the MCP server arrives with its faults written down like one typed in. The box is
 write-only: it never shows what the project already says, so saving a form again
-cannot write the same job twice. To read what a thing needs, look at the
-**Projects** panel on its own page.
+cannot write the same job twice. To read what a thing needs, look at the **Work**
+panel on its own page — which lists **the jobs written against that thing**,
+outstanding first, with the project it belongs to named in a line above them. Jobs
+that are about the project rather than any one thing on it — *order the caps*,
+*find a service manual* — live on the project's own page and not here.
 
 ### Private projects
 
@@ -1263,9 +1270,12 @@ and it is only private with all five:
   line on the gallery;
 - the sitemap does not name it — that is the one of the five read by machines
   rather than people, where a tag is an invitation;
-- and the **Projects** panel on the pages of the machines it is about does not name
-  it, which is the one a private record could otherwise announce itself in while
-  being correctly hidden everywhere else.
+- and the **Work** panel on the pages of the machines it is about names neither it
+  nor its jobs, which is the one a private record could otherwise announce itself
+  in while being correctly hidden everywhere else. The jobs go too, and not only
+  the name: what a private project keeps back *is* what is wrong with the machine,
+  so showing the jobs while hiding the label would publish the whole of it and
+  withhold the wrapper.
 
 There is a sixth thing it does, quieter than the others. **An item's history names
 a project exactly while that project is public.** An item page is public and so is
@@ -1639,7 +1649,7 @@ in](#checking-something-in). A `work_project` naming no project is refused with 
 filing the work somewhere else quietly would be the worse answer. `PATCH` does not
 take them: the note belongs to checking something in, and an item that already
 exists has the box on its own page. Every computer and part reads back with
-`projects`, the tags of the projects it is on.
+`project`, the tag of the project it is on, or null.
 
 Authenticate with HTTP Basic:
 

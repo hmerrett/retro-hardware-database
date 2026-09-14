@@ -539,13 +539,16 @@
             "title": "Os",
             "type": "string"
           },
-          "projects": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Projects",
-            "type": "array"
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
           },
           "serial": {
             "default": "",
@@ -1166,13 +1169,16 @@
             ],
             "title": "Parent Id"
           },
-          "projects": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Projects",
-            "type": "array"
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
           },
           "serial": {
             "default": "",
@@ -1614,7 +1620,19 @@
         "type": "object"
       },
       "ProjectTaskIn": {
+        "description": "A job. `asset_id` is the thing it is about, where it is about one -- it must\nbe something the project already holds, and is left out for the jobs that are\nabout the project rather than any single thing on it.",
         "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
           "done": {
             "anyOf": [
               {
@@ -1637,6 +1655,17 @@
       },
       "ProjectTaskOut": {
         "properties": {
+          "asset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Id"
+          },
           "done": {
             "title": "Done",
             "type": "boolean"

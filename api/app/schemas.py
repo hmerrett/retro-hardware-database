@@ -160,11 +160,12 @@ class MachineOut(BaseModel):
 class ComputerOut(ComputerIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
-    # The projects this one is on, by tag. Tags rather than names because a name is
-    # edited and a tag is not, and because the project itself is one GET away -- so
-    # a caller that has just noted work down can reach what it made without going
-    # looking for it by name.
-    projects: list[str] = []
+    # The project this one is on, by tag, or null. One of them (ADR-0016); this was
+    # a list while a thing could be on several. A tag rather than a name because a
+    # name is edited and a tag is not, and because the project itself is one GET
+    # away -- so a caller that has just noted work down can reach what it made
+    # without going looking for it by name.
+    project: str | None = None
     installed_ram_kb: int | None = None
     installed_ram_note: str = ""
     drives_note: str = ""
@@ -224,8 +225,8 @@ class PartOut(PartIn):
     asset_id: str
     machine: BoardOut | None = None
     variant: str = ""
-    # By tag, for the reason a computer's are (see ComputerOut).
-    projects: list[str] = []
+    # By tag, for the reason a computer's is (see ComputerOut).
+    project: str | None = None
 
 
 # --- projects ----------------------------------------------------------------
@@ -277,8 +278,12 @@ class ProjectItemIn(BaseModel):
 
 
 class ProjectTaskIn(BaseModel):
+    """A job. `asset_id` is the thing it is about, where it is about one -- it must
+    be something the project already holds, and is left out for the jobs that are
+    about the project rather than any single thing on it."""
     text: str = ""
     done: bool | None = None
+    asset_id: str | None = None
 
 
 class ProjectTaskOut(BaseModel):
@@ -287,6 +292,7 @@ class ProjectTaskOut(BaseModel):
     text: str
     done: bool
     done_at: date | None = None
+    asset_id: str | None = None
 
 
 class ProjectOrderIn(BaseModel):

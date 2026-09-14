@@ -1,0 +1,75 @@
+{# What this thing still needs doing, and what has been done to it.
+
+   It listed the projects the item was on. A project name is the address of the
+   answer rather than the answer: standing at a shelf with a board in your hand the
+   question is "what does this one still need?", and "it is on Tandon PCA" makes you
+   open another page to find out. So the jobs written against this thing are the
+   content now, and the project it belongs to is one line above them -- enough to
+   get to the orders, the rest of the work and the history, without being the thing
+   you have to read first.
+
+   One project to a thing (ADR-0016), so `on_project` is one or none rather than a
+   list. It has already had the private ones taken out of it for a visitor (see
+   projects.project_for): an item page is public, and this is the one place a
+   project kept out of the list, the search and the sitemap could still name itself.
+   The jobs are shown whatever the project's privacy, because a job says what is
+   wrong with the thing whose page this is and nothing about anything else.
+
+   The box below is what the item used to carry as a `project` flag and a
+   `project_note` -- the same gesture, at the same moment, from the same place. What
+   it makes now is a job on this thing: on the project it already has, or on a new
+   one named after it where it has none. The menu moves the thing to a project
+   already going, which is the only thing picking one can mean when a thing is on
+   one project. The box is inside the `authed` block for the ordinary reason -- it
+   is a form. #}
+{% import "_panel.html" as PN %}
+{% set done_n = item_tasks | selectattr('done') | list | length %}
+{% if item_tasks or on_project or request.state.authed %}
+{% call PN.panel('Work', (done_n ~ '/' ~ item_tasks|length) if item_tasks else '') %}
+  {% if on_project %}
+  <p class="muted" style="margin:0 0 8px">Part of <a class="chip st-{{ on_project.status }}"
+     href="/projects/{{ on_project.asset_id }}">{{ on_project.name or on_project.asset_id }}</a></p>
+  {% endif %}
+  {% if item_tasks %}
+  <table>
+    {% for t in item_tasks %}
+    <tr class="{{ 'done' if t.done else '' }}">
+      {% if request.state.authed %}
+      <td class="tight"><form method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" style="margin:0">
+        <button class="btn sm" type="submit" title="{{ 'Put it back on the list' if t.done else 'Tick it off' }}">{{ '✓' if t.done else '○' }}</button>
+      </form></td>
+      {% else %}
+      <td class="tight muted">{{ '✓' if t.done else '○' }}</td>
+      {% endif %}
+      <td class="tasktext">{{ t.text | linked }}</td>
+      <td class="tight muted">{{ t.done_at or '' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% elif not request.state.authed %}
+  <p class="muted" style="margin:0">Nothing noted against this one.</p>
+  {% endif %}
+  {% if request.state.authed %}
+  {# A box and a menu, the same pair the entry forms carry at their foot: what needs
+     doing, and -- where the thing is not already spoken for -- which piece of work
+     it belongs to. One job to a line, because faults arrive as a list. #}
+  <form class="addbar" method="post" action="/projects/quick">
+    <input type="hidden" name="aid" value="{{ item.asset_id }}">
+    <textarea name="job" required rows="2"
+              placeholder="what needs doing — recap, new belt, keyboard sticks (one job to a line)"
+              aria-label="what needs doing to {{ item.asset_id }}"></textarea>
+    <select name="project" aria-label="which project these jobs go on">
+      <option value="">{{ 'leave it on ' ~ (on_project.name or on_project.asset_id) if on_project else 'a project of its own' }}</option>
+      {% for pr in work_projects %}{% if not on_project or pr.asset_id != on_project.asset_id %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endif %}{% endfor %}
+    </select>
+    <button class="btn sm" type="submit">note it</button>
+  </form>
+  <p class="hint">
+    {%- if on_project %}Adds the jobs to <em>{{ on_project.name or on_project.asset_id }}</em>, against this
+    item. Picking another <strong>moves</strong> this item there, jobs and all — a thing is on one project.
+    {%- else %}Raises a project about this one — <em>{{ display_name(item) }}</em>, each line a job on it,
+    readable by anybody. Rename it on its own form, or tick <em>private</em> there if it should not be read;
+    or put the jobs on a project already going instead.{% endif %}</p>
+  {% endif %}
+{% endcall %}
+{% endif %}
