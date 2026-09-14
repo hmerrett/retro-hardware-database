@@ -129,7 +129,7 @@ match, a `CHANGELOG.md` started, then tag `v0.1.0`.
 ## After 0.1
 
 0.2 is shaped by what 0.1's installers report; guessing now would be inventing
-requirements. One item is decided already and waiting on the release:
+requirements. Three items are decided already and waiting on the release:
 
 **Catalogue contributions without a pull request** (#29). Adding a machine
 currently means editing a file in the repository and opening a PR, which filters
@@ -151,6 +151,63 @@ Not taken up from #29: the portable format, global identifiers and
 synchronisation. There is one catalogue, it ships with the code and it has one
 history, so duplicates only become possible once local-only entries exist — which
 is a decision to take when somebody has one worth protecting, not before.
+
+**Print a label without the share sheet.** A small label is a PDF today, and
+getting one onto the Niimbot B1 means the phone's share sheet and the vendor app,
+which rescales it on the way. Both ends were proved on the server (2026-09-12)
+rather than argued about:
+
+- The B1 speaks a documented Bluetooth LE protocol, and the label `labels.py`
+  already renders survives the trip. At 203 dpi the 51×19 strip is 152×408 px,
+  inside the B1's 384 px head, and the QR still decodes at 4.29 px per module. A
+  complete job — 415 packets, 13,115 bytes, about two seconds over Bluetooth —
+  assembles from it, and every checksum validates against an independent
+  implementation of the protocol.
+- A Dymo elsewhere on the LAN is `cups`, `printer-driver-dymo` and the `lp` call
+  `tools/make_labels.py` already makes. The agent polls outbound, so the LAN needs
+  no inbound hole and no dynamic DNS.
+
+Two things are not free. The B1 takes 50×30 mm die-cut stock, not the Dymo's
+51×19 strip: handing `_render_small` the new geometry produces exactly the right
+raster and the wrong layout, because the QR sizes itself to the label's height and
+leaves the text nothing. That is a layout of its own, not a row in a table. And
+iOS Safari has no Web Bluetooth and never has, so the button cannot reach the
+printer from the phone as things stand. Bluefy — a third-party WebKit browser
+carrying its own Bluetooth stack — costs nothing and proves the whole design; only
+if it earns its place is the next step a `WKWebView` shell that loads the site and
+injects a single native bridge. A shell is not a second client, which is what
+[ADR-0013](adr/0013-stay-server-rendered-polish-through-design.md) reserves a new
+ADR for.
+
+Where a label goes is then a per-device preference — a PDF, a Bluetooth printer,
+or a named printer on an agent — kept in `localStorage` beside the theme. It is a
+fact about the device and not about the collection: the phone by the shelf wants
+the Niimbot, the workshop machine the Dymo, a visitor the PDF. The server says
+what is possible and the device says what is preferred; per
+[ADR-0011](adr/0011-the-register-is-a-product-other-people-run.md) there is one
+account, so there is nowhere per-user to put it and no reason to want one. The
+chooser hangs off the print button rather than living on a settings page nobody
+would find, the packet encoding stays in Python where the suite can reach it, and
+the chooser's JavaScript is a static file from the start — item 7 will not accept
+another inline block.
+
+**An item's Projects panel becomes its work record.** `_projects.html` names the
+projects an item is on and colours them by status, which answers whether a board
+is spoken for but not what it is waiting for. Two extensions, both reading tables
+that already exist:
+
+- The open jobs, and the orders still in the post, for this item on the item's own
+  page — so a board says what is outstanding without anybody opening the project
+  to find out.
+- Finished projects as well as live ones, so a machine's page reads as what has
+  been done to it over the years and not only what is promised now. That is the
+  half of the record the panel currently drops, and it is the half that matters
+  when you are holding the machine wondering whether the caps were already done.
+
+`project_asset`, `project_task` and `project_order` carry all of it; the work is
+in the query and in keeping the panel readable once it says more than a name. Mind
+[ADR-0004](adr/0004-work-projects-are-public.md) on the way out — a private
+project may not name itself to a visitor, and an item page is public.
 
 ## Out of scope
 
