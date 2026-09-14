@@ -156,58 +156,104 @@ def members(db, project_id):
     return out
 
 
-def projects_by_asset(db, asset_ids):
-    """{asset_id: [Project]} for a page's worth of items, in one query.
+def project_by_asset(db, asset_ids):
+    """{asset_id: Project} for a page's worth of items, in one query.
 
-    The list version of projects_for, for the queue on /projects: it answers
+    The list version of project_for, for the queue on /projects: it answers
     "have I already made a job out of this?" against every flagged item at once,
     rather than asking once per row."""
     if not asset_ids:
         return {}
-    out = {}
-    for pa, p in (db.query(ProjectAsset, Project)
-                  .join(Project, Project.asset_id == ProjectAsset.project_id)
-                  .filter(ProjectAsset.asset_id.in_(list(asset_ids)))
-                  .order_by(Project.name, Project.asset_id)):
-        out.setdefault(pa.asset_id, []).append(p)
-    return out
+    return {pa.asset_id: p
+            for pa, p in (db.query(ProjectAsset, Project)
+                          .join(Project, Project.asset_id == ProjectAsset.project_id)
+                          .filter(ProjectAsset.asset_id.in_(list(asset_ids))))}
 
 
-def projects_for(db, asset_id, authed=True):
-    """The projects one computer or part is in, for the panel on its own page.
+def project_for(db, asset_id, authed=True):
+    """The project one computer or part is on, or None -- there is at most one
+    (ADR-0016).
 
-    Ordered by name so the chips on an item page do not shuffle between reloads.
-
-    A private one is left out for a visitor. An item page is public, so without this
-    a project kept off the list, out of the search and out of the sitemap would name
-    itself on the page of every machine it is about -- which is the whole of what
-    was being kept back, said in the one place nobody thought to look."""
+    A private one is left out for a visitor, which reads as no project at all. An
+    item page is public, so without this a project kept off the list, out of the
+    search and out of the sitemap would name itself on the page of every machine it
+    is about -- which is the whole of what was being kept back, said in the one
+    place nobody thought to look."""
     q = (db.query(Project).join(ProjectAsset,
                                 ProjectAsset.project_id == Project.asset_id)
          .filter(ProjectAsset.asset_id == asset_id))
     if not authed:
         q = q.filter(Project.private.is_(False))
-    return q.order_by(Project.name, Project.asset_id).all()
+    return q.first()
+
+
+def tasks_for_asset(db, asset_id, authed=True):
+    """The jobs written against one thing, outstanding first.
+
+    What an item's own page shows, in place of the project chips it used to: the
+    question standing at a shelf is "what does this one still need?", and a project
+    name does not answer it -- it is the address of the answer. Ordered like
+    `tasks`, and for the same reason.
+
+    The jobs on a private project are left out for a visitor, exactly as the
+    project's name is. It would be easy to argue the other way -- a job says what is
+    wrong with the machine whose page this is -- but what a private project keeps
+    back *is* what is wrong with the machine, in the owner's own words and not
+    finished being decided (ADR-0004). Showing the jobs while hiding the name would
+    publish the whole of what was being kept back and withhold only the label on
+    it."""
+    q = (db.query(ProjectTask).join(Project,
+                                    Project.asset_id == ProjectTask.project_id)
+         .filter(ProjectTask.asset_id == asset_id))
+    if not authed:
+        q = q.filter(Project.private.is_(False))
+    return q.order_by(ProjectTask.done, ProjectTask.id).all()
 
 
 def add_asset(db, project_id, asset_id, note=""):
-    """Put a computer or part in a project. Returns whether it was added.
+    """Put a computer or part on a project. Returns what happened: "added" for one
+    that was on nothing, "moved" for one taken off another project, and False for
+    one already here or for an id that is in neither asset table -- a project is
+    about things that exist, and a typo'd id stored here would be a membership that
+    renders as nothing for ever.
 
-    False for one already in it, and False for an id that is in neither asset
-    table: a project is about things that exist, and a typo'd id stored here would
-    be a membership that renders as nothing for ever."""
+    It moves rather than refuses because a thing is on one project now (ADR-0016),
+    so "put this board on the big rebuild" can only mean taking it off whatever it
+    was on. Refusing would leave the older answer standing and say nothing about it.
+
+    The jobs written against the thing move with it. A task naming an asset that is
+    not on its own project is a row that shows on the item's page under a project it
+    is not part of, and reads as the work having been lost."""
     asset_id = (asset_id or "").strip().upper()
     if not asset_id:
         return False
     if not any(db.get(cls, asset_id) for cls in (Computer, Part)):
         return False
-    if (db.query(ProjectAsset)
-            .filter(ProjectAsset.project_id == project_id,
-                    ProjectAsset.asset_id == asset_id).first()):
+    held = (db.query(ProjectAsset)
+            .filter(ProjectAsset.asset_id == asset_id).first())
+    if held is not None and held.project_id == project_id:
         return False
+    if held is not None:
+        (db.query(ProjectTask)
+         .filter(ProjectTask.asset_id == asset_id,
+                 ProjectTask.project_id == held.project_id)
+         .update({"project_id": project_id}, synchronize_session=False))
+        db.delete(held)
+        db.flush()
     db.add(ProjectAsset(project_id=project_id, asset_id=asset_id,
                         note=(note or "").strip()[:255]))
-    return True
+    return "moved" if held is not None else "added"
+
+
+def holds(db, project_id, asset_id):
+    """Whether this project is about this thing. What a task naming an asset is
+    checked against: a job may name one of its project's things or nothing at all,
+    but not something the project is not about -- that row would surface on an
+    item's page under work it has no part in, which is worse than no link."""
+    return bool(db.query(ProjectAsset)
+                .filter(ProjectAsset.project_id == project_id,
+                        ProjectAsset.asset_id == (asset_id or "").strip().upper())
+                .first())
 
 
 def drop_asset(db, project_id, asset_id):
@@ -220,11 +266,19 @@ def drop_asset(db, project_id, asset_id):
 
 
 def forget_asset(db, asset_id):
-    """Every membership held by an asset that is being deleted.
+    """Everything an asset that is being deleted leaves behind: its membership, and
+    the thing-shaped half of the jobs written against it.
 
     Called by the delete paths by hand, because project_asset.asset_id is a plain
     column with no foreign key behind it -- so nothing in the database will do this,
-    for exactly the reason nothing in the database clears log_entry either."""
+    for exactly the reason nothing in the database clears log_entry either.
+
+    The jobs are detached rather than deleted. "Recap the PSU" was work somebody
+    planned and may have done, and it belongs to the project's record of itself;
+    the thing it named going away does not unmake it. It loses the name, which is
+    all that was ever true about the link."""
+    (db.query(ProjectTask).filter(ProjectTask.asset_id == asset_id)
+     .update({"asset_id": None}, synchronize_session=False))
     return (db.query(ProjectAsset).filter(ProjectAsset.asset_id == asset_id)
             .delete(synchronize_session=False))
 

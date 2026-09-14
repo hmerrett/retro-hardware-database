@@ -137,7 +137,7 @@ and re-render; never edit the string and hope.
 | `asset_variant`, `asset_chip` | which issue/style/region an asset is, and the notable chips on it |
 | `log_entry`, `log_photo` | the dated history of an asset, and photographs attached to a line of it |
 | `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the names they are for |
-| `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the assets it touches, its job list, and what is on order for it |
+| `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the things it is about (one project to a thing), its job list — each job optionally naming one of those things — and what is on order for it |
 
 ## 5. The modules
 

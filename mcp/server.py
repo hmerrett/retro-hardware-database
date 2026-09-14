@@ -157,7 +157,7 @@ def create_computer(
     moment it is checked in -- 'recap the PSU', 'new belt', 'keyboard sticks'. It
     raises a project about this item with each line as a job on it, named after the
     item -- what it is called, or its tag where it has no name yet -- and the
-    reply's `projects` names it. Readable by anybody, like the rest of the register
+    reply's `project` names it. Readable by anybody, like the rest of the register
     (ADR-0004); the tick on a project's own form is what keeps one back. Only what
     somebody actually said is wrong: a fault is an observation, never a guess from
     the age or the model. work_project puts it on a project already going instead of
@@ -294,7 +294,7 @@ def create_part(
     work_needed is what this one needs doing, one job to a line, written as it is
     checked in -- 'pins bent', 'recap'. It raises a project about this part with each
     line as a job on it, named after the item -- what it is called, or its tag where
-    it has no name yet -- and the reply's `projects` names it. Readable by anybody,
+    it has no name yet -- and the reply's `project` names it. Readable by anybody,
     like the rest of the register (ADR-0004); the tick on a project's own form is
     what keeps one back. Only what somebody actually said is wrong: a fault is an
     observation, never a guess from the age or the model. work_project puts it

@@ -14,6 +14,8 @@ record that is meant to be unreadable has to be unreadable in every place a page
 could show it. The class below that name is the point of the feature as much as the
 quick box is: four of those five doors standing shut is a thing that is not private.
 """
+import pytest
+
 from app import main
 from app.models import Computer, Project, ProjectAsset, ProjectTask
 
@@ -604,21 +606,22 @@ class TestNotingWorkThroughTheApi:
                                             "work_project": "RH-ZZZZ"})
         assert db.query(Computer).count() == 0
 
-    def test_the_item_reads_back_with_its_projects(self, client, db):
+    def test_the_item_reads_back_with_its_project(self, client, db):
         """What the note did, said in the reply -- otherwise a caller that has just
-        raised a project has no way to reach it but a search."""
+        raised a project has no way to reach it but a search. One tag and not a
+        list of them: a thing is on one project (ADR-0016)."""
         aid = client.post("/api/computers",
                           json={"manufacturer": "Acme", "model": "PC",
                                 "work_needed": "recap"}).json()["asset_id"]
         got = client.get(f"/api/computers/{aid}").json()
-        assert got["projects"] == [project_of(db, aid).asset_id]
+        assert got["project"] == project_of(db, aid).asset_id
 
-    def test_the_list_reads_back_with_them_as_well(self, client, db):
+    def test_the_list_reads_back_with_it_as_well(self, client, db):
         aid = client.post("/api/computers",
                           json={"manufacturer": "Acme", "model": "PC",
                                 "work_needed": "recap"}).json()["asset_id"]
         rows = client.get("/api/computers").json()
-        assert rows[0]["projects"] == [project_of(db, aid).asset_id]
+        assert rows[0]["project"] == project_of(db, aid).asset_id
 
 
 # --- the ones already written -------------------------------------------------
@@ -828,3 +831,178 @@ class TestDroppingThePrefixFromTheOnesAlreadyWritten:
         """ADR-0002: a migration that assumes rows exist is the fresh-install bug."""
         run_0036(db)
         assert db.query(Project).count() == 0
+
+
+# --- one project to a thing ---------------------------------------------------
+
+
+def tasks_against(db, asset_id):
+    return [t.text for t in db.query(ProjectTask)
+            .filter(ProjectTask.asset_id == asset_id).order_by(ProjectTask.id)]
+
+
+class TestOneProjectToAThing:
+    """ADR-0016. A project is about many things; a thing is on one project."""
+
+    def test_the_database_refuses_a_second_one(self, client, db):
+        """The rule is a unique constraint and not only a habit in the code, so a
+        path nobody thought of cannot quietly put a thing in two places."""
+        from sqlalchemy.exc import IntegrityError
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        first = quick(client, "recap", aid=pt)
+        other = quick(client, "something else")
+        db.add(ProjectAsset(project_id=other, asset_id=pt))
+        with pytest.raises(IntegrityError):
+            db.flush()
+        db.rollback()
+        assert project_of(db, pt).asset_id == first
+
+    def test_putting_it_on_another_project_moves_it(self, client, db):
+        """Picking a project for a thing already on one can only mean moving it.
+        Refusing would leave the older answer standing and say nothing about it."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        quick(client, "recap", aid=pt)
+        second = quick(client, "strip the chassis")
+        quick(client, "and the belt", aid=pt, project=second)
+        assert project_of(db, pt).asset_id == second
+
+    def test_its_jobs_move_with_it(self, client, db):
+        """A job naming a thing that is not on its own project would show on the
+        item's page under work it has no part in."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        quick(client, "recap", aid=pt)
+        second = quick(client, "strip the chassis")
+        quick(client, "and the belt", aid=pt, project=second)
+        moved = db.query(ProjectTask).filter(ProjectTask.asset_id == pt).all()
+        assert {t.text for t in moved} == {"recap", "and the belt"}
+        assert {t.project_id for t in moved} == {second}
+
+    def test_a_second_note_lands_on_the_project_it_already_has(self, client, db):
+        """The box on an item's page asks for no project, and the thing already
+        answers the question: a second project about the same thing is the one
+        answer that cannot be right."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        first = quick(client, "recap", aid=pt)
+        again = quick(client, "new belt", aid=pt)
+        assert again == first
+        assert tasks_of(db, first) == ["recap", "new belt"]
+
+    def test_a_note_on_a_thing_with_no_project_raises_one(self, client, db):
+        pt = client.post("/api/parts",
+                         json={"manufacturer": "Tandon",
+                               "model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        assert project_of(db, pt).asset_id == pid
+        assert db.get(Project, pid).name == "Tandon TM262"
+
+    def test_a_job_typed_on_an_item_names_that_item(self, client, db):
+        """Which is what lets the item's own page list it."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        quick(client, "recap\nnew belt", aid=pt)
+        assert tasks_against(db, pt) == ["recap", "new belt"]
+
+    def test_a_job_with_no_item_names_none(self, client, db):
+        pid = quick(client, "order the caps")
+        assert db.query(ProjectTask).filter(
+            ProjectTask.project_id == pid).one().asset_id is None
+
+
+class TestAJobMayNameAThing:
+    def test_it_may_name_one_the_project_holds(self, client, db):
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        r = client.post(f"/api/projects/{pid}/tasks",
+                        json={"text": "new belt", "asset_id": pt})
+        assert r.status_code == 200, r.text
+        assert r.json()["asset_id"] == pt
+
+    def test_it_may_name_nothing(self, client, db):
+        """Most of a project's list is about the project -- 'order the caps',
+        'find a service manual' -- and a column that insisted would make those lie."""
+        pid = quick(client, "recap")
+        r = client.post(f"/api/projects/{pid}/tasks", json={"text": "order the caps"})
+        assert r.status_code == 200 and r.json()["asset_id"] is None
+
+    def test_it_may_not_name_something_the_project_is_not_about(self, client, db):
+        """That row would surface on the item's page under work it has no part in,
+        which is worse than no link at all."""
+        pid = quick(client, "recap")
+        other = client.post("/api/parts", json={"model": "X"}).json()["asset_id"]
+        r = client.post(f"/api/projects/{pid}/tasks",
+                        json={"text": "new belt", "asset_id": other})
+        assert r.status_code == 422
+
+    def test_an_item_lists_its_own_jobs_and_not_the_projects_others(self, client, db):
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        client.post(f"/api/projects/{pid}/tasks", json={"text": "order the caps"})
+        assert tasks_against(db, pt) == ["recap"]
+        assert tasks_of(db, pid) == ["recap", "order the caps"]
+
+
+class TestWhenTheThingGoesAway:
+    def test_its_jobs_are_kept_but_lose_the_name(self, client, db):
+        """'Recap the PSU' was work somebody planned and may have done, and it
+        belongs to the project's record of itself. The thing going away does not
+        unmake it; it loses the link, which is all that was ever true about it."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        assert client.delete(f"/api/parts/{pt}").status_code in (200, 204)
+        db.expire_all()
+        assert tasks_of(db, pid) == ["recap"]
+        assert tasks_against(db, pt) == []
+
+
+class TestKeepingTheEarliestMembership:
+    """Migration 0037's one decision, on its own: once the constraint is on, the
+    database will not hold a duplicate for a test to resolve."""
+
+    def rule(self):
+        import importlib.util
+        from pathlib import Path
+        path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
+                / "0037_one_project_to_a_thing.py")
+        spec = importlib.util.spec_from_file_location("m0037", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.extras
+
+    def test_a_thing_on_one_project_is_left_alone(self):
+        assert self.rule()([(1, "RH-P1", "RH-A")]) == []
+
+    def test_the_earliest_is_kept_and_the_rest_dropped(self):
+        rows = [(1, "RH-P1", "RH-A"), (5, "RH-P2", "RH-A"), (9, "RH-P3", "RH-A")]
+        assert self.rule()(rows) == [(5, "RH-P2", "RH-A"), (9, "RH-P3", "RH-A")]
+
+    def test_things_do_not_interfere_with_each_other(self):
+        rows = [(1, "RH-P1", "RH-A"), (2, "RH-P1", "RH-B"), (3, "RH-P2", "RH-B")]
+        assert self.rule()(rows) == [(3, "RH-P2", "RH-B")]
+
+    def test_nothing_at_all_is_nothing_to_do(self):
+        assert self.rule()([]) == []
+
+
+class TestAPrivateProjectsJobsAreNotOnTheItemPage:
+    """The sixth door. The panel showing jobs rather than project names moved what
+    a private project is hiding: the name was the leak before, the jobs are now."""
+
+    def test_a_visitor_sees_neither_the_name_nor_the_jobs(self, client, db,
+                                                          monkeypatch):
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        hidden(client, "the RIFA went bang", aid=pt)
+        visitor(monkeypatch)
+        page = client.get(f"/parts/{pt}").text
+        assert "the RIFA went bang" not in page
+        assert "Hidden" not in page
+
+    def test_the_owner_sees_them(self, client, db):
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        hidden(client, "the RIFA went bang", aid=pt)
+        assert "the RIFA went bang" in client.get(f"/parts/{pt}").text
+
+    def test_a_public_project_is_shown_to_a_visitor(self, client, db, monkeypatch):
+        """The filter is about privacy and not about hiding work in general."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        quick(client, "needs a belt", aid=pt)
+        visitor(monkeypatch)
+        assert "needs a belt" in client.get(f"/parts/{pt}").text

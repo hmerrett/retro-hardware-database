@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1247 behaviours, from 24 files.*
+*1266 behaviours, from 24 files.*
 
 
 ## Api
@@ -2300,7 +2300,7 @@ Regenerate with:
 
 ## Wanting work
 
-*test_wanting_work.py — 76 behaviours*
+*test_wanting_work.py — 95 behaviours*
 
 
 **Noting something down**
@@ -2423,9 +2423,9 @@ Regenerate with:
   Unlike the form, which cannot mistype one.
 - nothing is created when it is refused  
   The refusal comes before the machine is written, so a typo'd project tag does not leave a half-entered computer behind.
-- the item reads back with its projects  
+- the item reads back with its project  
   What the note did, said in the reply -- otherwise a caller that has just raised a project has no way to reach it but a search.
-- the list reads back with them as well
+- the list reads back with it as well
 
 **Renaming the ones already written**
 
@@ -2455,3 +2455,46 @@ Regenerate with:
 - it goes back
 - an empty database is left alone  
   ADR-0002: a migration that assumes rows exist is the fresh-install bug.
+
+**One project to A thing**
+
+- the database refuses a second one  
+  The rule is a unique constraint and not only a habit in the code, so a path nobody thought of cannot quietly put a thing in two places.
+- putting it on another project moves it  
+  Picking a project for a thing already on one can only mean moving it.
+- its jobs move with it  
+  A job naming a thing that is not on its own project would show on the item's page under work it has no part in.
+- a second note lands on the project it already has  
+  The box on an item's page asks for no project, and the thing already answers the question: a second project about the same thing is the one answer that cannot be right.
+- a note on a thing with no project raises one
+- a job typed on an item names that item  
+  Which is what lets the item's own page list it.
+- a job with no item names none
+
+**A job may name A thing**
+
+- it may name one the project holds
+- it may name nothing  
+  Most of a project's list is about the project -- 'order the caps', 'find a service manual' -- and a column that insisted would make those lie.
+- it may not name something the project is not about  
+  That row would surface on the item's page under work it has no part in, which is worse than no link at all.
+- an item lists its own jobs and not the projects others
+
+**When the thing goes away**
+
+- its jobs are kept but lose the name  
+  'Recap the PSU' was work somebody planned and may have done, and it belongs to the project's record of itself.
+
+**Keeping the earliest membership**
+
+- a thing on one project is left alone
+- the earliest is kept and the rest dropped
+- things do not interfere with each other
+- nothing at all is nothing to do
+
+**A private projects jobs are not on the item page**
+
+- a visitor sees neither the name nor the jobs
+- the owner sees them
+- a public project is shown to a visitor  
+  The filter is about privacy and not about hiding work in general.

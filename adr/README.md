@@ -47,3 +47,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0015](0015-a-work-project-is-called-what-the-item-is-called.md) — A work project
   is called what the item is called — *Accepted* (amends
   [0003](0003-work-is-noted-at-check-in.md)'s naming clause)
+- [0016](0016-one-project-to-a-thing.md) — One project to a thing, and a job may
+  name the thing — *Accepted* (changes the shape
+  [0003](0003-work-is-noted-at-check-in.md) and
+  [0004](0004-work-projects-are-public.md) assume)

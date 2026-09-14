@@ -191,23 +191,15 @@ would find, the packet encoding stays in Python where the suite can reach it, an
 the chooser's JavaScript is a static file from the start — item 7 will not accept
 another inline block.
 
-**An item's Projects panel becomes its work record.** `_projects.html` names the
-projects an item is on and colours them by status, which answers whether a board
-is spoken for but not what it is waiting for. Two extensions, both reading tables
-that already exist:
-
-- The open jobs, and the orders still in the post, for this item on the item's own
-  page — so a board says what is outstanding without anybody opening the project
-  to find out.
-- Finished projects as well as live ones, so a machine's page reads as what has
-  been done to it over the years and not only what is promised now. That is the
-  half of the record the panel currently drops, and it is the half that matters
-  when you are holding the machine wondering whether the caps were already done.
-
-`project_asset`, `project_task` and `project_order` carry all of it; the work is
-in the query and in keeping the panel readable once it says more than a name. Mind
-[ADR-0004](adr/0004-work-projects-are-public.md) on the way out — a private
-project may not name itself to a visitor, and an item page is public.
+**The orders still in the post, on the item's page.** The Work panel on a thing now
+lists the jobs written against it, outstanding first, with its project named above
+them ([ADR-0016](adr/0016-one-project-to-a-thing.md)) — so a board says what it is
+waiting for without anybody opening the project to find out. What it does not yet
+say is what has been *bought* for it. `project_order` holds that, and nothing links
+an order to a thing: an order is deliberately a note about a purchase rather than a
+half-made asset, so the link would have to be the same optional one a job now
+carries, and is worth having for the same reason. Wanted when a project has enough
+on order that "which of these is for the Amstrad?" stops being obvious.
 
 ## Out of scope
 
