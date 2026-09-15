@@ -1949,11 +1949,18 @@ class TestTheShuffledFigures:
         markup has to answer for: not a link with an empty destination, but a plain
         tile. Forced rather than waited for -- a draw of eight from a hundred cannot
         be relied on to include the one under test."""
-        from app import main
-        monkeypatch.setattr(main, "_facts", lambda *_a: [
+        # Patched where the route looks it up. The route reads `_facts` from its own
+        # module's globals, so patching the name main re-exports would leave the real
+        # draw running and the assertions below passing for the wrong reason.
+        from app.routers import stats as stats_routes
+        monkeypatch.setattr(stats_routes, "_facts", lambda *_a: [
             {"k": "Entries in the register", "v": "12", "s": "no page to show",
              "href": None}])
         page = client.get("/stats").text
+        # That the forced tile is the one on the page, not merely that tiles exist:
+        # without it the assertions below pass on the real draw as readily as on this
+        # one, and a patch that had stopped taking effect would go unnoticed.
+        assert "no page to show" in page
         assert '<div class="tile">' in page
         assert 'class="tile" href=""' not in page
 
