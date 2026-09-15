@@ -16,8 +16,8 @@
 set -eu
 
 : "${RHDB_HOST:?set RHDB_HOST, e.g. root@db.2600.me}"
-RHDB_DIR="${RHDB_DIR:-/root/retro-hardware-db-2}"
-RHDB_IMAGES="${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-db-2_images/_data}"
+RHDB_DIR="${RHDB_DIR:-/root/retro-hardware-database}"
+RHDB_IMAGES="${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-database_images/_data}"
 STAGE="${STAGE:-/stage}"
 BACKUP_AT="${BACKUP_AT:-03:30}"
 INCLUDE_ENV="${INCLUDE_ENV:-1}"

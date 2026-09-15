@@ -16,7 +16,7 @@ needs your domain it takes it from `.env` (`$RHDB_DOMAIN`).
    GitHub (`git push`), or edit on the box directly. All changes end up on the
    `main` branch on GitHub.
 
-2. **On the server**, from the repo root (`/root/retro-hardware-db-2`):
+2. **On the server**, from the repo root (`/root/retro-hardware-database`):
 
    ```sh
    ./deploy.sh
@@ -29,7 +29,7 @@ To get onto the box:
 
 ```sh
 ssh root@<your-server>   # the box, by name or by IP
-cd /root/retro-hardware-db-2
+cd /root/retro-hardware-database
 ```
 
 ## What deploy.sh does (and the manual equivalent)
@@ -115,7 +115,7 @@ regenerate the set before rebuilding:
 
 ```sh
 docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
-  retro-hardware-db-2-api python /tools/make_icons.py
+  retro-hardware-database-api python /tools/make_icons.py
 ./deploy.sh
 ```
 

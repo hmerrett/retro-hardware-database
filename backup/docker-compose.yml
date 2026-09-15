@@ -9,8 +9,8 @@ services:
     restart: unless-stopped
     environment:
       RHDB_HOST: ${RHDB_HOST:?set RHDB_HOST in .env}
-      RHDB_DIR: ${RHDB_DIR:-/root/retro-hardware-db-2}
-      RHDB_IMAGES: ${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-db-2_images/_data}
+      RHDB_DIR: ${RHDB_DIR:-/root/retro-hardware-database}
+      RHDB_IMAGES: ${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-database_images/_data}
       BACKUP_AT: ${BACKUP_AT:-03:30}
       TZ: ${TZ:-Europe/London}
       INCLUDE_ENV: ${INCLUDE_ENV:-1}
