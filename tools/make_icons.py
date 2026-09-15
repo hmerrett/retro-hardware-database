@@ -3,12 +3,12 @@
 Run it inside the api image (which has Pillow) with the static dir mounted:
 
     docker run --rm -v "$PWD/api/app/static:/static" \
-        retro-hardware-db-2-api python /static/../../../tools/make_icons.py
+        retro-hardware-database-api python /static/../../../tools/make_icons.py
 
 or, more simply, from the repo root:
 
     docker run --rm -v "$PWD/api/app/static:/static" \
-        -v "$PWD/tools:/tools" retro-hardware-db-2-api python /tools/make_icons.py
+        -v "$PWD/tools:/tools" retro-hardware-database-api python /tools/make_icons.py
 
 Set RHDB_STATIC to run it outside the container against a checkout:
 

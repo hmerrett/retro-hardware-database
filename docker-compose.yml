@@ -1,3 +1,15 @@
+# The Compose project name, which prefixes every container and -- the part that
+# matters -- every named volume: retro-hardware-database_dbdata and the rest.
+#
+# Pinned here rather than left to Compose, which otherwise derives it from whatever
+# the checkout directory happens to be called. That made the location of the
+# database, the photographs and the uploaded files a property of the folder name:
+# rename or move the checkout and Compose invents a new project, creates a new set
+# of empty volumes, and brings the site up blank with the real data still sitting
+# in volumes nothing points at any more. Naming it here means the data stays put
+# whatever the directory is called.
+name: retro-hardware-database
+
 services:
   db:
     image: mariadb:11

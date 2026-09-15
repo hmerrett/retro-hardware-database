@@ -16,7 +16,7 @@ needs your domain it takes it from `.env` (`$RHDB_DOMAIN`).
    GitHub (`git push`), or edit on the box directly. All changes end up on the
    `main` branch on GitHub.
 
-2. **On the server**, from the repo root (`/root/retro-hardware-db-2`):
+2. **On the server**, from the repo root (`/root/retro-hardware-database`):
 
    ```sh
    ./deploy.sh
@@ -29,7 +29,7 @@ To get onto the box:
 
 ```sh
 ssh root@<your-server>   # the box, by name or by IP
-cd /root/retro-hardware-db-2
+cd /root/retro-hardware-database
 ```
 
 ## What deploy.sh does (and the manual equivalent)
@@ -97,6 +97,54 @@ them:
 - `caddy_data` — TLS certificates
 - `goaccess_report`, `caddy_logs` — traffic stats and access logs
 
+Their full names carry the **Compose project name** in front —
+`retro-hardware-database_dbdata` and so on. That name is pinned at the top of
+`docker-compose.yml` rather than left to Compose, which would otherwise take it
+from whatever the checkout directory is called. It is pinned because the
+alternative is that renaming or moving the checkout silently moves the data:
+Compose invents a new project, makes a fresh set of empty volumes, and the site
+comes up blank with everything still sitting in volumes nothing points at.
+
+### Moving an installation to the pinned name
+
+An installation created before the name was pinned has its volumes under the old
+project name. **Do this before bringing the stack up on the new name**, or the
+first `docker compose up` creates empty ones. Nothing here deletes anything: the
+old volumes are left alone, so it can be abandoned at any point.
+
+```sh
+cd /root/<old-directory>
+./tools/backup.sh                     # the safety net, first
+docker compose down                   # NOT -v: that would delete the volumes
+
+OLD=<old-project-name>                # e.g. retro-hardware-db-2
+NEW=retro-hardware-database
+for v in dbdata images files caddy_data caddy_config caddy_logs goaccess_report; do
+  docker volume create "${NEW}_$v"
+  docker run --rm -v "${OLD}_$v":/from -v "${NEW}_$v":/to alpine \
+    sh -c 'cd /from && cp -a . /to/'
+done
+
+cd .. && mv <old-directory> retro-hardware-database && cd retro-hardware-database
+docker compose up -d
+```
+
+Copy rather than `tools/restore.sh`, even though the restore path is the tested
+one: the backup covers the database, the photographs and the files, and **not**
+`caddy_data`, `caddy_logs` or `goaccess_report` — so restoring alone would throw
+away the TLS certificate, forcing a fresh Let's Encrypt issue, and wipe the
+traffic history. A copy moves all seven exactly as they are.
+
+Check the site answers, then the old volumes can go:
+
+```sh
+for v in dbdata images files caddy_data caddy_config caddy_logs goaccess_report; do
+  docker volume rm "${OLD}_$v"
+done
+```
+
+Leave that last step a few days. It is the only irreversible part.
+
 ## Secrets
 
 `.env` holds the DB and login credentials and is **git-ignored** — it lives only
@@ -115,7 +163,7 @@ regenerate the set before rebuilding:
 
 ```sh
 docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
-  retro-hardware-db-2-api python /tools/make_icons.py
+  retro-hardware-database-api python /tools/make_icons.py
 ./deploy.sh
 ```
 

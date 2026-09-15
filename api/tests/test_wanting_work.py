@@ -1184,3 +1184,51 @@ class TestTickingAJobOffFromTheItemPage:
         pt, _pid, _own, _wide = self.setup(client)
         visitor(monkeypatch)
         assert "/toggle" not in client.get(f"/parts/{pt}").text
+
+
+class TestWhatAProjectsSharedLinkShows:
+    """A project had no picture of its own, so every project posted anywhere looked
+    like every other one. It is about things, and those things are photographed."""
+
+    def og_image(self, client, url):
+        import re
+        m = re.search(r'<meta property="og:image" content="([^"]+)"',
+                      client.get(url).text)
+        return m.group(1) if m else None
+
+    def test_with_no_items_it_falls_back_to_the_site_card(self, client):
+        pid = quick(client, "sort out the RIFA")
+        assert "/static/og-image.png" in self.og_image(client, f"/projects/{pid}")
+
+    def test_an_item_with_no_photograph_does_not_supply_one(self, client):
+        """detect_images hands back a placeholder for a thing never photographed,
+        and a generic outline of a computer reads as a broken image in a share
+        preview -- worse than the site's own card."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        assert "/static/og-image.png" in self.og_image(client, f"/projects/{pid}")
+
+    def test_an_items_photograph_becomes_the_card(self, client, tmp_path,
+                                                  monkeypatch):
+        from app import photos
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        monkeypatch.setattr(photos, "detect_images",
+                            lambda kind, aid: [f"/images/{kind}/{aid}.jpg"])
+        import app.main as m
+        monkeypatch.setattr(m, "detect_images",
+                            lambda kind, aid: [f"/images/{kind}/{aid}.jpg"])
+        assert f"/images/parts/{pt}.jpg" in self.og_image(client, f"/projects/{pid}")
+
+    def test_a_placeholder_is_skipped_for_a_real_photograph_behind_it(self, client,
+                                                                     monkeypatch):
+        """The first thing with a real photo, not the first thing."""
+        a = client.post("/api/parts", json={"model": "A"}).json()["asset_id"]
+        b = client.post("/api/parts", json={"model": "B"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=a)
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": b})
+        import app.main as m
+        monkeypatch.setattr(m, "detect_images", lambda kind, aid: (
+            ["/static/placeholders/storage.svg"] if aid == a
+            else [f"/images/{kind}/{aid}.jpg"]))
+        assert f"/images/parts/{b}.jpg" in self.og_image(client, f"/projects/{pid}")
