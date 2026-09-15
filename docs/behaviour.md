@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1285 behaviours, from 25 files.*
+*1292 behaviours, from 25 files.*
 
 
 ## Api
@@ -2315,7 +2315,7 @@ Regenerate with:
 
 ## Wanting work
 
-*test_wanting_work.py — 108 behaviours*
+*test_wanting_work.py — 115 behaviours*
 
 
 **Noting something down**
@@ -2537,3 +2537,17 @@ Regenerate with:
 - they show on every thing the project is about
 - a private projects are not inherited by a visitor  
   project_for withholds the project, so there is none to take jobs from.
+
+**Ticking A job off from the item page**
+
+- the things own job ticks off
+- it comes back to the item page  
+  Not to the project's.
+- the projects own job ticks off from here too  
+  A job you can read and not tick is one you have to go elsewhere to finish, which is the trip this panel exists to save.
+- the item page offers a tick for both kinds
+- without a next it still goes to the project  
+  The project's own page posts no next, and must keep working.
+- it will not be sent off the site  
+  _safe_next: the field is on a page, so it is a field somebody can edit.
+- a visitor gets no tick

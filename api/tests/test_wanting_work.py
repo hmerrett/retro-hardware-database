@@ -1124,3 +1124,63 @@ class TestTheProjectsOwnJobsShowOnItsThings:
         visitor(monkeypatch)
         page = client.get(f"/parts/{pt}").text
         assert "order the caps" not in page and "the RIFA went bang" not in page
+
+
+class TestTickingAJobOffFromTheItemPage:
+    """A job is shown in two places -- its project's list, and the page of the thing
+    it is about. Ticking one where you are standing should leave you there."""
+
+    def setup(self, client):
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        own = client.get(f"/api/projects/{pid}").json()["tasks"][0]["id"]
+        wide = client.post(f"/api/projects/{pid}/tasks",
+                           json={"text": "order the caps"}).json()["id"]
+        return pt, pid, own, wide
+
+    def test_the_things_own_job_ticks_off(self, client, db):
+        pt, pid, own, _ = self.setup(client)
+        r = client.post(f"/projects/{pid}/task/{own}/toggle",
+                        data={"next": f"/parts/{pt}"}, follow_redirects=False)
+        assert r.status_code == 303
+        assert db.get(ProjectTask, own).done is True
+
+    def test_it_comes_back_to_the_item_page(self, client):
+        """Not to the project's. Ticking a job at the bench, looking at the machine,
+        used to throw you onto a different page."""
+        pt, pid, own, _ = self.setup(client)
+        r = client.post(f"/projects/{pid}/task/{own}/toggle",
+                        data={"next": f"/parts/{pt}"}, follow_redirects=False)
+        assert r.headers["location"] == f"/parts/{pt}"
+
+    def test_the_projects_own_job_ticks_off_from_here_too(self, client, db):
+        """A job you can read and not tick is one you have to go elsewhere to
+        finish, which is the trip this panel exists to save."""
+        pt, pid, _, wide = self.setup(client)
+        client.post(f"/projects/{pid}/task/{wide}/toggle",
+                    data={"next": f"/parts/{pt}"}, follow_redirects=False)
+        assert db.get(ProjectTask, wide).done is True
+
+    def test_the_item_page_offers_a_tick_for_both_kinds(self, client):
+        pt, pid, own, wide = self.setup(client)
+        page = client.get(f"/parts/{pt}").text
+        assert f"/projects/{pid}/task/{own}/toggle" in page
+        assert f"/projects/{pid}/task/{wide}/toggle" in page
+
+    def test_without_a_next_it_still_goes_to_the_project(self, client):
+        """The project's own page posts no next, and must keep working."""
+        _pt, pid, own, _ = self.setup(client)
+        r = client.post(f"/projects/{pid}/task/{own}/toggle", follow_redirects=False)
+        assert r.headers["location"] == f"/projects/{pid}"
+
+    def test_it_will_not_be_sent_off_the_site(self, client):
+        """_safe_next: the field is on a page, so it is a field somebody can edit."""
+        _pt, pid, own, _ = self.setup(client)
+        r = client.post(f"/projects/{pid}/task/{own}/toggle",
+                        data={"next": "//evil.example.com/"}, follow_redirects=False)
+        assert r.headers["location"] == "/"
+
+    def test_a_visitor_gets_no_tick(self, client, monkeypatch):
+        pt, _pid, _own, _wide = self.setup(client)
+        visitor(monkeypatch)
+        assert "/toggle" not in client.get(f"/parts/{pt}").text
