@@ -153,6 +153,7 @@ the feature modules and `main` can all import downward without a cycle.
 | `main.py` | the FastAPI app, the middleware, and the routes not yet lifted out |
 | `web.py` | the templates object and what a page needs around one: the globals, the share card, the schema.org data |
 | `routers/seo.py` | robots.txt, the sitemap, and the icons asked for at the domain root |
+| `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
 | `routers/catalogue.py` | the catalogue as a page and as JSON: /machines and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
 | `models.py` | the ORM tables and their relationships |
