@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1274 behaviours, from 24 files.*
+*1280 behaviours, from 25 files.*
 
 
 ## Api
@@ -1060,6 +1060,21 @@ Regenerate with:
   A map that has quietly stopped matching the code is worse than none: it is read by whoever knows the code least.
 - the behaviour catalogue is the one the suite would write  
   The catalogue is generated, so the only way it can be wrong is by being stale.
+
+
+## Attach single item jobs
+
+*test_attach_single_item_jobs.py — 6 behaviours*
+
+- a single item projects loose jobs are picked
+- a project about two things is left alone  
+  Which of them is 'strip and clean' about?
+- a job that already names something is left alone  
+  So a choice made by hand survives, and a second run changes nothing.
+- a project with no items is left alone  
+  A project need own nothing -- the idea comes before the hardware.
+- a project with no loose jobs is left alone
+- only the loose ones are taken from a mixed project
 
 
 ## Auth secret
