@@ -34,19 +34,19 @@ from sqlalchemy.orm import Session
 
 from . import __version__
 from . import (drivedb, entry, filesdb, labels, machinedb, machines,
-               projects, ramdb, specdb, specstruct, thumbs)
+               projects, ramdb, specdb, specstruct)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    BRANDING_DIR, IMAGE_EXTS, IMAGES_DIR, PUBLIC_BASE_URL, REGISTER, RELIABILITY_MIN,
+    BRANDING_DIR, IMAGES_DIR, PUBLIC_BASE_URL, REGISTER, RELIABILITY_MIN,
     STATIC_DIR, _file_ver, _maker_reliability, _visible, branded, folder_images, to_dict)
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
-from .routers import seo
+from .routers import images, seo
 from .ids import next_asset_id
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
 from .photos import (  # photo/image helpers, lifted out of this module
     _asset_log_photos, _attach_log_photos, _chosen_photos, _crop_op, _delete_image,
     _drop_log_photos, _edit_image, _favicon_for_rel, _fetch_reference_photo,
-    _image_cache, _mark_reference, _photo_edit_redirect, _purge_photos,
+    _mark_reference, _photo_edit_redirect, _purge_photos,
     _restore_original, _rotate_op, _save_photo, _set_primary_photo, _tuneup_op,
     detect_images, has_original, img_srcset, img_url, is_reference, pick_images,
     reference_marks, tuned_photos)
@@ -609,30 +609,6 @@ app.mount("/static", _static, name="static")
 
 
 
-@app.get("/images/{path:path}", include_in_schema=False)
-def serve_image(path: str, v: str = "", w: int = 0):
-    # Reject traversal, dotfiles/dotdirs (e.g. the .wm and .sized caches) and
-    # non-images.
-    if any(seg.startswith(".") for seg in path.split("/")):
-        raise HTTPException(404)
-    full = (IMAGES_DIR / path).resolve()
-    if not str(full).startswith(str(IMAGES_DIR.resolve()) + os.sep) or not full.is_file():
-        raise HTTPException(404)
-    if full.suffix.lower() not in IMAGE_EXTS:
-        raise HTTPException(404)
-    served = _watermarked_file(path) if _is_own_photo(path) else full
-    # ?w= asks for a copy no wider than that, made and kept on first request. Only
-    # the widths the templates use are made; anything else is served whole rather
-    # than refused, because a photograph is never the wrong answer to a request for
-    # a photograph.
-    if w:
-        served = thumbs.served_path(IMAGES_DIR, path, w, served)
-    # A copy can still go between being chosen and being opened -- deleting a
-    # photograph takes its copies with it. The original is the same picture and is
-    # still here; a slower answer beats a broken one.
-    if not served.exists():
-        served = full
-    return FileResponse(served, headers=_image_cache(bool(v)))
 
 
 def get_or_404(db, model, aid):
@@ -4881,3 +4857,4 @@ def api_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
 # api/app/routers/, included here in the order it was declared in, so that lifting
 # the lot into a create_app() at the end of the split is mechanical.
 app.include_router(seo.router)
+app.include_router(images.router)
