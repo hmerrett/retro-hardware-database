@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1292 behaviours, from 25 files.*
+*1296 behaviours, from 25 files.*
 
 
 ## Api
@@ -2315,7 +2315,7 @@ Regenerate with:
 
 ## Wanting work
 
-*test_wanting_work.py — 115 behaviours*
+*test_wanting_work.py — 119 behaviours*
 
 
 **Noting something down**
@@ -2551,3 +2551,12 @@ Regenerate with:
 - it will not be sent off the site  
   _safe_next: the field is on a page, so it is a field somebody can edit.
 - a visitor gets no tick
+
+**What A projects shared link shows**
+
+- with no items it falls back to the site card
+- an item with no photograph does not supply one  
+  detect_images hands back a placeholder for a thing never photographed, and a generic outline of a computer reads as a broken image in a share preview -- worse than the site's own card.
+- an items photograph becomes the card
+- a placeholder is skipped for a real photograph behind it  
+  The first thing with a real photo, not the first thing.
