@@ -26,9 +26,7 @@ from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, RedirectResponse,
                                Response)
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from markupsafe import Markup
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
@@ -36,11 +34,15 @@ from . import __version__
 from . import (drivedb, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    BRANDING_DIR, IMAGES_DIR, PUBLIC_BASE_URL, REGISTER, RELIABILITY_MIN,
-    STATIC_DIR, _file_ver, _maker_reliability, _visible, branded, folder_images, to_dict)
+    BRANDING_DIR, IMAGES_DIR, REGISTER, RELIABILITY_MIN,
+    STATIC_DIR, _maker_reliability, _visible, folder_images, to_dict)
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
-from .routers import images, seo
+from .routers import catalogue, images, seo
+from .common import branded  # noqa: F401 -- re-exported for the tests, unused here
+from .photos import img_url  # noqa: F401 -- re-exported for the tests, unused here
+from .web import (  # the templates object and the page helpers around it
+    _abs_url, _dot, _jsonld, _og, _safe_next, templates)
 from .ids import next_asset_id
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
 from .photos import (  # photo/image helpers, lifted out of this module
@@ -48,7 +50,7 @@ from .photos import (  # photo/image helpers, lifted out of this module
     _drop_log_photos, _edit_image, _favicon_for_rel, _fetch_reference_photo,
     _mark_reference, _photo_edit_redirect, _purge_photos,
     _restore_original, _rotate_op, _save_photo, _set_primary_photo, _tuneup_op,
-    detect_images, has_original, img_srcset, img_url, is_reference, pick_images,
+    detect_images, has_original, is_reference, pick_images,
     reference_marks, tuned_photos)
 from .photos import (  # noqa: F401 -- re-exported for the tests, unused here
     WM_CACHE, WM_SRC, WM_SCALE, WM_MIN_PX, WM_BUILD, _watermarked_file, _wm_forget,
@@ -70,30 +72,6 @@ from .schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate,
 # start); no create_all here.
 
 app = FastAPI(title="Retro Hardware Database API", version=__version__)
-templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
-templates.env.globals.update(
-    display_name=entry.display_name, type_label=entry.type_label,
-    bezel_css=entry.bezel_css,
-    # For the pages that list parts rather than show one: a part's rendered specs
-    # broken back into pairs so they can be laid out as labelled columns. The item's
-    # own page reads the typed tables instead (specdb.pairs) -- this is the same
-    # reading of the same string that the change log already takes of it.
-    parse_specs=entry.parse_specs,
-    # Markup here rather than |safe at each use: the markup is ours, built by segno
-    # from a URL the app made, and no template should have to remember that.
-    qr_svg=lambda data: Markup(labels.qr_svg(data)),
-    today=lambda: date.today().isoformat(),
-    # A project's vocabulary, so a status reads as words in every place one is
-    # shown and the money is written the same way on the list page and the item.
-    money=projects.money, status_label=projects.status_label,
-    # The statuses that mean a project is over, so the pages that dim a finished
-    # one do not each keep their own idea of which those are.
-    closed_states=projects.CLOSED)
-# A filter rather than a global, because it reads as one thing done to another at
-# every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --
-# prose, notes, spec values, history entries -- and never for an attribute, which
-# cannot hold an anchor and would only get the escaping.
-templates.env.filters["linked"] = entry.linked
 
 AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
 AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
@@ -102,57 +80,10 @@ templates.env.globals["auth_enabled"] = AUTH_ENABLED
 
 
 
-def _abs_url(request: Request, path: str) -> str:
-    base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
-    return base + path
-
-
-def _dot(*parts) -> str:
-    return " · ".join(str(p) for p in parts if p)
 
 
 
 
-# The share card for a page with no photograph of its own: the logo on its own
-# cream, opaque and at the 1.91:1 those slots want (tools/make_icons.py makes it).
-# Several of the sites that show these composite a transparent PNG onto black,
-# which is why this one is not transparent.
-SITE_CARD = ("/static/og-image.png", 1200, 630)
-
-
-def _og(request: Request, title: str, description: str = "", image_rel: str | None = None):
-    """Open Graph / Twitter-card context for a page's social-share preview."""
-    og = {"title": title, "url": _abs_url(request, request.url.path),
-          "description": " ".join((description or "").split())[:280]}
-    if image_rel:
-        og["image"] = _abs_url(request, img_url(image_rel))
-        og["image_alt"] = title
-        size = _image_size(image_rel)
-        if size:
-            og["image_w"], og["image_h"] = size
-    else:
-        # An item with no photo, the gallery, the figures: the site's own card, so a
-        # shared link is never the bare text preview it used to be.
-        path, og["image_w"], og["image_h"] = SITE_CARD
-        og["image"] = _abs_url(request, f"{path}?v={SITE_CARD_VER}")
-        og["image_alt"] = "The Retro Hardware Database"
-    return og
-
-
-def _jsonld(og, asset_id, brand, category):
-    """schema.org Product data for an item, so search engines can show a richer
-    result. Built from the same values as the social-share card."""
-    d = {"@context": "https://schema.org", "@type": "Product",
-         "name": og["title"], "sku": asset_id, "category": category}
-    if og.get("description"):
-        d["description"] = og["description"]
-    if og.get("image"):
-        d["image"] = og["image"]
-    if og.get("url"):
-        d["url"] = og["url"]
-    if brand:
-        d["brand"] = {"@type": "Brand", "name": brand}
-    return d
 
 # Signed-cookie session for the browser (the API/tools keep using HTTP Basic).
 def _resolve_secret_key(secret: str, auth_enabled: bool) -> str:
@@ -376,9 +307,6 @@ async def auth_gate(request: Request, call_next):
     return await call_next(request)
 
 
-def _safe_next(nxt: str) -> str:
-    return nxt if nxt.startswith("/") and not nxt.startswith("//") else "/"
-
 
 @app.get("/login", response_class=HTMLResponse, include_in_schema=False)
 def gui_login(request: Request, next: str = "/"):
@@ -560,13 +488,6 @@ def healthz(db: Session = Depends(get_db)):
 
 
 
-
-
-
-templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
-templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
-# Social sites cache a card hard, so its URL carries the artwork's hash too.
-SITE_CARD_VER = _file_ver(branded(SITE_CARD[0].removeprefix("/static/")))
 
 
 
@@ -978,56 +899,6 @@ def _part_out(db, part, identity=None, in_projects=None):
         "project": _project_id(db, part.asset_id, in_projects)}
 
 
-@app.get("/machines", response_class=HTMLResponse, include_in_schema=False)
-def gui_machines(request: Request, db: Session = Depends(get_db)):
-    """Every machine the catalogue names, on one page, and which of them are here.
-
-    catalogue.txt answers this question in a text file and /api/machines answers it
-    in JSON; this is the same question asked in a browser, which is where it
-    actually gets asked -- "does it know my machine?" is what somebody wants to
-    know before they type one in, and reading a JSON document to find out is not a
-    reasonable thing to ask of anybody.
-
-    The count of what is held against each model comes from the register, so the
-    page doubles as the other view of the catalogue: not what was made, but how
-    much of it is on the shelf."""
-    held = Counter()
-    for row in db.query(AssetVariant.model_key).filter(AssetVariant.model_key != ""):
-        held[row[0]] += 1
-    families = [{"name": name, "models": group} for name, group in machines.grouped()]
-    return templates.TemplateResponse(request, "machines.html", {
-        "families": families, "held": held,
-        "n_models": len(machines.keys()), "n_families": len(families),
-        "og": _og(request, "Machines the catalogue names",
-                  f"{len(machines.keys())} machines the register knows as models, "
-                  "with the board issues, styles and chips each was built in.")})
-
-
-@app.get("/api/machines", tags=["computers"])
-def api_list_machines():
-    """The catalogue of machines the register knows as models -- home computers,
-    consoles and the documented branded PCs -- with the memory sizes, board issues,
-    case and keyboard styles, regions and chip sockets each was built in. `key` is
-    what a computer's `machine.model_key` is set to.
-
-    Every list names what is commonly seen rather than everything that exists, so a
-    board issue or a chip from outside one is recorded as it is given."""
-    return {"families": [{"name": name,
-                          "models": [{"key": m["key"], "model": m["model"],
-                                      "year": m["year"],
-                                      "manufacturer": m["manufacturer"],
-                                      "summary": m["summary"],
-                                      "ram": [lbl for lbl, _kb in m["ram"]],
-                                      "issues": m["issues"], "styles": m["styles"],
-                                      "regions": m["regions"],
-                                      "chips": [{"role": c["role"],
-                                                 "label": c["label"],
-                                                 "variants": c["variants"]}
-                                                for c in m["chips"]]}
-                                     for m in group]}
-                         for name, group in machines.grouped()]}
-
-
 @app.get("/api/computers", response_model=list[ComputerOut], tags=["computers"])
 def api_list_computers(db: Session = Depends(get_db)):
     rows = db.query(Computer).order_by(Computer.asset_id).all()
@@ -1248,15 +1119,6 @@ def _attach_photos(db, obj, kind, uploads):
 
 
 
-
-
-
-templates.env.globals["img_url"] = img_url
-templates.env.globals["img_srcset"] = img_srcset
-templates.env.globals["THUMB_CARD"] = 300
-templates.env.globals["THUMB_MAIN"] = 1200
-templates.env.globals["human_size"] = filesdb.human_size
-templates.env.globals["max_file_mb"] = filesdb.MAX_BYTES // (1024 * 1024)
 
 
 
@@ -4858,3 +4720,4 @@ def api_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
 # the lot into a create_app() at the end of the split is mechanical.
 app.include_router(seo.router)
 app.include_router(images.router)
+app.include_router(catalogue.router)
