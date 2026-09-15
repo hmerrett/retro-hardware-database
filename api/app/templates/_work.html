@@ -36,6 +36,7 @@
     <tr class="{{ 'done' if t.done else '' }}">
       {% if request.state.authed %}
       <td class="tight"><form method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" style="margin:0">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
         <button class="btn sm" type="submit" title="{{ 'Put it back on the list' if t.done else 'Tick it off' }}">{{ '✓' if t.done else '○' }}</button>
       </form></td>
       {% else %}
@@ -58,7 +59,14 @@
   <table>
     {% for t in project_tasks %}
     <tr class="{{ 'done' if t.done else '' }}">
+      {% if request.state.authed %}
+      <td class="tight"><form method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" style="margin:0">
+        <input type="hidden" name="next" value="{{ request.url.path }}">
+        <button class="btn sm" type="submit" title="{{ 'Put it back on the list' if t.done else 'Tick it off' }}">{{ '✓' if t.done else '○' }}</button>
+      </form></td>
+      {% else %}
       <td class="tight muted">{{ '✓' if t.done else '○' }}</td>
+      {% endif %}
       <td class="tasktext muted">{{ t.text | linked }}</td>
       <td class="tight muted">{{ t.done_at or '' }}</td>
     </tr>
