@@ -100,6 +100,25 @@
         <td class="tight muted">{{ '✓' if t.done else '○' }}</td>
         {% endif %}
         <td class="tasktext">{{ t.text | linked }}</td>
+        {% if members %}
+        {# Which thing this job is about, where it is about one. A select and a
+           button rather than a menu that submits itself: an onchange handler is
+           inline script, and the Content-Security-Policy on the roadmap does not
+           take one. #}
+        <td class="tight">
+          {%- if request.state.authed %}
+          <form method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/about" style="margin:0;display:flex;gap:4px">
+            <select name="asset" aria-label="what {{ t.text[:40] }} is about">
+              <option value="">the project</option>
+              {% for kind, obj, row in members %}
+              <option value="{{ obj.asset_id }}" {{ 'selected' if t.asset_id == obj.asset_id }}>{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn sm" type="submit" title="Say what this job is about">set</button>
+          </form>
+          {%- elif t.asset_id %}<span class="muted">{{ t.asset_id }}</span>{% endif %}
+        </td>
+        {% endif %}
         <td class="tight muted">{{ t.done_at or '' }}</td>
         {% if request.state.authed %}
         <td class="tight"><form method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/delete" style="margin:0"
@@ -114,6 +133,12 @@
     {% if request.state.authed %}
     <form class="addbar" method="post" action="/projects/{{ p.asset_id }}/task">
       <input name="text" placeholder="something to do" required>
+      {% if members %}
+      <select name="asset" aria-label="what this job is about">
+        <option value="">the project</option>
+        {% for kind, obj, row in members %}<option value="{{ obj.asset_id }}">{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</option>{% endfor %}
+      </select>
+      {% endif %}
       <button class="btn sm" type="submit">add task</button>
     </form>
     {% endif %}

@@ -2892,7 +2892,7 @@
         ]
       },
       "patch": {
-        "description": "Reword a job or tick it. Un-ticking clears the date as well: a job that is\nnot done has no day it was done on.",
+        "description": "Reword a job, tick it, or say which of the project's things it is about.\n\n`asset_id` takes one of the project's own members, or null to say the job is\nabout the project rather than any one thing on it. It is here as well as on the\ncreate because the jobs written before a job could name anything are exactly the\nones that most need saying -- without it the only way to attach one is to delete\nit and type it again, which loses the tick and the day it was done.\n\nUn-ticking clears the date as well: a job that is not done has no day it was\ndone on.",
         "operationId": "api_project_update_task_api_projects__aid__tasks__tid__patch",
         "parameters": [
           {
