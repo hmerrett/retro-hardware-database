@@ -187,6 +187,29 @@ def project_for(db, asset_id, authed=True):
     return q.first()
 
 
+def project_wide_tasks(db, project_id):
+    """A project's jobs that name no one thing.
+
+    Shown on the page of every thing the project is about, beneath that thing's
+    own. A job naming nothing is a job about the project, and a project is about
+    its things -- 'order the caps' applies to the machine you are holding as much
+    as to the one on the next shelf, and leaving it off the page would mean the
+    thing's page quietly omits work that bears on it.
+
+    Kept separate from `tasks_for_asset` rather than folded into it, because the
+    two are not the same claim: one is work about this thing, the other is work
+    about the project it happens to be on. The page says which is which, so
+    nothing is attributed to a machine that was never said about it.
+
+    No privacy filter here. The caller only asks once it has a project to ask
+    about, and `project_for` has already withheld a private one from a visitor --
+    so there is no project to take the jobs from."""
+    return (db.query(ProjectTask)
+            .filter(ProjectTask.project_id == project_id,
+                    ProjectTask.asset_id.is_(None))
+            .order_by(ProjectTask.done, ProjectTask.id).all())
+
+
 def tasks_for_asset(db, asset_id, authed=True):
     """The jobs written against one thing, outstanding first.
 
