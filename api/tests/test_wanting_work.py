@@ -44,7 +44,7 @@ def hidden(client, job="a private job", name="Hidden", aid=None):
 def visitor(monkeypatch):
     """Nobody logged in. The fixtures run with the login switched off, so the gate
     lets everything through until a test says otherwise."""
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
 
 
 class TestNotingSomethingDown:
