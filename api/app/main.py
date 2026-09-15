@@ -1994,8 +1994,11 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "files": filesdb.for_item(db, cdict, request.state.authed),
         "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
-        "on_project": projects.project_for(db, aid, request.state.authed),
+        "on_project": (found := projects.project_for(db, aid,
+                                                     request.state.authed)),
         "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
+        "project_tasks": (projects.project_wide_tasks(db, found.asset_id)
+                          if found is not None else []),
         # For the picker in that panel, which only an owner is shown -- so a
         # visitor's page does not ask the question at all.
         "work_projects": (projects.open_projects(db) if request.state.authed
@@ -3274,8 +3277,11 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "files": filesdb.for_item(db, pdict, request.state.authed),
         "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
-        "on_project": projects.project_for(db, aid, request.state.authed),
+        "on_project": (found := projects.project_for(db, aid,
+                                                     request.state.authed)),
         "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
+        "project_tasks": (projects.project_wide_tasks(db, found.asset_id)
+                          if found is not None else []),
         # For the picker in that panel, which only an owner is shown -- so a
         # visitor's page does not ask the question at all.
         "work_projects": (projects.open_projects(db) if request.state.authed

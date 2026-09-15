@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1280 behaviours, from 25 files.*
+*1285 behaviours, from 25 files.*
 
 
 ## Api
@@ -2315,7 +2315,7 @@ Regenerate with:
 
 ## Wanting work
 
-*test_wanting_work.py — 103 behaviours*
+*test_wanting_work.py — 108 behaviours*
 
 
 **Noting something down**
@@ -2526,3 +2526,14 @@ Regenerate with:
 - the form on the project page does it too
 - the form can detach it as well
 - the add form can name one on the way in
+
+**The projects own jobs show on its things**
+
+- they show beneath the things own
+- they are marked as the projects and not the things  
+  Run together they would attribute to a machine something nobody said about it.
+- a job naming another thing does not show  
+  Inheriting the project's own jobs is not inheriting everybody's.
+- they show on every thing the project is about
+- a private projects are not inherited by a visitor  
+  project_for withholds the project, so there is none to take jobs from.
