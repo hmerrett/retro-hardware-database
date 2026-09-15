@@ -1006,3 +1006,73 @@ class TestAPrivateProjectsJobsAreNotOnTheItemPage:
         quick(client, "needs a belt", aid=pt)
         visitor(monkeypatch)
         assert "needs a belt" in client.get(f"/parts/{pt}").text
+
+
+class TestSayingWhatAnExistingJobIsAbout:
+    """The jobs written before a job could name anything are the ones that most
+    need saying. Without this the only way to attach one is to delete it and type
+    it again, which loses the tick and the day it was done."""
+
+    def setup_project(self, client):
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        tid = client.post(f"/api/projects/{pid}/tasks",
+                          json={"text": "test it"}).json()["id"]
+        return pt, pid, tid
+
+    def test_the_api_attaches_it(self, client, db):
+        pt, pid, tid = self.setup_project(client)
+        r = client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"asset_id": pt})
+        assert r.status_code == 200 and r.json()["asset_id"] == pt
+        assert "test it" in tasks_against(db, pt)
+
+    def test_it_keeps_the_tick_and_the_day(self, client, db):
+        """Which is the whole reason this is not delete-and-retype."""
+        pt, pid, tid = self.setup_project(client)
+        client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"done": True})
+        was = client.get(f"/api/projects/{pid}").json()
+        done_at = next(t for t in was["tasks"] if t["id"] == tid)["done_at"]
+        r = client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"asset_id": pt})
+        assert r.json()["done"] is True and r.json()["done_at"] == done_at
+
+    def test_null_detaches_it(self, client, db):
+        pt, pid, tid = self.setup_project(client)
+        client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"asset_id": pt})
+        r = client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"asset_id": None})
+        assert r.json()["asset_id"] is None
+        assert "test it" not in tasks_against(db, pt)
+
+    def test_leaving_it_out_changes_nothing(self, client, db):
+        """exclude_unset: a PATCH that only rewords must not quietly detach."""
+        pt, pid, tid = self.setup_project(client)
+        client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"asset_id": pt})
+        r = client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"text": "test it "})
+        assert r.json()["asset_id"] == pt
+
+    def test_it_may_not_name_something_the_project_is_not_about(self, client, db):
+        _, pid, tid = self.setup_project(client)
+        other = client.post("/api/parts", json={"model": "X"}).json()["asset_id"]
+        r = client.patch(f"/api/projects/{pid}/tasks/{tid}",
+                         json={"asset_id": other})
+        assert r.status_code == 422
+
+    def test_the_form_on_the_project_page_does_it_too(self, client, db):
+        pt, pid, tid = self.setup_project(client)
+        r = client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": pt},
+                        follow_redirects=False)
+        assert r.status_code == 303
+        assert "test it" in tasks_against(db, pt)
+
+    def test_the_form_can_detach_it_as_well(self, client, db):
+        pt, pid, tid = self.setup_project(client)
+        client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": pt},
+                    follow_redirects=False)
+        client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": ""},
+                    follow_redirects=False)
+        assert tasks_against(db, pt) == ["recap"]
+
+    def test_the_add_form_can_name_one_on_the_way_in(self, client, db):
+        pt, pid, _ = self.setup_project(client)
+        client.post(f"/projects/{pid}/task",
+                    data={"text": "new belt", "asset": pt}, follow_redirects=False)
+        assert tasks_against(db, pt) == ["recap", "new belt"]

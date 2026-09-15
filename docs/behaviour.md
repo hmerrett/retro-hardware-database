@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1266 behaviours, from 24 files.*
+*1274 behaviours, from 24 files.*
 
 
 ## Api
@@ -2300,7 +2300,7 @@ Regenerate with:
 
 ## Wanting work
 
-*test_wanting_work.py — 95 behaviours*
+*test_wanting_work.py — 103 behaviours*
 
 
 **Noting something down**
@@ -2498,3 +2498,16 @@ Regenerate with:
 - the owner sees them
 - a public project is shown to a visitor  
   The filter is about privacy and not about hiding work in general.
+
+**Saying what an existing job is about**
+
+- the api attaches it
+- it keeps the tick and the day  
+  Which is the whole reason this is not delete-and-retype.
+- null detaches it
+- leaving it out changes nothing  
+  exclude_unset: a PATCH that only rewords must not quietly detach.
+- it may not name something the project is not about
+- the form on the project page does it too
+- the form can detach it as well
+- the add form can name one on the way in

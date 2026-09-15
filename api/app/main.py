@@ -4491,6 +4491,25 @@ async def gui_project_add_task(aid: str, request: Request,
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
+@app.post("/projects/{aid}/task/{tid}/about", include_in_schema=False)
+async def gui_project_task_about(aid: str, tid: int, request: Request,
+                                 db: Session = Depends(get_db)):
+    """Say which of the project's things a job is about, from the project's page.
+
+    Its own route rather than a field on the add form, because the jobs that need
+    this most are the ones already written -- see api_project_update_task."""
+    p = get_or_404(db, Project, aid)
+    row = _api_task(db, p, tid)
+    form = await request.form()
+    before = row.asset_id
+    row.asset_id = _task_asset(db, p.asset_id, form.get("asset", ""))
+    if before != row.asset_id:
+        add_log(db, aid, (f"{_short(row.text)}: about {_asset_named(db, row.asset_id)}"
+                          if row.asset_id else f"{_short(row.text)}: about no one thing"))
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
 @app.post("/projects/{aid}/task/{tid}/toggle", include_in_schema=False)
 def gui_project_toggle_task(aid: str, tid: int, db: Session = Depends(get_db)):
     """Tick a job, or put it back.
@@ -4753,8 +4772,16 @@ def api_project_add_task(aid: str, data: ProjectTaskIn,
            tags=PROJECT_TAGS)
 def api_project_update_task(aid: str, tid: int, data: ProjectTaskIn,
                             db: Session = Depends(get_db)):
-    """Reword a job or tick it. Un-ticking clears the date as well: a job that is
-    not done has no day it was done on."""
+    """Reword a job, tick it, or say which of the project's things it is about.
+
+    `asset_id` takes one of the project's own members, or null to say the job is
+    about the project rather than any one thing on it. It is here as well as on the
+    create because the jobs written before a job could name anything are exactly the
+    ones that most need saying -- without it the only way to attach one is to delete
+    it and type it again, which loses the tick and the day it was done.
+
+    Un-ticking clears the date as well: a job that is not done has no day it was
+    done on."""
     p = _api_project(db, aid)
     row = _api_task(db, p, tid)
     fields = data.model_dump(exclude_unset=True)
@@ -4767,6 +4794,13 @@ def api_project_update_task(aid: str, tid: int, data: ProjectTaskIn,
         if was != row.done:
             add_log(db, aid, ("done: " if row.done else "back on the list: ")
                     + _short(row.text))
+    if "asset_id" in fields:
+        before = row.asset_id
+        row.asset_id = _task_asset(db, p.asset_id, fields["asset_id"])
+        if before != row.asset_id:
+            add_log(db, aid, (f"{_short(row.text)}: about "
+                              f"{_asset_named(db, row.asset_id)}" if row.asset_id
+                              else f"{_short(row.text)}: about no one thing"))
     db.commit()
     db.refresh(row)
     return row
