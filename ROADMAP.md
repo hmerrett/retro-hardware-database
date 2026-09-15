@@ -22,6 +22,25 @@ The licence (AGPL-3.0), the version's single home
 (ADR-0006, ADR-0007) and the test engine (ADR-0008). Nothing open remains to
 decide before the work below can start.
 
+## Done, and gone from the list
+
+An item leaves this file when it is done, so what has left is recorded once here
+rather than being wondered about later.
+
+- **Docker environment separation.** The app runs as `appuser` and not root, the
+  photograph and file volumes are put right before it starts, the database is
+  behind a healthcheck the app waits on, and `docker-compose.dev.yml` layers the
+  source mount and reload on top (#40). Two parts of that item did not land as
+  written: the multi-stage Dockerfile is item 4's, since it is the lockfile that
+  makes the layering worth having; and a *production* override is the
+  installation's own file, not the project's, which `docker-environments.md` now
+  says.
+- **The backup can be restored, and is checked.** `tools/restore.sh` restores a
+  backup and then checks it — every table's row count and the schema version
+  against the dump, every archived photograph and file, and the public pages
+  answering (#41) — and a round-trip test guards the dump-and-restore commands it
+  leans on (#43).
+
 ## The work, in order
 
 **1. Make the repository public, then walk §2.** The walk was done on a clean
@@ -57,15 +76,35 @@ which is still a substring match recomputed per request.
   before trusting it — it preserves the matcher's mistakes too.
 - Demote tags to descriptive labels; rewrite the two docstrings that argue for
   name-matching.
-- Lift the `files` routes into `files.py` while in there — a free step of item 5,
-  paid for by work already happening.
+- Lift the `files` routes into `routers/files.py` while in there — a free step of
+  item 5, paid for by work already happening.
 
 **4. `uv` with a committed `uv.lock`, then `ruff format --check .` in CI.**
-Dependencies first, so everything after it builds from a pinned tree.
+Dependencies first, so everything after it builds from a pinned tree. The
+multi-stage Dockerfile belongs here rather than in an item of its own: the point
+of it is a dependency layer built from the lockfile and cached apart from the
+code, which is this work.
 
-**5. Finish splitting `main.py`.** 4,851 lines and 122 routes after
-`common`/`stats`/`photos`/`search`. It is why #25 collided with #26, so it pays for itself
-in reduced conflict.
+`ruff format` rewrites most of `main.py`, so it goes *after* the split rather than
+before it — otherwise every router extraction in flight conflicts with it.
+
+**5. Finish splitting `main.py`.** 4,849 lines, 118 routes still in it and 5 out,
+after `common`/`stats`/`photos`/`search` and the first route group (#44). It is why
+#25 collided with #26, so it pays for itself in reduced conflict.
+
+Route groups go in an `api/app/routers/` package, one module per group, included
+by `main`. The remaining groups in the order they are being taken, quietest first:
+`/images`, the catalogue, stats and traffic, the gallery, auth, items, files, then
+the computers, parts and projects pages, then the three `/api` groups. Shared
+helpers a group needs — the templates object and page helpers, the log helpers,
+`get_or_404` — come out into their own modules just before the first group that
+needs them, and `create_app()` is last, because every route still using `@app` has
+to be gone before it can exist.
+
+Two things to hold on to while it happens: a test that patches a name on `main`
+has to follow that name when it moves, or the patch quietly stops working; and
+`/computers/new`, `/parts/new` and `/projects/new` must stay declared before their
+`/{aid}` neighbours.
 
 *This needs a finish line or it will hold the release indefinitely.* Proposed:
 done when `main.py` holds only app construction, middleware and start-up wiring —
@@ -81,14 +120,25 @@ type-checked at all.
 it, which is incremental and sits awkwardly with a release gate. Recommended:
 gate 0.1 on `mypy app` passing, with `--strict` enabled per module for the
 modules already extracted and ratcheted forward as more come out. Demanding
-strict across a 5,361-line `main.py` would either block the release or produce a
+strict across a `main.py` of this size would either block the release or produce a
 lot of `Any`.
 
 **7. Content-Security-Policy.** `security-standards` calls it the strongest
-single anti-XSS control, and it is blocked only by `base.html`'s inline scripts;
-the CSS half is already done. Two steps: move the inline JS to a cacheable static
-file, then send the header from Caddy alongside those already there. Independent
-of items 5 and 6, so it can go earlier if the split runs long.
+single anti-XSS control, and the CSS half is already done. Counted rather than
+guessed at, what stands in the way is larger than "the inline scripts in
+`base.html`": 13 script blocks and 1,526 lines of JavaScript in that file, five
+more templates with a block of their own, 8 inline event handlers and 65 inline
+`style` attributes. So three steps, not two:
+
+- move the JavaScript to a cacheable static file, versioned the way `app.css` is,
+  and repoint the tests that assert on the markup of a page containing it;
+- deal with the handlers and the `style` attributes, or decide to keep
+  `'unsafe-inline'` for styles alone and write down why;
+- send the header from Caddy, **`Content-Security-Policy-Report-Only` first**, so
+  a week of real traffic says what it would have broken before anything breaks.
+
+Still independent of items 5 and 6, so it can go earlier — though the plan is to
+take it after the split, to keep two people out of the same templates at once.
 
 **8. Close the accessibility gaps, and decide the target.** The contrast and
 touch-size tests in `test_stylesheet.py` exist because each of those things
@@ -111,11 +161,7 @@ Sits beside item 7 rather than after it: both are `base.html` work, and the
 inline JavaScript that blocks the CSP is in the same file as the missing skip
 link.
 
-**9. Docker environment separation.** Base plus `dev`/`prod` overrides, a
-multi-stage Dockerfile with deps-before-source layering, a non-root user in prod,
-and a database healthcheck behind `depends_on: condition: service_healthy`.
-
-**10. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
+**9. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
 and MANUAL are detailed, which is exactly why they drift — and the drift is not
 only in the user-facing docs. This pass found `testing-standards`,
 `workflow-and-ci` and `CLAUDE.md` all describing a SQLite test run that no longer
@@ -123,7 +169,9 @@ exists, and a README crediting contributors without ever stating the project's
 licence. So this item covers `.claude/rules/` and `CLAUDE.md` too — including
 `accessibility-standards`, which item 8 will have just changed.
 
-The release gate: item 1's walk repeated on a clean host, the docs corrected to
+The release gate: item 1's walk repeated on a clean host, a backup of that host
+restored into a second stack with `tools/restore.sh` (a release that invites
+people to self-host should have restored one at least once), the docs corrected to
 match, a `CHANGELOG.md` started, then tag `v0.1.0`.
 
 ## After 0.1
