@@ -4290,12 +4290,19 @@ async def gui_project_task_about(aid: str, tid: int, request: Request,
 
 
 @app.post("/projects/{aid}/task/{tid}/toggle", include_in_schema=False)
-def gui_project_toggle_task(aid: str, tid: int, db: Session = Depends(get_db)):
+async def gui_project_toggle_task(aid: str, tid: int, request: Request,
+                                  db: Session = Depends(get_db)):
     """Tick a job, or put it back.
 
     Un-ticking clears the date rather than keeping it. A job that is not done has
     no day it was done on, and leaving the old one behind would mean a task showing
-    as outstanding while still claiming a completion date."""
+    as outstanding while still claiming a completion date.
+
+    Comes back to the page it was ticked from, which the form says in `next`. A job
+    is shown in two places -- its project's list and the page of the thing it is
+    about -- and always returning to the project meant ticking one off at the bench,
+    where you are looking at the machine, threw you onto a different page. Through
+    _safe_next, so the field cannot send anybody off this site."""
     p = get_or_404(db, Project, aid)
     row = _task_or_404(db, p, tid)
     row.done = not row.done
@@ -4303,7 +4310,10 @@ def gui_project_toggle_task(aid: str, tid: int, db: Session = Depends(get_db)):
     add_log(db, p.asset_id, ("done: " if row.done else "back on the list: ")
             + _short(row.text))
     db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+    form = await request.form()
+    return RedirectResponse(_safe_next(form.get("next", "") or
+                                       f"/projects/{p.asset_id}"),
+                            status_code=303)
 
 
 @app.post("/projects/{aid}/task/{tid}/delete", include_in_schema=False)
