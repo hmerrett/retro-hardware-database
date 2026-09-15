@@ -37,6 +37,7 @@ from .common import (  # shared foundations; re-exported here so existing call-s
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
 from .routers import catalogue, images, seo
+from .routers import gallery
 from .routers import stats as stats_routes
 from .common import (  # noqa: F401 -- re-exported for the tests, unused here
     RELIABILITY_MIN, _maker_reliability, branded)
@@ -58,7 +59,7 @@ from .photos import (  # noqa: F401 -- re-exported for the tests, unused here
 )
 from .photos import _storage_placeholder  # placeholder routing shared with search
 from .search import (  # search, suggestions and the /browse views, lifted out of this module
-    _browse_view, _projects_matching, _search, _suggest)
+    _projects_matching)
 from .search import search_terms  # noqa: F401 -- re-exported for the tests, unused here
 from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
                      ComputerRamChip, ComputerRamModule, LogEntry, LogPhoto,
@@ -1274,104 +1275,6 @@ def _item_nav(db, aid):
     return {"prev": at(here - 1), "next": at(here + 1)}
 
 
-# --- GUI: index ------------------------------------------------------------
-
-def _catalogue_rows(db, precise_times=True):
-    """Every computer and part as one list of card rows. The gallery and /browse
-    render the same grid from this; they differ only in which rows survive.
-
-    The recency sort keys ride on the cards as data attributes, so anonymously they
-    carry the date alone, like the history does (`precise_times=False`). The rows
-    come back newest-change-first regardless, which is what keeps a day's worth of
-    edits in order once the browser sorts on dates that are all equal."""
-    computers = db.query(Computer).order_by(Computer.asset_id).all()
-    parts = db.query(Part).order_by(Part.asset_id).all()
-    counts = {}
-    for p in parts:
-        if p.computer_id:
-            counts[p.computer_id] = counts.get(p.computer_id, 0) + 1
-    comp_ids = {c.asset_id for c in computers}
-
-    # Newest/oldest log timestamp per asset, for the updated / added sorts.
-    ts = {}
-    for aid, latest, first in db.query(
-            LogEntry.asset_id, func.max(LogEntry.created_at),
-            func.min(LogEntry.created_at)).group_by(LogEntry.asset_id):
-        ts[aid] = (latest, first)
-
-    def stamp(when):
-        if not when:
-            return ""
-        return when.isoformat() if precise_times else when.strftime("%Y-%m-%d")
-
-    def stamps(aid):
-        latest, first = ts.get(aid, (None, None))
-        return (stamp(latest), stamp(first))
-
-    # Both folders read once for the whole page: scanning per row was the bulk of
-    # this route's time (0.38s of 0.50s across 293 assets).
-    listings = {kind: folder_images(kind) for kind in ("computers", "parts")}
-
-    def primary_image(kind, aid):
-        imgs = pick_images(kind, aid, listings[kind])
-        return imgs[0] if imgs else ""
-
-    # One query for every storage part's Kind, rather than re-parsing each specs
-    # string (or a lookup per row) just to choose an icon.
-    kinds = specdb.storage_kinds(db)
-
-    rows = []
-    for c in computers:
-        rows.append({
-            "obj": c, "kind": "computer", "cat": "computer",
-            "cat_label": "Computer", "parent": "", "year": c.year or "",
-            "name": entry.display_name(to_dict(c)),
-            "image": (cpi := primary_image("computers", c.asset_id)),
-            "ref_photo": is_reference(cpi), "ref_icon": _favicon_for_rel(cpi),
-            "placeholder": entry.placeholder_for("computer"),
-            "updated": stamps(c.asset_id)[0], "added": stamps(c.asset_id)[1],
-            "maker": (c.manufacturer or "").lower(),
-            "acquired": str(c.acquired_date or ""), "catsort": 0,
-            "sub": f"{counts.get(c.asset_id, 0)} part(s)",
-            "search": " ".join([c.asset_id, c.name or "", c.manufacturer or "",
-                                 c.model or "", c.os or "", c.cpu or "",
-                                 c.chassis or "", c.installed_ram or "",
-                                 c.drives or "", str(c.year or ""),
-                                 c.condition or "", c.source or "",
-                                 str(c.acquired_date or ""),
-                                 c.disposed_note or ""]).lower(),
-        })
-    for p in parts:
-        ptype = p.type or "other"
-        rows.append({
-            "obj": p, "kind": "part", "cat": ptype,
-            "cat_label": entry.type_label(ptype), "year": p.year or "",
-            "parent": p.computer_id if p.computer_id in comp_ids else "",
-            "name": entry.display_name(to_dict(p)),
-            "image": (ppi := primary_image("parts", p.asset_id)),
-            "ref_photo": is_reference(ppi), "ref_icon": _favicon_for_rel(ppi),
-            "placeholder": (_storage_placeholder(kinds.get(p.asset_id))
-                            if ptype == "storage"
-                            else entry.placeholder_for(ptype)),
-            "updated": stamps(p.asset_id)[0], "added": stamps(p.asset_id)[1],
-            "maker": (p.manufacturer or "").lower(),
-            "acquired": str(p.acquired_date or ""),
-            "catsort": entry.type_sort_key(ptype) + 1,
-            "sub": (p.computer_id if p.computer_id else "standalone"),
-            "search": " ".join([p.asset_id, p.name or "", p.manufacturer or "",
-                                 p.model or "", p.specs or "", p.type or "",
-                                 entry.type_label(ptype), str(p.year or ""),
-                                 p.condition or "", p.source or "",
-                                 str(p.acquired_date or ""), p.disk_image or "",
-                                 p.computer_id or "", p.disposed_note or ""]).lower(),
-        })
-    # Newest change first. The browser re-sorts on load anyway, but its sort is
-    # stable, so this is the order items updated on the same day keep -- the whole
-    # of what the dropped clock time used to settle.
-    rows.sort(key=lambda r: ts.get(r["obj"].asset_id, (datetime.min,))[0] or datetime.min,
-              reverse=True)
-    return rows
-
 
 def _part_placeholder(db, part):
     """The stand-in drawing for one part, routed exactly as the gallery routes it.
@@ -1416,75 +1319,6 @@ def part_thumbs(db, parts):
         }
     return thumbs
 
-
-def _cats_for(rows):
-    """Options for the toolbar's category menu: only the kinds actually present, so
-    a filtered page does not offer to filter down to nothing."""
-    cats = [("computer", "Computers")] if any(r["kind"] == "computer" for r in rows) else []
-    present = {r["cat"] for r in rows if r["kind"] == "part"}
-    for t in sorted(present, key=entry.type_sort_key):
-        cats.append((t, entry.type_label(t)))
-    return cats
-
-
-def _grid_page(request, rows, **extra):
-    """Render the card grid. Counts come from the rows on the page rather than from
-    the register, so a filtered view describes itself honestly."""
-    n_computers = sum(1 for r in rows if r["kind"] == "computer")
-    return templates.TemplateResponse(request, "index.html", {
-        "rows": rows, "cats": _cats_for(rows),
-        "n_computers": n_computers, "n_parts": len(rows) - n_computers, **extra})
-
-
-@app.get("/suggest", include_in_schema=False)
-def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)):
-    items, total = _suggest(db, q, authed=request.state.authed)
-    return {"q": q, "items": items, "total": total}
-
-
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
-def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
-    rows = _catalogue_rows(db, precise_times=request.state.authed)
-    total = len(rows)
-    hit_projects = 0
-    if q.strip():
-        rows = _search(db, rows, q, request.state.authed)
-        # Counted, not shown. The grid is a wall of photographs of things owned and
-        # a project is not one of those, so it does not become a card here -- but a
-        # search that quietly ignored a whole section of the site would be a search
-        # bar that says "anything" and means "the shelf". The line the page draws
-        # from this points at /projects with the same query.
-        hit_projects = len(_projects_matching(
-            db, projects.summaries(db, authed=request.state.authed), q,
-            request.state.authed))
-    n_computers = sum(1 for r in rows if r["kind"] == "computer")
-    return _grid_page(
-        request, rows, q=q, searched=bool(q.strip()), total=total,
-        hit_projects=hit_projects,
-        og=_og(request, "Retro Hardware Database",
-               f"{n_computers} computers and {len(rows) - n_computers} parts "
-               "in the collection."))
-
-
-@app.get("/browse", response_class=HTMLResponse, include_in_schema=False)
-def gui_browse(request: Request, f: str = "", v: str = "",
-               db: Session = Depends(get_db)):
-    """The items behind one figure on /stats, in the same grid as the gallery."""
-    view = _browse_view(db, f, v)
-    if view is None:
-        raise HTTPException(404, f"no such view: {f or '(none)'}")
-    heading, note, crumb, keep = view
-    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed)
-            if keep(r)]
-    return _grid_page(
-        request, rows, heading=heading, note=note, crumb=crumb,
-        # The figures on /stats count disposed items too, so this page has to show
-        # them by default or it would seem to contradict the number clicked on.
-        show_disposed=True,
-        page_title=f"{heading} — Retro Hardware Database",
-        # A filtered slice of the gallery is not a page search engines want; the
-        # items themselves are already indexed one by one.
-        noindex=True, og=_og(request, heading, note))
 
 
 # --- GUI: computers --------------------------------------------------------
@@ -4673,3 +4507,4 @@ app.include_router(seo.router)
 app.include_router(images.router)
 app.include_router(catalogue.router)
 app.include_router(stats_routes.router)
+app.include_router(gallery.router)
