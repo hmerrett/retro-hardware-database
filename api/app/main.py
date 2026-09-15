@@ -3733,12 +3733,13 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
                     "asset_id": row.asset_id, "name": row.name,
                     "manufacturer": row.manufacturer, "model": row.model})))
         choices.sort(key=lambda c: c[1].lower())
+    members = projects.members(db, p.asset_id)
     return templates.TemplateResponse(request, "project.html", {
         "p": p, "item": to_dict(p), "kind": "projects",
         # Who things have been bought from before: the same kind of field as an
         # item's source, and answered the same few ways.
         "dl_suppliers": _answers_given(db, ProjectOrder.supplier),
-        "members": projects.members(db, p.asset_id),
+        "members": members,
         "tasks": task_rows,
         "tasks_done": sum(1 for t in task_rows if t.done),
         "orders": order_rows,
@@ -3747,7 +3748,8 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
         "choices": choices,
         "log": _history(db, p.asset_id),
         "og": _og(request, p.name or p.asset_id,
-                  p.summary or projects.status_label(p.status))})
+                  p.summary or projects.status_label(p.status),
+                  _project_card(members))})
 
 
 @app.get("/projects/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
@@ -3904,6 +3906,33 @@ def _publish_log(db, project):
     else:
         for asset_id in members:
             add_log(db, asset_id, f"wanted for {_project_named(project)}")
+
+
+def _project_card(members):
+    """The photograph a project's shared link shows: the first of its things that
+    has one, or None to fall back to the site's own card.
+
+    A project had no picture of its own and so always showed the logo, which made
+    every project posted anywhere look like every other one. It is about things,
+    and those things have been photographed -- so the machine is what a link to the
+    work on it should show.
+
+    The first with a photo rather than a chosen one: the items are in the order they
+    were put on the project, so the first is the thing it was raised about, which is
+    the one somebody means. Nothing is added to the schema to say otherwise, because
+    a "card photo" column would be a second way of saying what the order already
+    says.
+
+    detect_images returns placeholders for a thing with no photograph of its own --
+    a drive icon, a blank machine -- and those are worse than the site card in a
+    share preview: a generic outline of a computer reads as a broken image rather
+    than as a machine. So only a real upload counts."""
+    for _kind, obj, _row in members:
+        kind = "computers" if isinstance(obj, Computer) else "parts"
+        for rel in detect_images(kind, obj.asset_id):
+            if "/placeholders/" not in rel:
+                return rel
+    return None
 
 
 def _asset_display(db, asset_id):

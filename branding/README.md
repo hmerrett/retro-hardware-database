@@ -19,7 +19,7 @@ watermark and the social share card:
 
 ```sh
 docker run --rm -v "$PWD/branding:/static" -v "$PWD/tools:/tools" \
-    retro-hardware-db-2-api python /tools/make_icons.py
+    retro-hardware-database-api python /tools/make_icons.py
 docker compose up -d --force-recreate api
 ```
 

@@ -73,8 +73,8 @@ unless-stopped` with no argument to leave it running nightly.
 On the machine that will hold the backup:
 
 ```sh
-git clone git@github.com:hmerrett/retro-hardware-db-2.git
-cd retro-hardware-db-2/backup
+git clone git@github.com:hmerrett/retro-hardware-database.git
+cd retro-hardware-database/backup
 cp .env.example .env          # then edit it: RHDB_HOST and BACKUP_DIR at least
 
 ssh-keygen -t ed25519 -N "" -f secrets/id_ed25519

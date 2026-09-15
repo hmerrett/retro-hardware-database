@@ -51,8 +51,8 @@ that actually matters.
 ## 2. Get the code
 
 ```sh
-git clone https://github.com/hmerrett/retro-hardware-db-2.git
-cd retro-hardware-db-2
+git clone https://github.com/hmerrett/retro-hardware-database.git
+cd retro-hardware-database
 ```
 
 Any directory will do.
@@ -213,7 +213,7 @@ a backup on the same disk as the thing it backs up is not a backup. A nightly
 cron entry and an `rsync` or `rclone` to somewhere else is enough:
 
 ```cron
-17 3 * * * cd /root/retro-hardware-db-2 && ./tools/backup.sh >> /var/log/rhdb-backup.log 2>&1
+17 3 * * * cd /root/retro-hardware-database && ./tools/backup.sh >> /var/log/rhdb-backup.log 2>&1
 ```
 
 Keep a copy of `.env` too. It is configuration rather than data, so the backup
@@ -295,7 +295,7 @@ Everything branded comes from one master image. Drop yours in as
 
 ```sh
 docker run --rm -v "$PWD/branding:/static" -v "$PWD/tools:/tools" \
-  retro-hardware-db-2-api python /tools/make_icons.py
+  retro-hardware-database-api python /tools/make_icons.py
 docker compose up -d --force-recreate api
 ```
 
