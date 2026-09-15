@@ -1076,3 +1076,51 @@ class TestSayingWhatAnExistingJobIsAbout:
         client.post(f"/projects/{pid}/task",
                     data={"text": "new belt", "asset": pt}, follow_redirects=False)
         assert tasks_against(db, pt) == ["recap", "new belt"]
+
+
+class TestTheProjectsOwnJobsShowOnItsThings:
+    """A job naming nothing is a job about the project, and a project is about its
+    things -- so it bears on the machine in your hand as much as on the next one."""
+
+    def setup(self, client):
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = quick(client, "recap", aid=pt)
+        client.post(f"/api/projects/{pid}/tasks", json={"text": "order the caps"})
+        return pt, pid
+
+    def test_they_show_beneath_the_things_own(self, client):
+        pt, _ = self.setup(client)
+        page = client.get(f"/parts/{pt}").text
+        assert "recap" in page and "order the caps" in page
+
+    def test_they_are_marked_as_the_projects_and_not_the_things(self, client):
+        """Run together they would attribute to a machine something nobody said
+        about it."""
+        pt, _ = self.setup(client)
+        assert "On the project as a whole" in client.get(f"/parts/{pt}").text
+
+    def test_a_job_naming_another_thing_does_not_show(self, client):
+        """Inheriting the project's own jobs is not inheriting everybody's."""
+        pt, pid = self.setup(client)
+        other = client.post("/api/parts", json={"model": "X"}).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": other})
+        tid = client.post(f"/api/projects/{pid}/tasks",
+                          json={"text": "align the heads", "asset_id": other}).json()["id"]
+        assert tid
+        assert "align the heads" not in client.get(f"/parts/{pt}").text
+
+    def test_they_show_on_every_thing_the_project_is_about(self, client):
+        _, pid = self.setup(client)
+        other = client.post("/api/parts", json={"model": "X"}).json()["asset_id"]
+        client.post(f"/api/projects/{pid}/items", json={"asset_id": other})
+        assert "order the caps" in client.get(f"/parts/{other}").text
+
+    def test_a_private_projects_are_not_inherited_by_a_visitor(self, client,
+                                                               monkeypatch):
+        """project_for withholds the project, so there is none to take jobs from."""
+        pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
+        pid = hidden(client, "the RIFA went bang", aid=pt)
+        client.post(f"/api/projects/{pid}/tasks", json={"text": "order the caps"})
+        visitor(monkeypatch)
+        page = client.get(f"/parts/{pt}").text
+        assert "order the caps" not in page and "the RIFA went bang" not in page

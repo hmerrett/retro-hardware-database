@@ -24,7 +24,7 @@
    is a form. #}
 {% import "_panel.html" as PN %}
 {% set done_n = item_tasks | selectattr('done') | list | length %}
-{% if item_tasks or on_project or request.state.authed %}
+{% if item_tasks or project_tasks or on_project or request.state.authed %}
 {% call PN.panel('Work', (done_n ~ '/' ~ item_tasks|length) if item_tasks else '') %}
   {% if on_project %}
   <p class="muted" style="margin:0 0 8px">Part of <a class="chip st-{{ on_project.status }}"
@@ -46,8 +46,24 @@
     </tr>
     {% endfor %}
   </table>
-  {% elif not request.state.authed %}
+  {% elif not project_tasks %}
   <p class="muted" style="margin:0">Nothing noted against this one.</p>
+  {% endif %}
+  {% if project_tasks %}
+  {# The project's jobs that name no one thing. Under their own heading and not
+     mixed in with this thing's own, because the two are different claims: one is
+     work said about this machine, the other is work about the piece it is part of.
+     Run together they would attribute to a machine something nobody said about it. #}
+  <p class="hint" style="margin:10px 0 4px">On the project as a whole</p>
+  <table>
+    {% for t in project_tasks %}
+    <tr class="{{ 'done' if t.done else '' }}">
+      <td class="tight muted">{{ '✓' if t.done else '○' }}</td>
+      <td class="tasktext muted">{{ t.text | linked }}</td>
+      <td class="tight muted">{{ t.done_at or '' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
   {% endif %}
   {% if request.state.authed %}
   {# A box and a menu, the same pair the entry forms carry at their foot: what needs

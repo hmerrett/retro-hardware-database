@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1274 behaviours, from 24 files.*
+*1285 behaviours, from 25 files.*
 
 
 ## Api
@@ -1060,6 +1060,21 @@ Regenerate with:
   A map that has quietly stopped matching the code is worse than none: it is read by whoever knows the code least.
 - the behaviour catalogue is the one the suite would write  
   The catalogue is generated, so the only way it can be wrong is by being stale.
+
+
+## Attach single item jobs
+
+*test_attach_single_item_jobs.py — 6 behaviours*
+
+- a single item projects loose jobs are picked
+- a project about two things is left alone  
+  Which of them is 'strip and clean' about?
+- a job that already names something is left alone  
+  So a choice made by hand survives, and a second run changes nothing.
+- a project with no items is left alone  
+  A project need own nothing -- the idea comes before the hardware.
+- a project with no loose jobs is left alone
+- only the loose ones are taken from a mixed project
 
 
 ## Auth secret
@@ -2300,7 +2315,7 @@ Regenerate with:
 
 ## Wanting work
 
-*test_wanting_work.py — 103 behaviours*
+*test_wanting_work.py — 108 behaviours*
 
 
 **Noting something down**
@@ -2511,3 +2526,14 @@ Regenerate with:
 - the form on the project page does it too
 - the form can detach it as well
 - the add form can name one on the way in
+
+**The projects own jobs show on its things**
+
+- they show beneath the things own
+- they are marked as the projects and not the things  
+  Run together they would attribute to a machine something nobody said about it.
+- a job naming another thing does not show  
+  Inheriting the project's own jobs is not inheriting everybody's.
+- they show on every thing the project is about
+- a private projects are not inherited by a visitor  
+  project_for withholds the project, so there is none to take jobs from.
