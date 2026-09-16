@@ -11,7 +11,21 @@ _ = models
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False, and it matters more than it looks.
+    #
+    # fileConfig defaults to True, which switches off every logger that is not named
+    # in alembic.ini -- and alembic.ini names root, sqlalchemy and alembic. In
+    # production that costs nothing, because entrypoint.sh runs `alembic upgrade
+    # head` as its own process and then execs uvicorn, so the app's loggers are
+    # created afterwards in a process this never touched.
+    #
+    # In the test suite it is a trap. conftest brings the schema up in-process, by
+    # which time `app.main` already exists, so it was disabled for the whole run and
+    # every line the app logged went nowhere. Nothing failed -- logging that
+    # silently stops is the kind of thing that fails by being absent -- and it was
+    # found only when a test tried to assert on the startup warning that says this
+    # site has no login (ADR-0019) and caught nothing at all.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
