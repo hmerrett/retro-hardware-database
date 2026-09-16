@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1296 behaviours, from 25 files.*
+*1345 behaviours, from 27 files.*
 
 
 ## Api
@@ -1488,6 +1488,57 @@ Regenerate with:
 - a size is said the way it would be said
 
 
+## For sale
+
+*test_for_sale.py — 21 behaviours*
+
+
+**Ticking an item**
+
+- an item starts unflagged  
+  A fresh install has never thought about selling anything.
+- the tick sets it and unticking takes it back
+- an unticked box sends nothing and that means no  
+  The one form control whose off state has to be read from its silence -- the same reading files.public already takes of the same gesture.
+- the tick comes back to the item
+- ticking something that is not there is a 404
+
+**The shortlist**
+
+- it lists what is ticked and nothing else
+- it holds machines and parts together
+- an empty shortlist says so rather than erroring
+- it is kept out of the index  
+  A private page is not one a crawler should be told about, and the card a link to it previews as is the site's own -- there is nothing to advertise.
+
+**Nobody else sees it**
+
+- the shortlist asks a visitor to log in
+- a visitor cannot tick one
+- the item page shows a visitor neither tick nor marker
+- a visitors search does not match on it  
+  The one that would have gone unnoticed.
+- the owners search does match on it  
+  The other direction, so the fix is a rule about who is asking rather than a column quietly dropped from the search for everybody.
+- the flag is not in the json api  
+  It is set where the decision is made, so nothing carries it to a caller -- which also leaves the pinned contract (ADR-0010) alone.
+- the gallery card does not carry it  
+  The cards hold a condensed blob for the type-ahead filter.
+
+**The named set rather than A habit**
+
+- the haystack leaves out every owner only column for a visitor
+- for sale is in the set
+- an unflagged item reads identically for both  
+  The owner-only columns are blanked, not dropped, so who is asking changes what the haystack says and never how many fields it has.
+
+**It survives the rest of the site**
+
+- disposing a flagged item leaves the flag alone  
+  Two different facts.
+- the decision is written down
+
+
 ## Healthz
 
 *test_healthz.py — 3 behaviours*
@@ -2194,6 +2245,73 @@ Regenerate with:
 - it counts against the dump then migrates then checks the pages  
   In that order.
 - it checks the pages the home page hid a fault behind
+
+
+## Share cards
+
+*test_share_cards.py — 28 behaviours*
+
+
+**What A grid page shares as**
+
+- the gallery shares a montage of the photographs on it  
+  It shared as the logo, so the front page of a collection of photographs looked like every other link to the site.
+- a search shares the photographs of its own results  
+  Not the gallery's: the card describes the answer that was shared, which is the whole reason a search is worth previewing.
+- a browse slice shares the photographs on it
+- the projects list shares its projects photographs  
+  A project's own page already previews as the machine it is about; the list of them previewed as the logo.
+- a page with nothing photographed still shares the site card  
+  The fallback SITE_CARD was added for is untouched: a page with no photographs on it has no montage to make.
+- the pages with no photographs on them keep the site card  
+  Even with a photographed collection behind them.
+
+**What goes on the montage**
+
+- a card is the 1200 by 630 every preview slot wants
+- one photograph fills the whole frame  
+  Three corners and the middle.
+- two sit side by side with the card between them
+- three go as one large and two stacked
+- four go as a grid read left to right
+- at most four photographs go on one card  
+  A fifth stops being a photograph at the width a chat client renders a preview.
+- a tile is filled rather than letterboxed  
+  A tall photograph in a wide tile is cropped to it, and a wide one in a tall tile likewise.
+- the card carries the sites mark once and not per tile  
+  Four watermarked tiles would put four marks on one picture, each cropped to wherever its tile's corner fell.
+- a placeholder drawing is never tiled onto a card  
+  The same rule a project's card already holds to: an outline of a computer reads as a broken image, which is worse than the site's own card.
+
+**The card is made once and kept**
+
+- two searches landing on the same items share one card
+- changing a photograph makes the card again  
+  The key carries each photograph's modification time, so a crop is a new URL rather than something needing to be invalidated -- the bargain img_url's ?v= stamp already makes, and what lets the card be cached for a year.
+- a card is served as immutable for a year
+- the card route opens a file by hash and reads nothing else  
+  It never searches and never writes, so there is nothing a stranger can ask it to do.
+- a card is fetchable without logging in  
+  The one that makes the feature exist at all, and it was wrong first time.
+- a query on the card route changes nothing
+- the cache is capped  
+  A query string is an unbounded key space even when the photographs behind it are not, and this route is anonymous.
+- cards from an older build are missed rather than served  
+  The lesson the watermark cache learned twice: name the directory after what went into it, so a change to how these are made misses the old ones.
+
+**Only public photographs go on A card**
+
+- a private project puts no photograph on the list card
+- a visitors card is made of a visitors rows  
+  The whole rule, and the one that matters.
+- the owners own card may show more and that is not a leak  
+  The owner's page names a card built from the owner's rows, so it can carry a photograph of something on a private project.
+- the photographs on a card are ones the site already serves  
+  Stated as a test because it is the reason the montage needs no gate of its own: it is made of pictures anybody may already fetch one at a time.
+
+**The map and the manual say so**
+
+- the decision is written down
 
 
 ## Specstruct

@@ -56,13 +56,30 @@ def og_image(client, url):
 
 
 def card_of(client, url):
-    """The montage a page names, opened. Fails the page's card is the site's own."""
+    """The montage a page names, opened. Fails if the page's card is the site's own."""
     src = og_image(client, url)
     assert src and "/og/" in src, f"{url} shares {src}, not a montage"
     r = client.get(src.replace("https://example.test", ""))
     assert r.status_code == 200, src
     import io
     return Image.open(io.BytesIO(r.content)).convert("RGB")
+
+
+def tiled(*rels):
+    """The montage of exactly these photographs, in this order, opened.
+
+    Through cards.montage rather than through a page, and deliberately so: where a
+    photograph lands is a property of an ordered list, and the order a page hands
+    over is the page's own business. The gallery's is recency, and asset ids are
+    random, so ties between items saved in the same second break differently on
+    every run -- a layout asserted through `/` would be asserting whatever today's
+    ids happened to sort to. What the pages owe is a montage *of their own
+    photographs*, and that is what TestWhatAGridPageSharesAs checks, end to end.
+    """
+    got = cards.montage(list(rels))
+    assert got is not None, rels
+    path, _w, _h = got
+    return Image.open(cards.cache_dir() / path.rsplit("/", 1)[1]).convert("RGB")
 
 
 def near(pixel, colour, tol=30):
@@ -76,11 +93,18 @@ def visitor(monkeypatch):
 
 
 def project_with(client, name, *asset_ids, private=False):
-    pid = client.post("/api/projects", json={"name": name}).json()["asset_id"]
+    """A project, optionally private, with these things on it.
+
+    `private` goes in at creation rather than being patched on afterwards: there is
+    no window in which it exists and is public, which is the same order the form
+    takes and one fewer request to get wrong.
+    """
+    r = client.post("/api/projects", json={"name": name, "private": private})
+    assert r.status_code == 200, r.text
+    pid = r.json()["asset_id"]
     for aid in asset_ids:
-        client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
-    if private:
-        client.post(f"/api/projects/{pid}", json={"private": True})
+        assert client.post(f"/api/projects/{pid}/items",
+                           json={"asset_id": aid}).status_code == 200
     return pid
 
 
@@ -153,35 +177,30 @@ class TestWhatGoesOnTheMontage:
         assert '<meta property="og:image:height" content="630">' in page
         assert 'name="twitter:card" content="summary_large_image"' in page
 
-    def test_one_photograph_fills_the_whole_frame(self, client, part, photo):
+    def test_one_photograph_fills_the_whole_frame(self, part, photo):
         """Three corners and the middle. The fourth corner carries the site's mark,
         which the test below is about."""
-        photo("parts", part()["asset_id"], RED)
-        card = card_of(client, "/")
+        card = tiled(photo("parts", part()["asset_id"], RED))
         for at in ((6, 6), (1193, 6), (6, 623), (600, 315)):
             assert near(card.getpixel(at), RED), at
 
-    def test_two_sit_side_by_side_with_the_card_between_them(self, client, photo,
-                                                              part):
-        photo("parts", part(model="Aaa")["asset_id"], RED)
-        photo("parts", part(model="Bbb")["asset_id"], BLUE)
-        card = card_of(client, "/")
+    def test_two_sit_side_by_side_with_the_card_between_them(self, part, photo):
+        card = tiled(photo("parts", part(model="Aaa")["asset_id"], RED),
+                     photo("parts", part(model="Bbb")["asset_id"], BLUE))
         assert near(card.getpixel((300, 315)), RED)
         assert near(card.getpixel((900, 315)), BLUE)
         assert near(card.getpixel((600, 315)), cards.CARD_BG), "no gutter between them"
 
-    def test_three_go_as_one_large_and_two_stacked(self, client, part, photo):
-        for i, colour in enumerate((RED, BLUE, GREEN)):
-            photo("parts", part(model=f"M{i}")["asset_id"], colour)
-        card = card_of(client, "/")
+    def test_three_go_as_one_large_and_two_stacked(self, part, photo):
+        card = tiled(*[photo("parts", part(model=f"M{i}")["asset_id"], colour)
+                       for i, colour in enumerate((RED, BLUE, GREEN))])
         assert near(card.getpixel((300, 315)), RED), "the first fills the left"
         assert near(card.getpixel((900, 150)), BLUE)
         assert near(card.getpixel((900, 480)), GREEN)
 
-    def test_four_go_as_a_grid_read_left_to_right(self, client, part, photo):
-        for i, colour in enumerate(COLOURS):
-            photo("parts", part(model=f"M{i}")["asset_id"], colour)
-        card = card_of(client, "/")
+    def test_four_go_as_a_grid_read_left_to_right(self, part, photo):
+        card = tiled(*[photo("parts", part(model=f"M{i}")["asset_id"], colour)
+                       for i, colour in enumerate(COLOURS)])
         for (x, y), colour in zip(((300, 150), (900, 150), (300, 480), (900, 480)),
                                   COLOURS, strict=True):
             assert near(card.getpixel((x, y)), colour), (x, y)
@@ -196,24 +215,24 @@ class TestWhatGoesOnTheMontage:
         assert cards.montage(rels) == cards.montage(rels[:4])
         assert cards.montage(rels) != cards.montage(rels[:3])
 
-    def test_a_tile_is_filled_rather_than_letterboxed(self, client, part, photo):
-        """A tall photograph in a wide tile is cropped to it. Bands of cream inside
-        a montage read as a broken image."""
-        photo("parts", part(model="Aaa")["asset_id"], RED, size=(400, 1400))
-        photo("parts", part(model="Bbb")["asset_id"], BLUE, size=(1600, 300))
-        card = card_of(client, "/")
+    def test_a_tile_is_filled_rather_than_letterboxed(self, part, photo):
+        """A tall photograph in a wide tile is cropped to it, and a wide one in a
+        tall tile likewise. Bands of cream inside a montage read as a broken image
+        rather than as a photograph of an unusual shape."""
+        card = tiled(photo("parts", part(model="Aaa")["asset_id"], RED, size=(400, 1400)),
+                     photo("parts", part(model="Bbb")["asset_id"], BLUE, size=(1600, 300)))
         for x in (60, 300, 540):
             assert near(card.getpixel((x, 40)), RED), x
             assert near(card.getpixel((x, 590)), RED), x
+        for x in (660, 900, 1140):
+            assert near(card.getpixel((x, 40)), BLUE), x
 
-    def test_the_card_carries_the_sites_mark_once_and_not_per_tile(
-            self, client, part, photo):
+    def test_the_card_carries_the_sites_mark_once_and_not_per_tile(self, part, photo):
         """Four watermarked tiles would put four marks on one picture, each cropped
         to wherever its tile's corner fell. The card is one picture, so it is marked
         once, in its own corner, at its own scale."""
-        for i, colour in enumerate(COLOURS):
-            photo("parts", part(model=f"M{i}")["asset_id"], colour)
-        card = card_of(client, "/")
+        card = tiled(*[photo("parts", part(model=f"M{i}")["asset_id"], colour)
+                       for i, colour in enumerate(COLOURS)])
         assert not near(card.getpixel((1114, 544)), YELLOW), "no mark on the card"
         # The bottom-right of each of the four tiles, which is where a mark carried
         # in from the photographs would land.
@@ -264,6 +283,22 @@ class TestTheCardIsMadeOnceAndKept:
                      "0123456789abcdef.jpg"):
             assert client.get(f"/og/{name}").status_code == 404, name
 
+    def test_a_card_is_fetchable_without_logging_in(self, client, part, photo,
+                                                     monkeypatch):
+        """The one that makes the feature exist at all, and it was wrong first time.
+
+        A preview is fetched anonymously: the chat service reads the page as a
+        stranger, then fetches the og:image that page names. So on an installation
+        with a login, a card behind that login answers with a redirect to it and no
+        preview ever renders -- while every test on a suite that runs open passes,
+        because there is no login there to be behind."""
+        photo("parts", part()["asset_id"], RED)
+        src = og_image(client, "/").replace("https://example.test", "")
+        visitor(monkeypatch)
+        r = client.get(src, follow_redirects=False)
+        assert r.status_code == 200, f"{src} answered {r.status_code} to a visitor"
+        assert r.headers["content-type"] == "image/jpeg"
+
     def test_a_query_on_the_card_route_changes_nothing(self, client, part, photo):
         photo("parts", part()["asset_id"], RED)
         src = og_image(client, "/").replace("https://example.test", "")
@@ -305,19 +340,44 @@ class TestOnlyPublicPhotographsGoOnACard:
         visitor(monkeypatch)
         assert "/static/og-image.png" in og_image(client, "/projects")
 
-    def test_the_owner_sees_the_same_card_a_visitor_would(self, client, part, photo,
-                                                           monkeypatch):
-        """Otherwise the owner shares a link whose preview the recipient cannot
-        reproduce, and the card quietly says a private project is there."""
-        shown, hidden = part(model="Shown")["asset_id"], part(model="Hidden")["asset_id"]
+    @staticmethod
+    def two_projects(client, part, photo):
+        """A private project and a public one, each with a photographed thing on it.
+        Named so the private one sorts first, which is what would put its photograph
+        on the card if the rows were not already filtered."""
+        hidden = part(model="Hidden")["asset_id"]
+        shown = part(model="Shown")["asset_id"]
         photo("parts", hidden, BLUE)
         photo("parts", shown, GREEN)
         project_with(client, "aaa hush", hidden, private=True)
         project_with(client, "bbb open", shown)
+
+    def test_a_visitors_card_is_made_of_a_visitors_rows(self, client, part, photo,
+                                                         monkeypatch):
+        """The whole rule, and the one that matters. A preview is fetched
+        anonymously -- a chat service reads the page as a stranger and takes the
+        og:image it names -- so this is the card a recipient sees whoever pasted the
+        link. One photograph survives for a visitor, so it fills the frame."""
+        self.two_projects(client, part, photo)
+        visitor(monkeypatch)
+        assert near(card_of(client, "/projects").getpixel((600, 315)), GREEN)
+
+    def test_the_owners_own_card_may_show_more_and_that_is_not_a_leak(
+            self, client, part, photo, monkeypatch):
+        """The owner's page names a card built from the owner's rows, so it can carry
+        a photograph of something on a private project. That photograph is public
+        already -- /images serves it to anybody -- and the card is never what a
+        shared link previews as, because a preview is fetched anonymously and gets
+        the card above instead.
+
+        Asserted rather than left implicit so that making the two identical is a
+        decision somebody takes on purpose, not a tidy-up. Deterministic: two
+        photographs for the owner and one for a visitor are different layouts, so
+        different cards."""
+        self.two_projects(client, part, photo)
         owner = og_image(client, "/projects")
         visitor(monkeypatch)
-        assert og_image(client, "/projects") == owner
-        assert near(card_of(client, "/projects").getpixel((600, 315)), GREEN)
+        assert og_image(client, "/projects") != owner
 
     def test_the_photographs_on_a_card_are_ones_the_site_already_serves(
             self, client, part, photo, monkeypatch):

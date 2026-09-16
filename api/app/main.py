@@ -227,6 +227,15 @@ def _public_page(path: str) -> bool:
         return True
     if path.startswith(("/images/", "/static/")):
         return True
+    # The share card a grid page's link previews as (ADR-0017), and it has to be
+    # public or the feature does not exist: a preview is fetched *anonymously* --
+    # the chat service reads the page as a stranger and then fetches the og:image it
+    # names -- so behind the login every card would answer with a redirect to it and
+    # no preview would ever render. Nothing is given away by that: the route opens a
+    # file by hash and the photographs in it are already served to anybody from
+    # /images.
+    if path.startswith("/og/"):
+        return True
     # The files kept beside the register read like the photographs do: a driver or
     # a manual is part of what the catalogue is for. Downloading one is public;
     # putting one there, re-filing it and deleting it are all POSTs, so they are

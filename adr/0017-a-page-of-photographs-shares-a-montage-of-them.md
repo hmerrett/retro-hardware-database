@@ -77,6 +77,14 @@ discloses nothing that the item pages do not. The projects list is the one place
 the question has an edge, and a private project contributes no photograph to it —
 the same rule, read off the same `authed` flag, as the rows on the page.
 
+A card is therefore made of *the rows the reader is being shown*, which means the
+owner's own page can name a card a visitor's page does not. That is correct and not
+a leak, and it is worth being explicit about because the opposite looks tidier: a
+preview is always fetched **anonymously** — a chat service reads the page as a
+stranger and takes the `og:image` that page names — so what a recipient sees is the
+visitor's card whoever pasted the link. The owner's card never leaves the owner's
+browser, and the photographs on it were public anyway.
+
 **The cache is bounded and swept.** It lives under `images/.og/b<BUILD>/`, beside
 `.wm` and `.sized` and swept the way those are, so a change to how cards are made
 misses the old ones rather than serving them. On a miss, once the new card is
