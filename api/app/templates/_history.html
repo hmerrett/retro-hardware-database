@@ -19,7 +19,8 @@
         enctype="multipart/form-data">
     {# Not required any more: photographs on their own are an entry, so the way
        to file one is to choose it and press the button. #}
-    <input name="message" placeholder="add a note, or just photographs">
+    <input name="message" placeholder="add a note, or just photographs"
+           aria-label="a note for the history">
     {# Not sent the moment they are picked, as the gallery's are: there may be a
        caption still to be typed, and the words have to travel with the photographs
        to land on the same entry. Nothing waits on anything else, though -- press

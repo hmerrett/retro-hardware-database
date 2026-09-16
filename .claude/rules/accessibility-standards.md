@@ -73,11 +73,16 @@ was looking at a desktop.
 
 ## Expected of new markup
 
-- **Every control has a name.** A visible `<label>` where there is room for one;
-  `aria-label` where the design gives a control only an icon or a tick. There are
-  76 labels and 47 `aria-label`s in the templates — match that, do not thin it.
+- **Every control has a name**, and the suite reads it off the rendered pages
+  rather than trusting a count. A visible `<label>` where there is room for one;
+  `aria-label` where the design gives a control only an icon, a tick or a column
+  heading. A column heading is not a name: nothing in HTML carries it from the
+  `<th>` to the box underneath, which is why the drives grid names each box by
+  its row and its column ("drive 2, form factor").
 - **Every `<img>` has `alt`.** Describing the item where the image is content,
-  `alt=""` where it is decoration. All 15 currently do.
+  `alt=""` where it is decoration — which is an answer, and tells a screen reader
+  to pass over a swatch. A missing `alt` is not: the filename is read out instead.
+  Also checked against the rendered pages.
 - **Never suppress a focus outline.** The three that exist use `:focus-visible`
   with an `outline-offset`, so a keyboard user can see where they are and a mouse
   user is not shouted at. `outline: none` appears nowhere in the stylesheet and

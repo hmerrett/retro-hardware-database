@@ -9,6 +9,7 @@ at it with the Tab key. So they are checked against the markup and the styleshee
 themselves, the way test_stylesheet.py checks declarations rather than pages.
 """
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -156,3 +157,99 @@ def test_the_login_boxes_say_what_they_are_for():
         "the username box does not say what it is for")
     assert re.search(r'<input[^>]*name="password"[^>]*autocomplete="current-password"', html), (
         "the password box does not say what it is for")
+
+
+class Controls(HTMLParser):
+    """Every control on the page and whether anything gives it a name: an
+    `aria-label`, a `<label>` wrapped round it or pointed at its id, or, for a
+    button, the words on it."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.controls = []
+        self.labelled_ids = set()
+        self.images = []
+        self._in_label = 0
+        self._button = None
+
+    def handle_starttag(self, tag, attrs):
+        got = dict(attrs)
+        if tag == "label":
+            self._in_label += 1
+            if got.get("for"):
+                self.labelled_ids.add(got["for"])
+        elif tag == "img":
+            if got.get("alt") is None:
+                self.images.append(got.get("src", "")[-50:])
+        elif tag in ("input", "select", "textarea", "button"):
+            if got.get("type") == "hidden":
+                return
+            named = bool(got.get("aria-label") or got.get("aria-labelledby") or got.get("title"))
+            named = named or self._in_label > 0
+            if got.get("type") in ("submit", "button", "reset") and got.get("value"):
+                named = True
+            control = {"tag": tag, "id": got.get("id", ""), "name": got.get("name", ""),
+                       "named": named, "words": ""}
+            self.controls.append(control)
+            if tag == "button":
+                self._button = control
+
+    def handle_data(self, data):
+        if self._button is not None:
+            self._button["words"] += data
+
+    def handle_endtag(self, tag):
+        if tag == "label" and self._in_label:
+            self._in_label -= 1
+        elif tag == "button":
+            self._button = None
+
+    def unnamed(self):
+        return [
+            f"<{c['tag']} name={c['name'] or '-'} id={c['id'] or '-'}>"
+            for c in self.controls
+            if not c["named"] and not (c["tag"] == "button" and c["words"].strip())
+            and c["id"] not in self.labelled_ids
+        ]
+
+
+@pytest.fixture
+def a_page_of_everything(client, computer, part):
+    """One machine with a part on it, so the forms, the item pages and the lists
+    all render the controls they only have when there is something to show."""
+    made = computer(manufacturer="Amstrad", model="PC1512")
+    card = part(manufacturer="Trident", model="TVGA8900", type="video",
+                computer_id=made["asset_id"])
+    return [
+        "/", "/machines", "/projects", "/projects/new", "/files", "/stats", "/for-sale",
+        f"/computers/{made['asset_id']}", f"/computers/{made['asset_id']}/edit",
+        "/computers/new", "/parts/new",
+        f"/parts/{card['asset_id']}", f"/parts/{card['asset_id']}/edit",
+    ]
+
+
+def test_every_control_says_what_it_is(client, a_page_of_everything):
+    """A control with no name is read out as "edit text, blank" and nothing else,
+    which on the drives grid was eight of them to a row. A column heading is not a
+    name: nothing in HTML carries it from the `<th>` to the box underneath, so
+    each box says which row and which column it is itself."""
+    nameless = []
+    for path in a_page_of_everything:
+        page = client.get(path)
+        assert page.status_code == 200, f"{path} did not render: {page.status_code}"
+        parser = Controls()
+        parser.feed(page.text)
+        nameless += [f"{path}: {one}" for one in parser.unnamed()]
+    assert nameless == [], "these controls are read out with nothing to say what they are: " + \
+        "; ".join(nameless[:12])
+
+
+def test_every_image_says_what_it_is_or_says_it_is_decoration(client, a_page_of_everything):
+    """`alt=""` is an answer -- it tells a screen reader to pass over a swatch or a
+    rule. A missing `alt` is not: it reads the filename out instead."""
+    silent = []
+    for path in a_page_of_everything:
+        parser = Controls()
+        parser.feed(client.get(path).text)
+        silent += [f"{path}: {one}" for one in parser.images]
+    assert silent == [], "these images have no alt at all: " + "; ".join(silent[:12])

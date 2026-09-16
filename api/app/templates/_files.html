@@ -31,11 +31,13 @@
     <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
     <input type="hidden" name="aid" value="{{ item.asset_id }}">
     <input name="tags" value="{{ display_name(item) }}"
-           placeholder="names this is for, comma separated">
+           placeholder="names this is for, comma separated"
+           aria-label="names this file is for">
     {# What files have been called before: a manual, a driver disk, a ROM dump.
        Half a dozen answers cover nearly everything, and typing one of them the same
        way twice is what makes them worth reading. #}
     <input name="note" placeholder="what it is — optional" list="dl_filenotes"
+           aria-label="what this file is"
            autocomplete="off">
     <label class="btn sm filebtn">choose files
       <input type="file" name="uploads" multiple required>

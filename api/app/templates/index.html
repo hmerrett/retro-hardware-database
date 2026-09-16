@@ -27,11 +27,11 @@
    searches every field of every item plus its history -- including the prose
    summaries, which are too bulky to ship to the browser for filtering. #}
 <div class="toolbar">
-  <select id="cat" class="fill">
+  <select id="cat" class="fill" aria-label="category">
     <option value="">All categories</option>
     {% for key, label in cats %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
   </select>
-  <select id="sort" class="fill">
+  <select id="sort" class="fill" aria-label="sort order">
     {# First, and so the default: a shelf is more interesting shuffled than in the
        order things were last touched, and the collection has more in it than the
        dozen items a recency sort ever shows. Picking it again deals a new hand. #}

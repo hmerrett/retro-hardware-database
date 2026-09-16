@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1375 behaviours, from 30 files.*
+*1377 behaviours, from 30 files.*
 
 
 ## Api
@@ -1570,7 +1570,7 @@ Regenerate with:
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 9 behaviours*
+*test_keyboard_and_motion.py — 11 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -1590,6 +1590,10 @@ Regenerate with:
   The notice is fixed above the bar and is taller than it -- 167px on a 320px screen, where the text wraps to five lines.
 - the login boxes say what they are for  
   A password manager fills a form it can read: `autocomplete="username"` and `current-password` are what tell it which entry this is and which box the password goes in.
+- every control says what it is  
+  A control with no name is read out as "edit text, blank" and nothing else, which on the drives grid was eight of them to a row.
+- every image says what it is or says it is decoration  
+  `alt=""` is an answer -- it tells a screen reader to pass over a swatch or a rule.
 
 
 ## Machines

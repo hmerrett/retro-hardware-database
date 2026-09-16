@@ -81,7 +81,8 @@
         <option value="">choose a computer or part…</option>
         {% for aid, name in choices %}<option value="{{ aid }}">{{ name }} — {{ aid }}</option>{% endfor %}
       </select>
-      <input name="note" placeholder="why it is here — optional">
+      <input name="note" placeholder="why it is here — optional"
+             aria-label="why this is on the project">
       <button class="btn sm" type="submit">add</button>
     </form>
     {% endif %}
@@ -206,7 +207,7 @@
       <input name="cost" placeholder="£ paid" aria-label="what the line cost" title="what the whole line cost, as paid">
       <input name="expected_at" type="date" aria-label="expected" title="when it is due">
       <input name="url" placeholder="listing URL — optional">
-      <input name="note" placeholder="note — optional">
+      <input name="note" placeholder="note — optional" aria-label="a note about this order">
       <button class="btn sm" type="submit">add order</button>
     </form>
     <p class="hint">The cost is for the whole line as paid — four SIMMs for twelve

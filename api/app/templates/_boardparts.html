@@ -32,7 +32,7 @@
       <a class="btn sm" href="/parts/new?type=motherboard&computer_id={{ c.asset_id }}">Create motherboard</a>
       {% if free_boards %}
       <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/link-motherboard">
-        <select name="part_id" required>
+        <select name="part_id" required aria-label="board to link">
           <option value="">— choose a board —</option>
           {% for b in free_boards %}<option value="{{ b.asset_id }}">{{ b.asset_id }} · {{ display_name({'name': b.name, 'manufacturer': b.manufacturer, 'model': b.model, 'asset_id': b.asset_id}) }}</option>{% endfor %}
         </select>
@@ -65,7 +65,8 @@
   <div class="toolbar">
     <span class="muted">Link existing part:</span>
     <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/link-part">
-      <input name="part_id" list="linkparts" placeholder="type asset id or name…" autocomplete="off" required>
+      <input name="part_id" list="linkparts" placeholder="type asset id or name…" autocomplete="off"
+             required aria-label="part to link">
       <datalist id="linkparts">
         {% for cand in link_candidates %}<option value="{{ cand.asset_id }}">{{ type_label(cand.type) }} · {{ display_name({'name': cand.name, 'manufacturer': cand.manufacturer, 'model': cand.model, 'asset_id': cand.asset_id}) }}</option>{% endfor %}
       </datalist>

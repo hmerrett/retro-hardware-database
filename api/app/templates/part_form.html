@@ -92,7 +92,7 @@ Photos, source, acquired date and notes are not carried over.</p>
 
   <fieldset>
     <legend>Type {% if computer_id %}· for {{ computer_id }}{% endif %}</legend>
-    <select name="type" id="ptype">
+    <select name="type" id="ptype" aria-label="type of part">
       {% for t in type_order %}<option value="{{ t }}"{{ ' selected' if t == ptype else '' }}>{{ type_labels.get(t, t) }}</option>{% endfor %}
     </select>
   </fieldset>
