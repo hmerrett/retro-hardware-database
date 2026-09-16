@@ -432,6 +432,11 @@
     padding: 9px 14px; display: flex; gap: 12px; align-items: center;
     justify-content: center; flex-wrap: wrap; }
   #cookienote p { margin: 0; color: var(--muted); font-size: 12px; max-width: 70ch; }
+  /* On a wide screen the notice is the only thing fixed over the page, and the
+     same rule applies to it: a control tabbed to below the fold must not be
+     scrolled to a position the notice is covering. */
+  html:has(#cookienote) { scroll-padding-bottom: 88px; }
+  html:has(#cookienote) body { padding-bottom: 88px; }
   #cookienote .btn { flex: none; }
   /* Said quietly, at the bottom, and only when reloading on its own would take
      something away from you -- see the script. It sits above the cookie notice's
@@ -1047,6 +1052,21 @@
        the cookie notice lifted clear of the same bar. */
     body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
     #cookienote { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    /* That padding holds the last card off the bar. It says nothing about where a
+       scroll stops, and a browser reaching a control below the fold with the Tab
+       key scrolls it to the edge of the viewport -- which is where the bar is
+       fixed, so the control arrives behind it. Twenty stops on an item page and
+       twenty-one on a machine's form landed there, the year field and "mark
+       disposed" hidden outright. The scroll container has to be told separately. */
+    html { scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+    /* The notice stands on the bar and is taller than it -- five lines of text on
+       a 320px screen. It is in the markup only while it is showing, so the room
+       comes back when it goes without a line of script. */
+    html:has(#cookienote) { scroll-padding-bottom: calc(240px + env(safe-area-inset-bottom, 0px)); }
+    /* And room under the page for it, for the same reason the bar has some: at the
+       very bottom of a short page there is nothing left to scroll, so the last
+       control stays behind the notice however the scroll is padded. */
+    html:has(#cookienote) body { padding-bottom: calc(240px + env(safe-area-inset-bottom, 0px)); }
     /* Everything else, in one list rather than a menu inside a menu: a sheet
        you have to go two taps into is not simpler than the row it replaced. */
     #sheet { position: fixed; inset: 0; z-index: 80; display: flex;

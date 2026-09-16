@@ -172,6 +172,11 @@ rest of the header — the sections, the search box, the menus — is behind you
 with the next Tab landing in the page itself. On a long gallery that is one key
 instead of a dozen.
 
+On a phone, tabbing to a control below the fold scrolls it into view above the
+bar across the bottom of the screen, never behind it — and the same while the
+cookie notice is still up. A control you cannot see is a control you cannot fill
+in.
+
 Tables say which of their cells are headings, so a screen reader can announce a
 figure with the heading it sits under. In a table of rows — the files list, the
 orders on a project — the headings run along the top; in an item's table of
@@ -1669,6 +1674,10 @@ from all of them.
 Anonymous visitors can browse the gallery, item pages, the statistics, the files
 and the photographs. The new and edit forms, the label PDFs, every write, the
 JSON API and the API docs require authentication.
+
+The login boxes say what they are for, so a password manager — the browser's own,
+or one you keep elsewhere — offers the right entry and fills both. Nothing has to
+be typed from memory or copied between windows.
 
 There is one account, set with `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`. Leave
 both blank and the site runs with no authentication at all, which is only

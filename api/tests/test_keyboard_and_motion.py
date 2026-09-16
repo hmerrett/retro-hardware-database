@@ -1,11 +1,12 @@
 """What the manual promises a keyboard, a screen reader and a reduced-motion
 setting (MANUAL.md, "Using it from the keyboard").
 
-Three gaps that no single change surfaces: a skip link is invisible until it has
-focus, a missing `scope` reads correctly to everyone who can see the table, and
-motion is only wrong for the people who asked for less of it. So they are checked
-against the markup and the stylesheet themselves, the way test_stylesheet.py
-checks declarations rather than pages.
+What these have in common is that no single change surfaces them: a skip link is
+invisible until it has focus, a missing `scope` reads correctly to everyone who
+can see the table, motion is only wrong for the people who asked for less of it,
+and a control scrolled to under the tab bar is only wrong for somebody arriving
+at it with the Tab key. So they are checked against the markup and the stylesheet
+themselves, the way test_stylesheet.py checks declarations rather than pages.
 """
 import re
 from pathlib import Path
@@ -89,3 +90,69 @@ def test_the_stylesheet_answers_a_request_to_reduce_motion():
     assert block, "the stylesheet does not answer prefers-reduced-motion"
     for declaration in ("animation-duration", "transition-duration", "scroll-behavior"):
         assert declaration in block.group(1), f"the block leaves {declaration} alone"
+
+
+def media_block_holding(css: str, needle: str) -> str:
+    """The `@media` block a declaration sits in, read the way the tests above read
+    the stylesheet: by its text, since there is no browser here to ask."""
+    at = css.index(needle)
+    opened = css.rindex("@media", 0, at)
+    return css[opened : css.index("\n  }", at) + 4]
+
+
+def px(text: str, declaration: str) -> int:
+    """The first pixel figure in a declaration, whether or not it is inside a
+    `calc()` with a safe-area inset added to it."""
+    found = re.search(rf"{declaration}:\s*(?:calc\()?\s*(\d+)px", text)
+    assert found, f"no {declaration} to read in {text[:80]!r}"
+    return int(found.group(1))
+
+
+def test_a_bar_fixed_across_the_bottom_does_not_swallow_the_focus_ring():
+    """Reaching a control below the fold, the browser scrolls it into view and
+    stops it at the edge of the viewport -- which on a phone is exactly where the
+    tab bar is fixed, so the control arrives underneath it. Measured before this
+    was written: twenty stops on an item page, twenty-one on a machine's form, the
+    year field and "mark disposed" among the ones hidden outright.
+
+    `body`'s padding holds the last card clear of the bar and says nothing about
+    where a scroll stops; the scroll container has to be told separately. WCAG 2.2
+    calls this 2.4.11, and the minimum is that focus is not *entirely* hidden."""
+    css = STYLESHEET.read_text(encoding="utf-8")
+    phone = media_block_holding(css, ".tabbar { position: fixed")
+    reserved = px(phone, "padding-bottom")
+    assert "scroll-padding-bottom" in phone, (
+        "the bar is fixed over the bottom of the page and nothing keeps a scroll clear of it")
+    assert px(phone, "scroll-padding-bottom") >= reserved, (
+        "a scroll stops closer to the bottom than the bar is tall, so focus lands behind it")
+
+
+def test_the_cookie_notice_does_not_swallow_it_either():
+    """The notice is fixed above the bar and is taller than it -- 167px on a 320px
+    screen, where the text wraps to five lines. It is in the markup only while it
+    is showing, so `:has` is the whole of the condition and no script is needed to
+    put the room back when it goes."""
+    css = STYLESHEET.read_text(encoding="utf-8")
+    while_showing = [
+        rule for rule in re.finditer(r"html:has\(#cookienote\)[^{]*\{[^}]*\}", css)
+        if "scroll-padding-bottom" in rule.group(0)
+    ]
+    assert while_showing, "nothing keeps a scroll clear of the cookie notice"
+    phone = media_block_holding(css, ".tabbar { position: fixed")
+    inside = [rule for rule in while_showing if rule.group(0) in phone]
+    assert inside, "the phone's allowance has to cover the notice and the bar together"
+    assert px(inside[0].group(0), "scroll-padding-bottom") > px(phone, "padding-bottom"), (
+        "the notice sits on top of the bar, so it needs more room than the bar alone")
+
+
+def test_the_login_boxes_say_what_they_are_for():
+    """A password manager fills a form it can read: `autocomplete="username"` and
+    `current-password` are what tell it which entry this is and which box the
+    password goes in. Without them the one credential this register has must be
+    typed from memory or carried between windows, which is what WCAG 2.2's 3.3.8
+    is about."""
+    html = (TEMPLATES / "login.html").read_text(encoding="utf-8")
+    assert re.search(r'<input[^>]*name="username"[^>]*autocomplete="username"', html), (
+        "the username box does not say what it is for")
+    assert re.search(r'<input[^>]*name="password"[^>]*autocomplete="current-password"', html), (
+        "the password box does not say what it is for")
