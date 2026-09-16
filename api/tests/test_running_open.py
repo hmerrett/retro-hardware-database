@@ -132,6 +132,30 @@ class TestTheBannerOnThePage:
         assert '<div class="banner" id="openwarn">' in client.get("/").text
 
 
+class TestTheAppCanStillSpeak:
+    """A guard for the trap this feature fell into rather than for the feature.
+
+    alembic's fileConfig disables every logger not named in alembic.ini unless it is
+    told otherwise, and conftest builds the schema in-process -- so `app.main` was
+    switched off for the whole run and everything the app logged went nowhere. That
+    failed by being absent, which is the hardest way for anything to fail, and it
+    was found only because a test tried to assert on a log line and caught nothing.
+    """
+
+    def test_the_apps_logger_survives_the_migrations(self):
+        assert main.log.disabled is False, (
+            "app.main has been disabled -- something called logging.config with "
+            "disable_existing_loggers left at its default. See migrations/env.py."
+        )
+
+    def test_a_line_the_app_logs_actually_reaches_a_handler(self, caplog):
+        """The property that matters, asserted directly rather than inferred from
+        the flag above: a logger can be re-enabled and still go nowhere."""
+        with caplog.at_level(logging.INFO, logger=main.log.name):
+            main.log.info("a line from the app")
+        assert "a line from the app" in caplog.text
+
+
 class TestTheWiring:
 
     def test_the_app_decided_the_banner_from_the_two_flags(self):

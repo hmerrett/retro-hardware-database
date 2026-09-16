@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1296 behaviours, from 25 files.*
+*1313 behaviours, from 26 files.*
 
 
 ## Api
@@ -2194,6 +2194,55 @@ Regenerate with:
 - it counts against the dump then migrates then checks the pages  
   In that order.
 - it checks the pages the home page hid a fault behind
+
+
+## Running open
+
+*test_running_open.py — 17 behaviours*
+
+
+**What it says at startup**
+
+- a site with a login says nothing  
+  The state nearly every installation is in.
+- no credentials and no opt in warns
+- the warning says what is wrong and what to set  
+  It is read by somebody who has just found their site open, so it has to carry the consequence and both ways out without them going to look.
+- opting in is said once and calmly  
+  An operator who has opted in has said what they want.
+- opting in while a login is configured warns it is doing nothing  
+  Silently ignoring a variable somebody deliberately set is the same fault as the one this whole change is about.
+- nothing logged carries a credential  
+  It names the variables; it must never reach for their values.
+
+**How it is read**
+
+- the opt in reads the usual words
+- it is off when unset  
+  Unset means not opted in, which is what makes the loud state the default -- a missing .env is far likelier than a deliberate open install.
+
+**The banner on the page**
+
+- the pages carry it when the site is open by accident
+- the pages do not when it was meant
+- it is on an item page too and not only the gallery  
+  Every page, because the pages somebody edits from are the item pages and a warning only on the front door is a warning most visits never see.
+- the banner is the one the stylesheet already warns with  
+  Reusing .banner rather than inventing a class: it is already the site's warning colour, and the stylesheet's contrast tests already cover it in both themes, so this adds no rule for them to have missed (accessibility-standards).
+
+**The app can still speak**
+
+- the apps logger survives the migrations
+- a line the app logs actually reaches a handler  
+  The property that matters, asserted directly rather than inferred from the flag above: a logger can be re-enabled and still go nowhere.
+
+**The wiring**
+
+- the app decided the banner from the two flags  
+  The global the templates read is what _announce_auth returned, rather than a second reading of the environment that could come to disagree with it.
+- the suite itself runs open and says so  
+  conftest pops both credentials -- that is how the suite gets to be the owner -- and then sets RHDB_OPEN, because it meant to.
+- the decision is written down
 
 
 ## Specstruct
