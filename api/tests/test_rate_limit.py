@@ -3,7 +3,7 @@ guessable at unlimited speed. A small in-memory sliding-window limiter, keyed by
 client IP, caps failed attempts.
 """
 from app import main
-from app.main import _RateLimiter
+from app.auth import _RateLimiter
 
 
 def test_allows_up_to_the_limit_then_blocks():
@@ -39,10 +39,10 @@ def test_reset_clears_a_key():
 
 
 def test_login_blocks_after_too_many_failures(client, monkeypatch):
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
-    monkeypatch.setattr(main, "AUTH_USER", "admin")
-    monkeypatch.setattr(main, "AUTH_PASS", "correct-horse")
-    monkeypatch.setattr(main, "_login_limiter", _RateLimiter(3, 300))
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_USER", "admin")
+    monkeypatch.setattr(main.auth, "AUTH_PASS", "correct-horse")
+    monkeypatch.setattr(main.auth, "_login_limiter", _RateLimiter(3, 300))
 
     for _ in range(3):
         r = client.post("/login", data={"username": "admin", "password": "wrong"},
@@ -59,10 +59,10 @@ def test_login_blocks_after_too_many_failures(client, monkeypatch):
 
 
 def test_a_good_login_clears_the_count(client, monkeypatch):
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
-    monkeypatch.setattr(main, "AUTH_USER", "admin")
-    monkeypatch.setattr(main, "AUTH_PASS", "correct-horse")
-    monkeypatch.setattr(main, "_login_limiter", _RateLimiter(3, 300))
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_USER", "admin")
+    monkeypatch.setattr(main.auth, "AUTH_PASS", "correct-horse")
+    monkeypatch.setattr(main.auth, "_login_limiter", _RateLimiter(3, 300))
 
     for _ in range(2):
         client.post("/login", data={"username": "admin", "password": "wrong"},

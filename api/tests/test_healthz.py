@@ -34,7 +34,7 @@ def test_healthz_is_public_even_when_auth_is_enabled(client, monkeypatch):
     """The deploy smoke check has no credentials -- it runs before any exist for
     that box. If auth is enabled in production (it is: editing needs a login),
     an unauthenticated GET must still answer 200/503, never a login redirect."""
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
     r = client.get("/healthz", follow_redirects=False)
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}

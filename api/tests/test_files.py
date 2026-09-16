@@ -277,7 +277,7 @@ class TestWhoMayDoWhat:
         fid = ids_on(client, f"/parts/{p['asset_id']}").pop()
         publish(client, fid)
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get(f"/files/{fid}/tvga.zip").status_code == 200
         assert client.get("/files").status_code == 200
         for path in (f"/files/{fid}/delete", f"/files/{fid}/tags", "/files"):
@@ -287,7 +287,7 @@ class TestWhoMayDoWhat:
     def test_a_visitor_is_not_shown_the_upload_box(self, client, part, monkeypatch):
         p = part(manufacturer="Trident", model="TVGA8900")
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/parts/{p['asset_id']}").text
         assert "Files" in page and 'action="/files"' not in page
 
@@ -308,7 +308,7 @@ class TestPublishingOne:
         upload(client, "tvga.zip", tags="Trident TVGA8900")
         fid = ids_on(client, f"/parts/{p['asset_id']}").pop()
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get(f"/files/{fid}/tvga.zip").status_code == 404
         assert not ids_on(client, f"/parts/{p['asset_id']}")
 
@@ -318,7 +318,7 @@ class TestPublishingOne:
         fid = ids_on(client, f"/parts/{p['asset_id']}").pop()
         publish(client, fid)
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get(f"/files/{fid}/tvga.zip").content == b"driver"
         assert ids_on(client, f"/parts/{p['asset_id']}") == {fid}
 
@@ -331,7 +331,7 @@ class TestPublishingOne:
         publish(client, fid)
         publish(client, fid, public=False)
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get(f"/files/{fid}/tvga.zip").status_code == 404
         assert not ids_on(client, f"/parts/{p['asset_id']}")
         assert "tvga.zip" not in client.get("/files").text
@@ -343,7 +343,7 @@ class TestPublishingOne:
         under its own tag would be hidden in the one place nobody looks."""
         upload(client, "receipt.pdf", tags="Trident TVGA8900")
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert "receipt.pdf" not in client.get("/files?tag=Trident TVGA8900").text
 
     def test_an_unpublished_file_is_missing_rather_than_forbidden(self, client,
@@ -354,7 +354,7 @@ class TestPublishingOne:
         upload(client, "invoice.pdf", tags="RH-0001")
         fid = str(client.get("/api/files").json()[0]["id"])
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.get(f"/files/{fid}/invoice.pdf", follow_redirects=False)
         assert r.status_code == 404
         assert "www-authenticate" not in r.headers
@@ -374,11 +374,11 @@ class TestPublishingOne:
         upload(client, "tvga.zip", tags="Trident TVGA8900")
         fid = str(client.get("/api/files").json()[0]["id"])
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.post(f"/files/{fid}/public", data={"public": "1"},
                         follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
-        monkeypatch.setattr(main, "AUTH_ENABLED", False)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", False)
         assert client.get("/api/files").json()[0]["public"] is False
 
     def test_an_unpublished_file_is_not_cached_anywhere(self, client):

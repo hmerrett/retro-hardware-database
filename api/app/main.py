@@ -9,12 +9,8 @@ Two surfaces over the same MariaDB:
 
 Interactive API docs live at /docs (OpenAPI).
 """
-import base64
-import os
 import random
 import re
-import secrets
-import time
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
@@ -24,7 +20,6 @@ from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
                      UploadFile)
 from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, RedirectResponse,
                                Response)
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, text
 from sqlalchemy.orm import Session
@@ -37,6 +32,7 @@ from .common import (  # shared foundations; re-exported here so existing call-s
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
 from .routers import catalogue, images, seo
+from . import auth
 from .routers import gallery
 from .routers import stats as stats_routes
 from .common import (  # noqa: F401 -- re-exported for the tests, unused here
@@ -74,185 +70,6 @@ from .schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate,
 
 app = FastAPI(title="Retro Hardware Database API", version=__version__)
 
-AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
-AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
-AUTH_ENABLED = bool(AUTH_USER and AUTH_PASS)
-templates.env.globals["auth_enabled"] = AUTH_ENABLED
-
-
-
-
-
-
-
-
-# Signed-cookie session for the browser (the API/tools keep using HTTP Basic).
-def _resolve_secret_key(secret: str, auth_enabled: bool) -> str:
-    """The key that signs the session cookie. It must not be derived from the
-    credentials: the cookie's payload is a constant, so a key made from the
-    password would turn any leaked cookie into an offline oracle for it, with no
-    rate limit to slow the guessing. Require it explicitly when auth is on; when
-    the app runs open the cookie gates nothing, so a throwaway per-process key
-    will do."""
-    if secret:
-        return secret
-    if auth_enabled:
-        raise RuntimeError(
-            "RHDB_SECRET_KEY must be set when authentication is enabled. "
-            "Generate one with: openssl rand -hex 32"
-        )
-    return secrets.token_hex(32)
-
-
-SECRET_KEY = _resolve_secret_key(os.getenv("RHDB_SECRET_KEY", ""), AUTH_ENABLED)
-COOKIE = "rhdb_session"
-# The two cookies the site sets for a visitor who is only reading, both first party,
-# both holding a choice that visitor made themselves and nothing else. Neither is
-# written until the choice is made, so arriving and reading stores nothing at all --
-# which is what the notice at the foot of the page is able to say.
-SORT_COOKIE = "rhdb_sort"
-# That the notice has been read. Set only by dismissing it, and strictly necessary in
-# the plain sense: without it the notice cannot stay dismissed.
-NOTICE_COOKIE = "rhdb_noticed"
-# The names, so the script that writes them and the notice that describes them cannot
-# come to disagree with the code that reads them.
-templates.env.globals["sort_cookie"] = SORT_COOKIE
-templates.env.globals["notice_cookie"] = NOTICE_COOKIE
-SESSION_MAX_AGE = 60 * 60 * 24 * 30
-_signer = URLSafeTimedSerializer(SECRET_KEY, salt="rhdb-session")
-
-
-class _RateLimiter:
-    """A sliding-window limiter for login attempts, keyed by client IP. In-memory,
-    which suits a single-worker deployment; a restart clears it, which is fine for
-    slowing a guessing attack rather than accounting for one."""
-
-    def __init__(self, max_attempts: int, window: float):
-        self.max_attempts = max_attempts
-        self.window = window
-        self._hits: dict[str, list[float]] = {}
-
-    def _fresh(self, key: str, now: float) -> list[float]:
-        hits = [t for t in self._hits.get(key, []) if now - t < self.window]
-        self._hits[key] = hits
-        return hits
-
-    def check(self, key: str, now: float | None = None) -> bool:
-        """Whether another attempt is allowed for this key right now."""
-        now = time.monotonic() if now is None else now
-        return len(self._fresh(key, now)) < self.max_attempts
-
-    def record(self, key: str, now: float | None = None) -> None:
-        now = time.monotonic() if now is None else now
-        self._fresh(key, now).append(now)
-
-    def reset(self, key: str) -> None:
-        self._hits.pop(key, None)
-
-
-# 10 tries in five minutes is generous for a person and slow for a guesser.
-LOGIN_MAX_ATTEMPTS = int(os.getenv("RHDB_LOGIN_MAX_ATTEMPTS", "10"))
-LOGIN_WINDOW = int(os.getenv("RHDB_LOGIN_WINDOW", "300"))
-_login_limiter = _RateLimiter(LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW)
-
-
-def _client_ip(request: Request) -> str:
-    """The visitor's address, for rate-limiting. Behind Caddy every request's
-    immediate peer is Caddy, which appends the real client to X-Forwarded-For, so
-    the rightmost entry is the one a client cannot forge (anything it sends itself
-    sits to the left of what Caddy adds). Fall back to the peer address when there
-    is no proxy, as in local dev."""
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.rsplit(",", 1)[-1].strip()
-    return request.client.host if request.client else "?"
-
-
-def _check_basic(request: Request) -> bool:
-    header = request.headers.get("authorization", "")
-    if not header.startswith("Basic "):
-        return False
-    try:
-        u, _, p = base64.b64decode(header[6:]).decode("utf-8").partition(":")
-        return (secrets.compare_digest(u, AUTH_USER)
-                and secrets.compare_digest(p, AUTH_PASS))
-    except Exception:
-        return False
-
-
-def _check_cookie(request: Request) -> bool:
-    token = request.cookies.get(COOKIE)
-    if not token:
-        return False
-    try:
-        _signer.loads(token, max_age=SESSION_MAX_AGE)
-        return True
-    except (BadSignature, SignatureExpired):
-        return False
-
-
-def _is_api_path(path: str) -> bool:
-    return path.startswith(("/api", "/docs")) or path == "/openapi.json"
-
-
-def _is_public_read(request: Request) -> bool:
-    """Anonymous visitors get read-only GETs: the gallery, item pages, photos and
-    static assets. Editing GETs (new/edit forms, delete confirmations, labels),
-    the JSON API and /docs stay private, and every write (POST/PATCH/DELETE)
-    requires login."""
-    return request.method == "GET" and _public_page(request.url.path)
-
-
-def _public_page(path: str) -> bool:
-    """Whether a visitor who is not logged in may see this path at all.
-
-    A question of its own because logging out asks it too: the way out lands on the
-    page you were on, and "the page you were on" is only somewhere to land if it is
-    still somewhere you can look at."""
-    if path in ("/", "/stats", "/browse", "/suggest", "/robots.txt", "/sitemap.xml",
-                "/favicon.ico",
-                "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
-        return True
-    # The deploy smoke check and any uptime monitor hit this with no credentials
-    # at all -- it must answer before a login is possible, not redirect to one.
-    if path == "/healthz":
-        return True
-    # The catalogue, in both the shapes it is offered in. This is the one corner of
-    # the JSON API that is public, and it is public because there is nothing of the
-    # register in it: /api/machines answers with what was made rather than with what
-    # is here, the same list that is in the repository as machines.yaml and
-    # catalogue.txt. Putting the page behind the login and not the data behind it
-    # would be a lock on a door in a field.
-    if path in ("/machines", "/api/machines"):
-        return True
-    if path.startswith(("/images/", "/static/")):
-        return True
-    # The files kept beside the register read like the photographs do: a driver or
-    # a manual is part of what the catalogue is for. Downloading one is public;
-    # putting one there, re-filing it and deleting it are all POSTs, so they are
-    # already behind the login by the rule above.
-    #
-    # Which file, though, is not a question a path can answer: the same route
-    # serves a manual and a receipt, and only the row knows which. So this says
-    # the door is open and `serve_file` asks who may come through it -- see
-    # ADR-0009. The list at /files is public for the same reason and thins itself
-    # the same way.
-    if path == "/files" or path.startswith("/files/"):
-        return True
-    if path.startswith("/items/"):
-        return True
-    # Projects read like the rest of the site: what is being built and what is
-    # waiting on a part is as much of the collection as the shelf is. The editing
-    # GETs come out by the same rule the asset pages follow, and every write is a
-    # POST and so already behind the login. What a visitor is not shown is on the
-    # page rather than here -- see project.html on what an order costs.
-    if path == "/projects":
-        return True
-    if path.startswith(("/computers/", "/parts/", "/projects/")):
-        return not (path.endswith(("/new", "/delete"))
-                    or "/edit" in path or "/label.pdf" in path)
-    return False
-
 
 @app.middleware("http")
 async def no_stale_pages(request: Request, call_next):
@@ -275,102 +92,13 @@ async def no_stale_pages(request: Request, call_next):
     return response
 
 
-@app.middleware("http")
-async def auth_gate(request: Request, call_next):
-    """Public read-only browsing; login required to edit. Browsers use a session
-    cookie (login page + logout); the API and tools use HTTP Basic."""
-    path = request.url.path
-    api_path = _is_api_path(path)
-    # Browser paths trust the session cookie only, so logout is reliable; the API
-    # and docs also accept HTTP Basic for the MCP server and command-line tools.
-    has_basic = request.headers.get("authorization", "").startswith("Basic ")
-    basic_ok = api_path and has_basic and _check_basic(request)
-    request.state.authed = (not AUTH_ENABLED or _check_cookie(request) or basic_ok)
-    # A wrong Basic credential is a guess at the API's door; rate-limit it as the
-    # login form is. Only counted when a Basic header was actually sent and wrong,
-    # so ordinary anonymous reads are untouched.
-    if AUTH_ENABLED and api_path and has_basic and not basic_ok:
-        ip = _client_ip(request)
-        if not _login_limiter.check(ip):
-            return Response("Too many failed attempts, try again later",
-                            status_code=429)
-        _login_limiter.record(ip)
-    # Read here so the notice can be left out of the markup altogether once it has
-    # been dismissed, rather than shipped on every page and hidden by a script.
-    request.state.noticed = NOTICE_COOKIE in request.cookies
-    if path in ("/login", "/logout"):
-        return await call_next(request)
-    if not request.state.authed and not _is_public_read(request):
-        if api_path:
-            return Response("Authentication required", status_code=401, headers={
-                "WWW-Authenticate": 'Basic realm="Retro Hardware Database"'})
-        return RedirectResponse(f"/login?next={quote(path)}", status_code=303)
-    return await call_next(request)
+# Registered after no_stale_pages and so outside it, which is the order the two
+# decorators gave when both lived here: the gate runs first on the way in and last
+# on the way out.
+app.middleware("http")(auth.auth_gate)
+app.include_router(auth.router)
 
 
-
-@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
-def gui_login(request: Request, next: str = "/"):
-    if request.state.authed:
-        return RedirectResponse(_safe_next(next), status_code=303)
-    return templates.TemplateResponse(request, "login.html",
-                                      {"next": _safe_next(next), "error": False,
-                                       "noindex": True})
-
-
-@app.post("/login", include_in_schema=False)
-async def gui_do_login(request: Request):
-    form = await request.form()
-    nxt = _safe_next(form.get("next", "/") or "/")
-    ip = _client_ip(request)
-    if not _login_limiter.check(ip):
-        return templates.TemplateResponse(request, "login.html",
-                                          {"next": nxt, "error": True,
-                                           "rate_limited": True, "noindex": True},
-                                          status_code=429)
-    ok = (AUTH_ENABLED
-          and secrets.compare_digest(form.get("username", ""), AUTH_USER)
-          and secrets.compare_digest(form.get("password", ""), AUTH_PASS))
-    if not ok:
-        _login_limiter.record(ip)
-        return templates.TemplateResponse(request, "login.html",
-                                          {"next": nxt, "error": True, "noindex": True},
-                                          status_code=401)
-    _login_limiter.reset(ip)
-    resp = RedirectResponse(nxt, status_code=303)
-    resp.set_cookie(COOKIE, _signer.dumps("ok"), max_age=SESSION_MAX_AGE,
-                    httponly=True, samesite="lax",
-                    secure=request.headers.get("x-forwarded-proto") == "https")
-    return resp
-
-
-def _way_out(nxt: str) -> str:
-    """Where logging out lands: the page it was done from, the way logging in puts
-    you back on the page you asked for. The two are the same courtesy and they are
-    now the same sentence.
-
-    Unless that page was one the login was what let you see. An edit form is not
-    somewhere to land -- the gate would bounce you straight back to the login you
-    have just left -- but there is an item behind every edit form, and that is a
-    page anybody may read, so that is where it goes. Anything else with a door on
-    it (a new form, a delete confirmation, a label) has nothing behind it and falls
-    back to the gallery."""
-    nxt = _safe_next(nxt)
-    path = urlparse(nxt).path
-    if _public_page(path):
-        return nxt
-    item, _, last = path.rpartition("/")
-    if last == "edit" and _public_page(item):
-        return item
-    return "/"
-
-
-@app.post("/logout", include_in_schema=False)
-async def gui_logout(request: Request):
-    form = await request.form()
-    resp = RedirectResponse(_way_out(form.get("next", "") or ""), status_code=303)
-    resp.delete_cookie(COOKIE)
-    return resp
 
 
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
@@ -396,7 +124,6 @@ PART_DERIVED_FIELDS = {"variant"}
 # the project's own page refuses them, the search and the suggestion list drop them,
 # the sitemap does not name them, and the panel on an item's page does not say the
 # item is wanted for one. Miss any one and the other four are decoration.
-
 
 
 # Container paths by default (the `images` volume and the goaccess report mount);

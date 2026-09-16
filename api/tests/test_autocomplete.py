@@ -143,5 +143,5 @@ class TestElsewhere:
         bought from."""
         computer(source="Stephen Usher")
         aid = computer()["asset_id"]
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert "Stephen Usher" not in client.get(f"/computers/{aid}").text
