@@ -178,6 +178,13 @@
        have just been told to be blocks. */
     .ordertable td.act { display: inline-block; margin: 4px 6px 0 0; vertical-align: middle; }
   }
+  /* One thing a file is attached to, with the button that takes it off again: the
+     chip and the button are one item and wrap together, rather than the button
+     being left on the next line under a chip it no longer looks like it belongs
+     to. */
+  .attached { display: inline-flex; align-items: center; gap: 5px;
+    margin: 0 8px 4px 0; }
+  .attached .inline-form { display: inline; }
   /* A filename is one unbreakable word to a browser, and `overflow-wrap:
      break-word` on the cell does not help: it breaks a word that has already been
      given its column, but leaves the column's minimum width at the whole word. So

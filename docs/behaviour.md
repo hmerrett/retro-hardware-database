@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1380 behaviours, from 30 files.*
+*1385 behaviours, from 30 files.*
 
 
 ## Api
@@ -1403,31 +1403,42 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 39 behaviours*
+*test_files.py — 44 behaviours*
 
 
-**Filing under A name**
+**Attaching one**
 
-- a driver reaches every card of that model
-- it crosses from a part to a machine of the same name  
-  "any device of any type": the disk that came with a card is often the disk that came with the machine, and the register does not care which of the two the name was typed on.
-- the model alone is a name too  
-  Somebody filing a driver types what is written on the chip, which is the model without the maker in front of it.
-- a name someone gave it counts
-- an asset id files it to one unit alone  
-  A receipt or a repair photograph is about this one, and its asset id is how that is said without a second mechanism for it.
-- case and spacing are not a different name
-- a name written closed up is the same name  
-  Nobody agrees where the spaces go in SoundBlaster, and neither spelling is the wrong one to have typed.
-- a name covers everything that has it in  
-  One tag for a family: "Creative Labs Sound Blaster" is the driver disk for the AWE32, the 16 and the Pro, because each of them is called that and then some.
-- it reaches the narrower name and not the broader one  
-  One direction only.
-- a tag holding a wildcard is read as the characters it is  
-  % and _ mean something to the LIKE that narrows the search and nothing to anybody typing a name, so the answer is checked again after it.
-- one file can be filed under several
-- an item with no name at all matches nothing  
-  A blank model must not be a name every unnamed thing answers to.
+- a driver attached to a model reaches every card of it  
+  The case the whole design is for: one upload, three identical cards, and a fourth next year.
+- a card bought afterwards is offered it too  
+  The link names a model and not the items that happened to exist when it was made, which is the difference between this and ticking three boxes.
+- the same model written two ways is one model  
+  Nobody agrees where the spaces go, and neither spelling is the wrong one to have typed.
+- a model is the whole model and not a piece of it  
+  Containment is what let a tag of "16" reach half the register.
+- attaching to one unit reaches that unit alone  
+  A receipt or a repair photograph is about this one.
+- an upload from an item page goes to its model  
+  The default the manual promises: a driver found while looking at the card it is for is about the card as a model.
+- an upload on something with no model goes to the thing itself  
+  A custom build has no maker and model to be one of, so the file is about that machine.
+- a machine the catalogue names answers to both  
+  Identifying a machine in the catalogue after a file was attached to it by name must not take the file away (ADR-0020).
+- a tag decides nothing  
+  A tag says what a file is.
+- renaming an item does not move its files  
+  The fault ADR-0006 reports: a display name deciding a file's reach, and an edit silently detaching it.
+- correcting the model moves it between models  
+  The consequence ADR-0020 is plain about: saying what a thing is is how a thing gets its files.
+- one file can be attached to several things  
+  The disk that came with a card is often the disk that came with the machine it shipped in.
+- detaching takes it off and keeps the file  
+  Detaching is not deleting.
+- the files page says when one is attached to nothing  
+  Because it is the only page an unfiled file appears on: it is on no item page by definition, which is how one goes unnoticed.
+- deleting an item takes the link and not the bytes  
+  The disposal case the old docstring was right to worry about.
+- attaching to nothing is a 404 rather than a link to nowhere
 
 **Keeping them**
 
@@ -1441,10 +1452,12 @@ Regenerate with:
 - one over the limit is refused and leaves nothing behind
 - deleting one takes its bytes and its names
 
-**Refiling**
+**Tagging**
 
 - the box is the whole list  
-  A name taken out of it stops matching, which is the only way to correct a file put under the wrong one.
+  What the box shows is what a save means, so a tag taken out of it is gone rather than added to.
+- relabelling moves nothing  
+  The whole demotion in one test: the tags box used to be how a file was re-filed, and now it is how a file is described.
 - a name written twice is kept once
 - the tags are shown back as they were written
 
@@ -1457,8 +1470,8 @@ Regenerate with:
 
 - the api lists them with their names
 - it can be asked for one name
-- asking for a name answers as an item of that name would  
-  Following a tag from a page shows what that page shows: the broader disks a thing of this name would be offered, not only the file whose tag was clicked.
+- asking for a tag answers with what carries it  
+  Equality on the fold, not containment on a name: a tag says what a file is, so following one asks for the manuals rather than for whatever a machine of that name would be offered.
 
 **Who may do what**
 
