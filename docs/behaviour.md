@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1368 behaviours, from 29 files.*
+*1380 behaviours, from 30 files.*
 
 
 ## Api
@@ -1570,7 +1570,7 @@ Regenerate with:
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 6 behaviours*
+*test_keyboard_and_motion.py — 12 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -1584,6 +1584,18 @@ Regenerate with:
   The register's one piece of motion of its own -- Find, scrolling a phone back to the search box -- asks for it in JavaScript, where the CSS cannot reach: a `behavior: 'smooth'` passed to scrollTo outranks `scroll-behavior` in the stylesheet, so the media query alone would leave it moving.
 - the stylesheet answers a request to reduce motion  
   Nothing in the stylesheet animates today, which is exactly when the block is cheap to add: it covers the transition somebody writes next, rather than being remembered at the moment it is needed.
+- a bar fixed across the bottom does not swallow the focus ring  
+  Reaching a control below the fold, the browser scrolls it into view and stops it at the edge of the viewport -- which on a phone is exactly where the tab bar is fixed, so the control arrives underneath it.
+- the cookie notice does not swallow it either  
+  The notice is fixed above the bar and is taller than it -- 167px on a 320px screen, where the text wraps to five lines.
+- the login boxes say what they are for  
+  A password manager fills a form it can read: `autocomplete="username"` and `current-password` are what tell it which entry this is and which box the password goes in.
+- every control says what it is  
+  A control with no name is read out as "edit text, blank" and nothing else, which on the drives grid was eight of them to a row.
+- every image says what it is or says it is decoration  
+  `alt=""` is an answer -- it tells a screen reader to pass over a swatch or a rule.
+- nothing hides where the keyboard is  
+  The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
 
 
 ## Machines
@@ -2240,6 +2252,20 @@ Regenerate with:
 - a good login clears the count
 
 
+## Reflow
+
+*test_reflow.py — 4 behaviours*
+
+- no list is wider than the phone it is read on  
+  The invariant, stated once over every page that has a table on it: more columns than fit means the table has been given one of the two answers.
+- a stacked row says what each value is  
+  Stacked, a row loses its headings, and a bare date under a filename is a date for no stated reason.
+- the box you type into asks for a width rather than demanding one  
+  A `min-width` on a control is a floor the cell around it cannot go below, and this box is in the widest table on the site.
+- a long filename cannot hold the list open  
+  `overflow-wrap: break-word` on a cell breaks a word that has already been given its column, but leaves the column's minimum width at the whole word -- so the longest filename on the page decided how narrow the table could be.
+
+
 ## Restore script
 
 *test_restore_script.py — 7 behaviours*
@@ -2482,7 +2508,7 @@ Regenerate with:
 
 ## Stylesheet
 
-*test_stylesheet.py — 6 behaviours*
+*test_stylesheet.py — 8 behaviours*
 
 - every control given its own size is listed for touch  
   iOS zooms the page when it focuses a control whose text is under 16px, and does not zoom back out.
@@ -2496,6 +2522,10 @@ Regenerate with:
   A rule that fills something with the accent and leaves the foreground to be inherited gets whatever the surrounding rule set, which in the lightbox was a fixed white -- unreadable once the dark theme made the accent a pale blue.
 - a warning banner can be read  
   A banner carries the words of a disposal, a rejected form or a refused login in the page's own foreground colour.
+- every colour words are written in reads against the page  
+  The three pairs tested before this were the three that had already been reported broken.
+- every surface words are written on holds them  
+  A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
 
 
 ## Wanting work

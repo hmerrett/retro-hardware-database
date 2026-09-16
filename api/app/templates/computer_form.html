@@ -69,29 +69,35 @@
     <tr><th scope="col">How many</th><th scope="col">Kind</th><th scope="col">Form factor</th><th scope="col">Size</th><th scope="col">Media</th><th scope="col">Speed</th><th scope="col">Make / model</th><th scope="col">Bezel — shade, and yellowing</th></tr>
     {% for d in drives %}
     <tr>
-      <td><input type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"></td>
-      <td><select name="drive{{ loop.index0 }}_kind">
+      <td><input type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"
+                 aria-label="drive {{ loop.index }}, how many"></td>
+      <td><select name="drive{{ loop.index0 }}_kind" aria-label="drive {{ loop.index }}, kind">
         <option value=""></option>
         {% for k in drive_kinds %}<option value="{{ k }}"{{ ' selected' if k == d.get('kind') else '' }}>{{ k }}</option>{% endfor %}
       </select></td>
-      <td><select name="drive{{ loop.index0 }}_form_factor">
+      <td><select name="drive{{ loop.index0 }}_form_factor" aria-label="drive {{ loop.index }}, form factor">
         <option value=""></option>
         {% for f in drive_forms %}<option value="{{ f }}"{{ ' selected' if f == d.get('form_factor') else '' }}>{{ f }}</option>{% endfor %}
       </select></td>
-      <td><input name="drive{{ loop.index0 }}_size" list="dl_drive_sizes" value="{{ d.get('size', '') }}"></td>
+      <td><input name="drive{{ loop.index0 }}_size" list="dl_drive_sizes" value="{{ d.get('size', '') }}"
+                 aria-label="drive {{ loop.index }}, size"></td>
       {# A capacity is what a floppy takes and a medium is what an optical drive
          takes, so a row fills one or the other. Offered rather than closed, like
          the capacity beside them: the lists name what was sold, not everything
          that exists. #}
-      <td><input name="drive{{ loop.index0 }}_media" list="dl_drive_media" value="{{ d.get('media', '') }}"></td>
-      <td><input name="drive{{ loop.index0 }}_speed" list="dl_drive_speeds" value="{{ d.get('speed', '') }}"></td>
-      <td><input name="drive{{ loop.index0 }}_model" value="{{ d.get('model', '') }}"></td>
+      <td><input name="drive{{ loop.index0 }}_media" list="dl_drive_media" value="{{ d.get('media', '') }}"
+                 aria-label="drive {{ loop.index }}, media"></td>
+      <td><input name="drive{{ loop.index0 }}_speed" list="dl_drive_speeds" value="{{ d.get('speed', '') }}"
+                 aria-label="drive {{ loop.index }}, speed"></td>
+      <td><input name="drive{{ loop.index0 }}_model" value="{{ d.get('model', '') }}"
+                 aria-label="drive {{ loop.index }}, make and model"></td>
       {# Two menus and one swatch: the shade as made, and how far it has yellowed.
          The swatch shows the pair together, so the choice can be checked against
          the chart below without reading back up the page. #}
       <td>{{ C.pair('drive%d_' % loop.index0, d.get('colour', ''),
                     d.get('yellowing', ''), bezel_colours, yellowing,
-                    bezel_colour_labels, yellowing_labels) }}</td>
+                    bezel_colour_labels, yellowing_labels,
+                    'drive %d' % loop.index) }}</td>
     </tr>
     {% endfor %}
   </table>

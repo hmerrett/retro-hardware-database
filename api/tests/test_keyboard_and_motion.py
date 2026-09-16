@@ -1,13 +1,15 @@
 """What the manual promises a keyboard, a screen reader and a reduced-motion
 setting (MANUAL.md, "Using it from the keyboard").
 
-Three gaps that no single change surfaces: a skip link is invisible until it has
-focus, a missing `scope` reads correctly to everyone who can see the table, and
-motion is only wrong for the people who asked for less of it. So they are checked
-against the markup and the stylesheet themselves, the way test_stylesheet.py
-checks declarations rather than pages.
+What these have in common is that no single change surfaces them: a skip link is
+invisible until it has focus, a missing `scope` reads correctly to everyone who
+can see the table, motion is only wrong for the people who asked for less of it,
+and a control scrolled to under the tab bar is only wrong for somebody arriving
+at it with the Tab key. So they are checked against the markup and the stylesheet
+themselves, the way test_stylesheet.py checks declarations rather than pages.
 """
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -89,3 +91,184 @@ def test_the_stylesheet_answers_a_request_to_reduce_motion():
     assert block, "the stylesheet does not answer prefers-reduced-motion"
     for declaration in ("animation-duration", "transition-duration", "scroll-behavior"):
         assert declaration in block.group(1), f"the block leaves {declaration} alone"
+
+
+def media_block_holding(css: str, needle: str) -> str:
+    """The `@media` block a declaration sits in, read the way the tests above read
+    the stylesheet: by its text, since there is no browser here to ask."""
+    at = css.index(needle)
+    opened = css.rindex("@media", 0, at)
+    return css[opened : css.index("\n  }", at) + 4]
+
+
+def px(text: str, declaration: str) -> int:
+    """The first pixel figure in a declaration, whether or not it is inside a
+    `calc()` with a safe-area inset added to it."""
+    found = re.search(rf"{declaration}:\s*(?:calc\()?\s*(\d+)px", text)
+    assert found, f"no {declaration} to read in {text[:80]!r}"
+    return int(found.group(1))
+
+
+def test_a_bar_fixed_across_the_bottom_does_not_swallow_the_focus_ring():
+    """Reaching a control below the fold, the browser scrolls it into view and
+    stops it at the edge of the viewport -- which on a phone is exactly where the
+    tab bar is fixed, so the control arrives underneath it. Measured before this
+    was written: twenty stops on an item page, twenty-one on a machine's form, the
+    year field and "mark disposed" among the ones hidden outright.
+
+    `body`'s padding holds the last card clear of the bar and says nothing about
+    where a scroll stops; the scroll container has to be told separately. WCAG 2.2
+    calls this 2.4.11, and the minimum is that focus is not *entirely* hidden."""
+    css = STYLESHEET.read_text(encoding="utf-8")
+    phone = media_block_holding(css, ".tabbar { position: fixed")
+    reserved = px(phone, "padding-bottom")
+    assert "scroll-padding-bottom" in phone, (
+        "the bar is fixed over the bottom of the page and nothing keeps a scroll clear of it")
+    assert px(phone, "scroll-padding-bottom") >= reserved, (
+        "a scroll stops closer to the bottom than the bar is tall, so focus lands behind it")
+
+
+def test_the_cookie_notice_does_not_swallow_it_either():
+    """The notice is fixed above the bar and is taller than it -- 167px on a 320px
+    screen, where the text wraps to five lines. It is in the markup only while it
+    is showing, so `:has` is the whole of the condition and no script is needed to
+    put the room back when it goes."""
+    css = STYLESHEET.read_text(encoding="utf-8")
+    while_showing = [
+        rule for rule in re.finditer(r"html:has\(#cookienote\)[^{]*\{[^}]*\}", css)
+        if "scroll-padding-bottom" in rule.group(0)
+    ]
+    assert while_showing, "nothing keeps a scroll clear of the cookie notice"
+    phone = media_block_holding(css, ".tabbar { position: fixed")
+    inside = [rule for rule in while_showing if rule.group(0) in phone]
+    assert inside, "the phone's allowance has to cover the notice and the bar together"
+    assert px(inside[0].group(0), "scroll-padding-bottom") > px(phone, "padding-bottom"), (
+        "the notice sits on top of the bar, so it needs more room than the bar alone")
+
+
+def test_the_login_boxes_say_what_they_are_for():
+    """A password manager fills a form it can read: `autocomplete="username"` and
+    `current-password` are what tell it which entry this is and which box the
+    password goes in. Without them the one credential this register has must be
+    typed from memory or carried between windows, which is what WCAG 2.2's 3.3.8
+    is about."""
+    html = (TEMPLATES / "login.html").read_text(encoding="utf-8")
+    assert re.search(r'<input[^>]*name="username"[^>]*autocomplete="username"', html), (
+        "the username box does not say what it is for")
+    assert re.search(r'<input[^>]*name="password"[^>]*autocomplete="current-password"', html), (
+        "the password box does not say what it is for")
+
+
+class Controls(HTMLParser):
+    """Every control on the page and whether anything gives it a name: an
+    `aria-label`, a `<label>` wrapped round it or pointed at its id, or, for a
+    button, the words on it."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.controls = []
+        self.labelled_ids = set()
+        self.images = []
+        self._in_label = 0
+        self._button = None
+
+    def handle_starttag(self, tag, attrs):
+        got = dict(attrs)
+        if tag == "label":
+            self._in_label += 1
+            if got.get("for"):
+                self.labelled_ids.add(got["for"])
+        elif tag == "img":
+            if got.get("alt") is None:
+                self.images.append(got.get("src", "")[-50:])
+        elif tag in ("input", "select", "textarea", "button"):
+            if got.get("type") == "hidden":
+                return
+            named = bool(got.get("aria-label") or got.get("aria-labelledby") or got.get("title"))
+            named = named or self._in_label > 0
+            if got.get("type") in ("submit", "button", "reset") and got.get("value"):
+                named = True
+            control = {"tag": tag, "id": got.get("id", ""), "name": got.get("name", ""),
+                       "named": named, "words": ""}
+            self.controls.append(control)
+            if tag == "button":
+                self._button = control
+
+    def handle_data(self, data):
+        if self._button is not None:
+            self._button["words"] += data
+
+    def handle_endtag(self, tag):
+        if tag == "label" and self._in_label:
+            self._in_label -= 1
+        elif tag == "button":
+            self._button = None
+
+    def unnamed(self):
+        return [
+            f"<{c['tag']} name={c['name'] or '-'} id={c['id'] or '-'}>"
+            for c in self.controls
+            if not c["named"] and not (c["tag"] == "button" and c["words"].strip())
+            and c["id"] not in self.labelled_ids
+        ]
+
+
+@pytest.fixture
+def a_page_of_everything(client, computer, part):
+    """One machine with a part on it, so the forms, the item pages and the lists
+    all render the controls they only have when there is something to show."""
+    made = computer(manufacturer="Amstrad", model="PC1512")
+    card = part(manufacturer="Trident", model="TVGA8900", type="video",
+                computer_id=made["asset_id"])
+    return [
+        "/", "/machines", "/projects", "/projects/new", "/files", "/stats", "/for-sale",
+        f"/computers/{made['asset_id']}", f"/computers/{made['asset_id']}/edit",
+        "/computers/new", "/parts/new",
+        f"/parts/{card['asset_id']}", f"/parts/{card['asset_id']}/edit",
+    ]
+
+
+def test_every_control_says_what_it_is(client, a_page_of_everything):
+    """A control with no name is read out as "edit text, blank" and nothing else,
+    which on the drives grid was eight of them to a row. A column heading is not a
+    name: nothing in HTML carries it from the `<th>` to the box underneath, so
+    each box says which row and which column it is itself."""
+    nameless = []
+    for path in a_page_of_everything:
+        page = client.get(path)
+        assert page.status_code == 200, f"{path} did not render: {page.status_code}"
+        parser = Controls()
+        parser.feed(page.text)
+        nameless += [f"{path}: {one}" for one in parser.unnamed()]
+    assert nameless == [], "these controls are read out with nothing to say what they are: " + \
+        "; ".join(nameless[:12])
+
+
+def test_every_image_says_what_it_is_or_says_it_is_decoration(client, a_page_of_everything):
+    """`alt=""` is an answer -- it tells a screen reader to pass over a swatch or a
+    rule. A missing `alt` is not: it reads the filename out instead."""
+    silent = []
+    for path in a_page_of_everything:
+        parser = Controls()
+        parser.feed(client.get(path).text)
+        silent += [f"{path}: {one}" for one in parser.images]
+    assert silent == [], "these images have no alt at all: " + "; ".join(silent[:12])
+
+
+def test_nothing_hides_where_the_keyboard_is():
+    """The browser's own focus ring is what most of this site relies on, and one
+    line of CSS anywhere would take it away everywhere it applies. There is one
+    rule that does suppress it, deliberately: the skip link lands on `<main>`, and
+    a ring drawn round the whole page says nothing -- the eye should be following
+    the link. Anything else turning an outline off is the thing this asserts
+    against, and has to justify itself here first."""
+    css = STYLESHEET.read_text(encoding="utf-8")
+    allowed = "main:focus"
+    suppressed = [
+        css[max(0, found.start() - 60) : found.start()].strip().splitlines()[-1]
+        for found in re.finditer(r"outline:\s*(?:none|0)\b", css)
+    ]
+    assert [one for one in suppressed if allowed not in one] == [], (
+        "these rules take the focus ring away: " + "; ".join(suppressed))
+    assert re.search(r"main:focus\s*\{[^}]*outline:\s*none", css), (
+        "the one allowed suppression has moved; this test is now guarding nothing")

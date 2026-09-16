@@ -177,3 +177,38 @@ def test_a_warning_banner_can_be_read(theme):
     painted = over(variables["--danger-wash"], variables["--bg"])
     ratio = contrast(variables["--fg"], painted)
     assert ratio >= 4.5, f"banner text is {ratio:.1f}:1 on its own wash in {theme}"
+
+
+# Every colour the stylesheet states as something words are written in, against the
+# page they are written on. `--primary-fg` is not here because it is never on the
+# page: it is the text on an accent fill, and has a test of its own above.
+TEXT_COLOURS = ["--fg", "--muted", "--accent", "--danger"]
+
+# Every colour the stylesheet states as something words are written *on*. The text
+# on all of them is `--fg`, inherited, so the pair is that against the composite --
+# `#ffffff16` says nothing about a reading until `over` resolves it against the page.
+SURFACES = ["--bg", "--btn", "--btn-hover", "--chip", "--band", "--danger-wash"]
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("token", TEXT_COLOURS)
+def test_every_colour_words_are_written_in_reads_against_the_page(theme, token):
+    """The three pairs tested before this were the three that had already been
+    reported broken. ADR-0014 asks for the rest of them, since a pair nobody has
+    computed is a pair nobody knows about -- the muted grey is 12px and carries
+    the hints, the dates and half the figures on the statistics page."""
+    variables = theme_variables(theme)
+    ratio = contrast(variables[token], variables["--bg"])
+    assert ratio >= 4.5, f"{token} on the page is {ratio:.1f}:1 in {theme}"
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("token", SURFACES)
+def test_every_surface_words_are_written_on_holds_them(theme, token):
+    """A chip, a button, a panel's title band: each is a translucent black or
+    white over the page, and the text on every one of them is the inherited
+    `--fg`. Composited first, because `#ffffff16` on its own says nothing."""
+    variables = theme_variables(theme)
+    surface = over(variables[token], variables["--bg"])
+    ratio = contrast(variables["--fg"], surface)
+    assert ratio >= 4.5, f"the page's text on {token} is {ratio:.1f}:1 in {theme}"

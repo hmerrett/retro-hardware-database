@@ -149,6 +149,21 @@ across the bottom of the screen, where your thumb already is.
   **models**, **files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
   **traffic** and **log out**.
 
+### On a narrow screen
+
+Every page fits the screen it is on, down to a 320px-wide phone and at 200% zoom
+on a desktop: nothing is cut off at the right-hand edge and no page scrolls
+sideways. A list with more columns than a phone has room for comes down the page
+as blocks instead of a row each, with every value under the name of the column it
+has lost — the projects list, the orders on a project and the files list all do
+this, and the boxes you type into keep the full width rather than being pushed
+off the edge.
+
+One table is left to scroll: the drives on a machine's form, which keeps its
+widths and slides inside its own box. Squeezed to fit a phone it would show two
+characters of a model and none of the bezel, and it is a table of the kind that
+has to be read in two directions. The page around it stays where it is.
+
 ### Using it from the keyboard
 
 The first thing the Tab key reaches on any page is **Skip to content**. It is out
@@ -156,6 +171,11 @@ of sight until it has focus, then appears at the top left; press Enter and the
 rest of the header — the sections, the search box, the menus — is behind you,
 with the next Tab landing in the page itself. On a long gallery that is one key
 instead of a dozen.
+
+On a phone, tabbing to a control below the fold scrolls it into view above the
+bar across the bottom of the screen, never behind it — and the same while the
+cookie notice is still up. A control you cannot see is a control you cannot fill
+in.
 
 Tables say which of their cells are headings, so a screen reader can announce a
 figure with the heading it sits under. In a table of rows — the files list, the
@@ -1654,6 +1674,10 @@ from all of them.
 Anonymous visitors can browse the gallery, item pages, the statistics, the files
 and the photographs. The new and edit forms, the label PDFs, every write, the
 JSON API and the API docs require authentication.
+
+The login boxes say what they are for, so a password manager — the browser's own,
+or one you keep elsewhere — offers the right entry and fills both. Nothing has to
+be typed from memory or copied between windows.
 
 There is one account, set with `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`. Leave
 both blank and the site runs with no authentication at all, which is only
