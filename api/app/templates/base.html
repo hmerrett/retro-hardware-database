@@ -159,6 +159,10 @@
         {% if auth_enabled %}
         <hr>
         {% if request.state.authed %}
+        {# The owner's own shortlist, beside the other two things only they can
+           reach. Not in the sections nav: it is a note to yourself, not a part of
+           the catalogue (ADR-0018). #}
+        <a href="/for-sale">might sell</a>
         <a href="/traffic">traffic</a>
         <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
         {% else %}
@@ -231,6 +235,7 @@
     {% if auth_enabled %}
     <hr>
     {% if request.state.authed %}
+    <a href="/for-sale">might sell</a>
     <a href="/traffic">traffic</a>
     <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
     {% else %}

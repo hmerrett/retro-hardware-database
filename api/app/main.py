@@ -25,7 +25,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from . import __version__
-from . import (drivedb, entry, filesdb, labels, machinedb, machines,
+from . import (cards, drivedb, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
     BRANDING_DIR, IMAGES_DIR, REGISTER, STATIC_DIR, _visible, folder_images, to_dict)
@@ -1668,6 +1668,26 @@ def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
             "noindex": True}
 
 
+async def _set_for_sale(db, model, aid, request: Request):
+    """Tick or untick "might sell" on one item (ADR-0018).
+
+    The box on the page is the answer, so an absent field is "no": an unticked
+    checkbox sends nothing at all, which is the one form control whose off state has
+    to be read from its silence. The same reading gui_file_public takes of the same
+    gesture, and for the same reason -- these two ticks are the same control.
+
+    Nothing is written to the history. A shortlist is a thought about a thing, not
+    something that happened to it, and a machine ticked and unticked over a month of
+    Sundays would otherwise fill its own record with the owner changing their mind.
+    """
+    row = get_or_404(db, model, aid)
+    form = await request.form()
+    row.for_sale = bool(form.get("for_sale"))
+    db.commit()
+    return RedirectResponse(f"/{'computers' if model is Computer else 'parts'}/{aid}",
+                            status_code=303)
+
+
 @app.post("/computers/{aid}/dispose", include_in_schema=False)
 async def gui_dispose_computer(aid: str, request: Request,
                                db: Session = Depends(get_db)):
@@ -1683,6 +1703,12 @@ async def gui_dispose_computer(aid: str, request: Request,
     add_log(db, aid, _disposal_log(c) + _and_parts(n))
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
+
+
+@app.post("/computers/{aid}/for-sale", include_in_schema=False)
+async def gui_computer_for_sale(aid: str, request: Request,
+                                db: Session = Depends(get_db)):
+    return await _set_for_sale(db, Computer, aid, request)
 
 
 @app.post("/computers/{aid}/restore", include_in_schema=False)
@@ -2780,6 +2806,12 @@ def gui_duplicate_computer(aid: str, db: Session = Depends(get_db)):
     return RedirectResponse(f"/computers/{obj.asset_id}", status_code=303)
 
 
+@app.post("/parts/{aid}/for-sale", include_in_schema=False)
+async def gui_part_for_sale(aid: str, request: Request,
+                            db: Session = Depends(get_db)):
+    return await _set_for_sale(db, Part, aid, request)
+
+
 @app.post("/parts/{aid}/dispose", include_in_schema=False)
 async def gui_dispose_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
@@ -3340,7 +3372,8 @@ def _projects_page(request, db, q="", error="", status=200):
         "total": total, "error": error,
         "register": _register_order(db) if request.state.authed else [],
         "og": _og(request, "Projects", "Repairs, builds and things on order — "
-                                       "the work, as against the collection")},
+                                       "the work, as against the collection",
+                  card=cards.montage(_projects_card(db, rows)))},
         status_code=status)
 
 
@@ -3660,6 +3693,45 @@ def _project_card(members):
             if "/placeholders/" not in rel:
                 return rel
     return None
+
+
+def _projects_card(db, rows, limit=cards.MAX_TILES):
+    """The photographs the projects *list* tiles its share card from: the first
+    photograph of each project on the page, in the order the page reads (ADR-0017).
+
+    One photograph per project rather than four off the first one, because this page
+    is a list of projects and a card of four views of one machine would describe it
+    as a page about that machine.
+
+    `rows` is what the page is showing, which is what makes this safe to put on a
+    picture an anonymous crawler fetches: a private project is already absent from a
+    visitor's rows, so it is absent from the card without a second rule that could
+    come to disagree with the first.
+
+    One query and the two folder listings however many projects there are, rather
+    than projects.members per row -- this is the page that would notice, which is why
+    summaries() is written the way it is.
+    """
+    ids = [r["p"].asset_id for r in rows]
+    if not ids:
+        return []
+    owned = {}
+    for pid, aid in (db.query(ProjectAsset.project_id, ProjectAsset.asset_id)
+                     .filter(ProjectAsset.project_id.in_(ids))
+                     .order_by(ProjectAsset.id)):
+        owned.setdefault(pid, []).append(aid)
+    listing = {kind: folder_images(kind) for kind in ("computers", "parts")}
+    out = []
+    for pid in ids:
+        for aid in owned.get(pid, []):
+            found = next((rel for kind in ("computers", "parts")
+                          for rel in pick_images(kind, aid, listing[kind])), None)
+            if found:
+                out.append(found)
+                break
+        if len(out) == limit:
+            break
+    return out
 
 
 def _asset_display(db, asset_id):

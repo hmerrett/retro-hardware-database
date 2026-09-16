@@ -51,6 +51,9 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   name the thing — *Accepted* (changes the shape
   [0003](0003-work-is-noted-at-check-in.md) and
   [0004](0004-work-projects-are-public.md) assume)
+- [0017](0017-a-page-of-photographs-shares-a-montage-of-them.md) — A page of
+  photographs shares a montage of them — *Accepted*
+- [0018](0018-a-sale-flag-is-the-owners-alone.md) — A sale flag is the owner's
+  alone — *Accepted*
 - [0019](0019-running-open-is-supported-but-never-silent.md) — Running open is
-  supported, but never silent — *Accepted* (0017 and 0018 are on a branch in
-  flight; this leaves room for them)
+  supported, but never silent — *Accepted*

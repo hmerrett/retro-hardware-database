@@ -1,4 +1,4 @@
-"""The route that serves a photograph.
+"""The routes that serve a picture: a photograph, and the card a shared link shows.
 
 Every picture the register shows goes through here rather than off the filesystem
 directly: it is where the watermark is put on, where a request for a narrower copy
@@ -10,7 +10,7 @@ import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from .. import thumbs
+from .. import cards, thumbs
 from ..common import IMAGES_DIR, IMAGE_EXTS
 from ..photos import _image_cache, _is_own_photo, _watermarked_file
 
@@ -41,3 +41,23 @@ def serve_image(path: str, v: str = "", w: int = 0):
     if not served.exists():
         served = full
     return FileResponse(served, headers=_image_cache(bool(v)))
+
+
+@router.get("/og/{name}", include_in_schema=False)
+def serve_card(name: str):
+    """The montage a grid page's shared link previews as (ADR-0017).
+
+    It opens a file by hash and does nothing else: no query is read, no search is
+    run, nothing is written. That is the whole reason a card may be named after a
+    query's results without the route becoming something a stranger can set to
+    work -- the page that names a card is what makes it. A name that is not one of
+    this app's own hashes names nothing, so there is no path here to traverse.
+
+    Served immutable for a year on the same reasoning a ?v=-stamped photograph is:
+    the name says which photographs went into the picture, so the picture at that
+    name can never change.
+    """
+    card = cards.card_file(name)
+    if card is None:
+        raise HTTPException(404)
+    return FileResponse(card, media_type="image/jpeg", headers=_image_cache(True))

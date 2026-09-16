@@ -36,6 +36,18 @@
 </div>
 {% endif %}
 
+{% if request.state.authed %}
+{# Might sell (ADR-0018) -- see part.html, where the same tick carries the reasoning.
+   Owner-only in every direction, including the search. #}
+<form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/for-sale"
+      data-ticksend>
+  <label class="tickbox"><input type="checkbox" name="for_sale" value="1"
+    {{ 'checked' if c.for_sale else '' }}
+    aria-label="Might sell {{ c.asset_id }}"> might sell</label>
+  <button class="btn sm" type="submit" data-send-go>save</button>
+</form>
+{% endif %}
+
 {# Not on a machine the catalogue names. The walk's next step is a motherboard and
    then expansion cards, which is a PC's shape -- and a catalogue machine is a sealed
    thing described by what it was built as, whose board and parts sections are not

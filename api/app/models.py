@@ -77,6 +77,9 @@ class Computer(Base):
                       server_default="0")
     disposed_at = Column(Date)
     disposed_note = Column(Text, nullable=False, default="", server_default="")
+    # Might go: the step before disposal, and the owner's alone (ADR-0018). Kept off
+    # a visitor's page, out of their search (common.OWNER_ONLY) and out of the API.
+    for_sale = Column(Boolean, nullable=False, default=False, server_default="0")
 
 
 class Part(Base):
@@ -115,6 +118,9 @@ class Part(Base):
                       server_default="0")
     disposed_at = Column(Date)
     disposed_note = Column(Text, nullable=False, default="", server_default="")
+    # See Computer.for_sale. The same flag on the other half of the register,
+    # because a spare card is as likely to be the thing going as a whole machine.
+    for_sale = Column(Boolean, nullable=False, default=False, server_default="0")
     disk_image = Column(String(255), default="")
 
 

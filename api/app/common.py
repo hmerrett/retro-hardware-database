@@ -29,6 +29,17 @@ LEGACY_DISK_BUSES = ("MFM", "RLL", "ESDI", "XTA")
 # particular", and a league table of manufacturers should not have them in it.
 NOT_A_MAKER = {"unknown", "generic", "various", "noname", "no name", "n/a", "-", "?"}
 
+# Columns a visitor is never shown, by name, so that keeping one back is a decision
+# recorded in one place rather than a habit of remembering (ADR-0018).
+#
+# The set exists because search._haystack reads *every* column off the model -- that
+# is what makes "search any field" true rather than nearly true -- so a new column
+# joins what a stranger can search by merely existing. A boolean reads as "True",
+# and a search for "true" would hand back every row carrying it, off a page that
+# shows no such thing. Hiding a column in the template is half the job; this is the
+# other half, and it is the half nobody remembers.
+OWNER_ONLY = frozenset({"for_sale"})
+
 
 # Disposed items are records of things that have gone. A figure about the collection
 # is about what is in it, so everything on /stats counts only what is still held.

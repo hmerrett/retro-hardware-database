@@ -67,8 +67,17 @@ def _abs_url(request: Request, path: str) -> str:
 def _dot(*parts) -> str:
     return " · ".join(str(p) for p in parts if p)
 
-def _og(request: Request, title: str, description: str = "", image_rel: str | None = None):
-    """Open Graph / Twitter-card context for a page's social-share preview."""
+def _og(request: Request, title: str, description: str = "", image_rel: str | None = None,
+        card: tuple[str, int, int] | None = None):
+    """Open Graph / Twitter-card context for a page's social-share preview.
+
+    Three ways a page can have a picture, in the order they are preferred.
+    `image_rel` is one stored photograph, which is what a page about one thing has.
+    `card` is a picture already made for this page -- the montage of the photographs
+    on a grid page (cards.montage, ADR-0017) -- which is what a page about many
+    things has. Neither, and the site's own card, which is what a page with no
+    photographs on it has.
+    """
     og = {"title": title, "url": _abs_url(request, request.url.path),
           "description": " ".join((description or "").split())[:280]}
     if image_rel:
@@ -77,9 +86,15 @@ def _og(request: Request, title: str, description: str = "", image_rel: str | No
         size = _image_size(image_rel)
         if size:
             og["image_w"], og["image_h"] = size
+    elif card:
+        path, og["image_w"], og["image_h"] = card
+        og["image"] = _abs_url(request, path)
+        # The card is named by a hash of what went into it, so what is at that URL
+        # can never change and needs no ?v= of its own.
+        og["image_alt"] = "Photographs from this page"
     else:
-        # An item with no photo, the gallery, the figures: the site's own card, so a
-        # shared link is never the bare text preview it used to be.
+        # An item with no photo, a page of figures, a page of files: the site's own
+        # card, so a shared link is never the bare text preview it used to be.
         path, og["image_w"], og["image_h"] = SITE_CARD
         og["image"] = _abs_url(request, f"{path}?v={SITE_CARD_VER}")
         og["image_alt"] = "The Retro Hardware Database"
