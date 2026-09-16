@@ -51,3 +51,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   name the thing — *Accepted* (changes the shape
   [0003](0003-work-is-noted-at-check-in.md) and
   [0004](0004-work-projects-are-public.md) assume)
+- [0019](0019-running-open-is-supported-but-never-silent.md) — Running open is
+  supported, but never silent — *Accepted* (0017 and 0018 are on a branch in
+  flight; this leaves room for them)

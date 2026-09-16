@@ -202,7 +202,12 @@ breaking one turns CI red rather than merely being wrong.
 - **Public read, login to edit.** Anonymous visitors get `GET` on the gallery,
   item pages, images and static files. Everything else — new and edit forms,
   delete confirmations, labels, `/api/*`, `/docs`, and every write — requires a
-  login. The rule lives in `_is_public_read` / `_public_page` in `main.py`.
+  login. The rule lives in `_is_public_read` / `_public_page` in `auth.py`.
+- **…unless there is no login at all, and then the app says so.** With
+  `RHDB_AUTH_USER`/`RHDB_AUTH_PASSWORD` unset, every visitor is the owner. That is
+  a supported configuration, but an unreadable `.env` produces it too, so it is
+  announced: `RHDB_OPEN` says it was meant, and without it there is a startup
+  warning and a banner on every page. *(ADR-0019, enforced: `test_running_open.py`)*
 - **An asset id is never reused or reassigned.** Printed labels exist. *(§3)*
 - **The child rows are the truth; the string is a cache.** *(§4)*
 - **A migration must not assume specific data exists.** A one-off correction to a

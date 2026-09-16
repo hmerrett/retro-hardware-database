@@ -173,6 +173,24 @@
     </details>
   </div>
 </header>
+{# Running with no login, and nothing says it was meant to (ADR-0019). Above the
+   content and on every page, because the pages somebody edits from are the item
+   pages -- a notice only on the front door is one most visits never see.
+
+   Shown to everybody, which is not a disclosure: when the site is open, everybody
+   looking at it is the owner as far as the code is concerned, and the edit buttons
+   are already on the page for anyone to find. Reusing .banner rather than inventing
+   a class, so the contrast the stylesheet tests already cover is the contrast this
+   gets. #}
+{% if auth_open_warning %}
+<div class="banner" id="openwarn">
+  <p><strong>No login.</strong> This site has no credentials set, so anybody
+    reading it can add, edit and delete anything in the register. If that is not
+    what was intended, set <code>RHDB_AUTH_USER</code> and
+    <code>RHDB_AUTH_PASSWORD</code>; if it is, set <code>RHDB_OPEN=1</code> to put
+    this notice away.</p>
+</div>
+{% endif %}
 <main>{% block content %}{% endblock %}</main>
 
 <footer class="site">
