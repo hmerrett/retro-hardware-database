@@ -10,6 +10,9 @@ Since 0035 there is a second sense of "who sees a file": the same box that takes
 driver disk takes a receipt with an address on it, so nothing is published until
 it is ticked (ADR-0009). TestPublishingOne is that half.
 """
+import re
+from html.parser import HTMLParser
+
 from app import filesdb
 from app.models import FileTag, StoredFile
 
@@ -43,122 +46,264 @@ def file_ids(client):
     return [f["id"] for f in client.get("/api/files").json()]
 
 
-def attach(client, fid, aid, what="model"):
-    r = client.post(f"/files/{fid}/attach", data={"aid": aid, "what": what},
+class Forms(HTMLParser):
+    """The forms on a page, each as the fields it would post and the words on its
+    button.
+
+    The tests below press what the page offers rather than posting field names of
+    their own. A test that knows a model is keyed `trident|tvga8900` is a test of
+    how the links are stored; what the manual promises is a button that says
+    "attach to every Trident TVGA8900", and pressing it is what a reader does."""
+
+    def __init__(self, action_contains=""):
+        super().__init__(convert_charrefs=True)
+        self.wanted = action_contains
+        self.forms = []
+        self._open = None
+
+    def handle_starttag(self, tag, attrs):
+        got = dict(attrs)
+        if tag == "form":
+            action = got.get("action", "")
+            self._open = ({}, [], action) if self.wanted in action else None
+        elif self._open is not None and tag == "input" and got.get("name"):
+            self._open[0][got["name"]] = got.get("value", "")
+    def handle_data(self, data):
+        if self._open is not None:
+            self._open[1].append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "form" and self._open is not None:
+            fields, buttons, action = self._open
+            self.forms.append({"fields": fields, "action": action,
+                               "says": " ".join("".join(buttons).split())})
+            self._open = None
+
+
+def forms_on(html, action_contains):
+    parser = Forms(action_contains)
+    parser.feed(html)
+    return parser.forms
+
+
+def press(client, html, action_contains, says):
+    """Press the button on this page whose words say `says`, posting what its form
+    carries. Fails loudly when the page does not offer it, since "the other is one
+    click away" is the promise being kept."""
+    offered = forms_on(html, action_contains)
+    match = [f for f in offered if says in f["says"]]
+    assert match, (f"no button saying {says!r} posting to {action_contains!r}; "
+                   f"the page offers {[f['says'] for f in offered]}")
+    r = client.post(match[0]["action"], data=match[0]["fields"],
                     follow_redirects=False)
     assert r.status_code == 303, r.text
     return r
 
 
-def detach(client, fid, **what):
-    r = client.post(f"/files/{fid}/detach", data=what, follow_redirects=False)
-    assert r.status_code == 303, r.text
-    return r
+def upload_hint(html):
+    """The sentence under the upload box that says where a file put there will go,
+    as words rather than as markup."""
+    para = re.search(r"<p class=\"hint\">((?:(?!</p>).)*Nothing uploaded here[^<]*)</p>",
+                     html, re.S)
+    assert para, "the panel has no sentence saying where an upload goes"
+    return " ".join(re.sub(r"<[^>]+>", "", para.group(1)).split())
 
 
-def links_of(client, fid):
-    """What one file says it is attached to, over the wire."""
-    one = next(f for f in client.get("/api/files").json() if f["id"] == fid)
-    return set(one["assets"]), {(m["kind"], m["key"]) for m in one["models"]}
+def attached_to(client, fid):
+    """What a file says it is for, in the words a person is shown: asset ids, and
+    the models by their labels."""
+    one = next(f for f in client.get("/api/files").json() if f["id"] == int(fid))
+    return set(one["assets"]), {m["label"] for m in one["models"]}
 
 
 class TestAttachingOne:
-    """What a file is for is stated, not inferred (ADR-0006). The manual's "A file
-    is attached to what it is for", and the two ways of saying it."""
+    """MANUAL.md section 11, "A file is attached to what it is for".
+
+    One test to a promise the manual makes, and each of them pressing what a page
+    offers rather than posting fields of its own -- a test that knows how a model
+    is keyed is a test of the storage, and the manual promises a button."""
 
     def test_a_driver_attached_to_a_model_reaches_every_card_of_it(self, client, part):
-        """The case the whole design is for: one upload, three identical cards, and
-        a fourth next year."""
+        """"to a model -- every machine or card of that model". The case the whole
+        design is for: one upload, three identical cards."""
         one = part(manufacturer="Trident", model="TVGA8900", type="video")
         two = part(manufacturer="Trident", model="TVGA8900", type="video")
+        three = part(manufacturer="Trident", model="TVGA8900", type="video")
+        upload(client, "tvga.zip", aid=one["asset_id"])
+        offered = ids_on(client, f"/parts/{one['asset_id']}")
+        assert offered
+        assert ids_on(client, f"/parts/{two['asset_id']}") == offered
+        assert ids_on(client, f"/parts/{three['asset_id']}") == offered
+
+    def test_and_a_card_of_another_model_is_not_offered_it(self, client, part):
+        """Both halves, because "not offered" is true of a file that reached
+        nothing at all: the driver has to be on the Trident card to say anything
+        about its being off the Tseng one."""
+        one = part(manufacturer="Trident", model="TVGA8900", type="video")
         other = part(manufacturer="Tseng", model="ET4000", type="video")
         upload(client, "tvga.zip", aid=one["asset_id"])
         assert ids_on(client, f"/parts/{one['asset_id']}")
-        assert (ids_on(client, f"/parts/{one['asset_id']}")
-                == ids_on(client, f"/parts/{two['asset_id']}"))
         assert not ids_on(client, f"/parts/{other['asset_id']}")
 
-    def test_a_card_bought_afterwards_is_offered_it_too(self, client, part):
-        """The link names a model and not the items that happened to exist when it
-        was made, which is the difference between this and ticking three boxes."""
+    def test_a_card_bought_next_year_is_offered_it_too(self, client, part):
+        """"the ones on the shelf now and the one bought next year". The link names
+        a model, not the items that happened to exist when it was made."""
         one = part(manufacturer="Trident", model="TVGA8900", type="video")
         upload(client, "tvga.zip", aid=one["asset_id"])
         later = part(manufacturer="Trident", model="TVGA8900", type="video")
         assert ids_on(client, f"/parts/{later['asset_id']}")
 
+    def test_disposing_of_two_takes_nothing_away_from_the_third(self, client, part):
+        """"disposing of two of them takes nothing away from the third" -- the
+        disposal case the old docstring was right to worry about."""
+        one = part(manufacturer="Trident", model="TVGA8900", type="video")
+        two = part(manufacturer="Trident", model="TVGA8900", type="video")
+        three = part(manufacturer="Trident", model="TVGA8900", type="video")
+        upload(client, "tvga.zip", aid=one["asset_id"])
+        for gone in (one, two):
+            r = client.patch(f"/api/parts/{gone['asset_id']}", json={"disposed": True})
+            assert r.status_code == 200, r.text
+        assert ids_on(client, f"/parts/{three['asset_id']}")
+
+    def test_a_receipt_attached_to_one_unit_reaches_that_unit_alone(self, client, part):
+        """"to one unit -- that machine, that card, by its asset tag"."""
+        one = part(manufacturer="Trident", model="TVGA8900")
+        two = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "receipt.pdf", aid=one["asset_id"])
+        page = client.get(f"/parts/{one['asset_id']}").text
+        fid = ids_on(client, f"/parts/{one['asset_id']}").pop()
+        press(client, page, f"/files/{fid}/attach", "attach to this one")
+        press(client, client.get(f"/parts/{one['asset_id']}").text,
+              f"/files/{fid}/detach", "every Trident TVGA8900")
+        assert ids_on(client, f"/parts/{one['asset_id']}")
+        assert not ids_on(client, f"/parts/{two['asset_id']}")
+
+    def test_an_upload_is_attached_to_the_model_of_the_page_it_started_on(
+            self, client, part):
+        """"Upload a file there and it is attached to the item's model where the
+        item has one". Read as a reader reads it: every other card of that model is
+        offered it, which is what being attached to a model means."""
+        one = part(manufacturer="Trident", model="TVGA8900")
+        two = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "tvga.zip", aid=one["asset_id"])
+        assert ids_on(client, f"/parts/{two['asset_id']}")
+
+    def test_an_upload_on_something_with_no_model_is_attached_to_that_thing(
+            self, client, computer):
+        """"and to the item itself where it has not -- a custom build". Two builds,
+        both with nothing to call them, and the file is on one of them."""
+        built = computer(name="The beige one", manufacturer="", model="")
+        another = computer(name="The other beige one", manufacturer="", model="")
+        upload(client, "notes.pdf", aid=built["asset_id"])
+        assert ids_on(client, f"/computers/{built['asset_id']}")
+        assert not ids_on(client, f"/computers/{another['asset_id']}")
+
+    def test_the_panel_says_which_of_the_two_it_did(self, client, part, computer):
+        """"The panel says which of the two it did." Both ways round, because the
+        sentence is the only thing telling you where an upload has just gone."""
+        card = part(manufacturer="Trident", model="TVGA8900")
+        said = upload_hint(client.get(f"/parts/{card['asset_id']}").text)
+        assert said.startswith("Attached to every Trident TVGA8900")
+        built = computer(name="The beige one", manufacturer="", model="")
+        said = upload_hint(client.get(f"/computers/{built['asset_id']}").text)
+        assert said.startswith(f"Attached to {built['asset_id']}")
+
+    def test_the_other_of_the_two_is_one_click_away(self, client, part):
+        """"and the other is one click away". Pressed, not posted: the test finds
+        the button by the words on it."""
+        card = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "tvga.zip", aid=card["asset_id"])
+        fid = ids_on(client, f"/parts/{card['asset_id']}").pop()
+        press(client, client.get(f"/parts/{card['asset_id']}").text,
+              f"/files/{fid}/attach", "attach to this one")
+        assets, models = attached_to(client, fid)
+        assert assets == {card["asset_id"]}
+        assert models == {"Trident TVGA8900"}
+
+    def test_one_file_can_be_attached_to_several_things(self, client, computer, part):
+        """"A file has as many of either as it needs, because one disk often covers
+        a card and the machine it shipped in"."""
+        machine = computer(manufacturer="Amstrad", model="CPC 464")
+        drive = part(manufacturer="Amstrad", model="DDI-1", type="storage")
+        upload(client, "cpm.dsk", aid=machine["asset_id"])
+        fid = ids_on(client, f"/computers/{machine['asset_id']}").pop()
+        client.post(f"/files/{fid}/attach",
+                    data={"aid": drive["asset_id"], "what": "model"},
+                    follow_redirects=False)
+        assert ids_on(client, f"/computers/{machine['asset_id']}")
+        assert ids_on(client, f"/parts/{drive['asset_id']}")
+
+    def test_detaching_takes_it_off_and_keeps_the_file(self, client, part):
+        """"detach takes it off again. Detaching never deletes anything"."""
+        card = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "tvga.zip", aid=card["asset_id"])
+        fid = ids_on(client, f"/parts/{card['asset_id']}").pop()
+        press(client, client.get(f"/parts/{card['asset_id']}").text,
+              f"/files/{fid}/detach", "detach")
+        assert not ids_on(client, f"/parts/{card['asset_id']}")
+        assert file_ids(client) == [int(fid)]
+        assert attached_to(client, fid) == (set(), set())
+
+    def test_a_file_attached_to_nothing_says_so(self, client):
+        """"a file attached to nothing is unfiled, and says so on the /files page".
+        It is on no item page by definition, which is how one goes unnoticed."""
+        upload(client, "orphan.zip")
+        assert "unfiled" in client.get("/files").text
+
+    def test_and_is_filed_from_that_page(self, client, part):
+        """"which is where one is found and filed". The box on the files page takes
+        an asset id and attaches the file to its model."""
+        card = part(manufacturer="Trident", model="TVGA8900")
+        upload(client, "orphan.zip")
+        fid = file_ids(client)[0]
+        offered = forms_on(client.get("/files").text, f"/files/{fid}/attach")
+        assert offered, "the files page offers no way to file an unfiled file"
+        r = client.post(offered[0]["action"],
+                        data=offered[0]["fields"] | {"aid": card["asset_id"]},
+                        follow_redirects=False)
+        assert r.status_code == 303, r.text
+        assert ids_on(client, f"/parts/{card['asset_id']}")
+
+    def test_identifying_a_machine_does_not_take_its_files_away(self, client, computer):
+        """"A machine the catalogue names is both, and answers to a file attached
+        either way." The file was attached before the machine was identified."""
+        made = computer(manufacturer="Sinclair", model="ZX Spectrum 48K")
+        upload(client, "manual.pdf", aid=made["asset_id"])
+        r = client.patch(f"/api/computers/{made['asset_id']}",
+                         json={"machine": {"model_key": "zx-spectrum-48k"}})
+        assert r.status_code == 200, r.text
+        assert ids_on(client, f"/computers/{made['asset_id']}")
+
+    def test_a_file_on_a_catalogue_model_reaches_another_of_it(self, client, computer):
+        """The other half of "both": attached to the catalogue's model, it reaches a
+        machine identified as that model however its maker and model were typed."""
+        one = computer(manufacturer="Sinclair", model="ZX Spectrum 48K",
+                       machine={"model_key": "zx-spectrum-48k"})
+        upload(client, "manual.pdf", aid=one["asset_id"])
+        two = computer(manufacturer="sinclair research", model="Spectrum",
+                       machine={"model_key": "zx-spectrum-48k"})
+        assert ids_on(client, f"/computers/{two['asset_id']}")
+
     def test_the_same_model_written_two_ways_is_one_model(self, client, part):
-        """Nobody agrees where the spaces go, and neither spelling is the wrong one
-        to have typed."""
+        """"Case and spacing make no difference." Nobody agrees where the spaces go
+        in SoundBlaster, and neither spelling is the wrong one to have typed."""
         one = part(manufacturer="Creative Labs", model="Sound Blaster 16")
         two = part(manufacturer="creative  labs", model="soundblaster 16")
         upload(client, "sb.zip", aid=one["asset_id"])
         assert ids_on(client, f"/parts/{two['asset_id']}")
 
     def test_a_model_is_the_whole_model_and_not_a_piece_of_it(self, client, part):
-        """Containment is what let a tag of "16" reach half the register. A model is
-        named or it is not."""
+        """A model is named or it is not. Containment is what let a tag of "16"
+        reach half the register, and it is the thing ADR-0006 ends."""
         awe = part(manufacturer="Creative Labs", model="Sound Blaster AWE32")
         plain = part(manufacturer="Creative Labs", model="Sound Blaster")
         upload(client, "awe32.zip", aid=awe["asset_id"])
         assert ids_on(client, f"/parts/{awe['asset_id']}")
         assert not ids_on(client, f"/parts/{plain['asset_id']}")
 
-    def test_attaching_to_one_unit_reaches_that_unit_alone(self, client, part):
-        """A receipt or a repair photograph is about this one."""
-        one = part(manufacturer="Trident", model="TVGA8900")
-        two = part(manufacturer="Trident", model="TVGA8900")
-        upload(client, "receipt.pdf", aid=one["asset_id"])
-        fid = file_ids(client)[0]
-        detach(client, fid, kind="named", key="trident|tvga8900")
-        attach(client, fid, one["asset_id"], what="unit")
-        assert ids_on(client, f"/parts/{one['asset_id']}")
-        assert not ids_on(client, f"/parts/{two['asset_id']}")
-
-    def test_an_upload_from_an_item_page_goes_to_its_model(self, client, part):
-        """The default the manual promises: a driver found while looking at the card
-        it is for is about the card as a model."""
-        one = part(manufacturer="Trident", model="TVGA8900")
-        upload(client, "tvga.zip", aid=one["asset_id"])
-        assets, models = links_of(client, file_ids(client)[0])
-        assert models == {("named", "trident|tvga8900")}
-        assert assets == set()
-
-    def test_an_upload_on_something_with_no_model_goes_to_the_thing_itself(
-            self, client, computer):
-        """A custom build has no maker and model to be one of, so the file is about
-        that machine."""
-        built = computer(name="The beige one", manufacturer="", model="")
-        upload(client, "notes.pdf", aid=built["asset_id"])
-        assets, models = links_of(client, file_ids(client)[0])
-        assert assets == {built["asset_id"]}
-        assert models == set()
-
-    def test_a_machine_the_catalogue_names_answers_to_both(self, client, computer, db):
-        """Identifying a machine in the catalogue after a file was attached to it by
-        name must not take the file away (ADR-0020)."""
-        from app import machines
-        from app.models import AssetVariant
-        key = sorted(machines.MODELS)[0] if hasattr(machines, "MODELS") else ""
-        made = computer(manufacturer="Sinclair", model="ZX Spectrum +2")
-        upload(client, "manual.pdf", aid=made["asset_id"])
-        assert ids_on(client, f"/computers/{made['asset_id']}")
-        if not key:
-            return
-        db.add(AssetVariant(asset_id=made["asset_id"], model_key=key))
-        db.commit()
-        assert ids_on(client, f"/computers/{made['asset_id']}"), (
-            "identifying the machine took its files away")
-
-    def test_a_tag_decides_nothing(self, client, part):
-        """A tag says what a file is. One that reads like the name of a card is
-        still only a tag."""
-        card = part(manufacturer="Trident", model="TVGA8900")
-        upload(client, "loose.zip", tags="Trident TVGA8900")
-        assert not ids_on(client, f"/parts/{card['asset_id']}")
-
     def test_renaming_an_item_does_not_move_its_files(self, client, part):
-        """The fault ADR-0006 reports: a display name deciding a file's reach, and
-        an edit silently detaching it."""
+        """"Renaming an item does not move its files" -- the fault ADR-0006 reports,
+        where an edit silently detached one."""
         card = part(manufacturer="Trident", model="TVGA8900")
         upload(client, "tvga.zip", aid=card["asset_id"])
         r = client.patch(f"/api/parts/{card['asset_id']}",
@@ -166,53 +311,38 @@ class TestAttachingOne:
         assert r.status_code == 200, r.text
         assert ids_on(client, f"/parts/{card['asset_id']}")
 
-    def test_correcting_the_model_moves_it_between_models(self, client, part):
-        """The consequence ADR-0020 is plain about: saying what a thing is is how a
-        thing gets its files."""
+    def test_correcting_a_parts_model_does_move_it(self, client, part):
+        """"But correcting a part's model does" -- and the manual says so plainly
+        rather than leaving it to be discovered."""
         card = part(manufacturer="Trident", model="TVGA8900")
         upload(client, "tvga.zip", aid=card["asset_id"])
+        assert ids_on(client, f"/parts/{card['asset_id']}"), "it was never there to move"
         r = client.patch(f"/api/parts/{card['asset_id']}", json={"model": "TVGA8900C"})
         assert r.status_code == 200, r.text
         assert not ids_on(client, f"/parts/{card['asset_id']}")
 
-    def test_one_file_can_be_attached_to_several_things(self, client, computer, part):
-        """The disk that came with a card is often the disk that came with the
-        machine it shipped in."""
-        machine = computer(manufacturer="Amstrad", model="CPC 464")
-        drive = part(manufacturer="Amstrad", model="DDI-1", type="storage")
-        upload(client, "cpm.dsk", aid=machine["asset_id"])
-        attach(client, file_ids(client)[0], drive["asset_id"])
-        assert ids_on(client, f"/computers/{machine['asset_id']}")
-        assert ids_on(client, f"/parts/{drive['asset_id']}")
-
-    def test_detaching_takes_it_off_and_keeps_the_file(self, client, part):
-        """Detaching is not deleting. A file attached to nothing is unfiled, which
-        is a state and not a loss."""
+    def test_a_tag_decides_nothing(self, client, part):
+        """"A tag does not decide where a file appears". One that reads like the
+        name of a card is still only a tag."""
         card = part(manufacturer="Trident", model="TVGA8900")
-        upload(client, "tvga.zip", aid=card["asset_id"])
-        fid = file_ids(client)[0]
-        detach(client, fid, kind="named", key="trident|tvga8900")
+        upload(client, "loose.zip", tags="Trident TVGA8900")
         assert not ids_on(client, f"/parts/{card['asset_id']}")
-        assert file_ids(client) == [fid]
-        assert links_of(client, fid) == (set(), set())
-
-    def test_the_files_page_says_when_one_is_attached_to_nothing(self, client):
-        """Because it is the only page an unfiled file appears on: it is on no item
-        page by definition, which is how one goes unnoticed."""
-        upload(client, "orphan.zip")
-        assert "unfiled" in client.get("/files").text
 
     def test_deleting_an_item_takes_the_link_and_not_the_bytes(self, client, part):
-        """The disposal case the old docstring was right to worry about."""
+        """Detaching never deletes, and neither does deleting the thing a file was
+        about: unfiled is a state, not a reason to bin something (ADR-0006)."""
         card = part(manufacturer="Trident", model="TVGA8900")
         upload(client, "receipt.pdf", aid=card["asset_id"])
         fid = file_ids(client)[0]
-        attach(client, fid, card["asset_id"], what="unit")
+        press(client, client.get(f"/parts/{card['asset_id']}").text,
+              f"/files/{fid}/attach", "attach to this one")
         client.delete(f"/api/parts/{card['asset_id']}")
-        assert file_ids(client) == [fid]
-        assert links_of(client, fid)[0] == set()
+        assert file_ids(client) == [int(fid)]
+        assert attached_to(client, fid)[0] == set()
 
-    def test_attaching_to_nothing_is_a_404_rather_than_a_link_to_nowhere(self, client):
+    def test_attaching_to_something_that_is_not_there_is_a_404(self, client):
+        """Rather than a link to nowhere, which would read as unfiled while looking
+        filed."""
         upload(client, "loose.zip")
         r = client.post(f"/files/{file_ids(client)[0]}/attach",
                         data={"aid": "RH-9999"}, follow_redirects=False)

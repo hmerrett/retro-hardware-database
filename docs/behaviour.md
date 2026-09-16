@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1385 behaviours, from 30 files.*
+*1393 behaviours, from 30 files.*
 
 
 ## Api
@@ -1403,42 +1403,55 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 44 behaviours*
+*test_files.py — 50 behaviours*
 
 
 **Attaching one**
 
 - a driver attached to a model reaches every card of it  
-  The case the whole design is for: one upload, three identical cards, and a fourth next year.
-- a card bought afterwards is offered it too  
-  The link names a model and not the items that happened to exist when it was made, which is the difference between this and ticking three boxes.
-- the same model written two ways is one model  
-  Nobody agrees where the spaces go, and neither spelling is the wrong one to have typed.
-- a model is the whole model and not a piece of it  
-  Containment is what let a tag of "16" reach half the register.
-- attaching to one unit reaches that unit alone  
-  A receipt or a repair photograph is about this one.
-- an upload from an item page goes to its model  
-  The default the manual promises: a driver found while looking at the card it is for is about the card as a model.
-- an upload on something with no model goes to the thing itself  
-  A custom build has no maker and model to be one of, so the file is about that machine.
-- a machine the catalogue names answers to both  
-  Identifying a machine in the catalogue after a file was attached to it by name must not take the file away (ADR-0020).
-- a tag decides nothing  
-  A tag says what a file is.
-- renaming an item does not move its files  
-  The fault ADR-0006 reports: a display name deciding a file's reach, and an edit silently detaching it.
-- correcting the model moves it between models  
-  The consequence ADR-0020 is plain about: saying what a thing is is how a thing gets its files.
+  "to a model -- every machine or card of that model".
+- and a card of another model is not offered it  
+  Both halves, because "not offered" is true of a file that reached nothing at all: the driver has to be on the Trident card to say anything about its being off the Tseng one.
+- a card bought next year is offered it too  
+  "the ones on the shelf now and the one bought next year".
+- disposing of two takes nothing away from the third  
+  "disposing of two of them takes nothing away from the third" -- the disposal case the old docstring was right to worry about.
+- a receipt attached to one unit reaches that unit alone  
+  "to one unit -- that machine, that card, by its asset tag".
+- an upload is attached to the model of the page it started on  
+  "Upload a file there and it is attached to the item's model where the item has one".
+- an upload on something with no model is attached to that thing  
+  "and to the item itself where it has not -- a custom build".
+- the panel says which of the two it did  
+  "The panel says which of the two it did." Both ways round, because the sentence is the only thing telling you where an upload has just gone.
+- the other of the two is one click away  
+  "and the other is one click away".
 - one file can be attached to several things  
-  The disk that came with a card is often the disk that came with the machine it shipped in.
+  "A file has as many of either as it needs, because one disk often covers a card and the machine it shipped in".
 - detaching takes it off and keeps the file  
-  Detaching is not deleting.
-- the files page says when one is attached to nothing  
-  Because it is the only page an unfiled file appears on: it is on no item page by definition, which is how one goes unnoticed.
+  "detach takes it off again.
+- a file attached to nothing says so  
+  "a file attached to nothing is unfiled, and says so on the /files page".
+- and is filed from that page  
+  "which is where one is found and filed".
+- identifying a machine does not take its files away  
+  "A machine the catalogue names is both, and answers to a file attached either way." The file was attached before the machine was identified.
+- a file on a catalogue model reaches another of it  
+  The other half of "both": attached to the catalogue's model, it reaches a machine identified as that model however its maker and model were typed.
+- the same model written two ways is one model  
+  "Case and spacing make no difference." Nobody agrees where the spaces go in SoundBlaster, and neither spelling is the wrong one to have typed.
+- a model is the whole model and not a piece of it  
+  A model is named or it is not.
+- renaming an item does not move its files  
+  "Renaming an item does not move its files" -- the fault ADR-0006 reports, where an edit silently detached one.
+- correcting a parts model does move it  
+  "But correcting a part's model does" -- and the manual says so plainly rather than leaving it to be discovered.
+- a tag decides nothing  
+  "A tag does not decide where a file appears".
 - deleting an item takes the link and not the bytes  
-  The disposal case the old docstring was right to worry about.
-- attaching to nothing is a 404 rather than a link to nowhere
+  Detaching never deletes, and neither does deleting the thing a file was about: unfiled is a state, not a reason to bin something (ADR-0006).
+- attaching to something that is not there is a 404  
+  Rather than a link to nowhere, which would read as unfiled while looking filed.
 
 **Keeping them**
 
@@ -1915,7 +1928,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 5 behaviours*
+*test_migrations.py — 7 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -1927,6 +1940,10 @@ Regenerate with:
   0035 keeps what is already there published, and starts everything after it private.
 - the public flag can be downgraded  
   Going back drops the column, which is the state where every file is public again -- honest rather than safe, and the reason the migration says so.
+- what the matcher found survives 0039  
+  0039 stops a file being matched to an item by name and starts it being attached to one, and runs the old matcher once to write down what it found.
+- a file the matcher reached nothing with is left unfiled  
+  Unfiled is a state and not a loss: the bytes are untouched and the files page says so.
 
 
 ## Openapi contract
