@@ -14,8 +14,9 @@
 
 {# One menu. `cur` is kept as an option of its own when it is from outside the
    vocabulary, so saving the form cannot quietly drop what someone else wrote. #}
-{% macro menu(name, part, vocab, labels, cur, blank) %}
-<select class="bezel-pick" name="{{ name }}" data-bezel="{{ part }}">
+{% macro menu(name, part, vocab, labels, cur, blank, about='') %}
+<select class="bezel-pick" name="{{ name }}" data-bezel="{{ part }}"
+        aria-label="{{ (about ~ ', ') if about else '' }}{{ 'bezel shade' if part == 'colour' else 'yellowing' }}">
   <option value="">{{ blank }}</option>
   {% if cur and cur not in labels %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
   {% for v in vocab %}<option value="{{ v.label }}"{{ ' selected' if v.label == cur else '' }}>{{ v.label }}</option>{% endfor %}
@@ -25,12 +26,12 @@
 {# Both menus and the swatch that combines them. `prefix` namespaces the fields:
    'drive0_' for a machine's first drive row, 'spec_' for a storage part. #}
 {% macro pair(prefix, colour, level, colours, yellowing, colour_labels,
-              yellowing_labels) %}
+              yellowing_labels, about='') %}
 <div class="bezel-cell">
   {{ dot(bezel_css(colour, level)) }}
-  {{ menu(prefix + 'colour', 'colour', colours, colour_labels, colour, 'shade —') }}
+  {{ menu(prefix + 'colour', 'colour', colours, colour_labels, colour, 'shade —', about) }}
   {{ menu(prefix + 'yellowing', 'yellowing', yellowing, yellowing_labels, level,
-          'not yellowed') }}
+          'not yellowed', about) }}
 </div>
 {% endmacro %}
 

@@ -1,7 +1,7 @@
 # 0014 — Accessibility is a tested standard, not a set of habits
 
-**Status:** Proposed
-**Date:** 2026-09-11
+**Status:** Accepted
+**Date:** 2026-09-11, accepted 2026-09-17
 
 ## Context
 
@@ -39,8 +39,10 @@ and is not, and that is the same kind of untruth the release is being held for.
 
 ## Decision
 
-**Proposed, and the reason this is an ADR rather than a rule: the target has a
-cost and the cost is the decision.**
+**Accepted as proposed, with no exception taken.** The reason this is an ADR
+rather than a rule is that the target has a cost and the cost is the decision:
+what is being agreed to is not the state of the site today but the question every
+new page and every new colour pair now has to answer.
 
 Adopt **WCAG 2.2 AA** as the standard the register is built to, and hold 0.1 to
 the part of it that can be tested or read off the markup:
@@ -63,6 +65,13 @@ it tests and no more.
 
 ## Consequences
 
+- Reflow at 320px was the one item on the list above that nothing tested and
+  nobody had looked at, so it was measured before this was accepted rather than
+  after. It was already broken: the files list is six columns wide when you are
+  logged in and pushed a 320px page 683px sideways, with the box you re-file a
+  file in past the right-hand edge. Fixed, and `test_reflow.py` now holds the
+  invariant rather than the instance — a table with more columns than a phone
+  holds either stacks or scrolls inside its own box.
 - The gaps above were small work — a skip link, a `scope` attribute, a media
   query — and were closed on 2026-09-17, before this record was decided, because
   they are worth having under either answer. So the decision no longer carries

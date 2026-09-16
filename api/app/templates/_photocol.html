@@ -113,8 +113,9 @@
   {% call PN.panel('Disposal') %}
     <div class="photo-actions" style="margin-top:0">
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose">
-      <input name="note" placeholder="why — sold, binned, donated…">
-      <input name="date" type="date" value="{{ today() }}">
+      <input name="note" placeholder="why — sold, binned, donated…"
+             aria-label="why it went">
+      <input name="date" type="date" value="{{ today() }}" aria-label="when it went">
       <button class="btn sm" type="submit">mark disposed</button>
     </form>
     {% if kind == 'computers' %}<p class="hint">The parts in the machine are
