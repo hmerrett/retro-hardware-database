@@ -10,6 +10,7 @@ Two surfaces over the same MariaDB:
 Interactive API docs live at /docs (OpenAPI).
 """
 import base64
+import logging
 import os
 import random
 import re
@@ -72,12 +73,76 @@ from .schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate,
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
 # start); no create_all here.
 
+# Nothing in the app configures logging: under uvicorn its config is already in
+# place by the time this module is imported, and outside it a WARNING still reaches
+# stderr through logging's last-resort handler. So a warning raised here is seen
+# either way, which is the point of raising it here.
+log = logging.getLogger(__name__)
+
 app = FastAPI(title="Retro Hardware Database API", version=__version__)
 
 AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
 AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
 AUTH_ENABLED = bool(AUTH_USER and AUTH_PASS)
 templates.env.globals["auth_enabled"] = AUTH_ENABLED
+
+
+def _open_on_purpose() -> bool:
+    """Whether the operator has said that running with no login is deliberate.
+
+    The mirror of RHDB_WATERMARK's reading in photos.py -- the same words, the other
+    way up, because this one is off until asked for.
+    """
+    return os.getenv("RHDB_OPEN", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _announce_auth(enabled: bool, on_purpose: bool) -> bool:
+    """Say which of the two states the app came up in, and answer whether the pages
+    should carry the warning banner as well (ADR-0019).
+
+    Blank credentials make `auth_gate` treat every visitor as the owner, able to
+    edit and delete anything. That is a supported way to run -- a local copy, a
+    read-only install on a trusted network -- and it is also what a `.env` that is
+    missing or was left behind when the checkout moved produces, with nothing to
+    show for it but the traffic link and the log out button quietly gone from a
+    menu. Which is how the state was actually found, weeks later, by somebody asking
+    where the traffic page had got to.
+
+    So the app assumes the mistake and says so twice over, because a log line only
+    reaches somebody who goes looking and nobody did. RHDB_OPEN is the operator
+    saying they meant it, after which this goes quiet.
+
+    A function of its two arguments rather than a side effect at import: the suite
+    can then ask it what it says for each of the four states, instead of racing an
+    import that has already happened by the time a test is collected.
+
+    Nothing here reads a credential. It names the variables and never their values,
+    which is what keeps a startup line safe to paste into a bug report.
+    """
+    if enabled:
+        if on_purpose:
+            log.warning(
+                "RHDB_OPEN is set, but RHDB_AUTH_USER and RHDB_AUTH_PASSWORD are "
+                "set too, so the login is on and RHDB_OPEN is doing nothing. Unset "
+                "it, or clear the credentials if this site is meant to be open.")
+        return False
+    if on_purpose:
+        log.info("Running with no login (RHDB_OPEN is set): every visitor may edit "
+                 "and delete anything in the register.")
+        return False
+    log.warning(
+        "NO LOGIN: RHDB_AUTH_USER and RHDB_AUTH_PASSWORD are not set, so every "
+        "visitor may edit and delete anything in the register. If that is not what "
+        "you meant, set them and RHDB_SECRET_KEY -- a .env that is missing or was "
+        "left behind when the checkout moved looks exactly like this. If it is what "
+        "you meant, set RHDB_OPEN=1 and this stops.")
+    return True
+
+
+# Read once at import, beside the flag it is about, so there is no window in which
+# the app is configured open and has not said so.
+templates.env.globals["auth_open_warning"] = _announce_auth(AUTH_ENABLED,
+                                                            _open_on_purpose())
 
 
 

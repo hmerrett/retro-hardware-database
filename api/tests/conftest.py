@@ -29,6 +29,13 @@ os.environ["RHDB_FILES_DIR"] = str(_TMP / "files")
 os.environ["RHDB_BASE_URL"] = "https://example.test"
 os.environ.pop("RHDB_AUTH_USER", None)
 os.environ.pop("RHDB_AUTH_PASSWORD", None)
+# The suite runs with no login on purpose -- most of it is about what the owner can
+# do, and popping the credentials is how it gets to be the owner. So it says so
+# (ADR-0019), which is exactly what RHDB_OPEN is for: without it every page rendered
+# in every test would carry the "no login" banner, and a few hundred assertions
+# about page content would be reading a misconfiguration warning that is not one.
+# The banner's own tests set the flag they are about rather than relying on this.
+os.environ["RHDB_OPEN"] = "1"
 
 import pytest
 from alembic import command
