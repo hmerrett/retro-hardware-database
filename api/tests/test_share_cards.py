@@ -89,7 +89,7 @@ def near(pixel, colour, tol=30):
 def visitor(monkeypatch):
     """Turn the site into what an anonymous reader sees. A crawler fetching a card
     is anonymous, so this is the reader every card is made for."""
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
 
 
 def project_with(client, name, *asset_ids, private=False):

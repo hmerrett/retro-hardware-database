@@ -14,7 +14,7 @@ from app.models import Computer, Part
 
 def visitor(monkeypatch):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
 
 
 def flag(client, kind, aid, on=True):
