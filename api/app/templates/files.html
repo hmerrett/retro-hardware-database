@@ -12,11 +12,11 @@
   what <em>{{ tag }}</em> would be offered. <a href="/files">show everything</a>.{% endif %}</p>
 
 {% if files %}
-<table>
+<table class="filetable">
   <tr><th scope="col">File</th><th scope="col">Filed under</th><th scope="col" class="tight">Size</th><th scope="col" class="tight">Added</th>{% if request.state.authed %}<th scope="col" class="tight">Public</th><th scope="col"></th>{% endif %}</tr>
   {% for f in files %}
   <tr>
-    <td><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
+    <td><a class="filename" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
       {% if f.note %}<br><span class="hint">{{ f.note | linked }}</span>{% endif %}</td>
     {# The chips lead to everything else under that name; the box below them is how
        a file put under the wrong one is corrected -- which has to be possible from
@@ -29,21 +29,21 @@
         <button class="btn sm" type="submit">re-file</button>
       </form>
       {% endif %}</td>
-    <td class="tight muted">{{ human_size(f.size) }}</td>
-    <td class="tight muted">{{ log_stamp(f.created_at, request.state.authed) if f.created_at else '' }}</td>
+    <td class="tight muted meta" data-label="size">{{ human_size(f.size) }}</td>
+    <td class="tight muted meta" data-label="added">{{ log_stamp(f.created_at, request.state.authed) if f.created_at else '' }}</td>
     {% if request.state.authed %}
     {# The column a visitor never sees, because a visitor is only ever shown the
        ticked ones. It is the whole of what this page can tell you that the item
        pages cannot: what is on the open web, in one list, sorted by nothing but
        when it arrived. #}
-    <td class="tight"><form method="post" action="/files/{{ f.id }}/public" style="margin:0"
+    <td class="tight meta" data-label="public"><form method="post" action="/files/{{ f.id }}/public" style="margin:0"
               data-ticksend>
         <input type="hidden" name="next" value="/files{{ ('?tag=' + tag|urlencode) if tag else '' }}">
         <label class="tickbox"><input type="checkbox" name="public" value="1"
           {{ 'checked' if f.public else '' }}
           aria-label="{{ f.filename }} is public"></label>
         <button class="btn sm" type="submit" data-send-go>save</button></form></td>
-    <td><form method="post" action="/files/{{ f.id }}/delete" style="margin:0"
+    <td class="meta"><form method="post" action="/files/{{ f.id }}/delete" style="margin:0"
               onsubmit="return confirm('Delete {{ f.filename }}?')">
         <input type="hidden" name="next" value="/files">
         <button class="btn sm danger" type="submit">delete</button></form></td>

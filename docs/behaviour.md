@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1368 behaviours, from 29 files.*
+*1372 behaviours, from 30 files.*
 
 
 ## Api
@@ -2238,6 +2238,20 @@ Regenerate with:
 - reset clears a key
 - login blocks after too many failures
 - a good login clears the count
+
+
+## Reflow
+
+*test_reflow.py — 4 behaviours*
+
+- no list is wider than the phone it is read on  
+  The invariant, stated once over every page that has a table on it: more columns than fit means the table has been given one of the two answers.
+- a stacked row says what each value is  
+  Stacked, a row loses its headings, and a bare date under a filename is a date for no stated reason.
+- the box you type into asks for a width rather than demanding one  
+  A `min-width` on a control is a floor the cell around it cannot go below, and this box is in the widest table on the site.
+- a long filename cannot hold the list open  
+  `overflow-wrap: break-word` on a cell breaks a word that has already been given its column, but leaves the column's minimum width at the whole word -- so the longest filename on the page decided how narrow the table could be.
 
 
 ## Restore script

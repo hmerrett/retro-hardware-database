@@ -149,6 +149,21 @@ across the bottom of the screen, where your thumb already is.
   **models**, **files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
   **traffic** and **log out**.
 
+### On a narrow screen
+
+Every page fits the screen it is on, down to a 320px-wide phone and at 200% zoom
+on a desktop: nothing is cut off at the right-hand edge and no page scrolls
+sideways. A list with more columns than a phone has room for comes down the page
+as blocks instead of a row each, with every value under the name of the column it
+has lost — the projects list, the orders on a project and the files list all do
+this, and the boxes you type into keep the full width rather than being pushed
+off the edge.
+
+One table is left to scroll: the drives on a machine's form, which keeps its
+widths and slides inside its own box. Squeezed to fit a phone it would show two
+characters of a model and none of the bezel, and it is a table of the kind that
+has to be read in two directions. The page around it stays where it is.
+
 ### Using it from the keyboard
 
 The first thing the Tab key reaches on any page is **Skip to content**. It is out
