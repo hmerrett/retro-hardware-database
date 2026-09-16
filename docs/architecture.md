@@ -141,7 +141,7 @@ and re-render; never edit the string and hope.
 
 ## 5. The modules
 
-`api/app/main.py` is the app and its routes. It is large (4,851 lines) and is
+`api/app/main.py` is the app and its routes. It is large (4,579 lines) and is
 being split a module at a time, leaning on the suite as the safety net. Everything
 below it is a module with one job. `common.py` is deliberately dependency-free so
 the feature modules and `main` can all import downward without a cycle.
@@ -152,6 +152,7 @@ the feature modules and `main` can all import downward without a cycle.
 |---|---|
 | `main.py` | the FastAPI app, the middleware, and the routes not yet lifted out |
 | `web.py` | the templates object and what a page needs around one: the globals, the share card, the schema.org data |
+| `cards.py` | the share card for a page that is a wall of photographs: the montage of four, its content-addressed cache, the sweep |
 | `routers/seo.py` | robots.txt, the sitemap, and the icons asked for at the domain root |
 | `routers/gallery.py` | the wall of cards, the /browse slice of it, and the suggestions under the search bar |
 | `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
@@ -210,6 +211,10 @@ breaking one turns CI red rather than merely being wrong.
 - **A file is not public until it is ticked.** Unpublished files answer 404, not
   401 — there is no account a reader could hold, so a prompt would only confirm
   the file exists. *(ADR-0009)*
+- **A share card is made of photographs that are already public.** The montage a
+  grid page previews as is built from what an anonymous reader is shown, so a
+  private project puts nothing on one, and `/og/{name}` opens a file by hash
+  rather than reading a query. *(ADR-0017, enforced: `test_share_cards.py`)*
 - **The API's published shape is pinned.** `api/openapi.json` is committed and a
   change a caller could see fails the suite. *(ADR-0010, enforced)*
 - **Touch controls are 16px.** iOS zooms the page when it focuses a control whose

@@ -30,7 +30,7 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from . import __version__
-from . import (drivedb, entry, filesdb, labels, machinedb, machines,
+from . import (cards, drivedb, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
     BRANDING_DIR, IMAGES_DIR, REGISTER, STATIC_DIR, _visible, folder_images, to_dict)
@@ -3613,7 +3613,8 @@ def _projects_page(request, db, q="", error="", status=200):
         "total": total, "error": error,
         "register": _register_order(db) if request.state.authed else [],
         "og": _og(request, "Projects", "Repairs, builds and things on order — "
-                                       "the work, as against the collection")},
+                                       "the work, as against the collection",
+                  card=cards.montage(_projects_card(db, rows)))},
         status_code=status)
 
 
@@ -3933,6 +3934,45 @@ def _project_card(members):
             if "/placeholders/" not in rel:
                 return rel
     return None
+
+
+def _projects_card(db, rows, limit=cards.MAX_TILES):
+    """The photographs the projects *list* tiles its share card from: the first
+    photograph of each project on the page, in the order the page reads (ADR-0017).
+
+    One photograph per project rather than four off the first one, because this page
+    is a list of projects and a card of four views of one machine would describe it
+    as a page about that machine.
+
+    `rows` is what the page is showing, which is what makes this safe to put on a
+    picture an anonymous crawler fetches: a private project is already absent from a
+    visitor's rows, so it is absent from the card without a second rule that could
+    come to disagree with the first.
+
+    One query and the two folder listings however many projects there are, rather
+    than projects.members per row -- this is the page that would notice, which is why
+    summaries() is written the way it is.
+    """
+    ids = [r["p"].asset_id for r in rows]
+    if not ids:
+        return []
+    owned = {}
+    for pid, aid in (db.query(ProjectAsset.project_id, ProjectAsset.asset_id)
+                     .filter(ProjectAsset.project_id.in_(ids))
+                     .order_by(ProjectAsset.id)):
+        owned.setdefault(pid, []).append(aid)
+    listing = {kind: folder_images(kind) for kind in ("computers", "parts")}
+    out = []
+    for pid in ids:
+        for aid in owned.get(pid, []):
+            found = next((rel for kind in ("computers", "parts")
+                          for rel in pick_images(kind, aid, listing[kind])), None)
+            if found:
+                out.append(found)
+                break
+        if len(out) == limit:
+            break
+    return out
 
 
 def _asset_display(db, asset_id):

@@ -51,3 +51,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   name the thing — *Accepted* (changes the shape
   [0003](0003-work-is-noted-at-check-in.md) and
   [0004](0004-work-projects-are-public.md) assume)
+- [0017](0017-a-page-of-photographs-shares-a-montage-of-them.md) — A page of
+  photographs shares a montage of them — *Accepted*
