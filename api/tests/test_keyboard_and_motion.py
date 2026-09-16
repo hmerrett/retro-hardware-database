@@ -253,3 +253,22 @@ def test_every_image_says_what_it_is_or_says_it_is_decoration(client, a_page_of_
         parser.feed(client.get(path).text)
         silent += [f"{path}: {one}" for one in parser.images]
     assert silent == [], "these images have no alt at all: " + "; ".join(silent[:12])
+
+
+def test_nothing_hides_where_the_keyboard_is():
+    """The browser's own focus ring is what most of this site relies on, and one
+    line of CSS anywhere would take it away everywhere it applies. There is one
+    rule that does suppress it, deliberately: the skip link lands on `<main>`, and
+    a ring drawn round the whole page says nothing -- the eye should be following
+    the link. Anything else turning an outline off is the thing this asserts
+    against, and has to justify itself here first."""
+    css = STYLESHEET.read_text(encoding="utf-8")
+    allowed = "main:focus"
+    suppressed = [
+        css[max(0, found.start() - 60) : found.start()].strip().splitlines()[-1]
+        for found in re.finditer(r"outline:\s*(?:none|0)\b", css)
+    ]
+    assert [one for one in suppressed if allowed not in one] == [], (
+        "these rules take the focus ring away: " + "; ".join(suppressed))
+    assert re.search(r"main:focus\s*\{[^}]*outline:\s*none", css), (
+        "the one allowed suppression has moved; this test is now guarding nothing")

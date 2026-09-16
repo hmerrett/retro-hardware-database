@@ -86,10 +86,12 @@ was looking at a desktop.
   `alt=""` where it is decoration — which is an answer, and tells a screen reader
   to pass over a swatch. A missing `alt` is not: the filename is read out instead.
   Also checked against the rendered pages.
-- **Never suppress a focus outline.** The three that exist use `:focus-visible`
-  with an `outline-offset`, so a keyboard user can see where they are and a mouse
-  user is not shouted at. `outline: none` appears nowhere in the stylesheet and
-  should stay that way.
+- **Never suppress a focus outline.** Most of the site relies on the browser's
+  own ring; the rules that draw their own use `:focus-visible` with an
+  `outline-offset`, so a keyboard user can see where they are and a mouse user is
+  not shouted at. There is exactly one suppression — `main:focus`, because the
+  skip link lands there and a ring round the whole page says nothing — and the
+  suite fails any second one, so a new one argues its case in that test.
 - **A widget that behaves like a widget carries the semantics.** The autocomplete
   is a real combobox — `aria-expanded`, `aria-selected`, `aria-activedescendant`
   — rather than a `div` that happens to respond to arrow keys.

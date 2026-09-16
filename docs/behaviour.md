@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1379 behaviours, from 30 files.*
+*1380 behaviours, from 30 files.*
 
 
 ## Api
@@ -1570,7 +1570,7 @@ Regenerate with:
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 11 behaviours*
+*test_keyboard_and_motion.py — 12 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -1594,6 +1594,8 @@ Regenerate with:
   A control with no name is read out as "edit text, blank" and nothing else, which on the drives grid was eight of them to a row.
 - every image says what it is or says it is decoration  
   `alt=""` is an answer -- it tells a screen reader to pass over a swatch or a rule.
+- nothing hides where the keyboard is  
+  The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
 
 
 ## Machines
