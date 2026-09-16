@@ -204,6 +204,35 @@ should be, at once.
 The zoom belongs to the big view only, so the gallery and item pages still
 pinch-zoom the way any web page does.
 
+### Sending somebody a link
+
+Paste a link into a chat, a forum or a message and most places fetch the page and
+show a preview card. What lands in that card depends on what the page is a page
+of.
+
+- **An item** previews as its own photograph, with its name and the line under it.
+  An item nobody has photographed yet shows the site's card instead of a
+  placeholder icon, because an outline of a computer reads as a broken image.
+- **A project** previews as the first photographed thing on it — usually the
+  machine the work is about.
+- **The gallery, a browse slice, a search, and the projects list** preview as up
+  to four of the photographs actually on the page, tiled into one picture. So a
+  link to a search for `sound blaster` arrives looking like sound cards rather
+  than like every other link to this site. Fewer than four fill the space instead
+  of leaving a hole.
+- **Files, numbers and models** show the site's card. There are no photographs on
+  those pages to make a picture out of.
+
+Nothing is written on the tiled picture: the page's title and the line saying
+what is on it are already in the card, beside the image, wherever these previews
+are shown.
+
+The tiled pictures are made once and kept. The first person to share a particular
+set of results waits a fraction of a second longer for the page; everybody after
+that, including the site fetching the card, gets the copy already made. Change a
+photograph and the cards it appears on are made again, so a preview never shows a
+picture that has since been cropped or replaced.
+
 ---
 
 ## 3. Searching
@@ -1453,6 +1482,29 @@ History is searchable, which is often the point of writing it. Searching
 ---
 
 ## 15. Disposing, restoring and deleting
+
+### Might go: the for-sale shortlist
+
+Between keeping a thing and having got rid of it there is *this one could go*, and
+it had nowhere to live but a note on the item — which anybody can read — or your
+memory, which is worse.
+
+**Tick "might sell" on any item page** and it joins **/for-sale**, a list of
+everything you have flagged. Untick it and it leaves. The tick sends as soon as you
+change it; there is a save button beside it for a browser running no script.
+
+**Nobody but you sees it.** The tick and the marker are not rendered for a visitor,
+`/for-sale` asks for a login, and — the part that is easy to get wrong — a visitor's
+search does not match on it either. Searching the site for `true` does not hand a
+stranger your shortlist.
+
+It is a flag and nothing more: no price, no note, no date. Write why in the item's
+history if you want it written down. A thing you have actually decided to sell is a
+different job, and this is the list you make before that decision.
+
+The flag is only as private as your login. An installation running with
+`RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` unset has no login at all, and treats
+every visitor as the owner — see [section 17](#17-logging-in).
 
 ### Disposal
 

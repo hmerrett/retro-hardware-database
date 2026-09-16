@@ -38,6 +38,12 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
   is committed and at the write path.
 - Serve user-supplied files as downloads: `Content-Disposition: attachment` and
   `X-Content-Type-Options: nosniff`, opened by id, not by the URL's filename.
+- **A public endpoint that generates and keeps a file is keyed by content, not by
+  what was typed.** The share-card montage (ADR-0017) hashes the photographs it is
+  made of, so `/og/{name}` opens a file by hash rather than searching on a query a
+  stranger supplied, and its cache is capped and swept. A query string is an
+  unbounded key space; a cache with no ceiling on an anonymous route is a
+  disk-filler.
 - Templates autoescape; keep it on. Any link-building filter uses a strict scheme
   allowlist (no `javascript:`/`data:`).
 
@@ -60,6 +66,15 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 
 - Pinned/locked and scanned (`pip-audit` in CI). Pinning gives control; scanning
   gives awareness — you need both.
+
+## A column kept off the page is kept out of the search
+
+`search._haystack` builds its string from **every column on the model** — that is
+what makes "search any field" true rather than nearly true. So a new column joins
+what an anonymous visitor can search by merely existing, with nobody having decided
+it should: a boolean reads as `True`, and a search for `true` hands back every row
+carrying it. Anything owner-only goes in `common.OWNER_ONLY`, which `_haystack`
+reads, and gets a test (ADR-0018). Hiding it in the template is half the job.
 
 ## Who may see it is decided, not defaulted
 

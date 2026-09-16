@@ -12,8 +12,8 @@ from datetime import date, datetime
 from sqlalchemy import func
 
 from . import entry, machines, projects, specdb
-from .common import (LEGACY_DISK_BUSES, _all_years, _held, _portraits, _visible,
-                     folder_images, to_dict)
+from .common import (LEGACY_DISK_BUSES, OWNER_ONLY, _all_years, _held, _portraits,
+                     _visible, folder_images, to_dict)
 from .models import (AssetVariant, Computer, ComputerDrive, ComputerRamChip, IoSpec,
                      LogEntry, MotherboardSpec, NetworkSpec, Part, PartPort,
                      PartRamSlot, PartSlot, Project, SoundSpec, StorageSpec, VideoSpec)
@@ -38,10 +38,20 @@ def _haystack(db, obj, history, authed=False):
     column, its rendered specs or memory and drives, and its history. This is what
     makes a search over "any field" true rather than nearly true.
 
-    "Any field" means every field the reader is looking at anyway. The project
-    columns are the only thing an item's page keeps back, so they are the only
-    thing kept back here, and only from a reader who is not logged in."""
-    fields = [str(getattr(obj, c.name) or "") for c in obj.__table__.columns]
+    "Any field" means every field the reader is looking at anyway -- so a field the
+    reader is not looking at has to come out, and OWNER_ONLY is the list of those.
+    Read from a named set rather than written out here, because the failure is
+    silent: a column added to a model joins this string without anybody deciding it
+    should, and a visitor searching "true" was handed the for-sale shortlist off a
+    page that shows no such thing (ADR-0018). The project columns come out the same
+    way, via _visible on the queries that reach one."""
+    # Blanked rather than dropped, so who is asking changes what the haystack says
+    # and never how many fields it has: an item nobody has flagged then reads
+    # identically for both, and the seams a quoted phrase must not match across stay
+    # where they are either way.
+    fields = ["" if (not authed and c.name in OWNER_ONLY)
+              else str(getattr(obj, c.name) or "")
+              for c in obj.__table__.columns]
     fields += history.get(obj.asset_id, [])
     if isinstance(obj, Part):
         fields.append(entry.type_label(obj.type or "other"))

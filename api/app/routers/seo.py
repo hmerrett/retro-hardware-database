@@ -35,6 +35,10 @@ def robots_txt(request: Request):
         # keeps its line -- it is POST-only, so a crawler has nothing to fetch there.
         "Disallow: /logout\n"
         "Disallow: /traffic\n"
+        # The owner's shortlist. Already behind the login, so this is belt and
+        # braces -- but a crawler that followed a link to it and filed the login
+        # page under its name would be publishing that the list exists (ADR-0018).
+        "Disallow: /for-sale\n"
         # Filtered slices of the gallery: the items in them are indexed already.
         "Disallow: /browse\n"
         # What the search bar reads while you type: JSON about pages already indexed.
