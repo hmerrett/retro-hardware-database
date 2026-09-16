@@ -15,7 +15,7 @@ from app.models import LogEntry
 
 
 def visitor(monkeypatch):
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
 
 
 def panel(html):

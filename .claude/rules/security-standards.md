@@ -20,6 +20,16 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 - **Rate-limit authentication attempts** (login form and HTTP Basic), keyed by
   the real client IP. Behind Caddy that's the **rightmost** `X-Forwarded-For`
   entry — the one the proxy adds and a client cannot forge.
+- **Running with no login is allowed; running with no login by accident is not.**
+  Empty `RHDB_AUTH_USER`/`RHDB_AUTH_PASSWORD` make every visitor the owner, and a
+  missing `.env` produces exactly that with no error. `RHDB_OPEN` is the operator
+  saying they meant it; without it the app warns at startup and puts a banner on
+  every page (ADR-0019). Don't make this fail fast instead — open is a supported
+  configuration, and the fault being fixed is that it was indistinguishable from a
+  mistake.
+- **A security-relevant configuration says which state it came up in.** A mode
+  that can only be inferred by noticing what is missing from a menu is a mode
+  nobody notices for weeks.
 
 ## Input & output
 

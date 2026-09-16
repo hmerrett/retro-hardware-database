@@ -1637,7 +1637,31 @@ JSON API and the API docs require authentication.
 
 There is one account, set with `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`. Leave
 both blank and the site runs with no authentication at all, which is only
-sensible for local development.
+sensible for local development or a read-only install on a network you trust.
+
+### When there is no login
+
+**Blank credentials mean every visitor is you.** Not "can read everything" —
+*is you*: able to add, edit, delete and dispose of anything, because there is no
+account for the code to tell apart from yours. The log out button and the traffic
+link disappear too, since there is nothing to log out of.
+
+That is a supported way to run. What is not supported is arriving there by
+accident, which is easy: a `.env` that is missing, unreadable, or left behind in
+the directory the checkout was moved out of gives blank credentials and a stack
+that comes up looking perfectly normal.
+
+So the app assumes the mistake. With no credentials and no `RHDB_OPEN`, it
+**warns in the log at startup and shows a banner on every page**. If you meant it,
+set `RHDB_OPEN=1` in your `.env`; the banner goes and the log says once, calmly,
+that the site is running open.
+
+If a banner has appeared on a site that is supposed to have a login, your
+credentials are not reaching the app. Check them without printing the password:
+
+```sh
+docker compose exec -T api sh -c 'echo "user=[$RHDB_AUTH_USER] pass=[${RHDB_AUTH_PASSWORD:+set}]"'
+```
 
 - **In a browser**, you sign in through a login page and get a signed session
   cookie. The log out button is in the header. The cookie is signed with

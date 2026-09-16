@@ -55,3 +55,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   photographs shares a montage of them — *Accepted*
 - [0018](0018-a-sale-flag-is-the-owners-alone.md) — A sale flag is the owner's
   alone — *Accepted*
+- [0019](0019-running-open-is-supported-but-never-silent.md) — Running open is
+  supported, but never silent — *Accepted*

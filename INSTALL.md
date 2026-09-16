@@ -82,6 +82,7 @@ Now edit `.env`. Every setting, and what it does:
 | `RHDB_AUTH_USER` | The username you log in to the site with. |
 | `RHDB_AUTH_PASSWORD` | Its password. **Set both, or the site is world-editable.** |
 | `RHDB_SECRET_KEY` | Signs your browser login cookie. Generate one with `openssl rand -hex 32`. |
+| `RHDB_OPEN` | `1` only if you *mean* to run with no login. Leave unset otherwise; the app then treats blank credentials as a mistake and says so. |
 | `RHDB_DOMAIN` | The name this site answers to, e.g. `db.example.com`. Caddy serves it and gets its certificate. |
 | `RHDB_ACME_EMAIL` | Where Let's Encrypt writes about those certificates. |
 | `RHDB_BASE_URL` | The public URL of your site. Defaults to `https://$RHDB_DOMAIN`; set it only if they differ. |
@@ -96,6 +97,11 @@ Two of these matter more than they look:
   account, not a user table. Leaving both blank runs the site with no
   authentication at all, which is only sensible on a laptop. Anyone reaching the
   site could then edit and delete records.
+
+  Because that state is also what a `.env` that never arrived produces, the app
+  will not let it pass quietly: with no credentials and no `RHDB_OPEN`, it warns in
+  the log at startup and shows a banner on every page. Set `RHDB_OPEN=1` if you
+  meant it (ADR-0019).
 
 There is no separate database setup step. The database container creates the
 database and the user from these values the first time it starts, and the app
@@ -441,6 +447,7 @@ DATABASE_URL=mysql+pymysql://retro:<your DB_PASSWORD>@127.0.0.1:3306/retro \
 | A 500 from the app | `docker compose logs api` — the traceback is at the end. |
 | The app will not start, database errors | `docker compose logs db`. On a first run the app waits for the database's health check; give it a minute. |
 | Logged in but no edit buttons | The cookie is signed with `RHDB_SECRET_KEY`. If you changed it, log in again. |
+| A "No login" banner, or no **log out** button in the ⋯ menu | Your credentials are not reaching the app — most often a `.env` left behind when the checkout was renamed or moved. `docker compose exec -T api sh -c 'echo "user=[$RHDB_AUTH_USER]"'`. |
 | Labels point at the wrong site | `RHDB_BASE_URL` in `.env`, and `base_url` in `tools/config.yml` for the command-line tool. Both, if you use both. |
 | Photographs vanished after a rebuild | They should not have — they are in the `images` volume. Check `docker volume ls` for a stale project name if you renamed the directory. |
 

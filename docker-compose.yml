@@ -50,6 +50,12 @@ services:
       RHDB_BASE_URL: ${RHDB_BASE_URL:-https://${RHDB_DOMAIN:?set RHDB_DOMAIN in .env (see .env.example)}}
       RHDB_AUTH_USER: ${RHDB_AUTH_USER:-}
       RHDB_AUTH_PASSWORD: ${RHDB_AUTH_PASSWORD:-}
+      # Deliberately still `:-` and not `:?`: running with no login is a supported
+      # configuration, so a missing value must not stop the stack the way a missing
+      # database password does. What it must not do is pass unremarked -- and
+      # RHDB_OPEN is what lets the app tell "I meant this" from "my .env did not
+      # arrive", which are otherwise the same two empty strings (ADR-0019).
+      RHDB_OPEN: ${RHDB_OPEN:-}
       RHDB_SECRET_KEY: ${RHDB_SECRET_KEY:-}
       RHDB_WATERMARK: ${RHDB_WATERMARK:-1}
     ports:

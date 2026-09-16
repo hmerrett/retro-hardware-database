@@ -32,7 +32,7 @@ def page(client, aid):
 def as_visitor(monkeypatch):
     """Nobody signed in. The test database has no credentials configured, so the
     gate lets everything through until it is told there are some."""
-    monkeypatch.setattr(main, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
 
 
 class TestARegisterAsset:
