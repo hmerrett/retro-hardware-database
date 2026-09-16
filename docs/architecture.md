@@ -151,6 +151,7 @@ the feature modules and `main` can all import downward without a cycle.
 | module | what it owns |
 |---|---|
 | `main.py` | the FastAPI app, the middleware, and the routes not yet lifted out |
+| `auth.py` | the login, the logout, and the gate every request passes through |
 | `web.py` | the templates object and what a page needs around one: the globals, the share card, the schema.org data |
 | `routers/seo.py` | robots.txt, the sitemap, and the icons asked for at the domain root |
 | `routers/gallery.py` | the wall of cards, the /browse slice of it, and the suggestions under the search bar |

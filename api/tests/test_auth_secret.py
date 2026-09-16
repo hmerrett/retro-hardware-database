@@ -8,7 +8,7 @@ app runs open.
 """
 import pytest
 
-from app.main import _resolve_secret_key
+from app.auth import _resolve_secret_key
 
 
 def test_uses_the_configured_secret_when_present():

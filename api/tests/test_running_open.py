@@ -23,8 +23,8 @@ def said(caplog):
     ask it what it says instead of racing it."""
     def ask(enabled, on_purpose):
         caplog.clear()
-        with caplog.at_level(logging.INFO, logger=main.log.name):
-            banner = main._announce_auth(enabled, on_purpose)
+        with caplog.at_level(logging.INFO, logger=main.auth.log.name):
+            banner = main.auth._announce_auth(enabled, on_purpose)
         return banner, caplog.records
     return ask
 
@@ -73,8 +73,8 @@ class TestWhatItSaysAtStartup:
         putting sentinels in the module's own globals and looking for them: the
         function takes booleans today, and this is what stops somebody making the
         message friendlier by pasting the username into it."""
-        monkeypatch.setattr(main, "AUTH_USER", "sentinel-user-9f3a")
-        monkeypatch.setattr(main, "AUTH_PASS", "sentinel-pass-2b71")
+        monkeypatch.setattr(main.auth, "AUTH_USER", "sentinel-user-9f3a")
+        monkeypatch.setattr(main.auth, "AUTH_PASS", "sentinel-pass-2b71")
         for enabled in (True, False):
             for on_purpose in (True, False):
                 _banner, records = said(enabled, on_purpose)
@@ -91,13 +91,13 @@ class TestHowItIsRead:
     ])
     def test_the_opt_in_reads_the_usual_words(self, value, meant, monkeypatch):
         monkeypatch.setenv("RHDB_OPEN", value)
-        assert main._open_on_purpose() is meant
+        assert main.auth._open_on_purpose() is meant
 
     def test_it_is_off_when_unset(self, monkeypatch):
         """Unset means not opted in, which is what makes the loud state the default
         -- a missing .env is far likelier than a deliberate open install."""
         monkeypatch.delenv("RHDB_OPEN", raising=False)
-        assert main._open_on_purpose() is False
+        assert main.auth._open_on_purpose() is False
 
 
 class TestTheBannerOnThePage:
@@ -136,23 +136,23 @@ class TestTheAppCanStillSpeak:
     """A guard for the trap this feature fell into rather than for the feature.
 
     alembic's fileConfig disables every logger not named in alembic.ini unless it is
-    told otherwise, and conftest builds the schema in-process -- so `app.main` was
+    told otherwise, and conftest builds the schema in-process -- so `app.auth` was
     switched off for the whole run and everything the app logged went nowhere. That
     failed by being absent, which is the hardest way for anything to fail, and it
     was found only because a test tried to assert on a log line and caught nothing.
     """
 
     def test_the_apps_logger_survives_the_migrations(self):
-        assert main.log.disabled is False, (
-            "app.main has been disabled -- something called logging.config with "
+        assert main.auth.log.disabled is False, (
+            "app.auth has been disabled -- something called logging.config with "
             "disable_existing_loggers left at its default. See migrations/env.py."
         )
 
     def test_a_line_the_app_logs_actually_reaches_a_handler(self, caplog):
         """The property that matters, asserted directly rather than inferred from
         the flag above: a logger can be re-enabled and still go nowhere."""
-        with caplog.at_level(logging.INFO, logger=main.log.name):
-            main.log.info("a line from the app")
+        with caplog.at_level(logging.INFO, logger=main.auth.log.name):
+            main.auth.log.info("a line from the app")
         assert "a line from the app" in caplog.text
 
 
@@ -162,7 +162,7 @@ class TestTheWiring:
         """The global the templates read is what _announce_auth returned, rather than
         a second reading of the environment that could come to disagree with it."""
         assert main.templates.env.globals["auth_open_warning"] == (
-            not main.AUTH_ENABLED and not main._open_on_purpose())
+            not main.auth.AUTH_ENABLED and not main.auth._open_on_purpose())
 
     def test_the_suite_itself_runs_open_and_says_so(self):
         """conftest pops both credentials -- that is how the suite gets to be the
@@ -170,8 +170,8 @@ class TestTheWiring:
         the opt-in ever stops being set, every page rendered in every test grows a
         banner and a few hundred assertions about page content start reading a
         warning that is not about them."""
-        assert main.AUTH_ENABLED is False
-        assert main._open_on_purpose() is True
+        assert main.auth.AUTH_ENABLED is False
+        assert main.auth._open_on_purpose() is True
         assert main.templates.env.globals["auth_open_warning"] is False
 
     def test_the_decision_is_written_down(self):
