@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1377 behaviours, from 30 files.*
+*1379 behaviours, from 30 files.*
 
 
 ## Api
@@ -2506,7 +2506,7 @@ Regenerate with:
 
 ## Stylesheet
 
-*test_stylesheet.py — 6 behaviours*
+*test_stylesheet.py — 8 behaviours*
 
 - every control given its own size is listed for touch  
   iOS zooms the page when it focuses a control whose text is under 16px, and does not zoom back out.
@@ -2520,6 +2520,10 @@ Regenerate with:
   A rule that fills something with the accent and leaves the foreground to be inherited gets whatever the surrounding rule set, which in the lightbox was a fixed white -- unreadable once the dark theme made the accent a pale blue.
 - a warning banner can be read  
   A banner carries the words of a disposal, a rejected form or a refused login in the page's own foreground colour.
+- every colour words are written in reads against the page  
+  The three pairs tested before this were the three that had already been reported broken.
+- every surface words are written on holds them  
+  A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
 
 
 ## Wanting work

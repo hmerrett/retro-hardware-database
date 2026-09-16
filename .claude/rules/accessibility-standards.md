@@ -15,10 +15,13 @@ stylesheet's own declarations, because no rendered page can be asked what
 contrast a button has against its own fill.
 
 - **4.5:1 on text**, computed with WCAG 2 relative luminance and asserted **in
-  both themes**: primary buttons against their fill, danger controls against the
-  page, warning banners. Parametrise a new pair the same way rather than eyeing
-  it in a browser — the dark theme's accent is a pale blue and reads very
-  differently from the light one's.
+  both themes**, over every pair the stylesheet states: each colour words are
+  written in against the page, each surface they are written on — a chip, a
+  button, a panel's band — composited first, since `#ffffff16` says nothing until
+  it is resolved against what is behind it, and the three that were reported
+  broken (primary buttons on their fill, danger controls, warning banners). A new
+  colour is a new row in one of those lists, not a glance in a browser: the dark
+  theme's accent is a pale blue and reads very differently from the light one's.
 - **A rule that fills with `--accent` states the text colour on it.** Leaving the
   foreground to be inherited is what broke the lightbox: it picked up a fixed
   white that the dark theme's paler accent could not carry. The fill and the text
