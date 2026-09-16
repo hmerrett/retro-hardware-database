@@ -89,7 +89,9 @@ def _clean_tables():
 def _reset_login_limiter():
     """The login limiter is module-level, shared state; clear it so one test's
     failed logins don't count against another's."""
-    main._login_limiter._hits.clear()
+    # main.auth, not main: the gate and the login route read these from the auth
+    # module's own globals, so that is the only place a patch or a reset bites.
+    main.auth._login_limiter._hits.clear()
     yield
 
 

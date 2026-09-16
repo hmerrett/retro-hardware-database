@@ -569,7 +569,7 @@ class TestTheDeleteConfirmationIsNotPublic:
         from app import main
         aid = part()["asset_id"]
         dispose(client, "parts", aid)
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.get(f"/parts/{aid}/delete", follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
 
@@ -579,7 +579,7 @@ class TestTheDeleteConfirmationIsNotPublic:
         from app import main
         aid = part()["asset_id"]
         dispose(client, "parts", aid)
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get(f"/parts/{aid}", follow_redirects=False).status_code == 200
 
     def test_both_histories_say_what_happened(self, client, computer, part):
@@ -1655,9 +1655,9 @@ class TestRememberingHowYouLeftIt:
         from app import main
         computer(model="A")
         page = client.get("/").text
-        assert main.SORT_COOKIE == "rhdb_sort"
-        assert f'rhdbCookie.read("{main.SORT_COOKIE}")' in page
-        assert f'rhdbCookie.write("{main.SORT_COOKIE}"' in page
+        assert main.auth.SORT_COOKIE == "rhdb_sort"
+        assert f'rhdbCookie.read("{main.auth.SORT_COOKIE}")' in page
+        assert f'rhdbCookie.write("{main.auth.SORT_COOKIE}"' in page
 
     def test_a_sort_that_no_longer_exists_is_not_trusted(self, client, computer):
         """A stale or hand-edited cookie naming a sort the page dropped would
@@ -1701,9 +1701,9 @@ class TestTheCookieNotice:
         the cookie and leaves it out."""
         from app import main
         computer(model="A")
-        client.cookies.set(main.NOTICE_COOKIE, "1")
+        client.cookies.set(main.auth.NOTICE_COOKIE, "1")
         assert 'id="cookienote"' not in client.get("/").text
-        client.cookies.delete(main.NOTICE_COOKIE)
+        client.cookies.delete(main.auth.NOTICE_COOKIE)
 
     def test_it_is_on_every_page_not_just_the_gallery(self, client, computer):
         c = computer(model="A")
@@ -3041,7 +3041,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
     def test_a_visitor_gets_the_day_alone(self, client, part, monkeypatch):
         from app import main
         aid = part()["asset_id"]
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/parts/{aid}").text
         assert re.search(self.DATE, page)
         assert not re.search(self.DATE_TIME, page)
@@ -3049,7 +3049,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
     def test_a_machine_history_is_the_same(self, client, computer, monkeypatch):
         from app import main
         aid = computer()["asset_id"]
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/computers/{aid}").text
         assert re.search(self.DATE, page)
         assert not re.search(self.DATE_TIME, page)
@@ -3061,7 +3061,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
         p = part()
         card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
         assert re.search(rf'data-updated="{self.DATE}T', card)
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
         assert re.search(rf'data-updated="{self.DATE}"', card)
         assert re.search(rf'data-added="{self.DATE}"', card)
@@ -3335,7 +3335,7 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
         will not keep. Auth is off in these tests, so this asks for it."""
         from app import main
         aid = part()["asset_id"]
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/parts/{aid}").text
         assert 'class="section photo-qr"' not in page   # the block, not the stylesheet
         assert self.expected("parts", aid) not in page
@@ -3346,7 +3346,7 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
         logging in and told to find the thing in your hands again is not."""
         from app import main
         aid = part()["asset_id"]
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         # The header shows a log-in button only where there is a login to do, and
         # the template reads that from a global settled at import.
         monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
@@ -3392,8 +3392,8 @@ class TestLoggingOutStaysWhereYouAre:
 
     def _as_logged_in(self, monkeypatch):
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
-        monkeypatch.setattr(main, "_check_cookie", lambda request: True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "_check_cookie", lambda request: True)
         monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
 
     def test_the_form_carries_the_page_it_is_on(self, client, part, monkeypatch):
@@ -3406,7 +3406,7 @@ class TestLoggingOutStaysWhereYouAre:
     def test_the_way_in_carries_it_the_same_way(self, client, part, monkeypatch):
         from app import main
         aid = part()["asset_id"]
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
         page = client.get(f"/parts/{aid}?photo=front.jpg").text
         assert f'href="/login?next=/parts/{aid}%3Fphoto%3Dfront.jpg"' in page
@@ -3847,7 +3847,7 @@ class TestTheNumbersPage:
 
     def test_the_traffic_report_is_still_private(self, client, monkeypatch):
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.get("/traffic", follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
 
@@ -3959,7 +3959,7 @@ class TestFollowingAFigureToItsItems:
 
     def test_it_is_public_like_the_figures_it_came_from(self, client, monkeypatch):
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.get("/browse?f=all", follow_redirects=False)
         assert r.status_code == 200
 
@@ -4173,14 +4173,14 @@ class TestTheCataloguePage:
         what was made, not what is here -- so there is nothing on it to sign in
         for, and the JSON behind it is public for the same reason."""
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         for path in ("/machines", "/api/machines"):
             r = client.get(path, follow_redirects=False)
             assert r.status_code == 200, path
 
     def test_the_rest_of_the_api_is_still_not(self, client, monkeypatch):
         from app import main
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get("/api/computers", follow_redirects=False).status_code == 401
 
     def test_it_is_offered_to_search_engines(self, client):
@@ -4289,7 +4289,7 @@ class TestSearchingEveryField:
     def test_searching_is_public(self, client, part, monkeypatch):
         from app import main
         part(notes="battery damage")
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get("/?q=battery").status_code == 200
 
 
@@ -4377,7 +4377,7 @@ class TestTheFirstFewMatchesWhileYouType:
     def test_suggesting_is_public(self, client, part, monkeypatch):
         from app import main
         part(notes="battery damage")
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get("/suggest", params={"q": "battery"}).status_code == 200
 
     def test_it_is_not_offered_to_crawlers(self, client):
@@ -4574,12 +4574,12 @@ class TestTheBigPhotoView:
         rel = self.upload(client, "parts", aid)
         try:
             assert 'id="lb-tools"' in client.get(f"/parts/{aid}").text
-            monkeypatch.setattr(main, "AUTH_ENABLED", True)
+            monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
             anon = client.get(f"/parts/{aid}").text
             assert 'id="lb-tools"' not in anon
             assert "zoomable" in anon
         finally:
-            monkeypatch.setattr(main, "AUTH_ENABLED", False)
+            monkeypatch.setattr(main.auth, "AUTH_ENABLED", False)
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
 
@@ -4681,10 +4681,10 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            monkeypatch.setattr(main, "AUTH_ENABLED", True)
+            monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
             assert 'id="lb-delete"' not in client.get(f"/parts/{aid}").text
         finally:
-            monkeypatch.setattr(main, "AUTH_ENABLED", False)
+            monkeypatch.setattr(main.auth, "AUTH_ENABLED", False)
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
 
@@ -5056,11 +5056,11 @@ class TestDeletingAHistoryEntry:
         from app import main
         aid = part()["asset_id"]
         assert "log/delete" in client.get(f"/parts/{aid}").text
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         try:
             assert "log/delete" not in client.get(f"/parts/{aid}").text
         finally:
-            monkeypatch.setattr(main, "AUTH_ENABLED", False)
+            monkeypatch.setattr(main.auth, "AUTH_ENABLED", False)
 
 
 class TestAPageNoticesItHasChanged:
@@ -5846,7 +5846,7 @@ class TestFilesReadLikeThePartsDo:
         fid = client.get("/api/files").json()[0]["id"]
         client.post(f"/files/{fid}/public", data={"public": "1"},
                     follow_redirects=False)
-        monkeypatch.setattr(main, "AUTH_ENABLED", True)
+        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/computers/{aid}").text
         assert '<span class="chip">Creative Labs Sound Blaster</span>' in page
         assert 'name="tags"' not in page
