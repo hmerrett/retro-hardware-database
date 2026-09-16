@@ -36,6 +36,21 @@
 </div>
 {% endif %}
 
+{% if request.state.authed %}
+{# Might sell (ADR-0018). Rendered for nobody else: not the tick, not the state it
+   is in, and not the search that would find it -- an intention to sell is the
+   owner's, on a page anybody may read. The tick sends the moment it changes, the
+   same bargain files.public makes, with the button kept in the markup for a browser
+   running no script, which is what a keyboard user without JavaScript presses. #}
+<form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/for-sale"
+      data-ticksend>
+  <label class="tickbox"><input type="checkbox" name="for_sale" value="1"
+    {{ 'checked' if p.for_sale else '' }}
+    aria-label="Might sell {{ p.asset_id }}"> might sell</label>
+  <button class="btn sm" type="submit" data-send-go>save</button>
+</form>
+{% endif %}
+
 <div class="detail">
   <div class="detail-main">
     {# What the model is -- but only where the object has nothing said about it of

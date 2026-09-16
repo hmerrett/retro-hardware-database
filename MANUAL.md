@@ -1483,6 +1483,29 @@ History is searchable, which is often the point of writing it. Searching
 
 ## 15. Disposing, restoring and deleting
 
+### Might go: the for-sale shortlist
+
+Between keeping a thing and having got rid of it there is *this one could go*, and
+it had nowhere to live but a note on the item — which anybody can read — or your
+memory, which is worse.
+
+**Tick "might sell" on any item page** and it joins **/for-sale**, a list of
+everything you have flagged. Untick it and it leaves. The tick sends as soon as you
+change it; there is a save button beside it for a browser running no script.
+
+**Nobody but you sees it.** The tick and the marker are not rendered for a visitor,
+`/for-sale` asks for a login, and — the part that is easy to get wrong — a visitor's
+search does not match on it either. Searching the site for `true` does not hand a
+stranger your shortlist.
+
+It is a flag and nothing more: no price, no note, no date. Write why in the item's
+history if you want it written down. A thing you have actually decided to sell is a
+different job, and this is the list you make before that decision.
+
+The flag is only as private as your login. An installation running with
+`RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` unset has no login at all, and treats
+every visitor as the owner — see [section 17](#17-logging-in).
+
 ### Disposal
 
 **Disposal is how something leaves the collection while keeping its record.** Sold,

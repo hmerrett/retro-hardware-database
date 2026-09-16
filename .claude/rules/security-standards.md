@@ -57,6 +57,15 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 - Pinned/locked and scanned (`pip-audit` in CI). Pinning gives control; scanning
   gives awareness — you need both.
 
+## A column kept off the page is kept out of the search
+
+`search._haystack` builds its string from **every column on the model** — that is
+what makes "search any field" true rather than nearly true. So a new column joins
+what an anonymous visitor can search by merely existing, with nobody having decided
+it should: a boolean reads as `True`, and a search for `true` hands back every row
+carrying it. Anything owner-only goes in `common.OWNER_ONLY`, which `_haystack`
+reads, and gets a test (ADR-0018). Hiding it in the template is half the job.
+
 ## Who may see it is decided, not defaulted
 
 Anything new that stores or shows what somebody supplied -- an upload, a note, a

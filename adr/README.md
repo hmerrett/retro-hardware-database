@@ -53,3 +53,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0004](0004-work-projects-are-public.md) assume)
 - [0017](0017-a-page-of-photographs-shares-a-montage-of-them.md) — A page of
   photographs shares a montage of them — *Accepted*
+- [0018](0018-a-sale-flag-is-the-owners-alone.md) — A sale flag is the owner's
+  alone — *Accepted*

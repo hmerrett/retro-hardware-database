@@ -176,6 +176,35 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
                card=cards.montage(r["image"] for r in rows)))
 
 
+@router.get("/for-sale", response_class=HTMLResponse, include_in_schema=False)
+def gui_for_sale(request: Request, db: Session = Depends(get_db)):
+    """The owner's shortlist: everything ticked "might sell" (ADR-0018).
+
+    In the same grid as the gallery, because deciding what could go is done by
+    looking at the things -- a list of asset tags would not answer the question this
+    page is opened to answer.
+
+    It is here rather than as a /browse view, even though it is the same grid with a
+    different test applied: /browse is a public page, so a view of it would be one
+    filter away from being the shortlist on the open web. A route of its own is
+    private by the auth gate's ordinary rule, with nothing to remember.
+
+    No montage on the share card, and noindex: this is not a page to share, and the
+    site's own card is what a page with nothing to advertise shows (ADR-0017).
+    """
+    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed)
+            if r["obj"].for_sale]
+    return _grid_page(
+        request, rows, heading="Might sell",
+        note="things flagged as ones that could go — nobody else sees this",
+        # Disposed items are shown: something on its way out can be both, and a
+        # shortlist that silently dropped them would be answering a question that
+        # was not asked.
+        show_disposed=True,
+        page_title="Might sell — Retro Hardware Database",
+        noindex=True, og=_og(request, "Might sell"))
+
+
 @router.get("/browse", response_class=HTMLResponse, include_in_schema=False)
 def gui_browse(request: Request, f: str = "", v: str = "",
                db: Session = Depends(get_db)):
