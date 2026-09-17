@@ -821,8 +821,11 @@ def _clear_part_rows(db, part, also_going=()):
     photos = _drop_log_photos(db, aid)
     # A project that was about this part stops being about it. By hand for the same
     # reason: project_asset.asset_id is a plain register id with no foreign key
-    # behind it, so nothing in the database will clear it.
+    # behind it, so nothing in the database will clear it. A file attached to this
+    # one unit goes the same way, and the bytes stay: a file left attached to
+    # nothing is unfiled, which the files page says rather than bins (ADR-0006).
     projects.forget_asset(db, aid)
+    filesdb.forget_asset(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
         db.query(model).filter(
             model.asset_id == aid).delete(synchronize_session=False)
@@ -852,6 +855,7 @@ def _clear_computer_rows(db, c, with_parts=()):
         db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
     photos += _drop_log_photos(db, aid)
     projects.forget_asset(db, aid)
+    filesdb.forget_asset(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
         db.query(model).filter(
             model.asset_id == aid).delete(synchronize_session=False)
@@ -1350,6 +1354,7 @@ def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
         "machine": machine, "detachable": detachable,
         "item": (cdict := to_dict(c)), "kind": "computers",
         "files": filesdb.for_item(db, cdict, request.state.authed),
+        "file_models": filesdb.model_ids_for(db, cdict),
         "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
         "on_project": (found := projects.project_for(db, aid,
@@ -2659,6 +2664,7 @@ def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
         "thumbs": part_thumbs(db, children),
         "item": (pdict := to_dict(p)), "kind": "parts",
         "files": filesdb.for_item(db, pdict, request.state.authed),
+        "file_models": filesdb.model_ids_for(db, pdict),
         "fileerr": bool(fileerr),
         "dl_filenotes": _answers_given(db, StoredFile.note),
         "on_project": (found := projects.project_for(db, aid,
@@ -3052,12 +3058,12 @@ def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
 
 
 # --- files kept beside the register -----------------------------------------
-# Drivers, manuals, ROM dumps. Not hung off an asset id: a file is tagged with the
-# names it is for and every item answering to one of them offers it, which is what
-# stops a collection with three of the same card holding the same driver three
-# times. app/filesdb.py owns the matching and the bytes; these are the five things
-# a person does with one -- the fifth being to publish it, since a file is kept
-# back from visitors until it is (ADR-0009).
+# Drivers, manuals, ROM dumps. Not hung off an asset id: a file is attached to what
+# it is for, which is a model as often as it is a unit -- one driver for the three
+# identical cards on the shelf and the fourth bought next year (ADR-0006,
+# ADR-0020). app/filesdb.py owns the links and the bytes; these are the things a
+# person does with one, of which publishing is its own, since a file is kept back
+# from visitors until somebody says otherwise (ADR-0009).
 
 
 def _file_or_404(db, fid):
@@ -3111,33 +3117,108 @@ def _ascii_filename(name):
 @app.post("/files", include_in_schema=False)
 async def gui_upload_files(request: Request, uploads: list[UploadFile] = File(...),
                            db: Session = Depends(get_db)):
-    """Take one or more files and file them under the tags the form carries. The
-    tags are prefilled from the item the upload started on, which is the common
-    case -- a driver found while looking at the card it is for."""
+    """Take one or more files, label them with the tags the form carries, and attach
+    them to whatever the upload started on.
+
+    `aid` is that item. A driver found while looking at the card it is for is about
+    the card as a model, so that is what it is attached to; an item with no model to
+    speak of gets the file attached to itself (ADR-0020). Either way the panel says
+    which it did and offers the other."""
     form = await request.form()
     tags = filesdb.parse_tags(form.get("tags", ""))
     note = form.get("note", "")
     nxt = _safe_next(form.get("next") or "/files")
+    aid = (form.get("aid") or "").strip().upper()
     saved, errors = 0, []
     for up in uploads:
         if not (up.filename or "").strip():
             continue
         try:
-            if filesdb.save(db, up, tags, note) is not None:
+            row = filesdb.save(db, up, tags, note)
+            if row is not None:
                 saved += 1
+                _attach_where_it_belongs(db, row.id, aid)
         except ValueError as exc:
             errors.append(str(exc))
-    aid = (form.get("aid") or "").strip().upper()
     if saved and aid:
         add_log(db, aid, f"added {saved} file(s)")
     db.commit()
     return RedirectResponse(nxt + ("?fileerr=1" if errors else ""), status_code=303)
 
 
+def _item_for_link(db, aid):
+    """The computer or part an asset id names, as the dict filesdb reads. None for
+    a project, or an id that names nothing: a file is about hardware."""
+    aid = (aid or "").strip().upper()
+    if not aid:
+        return None
+    obj = db.get(Computer, aid) or db.get(Part, aid)
+    return to_dict(obj) if obj else None
+
+
+def _attach_where_it_belongs(db, file_id, aid):
+    """What uploading from an item's page means: the model where the item has one,
+    since a driver is a fact about a model, and the item itself where it has none --
+    a custom build, or a card whose model was left blank."""
+    item = _item_for_link(db, aid)
+    if item is None:
+        return
+    models = filesdb.model_ids_for(db, item)
+    if models:
+        kind, key, label = models[0]
+        filesdb.attach_model(db, file_id, kind, key, label)
+    else:
+        filesdb.attach_asset(db, file_id, item["asset_id"])
+
+
+@app.post("/files/{fid}/attach", include_in_schema=False)
+async def gui_file_attach(fid: int, request: Request, db: Session = Depends(get_db)):
+    """Attach a file that is already on file to this item, or to its model.
+
+    `what` picks which: `unit` is that one machine or card, anything else is the
+    model. Asking for a model an item does not have attaches the item instead
+    rather than failing, because the answer to "every one of these" where there is
+    only the one is the one."""
+    row = _file_or_404(db, fid)
+    form = await request.form()
+    item = _item_for_link(db, form.get("aid"))
+    if item is None:
+        raise HTTPException(404, "nothing here to attach a file to")
+    models = filesdb.model_ids_for(db, item)
+    if (form.get("what") or "model") == "unit" or not models:
+        filesdb.attach_asset(db, row.id, item["asset_id"])
+    else:
+        kind, key, label = models[0]
+        filesdb.attach_model(db, row.id, kind, key, label)
+    db.commit()
+    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
+
+
+@app.post("/files/{fid}/detach", include_in_schema=False)
+async def gui_file_detach(fid: int, request: Request, db: Session = Depends(get_db)):
+    """Take a file off a unit or off a model.
+
+    It never deletes anything. A file attached to nothing is unfiled, which the
+    files page says out loud -- the disposal case ADR-0006 was right to worry
+    about is a file quietly going in the bin with the last thing that pointed at
+    it."""
+    row = _file_or_404(db, fid)
+    form = await request.form()
+    aid = (form.get("aid") or "").strip().upper()
+    kind, key = (form.get("kind") or "").strip(), (form.get("key") or "").strip()
+    if aid:
+        filesdb.detach_asset(db, row.id, aid)
+    if kind and key:
+        filesdb.detach_model(db, row.id, kind, key)
+    db.commit()
+    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
+
+
 @app.post("/files/{fid}/tags", include_in_schema=False)
 async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Re-file one: what the box says is the whole list, so a name taken out of it
-    stops matching."""
+    """Relabel one: what the box says is the whole list, so a tag taken out of it is
+    gone. A tag is a label now and decides nothing about where the file appears --
+    that is what attach and detach are for."""
     row = _file_or_404(db, fid)
     form = await request.form()
     filesdb.set_tags(db, row, form.get("tags", ""))
@@ -3173,21 +3254,30 @@ async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_
 
 @app.get("/files", response_class=HTMLResponse, include_in_schema=False)
 def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
-    """Everything on file, for finding the driver whose card is not in front of
-    you and for seeing what a tag is spelled as before typing it again."""
+    """Everything on file, for finding the driver whose card is not in front of you,
+    for seeing what a tag is spelled as before typing it again, and for filing the
+    one that is attached to nothing.
+
+    The register's ids ride along for the attach box to offer, owner only: what it
+    is is a list of everything owned, which is not a thing to hand a visitor who
+    cannot attach anything anyway."""
     return templates.TemplateResponse(request, "files.html", {
         "files": filesdb.all_files(db, tag, request.state.authed), "tag": tag,
+        "assets": _register_order(db) if request.state.authed else [],
         "og": _og(request, "Files", "Drivers, manuals and disks kept with the "
                                     "hardware they belong to")})
 
 
 @app.get("/api/files", tags=["files"])
 def api_list_files(tag: str = "", db: Session = Depends(get_db)):
-    """Files kept beside the register, newest first, each with the names it is
-    filed under. `tag` narrows it to one name, matched the way the pages match:
-    ignoring case and spacing."""
+    """Files kept beside the register, newest first, each with its tags and what it
+    is attached to: `assets` are the units it is about and `models` the models every
+    item of which it is about. `tag` narrows it to one tag, matched ignoring case
+    and spacing."""
     return [{"id": f.id, "filename": f.filename, "size": f.size, "note": f.note,
              "tags": f.tags, "created_at": f.created_at, "public": f.public,
+             "assets": f.assets, "models": [
+                 {"kind": k, "key": key, "label": label} for k, key, label in f.models],
              "url": f"/files/{f.id}/{quote(f.filename)}"}
             for f in filesdb.all_files(db, tag)]
 

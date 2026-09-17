@@ -1045,32 +1045,56 @@ The **Files** panel on every item page, and the `/files` page in the header,
 hold the things that come with hardware but are not hardware: a driver disk, a
 manual, a ROM dump, the utility disk that shipped with a card.
 
-Files are **not** attached to an asset tag. They are **tagged with the names they
-are for**, and every item answering to one of those names offers them.
+A file is **attached to what it is for**, by hand, and there are two ways to
+attach one:
 
-That is deliberate. A Trident 8900 driver is a fact about that card *as a model*,
-not about the particular one on your shelf. A collection holding three of them
-would otherwise carry the same download three times and lose two of them the day
-two of the cards were disposed of.
+- **to a model** — every machine or card of that model: the ones on the shelf now
+  and the one bought next year. A driver, a manual, a utility disk.
+- **to one unit** — that machine, that card, by its asset tag. A receipt, a
+  photograph of a repair, a ROM read off one particular board.
 
-### How the matching works
+A file has as many of either as it needs, because one disk often covers a card
+and the machine it shipped in.
 
-An item answers to its display name, its model, its maker and model together, and
-its own asset tag.
+That a driver belongs to a model rather than to a unit is the whole point. A
+collection holding three Trident TVGA8900s carries the driver once, all three
+offer it, and disposing of two of them takes nothing away from the third.
 
-A tag matches an item when the item's name **contains** the tag. So one file
-tagged `Creative Labs Sound Blaster` appears on the AWE32, the 16 and the Pro,
-because each of their names has it in. It goes one way only — the broader name
-reaches the narrower thing, never the other way about — so a driver tagged for
-the AWE32 does not turn up on a plain Sound Blaster.
+### Attaching one
 
-Case and spaces make no difference: `Sound Blaster`, `soundblaster` and
-`SOUND  BLASTER` are one name written by three people.
+The **Files** panel on an item page is where it is done. Upload a file there and
+it is attached to the item's model where the item has one, and to the item itself
+where it has not — a custom build, or a card whose model has been left blank. The
+panel says which of the two it did, and the other is one click away.
 
-**To pin a file to one particular unit** — a receipt, a photograph of a repair —
-tag it with that unit's asset tag. The upload box on an item page offers both:
-it arrives prefilled with what the item is called, and the hint reminds you of
-the tag.
+**attach** on that panel takes a file that is already filed and adds this item, or
+this item's model, to what it is for. **detach** takes it off again. Detaching
+never deletes anything: a file attached to nothing is **unfiled**, and says so on
+the `/files` page, which is where one is found and filed.
+
+### What a model means
+
+Where the catalogue names the machine, the model is the catalogue's — so
+identifying a machine is what makes its files follow the model rather than a form
+of words. Everything else — a PC, a clone, every part — is named by its maker and
+its model as they were written: `Trident TVGA8900`. Case and spacing make no
+difference, so `Trident TVGA8900` and `trident  tvga8900` are one model. A machine
+the catalogue names is both, and answers to a file attached either way.
+
+Two things follow. **Renaming an item does not move its files**, because the link
+names a model and not a name that happens to be on a page. But **correcting a
+part's model does**: a card whose model is fixed from `TVGA8900` to `TVGA8900C` is
+a different model afterwards, and offers that model's files instead. That is what
+saying what a thing is amounts to — and the `/files` page shows what every file is
+attached to, so a link left naming a model nothing answers to can be seen and
+put right.
+
+### Tags say what a file is
+
+A file also carries tags — `manual`, `driver`, `ROM dump`, `boot disk`. They are
+for finding and browsing and nothing else. **A tag does not decide where a file
+appears**; the attachment does. A tag that reads like the name of a machine is
+still only a tag.
 
 ### Who can see a file
 
@@ -1085,9 +1109,8 @@ found" if they are given the link. You see all of your files, ticked or not,
 whenever you are logged in.
 
 This is because the same box takes a driver disk and a receipt, and a receipt has
-your name and address on it — and the way to attach one to a single machine
-(tagging it with the asset tag) is exactly the case where forgetting would matter
-most. Unticking a file takes it back down everywhere, immediately.
+your name and address on it — and attaching one to the single machine it is about
+is exactly the case where forgetting would matter most. Unticking a file takes it back down everywhere, immediately.
 
 Files that were already uploaded when this arrived are ticked: they were public
 before, and taking the collection's drivers and manuals off the site overnight

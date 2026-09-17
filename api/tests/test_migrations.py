@@ -193,3 +193,91 @@ def test_the_public_flag_can_be_downgraded(scratch_db_url):
             "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'files' AND "
             "COLUMN_NAME = 'public'")).scalar_one() == 0
     engine.dispose()
+
+
+BEFORE_FILE_LINKS = "0038_items_may_be_for_sale"
+
+
+def test_what_the_matcher_found_survives_0039(scratch_db_url):
+    """0039 stops a file being matched to an item by name and starts it being
+    attached to one, and runs the old matcher once to write down what it found.
+
+    The point of the backfill is that the day of the change is quiet: a register
+    whose driver disks appear on the right cards on Monday has them on the right
+    cards on Tuesday. So the four shapes it has to get right are asserted here --
+    a tag covering two identical cards, a tag that is an asset id, a tag reaching
+    something with no model to name, and a tag reaching nothing at all.
+
+    It is faithful rather than clever on purpose (ADR-0006): what the matcher got
+    wrong is preserved too, because a backfill that quietly corrected the mistakes
+    would be one nobody could check afterwards.
+    """
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_FILE_LINKS)
+    assert up.returncode == 0, f"upgrade to 0038 failed:\n{up.stderr}"
+
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        for aid, maker, model in (("RH-0001", "Trident", "TVGA8900"),
+                                  ("RH-0002", "Trident", "TVGA8900"),
+                                  ("RH-0003", "Tseng", "ET4000"),
+                                  ("RH-0004", "", "")):
+            conn.execute(text(
+                "INSERT INTO parts (asset_id, type, manufacturer, model, name, "
+                "disposed_note, computer_id, parent_id) "
+                "VALUES (:a, 'video', :m, :d, '', '', NULL, NULL)"),
+                {"a": aid, "m": maker, "d": model})
+        for fid, (stored, name) in enumerate((("a.zip", "tvga.zip"),
+                                              ("b.pdf", "receipt.pdf"),
+                                              ("c.zip", "nothing.zip"),
+                                              ("d.zip", "unnamed.zip")), start=1):
+            conn.execute(text("INSERT INTO files (id, stored, filename, size) "
+                              "VALUES (:i, :s, :f, 10)"),
+                         {"i": fid, "s": stored, "f": name})
+        for fid, tag in ((1, "Trident TVGA8900"), (2, "RH-0001"),
+                         (3, "Nothing At All"), (4, "RH-0004")):
+            conn.execute(text("INSERT INTO file_tag (file_id, tag, fold) "
+                              "VALUES (:i, :t, :f)"),
+                         {"i": fid, "t": tag, "f": "".join(tag.split()).lower()})
+
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+
+    with engine.begin() as conn:
+        models = set(conn.execute(text(
+            "SELECT file_id, kind, model_key FROM file_model")).all())
+        assets = set(conn.execute(text(
+            "SELECT file_id, asset_id FROM file_asset")).all())
+
+    # One link, not two: the tag reached two identical cards and they are one model,
+    # which is the whole reason a model link exists.
+    assert models == {(1, "named", "trident|tvga8900")}
+    # A tag that was an asset id meant that one unit, and still does. The card with
+    # nothing to call it has no model to be one of, so its file is about the unit.
+    assert assets == {(2, "RH-0001"), (4, "RH-0004")}
+    engine.dispose()
+
+
+def test_a_file_the_matcher_reached_nothing_with_is_left_unfiled(scratch_db_url):
+    """Unfiled is a state and not a loss: the bytes are untouched and the files page
+    says so. The alternative -- guessing at what a tag nobody can match was meant to
+    cover -- is the sort of kindness that loses a file."""
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_FILE_LINKS)
+    assert up.returncode == 0, f"upgrade to 0038 failed:\n{up.stderr}"
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO parts (asset_id, type, manufacturer, model, "
+                          "name, disposed_note, computer_id, parent_id) VALUES "
+                          "('RH-0009', 'video', 'Tseng', 'ET4000', '', '', NULL, NULL)"))
+        conn.execute(text("INSERT INTO files (id, stored, filename, size) "
+                          "VALUES (7, 'x.zip', 'orphan.zip', 10)"))
+        conn.execute(text("INSERT INTO file_tag (file_id, tag, fold) "
+                          "VALUES (7, 'Whatever', 'whatever')"))
+
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    with engine.begin() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM file_model")).scalar_one() == 0
+        assert conn.execute(text("SELECT COUNT(*) FROM file_asset")).scalar_one() == 0
+        assert conn.execute(text(
+            "SELECT filename FROM files WHERE id = 7")).scalar_one() == "orphan.zip"
+    engine.dispose()

@@ -1944,7 +1944,7 @@
     },
     "/api/files": {
       "get": {
-        "description": "Files kept beside the register, newest first, each with the names it is\nfiled under. `tag` narrows it to one name, matched the way the pages match:\nignoring case and spacing.",
+        "description": "Files kept beside the register, newest first, each with its tags and what it\nis attached to: `assets` are the units it is about and `models` the models every\nitem of which it is about. `tag` narrows it to one tag, matched ignoring case\nand spacing.",
         "operationId": "api_list_files_api_files_get",
         "parameters": [
           {

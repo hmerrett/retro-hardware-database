@@ -136,7 +136,8 @@ and re-render; never edit the string and hope.
 |---|---|
 | `asset_variant`, `asset_chip` | which issue/style/region an asset is, and the notable chips on it |
 | `log_entry`, `log_photo` | the dated history of an asset, and photographs attached to a line of it |
-| `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the names they are for |
+| `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the tags that say what each one is |
+| `file_asset`, `file_model` | what a file is for: one unit by asset id, or every item of a model by catalogue key or by maker and model |
 | `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the things it is about (one project to a thing), its job list — each job optionally naming one of those things — and what is on order for it |
 
 ## 5. The modules
@@ -175,7 +176,7 @@ the feature modules and `main` can all import downward without a cycle.
 | `search.py` | the term parser, the "any field" haystack, the suggestion list, the `/browse` views |
 | `stats.py` | the figures and the pool of facts behind the public `/stats` page |
 | `projects.py` | projects: the work, as against the things it is done to |
-| `filesdb.py` | files kept beside the register and the names they are for |
+| `filesdb.py` | files kept beside the register, what each is attached to, and the bytes on disk |
 | `photos.py` | watermarking, upload verification, reference photos, kept originals, crop/rotate |
 | `thumbs.py` | smaller copies of the photographs, made once and kept |
 | `enhance.py` | the one-touch tuneup: the automatic levels-and-colour fix a phone does |
@@ -214,6 +215,11 @@ breaking one turns CI red rather than merely being wrong.
 - **A migration must not assume specific data exists.** A one-off correction to a
   named row belongs in a `tools/` script, not in the shared history, or it breaks
   every fresh install. *(ADR-0002, enforced: CI migrates an empty database)*
+- **What a file is for is stated, never inferred.** A link to an asset id or to a
+  model, made by hand; a tag says what a file *is* and decides nothing about where
+  it appears. Matching is equality on the stored key, so renaming an item cannot
+  move its files and a short tag cannot reach across the register.
+  *(ADR-0006, ADR-0020, enforced: `test_files.py`)*
 - **A file is not public until it is ticked.** Unpublished files answer 404, not
   401 — there is no account a reader could hold, so a prompt would only confirm
   the file exists. *(ADR-0009)*
@@ -309,7 +315,13 @@ it was weighed against, and what it costs.
 | 0011 | The register is a product other people run |
 | 0012 | Run alongside an existing reverse proxy *(proposed)* |
 | 0013 | Stay server-rendered; polish comes from design, not a SPA *(proposed)* |
-| 0014 | Accessibility is a tested standard, not a set of habits *(proposed)* |
+| 0014 | Accessibility is a tested standard, not a set of habits |
+| 0015 | A work project is called what the item is called |
+| 0016 | One project to a thing, and a job may name the thing |
+| 0017 | A page of photographs shares a montage of them |
+| 0018 | A sale flag is the owner's alone |
+| 0019 | Running open is supported, but never silent |
+| 0020 | A model link names a maker and a model, not only a catalogue key |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously
