@@ -440,11 +440,14 @@ to the machine, so building out a PC is a straight run down the list.
 
 ## 6. Machines the catalogue names
 
-The catalogue holds four hundred machines, from seventy-odd makers, and for each
-model its standard memory sizes, board issues, case and keyboard styles, regions,
-and chip sockets with the part numbers that turn up in them. It runs from the
-1975 Altair to the PlayStation 3 — the far end moved for Sony's console line,
-which is one family that kept going, rather than for the era in general.
+The catalogue holds a little over four hundred machines, from ninety-odd makers,
+and for each model its standard memory sizes, board issues, case and keyboard
+styles, regions, and chip sockets with the part numbers that turn up in them. It runs from the
+1975 Altair and IMSAI 8080 to the machines still being made for this hardware now
+— the Book 8088, the Hand 386 and the Pocket 386 out of Shenzhen, and the MiSTer
+Multisystem 2 — by way of the console lines that kept going, Sony's as far as the
+PlayStation 3. The far end has moved for particular families rather than for the
+era in general.
 
 **What is in it, and what is not.** Home computers and consoles, and the branded
 PCs that were sold under a model name — an IBM
@@ -742,6 +745,10 @@ a **custom** box each:
 |---|---|---|
 | **Bay size** | 5.25", 3.5", 8" — custom for a 3" Amstrad CF-2, a 2.5" | every drive |
 | **Capacity** | 160K, 180K, 320K, 360K, 720K, 1.2MB, 1.44MB, 2.88MB — custom for a Floptical or an LS-120 | floppies |
+| **Media** | CD-ROM, CD-R, CD-RW, DVD-ROM, DVD/CD-RW combo, DVD±RW, DVD-RAM, Blu-ray | optical |
+| **Media** | QIC, Travan, DC6150, DDS/DAT, DLT, LTO | tape |
+| **Speed** | 1× through 52× | optical |
+| **Speed** | 3600 / 5400 / 7200 / 10000 / 15000 rpm | hard disks |
 
 A floppy's capacity keeps the spelling it was sold under, and is the one figure in
 the register that is not converted to KiB. It is a designation rather than a
@@ -749,10 +756,6 @@ measurement: nobody has ever called a 1.44MB disk anything else, and it is neith
 1.44 million bytes nor 1.44 MiB but 1440 KiB. A hard disk's or a card's capacity
 *is* a measurement, goes through the same arithmetic as everything else, and is
 said in MiB and GiB.
-| **Media** | CD-ROM, CD-R, CD-RW, DVD-ROM, DVD/CD-RW combo, DVD±RW, DVD-RAM, Blu-ray | optical |
-| **Media** | QIC, Travan, DC6150, DDS/DAT, DLT, LTO | tape |
-| **Speed** | 1× through 52× | optical |
-| **Speed** | 3600 / 5400 / 7200 / 10000 / 15000 rpm | hard disks |
 
 A capacity is what a floppy takes; a medium is what an optical drive takes. A
 CD-ROM drive is not a "650MB anything", it is a drive that takes CDs — which is
@@ -1036,6 +1039,30 @@ separately for that reason — see [section 16](#16-statistics).
 served, and so are the ones on history entries; reference images are not. Set `RHDB_WATERMARK=0` to serve everything
 untouched. The originals on disk are never modified — the watermark is applied to
 a cached copy.
+
+### How big they are served
+
+You upload a photograph at whatever size your phone took it — several megabytes,
+three to five thousand pixels across — and that is what is kept. It is never
+resized, cropped or thrown away in the name of space.
+
+What is *served* is a copy no bigger than the place it is going. A gallery card
+gets a 400-pixel copy (800 on a retina screen), an item page's main photograph
+1200. Those copies are made the first time they are asked for and kept beside the
+originals, and rebuilt whenever the photograph behind them changes. Opening a
+photograph full size — clicking it, or the lightbox — always gives you the
+original, because reading the markings on a chip is what a 24-megapixel photograph
+of a board is *for*.
+
+To make the copies up front rather than making the next visitor wait for them
+(worth doing after a deploy, and after any bulk import):
+
+```sh
+docker compose exec api python -m app.thumbs
+```
+
+The copies live in a dot-directory under `images/` and are excluded from backups,
+since they can always be made again from the originals.
 
 ---
 
@@ -1895,33 +1922,6 @@ What it maps:
 
 Memory is deliberately left alone: HWiNFO's total is unreliable on pre-Pentium
 machines, so a machine's memory is entered by hand.
-
----
-
-
-### Photographs, and how big they are served
-
-You upload a photograph at whatever size your phone took it — several megabytes,
-three to five thousand pixels across — and that is what is kept. It is never
-resized, cropped or thrown away in the name of space.
-
-What is *served* is a copy no bigger than the place it is going. A gallery card
-gets a 400-pixel copy (800 on a retina screen), an item page's main photograph
-1200. Those copies are made the first time they are asked for and kept beside the
-originals, and rebuilt whenever the photograph behind them changes. Opening a
-photograph full size — clicking it, or the lightbox — always gives you the
-original, because reading the markings on a chip is what a 24-megapixel photograph
-of a board is *for*.
-
-To make the copies up front rather than making the next visitor wait for them
-(worth doing after a deploy, and after any bulk import):
-
-```sh
-docker compose exec api python -m app.thumbs
-```
-
-The copies live in a dot-directory under `images/` and are excluded from backups,
-since they can always be made again from the originals.
 
 ### adopt_machines.py
 
