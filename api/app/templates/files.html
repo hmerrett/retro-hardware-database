@@ -13,7 +13,7 @@
 
 {% if files %}
 <table>
-  <tr><th>File</th><th>Filed under</th><th class="tight">Size</th><th class="tight">Added</th>{% if request.state.authed %}<th class="tight">Public</th><th></th>{% endif %}</tr>
+  <tr><th scope="col">File</th><th scope="col">Filed under</th><th scope="col" class="tight">Size</th><th scope="col" class="tight">Added</th>{% if request.state.authed %}<th scope="col" class="tight">Public</th><th scope="col"></th>{% endif %}</tr>
   {% for f in files %}
   <tr>
     <td><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
