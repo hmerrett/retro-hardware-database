@@ -8,6 +8,32 @@ and so that the JSON API, which deletes and edits the same rows, is not a third 
 """
 from urllib.parse import urlparse
 
+
+# --- deleting a record for good ---------------------------------------------
+# Disposal says an item has left the collection and keeps its record; this is the
+# other thing, for when the record itself should not exist -- a duplicate, a
+# mistake, something scrapped that was never worth a line. Only a disposed item
+# can be deleted through the GUI, so the ordinary way to lose something is still
+# the reversible one.
+#
+# Everything pointing at the asset is cleared before its own row goes, rather
+# than leaving it to the foreign keys. Three reasons: what another item's history
+# should say about losing its link is a judgement no cascade can make; the
+# confirmation page can only promise what this code actually does; and the
+# cascades are MariaDB's, while the tests run on SQLite, where they hold only
+# while a PRAGMA does.
+
+
+# --- work noted while checking something in -----------------------------------
+# The quick box above is this gesture from a page that already exists. What follows
+# is the same one from the two forms that make a page, which is where the thought
+# actually arrives: what is wrong with a machine is seen while it is being unpacked,
+# and the form that files it is on screen at the time. Asking for the item's tag
+# first meant the note had to wait for a second visit to a page that did not exist
+# yet, and a note that waits is a note that is lost -- which is the whole reason the
+# flag on an item existed before 0031, and the reason this is not simply the quick
+# box again.
+
 from fastapi import HTTPException, Request
 from fastapi.responses import RedirectResponse
 

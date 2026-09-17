@@ -2,6 +2,9 @@
 board it is fitted to."""
 from sqlalchemy import func
 
+
+# --- GUI: parts (guided, typed entry) --------------------------------------
+
 from ..assets import _bezel_ctx, _machine_ctx
 from ..pages import _datalists
 from ..photos import _storage_placeholder

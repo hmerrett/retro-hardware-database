@@ -142,16 +142,16 @@ and re-render; never edit the string and hope.
 
 ## 5. The modules
 
-`api/app/main.py` is the app and its routes. It is large (4,579 lines) and is
-being split a module at a time, leaning on the suite as the safety net. Everything
-below it is a module with one job. `common.py` is deliberately dependency-free so
-the feature modules and `main` can all import downward without a cycle.
+`api/app/main.py` is `create_app()`: the two middlewares, the static mount and
+every router, and nothing else. The routes live in `api/app/routers/`, one module
+to a group, and everything else is a module with one job. `common.py` is
+deliberately dependency-free, so the rest can import downward without a cycle.
 
 <!-- module-inventory: kept in step with api/app/*.py by test_architecture.py -->
 
 | module | what it owns |
 |---|---|
-| `main.py` | the FastAPI app, the middleware, and the routes not yet lifted out |
+| `main.py` | create_app(): the middlewares, the static mount and every router — the wiring, and nothing else |
 | `auth.py` | the login, the logout, and the gate every request passes through |
 | `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion |
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
@@ -160,6 +160,9 @@ the feature modules and `main` can all import downward without a cycle.
 | `routers/files.py` | the files kept beside the register, what each is for, and who may see it |
 | `routers/computers.py` | the pages of a machine |
 | `routers/parts.py` | the pages of a part, including the spec pickers |
+| `routers/api_assets.py` | the JSON API for computers and parts |
+| `routers/api_projects.py` | the JSON API for projects, their jobs and their orders |
+| `routers/health.py` | /healthz: up, and able to reach the database |
 | `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
 | `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
 | `disposal.py` | disposing of a thing and bringing it back, including what was fitted inside it |

@@ -10,6 +10,23 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+
+# --- QR target: one stable /items/<id> URL for either kind ------------------
+
+
+# --- writing the history, and hanging photographs on it ----------------------
+# A note and its photographs go in one gesture, because the entry's message is
+# their caption and writing the caption is the same act as choosing them. The two
+# routes below are the other half: a photograph for an entry that is already
+# written -- the swap the register logged last week, photographed when the lid next
+# came off -- and taking one back off again.
+#
+# Those two are under /items/, not under /computers/ or /parts/, because a history
+# entry belongs to an asset id from the shared register rather than to either
+# table, which is the whole reason log_entry has no foreign key. /items/<id> is
+# already the register-wide address the QR codes print and the JSON log is read
+# from. They are POSTs, so the auth gate has them whatever the prefix.
+
 from ..db import get_db
 from ..history import PHOTO_ENTRY, item_log, log_photos
 from ..models import LogEntry, LogPhoto
