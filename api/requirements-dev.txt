@@ -1,7 +1,0 @@
-# Test and lint tooling, kept out of the runtime image. pytest and ruff are
-# pinned so test results and lint rules don't shift under CI; pip-audit scans the
-# pinned runtime set for known vulnerabilities and is left to float so the scanner
-# stays current.
-pytest==9.1.1
-ruff==0.16.6
-pip-audit
