@@ -8,6 +8,10 @@ For a feature or a bug fix, write a test that **fails before** the change and
 **passes after**, then keep the whole suite green. A bug fix without a regression
 test isn't finished.
 
+Where the test comes from matters as much as its order: a feature's tests are
+derived from the manual entry that describes it, one test to a promise, before
+the code exists to shape them (manual-first).
+
 ## How the suite runs
 
 - **The suite runs on MariaDB, and on nothing else** — the engine production uses
