@@ -38,6 +38,7 @@ from .routers import (
     parts as part_pages,
     projects as project_pages,
     seo,
+    styles,
 )
 from . import auth
 from .routers import stats as stats_routes
@@ -85,15 +86,16 @@ from .search import search_terms  # noqa: F401 -- re-exported for the tests, unu
 # fall back to `default-src`: left out they are simply absent, which reads like a
 # tight policy and is not one.
 #
-# `style-src` keeps `'unsafe-inline'` for the 69 style attributes still in the
-# templates. It is a far smaller hole than the same token on scripts -- it buys an
-# attacker who already has injection the ability to restyle a page, not to run
-# code -- and taking it out is its own piece of work. ADR-0021.
+# `style-src` is now `'self'` as well: the 69 style attributes and the two <style>
+# blocks the token was there for have gone into app.css as classes, and the two
+# whose values were data into the generated stylesheet at /style/data.css
+# (ADR-0022). A test walks the rendered pages for a style attribute rather than
+# trusting this comment.
 CONTENT_SECURITY_POLICY = "; ".join(
     (
         "default-src 'self'",
         "script-src 'self'",
-        "style-src 'self' 'unsafe-inline'",
+        "style-src 'self'",
         "img-src 'self'",
         "font-src 'self'",
         "connect-src 'self'",
@@ -212,6 +214,7 @@ def create_app() -> FastAPI:
     for router in (
         auth.router,
         seo.router,
+        styles.router,
         images.router,
         catalogue.router,
         stats_routes.router,

@@ -53,7 +53,8 @@ diff of the file is the change being asked for.
   holds for the next one — lift cohesive non-route blocks out in small,
   independently-verifiable steps, leaning on the suite, rather than rewriting
   wholesale.
-- Inline CSS/JS has moved out of `base.html` into cacheable static files, and the
-  Content-Security-Policy that unlocked is sent by the app (ADR-0021,
-  security-standards). What is left of that thread is the 69 inline `style`
-  attributes, which keep `'unsafe-inline'` on `style-src` until they go.
+- Inline CSS/JS has moved out of `base.html` into cacheable static files, the
+  Content-Security-Policy that unlocked is sent by the app, and the style
+  attributes that kept `'unsafe-inline'` on `style-src` have gone with it — the
+  policy is `'self'` throughout and the suite holds the markup to it (ADR-0021,
+  ADR-0022, security-standards).

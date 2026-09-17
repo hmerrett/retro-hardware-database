@@ -105,7 +105,7 @@ STYLE_ATTRIBUTE = re.compile(r"""[\s"']style\s*=\s*["']""", re.I)
 EXPECTED = {
     "default-src": ("'self'",),
     "script-src": ("'self'",),
-    "style-src": ("'self'", "'unsafe-inline'"),
+    "style-src": ("'self'",),
     "img-src": ("'self'",),
     "font-src": ("'self'",),
     "connect-src": ("'self'",),
@@ -232,16 +232,16 @@ def test_nothing_is_loaded_from_another_origin(client, a_page_of_everything):
     assert external == [], "the policy allows this origin only: " + "; ".join(external[:8])
 
 
-def test_style_attributes_are_allowed_only_while_the_policy_allows_them(
-    client, a_page_of_everything
-):
-    """The one loosener the policy keeps, tied to the markup that needs it.
-    `'unsafe-inline'` on styles is there for 69 style attributes across the
-    templates; take the token out without taking them out and this fails rather
-    than the pages quietly losing their layout."""
+def test_no_page_carries_a_style_attribute(client, a_page_of_everything):
+    """The policy allows none (ADR-0022), so one written into a template would not
+    be applied -- silent in the browser and easy to miss in review, because the
+    markup looks right and the page merely comes out wrong.
+
+    The token went with the attributes in one change, which is the only order that
+    works: the attributes without the token lose their layout, and the token
+    without the attributes is a hole kept open for nothing."""
     style_src = directives(client.get("/").headers["Content-Security-Policy"])["style-src"]
-    if "'unsafe-inline'" in style_src:
-        pytest.skip("the policy still permits them; ADR-0021 records why")
+    assert "'unsafe-inline'" not in style_src
     attributed = [
         path for path in a_page_of_everything if STYLE_ATTRIBUTE.search(client.get(path).text)
     ]
