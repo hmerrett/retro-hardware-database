@@ -31,10 +31,20 @@ rather than being wondered about later.
   photograph and file volumes are put right before it starts, the database is
   behind a healthcheck the app waits on, and `docker-compose.dev.yml` layers the
   source mount and reload on top (#40). Two parts of that item did not land as
-  written: the multi-stage Dockerfile is item 4's, since it is the lockfile that
+  written: the multi-stage Dockerfile is item 3's, since it is the lockfile that
   makes the layering worth having; and a *production* override is the
   installation's own file, not the project's, which `docker-environments.md` now
   says.
+- **CI runs on fork pull requests.** Turned on with approval required and no
+  write token or secret handed to a fork's run, so a contributor's branch is
+  checked before it is read rather than after it is merged. #25 arriving with four
+  migrations and zero checks is what this was for.
+- **Three accessibility gaps closed.** A skip link as the first stop on every
+  page, `scope` on all 43 heading cells, and a reduced-motion answer in both
+  places it has to be given — the stylesheet, and the one scroll that asks for
+  motion in JavaScript, where the media query cannot reach it.
+  `test_keyboard_and_motion.py` holds all three, because none of them is
+  surfaced by any single change. What did not close is the decision: see item 7.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
   against the dump, every archived photograph and file, and the public pages
@@ -59,11 +69,7 @@ now a decision and a click rather than a piece of work — but until it is made,
 nobody can follow the guide from its second step, and the walk cannot be repeated
 end to end by a stranger.
 
-**2. Turn CI on for fork pull requests.** #25 arrived from a fork with four
-migrations and zero checks. Ten minutes of settings, and it protects everything
-after it.
-
-**3. Implement ADR-0006 — file links.** The only user-visible correctness item
+**2. Implement ADR-0006 — file links.** The only user-visible correctness item
 left in the file store. The half that risked exposing something personal is done:
 a file is published by hand and starts unpublished (ADR-0009 amends ADR-0006's
 default), the listing and the download are both gated, and an unpublished one is
@@ -77,9 +83,9 @@ which is still a substring match recomputed per request.
 - Demote tags to descriptive labels; rewrite the two docstrings that argue for
   name-matching.
 - Lift the `files` routes into `routers/files.py` while in there — a free step of
-  item 5, paid for by work already happening.
+  item 4, paid for by work already happening.
 
-**4. `uv` with a committed `uv.lock`, then `ruff format --check .` in CI.**
+**3. `uv` with a committed `uv.lock`, then `ruff format --check .` in CI.**
 Dependencies first, so everything after it builds from a pinned tree. The
 multi-stage Dockerfile belongs here rather than in an item of its own: the point
 of it is a dependency layer built from the lockfile and cached apart from the
@@ -88,18 +94,18 @@ code, which is this work.
 `ruff format` rewrites most of `main.py`, so it goes *after* the split rather than
 before it — otherwise every router extraction in flight conflicts with it.
 
-**5. Finish splitting `main.py`.** 4,849 lines, 118 routes still in it and 5 out,
-after `common`/`stats`/`photos`/`search` and the first route group (#44). It is why
+**4. Finish splitting `main.py`.** 4,338 lines, 110 routes still in it and 15 out
+across five router modules — `images`, the catalogue, stats, the gallery and the
+crawler's pages — after `common`/`stats`/`photos`/`search` and `auth`. It is why
 #25 collided with #26, so it pays for itself in reduced conflict.
 
 Route groups go in an `api/app/routers/` package, one module per group, included
 by `main`. The remaining groups in the order they are being taken, quietest first:
-`/images`, the catalogue, stats and traffic, the gallery, auth, items, files, then
-the computers, parts and projects pages, then the three `/api` groups. Shared
-helpers a group needs — the templates object and page helpers, the log helpers,
-`get_or_404` — come out into their own modules just before the first group that
-needs them, and `create_app()` is last, because every route still using `@app` has
-to be gone before it can exist.
+items, files, then the computers, parts and projects pages, then the three `/api`
+groups. Shared helpers a group needs — the templates object and page helpers, the
+log helpers, `get_or_404` — come out into their own modules just before the first
+group that needs them, and `create_app()` is last, because every route still using
+`@app` has to be gone before it can exist.
 
 Two things to hold on to while it happens: a test that patches a name on `main`
 has to follow that name when it moves, or the patch quietly stops working; and
@@ -112,7 +118,7 @@ every route in an `APIRouter` module, every non-route helper in a module of its
 own. Under about 500 lines is the sanity check, not the goal. Extract in small,
 independently-verifiable steps, leaning on the suite.
 
-**6. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
+**5. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
 `mapped_column` on the models first, because that is what lets the models be
 type-checked at all.
 
@@ -123,7 +129,7 @@ modules already extracted and ratcheted forward as more come out. Demanding
 strict across a `main.py` of this size would either block the release or produce a
 lot of `Any`.
 
-**7. Content-Security-Policy.** `security-standards` calls it the strongest
+**6. Content-Security-Policy.** `security-standards` calls it the strongest
 single anti-XSS control, and the CSS half is already done. Counted rather than
 guessed at, what stands in the way is larger than "the inline scripts in
 `base.html`": 13 script blocks and 1,526 lines of JavaScript in that file, five
@@ -137,37 +143,26 @@ more templates with a block of their own, 8 inline event handlers and 65 inline
 - send the header from Caddy, **`Content-Security-Policy-Report-Only` first**, so
   a week of real traffic says what it would have broken before anything breaks.
 
-Still independent of items 5 and 6, so it can go earlier — though the plan is to
+Still independent of items 4 and 5, so it can go earlier — though the plan is to
 take it after the split, to keep two people out of the same templates at once.
 
-**8. Close the accessibility gaps, and decide the target.** The contrast and
-touch-size tests in `test_stylesheet.py` exist because each of those things
-shipped broken and a contributor reported one of them (#21). That is care living
-in whoever last looked at it, which is what `security-standards` was written to
-end — so `accessibility-standards` now records what is enforced and what is
-expected, and [ADR-0014](adr/0014-accessibility-is-a-tested-standard.md) proposes
-WCAG 2.2 AA as the target. **The ADR is Proposed and wants a decision**; the
-three gaps below are an afternoon either way.
+**7. Decide the accessibility target.** The gaps are closed and tested; what is
+left is the decision under them.
+[ADR-0014](adr/0014-accessibility-is-a-tested-standard.md) proposes WCAG 2.2 AA
+and **is still Proposed**. It is the difference between a set of habits with a
+few of them tested and a standard something can be measured against, and it has a
+cost attached — AA asks for reflow at 320px and a focus indicator of a stated
+size, neither of which this project has looked at. Accept it, accept it with
+named exceptions, or write down what is held to instead; any of the three ends
+the item, leaving it open does not.
 
-- A skip link in `base.html` — a keyboard user currently tabs the whole header
-  on every page.
-- `scope` on the 43 `<th>` in the templates.
-- A `prefers-reduced-motion` block in `app.css`.
-- Tests for the first two in the suite, in the way `test_stylesheet.py` already
-  tests the stylesheet: these are gaps no single change surfaces, so a habit will
-  not catch them coming back.
-
-Sits beside item 7 rather than after it: both are `base.html` work, and the
-inline JavaScript that blocks the CSP is in the same file as the missing skip
-link.
-
-**9. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
+**8. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
 and MANUAL are detailed, which is exactly why they drift — and the drift is not
 only in the user-facing docs. This pass found `testing-standards`,
 `workflow-and-ci` and `CLAUDE.md` all describing a SQLite test run that no longer
 exists, and a README crediting contributors without ever stating the project's
 licence. So this item covers `.claude/rules/` and `CLAUDE.md` too — including
-`accessibility-standards`, which item 8 will have just changed.
+`accessibility-standards`, which item 7 will have just changed.
 
 The release gate: item 1's walk repeated on a clean host, a backup of that host
 restored into a second stack with `tools/restore.sh` (a release that invites
@@ -236,7 +231,7 @@ what is possible and the device says what is preferred; per
 account, so there is nowhere per-user to put it and no reason to want one. The
 chooser hangs off the print button rather than living on a settings page nobody
 would find, the packet encoding stays in Python where the suite can reach it, and
-the chooser's JavaScript is a static file from the start — item 7 will not accept
+the chooser's JavaScript is a static file from the start — item 6 will not accept
 another inline block.
 
 **The orders still in the post, on the item's page.** The Work panel on a thing now

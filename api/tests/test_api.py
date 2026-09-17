@@ -2260,7 +2260,7 @@ class TestNotesKeepTheirLines:
         aid = part(type="cpu",
                    notes="recapped 2026-08\nsocket cleaned\nstill untested")["asset_id"]
         page = client.get(f"/parts/{aid}").text
-        cell = page[page.index("<th>Notes</th>"):]
+        cell = page[page.index('<th scope="row">Notes</th>'):]
         cell = cell[:cell.index("</td>")]
         assert 'class="lines"' in cell
         assert "recapped 2026-08\nsocket cleaned\nstill untested" in cell
@@ -2269,7 +2269,7 @@ class TestNotesKeepTheirLines:
         aid = computer(manufacturer="Acorn", model="A5000",
                        notes="two lines\nnot one")["asset_id"]
         page = client.get(f"/computers/{aid}").text
-        cell = page[page.index("<th>Notes</th>"):]
+        cell = page[page.index('<th scope="row">Notes</th>'):]
         cell = cell[:cell.index("</td>")]
         assert 'class="lines"' in cell
         assert "two lines\nnot one" in cell
@@ -2282,7 +2282,7 @@ class TestALinkInWhatWasTypedIsALink:
     the text around it is still text."""
 
     def _cell(self, page, th):
-        cell = page[page.index(f"<th>{th}</th>"):]
+        cell = page[page.index(f'<th scope="row">{th}</th>'):]
         return cell[:cell.index("</td>")]
 
     def test_a_url_in_a_parts_notes(self, client, part):
@@ -5260,7 +5260,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         aid = computer()["asset_id"]
         part(type="video", computer_id=aid, specs="Chip: S3 Trio64")
         page = client.get(f"/computers/{aid}").text
-        assert "<th>Specs</th>" not in page
+        assert ">Specs</th>" not in page
 
     def test_each_part_is_one_card(self, client, computer, part):
         """Everything about a part inside one border: the tag and the kind on the
@@ -5294,7 +5294,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         host = part(type="io", name="Multi-IO")["asset_id"]
         part(type="storage", parent_id=host, specs="Interface: IDE")
         page = client.get(f"/parts/{host}").text
-        assert "<th>Specs</th>" not in page
+        assert ">Specs</th>" not in page
         assert '<article class="itemcard">' in page
         assert "<dt>Interface</dt><dd>IDE</dd>" in page
 

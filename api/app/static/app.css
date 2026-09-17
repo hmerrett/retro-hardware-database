@@ -51,6 +51,15 @@
      hangs the whole brand half its own height above the rest of the bar. Centres
      line up the logo, the links and the buttons whatever heights they happen to
      be. */
+  /* Off the page until it has focus, rather than display:none, which would take
+     it out of the tab order and leave the keyboard where it started. It sits
+     above the header once it appears, because that is what it is skipping. */
+  .skip { position: absolute; left: -9999px; top: 0; z-index: 60; }
+  .skip:focus { left: 8px; top: 8px; padding: 8px 12px; background: var(--bg);
+    color: var(--fg); border: 2px solid var(--accent); border-radius: 4px; }
+  /* The jump gives <main> focus, and a focus ring drawn round the whole page
+     says nothing useful. The skip link itself is what the eye should follow. */
+  main:focus { outline: none; }
   header { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
   header a { text-decoration: none; }
   header .brand { font-weight: 600; display: inline-flex; align-items: center; gap: 9px; }
@@ -1049,4 +1058,19 @@
     .fileform input[type=text], .fileform input:not([type]),
     .inline-form input[name=tags],
     .itemcard > .cardrow input { font-size: 16px; }
+  }
+
+  /* Nothing here animates today, which is when this is cheapest to write: it
+     covers the transition somebody adds next, instead of being remembered at the
+     moment it is needed. The one piece of motion that exists is a scrollTo in
+     base.html, and CSS cannot answer for that one -- an explicit behavior passed
+     to scrollTo outranks scroll-behavior, so it reads the preference itself. */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }

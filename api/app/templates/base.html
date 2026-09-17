@@ -70,6 +70,11 @@
 </script>
 </head>
 <body>
+{# The first stop for the Tab key, and out of sight until it has one: without it
+   a keyboard reaches the page itself past the brand, five sections, the search
+   box and two menus, on every page. `tabindex="-1"` on the target is what makes
+   the jump move focus and not only the scroll position. #}
+<a class="skip" href="#main">Skip to content</a>
 {% import "_icons.html" as I %}
 {# Which of the site's sections this page belongs to, so the banner and the
    phone's bar can both say where you are. Prefix rather than exact match, so an
@@ -195,7 +200,7 @@
     this notice away.</p>
 </div>
 {% endif %}
-<main>{% block content %}{% endblock %}</main>
+<main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
 
 <footer class="site">
   <span>Retro Hardware Database</span>
@@ -1833,7 +1838,12 @@
         // Scroll first, then focus: focusing alone scrolls the box into view by
         // the browser's own reckoning, which on a page part-way down lands it
         // hard under the top edge.
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        //
+        // The stylesheet cannot answer for this one: an explicit behavior passed
+        // to scrollTo outranks `scroll-behavior` in CSS, so a reader who asked
+        // for less motion would get the travel anyway. Ask here instead.
+        var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' });
         box.focus();
       });
     }

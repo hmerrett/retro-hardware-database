@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1362 behaviours, from 28 files.*
+*1368 behaviours, from 29 files.*
 
 
 ## Api
@@ -1566,6 +1566,24 @@ Regenerate with:
   The whole gesture, through the app: a photograph uploaded, then asked for by several requests together the way a reloaded page asks for it.
 - two edits in the same second get different urls  
   A photograph's URL carries a stamp so it can be kept for a year and still never be stale: editing it changes the stamp, so the browser asks again.
+
+
+## Keyboard and motion
+
+*test_keyboard_and_motion.py — 6 behaviours*
+
+- the first thing tab reaches skips to the content  
+  A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
+- an item page skips to the content too  
+  The page a printed label opens is the one most often reached cold.
+- the skip link has somewhere to land  
+  A skip link whose target is not an id on the page moves focus nowhere and fails silently, which is the failure this whole invariant is about.
+- every heading cell says which way its table runs  
+  A screen reader announces a cell with the heading it sits under only when the heading says whether it runs across the top or down the side.
+- no movement starts without asking whether motion is wanted  
+  The register's one piece of motion of its own -- Find, scrolling a phone back to the search box -- asks for it in JavaScript, where the CSS cannot reach: a `behavior: 'smooth'` passed to scrollTo outranks `scroll-behavior` in the stylesheet, so the media query alone would leave it moving.
+- the stylesheet answers a request to reduce motion  
+  Nothing in the stylesheet animates today, which is exactly when the block is cheap to add: it covers the transition somebody writes next, rather than being remembered at the moment it is needed.
 
 
 ## Machines

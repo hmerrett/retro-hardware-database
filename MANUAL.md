@@ -149,6 +149,26 @@ across the bottom of the screen, where your thumb already is.
   **models**, **files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
   **traffic** and **log out**.
 
+### Using it from the keyboard
+
+The first thing the Tab key reaches on any page is **Skip to content**. It is out
+of sight until it has focus, then appears at the top left; press Enter and the
+rest of the header — the sections, the search box, the menus — is behind you,
+with the next Tab landing in the page itself. On a long gallery that is one key
+instead of a dozen.
+
+Tables say which of their cells are headings, so a screen reader can announce a
+figure with the heading it sits under. In a table of rows — the files list, the
+orders on a project — the headings run along the top; in an item's table of
+details they run down the left, and "Notes" is read as the heading of the note
+rather than as a cell of its own.
+
+If your system is set to reduce motion — **Reduce Motion** on iOS and macOS,
+**Show animations** turned off on Windows, the equivalent switch on a desktop
+Linux — the register honours it. The only movement it makes of its own accord is
+**Find** on a phone, which scrolls the page back to the top to reach the search
+box; with the setting on it arrives there without the travel.
+
 ### Moving between items
 
 An item page has **prev** and **next** buttons. They walk the list the gallery

@@ -63,8 +63,11 @@ it tests and no more.
 
 ## Consequences
 
-- The gaps above become work, and it is small work — a skip link, a `scope`
-  attribute, a media query. The roadmap item sizes it at an afternoon.
+- The gaps above were small work — a skip link, a `scope` attribute, a media
+  query — and were closed on 2026-09-17, before this record was decided, because
+  they are worth having under either answer. So the decision no longer carries
+  them as a cost: what it buys is that the next three are caught by a standard
+  rather than by somebody noticing.
 - New markup acquires a review question it did not have, and new colour pairs
   acquire a test. This is the cost, and it is the same cost the contrast tests
   already impose on anyone touching the accent.
