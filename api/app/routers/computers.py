@@ -349,6 +349,44 @@ async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
+# --- detaching the board: the moment a description becomes an object ---------
+#
+# A machine the catalogue names is one object, and the board inside it is part of
+# the description of that object: the board issue and the chips in its sockets are
+# answers the machine gives about itself. Lift the board out and put it on a shelf
+# and that stops being true -- it is now a thing that can be photographed, tagged,
+# swapped into another machine and sold on its own, which is the register's whole
+# test for what deserves an asset id. So this verb is the moment of physical
+# separation written down, and nothing here happens speculatively: no machine grows
+# a board object because the catalogue says it has one.
+#
+# What moves is exactly what stops being true of the machine. The board issue and
+# the chips go, because they were always facts about the board. The model key is
+# copied rather than moved -- the machine is still a Spectrum and the board is a
+# Spectrum board -- and the style and the region stay behind, because a case and a
+# market are facts about the assembled machine and a board has neither.
+#
+# One way only. Refitting a board, to this machine or to another, is setting
+# computer_id like any other part: there is no re-absorb that would fold the object
+# back into a description, because the object exists now and pretending otherwise
+# would mean deleting a tagged, photographed thing.
+#
+# Two open questions, left open rather than guessed at:
+#
+#   * The memory tables (computer_ram_module, computer_ram_chip) are keyed to the
+#     computer and stay there. DRAM soldered to the board arguably went with it,
+#     but those rows count chips rather than identify them, they are half of how a
+#     machine's installed RAM is rendered, and a machine that lost its memory
+#     figure by having its board tagged would be a worse record than one whose
+#     memory row is filed a level up. Deciding it needs a look at how a refitted
+#     board should read, which nothing has asked for yet.
+#   * A board detached and then unlinked leaves the machine looking detachable
+#     again, and pressing it a second time would put a second object on the shelf
+#     where there is one piece of hardware. The register cannot tell an empty case
+#     from an unopened one -- both hold no board -- and the person holding the
+#     machine can, so the guard below is the one it can make honestly and the
+#     history says what happened either way.
+
 @router.get("/computers/{aid}/detach-board", response_class=HTMLResponse,
          include_in_schema=False)
 def gui_detach_board_form(aid: str, request: Request,

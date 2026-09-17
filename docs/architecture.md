@@ -160,7 +160,8 @@ the feature modules and `main` can all import downward without a cycle.
 | `routers/files.py` | the files kept beside the register, what each is for, and who may see it |
 | `routers/computers.py` | the pages of a machine |
 | `routers/parts.py` | the pages of a part, including the spec pickers |
-| `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
+| `routers/projects.py` | projects as pages and as JSON: jobs, orders, the things a project is about, and the endpoints over all of it |
+| `routers/rest.py` | the REST API over the register: computers and parts |
 | `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
 | `disposal.py` | disposing of a thing and bringing it back, including what was fitted inside it |
 | `forms.py` | what was typed turned into what a column holds, and what changed |

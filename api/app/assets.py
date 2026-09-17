@@ -112,6 +112,20 @@ def _clear_computer_rows(db, c, with_parts=()):
     return photos
 
 
+# --- deleting a record for good ---------------------------------------------
+# Disposal says an item has left the collection and keeps its record; this is the
+# other thing, for when the record itself should not exist -- a duplicate, a
+# mistake, something scrapped that was never worth a line. Only a disposed item
+# can be deleted through the GUI, so the ordinary way to lose something is still
+# the reversible one.
+#
+# Everything pointing at the asset is cleared before its own row goes, rather
+# than leaving it to the foreign keys. Three reasons: what another item's history
+# should say about losing its link is a judgement no cascade can make; the
+# confirmation page can only promise what this code actually does; and the
+# cascades are MariaDB's, while the tests run on SQLite, where they hold only
+# while a PRAGMA does.
+
 def _clear_part_rows(db, part, also_going=()):
     """Everything in the database belonging to one part, and the links other parts
     hold to it. Returns its photos, for the caller to delete once the transaction

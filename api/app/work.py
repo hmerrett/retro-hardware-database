@@ -185,3 +185,22 @@ def _api_task(db, p, tid):
     if row is None or row.project_id != p.asset_id:
         raise HTTPException(404, f"no task {tid} in {p.asset_id}")
     return row
+
+
+def _work_from_api(db, fields):
+    """`work_needed` / `work_project` off a create body: the jobs, and the project
+    they go on, taken out of the fields on their way past.
+
+    The project is checked here, before the item is written, and a tag that names
+    nothing is a 404. Unlike the form, a caller here typed the tag -- and one that
+    named a project meant that project, so filing the work somewhere else quietly
+    would be a worse answer than being told. Checking first is what keeps the typo
+    from leaving a half-entered machine behind it."""
+    jobs = _work_lines(fields.pop("work_needed", "") or "")
+    picked = (fields.pop("work_project", "") or "").strip().upper()
+    project = None
+    if picked:
+        project = db.get(Project, picked)
+        if project is None:
+            raise HTTPException(404, f"projects {picked} not found")
+    return jobs, project
