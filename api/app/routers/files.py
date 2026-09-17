@@ -8,6 +8,15 @@ and still fetchable at its URL is not private.
 """
 from urllib.parse import quote
 
+
+# --- files kept beside the register -----------------------------------------
+# Drivers, manuals, ROM dumps. Not hung off an asset id: a file is attached to what
+# it is for, which is a model as often as it is a unit -- one driver for the three
+# identical cards on the shelf and the fourth bought next year (ADR-0006,
+# ADR-0020). app/filesdb.py owns the links and the bytes; these are the things a
+# person does with one, of which publishing is its own, since a file is kept back
+# from visitors until somebody says otherwise (ADR-0009).
+
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session

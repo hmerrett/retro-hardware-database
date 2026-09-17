@@ -597,7 +597,7 @@ class TestForm:
                         **{"chip:ula": "Ferranti 6C001E-7",
                            "chip:cpu": "NEC D780C-1"})
         from app import labels
-        from app.main import to_dict
+        from app.common import to_dict
         lines = labels.computer_lines(to_dict(db.get(Computer, aid)), [])
         assert "Machine: ZX Spectrum 48K" in lines
         assert "Board: Issue 3B" in lines
@@ -607,7 +607,7 @@ class TestForm:
     def test_a_label_for_a_machine_outside_the_catalogue_is_unchanged(self, computer,
                                                                      db):
         from app import labels
-        from app.main import to_dict
+        from app.common import to_dict
         c = db.get(Computer, computer(cpu="Intel 486DX2-66")["asset_id"])
         lines = labels.computer_lines(to_dict(c), [])
         assert not [x for x in lines if x.startswith(("Machine:", "Chips:"))]
@@ -908,7 +908,7 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         """A bare board in a box says nothing about itself; the label is the only
         place its revision is written where a person can read it."""
         from app import labels
-        from app.main import to_dict
+        from app.common import to_dict
         aid = self._board(client, mach_model="amiga-500", mach_fields="1",
                           mach_issue="Rev 6A", **{"chip:gary": "5719"})
         lines = labels.part_lines(to_dict(db.get(Part, aid)))

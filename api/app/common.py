@@ -7,6 +7,18 @@ import hashlib
 import os
 from pathlib import Path
 
+
+# Whether a project is one of the private ones, asked as a query rather than as a
+# column filter. This replaced PRIVATE_COLUMNS, which kept two columns of an
+# otherwise public record back from a visitor; a project is private as a whole or
+# not at all, so what is hidden is the row, and hiding a row is done where rows are
+# chosen rather than where their fields are read.
+#
+# Five places, and it is only private with all five shut: the list leaves them out,
+# the project's own page refuses them, the search and the suggestion list drop them,
+# the sitemap does not name them, and the panel on an item's page does not say the
+# item is wanted for one. Miss any one and the other four are decoration.
+
 from sqlalchemy import case, func
 
 from . import entry
