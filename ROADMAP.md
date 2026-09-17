@@ -126,20 +126,45 @@ modules already extracted and ratcheted forward as more come out. Demanding
 strict across a `main.py` of this size would either block the release or produce a
 lot of `Any`.
 
-**2. Walk the install on a clean host, then tag.** The reading half of this item
+**2. Walk the install on a clean host.** The reading half of this item
 is done (#78): every guide and every rule file was read against the tree and
 against the running stack, what had drifted was corrected, and `CHANGELOG.md` is
 started. What is left is the part no reading can stand in for.
 
 The release gate: the install walk repeated on a clean host, a backup of that host
 restored into a second stack with `tools/restore.sh` (a release that invites
-people to self-host should have restored one at least once), whatever that walk
-turns up corrected, then tag `v0.1.0`.
+people to self-host should have restored one at least once), and whatever that
+walk turns up corrected.
+
+**3. A test deployment on k3s.** The last thing before the tag. Compose is the
+only way this has ever been run, and it has only ever been run on the box it was
+written on — so "it installs on your own server" is a claim with one witness, who
+is also the author. Kubernetes is where a second installer is most likely to put
+it, and standing the stack up there is the cheapest way to find what the compose
+file has been quietly providing.
+
+Single-node k3s, and a *test* deployment rather than a supported one: the point is
+to learn what breaks, not to take on a second delivery path before anybody has
+asked for one. What it has to answer:
+
+- `.env` becomes a Secret and a ConfigMap, and the app reads the environment
+  either way — but `${VAR:?message}`, which is what makes a missing password stop
+  the stack rather than default it (docker-environments), has no equivalent there;
+- the three named volumes become PVCs, and `api-init`'s `fix-volumes.sh` becomes
+  an init container, since the app runs as uid 10001 and a fresh PVC does not;
+- `alembic upgrade head` on start is fine for one replica and is a race for two,
+  which is the first thing Kubernetes invites somebody to change;
+- Caddy either stays in the stack as it is, or the TLS and the hostname go to an
+  ingress and the app sits behind it — and that decides whether an installation's
+  `caddy/conf.d` still means anything.
+
+Whether the manifests ship in the repository, and whether this runs anywhere but
+by hand, are both open. **Then tag `v0.1.0`.**
 
 ## After 0.1
 
 0.2 is shaped by what 0.1's installers report; guessing now would be inventing
-requirements. Four items are decided already and waiting on the release:
+requirements. Six items are decided already and waiting on the release:
 
 **Make the repository public**, which is the first thing after the tag rather than
 one of 0.2's. The licence is in place, the guide names the right repository and
@@ -174,10 +199,23 @@ synchronisation. There is one catalogue, it ships with the code and it has one
 history, so duplicates only become possible once local-only entries exist — which
 is a decision to take when somebody has one worth protecting, not before.
 
-**Print a label without the share sheet.** A small label is a PDF today, and
-getting one onto the Niimbot B1 means the phone's share sheet and the vendor app,
-which rescales it on the way. Both ends were proved on the server (2026-09-12)
-rather than argued about:
+**A preferences page.** Printing options to start with — where a label goes — but
+that is the first thing on it rather than the point of it. It is the first place
+in the app where something is recorded because somebody *prefers* it rather than
+because it is true of the collection, and once that place exists a good deal wants
+to live there. It is also the foundation the multi-user work needs: accounts and
+tiered permissions are, underneath, somewhere to keep "this person prefers this"
+and "this person may do that", and building that on a page that already exists is
+a smaller job than inventing both at once.
+
+Fairly high up the list for soon after 0.1, and deliberately before the printing
+work below rather than after it, so the first preference has somewhere to be put
+down instead of being wedged in beside the theme.
+
+**Printing options: Niimbot, remote print servers, and the rest.** A small label
+is a PDF today, and getting one onto the Niimbot B1 means the phone's share sheet
+and the vendor app, which rescales it on the way. Both ends were proved on the
+server (2026-09-12) rather than argued about:
 
 - The B1 speaks a documented Bluetooth LE protocol, and the label `labels.py`
   already renders survives the trip. At 203 dpi the 51×19 strip is 152×408 px,
@@ -201,16 +239,17 @@ injects a single native bridge. A shell is not a second client, which is what
 [ADR-0013](adr/0013-stay-server-rendered-polish-through-design.md) reserves a new
 ADR for.
 
-Where a label goes is then a per-device preference — a PDF, a Bluetooth printer,
-or a named printer on an agent — kept in `localStorage` beside the theme. It is a
-fact about the device and not about the collection: the phone by the shelf wants
-the Niimbot, the workshop machine the Dymo, a visitor the PDF. The server says
-what is possible and the device says what is preferred; per
-[ADR-0011](adr/0011-the-register-is-a-product-other-people-run.md) there is one
-account, so there is nowhere per-user to put it and no reason to want one. The
-chooser hangs off the print button rather than living on a settings page nobody
-would find, the packet encoding stays in Python where the suite can reach it, and
-the chooser's JavaScript is a static file from the start — the content policy
+Where a label goes is then a preference — a PDF, a Bluetooth printer, or a named
+printer on an agent — and it is a fact about the device rather than about the
+collection: the phone by the shelf wants the Niimbot, the workshop machine the
+Dymo, a visitor the PDF. So it belongs on the preferences page above, which is why
+that comes first; `localStorage` beside the theme is where a per-device choice
+still physically lands, but the place to *change* it is a page rather than a
+menu hanging off a button. The server says what is possible and the device says
+what is preferred.
+
+The packet encoding stays in Python where the suite can reach it, and the
+chooser's JavaScript is a static file from the start — the content policy
 (ADR-0021, ADR-0022) will not accept another inline block.
 
 **The orders still in the post, on the item's page.** The Work panel on a thing now
