@@ -40,5 +40,7 @@ MariaDB in production; SQLAlchemy + Alembic. British English.
 
 ## Engine notes
 
-- MariaDB has no `JSONB`; use `JSON`. If a model must also build on SQLite for
-  tests, use `JSON().with_variant(...)` rather than an engine-specific type.
+- MariaDB has no `JSONB`; use `JSON`. There is no second engine to keep a model
+  portable for -- the suite runs on MariaDB alone (ADR-0008, testing-standards) --
+  so an engine-specific type is a decision about the product rather than about the
+  tests.

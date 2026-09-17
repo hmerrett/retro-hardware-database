@@ -325,7 +325,7 @@ regions, chip sockets and the part numbers seen in them — is one YAML file,
 of the file. It needs no programming: copy the model above the one you want, and
 correct the values.
 
-The shipped catalogue is a little over three hundred machines from seventy-odd
+The shipped catalogue is a little over four hundred machines from ninety-odd
 makers in Britain, Europe, America and Japan. If your collection is Eastern Bloc clones, Australian
 or Brazilian machines, or anything else it does not cover, that is the file to
 add them to. A mistake in it stops the API from starting rather than being
@@ -392,7 +392,7 @@ from `docker-compose.yml`; nothing else depends on it.
 The `goaccess` service turns Caddy's access logs into an HTML report every five
 minutes, which the app serves at `/traffic` behind the login. It reads the
 rolled-over logs as well as the live one, so the report covers however much
-history `roll_keep` above is holding on to -- raise it for a longer view, at a
+history `roll_keep` in `caddy/Caddyfile` is holding on to -- raise it for a longer view, at a
 little more disk and a little more work per rebuild. Remove the service from
 `docker-compose.yml` if you would rather not keep access logs at all.
 

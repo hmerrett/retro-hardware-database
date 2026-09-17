@@ -27,7 +27,8 @@ Python + FastAPI, server-rendered Jinja2. British English.
 - Handlers validate input at the boundary and raise `HTTPException` with a useful
   status — **never leak a stack trace or internal detail** to the client.
 - Keep cohesive, non-route logic in its own module rather than in the route
-  handler (see workflow-and-ci on splitting `main.py`).
+  handler. Routes are `APIRouter`s in `api/app/routers/`, a module to a group,
+  with their shared helpers in modules beside them; `main.py` is the wiring.
 - **Logging:** use the stdlib `logging` module with lazy `%s` interpolation
   (`log.info("saved %s", asset_id)`), not f-strings in the log call. Never log
   credentials, cookies or the session token.

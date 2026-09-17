@@ -1995,8 +1995,10 @@ docker compose exec api alembic revision --autogenerate -m "describe change"
 docker compose exec api alembic upgrade head
 ```
 
-The migrations are deliberately MariaDB-specific. The test suite builds its
-tables from the models instead, against a throwaway SQLite database.
+The migrations are deliberately MariaDB-specific, and the test suite builds its
+schema by running them from an empty database rather than from the models — so a
+test run also proves the migrations reach head and match what the models say
+(ADR-0008). There is no SQLite path.
 
 ### Backups
 
@@ -2010,6 +2012,7 @@ whole subject is covered in [INSTALL.md](INSTALL.md#7-back-it-up).
 uv sync --project api --all-groups
 uv run --project api pytest
 uv run --project api ruff check .
+uv run --project api ruff format --check .
 ```
 
 The suite is in two halves: the pure functions where silent data corruption lives

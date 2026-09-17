@@ -88,6 +88,9 @@ feature works, the REST API, and the command-line tools.
 **[DEPLOY.md](DEPLOY.md)** is the runbook for shipping a change to a server you
 have already installed on — the day-to-day of running the thing.
 
+**[CHANGELOG.md](CHANGELOG.md)** is what changed in each release, and what an
+upgrade to it needs doing by hand.
+
 ## How it is built
 
 ```
@@ -126,10 +129,11 @@ DATABASE_URL=mysql+pymysql://root:test@127.0.0.1:3306/rhdb_test \
 MIGRATION_TEST_DATABASE_URL=mysql+pymysql://root:test@127.0.0.1:3306/ \
   uv run --project api pytest
 uv run --project api ruff check .
+uv run --project api ruff format --check .
 ```
 
-Both the tests and the linter run in CI on every push and pull request, against a
-MariaDB service container.
+The tests, the linter and the formatter's own check all run in CI on every push
+and pull request, against a MariaDB service container.
 
 To run the app itself, use the Docker Compose stack above; it brings up MariaDB
 and applies the migrations on start.

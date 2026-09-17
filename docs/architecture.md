@@ -78,7 +78,7 @@ Three kinds of thing live in the register:
        │                         as the login form is.
        │
        ▼
-    route handler ............. in main.py, with a per-request DB session from
+    route handler ............. in routers/, with a per-request DB session from
        │                        db.py's `get_db` dependency
        ▼
     Jinja2 template ........... server-rendered HTML (no frontend framework), or
@@ -268,18 +268,21 @@ breaking one turns CI red rather than merely being wrong.
 
 ## 7. Where the work is
 
-- **`main.py` is being split.** Lift cohesive non-route blocks into their own
-  module, group routes into `APIRouter`s, in small independently verifiable steps.
-  `stats.py`, `search.py`, `photos.py`, `common.py` and `projects.py` came out
-  this way.
+- **The `main.py` split is finished** (#66-#70), so what is left is the habit
+  rather than the job: a cohesive non-route block belongs in its own module and a
+  group of routes in its own router, lifted in small independently verifiable
+  steps. `stats.py`, `search.py`, `photos.py`, `common.py` and `projects.py` came
+  out that way, and `routers/` holds the rest.
 - **The content policy allows `'unsafe-inline'` on styles.** 69 `style`
   attributes across the templates and two small `<style>` blocks, and taking them
   out is its own piece of work. A test in
   `test_content_security_policy.py` ties the token to the markup, so the one
   cannot go without the other (ADR-0021).
-- **Named in the standards as *adopt next*:** `ruff format --check`, `mypy
-  --strict` in CI, `uv` with a committed lockfile, SQLAlchemy 2.0 typed ORM, and
-  per-environment compose overrides with a multi-stage Dockerfile.
+- **Named in the standards as *adopt next*:** `mypy --strict` in CI and the
+  SQLAlchemy 2.0 typed ORM (`Mapped[...]` + `mapped_column`) that has to come
+  first for the models to be checkable at all. The rest of that list has landed:
+  `ruff format --check` in CI (#77), `uv` with a committed lockfile and a
+  multi-stage Dockerfile (#72), and the development compose override (#40).
 
 ## 8. Open questions
 
@@ -316,10 +319,12 @@ Things genuinely undecided, recorded here so they are not rediscovered:
   `/api/items/{aid}/log` and `/api/files`.
 - **There is no user table.** Authentication is one username and password from the
   environment. Fine for one person; a question the moment it is two.
-- **Accessibility** is partly true by accident — contrast and touch targets are
-  tested, public pages have landmarks and alt text — and is not yet a rule anyone
-  is held to. For a product other people run it is an obligation rather than a
-  courtesy, and it is wanted before 0.1.
+- **Accessibility** is a decided standard rather than a courtesy: WCAG 2.2 AA
+  with no exception taken (ADR-0014), narrowed on purpose to the part of it the
+  suite can hold — contrast, touch targets, the skip link, header scopes, reduced
+  motion and reflow at 320px — with `accessibility-standards` saying what is
+  expected of new markup. The register says what it tests and makes no conformance
+  claim.
 
 ## 9. Where decisions are written down
 
