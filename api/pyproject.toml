@@ -13,7 +13,7 @@ description = "A self-hosted catalogue for a retro-computer collection"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi==0.141.1",
-    "uvicorn[standard]==0.52.4",
+    "uvicorn[standard]==0.53.0",
     "SQLAlchemy==2.0.52",
     "PyMySQL==1.2.0",
     "pydantic==2.13.5",
@@ -22,7 +22,7 @@ dependencies = [
     "python-multipart==0.0.32",
     "reportlab==5.0.1",
     "segno==1.6.6",
-    "alembic==1.19.2",
+    "alembic==1.20.0",
     "itsdangerous==2.2.0",
     "httpx==0.28.1",
     "Pillow==12.3.0",
@@ -35,7 +35,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest==9.1.1",
-    "ruff==0.16.6",
+    "ruff==0.16.7",
     "pip-audit",
 ]
 
