@@ -1,3 +1,19 @@
+# Two stages, so the dependency tree is a layer of its own: it is built from the
+# lockfile alone and rebuilt only when the lockfile changes, while the code above
+# it changes several times a day. That is the whole reason for the split, and it
+# is why it arrived with uv rather than before it (backend-standards).
+FROM python:3.12-slim AS deps
+# Pinned, like everything else the build depends on: a floating tag here would
+# make the layer below it reproducible and the tool that built it not.
+COPY --from=ghcr.io/astral-sh/uv:0.12.15 /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+# --frozen: use the lockfile as committed and fail rather than quietly resolving
+# something else. --no-dev leaves pytest and ruff out of the image; the app is not
+# a package, so there is no project to install either.
+RUN uv sync --frozen --no-dev --no-install-project
+
 FROM python:3.12-slim
 WORKDIR /app
 
@@ -8,8 +24,12 @@ RUN groupadd --gid 10001 --system appuser \
     && useradd --uid 10001 --gid 10001 --system --create-home \
        --shell /usr/sbin/nologin appuser
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# The virtual environment, and nothing that built it: no uv, no compiler, no wheel
+# cache. Putting it on PATH is what makes `python`, `uvicorn` and `alembic` the
+# locked ones for entrypoint.sh and for anything run with `docker compose exec`.
+COPY --from=deps /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
 COPY app ./app
 COPY alembic.ini .
 COPY migrations ./migrations

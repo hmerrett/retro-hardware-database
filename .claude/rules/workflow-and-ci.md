@@ -13,12 +13,14 @@ British English. Scaled for a small team / solo maintainer — light, not ceremo
 
 CI (`.github/workflows/ci.yml`) runs on pull requests. The backend job shape is:
 
-1. install dependencies (from the pinned set / lockfile),
-2. `ruff check .` (and *adopt next:* `ruff format --check .`, `mypy app`),
+1. `uv sync --project api --all-groups --frozen` (the lockfile as committed),
+2. `uv run --project api ruff check .` (and *adopt next:* `ruff format --check .`,
+   `mypy app`),
 3. `pytest` against a **real MariaDB service container** — the suite builds its
    schema by running the migrations from empty, so this covers both the migration
    path and the tests (ADR-0008),
-4. `pip-audit` against the pinned runtime dependencies.
+4. `pip-audit` against the runtime half of the lock, exported with `uv export
+   --no-dev` -- the whole transitive tree rather than the names in pyproject.toml.
 
 There is no SQLite run: the suite is MariaDB-only, for fidelity, and the
 migrations are exercised on every run rather than in a step of their own
@@ -31,9 +33,10 @@ diff of the file is the change being asked for.
 
 ## Dependencies
 
-- Pinned/locked (backend-standards). **Dependabot** (`.github/dependabot.yml`)
-  raises weekly grouped update PRs; that plus `pip-audit` is how security
-  advisories get noticed rather than piling up.
+- Locked (backend-standards). **Dependabot** (`.github/dependabot.yml`) raises
+  weekly grouped PRs for the lockfile, the base images and the actions CI runs;
+  that plus `pip-audit` is how security advisories get noticed rather than piling
+  up.
 
 ## Decisions & findings
 
