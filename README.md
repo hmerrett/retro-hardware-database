@@ -120,13 +120,12 @@ container is the simplest:
 docker run -d --name rhdb-test -p 3306:3306 \
   -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=rhdb_test mariadb:11
 
-python3 -m venv .venv-test
-.venv-test/bin/pip install -r api/requirements.txt -r api/requirements-dev.txt
+uv sync --project api --all-groups
 
 DATABASE_URL=mysql+pymysql://root:test@127.0.0.1:3306/rhdb_test \
 MIGRATION_TEST_DATABASE_URL=mysql+pymysql://root:test@127.0.0.1:3306/ \
-  .venv-test/bin/pytest
-.venv-test/bin/ruff check .
+  uv run --project api pytest
+uv run --project api ruff check .
 ```
 
 Both the tests and the linter run in CI on every push and pull request, against a

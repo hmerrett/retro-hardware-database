@@ -1,0 +1,28 @@
+# Weekly, grouped, and three ecosystems rather than one: the lockfile is only half
+# the supply chain. workflow-and-ci says this file exists, which until now it did
+# not -- the rule was written for the intent and the intent never landed.
+version: 2
+updates:
+  # The application's dependencies, from api/uv.lock. Grouped into one pull request
+  # a week: fourteen separate bumps is fourteen CI runs and fourteen reviews of the
+  # same kind of change.
+  - package-ecosystem: uv
+    directory: /api
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+  # The images the build is made of -- python:3.12-slim and the pinned uv.
+  - package-ecosystem: docker
+    directory: /api
+    schedule:
+      interval: weekly
+  # And the actions CI runs, which are code from other people on every push.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

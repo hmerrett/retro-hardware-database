@@ -2007,10 +2007,9 @@ whole subject is covered in [INSTALL.md](INSTALL.md#7-back-it-up).
 ### Tests
 
 ```sh
-python3 -m venv .venv-test
-.venv-test/bin/pip install -r api/requirements.txt -r api/requirements-dev.txt
-.venv-test/bin/pytest
-.venv-test/bin/ruff check .
+uv sync --project api --all-groups
+uv run --project api pytest
+uv run --project api ruff check .
 ```
 
 The suite is in two halves: the pure functions where silent data corruption lives

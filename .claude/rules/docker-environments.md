@@ -44,8 +44,9 @@ Compose V2, Docker Engine. British English.
   script through `docker compose exec` — runs as appuser by default, which is
   what keeps the volumes consistent between `api-init` runs.
 
-## Adopt next
+## The image is built in two stages
 
-A **multi-stage Dockerfile** with deps-before-source layering, alongside the move
-to uv and a lockfile (backend-standards), so the dependency layer is built from the
-lockfile and cached independently of the code.
+The first installs the dependency tree from `uv.lock` alone; the second copies the
+virtual environment out of it and adds the code. So the expensive layer is rebuilt
+when the lockfile changes and not when a template does, and neither uv nor a
+compiler is in the image that faces the internet.

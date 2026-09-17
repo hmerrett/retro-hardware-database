@@ -430,10 +430,9 @@ To run the app outside a container against the database in one, publish the
 database's port in a compose override and point `DATABASE_URL` at it:
 
 ```sh
-cd api
-pip install -r requirements.txt
+uv sync --project api
 DATABASE_URL=mysql+pymysql://retro:<your DB_PASSWORD>@127.0.0.1:3306/retro \
-  uvicorn app.main:app --reload
+  uv run --project api uvicorn app.main:app --reload
 ```
 
 ---
