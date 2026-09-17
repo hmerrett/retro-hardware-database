@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1380 behaviours, from 30 files.*
+*1393 behaviours, from 30 files.*
 
 
 ## Api
@@ -1403,31 +1403,55 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 39 behaviours*
+*test_files.py — 50 behaviours*
 
 
-**Filing under A name**
+**Attaching one**
 
-- a driver reaches every card of that model
-- it crosses from a part to a machine of the same name  
-  "any device of any type": the disk that came with a card is often the disk that came with the machine, and the register does not care which of the two the name was typed on.
-- the model alone is a name too  
-  Somebody filing a driver types what is written on the chip, which is the model without the maker in front of it.
-- a name someone gave it counts
-- an asset id files it to one unit alone  
-  A receipt or a repair photograph is about this one, and its asset id is how that is said without a second mechanism for it.
-- case and spacing are not a different name
-- a name written closed up is the same name  
-  Nobody agrees where the spaces go in SoundBlaster, and neither spelling is the wrong one to have typed.
-- a name covers everything that has it in  
-  One tag for a family: "Creative Labs Sound Blaster" is the driver disk for the AWE32, the 16 and the Pro, because each of them is called that and then some.
-- it reaches the narrower name and not the broader one  
-  One direction only.
-- a tag holding a wildcard is read as the characters it is  
-  % and _ mean something to the LIKE that narrows the search and nothing to anybody typing a name, so the answer is checked again after it.
-- one file can be filed under several
-- an item with no name at all matches nothing  
-  A blank model must not be a name every unnamed thing answers to.
+- a driver attached to a model reaches every card of it  
+  "to a model -- every machine or card of that model".
+- and a card of another model is not offered it  
+  Both halves, because "not offered" is true of a file that reached nothing at all: the driver has to be on the Trident card to say anything about its being off the Tseng one.
+- a card bought next year is offered it too  
+  "the ones on the shelf now and the one bought next year".
+- disposing of two takes nothing away from the third  
+  "disposing of two of them takes nothing away from the third" -- the disposal case the old docstring was right to worry about.
+- a receipt attached to one unit reaches that unit alone  
+  "to one unit -- that machine, that card, by its asset tag".
+- an upload is attached to the model of the page it started on  
+  "Upload a file there and it is attached to the item's model where the item has one".
+- an upload on something with no model is attached to that thing  
+  "and to the item itself where it has not -- a custom build".
+- the panel says which of the two it did  
+  "The panel says which of the two it did." Both ways round, because the sentence is the only thing telling you where an upload has just gone.
+- the other of the two is one click away  
+  "and the other is one click away".
+- one file can be attached to several things  
+  "A file has as many of either as it needs, because one disk often covers a card and the machine it shipped in".
+- detaching takes it off and keeps the file  
+  "detach takes it off again.
+- a file attached to nothing says so  
+  "a file attached to nothing is unfiled, and says so on the /files page".
+- and is filed from that page  
+  "which is where one is found and filed".
+- identifying a machine does not take its files away  
+  "A machine the catalogue names is both, and answers to a file attached either way." The file was attached before the machine was identified.
+- a file on a catalogue model reaches another of it  
+  The other half of "both": attached to the catalogue's model, it reaches a machine identified as that model however its maker and model were typed.
+- the same model written two ways is one model  
+  "Case and spacing make no difference." Nobody agrees where the spaces go in SoundBlaster, and neither spelling is the wrong one to have typed.
+- a model is the whole model and not a piece of it  
+  A model is named or it is not.
+- renaming an item does not move its files  
+  "Renaming an item does not move its files" -- the fault ADR-0006 reports, where an edit silently detached one.
+- correcting a parts model does move it  
+  "But correcting a part's model does" -- and the manual says so plainly rather than leaving it to be discovered.
+- a tag decides nothing  
+  "A tag does not decide where a file appears".
+- deleting an item takes the link and not the bytes  
+  Detaching never deletes, and neither does deleting the thing a file was about: unfiled is a state, not a reason to bin something (ADR-0006).
+- attaching to something that is not there is a 404  
+  Rather than a link to nowhere, which would read as unfiled while looking filed.
 
 **Keeping them**
 
@@ -1441,10 +1465,12 @@ Regenerate with:
 - one over the limit is refused and leaves nothing behind
 - deleting one takes its bytes and its names
 
-**Refiling**
+**Tagging**
 
 - the box is the whole list  
-  A name taken out of it stops matching, which is the only way to correct a file put under the wrong one.
+  What the box shows is what a save means, so a tag taken out of it is gone rather than added to.
+- relabelling moves nothing  
+  The whole demotion in one test: the tags box used to be how a file was re-filed, and now it is how a file is described.
 - a name written twice is kept once
 - the tags are shown back as they were written
 
@@ -1457,8 +1483,8 @@ Regenerate with:
 
 - the api lists them with their names
 - it can be asked for one name
-- asking for a name answers as an item of that name would  
-  Following a tag from a page shows what that page shows: the broader disks a thing of this name would be offered, not only the file whose tag was clicked.
+- asking for a tag answers with what carries it  
+  Equality on the fold, not containment on a name: a tag says what a file is, so following one asks for the manuals rather than for whatever a machine of that name would be offered.
 
 **Who may do what**
 
@@ -1902,7 +1928,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 5 behaviours*
+*test_migrations.py — 7 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -1914,6 +1940,10 @@ Regenerate with:
   0035 keeps what is already there published, and starts everything after it private.
 - the public flag can be downgraded  
   Going back drops the column, which is the state where every file is public again -- honest rather than safe, and the reason the migration says so.
+- what the matcher found survives 0039  
+  0039 stops a file being matched to an item by name and starts it being attached to one, and runs the old matcher once to write down what it found.
+- a file the matcher reached nothing with is left unfiled  
+  Unfiled is a state and not a loss: the bytes are untouched and the files page says so.
 
 
 ## Openapi contract

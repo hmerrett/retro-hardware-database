@@ -446,11 +446,12 @@ class StoredFile(Base):
     """A file kept beside the register: a driver disk, a manual, a ROM dump, the
     utility that came with a card.
 
-    It belongs to no one asset. A driver is a fact about a model, not about the
-    particular card on the shelf, and a collection with three of the same card
-    would otherwise hold the same download three times. So a file is tagged with
-    the names it is for, and every item answering to one of those names shows it
-    -- see filesdb, which owns both the matching and the bytes on disk.
+    It belongs to no one asset, and is not a column on one. What it is for is
+    stated in `file_asset` and `file_model` -- this one unit, or every item of a
+    model -- and stated by hand (ADR-0006, ADR-0020). Until 0039 it was inferred
+    from the file's tags, by containment on the item's name, which is why the
+    argument for that lived in this docstring; it is in ADR-0006 now, kept rather
+    than lost. filesdb still owns the bytes on disk.
 
     `stored` is the name on disk, which is generated: what was uploaded is kept in
     `filename` for the download to be called by, and never used as a path."""
@@ -473,16 +474,64 @@ class StoredFile(Base):
 
 
 class FileTag(Base):
-    """One name a file is for. `fold` is that name normalised for matching (case
-    and spacing are how one name gets typed two ways); `tag` is it as written, for
-    showing back. A file has as many as it needs -- a driver that covers a card and
-    the machine it shipped in is tagged with both."""
+    """One label on a file: `manual`, `driver`, `ROM dump`. `fold` is it normalised
+    (case and spacing are how one word gets typed two ways); `tag` is it as
+    written, for showing back.
+
+    A label since 0039, and not an association: what a file is for is in
+    `file_asset` and `file_model`. A tag that reads like the name of a machine is
+    still only a tag."""
     __tablename__ = "file_tag"
     id = Column(Integer, primary_key=True, autoincrement=True)
     file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"),
                      nullable=False, index=True)
     tag = Column(String(120), nullable=False)
     fold = Column(String(120), nullable=False, index=True)
+
+
+class FileAsset(Base):
+    """A file about one particular unit: a receipt, a photograph of a repair, a
+    ROM read off one board.
+
+    `asset_id` is a plain column and not a foreign key, following ProjectAsset and
+    for its reason: the register is two tables and what this names may be in
+    either. Deleting the item takes the link with it and never the bytes -- a file
+    left with no links is unfiled, which is a state the files page shows rather
+    than a reason to delete anything (ADR-0006)."""
+    __tablename__ = "file_asset"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    asset_id = Column(String(16), nullable=False, index=True)
+    __table_args__ = (UniqueConstraint("file_id", "asset_id",
+                                       name="uq_file_asset_pair"),)
+
+
+class FileModel(Base):
+    """A file about every item of a model: a driver, a manual, a utility disk.
+
+    `kind` says which sort of handle `model_key` is, because the register holds two
+    sorts of thing (ADR-0020). `catalogue` is machines.yaml's stable key, held by a
+    machine the catalogue names or the board out of one; `named` is the maker and
+    the model as somebody wrote them, folded and joined -- `trident|tvga8900` --
+    which is the only handle a part or a PC clone has. An item answers to both
+    where it has both.
+
+    `label` is that model as typed, since a folded key is not something to show
+    anybody: a cache of what to print, never what to match on.
+
+    Matching is equality on `model_key`. Containment is what let a tag of "16"
+    reach half the register, and the key stored is the one made at the time: a
+    change to how `filesdb.fold` folds must not quietly move a file."""
+    __tablename__ = "file_model"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"),
+                     nullable=False, index=True)
+    kind = Column(String(16), nullable=False)
+    model_key = Column(String(160), nullable=False, index=True)
+    label = Column(String(255), nullable=False, default="", server_default="")
+    __table_args__ = (UniqueConstraint("file_id", "kind", "model_key",
+                                       name="uq_file_model_triple"),)
 
 
 class LogEntry(Base):

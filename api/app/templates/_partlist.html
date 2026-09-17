@@ -82,10 +82,14 @@
 
 {# Files. The name is what a file is known by, so it goes where a part's name goes,
    and the size rides on the strip with it -- it is the one thing you want before
-   clicking a download. The names it is filed under are an editable box for whoever
-   can edit, because re-filing is the thing most often wanted here, and plain chips
-   for everyone else. `back` is where the re-file and the delete return to. #}
-{% macro filecards(files, back, authed) %}
+   clicking a download.
+
+   `item` and `models` are this page's point of view: what the card shows about what
+   the file is attached to is "this one" and "every <model>", with the other of the
+   two offered as a button. Left out -- the files list, which has no one item to be
+   looking from -- and the card is the file alone. `back` is where every form on it
+   returns to. #}
+{% macro filecards(files, back, authed, item=none, models=[]) %}
 <div class="itemcards">
   {% for f in files %}
   <article class="itemcard">
@@ -94,20 +98,66 @@
       {% if f.created_at %}<span class="muted">· {{ log_stamp(f.created_at, authed) }}</span>{% endif %}
       {% if authed %}
       <form method="post" action="/files/{{ f.id }}/delete"
-            onsubmit="return confirm('Delete {{ f.filename }}? It goes from every item filed under its names.')">
+            onsubmit="return confirm('Delete {{ f.filename }}? It goes from everything it is attached to.')">
         <input type="hidden" name="next" value="{{ back }}">
         <button class="btn sm danger" type="submit">delete</button></form>
       {% endif %}
     </header>
     <h4><a href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a></h4>
     {% if f.note %}<div class="cardrow"><span>{{ f.note | linked }}</span></div>{% endif %}
+    {# What it is for, from this page's point of view: this one unit, or a model
+       this item is one of. Everything else the file is attached to is on /files --
+       a card on a machine's page listing the other four machines it covers would
+       be answering a question nobody asked here. #}
+    {% if authed and item %}
     <div class="cardrow">
-      <span class="lbl">Filed under</span>
+      <span class="lbl">Attached to</span>
+      {% if item.asset_id in f.assets %}
+      <form method="post" action="/files/{{ f.id }}/detach" class="inline-form">
+        <input type="hidden" name="next" value="{{ back }}">
+        <input type="hidden" name="aid" value="{{ item.asset_id }}">
+        <span class="chip">this one</span>
+        <button class="btn sm" type="submit">detach</button>
+      </form>
+      {% endif %}
+      {% for kind, key, label in models %}
+      {% if (kind, key) in f.model_pairs %}
+      <form method="post" action="/files/{{ f.id }}/detach" class="inline-form">
+        <input type="hidden" name="next" value="{{ back }}">
+        <input type="hidden" name="kind" value="{{ kind }}">
+        <input type="hidden" name="key" value="{{ key }}">
+        <span class="chip">every {{ label }}</span>
+        <button class="btn sm" type="submit">detach</button>
+      </form>
+      {% endif %}
+      {% endfor %}
+      {# The other half of the pair, one click away, which is what makes the
+         default at upload cheap to be wrong about. #}
+      {% if item.asset_id not in f.assets %}
+      <form method="post" action="/files/{{ f.id }}/attach" class="inline-form">
+        <input type="hidden" name="next" value="{{ back }}">
+        <input type="hidden" name="aid" value="{{ item.asset_id }}">
+        <input type="hidden" name="what" value="unit">
+        <button class="btn sm" type="submit">attach to this one</button>
+      </form>
+      {% endif %}
+      {% if models and (models[0][0], models[0][1]) not in f.model_pairs %}
+      <form method="post" action="/files/{{ f.id }}/attach" class="inline-form">
+        <input type="hidden" name="next" value="{{ back }}">
+        <input type="hidden" name="aid" value="{{ item.asset_id }}">
+        <button class="btn sm" type="submit">attach to every {{ models[0][2] }}</button>
+      </form>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div class="cardrow">
+      <span class="lbl">Tags</span>
       {% if authed %}
       <form method="post" action="/files/{{ f.id }}/tags">
         <input type="hidden" name="next" value="{{ back }}">
-        <input name="tags" value="{{ f.tags | join(', ') }}" aria-label="names this file is for">
-        <button class="btn sm" type="submit">re-file</button>
+        <input name="tags" value="{{ f.tags | join(', ') }}"
+               aria-label="what this file is">
+        <button class="btn sm" type="submit">save</button>
       </form>
       {% else %}{% for t in f.tags %}<span class="chip">{{ t }}</span>{% endfor %}{% endif %}
     </div>
