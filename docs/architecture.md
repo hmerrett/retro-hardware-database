@@ -153,6 +153,9 @@ the feature modules and `main` can all import downward without a cycle.
 |---|---|
 | `main.py` | the FastAPI app, the middleware, and the routes not yet lifted out |
 | `auth.py` | the login, the logout, and the gate every request passes through |
+| `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
+| `disposal.py` | disposing of a thing and bringing it back, including what was fitted inside it |
+| `forms.py` | what was typed turned into what a column holds, and what changed |
 | `history.py` | the change log: writing a line, reading them back, and folding a burst into one |
 | `web.py` | the templates object and what a page needs around one: the globals, the share card, the schema.org data |
 | `cards.py` | the share card for a page that is a wall of photographs: the montage of four, its content-addressed cache, the sweep |

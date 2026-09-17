@@ -11,7 +11,7 @@ Interactive API docs live at /docs (OpenAPI).
 """
 import random
 from collections import Counter
-from datetime import date, datetime
+from datetime import date
 from urllib.parse import parse_qs, quote, urlparse
 
 from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
@@ -26,7 +26,7 @@ from . import __version__
 from . import (cards, drivedb, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    BRANDING_DIR, IMAGES_DIR, REGISTER, STATIC_DIR, _visible, folder_images, to_dict)
+    BRANDING_DIR, IMAGES_DIR, STATIC_DIR, _visible, folder_images, to_dict)
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
 from .routers import catalogue, images, seo
@@ -40,6 +40,12 @@ from .web import (  # the templates object and the page helpers around it
     _abs_url, _dot, _jsonld, _og, _safe_next, templates)
 from .ids import next_asset_id
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
+from .disposal import (  # disposing of a thing, and what goes with it
+    _and_parts, _disposal_log, _dispose_contents, _parts_in_computer, _restore_contents)
+from .forms import _coerce, _field_diffs, _parse_date  # what was typed -> what a column holds
+from .register import (  # the register as one thing: a computer and a part in one id space
+    FLAGGABLE, _asset_find, _asset_page, _change_token, _item_nav,
+    _register_order, get_or_404)
 from .history import (  # the change log: writing a line and reading them back
     PHOTO_ENTRY, _history, _now, _short, add_log, item_log, log_photos)
 from .photos import (  # photo/image helpers, lifted out of this module
@@ -194,124 +200,6 @@ app.mount("/static", _static, name="static")
 
 
 
-
-def get_or_404(db, model, aid):
-    obj = db.get(model, (aid or "").upper())
-    if not obj:
-        raise HTTPException(404, f"{model.__tablename__} {aid} not found")
-    return obj
-
-
-
-
-def _disposal_log(obj, with_machine=None):
-    """The history line for a disposal: when, and why if a reason was given."""
-    when = obj.disposed_at.isoformat() if obj.disposed_at else "date unknown"
-    who = f" with {with_machine}" if with_machine else ""
-    return f"marked disposed{who} ({when})" + (f": {obj.disposed_note}"
-                                               if obj.disposed_note else "")
-
-
-def _parts_in_computer(db, aid):
-    """Everything inside a machine: the parts installed in it, and then whatever
-    is mounted on those in turn. A disk on a controller card carries the card's
-    id rather than the machine's, so following computer_id alone would miss it."""
-    found, seen = [], set()
-    ids, first = [aid], True
-    while ids:
-        q = db.query(Part).filter(Part.computer_id == aid) if first \
-            else db.query(Part).filter(Part.parent_id.in_(ids))
-        rows = [p for p in q.order_by(Part.asset_id).all() if p.asset_id not in seen]
-        seen.update(p.asset_id for p in rows)
-        found.extend(rows)
-        ids, first = [p.asset_id for p in rows], False
-    return found
-
-
-def _dispose_contents(db, c):
-    """A machine goes to the tip with what is in it. A part already disposed keeps
-    the record it has -- it did not go with this machine -- and so is left alone,
-    which is also what lets a restore tell the two apart."""
-    n = 0
-    for p in _parts_in_computer(db, c.asset_id):
-        if p.disposed:
-            continue
-        p.disposed, p.disposed_at = True, c.disposed_at
-        p.disposed_note = c.disposed_note
-        add_log(db, p.asset_id, _disposal_log(p, c.asset_id))
-        n += 1
-    return n
-
-
-def _restore_contents(db, c, was_at, was_note):
-    """The other half of the cascade: the parts that went out with this machine --
-    still in it, and still carrying its disposal record -- come back with it."""
-    n = 0
-    for p in _parts_in_computer(db, c.asset_id):
-        if not (p.disposed and p.disposed_at == was_at
-                and (p.disposed_note or "") == (was_note or "")):
-            continue
-        p.disposed, p.disposed_at, p.disposed_note = False, None, ""
-        add_log(db, p.asset_id, f"restored with {c.asset_id}")
-        n += 1
-    return n
-
-
-def _and_parts(n, went="went with it"):
-    """The tail of a machine's history line when the cascade touched anything."""
-    return f"\n{n} part{'' if n == 1 else 's'} in it {went}" if n else ""
-
-
-def _parse_date(raw):
-    """A date from a form field. ISO is what <input type="date"> submits; the
-    day-first form is accepted too because it is what gets typed by hand.
-    Anything else, including blank, means not recorded."""
-    v = (raw or "").strip()
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d/%m/%y"):
-        try:
-            return datetime.strptime(v, fmt).date()
-        except ValueError:
-            pass
-    return None
-
-
-def _coerce(field, raw):
-    """A form string as the column's type: blank means not recorded."""
-    if field in ("year", "topbench"):
-        v = (raw or "").strip()
-        return int(v) if v.isdigit() else None
-    if field in ("acquired_date", "disposed_at",
-                 "started_at", "target_date", "finished_at"):
-        return _parse_date(raw)
-    if field == "disposed":
-        return (raw or "").strip() not in ("", "0", "false")
-    return raw or ""
-
-
-def _field_diffs(old, new, keys, semantic_specs=False):
-    """A one-change-per-line diff of old vs new field values, for the change log.
-    specs is broken down per spec key; re-canonicalising an unchanged specs
-    string produces no diff.
-
-    Nothing is skipped here any more. It used to leave out `project` and
-    `project_note`, so that a plan could not reach an item's public history; a plan
-    is a project of its own now, with a page and a privacy of its own, and there is
-    nothing left on a computer or a part that has to be kept out of its own log."""
-    lines = []
-    for k in keys:
-        ov, nv = old.get(k) or "", new.get(k) or ""
-        if semantic_specs and k == "specs":
-            o, n = dict(entry.parse_specs(ov)), dict(entry.parse_specs(nv))
-            for sk in [x for x in n if x not in o or o[x] != n[x]]:
-                lines.append(f"{sk or 'spec'}: {_short(o.get(sk))} → {_short(n[sk])}")
-            for sk in [x for x in o if x not in n]:
-                lines.append(f"{sk or 'spec'}: {_short(o[sk])} → (removed)")
-        elif ov != nv:
-            lines.append(f"{k}: {_short(ov)} → {_short(nv)}")
-    return "\n".join(lines)
-
-
-# --- JSON API: computers ---------------------------------------------------
 
 def _drives_from_api(db, computer, text):
     """drives over the wire is what a person would type, ';'-separated, and is
@@ -782,26 +670,6 @@ def _do_photo_revert(db, model, kind, aid, form):
     db.commit()
 
 
-def _change_token(db, aid: str) -> str:
-    """What an item's page was built from, as one short string.
-
-    Every change to an asset writes a history entry -- a field edited, a photograph
-    added, rotated, cropped or deleted -- so the highest id in that item's history
-    already answers "has anything happened to this?" without a column being added
-    anywhere. Files are the one thing an item page shows that is not filed against
-    it (a driver belongs to a model, not to the card on the shelf), so the register
-    of files is counted alongside: the newest id, and how many there are, because
-    deleting one that is not the newest leaves the maximum where it was.
-
-    Cheap on purpose. This is asked every few seconds by every open page, and it is
-    two indexed aggregates over columns that are already there.
-    """
-    logged = db.query(func.max(LogEntry.id)).filter(LogEntry.asset_id == aid).scalar()
-    newest = db.query(func.max(StoredFile.id)).scalar()
-    count = db.query(func.count(StoredFile.id)).scalar()
-    return f"{logged or 0}.{newest or 0}.{count or 0}"
-
-
 @app.get("/items/{aid}/version", include_in_schema=False)
 def gui_item_version(aid: str, db: Session = Depends(get_db)):
     """The token above, for a page to compare against the one it was built with.
@@ -826,41 +694,6 @@ def gui_item(aid: str, db: Session = Depends(get_db)):
     through /items/<id> like everything else's, and a route that could not find it
     would be a page whose note bar posted into nowhere."""
     return RedirectResponse(_asset_page(db, aid.upper()), status_code=307)
-
-
-def _register_order(db):
-    """Every asset in register order, as (asset_id, kind, display name).
-
-    Two small column queries: no photos are looked at, because this is only wanted
-    for the prev/next buttons on an item page. It is the fallback order -- arrive
-    from the gallery and the browser hands over the order it was actually showing,
-    filtered and sorted as you left it (see base.html)."""
-    rows = []
-    for kind, cls in (("computers", Computer), ("parts", Part)):
-        for aid, name, maker, model in db.query(cls.asset_id, cls.name,
-                                                cls.manufacturer, cls.model):
-            rows.append((aid, kind, entry.display_name(
-                {"asset_id": aid, "name": name, "manufacturer": maker,
-                 "model": model})))
-    rows.sort()
-    return rows
-
-
-def _item_nav(db, aid):
-    """{prev, next} for an item page: the assets either side of this one."""
-    order = _register_order(db)
-    here = next((n for n, row in enumerate(order) if row[0] == aid), None)
-    if here is None:
-        return {}
-
-    def at(n):
-        if not 0 <= n < len(order):
-            return None
-        a, kind, name = order[n]
-        return {"url": f"/{kind}/{a}", "name": name, "aid": a}
-
-    return {"prev": at(here - 1), "next": at(here + 1)}
-
 
 
 def _part_placeholder(db, part):
@@ -1645,47 +1478,6 @@ def _note_with_photos(db, aid, form):
     _attach_log_photos(db, row, uploads)
     db.commit()
 
-
-
-# The two of them that can be put on the list of things wanting work. A project is
-# in the register and answers at /items/<id> like the others, but it cannot be
-# flagged as one: it is already what the flag points at, and `Project` has no such
-# column -- so a route handed one would set an attribute on the instance, commit
-# nothing, and redirect as though it had worked.
-FLAGGABLE = REGISTER[:2]
-
-
-def _asset_find(db, aid, kinds=REGISTER):
-    """One thing from the shared register and the page it lives on, whichever kind
-    it turns out to be -- or None for no such asset.
-
-    What a route serving more than one kind actually wants: the log routes below
-    only needed the address, but a route that changes something needs the row as
-    well, and looking it up twice is how the two come to be about different items.
-
-    `kinds` narrows which tables are searched, for the callers that can only act on
-    some of them."""
-    aid = (aid or "").strip().upper()
-    for kind, cls in kinds:
-        obj = db.get(cls, aid)
-        if obj is not None:
-            return obj, f"/{kind}/{aid}"
-    return None
-
-
-def _asset_or_404(db, aid, kinds=REGISTER):
-    """The same, for the callers that have nothing to say about a miss. Which is
-    most of them: an id in a URL that is not an asset is a broken link, while an id
-    typed into a box is a typo, and only the second has anywhere useful to go."""
-    found = _asset_find(db, aid, kinds)
-    if found is None:
-        raise HTTPException(404, f"no asset {(aid or '').strip().upper()}")
-    return found
-
-
-def _asset_page(db, aid):
-    """Where a register id's page is, for a route that serves any of the kinds."""
-    return _asset_or_404(db, aid)[1]
 
 
 def _log_entry_or_404(db, aid, log_id):
