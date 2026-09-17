@@ -67,8 +67,8 @@ published are exactly the rows that were already public on it.
 
 ## Consequences
 
-- The open decision in `security-standards` is closed, and the flag half of
-  roadmap item 3 is done. The links half — `file_asset`, `file_model`, demoting
+- The open decision in `security-standards` is closed, and the flag half of the
+  roadmap's file-links item is done. The links half — `file_asset`, `file_model`, demoting
   tags — is untouched and still wanted: this gates on a column, but *which* files
   an item offers is still a substring match recomputed per request, and ADR-0006
   is right that a gate is only as trustworthy as the association under it.
