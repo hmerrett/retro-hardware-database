@@ -16,6 +16,15 @@ services:
     ports: !override
       - "127.0.0.1:18080:18080"
 
+  # The base file publishes the app on 127.0.0.1:8000, which an installation on
+  # this box is already holding -- so the throwaway stack could only come up while
+  # the real one was down, and the check that is meant to cost nothing cost an
+  # outage. It answers on its own port instead; the crawl reaches it through Caddy
+  # either way.
+  api:
+    ports: !override
+      - "127.0.0.1:18000:8000"
+
   # Neither is wanted for this, and the traffic report is a five-minute loop over
   # every log it can find, which on a stack that lives for two minutes is pure heat.
   goaccess:
