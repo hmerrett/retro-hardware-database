@@ -35,6 +35,12 @@ rather than being wondered about later.
   makes the layering worth having; and a *production* override is the
   installation's own file, not the project's, which `docker-environments.md` now
   says.
+- **Three accessibility gaps closed.** A skip link as the first stop on every
+  page, `scope` on all 43 heading cells, and a reduced-motion answer in both
+  places it has to be given — the stylesheet, and the one scroll that asks for
+  motion in JavaScript, where the media query cannot reach it.
+  `test_keyboard_and_motion.py` holds all three, because none of them is
+  surfaced by any single change. What did not close is the decision: see item 8.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
   against the dump, every archived photograph and file, and the public pages
@@ -140,26 +146,15 @@ more templates with a block of their own, 8 inline event handlers and 65 inline
 Still independent of items 5 and 6, so it can go earlier — though the plan is to
 take it after the split, to keep two people out of the same templates at once.
 
-**8. Close the accessibility gaps, and decide the target.** The contrast and
-touch-size tests in `test_stylesheet.py` exist because each of those things
-shipped broken and a contributor reported one of them (#21). That is care living
-in whoever last looked at it, which is what `security-standards` was written to
-end — so `accessibility-standards` now records what is enforced and what is
-expected, and [ADR-0014](adr/0014-accessibility-is-a-tested-standard.md) proposes
-WCAG 2.2 AA as the target. **The ADR is Proposed and wants a decision**; the
-three gaps below are an afternoon either way.
-
-- A skip link in `base.html` — a keyboard user currently tabs the whole header
-  on every page.
-- `scope` on the 43 `<th>` in the templates.
-- A `prefers-reduced-motion` block in `app.css`.
-- Tests for the first two in the suite, in the way `test_stylesheet.py` already
-  tests the stylesheet: these are gaps no single change surfaces, so a habit will
-  not catch them coming back.
-
-Sits beside item 7 rather than after it: both are `base.html` work, and the
-inline JavaScript that blocks the CSP is in the same file as the missing skip
-link.
+**8. Decide the accessibility target.** The gaps are closed and tested; what is
+left is the decision under them.
+[ADR-0014](adr/0014-accessibility-is-a-tested-standard.md) proposes WCAG 2.2 AA
+and **is still Proposed**. It is the difference between a set of habits with a
+few of them tested and a standard something can be measured against, and it has a
+cost attached — AA asks for reflow at 320px and a focus indicator of a stated
+size, neither of which this project has looked at. Accept it, accept it with
+named exceptions, or write down what is held to instead; any of the three ends
+the item, leaving it open does not.
 
 **9. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
 and MANUAL are detailed, which is exactly why they drift — and the drift is not

@@ -32,6 +32,21 @@ contrast a button has against its own fill.
   control through a class outranks the bare `input`, so it has to be restated
   there.
 
+`api/tests/test_keyboard_and_motion.py` holds the three that no rendered page
+surfaces on its own, and reads the markup and the stylesheet the same way.
+
+- **The first thing the Tab key reaches is the skip link**, on every page, with
+  `<main id="main" tabindex="-1">` to land on. The test opens four pages and an
+  item page and asserts what the first focusable element is, because a skip link
+  that is second is a skip link nobody uses.
+- **Every `<th>` carries `scope`.** All 43 do. The item pages read down the side
+  and the lists across the top, so neither direction can be assumed.
+- **No motion starts without reading the preference.** The stylesheet answers
+  `prefers-reduced-motion` for anything that animates later, and the one scroll
+  that asks for motion in JavaScript reads `matchMedia` itself — an explicit
+  `behavior` passed to `scrollTo` outranks `scroll-behavior`, so the media query
+  alone would leave it moving.
+
 ## Expected of new markup
 
 - **Every control has a name.** A visible `<label>` where there is room for one;
@@ -47,19 +62,12 @@ contrast a button has against its own fill.
   is a real combobox — `aria-expanded`, `aria-selected`, `aria-activedescendant`
   — rather than a `div` that happens to respond to arrow keys.
 - **A table's header cells take `scope`.** `scope="col"` on a column head,
-  `scope="row"` on a row's first cell.
+  `scope="row"` on a row's first cell. The suite checks every template, so a new
+  table without it fails rather than waiting to be noticed.
 - **Keyboard before mouse.** Anything reachable by clicking is reachable by
   tabbing, in an order that matches the page. A tick that submits on change (the
   `data-ticksend` forms) still has its button in the markup for a browser running
   no script, and that button is what a keyboard user without JavaScript presses.
-
-## Known gaps
-
-Recorded here rather than left to be rediscovered. See the roadmap item.
-
-- **No skip link.** A keyboard user tabs the whole header on every page.
-- **`scope` is on none of the 43 `<th>`** in the templates.
-- **No `prefers-reduced-motion` block**, so animation is not reducible.
 
 ## The open question
 

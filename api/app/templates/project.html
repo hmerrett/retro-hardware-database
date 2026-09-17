@@ -41,12 +41,12 @@
 
   {% call PN.panel('Details') %}
   <table class="kv">
-    <tr><th>Status</th><td>{{ status_label(p.status) }}</td></tr>
+    <tr><th scope="row">Status</th><td>{{ status_label(p.status) }}</td></tr>
     {% for k, v in [('Started', p.started_at), ('Wanted by', p.target_date),
                     ('Finished', p.finished_at)] %}
-      {% if v %}<tr><th>{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
+      {% if v %}<tr><th scope="row">{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
     {% endfor %}
-    {% if p.notes %}<tr><th>Notes</th><td class="lines">{{ p.notes | linked }}</td></tr>{% endif %}
+    {% if p.notes %}<tr><th scope="row">Notes</th><td class="lines">{{ p.notes | linked }}</td></tr>{% endif %}
   </table>
   {% endcall %}
 
@@ -154,12 +154,12 @@
     <div class="hscroll">
     <table class="ordertable">
       <tr>
-        <th>What</th><th class="tight">From</th><th class="tight">Ordered</th>
+        <th scope="col">What</th><th scope="col" class="tight">From</th><th scope="col" class="tight">Ordered</th>
         {# One column for two dates, because they are the same fact at two moments:
            when it is due, and -- once it is here -- when it came. A row can only
            ever be in one of those states, so a second column would be a permanently
            empty one. #}
-        <th class="tight">Due / in</th>{% if request.state.authed %}<th class="tight">Cost</th>{% endif %}<th class="tight"></th>{% if request.state.authed %}<th></th>{% endif %}
+        <th scope="col" class="tight">Due / in</th>{% if request.state.authed %}<th scope="col" class="tight">Cost</th>{% endif %}<th scope="col" class="tight"></th>{% if request.state.authed %}<th scope="col"></th>{% endif %}
       </tr>
       {% for o in orders %}
       <tr class="{{ 'done' if o.delivered else '' }}">

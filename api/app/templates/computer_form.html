@@ -66,7 +66,7 @@
   <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove it.</p>
   <div class="hscroll">
   <table class="drives">
-    <tr><th>How many</th><th>Kind</th><th>Form factor</th><th>Size</th><th>Media</th><th>Speed</th><th>Make / model</th><th>Bezel — shade, and yellowing</th></tr>
+    <tr><th scope="col">How many</th><th scope="col">Kind</th><th scope="col">Form factor</th><th scope="col">Size</th><th scope="col">Media</th><th scope="col">Speed</th><th scope="col">Make / model</th><th scope="col">Bezel — shade, and yellowing</th></tr>
     {% for d in drives %}
     <tr>
       <td><input type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"></td>
