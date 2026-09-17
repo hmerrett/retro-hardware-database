@@ -850,8 +850,11 @@ class TestDrives:
         for label in ("Black", "Grey", "White", "Beige", "Lightly yellowed"):
             assert f'<option value="{label}">' in page
         # The chart draws each level on three shades, from the same function the
-        # menus' live swatch reads.
-        assert page.count("linear-gradient(115deg") >= 3
+        # menus' live swatch reads. The mixing shows up in the generated stylesheet
+        # now rather than in the markup, because the policy allows no style
+        # attribute -- so the page carries the classes and the sheet the colours.
+        assert page.count('class="swatch bz-') >= 3
+        assert client.get("/style/data.css").text.count("linear-gradient(115deg") >= 3
         # The drive rows do not fit a phone; squeezed to fit, the row showed two
         # characters of a model and none of the bezel.
         assert re.search(r'<div class="hscroll">\s*<table class="drives">', page)
@@ -1827,7 +1830,9 @@ class TestTheMakerLeagueTable:
         page = client.get("/stats").text
         # 5 of 6 is 83%, and 83% of a 100 ceiling is 83% of the track. Against the
         # best row instead it would have been the full width.
-        assert 'style="width: 50.0%"' in page and 'style="width: 83.0%"' in page
+        # A length is a class naming a rule in the generated stylesheet, in
+        # half-percent steps: 500 is 50.0% of the track and 830 is 83.0%.
+        assert 'class="fill w-500"' in page and 'class="fill w-830"' in page
 
 
 class TestAPickerOpensOnNothing:
@@ -2533,8 +2538,10 @@ class TestAStoragePartsBezel:
             type="storage", specs="Kind: Hard disk | Colour: Beige | Yellowing: Heavily yellowed"
         )["asset_id"]
         page = client.get(f"/parts/{aid}").text
+        cls = entry.bezel_class("Beige", "Heavily yellowed")
+        assert page.count(f'class="swatch {cls}"') == 2
         css = entry.bezel_css("Beige", "Heavily yellowed")
-        assert page.count(f'style="background:{css}"') == 2
+        assert f".{cls} {{ background: {css}; }}" in client.get("/style/data.css").text
 
     def test_a_drive_with_no_bezel_recorded_shows_no_swatch(self, client, part):
         aid = part(type="storage", specs="Kind: Hard disk")["asset_id"]
@@ -2985,8 +2992,8 @@ class TestADisplayPart:
         from app import entry
 
         aid = part(type="display", specs="Colour: Beige | Yellowing: Yellowed")["asset_id"]
-        css = entry.bezel_css("Beige", "Yellowed")
-        assert client.get(f"/parts/{aid}").text.count(f'style="background:{css}"') == 2
+        cls = entry.bezel_class("Beige", "Yellowed")
+        assert client.get(f"/parts/{aid}").text.count(f'class="swatch {cls}"') == 2
 
     def test_a_screen_with_no_photograph_gets_a_monitor(self, client, part):
         """Rather than the box every unrecognised type falls back to."""
@@ -4465,8 +4472,8 @@ class TestTheNumbersPage:
             part(type="video", manufacturer="Tseng", model=f"ET400{i}")
         part(type="sound", manufacturer="Creative", model="CT2830")
         page = client.get("/stats").text
-        assert "width: 100.0%" in page
-        assert "width: 25.0%" in page
+        assert 'class="fill w-1000"' in page
+        assert 'class="fill w-250"' in page
 
     def test_memory_totals_come_from_the_typed_column(self, client, computer):
         aid = computer()["asset_id"]

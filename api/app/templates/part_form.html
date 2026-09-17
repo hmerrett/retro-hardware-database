@@ -117,7 +117,7 @@ Photos, source, acquired date and notes are not carried over.</p>
     <label for="model">Model</label>
     <input id="model" name="model" list="dl_models" autocomplete="off"
            value="{{ (p.model if p else '') or '' }}">
-    <p class="hint" id="samemake" style="display:none"></p>
+    <p class="hint is-hidden" id="samemake"></p>
     <label for="name">Name <span class="muted">(optional; defaults to maker + model)</span></label>
     <input id="name" name="name" value="{{ (p.name if p else '') or '' }}">
     <label for="year">Year</label>
@@ -345,7 +345,7 @@ Photos, source, acquired date and notes are not carried over.</p>
     <label for="url">Reference URL</label>
     <input id="url" name="url" value="{{ (p.url if p else '') or '' }}">
     <label for="summary">Summary</label>
-    <textarea id="summary" name="summary" style="min-height:90px">{{ (p.summary if p else '') or '' }}</textarea>
+    <textarea class="box-90" id="summary" name="summary">{{ (p.summary if p else '') or '' }}</textarea>
     <p class="hint">the description shown at the top of the page</p>
     <label for="notes">Notes</label>
     <textarea id="notes" name="notes">{{ (p.notes if p else '') or '' }}</textarea>
@@ -366,7 +366,7 @@ Photos, source, acquired date and notes are not carried over.</p>
      echoed the jobs back would add every one of them a second time on the next save.
   #}
     <label for="work_needed">Work needed</label>
-    <textarea id="work_needed" name="work_needed" style="min-height:70px"
+    <textarea class="box-70" id="work_needed" name="work_needed"
               placeholder="recap · new belt · keyboard sticks — one job to a line"></textarea>
     <label for="work_project">…as part of</label>
     <select id="work_project" name="work_project">

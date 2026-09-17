@@ -27,7 +27,7 @@
 {% if item_tasks or project_tasks or on_project or request.state.authed %}
 {% call PN.panel('Work', (done_n ~ '/' ~ item_tasks|length) if item_tasks else '') %}
   {% if on_project %}
-  <p class="muted" style="margin:0 0 8px">Part of <a class="chip st-{{ on_project.status }}"
+  <p class="muted stack-8">Part of <a class="chip st-{{ on_project.status }}"
      href="/projects/{{ on_project.asset_id }}">{{ on_project.name or on_project.asset_id }}</a></p>
   {% endif %}
   {% if item_tasks %}
@@ -35,7 +35,7 @@
     {% for t in item_tasks %}
     <tr class="{{ 'done' if t.done else '' }}">
       {% if request.state.authed %}
-      <td class="tight"><form method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" style="margin:0">
+      <td class="tight"><form class="flush" method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle">
         <input type="hidden" name="next" value="{{ request.url.path }}">
         <button class="btn sm" type="submit" title="{{ 'Put it back on the list' if t.done else 'Tick it off' }}">{{ '✓' if t.done else '○' }}</button>
       </form></td>
@@ -48,19 +48,19 @@
     {% endfor %}
   </table>
   {% elif not project_tasks %}
-  <p class="muted" style="margin:0">Nothing noted against this one.</p>
+  <p class="muted flush">Nothing noted against this one.</p>
   {% endif %}
   {% if project_tasks %}
   {# The project's jobs that name no one thing. Under their own heading and not
      mixed in with this thing's own, because the two are different claims: one is
      work said about this machine, the other is work about the piece it is part of.
      Run together they would attribute to a machine something nobody said about it. #}
-  <p class="hint" style="margin:10px 0 4px">On the project as a whole</p>
+  <p class="hint subhead-loose">On the project as a whole</p>
   <table>
     {% for t in project_tasks %}
     <tr class="{{ 'done' if t.done else '' }}">
       {% if request.state.authed %}
-      <td class="tight"><form method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" style="margin:0">
+      <td class="tight"><form class="flush" method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle">
         <input type="hidden" name="next" value="{{ request.url.path }}">
         <button class="btn sm" type="submit" title="{{ 'Put it back on the list' if t.done else 'Tick it off' }}">{{ '✓' if t.done else '○' }}</button>
       </form></td>

@@ -32,8 +32,11 @@
       <tr title="{{ label }}: {{ n }}{{ ' ' ~ unit if unit }}">
         <td class="lbl">{% if f %}<a href="/browse?f={{ f }}&v={{ value | urlencode }}"
           >{{ label }}</a>{% else %}{{ label }}{% endif %}</td>
-        <td class="bar"><div class="track"><div class="fill"
-            style="width: {{ (100 * n / top) | round(1) }}%"></div></div></td>
+        {# The bar's length is a class rather than a width, because the policy
+           allows no style attribute: /style/data.css holds one rule per half
+           percent, and this rounds to the nearest of them. #}
+        <td class="bar"><div class="track"><div
+            class="fill w-{{ (((1000 * n / top) / 5) | round | int) * 5 }}"></div></div></td>
         <td class="num">{{ n }}{{ suffix }}</td>
       </tr>
       {% endfor %}
@@ -81,9 +84,9 @@
    by being a job rather than a fact.
 
    Same quiet links throughout: every figure leads to the things it counted. #}
-<div class="flex" style="margin-top:26px">
-  <h2 style="margin:0;font-size:17px">Eight things about it</h2>
-  <span class="muted" style="font-size:13px">{{ st.facts | length }} of
+<div class="flex mt-26">
+  <h2 class="stat-h">Eight things about it</h2>
+  <span class="muted stat-sub">{{ st.facts | length }} of
     {{ st.n_facts }}, drawn fresh each time you look —
     <a href="/stats">shuffle</a></span>
 </div>

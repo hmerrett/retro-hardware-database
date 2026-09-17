@@ -203,6 +203,14 @@ def _file_ver(path: Path) -> str:
     cache keyed on it -- the browser's favicon cache is famously sticky, and a
     watermark already composited into a served photo is stickier still."""
     try:
-        return hashlib.md5(path.read_bytes()).hexdigest()[:8]
+        return _text_ver(path.read_bytes())
     except OSError:
         return "0"
+
+
+def _text_ver(content) -> str:
+    """The same stamp for something built rather than read from disk -- the
+    generated stylesheet, which has no file to hash."""
+    if isinstance(content, str):
+        content = content.encode()
+    return hashlib.md5(content).hexdigest()[:8]

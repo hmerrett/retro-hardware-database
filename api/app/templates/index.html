@@ -4,7 +4,7 @@
 {# Doubles as /browse: same grid, a subset of the rows, and a line saying which
    subset. Without a heading it is the whole gallery. #}
 <div class="flex">
-  <h2 style="margin:0">{{ heading | default('Inventory') }}</h2>
+  <h2 class="flush">{{ heading | default('Inventory') }}</h2>
   <span class="muted">{{ n_computers }} computers · {{ n_parts }} parts</span>
   {# How many of them the filters are letting through, said as a fraction so it
      reconciles with the pair of figures beside it. On its own it did not: the
@@ -16,7 +16,7 @@
   <span class="count" id="count"></span>
 </div>
 {% if note %}
-<p class="hint" style="margin:5px 0 0">{{ note }}{% if crumb %} —
+<p class="hint tuck">{{ note }}{% if crumb %} —
   <a href="{{ crumb[0] }}">{{ crumb[1] }}</a>{% endif %} ·
   <a href="/stats">back to the figures</a></p>
 {% endif %}
@@ -96,7 +96,7 @@
   </a>
   {% endfor %}
 </div>
-<p id="empty" class="muted" style="display:none">No matching items.</p>
+<p id="empty" class="muted is-hidden">No matching items.</p>
 
 <script type="application/json" id="index-data">{{ {'sortCookie': sort_cookie, 'query': q | default('', true)} | tojson }}</script>
 <script defer src="/static/index.js?v={{ js_ver['index.js'] }}"></script>

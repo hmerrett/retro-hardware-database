@@ -22,6 +22,7 @@ from markupsafe import Markup
 
 from . import entry, filesdb, labels, projects
 from .common import PUBLIC_BASE_URL, STATIC_DIR, _file_ver, branded
+from .datacss import DATA_CSS_VER
 from .photos import _image_size, img_srcset, img_url
 
 
@@ -30,6 +31,7 @@ templates.env.globals.update(
     display_name=entry.display_name,
     type_label=entry.type_label,
     bezel_css=entry.bezel_css,
+    bezel_class=entry.bezel_class,
     # For the pages that list parts rather than show one: a part's rendered specs
     # broken back into pairs so they can be laid out as labelled columns. The item's
     # own page reads the typed tables instead (specdb.pairs) -- this is the same
@@ -61,6 +63,9 @@ SITE_CARD = ("/static/og-image.png", 1200, 630)
 
 templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
 templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
+# The generated stylesheet has no file to hash, so its stamp comes from the text
+# itself -- built at import, like the rules in it (datacss).
+templates.env.globals["data_css_ver"] = DATA_CSS_VER
 # One stamp per script, read once at import the way the stylesheet's is. The
 # scripts are served with a year's cache (see _CachedStatic), so the stamp in the
 # URL is what makes a change to one of them arrive at all.
