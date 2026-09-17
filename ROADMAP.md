@@ -38,7 +38,7 @@ rather than being wondered about later.
   photograph and file volumes are put right before it starts, the database is
   behind a healthcheck the app waits on, and `docker-compose.dev.yml` layers the
   source mount and reload on top (#40). Two parts of that item did not land as
-  written: the multi-stage Dockerfile is item 1's, since it is the lockfile that
+  written: the multi-stage Dockerfile went with the lockfile, since it is the lockfile that
   makes the layering worth having; and a *production* override is the
   installation's own file, not the project's, which `docker-environments.md` now
   says.
@@ -51,7 +51,8 @@ rather than being wondered about later.
   places it has to be given — the stylesheet, and the one scroll that asks for
   motion in JavaScript, where the media query cannot reach it.
   `test_keyboard_and_motion.py` holds all three, because none of them is
-  surfaced by any single change. What did not close is the decision: see item 7.
+  surfaced by any single change. The decision under them closed a week later,
+  with ADR-0014 accepted.
 - **The accessibility target is decided.** WCAG 2.2 AA, with no exception taken
   ([ADR-0014](adr/0014-accessibility-is-a-tested-standard.md), accepted
   2026-09-17), and narrowed on purpose to the part of it the suite can hold: the
@@ -60,6 +61,16 @@ rather than being wondered about later.
   was already broken, the files list pushing a phone 683px sideways with the box
   you re-file a file in off the edge. Fixed, and `test_reflow.py` now asks the
   question of every list page rather than of that one table.
+- **The dependency tree is locked, and the image is built from it.**
+  `api/pyproject.toml` names the fourteen; `api/uv.lock` pins the sixty-six behind
+  them; CI and the Dockerfile both install with `uv sync --frozen`, so a build
+  gets what was reviewed and not what resolved that morning. The Dockerfile is two
+  stages, which is what the lockfile made worth having: the dependency layer is
+  rebuilt when the lock changes and not when a template does, and neither uv nor a
+  compiler ships in the image facing the internet. `pip-audit` now reads the whole
+  transitive tree rather than the direct names. `requirements.txt` is gone, and
+  `.github/dependabot.yml` exists at last — `workflow-and-ci` had been describing
+  it for months.
 - **A file says what it is for.** `file_asset` and `file_model` replace the
   substring match that decided it: a link to one unit, or to a model — the
   catalogue's key where the catalogue knows the machine, the maker and model as
@@ -71,7 +82,7 @@ rather than being wondered about later.
   five cards because "Creative Labs Sound Blaster" is inside all five names —
   preserved rather than quietly corrected, and now visible on one page (#65). The
   `files` routes came out into `routers/files.py` with it, and the history helpers
-  into `history.py` ahead of them, which is the first of item 2 paid for by work
+  into `history.py` ahead of them, which is the first of item 1 paid for by work
   already happening.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
@@ -81,16 +92,7 @@ rather than being wondered about later.
 
 ## The work, in order
 
-**1. `uv` with a committed `uv.lock`, then `ruff format --check .` in CI.**
-Dependencies first, so everything after it builds from a pinned tree. The
-multi-stage Dockerfile belongs here rather than in an item of its own: the point
-of it is a dependency layer built from the lockfile and cached apart from the
-code, which is this work.
-
-`ruff format` rewrites most of `main.py`, so it goes *after* the split rather than
-before it — otherwise every router extraction in flight conflicts with it.
-
-**2. Finish splitting `main.py`.** 4,044 lines, 103 routes still in it and 27 out
+**1. Finish splitting `main.py`.** 4,044 lines, 103 routes still in it and 27 out
 across six router modules — `images`, the catalogue, stats, the gallery, the
 crawler's pages and now the files — after `common`/`stats`/`photos`/`search`,
 `auth` and `history`. It is why #25 collided with #26, so it pays for itself in
@@ -114,6 +116,11 @@ done when `main.py` holds only app construction, middleware and start-up wiring 
 every route in an `APIRouter` module, every non-route helper in a module of its
 own. Under about 500 lines is the sanity check, not the goal. Extract in small,
 independently-verifiable steps, leaning on the suite.
+
+**2. `ruff format --check .` in CI.** All that is left of the dependency item, and
+it waits here rather than there because `ruff format` rewrites most of `main.py`:
+run before the split is finished, every router extraction in flight conflicts with
+it. Run after, it is one commit and an argument nobody has to have again.
 
 **3. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
 `mapped_column` on the models first, because that is what lets the models be
@@ -140,7 +147,7 @@ more templates with a block of their own, 8 inline event handlers and 65 inline
 - send the header from Caddy, **`Content-Security-Policy-Report-Only` first**, so
   a week of real traffic says what it would have broken before anything breaks.
 
-Still independent of items 2 and 3, so it can go earlier — though the plan is to
+Still independent of items 1 and 3, so it can go earlier — though the plan is to
 take it after the split, to keep two people out of the same templates at once.
 
 **5. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
@@ -230,7 +237,7 @@ what is possible and the device says what is preferred; per
 account, so there is nowhere per-user to put it and no reason to want one. The
 chooser hangs off the print button rather than living on a settings page nobody
 would find, the packet encoding stays in Python where the suite can reach it, and
-the chooser's JavaScript is a static file from the start — item 6 will not accept
+the chooser's JavaScript is a static file from the start — item 4 will not accept
 another inline block.
 
 **The orders still in the post, on the item's page.** The Work panel on a thing now
