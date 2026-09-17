@@ -184,3 +184,21 @@ def _file_ver(path: Path) -> str:
         return hashlib.md5(path.read_bytes()).hexdigest()[:8]
     except OSError:
         return "0"
+
+
+def _register_order(db):
+    """Every asset in register order, as (asset_id, kind, display name).
+
+    Two small column queries: no photos are looked at. It is the prev/next buttons'
+    fallback order -- arrive from the gallery and the browser hands over the order it
+    was actually showing, filtered and sorted as you left it (see base.html) -- and
+    it is what the files page offers as the ids a file can be attached to."""
+    rows = []
+    for kind, cls in (("computers", Computer), ("parts", Part)):
+        for aid, name, maker, model in db.query(cls.asset_id, cls.name,
+                                                cls.manufacturer, cls.model):
+            rows.append((aid, kind, entry.display_name(
+                {"asset_id": aid, "name": name, "manufacturer": maker,
+                 "model": model})))
+    rows.sort()
+    return rows

@@ -160,11 +160,13 @@ the feature modules and `main` can all import downward without a cycle.
 | `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
 | `routers/catalogue.py` | the catalogue as a page and as JSON: /machines and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
+| `routers/files.py` | the files beside the register: the download, the upload, attaching and detaching one, the list and its JSON |
 | `models.py` | the ORM tables and their relationships |
 | `db.py` | the engine and the per-request session — the only place either is made |
 | `schemas.py` | the request and response shapes for `/api/*` |
 | `ids.py` | allocating an asset id, unique across the whole register |
-| `common.py` | the "still held" filter, small query helpers, the image folder, collection constants |
+| `common.py` | the "still held" filter, small query helpers, the image folder, collection constants, the register in order |
+| `history.py` | the dated entries written against an asset: writing one, reading a page of them with their photographs, folding a run of the same action into one line |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
 | `machinedb.py` | mapping an asset's catalogue identity between its rows and plain values |

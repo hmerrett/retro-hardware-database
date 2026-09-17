@@ -10,15 +10,13 @@ Two surfaces over the same MariaDB:
 Interactive API docs live at /docs (OpenAPI).
 """
 import random
-import re
 from collections import Counter
-from datetime import UTC, date, datetime, timedelta
-from types import SimpleNamespace
-from urllib.parse import parse_qs, quote, urlparse
+from datetime import date, datetime
+from urllib.parse import parse_qs, urlparse
 
 from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
                      UploadFile)
-from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, RedirectResponse,
+from fastapi.responses import (HTMLResponse, JSONResponse, RedirectResponse,
                                Response)
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func, text
@@ -28,10 +26,13 @@ from . import __version__
 from . import (cards, drivedb, entry, filesdb, labels, machinedb, machines,
                projects, ramdb, specdb, specstruct)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    BRANDING_DIR, IMAGES_DIR, REGISTER, STATIC_DIR, _visible, folder_images, to_dict)
+    BRANDING_DIR, IMAGES_DIR, REGISTER, STATIC_DIR, _register_order, _visible,
+    folder_images, to_dict)
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
-from .routers import catalogue, images, seo
+from .history import (PHOTO_ENTRY, _history, _now, add_log, get_or_404, item_log,
+                      log_photos)
+from .routers import catalogue, files as file_routes, images, seo
 from . import auth
 from .routers import gallery
 from .routers import stats as stats_routes
@@ -195,150 +196,6 @@ app.mount("/static", _static, name="static")
 
 
 
-def get_or_404(db, model, aid):
-    obj = db.get(model, (aid or "").upper())
-    if not obj:
-        raise HTTPException(404, f"{model.__tablename__} {aid} not found")
-    return obj
-
-
-
-
-def _now():
-    """Naive UTC, matching the column and every row already in it. utcnow() is
-    deprecated, and an aware value here would be inconsistent with the history
-    written before this."""
-    return datetime.now(UTC).replace(tzinfo=None)
-
-
-# An entry whose content is the photographs on it rather than any words. A kind of
-# its own rather than a note that happens to be blank, so that everything which asks
-# what an entry is gets an answer: the page draws it its own chip, the fold leaves it
-# alone, and add_log knows where the rule about empty messages stops.
-PHOTO_ENTRY = "photo"
-
-
-def add_log(db, asset_id, message, kind="change"):
-    """Record a dated history entry for an asset, and hand the row back for
-    anything that wants to hang photographs on it. The caller commits.
-
-    An empty message writes nothing and returns None: there is no such thing as an
-    entry that does not say anything. Except a photograph entry, which says it
-    without words -- a picture of the board with the capacitor missing is a thing
-    said about the board, and it used to need a sentence typed beside it before the
-    register would keep it.
-    """
-    if not message and kind != PHOTO_ENTRY:
-        return None
-    db.add(row := LogEntry(asset_id=asset_id, created_at=_now(),
-                           kind=kind, message=message))
-    return row
-
-
-def item_log(db, asset_id):
-    return (db.query(LogEntry).filter(LogEntry.asset_id == asset_id)
-            .order_by(LogEntry.created_at.desc(), LogEntry.id.desc()).all())
-
-
-# How far apart two of the same thing can be and still be one sitting. Long enough
-# to cover picking the next photo out of a folder, short enough that coming back to
-# the same machine after tea is a separate line.
-FOLD_WINDOW = timedelta(minutes=5)
-
-# "deleted a photo" ten times over is "deleted 10 photos", which is the sentence a
-# person would have written. Where a message does not name a single thing that way,
-# the count is appended instead rather than guessed at.
-_ONE_OF = re.compile(r"\ba (photo|file)\b")
-
-
-def _folded_message(message, n):
-    if n < 2:
-        return message
-    plural, hit = _ONE_OF.subn(lambda m: f"{n} {m.group(1)}s", message, count=1)
-    return plural if hit else f"{message} ×{n}"
-
-
-def log_photos(db, log_ids):
-    """{log entry id: [photo path]} for a page's worth of entries, in one query and
-    in the order they were attached."""
-    if not log_ids:
-        return {}
-    out = {}
-    for log_id, rel in (db.query(LogPhoto.log_id, LogPhoto.rel)
-                        .filter(LogPhoto.log_id.in_(log_ids))
-                        .order_by(LogPhoto.id)):
-        out.setdefault(log_id, []).append(rel)
-    return out
-
-
-def _fold_log(entries, photos=None):
-    """The history as a page shows it, with a run of the same thing done over and
-    over collapsed into one line.
-
-    Clearing out a folder of photographs writes "deleted a photo" once per
-    photograph, and twenty of those push the history the machine actually has --
-    what it was fitted with, what was corrected -- off the bottom of the page. They
-    are one action to the person who did them, so they read as one line.
-
-    Only entries next to each other, saying exactly the same thing, and within
-    FOLD_WINDOW of the one before: a chain, so a long tidying session is still one
-    line, while the same thing done again next week is its own. A note is never
-    folded -- it is a person's own words about the machine, and it stands as
-    written, however like the last one it reads.
-
-    The record itself is untouched: the rows stay one per action, and the API's log
-    still lists them. This is how the page reads them out.
-
-    An entry carrying photographs is never folded either, into or out of. Folding
-    rewrites several entries as one sentence, and the photographs would then either
-    be lost with the entries that are no longer shown or be gathered under a line
-    that is not the one they were taken for. `photos` is what log_photos read, so
-    an entry with none behaves exactly as it did before this existed.
-    """
-    photos = photos or {}
-    out = []
-    for e in entries:
-        last = out[-1] if out else None
-        mine = photos.get(e.id) or []
-        if (last is not None and not mine and not last.photos
-                and e.kind != "note" and last.kind == e.kind
-                and last.message == e.message and last.created_at and e.created_at
-                and last.oldest - e.created_at <= FOLD_WINDOW):
-            last.count += 1
-            last.oldest = e.created_at
-            # Every row the one line stands for, so that deleting it removes what it
-            # says it is rather than one twentieth of it.
-            last.ids.append(e.id)
-            continue
-        out.append(SimpleNamespace(id=e.id, created_at=e.created_at, kind=e.kind,
-                                   message=e.message, count=1, photos=mine,
-                                   oldest=e.created_at, ids=[e.id]))
-    # Newest first, so a run's own stamp is the last time it was done; the count in
-    # the message says the rest.
-    for e in out:
-        e.message = _folded_message(e.message, e.count)
-    return out
-
-
-def _history(db, asset_id):
-    """One item's history as its page wants it: folded, with each entry's
-    photographs on it. Two queries whatever the history is long -- the entries, and
-    the photographs of all of them at once."""
-    entries = item_log(db, asset_id)
-    return _fold_log(entries, log_photos(db, [e.id for e in entries]))
-
-
-def log_stamp(created_at, authed):
-    """A history line's date, with the clock time only for whoever is signed in.
-    Editing wants the minute -- it is how you tell apart two corrections to the same
-    photo -- but a visitor is reading about the machine, and the time of day says
-    more about the owner's evenings than about the hardware."""
-    if not created_at:
-        return ""
-    return created_at.strftime("%Y-%m-%d %H:%M" if authed else "%Y-%m-%d")
-
-
-templates.env.globals["log_stamp"] = log_stamp
 
 
 def _short(v, limit=80):
@@ -970,24 +827,6 @@ def gui_item(aid: str, db: Session = Depends(get_db)):
     through /items/<id> like everything else's, and a route that could not find it
     would be a page whose note bar posted into nowhere."""
     return RedirectResponse(_asset_page(db, aid.upper()), status_code=307)
-
-
-def _register_order(db):
-    """Every asset in register order, as (asset_id, kind, display name).
-
-    Two small column queries: no photos are looked at, because this is only wanted
-    for the prev/next buttons on an item page. It is the fallback order -- arrive
-    from the gallery and the browser hands over the order it was actually showing,
-    filtered and sorted as you left it (see base.html)."""
-    rows = []
-    for kind, cls in (("computers", Computer), ("parts", Part)):
-        for aid, name, maker, model in db.query(cls.asset_id, cls.name,
-                                                cls.manufacturer, cls.model):
-            rows.append((aid, kind, entry.display_name(
-                {"asset_id": aid, "name": name, "manufacturer": maker,
-                 "model": model})))
-    rows.sort()
-    return rows
 
 
 def _item_nav(db, aid):
@@ -3058,230 +2897,6 @@ def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
 
 
 # --- files kept beside the register -----------------------------------------
-# Drivers, manuals, ROM dumps. Not hung off an asset id: a file is attached to what
-# it is for, which is a model as often as it is a unit -- one driver for the three
-# identical cards on the shelf and the fourth bought next year (ADR-0006,
-# ADR-0020). app/filesdb.py owns the links and the bytes; these are the things a
-# person does with one, of which publishing is its own, since a file is kept back
-# from visitors until somebody says otherwise (ADR-0009).
-
-
-def _file_or_404(db, fid):
-    row = db.get(StoredFile, fid)
-    if row is None:
-        raise HTTPException(404, f"file {fid} not found")
-    return row
-
-
-@app.get("/files/{fid}/{name}", include_in_schema=False)
-def serve_file(fid: int, name: str, request: Request,
-               db: Session = Depends(get_db)):
-    """Hand over the bytes, always as a download and never as a page.
-
-    An upload is whatever somebody sent, and some of what people send is HTML, or
-    an SVG, which a browser asked to display would run as this site with this
-    site's cookies. So: one content type for everything, an attachment
-    disposition, and nosniff to stop the browser deciding it knows better. `name`
-    is in the URL for the sake of the link reading like the file, and is not what
-    is opened -- the id is.
-
-    An unpublished file is a 404 to a visitor rather than a 401, and the same 404
-    a missing id gets. There is nothing to log in *for* here -- the login is the
-    owner's, not an account a reader could hold -- so an invitation to authenticate
-    would only confirm that the file exists, which for the receipt this flag was
-    added to cover is most of what was being kept back."""
-    row = _file_or_404(db, fid)
-    if not row.public and not request.state.authed:
-        raise HTTPException(404, f"file {fid} not found")
-    path = filesdb.path_of(row)
-    if not path.is_file():
-        raise HTTPException(404)
-    return FileResponse(path, media_type="application/octet-stream", headers={
-        "Content-Disposition": f'attachment; filename="{_ascii_filename(row.filename)}"',
-        "X-Content-Type-Options": "nosniff",
-        # A published file may be kept by anything that sees it; an unpublished one
-        # may not be kept at all. The owner is the only person who can fetch one,
-        # and the point of unticking the box is that the copy stops being handed
-        # out -- which a shared cache holding it for the hour would carry on doing.
-        "Cache-Control": ("public, max-age=3600" if row.public
-                          else "private, no-store")})
-
-
-def _ascii_filename(name):
-    """A filename safe to put in a header: no quotes, no control characters, no
-    non-ASCII (which a header cannot carry). The stored name keeps the original."""
-    cleaned = "".join(ch for ch in (name or "") if ch.isprintable() and ord(ch) < 128)
-    return cleaned.replace('"', "").replace("\\", "").strip() or "download"
-
-
-@app.post("/files", include_in_schema=False)
-async def gui_upload_files(request: Request, uploads: list[UploadFile] = File(...),
-                           db: Session = Depends(get_db)):
-    """Take one or more files, label them with the tags the form carries, and attach
-    them to whatever the upload started on.
-
-    `aid` is that item. A driver found while looking at the card it is for is about
-    the card as a model, so that is what it is attached to; an item with no model to
-    speak of gets the file attached to itself (ADR-0020). Either way the panel says
-    which it did and offers the other."""
-    form = await request.form()
-    tags = filesdb.parse_tags(form.get("tags", ""))
-    note = form.get("note", "")
-    nxt = _safe_next(form.get("next") or "/files")
-    aid = (form.get("aid") or "").strip().upper()
-    saved, errors = 0, []
-    for up in uploads:
-        if not (up.filename or "").strip():
-            continue
-        try:
-            row = filesdb.save(db, up, tags, note)
-            if row is not None:
-                saved += 1
-                _attach_where_it_belongs(db, row.id, aid)
-        except ValueError as exc:
-            errors.append(str(exc))
-    if saved and aid:
-        add_log(db, aid, f"added {saved} file(s)")
-    db.commit()
-    return RedirectResponse(nxt + ("?fileerr=1" if errors else ""), status_code=303)
-
-
-def _item_for_link(db, aid):
-    """The computer or part an asset id names, as the dict filesdb reads. None for
-    a project, or an id that names nothing: a file is about hardware."""
-    aid = (aid or "").strip().upper()
-    if not aid:
-        return None
-    obj = db.get(Computer, aid) or db.get(Part, aid)
-    return to_dict(obj) if obj else None
-
-
-def _attach_where_it_belongs(db, file_id, aid):
-    """What uploading from an item's page means: the model where the item has one,
-    since a driver is a fact about a model, and the item itself where it has none --
-    a custom build, or a card whose model was left blank."""
-    item = _item_for_link(db, aid)
-    if item is None:
-        return
-    models = filesdb.model_ids_for(db, item)
-    if models:
-        kind, key, label = models[0]
-        filesdb.attach_model(db, file_id, kind, key, label)
-    else:
-        filesdb.attach_asset(db, file_id, item["asset_id"])
-
-
-@app.post("/files/{fid}/attach", include_in_schema=False)
-async def gui_file_attach(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Attach a file that is already on file to this item, or to its model.
-
-    `what` picks which: `unit` is that one machine or card, anything else is the
-    model. Asking for a model an item does not have attaches the item instead
-    rather than failing, because the answer to "every one of these" where there is
-    only the one is the one."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    item = _item_for_link(db, form.get("aid"))
-    if item is None:
-        raise HTTPException(404, "nothing here to attach a file to")
-    models = filesdb.model_ids_for(db, item)
-    if (form.get("what") or "model") == "unit" or not models:
-        filesdb.attach_asset(db, row.id, item["asset_id"])
-    else:
-        kind, key, label = models[0]
-        filesdb.attach_model(db, row.id, kind, key, label)
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
-
-
-@app.post("/files/{fid}/detach", include_in_schema=False)
-async def gui_file_detach(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Take a file off a unit or off a model.
-
-    It never deletes anything. A file attached to nothing is unfiled, which the
-    files page says out loud -- the disposal case ADR-0006 was right to worry
-    about is a file quietly going in the bin with the last thing that pointed at
-    it."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    aid = (form.get("aid") or "").strip().upper()
-    kind, key = (form.get("kind") or "").strip(), (form.get("key") or "").strip()
-    if aid:
-        filesdb.detach_asset(db, row.id, aid)
-    if kind and key:
-        filesdb.detach_model(db, row.id, kind, key)
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
-
-
-@app.post("/files/{fid}/tags", include_in_schema=False)
-async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Relabel one: what the box says is the whole list, so a tag taken out of it is
-    gone. A tag is a label now and decides nothing about where the file appears --
-    that is what attach and detach are for."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    filesdb.set_tags(db, row, form.get("tags", ""))
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
-
-
-@app.post("/files/{fid}/public", include_in_schema=False)
-async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Publish one, or take it back.
-
-    The box on the page is the answer, so an absent field is "no": an unticked
-    checkbox sends nothing at all, which is the one form control whose off state
-    has to be read from its silence."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    row.public = bool(form.get("public"))
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
-
-
-@app.post("/files/{fid}/delete", include_in_schema=False)
-async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_db)):
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    filesdb.remove(db, row)
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
-
-
-@app.get("/files", response_class=HTMLResponse, include_in_schema=False)
-def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
-    """Everything on file, for finding the driver whose card is not in front of you,
-    for seeing what a tag is spelled as before typing it again, and for filing the
-    one that is attached to nothing.
-
-    The register's ids ride along for the attach box to offer, owner only: what it
-    is is a list of everything owned, which is not a thing to hand a visitor who
-    cannot attach anything anyway."""
-    return templates.TemplateResponse(request, "files.html", {
-        "files": filesdb.all_files(db, tag, request.state.authed), "tag": tag,
-        "assets": _register_order(db) if request.state.authed else [],
-        "og": _og(request, "Files", "Drivers, manuals and disks kept with the "
-                                    "hardware they belong to")})
-
-
-@app.get("/api/files", tags=["files"])
-def api_list_files(tag: str = "", db: Session = Depends(get_db)):
-    """Files kept beside the register, newest first, each with its tags and what it
-    is attached to: `assets` are the units it is about and `models` the models every
-    item of which it is about. `tag` narrows it to one tag, matched ignoring case
-    and spacing."""
-    return [{"id": f.id, "filename": f.filename, "size": f.size, "note": f.note,
-             "tags": f.tags, "created_at": f.created_at, "public": f.public,
-             "assets": f.assets, "models": [
-                 {"kind": k, "key": key, "label": label} for k, key, label in f.models],
-             "url": f"/files/{f.id}/{quote(f.filename)}"}
-            for f in filesdb.all_files(db, tag)]
-
-
 # --- projects: the work, as against the things it is done to ------------------
 # Everything above this line describes what is owned. A project describes what is
 # intended, and it is the one kind of record here that can be about nothing yet:
@@ -4426,3 +4041,4 @@ app.include_router(images.router)
 app.include_router(catalogue.router)
 app.include_router(stats_routes.router)
 app.include_router(gallery.router)
+app.include_router(file_routes.router)
