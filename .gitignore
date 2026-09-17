@@ -21,6 +21,11 @@ tools/imports/*.TXT
 # Local backups
 backups/
 
+# Worktrees an agent session makes for itself, under a directory the repo does
+# otherwise track: .claude/rules/ is the standards and belongs here, a checkout
+# of the whole tree beside it does not.
+.claude/worktrees/
+
 # Hand-off notes shared with the maintainer directly, kept out of the repo
 /FINDINGS.md
 /HARDENING-NOTES.md
