@@ -60,6 +60,13 @@ rather than being wondered about later.
   was already broken, the files list pushing a phone 683px sideways with the box
   you re-file a file in off the edge. Fixed, and `test_reflow.py` now asks the
   question of every list page rather than of that one table.
+- **`main.py` is split.** It is `create_app()` and nothing else: 136 lines, the two
+  middlewares, the static mount and every router. The routes are in
+  `api/app/routers/`, a module to a group, and the helpers they share are modules
+  beside them — `assets`, `pages`, `work`, `register`, `disposal`, `forms`,
+  `history`, `web`, `auth`. It went in nine steps, each verbatim and each with the
+  suite green, and the finish line the item named (under about 500 lines) is met
+  with room to spare.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
   against the dump, every archived photograph and file, and the public pages
@@ -90,34 +97,11 @@ multi-stage Dockerfile belongs here rather than in an item of its own: the point
 of it is a dependency layer built from the lockfile and cached apart from the
 code, which is this work.
 
-`ruff format` rewrites most of `main.py`, so it goes *after* the split rather than
-before it — otherwise every router extraction in flight conflicts with it.
+`ruff format` was held until the split was finished, so that it would not rewrite
+the very lines the extractions were moving. The split is done, so nothing is
+waiting on it now.
 
-**3. Finish splitting `main.py`.** 4,338 lines, 110 routes still in it and 15 out
-across five router modules — `images`, the catalogue, stats, the gallery and the
-crawler's pages — after `common`/`stats`/`photos`/`search` and `auth`. It is why
-#25 collided with #26, so it pays for itself in reduced conflict.
-
-Route groups go in an `api/app/routers/` package, one module per group, included
-by `main`. The remaining groups in the order they are being taken, quietest first:
-items, files, then the computers, parts and projects pages, then the three `/api`
-groups. Shared helpers a group needs — the templates object and page helpers, the
-log helpers, `get_or_404` — come out into their own modules just before the first
-group that needs them, and `create_app()` is last, because every route still using
-`@app` has to be gone before it can exist.
-
-Two things to hold on to while it happens: a test that patches a name on `main`
-has to follow that name when it moves, or the patch quietly stops working; and
-`/computers/new`, `/parts/new` and `/projects/new` must stay declared before their
-`/{aid}` neighbours.
-
-*This needs a finish line or it will hold the release indefinitely.* Proposed:
-done when `main.py` holds only app construction, middleware and start-up wiring —
-every route in an `APIRouter` module, every non-route helper in a module of its
-own. Under about 500 lines is the sanity check, not the goal. Extract in small,
-independently-verifiable steps, leaning on the suite.
-
-**4. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
+**3. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
 `mapped_column` on the models first, because that is what lets the models be
 type-checked at all.
 
@@ -128,7 +112,7 @@ modules already extracted and ratcheted forward as more come out. Demanding
 strict across a `main.py` of this size would either block the release or produce a
 lot of `Any`.
 
-**5. Content-Security-Policy.** `security-standards` calls it the strongest
+**4. Content-Security-Policy.** `security-standards` calls it the strongest
 single anti-XSS control, and the CSS half is already done. Counted rather than
 guessed at, what stands in the way is larger than "the inline scripts in
 `base.html`": 13 script blocks and 1,526 lines of JavaScript in that file, five
@@ -145,7 +129,7 @@ more templates with a block of their own, 8 inline event handlers and 65 inline
 Still independent of items 3 and 4, so it can go earlier — though the plan is to
 take it after the split, to keep two people out of the same templates at once.
 
-**6. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
+**5. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
 and MANUAL are detailed, which is exactly why they drift — and the drift is not
 only in the user-facing docs. This pass found `testing-standards`,
 `workflow-and-ci` and `CLAUDE.md` all describing a SQLite test run that no longer

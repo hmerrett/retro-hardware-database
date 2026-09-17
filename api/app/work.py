@@ -14,6 +14,9 @@ from .ids import next_asset_id
 from .models import Computer, LogEntry, Part, Project, ProjectAsset, ProjectTask
 
 
+PROJECT_TAGS = ["projects"]
+
+
 def _asset_display(db, asset_id):
     """What a computer or part is called, or None if the register has no such
     thing. The name is a fact about the item and is asked for in two voices -- a

@@ -7,6 +7,30 @@ page is the one place all three are read together.
 import random
 from datetime import date
 
+
+# --- projects: the work, as against the things it is done to ------------------
+# Everything above this line describes what is owned. A project describes what is
+# intended, and it is the one kind of record here that can be about nothing yet:
+# the idea comes months before the hardware, and a plan to build a 486 has to be
+# writable on the evening it is had rather than on the day the board turns up.
+#
+# It is a register asset, which is what makes this section short. A project takes
+# an id from the same allocator, so its history, its notes and the photographs on
+# them are the code the machines already use, unaltered -- _history.html renders
+# here word for word because the note bar posts to /<kind>/<id>/note and this is
+# simply a third kind. app/projects.py owns the vocabulary, the money and the
+# reading of the three child tables; what is here is what a person does with one.
+
+
+# --- what a project is about -------------------------------------------------
+# Membership is written on both sides: the project's history says what it took on
+# and the item's says what it was wanted for. Two entries rather than one because
+# they are read in two different places, and somebody looking at a board wants to
+# know why it is spoken for without having to find the project that spoke for it.
+
+
+# --- the jobs, and the things on order ---------------------------------------
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func
