@@ -1,0 +1,45 @@
+# The application's dependencies, and the lockfile beside this file pins the whole
+# transitive tree rather than the fourteen names below (backend-standards). The
+# repository's tooling configuration -- ruff, pytest -- stays in the pyproject at
+# the root, because it is about the whole repository and not about this package.
+#
+# To change a dependency: edit the list here, run `uv lock`, and let the tests and
+# pip-audit vouch for the result. To install one: `uv sync --all-groups`, which
+# builds .venv from the lock and nothing else.
+[project]
+name = "retro-hardware-database"
+version = "0.1.0"
+description = "A self-hosted catalogue for a retro-computer collection"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
+    "SQLAlchemy==2.0.52",
+    "PyMySQL==1.2.0",
+    "pydantic==2.13.5",
+    "jinja2==3.1.6",
+    "PyYAML==6.0.3",
+    "python-multipart==0.0.32",
+    "reportlab==5.0.1",
+    "segno==1.6.6",
+    "alembic==1.19.2",
+    "itsdangerous==2.2.0",
+    "httpx==0.28.1",
+    "Pillow==12.3.0",
+]
+
+# Test and lint tooling, kept out of the runtime image: `uv sync --no-dev` in the
+# Dockerfile installs the list above and nothing here. pytest and ruff are pinned
+# so test results and lint rules do not shift under CI; pip-audit is left to float
+# so the scanner stays current.
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "ruff==0.16.6",
+    "pip-audit",
+]
+
+# Nothing here is a package to be built and installed -- the app is copied into the
+# image and run from /app. Without this, uv would try to build a wheel of it.
+[tool.uv]
+package = false

@@ -1,0 +1,10 @@
+# The build context is this directory, and the image wants the app, the migrations
+# and the two scripts. Everything else is either the developer's own (a virtual
+# environment, a cache) or belongs to the repository rather than to the running
+# service (the suite, the pinned API shape the suite checks).
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+tests/
+openapi.json

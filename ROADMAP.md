@@ -38,7 +38,7 @@ rather than being wondered about later.
   photograph and file volumes are put right before it starts, the database is
   behind a healthcheck the app waits on, and `docker-compose.dev.yml` layers the
   source mount and reload on top (#40). Two parts of that item did not land as
-  written: the multi-stage Dockerfile is item 2's, since it is the lockfile that
+  written: the multi-stage Dockerfile went with the lockfile, since it is the lockfile that
   makes the layering worth having; and a *production* override is the
   installation's own file, not the project's, which `docker-environments.md` now
   says.
@@ -51,7 +51,8 @@ rather than being wondered about later.
   places it has to be given — the stylesheet, and the one scroll that asks for
   motion in JavaScript, where the media query cannot reach it.
   `test_keyboard_and_motion.py` holds all three, because none of them is
-  surfaced by any single change. What did not close is the decision: see item 7.
+  surfaced by any single change. The decision under them closed a week later,
+  with ADR-0014 accepted.
 - **The accessibility target is decided.** WCAG 2.2 AA, with no exception taken
   ([ADR-0014](adr/0014-accessibility-is-a-tested-standard.md), accepted
   2026-09-17), and narrowed on purpose to the part of it the suite can hold: the
@@ -67,6 +68,26 @@ rather than being wondered about later.
   `history`, `web`, `auth`. It went in nine steps, each verbatim and each with the
   suite green, and the finish line the item named (under about 500 lines) is met
   with room to spare.
+- **A file says what it is for.** `file_asset` and `file_model` replace the
+  substring match that decided what a file applied to: a link to one unit, or to a
+  model — the catalogue's key where the catalogue knows the machine, the maker and
+  model as written where it does not
+  ([ADR-0020](adr/0020-a-model-link-names-a-maker-and-a-model.md), which fills the
+  hole ADR-0006 left for every part and every PC clone). Attached by hand from the
+  item's page or from `/files`, matched exactly, and tags demoted to labels. 0039
+  ran the old matcher once and wrote down what it found, against a copy of the
+  register first: 14 model links, one file left unfiled, and one landing on five
+  cards because "Creative Labs Sound Blaster" is inside all five names — preserved
+  rather than quietly corrected, and now visible on one page (#65).
+- **The dependency tree is locked, and the image is built from it.**
+  `api/pyproject.toml` names the fourteen, `api/uv.lock` pins the sixty-six behind
+  them, and CI and the Dockerfile both install with `uv sync --frozen` — so a build
+  gets what was reviewed and not what resolved that morning. The Dockerfile is two
+  stages, which is what the lockfile made worth having: the dependency layer is
+  rebuilt when the lock changes and not when a template does, and neither uv nor a
+  compiler ships in the image facing the internet. `pip-audit` now reads the whole
+  transitive tree rather than the direct names, and `.github/dependabot.yml` exists
+  at last — `workflow-and-ci` had been describing it for months.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
   against the dump, every archived photograph and file, and the public pages
@@ -75,33 +96,13 @@ rather than being wondered about later.
 
 ## The work, in order
 
-**1. Implement ADR-0006 — file links.** The only user-visible correctness item
-left in the file store. The half that risked exposing something personal is done:
-a file is published by hand and starts unpublished (ADR-0009 amends ADR-0006's
-default), the listing and the download are both gated, and an unpublished one is
-a 404 served `private, no-store`. What remains is the association under that gate,
-which is still a substring match recomputed per request.
+**1. `ruff format --check .` in CI.** All that is left of the dependency item, and
+it waited for the split rather than leading it: `ruff format` rewrites most of what
+it touches, and run earlier every router extraction in flight would have conflicted
+with it. The split is finished, so this is now one commit and an argument nobody
+has to have again.
 
-- `file_asset` and `file_model` join tables; asset ids as plain columns.
-- Backfill by running the existing matcher once and writing what it finds.
-  Test-first: assert the fixture set's associations survive. Read the output
-  before trusting it — it preserves the matcher's mistakes too.
-- Demote tags to descriptive labels; rewrite the two docstrings that argue for
-  name-matching.
-- Lift the `files` routes into `routers/files.py` while in there — a free step of
-  item 3, paid for by work already happening.
-
-**2. `uv` with a committed `uv.lock`, then `ruff format --check .` in CI.**
-Dependencies first, so everything after it builds from a pinned tree. The
-multi-stage Dockerfile belongs here rather than in an item of its own: the point
-of it is a dependency layer built from the lockfile and cached apart from the
-code, which is this work.
-
-`ruff format` was held until the split was finished, so that it would not rewrite
-the very lines the extractions were moving. The split is done, so nothing is
-waiting on it now.
-
-**3. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
+**2. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
 `mapped_column` on the models first, because that is what lets the models be
 type-checked at all.
 
@@ -112,7 +113,7 @@ modules already extracted and ratcheted forward as more come out. Demanding
 strict across a `main.py` of this size would either block the release or produce a
 lot of `Any`.
 
-**4. Content-Security-Policy.** `security-standards` calls it the strongest
+**3. Content-Security-Policy.** `security-standards` calls it the strongest
 single anti-XSS control, and the CSS half is already done. Counted rather than
 guessed at, what stands in the way is larger than "the inline scripts in
 `base.html`": 13 script blocks and 1,526 lines of JavaScript in that file, five
@@ -129,7 +130,7 @@ more templates with a block of their own, 8 inline event handlers and 65 inline
 Still independent of items 3 and 4, so it can go earlier — though the plan is to
 take it after the split, to keep two people out of the same templates at once.
 
-**5. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
+**4. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
 and MANUAL are detailed, which is exactly why they drift — and the drift is not
 only in the user-facing docs. This pass found `testing-standards`,
 `workflow-and-ci` and `CLAUDE.md` all describing a SQLite test run that no longer
@@ -216,7 +217,7 @@ what is possible and the device says what is preferred; per
 account, so there is nowhere per-user to put it and no reason to want one. The
 chooser hangs off the print button rather than living on a settings page nobody
 would find, the packet encoding stays in Python where the suite can reach it, and
-the chooser's JavaScript is a static file from the start — item 6 will not accept
+the chooser's JavaScript is a static file from the start — item 3 will not accept
 another inline block.
 
 **The orders still in the post, on the item's page.** The Work panel on a thing now

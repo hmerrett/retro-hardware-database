@@ -9,12 +9,14 @@ Python + FastAPI, server-rendered Jinja2. British English.
   committing.
   - *Adopt next:* also enforce `ruff format` (drop any hand-formatting debates) —
     add `ruff format --check .` to the pre-commit hook and CI.
-- **Dependencies: pinned to exact versions.** `api/requirements.txt` uses `==`
-  pins, not `>=` floors, so builds are reproducible. Upgrading is deliberate:
-  bump a pin, run the tests and `pip-audit`.
-  - *Adopt next:* move to **uv** with a committed `uv.lock` and `uv sync --frozen`
-    in CI and Docker. This pins the full transitive tree (not just direct deps)
-    and is faster. This is the target dependency workflow.
+- **Dependencies: locked.** `api/pyproject.toml` names them with `==` pins and
+  `api/uv.lock` pins the whole transitive tree behind them; CI and the Dockerfile
+  both install with `uv sync --frozen`, so a build gets what was reviewed rather
+  than what resolves on the day. Upgrading is deliberate: edit the list, `uv lock`,
+  and let the tests and `pip-audit` vouch for it. Dependabot raises a grouped PR
+  weekly.
+  - Locally: `uv sync --project api --all-groups`, then `uv run --project api
+    pytest`. There is no requirements.txt any more.
 - *Adopt next:* **mypy `--strict`** with the pydantic plugin, run in CI
   (`mypy app`). Type the code as you touch it.
 
