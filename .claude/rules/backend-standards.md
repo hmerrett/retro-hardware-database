@@ -5,10 +5,10 @@ Python + FastAPI, server-rendered Jinja2. British English.
 ## Tooling
 
 - **Linting & formatting: ruff** (both). Config lives in `pyproject.toml`
-  (`line-length = 100`, `target-version = "py312"`). Run `ruff check .` before
-  committing.
-  - *Adopt next:* also enforce `ruff format` (drop any hand-formatting debates) —
-    add `ruff format --check .` to the pre-commit hook and CI.
+  (`line-length = 100`, `target-version = "py312"`). Run `ruff check .` and
+  `ruff format .` before committing; CI runs both, the second as
+  `ruff format --check .`, so an unformatted branch fails rather than being
+  argued about in review.
 - **Dependencies: locked.** `api/pyproject.toml` names them with `==` pins and
   `api/uv.lock` pins the whole transitive tree behind them; CI and the Dockerfile
   both install with `uv sync --frozen`, so a build gets what was reviewed rather
