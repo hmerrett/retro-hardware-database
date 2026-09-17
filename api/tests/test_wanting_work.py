@@ -1210,13 +1210,13 @@ class TestWhatAProjectsSharedLinkShows:
 
     def test_an_items_photograph_becomes_the_card(self, client, tmp_path,
                                                   monkeypatch):
-        from app import photos
+        # Patched on the module the route reads it from: the project pages bind
+        # detect_images into their own globals at import, so patching photos -- or
+        # the copy main re-exports -- would leave the real lookup running.
+        from app.routers import projects as project_pages
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = quick(client, "recap", aid=pt)
-        monkeypatch.setattr(photos, "detect_images",
-                            lambda kind, aid: [f"/images/{kind}/{aid}.jpg"])
-        import app.main as m
-        monkeypatch.setattr(m, "detect_images",
+        monkeypatch.setattr(project_pages, "detect_images",
                             lambda kind, aid: [f"/images/{kind}/{aid}.jpg"])
         assert f"/images/parts/{pt}.jpg" in self.og_image(client, f"/projects/{pid}")
 
@@ -1227,8 +1227,8 @@ class TestWhatAProjectsSharedLinkShows:
         b = client.post("/api/parts", json={"model": "B"}).json()["asset_id"]
         pid = quick(client, "recap", aid=a)
         client.post(f"/api/projects/{pid}/items", json={"asset_id": b})
-        import app.main as m
-        monkeypatch.setattr(m, "detect_images", lambda kind, aid: (
+        from app.routers import projects as project_pages
+        monkeypatch.setattr(project_pages, "detect_images", lambda kind, aid: (
             ["/static/placeholders/storage.svg"] if aid == a
             else [f"/images/{kind}/{aid}.jpg"]))
         assert f"/images/parts/{b}.jpg" in self.og_image(client, f"/projects/{pid}")

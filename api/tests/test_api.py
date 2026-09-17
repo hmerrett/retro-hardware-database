@@ -3093,33 +3093,33 @@ class TestPhotoLookup:
         return [(s, f"{s}.jpg") for s in stems]
 
     def test_the_bare_asset_id_is_the_primary(self):
-        from app.main import pick_images
+        from app.photos import pick_images
         got = pick_images("parts", "RH-0001",
                           self.listing("RH-0001-2", "RH-0001"))
         assert got[0] == "parts/RH-0001.jpg"
 
     def test_numbered_extras_sort_numerically_not_as_text(self):
-        from app.main import pick_images
+        from app.photos import pick_images
         got = pick_images("parts", "RH-0001",
                           self.listing("RH-0001-10", "RH-0001-2", "RH-0001"))
         assert got == ["parts/RH-0001.jpg", "parts/RH-0001-2.jpg",
                        "parts/RH-0001-10.jpg"]
 
     def test_a_named_suffix_comes_after_the_numbered_ones(self):
-        from app.main import pick_images
+        from app.photos import pick_images
         got = pick_images("parts", "RH-0001",
                           self.listing("RH-0001-back", "RH-0001-2"))
         assert got == ["parts/RH-0001-2.jpg", "parts/RH-0001-back.jpg"]
 
     def test_another_asset_is_not_picked_up(self):
-        from app.main import pick_images
+        from app.photos import pick_images
         got = pick_images("parts", "RH-0001", self.listing("RH-0002", "RH-00012"))
         assert got == []
 
     def test_an_asset_whose_id_is_a_prefix_of_another(self):
         """RH-0001 must not swallow RH-00019's photo, and the hyphen is what
         separates an id from a suffix."""
-        from app.main import pick_images
+        from app.photos import pick_images
         got = pick_images("parts", "RH-0001",
                           self.listing("RH-0001", "RH-00019", "RH-0001-2"))
         assert got == ["parts/RH-0001.jpg", "parts/RH-0001-2.jpg"]
@@ -4838,7 +4838,7 @@ class TestAPhotographIsNeverHalfWritten:
         # And were one there mid-write, the folder listing would pass over it.
         (IMAGES_DIR / "parts" / f"{aid}.jpg.part").write_bytes(b"not an image")
         try:
-            from app.main import folder_images
+            from app.common import folder_images
             assert not [n for _stem, n in folder_images("parts")
                         if n.endswith(".part")]
             assert client.get(f"/parts/{aid}").status_code == 200
@@ -5674,7 +5674,7 @@ class TestPhotographsOnTheHistory:
         line that is not the one they were taken for."""
         from app.models import LogEntry
         from datetime import datetime
-        from app import main
+        from app import history
         aid = computer()["asset_id"]
         when = datetime(2026, 8, 1, 12, 0)
         for i in range(3):
@@ -5686,7 +5686,7 @@ class TestPhotographsOnTheHistory:
         client.post(f"/items/{aid}/log/{middle.id}/photo",
                     files={"photos": self.image()}, follow_redirects=False)
         db.rollback()
-        lines = [len(e.photos) for e in main._history(db, aid)
+        lines = [len(e.photos) for e in history._history(db, aid)
                  if e.message == "deleted a photo"]
         assert lines == [0, 1, 0]
 

@@ -9,64 +9,54 @@ Two surfaces over the same MariaDB:
 
 Interactive API docs live at /docs (OpenAPI).
 """
-import random
-from collections import Counter
 from datetime import date
-from urllib.parse import parse_qs, quote, urlparse
+from urllib.parse import parse_qs
 
-from fastapi import (Depends, FastAPI, File, HTTPException, Query, Request,
-                     UploadFile)
-from fastapi.responses import (FileResponse, HTMLResponse, JSONResponse, RedirectResponse,
-                               Response)
+from fastapi import (Depends, FastAPI, HTTPException, Request)
+from fastapi.responses import (JSONResponse)
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from . import __version__
-from . import (cards, drivedb, entry, filesdb, labels, machinedb, machines,
-               projects, ramdb, specdb, specstruct)
+from . import (drivedb, entry, machinedb, machines,
+               projects, ramdb, specdb)
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    BRANDING_DIR, IMAGES_DIR, STATIC_DIR, _visible, folder_images, to_dict)
+    BRANDING_DIR, IMAGES_DIR, STATIC_DIR, to_dict)
 from .common import _all_years  # noqa: F401 -- re-exported for the tests, unused here
 from .db import get_db
-from .routers import catalogue, images, seo
+from .assets import delete_computer, delete_part
+from .routers import (catalogue, computers as computer_pages, files as file_pages,
+                      images, items, parts as part_pages,
+                      projects as project_pages, seo)
+from .work import (_api_task, _asset_named, _member_log, _publish_log, _take_on_work,
+                   _task_asset, _work_lines)
 from . import auth
 from .routers import gallery
 from .routers import stats as stats_routes
 from .common import (  # noqa: F401 -- re-exported for the tests, unused here
     RELIABILITY_MIN, _maker_reliability, branded)
-from .photos import img_url  # noqa: F401 -- re-exported for the tests, unused here
-from .web import (  # the templates object and the page helpers around it
-    _abs_url, _dot, _jsonld, _og, _safe_next, templates)
+from .pages import _answers_given  # noqa: F401 -- re-exported for the tests
+from .photos import (  # noqa: F401 -- re-exported for the tests, unused here
+    detect_images, has_original, img_url, pick_images, tuned_photos)
+from .web import templates  # noqa: F401 -- re-exported for the tests, unused here
 from .ids import next_asset_id
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
 from .disposal import (  # disposing of a thing, and what goes with it
-    _and_parts, _disposal_log, _dispose_contents, _parts_in_computer, _restore_contents)
-from .forms import _coerce, _field_diffs, _parse_date  # what was typed -> what a column holds
+    _and_parts, _dispose_contents, _restore_contents)
+from .forms import _field_diffs  # what was typed -> what a column holds
 from .register import (  # the register as one thing: a computer and a part in one id space
-    FLAGGABLE, _asset_find, _asset_page, _change_token, _item_nav,
-    _register_order, get_or_404)
+    get_or_404)
 from .history import (  # the change log: writing a line and reading them back
-    PHOTO_ENTRY, _history, _now, _short, add_log, item_log, log_photos)
+    _short, add_log)
 from .photos import (  # photo/image helpers, lifted out of this module
-    _asset_log_photos, _attach_log_photos, _chosen_photos, _crop_op, _delete_image,
-    _drop_log_photos, _edit_image, _favicon_for_rel, _fetch_reference_photo,
-    _mark_reference, _photo_edit_redirect, _purge_photos,
-    _restore_original, _rotate_op, _save_photo, _set_primary_photo, _tuneup_op,
-    detect_images, has_original, is_reference, pick_images,
-    reference_marks, tuned_photos)
+    _drop_log_photos, _purge_photos)
 from .photos import (  # noqa: F401 -- re-exported for the tests, unused here
     WM_CACHE, WM_SRC, WM_SCALE, WM_MIN_PX, WM_BUILD, _watermarked_file, _wm_forget,
     _is_own_photo, _image_size, _ref_sidecar, _write_atomically, _original_of,
 )
-from .photos import _storage_placeholder  # placeholder routing shared with search
-from .search import (  # search, suggestions and the /browse views, lifted out of this module
-    _projects_matching)
 from .search import search_terms  # noqa: F401 -- re-exported for the tests, unused here
-from .models import (AssetChip, AssetVariant, Computer, ComputerDrive,
-                     ComputerRamChip, ComputerRamModule, LogEntry, LogPhoto,
-                     Part, Project, ProjectAsset, ProjectOrder, ProjectTask,
-                     StorageSpec, StoredFile)
+from .models import (Computer, LogEntry, Part, Project, ProjectOrder, ProjectTask)
 from .schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate,
                       PartIn, PartOut, ProjectIn, ProjectItemIn, ProjectOrderIn,
                       ProjectOrderOut, ProjectOut, ProjectTaskIn, ProjectTaskOut)
@@ -107,18 +97,8 @@ app.include_router(auth.router)
 
 
 
-COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
-PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
 
-# These are rendered from the memory, drive and catalogue child tables, so the form
-# loop must not write them, and the change log need not repeat the derived total.
-DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note",
-                  "variant"}
-COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
 
-# The same for a part: its variant line is rendered from the catalogue rows, so
-# nothing that copies or writes a part's columns wholesale may set it.
-PART_DERIVED_FIELDS = {"variant"}
 
 # Whether a project is one of the private ones, asked as a query rather than as a
 # column filter. This replaced PRIVATE_COLUMNS, which kept two columns of an
@@ -494,35 +474,12 @@ def api_delete_part(aid: str, db: Session = Depends(get_db)):
     return {"deleted": aid, "photos": len(delete_part(db, obj))}
 
 
-@app.get("/api/items/{aid}/log", tags=["log"])
-def api_item_log(aid: str, db: Session = Depends(get_db)):
-    """One asset's history, entry by entry and unfolded -- the record as it was
-    written, not as a page reads it out. `photos` are the paths of anything hung on
-    the entry, to be fetched from /images/ like any other photograph."""
-    entries = item_log(db, aid)
-    photos = log_photos(db, [e.id for e in entries])
-    return [{"created_at": e.created_at.isoformat() if e.created_at else None,
-             "kind": e.kind, "message": e.message,
-             "photos": photos.get(e.id, [])} for e in entries]
 
 
 
 
 
 
-def _attach_photos(db, obj, kind, uploads):
-    """Store photos against an item that has only just been created. Nothing can
-    upload while a create form is still being filled in -- there is no asset id to
-    file a photo under yet -- so they come with the form and are written here."""
-    first = None
-    for up in uploads:
-        rel = _save_photo(kind, obj.asset_id, up)
-        if first is None:
-            first = rel
-    if first and not obj.image:
-        obj.image = first
-    if uploads:
-        add_log(db, obj.asset_id, f"added {len(uploads)} photo(s)")
 
 
 
@@ -546,604 +503,76 @@ def _attach_photos(db, obj, kind, uploads):
 
 
 
-def _clear_part_rows(db, part, also_going=()):
-    """Everything in the database belonging to one part, and the links other parts
-    hold to it. Returns its photos, for the caller to delete once the transaction
-    is safe. `also_going` names assets being deleted in the same breath, which are
-    not told they have lost a link they are about to stop having."""
-    aid = part.asset_id
-    for child in db.query(Part).filter(Part.parent_id == aid).all():
-        if child.asset_id in also_going:
-            continue
-        child.parent_id = None
-        add_log(db, child.asset_id, f"came off {aid}, which was deleted")
-    for model in specdb.SPEC_TABLES:
-        db.query(model).filter(model.part_id == aid).delete(synchronize_session=False)
-    # By hand rather than by cascade, for the reason log_entry is: these are keyed
-    # by an asset id from the shared register, which no one table can own. The
-    # log's own photographs go first, while there are still entries to find them by.
-    photos = _drop_log_photos(db, aid)
-    # A project that was about this part stops being about it. By hand for the same
-    # reason: project_asset.asset_id is a plain register id with no foreign key
-    # behind it, so nothing in the database will clear it. A file attached to this
-    # one unit goes the same way, and the bytes stay: a file left attached to
-    # nothing is unfiled, which the files page says rather than bins (ADR-0006).
-    projects.forget_asset(db, aid)
-    filesdb.forget_asset(db, aid)
-    for model in (AssetChip, AssetVariant, LogEntry):
-        db.query(model).filter(
-            model.asset_id == aid).delete(synchronize_session=False)
-    photos += detect_images("parts", aid)
-    db.delete(part)
-    return photos
-
-
-def _clear_computer_rows(db, c, with_parts=()):
-    """The same for a computer: its drive and memory rows, its history, and either
-    the parts inside it or the link they hold to it. `with_parts` is the parts to
-    delete along with it; the rest are unlinked and kept."""
-    aid = c.asset_id
-    going = {p.asset_id for p in with_parts}
-    photos = []
-    # The same walk disposal uses, so that what a delete calls "in the machine" is
-    # what disposal called it: a disk on a controller card carries the card's id,
-    # not the machine's. A kept part only needs the link it holds to the machine
-    # cleared here -- one held to a part that is going is cleared by that part.
-    for p in _parts_in_computer(db, aid):
-        if p.asset_id in going:
-            photos += _clear_part_rows(db, p, also_going=going)
-        elif p.computer_id == aid:
-            p.computer_id = None
-            add_log(db, p.asset_id, f"came out of {aid}, which was deleted")
-    for model in (ComputerDrive, ComputerRamModule, ComputerRamChip):
-        db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
-    photos += _drop_log_photos(db, aid)
-    projects.forget_asset(db, aid)
-    filesdb.forget_asset(db, aid)
-    for model in (AssetChip, AssetVariant, LogEntry):
-        db.query(model).filter(
-            model.asset_id == aid).delete(synchronize_session=False)
-    photos += detect_images("computers", aid)
-    db.delete(c)
-    return photos
-
-
-def delete_part(db, part):
-    """Delete a part and commit. Returns the photos that went with it."""
-    photos = _clear_part_rows(db, part)
-    db.commit()  # the rows first: if this raises, the photos are still there
-    _purge_photos(photos)
-    return photos
-
-
-def delete_computer(db, c, with_parts=()):
-    photos = _clear_computer_rows(db, c, with_parts)
-    db.commit()
-    _purge_photos(photos)
-    return photos
 
 
 
 
 
 
-def _do_photo_rotate(db, model, kind, aid, form):
-    get_or_404(db, model, aid)
-    _edit_image(kind, aid, form.get("image", ""), _rotate_op(form.get("dir", "cw")))
-    add_log(db, aid, "rotated a photo")
-    db.commit()
 
 
-def _do_photo_crop(db, model, kind, aid, form):
-    get_or_404(db, model, aid)
-    try:
-        x, y, w, h = (float(form.get(k, "")) for k in ("x", "y", "w", "h"))
-    except ValueError as err:
-        raise HTTPException(400, "bad crop box") from err
-    _edit_image(kind, aid, form.get("image", ""), _crop_op(x, y, w, h))
-    add_log(db, aid, "cropped a photo")
-    db.commit()
 
 
-def _do_photo_tuneup(db, model, kind, aid, form):
-    get_or_404(db, model, aid)
-    rel = form.get("image", "")
-    # Pressing it twice is the accident this guards: the file is re-encoded on
-    # every edit, so a second tuneup costs another generation of JPEG for a
-    # picture that has already had the fix. Nothing to do is not an error -- the
-    # photograph is in the state the button asks for -- so it returns quietly
-    # rather than sending back a failure for a button that appears to have worked.
-    if has_original(rel) and rel in detect_images(kind, aid):
-        return
-    _edit_image(kind, aid, rel, _tuneup_op(), revertible=True)
-    add_log(db, aid, "tuned a photo")
-    db.commit()
 
 
-def _do_photo_revert(db, model, kind, aid, form):
-    get_or_404(db, model, aid)
-    rel = form.get("image", "")
-    if rel not in detect_images(kind, aid):
-        raise HTTPException(404, "no such photo for this item")
-    _restore_original(rel)
-    add_log(db, aid, "reverted a tuned photo")
-    db.commit()
 
 
-@app.get("/items/{aid}/version", include_in_schema=False)
-def gui_item_version(aid: str, db: Session = Depends(get_db)):
-    """The token above, for a page to compare against the one it was built with.
 
-    Public, like the page it belongs to: it says that something changed, never what.
-    No 404 for an unknown asset -- a page whose item has been deleted asks this too,
-    and the honest answer is a token that will not match, which sends it to reload
-    and find out properly."""
-    return {"v": _change_token(db, (aid or "").upper())}
+
+
+
+
+
 
 
 # --- QR target: one stable /items/<id> URL for either kind ------------------
 
-@app.get("/items/{aid}", include_in_schema=False)
-def gui_item(aid: str, db: Session = Depends(get_db)):
-    """The URL printed on labels: resolve an asset id to its page, whichever of the
-    three things in the register it turns out to name. Keeps the same /items/<id>
-    scheme the old QR codes used.
-
-    A project is in here despite never being printed on a label, because this is the
-    register-wide address and a project holds a register id. Its history is written
-    through /items/<id> like everything else's, and a route that could not find it
-    would be a page whose note bar posted into nowhere."""
-    return RedirectResponse(_asset_page(db, aid.upper()), status_code=307)
 
 
-def _part_placeholder(db, part):
-    """The stand-in drawing for one part, routed exactly as the gallery routes it.
-
-    One row read rather than the whole table: the gallery wants every storage part's
-    Kind at once and this wants one, and asking the same question two ways is how
-    a card and the page it opens come to disagree about what a thing looks like."""
-    if (part.type or "") != "storage":
-        return entry.placeholder_for(part.type or "other")
-    return _storage_placeholder(specdb.scalars(db, part).get("kind"))
 
 
-def part_thumbs(db, parts):
-    """The picture to put on each part's card in a list of them, by asset id.
-
-    A list of parts said what each one was and never showed it: "PT-0031 · storage /
-    drive, Teac FD-235HF" names a floppy drive without saying whether the one in this
-    machine is beige or grey, full-height or slim, or photographed at all. The
-    picture is the fastest way to know which of four identical-sounding drives you
-    are looking at, and the gallery card for the same part has been carrying it all
-    along.
-
-    The same reading the gallery makes of the same parts -- one folder scan and one
-    query for every storage part's Kind, rather than either per row -- so a part's
-    card in a machine and its card on the shelf cannot come to wear different
-    pictures. Where nobody has photographed it, the drawing stands in, exactly as it
-    does there; and a photograph of the model rather than of this unit says so, for
-    the same reason it says so everywhere else it is shown.
-    """
-    listing = folder_images("parts")
-    kinds = specdb.storage_kinds(db)
-    thumbs = {}
-    for p in parts:
-        imgs = pick_images("parts", p.asset_id, listing)
-        rel = imgs[0] if imgs else ""
-        ptype = p.type or "other"
-        thumbs[p.asset_id] = {
-            "img": rel, "ref": is_reference(rel),
-            "icon": _favicon_for_rel(rel),
-            "ph": (_storage_placeholder(kinds.get(p.asset_id)) if ptype == "storage"
-                   else entry.placeholder_for(ptype)),
-        }
-    return thumbs
 
 
 
 # --- GUI: computers --------------------------------------------------------
 
-def _grid_counts(form, prefix, items):
-    """[(key, n), ...] for the count-grid inputs '<prefix>:<key>' that hold a
-    positive integer."""
-    out = []
-    for key, *_ in items:
-        raw = (form.get(f"{prefix}:{key}", "") or "").strip()
-        if raw.isdigit() and int(raw) > 0:
-            out.append((key, int(raw)))
-    return out
 
 
-def _ram_from_form(form):
-    """A computer's memory as the form gives it: the SIMM/SIPP module grid, the
-    direct-DRAM-chip grid, and the free-text box read as a total or kept as a
-    note. Nothing is parsed back out of a rendered string."""
-    mods = _grid_counts(form, "rammod", entry.RAM_MODULES)
-    chips = _grid_counts(form, "ramchip", entry.RAM_CHIPS)
-    total_kb, note = ramdb.from_string(form.get("installed_ram", ""))
-    return mods, chips, note, total_kb
 
 
-MAX_DRIVE_ROWS = 8
 
 
-def _drives_from_form(form):
-    """[drive dict] from the numbered drive rows, skipping the empty ones -- so
-    clearing a row's fields is how a drive is removed."""
-    out = []
-    for i in range(MAX_DRIVE_ROWS):
-        row = {k: (form.get(f"drive{i}_{k}", "") or "").strip()
-               for k in ("kind", "form_factor", "size", "media", "speed",
-                         "model", "colour", "yellowing")}
-        if not any(row.values()):
-            continue
-        count = (form.get(f"drive{i}_count", "") or "").strip()
-        row["count"] = int(count) if count.isdigit() and int(count) > 0 else 1
-        out.append(row)
-    return out
 
 
-def _boardparts_ctx(db, c):
-    """The motherboard and parts sections, for the edit form of the one machine
-    whose own page does not carry them: a catalogue machine with nothing fitted.
-
-    Empty for every other machine, because the page it is read on already has them
-    and offering the same two sections twice would be two places to add the same
-    drive. The queries are the page's own, and only run for the machine that needs
-    them."""
-    if c is None or db is None or not machinedb.read(db, c)["model_key"]:
-        return {}
-    parts = db.query(Part).filter(Part.computer_id == c.asset_id).all()
-    if parts:
-        return {}
-    return {"boardparts": True, "motherboard": None, "parts": [],
-            "card_steps": entry.CARD_STEPS,
-            "free_boards": (db.query(Part)
-                            .filter(Part.type == "motherboard",
-                                    Part.computer_id.is_(None))
-                            .order_by(Part.asset_id).all()),
-            "link_candidates": (db.query(Part)
-                                .filter(Part.type != "motherboard",
-                                        Part.computer_id.is_(None),
-                                        Part.parent_id.is_(None))
-                                .order_by(Part.type, Part.asset_id).all())}
 
 
-def _computer_form_ctx(c, title, db=None):
-    mods, chips = ramdb.read(db, c) if (c is not None and db is not None) else ([], [])
-    free = c.installed_ram_note if c else ""
-    if c is not None and not (mods or chips) and not free and c.installed_ram_kb:
-        free = entry.fmt_kb(c.installed_ram_kb)
-    drives = drivedb.read(db, c) if (c is not None and db is not None) else []
-    blanks = max(2, MAX_DRIVE_ROWS - len(drives))
-    return {"c": c, "conditions": entry.CONDITIONS, "title": title,
-            "ram_modules": entry.RAM_MODULES, "ram_mod_counts": dict(mods),
-            "ram_chips": entry.RAM_CHIPS, "ram_counts": dict(chips),
-            "ram_free": free, "drives": drives + [{}] * blanks,
-            "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
-            "drive_sizes": drivedb.SIZES, "drive_media": drivedb.MEDIA,
-            "drive_speeds": drivedb.SPEEDS, **_bezel_ctx(), **_machine_ctx(c, db),
-            # The projects in hand, for the work box at the foot of the form.
-            "work_projects": projects.open_projects(db) if db is not None else [],
-            "dl": _datalists(db, computer=True) if db is not None else {},
-            **_boardparts_ctx(db, c)}
 
 
-# What a typed answer to one of the catalogue pickers may be as long as: the column
-# it lands in. The same rule the drive pickers follow (see _ASK_WIDTHS) -- a box that
-# accepted more than the column holds would fail on save rather than at the keyboard.
-_MACHINE_WIDTHS = {"issue": AssetVariant.issue.type.length,
-                   "style": AssetVariant.style.type.length,
-                   "region": AssetVariant.region.type.length,
-                   "chip": AssetChip.variant.type.length}
-
-# The two answers a board is not asked for. A case or keyboard style and the market
-# a machine was built for are facts about a whole computer in a case, so a board's
-# form leaves them off -- and the save reads only what the form asked.
-_MACHINE_ONLY = ("style", "region")
 
 
-def _machine_ctx(obj, db=None, board=False):
-    """The catalogue and this asset's place in it, for the edit form of a machine or
-    of a board.
-
-    The whole catalogue goes to the browser as JSON because the variation fields are
-    built from whichever model is picked: sixty models' worth of menus rendered at
-    once would be most of the page, and all but one set of them would be wrong."""
-    saved = machinedb.read(db, obj) if (obj is not None and db is not None) \
-        else dict(machinedb.BLANK)
-    # What the catalogue names, plus what the register has since been told: a chip
-    # somebody had to type once is a radio button from then on. Boards teach it the
-    # same as machines do -- the query behind this reads the whole register.
-    catalogue = machines.with_recorded(machines.form_catalogue(),
-                                       machinedb.recorded(db) if db is not None
-                                       else {})
-    return {"machine_groups": machines.grouped(), "machine_saved": saved,
-            "machine_catalogue": catalogue, "machine_widths": _MACHINE_WIDTHS,
-            "machine_board": board}
 
 
-def _machine_from_form(form, board=False):
-    """An asset's catalogue identity as the form gives it, as keyword arguments for
-    machinedb.write -- or None where the form did not carry the question at all.
-
-    The variation fields are built in the browser from the catalogue, and
-    `mach_fields` is the marker the script sets once it has built them. Without it --
-    no JavaScript, or a script that did not run -- only the model choice is read and
-    the board issue, style, region and chips already on file are left alone: a form
-    that could not draw them must not be able to erase them either.
-
-    `board` is the board's form, which asks the model, the issue and the chips and
-    not the two that belong to a whole machine. They are left unnamed rather than
-    blanked, so a question this form never put cannot answer itself.
-
-    Only the sockets the chosen model has are read, so fields left over from another
-    model in the same browser tab cannot put a ULA in a Commodore 64."""
-    if "mach_model" not in form:
-        return None
-    key = (form.get("mach_model", "") or "").strip()
-    out = {"model_key": key}
-    if not key or not (form.get("mach_fields", "") or "").strip():
-        return out
-    asked = ["issue"] if board else ["issue", *_MACHINE_ONLY]
-    for field in asked:
-        out[field] = _machine_pick(form, f"mach_{field}")
-    out["chips"] = {role: _machine_pick(form, f"chip:{role}")
-                    for role in machines.roles(key)}
-    # The tickbox beside each chip: on for a socket, off for soldered to the board.
-    # A box that is off is only an answer for a chip that has one -- a socket left
-    # at "not recorded" stores no row at all, so saving the form cannot quietly
-    # decide that a chip nobody has looked at is soldered down.
-    out["sockets"] = {role: bool(form.get(f"chip:{role}:socketed"))
-                      for role in machines.roles(key) if out["chips"].get(role)}
-    return out
 
 
-def _machine_pick(form, field):
-    """What one of the catalogue's radio groups chose: one of the answers it offered,
-    or whatever was typed beside "custom" for the machine the catalogue has not met
-    yet. Blank is a deliberate answer too -- it is how a socket nobody has looked at
-    is left unrecorded, and how a chip written down by mistake is taken back off."""
-    picked = (form.get(field, "") or "").strip()
-    if picked == "custom":
-        return " ".join((form.get(f"{field}_custom", "") or "").split())
-    return picked
 
 
-def _machine_page(db, obj):
-    """An asset's catalogue identity for its page: what it is filed as, then what
-    makes this one of them, then the chips in the order a board is read in. None for
-    an asset outside the catalogue, so the section does not appear at all.
-
-    The same shape for a machine and for a board, because it is the same answer: a
-    board is filed as an Amiga 500 exactly as the Amiga 500 it came out of is, and a
-    page that said it two ways would be inviting the reader to look for a difference
-    that is not there. A board simply has nothing in the two rows a case answers.
-
-    Every label is read from the catalogue rather than from the record, so a page
-    shows the current words for what was recorded -- and a chip whose socket the
-    catalogue has since dropped still shows, under the role's own name, because what
-    was seen on the board is not wrong for having gone out of the catalogue. The
-    catalogue's line about a socket stays on the form, where it helps decide what to
-    look at; here it would be the same sentence under every machine of the model.
-
-    The row keys are machines.ISSUE_KEY and the two beside it, so the page and the
-    rendered line call the same three answers by the same names."""
-    v = machinedb.read(db, obj)
-    if not any(v.values()):
-        return None
-    m = machines.model(v["model_key"])
-    return {
-        # The stable key as well as the words, because a page that offers an action
-        # on a filed asset has to ask whether it is filed -- and the rendered model
-        # name falls back to the key, so it cannot answer that.
-        "key": v["model_key"],
-        "model": (m["model"] if m else v["model_key"]),
-        "family": m["family"] if m else "",
-        "year": m["year"] if m else None,
-        # What the model is, where the catalogue has it written. Read from the
-        # catalogue and not the record, like every label here: the paragraph is
-        # about the model, so correcting it corrects every machine filed as one.
-        "summary": m.get("summary", "") if m else "",
-        "rows": [(label, value) for label, value in
-                 ((machines.ISSUE_KEY, v["issue"]), (machines.STYLE_KEY, v["style"]),
-                  (machines.REGION_KEY, v["region"])) if value],
-        "chips": [{"label": machines.chip_label(v["model_key"], role),
-                   "variant": variant,
-                   "socketed": v["sockets"].get(role)}
-                  for role, variant in v["chips"].items()],
-    }
 
 
-def _bezel_ctx():
-    """The bezel vocabularies and their swatches, for any form that records one:
-    a machine's drive rows, a storage part and a display all do."""
-    return {"bezel_colours": entry.BEZEL_COLOURS, "yellowing": entry.YELLOWING,
-            "bezel_colour_labels": entry.BEZEL_COLOUR_LABELS,
-            "yellowing_labels": entry.YELLOWING_LABELS,
-            "bezel_swatches": entry.bezel_swatch_map()}
 
 
-@app.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)
-def gui_new_computer(request: Request, db: Session = Depends(get_db)):
-    # With a session, because the catalogue's pickers offer what other machines have
-    # already been found to have as well as what the catalogue names -- and the form
-    # for a machine being entered for the first time is where that matters most.
-    return templates.TemplateResponse(request, "computer_form.html",
-                                      _computer_form_ctx(None, "New computer", db))
 
 
-@app.post("/computers/new", include_in_schema=False)
-async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
-    photos = _chosen_photos(form)
-    # Everything the child tables render is left to them, as the edit path does: the
-    # form's own installed_ram and drive fields are read by ramdb and drivedb below.
-    data = {k: _coerce(k, form[k]) for k in COMPUTER_FIELDS
-            if k in form and k not in DERIVED_FIELDS}
-    for f in ("manufacturer", "model"):
-        if f in data:
-            data[f] = entry.deshout(data[f])
-    obj = Computer(asset_id=next_asset_id(db), **data)
-    db.add(obj)
-    db.flush()
-    ramdb.write(db, obj, *_ram_from_form(form))
-    drivedb.write(db, obj, _drives_from_form(form),
-                  (form.get("drives_note", "") or "").strip())
-    if (mach := _machine_from_form(form)) is not None:
-        machinedb.write(db, obj, **mach)
-    add_log(db, obj.asset_id, "created", "created")
-    # After the flush above, because a membership is refused for an asset that is not
-    # in the register yet -- and this one is being entered as we speak.
-    _work_from_form(db, obj, form)
-    db.commit()
-    if photos:
-        _attach_photos(db, obj, "computers", photos)
-        db.commit()
-    # Land on the build walk so the next step (motherboard) is front and centre.
-    return RedirectResponse(f"/computers/{obj.asset_id}?build=1", status_code=303)
 
 
-@app.get("/computers/{aid}", response_class=HTMLResponse, include_in_schema=False)
-def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
-                 fileerr: int = 0, db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    parts = db.query(Part).filter(Part.computer_id == aid).all()
-    parts.sort(key=lambda p: (entry.type_sort_key(p.type or ""),
-                              entry.display_name(to_dict(p))))
-    motherboard = next((p for p in parts if p.type == "motherboard"), None)
-    # Unlinked boards that could be linked to this machine.
-    free_boards, link_candidates = [], []
-    if request.state.authed:
-        free_boards = (db.query(Part)
-                       .filter(Part.type == "motherboard",
-                               Part.computer_id.is_(None))
-                       .order_by(Part.asset_id).all())
-        link_candidates = (db.query(Part)
-                           .filter(Part.type != "motherboard",
-                                   Part.computer_id.is_(None),
-                                   Part.parent_id.is_(None))
-                           .order_by(Part.type, Part.asset_id).all())
-    images = detect_images("computers", aid)
-    blurb = c.summary or _dot(" ".join(x for x in (c.manufacturer, c.model, str(c.year or "")) if x),
-                              c.cpu, c.condition)
-    # Form factor is a property of the board, shown on the machine -- which is
-    # what the part form promises ("the computer's form factor is taken from
-    # here"). Read it from the typed column rather than re-parsing the string.
-    form_factor = (specdb.scalars(db, motherboard).get("form_factor", "")
-                   if motherboard else "")
-    # Whether a board can be lifted out of this machine, worked out from what the
-    # page has already read rather than by asking again: a machine the catalogue
-    # names, with no board linked to it yet. _board_out_of is the same two conditions
-    # at the door, so the button and the route cannot disagree.
-    machine = _machine_page(db, c)
-    detachable = bool(request.state.authed and machine and machine["key"]
-                      and motherboard is None)
-    return templates.TemplateResponse(request, "computer.html", {
-        "machine": machine, "detachable": detachable,
-        "item": (cdict := to_dict(c)), "kind": "computers",
-        "files": filesdb.for_item(db, cdict, request.state.authed),
-        "file_models": filesdb.model_ids_for(db, cdict),
-        "fileerr": bool(fileerr),
-        "dl_filenotes": _answers_given(db, StoredFile.note),
-        "on_project": (found := projects.project_for(db, aid,
-                                                     request.state.authed)),
-        "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
-        "project_tasks": (projects.project_wide_tasks(db, found.asset_id)
-                          if found is not None else []),
-        # For the picker in that panel, which only an owner is shown -- so a
-        # visitor's page does not ask the question at all.
-        "work_projects": (projects.open_projects(db) if request.state.authed
-                          else []),
-        "c": c, "parts": [p for p in parts if p is not motherboard],
-        "motherboard": motherboard, "form_factor": form_factor,
-        # A picture for each of them, read once for the page rather than per card.
-        "thumbs": part_thumbs(db, parts),
-        "free_boards": free_boards,
-        "link_candidates": link_candidates, "images": images,
-        # The drawing to stand in for a photograph nobody has taken yet -- the same
-        # one the gallery card for this item is already wearing, so the two places
-        # it appears agree about what it is a picture of.
-        "placeholder": entry.placeholder_for("computer"),
-        "ref_marks": reference_marks("computers", aid),
-        "tuned": tuned_photos("computers", aid),
-        "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
-        "log": _history(db, aid), "nav": _item_nav(db, aid),
-        "live_aid": aid, "live_v": _change_token(db, aid),
-        "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
-                         images[0] if images else None)),
-        "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer")})
 
 
-@app.get("/computers/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
-def gui_edit_computer(aid: str, request: Request, db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    return templates.TemplateResponse(request, "computer_form.html",
-                                      _computer_form_ctx(c, f"Edit {aid}", db))
 
 
-@app.post("/computers/{aid}/edit", include_in_schema=False)
-async def gui_save_computer(aid: str, request: Request, db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    form = await request.form()
-    old = {k: getattr(c, k) for k in COMPUTER_FIELDS}
-    for k in COMPUTER_FIELDS:
-        if k not in form:
-            continue
-        if k in DERIVED_FIELDS:
-            continue
-        v = _coerce(k, form[k])
-        if k in ("manufacturer", "model"):
-            v = entry.deshout(v)
-        setattr(c, k, v)
-    mods, chips, note, total_kb = _ram_from_form(form)
-    ramdb.write(db, c, mods, chips, note, total_kb)
-    drivedb.write(db, c, _drives_from_form(form),
-                  (form.get("drives_note", "") or "").strip())
-    if (mach := _machine_from_form(form)) is not None:
-        machinedb.write(db, c, **mach)
-    diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS},
-                        COMPUTER_DIFF_FIELDS)
-    if diff:
-        add_log(db, aid, diff)
-    _work_from_form(db, c, form)
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.post("/computers/{aid}/link-motherboard", include_in_schema=False)
-async def gui_link_motherboard(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
-    get_or_404(db, Computer, aid)
-    form = await request.form()
-    pid = form.get("part_id", "") or ""
-    if not pid:
-        return RedirectResponse(f"/computers/{aid}?build=1", status_code=303)
-    board = get_or_404(db, Part, pid)
-    if board.type != "motherboard":
-        raise HTTPException(400, f"{pid} is not a motherboard")
-    board.computer_id = aid
-    add_log(db, aid, f"linked motherboard {board.asset_id}")
-    add_log(db, board.asset_id, f"linked to computer {aid}")
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}?build=1", status_code=303)
 
 
-@app.post("/computers/{aid}/link-part", include_in_schema=False)
-async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db)):
-    """Install an existing standalone part into this computer."""
-    get_or_404(db, Computer, aid)
-    form = await request.form()
-    pid = form.get("part_id", "") or ""
-    if not pid:
-        return RedirectResponse(f"/computers/{aid}", status_code=303)
-    part = get_or_404(db, Part, pid)
-    part.computer_id = aid
-    part.parent_id = None
-    add_log(db, aid, f"linked part {part.asset_id}")
-    add_log(db, part.asset_id, f"installed in {aid}")
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+
 
 
 # --- detaching the board: the moment a description becomes an object ---------
@@ -1184,266 +613,36 @@ async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db
 #     machine can, so the guard below is the one it can make honestly and the
 #     history says what happened either way.
 
-def _board_out_of(db, c):
-    """The machine's catalogue identity, if a board can be lifted out of it -- or a
-    400 naming which of the two conditions it fails.
-
-    It has to be a machine the catalogue names, because what this verb moves is the
-    machine's catalogue answers and a PC has none: a PC's board is already an object
-    with its own chipset and slot counts written on it.
-
-    And nothing of type motherboard may be linked to it, because a machine has one
-    board. Without that, the button is one press per object rather than one object
-    per separation, which is the difference between recording what happened and
-    inventing hardware."""
-    v = machinedb.read(db, c)
-    if not v["model_key"]:
-        raise HTTPException(
-            400, f"{c.asset_id} is not a catalogue machine, so it has no board "
-                 f"issue and no chips to move onto one. A PC's board is entered as "
-                 f"a part in the ordinary way.")
-    fitted = (db.query(Part)
-              .filter(Part.computer_id == c.asset_id,
-                      Part.type == "motherboard").first())
-    if fitted is not None:
-        raise HTTPException(
-            400, f"{c.asset_id} already has board {fitted.asset_id} linked to it. "
-                 f"A machine has one board.")
-    return v
 
 
-def _detach_ctx(db, c, v):
-    """What lifting the board out will do, for the page that asks first.
-
-    Read through the catalogue's current words, exactly as _machine_page reads the
-    panel this was picked from, so the page names what is about to move in the same
-    language it was recorded in."""
-    return {"c": c, "aid": c.asset_id, "name": entry.display_name(to_dict(c)),
-            "model": machines.full_name(v["model_key"]),
-            "issue_label": machines.ISSUE_KEY, "issue": v["issue"],
-            "chips": [{"label": machines.chip_label(v["model_key"], role),
-                       "variant": variant, "socketed": v["sockets"].get(role)}
-                      for role, variant in v["chips"].items()],
-            "staying": [(label, value) for label, value in
-                        ((machines.STYLE_KEY, v["style"]),
-                         (machines.REGION_KEY, v["region"])) if value],
-            "noindex": True}
 
 
-@app.get("/computers/{aid}/detach-board", response_class=HTMLResponse,
-         include_in_schema=False)
-def gui_detach_board_form(aid: str, request: Request,
-                          db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    return templates.TemplateResponse(request, "detach.html",
-                                      _detach_ctx(db, c, _board_out_of(db, c)))
 
 
-@app.post("/computers/{aid}/detach-board", include_in_schema=False)
-async def gui_detach_board(aid: str, request: Request,
-                           db: Session = Depends(get_db)):
-    """Make the board in this machine an object of its own.
-
-    The identity move is a rewrite inside the two catalogue tables rather than a
-    copy between a machine's and a part's, which is what keying them by a plain
-    asset id bought: read the machine's answers, write the board's, blank the two
-    the machine has stopped being able to answer. No schema knows this verb exists.
-
-    The machine keeps its asset id, its model, its style, its region and every line
-    of its history. It is still the machine on the shelf; what has changed is that
-    one of the things it is made of is now on the shelf beside it.
-
-    The photographs come with the form for the reason they do on any create form --
-    there is no asset tag to file them under until the part exists -- but here they
-    are also the point of the page. A board is photographable at the moment it is
-    out and before it goes back in, and that moment does not come round again."""
-    c = get_or_404(db, Computer, aid)
-    v = _board_out_of(db, c)
-    form = await request.form()
-    photos = _chosen_photos(form)
-    # The maker and the model come across because the maker of the machine made the
-    # board and it is the board for that model -- the same carry the duplicate
-    # button makes, and without it the board is an asset id with no name in a list.
-    # Nothing else does: the condition of a board out of a working machine, where it
-    # came from and what it cost are its own answers now, and the machine's history
-    # is where it came from.
-    board = Part(asset_id=next_asset_id(db), type="motherboard", computer_id=aid,
-                 manufacturer=c.manufacturer, model=c.model)
-    db.add(board)
-    db.flush()
-    specdb.write(db, board)
-    machinedb.write(db, board, model_key=v["model_key"], issue=v["issue"],
-                    chips=v["chips"], sockets=v["sockets"])
-    # Blanked, not cleared: clear() would take the model with it, and this machine is
-    # still a Spectrum. The style and the region are not touched at all -- the form
-    # never asked them of the board and the case did not go anywhere.
-    machinedb.write(db, c, issue="", chips={})
-    # The board's history opens with where it came from, because that is its birth:
-    # it was not created out of nothing, it was taken out of RH-xxxx.
-    add_log(db, board.asset_id, f"detached from computer {aid}", kind="created")
-    add_log(db, aid, f"board detached as {board.asset_id}, and linked back in")
-    db.commit()
-    if photos:
-        _attach_photos(db, board, "parts", photos)
-        db.commit()
-    return RedirectResponse(f"/parts/{board.asset_id}", status_code=303)
 
 
 # --- the GUI's delete, with its safety net ----------------------------------
 
-def _require_disposed(obj, kind):
-    """Only a disposed item can be deleted from the GUI. Disposal is reversible
-    and deletion is not, so the reversible step is made a precondition of the
-    other: whatever is about to go has already been marked as gone once, on
-    purpose, on an earlier day."""
-    if not obj.disposed:
-        raise HTTPException(
-            400, f"{obj.asset_id} is still in the collection. Mark it disposed "
-                 f"first -- only a disposed {kind} can be deleted.")
-
-
-def _confirms_url(text, kind, aid) -> bool:
-    """The safety net: the item's own URL, pasted in. Nothing about this asks the
-    database a question it does not already know the answer to -- the point is to
-    make deleting the wrong thing take a deliberate act, so that a delete cannot
-    be a stray click on a page somebody landed on by accident.
-
-    What the address bar holds is accepted from any host, with any query or
-    fragment, and so is the bare path, because all three are the same act of
-    fetching the thing's identity. The asset id itself has to be right."""
-    path = urlparse((text or "").strip()).path.rstrip("/")
-    return path.upper() == f"/{kind}/{aid}".upper()
 
 
 
 
-def _log_count(db, asset_ids):
-    if not asset_ids:
-        return 0
-    return (db.query(func.count(LogEntry.id))
-            .filter(LogEntry.asset_id.in_(asset_ids)).scalar() or 0)
 
 
-def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
-    """What deleting this would take with it, for the confirmation page. Read with
-    the same queries the deletion itself runs, so the page cannot promise one
-    thing and the button do another.
-
-    The item's own figures and the contents' are kept apart rather than summed
-    against the tick, so both are on the page whichever way the tick is set and
-    neither needs a script to keep them honest."""
-    aid = obj.asset_id
-    inside = children = []
-    if kind == "computers":
-        inside = _parts_in_computer(db, aid)
-    else:
-        children = (db.query(Part).filter(Part.parent_id == aid)
-                    .order_by(Part.asset_id).all())
-    # A part inside the machine that is not itself disposed is not deleted even
-    # when the box is ticked: it is still in the collection, and the rule here is
-    # that only what has already been marked as gone can go.
-    deletable = [p for p in inside if p.disposed]
-    # The photographs hung on the history count here too. They are not shown in the
-    # gallery and are not the portrait, but they are files, they go when the record
-    # goes, and the page's promise is "deleted from disk" -- so leaving them out
-    # would be under-promising what the button does.
-    return {"kind": kind, "obj": obj, "aid": aid,
-            "name": entry.display_name(to_dict(obj)),
-            "url": _abs_url(request, f"/{kind}/{aid}"),
-            "photos": detect_images(kind, aid) + _asset_log_photos(db, aid),
-            "logs": _log_count(db, [aid]),
-            "inside": inside, "deletable": deletable,
-            "kept": [p for p in inside if not p.disposed],
-            "parts_photos": sum(len(detect_images("parts", p.asset_id))
-                                + len(_asset_log_photos(db, p.asset_id))
-                                for p in deletable),
-            "parts_logs": _log_count(db, [p.asset_id for p in deletable]),
-            "children": children, "with_parts": with_parts, "error": error,
-            "noindex": True}
 
 
-async def _set_for_sale(db, model, aid, request: Request):
-    """Tick or untick "might sell" on one item (ADR-0018).
-
-    The box on the page is the answer, so an absent field is "no": an unticked
-    checkbox sends nothing at all, which is the one form control whose off state has
-    to be read from its silence. The same reading gui_file_public takes of the same
-    gesture, and for the same reason -- these two ticks are the same control.
-
-    Nothing is written to the history. A shortlist is a thought about a thing, not
-    something that happened to it, and a machine ticked and unticked over a month of
-    Sundays would otherwise fill its own record with the owner changing their mind.
-    """
-    row = get_or_404(db, model, aid)
-    form = await request.form()
-    row.for_sale = bool(form.get("for_sale"))
-    db.commit()
-    return RedirectResponse(f"/{'computers' if model is Computer else 'parts'}/{aid}",
-                            status_code=303)
 
 
-@app.post("/computers/{aid}/dispose", include_in_schema=False)
-async def gui_dispose_computer(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    form = await request.form()
-    c.disposed = True
-    c.disposed_at = _parse_date(form.get("date", "")) or date.today()
-    c.disposed_note = form.get("note", "") or ""
-    # What was in the machine went out with the machine, on the same date and for
-    # the same reason -- recording it any other way would leave the register
-    # claiming we still hold parts that are in the same skip as their host.
-    n = _dispose_contents(db, c)
-    add_log(db, aid, _disposal_log(c) + _and_parts(n))
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.post("/computers/{aid}/for-sale", include_in_schema=False)
-async def gui_computer_for_sale(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
-    return await _set_for_sale(db, Computer, aid, request)
 
 
-@app.post("/computers/{aid}/restore", include_in_schema=False)
-def gui_restore_computer(aid: str, db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    was_at, was_note = c.disposed_at, c.disposed_note
-    c.disposed = False
-    c.disposed_at = None
-    c.disposed_note = ""
-    n = _restore_contents(db, c, was_at, was_note)
-    add_log(db, aid, "restored" + _and_parts(n, "came back too"))
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.get("/computers/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)
-def gui_delete_computer_form(aid: str, request: Request, db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    _require_disposed(c, "computer")
-    return templates.TemplateResponse(request, "delete.html",
-                                      _delete_ctx(request, db, "computers", c))
 
 
-@app.post("/computers/{aid}/delete", include_in_schema=False)
-async def gui_delete_computer(aid: str, request: Request,
-                              db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    _require_disposed(c, "computer")
-    form = await request.form()
-    with_parts = bool(form.get("with_parts"))
-    if not _confirms_url(form.get("confirm", ""), "computers", c.asset_id):
-        # Back to the page rather than an error: a paste that went wrong is the
-        # ordinary way to arrive here, and the tick keeps whatever it was set to.
-        return templates.TemplateResponse(
-            request, "delete.html",
-            _delete_ctx(request, db, "computers", c, with_parts=with_parts,
-                        error="That is not this item's URL. Nothing was deleted."),
-            status_code=400)
-    ctx = _delete_ctx(request, db, "computers", c, with_parts=with_parts)
-    delete_computer(db, c, with_parts=ctx["deletable"] if with_parts else ())
-    return RedirectResponse("/", status_code=303)
+
+
 
 
 # --- writing the history, and hanging photographs on it ----------------------
@@ -1459,1250 +658,141 @@ async def gui_delete_computer(aid: str, request: Request,
 # already the register-wide address the QR codes print and the JSON log is read
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
-def _note_with_photos(db, aid, form):
-    """Whatever the note bar was filled in with: words, photographs, or both.
-
-    Neither half needs the other. Words alone are a note, as they always were.
-    Photographs alone are an entry of their own with its own time on it, because a
-    photograph of the thing is a thing said about it -- and having to type a sentence
-    first was a toll on the commonest gesture in the register. Both together stay one
-    entry: they were one gesture, and the words are the caption.
-
-    Nothing at all writes nothing at all. Every upload is still checked before the
-    entry is written, so a refused file leaves no half-written history behind."""
-    uploads = _chosen_photos(form)
-    message = (form.get("message", "") or "").strip()
-    if not message and not uploads:
-        return
-    row = add_log(db, aid, message, kind="note" if message else PHOTO_ENTRY)
-    _attach_log_photos(db, row, uploads)
-    db.commit()
 
 
 
-def _log_entry_or_404(db, aid, log_id):
-    """One history entry, and the page to go back to. The asset id in the URL is
-    checked against the entry's rather than taken on trust: an entry id on its own
-    would let a photograph of one machine be hung on another machine's history."""
-    aid = (aid or "").upper()
-    where = _asset_page(db, aid)
-    row = db.get(LogEntry, log_id)
-    if row is None or row.asset_id != aid:
-        raise HTTPException(404, f"no history entry {log_id} for {aid}")
-    return row, where
 
 
-@app.post("/items/{aid}/log/{log_id}/photo", include_in_schema=False)
-async def gui_log_photo(aid: str, log_id: int, request: Request,
-                        db: Session = Depends(get_db)):
-    row, where = _log_entry_or_404(db, aid, log_id)
-    _attach_log_photos(db, row, _chosen_photos(await request.form()))
-    db.commit()
-    return RedirectResponse(where, status_code=303)
 
 
-@app.post("/items/{aid}/log/{log_id}/photo-delete", include_in_schema=False)
-async def gui_log_photo_delete(aid: str, log_id: int, request: Request,
-                               db: Session = Depends(get_db)):
-    row, where = _log_entry_or_404(db, aid, log_id)
-    form = await request.form()
-    photo = (db.query(LogPhoto).filter(LogPhoto.log_id == row.id,
-                                       LogPhoto.rel == form.get("image", ""))
-             .first())
-    if photo is None:
-        raise HTTPException(404, "no such photo on this history entry")
-    rel = photo.rel
-    db.delete(photo)
-    # A photograph entry is its photographs. Take the last one off it and there is
-    # nothing left that it said, so the entry goes too rather than standing in the
-    # log as a chip with nothing beside it. An entry with words keeps its line: the
-    # words are still what it said.
-    if row.kind == PHOTO_ENTRY:
-        db.flush()
-        if not db.query(LogPhoto).filter(LogPhoto.log_id == row.id).count():
-            db.delete(row)
-    # Nothing is written to the history about this, either way round. An entry
-    # gaining or losing a photograph is an edit to the record rather than something
-    # that happened to the machine, and a history that logged its own editing would
-    # grow a line for every line it already has.
-    db.commit()  # the row first: a file cannot be rolled back
-    _purge_photos([rel])
-    return RedirectResponse(where, status_code=303)
 
 
-@app.post("/items/{aid}/log/delete", include_in_schema=False)
-async def gui_log_delete(aid: str, request: Request, db: Session = Depends(get_db)):
-    """Remove history entries.
-
-    Several ids rather than one, because a run of the same thing done in one sitting
-    reads as a single line and has to delete as one: "deleted 10 photographs" that
-    took one row away and came back saying nine would be a button that does not do
-    what it says.
-
-    Every id is checked against this asset before anything goes, the way hanging a
-    photograph on an entry is -- an id on its own would let one machine's history be
-    deleted from another machine's page.
-
-    Nothing is written to the history about this, which is the rule a history entry
-    losing a photograph already follows: editing the record is not something that
-    happened to the machine, and a history that logged its own editing would grow a
-    line for every line it lost.
-    """
-    aid = (aid or "").upper()
-    where = _asset_page(db, aid)
-    form = await request.form()
-    ids = [int(i) for i in form.getlist("id") if str(i).strip().isdigit()]
-    rows = (db.query(LogEntry).filter(LogEntry.id.in_(ids),
-                                      LogEntry.asset_id == aid).all()
-            if ids else [])
-    if not rows:
-        raise HTTPException(404, f"no such history entry for {aid}")
-    # The photographs hung on them go too, and their paths are read while the rows
-    # are still there: a file is the one thing here that cannot be rolled back.
-    found = [r.id for r in rows]
-    rels = [rel for (rel,) in db.query(LogPhoto.rel)
-            .filter(LogPhoto.log_id.in_(found)).order_by(LogPhoto.id)]
-    db.query(LogPhoto).filter(LogPhoto.log_id.in_(found)).delete(
-        synchronize_session=False)
-    for row in rows:
-        db.delete(row)
-    db.commit()   # the rows first, then the files
-    _purge_photos(rels)
-    return RedirectResponse(where, status_code=303)
 
 
-@app.post("/computers/{aid}/note", include_in_schema=False)
-async def gui_computer_note(aid: str, request: Request, db: Session = Depends(get_db)):
-    get_or_404(db, Computer, aid)
-    _note_with_photos(db, aid, await request.form())
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.post("/computers/{aid}/photo", include_in_schema=False)
-async def gui_computer_photo(aid: str, photos: list[UploadFile] = File(...),
-                             db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    first = None
-    n = 0
-    for up in photos:
-        if (up.filename or "").strip():
-            rel = _save_photo("computers", aid, up)
-            n += 1
-            if first is None:
-                first = rel
-    if first and not c.image:
-        c.image = first
-    if n:
-        add_log(db, aid, f"added {n} photo(s)")
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.post("/computers/{aid}/fetch-image", include_in_schema=False)
-def gui_computer_fetch_image(aid: str, db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    rel = _fetch_reference_photo("computers", aid, c.url or "") if c.url else None
-    if rel:
-        if not c.image:
-            c.image = rel
-        add_log(db, aid, "fetched a photo from the reference")
-        db.commit()
-    return RedirectResponse(f"/computers/{aid}" + ("" if rel else "?imgerr=1"),
-                            status_code=303)
 
 
-@app.post("/computers/{aid}/primary-photo", include_in_schema=False)
-async def gui_computer_primary(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    form = await request.form()
-    c.image = _set_primary_photo("computers", aid, form.get("image", ""))
-    add_log(db, aid, "changed the default photo")
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.post("/computers/{aid}/photo-delete", include_in_schema=False)
-async def gui_computer_photo_delete(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    form = await request.form()
-    was_primary, new_primary = _delete_image("computers", aid, form.get("image", ""))
-    if was_primary:
-        c.image = new_primary or ""
-    add_log(db, aid, "deleted a photo")
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.post("/computers/{aid}/photo-reference", include_in_schema=False)
-async def gui_computer_photo_reference(aid: str, request: Request,
-                                       db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    form = await request.form()
-    rel = form.get("image", "")
-    if rel not in detect_images("computers", aid):
-        raise HTTPException(404, "no such photo for this item")
-    on = form.get("set", "1") == "1"
-    _mark_reference(rel, on, (form.get("note", "") or "").strip(), c.url or "")
-    add_log(db, aid, "flagged a photo as a reference image" if on
-            else "unflagged a reference photo")
-    db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@app.get("/computers/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)
-def gui_computer_edit_photo(aid: str, image: str = ""):
-    return _photo_edit_redirect("computers", aid, image)
 
 
-@app.post("/computers/{aid}/photo-rotate", include_in_schema=False)
-async def gui_computer_photo_rotate(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_rotate(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
 
 
-@app.post("/computers/{aid}/photo-tuneup", include_in_schema=False)
-async def gui_computer_photo_tuneup(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_tuneup(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
 
 
-@app.post("/computers/{aid}/photo-revert", include_in_schema=False)
-async def gui_computer_photo_revert(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_revert(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
 
 
-@app.post("/computers/{aid}/photo-crop", include_in_schema=False)
-async def gui_computer_photo_crop(aid: str, request: Request,
-                                  db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_crop(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
 
 
-@app.get("/computers/{aid}/label.pdf", include_in_schema=False)
-def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)):
-    c = get_or_404(db, Computer, aid)
-    installed = db.query(Part).filter(Part.computer_id == aid).all()
-    board = next((p for p in installed if p.type == "motherboard"), None)
-    rows = []
-    for p in installed:
-        d = to_dict(p)
-        d["spec_pairs"] = specdb.pairs(db, p, display=True)
-        rows.append(d)
-    pdf = labels.render_pdf(
-        to_dict(c), rows, labels.COMPUTER, small=bool(small),
-        form_factor=(specdb.scalars(db, board).get("form_factor", "")
-                     if board else ""))
-    return Response(pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
 
 
 # --- GUI: parts (guided, typed entry) --------------------------------------
 
-def _answers_given(db, *columns, limit=200):
-    """Every answer already given to a free-text field, commonest first, for the
-    pick list on the box that asks it.
-
-    A field answered the same way over and over wants to offer its own past
-    answers. `source` is the case that asked for this: 154 of them, in 69
-    spellings, among which "Pete Farm" sixteen times and "Farm Pete" eight -- one
-    person and one provenance, recorded as two, and now unfindable as one. A list
-    does not stop anybody typing something new (it is a datalist, not a menu); it
-    only makes the answer already given the easier one to give again.
-
-    Commonest first, because a datalist is offered in the order it is written and
-    the answer given twenty times is the likelier one. Case and surrounding space
-    fold together for the counting, and the spelling offered back is the one used
-    most -- so "eBay" wins over "ebay" by being what was actually typed, rather
-    than by any rule about capitals.
-
-    The counting is done here rather than by the query it would obviously be done
-    by. MariaDB's collation folds case and ignores trailing spaces, so GROUP BY on
-    the column has already merged "eBay", "ebay" and "eBay " before we see them,
-    and what comes back as the group's label is whichever row it happened to read
-    first -- which makes "the spelling used most" whatever the storage engine felt
-    like that morning. Reading the values and counting them here makes the rule
-    ours. It is a column of a few hundred short strings; the query it replaces was
-    not saving anything worth this.
-
-    Capped: this goes into the markup of every form that asks, and two hundred is
-    already past what anybody scrolls.
-    """
-    counts, spellings = Counter(), {}
-    for column in columns:
-        for (value,) in db.query(column):
-            text = (value or "").strip()
-            if not text:
-                continue
-            key = text.casefold()
-            counts[key] += 1
-            spellings.setdefault(key, Counter())[text] += 1
-    return [spellings[key].most_common(1)[0][0]
-            for key, _ in counts.most_common(limit)]
-
-
-def _known_makes(db):
-    """The manufacturers and (make, model) pairs already recorded, for the new-part
-    form's pick lists and for spotting that a part being entered is a second of
-    something already here. One representative asset id per pair, so the form can
-    offer to start from it.
-
-    The makes come from both tables. A part's maker and a machine's are the same
-    kind of fact and often the same company -- the Amstrad that made the machine
-    made the board in it -- so a make used only on computers is still worth
-    offering here; the (make, model) pairs stay parts-only, because what they are
-    for is starting a new part from an identical one."""
-    makes = _answers_given(db, Part.manufacturer, Computer.manufacturer)
-    pairs = (db.query(Part.manufacturer, Part.model, Part.type,
-                      func.max(Part.asset_id))
-             .filter(Part.manufacturer != "", Part.model != "")
-             .group_by(Part.manufacturer, Part.model, Part.type).all())
-    known = [{"m": mk, "d": md, "t": t, "id": aid} for mk, md, t, aid in pairs]
-    models = sorted({p["d"] for p in known})
-    return makes, models, known
-
-
-def _datalists(db, computer=False):
-    """The pick lists a form's free-text boxes are offered, in one place because
-    two forms ask several of the same questions.
-
-    `computer` adds the three a machine is asked and a part is not. A part's
-    equivalent of them is its typed spec table, which has its own vocabularies."""
-    lists = {"source": _answers_given(db, Computer.source, Part.source)}
-    if computer:
-        lists |= {
-            "makes": _answers_given(db, Computer.manufacturer, Part.manufacturer),
-            # A machine's models only. A list of every card and drive model as well
-            # would bury "PC1512" in a thousand answers to a different question.
-            "models": _answers_given(db, Computer.model),
-            "chassis": _answers_given(db, Computer.chassis),
-            "os": _answers_given(db, Computer.os),
-            "cpu": _answers_given(db, Computer.cpu),
-        }
-    return lists
-
-
-# How long a typed "custom" answer may be: the column the answer lands in. The four
-# that can become a machine's drive row are held to the row's width, because a picker
-# that let you type more than the column holds would fail on save.
-_ASK_WIDTHS = {
-    "Form factor": ComputerDrive.form_factor.type.length,
-    "Size": ComputerDrive.size.type.length,
-    "Media": ComputerDrive.media.type.length,
-    "Speed": ComputerDrive.speed.type.length,
-    "Interface": StorageSpec.interface.type.length,
-    "Protocol": StorageSpec.protocol.type.length,
-}
-
-
-def _spec_field(key):
-    """The form field a spec key is asked with. The spec_ prefix keeps these clear of
-    the part's own columns (a RAM 'Type' spec vs the part type, etc.)."""
-    return "spec_" + key.lower().replace(" ", "_").replace("/", "_")
-
 
-def _storage_asks_ctx():
-    """entry.STORAGE_ASKS dressed for the form: the field each group posts, how long a
-    custom answer may be, and whether the answer has anywhere to go on a machine's
-    drive row -- the four that do are the only ones still asked once a drive is folded
-    into a machine, the rest being fields on a part that will not exist."""
-    return [ask | {"field": PICK_FIELDS.get(ask["key"], _spec_field(ask["key"])),
-                   "max": _ASK_WIDTHS.get(ask["key"], 255),
-                   "row": ask["key"] in DRIVE_PICKS,
-                   "kinds": list(ask["kinds"])}
-            for ask in entry.STORAGE_ASKS]
-
-
-# The field each display ask posts, named for its spec key like every other field
-# on this form. One mapping, used to build the form and to read it back.
-DISPLAY_FIELDS = {ask["key"]: _spec_field(ask["key"]) for ask in entry.DISPLAY_ASKS}
-DISPLAY_ASK_BY_KEY = {ask["key"]: ask for ask in entry.DISPLAY_ASKS}
-
-
-def _display_asks_ctx():
-    """entry.DISPLAY_ASKS dressed for the form: the field each group posts."""
-    return [ask | {"field": DISPLAY_FIELDS[ask["key"]]} for ask in entry.DISPLAY_ASKS]
-
-
-def _picked_display(form, ask):
-    """What one of a screen's groups chose.
-
-    One of the offered answers, or whatever was typed beside "custom" for the
-    hardware the list does not name. Blank when nothing was picked, which is how an
-    answer is taken back off again.
-
-    An answer is checked against the list it was offered from before it is kept, the
-    same way a drive's is: a value posted straight to the endpoint that was never on
-    the form is not an answer to the question that was asked.
-    """
-    field = DISPLAY_FIELDS[ask["key"]]
-    custom = " ".join((form.get(field + "_custom", "") or "").split())
-    if ask.get("multi"):
-        # Several sockets, in the order the list offers them, and then whatever the
-        # list could not name -- so the rendering is stable whichever order they
-        # were ticked in.
-        ticked = [v for v in form.getlist(field) if v in ask["options"]]
-        return ", ".join([*ticked, *([custom] if custom else [])])
-    raw = (form.get(field, "") or "").strip()
-    if raw == "custom":
-        return custom
-    return raw if raw in ask["options"] else ""
-
-
-def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
-    # Existing values come from the typed tables, not from re-parsing the string.
-    mb_slots, mb_ram, mb_ports, mb_cpufams = {}, {}, {}, []
-    spec_keys = {}
-    if obj:
-        st = specdb.read(db, obj)
-        # The form's text inputs are keyed by display name, and want the same
-        # rendering the item page shows ('256 KiB', not 256).
-        spec_keys = {k: v for k, v in specstruct.pairs(obj.type or "other", st) if k}
-        if (obj.type or "") == "motherboard":
-            mb_slots = dict(st.slots)
-            mb_ram = dict(st.ram_slots)
-            mb_ports = dict(st.ports)
-            mb_cpufams = [x.strip() for x
-                          in (st.scalars.get("cpu_family") or "").split(",")
-                          if x.strip()]
-    # A stored CPU family that is not in the pick list (older rows say '486'
-    # where the vocabulary says '486-class') still needs a checkbox, or saving the
-    # form would silently drop it.
-    cpu_families = list(entry.CPU_FAMILIES)
-    cpu_families += [f for f in mb_cpufams if f not in cpu_families]
-    makes, models, known = _known_makes(db)
-    # A board is the one part that can answer the catalogue: it is the thing the
-    # board issue and the chip sockets were always about, and a bare one on a shelf
-    # is an Amiga 500 board rather than an unidentified green rectangle. Nothing
-    # else is offered it -- a SIMM is not a model of machine -- and the catalogue is
-    # a quarter of a megabyte of JSON, which is not shipped to a form that cannot
-    # use it.
-    catalogue = _machine_ctx(obj, db, board=True) if ptype == "motherboard" else {}
-    return {
-        **catalogue,
-        "p": obj, "ptype": ptype, "computer_id": computer_id, "parent_id": parent_id,
-        "spec_keys": spec_keys,
-        "action": action or (f"/parts/{obj.asset_id}/edit" if obj else "/parts/new"),
-        "makes": makes, "models": models, "known": known,
-        "conditions": entry.CONDITIONS,
-        "work_projects": projects.open_projects(db),
-        "dl": _datalists(db),
-        "vocab": {
-            "form_factors": entry.MOBO_FORM_FACTORS, "cpu_families": cpu_families,
-            "ram_slots": entry.RAM_SLOT_TYPES, "card_interfaces": entry.CARD_INTERFACES,
-            "video_connectors": entry.VIDEO_CONNECTORS,
-            "storage_interfaces": entry.STORAGE_INTERFACES,
-            "storage_kinds": entry.STORAGE_KINDS, "storage_protocols": entry.STORAGE_PROTOCOLS,
-            "peripheral_interfaces": entry.PERIPHERAL_INTERFACES,
-        },
-        # Every question a drive is asked, for the form to build itself from.
-        "storage_asks": _storage_asks_ctx(),
-        # And every question a screen is asked, the same way.
-        "display_asks": _display_asks_ctx(),
-        "bezel_kinds": list(entry.BEZEL_KINDS),
-        "disk_image_kinds": list(entry.DISK_IMAGE_KINDS),
-        "row_kinds": [k for k in entry.STORAGE_KINDS
-                      if k not in entry.PART_STORAGE_KINDS],
-        "floppy_kind": entry.FLOPPY_KIND, "optical_kind": entry.OPTICAL_KIND,
-        **_bezel_ctx(),
-        "slot_names": entry.SLOT_NAMES, "port_names": entry.PORT_NAMES,
-        "mb_slots": mb_slots, "mb_ram": mb_ram, "mb_ports": mb_ports,
-        "mb_cpufams": mb_cpufams,
-        "port_legend": entry.PORT_LEGEND,
-        "type_labels": entry.TYPE_LABELS, "type_order": entry.TYPE_ORDER,
-    }
-
-
-@app.get("/parts/new", response_class=HTMLResponse, include_in_schema=False)
-def gui_new_part(request: Request, type: str = "other", computer_id: str = "",
-                 parent_id: str = "", db: Session = Depends(get_db),
-                 source: str = Query("", alias="from")):
-    """The new-part form. `from` starts it filled in from an existing part -- the
-    same fields duplicating one copies, so a second of something already recorded
-    is a couple of clicks rather than retyping its specs. Nothing is saved until
-    the form is submitted, so it can be edited first, which is the difference
-    between this and the duplicate button."""
-    src = db.get(Part, source.upper()) if source else None
-    if src is None:
-        ctx = _part_form_ctx(db, None, type, computer_id, parent_id)
-        ctx["title"] = f"New {entry.type_label(type)}"
-        return templates.TemplateResponse(request, "part_form.html", ctx)
-
-    ptype = src.type or type
-    ctx = _part_form_ctx(db, src, ptype, computer_id, parent_id, action="/parts/new")
-    # A transient Part, never added to the session: the descriptive fields of the
-    # source with everything belonging to that particular object left out.
-    ctx["p"] = Part(**{k: getattr(src, k) for k in PART_FIELDS
-                       if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS})
-    ctx["title"] = f"New {entry.type_label(ptype)}"
-    ctx["from_part"] = src.asset_id
-    # The same rule the duplicate button follows: another board of this model is
-    # another board of this model, but which revision it is and what is in its
-    # sockets are found by looking at the board in your hand.
-    if ctx.get("machine_saved"):
-        ctx["machine_saved"] = dict(machinedb.BLANK) | {
-            "model_key": ctx["machine_saved"]["model_key"]}
-    return templates.TemplateResponse(request, "part_form.html", ctx)
-
-
-def _counts_from_form(form, prefix, names):
-    """Read a grid of per-name number inputs (name='<prefix>:<n>') into
-    [(name, count), ...], skipping zeros/blanks."""
-    out = []
-    for name in names:
-        raw = (form.get(f"{prefix}:{name}", "") or "").strip()
-        try:
-            n = int(raw)
-        except ValueError:
-            n = 0
-        if n > 0:
-            out.append((name, n))
-    return out
-
-
-def _append_unmanaged(specs, extra, managed):
-    """Carry across the spec values the form does not manage. Keyed ones merge by
-    key; keyless ones (bare values from the old CSV import, e.g. 'ES1869F') are
-    appended verbatim -- they have no key to merge on and used to be dropped."""
-    keyless = []
-    for k, v in extra:
-        if not k:
-            keyless.append(v)
-        elif k not in managed:
-            specs = entry.merge_spec(specs, k, v)
-    for v in keyless:
-        specs = f"{specs} | {v}" if specs else v
-    return specs
-
-
-def _assemble_motherboard_specs(form, extra=()):
-    """Build a motherboard's specs from the structured grids (slot/RAM/port
-    counts and CPU-family checkboxes) plus the plain text fields."""
-    pairs = [("Chipset", (form.get("spec_chipset", "") or "").strip()),
-             ("CPU family", ", ".join(form.getlist("cpufam"))),
-             ("Form factor", (form.get("spec_form_factor", "") or "").strip()),
-             ("RAM slots", entry.format_counts(
-                 _counts_from_form(form, "ram", entry.RAM_SLOT_TYPES))),
-             ("Onboard RAM", (form.get("spec_onboard_ram", "") or "").strip()),
-             ("Slots", entry.format_counts(
-                 _counts_from_form(form, "slot", entry.SLOT_NAMES))),
-             ("Cache", (form.get("spec_cache", "") or "").strip()),
-             ("BIOS", (form.get("spec_bios", "") or "").strip()),
-             ("Onboard video", (form.get("spec_onboard_video", "") or "").strip()),
-             ("Ports", entry.format_counts(
-                 _counts_from_form(form, "port", entry.PORT_NAMES)))]
-    return _append_unmanaged(entry.build_specs(pairs), extra,
-                             [k for k, _ in pairs])
-
-
-def _assemble_specs(ptype, form, extra=()):
-    """Build a part's specs string from the typed form fields, running the same
-    quick-entry expanders the guided flow has always used. `extra` carries the
-    (key, value) pairs the form does not manage -- read from part_attribute, which
-    is where anything unrecognised or unparseable already lives -- so editing a
-    part never silently drops them."""
-    if ptype == "motherboard":
-        return _assemble_motherboard_specs(form, extra)
-    managed = {
-        "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
-                        "Onboard RAM", "Slots", "Cache", "BIOS",
-                        "Onboard video", "Ports"],
-        "cpu": ["Socket", "Speed", "FSB", "Cores", "Cache"],
-        "ram": ["Type", "Size", "Speed"],
-        "video": ["Chip", "Interface", "Connector", "Memory", "Type"],
-        "sound": ["Chip", "Interface", "FM", "Ports"],
-        "network": ["Chip", "Interface", "Connector"],
-        "io": ["Chip", "Interface", "Ports"],
-        "storage": ["Kind", "Description", "Form factor", "Size", "Interface",
-                    "Protocol", "Capacity", "CHS", "Media", "Speed", "Role",
-                    "Colour", "Yellowing"],
-        "display": ["Type", "Panel", "Screen size", "Aspect", "Resolution",
-                    "Refresh", "Sync", "Dot pitch", "Interface", "Picture",
-                    "Colour", "Yellowing"],
-    }.get(ptype)
-    # 'other' / 'peripheral' keep a free-text specs box (no data loss).
-    if managed is None:
-        return " ".join((form.get("specs", "") or "").split())
-    # One managed key whose box is not named for it: the drive description is
-    # typed into the same field that feeds a machine's drive row, so it is named
-    # for that job. Routed to a machine it becomes the row and never reaches
-    # here; kept as a part, this is what stops it being dropped on the floor.
-    fields = {"Description": "drive_desc"}
-    specs = ""
-    for key in managed:
-        # spec_ prefix keeps these clear of the part's own columns (a RAM
-        # 'Type' spec vs the part type, etc.).
-        field = fields.get(key) or _spec_field(key)
-        raw = None
-        if ptype == "display" and key in DISPLAY_ASK_BY_KEY:
-            # Picked from a group rather than typed into one box. Its answer stands,
-            # blank included -- that is how a value is taken back off.
-            raw = _picked_display(form, DISPLAY_ASK_BY_KEY[key])
-        elif ptype == "storage" and key in PICK_FIELDS:
-            # Picked from a radio group with a box beside it, not typed into one
-            # input, and read only for the kinds the group is offered for. Where it
-            # is offered its answer stands, blank included -- that is how a value is
-            # taken back off -- and where it is not, nothing here replaces what the
-            # record already said.
-            raw = _picked_ask(form, key)
-        if raw is None:
-            raw = (form.get(field, "") or "").strip()
-        if not raw:
-            continue
-        if key == "Ports":
-            raw = entry.expand_ports(raw)
-        elif key == "Slots":
-            raw = entry.expand_slots(raw)
-        elif key in ("Size", "Memory") and ptype != "storage":
-            # A memory amount is a quantity, and normalises to KiB so it sorts and
-            # compares. A drive's size is a media designation and must not: 1.44MB
-            # is 1475 KiB only by convention, and nobody calls that disk a 1475 KiB.
-            raw = entry.normalise_amount(key, raw)
-        specs = entry.merge_spec(specs, key, raw)
-    return _append_unmanaged(specs, extra, managed)
-
-
-# The pick-or-type groups, and the drive row column each becomes where the drive is
-# folded into a machine. Which kinds are asked, and what each picks from, is not
-# repeated here: it comes from entry.STORAGE_ASKS, the one table the form is built
-# from, so a group cannot be on screen for a kind the server reads past.
-DRIVE_PICKS = {
-    "Form factor": ("drive_form", "form_factor"),
-    "Size": ("drive_size", "size"),
-    "Media": ("drive_media", "media"),
-    "Speed": ("drive_speed", "speed"),
-}
-
-# The form field each ask's radio group is named for: the four above keep the
-# drive_-prefixed names a machine's own form posts, and the rest are named for their
-# spec key like every other field on the part form.
-PICK_FIELDS = {
-    ask["key"]: (DRIVE_PICKS[ask["key"]][0] if ask["key"] in DRIVE_PICKS
-                 else "spec_" + ask["key"].lower().replace(" ", "_"))
-    for ask in entry.STORAGE_ASKS if ask["options"]
-}
-
-# Which kinds each ask is offered for, straight off the table the form is built
-# from, so a group cannot be on screen for a kind the server reads past.
-ASK_KINDS = {ask["key"]: ask["kinds"] for ask in entry.STORAGE_ASKS}
-
-
-def _ask_options(key, kind):
-    """The answers one kind is offered for one ask, () where it is asked with a text
-    box instead."""
-    for ask in entry.storage_asks(kind):
-        if ask["key"] == key:
-            return ask["options"] or ()
-    return ()
-
-
-def _require_storage_interface(ptype, form):
-    """A storage part has to say how it attaches, so that "every SCSI drive" stays a
-    question the collection can answer. The radios are marked required, so this is
-    the backstop for anything posting straight to the endpoint. A drive folded into a
-    machine's drive row never reaches here: it is a field on that machine rather than
-    a part, and has no interface column of its own to fill."""
-    if ptype != "storage":
-        return
-    # Read exactly as the value that gets saved is read, or the two could disagree and
-    # let a part through with an interface that is then dropped for not being one.
-    picked = _picked_ask(form, "Interface")
-    if picked is None:
-        return
-    if not picked:
-        raise HTTPException(400, "a storage part needs an interface: one of "
-                            + ", ".join(entry.STORAGE_INTERFACES) + ", or custom")
-
-
-def _picked_ask(form, key):
-    """What one of those groups chose: one of the standard answers, or whatever was
-    typed beside "custom" for the hardware the list does not name (a 3" Amstrad, a
-    Floptical). Blank when nothing was picked, which leaves the description to say
-    it.
-
-    None -- not blank -- for a kind the group is not offered for, which is the
-    difference between "asked, and the answer is nothing" and "never asked". A radio
-    left checked from a kind since changed must not be saved against a drive it never
-    described, and a value already on a record must not be thrown away by a group
-    that was never on screen to replace it.
-    """
-    kind = form.get("kind", "") or ""
-    if kind not in ASK_KINDS.get(key, ()):
-        return None
-    field = PICK_FIELDS[key]
-    raw = (form.get(field, "") or "").strip()
-    if raw == "custom":
-        return " ".join((form.get(field + "_custom", "") or "").split())
-    # Against this kind's own list, not just any of them. Media and Speed are asked
-    # of more than one kind and each kind has its own vocabulary, so the groups share
-    # a field name -- which means a radio left checked from a kind since changed
-    # arrives here looking like an answer. A CD-RW is not something a floppy takes.
-    return raw if raw in _ask_options(key, kind) else ""
-
-
-def _apply_drive_picks(form, rows):
-    """Put what the pickers chose on drives just read from a typed description.
-
-    A picker is a deliberate answer, so it wins over the same thing said in the
-    text; a blank one leaves what the text said. Two drives typed at once get the
-    same answers, which is the only reading a single set of pickers can have.
-
-    And the kind, where the description named none. drivedb infers "floppy" from a
-    size or a form factor only a floppy has, but it infers it while reading the
-    text -- so a description like "Sony MPF920", which names neither, used to leave
-    a row with no kind, and picking the size rather than typing it does not reach
-    that rule. The menu that routed the drive here has already said which kind it
-    is, so let it answer: read through drivedb's own vocabulary rather than a
-    second mapping of the same words, and only where the text did not say.
-    """
-    picks = {col: _picked_ask(form, key) or ""
-             for key, (_f, col) in DRIVE_PICKS.items()}
-    picks["colour"] = form.get("drive_colour", "") or ""
-    picks["yellowing"] = form.get("drive_yellowing", "") or ""
-    # The make and model, from the fields that ask for them. A routed drive never
-    # becomes a Part, so what was typed under Identity used to be dropped on the
-    # floor and the description was the only way to name the thing -- survivable
-    # while the description was always on screen, not now that a floppy the pickers
-    # have described does without one. Filled in where the description named
-    # nothing, not over the top of it: what is left of a description after the
-    # pickers have taken their share is the words they could not say (a "SS/DD"),
-    # and those are the last thing to overwrite.
-    named = " ".join(
-        x for x in (entry.deshout((form.get("manufacturer", "") or "").strip()),
-                    entry.deshout((form.get("model", "") or "").strip())) if x)
-    # The first word of the menu's label: "Floppy/Gotek" and "SD/CF card" are pairs
-    # of alternatives that drivedb reads as neither, and a Gotek names itself.
-    menu = (form.get("kind", "") or "").split("/")[0]
-    from_menu = (drivedb.parse_segment(menu) or {}).get("kind", "")
-    for row in rows:
-        for col, picked in picks.items():
-            row[col] = picked.strip() or row.get(col, "")
-        row["kind"] = row.get("kind", "") or from_menu
-        row["model"] = row.get("model", "") or named
-
-
-async def _part_from_form(form, ptype, extra=()):
-    data = {"type": ptype,
-            "computer_id": form.get("computer_id", "") or None,
-            "parent_id": form.get("parent_id", "") or None}
-    for f in ("manufacturer", "model", "name", "year", "serial", "condition",
-              "source", "acquired_date", "url", "summary", "notes", "disk_image"):
-        data[f] = _coerce(f, form.get(f, ""))
-    for f in ("manufacturer", "model"):
-        data[f] = entry.deshout(data[f])
-    data["specs"] = _assemble_specs(ptype, form, extra)
-    return data
-
-
-@app.post("/parts/new", include_in_schema=False)
-async def gui_create_part(request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
-    photos = _chosen_photos(form)
-    ptype = form.get("type", "other") or "other"
-    computer_id = form.get("computer_id", "") or ""
-    # Storage routing: floppy / optical / SD-CF live on the computer's drives
-    # field; only hard disks and tape become their own tagged parts.
-    if ptype == "storage":
-        kind = form.get("kind", "") or ""
-        if kind and kind not in entry.PART_STORAGE_KINDS:
-            # With nothing typed, the kind names the drive -- but the menu's label
-            # is a pair of alternatives ("Floppy/Gotek", "SD/CF card") that the
-            # parser reads as neither, and files as a model. Hand it the first
-            # word, which is a word it knows. Picking only a capacity and typing
-            # no description is an ordinary gesture now the picker exists.
-            desc = (form.get("drive_desc", "") or "").strip() or kind.split("/")[0]
-            if computer_id:
-                c = get_or_404(db, Computer, computer_id)
-                # Append a row, not text: drives is rendered from the rows, so
-                # anything written straight to it would vanish on the next save.
-                added = drivedb.from_string(desc)[0]
-                _apply_drive_picks(form, added)
-                drivedb.write(db, c, drivedb.read(db, c) + added)
-                # The canonical rendering rather than what was typed, so the history
-                # names the bezel that was picked from the menus as well.
-                add_log(db, computer_id,
-                        f"added drive: {drivedb.render(added) or desc}")
-                # This drive is a field on the machine rather than an asset of its
-                # own, so it has no tag of its own to file a photo under: any that
-                # were chosen belong to the machine the drive went into.
-                if photos:
-                    _attach_photos(db, c, "computers", photos)
-                # And for the same reason, work noted while adding it is the
-                # machine's: the drive is a field on that record and has no tag of
-                # its own for a project to be about.
-                _work_from_form(db, c, form)
-                db.commit()
-                return RedirectResponse(f"/computers/{computer_id}?build=1",
-                                        status_code=303)
-    _require_storage_interface(ptype, form)
-    data = await _part_from_form(form, ptype)
-    if ptype == "storage":
-        data["specs"] = entry.merge_spec(data["specs"], "Kind",
-                                         form.get("kind", "") or "")
-        # A routed kind with no machine to route to becomes a part after all, so a
-        # bezel picked on that path comes with it rather than being dropped on the
-        # floor -- the part's own menus were not on screen to say otherwise.
-        for key, routed, own in (("Colour", "drive_colour", "spec_colour"),
-                                 ("Yellowing", "drive_yellowing", "spec_yellowing")):
-            picked = (form.get(routed, "") or "").strip()
-            if picked and not (form.get(own, "") or "").strip():
-                data["specs"] = entry.merge_spec(data["specs"], key, picked)
-    obj = Part(asset_id=next_asset_id(db), **data)
-    db.add(obj)
-    db.flush()
-    specdb.write(db, obj)
-    # Only a board is filed against the catalogue, whatever a hand-made post claims:
-    # the pickers are on no other type's form, and a SIMM filed as a Commodore 64
-    # would be a record of nothing anybody owns.
-    if ptype == "motherboard" and \
-            (mach := _machine_from_form(form, board=True)) is not None:
-        machinedb.write(db, obj, **mach)
-    add_log(db, obj.asset_id, "created", "created")
-    _work_from_form(db, obj, form)
-    db.commit()
-    if photos:
-        _attach_photos(db, obj, "parts", photos)
-        db.commit()
-    parent_id = form.get("parent_id", "") or ""
-    dest = (f"/computers/{computer_id}?build=1" if computer_id
-            else f"/parts/{parent_id}" if parent_id
-            else f"/parts/{obj.asset_id}")
-    return RedirectResponse(dest, status_code=303)
-
-
-@app.get("/parts/{aid}", response_class=HTMLResponse, include_in_schema=False)
-def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
-             db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    parent = db.get(Computer, p.computer_id) if p.computer_id else None
-    host = db.get(Part, p.parent_id) if p.parent_id else None
-    children = (db.query(Part).filter(Part.parent_id == aid)
-                .order_by(Part.asset_id).all())
-    candidates, computers = [], []
-    if request.state.authed:
-        candidates = (db.query(Part)
-                      .filter(Part.type == "storage", Part.asset_id != aid,
-                              Part.parent_id.is_(None))
-                      .order_by(Part.asset_id).all())
-        if not p.computer_id and not p.parent_id:
-            computers = db.query(Computer).order_by(Computer.asset_id).all()
-    images = detect_images("parts", aid)
-    spec_pairs = specdb.pairs(db, p, display=True)
-    # The preview text and the structured data are read rather than parsed, so they
-    # say the figures the page says -- not the stored string's exact-to-the-KiB ones.
-    blurb = p.summary or _dot(entry.type_label(p.type),
-                              " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
-                              specstruct.join(spec_pairs))
-    return templates.TemplateResponse(request, "part.html", {
-        "machine": _machine_page(db, p),
-        "p": p, "parent": parent, "host": host, "children": children,
-        "thumbs": part_thumbs(db, children),
-        "item": (pdict := to_dict(p)), "kind": "parts",
-        "files": filesdb.for_item(db, pdict, request.state.authed),
-        "file_models": filesdb.model_ids_for(db, pdict),
-        "fileerr": bool(fileerr),
-        "dl_filenotes": _answers_given(db, StoredFile.note),
-        "on_project": (found := projects.project_for(db, aid,
-                                                     request.state.authed)),
-        "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
-        "project_tasks": (projects.project_wide_tasks(db, found.asset_id)
-                          if found is not None else []),
-        # For the picker in that panel, which only an owner is shown -- so a
-        # visitor's page does not ask the question at all.
-        "work_projects": (projects.open_projects(db) if request.state.authed
-                          else []),
-        "candidates": candidates, "computers": computers,
-        "images": images, "placeholder": _part_placeholder(db, p),
-        "ref_marks": reference_marks("parts", aid),
-        "tuned": tuned_photos("parts", aid),
-        "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
-        "log": _history(db, aid), "nav": _item_nav(db, aid),
-        "live_aid": aid, "live_v": _change_token(db, aid),
-        "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
-                         images[0] if images else None)),
-        "jsonld": _jsonld(og, p.asset_id, p.manufacturer,
-                          entry.type_label(p.type) or "Computer part")})
-
-
-@app.get("/parts/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
-def gui_edit_part(aid: str, request: Request, type: str = "",
-                  db: Session = Depends(get_db)):
-    """The edit form. `type` builds it for a type other than the one the part is
-    filed under, which is what the type menu asks for: what a part is asked depends
-    on its type, so changing that has to fetch the form again to have the new
-    type's fields on screen at all. Nothing is saved by looking -- the record still
-    says what it always did until the form is submitted.
-
-    Only a type the register knows. A made-up one would fall through to the
-    free-text box and then become the part's type on save, which is a way to file a
-    SIMM as a "gizmo" by editing a URL."""
-    p = get_or_404(db, Part, aid)
-    ptype = type if type in entry.TYPE_ORDER else (p.type or "other")
-    ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")
-    ctx["title"] = f"Edit {aid}"
-    return templates.TemplateResponse(request, "part_form.html", ctx)
-
-
-@app.post("/parts/{aid}/edit", include_in_schema=False)
-async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    ptype = form.get("type", p.type) or "other"
-    _require_storage_interface(ptype, form)
-    # Unmanaged keys live in part_attribute; carry them across the edit.
-    #
-    # Retyping is the case that needs more than those. A part's structured specs are
-    # read from the table its old type owns, and only what would not fit there is an
-    # attribute -- so on the way to a type with different questions, everything that
-    # did fit was being dropped on the floor. Retyping a video card to a display kept
-    # nothing but what the display form itself asked: the chip it was built round and
-    # how much memory it had simply went.
-    #
-    # So when the type changes, everything the old type recorded comes across as
-    # unmanaged, and _append_unmanaged keeps whatever the new form has no question
-    # for. A key both types ask about is left to the form, because that is the answer
-    # somebody has just given to a question they were actually shown.
-    old_type = p.type or "other"
-    carried = (specdb.pairs(db, p) if ptype != old_type
-               else specdb.read(db, p).attributes)
-    data = await _part_from_form(form, ptype, carried)
-    if ptype == "storage" and (form.get("kind", "") or ""):
-        data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind"))
-    old = {k: getattr(p, k) for k in data}
-    for k, v in data.items():
-        setattr(p, k, v)
-    specdb.write(db, p)
-    if ptype == "motherboard":
-        if (mach := _machine_from_form(form, board=True)) is not None:
-            machinedb.write(db, p, **mach)
-    elif p.variant:
-        # Retyped out of being a board, and the catalogue answer goes with it: a
-        # record saying this RAM stick is an Amiga 500 board describes nothing
-        # anybody owns. The same rule as filing a machine out of the catalogue.
-        machinedb.clear(db, p)
-    diff = _field_diffs(old, {k: getattr(p, k) for k in data}, list(data), semantic_specs=True)
-    if diff:
-        add_log(db, aid, diff)
-    _work_from_form(db, p, form)
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-# A duplicate is a second identical unit, so it copies what describes the model --
-# the fields, the specs, a machine's fitted memory and drives -- and nothing that
-# belongs to the original object: its photos, its disposal, its provenance
-# (source / acquired date / notes), its serial number, and where it sits. A second
-# card is a second card, not another card in the same slot, so the copy starts
-# unplaced -- and no two objects ever wore the same serial.
-#
-# A plan used to be on that list too, when one was a column here. It is a project of
-# its own now, and a project is attached to an asset rather than copied with one --
-# so a duplicate is simply not in it, and there is nothing to leave out.
-DUP_EXCLUDE = {"image", "disposed", "disposed_at", "disposed_note", "source",
-               "acquired_date", "notes", "serial", "computer_id", "parent_id"}
-
-
-@app.post("/parts/{aid}/duplicate", include_in_schema=False)
-def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
-    """A second identical part. On a board the catalogue model comes across for the
-    same reason the model field does -- another Amiga 500 board is another Amiga 500
-    board -- and the revision and the chips do not, because those are read off the
-    board in your hand rather than off the one it was copied from."""
-    src = get_or_404(db, Part, aid)
-    data = {k: getattr(src, k) for k in PART_FIELDS
-            if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS}
-    obj = Part(asset_id=next_asset_id(db), **data)
-    db.add(obj)
-    db.flush()
-    specdb.write(db, obj)
-    machinedb.duplicated_from(db, src, obj)
-    add_log(db, obj.asset_id, f"created as a duplicate of {aid}", kind="created")
-    add_log(db, aid, f"duplicated to {obj.asset_id}", kind="duplicate")
-    db.commit()
-    return RedirectResponse(f"/parts/{obj.asset_id}", status_code=303)
-
-
-@app.post("/computers/{aid}/duplicate", include_in_schema=False)
-def gui_duplicate_computer(aid: str, db: Session = Depends(get_db)):
-    """A second machine of the same model. Its memory and drives come across --
-    they describe the build -- but its parts do not: those are tagged objects
-    fitted to the original, and the copy starts as an empty chassis to fill. The
-    catalogue model comes across for the same reason the model field does; the
-    board issue and the chips do not, because those are found by opening this
-    machine rather than the one it was copied from."""
-    src = get_or_404(db, Computer, aid)
-    data = {k: getattr(src, k) for k in COMPUTER_FIELDS
-            if k not in DUP_EXCLUDE and k not in DERIVED_FIELDS}
-    obj = Computer(asset_id=next_asset_id(db), **data)
-    db.add(obj)
-    db.flush()
-    mods, chips = ramdb.read(db, src)
-    ramdb.write(db, obj, mods, chips, src.installed_ram_note or "",
-                src.installed_ram_kb)
-    drivedb.write(db, obj, drivedb.read(db, src), src.drives_note or "")
-    machinedb.duplicated_from(db, src, obj)
-    add_log(db, obj.asset_id, f"created as a duplicate of {aid}", kind="created")
-    add_log(db, aid, f"duplicated to {obj.asset_id}", kind="duplicate")
-    db.commit()
-    return RedirectResponse(f"/computers/{obj.asset_id}", status_code=303)
-
-
-@app.post("/parts/{aid}/for-sale", include_in_schema=False)
-async def gui_part_for_sale(aid: str, request: Request,
-                            db: Session = Depends(get_db)):
-    return await _set_for_sale(db, Part, aid, request)
-
-
-@app.post("/parts/{aid}/dispose", include_in_schema=False)
-async def gui_dispose_part(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    p.disposed = True
-    p.disposed_at = _parse_date(form.get("date", "")) or date.today()
-    p.disposed_note = form.get("note", "") or ""
-    add_log(db, aid, _disposal_log(p))
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.post("/parts/{aid}/restore", include_in_schema=False)
-def gui_restore_part(aid: str, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    p.disposed = False
-    p.disposed_at = None
-    p.disposed_note = ""
-    add_log(db, aid, "restored")
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.get("/parts/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)
-def gui_delete_part_form(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    _require_disposed(p, "part")
-    return templates.TemplateResponse(request, "delete.html",
-                                      _delete_ctx(request, db, "parts", p))
-
-
-@app.post("/parts/{aid}/delete", include_in_schema=False)
-async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    _require_disposed(p, "part")
-    form = await request.form()
-    if not _confirms_url(form.get("confirm", ""), "parts", p.asset_id):
-        return templates.TemplateResponse(
-            request, "delete.html",
-            _delete_ctx(request, db, "parts", p,
-                        error="That is not this item's URL. Nothing was deleted."),
-            status_code=400)
-    # Back to the machine it was in if it was in one, since that page is now a
-    # part short and is the thing worth looking at; otherwise to the gallery.
-    where = f"/computers/{p.computer_id}" if p.computer_id else "/"
-    delete_part(db, p)
-    return RedirectResponse(where, status_code=303)
-
-
-@app.post("/parts/{aid}/note", include_in_schema=False)
-async def gui_part_note(aid: str, request: Request, db: Session = Depends(get_db)):
-    get_or_404(db, Part, aid)
-    _note_with_photos(db, aid, await request.form())
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.post("/parts/{aid}/photo", include_in_schema=False)
-async def gui_part_photo(aid: str, photos: list[UploadFile] = File(...),
-                         db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    first = None
-    n = 0
-    for up in photos:
-        if (up.filename or "").strip():
-            rel = _save_photo("parts", aid, up)
-            n += 1
-            if first is None:
-                first = rel
-    if first and not p.image:
-        p.image = first
-    if n:
-        add_log(db, aid, f"added {n} photo(s)")
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.post("/parts/{aid}/fetch-image", include_in_schema=False)
-def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    rel = _fetch_reference_photo("parts", aid, p.url or "") if p.url else None
-    if rel:
-        if not p.image:
-            p.image = rel
-        add_log(db, aid, "fetched a photo from the reference")
-        db.commit()
-    return RedirectResponse(f"/parts/{aid}" + ("" if rel else "?imgerr=1"),
-                            status_code=303)
-
-
-@app.post("/parts/{aid}/unlink", include_in_schema=False)
-async def gui_unlink_part(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    nxt = form.get("next", "") or f"/parts/{aid}"
-    old_cid = p.computer_id
-    p.computer_id = None
-    if old_cid:
-        add_log(db, aid, f"unlinked from computer {old_cid}")
-    db.commit()
-    return RedirectResponse(_safe_next(nxt), status_code=303)
-
-
-@app.post("/parts/{aid}/link", include_in_schema=False)
-async def gui_link_part_to_computer(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
-    """Install this part into an existing computer (chosen from the part page)."""
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    cid = form.get("computer_id", "") or ""
-    if cid:
-        get_or_404(db, Computer, cid)
-        p.computer_id = cid
-        p.parent_id = None
-        add_log(db, aid, f"installed in {cid}")
-        add_log(db, cid, f"linked part {aid}")
-        db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.post("/parts/{aid}/attach", include_in_schema=False)
-async def gui_attach_part(aid: str, request: Request, db: Session = Depends(get_db)):
-    """Mount another part onto this one (e.g. a hard disk on a controller card)."""
-    get_or_404(db, Part, aid)
-    form = await request.form()
-    pid = form.get("part_id", "") or ""
-    if not pid:
-        return RedirectResponse(f"/parts/{aid}", status_code=303)
-    child = get_or_404(db, Part, pid)
-    child.parent_id = aid
-    child.computer_id = None
-    add_log(db, aid, f"mounted {child.asset_id}")
-    add_log(db, child.asset_id, f"mounted on {aid}")
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.post("/parts/{aid}/detach", include_in_schema=False)
-async def gui_detach_part(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    old_host = p.parent_id
-    p.parent_id = None
-    if old_host:
-        add_log(db, aid, f"unmounted from {old_host}")
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next", "") or f"/parts/{aid}"),
-                            status_code=303)
-
-
-@app.post("/parts/{aid}/primary-photo", include_in_schema=False)
-async def gui_part_primary(aid: str, request: Request,
-                           db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    p.image = _set_primary_photo("parts", aid, form.get("image", ""))
-    add_log(db, aid, "changed the default photo")
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.post("/parts/{aid}/photo-delete", include_in_schema=False)
-async def gui_part_photo_delete(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    was_primary, new_primary = _delete_image("parts", aid, form.get("image", ""))
-    if was_primary:
-        p.image = new_primary or ""
-    add_log(db, aid, "deleted a photo")
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.post("/parts/{aid}/photo-reference", include_in_schema=False)
-async def gui_part_photo_reference(aid: str, request: Request,
-                                   db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    form = await request.form()
-    rel = form.get("image", "")
-    if rel not in detect_images("parts", aid):
-        raise HTTPException(404, "no such photo for this item")
-    on = form.get("set", "1") == "1"
-    _mark_reference(rel, on, (form.get("note", "") or "").strip(), p.url or "")
-    add_log(db, aid, "flagged a photo as a reference image" if on
-            else "unflagged a reference photo")
-    db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
-
-
-@app.get("/parts/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)
-def gui_part_edit_photo(aid: str, image: str = ""):
-    return _photo_edit_redirect("parts", aid, image)
-
-
-@app.post("/parts/{aid}/photo-rotate", include_in_schema=False)
-async def gui_part_photo_rotate(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_rotate(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
-
-
-@app.post("/parts/{aid}/photo-tuneup", include_in_schema=False)
-async def gui_part_photo_tuneup(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_tuneup(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
-
-
-@app.post("/parts/{aid}/photo-revert", include_in_schema=False)
-async def gui_part_photo_revert(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_revert(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
-
-
-@app.post("/parts/{aid}/photo-crop", include_in_schema=False)
-async def gui_part_photo_crop(aid: str, request: Request,
-                              db: Session = Depends(get_db)):
-    form = await request.form()
-    _do_photo_crop(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
-
-
-@app.get("/parts/{aid}/label.pdf", include_in_schema=False)
-def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
-    p = get_or_404(db, Part, aid)
-    pdf = labels.render_pdf(to_dict(p), [], labels.PART, small=bool(small),
-                            spec_pairs=specdb.pairs(db, p, display=True))
-    return Response(pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 # --- files kept beside the register -----------------------------------------
@@ -2714,220 +804,30 @@ def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
 # from visitors until somebody says otherwise (ADR-0009).
 
 
-def _file_or_404(db, fid):
-    row = db.get(StoredFile, fid)
-    if row is None:
-        raise HTTPException(404, f"file {fid} not found")
-    return row
 
 
-@app.get("/files/{fid}/{name}", include_in_schema=False)
-def serve_file(fid: int, name: str, request: Request,
-               db: Session = Depends(get_db)):
-    """Hand over the bytes, always as a download and never as a page.
-
-    An upload is whatever somebody sent, and some of what people send is HTML, or
-    an SVG, which a browser asked to display would run as this site with this
-    site's cookies. So: one content type for everything, an attachment
-    disposition, and nosniff to stop the browser deciding it knows better. `name`
-    is in the URL for the sake of the link reading like the file, and is not what
-    is opened -- the id is.
-
-    An unpublished file is a 404 to a visitor rather than a 401, and the same 404
-    a missing id gets. There is nothing to log in *for* here -- the login is the
-    owner's, not an account a reader could hold -- so an invitation to authenticate
-    would only confirm that the file exists, which for the receipt this flag was
-    added to cover is most of what was being kept back."""
-    row = _file_or_404(db, fid)
-    if not row.public and not request.state.authed:
-        raise HTTPException(404, f"file {fid} not found")
-    path = filesdb.path_of(row)
-    if not path.is_file():
-        raise HTTPException(404)
-    return FileResponse(path, media_type="application/octet-stream", headers={
-        "Content-Disposition": f'attachment; filename="{_ascii_filename(row.filename)}"',
-        "X-Content-Type-Options": "nosniff",
-        # A published file may be kept by anything that sees it; an unpublished one
-        # may not be kept at all. The owner is the only person who can fetch one,
-        # and the point of unticking the box is that the copy stops being handed
-        # out -- which a shared cache holding it for the hour would carry on doing.
-        "Cache-Control": ("public, max-age=3600" if row.public
-                          else "private, no-store")})
 
 
-def _ascii_filename(name):
-    """A filename safe to put in a header: no quotes, no control characters, no
-    non-ASCII (which a header cannot carry). The stored name keeps the original."""
-    cleaned = "".join(ch for ch in (name or "") if ch.isprintable() and ord(ch) < 128)
-    return cleaned.replace('"', "").replace("\\", "").strip() or "download"
 
 
-@app.post("/files", include_in_schema=False)
-async def gui_upload_files(request: Request, uploads: list[UploadFile] = File(...),
-                           db: Session = Depends(get_db)):
-    """Take one or more files, label them with the tags the form carries, and attach
-    them to whatever the upload started on.
-
-    `aid` is that item. A driver found while looking at the card it is for is about
-    the card as a model, so that is what it is attached to; an item with no model to
-    speak of gets the file attached to itself (ADR-0020). Either way the panel says
-    which it did and offers the other."""
-    form = await request.form()
-    tags = filesdb.parse_tags(form.get("tags", ""))
-    note = form.get("note", "")
-    nxt = _safe_next(form.get("next") or "/files")
-    aid = (form.get("aid") or "").strip().upper()
-    saved, errors = 0, []
-    for up in uploads:
-        if not (up.filename or "").strip():
-            continue
-        try:
-            row = filesdb.save(db, up, tags, note)
-            if row is not None:
-                saved += 1
-                _attach_where_it_belongs(db, row.id, aid)
-        except ValueError as exc:
-            errors.append(str(exc))
-    if saved and aid:
-        add_log(db, aid, f"added {saved} file(s)")
-    db.commit()
-    return RedirectResponse(nxt + ("?fileerr=1" if errors else ""), status_code=303)
 
 
-def _item_for_link(db, aid):
-    """The computer or part an asset id names, as the dict filesdb reads. None for
-    a project, or an id that names nothing: a file is about hardware."""
-    aid = (aid or "").strip().upper()
-    if not aid:
-        return None
-    obj = db.get(Computer, aid) or db.get(Part, aid)
-    return to_dict(obj) if obj else None
 
 
-def _attach_where_it_belongs(db, file_id, aid):
-    """What uploading from an item's page means: the model where the item has one,
-    since a driver is a fact about a model, and the item itself where it has none --
-    a custom build, or a card whose model was left blank."""
-    item = _item_for_link(db, aid)
-    if item is None:
-        return
-    models = filesdb.model_ids_for(db, item)
-    if models:
-        kind, key, label = models[0]
-        filesdb.attach_model(db, file_id, kind, key, label)
-    else:
-        filesdb.attach_asset(db, file_id, item["asset_id"])
 
 
-@app.post("/files/{fid}/attach", include_in_schema=False)
-async def gui_file_attach(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Attach a file that is already on file to this item, or to its model.
-
-    `what` picks which: `unit` is that one machine or card, anything else is the
-    model. Asking for a model an item does not have attaches the item instead
-    rather than failing, because the answer to "every one of these" where there is
-    only the one is the one."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    item = _item_for_link(db, form.get("aid"))
-    if item is None:
-        raise HTTPException(404, "nothing here to attach a file to")
-    models = filesdb.model_ids_for(db, item)
-    if (form.get("what") or "model") == "unit" or not models:
-        filesdb.attach_asset(db, row.id, item["asset_id"])
-    else:
-        kind, key, label = models[0]
-        filesdb.attach_model(db, row.id, kind, key, label)
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
 
 
-@app.post("/files/{fid}/detach", include_in_schema=False)
-async def gui_file_detach(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Take a file off a unit or off a model.
-
-    It never deletes anything. A file attached to nothing is unfiled, which the
-    files page says out loud -- the disposal case ADR-0006 was right to worry
-    about is a file quietly going in the bin with the last thing that pointed at
-    it."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    aid = (form.get("aid") or "").strip().upper()
-    kind, key = (form.get("kind") or "").strip(), (form.get("key") or "").strip()
-    if aid:
-        filesdb.detach_asset(db, row.id, aid)
-    if kind and key:
-        filesdb.detach_model(db, row.id, kind, key)
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
 
 
-@app.post("/files/{fid}/tags", include_in_schema=False)
-async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Relabel one: what the box says is the whole list, so a tag taken out of it is
-    gone. A tag is a label now and decides nothing about where the file appears --
-    that is what attach and detach are for."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    filesdb.set_tags(db, row, form.get("tags", ""))
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
 
 
-@app.post("/files/{fid}/public", include_in_schema=False)
-async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_db)):
-    """Publish one, or take it back.
-
-    The box on the page is the answer, so an absent field is "no": an unticked
-    checkbox sends nothing at all, which is the one form control whose off state
-    has to be read from its silence."""
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    row.public = bool(form.get("public"))
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
 
 
-@app.post("/files/{fid}/delete", include_in_schema=False)
-async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_db)):
-    row = _file_or_404(db, fid)
-    form = await request.form()
-    filesdb.remove(db, row)
-    db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
 
 
-@app.get("/files", response_class=HTMLResponse, include_in_schema=False)
-def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
-    """Everything on file, for finding the driver whose card is not in front of you,
-    for seeing what a tag is spelled as before typing it again, and for filing the
-    one that is attached to nothing.
-
-    The register's ids ride along for the attach box to offer, owner only: what it
-    is is a list of everything owned, which is not a thing to hand a visitor who
-    cannot attach anything anyway."""
-    return templates.TemplateResponse(request, "files.html", {
-        "files": filesdb.all_files(db, tag, request.state.authed), "tag": tag,
-        "assets": _register_order(db) if request.state.authed else [],
-        "og": _og(request, "Files", "Drivers, manuals and disks kept with the "
-                                    "hardware they belong to")})
 
 
-@app.get("/api/files", tags=["files"])
-def api_list_files(tag: str = "", db: Session = Depends(get_db)):
-    """Files kept beside the register, newest first, each with its tags and what it
-    is attached to: `assets` are the units it is about and `models` the models every
-    item of which it is about. `tag` narrows it to one tag, matched ignoring case
-    and spacing."""
-    return [{"id": f.id, "filename": f.filename, "size": f.size, "note": f.note,
-             "tags": f.tags, "created_at": f.created_at, "public": f.public,
-             "assets": f.assets, "models": [
-                 {"kind": k, "key": key, "label": label} for k, key, label in f.models],
-             "url": f"/files/{f.id}/{quote(f.filename)}"}
-            for f in filesdb.all_files(db, tag)]
 
 
 # --- projects: the work, as against the things it is done to ------------------
@@ -2943,391 +843,42 @@ def api_list_files(tag: str = "", db: Session = Depends(get_db)):
 # simply a third kind. app/projects.py owns the vocabulary, the money and the
 # reading of the three child tables; what is here is what a person does with one.
 
-PROJECT_FIELDS = ("name", "status", "summary", "notes",
-                  "started_at", "target_date", "finished_at", "private")
 
 
-def _project_from_form(form):
-    data = {k: _coerce(k, form.get(k, "")) for k in PROJECT_FIELDS}
-    data["name"] = (data["name"] or "").strip()
-    data["status"] = projects.clean_status(data["status"])
-    # A tickbox that is not ticked sends nothing at all, so its absence is the
-    # answer rather than a missing one.
-    data["private"] = bool(form.get("private"))
-    return data
 
 
-def _project_form_ctx(p, title, error=""):
-    return {"p": p, "title": title, "statuses": projects.STATUSES, "error": error}
 
 
-def _project_named(p):
-    """A project in a sentence written in another item's history. The name, because
-    that is what it is known by, with the id so the line still points somewhere when
-    two projects are called nearly the same thing."""
-    return f"{p.name or 'a project'} ({p.asset_id})"
 
 
-# How many photographs the suggestion at the top of the projects page carries, and
-# how many of the project's jobs it lists. Enough to say what the thing is and what
-# is left to do on it; more would be the project's own page, drawn twice.
-TODAY_PHOTOS = 3
-TODAY_TASKS = 3
-
-# The longest a silence counts for in the draw. A project nobody has touched for
-# three years is not thirty times more overdue than one left a month ago -- past
-# some point it is simply "not for a while", and without a ceiling the oldest
-# project would win every draw and the feature would be a fixture.
-TODAY_QUIET_CAP = 180
-
-# What being stalled is worth, as against merely being quiet. Stalled is the state
-# somebody chose to record: it says out loud that this one is waiting on a part, the
-# weather or the will, and those are exactly the ones that never come up again on
-# their own.
-TODAY_STALLED_WEIGHT = 2
 
 
-def _project_of_the_day(db, authed):
-    """One project to suggest, drawn now, or None if there is nothing in hand.
-
-    Weighted towards the neglected, because the point of a nudge is the thing you
-    had forgotten and not the one you were doing yesterday. A project's weight is
-    how long its history has been quiet, capped, doubled if its status says stalled;
-    a project touched today weighs one, which keeps it in the draw rather than
-    excluding it -- what was worked on this morning is still a reasonable answer to
-    what to do this afternoon.
-
-    Drawn on every visit rather than once a day. It is a suggestion and not a queue:
-    looking again for another one is a thing somebody will want to do, and the
-    weighting means the same project coming up twice running is unlikely rather than
-    impossible.
-
-    A visitor is offered only the public ones, for the reason the list below them
-    is filtered (see _visible)."""
-    q = _visible(db.query(Project).filter(Project.status.notin_(projects.CLOSED)),
-                 authed)
-    pool = q.all()
-    if not pool:
-        return None
-    # The last thing written about each of them, in one query: a project's history
-    # is what says when it was last thought about at all.
-    last = dict(db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
-                .filter(LogEntry.asset_id.in_([p.asset_id for p in pool]))
-                .group_by(LogEntry.asset_id))
-    now = _now()
-    weights = []
-    for p in pool:
-        seen = last.get(p.asset_id)
-        quiet = (now - seen).days if seen else TODAY_QUIET_CAP
-        weight = min(max(quiet, 0), TODAY_QUIET_CAP) + 1
-        if p.status == "stalled":
-            weight *= TODAY_STALLED_WEIGHT
-        weights.append(weight)
-    return random.choices(pool, weights=weights, k=1)[0]
 
 
-def _today_panel(db, project):
-    """What the suggestion shows: the project, a photograph or three of the things
-    it is about, the jobs still to do, and how long it has been quiet.
-
-    The photographs are the items', because a project has none of its own -- it is a
-    piece of work, and what can be photographed is the hardware it is about. One
-    each from as many items as there are, then more from the first, so a project
-    about three machines shows the three rather than three views of one."""
-    if project is None:
-        return None
-    members = projects.members(db, project.asset_id)
-    shots, seen = [], set()
-    for wanted in (1, TODAY_PHOTOS):
-        for kind, obj, _row in members:
-            for rel in detect_images(kind, obj.asset_id)[:wanted]:
-                if rel in seen:
-                    continue
-                seen.add(rel)
-                # Each picture is a way through to the thing it is of, not to the
-                # project: somebody looking at a photograph of a drive wants the
-                # drive's page, and the project's name above it is already a link.
-                shots.append({"rel": rel, "url": f"/{kind}/{obj.asset_id}",
-                              "alt": entry.display_name(to_dict(obj))})
-                if len(shots) == TODAY_PHOTOS:
-                    break
-            if len(shots) == TODAY_PHOTOS:
-                break
-        if len(shots) == TODAY_PHOTOS:
-            break
-    tasks = [t for t in projects.tasks(db, project.asset_id) if not t.done]
-    orders_out = sum(1 for o in projects.orders(db, project.asset_id)
-                     if not o.delivered)
-    last = (db.query(func.max(LogEntry.created_at))
-            .filter(LogEntry.asset_id == project.asset_id).scalar())
-    return {
-        "p": project,
-        "members": [{"url": f"/{kind}/{obj.asset_id}",
-                     "name": entry.display_name(to_dict(obj))}
-                    for kind, obj, _row in members],
-        "photos": shots,
-        "tasks": tasks[:TODAY_TASKS], "tasks_left": len(tasks),
-        "orders_out": orders_out,
-        # Whole days, and None for a project nothing has ever been written about --
-        # which cannot happen through the app (creating one writes a line) but can
-        # through a restore, and "quiet for 20361 days" would be a strange thing for
-        # a page to say about it.
-        "quiet_days": (_now() - last).days if last else None,
-    }
 
 
-def _projects_page(request, db, q="", error="", status=200):
-    """The page, drawn.
-
-    A function rather than the route's body because the quick box has to render it
-    again when what was typed is not an asset tag, with the boxes still holding what
-    was typed.
-
-    One list, where there were two. A flag on an item and a project were two sizes
-    of the same idea sharing a page, and the promotion from the smaller to the
-    larger was a thing you did by hand and by retyping; now the quick box makes the
-    larger one directly and there is nothing to promote. What the flag really
-    carried, apart from a sentence, was privacy -- and that is a column on the
-    project now, so the quick box can go on being the place you write something you
-    have not decided to publish.
-
-    A visitor is shown the public ones. This is the first of the five places that is
-    kept (see _visible); the other four are the project's own page, the search, the
-    suggestion list and the sitemap."""
-    rows = projects.summaries(db, authed=request.state.authed)
-    total = len(rows)
-    if q.strip():
-        rows = _projects_matching(db, rows, q, request.state.authed)
-    live = [r for r in rows if r["p"].status not in projects.CLOSED]
-    # Not while the page is a set of search results, and not while it is telling
-    # somebody their asset tag was wrong: both of those are the page answering a
-    # question that was asked, and a suggestion above the answer is an interruption.
-    suggestion = (None if (q.strip() or error) else
-                  _today_panel(db, _project_of_the_day(db, request.state.authed)))
-    return templates.TemplateResponse(request, "projects.html", {
-        "rows": rows, "live": len(live), "q": q, "searched": bool(q.strip()),
-        "suggestion": suggestion,
-        "total": total, "error": error,
-        "register": _register_order(db) if request.state.authed else [],
-        "og": _og(request, "Projects", "Repairs, builds and things on order — "
-                                       "the work, as against the collection",
-                  card=cards.montage(_projects_card(db, rows)))},
-        status_code=status)
 
 
-@app.get("/projects", response_class=HTMLResponse, include_in_schema=False)
-def gui_projects(request: Request, q: str = "", db: Session = Depends(get_db)):
-    """Everything planned, in hand or finished. `q` narrows it, and is a box of its
-    own rather than the banner's: the banner searches the register and lands on the
-    gallery, and a page of projects wants to be siftable without leaving it."""
-    return _projects_page(request, db, q)
 
 
-@app.post("/projects/quick", include_in_schema=False)
-async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
-    """A project in one gesture, from the list's own page.
-
-    This is what the flag on an item used to be, and it is here for the same
-    reason: you are at the bench, you have just seen what is wrong with something,
-    and finding its page to write it down is how the second thing you noticed gets
-    lost. What is different is that what you get is a project -- with the item on
-    it and the sentence as its first job -- rather than a flag that has to be
-    turned into one by hand later.
-
-    Public, like everything else in the register: the tick on a project's own form
-    is what keeps one back, and it is a decision rather than a starting point (see
-    _take_on_work, which this goes through, and ADR-0004).
-
-    The asset tag is optional. A project need own nothing -- the idea comes before
-    the hardware -- and the commonest thing to want at a bench is both: this drive,
-    this fault.
-
-    `project` names one already going for the item and the jobs to go on instead of
-    raising another. The panel on an item's page offers it as a menu; the box on the
-    projects page does not, because a list of projects is not where you are standing
-    when you find out a part is for one of them.
-
-    One route for both boxes and for the entry forms, so what gets made does not
-    depend on which of them was to hand."""
-    form = await request.form()
-    jobs = _work_lines(form.get("job"))
-    asset_id = (form.get("aid") or "").strip().upper()
-    name = (form.get("name") or "").strip()
-    found = _asset_find(db, asset_id, FLAGGABLE) if asset_id else None
-    if asset_id and found is None:
-        # Back to the list saying so, rather than a 404 page. A mistyped tag is the
-        # ordinary way to get this wrong and the answer to it is the box to type it
-        # in again, which is on the page that was already open.
-        return _projects_page(request, db, error=asset_id, status=400)
-    picked = (form.get("project") or "").strip().upper()
-    project = db.get(Project, picked) if picked else None
-    if not name:
-        # Named after what it is about, where you did not say -- the same name the
-        # entry forms give one, because this is the same gesture and a project
-        # should not be called two different things depending on which box raised
-        # it. Where there is no item, the job names it: a project called nothing is
-        # a row nobody will recognise again.
-        name = (_work_project_name(db, asset_id) if found
-                else (jobs[0][:60] if jobs else "") or "Untitled project")
-    obj = _take_on_work(db, asset_id if found is not None else "", jobs,
-                        project, name=name)
-    db.commit()
-    return RedirectResponse(f"/projects/{obj.asset_id}", status_code=303)
 
 
-@app.get("/projects/new", response_class=HTMLResponse, include_in_schema=False)
-def gui_new_project(request: Request):
-    return templates.TemplateResponse(request, "project_form.html",
-                                      _project_form_ctx(None, "New project"))
 
 
-@app.post("/projects/new", include_in_schema=False)
-async def gui_create_project(request: Request, db: Session = Depends(get_db)):
-    """A project needs a name and nothing else.
-
-    A name because it is the only thing a project can be found by: a machine
-    falls back to its manufacturer and model and then to its asset id, and a
-    project has neither -- an untitled one is a row nobody will ever recognise
-    again. Everything else can be filled in later or never."""
-    form = await request.form()
-    data = _project_from_form(form)
-    if not data["name"]:
-        return templates.TemplateResponse(
-            request, "project_form.html",
-            _project_form_ctx(data, "New project", "Give it a name — it is the "
-                                                   "only thing it can be found by."))
-    obj = Project(asset_id=next_asset_id(db), **data)
-    db.add(obj)
-    add_log(db, obj.asset_id, "created", "created")
-    db.commit()
-    return RedirectResponse(f"/projects/{obj.asset_id}", status_code=303)
 
 
-@app.get("/projects/{aid}", response_class=HTMLResponse, include_in_schema=False)
-def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    # The second of the five. Not a 403 and not a redirect to the login: a visitor
-    # who guessed the tag of a private project should not be told there is one to
-    # guess at, and 404 is what every id that is nothing else answers.
-    if p.private and not request.state.authed:
-        raise HTTPException(404, f"projects {aid} not found")
-    order_rows = projects.orders(db, p.asset_id)
-    spent, unpriced = projects.spend(order_rows)
-    task_rows = projects.tasks(db, p.asset_id)
-    # Offered in the "add an item" box: everything in the register that is not
-    # already in this project. Only for whoever is signed in -- it is the contents
-    # of a form nobody else is shown -- and only as (id, name) pairs, because a
-    # menu of a few hundred assets should not be a few hundred loaded rows.
-    choices = []
-    if request.state.authed:
-        here = {a for (a,) in db.query(ProjectAsset.asset_id)
-                .filter(ProjectAsset.project_id == p.asset_id)}
-        for cls in (Computer, Part):
-            for row in db.query(cls.asset_id, cls.name, cls.manufacturer,
-                                cls.model).order_by(cls.asset_id):
-                if row.asset_id in here:
-                    continue
-                choices.append((row.asset_id, entry.display_name({
-                    "asset_id": row.asset_id, "name": row.name,
-                    "manufacturer": row.manufacturer, "model": row.model})))
-        choices.sort(key=lambda c: c[1].lower())
-    members = projects.members(db, p.asset_id)
-    return templates.TemplateResponse(request, "project.html", {
-        "p": p, "item": to_dict(p), "kind": "projects",
-        # Who things have been bought from before: the same kind of field as an
-        # item's source, and answered the same few ways.
-        "dl_suppliers": _answers_given(db, ProjectOrder.supplier),
-        "members": members,
-        "tasks": task_rows,
-        "tasks_done": sum(1 for t in task_rows if t.done),
-        "orders": order_rows,
-        "orders_out": sum(1 for o in order_rows if not o.delivered),
-        "spent": spent, "unpriced": unpriced,
-        "choices": choices,
-        "log": _history(db, p.asset_id),
-        "og": _og(request, p.name or p.asset_id,
-                  p.summary or projects.status_label(p.status),
-                  _project_card(members))})
 
 
-@app.get("/projects/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
-def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    return templates.TemplateResponse(request, "project_form.html",
-                                      _project_form_ctx(p, "Edit project"))
 
 
-@app.post("/projects/{aid}/edit", include_in_schema=False)
-async def gui_update_project(aid: str, request: Request,
-                             db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    form = await request.form()
-    data = _project_from_form(form)
-    if not data["name"]:
-        return templates.TemplateResponse(
-            request, "project_form.html",
-            _project_form_ctx(p, "Edit project", "Give it a name — it is the "
-                                                 "only thing it can be found by."))
-    before = to_dict(p)
-    for k, v in data.items():
-        setattr(p, k, v)
-    add_log(db, p.asset_id, _field_diffs(before, to_dict(p), PROJECT_FIELDS))
-    if bool(before["private"]) != bool(p.private):
-        _publish_log(db, p)
-    db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-@app.get("/projects/{aid}/label.pdf", include_in_schema=False)
-def gui_project_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
-    """A printable label for a project, so a thing bought for one can carry a
-    sticker saying what it is for.
-
-    The same label the machines and the parts get, made by the same code and
-    carrying the same /items/<id> code -- which is the whole reason a project was
-    given a register id in the first place. Scanning the sticker on a parcel opens
-    the project it was bought for, with its orders on it.
-
-    Small by default, as a part's is. A machine gets the 6x4 by default because it
-    is filed on a shelf and read across a room; this is going on a jiffy bag."""
-    p = get_or_404(db, Project, aid)
-    pdf = labels.render_pdf(to_dict(p), [], labels.PROJECT, small=bool(small))
-    return Response(pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
 
 
-@app.post("/projects/{aid}/note", include_in_schema=False)
-async def gui_project_note(aid: str, request: Request,
-                           db: Session = Depends(get_db)):
-    """The same note bar the machines have, posting to the same shape of URL, which
-    is why _history.html needed nothing said to it about projects."""
-    get_or_404(db, Project, aid)
-    _note_with_photos(db, aid, await request.form())
-    return RedirectResponse(f"/projects/{aid}", status_code=303)
 
 
-@app.post("/projects/{aid}/delete", include_in_schema=False)
-async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
-    """Delete a project outright, with no disposal step in front of it.
 
-    A machine has to be marked disposed before it can be deleted, because deleting
-    one is claiming a physical object has left the collection and that is a thing
-    worth being sure about. A project is a plan. Abandoning one is already a status
-    it can be put in and kept in, so the only reason left to delete is that it was
-    written by mistake -- and a confirmation is enough for that.
 
-    Its tasks, orders and memberships go by the foreign key's cascade. Its history
-    does not: log_entry is keyed by a plain register id with nothing to cascade
-    from, so it is cleared here by hand, photographs first while there are still
-    entries to find them by -- exactly as the two asset delete paths do it."""
-    p = get_or_404(db, Project, aid)
-    photos = _drop_log_photos(db, p.asset_id)
-    db.query(LogEntry).filter(LogEntry.asset_id == p.asset_id).delete(
-        synchronize_session=False)
-    db.delete(p)
-    db.commit()  # the rows first: if this raises, the photographs are still there
-    _purge_photos(photos)
-    return RedirectResponse("/projects", status_code=303)
 
 
 # --- what a project is about -------------------------------------------------
@@ -3337,158 +888,20 @@ async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
 # know why it is spoken for without having to find the project that spoke for it.
 
 
-@app.post("/projects/{aid}/add-item", include_in_schema=False)
-async def gui_project_add_item(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    form = await request.form()
-    asset_id = (form.get("asset_id", "") or "").strip().upper()
-    note = (form.get("note", "") or "").strip()
-    if projects.add_asset(db, p.asset_id, asset_id, note):
-        what = _asset_named(db, asset_id)
-        add_log(db, p.asset_id, f"took on {what}" + (f" — {note}" if note else ""))
-        _member_log(db, p, asset_id)
-        db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-@app.post("/projects/{aid}/remove-item", include_in_schema=False)
-async def gui_project_remove_item(aid: str, request: Request,
-                                  db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    form = await request.form()
-    asset_id = (form.get("asset_id", "") or "").strip().upper()
-    if projects.drop_asset(db, p.asset_id, asset_id):
-        add_log(db, p.asset_id, f"let go of {_asset_named(db, asset_id)}")
-        _member_log(db, p, asset_id, joining=False)
-        db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-def _member_log(db, project, asset_id, joining=True):
-    """Write the item's side of a membership -- but only while the project is one
-    anybody may read.
-
-    An item page is public and so is its history, and the history is the part of the
-    register nothing rewrites. A line reading "wanted for Recap the +2A (RH-J0Y7)"
-    on a public page is the name of a private project, published, and published for
-    good. So a private project does not write here; its own history, which is as
-    private as it is, has the entry either way.
-
-    This is the invariant the pair of functions keeps: an item's history names a
-    project exactly while that project is public. _publish_log is the other half,
-    for a project that changes its mind."""
-    if project.private:
-        return
-    add_log(db, asset_id, (f"wanted for {_project_named(project)}" if joining
-                           else f"no longer wanted for {_project_named(project)}"))
 
 
-def _publish_log(db, project):
-    """Bring the members' histories into line after a project's privacy changed.
-
-    Publishing writes the lines that were held back; withdrawing deletes them. That
-    delete is the one place the register rewrites its own log, and it is the whole
-    point: a name taken out of publication cannot be left behind in the one public
-    place it was written, or withdrawing it would mean nothing."""
-    members = [row.asset_id for row in db.query(ProjectAsset)
-               .filter(ProjectAsset.project_id == project.asset_id)]
-    if project.private:
-        # Matched on the tag rather than the name: the name may have been edited in
-        # the same breath, and the tag is what makes the line this project's.
-        for asset_id in members:
-            (db.query(LogEntry)
-             .filter(LogEntry.asset_id == asset_id,
-                     LogEntry.message.like(f"%({project.asset_id})%"))
-             .delete(synchronize_session=False))
-    else:
-        for asset_id in members:
-            add_log(db, asset_id, f"wanted for {_project_named(project)}")
 
 
-def _project_card(members):
-    """The photograph a project's shared link shows: the first of its things that
-    has one, or None to fall back to the site's own card.
-
-    A project had no picture of its own and so always showed the logo, which made
-    every project posted anywhere look like every other one. It is about things,
-    and those things have been photographed -- so the machine is what a link to the
-    work on it should show.
-
-    The first with a photo rather than a chosen one: the items are in the order they
-    were put on the project, so the first is the thing it was raised about, which is
-    the one somebody means. Nothing is added to the schema to say otherwise, because
-    a "card photo" column would be a second way of saying what the order already
-    says.
-
-    detect_images returns placeholders for a thing with no photograph of its own --
-    a drive icon, a blank machine -- and those are worse than the site card in a
-    share preview: a generic outline of a computer reads as a broken image rather
-    than as a machine. So only a real upload counts."""
-    for _kind, obj, _row in members:
-        kind = "computers" if isinstance(obj, Computer) else "parts"
-        for rel in detect_images(kind, obj.asset_id):
-            if "/placeholders/" not in rel:
-                return rel
-    return None
 
 
-def _projects_card(db, rows, limit=cards.MAX_TILES):
-    """The photographs the projects *list* tiles its share card from: the first
-    photograph of each project on the page, in the order the page reads (ADR-0017).
-
-    One photograph per project rather than four off the first one, because this page
-    is a list of projects and a card of four views of one machine would describe it
-    as a page about that machine.
-
-    `rows` is what the page is showing, which is what makes this safe to put on a
-    picture an anonymous crawler fetches: a private project is already absent from a
-    visitor's rows, so it is absent from the card without a second rule that could
-    come to disagree with the first.
-
-    One query and the two folder listings however many projects there are, rather
-    than projects.members per row -- this is the page that would notice, which is why
-    summaries() is written the way it is.
-    """
-    ids = [r["p"].asset_id for r in rows]
-    if not ids:
-        return []
-    owned = {}
-    for pid, aid in (db.query(ProjectAsset.project_id, ProjectAsset.asset_id)
-                     .filter(ProjectAsset.project_id.in_(ids))
-                     .order_by(ProjectAsset.id)):
-        owned.setdefault(pid, []).append(aid)
-    listing = {kind: folder_images(kind) for kind in ("computers", "parts")}
-    out = []
-    for pid in ids:
-        for aid in owned.get(pid, []):
-            found = next((rel for kind in ("computers", "parts")
-                          for rel in pick_images(kind, aid, listing[kind])), None)
-            if found:
-                out.append(found)
-                break
-        if len(out) == limit:
-            break
-    return out
 
 
-def _asset_display(db, asset_id):
-    """What a computer or part is called, or None if the register has no such
-    thing. The name is a fact about the item and is asked for in two voices -- a
-    sentence in a history, and the name of a project about it -- so it is read in
-    one place."""
-    for cls in (Computer, Part):
-        if (obj := db.get(cls, asset_id)) is not None:
-            return entry.display_name(to_dict(obj))
-    return None
 
 
-def _asset_named(db, asset_id):
-    """A computer or part in a sentence written in a project's history: what it is
-    called, and its id. Falls back to the bare id for something that has since
-    gone, so a history line never reads as a blank."""
-    name = _asset_display(db, asset_id)
-    return f"{name} ({asset_id})" if name else asset_id
 
 
 # --- work noted while checking something in -----------------------------------
@@ -3502,106 +915,12 @@ def _asset_named(db, asset_id):
 # box again.
 
 
-def _work_project_name(db, asset_id):
-    """What a project raised from an item's own form is called.
-
-    The form asks for no name: what is being described is the work, and the only
-    thing known about it at that moment is which item it is for. So the item names
-    it -- what the thing is called, not its tag. "Amstrad PC1640" is a line somebody
-    can read down a list and recognise; RH-J8JA is one they have to look up, and a
-    list of them is a list of lookups.
-
-    The item's name is the whole of it. It carried "Work required by item: " in
-    front until 0036 -- a phrase that read the same on every row it appeared on, and
-    so told a reader nothing, while pushing the only part that varies to where a
-    narrow column cuts it off. What the project is for is already said by the item
-    beside it and by its status, on every list it appears in.
-
-    The tag is the fallback, through display_name, for a thing entered with no
-    maker, model or name of its own yet -- and the project's own tag is beside it on
-    every list it appears in, which is what tells two machines of the same model
-    apart. Rename it on its own form once it is a piece of work with a character of
-    its own."""
-    return _asset_display(db, asset_id) or asset_id
 
 
-def _work_lines(raw):
-    """The jobs out of a work box, one to a line.
-
-    Faults arrive as a list -- recap, belt, keyboard sticks -- and one box holding
-    all three as a sentence would make a single task that can only ever be half
-    ticked off. Blank lines go, so a trailing newline is not a job with nothing in
-    it."""
-    return [line.strip() for line in (raw or "").splitlines() if line.strip()]
 
 
-def _take_on_work(db, asset_id, jobs, project=None, name=""):
-    """Put an item and its jobs on a project, making one if none was given.
-
-    The one path everything that notes work runs down -- the quick box, both entry
-    forms, both edit forms and the API -- so the item lands on the project, the
-    history is written from both ends and the same rules apply wherever the sentence
-    was typed.
-
-    Public, like everything else in the register. These started private, on the
-    argument that a line typed at a bench in five seconds has not been considered
-    for publication. In practice the register is a public catalogue of old machines,
-    what is wrong with one is a good part of what is interesting about it, and a
-    default that hides the work meant undoing it by hand on nearly every project.
-    The tick on a project's own form still keeps one back; it is a decision now
-    rather than a starting point (ADR-0004).
-
-    Commits nothing. Every caller is in the middle of saving something else and owns
-    the transaction; a commit here would be a half-saved machine with a project
-    beside it if what follows fails."""
-    held = projects.project_for(db, asset_id) if asset_id else None
-    # The thing's own project, where nobody picked one and the thing has one. A job
-    # noted on an item's page belongs with the work already going on that item; a
-    # thing is on one project (ADR-0016), so raising a second about the same thing
-    # is the one answer that cannot be right.
-    if project is None:
-        project = held
-    if project is None:
-        project = Project(asset_id=next_asset_id(db),
-                          name=(name or _work_project_name(db, asset_id))[:255],
-                          status="planned", private=False)
-        db.add(project)
-        add_log(db, project.asset_id, "created", "created")
-    if asset_id and projects.add_asset(db, project.asset_id, asset_id):
-        if held is not None:
-            # Said on the project losing it too. A thing leaving is as much a fact
-            # about the old project as arriving is about the new one, and the old
-            # one's history is where somebody will look for where it went.
-            add_log(db, held.asset_id,
-                    f"{_asset_named(db, asset_id)} moved to {_project_named(project)}")
-        add_log(db, project.asset_id, f"took on {_asset_named(db, asset_id)}")
-        _member_log(db, project, asset_id)
-    for job in jobs:
-        # Against the thing, where there is one: an item's page lists its own jobs,
-        # and a job typed on that page is about that item by definition.
-        db.add(ProjectTask(project_id=project.asset_id, text=job,
-                           asset_id=asset_id or None))
-        add_log(db, project.asset_id, f"to do: {_short(job)}")
-    return project
 
 
-def _work_from_form(db, obj, form):
-    """The work box on an entry or edit form, acted on once the item itself is saved.
-
-    Nothing typed and nothing picked makes nothing, which is the ordinary case: most
-    things arrive with nothing wrong, and a project per arrival would turn the
-    projects page from a list of work into a second copy of the register.
-
-    A picked project that names nothing becomes a project of its own rather than an
-    error. The menu cannot produce one -- only a hand-made post can -- and refusing
-    at this point would throw away the entry being made, photographs and all, over
-    the convenience half of the gesture. The sentence is the part worth keeping."""
-    jobs = _work_lines(form.get("work_needed", ""))
-    picked = (form.get("work_project", "") or "").strip().upper()
-    project = db.get(Project, picked) if picked else None
-    if not jobs and project is None:
-        return None
-    return _take_on_work(db, obj.asset_id, jobs, project)
 
 
 def _work_from_api(db, fields):
@@ -3626,158 +945,24 @@ def _work_from_api(db, fields):
 # --- the jobs, and the things on order ---------------------------------------
 
 
-def _task_or_404(db, p, tid):
-    row = db.get(ProjectTask, tid)
-    # The project id is checked rather than taken on trust, for the reason a history
-    # entry's asset id is: a bare row id would otherwise let one project's task be
-    # ticked from another project's page.
-    if row is None or row.project_id != p.asset_id:
-        raise HTTPException(404, f"no task {tid} in {p.asset_id}")
-    return row
 
 
-def _order_or_404(db, p, oid):
-    row = db.get(ProjectOrder, oid)
-    if row is None or row.project_id != p.asset_id:
-        raise HTTPException(404, f"no order {oid} in {p.asset_id}")
-    return row
 
 
-def _task_asset(db, project_id, raw):
-    """The thing a job names, checked against the project it is written on. None for
-    a job about no one thing in particular -- 'order the caps', 'find a manual' --
-    which is most of what a project-wide list holds."""
-    aid = (raw or "").strip().upper()
-    if not aid:
-        return None
-    if not projects.holds(db, project_id, aid):
-        raise HTTPException(422, f"{aid} is not on {project_id}")
-    return aid
 
 
-@app.post("/projects/{aid}/task", include_in_schema=False)
-async def gui_project_add_task(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    form = await request.form()
-    text = (form.get("text", "") or "").strip()
-    if text:
-        db.add(ProjectTask(project_id=p.asset_id, text=text,
-                           asset_id=_task_asset(db, p.asset_id,
-                                                form.get("asset", ""))))
-        add_log(db, p.asset_id, f"to do: {_short(text)}")
-        db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-@app.post("/projects/{aid}/task/{tid}/about", include_in_schema=False)
-async def gui_project_task_about(aid: str, tid: int, request: Request,
-                                 db: Session = Depends(get_db)):
-    """Say which of the project's things a job is about, from the project's page.
-
-    Its own route rather than a field on the add form, because the jobs that need
-    this most are the ones already written -- see api_project_update_task."""
-    p = get_or_404(db, Project, aid)
-    row = _api_task(db, p, tid)
-    form = await request.form()
-    before = row.asset_id
-    row.asset_id = _task_asset(db, p.asset_id, form.get("asset", ""))
-    if before != row.asset_id:
-        add_log(db, aid, (f"{_short(row.text)}: about {_asset_named(db, row.asset_id)}"
-                          if row.asset_id else f"{_short(row.text)}: about no one thing"))
-    db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-@app.post("/projects/{aid}/task/{tid}/toggle", include_in_schema=False)
-async def gui_project_toggle_task(aid: str, tid: int, request: Request,
-                                  db: Session = Depends(get_db)):
-    """Tick a job, or put it back.
-
-    Un-ticking clears the date rather than keeping it. A job that is not done has
-    no day it was done on, and leaving the old one behind would mean a task showing
-    as outstanding while still claiming a completion date.
-
-    Comes back to the page it was ticked from, which the form says in `next`. A job
-    is shown in two places -- its project's list and the page of the thing it is
-    about -- and always returning to the project meant ticking one off at the bench,
-    where you are looking at the machine, threw you onto a different page. Through
-    _safe_next, so the field cannot send anybody off this site."""
-    p = get_or_404(db, Project, aid)
-    row = _task_or_404(db, p, tid)
-    row.done = not row.done
-    row.done_at = date.today() if row.done else None
-    add_log(db, p.asset_id, ("done: " if row.done else "back on the list: ")
-            + _short(row.text))
-    db.commit()
-    form = await request.form()
-    return RedirectResponse(_safe_next(form.get("next", "") or
-                                       f"/projects/{p.asset_id}"),
-                            status_code=303)
 
 
-@app.post("/projects/{aid}/task/{tid}/delete", include_in_schema=False)
-def gui_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    row = _task_or_404(db, p, tid)
-    add_log(db, p.asset_id, f"dropped: {_short(row.text)}")
-    db.delete(row)
-    db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-@app.post("/projects/{aid}/order", include_in_schema=False)
-async def gui_project_add_order(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
-    """Something bought for this project. Only the description is required: an
-    order written down the moment it is placed rarely has a delivery date yet, and
-    a form that insisted on one would be filled in later or not at all."""
-    p = get_or_404(db, Project, aid)
-    form = await request.form()
-    description = (form.get("description", "") or "").strip()
-    if not description:
-        return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
-    qty = (form.get("qty", "") or "").strip()
-    row = ProjectOrder(
-        project_id=p.asset_id, description=description[:255],
-        supplier=(form.get("supplier", "") or "").strip()[:255],
-        url=(form.get("url", "") or "").strip(),
-        qty=int(qty) if qty.isdigit() and int(qty) > 0 else 1,
-        cost_p=projects.parse_money(form.get("cost", "")),
-        ordered_at=_parse_date(form.get("ordered_at", "")) or date.today(),
-        expected_at=_parse_date(form.get("expected_at", "")),
-        note=(form.get("note", "") or "").strip()[:255])
-    db.add(row)
-    add_log(db, p.asset_id, f"ordered {_short(description)}"
-            + (f" from {row.supplier}" if row.supplier else ""))
-    db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-@app.post("/projects/{aid}/order/{oid}/delivered", include_in_schema=False)
-def gui_project_order_delivered(aid: str, oid: int,
-                                db: Session = Depends(get_db)):
-    """The tick. What arrives is added to the register the ordinary way -- this row
-    is a note about a purchase, not a half-made asset -- so all that happens here is
-    that it stops being one of the things still coming."""
-    p = get_or_404(db, Project, aid)
-    row = _order_or_404(db, p, oid)
-    row.delivered = not row.delivered
-    row.delivered_at = date.today() if row.delivered else None
-    add_log(db, p.asset_id, ("arrived: " if row.delivered else "still coming: ")
-            + _short(row.description))
-    db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
-@app.post("/projects/{aid}/order/{oid}/delete", include_in_schema=False)
-def gui_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
-    p = get_or_404(db, Project, aid)
-    row = _order_or_404(db, p, oid)
-    add_log(db, p.asset_id, f"cancelled: {_short(row.description)}")
-    db.delete(row)
-    db.commit()
-    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
 # --- JSON API: projects ------------------------------------------------------
@@ -3811,11 +996,6 @@ def _api_project(db, aid):
     return get_or_404(db, Project, aid)
 
 
-def _api_task(db, p, tid):
-    row = db.get(ProjectTask, tid)
-    if row is None or row.project_id != p.asset_id:
-        raise HTTPException(404, f"no task {tid} in {p.asset_id}")
-    return row
 
 
 def _api_order(db, p, oid):
@@ -4074,3 +1254,8 @@ app.include_router(images.router)
 app.include_router(catalogue.router)
 app.include_router(stats_routes.router)
 app.include_router(gallery.router)
+app.include_router(items.router)
+app.include_router(file_pages.router)
+app.include_router(computer_pages.router)
+app.include_router(part_pages.router)
+app.include_router(project_pages.router)
