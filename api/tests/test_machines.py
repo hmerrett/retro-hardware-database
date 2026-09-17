@@ -16,7 +16,7 @@ from typing import ClassVar
 import pytest
 
 from app import entry, machinedb, machines
-from app.main import item_log
+from app.history import item_log
 from app.models import AssetChip, AssetVariant, Computer, Part
 
 ROOT = Path(__file__).resolve().parent.parent.parent

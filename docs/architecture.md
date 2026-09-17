@@ -153,6 +153,14 @@ the feature modules and `main` can all import downward without a cycle.
 |---|---|
 | `main.py` | the FastAPI app, the middleware, and the routes not yet lifted out |
 | `auth.py` | the login, the logout, and the gate every request passes through |
+| `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion |
+| `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
+| `work.py` | the jobs on a project and the things it is about, read from the project, the item and the API alike |
+| `routers/items.py` | /items/<id>: the address a label carries, and the history written under it |
+| `routers/files.py` | the files kept beside the register, what each is for, and who may see it |
+| `routers/computers.py` | the pages of a machine |
+| `routers/parts.py` | the pages of a part, including the spec pickers |
+| `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
 | `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
 | `disposal.py` | disposing of a thing and bringing it back, including what was fitted inside it |
 | `forms.py` | what was typed turned into what a column holds, and what changed |
