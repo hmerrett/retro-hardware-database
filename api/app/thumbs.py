@@ -30,6 +30,7 @@ Three rules that matter:
 The originals are still there and still served: the lightbox opens one, which is
 the whole point of having a 24-megapixel photograph of a motherboard.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -94,8 +95,7 @@ def _write_atomically(dst: Path, write):
     each other's file, or into the one being served.
     """
     dst.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(dir=dst.parent, prefix=f"{dst.name}.",
-                                suffix=".part")
+    fd, name = tempfile.mkstemp(dir=dst.parent, prefix=f"{dst.name}.", suffix=".part")
     os.close(fd)
     tmp = Path(name)
     try:
@@ -111,6 +111,7 @@ def _make(src: Path, dst: Path, width: int) -> bool:
     """Write a copy of `src` no wider than `width`. False if the source is already
     that small, which is not a failure -- it means serve the source."""
     from PIL import Image
+
     with Image.open(src) as im:
         if im.width <= width:
             return False
@@ -118,8 +119,7 @@ def _make(src: Path, dst: Path, width: int) -> bool:
         im.thumbnail((width, width), Image.LANCZOS)
         # Written aside and moved into place, so a second request arriving while
         # this one is still encoding never reads a half-written file.
-        _write_atomically(dst, lambda tmp:
-                          im.save(tmp, "JPEG", quality=QUALITY, optimize=True))
+        _write_atomically(dst, lambda tmp: im.save(tmp, "JPEG", quality=QUALITY, optimize=True))
     return True
 
 
@@ -156,8 +156,7 @@ def forget(images_dir: Path, rel: str):
     """Drop every copy of one photograph, for when it is deleted or replaced."""
     for width in WIDTHS:
         with contextlib.suppress(OSError):
-            (cache_dir(images_dir) / str(width) / rel).with_suffix(".jpg").unlink(
-                missing_ok=True)
+            (cache_dir(images_dir) / str(width) / rel).with_suffix(".jpg").unlink(missing_ok=True)
 
 
 def warm(images_dir: Path, pairs, widths=WIDTHS, log=None):
@@ -200,10 +199,13 @@ def _main(argv=None):
     sweep(root)
     # The originals only: not the watermark cache, not our own copies, not the
     # reference-marker sidecars.
-    rels = sorted(str(p.relative_to(root)) for p in root.rglob("*")
-                  if p.is_file() and not any(s.startswith(".") for s in
-                                             p.relative_to(root).parts)
-                  and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"))
+    rels = sorted(
+        str(p.relative_to(root))
+        for p in root.rglob("*")
+        if p.is_file()
+        and not any(s.startswith(".") for s in p.relative_to(root).parts)
+        and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
+    )
     if not rels:
         print("no photographs found under", root)
         return 0
@@ -212,14 +214,18 @@ def _main(argv=None):
     # collection means the watermarked copy. Imported here so the module stays
     # importable without the app.
     from .photos import IMAGES_DIR, _is_own_photo, _watermarked_file
+
     started = time.time()
     made, small = warm(
-        IMAGES_DIR, [(rel, _watermarked_file(rel) if _is_own_photo(rel)
-                      else IMAGES_DIR / rel) for rel in rels],
-        log=None if opts.quiet else lambda rel: print(rel, file=sys.stderr))
+        IMAGES_DIR,
+        [(rel, _watermarked_file(rel) if _is_own_photo(rel) else IMAGES_DIR / rel) for rel in rels],
+        log=None if opts.quiet else lambda rel: print(rel, file=sys.stderr),
+    )
     took = time.time() - started
-    print(f"{len(rels)} photographs, {made} copies ready, {small} already small"
-          f" enough, in {took:.0f}s")
+    print(
+        f"{len(rels)} photographs, {made} copies ready, {small} already small"
+        f" enough, in {took:.0f}s"
+    )
     return 0
 
 

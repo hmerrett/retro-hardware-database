@@ -7,6 +7,7 @@ written about for longest and the ones whose status says stalled, because the po
 of a nudge is the thing you had forgotten rather than the one you were doing
 yesterday.
 """
+
 import re
 from datetime import timedelta
 
@@ -20,15 +21,19 @@ def visitor(monkeypatch):
 
 def panel(html):
     """The suggestion, or None if the page is not making one."""
-    m = re.search(r'<section class="panel">\s*<header[^>]*>\s*<h3[^>]*>Something to '
-                  r'do today.*?</section>', html, re.S)
+    m = re.search(
+        r'<section class="panel">\s*<header[^>]*>\s*<h3[^>]*>Something to '
+        r"do today.*?</section>",
+        html,
+        re.S,
+    )
     return m.group(0) if m else None
 
 
 def make(client, name, status="planned", **fields):
-    return client.post("/api/projects",
-                       json={"name": name, "status": status} | fields
-                       ).json()["asset_id"]
+    return client.post("/api/projects", json={"name": name, "status": status} | fields).json()[
+        "asset_id"
+    ]
 
 
 def quieten(db, project_id, days):
@@ -62,15 +67,15 @@ class TestWhetherThereIsOne:
 
     def test_a_mistyped_tag_puts_it_away_too(self, client):
         make(client, "Recap the +2A")
-        r = client.post("/projects/quick", data={"job": "x", "aid": "RH-ZZZZ"},
-                        follow_redirects=False)
+        r = client.post(
+            "/projects/quick", data={"job": "x", "aid": "RH-ZZZZ"}, follow_redirects=False
+        )
         assert r.status_code == 400
         assert panel(r.text) is None
 
 
 class TestWhichOne:
-    def test_a_visitor_is_never_offered_a_private_one(self, client, db,
-                                                      monkeypatch):
+    def test_a_visitor_is_never_offered_a_private_one(self, client, db, monkeypatch):
         """The same rule the list below it follows. A suggestion is the loudest
         place on the page to leak one from."""
         make(client, "Hiddenzzz", private=True)
@@ -94,8 +99,7 @@ class TestWhichOne:
         old = make(client, "Forgottenzzz")
         make(client, "Freshzzz")
         quieten(db, old, 200)
-        seen = [("Forgottenzzz" in (panel(client.get("/projects").text) or ""))
-                for _ in range(60)]
+        seen = [("Forgottenzzz" in (panel(client.get("/projects").text) or "")) for _ in range(60)]
         assert sum(seen) > 30
 
     def test_being_stalled_counts_for_something(self, client, db):
@@ -104,8 +108,7 @@ class TestWhichOne:
         their own."""
         make(client, "Stalledzzz", status="stalled")
         make(client, "Planningzzz")
-        seen = [("Stalledzzz" in (panel(client.get("/projects").text) or ""))
-                for _ in range(60)]
+        seen = [("Stalledzzz" in (panel(client.get("/projects").text) or "")) for _ in range(60)]
         assert sum(seen) > 30
 
     def test_the_one_worked_on_today_is_still_in_the_draw(self, client, db):
@@ -117,9 +120,9 @@ class TestWhichOne:
 
 class TestWhatItShows:
     def project_about(self, client, **item):
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Amstrad", "model": "PC1640"}
-                          | item).json()["asset_id"]
+        aid = client.post(
+            "/api/computers", json={"manufacturer": "Amstrad", "model": "PC1640"} | item
+        ).json()["asset_id"]
         pid = make(client, "Refurb the 1640")
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         return aid, pid
@@ -135,8 +138,7 @@ class TestWhatItShows:
 
     def test_a_ticked_job_is_not_something_to_do(self, client):
         _, pid = self.project_about(client)
-        t = client.post(f"/api/projects/{pid}/tasks",
-                        json={"text": "already donezzz"}).json()
+        t = client.post(f"/api/projects/{pid}/tasks", json={"text": "already donezzz"}).json()
         client.patch(f"/api/projects/{pid}/tasks/{t['id']}", json={"done": True})
         assert "already donezzz" not in panel(client.get("/projects").text)
 
@@ -146,13 +148,16 @@ class TestWhatItShows:
         import io
 
         from PIL import Image
+
         aid, _ = self.project_about(client)
         buf = io.BytesIO()
         Image.new("RGB", (40, 30), "red").save(buf, "JPEG")
         buf.seek(0)
-        client.post(f"/computers/{aid}/photo",
-                    files={"photos": ("shot.jpg", buf, "image/jpeg")},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/photo",
+            files={"photos": ("shot.jpg", buf, "image/jpeg")},
+            follow_redirects=False,
+        )
         rel = main.detect_images("computers", aid)[0]
         assert rel in panel(client.get("/projects").text)
 
@@ -168,6 +173,5 @@ class TestWhatItShows:
 
     def test_one_waiting_on_a_part_says_that_instead(self, client):
         pid = make(client, "Waitingzzz")
-        client.post(f"/api/projects/{pid}/orders",
-                    json={"description": "a belt", "qty": 1})
+        client.post(f"/api/projects/{pid}/orders", json={"description": "a belt", "qty": 1})
         assert "still on order" in panel(client.get("/projects").text)

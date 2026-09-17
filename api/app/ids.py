@@ -13,6 +13,7 @@ The alphabet drops characters that are easily confused when read off a label
 and typed back in: the letters I, L, O (which look like 1 / 0) are excluded, so
 each confusable pair keeps a single form.
 """
+
 import secrets
 import string
 
@@ -20,8 +21,7 @@ from .models import Computer, Part, Project
 
 PREFIX = "RH-"
 _CONFUSABLE = set("ILO")
-ALPHABET = "".join(c for c in string.ascii_uppercase + string.digits
-                   if c not in _CONFUSABLE)
+ALPHABET = "".join(c for c in string.ascii_uppercase + string.digits if c not in _CONFUSABLE)
 
 
 def _random_id():

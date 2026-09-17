@@ -7,13 +7,13 @@ rather than of either: which table holds this id, what sits either side of it in
 the register's order, and has the copy in front of you gone stale since it was
 opened.
 """
+
 from fastapi import HTTPException
 from sqlalchemy import func
 
 from . import entry
 from .common import REGISTER
 from .models import Computer, LogEntry, Part, StoredFile
-
 
 
 def get_or_404(db, model, aid):
@@ -52,11 +52,18 @@ def _register_order(db):
     filtered and sorted as you left it (see base.html)."""
     rows = []
     for kind, cls in (("computers", Computer), ("parts", Part)):
-        for aid, name, maker, model in db.query(cls.asset_id, cls.name,
-                                                cls.manufacturer, cls.model):
-            rows.append((aid, kind, entry.display_name(
-                {"asset_id": aid, "name": name, "manufacturer": maker,
-                 "model": model})))
+        for aid, name, maker, model in db.query(
+            cls.asset_id, cls.name, cls.manufacturer, cls.model
+        ):
+            rows.append(
+                (
+                    aid,
+                    kind,
+                    entry.display_name(
+                        {"asset_id": aid, "name": name, "manufacturer": maker, "model": model}
+                    ),
+                )
+            )
     rows.sort()
     return rows
 

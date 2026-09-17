@@ -4,6 +4,7 @@ A project is the third thing in the register and the only one that is a plan rat
 than an object -- so it carries jobs, orders and the things it is about, and its
 page is the one place all three are read together.
 """
+
 import random
 from datetime import date
 
@@ -43,16 +44,25 @@ from ..db import get_db
 from ..forms import _coerce, _field_diffs, _parse_date
 from ..history import _history, _now, _short, add_log
 from ..ids import next_asset_id
-from ..models import (Computer, LogEntry, Part, Project, ProjectAsset, ProjectOrder,
-                      ProjectTask)
+from ..models import Computer, LogEntry, Part, Project, ProjectAsset, ProjectOrder, ProjectTask
 from ..pages import _answers_given, _note_with_photos
 from ..photos import _drop_log_photos, _purge_photos
 from ..photos import detect_images, pick_images
 from ..register import FLAGGABLE, _asset_find, _register_order, get_or_404
 from ..search import _projects_matching
 from ..web import _og, _safe_next, templates
-from ..work import (PROJECT_FIELDS, _api_task, _asset_named, _member_log, _publish_log, _take_on_work, _task_asset, _work_lines,
-                    _work_project_name)
+from ..work import (
+    PROJECT_FIELDS,
+    _api_task,
+    _asset_named,
+    _member_log,
+    _publish_log,
+    _take_on_work,
+    _task_asset,
+    _work_lines,
+    _work_project_name,
+)
+
 
 def _task_or_404(db, p, tid):
     row = db.get(ProjectTask, tid)
@@ -62,6 +72,7 @@ def _task_or_404(db, p, tid):
     if row is None or row.project_id != p.asset_id:
         raise HTTPException(404, f"no task {tid} in {p.asset_id}")
     return row
+
 
 def _projects_page(request, db, q="", error="", status=200):
     """The page, drawn.
@@ -89,17 +100,33 @@ def _projects_page(request, db, q="", error="", status=200):
     # Not while the page is a set of search results, and not while it is telling
     # somebody their asset tag was wrong: both of those are the page answering a
     # question that was asked, and a suggestion above the answer is an interruption.
-    suggestion = (None if (q.strip() or error) else
-                  _today_panel(db, _project_of_the_day(db, request.state.authed)))
-    return templates.TemplateResponse(request, "projects.html", {
-        "rows": rows, "live": len(live), "q": q, "searched": bool(q.strip()),
-        "suggestion": suggestion,
-        "total": total, "error": error,
-        "register": _register_order(db) if request.state.authed else [],
-        "og": _og(request, "Projects", "Repairs, builds and things on order — "
-                                       "the work, as against the collection",
-                  card=cards.montage(_projects_card(db, rows)))},
-        status_code=status)
+    suggestion = (
+        None
+        if (q.strip() or error)
+        else _today_panel(db, _project_of_the_day(db, request.state.authed))
+    )
+    return templates.TemplateResponse(
+        request,
+        "projects.html",
+        {
+            "rows": rows,
+            "live": len(live),
+            "q": q,
+            "searched": bool(q.strip()),
+            "suggestion": suggestion,
+            "total": total,
+            "error": error,
+            "register": _register_order(db) if request.state.authed else [],
+            "og": _og(
+                request,
+                "Projects",
+                "Repairs, builds and things on order — the work, as against the collection",
+                card=cards.montage(_projects_card(db, rows)),
+            ),
+        },
+        status_code=status,
+    )
+
 
 def _project_from_form(form):
     data = {k: _coerce(k, form.get(k, "")) for k in PROJECT_FIELDS}
@@ -110,11 +137,13 @@ def _project_from_form(form):
     data["private"] = bool(form.get("private"))
     return data
 
+
 def _order_or_404(db, p, oid):
     row = db.get(ProjectOrder, oid)
     if row is None or row.project_id != p.asset_id:
         raise HTTPException(404, f"no order {oid} in {p.asset_id}")
     return row
+
 
 def _project_card(members):
     """The photograph a project's shared link shows: the first of its things that
@@ -164,8 +193,13 @@ def _today_panel(db, project):
                 # Each picture is a way through to the thing it is of, not to the
                 # project: somebody looking at a photograph of a drive wants the
                 # drive's page, and the project's name above it is already a link.
-                shots.append({"rel": rel, "url": f"/{kind}/{obj.asset_id}",
-                              "alt": entry.display_name(to_dict(obj))})
+                shots.append(
+                    {
+                        "rel": rel,
+                        "url": f"/{kind}/{obj.asset_id}",
+                        "alt": entry.display_name(to_dict(obj)),
+                    }
+                )
                 if len(shots) == TODAY_PHOTOS:
                     break
             if len(shots) == TODAY_PHOTOS:
@@ -173,17 +207,21 @@ def _today_panel(db, project):
         if len(shots) == TODAY_PHOTOS:
             break
     tasks = [t for t in projects.tasks(db, project.asset_id) if not t.done]
-    orders_out = sum(1 for o in projects.orders(db, project.asset_id)
-                     if not o.delivered)
-    last = (db.query(func.max(LogEntry.created_at))
-            .filter(LogEntry.asset_id == project.asset_id).scalar())
+    orders_out = sum(1 for o in projects.orders(db, project.asset_id) if not o.delivered)
+    last = (
+        db.query(func.max(LogEntry.created_at))
+        .filter(LogEntry.asset_id == project.asset_id)
+        .scalar()
+    )
     return {
         "p": project,
-        "members": [{"url": f"/{kind}/{obj.asset_id}",
-                     "name": entry.display_name(to_dict(obj))}
-                    for kind, obj, _row in members],
+        "members": [
+            {"url": f"/{kind}/{obj.asset_id}", "name": entry.display_name(to_dict(obj))}
+            for kind, obj, _row in members
+        ],
         "photos": shots,
-        "tasks": tasks[:TODAY_TASKS], "tasks_left": len(tasks),
+        "tasks": tasks[:TODAY_TASKS],
+        "tasks_left": len(tasks),
         "orders_out": orders_out,
         # Whole days, and None for a project nothing has ever been written about --
         # which cannot happen through the app (creating one writes a line) but can
@@ -214,16 +252,24 @@ def _projects_card(db, rows, limit=cards.MAX_TILES):
     if not ids:
         return []
     owned = {}
-    for pid, aid in (db.query(ProjectAsset.project_id, ProjectAsset.asset_id)
-                     .filter(ProjectAsset.project_id.in_(ids))
-                     .order_by(ProjectAsset.id)):
+    for pid, aid in (
+        db.query(ProjectAsset.project_id, ProjectAsset.asset_id)
+        .filter(ProjectAsset.project_id.in_(ids))
+        .order_by(ProjectAsset.id)
+    ):
         owned.setdefault(pid, []).append(aid)
     listing = {kind: folder_images(kind) for kind in ("computers", "parts")}
     out = []
     for pid in ids:
         for aid in owned.get(pid, []):
-            found = next((rel for kind in ("computers", "parts")
-                          for rel in pick_images(kind, aid, listing[kind])), None)
+            found = next(
+                (
+                    rel
+                    for kind in ("computers", "parts")
+                    for rel in pick_images(kind, aid, listing[kind])
+                ),
+                None,
+            )
             if found:
                 out.append(found)
                 break
@@ -256,16 +302,17 @@ def _project_of_the_day(db, authed):
 
     A visitor is offered only the public ones, for the reason the list below them
     is filtered (see _visible)."""
-    q = _visible(db.query(Project).filter(Project.status.notin_(projects.CLOSED)),
-                 authed)
+    q = _visible(db.query(Project).filter(Project.status.notin_(projects.CLOSED)), authed)
     pool = q.all()
     if not pool:
         return None
     # The last thing written about each of them, in one query: a project's history
     # is what says when it was last thought about at all.
-    last = dict(db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
-                .filter(LogEntry.asset_id.in_([p.asset_id for p in pool]))
-                .group_by(LogEntry.asset_id))
+    last = dict(
+        db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
+        .filter(LogEntry.asset_id.in_([p.asset_id for p in pool]))
+        .group_by(LogEntry.asset_id)
+    )
     now = _now()
     weights = []
     for p in pool:
@@ -353,18 +400,21 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
         # should not be called two different things depending on which box raised
         # it. Where there is no item, the job names it: a project called nothing is
         # a row nobody will recognise again.
-        name = (_work_project_name(db, asset_id) if found
-                else (jobs[0][:60] if jobs else "") or "Untitled project")
-    obj = _take_on_work(db, asset_id if found is not None else "", jobs,
-                        project, name=name)
+        name = (
+            _work_project_name(db, asset_id)
+            if found
+            else (jobs[0][:60] if jobs else "") or "Untitled project"
+        )
+    obj = _take_on_work(db, asset_id if found is not None else "", jobs, project, name=name)
     db.commit()
     return RedirectResponse(f"/projects/{obj.asset_id}", status_code=303)
 
 
 @router.get("/projects/new", response_class=HTMLResponse, include_in_schema=False)
 def gui_new_project(request: Request):
-    return templates.TemplateResponse(request, "project_form.html",
-                                      _project_form_ctx(None, "New project"))
+    return templates.TemplateResponse(
+        request, "project_form.html", _project_form_ctx(None, "New project")
+    )
 
 
 @router.post("/projects/new", include_in_schema=False)
@@ -379,9 +429,12 @@ async def gui_create_project(request: Request, db: Session = Depends(get_db)):
     data = _project_from_form(form)
     if not data["name"]:
         return templates.TemplateResponse(
-            request, "project_form.html",
-            _project_form_ctx(data, "New project", "Give it a name — it is the "
-                                                   "only thing it can be found by."))
+            request,
+            "project_form.html",
+            _project_form_ctx(
+                data, "New project", "Give it a name — it is the only thing it can be found by."
+            ),
+        )
     obj = Project(asset_id=next_asset_id(db), **data)
     db.add(obj)
     add_log(db, obj.asset_id, "created", "created")
@@ -406,54 +459,83 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
     # menu of a few hundred assets should not be a few hundred loaded rows.
     choices = []
     if request.state.authed:
-        here = {a for (a,) in db.query(ProjectAsset.asset_id)
-                .filter(ProjectAsset.project_id == p.asset_id)}
+        here = {
+            a
+            for (a,) in db.query(ProjectAsset.asset_id).filter(
+                ProjectAsset.project_id == p.asset_id
+            )
+        }
         for cls in (Computer, Part):
-            for row in db.query(cls.asset_id, cls.name, cls.manufacturer,
-                                cls.model).order_by(cls.asset_id):
+            for row in db.query(cls.asset_id, cls.name, cls.manufacturer, cls.model).order_by(
+                cls.asset_id
+            ):
                 if row.asset_id in here:
                     continue
-                choices.append((row.asset_id, entry.display_name({
-                    "asset_id": row.asset_id, "name": row.name,
-                    "manufacturer": row.manufacturer, "model": row.model})))
+                choices.append(
+                    (
+                        row.asset_id,
+                        entry.display_name(
+                            {
+                                "asset_id": row.asset_id,
+                                "name": row.name,
+                                "manufacturer": row.manufacturer,
+                                "model": row.model,
+                            }
+                        ),
+                    )
+                )
         choices.sort(key=lambda c: c[1].lower())
     members = projects.members(db, p.asset_id)
-    return templates.TemplateResponse(request, "project.html", {
-        "p": p, "item": to_dict(p), "kind": "projects",
-        # Who things have been bought from before: the same kind of field as an
-        # item's source, and answered the same few ways.
-        "dl_suppliers": _answers_given(db, ProjectOrder.supplier),
-        "members": members,
-        "tasks": task_rows,
-        "tasks_done": sum(1 for t in task_rows if t.done),
-        "orders": order_rows,
-        "orders_out": sum(1 for o in order_rows if not o.delivered),
-        "spent": spent, "unpriced": unpriced,
-        "choices": choices,
-        "log": _history(db, p.asset_id),
-        "og": _og(request, p.name or p.asset_id,
-                  p.summary or projects.status_label(p.status),
-                  _project_card(members))})
+    return templates.TemplateResponse(
+        request,
+        "project.html",
+        {
+            "p": p,
+            "item": to_dict(p),
+            "kind": "projects",
+            # Who things have been bought from before: the same kind of field as an
+            # item's source, and answered the same few ways.
+            "dl_suppliers": _answers_given(db, ProjectOrder.supplier),
+            "members": members,
+            "tasks": task_rows,
+            "tasks_done": sum(1 for t in task_rows if t.done),
+            "orders": order_rows,
+            "orders_out": sum(1 for o in order_rows if not o.delivered),
+            "spent": spent,
+            "unpriced": unpriced,
+            "choices": choices,
+            "log": _history(db, p.asset_id),
+            "og": _og(
+                request,
+                p.name or p.asset_id,
+                p.summary or projects.status_label(p.status),
+                _project_card(members),
+            ),
+        },
+    )
 
 
 @router.get("/projects/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
 def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
-    return templates.TemplateResponse(request, "project_form.html",
-                                      _project_form_ctx(p, "Edit project"))
+    return templates.TemplateResponse(
+        request, "project_form.html", _project_form_ctx(p, "Edit project")
+    )
 
 
 @router.post("/projects/{aid}/edit", include_in_schema=False)
-async def gui_update_project(aid: str, request: Request,
-                             db: Session = Depends(get_db)):
+async def gui_update_project(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
     form = await request.form()
     data = _project_from_form(form)
     if not data["name"]:
         return templates.TemplateResponse(
-            request, "project_form.html",
-            _project_form_ctx(p, "Edit project", "Give it a name — it is the "
-                                                 "only thing it can be found by."))
+            request,
+            "project_form.html",
+            _project_form_ctx(
+                p, "Edit project", "Give it a name — it is the only thing it can be found by."
+            ),
+        )
     before = to_dict(p)
     for k, v in data.items():
         setattr(p, k, v)
@@ -478,13 +560,15 @@ def gui_project_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
     is filed on a shelf and read across a room; this is going on a jiffy bag."""
     p = get_or_404(db, Project, aid)
     pdf = labels.render_pdf(to_dict(p), [], labels.PROJECT, small=bool(small))
-    return Response(pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'},
+    )
 
 
 @router.post("/projects/{aid}/note", include_in_schema=False)
-async def gui_project_note(aid: str, request: Request,
-                           db: Session = Depends(get_db)):
+async def gui_project_note(aid: str, request: Request, db: Session = Depends(get_db)):
     """The same note bar the machines have, posting to the same shape of URL, which
     is why _history.html needed nothing said to it about projects."""
     get_or_404(db, Project, aid)
@@ -508,8 +592,7 @@ async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
     entries to find them by -- exactly as the two asset delete paths do it."""
     p = get_or_404(db, Project, aid)
     photos = _drop_log_photos(db, p.asset_id)
-    db.query(LogEntry).filter(LogEntry.asset_id == p.asset_id).delete(
-        synchronize_session=False)
+    db.query(LogEntry).filter(LogEntry.asset_id == p.asset_id).delete(synchronize_session=False)
     db.delete(p)
     db.commit()  # the rows first: if this raises, the photographs are still there
     _purge_photos(photos)
@@ -517,8 +600,7 @@ async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
 
 
 @router.post("/projects/{aid}/add-item", include_in_schema=False)
-async def gui_project_add_item(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
+async def gui_project_add_item(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
     form = await request.form()
     asset_id = (form.get("asset_id", "") or "").strip().upper()
@@ -532,8 +614,7 @@ async def gui_project_add_item(aid: str, request: Request,
 
 
 @router.post("/projects/{aid}/remove-item", include_in_schema=False)
-async def gui_project_remove_item(aid: str, request: Request,
-                                  db: Session = Depends(get_db)):
+async def gui_project_remove_item(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
     form = await request.form()
     asset_id = (form.get("asset_id", "") or "").strip().upper()
@@ -545,23 +626,27 @@ async def gui_project_remove_item(aid: str, request: Request,
 
 
 @router.post("/projects/{aid}/task", include_in_schema=False)
-async def gui_project_add_task(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
+async def gui_project_add_task(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
     form = await request.form()
     text = (form.get("text", "") or "").strip()
     if text:
-        db.add(ProjectTask(project_id=p.asset_id, text=text,
-                           asset_id=_task_asset(db, p.asset_id,
-                                                form.get("asset", ""))))
+        db.add(
+            ProjectTask(
+                project_id=p.asset_id,
+                text=text,
+                asset_id=_task_asset(db, p.asset_id, form.get("asset", "")),
+            )
+        )
         add_log(db, p.asset_id, f"to do: {_short(text)}")
         db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
 @router.post("/projects/{aid}/task/{tid}/about", include_in_schema=False)
-async def gui_project_task_about(aid: str, tid: int, request: Request,
-                                 db: Session = Depends(get_db)):
+async def gui_project_task_about(
+    aid: str, tid: int, request: Request, db: Session = Depends(get_db)
+):
     """Say which of the project's things a job is about, from the project's page.
 
     Its own route rather than a field on the add form, because the jobs that need
@@ -572,15 +657,23 @@ async def gui_project_task_about(aid: str, tid: int, request: Request,
     before = row.asset_id
     row.asset_id = _task_asset(db, p.asset_id, form.get("asset", ""))
     if before != row.asset_id:
-        add_log(db, aid, (f"{_short(row.text)}: about {_asset_named(db, row.asset_id)}"
-                          if row.asset_id else f"{_short(row.text)}: about no one thing"))
+        add_log(
+            db,
+            aid,
+            (
+                f"{_short(row.text)}: about {_asset_named(db, row.asset_id)}"
+                if row.asset_id
+                else f"{_short(row.text)}: about no one thing"
+            ),
+        )
     db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
 @router.post("/projects/{aid}/task/{tid}/toggle", include_in_schema=False)
-async def gui_project_toggle_task(aid: str, tid: int, request: Request,
-                                  db: Session = Depends(get_db)):
+async def gui_project_toggle_task(
+    aid: str, tid: int, request: Request, db: Session = Depends(get_db)
+):
     """Tick a job, or put it back.
 
     Un-ticking clears the date rather than keeping it. A job that is not done has
@@ -596,13 +689,12 @@ async def gui_project_toggle_task(aid: str, tid: int, request: Request,
     row = _task_or_404(db, p, tid)
     row.done = not row.done
     row.done_at = date.today() if row.done else None
-    add_log(db, p.asset_id, ("done: " if row.done else "back on the list: ")
-            + _short(row.text))
+    add_log(db, p.asset_id, ("done: " if row.done else "back on the list: ") + _short(row.text))
     db.commit()
     form = await request.form()
-    return RedirectResponse(_safe_next(form.get("next", "") or
-                                       f"/projects/{p.asset_id}"),
-                            status_code=303)
+    return RedirectResponse(
+        _safe_next(form.get("next", "") or f"/projects/{p.asset_id}"), status_code=303
+    )
 
 
 @router.post("/projects/{aid}/task/{tid}/delete", include_in_schema=False)
@@ -616,8 +708,7 @@ def gui_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
 
 
 @router.post("/projects/{aid}/order", include_in_schema=False)
-async def gui_project_add_order(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
+async def gui_project_add_order(aid: str, request: Request, db: Session = Depends(get_db)):
     """Something bought for this project. Only the description is required: an
     order written down the moment it is placed rarely has a delivery date yet, and
     a form that insisted on one would be filled in later or not at all."""
@@ -628,24 +719,28 @@ async def gui_project_add_order(aid: str, request: Request,
         return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
     qty = (form.get("qty", "") or "").strip()
     row = ProjectOrder(
-        project_id=p.asset_id, description=description[:255],
+        project_id=p.asset_id,
+        description=description[:255],
         supplier=(form.get("supplier", "") or "").strip()[:255],
         url=(form.get("url", "") or "").strip(),
         qty=int(qty) if qty.isdigit() and int(qty) > 0 else 1,
         cost_p=projects.parse_money(form.get("cost", "")),
         ordered_at=_parse_date(form.get("ordered_at", "")) or date.today(),
         expected_at=_parse_date(form.get("expected_at", "")),
-        note=(form.get("note", "") or "").strip()[:255])
+        note=(form.get("note", "") or "").strip()[:255],
+    )
     db.add(row)
-    add_log(db, p.asset_id, f"ordered {_short(description)}"
-            + (f" from {row.supplier}" if row.supplier else ""))
+    add_log(
+        db,
+        p.asset_id,
+        f"ordered {_short(description)}" + (f" from {row.supplier}" if row.supplier else ""),
+    )
     db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
 @router.post("/projects/{aid}/order/{oid}/delivered", include_in_schema=False)
-def gui_project_order_delivered(aid: str, oid: int,
-                                db: Session = Depends(get_db)):
+def gui_project_order_delivered(aid: str, oid: int, db: Session = Depends(get_db)):
     """The tick. What arrives is added to the register the ordinary way -- this row
     is a note about a purchase, not a half-made asset -- so all that happens here is
     that it stops being one of the things still coming."""
@@ -653,8 +748,11 @@ def gui_project_order_delivered(aid: str, oid: int,
     row = _order_or_404(db, p, oid)
     row.delivered = not row.delivered
     row.delivered_at = date.today() if row.delivered else None
-    add_log(db, p.asset_id, ("arrived: " if row.delivered else "still coming: ")
-            + _short(row.description))
+    add_log(
+        db,
+        p.asset_id,
+        ("arrived: " if row.delivered else "still coming: ") + _short(row.description),
+    )
     db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 

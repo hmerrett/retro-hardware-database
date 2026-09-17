@@ -83,7 +83,7 @@ def _white_points(im: Image.Image) -> list[int]:
     hist = im.histogram()
     tops = []
     for channel in range(3):
-        counts = hist[channel * 256:(channel + 1) * 256]
+        counts = hist[channel * 256 : (channel + 1) * 256]
         cut, seen, top = sum(counts) * _WHITE_CUT, 0, 255
         for value in range(255, -1, -1):
             seen += counts[value]

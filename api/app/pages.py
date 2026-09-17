@@ -5,12 +5,12 @@ from the same seller is not typed out again; and a note posted with photographs 
 it, which three different pages allow and which writes one history entry rather
 than one per photograph.
 """
+
 from collections import Counter
 
 from .history import PHOTO_ENTRY, add_log
 from .models import Computer, Part
 from .photos import _attach_log_photos, _chosen_photos
-
 
 
 def _answers_given(db, *columns, limit=200):
@@ -51,8 +51,7 @@ def _answers_given(db, *columns, limit=200):
             key = text.casefold()
             counts[key] += 1
             spellings.setdefault(key, Counter())[text] += 1
-    return [spellings[key].most_common(1)[0][0]
-            for key, _ in counts.most_common(limit)]
+    return [spellings[key].most_common(1)[0][0] for key, _ in counts.most_common(limit)]
 
 
 def _datalists(db, computer=False):

@@ -5,6 +5,7 @@ does. The entrypoint is not import-testable -- it is a line of shell that only
 runs in a container -- and it is exactly the sort of thing that is edited once,
 works on the author's box, and is never looked at again.
 """
+
 from pathlib import Path
 
 ENTRYPOINT = (Path(__file__).resolve().parent.parent / "entrypoint.sh").read_text()
@@ -30,8 +31,11 @@ class TestTheApiTrustsItsProxy:
     def test_the_schema_is_brought_up_before_the_app_serves(self):
         """The other half of the entrypoint, and the reason a deploy needs no
         migration step of its own."""
-        lines = [ln.strip() for ln in ENTRYPOINT.splitlines() if ln.strip()
-                 and not ln.strip().startswith("#")]
+        lines = [
+            ln.strip()
+            for ln in ENTRYPOINT.splitlines()
+            if ln.strip() and not ln.strip().startswith("#")
+        ]
         upgrade = next(i for i, ln in enumerate(lines) if "alembic upgrade head" in ln)
         serve = next(i for i, ln in enumerate(lines) if "uvicorn" in ln)
         assert upgrade < serve
@@ -45,13 +49,17 @@ FIX_VOLUMES = (API / "fix-volumes.sh").read_text()
 
 def _compose(name):
     import yaml
+
     return yaml.safe_load((ROOT / name).read_text())
 
 
 def _instructions(text, keyword):
     """The arguments of every Dockerfile line starting with `keyword`, in order."""
-    return [ln.split(None, 1)[1].strip() for ln in text.splitlines()
-            if ln.strip().upper().startswith(keyword + " ")]
+    return [
+        ln.split(None, 1)[1].strip()
+        for ln in text.splitlines()
+        if ln.strip().upper().startswith(keyword + " ")
+    ]
 
 
 class TestTheAppDoesNotRunAsRoot:
@@ -81,13 +89,14 @@ class TestTheAppDoesNotRunAsRoot:
         init = services["api-init"]
         assert init["user"] == "root"
         assert init["command"] == ["./fix-volumes.sh"]
-        assert (services["api"]["depends_on"]["api-init"]["condition"]
-                == "service_completed_successfully")
+        assert (
+            services["api"]["depends_on"]["api-init"]["condition"]
+            == "service_completed_successfully"
+        )
 
     def test_the_fix_reaches_the_two_volumes_and_nothing_else(self):
         """It runs as root, so what it may touch is spelled out and kept small."""
-        targets = [ln for ln in FIX_VOLUMES.splitlines()
-                   if ln.strip().startswith("for dir in")]
+        targets = [ln for ln in FIX_VOLUMES.splitlines() if ln.strip().startswith("for dir in")]
         assert targets == ["for dir in /app/images /app/files; do"]
         init_mounts = _compose("docker-compose.yml")["services"]["api-init"]["volumes"]
         assert sorted(init_mounts) == ["files:/app/files", "images:/app/images"]

@@ -8,6 +8,7 @@ and a control scrolled to under the tab bar is only wrong for somebody arriving
 at it with the Tab key. So they are checked against the markup and the stylesheet
 themselves, the way test_stylesheet.py checks declarations rather than pages.
 """
+
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -51,7 +52,7 @@ def test_the_skip_link_has_somewhere_to_land(client):
     """A skip link whose target is not an id on the page moves focus nowhere and
     fails silently, which is the failure this whole invariant is about."""
     html = client.get("/").text
-    assert re.search(r"<main\b[^>]*\bid=\"main\"", html), "no <main id=\"main\"> to skip to"
+    assert re.search(r"<main\b[^>]*\bid=\"main\"", html), 'no <main id="main"> to skip to'
 
 
 def test_every_heading_cell_says_which_way_its_table_runs():
@@ -123,9 +124,11 @@ def test_a_bar_fixed_across_the_bottom_does_not_swallow_the_focus_ring():
     phone = media_block_holding(css, ".tabbar { position: fixed")
     reserved = px(phone, "padding-bottom")
     assert "scroll-padding-bottom" in phone, (
-        "the bar is fixed over the bottom of the page and nothing keeps a scroll clear of it")
+        "the bar is fixed over the bottom of the page and nothing keeps a scroll clear of it"
+    )
     assert px(phone, "scroll-padding-bottom") >= reserved, (
-        "a scroll stops closer to the bottom than the bar is tall, so focus lands behind it")
+        "a scroll stops closer to the bottom than the bar is tall, so focus lands behind it"
+    )
 
 
 def test_the_cookie_notice_does_not_swallow_it_either():
@@ -135,7 +138,8 @@ def test_the_cookie_notice_does_not_swallow_it_either():
     put the room back when it goes."""
     css = STYLESHEET.read_text(encoding="utf-8")
     while_showing = [
-        rule for rule in re.finditer(r"html:has\(#cookienote\)[^{]*\{[^}]*\}", css)
+        rule
+        for rule in re.finditer(r"html:has\(#cookienote\)[^{]*\{[^}]*\}", css)
         if "scroll-padding-bottom" in rule.group(0)
     ]
     assert while_showing, "nothing keeps a scroll clear of the cookie notice"
@@ -143,7 +147,8 @@ def test_the_cookie_notice_does_not_swallow_it_either():
     inside = [rule for rule in while_showing if rule.group(0) in phone]
     assert inside, "the phone's allowance has to cover the notice and the bar together"
     assert px(inside[0].group(0), "scroll-padding-bottom") > px(phone, "padding-bottom"), (
-        "the notice sits on top of the bar, so it needs more room than the bar alone")
+        "the notice sits on top of the bar, so it needs more room than the bar alone"
+    )
 
 
 def test_the_login_boxes_say_what_they_are_for():
@@ -154,9 +159,11 @@ def test_the_login_boxes_say_what_they_are_for():
     is about."""
     html = (TEMPLATES / "login.html").read_text(encoding="utf-8")
     assert re.search(r'<input[^>]*name="username"[^>]*autocomplete="username"', html), (
-        "the username box does not say what it is for")
+        "the username box does not say what it is for"
+    )
     assert re.search(r'<input[^>]*name="password"[^>]*autocomplete="current-password"', html), (
-        "the password box does not say what it is for")
+        "the password box does not say what it is for"
+    )
 
 
 class Controls(HTMLParser):
@@ -188,8 +195,13 @@ class Controls(HTMLParser):
             named = named or self._in_label > 0
             if got.get("type") in ("submit", "button", "reset") and got.get("value"):
                 named = True
-            control = {"tag": tag, "id": got.get("id", ""), "name": got.get("name", ""),
-                       "named": named, "words": ""}
+            control = {
+                "tag": tag,
+                "id": got.get("id", ""),
+                "name": got.get("name", ""),
+                "named": named,
+                "words": "",
+            }
             self.controls.append(control)
             if tag == "button":
                 self._button = control
@@ -208,7 +220,8 @@ class Controls(HTMLParser):
         return [
             f"<{c['tag']} name={c['name'] or '-'} id={c['id'] or '-'}>"
             for c in self.controls
-            if not c["named"] and not (c["tag"] == "button" and c["words"].strip())
+            if not c["named"]
+            and not (c["tag"] == "button" and c["words"].strip())
             and c["id"] not in self.labelled_ids
         ]
 
@@ -225,8 +238,9 @@ def test_every_control_says_what_it_is(client, a_page_of_everything):
         parser = Controls()
         parser.feed(page.text)
         nameless += [f"{path}: {one}" for one in parser.unnamed()]
-    assert nameless == [], "these controls are read out with nothing to say what they are: " + \
-        "; ".join(nameless[:12])
+    assert nameless == [], (
+        "these controls are read out with nothing to say what they are: " + "; ".join(nameless[:12])
+    )
 
 
 def test_every_image_says_what_it_is_or_says_it_is_decoration(client, a_page_of_everything):
@@ -254,6 +268,8 @@ def test_nothing_hides_where_the_keyboard_is():
         for found in re.finditer(r"outline:\s*(?:none|0)\b", css)
     ]
     assert [one for one in suppressed if allowed not in one] == [], (
-        "these rules take the focus ring away: " + "; ".join(suppressed))
+        "these rules take the focus ring away: " + "; ".join(suppressed)
+    )
     assert re.search(r"main:focus\s*\{[^}]*outline:\s*none", css), (
-        "the one allowed suppression has moved; this test is now guarding nothing")
+        "the one allowed suppression has moved; this test is now guarding nothing"
+    )

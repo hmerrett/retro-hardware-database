@@ -12,6 +12,7 @@ The argument is a Python file defining SUMMARIES = {model_key: paragraph}. A key
 already carrying a summary is left alone unless --replace is given, so a rerun
 adds only what is new.
 """
+
 import argparse
 import pathlib
 import re
@@ -20,7 +21,7 @@ import sys
 import textwrap
 
 YAML = pathlib.Path(__file__).resolve().parent.parent / "api/app/machines.yaml"
-WIDTH = 88          # the file's own comment width, so a summary reads like the rest
+WIDTH = 88  # the file's own comment width, so a summary reads like the rest
 
 
 def fold(text, indent):
@@ -41,32 +42,31 @@ def apply(lines, summaries, replace=False):
             i += 1
             continue
         dash_indent, key = m.group(1), m.group(2)
-        field = dash_indent + "  "          # fields sit two in from the dash
+        field = dash_indent + "  "  # fields sit two in from the dash
         if key not in summaries:
             i += 1
             continue
         # The model's own block: up to the next line at or left of the dash.
         j = i + 1
-        while j < len(lines) and (not lines[j].strip()
-                                  or lines[j].startswith(field)):
+        while j < len(lines) and (not lines[j].strip() or lines[j].startswith(field)):
             j += 1
-        block = lines[i + 1:j]
+        block = lines[i + 1 : j]
         has = any(ln.startswith(field + "summary:") for ln in block)
         if has and not replace:
             skipped.append(key)
             i += 1
             continue
         if has:
-            raise SystemExit(f"{key}: --replace on an existing summary is not"
-                             " implemented; edit the YAML by hand")
+            raise SystemExit(
+                f"{key}: --replace on an existing summary is not implemented; edit the YAML by hand"
+            )
         # After `model:`, which every model has: the name, then what it is.
-        at = next((n for n, ln in enumerate(block)
-                   if ln.startswith(field + "model:")), None)
+        at = next((n for n, ln in enumerate(block) if ln.startswith(field + "model:")), None)
         if at is None:
             raise SystemExit(f"{key}: no 'model:' line to write the summary after")
-        out.extend(block[:at + 1])
+        out.extend(block[: at + 1])
         out.extend(fold(summaries[key], field))
-        out.extend(block[at + 1:])
+        out.extend(block[at + 1 :])
         done.append(key)
         i = j
     return out, done, skipped

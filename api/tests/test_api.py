@@ -4,6 +4,7 @@ Weighted towards the things that have actually broken: typed columns rejecting o
 silently eating form input, a select with no option for the value it holds, links
 left pointing at deleted rows, and derived strings being written to directly.
 """
+
 import html
 import re
 from datetime import date, datetime, timedelta
@@ -37,10 +38,11 @@ class TestTypedColumns:
     def test_creating_from_the_form_with_both_blank(self, client):
         """These were String columns; when they became SMALLINT and DATE the create
         path still passed "" straight through, and the form 500'd."""
-        r = client.post("/computers/new",
-                        data={"manufacturer": "Acme", "model": "Blank",
-                              "year": "", "acquired_date": ""},
-                        follow_redirects=False)
+        r = client.post(
+            "/computers/new",
+            data={"manufacturer": "Acme", "model": "Blank", "year": "", "acquired_date": ""},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         aid = r.headers["location"].split("/")[2].split("?")[0]
         c = client.get(f"/api/computers/{aid}").json()
@@ -48,8 +50,9 @@ class TestTypedColumns:
 
     def test_the_form_accepts_a_day_first_date(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"acquired_date": "17/06/2026"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/edit", data={"acquired_date": "17/06/2026"}, follow_redirects=False
+        )
         assert client.get(f"/api/computers/{aid}").json()["acquired_date"] == "2026-06-17"
 
     def test_clearing_a_typed_field_from_the_form(self, client, computer):
@@ -81,17 +84,18 @@ class TestCondition:
 
     def test_a_condition_can_be_taken_back_off(self, client, computer):
         aid = computer(condition="Working")["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"condition": ""},
-                    follow_redirects=False)
+        client.post(f"/computers/{aid}/edit", data={"condition": ""}, follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["condition"] == ""
 
 
 class TestDisposal:
     def test_disposing_records_a_flag_a_date_and_a_note(self, client, part):
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/dispose",
-                    data={"note": "sold at the rally", "date": "2026-07-20"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/dispose",
+            data={"note": "sold at the rally", "date": "2026-07-20"},
+            follow_redirects=False,
+        )
         p = client.get(f"/api/parts/{aid}").json()
         assert p["disposed"] is True
         assert p["disposed_at"] == "2026-07-20"
@@ -99,16 +103,14 @@ class TestDisposal:
 
     def test_disposing_with_nothing_typed_still_records_the_day(self, client, part):
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/dispose", data={"note": "", "date": ""},
-                    follow_redirects=False)
+        client.post(f"/parts/{aid}/dispose", data={"note": "", "date": ""}, follow_redirects=False)
         p = client.get(f"/api/parts/{aid}").json()
         assert p["disposed"] is True
         assert p["disposed_at"] == date.today().isoformat()
 
     def test_restoring_clears_all_three(self, client, part):
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(f"/parts/{aid}/dispose", data={"note": "binned"}, follow_redirects=False)
         client.post(f"/parts/{aid}/restore", follow_redirects=False)
         p = client.get(f"/api/parts/{aid}").json()
         assert p["disposed"] is False
@@ -118,8 +120,7 @@ class TestDisposal:
         """Every disposal in the collection predates the date field, which is why
         the flag is its own column rather than being inferred from the date."""
         aid = part()["asset_id"]
-        client.patch(f"/api/parts/{aid}",
-                     json={"disposed": True, "disposed_note": "recycled"})
+        client.patch(f"/api/parts/{aid}", json={"disposed": True, "disposed_note": "recycled"})
         p = client.get(f"/api/parts/{aid}").json()
         assert p["disposed"] is True and p["disposed_at"] is None
 
@@ -132,9 +133,11 @@ class TestDisposingAMachineTakesItsPartsWithIt:
     def test_the_parts_installed_in_it_are_disposed_too(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.post(f"/computers/{cid}/dispose",
-                    data={"note": "sold as a lot", "date": "2026-07-20"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/dispose",
+            data={"note": "sold as a lot", "date": "2026-07-20"},
+            follow_redirects=False,
+        )
         p = client.get(f"/api/parts/{pid}").json()
         assert p["disposed"] is True
         assert p["disposed_at"] == "2026-07-20"
@@ -146,52 +149,51 @@ class TestDisposingAMachineTakesItsPartsWithIt:
         cid = computer()["asset_id"]
         card = part(type="io", computer_id=cid)["asset_id"]
         disk = part(type="storage", parent_id=card)["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
         assert client.get(f"/api/parts/{disk}").json()["disposed"] is True
 
     def test_a_part_outside_the_machine_is_left_alone(self, client, computer, part):
         cid = computer()["asset_id"]
         spare = part()["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
         assert client.get(f"/api/parts/{spare}").json()["disposed"] is False
 
-    def test_a_part_already_disposed_keeps_its_own_record(self, client, computer,
-                                                          part):
+    def test_a_part_already_disposed_keeps_its_own_record(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.post(f"/parts/{pid}/dispose",
-                    data={"note": "died on the bench", "date": "2026-01-05"},
-                    follow_redirects=False)
-        client.post(f"/computers/{cid}/dispose",
-                    data={"note": "sold as a lot", "date": "2026-07-20"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{pid}/dispose",
+            data={"note": "died on the bench", "date": "2026-01-05"},
+            follow_redirects=False,
+        )
+        client.post(
+            f"/computers/{cid}/dispose",
+            data={"note": "sold as a lot", "date": "2026-07-20"},
+            follow_redirects=False,
+        )
         p = client.get(f"/api/parts/{pid}").json()
         assert p["disposed_at"] == "2026-01-05"
         assert p["disposed_note"] == "died on the bench"
 
-    def test_restoring_the_machine_brings_those_parts_back(self, client, computer,
-                                                           part):
+    def test_restoring_the_machine_brings_those_parts_back(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
         client.post(f"/computers/{cid}/restore", follow_redirects=False)
         p = client.get(f"/api/parts/{pid}").json()
         assert p["disposed"] is False
         assert p["disposed_at"] is None and p["disposed_note"] == ""
 
-    def test_restoring_leaves_a_part_that_went_separately(self, client, computer,
-                                                          part):
+    def test_restoring_leaves_a_part_that_went_separately(self, client, computer, part):
         """Only what went out with the machine comes back with it."""
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.post(f"/parts/{pid}/dispose",
-                    data={"note": "died on the bench", "date": "2026-01-05"},
-                    follow_redirects=False)
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{pid}/dispose",
+            data={"note": "died on the bench", "date": "2026-01-05"},
+            follow_redirects=False,
+        )
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
         client.post(f"/computers/{cid}/restore", follow_redirects=False)
         assert client.get(f"/api/parts/{pid}").json()["disposed"] is True
 
@@ -201,16 +203,16 @@ class TestDisposingAMachineTakesItsPartsWithIt:
         with its parts still reading as held."""
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.patch(f"/api/computers/{cid}",
-                     json={"disposed": True, "disposed_at": "2026-07-20",
-                           "disposed_note": "sold as a lot"})
+        client.patch(
+            f"/api/computers/{cid}",
+            json={"disposed": True, "disposed_at": "2026-07-20", "disposed_note": "sold as a lot"},
+        )
         p = client.get(f"/api/parts/{pid}").json()
         assert p["disposed"] is True and p["disposed_at"] == "2026-07-20"
         client.patch(f"/api/computers/{cid}", json={"disposed": False})
         assert client.get(f"/api/parts/{pid}").json()["disposed"] is False
 
-    def test_editing_a_disposed_machine_does_not_re_dispose(self, client, computer,
-                                                            part):
+    def test_editing_a_disposed_machine_does_not_re_dispose(self, client, computer, part):
         """The cascade fires on the change, not on the state, so a later edit
         cannot overwrite a part that was restored on its own."""
         cid = computer()["asset_id"]
@@ -222,8 +224,7 @@ class TestDisposingAMachineTakesItsPartsWithIt:
 
 
 def dispose(client, kind, aid, note="binned"):
-    client.post(f"/{kind}/{aid}/dispose", data={"note": note},
-                follow_redirects=False)
+    client.post(f"/{kind}/{aid}/dispose", data={"note": note}, follow_redirects=False)
 
 
 def photo_for(kind, aid, name=None):
@@ -231,6 +232,7 @@ def photo_for(kind, aid, name=None):
     from PIL import Image
 
     from app import main
+
     path = main.IMAGES_DIR / kind / (name or f"{aid}.jpg")
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.new("RGB", (60, 40), (90, 110, 130)).save(path, "JPEG")
@@ -249,8 +251,7 @@ class TestDeletingIsOnlyForWhatIsAlreadyDisposed:
         assert f"/parts/{aid}/delete" in client.get(f"/parts/{aid}").text
 
     @pytest.mark.parametrize("kind", ["computers", "parts"])
-    def test_the_confirmation_refuses_an_item_still_held(self, client, computer,
-                                                         part, kind):
+    def test_the_confirmation_refuses_an_item_still_held(self, client, computer, part, kind):
         aid = (computer() if kind == "computers" else part())["asset_id"]
         assert client.get(f"/{kind}/{aid}/delete").status_code == 400
 
@@ -259,8 +260,12 @@ class TestDeletingIsOnlyForWhatIsAlreadyDisposed:
         must not go through on the strength of having once been offered."""
         aid = part()["asset_id"]
         url = f"http://testserver/parts/{aid}"
-        assert client.post(f"/parts/{aid}/delete", data={"confirm": url},
-                           follow_redirects=False).status_code == 400
+        assert (
+            client.post(
+                f"/parts/{aid}/delete", data={"confirm": url}, follow_redirects=False
+            ).status_code
+            == 400
+        )
         assert client.get(f"/api/parts/{aid}").status_code == 200
 
 
@@ -275,20 +280,30 @@ class TestTheDeleteConfirmation:
 
     def test_the_right_url_deletes_it(self, client, part):
         aid = self.setup_part(client, part)
-        r = client.post(f"/parts/{aid}/delete",
-                        data={"confirm": f"http://testserver/parts/{aid}"},
-                        follow_redirects=False)
+        r = client.post(
+            f"/parts/{aid}/delete",
+            data={"confirm": f"http://testserver/parts/{aid}"},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         assert client.get(f"/api/parts/{aid}").status_code == 404
 
-    @pytest.mark.parametrize("typed", ["", "yes", "delete", "/parts/RH-9999",
-                                       "http://testserver/parts/",
-                                       "http://testserver/computers/{aid}"])
+    @pytest.mark.parametrize(
+        "typed",
+        [
+            "",
+            "yes",
+            "delete",
+            "/parts/RH-9999",
+            "http://testserver/parts/",
+            "http://testserver/computers/{aid}",
+        ],
+    )
     def test_anything_else_deletes_nothing(self, client, part, typed):
         aid = self.setup_part(client, part)
-        r = client.post(f"/parts/{aid}/delete",
-                        data={"confirm": typed.format(aid=aid)},
-                        follow_redirects=False)
+        r = client.post(
+            f"/parts/{aid}/delete", data={"confirm": typed.format(aid=aid)}, follow_redirects=False
+        )
         assert r.status_code == 400
         assert client.get(f"/api/parts/{aid}").status_code == 200
         assert "not this item&#39;s URL" in r.text
@@ -297,20 +312,34 @@ class TestTheDeleteConfirmation:
         """Pasting from the address bar is the expected act, but the host is not
         the part that identifies anything -- the asset id is."""
         aid = self.setup_part(client, part)
-        assert client.post(f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"},
-                           follow_redirects=False).status_code == 303
+        assert (
+            client.post(
+                f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"}, follow_redirects=False
+            ).status_code
+            == 303
+        )
 
-    @pytest.mark.parametrize("typed", ["http://another.example/parts/{aid}",
-                                       "http://testserver/parts/{aid}/",
-                                       "http://testserver/parts/{aid}?from=gallery",
-                                       "  http://testserver/parts/{aid}  "])
+    @pytest.mark.parametrize(
+        "typed",
+        [
+            "http://another.example/parts/{aid}",
+            "http://testserver/parts/{aid}/",
+            "http://testserver/parts/{aid}?from=gallery",
+            "  http://testserver/parts/{aid}  ",
+        ],
+    )
     def test_and_so_is_a_paste_that_travelled(self, client, part, typed):
         """Another host, a trailing slash, a query the gallery added, whitespace a
         copy picked up: all the same act of fetching the thing's identity."""
         aid = self.setup_part(client, part)
-        assert client.post(f"/parts/{aid}/delete",
-                           data={"confirm": typed.format(aid=aid)},
-                           follow_redirects=False).status_code == 303
+        assert (
+            client.post(
+                f"/parts/{aid}/delete",
+                data={"confirm": typed.format(aid=aid)},
+                follow_redirects=False,
+            ).status_code
+            == 303
+        )
 
     def test_the_page_shows_the_url_to_paste(self, client, part):
         aid = self.setup_part(client, part)
@@ -323,17 +352,20 @@ class TestADeleteTakesEverythingWithIt:
 
     def test_the_rows_filed_under_it_go(self, client, part, db):
         from app.models import LogEntry, StorageSpec
+
         aid = part(type="storage", specs="Capacity: 40 MB")["asset_id"]
         assert db.query(StorageSpec).filter_by(part_id=aid).count() == 1
         dispose(client, "parts", aid)
-        client.post(f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"}, follow_redirects=False
+        )
         db.expire_all()
         assert db.query(StorageSpec).filter_by(part_id=aid).count() == 0
         assert db.query(LogEntry).filter_by(asset_id=aid).count() == 0
 
     def test_the_photos_go_from_disk(self, client, part):
         from app import main
+
         aid = part()["asset_id"]
         primary, extra = photo_for("parts", aid), photo_for("parts", aid, f"{aid}-2.jpg")
         sidecar = main._ref_sidecar(f"parts/{aid}-2.jpg")
@@ -342,24 +374,36 @@ class TestADeleteTakesEverythingWithIt:
         cached = main.WM_CACHE / "parts" / f"{aid}.jpg"
         assert cached.exists()
         dispose(client, "parts", aid)
-        client.post(f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"}, follow_redirects=False
+        )
         assert not primary.exists() and not extra.exists()
         assert not sidecar.exists(), "a reference marker outlived its photo"
         assert not cached.exists(), "a watermark cached under a freed name"
 
     def test_a_machines_drive_and_memory_rows_go(self, client, computer, db):
         from app.models import ComputerDrive, ComputerRamModule
+
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"drive0_kind": "floppy", "drive0_form_factor": '3.5"',
-                          "drive0_size": "1.44MB", "drive0_count": "1",
-                          "rammod:30p1m": "4"}, follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/edit",
+            data={
+                "drive0_kind": "floppy",
+                "drive0_form_factor": '3.5"',
+                "drive0_size": "1.44MB",
+                "drive0_count": "1",
+                "rammod:30p1m": "4",
+            },
+            follow_redirects=False,
+        )
         assert db.query(ComputerDrive).filter_by(computer_id=aid).count() == 1
         assert db.query(ComputerRamModule).filter_by(computer_id=aid).count() == 1
         dispose(client, "computers", aid)
-        client.post(f"/computers/{aid}/delete",
-                    data={"confirm": f"/computers/{aid}"}, follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/delete",
+            data={"confirm": f"/computers/{aid}"},
+            follow_redirects=False,
+        )
         db.expire_all()
         assert db.query(ComputerDrive).filter_by(computer_id=aid).count() == 0
         assert db.query(ComputerRamModule).filter_by(computer_id=aid).count() == 0
@@ -368,6 +412,7 @@ class TestADeleteTakesEverythingWithIt:
         """The MCP server and the command-line tools delete through here, and used
         to leave the photos behind on disk."""
         from app.models import StorageSpec
+
         aid = part(type="storage", specs="Capacity: 40 MB")["asset_id"]
         photo = photo_for("parts", aid)
         assert client.delete(f"/api/parts/{aid}").json()["photos"] == 1
@@ -381,43 +426,48 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
     asset id that has stopped existing, and what survives says in its own history
     why it is suddenly standing on its own."""
 
-    def test_a_part_in_a_deleted_machine_is_kept_and_unlinked(self, client,
-                                                              computer, part):
+    def test_a_part_in_a_deleted_machine_is_kept_and_unlinked(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)
-        client.post(f"/computers/{cid}/delete",
-                    data={"confirm": f"/computers/{cid}"}, follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": f"/computers/{cid}"},
+            follow_redirects=False,
+        )
         p = client.get(f"/api/parts/{pid}").json()
         assert p["computer_id"] is None
-        assert any(cid in e["message"] for e in
-                   client.get(f"/api/items/{pid}/log").json())
+        assert any(cid in e["message"] for e in client.get(f"/api/items/{pid}/log").json())
 
-    def test_a_part_mounted_on_a_deleted_part_is_kept_and_unlinked(self, client,
-                                                                   part):
+    def test_a_part_mounted_on_a_deleted_part_is_kept_and_unlinked(self, client, part):
         card = part(type="io")["asset_id"]
         disk = part(type="storage", parent_id=card)["asset_id"]
         dispose(client, "parts", card)
-        client.post(f"/parts/{card}/delete", data={"confirm": f"/parts/{card}"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{card}/delete", data={"confirm": f"/parts/{card}"}, follow_redirects=False
+        )
         assert client.get(f"/api/parts/{disk}").json()["parent_id"] is None
 
-    def test_the_tick_deletes_the_parts_that_went_with_it(self, client, computer,
-                                                          part):
+    def test_the_tick_deletes_the_parts_that_went_with_it(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)  # takes the part with it
-        client.post(f"/computers/{cid}/delete",
-                    data={"confirm": f"/computers/{cid}", "with_parts": "1"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{pid}").status_code == 404
 
     def test_without_the_tick_they_stay(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)
-        client.post(f"/computers/{cid}/delete",
-                    data={"confirm": f"/computers/{cid}"}, follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": f"/computers/{cid}"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{pid}").status_code == 200
 
     def test_the_tick_follows_the_whole_tree(self, client, computer, part):
@@ -430,14 +480,15 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
         dispose(client, "computers", cid)
         page = client.get(f"/computers/{cid}/delete").text
         assert "<strong>2</strong> parts in it" in " ".join(page.split())
-        client.post(f"/computers/{cid}/delete",
-                    data={"confirm": f"/computers/{cid}", "with_parts": "1"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{card}").status_code == 404
         assert client.get(f"/api/parts/{disk}").status_code == 404
 
-    def test_a_held_part_deep_in_the_tree_is_unlinked_not_deleted(self, client,
-                                                                  computer, part):
+    def test_a_held_part_deep_in_the_tree_is_unlinked_not_deleted(self, client, computer, part):
         """The disk was restored on its own, so it stays -- and must not be left
         pointing at the controller card that went."""
         cid = computer()["asset_id"]
@@ -445,14 +496,15 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
         disk = part(type="storage", parent_id=card)["asset_id"]
         dispose(client, "computers", cid)
         client.post(f"/parts/{disk}/restore", follow_redirects=False)
-        client.post(f"/computers/{cid}/delete",
-                    data={"confirm": f"/computers/{cid}", "with_parts": "1"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{card}").status_code == 404
         d = client.get(f"/api/parts/{disk}").json()
         assert d["parent_id"] is None and d["computer_id"] is None
-        assert any(card in e["message"] for e in
-                   client.get(f"/api/items/{disk}/log").json())
+        assert any(card in e["message"] for e in client.get(f"/api/items/{disk}/log").json())
 
     def test_a_part_still_held_survives_the_tick(self, client, computer, part):
         """A part restored on its own, or fitted after the machine went, is still in
@@ -462,23 +514,27 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
         kept = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)
         client.post(f"/parts/{kept}/restore", follow_redirects=False)
-        client.post(f"/computers/{cid}/delete",
-                    data={"confirm": f"/computers/{cid}", "with_parts": "1"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{gone}").status_code == 404
         assert client.get(f"/api/parts/{kept}").json()["computer_id"] is None
 
-    def test_a_deleted_part_leaves_no_history_behind_it(self, client, computer,
-                                                        part, db):
+    def test_a_deleted_part_leaves_no_history_behind_it(self, client, computer, part, db):
         """The parts deleted alongside the machine take their own history with
         them, and are not told they came out of something on the way out."""
         from app.models import LogEntry
+
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)
-        client.post(f"/computers/{cid}/delete",
-                    data={"confirm": f"/computers/{cid}", "with_parts": "1"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            follow_redirects=False,
+        )
         db.expire_all()
         assert db.query(LogEntry).filter(LogEntry.asset_id.in_([cid, pid])).count() == 0
 
@@ -491,8 +547,9 @@ class TestTheConfirmationPageSaysWhatWillGo:
         aid = part()["asset_id"]
         photo_for("parts", aid)
         photo_for("parts", aid, f"{aid}-2.jpg")
-        client.post(f"/parts/{aid}/note", data={"message": "cleaned the contacts"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/note", data={"message": "cleaned the contacts"}, follow_redirects=False
+        )
         dispose(client, "parts", aid)
         text = " ".join(client.get(f"/parts/{aid}/delete").text.split())
         assert "<strong>2</strong> photos deleted from disk" in text
@@ -522,8 +579,7 @@ class TestTheConfirmationPageSaysWhatWillGo:
         assert "photo" not in going
         assert "own record" in going, "the list should not be empty either"
 
-    def test_it_offers_the_tick_only_when_there_is_something_to_tick(self, client,
-                                                                     computer, part):
+    def test_it_offers_the_tick_only_when_there_is_something_to_tick(self, client, computer, part):
         bare = computer()["asset_id"]
         dispose(client, "computers", bare)
         assert 'name="with_parts"' not in client.get(f"/computers/{bare}/delete").text
@@ -545,9 +601,11 @@ class TestTheConfirmationPageSaysWhatWillGo:
         cid = computer()["asset_id"]
         part(computer_id=cid)
         dispose(client, "computers", cid)
-        r = client.post(f"/computers/{cid}/delete",
-                        data={"confirm": "no", "with_parts": "1"},
-                        follow_redirects=False)
+        r = client.post(
+            f"/computers/{cid}/delete",
+            data={"confirm": "no", "with_parts": "1"},
+            follow_redirects=False,
+        )
         assert 'name="with_parts" value="1" checked' in r.text
 
 
@@ -557,16 +615,17 @@ class TestTheDeleteConfirmationIsNotPublic:
 
     def test_a_visitor_is_sent_to_the_login(self, client, part, monkeypatch):
         from app import main
+
         aid = part()["asset_id"]
         dispose(client, "parts", aid)
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.get(f"/parts/{aid}/delete", follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
 
-    def test_the_item_page_it_hangs_off_is_still_public(self, client, part,
-                                                        monkeypatch):
+    def test_the_item_page_it_hangs_off_is_still_public(self, client, part, monkeypatch):
         """Only the confirmation moved behind the login, not the item itself."""
         from app import main
+
         aid = part()["asset_id"]
         dispose(client, "parts", aid)
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
@@ -575,8 +634,7 @@ class TestTheDeleteConfirmationIsNotPublic:
     def test_both_histories_say_what_happened(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        client.post(f"/computers/{cid}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(f"/computers/{cid}/dispose", data={"note": "binned"}, follow_redirects=False)
         assert "1 part in it went with it" in client.get(f"/computers/{cid}").text
         assert f"marked disposed with {cid}" in client.get(f"/parts/{pid}").text
 
@@ -594,16 +652,13 @@ class TestLinks:
     def test_the_standalone_filter_finds_unlinked_parts(self, client, part, computer):
         loose = part()["asset_id"]
         fitted = part(computer_id=computer()["asset_id"])["asset_id"]
-        found = [p["asset_id"] for p in
-                 client.get("/api/parts", params={"computer_id": ""}).json()]
+        found = [p["asset_id"] for p in client.get("/api/parts", params={"computer_id": ""}).json()]
         assert loose in found and fitted not in found
 
     def test_a_link_to_something_that_does_not_exist_is_refused(self, client, part):
         aid = part()["asset_id"]
-        assert client.patch(f"/api/parts/{aid}",
-                            json={"computer_id": "RH-NOPE"}).status_code == 404
-        assert client.patch(f"/api/parts/{aid}",
-                            json={"parent_id": "RH-NOPE"}).status_code == 404
+        assert client.patch(f"/api/parts/{aid}", json={"computer_id": "RH-NOPE"}).status_code == 404
+        assert client.patch(f"/api/parts/{aid}", json={"parent_id": "RH-NOPE"}).status_code == 404
 
     def test_deleting_a_computer_unlinks_its_parts(self, client, part, computer):
         cid = computer()["asset_id"]
@@ -627,52 +682,49 @@ class TestLinks:
 class TestInstalledRam:
     def test_the_module_grid_becomes_a_total_and_a_string(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"rammod:30p1m": "8", "installed_ram": ""},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/edit",
+            data={"rammod:30p1m": "8", "installed_ram": ""},
+            follow_redirects=False,
+        )
         c = client.get(f"/api/computers/{aid}").json()
         assert c["installed_ram"] == "8× 1MiB 30-pin (8 MiB)"
         assert c["installed_ram_kb"] == 8192
 
     def test_a_plain_amount_over_the_wire_becomes_a_number(self, client, computer):
         aid = computer()["asset_id"]
-        c = client.patch(f"/api/computers/{aid}",
-                         json={"installed_ram": "640KB"}).json()
+        c = client.patch(f"/api/computers/{aid}", json={"installed_ram": "640KB"}).json()
         assert c["installed_ram"] == "640 KiB" and c["installed_ram_kb"] == 640
 
     def test_setting_a_total_does_not_wipe_a_breakdown(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"rammod:30p1m": "8", "installed_ram": ""},
-                    follow_redirects=False)
-        c = client.patch(f"/api/computers/{aid}",
-                         json={"installed_ram": "32MB"}).json()
+        client.post(
+            f"/computers/{aid}/edit",
+            data={"rammod:30p1m": "8", "installed_ram": ""},
+            follow_redirects=False,
+        )
+        c = client.patch(f"/api/computers/{aid}", json={"installed_ram": "32MB"}).json()
         assert c["installed_ram"] == "8× 1MiB 30-pin (8 MiB)"
 
-    def test_replacing_a_total_with_a_note_does_not_leave_the_old_figure(
-            self, client, computer):
+    def test_replacing_a_total_with_a_note_does_not_leave_the_old_figure(self, client, computer):
         """Passing None once meant "leave the total alone", so the stale number
         stayed and the string read '16 MiB; 16MB (2 banks)'."""
         aid = computer()["asset_id"]
         client.patch(f"/api/computers/{aid}", json={"installed_ram": "16MB"})
-        c = client.patch(f"/api/computers/{aid}",
-                         json={"installed_ram": "16MB (2 banks)"}).json()
+        c = client.patch(f"/api/computers/{aid}", json={"installed_ram": "16MB (2 banks)"}).json()
         assert c["installed_ram_kb"] is None
         assert c["installed_ram"] == "16MB (2 banks)"
 
     def test_clearing_the_grid_clears_the_memory(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"rammod:30p1m": "8"},
-                    follow_redirects=False)
-        client.post(f"/computers/{aid}/edit", data={"rammod:30p1m": ""},
-                    follow_redirects=False)
+        client.post(f"/computers/{aid}/edit", data={"rammod:30p1m": "8"}, follow_redirects=False)
+        client.post(f"/computers/{aid}/edit", data={"rammod:30p1m": ""}, follow_redirects=False)
         c = client.get(f"/api/computers/{aid}").json()
         assert c["installed_ram"] == "" and c["installed_ram_kb"] is None
 
     def test_parity_reaches_the_stored_total(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"ramchip:41256": "18"},
-                    follow_redirects=False)
+        client.post(f"/computers/{aid}/edit", data={"ramchip:41256": "18"}, follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["installed_ram_kb"] == 512
 
 
@@ -683,76 +735,111 @@ class TestDrives:
 
     def test_the_row_editor_replaces_the_drives(self, client, computer):
         aid = computer(drives="1GB CF")["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"drive0_count": "2", "drive0_kind": "floppy",
-                          "drive0_form_factor": '5.25"', "drive0_size": "360K",
-                          "drive0_model": ""},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '2× 5.25" 360K floppy'
+        client.post(
+            f"/computers/{aid}/edit",
+            data={
+                "drive0_count": "2",
+                "drive0_kind": "floppy",
+                "drive0_form_factor": '5.25"',
+                "drive0_size": "360K",
+                "drive0_model": "",
+            },
+            follow_redirects=False,
+        )
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == '2× 5.25" 360K floppy'
 
     def test_an_emptied_row_removes_that_drive(self, client, computer):
         aid = computer(drives="1GB CF")["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"drive0_kind": "",
-                    "drive0_size": "", "drive0_model": ""}, follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/edit",
+            data={"drive0_kind": "", "drive0_size": "", "drive0_model": ""},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/computers/{aid}").json()["drives"] == ""
 
-    def test_routing_a_floppy_to_a_machine_survives_the_next_save(
-            self, client, computer):
+    def test_routing_a_floppy_to_a_machine_survives_the_next_save(self, client, computer):
         """The routing path used to append text to the rendered string, which the
         next save re-rendered away."""
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "computer_id": aid,
-                          "kind": "Floppy/Gotek", "drive_desc": '1x 5.25" 1.2MB'},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '5.25" 1.2MB floppy'
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "computer_id": aid,
+                "kind": "Floppy/Gotek",
+                "drive_desc": '1x 5.25" 1.2MB',
+            },
+            follow_redirects=False,
+        )
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == '5.25" 1.2MB floppy'
         page = client.get(f"/computers/{aid}/edit").text
         assert 'value="1.2MB"' in page
 
     def test_the_form_records_both_halves_of_a_bezel(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"drive0_count": "1", "drive0_kind": "floppy",
-                          "drive0_form_factor": '3.5"', "drive0_size": "1.44MB",
-                          "drive0_model": "", "drive0_colour": "Beige",
-                          "drive0_yellowing": "Heavily yellowed"},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '3.5" 1.44MB floppy (beige, heavily yellowed)'
+        client.post(
+            f"/computers/{aid}/edit",
+            data={
+                "drive0_count": "1",
+                "drive0_kind": "floppy",
+                "drive0_form_factor": '3.5"',
+                "drive0_size": "1.44MB",
+                "drive0_model": "",
+                "drive0_colour": "Beige",
+                "drive0_yellowing": "Heavily yellowed",
+            },
+            follow_redirects=False,
+        )
+        assert (
+            client.get(f"/api/computers/{aid}").json()["drives"]
+            == '3.5" 1.44MB floppy (beige, heavily yellowed)'
+        )
 
     def test_a_shade_with_no_yellowing_is_a_clean_drive(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"drive0_count": "1", "drive0_kind": "floppy",
-                          "drive0_colour": "Off-white", "drive0_yellowing": ""},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            "floppy (off-white)"
+        client.post(
+            f"/computers/{aid}/edit",
+            data={
+                "drive0_count": "1",
+                "drive0_kind": "floppy",
+                "drive0_colour": "Off-white",
+                "drive0_yellowing": "",
+            },
+            follow_redirects=False,
+        )
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == "floppy (off-white)"
 
     def test_both_come_back_into_the_form(self, client, computer):
         """Each menu has to hold what was saved, or the next save would quietly drop
         it -- the same trap a select with no option for its value always is."""
-        aid = computer(
-            drives='3.5" 1.44MB floppy (grey-beige, unevenly yellowed)')["asset_id"]
+        aid = computer(drives='3.5" 1.44MB floppy (grey-beige, unevenly yellowed)')["asset_id"]
         page = client.get(f"/computers/{aid}/edit").text
         assert '<option value="Grey-beige" selected>' in page
         assert '<option value="Unevenly yellowed" selected>' in page
-        client.post(f"/computers/{aid}/edit",
-                    data={"drive0_count": "1", "drive0_kind": "floppy",
-                          "drive0_form_factor": '3.5"', "drive0_size": "1.44MB",
-                          "drive0_model": "", "drive0_colour": "Grey-beige",
-                          "drive0_yellowing": "Unevenly yellowed"},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '3.5" 1.44MB floppy (grey-beige, unevenly yellowed)'
+        client.post(
+            f"/computers/{aid}/edit",
+            data={
+                "drive0_count": "1",
+                "drive0_kind": "floppy",
+                "drive0_form_factor": '3.5"',
+                "drive0_size": "1.44MB",
+                "drive0_model": "",
+                "drive0_colour": "Grey-beige",
+                "drive0_yellowing": "Unevenly yellowed",
+            },
+            follow_redirects=False,
+        )
+        assert (
+            client.get(f"/api/computers/{aid}").json()["drives"]
+            == '3.5" 1.44MB floppy (grey-beige, unevenly yellowed)'
+        )
 
     def test_a_row_with_only_a_bezel_is_still_a_drive(self, client, computer):
         """Nothing else known about it yet, but the bezel was looked at."""
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"drive0_yellowing": "Browned"}, follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/edit", data={"drive0_yellowing": "Browned"}, follow_redirects=False
+        )
         assert client.get(f"/api/computers/{aid}").json()["drives"] == "(browned)"
 
     def test_the_edit_form_carries_the_chart(self, client, computer):
@@ -774,90 +861,134 @@ class TestDrives:
         machines have a yellowed floppy" is a question the box can answer."""
         aid = computer(drives='3.5" 1.44MB floppy (beige, yellowed)')["asset_id"]
         computer(drives='3.5" 1.44MB floppy (beige)')
-        found = re.findall(r'/computers/(RH-[A-Z0-9]+)"',
-                           client.get("/?q=yellowed").text)
+        found = re.findall(r'/computers/(RH-[A-Z0-9]+)"', client.get("/?q=yellowed").text)
         assert set(found) == {aid}
 
     def test_routing_a_drive_reads_its_bezel(self, client, computer):
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "computer_id": aid,
-                          "kind": "Floppy/Gotek",
-                          "drive_desc": '1x 5.25" 1.2MB beige, lightly yellowed'},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '5.25" 1.2MB floppy (beige, lightly yellowed)'
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "computer_id": aid,
+                "kind": "Floppy/Gotek",
+                "drive_desc": '1x 5.25" 1.2MB beige, lightly yellowed',
+            },
+            follow_redirects=False,
+        )
+        assert (
+            client.get(f"/api/computers/{aid}").json()["drives"]
+            == '5.25" 1.2MB floppy (beige, lightly yellowed)'
+        )
 
     def test_routing_a_drive_takes_the_bezel_from_its_menus(self, client, computer):
         """Adding a drive from the part form is where most of them get added, so the
         menus are there too rather than only in the machine's own form."""
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "computer_id": aid,
-                          "kind": "Floppy/Gotek", "drive_desc": '1x 5.25" 1.2MB',
-                          "drive_colour": "Grey", "drive_yellowing": "Browned"},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '5.25" 1.2MB floppy (grey, browned)'
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "computer_id": aid,
+                "kind": "Floppy/Gotek",
+                "drive_desc": '1x 5.25" 1.2MB',
+                "drive_colour": "Grey",
+                "drive_yellowing": "Browned",
+            },
+            follow_redirects=False,
+        )
+        assert (
+            client.get(f"/api/computers/{aid}").json()["drives"]
+            == '5.25" 1.2MB floppy (grey, browned)'
+        )
 
     def test_the_menu_wins_over_the_same_thing_typed(self, client, computer):
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "computer_id": aid,
-                          "kind": "Floppy/Gotek",
-                          "drive_desc": '1x 5.25" 1.2MB beige',
-                          "drive_colour": "Warm beige"},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '5.25" 1.2MB floppy (warm beige)'
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "computer_id": aid,
+                "kind": "Floppy/Gotek",
+                "drive_desc": '1x 5.25" 1.2MB beige',
+                "drive_colour": "Warm beige",
+            },
+            follow_redirects=False,
+        )
+        assert (
+            client.get(f"/api/computers/{aid}").json()["drives"]
+            == '5.25" 1.2MB floppy (warm beige)'
+        )
 
     def test_a_blank_menu_leaves_what_was_typed(self, client, computer):
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "computer_id": aid,
-                          "kind": "Floppy/Gotek",
-                          "drive_desc": '1x 5.25" 1.2MB beige',
-                          "drive_colour": "", "drive_yellowing": ""},
-                    follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["drives"] == \
-            '5.25" 1.2MB floppy (beige)'
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "computer_id": aid,
+                "kind": "Floppy/Gotek",
+                "drive_desc": '1x 5.25" 1.2MB beige',
+                "drive_colour": "",
+                "drive_yellowing": "",
+            },
+            follow_redirects=False,
+        )
+        assert client.get(f"/api/computers/{aid}").json()["drives"] == '5.25" 1.2MB floppy (beige)'
 
     def test_the_history_names_the_bezel_that_was_picked(self, client, computer):
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "computer_id": aid,
-                          "kind": "Floppy/Gotek", "drive_desc": "1x 3.5in 1.44MB",
-                          "drive_colour": "Beige", "drive_yellowing": "Yellowed"},
-                    follow_redirects=False)
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "computer_id": aid,
+                "kind": "Floppy/Gotek",
+                "drive_desc": "1x 3.5in 1.44MB",
+                "drive_colour": "Beige",
+                "drive_yellowing": "Yellowed",
+            },
+            follow_redirects=False,
+        )
         messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
         assert 'added drive: 3.5" 1.44MB floppy (beige, yellowed)' in messages
 
     def test_the_routed_form_offers_the_menus_and_the_chart(self, client, computer):
-        page = client.get(f"/parts/new?type=storage&computer_id="
-                          f"{computer()['asset_id']}").text
+        page = client.get(f"/parts/new?type=storage&computer_id={computer()['asset_id']}").text
         assert 'name="drive_colour"' in page and 'name="drive_yellowing"' in page
         assert "colour chart" in page
 
     def test_a_routed_drive_with_no_machine_keeps_its_bezel(self, client):
         """No machine to route to, so it becomes a storage part after all -- and the
         bezel picked on the way in comes with it."""
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Floppy/Gotek",
-                              "spec_interface": "34-pin floppy",
-                              "drive_desc": '5.25" 1.2MB',
-                              "drive_colour": "Beige",
-                              "drive_yellowing": "Lightly yellowed"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "spec_interface": "34-pin floppy",
+                "drive_desc": '5.25" 1.2MB',
+                "drive_colour": "Beige",
+                "drive_yellowing": "Lightly yellowed",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
         specs = client.get(f"/api/parts/{aid}").json()["specs"]
         assert "Colour: Beige" in specs and "Yellowing: Lightly yellowed" in specs
 
     def test_routing_a_floppy_creates_no_part(self, client, computer):
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "computer_id": aid,
-                          "kind": "Floppy/Gotek", "drive_desc": "1x 3.5in 1.44MB"},
-                    follow_redirects=False)
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "computer_id": aid,
+                "kind": "Floppy/Gotek",
+                "drive_desc": "1x 3.5in 1.44MB",
+            },
+            follow_redirects=False,
+        )
         assert client.get("/api/parts", params={"computer_id": aid}).json() == []
 
 
@@ -870,36 +1001,50 @@ class TestADriveKeptAsAPart:
     DESC = '3.5" 1.44MB floppy, Sony CDU55'
 
     def make(self, client, **extra):
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Floppy/Gotek",
-                              "spec_interface": "34-pin floppy",
-                              "drive_desc": self.DESC, **extra},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "spec_interface": "34-pin floppy",
+                "drive_desc": self.DESC,
+                **extra,
+            },
+            follow_redirects=False,
+        )
         return r.headers["location"].rsplit("/", 1)[-1]
 
     def test_the_description_is_kept(self, client):
         aid = self.make(client)
-        assert f"Description: {self.DESC}" in \
-            client.get(f"/api/parts/{aid}").json()["specs"]
+        assert f"Description: {self.DESC}" in client.get(f"/api/parts/{aid}").json()["specs"]
 
     def test_the_form_opens_on_it_again(self, client):
         from markupsafe import escape
+
         aid = self.make(client)
         assert f'value="{escape(self.DESC)}"' in client.get(f"/parts/{aid}/edit").text
 
     def test_a_no_op_save_does_not_drop_it(self, client):
         aid = self.make(client)
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "storage", "kind": "Floppy/Gotek",
-                          "drive_desc": self.DESC}, follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={"type": "storage", "kind": "Floppy/Gotek", "drive_desc": self.DESC},
+            follow_redirects=False,
+        )
         assert self.DESC in client.get(f"/api/parts/{aid}").json()["specs"]
 
     def test_editing_it_is_not_ignored(self, client):
         aid = self.make(client)
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "storage", "kind": "Floppy/Gotek",
-                          "spec_interface": "34-pin floppy",
-                          "drive_desc": "5.25in 360K floppy"}, follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "spec_interface": "34-pin floppy",
+                "drive_desc": "5.25in 360K floppy",
+            },
+            follow_redirects=False,
+        )
         specs = client.get(f"/api/parts/{aid}").json()["specs"]
         assert "Description: 5.25in 360K floppy" in specs and self.DESC not in specs
 
@@ -929,8 +1074,11 @@ class TestPickingAFloppySCapacity:
     as one -- with a box for the disks the list does not name."""
 
     def add(self, client, **extra):
-        data = {"type": "storage", "kind": "Floppy/Gotek",
-                "spec_interface": "34-pin floppy"} | extra
+        data = {
+            "type": "storage",
+            "kind": "Floppy/Gotek",
+            "spec_interface": "34-pin floppy",
+        } | extra
         r = client.post("/parts/new", data=data, follow_redirects=False)
         return r.headers["location"]
 
@@ -942,23 +1090,20 @@ class TestPickingAFloppySCapacity:
 
     def test_the_pick_lands_on_the_machines_drive_row(self, client, computer):
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc='3.5in floppy',
-                 drive_size="1.44MB")
+        self.add(client, computer_id=cid, drive_desc="3.5in floppy", drive_size="1.44MB")
         assert "1.44MB" in client.get(f"/api/computers/{cid}").json()["drives"]
 
     def test_the_picker_wins_over_the_description(self, client, computer):
         """The same rule the bezel menus follow: a pick is a deliberate answer, so
         it beats the same thing said in passing in the prose."""
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc='3.5in 1.44MB floppy',
-                 drive_size="720K")
+        self.add(client, computer_id=cid, drive_desc="3.5in 1.44MB floppy", drive_size="720K")
         drives = client.get(f"/api/computers/{cid}").json()["drives"]
         assert "720K" in drives and "1.44MB" not in drives
 
     def test_picking_nothing_leaves_what_the_description_said(self, client, computer):
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc='3.5in 1.44MB floppy',
-                 drive_size="")
+        self.add(client, computer_id=cid, drive_desc="3.5in 1.44MB floppy", drive_size="")
         assert "1.44MB" in client.get(f"/api/computers/{cid}").json()["drives"]
 
     def test_a_drive_kept_as_a_part_records_it_too(self, client):
@@ -976,8 +1121,10 @@ class TestPickingAFloppySCapacity:
         """The other half of that guard: only storage is exempt, and a memory
         amount still lands in the KiB column that makes it sort and compare."""
         from app.models import RamSpec
-        r = client.post("/parts/new", data={"type": "ram", "spec_size": "4MB"},
-                        follow_redirects=False)
+
+        r = client.post(
+            "/parts/new", data={"type": "ram", "spec_size": "4MB"}, follow_redirects=False
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
         assert db.query(RamSpec).filter(RamSpec.part_id == aid).one().size_kb == 4096
 
@@ -985,38 +1132,57 @@ class TestPickingAFloppySCapacity:
         """It is not a quantity, so it is not one of storage_spec's typed columns:
         it rides as a plain attribute, the way an unmanaged key does."""
         from app.models import PartAttribute
+
         aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
-        rows = {a.akey: a.avalue for a
-                in db.query(PartAttribute).filter(PartAttribute.part_id == aid)}
+        rows = {
+            a.akey: a.avalue for a in db.query(PartAttribute).filter(PartAttribute.part_id == aid)
+        }
         assert rows.get("Size") == "1.44MB"
 
     def test_custom_records_what_was_typed(self, client):
-        aid = self.part(client, drive_desc="3.5in floppy", drive_size="custom",
-                        drive_size_custom="21MB Floptical")
+        aid = self.part(
+            client,
+            drive_desc="3.5in floppy",
+            drive_size="custom",
+            drive_size_custom="21MB Floptical",
+        )
         assert "Size: 21MB Floptical" in self.specs(client, aid)
 
     def test_custom_with_nothing_typed_records_nothing(self, client):
-        aid = self.part(client, drive_desc="3.5in floppy", drive_size="custom",
-                        drive_size_custom="   ")
+        aid = self.part(
+            client, drive_desc="3.5in floppy", drive_size="custom", drive_size_custom="   "
+        )
         assert "Size:" not in self.specs(client, aid)
 
     def test_a_kind_that_takes_no_such_disk_ignores_a_stale_pick(self, client):
         """Choosing 1.44MB and then changing the kind leaves the radio checked and
         off-screen. An optical drive is not a 1.44MB anything."""
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Optical",
-                              "spec_interface": "IDE",
-                              "drive_desc": "Sony CDU55", "drive_size": "1.44MB"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Optical",
+                "spec_interface": "IDE",
+                "drive_desc": "Sony CDU55",
+                "drive_size": "1.44MB",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
         assert "Size:" not in self.specs(client, aid)
 
     def test_a_hard_disk_ignores_it_as_well(self, client):
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Hard disk",
-                              "spec_interface": "IDE",
-                              "spec_capacity": "540 MB", "drive_size": "1.44MB"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Hard disk",
+                "spec_interface": "IDE",
+                "spec_capacity": "540 MB",
+                "drive_size": "1.44MB",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
         assert "Size:" not in self.specs(client, aid)
 
@@ -1026,8 +1192,12 @@ class TestPickingAFloppySCapacity:
         assert 'value="720K" checked' in flat
 
     def test_a_custom_one_opens_on_the_box(self, client):
-        aid = self.part(client, drive_desc="3.5in floppy", drive_size="custom",
-                        drive_size_custom="21MB Floptical")
+        aid = self.part(
+            client,
+            drive_desc="3.5in floppy",
+            drive_size="custom",
+            drive_size_custom="21MB Floptical",
+        )
         page = client.get(f"/parts/{aid}/edit").text
         assert 'id="drive_size_custom"' in page and "21MB Floptical" in page
         # ...and it is the custom radio that is chosen, not one of the standard ones.
@@ -1044,11 +1214,17 @@ class TestPickingAFloppySCapacity:
 
     def test_editing_a_kept_drive_changes_it(self, client):
         aid = self.part(client, drive_desc="3.5in floppy", drive_size="1.44MB")
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "storage", "kind": "Floppy/Gotek",
-                          "spec_interface": "34-pin floppy",
-                          "drive_desc": "3.5in floppy", "drive_size": "720K"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "spec_interface": "34-pin floppy",
+                "drive_desc": "3.5in floppy",
+                "drive_size": "720K",
+            },
+            follow_redirects=False,
+        )
         specs = self.specs(client, aid)
         assert "Size: 720K" in specs and "1.44MB" not in specs
 
@@ -1059,10 +1235,11 @@ class TestPickingTheBayADriveFits:
     -- an optical drive is 5.25" as surely as a floppy is 3.5"."""
 
     def add(self, client, kind="Floppy/Gotek", **extra):
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": kind,
-                              "spec_interface": "IDE"} | extra,
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={"type": "storage", "kind": kind, "spec_interface": "IDE"} | extra,
+            follow_redirects=False,
+        )
         return r.headers["location"]
 
     def specs(self, client, aid):
@@ -1070,95 +1247,111 @@ class TestPickingTheBayADriveFits:
 
     def test_the_pick_lands_on_the_machines_drive_row(self, client, computer):
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc="floppy", drive_form='3.5"',
-                 drive_size="1.44MB")
-        assert client.get(f"/api/computers/{cid}").json()["drives"] \
-            == '3.5" 1.44MB floppy'
+        self.add(
+            client, computer_id=cid, drive_desc="floppy", drive_form='3.5"', drive_size="1.44MB"
+        )
+        assert client.get(f"/api/computers/{cid}").json()["drives"] == '3.5" 1.44MB floppy'
 
     def test_the_picker_wins_over_the_description(self, client, computer):
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc="5.25in 360K floppy",
-                 drive_form='3.5"')
+        self.add(client, computer_id=cid, drive_desc="5.25in 360K floppy", drive_form='3.5"')
         drives = client.get(f"/api/computers/{cid}").json()["drives"]
         assert '3.5"' in drives and "5.25" not in drives
 
     def test_picking_nothing_leaves_what_the_description_said(self, client, computer):
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc="5.25in 360K floppy",
-                 drive_form="")
+        self.add(client, computer_id=cid, drive_desc="5.25in 360K floppy", drive_form="")
         assert '5.25"' in client.get(f"/api/computers/{cid}").json()["drives"]
 
     def test_an_optical_drive_gets_one_too(self, client):
         """The capacity picker is a floppy's alone; this one is not."""
-        aid = self.add(client, kind="Optical", drive_desc="Sony CDU55",
-                       drive_form='5.25"').rsplit("/", 1)[-1]
+        aid = self.add(client, kind="Optical", drive_desc="Sony CDU55", drive_form='5.25"').rsplit(
+            "/", 1
+        )[-1]
         assert 'Form factor: 5.25"' in self.specs(client, aid)
 
     def test_a_hard_disk_is_asked_its_bay_as_well(self, client):
         """It used to be a routed drive's question alone. A hard disk fits a bay like
         anything else, and knowing which is how you tell a full-height 5.25" from a
         3.5" without getting it out of the box."""
-        aid = self.add(client, kind="Hard disk", spec_capacity="540 MB",
-                       drive_form='3.5"').rsplit("/", 1)[-1]
+        aid = self.add(client, kind="Hard disk", spec_capacity="540 MB", drive_form='3.5"').rsplit(
+            "/", 1
+        )[-1]
         assert 'Form factor: 3.5"' in self.specs(client, aid)
 
     def test_custom_records_a_bay_the_list_does_not_name(self, client):
         """An Amstrad CF-2 is a 3" disk, and drivedb's parser reads a typed 3" as
         3.5" -- the shorthand it has always meant. Picked, it is not guessed at."""
-        aid = self.add(client, drive_desc="Amstrad CF-2", drive_form="custom",
-                       drive_form_custom='3"').rsplit("/", 1)[-1]
+        aid = self.add(
+            client, drive_desc="Amstrad CF-2", drive_form="custom", drive_form_custom='3"'
+        ).rsplit("/", 1)[-1]
         assert 'Form factor: 3"' in self.specs(client, aid)
 
-    def test_a_description_that_names_no_kind_gets_one_from_the_menu(
-            self, client, computer):
+    def test_a_description_that_names_no_kind_gets_one_from_the_menu(self, client, computer):
         """drivedb infers "floppy" from a size only a floppy has -- but it infers
         while reading the text, and "Sony MPF920" names neither a kind nor a size.
         Picked rather than typed, the facts arrive after that rule has run, so the
         row came out with no kind at all."""
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc="Sony MPF920",
-                 drive_form='3.5"', drive_size="1.44MB")
-        assert client.get(f"/api/computers/{cid}").json()["drives"] \
-            == 'Sony MPF920 3.5" 1.44MB floppy'
+        self.add(
+            client,
+            computer_id=cid,
+            drive_desc="Sony MPF920",
+            drive_form='3.5"',
+            drive_size="1.44MB",
+        )
+        assert (
+            client.get(f"/api/computers/{cid}").json()["drives"] == 'Sony MPF920 3.5" 1.44MB floppy'
+        )
 
     def test_an_optical_drive_is_not_called_a_floppy(self, client, computer):
         """Which is why the menu answers rather than the 5.25" being taken as
         proof: early CD-ROM drives are 5.25" too."""
         cid = computer()["asset_id"]
-        self.add(client, kind="Optical", computer_id=cid, drive_desc="Sony CDU55",
-                 drive_form='5.25"')
-        assert client.get(f"/api/computers/{cid}").json()["drives"] \
-            == 'Sony CDU55 5.25" optical'
+        self.add(
+            client, kind="Optical", computer_id=cid, drive_desc="Sony CDU55", drive_form='5.25"'
+        )
+        assert client.get(f"/api/computers/{cid}").json()["drives"] == 'Sony CDU55 5.25" optical'
 
     def test_a_kind_the_description_does_name_is_left_alone(self, client, computer):
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc="Gotek emulator",
-                 drive_form='3.5"')
+        self.add(client, computer_id=cid, drive_desc="Gotek emulator", drive_form='3.5"')
         assert "Gotek" in client.get(f"/api/computers/{cid}").json()["drives"]
 
-    def test_a_routed_drive_takes_its_make_and_model_from_identity(
-            self, client, computer):
+    def test_a_routed_drive_takes_its_make_and_model_from_identity(self, client, computer):
         """A routed drive never becomes a Part, so what was typed under Identity
         used to be dropped on the floor -- survivable while the description was
         always on screen and could carry the name, not now that it is not."""
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, manufacturer="Sony", model="MPF920",
-                 drive_form='3.5"', drive_size="1.44MB")
-        assert client.get(f"/api/computers/{cid}").json()["drives"] \
-            == 'Sony MPF920 3.5" 1.44MB floppy'
+        self.add(
+            client,
+            computer_id=cid,
+            manufacturer="Sony",
+            model="MPF920",
+            drive_form='3.5"',
+            drive_size="1.44MB",
+        )
+        assert (
+            client.get(f"/api/computers/{cid}").json()["drives"] == 'Sony MPF920 3.5" 1.44MB floppy'
+        )
 
-    def test_what_the_description_still_says_is_not_written_over(
-            self, client, computer):
+    def test_what_the_description_still_says_is_not_written_over(self, client, computer):
         """What is left of a description once the pickers have taken their share is
         the words they could not say. Identity fills a blank; it does not win."""
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, manufacturer="Tandon", model="TM100-1",
-                 drive_desc="SS/DD", drive_form='5.25"', drive_size="180K")
+        self.add(
+            client,
+            computer_id=cid,
+            manufacturer="Tandon",
+            model="TM100-1",
+            drive_desc="SS/DD",
+            drive_form='5.25"',
+            drive_size="180K",
+        )
         assert "SS/DD" in client.get(f"/api/computers/{cid}").json()["drives"]
 
     def test_the_form_reopens_on_the_pick(self, client):
-        aid = self.add(client, drive_desc="floppy",
-                       drive_form='5.25"').rsplit("/", 1)[-1]
+        aid = self.add(client, drive_desc="floppy", drive_form='5.25"').rsplit("/", 1)[-1]
         flat = " ".join(client.get(f"/parts/{aid}/edit").text.split())
         assert 'value="5.25&#34;" checked' in flat or 'value="5.25"" checked' in flat
 
@@ -1166,11 +1359,15 @@ class TestPickingTheBayADriveFits:
         """The drive row's form_factor is a String(16); a picker that let you type
         more than that would fail on save rather than on the form."""
         from app.models import ComputerDrive
+
         page = client.get("/parts/new?type=storage").text
-        assert f'name="drive_form_custom" maxlength="{ComputerDrive.form_factor.type.length}"' \
+        assert (
+            f'name="drive_form_custom" maxlength="{ComputerDrive.form_factor.type.length}"'
             in " ".join(page.split())
-        assert f'name="drive_size_custom" maxlength="{ComputerDrive.size.type.length}"' \
-            in " ".join(page.split())
+        )
+        assert f'name="drive_size_custom" maxlength="{ComputerDrive.size.type.length}"' in " ".join(
+            page.split()
+        )
 
 
 class TestPickingWhatAnOpticalDriveTakes:
@@ -1180,8 +1377,7 @@ class TestPickingWhatAnOpticalDriveTakes:
     and both had been going into the description for want of anywhere else."""
 
     def add(self, client, **extra):
-        data = {"type": "storage", "kind": "Optical",
-                "spec_interface": "IDE"} | extra
+        data = {"type": "storage", "kind": "Optical", "spec_interface": "IDE"} | extra
         r = client.post("/parts/new", data=data, follow_redirects=False)
         return r.headers["location"]
 
@@ -1194,18 +1390,17 @@ class TestPickingWhatAnOpticalDriveTakes:
     def test_both_picks_land_on_the_machines_drive_row(self, client, computer):
         cid = computer()["asset_id"]
         self.add(client, computer_id=cid, drive_media="CD-RW", drive_speed="48×")
-        assert client.get(f"/api/computers/{cid}").json()["drives"] \
-            == "48× CD-RW optical"
+        assert client.get(f"/api/computers/{cid}").json()["drives"] == "48× CD-RW optical"
 
     def test_a_drive_kept_as_a_part_records_them(self, client):
-        specs = self.specs(client, self.part(client, drive_media="CD-ROM",
-                                             drive_speed="24×"))
+        specs = self.specs(client, self.part(client, drive_media="CD-ROM", drive_speed="24×"))
         assert "Media: CD-ROM" in specs and "Speed: 24×" in specs
 
     def test_the_rating_is_stored_as_a_number_of_its_own(self, client, db):
         """Not in the rpm column: 48× and 5400 rpm are different quantities, and
         one column could not sort or compare both."""
         from app.models import StorageSpec
+
         aid = self.part(client, drive_media="CD-RW", drive_speed="48×")
         row = db.query(StorageSpec).filter(StorageSpec.part_id == aid).one()
         assert (row.speed_x, row.speed_rpm) == (48, None)
@@ -1215,11 +1410,19 @@ class TestPickingWhatAnOpticalDriveTakes:
         its × rating, and one list must never offer both. It lands in the rpm column
         either way."""
         from app.models import StorageSpec
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Hard disk",
-                              "spec_interface": "IDE",
-                              "spec_capacity": "540 MB", "drive_speed": "5400 rpm",
-                              "spec_media": "MFM"}, follow_redirects=False)
+
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Hard disk",
+                "spec_interface": "IDE",
+                "spec_capacity": "540 MB",
+                "drive_speed": "5400 rpm",
+                "spec_media": "MFM",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
         row = db.query(StorageSpec).filter(StorageSpec.part_id == aid).one()
         assert (row.speed_rpm, row.speed_x) == (5400, None)
@@ -1229,39 +1432,54 @@ class TestPickingWhatAnOpticalDriveTakes:
         off-screen. A floppy is asked its media too, but from its own list, so a disc
         arriving under that name is not an answer to it -- and a floppy is asked no
         speed at all."""
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Floppy/Gotek",
-                              "spec_interface": "34-pin floppy",
-                              "drive_desc": "3.5in floppy", "drive_media": "CD-RW",
-                              "drive_speed": "48×"}, follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "spec_interface": "34-pin floppy",
+                "drive_desc": "3.5in floppy",
+                "drive_media": "CD-RW",
+                "drive_speed": "48×",
+            },
+            follow_redirects=False,
+        )
         specs = self.specs(client, r.headers["location"].rsplit("/", 1)[-1])
         assert "Media: CD-RW" not in specs and "Speed:" not in specs
 
     def test_the_picker_wins_over_the_description(self, client, computer):
         cid = computer()["asset_id"]
-        self.add(client, computer_id=cid, drive_desc="24x CD-ROM",
-                 drive_media="CD-RW", drive_speed="48×")
+        self.add(
+            client, computer_id=cid, drive_desc="24x CD-ROM", drive_media="CD-RW", drive_speed="48×"
+        )
         drives = client.get(f"/api/computers/{cid}").json()["drives"]
         assert "48× CD-RW" in drives and "24×" not in drives
 
     def test_picking_nothing_leaves_what_the_description_said(self, client, computer):
         cid = computer()["asset_id"]
         self.add(client, computer_id=cid, drive_desc="48x CD-RW")
-        assert client.get(f"/api/computers/{cid}").json()["drives"] \
-            == "48× CD-RW optical"
+        assert client.get(f"/api/computers/{cid}").json()["drives"] == "48× CD-RW optical"
 
     def test_custom_records_what_was_typed(self, client):
-        specs = self.specs(client, self.part(
-            client, drive_media="custom", drive_media_custom="magneto-optical",
-            drive_speed="custom", drive_speed_custom="48×/24×/48×"))
+        specs = self.specs(
+            client,
+            self.part(
+                client,
+                drive_media="custom",
+                drive_media_custom="magneto-optical",
+                drive_speed="custom",
+                drive_speed_custom="48×/24×/48×",
+            ),
+        )
         assert "Media: magneto-optical" in specs
         assert "Speed: 48×/24×/48×" in specs
 
     def test_a_rating_the_list_does_not_name_is_kept_as_it_was_typed(self, client):
         """It is no kind of number, so it lands where every unparseable quantity
         does -- kept verbatim rather than dropped on the floor."""
-        aid = self.part(client, drive_media="CD-RW", drive_speed="custom",
-                        drive_speed_custom="48×/24×/48×")
+        aid = self.part(
+            client, drive_media="CD-RW", drive_speed="custom", drive_speed_custom="48×/24×/48×"
+        )
         assert "Speed: 48×/24×/48×" in self.specs(client, aid)
 
     def test_the_form_opens_on_the_picks_again(self, client):
@@ -1274,11 +1492,19 @@ class TestPickingWhatAnOpticalDriveTakes:
         """Choosing "not recorded" has to clear it, rather than the hidden text box
         below quietly putting it back."""
         aid = self.part(client, drive_media="CD-RW", drive_speed="48×")
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "storage", "kind": "Optical",
-                          "spec_interface": "IDE", "drive_media": "",
-                          "drive_speed": "", "spec_media": "CD-RW",
-                          "spec_speed": "48×"}, follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={
+                "type": "storage",
+                "kind": "Optical",
+                "spec_interface": "IDE",
+                "drive_media": "",
+                "drive_speed": "",
+                "spec_media": "CD-RW",
+                "spec_speed": "48×",
+            },
+            follow_redirects=False,
+        )
         specs = self.specs(client, aid)
         assert "Media:" not in specs and "Speed:" not in specs
 
@@ -1287,22 +1513,27 @@ class TestPickingWhatAnOpticalDriveTakes:
         the picker exists; the kind's menu label must not land in the model."""
         cid = computer()["asset_id"]
         self.add(client, computer_id=cid, drive_media="DVD-ROM")
-        assert client.get(f"/api/computers/{cid}").json()["drives"] \
-            == "DVD-ROM optical"
+        assert client.get(f"/api/computers/{cid}").json()["drives"] == "DVD-ROM optical"
 
     def test_the_typed_boxes_cannot_outgrow_the_columns_they_land_in(self, client):
         from app.models import ComputerDrive
+
         flat = " ".join(client.get("/parts/new?type=storage").text.split())
-        assert f'name="drive_media_custom" maxlength="{ComputerDrive.media.type.length}"' \
-            in flat
-        assert f'name="drive_speed_custom" maxlength="{ComputerDrive.speed.type.length}"' \
-            in flat
+        assert f'name="drive_media_custom" maxlength="{ComputerDrive.media.type.length}"' in flat
+        assert f'name="drive_speed_custom" maxlength="{ComputerDrive.speed.type.length}"' in flat
 
     def test_an_optical_drive_says_what_it_takes_on_its_label(self, client):
         from app import labels
+
         _, lines = labels.small_body(
-            {"asset_id": "RH-0031", "name": "Plextor PX-W4012A", "type": "storage",
-             "specs": "Kind: Optical | Media: CD-RW | Speed: 48×"}, False)
+            {
+                "asset_id": "RH-0031",
+                "name": "Plextor PX-W4012A",
+                "type": "storage",
+                "specs": "Kind: Optical | Media: CD-RW | Speed: 48×",
+            },
+            False,
+        )
         assert lines == ["CD-RW 48×"]
 
 
@@ -1316,8 +1547,7 @@ class TestAStoragePartSInterface:
     floppy and all 12 optical drives on file had no interface recorded."""
 
     def add(self, client, **extra):
-        data = {"type": "storage", "kind": "Hard disk",
-                "spec_interface": "SCSI"} | extra
+        data = {"type": "storage", "kind": "Hard disk", "spec_interface": "SCSI"} | extra
         return client.post("/parts/new", data=data, follow_redirects=False)
 
     def part(self, client, **extra):
@@ -1337,38 +1567,49 @@ class TestAStoragePartSInterface:
 
     def test_an_edit_that_drops_it_is_refused_too(self, client):
         aid = self.part(client)
-        r = client.post(f"/parts/{aid}/edit",
-                        data={"type": "storage", "kind": "Hard disk",
-                              "spec_interface": ""}, follow_redirects=False)
+        r = client.post(
+            f"/parts/{aid}/edit",
+            data={"type": "storage", "kind": "Hard disk", "spec_interface": ""},
+            follow_redirects=False,
+        )
         assert r.status_code == 400
         assert "Interface: SCSI" in self.specs(client, aid)
 
     def test_another_type_is_not_asked(self, client):
         """Only storage attaches by a bus worth naming this way; a sound card's
         interface is its own free-text field and must not start being required."""
-        r = client.post("/parts/new", data={"type": "sound", "model": "SB16"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new", data={"type": "sound", "model": "SB16"}, follow_redirects=False
+        )
         assert r.status_code == 303
 
     def test_a_drive_routed_to_a_machine_is_not_asked(self, client, computer):
         """It becomes a row on that machine rather than a part, and has no interface
         column of its own to fill."""
         cid = computer()["asset_id"]
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Floppy/Gotek",
-                              "computer_id": cid, "drive_desc": "3.5in floppy"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "computer_id": cid,
+                "drive_desc": "3.5in floppy",
+            },
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         assert "floppy" in client.get(f"/api/computers/{cid}").json()["drives"]
 
     def test_custom_records_a_bus_the_list_does_not_name(self, client):
-        aid = self.part(client, kind="Tape", spec_interface="custom",
-                        spec_interface_custom="QIC-02")
+        aid = self.part(
+            client, kind="Tape", spec_interface="custom", spec_interface_custom="QIC-02"
+        )
         assert "Interface: QIC-02" in self.specs(client, aid)
 
     def test_custom_with_nothing_typed_is_refused(self, client):
-        assert self.add(client, spec_interface="custom",
-                        spec_interface_custom="  ").status_code == 400
+        assert (
+            self.add(client, spec_interface="custom", spec_interface_custom="  ").status_code == 400
+        )
 
     def test_the_form_opens_on_the_pick_again(self, client):
         aid = self.part(client)
@@ -1378,8 +1619,7 @@ class TestAStoragePartSInterface:
     def test_a_bus_outside_the_list_opens_on_the_box(self, client):
         """The one disk on file recorded as 'ATA' has to survive being edited: a
         radio group with no room for it would retag it as whatever was ticked."""
-        aid = self.part(client, spec_interface="custom",
-                        spec_interface_custom="ATA")
+        aid = self.part(client, spec_interface="custom", spec_interface_custom="ATA")
         page = client.get(f"/parts/{aid}/edit").text
         assert 'id="spec_interface_custom"' in page and "ATA" in page
         assert 'value="custom" checked' in " ".join(page.split())
@@ -1389,12 +1629,10 @@ class TestAStoragePartSInterface:
         has to fill was hidden by the kind alone."""
         page = served(client, client.get("/parts/new?type=storage").text)
         assert '"routes": false' in page
-        assert 'name="spec_interface" value="34-pin floppy"' in \
-            " ".join(page.split())
+        assert 'name="spec_interface" value="34-pin floppy"' in " ".join(page.split())
 
     def test_editing_a_routed_kind_is_asked_on_screen_too(self, client):
-        aid = self.part(client, kind="Floppy/Gotek",
-                        spec_interface="34-pin floppy")
+        aid = self.part(client, kind="Floppy/Gotek", spec_interface="34-pin floppy")
         assert '"routes": false' in served(client, client.get(f"/parts/{aid}/edit").text)
 
     def test_building_a_drive_into_a_machine_still_routes(self, client, computer):
@@ -1406,8 +1644,9 @@ class TestAStoragePartSInterface:
         """The two questions are independent: what the drive is, from the pickers the
         kind brings, and how it attaches, from the part's own field. A spare optical
         drive answers both."""
-        aid = self.part(client, kind="Optical", spec_interface="IDE",
-                        drive_media="CD-RW", drive_speed="32×")
+        aid = self.part(
+            client, kind="Optical", spec_interface="IDE", drive_media="CD-RW", drive_speed="32×"
+        )
         specs = self.specs(client, aid)
         assert "Interface: IDE" in specs
         assert "Media: CD-RW" in specs and "Speed: 32×" in specs
@@ -1419,8 +1658,15 @@ class TestAStoragePartSInterface:
         dropping one leaves a rule silently toggling nothing, which is how the
         pickers and then the part fields each went missing once."""
         page = client.get("/parts/new?type=storage").text
-        for hook in ('id="drive-bezel"', 'id="part-bezel"', 'id="drive-desc-row"',
-                     'class="ask"', 'data-kinds=', 'data-row=1', 'data-required=1'):
+        for hook in (
+            'id="drive-bezel"',
+            'id="part-bezel"',
+            'id="drive-desc-row"',
+            'class="ask"',
+            "data-kinds=",
+            "data-row=1",
+            "data-required=1",
+        ):
             assert hook in page, hook
 
     def test_a_slimline_drive_and_a_sound_card_bus_are_on_offer(self, client):
@@ -1445,22 +1691,34 @@ class TestReopeningADriveOnWhatItSaved:
     CASES: ClassVar[list[tuple[str, str]]] = [
         ("Optical", "Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 12×"),
         ("Optical", "Kind: Optical | Interface: IDE | Media: CD-RW | Speed: 4×/2×/20×"),
-        ("Hard disk", "Kind: Hard disk | Interface: SCSI | Protocol: SCSI | "
-                      "Speed: 7200 rpm"),
-        ("Hard disk", 'Kind: Hard disk | Interface: IDE | Capacity: 540 MiB | '
-                      'CHS: 1057/16/63 | Form factor: 3.5"'),
+        ("Hard disk", "Kind: Hard disk | Interface: SCSI | Protocol: SCSI | Speed: 7200 rpm"),
+        (
+            "Hard disk",
+            "Kind: Hard disk | Interface: IDE | Capacity: 540 MiB | "
+            'CHS: 1057/16/63 | Form factor: 3.5"',
+        ),
         ("Tape", "Kind: Tape | Interface: SCSI | Media: QIC-80"),
-        ("Floppy/Gotek", 'Kind: Floppy/Gotek | Interface: 34-pin floppy | '
-                         'Media: 3.5" | Form factor: 5.25" | Size: 1.44MB'),
+        (
+            "Floppy/Gotek",
+            "Kind: Floppy/Gotek | Interface: 34-pin floppy | "
+            'Media: 3.5" | Form factor: 5.25" | Size: 1.44MB',
+        ),
         ("SD/CF card", "Kind: SD/CF card | Interface: CF | Capacity: 512 MiB"),
     ]
 
-    GROUPS = ("drive_speed", "drive_media", "drive_size", "drive_form",
-              "spec_interface", "spec_protocol")
+    GROUPS = (
+        "drive_speed",
+        "drive_media",
+        "drive_size",
+        "drive_form",
+        "spec_interface",
+        "spec_protocol",
+    )
 
     def edit_page(self, client, specs):
-        aid = client.post("/api/parts", json={"type": "storage", "model": "X",
-                                              "specs": specs}).json()["asset_id"]
+        aid = client.post(
+            "/api/parts", json={"type": "storage", "model": "X", "specs": specs}
+        ).json()["asset_id"]
         return aid, " ".join(client.get(f"/parts/{aid}/edit").text.split())
 
     def reopened(self, flat):
@@ -1490,8 +1748,7 @@ class TestReopeningADriveOnWhatItSaved:
     def test_a_group_for_another_kind_is_sitting_on_nothing(self, client):
         """Not even on "not recorded", which is an answer too and would post a blank
         over the real one for exactly the same reason."""
-        _aid, flat = self.edit_page(
-            client, "Kind: Optical | Interface: IDE | Speed: 12×")
+        _aid, flat = self.edit_page(client, "Kind: Optical | Interface: IDE | Speed: 12×")
         # The optical group holds the answer, so every other speed group -- the hard
         # disk's -- must hold nothing at all.
         checked = re.findall(r'name="drive_speed" value="([^"]*)"[^>]*?\schecked', flat)
@@ -1506,6 +1763,7 @@ class TestTheMakerLeagueTable:
 
     def table(self, db):
         from app import main
+
         return main._maker_reliability(db)
 
     def stock(self, part, maker, working, broken, **extra):
@@ -1525,6 +1783,7 @@ class TestTheMakerLeagueTable:
         """One working card is not a record, and on a sample of one it would top
         the table."""
         from app import main
+
         self.stock(part, "Tiny", main.RELIABILITY_MIN - 1, 0)
         self.stock(part, "Realco", main.RELIABILITY_MIN, 0)
         assert [r[0] for r in self.table(db)] == ["Realco"]
@@ -1537,7 +1796,7 @@ class TestTheMakerLeagueTable:
         assert [r[0] for r in self.table(db)] == ["More", "Fewer"]
 
     def test_unknown_is_not_a_maker(self, client, db, part):
-        """"Unknown" and "Generic" stand for "we do not know" and "nobody in
+        """ "Unknown" and "Generic" stand for "we do not know" and "nobody in
         particular"; neither belongs in a league table of manufacturers."""
         self.stock(part, "Unknown", 6, 0)
         self.stock(part, "Generic", 6, 0)
@@ -1555,8 +1814,9 @@ class TestTheMakerLeagueTable:
         """It may have been sold in perfect order; the register is what is here."""
         gone = part(manufacturer="Goneco", model="g", condition="Faulty")["asset_id"]
         self.stock(part, "Goneco", 5, 0)
-        client.post(f"/parts/{gone}/dispose", data={"note": "sold", "date": ""},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{gone}/dispose", data={"note": "sold", "date": ""}, follow_redirects=False
+        )
         assert self.table(db)[0] == ("Goneco", 5, 5, 100)
 
     def test_the_bars_are_drawn_against_a_hundred(self, client, part):
@@ -1571,15 +1831,15 @@ class TestTheMakerLeagueTable:
 
 
 class TestAPickerOpensOnNothing:
-    """"Install in computer" opened on the first machine in the register, which reads
+    """ "Install in computer" opened on the first machine in the register, which reads
     as a statement that the part is in it -- next to a table whose "Installed in" row
     is absent precisely because it is not. Every one of these menus now opens on
     nothing and refuses to submit until something is chosen."""
 
     @staticmethod
     def _select(page, name):
-        cut = page[page.index(f'<select name="{name}"'):]
-        return cut[:cut.index("</select>")]
+        cut = page[page.index(f'<select name="{name}"') :]
+        return cut[: cut.index("</select>")]
 
     def test_the_install_menu_opens_on_nothing(self, client, computer, part):
         computer(model="PS/1")
@@ -1601,36 +1861,41 @@ class TestAPickerOpensOnNothing:
     def test_choosing_one_still_installs_it(self, client, computer, part):
         c = computer(model="PS/1")
         p = part(model="a card")
-        client.post(f"/parts/{p['asset_id']}/link",
-                    data={"computer_id": c["asset_id"]}, follow_redirects=False)
+        client.post(
+            f"/parts/{p['asset_id']}/link",
+            data={"computer_id": c["asset_id"]},
+            follow_redirects=False,
+        )
         assert "Installed in" in client.get(f"/parts/{p['asset_id']}").text
-        assert client.get(f"/api/parts/{p['asset_id']}").json()["computer_id"] \
-            == c["asset_id"]
+        assert client.get(f"/api/parts/{p['asset_id']}").json()["computer_id"] == c["asset_id"]
 
-    @pytest.mark.parametrize("path,field", [
-        ("/parts/{aid}/link", "computer_id"),
-        ("/parts/{aid}/attach", "part_id"),
-    ])
-    def test_posting_a_blank_does_nothing_rather_than_404(self, client, part, path,
-                                                         field):
+    @pytest.mark.parametrize(
+        "path,field",
+        [
+            ("/parts/{aid}/link", "computer_id"),
+            ("/parts/{aid}/attach", "part_id"),
+        ],
+    )
+    def test_posting_a_blank_does_nothing_rather_than_404(self, client, part, path, field):
         """The menus will not submit empty, so this only arrives from something posting
         straight at the endpoint -- where the empty string used to be looked up as an
         asset id."""
         p = part(model="a card")
-        r = client.post(path.format(aid=p["asset_id"]), data={field: ""},
-                        follow_redirects=False)
+        r = client.post(path.format(aid=p["asset_id"]), data={field: ""}, follow_redirects=False)
         assert r.status_code == 303, r.text
         got = client.get(f"/api/parts/{p['asset_id']}").json()
         assert not got["computer_id"] and not got["parent_id"]
 
-    def test_the_board_menu_on_a_machine_opens_on_nothing_too(self, client, computer,
-                                                              part):
+    def test_the_board_menu_on_a_machine_opens_on_nothing_too(self, client, computer, part):
         c = computer(model="PS/1")
         part(type="motherboard", model="a board")
         select = self._select(client.get(f"/computers/{c['asset_id']}").text, "part_id")
         assert re.findall(r'<option value="([^"]*)"', select)[0] == ""
-        r = client.post(f"/computers/{c['asset_id']}/link-motherboard",
-                        data={"part_id": ""}, follow_redirects=False)
+        r = client.post(
+            f"/computers/{c['asset_id']}/link-motherboard",
+            data={"part_id": ""},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
 
 
@@ -1638,11 +1903,11 @@ class TestRememberingHowYouLeftIt:
     """The sort order is kept in a cookie, so the shelf opens the way you left it --
     and a first visit, having no cookie, opens shuffled."""
 
-    def test_the_cookie_the_page_writes_is_the_one_the_server_names(self, client,
-                                                                   computer):
+    def test_the_cookie_the_page_writes_is_the_one_the_server_names(self, client, computer):
         """The name is a template global rather than a string in two places, because
         a cookie written under one name and read under another is not remembered."""
         from app import main
+
         computer(model="A")
         page = served(client, client.get("/").text)
         assert main.auth.SORT_COOKIE == "rhdb_sort"
@@ -1654,11 +1919,13 @@ class TestRememberingHowYouLeftIt:
         """A stale or hand-edited cookie naming a sort the page dropped would
         otherwise leave the grid sorted by nothing."""
         computer(model="A")
-        assert "if (saved && SORTS[saved]) sortSel.value = saved;" \
-            in served(client, client.get("/").text)
+        assert "if (saved && SORTS[saved]) sortSel.value = saved;" in served(
+            client, client.get("/").text
+        )
 
     def test_it_is_written_on_the_sorts_own_change_and_not_on_every_keystroke(
-            self, client, computer):
+        self, client, computer
+    ):
         computer(model="A")
         page = served(client, client.get("/").text)
         assert "sortSel.addEventListener('change', function () {" in page
@@ -1691,6 +1958,7 @@ class TestTheCookieNotice:
         """Not hidden by a script on every page thereafter -- the server knows from
         the cookie and leaves it out."""
         from app import main
+
         computer(model="A")
         client.cookies.set(main.auth.NOTICE_COOKIE, "1")
         assert 'id="cookienote"' not in client.get("/").text
@@ -1705,7 +1973,7 @@ class TestTheCookieNotice:
         """A notice, not a gate: no overlay, and the cards are reachable behind it."""
         computer(model="A")
         page = served(client, client.get("/").text)
-        note = page[page.index('id="cookienote"'):]
+        note = page[page.index('id="cookienote"') :]
         assert "position: fixed" in page and 'class="card"' in page
         assert "Got it" in note[:600]
 
@@ -1717,7 +1985,11 @@ class TestTheGalleryOpensShuffled:
     def test_random_is_the_first_option_and_so_the_default(self, client, computer):
         computer(model="A")
         page = client.get("/").text
-        select = page[page.index('<select id="sort"'):page.index("</select>", page.index('<select id="sort"'))]
+        select = page[
+            page.index('<select id="sort"') : page.index(
+                "</select>", page.index('<select id="sort"')
+            )
+        ]
         values = re.findall(r'<option value="([^"]*)"', select)
         assert values[0] == "random", values
         # No `selected` anywhere in the group, so the first option is what opens --
@@ -1739,8 +2011,7 @@ class TestTheGalleryOpensShuffled:
         of unphotographed things looks like a broken page, not a random one."""
         computer(model="A")
         page = served(client, client.get("/").text)
-        assert "random: (a, b) => hasImg(b) - hasImg(a) || a._shuffle - b._shuffle" \
-            in page
+        assert "random: (a, b) => hasImg(b) - hasImg(a) || a._shuffle - b._shuffle" in page
 
 
 class TestWhatIsGoneIsNotCounted:
@@ -1750,16 +2021,18 @@ class TestWhatIsGoneIsNotCounted:
 
     def facts(self, db):
         from app import main
-        return {f["k"]: f for f in
-                main._facts(db, main._collection_stats(db), date.today().year)}
+
+        return {f["k"]: f for f in main._facts(db, main._collection_stats(db), date.today().year)}
 
     def test_a_binned_part_leaves_the_totals(self, client, db, part):
         from app import main
+
         keep = part(manufacturer="Goodco", model="stays", condition="Working")
         gone = part(manufacturer="Dudco", model="goes", condition="Working")
         before = main._collection_stats(db)["n_parts"]
-        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"}, follow_redirects=False
+        )
         db.expire_all()
         after = main._collection_stats(db)
         assert after["n_parts"] == before - 1
@@ -1771,30 +2044,34 @@ class TestWhatIsGoneIsNotCounted:
 
     def test_the_count_of_disposals_does_count_them(self, client, db, part):
         gone = part(model="goes")
-        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"}, follow_redirects=False
+        )
         db.expire_all()
         assert self.facts(db)["No longer with us"]["v"] == "1"
 
     def test_a_disposed_year_does_not_stretch_the_range(self, client, db, part):
         from app import main
+
         part(model="held", year=1990)
         part(model="also", year=1995)
         gone = part(model="goes", year=1970)
-        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{gone['asset_id']}/dispose", data={"note": "sold"}, follow_redirects=False
+        )
         db.expire_all()
         assert min(main._all_years(db)) == 1990
 
-    def test_a_disposed_machine_is_not_the_best_equipped(self, client, db, computer,
-                                                        part):
+    def test_a_disposed_machine_is_not_the_best_equipped(self, client, db, computer, part):
         from app import main
+
         c = computer(model="gone")
         for i in range(3):
             part(model=f"p{i}", computer_id=c["asset_id"])
         assert main._collection_stats(db)["fullest"] is not None
-        client.post(f"/computers/{c['asset_id']}/dispose", data={"note": "sold"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{c['asset_id']}/dispose", data={"note": "sold"}, follow_redirects=False
+        )
         db.expire_all()
         assert main._collection_stats(db)["fullest"] is None
 
@@ -1808,6 +2085,7 @@ class TestTheShuffledFigures:
 
     def pool(self, db):
         from app import main
+
         return main._facts(db, main._collection_stats(db), date.today().year)
 
     def furnish(self, client, computer, part):
@@ -1819,81 +2097,138 @@ class TestTheShuffledFigures:
         one card of each kind, drives that state a speed and a geometry, a machine
         that names its processor and what it boots, and provenance on some of it
         and not on the rest."""
-        c = computer(year=1991, condition="Working", acquired_date="2026-05-01",
-                     manufacturer="IBM", model="PS/2", drives='2x 3.5" 1.44MB',
-                     os="MS DOS 5.0", cpu="Intel 80286-6", chassis="luggable",
-                     topbench=42, machine={"model_key": "ps2-8530"})
-        client.post(f"/computers/{c['asset_id']}/edit", data={"ramchip:41256": "18"},
-                    follow_redirects=False)
-        client.post(f"/computers/{c['asset_id']}/note", data={"message": "cleaned"},
-                    follow_redirects=False)
+        c = computer(
+            year=1991,
+            condition="Working",
+            acquired_date="2026-05-01",
+            manufacturer="IBM",
+            model="PS/2",
+            drives='2x 3.5" 1.44MB',
+            os="MS DOS 5.0",
+            cpu="Intel 80286-6",
+            chassis="luggable",
+            topbench=42,
+            machine={"model_key": "ps2-8530"},
+        )
+        client.post(
+            f"/computers/{c['asset_id']}/edit", data={"ramchip:41256": "18"}, follow_redirects=False
+        )
+        client.post(
+            f"/computers/{c['asset_id']}/note", data={"message": "cleaned"}, follow_redirects=False
+        )
         # A machine with nothing fitted, and one with a card standing in for a disk.
         # The Amstrad repeats the IBM's processor, because "the commonest processor"
         # needs two machines to agree before it is a commonest anything.
-        computer(year=1989, manufacturer="Amstrad", model="PC1512",
-                 installed_ram="640KB", cpu="Intel 80286-6")
-        flash = computer(year=1987, manufacturer="Olivetti", model="M21",
-                         drives='1x CF 1GB')
-        part(computer_id=flash["asset_id"], type="video", model="anachronism",
-             year=2024, specs="Chip: RP2040 | Interface: 8-bit ISA | Connector: VGA")
+        computer(
+            year=1989,
+            manufacturer="Amstrad",
+            model="PC1512",
+            installed_ram="640KB",
+            cpu="Intel 80286-6",
+        )
+        flash = computer(year=1987, manufacturer="Olivetti", model="M21", drives="1x CF 1GB")
+        part(
+            computer_id=flash["asset_id"],
+            type="video",
+            model="anachronism",
+            year=2024,
+            specs="Chip: RP2040 | Interface: 8-bit ISA | Connector: VGA",
+        )
         for i in range(6):
-            part(manufacturer="Goodco", model=f"g{i}", condition="Working",
-                 year=1988, acquired_date="2026-02-0%d" % (i + 1), source="a rally",
-                 computer_id=c["asset_id"])
+            part(
+                manufacturer="Goodco",
+                model=f"g{i}",
+                condition="Working",
+                year=1988,
+                acquired_date="2026-02-0%d" % (i + 1),
+                source="a rally",
+                computer_id=c["asset_id"],
+            )
         for i in range(6):
             part(manufacturer="Dudco", model=f"d{i}", condition="Faulty", year=1990)
         # Fitted to a machine of its own year, which is a figure of its own.
-        part(manufacturer="Goodco", model="contemporary", year=1991,
-             computer_id=c["asset_id"])
+        part(manufacturer="Goodco", model="contemporary", year=1991, computer_id=c["asset_id"])
         part(type="storage", model="Big", specs="Kind: Hard disk | Capacity: 4GB")
         part(type="storage", model="Small", specs="Kind: Hard disk | Capacity: 20MB")
         # A board with everything a board is asked, so the whole board group fires.
-        board = part(type="motherboard", manufacturer="IBM", model="Planar",
-                     year=1991, condition="Working", url="https://example.test/b",
-                     summary="the board out of it", source="eBay order no. 1-2-3",
-                     specs="Form factor: Baby-AT | Chipset: discrete | "
-                           "CPU family: 286-class | BIOS: Award | Cache: 256KB | "
-                           "Onboard video: VGA | Slots: 6x 16-bit ISA | "
-                           "RAM slots: 4x 30-pin SIMM | Ports: 2x Serial")
-        part(type="motherboard", model="Bare", year=1990,
-             specs="Form factor: proprietary")
-        part(parent_id=board["asset_id"], type="other", model="riser",
-             source="Self-made", disk_image="boot.img")
+        board = part(
+            type="motherboard",
+            manufacturer="IBM",
+            model="Planar",
+            year=1991,
+            condition="Working",
+            url="https://example.test/b",
+            summary="the board out of it",
+            source="eBay order no. 1-2-3",
+            specs="Form factor: Baby-AT | Chipset: discrete | "
+            "CPU family: 286-class | BIOS: Award | Cache: 256KB | "
+            "Onboard video: VGA | Slots: 6x 16-bit ISA | "
+            "RAM slots: 4x 30-pin SIMM | Ports: 2x Serial",
+        )
+        part(type="motherboard", model="Bare", year=1990, specs="Form factor: proprietary")
+        part(
+            parent_id=board["asset_id"],
+            type="other",
+            model="riser",
+            source="Self-made",
+            disk_image="boot.img",
+        )
         # Two of the same thing, which is what the duplicate figures count.
         for i in range(2):
-            part(type="sound", manufacturer="Creative", model="CT2830", year=1994,
-                 specs=f"Chip: CT1747{i} | Interface: 16-bit ISA")
-        part(type="network", manufacturer="3Com", model="Etherlink III",
-             specs="Interface: 16-bit ISA")
-        part(type="network", manufacturer="Intel", model="Pro/100",
-             specs="Interface: PCI")
+            part(
+                type="sound",
+                manufacturer="Creative",
+                model="CT2830",
+                year=1994,
+                specs=f"Chip: CT1747{i} | Interface: 16-bit ISA",
+            )
+        part(
+            type="network",
+            manufacturer="3Com",
+            model="Etherlink III",
+            specs="Interface: 16-bit ISA",
+        )
+        part(type="network", manufacturer="Intel", model="Pro/100", specs="Interface: PCI")
         part(type="io", model="Multi-IO", specs="Interface: 8-bit ISA")
-        part(type="video", manufacturer="Trident", model="TVGA9000i", year=1992,
-             specs="Chip: TVGA9000i | Interface: 16-bit ISA | "
-                   "Connector: VGA, CGA | Memory: 512KB")
-        part(type="storage", model="Spinner", year=1993,
-             specs="Kind: Hard disk | Interface: MFM | Capacity: 40MB | "
-                   "Speed: 3600rpm | CHS: 977/5/17")
-        part(type="storage", model="Reader",
-             specs="Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 48x")
-        part(type="storage", model="Slowreader",
-             specs="Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 2x")
+        part(
+            type="video",
+            manufacturer="Trident",
+            model="TVGA9000i",
+            year=1992,
+            specs="Chip: TVGA9000i | Interface: 16-bit ISA | Connector: VGA, CGA | Memory: 512KB",
+        )
+        part(
+            type="storage",
+            model="Spinner",
+            year=1993,
+            specs="Kind: Hard disk | Interface: MFM | Capacity: 40MB | "
+            "Speed: 3600rpm | CHS: 977/5/17",
+        )
+        part(
+            type="storage",
+            model="Reader",
+            specs="Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 48x",
+        )
+        part(
+            type="storage",
+            model="Slowreader",
+            specs="Kind: Optical | Interface: IDE | Media: CD-ROM | Speed: 2x",
+        )
         return c
 
-    def test_every_figure_in_the_pool_leads_somewhere_real(self, client, db,
-                                                           computer, part):
+    def test_every_figure_in_the_pool_leads_somewhere_real(self, client, db, computer, part):
         """The page's own sweep only sees the handful it drew, and some of these
         lead to an item page rather than to /browse, so neither is covered there."""
         from app import main
+
         self.furnish(client, computer, part)
         pool = self.pool(db)
-        assert len(pool) > main.FACTS_SHOWN       # or there is nothing to shuffle
+        assert len(pool) > main.FACTS_SHOWN  # or there is nothing to shuffle
         for c in pool:
             if c["href"]:
                 assert client.get(c["href"]).status_code == 200, (c["k"], c["href"])
 
-    def test_the_fixture_reaches_every_group_of_figures(self, client, db, computer,
-                                                       part):
+    def test_the_fixture_reaches_every_group_of_figures(self, client, db, computer, part):
         """The sweep above proves the links work; this proves the sweep saw them.
 
         One figure named from each themed group. Enough of the pool would still
@@ -1902,14 +2237,19 @@ class TestTheShuffledFigures:
         links unvisited."""
         self.furnish(client, computer, part)
         keys = {c["k"] for c in self.pool(db)}
-        for expected in ("The usual board shape", "Video outputs counted",
-                         "The fastest spindle here", "The 640 KiB club",
-                         "The biggest anachronism", "Made here rather than bought",
-                         "Parts with a link out", "Broken and kept anyway"):
+        for expected in (
+            "The usual board shape",
+            "Video outputs counted",
+            "The fastest spindle here",
+            "The 640 KiB club",
+            "The biggest anachronism",
+            "Made here rather than bought",
+            "Parts with a link out",
+            "Broken and kept anyway",
+        ):
             assert expected in keys, expected
 
-    def test_a_figure_about_the_register_itself_need_not_link(self, client, db,
-                                                              computer, part):
+    def test_a_figure_about_the_register_itself_need_not_link(self, client, db, computer, part):
         """Most tiles are links; the ones counting history entries are not, because
         an entry in a history is not an item the gallery can show. A link to
         everything would be a link that lied about what it counted."""
@@ -1918,18 +2258,18 @@ class TestTheShuffledFigures:
         assert pool["The register is younger than everything in it"]["href"] is None
         assert pool["Parts with a link out"]["href"]
 
-    def test_a_binned_board_is_not_a_board_the_collection_has(self, client, db,
-                                                              computer, part):
+    def test_a_binned_board_is_not_a_board_the_collection_has(self, client, db, computer, part):
         """The themed groups read the spec tables, and a spec row has no disposed
         flag of its own -- so each of them joins back to the part that owns it. One
         group checked here stands for all of them: the join is the same join."""
         from app import main
+
         self.furnish(client, computer, part)
-        gone = part(type="motherboard", model="Doomed",
-                    specs="Form factor: Baby-AT | BIOS: Award")
+        gone = part(type="motherboard", model="Doomed", specs="Form factor: Baby-AT | BIOS: Award")
         before = {c["k"]: c["s"] for c in self.pool(db)}
-        client.post(f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{gone['asset_id']}/dispose", data={"note": "binned"}, follow_redirects=False
+        )
         db.expire_all()
         after = {c["k"]: c["s"] for c in self.pool(db)}
         assert before["Whose BIOS it usually is"] != after["Whose BIOS it usually is"]
@@ -1944,9 +2284,14 @@ class TestTheShuffledFigures:
         # module's globals, so patching the name main re-exports would leave the real
         # draw running and the assertions below passing for the wrong reason.
         from app.routers import stats as stats_routes
-        monkeypatch.setattr(stats_routes, "_facts", lambda *_a: [
-            {"k": "Entries in the register", "v": "12", "s": "no page to show",
-             "href": None}])
+
+        monkeypatch.setattr(
+            stats_routes,
+            "_facts",
+            lambda *_a: [
+                {"k": "Entries in the register", "v": "12", "s": "no page to show", "href": None}
+            ],
+        )
         page = client.get("/stats").text
         # That the forced tile is the one on the page, not merely that tiles exist:
         # without it the assertions below pass on the real draw as readily as on this
@@ -1955,17 +2300,23 @@ class TestTheShuffledFigures:
         assert '<div class="tile">' in page
         assert 'class="tile" href=""' not in page
 
-    def test_every_condition_beyond_the_two_above_gets_a_figure(self, client, db,
-                                                                part):
+    def test_every_condition_beyond_the_two_above_gets_a_figure(self, client, db, part):
         """Four of the six values in entry.CONDITIONS have a figure naming them, and
         they name it as a string. A value renamed there would turn these into counts
         that are always nought -- and a figure that never fires never fails."""
         from app import entry
+
         for cond in entry.CONDITIONS:
             part(model=f"p-{cond}", condition=cond)
         keys = {c["k"] for c in self.pool(db)}
-        assert {"Broken and kept anyway", "Works, but not all of it", "Brought back",
-                "Good only for parts", "Still working", "Never tested"} <= keys
+        assert {
+            "Broken and kept anyway",
+            "Works, but not all of it",
+            "Brought back",
+            "Good only for parts",
+            "Still working",
+            "Never tested",
+        } <= keys
 
     def test_no_figure_is_offered_with_nothing_to_say(self, client, db):
         """An empty register answers none of them rather than answering them
@@ -1975,11 +2326,12 @@ class TestTheShuffledFigures:
 
     def test_only_a_handful_is_shown(self, client, db, computer, part):
         from app import main
+
         self.furnish(client, computer, part)
         page = client.get("/stats").text
         assert len(self.department(page)) == main.FACTS_SHOWN
         flat = " ".join(page.split())
-        assert f"of {len(self.pool(db))}" in flat      # and it says what it drew from
+        assert f"of {len(self.pool(db))}" in flat  # and it says what it drew from
 
     def test_no_two_tiles_show_the_same_number(self, client, computer, part):
         """The storage total and the hard disks that are nearly all of it both read
@@ -1987,7 +2339,7 @@ class TestTheShuffledFigures:
         self.furnish(client, computer, part)
         for _ in range(12):
             page = client.get("/stats").text
-            body = page[page.index("Eight things about it"):]
+            body = page[page.index("Eight things about it") :]
             values = re.findall(r'<div class="v">([^<]+)</div>', body)
             assert len(values) == len(set(values)), values
 
@@ -1996,6 +2348,7 @@ class TestTheShuffledFigures:
         same pool can legitimately coincide, and a test that fails once a fortnight
         is worse than no test."""
         import random
+
         self.furnish(client, computer, part)
         random.seed(1)
         first = client.get("/stats").text
@@ -2005,18 +2358,16 @@ class TestTheShuffledFigures:
 
     @staticmethod
     def department(page):
-        body = page[page.index("Eight things about it"):]
+        body = page[page.index("Eight things about it") :]
         return re.findall(r'<div class="k">([^<]+)</div>', body)
 
-    def test_the_share_link_says_the_collection_not_the_draw(self, client, computer,
-                                                             part):
+    def test_the_share_link_says_the_collection_not_the_draw(self, client, computer, part):
         """Whichever eight came up is not what a crawler or a chat window should
         quote back."""
         self.furnish(client, computer, part)
         page = client.get("/stats").text
         blurb = re.search(r'og:description" content="([^"]+)"', page).group(1)
         assert "things in the register" in blurb
-
 
 
 class TestReadingTheInchMarkAsTyped:
@@ -2029,6 +2380,7 @@ class TestReadingTheInchMarkAsTyped:
     @staticmethod
     def parsed(text):
         from app import drivedb
+
         return drivedb.parse_segment(text)
 
     def test_every_inch_mark_reads_the_same(self):
@@ -2042,7 +2394,7 @@ class TestReadingTheInchMarkAsTyped:
 
     def test_a_quote_that_is_not_an_inch_mark_is_left_alone(self):
         """Only a number in front of it makes it a measurement."""
-        assert self.parsed('Sony “Special” floppy')["form_factor"] == ""
+        assert self.parsed("Sony “Special” floppy")["form_factor"] == ""
 
 
 class TestAFloppySSmallLabel:
@@ -2055,10 +2407,12 @@ class TestAFloppySSmallLabel:
         like this. A mapping rather than keywords, because "Form factor" is two
         words on the label as it is in the spec key."""
         from app import labels
+
         rendered = " | ".join(f"{k}: {v}" for k, v in specs.items())
         return labels.small_body(
-            {"asset_id": "RH-0031", "name": "Sony MPF920-E", "type": "storage",
-             "specs": rendered}, False)
+            {"asset_id": "RH-0031", "name": "Sony MPF920-E", "type": "storage", "specs": rendered},
+            False,
+        )
 
     def test_the_bay_and_the_disk_share_one_line(self):
         """They are read as one thing -- "a 3.5-inch 1.44MB" -- and joined they
@@ -2080,11 +2434,18 @@ class TestAFloppySSmallLabel:
         assert lines == ["1281 MiB", "CHS 2482/16/63"]
 
     def test_it_reaches_the_printed_label(self, client):
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Floppy/Gotek",
-                              "spec_interface": "34-pin floppy",
-                              "drive_desc": "Sony MPF920", "drive_form": '3.5"',
-                              "drive_size": "1.44MB"}, follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "spec_interface": "34-pin floppy",
+                "drive_desc": "Sony MPF920",
+                "drive_form": '3.5"',
+                "drive_size": "1.44MB",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
         pdf = client.get(f"/parts/{aid}/label.pdf?small=1")
         assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
@@ -2107,8 +2468,9 @@ class TestSpecs:
         """The form has no field for an unrecognised key, so it is read back from
         part_attribute and re-appended rather than being dropped on save."""
         aid = part(type="video", specs="Chip: S3 | Voltage: 5V")["asset_id"]
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "video", "spec_chip": "S3"}, follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit", data={"type": "video", "spec_chip": "S3"}, follow_redirects=False
+        )
         assert "Voltage: 5V" in client.get(f"/api/parts/{aid}").json()["specs"]
 
 
@@ -2120,39 +2482,56 @@ class TestAStoragePartsBezel:
     """
 
     def test_the_form_records_both(self, client):
-        r = client.post("/parts/new",
-                        data={"type": "storage", "kind": "Hard disk",
-                              "spec_interface": "MFM", "spec_colour": "Off-white",
-                              "spec_yellowing": "Yellowed"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Hard disk",
+                "spec_interface": "MFM",
+                "spec_colour": "Off-white",
+                "spec_yellowing": "Yellowed",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
         specs = client.get(f"/api/parts/{aid}").json()["specs"]
-        assert specs == ("Kind: Hard disk | Interface: MFM | Colour: Off-white "
-                         "| Yellowing: Yellowed")
+        assert specs == (
+            "Kind: Hard disk | Interface: MFM | Colour: Off-white | Yellowing: Yellowed"
+        )
 
     def test_they_come_back_into_the_form(self, client, part):
-        aid = part(type="storage",
-                   specs="Kind: Tape | Colour: Black")["asset_id"]
+        aid = part(type="storage", specs="Kind: Tape | Colour: Black")["asset_id"]
         page = client.get(f"/parts/{aid}/edit").text
         assert '<option value="Black" selected>' in page
         assert "colour chart" in page
 
     def test_editing_keeps_them(self, client, part):
-        aid = part(type="storage", specs="Kind: Hard disk | Colour: Beige | "
-                                         "Yellowing: Browned")["asset_id"]
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "storage", "kind": "Hard disk",
-                          "spec_colour": "Beige", "spec_yellowing": "Browned"},
-                    follow_redirects=False)
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            "Kind: Hard disk | Colour: Beige | Yellowing: Browned"
+        aid = part(type="storage", specs="Kind: Hard disk | Colour: Beige | Yellowing: Browned")[
+            "asset_id"
+        ]
+        client.post(
+            f"/parts/{aid}/edit",
+            data={
+                "type": "storage",
+                "kind": "Hard disk",
+                "spec_colour": "Beige",
+                "spec_yellowing": "Browned",
+            },
+            follow_redirects=False,
+        )
+        assert (
+            client.get(f"/api/parts/{aid}").json()["specs"]
+            == "Kind: Hard disk | Colour: Beige | Yellowing: Browned"
+        )
 
     def test_the_part_page_shows_the_swatch_for_the_pair(self, client, part):
         """One piece of plastic, so both rows carry the swatch of the two together
         rather than a shade beside a separate stage."""
         from app import entry
-        aid = part(type="storage", specs="Kind: Hard disk | Colour: Beige | "
-                                         "Yellowing: Heavily yellowed")["asset_id"]
+
+        aid = part(
+            type="storage", specs="Kind: Hard disk | Colour: Beige | Yellowing: Heavily yellowed"
+        )["asset_id"]
         page = client.get(f"/parts/{aid}").text
         css = entry.bezel_css("Beige", "Heavily yellowed")
         assert page.count(f'style="background:{css}"') == 2
@@ -2175,8 +2554,11 @@ class TestTheBuildWalk:
         board to link and nothing on a shelf goes in one -- which is why its board
         and parts sections are not even on the page while nothing is fitted, and why
         pointing somebody at them is pointing at the wrong machine."""
-        aid = computer(manufacturer="Sinclair", model="ZX Spectrum 48K",
-                       machine={"model_key": "zx-spectrum-48k"})["asset_id"]
+        aid = computer(
+            manufacturer="Sinclair",
+            model="ZX Spectrum 48K",
+            machine={"model_key": "zx-spectrum-48k"},
+        )["asset_id"]
         page = client.get(f"/computers/{aid}?build=1").text
         assert "Build walk" not in page
 
@@ -2192,10 +2574,8 @@ class TestASerialNumber:
     model, and so the one that tells two of the same thing apart."""
 
     def test_a_machine_records_and_shows_one(self, client, computer):
-        aid = computer(manufacturer="Acorn", model="A5000",
-                       serial="27-AKD52-1234567")["asset_id"]
-        assert client.get(f"/api/computers/{aid}").json()["serial"] == \
-            "27-AKD52-1234567"
+        aid = computer(manufacturer="Acorn", model="A5000", serial="27-AKD52-1234567")["asset_id"]
+        assert client.get(f"/api/computers/{aid}").json()["serial"] == "27-AKD52-1234567"
         assert "27-AKD52-1234567" in client.get(f"/computers/{aid}").text
 
     def test_a_part_does_too(self, client, part):
@@ -2204,20 +2584,23 @@ class TestASerialNumber:
         assert "AKF18-9901234" in client.get(f"/parts/{aid}").text
 
     def test_both_forms_ask_for_one(self, client, computer, part):
-        cid = computer(manufacturer="Acorn", model="A5000",
-                       serial="27-AKD52-1234567")["asset_id"]
+        cid = computer(manufacturer="Acorn", model="A5000", serial="27-AKD52-1234567")["asset_id"]
         pid = part(type="cpu", serial="L4210229")["asset_id"]
-        for page in (client.get(f"/computers/{cid}/edit").text,
-                     client.get(f"/parts/{pid}/edit").text):
+        for page in (
+            client.get(f"/computers/{cid}/edit").text,
+            client.get(f"/parts/{pid}/edit").text,
+        ):
             assert 'name="serial"' in page
         assert 'value="27-AKD52-1234567"' in client.get(f"/computers/{cid}/edit").text
         assert 'value="L4210229"' in client.get(f"/parts/{pid}/edit").text
 
     def test_the_form_can_take_a_serial_back_off(self, client, part):
         aid = part(type="cpu", manufacturer="Intel", serial="L4210229")["asset_id"]
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "cpu", "manufacturer": "Intel", "serial": ""},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={"type": "cpu", "manufacturer": "Intel", "serial": ""},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{aid}").json()["serial"] == ""
 
     def test_a_duplicate_does_not_carry_the_serial_across(self, client, part):
@@ -2225,8 +2608,11 @@ class TestASerialNumber:
         so a copy that inherited one would be asserting something false about the
         second thing -- and the copy is made to be filled in, not to be believed."""
         aid = part(type="ram", model="72-pin SIMM", serial="M366-0031")["asset_id"]
-        copy = client.post(f"/parts/{aid}/duplicate", follow_redirects=False
-                           ).headers["location"].rsplit("/", 1)[-1]
+        copy = (
+            client.post(f"/parts/{aid}/duplicate", follow_redirects=False)
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
         got = client.get(f"/api/parts/{copy}").json()
         assert got["model"] == "72-pin SIMM"
         assert got["serial"] == ""
@@ -2246,22 +2632,19 @@ class TestNotesKeepTheirLines:
     newlines and then read back as one run-on line, because a table cell does not
     show them without being told to."""
 
-    def test_a_parts_notes_are_shown_in_the_lines_they_were_typed_in(self, client,
-                                                                     part):
-        aid = part(type="cpu",
-                   notes="recapped 2026-08\nsocket cleaned\nstill untested")["asset_id"]
+    def test_a_parts_notes_are_shown_in_the_lines_they_were_typed_in(self, client, part):
+        aid = part(type="cpu", notes="recapped 2026-08\nsocket cleaned\nstill untested")["asset_id"]
         page = client.get(f"/parts/{aid}").text
-        cell = page[page.index('<th scope="row">Notes</th>'):]
-        cell = cell[:cell.index("</td>")]
+        cell = page[page.index('<th scope="row">Notes</th>') :]
+        cell = cell[: cell.index("</td>")]
         assert 'class="lines"' in cell
         assert "recapped 2026-08\nsocket cleaned\nstill untested" in cell
 
     def test_a_machines_notes_are_too(self, client, computer):
-        aid = computer(manufacturer="Acorn", model="A5000",
-                       notes="two lines\nnot one")["asset_id"]
+        aid = computer(manufacturer="Acorn", model="A5000", notes="two lines\nnot one")["asset_id"]
         page = client.get(f"/computers/{aid}").text
-        cell = page[page.index('<th scope="row">Notes</th>'):]
-        cell = cell[:cell.index("</td>")]
+        cell = page[page.index('<th scope="row">Notes</th>') :]
+        cell = cell[: cell.index("</td>")]
         assert 'class="lines"' in cell
         assert "two lines\nnot one" in cell
 
@@ -2273,18 +2656,21 @@ class TestALinkInWhatWasTypedIsALink:
     the text around it is still text."""
 
     def _cell(self, page, th):
-        cell = page[page.index(f'<th scope="row">{th}</th>'):]
-        return cell[:cell.index("</td>")]
+        cell = page[page.index(f'<th scope="row">{th}</th>') :]
+        return cell[: cell.index("</td>")]
 
     def test_a_url_in_a_parts_notes(self, client, part):
         aid = part(type="cpu", notes="datasheet at http://x.test/74ls00.pdf")["asset_id"]
         cell = self._cell(client.get(f"/parts/{aid}").text, "Notes")
-        assert ('<a class="url" href="http://x.test/74ls00.pdf" target="_blank"'
-                ' rel="noopener noreferrer">http://x.test/74ls00.pdf</a>') in cell
+        assert (
+            '<a class="url" href="http://x.test/74ls00.pdf" target="_blank"'
+            ' rel="noopener noreferrer">http://x.test/74ls00.pdf</a>'
+        ) in cell
 
     def test_a_url_in_a_machines_summary(self, client, computer):
-        aid = computer(manufacturer="Acorn", model="A5000",
-                       summary="the story is at www.acorn.test/a5000")["asset_id"]
+        aid = computer(
+            manufacturer="Acorn", model="A5000", summary="the story is at www.acorn.test/a5000"
+        )["asset_id"]
         page = client.get(f"/computers/{aid}").text
         assert '<a class="url" href="http://www.acorn.test/a5000"' in page
 
@@ -2295,12 +2681,14 @@ class TestALinkInWhatWasTypedIsALink:
 
     def test_a_url_in_a_history_note(self, client, part):
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/note",
-                    data={"message": "recapped, see http://forum.test/t/9911"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/note",
+            data={"message": "recapped, see http://forum.test/t/9911"},
+            follow_redirects=False,
+        )
         page = client.get(f"/parts/{aid}").text
-        msg = page[page.index('class="logmsg"'):]
-        msg = msg[:msg.index("</div>")]
+        msg = page[page.index('class="logmsg"') :]
+        msg = msg[: msg.index("</div>")]
         assert 'href="http://forum.test/t/9911"' in msg
 
     def test_a_part_number_is_not_a_hostname(self, client, part):
@@ -2310,8 +2698,7 @@ class TestALinkInWhatWasTypedIsALink:
         assert "boots from config.sys on a 1.44MB floppy" in cell
 
     def test_the_note_around_the_link_is_still_text(self, client, part):
-        aid = part(type="cpu",
-                   notes="<b>bent pin</b> — http://x.test/p\nsecond line")["asset_id"]
+        aid = part(type="cpu", notes="<b>bent pin</b> — http://x.test/p\nsecond line")["asset_id"]
         cell = self._cell(client.get(f"/parts/{aid}").text, "Notes")
         assert "<b>" not in cell and "&lt;b&gt;bent pin&lt;/b&gt;" in cell
         assert 'class="lines"' in cell and "\nsecond line" in cell
@@ -2327,81 +2714,122 @@ class TestADisplayPart:
     def test_the_form_records_what_a_screen_is(self, client):
         """Every answer picked from the group it is offered in, and the sockets
         ticked rather than chosen between."""
-        r = client.post("/parts/new",
-                        data={"type": "display", "manufacturer": "Sony",
-                              "model": "GDM-F520", "spec_type": "CRT",
-                              "spec_panel": "Aperture grille (Trinitron)",
-                              "spec_screen_size": '21"', "spec_aspect": "4:3",
-                              "spec_resolution": "1600×1200",
-                              "spec_refresh": "85 Hz", "spec_dot_pitch": "0.25 mm",
-                              "spec_interface": ["VGA (HD-15)", "BNC"],
-                              "spec_picture": "Colour"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "display",
+                "manufacturer": "Sony",
+                "model": "GDM-F520",
+                "spec_type": "CRT",
+                "spec_panel": "Aperture grille (Trinitron)",
+                "spec_screen_size": '21"',
+                "spec_aspect": "4:3",
+                "spec_resolution": "1600×1200",
+                "spec_refresh": "85 Hz",
+                "spec_dot_pitch": "0.25 mm",
+                "spec_interface": ["VGA (HD-15)", "BNC"],
+                "spec_picture": "Colour",
+            },
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         aid = r.headers["location"].rsplit("/", 1)[-1]
         assert client.get(f"/api/parts/{aid}").json()["specs"] == (
             'Type: CRT | Panel: Aperture grille (Trinitron) | Screen size: 21" | '
             "Aspect: 4:3 | Resolution: 1600×1200 | Refresh: 85 Hz | "
-            "Dot pitch: 0.25 mm | Interface: VGA (HD-15), BNC | Picture: Colour")
+            "Dot pitch: 0.25 mm | Interface: VGA (HD-15), BNC | Picture: Colour"
+        )
 
     def test_an_answer_that_is_not_offered_is_typed_beside_custom(self, client):
-        aid = client.post("/parts/new",
-                          data={"type": "display", "spec_type": "custom",
-                                "spec_type_custom": "Nixie tube",
-                                "spec_screen_size": "custom",
-                                "spec_screen_size_custom": '2.5"'},
-                          follow_redirects=False
-                          ).headers["location"].rsplit("/", 1)[-1]
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            'Type: Nixie tube | Screen size: 2.5"'
+        aid = (
+            client.post(
+                "/parts/new",
+                data={
+                    "type": "display",
+                    "spec_type": "custom",
+                    "spec_type_custom": "Nixie tube",
+                    "spec_screen_size": "custom",
+                    "spec_screen_size_custom": '2.5"',
+                },
+                follow_redirects=False,
+            )
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
+        assert (
+            client.get(f"/api/parts/{aid}").json()["specs"]
+            == 'Type: Nixie tube | Screen size: 2.5"'
+        )
 
     def test_a_socket_the_list_does_not_name_joins_the_ticked_ones(self, client):
-        aid = client.post("/parts/new",
-                          data={"type": "display",
-                                "spec_interface": ["SCART", "RF"],
-                                "spec_interface_custom": "6-pin DIN"},
-                          follow_redirects=False
-                          ).headers["location"].rsplit("/", 1)[-1]
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            "Interface: SCART, RF, 6-pin DIN"
+        aid = (
+            client.post(
+                "/parts/new",
+                data={
+                    "type": "display",
+                    "spec_interface": ["SCART", "RF"],
+                    "spec_interface_custom": "6-pin DIN",
+                },
+                follow_redirects=False,
+            )
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == "Interface: SCART, RF, 6-pin DIN"
 
     def test_an_answer_never_offered_is_refused_rather_than_kept(self, client):
         """A group's answer is checked against the list it was offered from, the
         same way a drive's is: something posted straight at the endpoint that was
         never on the form is not an answer to the question that was asked."""
-        aid = client.post("/parts/new",
-                          data={"type": "display", "spec_type": "Cathode ray",
-                                "spec_aspect": "4:3"},
-                          follow_redirects=False
-                          ).headers["location"].rsplit("/", 1)[-1]
+        aid = (
+            client.post(
+                "/parts/new",
+                data={"type": "display", "spec_type": "Cathode ray", "spec_aspect": "4:3"},
+                follow_redirects=False,
+            )
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
         assert client.get(f"/api/parts/{aid}").json()["specs"] == "Aspect: 4:3"
 
     def test_the_groups_are_built_from_the_one_table(self, client):
         """The form and the server read the same list, so a question cannot appear
         on screen that the server passes over."""
         from app import entry
+
         page = client.get("/parts/new?type=display").text
         for ask in entry.DISPLAY_ASKS:
             field = "spec_" + ask["key"].lower().replace(" ", "_")
             kind = "checkbox" if ask.get("multi") else "radio"
             assert f'type="{kind}" name="{field}"' in page, ask["key"]
             from markupsafe import escape
+
             for option in ask["options"]:
-                assert f'value="{escape(option)}"' in page, \
-                    f'{ask["key"]}: {option}'
+                assert f'value="{escape(option)}"' in page, f"{ask['key']}: {option}"
 
     def test_a_screen_records_every_refresh_rate_it_does(self, client, db):
         """The 50 Hz is the point: a tube that meets a television-rate mode and also
         does 85 Hz at its best VGA one is two useful screens, and recording only the
         higher figure would answer the question nobody driving an Archimedes asks."""
         from app.models import DisplaySpec
-        aid = client.post("/parts/new",
-                          data={"type": "display", "spec_type": "CRT",
-                                "spec_refresh": ["50 Hz", "60 Hz", "85 Hz"]},
-                          follow_redirects=False
-                          ).headers["location"].rsplit("/", 1)[-1]
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            "Type: CRT | Refresh: 50 Hz, 60 Hz, 85 Hz"
+
+        aid = (
+            client.post(
+                "/parts/new",
+                data={
+                    "type": "display",
+                    "spec_type": "CRT",
+                    "spec_refresh": ["50 Hz", "60 Hz", "85 Hz"],
+                },
+                follow_redirects=False,
+            )
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
+        assert (
+            client.get(f"/api/parts/{aid}").json()["specs"]
+            == "Type: CRT | Refresh: 50 Hz, 60 Hz, 85 Hz"
+        )
         assert db.get(DisplaySpec, aid).refresh == "50 Hz, 60 Hz, 85 Hz"
 
     def test_a_screen_with_two_rates_records_both(self, client, db):
@@ -2409,16 +2837,25 @@ class TestADisplayPart:
         locks to 15 kHz and to 31 kHz does both, and made to choose, its record
         would have to leave out the half that makes it worth owning."""
         from app.models import DisplaySpec
-        aid = client.post("/parts/new",
-                          data={"type": "display", "spec_type": "CRT",
-                                "spec_screen_size": '14"',
-                                "spec_sync": ["15 kHz", "31 kHz"],
-                                "spec_interface": ["9-pin TTL (CGA)"]},
-                          follow_redirects=False
-                          ).headers["location"].rsplit("/", 1)[-1]
+
+        aid = (
+            client.post(
+                "/parts/new",
+                data={
+                    "type": "display",
+                    "spec_type": "CRT",
+                    "spec_screen_size": '14"',
+                    "spec_sync": ["15 kHz", "31 kHz"],
+                    "spec_interface": ["9-pin TTL (CGA)"],
+                },
+                follow_redirects=False,
+            )
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
         assert client.get(f"/api/parts/{aid}").json()["specs"] == (
-            'Type: CRT | Screen size: 14" | Sync: 15 kHz, 31 kHz | '
-            "Interface: 9-pin TTL (CGA)")
+            'Type: CRT | Screen size: 14" | Sync: 15 kHz, 31 kHz | Interface: 9-pin TTL (CGA)'
+        )
         assert db.get(DisplaySpec, aid).sync == "15 kHz, 31 kHz"
 
     def test_a_multiscan_records_the_range_it_claims(self, client, db):
@@ -2427,14 +2864,23 @@ class TestADisplayPart:
         So the box takes the range, the same box a socket the list cannot name goes
         in."""
         from app.models import DisplaySpec
-        aid = client.post("/parts/new",
-                          data={"type": "display", "manufacturer": "Acorn",
-                                "model": "AKF18", "spec_type": "CRT",
-                                "spec_sync_custom": "15–38 kHz"},
-                          follow_redirects=False
-                          ).headers["location"].rsplit("/", 1)[-1]
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            "Type: CRT | Sync: 15–38 kHz"
+
+        aid = (
+            client.post(
+                "/parts/new",
+                data={
+                    "type": "display",
+                    "manufacturer": "Acorn",
+                    "model": "AKF18",
+                    "spec_type": "CRT",
+                    "spec_sync_custom": "15–38 kHz",
+                },
+                follow_redirects=False,
+            )
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == "Type: CRT | Sync: 15–38 kHz"
         assert db.get(DisplaySpec, aid).sync == "15–38 kHz"
 
     def test_the_numbers_land_in_typed_columns(self, db, part):
@@ -2442,15 +2888,17 @@ class TestADisplayPart:
         is the whole point of the table. The two rates are not among them: each holds
         a set or a range, and so is text -- see the two tests above."""
         from app.models import DisplaySpec
-        aid = part(type="display",
-                   specs='Screen size: 13.3" | Dot pitch: 0.28 mm')["asset_id"]
+
+        aid = part(type="display", specs='Screen size: 13.3" | Dot pitch: 0.28 mm')["asset_id"]
         row = db.get(DisplaySpec, aid)
         assert (row.screen_in_tenths, row.dot_pitch_um) == (133, 280)
 
     def test_a_trinitron_is_still_found_by_asking_for_crts(self, db, part):
         from app.models import DisplaySpec
-        part(type="display", model="GDM-F520",
-             specs="Type: CRT | Panel: Aperture grille (Trinitron)")
+
+        part(
+            type="display", model="GDM-F520", specs="Type: CRT | Panel: Aperture grille (Trinitron)"
+        )
         part(type="display", model="1084S", specs="Type: CRT | Panel: Shadow mask")
         part(type="display", model="ThinkVision", specs="Type: LCD | Panel: IPS")
         crts = db.query(DisplaySpec).filter(DisplaySpec.tech == "CRT").all()
@@ -2459,21 +2907,27 @@ class TestADisplayPart:
     def test_the_form_reopens_on_what_it_saved(self, client, part):
         """The answers come back checked, in the units a person writes: the group
         sits on 21", not on 210."""
-        aid = part(type="display",
-                   specs='Type: CRT | Screen size: 21" | Dot pitch: 0.25 mm | '
-                         "Refresh: 85 Hz")["asset_id"]
+        aid = part(
+            type="display",
+            specs='Type: CRT | Screen size: 21" | Dot pitch: 0.25 mm | Refresh: 85 Hz',
+        )["asset_id"]
         page = client.get(f"/parts/{aid}/edit").text
-        for field, value in (("spec_type", "CRT"), ("spec_screen_size", '21"'),
-                             ("spec_dot_pitch", "0.25 mm"),
-                             ("spec_refresh", "85 Hz")):
+        for field, value in (
+            ("spec_type", "CRT"),
+            ("spec_screen_size", '21"'),
+            ("spec_dot_pitch", "0.25 mm"),
+            ("spec_refresh", "85 Hz"),
+        ):
             # markupsafe, not html.escape: Jinja writes a quote as &#34;.
             from markupsafe import escape
+
             assert re.search(
                 f'name="{field}" value="{re.escape(str(escape(value)))}"'
-                r'[^>]*\schecked', page), field
+                r"[^>]*\schecked",
+                page,
+            ), field
 
-    def test_a_saved_answer_from_outside_the_list_reopens_on_custom(self, client,
-                                                                    part):
+    def test_a_saved_answer_from_outside_the_list_reopens_on_custom(self, client, part):
         """Somebody else's record, or one typed before the list said otherwise, is
         not lost by being reopened: the group chooses custom and the box holds it."""
         aid = part(type="display", specs="Type: Vacuum fluorescent")["asset_id"]
@@ -2482,39 +2936,57 @@ class TestADisplayPart:
         assert 'id="spec_type_custom" name="spec_type_custom"' in page
         assert "Vacuum fluorescent" in page
         # And saving it again keeps it.
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "display", "spec_type": "custom",
-                          "spec_type_custom": "Vacuum fluorescent"},
-                    follow_redirects=False)
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            "Type: Vacuum fluorescent"
+        client.post(
+            f"/parts/{aid}/edit",
+            data={
+                "type": "display",
+                "spec_type": "custom",
+                "spec_type_custom": "Vacuum fluorescent",
+            },
+            follow_redirects=False,
+        )
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == "Type: Vacuum fluorescent"
 
     def test_editing_a_screen_keeps_its_numbers(self, client, part):
         aid = part(type="display", specs='Type: CRT | Screen size: 14"')["asset_id"]
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "display", "spec_type": "CRT",
-                          "spec_screen_size": '14"', "spec_picture": "Amber"},
-                    follow_redirects=False)
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            'Type: CRT | Screen size: 14" | Picture: Amber'
+        client.post(
+            f"/parts/{aid}/edit",
+            data={
+                "type": "display",
+                "spec_type": "CRT",
+                "spec_screen_size": '14"',
+                "spec_picture": "Amber",
+            },
+            follow_redirects=False,
+        )
+        assert (
+            client.get(f"/api/parts/{aid}").json()["specs"]
+            == 'Type: CRT | Screen size: 14" | Picture: Amber'
+        )
 
     def test_a_screen_records_a_bezel_like_a_drive(self, client):
-        r = client.post("/parts/new",
-                        data={"type": "display", "spec_type": "CRT",
-                              "spec_colour": "Beige",
-                              "spec_yellowing": "Heavily yellowed"},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new",
+            data={
+                "type": "display",
+                "spec_type": "CRT",
+                "spec_colour": "Beige",
+                "spec_yellowing": "Heavily yellowed",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].rsplit("/", 1)[-1]
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            "Type: CRT | Colour: Beige | Yellowing: Heavily yellowed"
+        assert (
+            client.get(f"/api/parts/{aid}").json()["specs"]
+            == "Type: CRT | Colour: Beige | Yellowing: Heavily yellowed"
+        )
 
     def test_the_page_shows_the_swatch_for_the_pair(self, client, part):
         from app import entry
-        aid = part(type="display",
-                   specs="Colour: Beige | Yellowing: Yellowed")["asset_id"]
+
+        aid = part(type="display", specs="Colour: Beige | Yellowing: Yellowed")["asset_id"]
         css = entry.bezel_css("Beige", "Yellowed")
-        assert client.get(f"/parts/{aid}").text.count(
-            f'style="background:{css}"') == 2
+        assert client.get(f"/parts/{aid}").text.count(f'style="background:{css}"') == 2
 
     def test_a_screen_with_no_photograph_gets_a_monitor(self, client, part):
         """Rather than the box every unrecognised type falls back to."""
@@ -2525,17 +2997,24 @@ class TestADisplayPart:
         """What identifies a monitor across a room. Joined on one line, because "a
         21-inch Trinitron CRT" is one thing said and not three."""
         from app import labels
+
         _, lines = labels.small_body(
-            {"asset_id": "RH-0044", "name": "Sony GDM-F520", "type": "display",
-             "specs": 'Type: CRT | Panel: Aperture grille (Trinitron) | '
-                      'Screen size: 21" | Resolution: 1600×1200 | '
-                      "Interface: VGA (HD-15)"}, False)
-        assert lines == ['21" Aperture grille (Trinitron) CRT', "1600×1200",
-                         "VGA (HD-15)"]
+            {
+                "asset_id": "RH-0044",
+                "name": "Sony GDM-F520",
+                "type": "display",
+                "specs": "Type: CRT | Panel: Aperture grille (Trinitron) | "
+                'Screen size: 21" | Resolution: 1600×1200 | '
+                "Interface: VGA (HD-15)",
+            },
+            False,
+        )
+        assert lines == ['21" Aperture grille (Trinitron) CRT', "1600×1200", "VGA (HD-15)"]
 
     def test_it_reaches_the_printed_label(self, client, part):
-        aid = part(type="display", model="GDM-F520",
-                   specs='Type: CRT | Screen size: 21"')["asset_id"]
+        aid = part(type="display", model="GDM-F520", specs='Type: CRT | Screen size: 21"')[
+            "asset_id"
+        ]
         pdf = client.get(f"/parts/{aid}/label.pdf?small=1")
         assert pdf.status_code == 200 and pdf.content[:4] == b"%PDF"
 
@@ -2577,10 +3056,16 @@ class TestPagesAndDiscovery:
     def test_an_item_url_redirects_to_the_right_kind(self, client, computer, part):
         c = computer()["asset_id"]
         p = part()["asset_id"]
-        assert client.get(f"/items/{c}", follow_redirects=False
-                          ).headers["location"].endswith(f"/computers/{c}")
-        assert client.get(f"/items/{p}", follow_redirects=False
-                          ).headers["location"].endswith(f"/parts/{p}")
+        assert (
+            client.get(f"/items/{c}", follow_redirects=False)
+            .headers["location"]
+            .endswith(f"/computers/{c}")
+        )
+        assert (
+            client.get(f"/items/{p}", follow_redirects=False)
+            .headers["location"]
+            .endswith(f"/parts/{p}")
+        )
 
     def test_a_label_renders_as_a_pdf(self, client, computer):
         r = client.get(f"/computers/{computer()['asset_id']}/label.pdf")
@@ -2598,43 +3083,53 @@ class TestHowBigTheDriveIsOnItsLabel:
     def body(self, db, aid):
         from app import labels, main, specdb
         from app.models import Part
+
         p = db.get(Part, aid)
         # display=True, as the label route passes: a label is read, never parsed.
-        return labels.small_body(main.to_dict(p), False,
-                                 specdb.pairs(db, p, display=True))
+        return labels.small_body(main.to_dict(p), False, specdb.pairs(db, p, display=True))
 
     def test_a_drive_says_how_big_it_is(self, client, db, part):
-        aid = part(type="storage", manufacturer="Seagate", model="ST-225",
-                   specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
+        aid = part(
+            type="storage",
+            manufacturer="Seagate",
+            model="ST-225",
+            specs="Kind: Hard disk | Capacity: 20 MB",
+        )["asset_id"]
         assert self.body(db, aid) == ("Seagate ST-225", ["20 MiB"])
 
-    def test_a_drive_with_no_capacity_recorded_just_says_what_it_is(self, client, db,
-                                                                   part):
+    def test_a_drive_with_no_capacity_recorded_just_says_what_it_is(self, client, db, part):
         """Half the drives on file have no capacity against them; none of them should
         get a blank line held open for one."""
-        aid = part(type="storage", manufacturer="Mitsumi", model="D503V",
-                   specs="Kind: Floppy/Gotek")["asset_id"]
+        aid = part(
+            type="storage", manufacturer="Mitsumi", model="D503V", specs="Kind: Floppy/Gotek"
+        )["asset_id"]
         assert self.body(db, aid) == ("Mitsumi D503V", [])
 
     def test_capacity_worked_out_from_the_geometry_counts_too(self, client, db, part):
         """A drive recorded by its cylinders/heads/sectors has its capacity derived
         rather than stated, and the label carries that just the same. 38828 KiB is
         a 38 MiB drive, and the label says so rather than reciting the KiB."""
-        aid = part(type="storage", manufacturer="Quantum", model="LPS 52A",
-                   specs="Kind: Hard disk | CHS: 571/8/17")["asset_id"]
+        aid = part(
+            type="storage",
+            manufacturer="Quantum",
+            model="LPS 52A",
+            specs="Kind: Hard disk | CHS: 571/8/17",
+        )["asset_id"]
         assert self.body(db, aid) == ("Quantum LPS 52A", ["37.9 MiB", "CHS 571/8/17"])
 
     def test_other_kinds_of_part_are_left_alone(self, client, db, part):
         """Only the types whose name does not say the thing you want off the label.
         A video card's memory is on the full label, where there is room for it."""
-        aid = part(type="video", manufacturer="Trident", model="8900C",
-                   specs="Memory: 1 MB")["asset_id"]
+        aid = part(type="video", manufacturer="Trident", model="8900C", specs="Memory: 1 MB")[
+            "asset_id"
+        ]
         assert self.body(db, aid) == ("Trident 8900C", [])
 
     def test_a_machine_is_left_alone(self, client, computer):
         from app import labels, main
         from app.models import Computer
         from app.db import SessionLocal
+
         aid = computer(manufacturer="Acme", model="PC-1")["asset_id"]
         s = SessionLocal()
         try:
@@ -2646,15 +3141,21 @@ class TestHowBigTheDriveIsOnItsLabel:
     def test_the_full_label_still_lists_it_among_the_specs(self, client, db, part):
         from app import labels, main, specdb
         from app.models import Part
-        aid = part(type="storage", manufacturer="Seagate", model="ST-225",
-                   specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
+
+        aid = part(
+            type="storage",
+            manufacturer="Seagate",
+            model="ST-225",
+            specs="Kind: Hard disk | Capacity: 20 MB",
+        )["asset_id"]
         p = db.get(Part, aid)
         lines = labels.part_lines(main.to_dict(p), specdb.pairs(db, p))
         assert "Capacity: 20 MiB" in lines
 
     def test_the_drive_s_own_label_still_renders(self, client, part):
-        aid = part(type="storage", model="ST-225",
-                   specs="Kind: Hard disk | Capacity: 20 MB")["asset_id"]
+        aid = part(type="storage", model="ST-225", specs="Kind: Hard disk | Capacity: 20 MB")[
+            "asset_id"
+        ]
         r = client.get(f"/parts/{aid}/label.pdf")
         assert r.status_code == 200
         assert r.content.startswith(b"%PDF")
@@ -2677,23 +3178,24 @@ class TestALabelSCodeCanActuallyBeRead:
         import segno
 
         from app import labels
+
         tag = "RH-0001"
-        assert segno.make(tag, error="m").is_micro          # what segno would choose
-        w, h = labels._qr(tag).getSize()                    # what the label gets
+        assert segno.make(tag, error="m").is_micro  # what segno would choose
+        w, h = labels._qr(tag).getSize()  # what the label gets
         assert w == h and w > self.LARGEST_MICRO_PX
 
     def test_the_url_on_a_label_is_a_full_size_code_too(self):
         from app import labels
+
         w, _ = labels._qr(labels.item_url("RH-0001")).getSize()
         assert w > self.LARGEST_MICRO_PX
 
-    def test_the_code_holds_the_url_that_resolves_to_either_kind(self, client,
-                                                                 computer, part):
+    def test_the_code_holds_the_url_that_resolves_to_either_kind(self, client, computer, part):
         """/items/<tag> is what the scanner navigates to and what the printed code
         says, so it has to keep working for a machine and for a part alike."""
         from app import labels
-        for aid, kind in ((computer()["asset_id"], "computers"),
-                          (part()["asset_id"], "parts")):
+
+        for aid, kind in ((computer()["asset_id"], "computers"), (part()["asset_id"], "parts")):
             assert labels.item_url(aid).endswith(f"/items/{aid}/")
             r = client.get(f"/items/{aid}", follow_redirects=False)
             assert r.headers["location"].endswith(f"/{kind}/{aid}")
@@ -2712,6 +3214,7 @@ class TestTheCapacityGetsALineOfItsOwn:
         from reportlab.pdfgen import canvas
 
         from app import labels
+
         c = canvas.Canvas("/dev/null")
         _, bfont = labels._fonts()
         # The body column on a 51x19mm label, and the height under the asset id.
@@ -2728,7 +3231,7 @@ class TestTheCapacityGetsALineOfItsOwn:
         long_name = "Magnetic Peripheraps Inc 91455-36"
         size, lines = self.laid_out(long_name, ["20 MB"])
         assert lines[-1] == "20 MB"
-        assert " ".join(lines[:-1]) == long_name      # nothing of the name lost
+        assert " ".join(lines[:-1]) == long_name  # nothing of the name lost
         assert size == 6.5
 
     def test_where_the_height_does_run_short_the_type_gives_first(self):
@@ -2763,8 +3266,9 @@ class TestTheCapacityGetsALineOfItsOwn:
 
     def test_the_capacity_outranks_the_geometry_when_only_one_fits(self):
         """Squeezed past shrinking the type, the last line is the one to go."""
-        _, lines = self.laid_out("Quantum ProDrive LPS 52A",
-                                 ["50 MB", "CHS 571/8/17"], avail_mm=4.5)
+        _, lines = self.laid_out(
+            "Quantum ProDrive LPS 52A", ["50 MB", "CHS 571/8/17"], avail_mm=4.5
+        )
         assert "50 MB" in lines
         assert "CHS 571/8/17" not in lines
 
@@ -2781,8 +3285,9 @@ class TestWhereAFigureIsRoundedAndWhereItIsNot:
     SPECS = "Kind: Hard disk | CHS: 571/8/17"
 
     def make(self, part):
-        return part(type="storage", manufacturer="Quantum", model="LPS 52A",
-                    specs=self.SPECS)["asset_id"]
+        return part(type="storage", manufacturer="Quantum", model="LPS 52A", specs=self.SPECS)[
+            "asset_id"
+        ]
 
     def test_the_page_says_it_the_way_a_person_would(self, client, part):
         aid = self.make(part)
@@ -2796,8 +3301,7 @@ class TestWhereAFigureIsRoundedAndWhereItIsNot:
         assert 'name="spec_capacity" value="38828 KiB"' in page
         assert "37.9 MiB" not in page
 
-    def test_saving_that_form_back_untouched_does_not_move_the_number(self, client,
-                                                                     db, part):
+    def test_saving_that_form_back_untouched_does_not_move_the_number(self, client, db, part):
         """The corruption the split exists to prevent. Had the form been handed
         '37.9 MiB', saving it without touching it would have written 38810 KiB.
 
@@ -2806,13 +3310,20 @@ class TestWhereAFigureIsRoundedAndWhereItIsNot:
         """
         from app import specdb
         from app.models import Part
+
         aid = self.make(part)
         page = client.get(f"/parts/{aid}/edit").text
         shown = re.search(r'name="spec_capacity" value="([^"]*)"', page).group(1)
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "storage", "model": "LPS 52A",
-                          "spec_kind": "Hard disk", "spec_capacity": shown},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={
+                "type": "storage",
+                "model": "LPS 52A",
+                "spec_kind": "Hard disk",
+                "spec_capacity": shown,
+            },
+            follow_redirects=False,
+        )
         db.expire_all()
         p = db.get(Part, aid)
         assert specdb.read(db, p).scalars["capacity_kb"] == 38828
@@ -2821,20 +3332,26 @@ class TestWhereAFigureIsRoundedAndWhereItIsNot:
         """It is the wire format for the REST API and the MCP tools, and it is parsed
         back by the next write, so it holds the figure rather than a rounding."""
         from app.models import Part
+
         aid = self.make(part)
         db.expire_all()
         assert "38828 KiB" in db.get(Part, aid).specs
 
-    @pytest.mark.parametrize("typed,shown", [
-        ("2 MB", "2 MiB"),         # was rendered back as '2048 KiB'
-        ("1024 KB", "1 MiB"),
-        ("8192 KiB", "8 MiB"),
-        ("640 KiB", "640 KiB"),
-    ])
+    @pytest.mark.parametrize(
+        "typed,shown",
+        [
+            ("2 MB", "2 MiB"),  # was rendered back as '2048 KiB'
+            ("1024 KB", "1 MiB"),
+            ("8192 KiB", "8 MiB"),
+            ("640 KiB", "640 KiB"),
+        ],
+    )
     def test_memory_is_said_in_megabytes_where_that_is_the_word_for_it(
-            self, client, db, part, typed, shown):
+        self, client, db, part, typed, shown
+    ):
         """Not only drives: a 2 MiB SIMM read '2048 KiB' on every page it appeared on."""
         from app.models import Part
+
         aid = part(type="ram", model="SIMM", specs=f"Size: {typed}")["asset_id"]
         db.expire_all()
         assert db.get(Part, aid).specs == f"Size: {shown}"
@@ -2845,8 +3362,11 @@ class TestTheBrandOnThePage:
 
     def test_the_header_carries_the_logo_and_the_name(self, client):
         page = client.get("/").text
-        assert re.search(r'<a class="brand" href="/">\s*<img src="/static/logo-256'
-                         r'\.png\?v=[a-f0-9]+"', page)
+        assert re.search(
+            r'<a class="brand" href="/">\s*<img src="/static/logo-256'
+            r'\.png\?v=[a-f0-9]+"',
+            page,
+        )
         assert "<span>Retro Hardware Database</span>" in page
 
     def test_a_page_with_no_photo_shares_as_the_site_card(self, client, part):
@@ -2854,8 +3374,9 @@ class TestTheBrandOnThePage:
         gallery and the figures all get the logo card instead."""
         for path in ("/", "/stats", f"/parts/{part()['asset_id']}"):
             page = client.get(path).text
-            assert 'property="og:image" content="https://example.test/static/' \
-                   'og-image.png?v=' in page, path
+            assert (
+                'property="og:image" content="https://example.test/static/og-image.png?v=' in page
+            ), path
             assert '<meta property="og:image:width" content="1200">' in page, path
             assert 'name="twitter:card" content="summary_large_image"' in page, path
 
@@ -2865,6 +3386,7 @@ class TestTheBrandOnThePage:
         from PIL import Image
 
         from app import main
+
         aid = part()["asset_id"]
         folder = main.IMAGES_DIR / "parts"
         folder.mkdir(parents=True, exist_ok=True)
@@ -2872,8 +3394,9 @@ class TestTheBrandOnThePage:
         Image.new("RGB", (800, 600), (120, 90, 60)).save(photo, "JPEG")
         try:
             page = client.get(f"/parts/{aid}").text
-            assert f'property="og:image" content="https://example.test/images/parts/{aid}.jpg' \
-                   in page
+            assert (
+                f'property="og:image" content="https://example.test/images/parts/{aid}.jpg' in page
+            )
             assert "og-image.png" not in page
         finally:
             photo.unlink()
@@ -2888,21 +3411,20 @@ class TestWalkingFromItemToItem:
 
     @staticmethod
     def links(page):
-        return {rel: re.search(rf'id="nav-{rel}"[^>]*href="([^"]*)"', page).group(1)
-                for rel in ("prev", "next")}
+        return {
+            rel: re.search(rf'id="nav-{rel}"[^>]*href="([^"]*)"', page).group(1)
+            for rel in ("prev", "next")
+        }
 
     def test_the_middle_item_points_both_ways(self, client, computer, part):
         first, middle, last = sorted(computer()["asset_id"] for _ in range(3))
         page = client.get(f"/computers/{middle}").text
-        assert self.links(page) == {"prev": f"/computers/{first}",
-                                    "next": f"/computers/{last}"}
+        assert self.links(page) == {"prev": f"/computers/{first}", "next": f"/computers/{last}"}
 
     def test_the_ends_have_nothing_beyond_them(self, client, computer):
         first, last = sorted(computer()["asset_id"] for _ in range(2))
-        assert re.search(r'id="nav-prev"[^>]*hidden', client.get(
-            f"/computers/{first}").text)
-        assert re.search(r'id="nav-next"[^>]*hidden', client.get(
-            f"/computers/{last}").text)
+        assert re.search(r'id="nav-prev"[^>]*hidden', client.get(f"/computers/{first}").text)
+        assert re.search(r'id="nav-next"[^>]*hidden', client.get(f"/computers/{last}").text)
 
     def test_it_walks_across_computers_and_parts_alike(self, client, computer, part):
         """One register, so the walk is over both -- the next asset after a machine
@@ -2914,8 +3436,7 @@ class TestWalkingFromItemToItem:
 
     def test_the_buttons_name_where_they_go(self, client, computer):
         """The title is the neighbour's name, so a walk is not blind."""
-        first = sorted([computer(model="Aaa")["asset_id"],
-                        computer(model="Zzz")["asset_id"]])[0]
+        first = sorted([computer(model="Aaa")["asset_id"], computer(model="Zzz")["asset_id"]])[0]
         page = client.get(f"/computers/{first}").text
         assert re.search(r'id="nav-next"[^>]*title="Acme (Aaa|Zzz)"', page)
 
@@ -2957,8 +3478,7 @@ class TestSortingTheGallery:
         return match.group(1)
 
     def test_a_machine_carries_every_key_the_menu_sorts_on(self, client, computer):
-        c = computer(manufacturer="Amstrad", model="PC1512", year=1986,
-                     acquired_date="2026-05-01")
+        c = computer(manufacturer="Amstrad", model="PC1512", year=1986, acquired_date="2026-05-01")
         card = self._card(client.get("/").text, c["asset_id"])
         assert 'data-year="1986"' in card
         assert 'data-maker="amstrad"' in card
@@ -2966,8 +3486,13 @@ class TestSortingTheGallery:
         assert f'data-aid="{c["asset_id"]}"' in card
 
     def test_a_part_carries_them_too(self, client, part):
-        p = part(type="video", manufacturer="Tseng", model="ET4000", year=1990,
-                 acquired_date="2026-05-02")
+        p = part(
+            type="video",
+            manufacturer="Tseng",
+            model="ET4000",
+            year=1990,
+            acquired_date="2026-05-02",
+        )
         card = self._card(client.get("/").text, p["asset_id"])
         assert 'data-year="1990"' in card
         assert 'data-maker="tseng"' in card
@@ -2993,16 +3518,24 @@ class TestSortingTheGallery:
 
     def test_the_menu_offers_each_of_them(self, client):
         page = client.get("/").text
-        for mode in ("updated", "added", "acquired", "yearnew", "yearold",
-                     "name", "maker", "cat", "aid"):
+        for mode in (
+            "updated",
+            "added",
+            "acquired",
+            "yearnew",
+            "yearold",
+            "name",
+            "maker",
+            "cat",
+            "aid",
+        ):
             assert f'<option value="{mode}">' in page
 
 
 class TestHistory:
     def test_creating_an_item_is_recorded(self, client, part):
         aid = part()["asset_id"]
-        assert [e["message"] for e in client.get(f"/api/items/{aid}/log").json()] \
-            == ["created"]
+        assert [e["message"] for e in client.get(f"/api/items/{aid}/log").json()] == ["created"]
 
     def test_a_change_is_recorded_field_by_field(self, client, part):
         aid = part(model="Before")["asset_id"]
@@ -3021,6 +3554,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
     gets worked on is nobody else's business. Auth is off in these tests, so the
     anonymous half has to ask for it.
     """
+
     DATE = r"\d{4}-\d{2}-\d{2}"
     DATE_TIME = r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}"
 
@@ -3031,6 +3565,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
 
     def test_a_visitor_gets_the_day_alone(self, client, part, monkeypatch):
         from app import main
+
         aid = part()["asset_id"]
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/parts/{aid}").text
@@ -3039,6 +3574,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
 
     def test_a_machine_history_is_the_same(self, client, computer, monkeypatch):
         from app import main
+
         aid = computer()["asset_id"]
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/computers/{aid}").text
@@ -3049,6 +3585,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
         """They are not on show, but a timestamp in the page source is a timestamp
         published all the same."""
         from app import main
+
         p = part()
         card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
         assert re.search(rf'data-updated="{self.DATE}T', card)
@@ -3062,10 +3599,12 @@ class TestTheClockShowsOnlyWhenSignedIn:
         is stable, so the order the cards arrive in is what still settles a run of
         edits made on the same day."""
         from app.models import LogEntry
+
         old = part(model="Older")["asset_id"]
         new = part(model="Newer")["asset_id"]
         db.query(LogEntry).filter(LogEntry.asset_id == old).update(
-            {"created_at": datetime(2020, 1, 1)})
+            {"created_at": datetime(2020, 1, 1)}
+        )
         db.commit()
         page = client.get("/").text
         assert page.index(f'/parts/{new}"') < page.index(f'/parts/{old}"')
@@ -3085,25 +3624,25 @@ class TestPhotoLookup:
 
     def test_the_bare_asset_id_is_the_primary(self):
         from app.photos import pick_images
-        got = pick_images("parts", "RH-0001",
-                          self.listing("RH-0001-2", "RH-0001"))
+
+        got = pick_images("parts", "RH-0001", self.listing("RH-0001-2", "RH-0001"))
         assert got[0] == "parts/RH-0001.jpg"
 
     def test_numbered_extras_sort_numerically_not_as_text(self):
         from app.photos import pick_images
-        got = pick_images("parts", "RH-0001",
-                          self.listing("RH-0001-10", "RH-0001-2", "RH-0001"))
-        assert got == ["parts/RH-0001.jpg", "parts/RH-0001-2.jpg",
-                       "parts/RH-0001-10.jpg"]
+
+        got = pick_images("parts", "RH-0001", self.listing("RH-0001-10", "RH-0001-2", "RH-0001"))
+        assert got == ["parts/RH-0001.jpg", "parts/RH-0001-2.jpg", "parts/RH-0001-10.jpg"]
 
     def test_a_named_suffix_comes_after_the_numbered_ones(self):
         from app.photos import pick_images
-        got = pick_images("parts", "RH-0001",
-                          self.listing("RH-0001-back", "RH-0001-2"))
+
+        got = pick_images("parts", "RH-0001", self.listing("RH-0001-back", "RH-0001-2"))
         assert got == ["parts/RH-0001-2.jpg", "parts/RH-0001-back.jpg"]
 
     def test_another_asset_is_not_picked_up(self):
         from app.photos import pick_images
+
         got = pick_images("parts", "RH-0001", self.listing("RH-0002", "RH-00012"))
         assert got == []
 
@@ -3111,12 +3650,13 @@ class TestPhotoLookup:
         """RH-0001 must not swallow RH-00019's photo, and the hyphen is what
         separates an id from a suffix."""
         from app.photos import pick_images
-        got = pick_images("parts", "RH-0001",
-                          self.listing("RH-0001", "RH-00019", "RH-0001-2"))
+
+        got = pick_images("parts", "RH-0001", self.listing("RH-0001", "RH-00019", "RH-0001-2"))
         assert got == ["parts/RH-0001.jpg", "parts/RH-0001-2.jpg"]
 
     def test_the_index_shows_a_photo_it_finds_on_disk(self, client, part, tmp_path):
         from app import main
+
         aid = part()["asset_id"]
         folder = main.IMAGES_DIR / "parts"
         folder.mkdir(parents=True, exist_ok=True)
@@ -3149,38 +3689,48 @@ class TestDuplication:
         assert copy["parent_id"] is None
 
     def test_a_duplicated_part_keeps_what_describes_the_model(self, client, part):
-        src = part(type="video", manufacturer="Tseng", model="ET4000", year=1993,
-                   specs="Chip: ET4000 | Interface: VLB", url="https://example.test/x",
-                   condition="Working")
+        src = part(
+            type="video",
+            manufacturer="Tseng",
+            model="ET4000",
+            year=1993,
+            specs="Chip: ET4000 | Interface: VLB",
+            url="https://example.test/x",
+            condition="Working",
+        )
         r = client.post(f"/parts/{src['asset_id']}/duplicate", follow_redirects=False)
         copy = client.get(f"/api/parts/{r.headers['location'].split('/')[-1]}").json()
-        for field in ("type", "manufacturer", "model", "year", "specs", "url",
-                      "condition"):
+        for field in ("type", "manufacturer", "model", "year", "specs", "url", "condition"):
             assert copy[field] == src[field], field
 
     def test_a_duplicated_part_drops_what_belongs_to_the_original(self, client, part):
         src = part(source="eBay", acquired_date="2026-01-05", notes="a bit bent")
-        client.post(f"/parts/{src['asset_id']}/dispose", data={"note": "binned"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{src['asset_id']}/dispose", data={"note": "binned"}, follow_redirects=False
+        )
         r = client.post(f"/parts/{src['asset_id']}/duplicate", follow_redirects=False)
         copy = client.get(f"/api/parts/{r.headers['location'].split('/')[-1]}").json()
         assert copy["source"] == "" and copy["acquired_date"] is None
         assert copy["notes"] == "" and copy["disposed"] is False
 
     def test_a_computer_can_be_duplicated(self, client, computer):
-        src = computer(manufacturer="IBM", model="5170", year=1984, chassis="desktop",
-                       cpu="Intel 80286-6", os="MS DOS 5.0", condition="Working")
-        r = client.post(f"/computers/{src['asset_id']}/duplicate",
-                        follow_redirects=False)
+        src = computer(
+            manufacturer="IBM",
+            model="5170",
+            year=1984,
+            chassis="desktop",
+            cpu="Intel 80286-6",
+            os="MS DOS 5.0",
+            condition="Working",
+        )
+        r = client.post(f"/computers/{src['asset_id']}/duplicate", follow_redirects=False)
         assert r.status_code == 303
         copy = client.get(f"/api/computers/{r.headers['location'].split('/')[-1]}").json()
         assert copy["asset_id"] != src["asset_id"]
-        for field in ("manufacturer", "model", "year", "chassis", "cpu", "os",
-                      "condition"):
+        for field in ("manufacturer", "model", "year", "chassis", "cpu", "os", "condition"):
             assert copy[field] == src[field], field
 
-    def test_a_duplicated_computer_has_none_of_the_original_s_parts(
-            self, client, computer, part):
+    def test_a_duplicated_computer_has_none_of_the_original_s_parts(self, client, computer, part):
         cid = computer()["asset_id"]
         part(computer_id=cid)
         part(computer_id=cid, type="video")
@@ -3191,11 +3741,18 @@ class TestDuplication:
 
     def test_a_duplicated_computer_keeps_its_memory_and_drives(self, client, computer):
         cid = computer(drives='2x 5.25" 360K')["asset_id"]
-        client.post(f"/computers/{cid}/edit",
-                    data={"rammod:30p1m": "4", "installed_ram": "",
-                          "drive0_count": "2", "drive0_kind": "floppy",
-                          "drive0_form_factor": '5.25"', "drive0_size": "360K"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{cid}/edit",
+            data={
+                "rammod:30p1m": "4",
+                "installed_ram": "",
+                "drive0_count": "2",
+                "drive0_kind": "floppy",
+                "drive0_form_factor": '5.25"',
+                "drive0_size": "360K",
+            },
+            follow_redirects=False,
+        )
         r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
         copy = client.get(f"/api/computers/{r.headers['location'].split('/')[-1]}").json()
         assert copy["installed_ram"] == "4× 1MiB 30-pin (4 MiB)"
@@ -3206,8 +3763,7 @@ class TestDuplication:
         """The copy needs its own child rows, not just the rendered strings, or the
         first save would render them away."""
         cid = computer()["asset_id"]
-        client.post(f"/computers/{cid}/edit", data={"ramchip:41256": "9"},
-                    follow_redirects=False)
+        client.post(f"/computers/{cid}/edit", data={"ramchip:41256": "9"}, follow_redirects=False)
         r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
         copy_id = r.headers["location"].split("/")[-1]
         page = client.get(f"/computers/{copy_id}/edit").text
@@ -3217,10 +3773,14 @@ class TestDuplication:
         cid = computer()["asset_id"]
         r = client.post(f"/computers/{cid}/duplicate", follow_redirects=False)
         copy_id = r.headers["location"].split("/")[-1]
-        assert any(f"duplicated to {copy_id}" in e["message"]
-                   for e in client.get(f"/api/items/{cid}/log").json())
-        assert any(f"duplicate of {cid}" in e["message"]
-                   for e in client.get(f"/api/items/{copy_id}/log").json())
+        assert any(
+            f"duplicated to {copy_id}" in e["message"]
+            for e in client.get(f"/api/items/{cid}/log").json()
+        )
+        assert any(
+            f"duplicate of {cid}" in e["message"]
+            for e in client.get(f"/api/items/{copy_id}/log").json()
+        )
 
 
 class TestChoosingPhotos:
@@ -3233,16 +3793,18 @@ class TestChoosingPhotos:
         assert '<label class="btn sm filebtn">choose files' in page
         # The native input lives inside that label, which is the only way the
         # browser's own "Choose Files" button and "no file chosen" never appear.
-        assert re.search(r'<label class="btn sm filebtn">choose files\s*'
-                         r'<input type="file"', page)
+        assert re.search(
+            r'<label class="btn sm filebtn">choose files\s*'
+            r'<input type="file"',
+            page,
+        )
 
     def test_it_uploads_without_a_button_press(self, client, part):
         page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "input.addEventListener('change'" in page
         assert "requestSubmit" in page
 
-    def test_the_button_is_still_there_for_a_browser_without_scripts(self, client,
-                                                                     part):
+    def test_the_button_is_still_there_for_a_browser_without_scripts(self, client, part):
         """The submit hides itself from the script above rather than being absent, so
         the form still works where that script never runs."""
         page = client.get(f"/parts/{part()['asset_id']}").text
@@ -3261,6 +3823,7 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
 
     def expected(self, kind, aid):
         from app import labels
+
         return labels.qr_svg(f"https://example.test/{kind}/{aid}#photo-upload")
 
     def test_a_machine_page_carries_a_code_for_its_own_url(self, client, computer):
@@ -3317,25 +3880,29 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
         """Same reason as the labels: most readers, the gallery's own scanner
         included, decode standard QR only."""
         from app import labels
+
         svg = labels.qr_svg("https://example.test/parts/RH-0001#photo-upload")
         side = int(re.search(r'viewBox="0 0 (\d+) ', svg).group(1))
-        assert side >= 21 + 2 * 2                       # smallest standard, plus border
+        assert side >= 21 + 2 * 2  # smallest standard, plus border
 
     def test_a_visitor_is_not_offered_one(self, client, part, monkeypatch):
         """A code leading to a page with no upload button on it is a promise the site
         will not keep. Auth is off in these tests, so this asks for it."""
         from app import main
+
         aid = part()["asset_id"]
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/parts/{aid}").text
-        assert 'class="section photo-qr"' not in page   # the block, not the stylesheet
+        assert 'class="section photo-qr"' not in page  # the block, not the stylesheet
         assert self.expected("parts", aid) not in page
 
     def test_a_phone_that_arrives_logged_out_is_sent_back_to_the_item(
-            self, client, part, monkeypatch):
+        self, client, part, monkeypatch
+    ):
         """Scanning is most of the way to the picture; being handed the gallery after
         logging in and told to find the thing in your hands again is not."""
         from app import main
+
         aid = part()["asset_id"]
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         # The header shows a log-in button only where there is a login to do, and
@@ -3351,14 +3918,12 @@ class TestLoggingOutStaysWhereYouAre:
 
     def test_it_goes_back_to_the_page_it_was_done_from(self, client, part):
         aid = part()["asset_id"]
-        r = client.post("/logout", data={"next": f"/parts/{aid}"},
-                        follow_redirects=False)
+        r = client.post("/logout", data={"next": f"/parts/{aid}"}, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == f"/parts/{aid}"
 
     def test_a_search_is_part_of_where_you_were(self, client):
         """The gallery with a search in the address is not the gallery."""
-        r = client.post("/logout", data={"next": "/?q=amiga&sort=year"},
-                        follow_redirects=False)
+        r = client.post("/logout", data={"next": "/?q=amiga&sort=year"}, follow_redirects=False)
         assert r.headers["location"] == "/?q=amiga&sort=year"
 
     def test_an_edit_form_lands_on_the_item_it_was_editing(self, client, part):
@@ -3366,23 +3931,29 @@ class TestLoggingOutStaysWhereYouAre:
         to the login just left. The item behind it is public, and is what was being
         looked at anyway."""
         aid = part()["asset_id"]
-        r = client.post("/logout", data={"next": f"/parts/{aid}/edit"},
-                        follow_redirects=False)
+        r = client.post("/logout", data={"next": f"/parts/{aid}/edit"}, follow_redirects=False)
         assert r.headers["location"] == f"/parts/{aid}"
 
-    @pytest.mark.parametrize("nxt", [
-        "/computers/new",            # nothing behind it yet
-        "/parts/RH-0001/delete",     # a door, not a page
-        "/computers/RH-0001/label.pdf",
-        "/api/parts", "/docs",
-        "//evil.test/x", "https://evil.test/x", "",   # and not off the site at all
-    ])
+    @pytest.mark.parametrize(
+        "nxt",
+        [
+            "/computers/new",  # nothing behind it yet
+            "/parts/RH-0001/delete",  # a door, not a page
+            "/computers/RH-0001/label.pdf",
+            "/api/parts",
+            "/docs",
+            "//evil.test/x",
+            "https://evil.test/x",
+            "",  # and not off the site at all
+        ],
+    )
     def test_anything_else_is_the_gallery(self, client, nxt):
         r = client.post("/logout", data={"next": nxt}, follow_redirects=False)
         assert r.headers["location"] == "/"
 
     def _as_logged_in(self, monkeypatch):
         from app import main
+
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         monkeypatch.setattr(main.auth, "_check_cookie", lambda request: True)
         monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
@@ -3391,11 +3962,11 @@ class TestLoggingOutStaysWhereYouAre:
         self._as_logged_in(monkeypatch)
         aid = part()["asset_id"]
         page = client.get(f"/parts/{aid}?photo=front.jpg").text
-        assert (f'<input type="hidden" name="next"'
-                f' value="/parts/{aid}?photo=front.jpg">') in page
+        assert (f'<input type="hidden" name="next" value="/parts/{aid}?photo=front.jpg">') in page
 
     def test_the_way_in_carries_it_the_same_way(self, client, part, monkeypatch):
         from app import main
+
         aid = part()["asset_id"]
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
@@ -3414,6 +3985,7 @@ class TestPhotographsOnACreateForm:
     def image(name="shot.jpg", size=(400, 300)):
         import io
         from PIL import Image
+
         buf = io.BytesIO()
         Image.new("RGB", size, (90, 120, 60)).save(buf, "JPEG", quality=90)
         buf.seek(0)
@@ -3424,36 +3996,50 @@ class TestPhotographsOnACreateForm:
 
     def test_a_machine_is_photographed_as_it_is_created(self, client):
         from app import main
-        r = client.post("/computers/new", data={"model": "Snapped"},
-                        files={"photos": self.image()}, follow_redirects=False)
+
+        r = client.post(
+            "/computers/new",
+            data={"model": "Snapped"},
+            files={"photos": self.image()},
+            follow_redirects=False,
+        )
         aid = self.created(r)
         assert (main.IMAGES_DIR / "computers" / f"{aid}.jpg").exists()
         # The first one becomes the machine's own photo, as it would on the item page.
-        assert client.get(f"/api/computers/{aid}").json()["image"] == \
-            f"computers/{aid}.jpg"
+        assert client.get(f"/api/computers/{aid}").json()["image"] == f"computers/{aid}.jpg"
 
     def test_a_part_is_photographed_as_it_is_created(self, client):
         from app import main
-        r = client.post("/parts/new", data={"type": "video", "model": "Trident"},
-                        files={"photos": self.image()}, follow_redirects=False)
+
+        r = client.post(
+            "/parts/new",
+            data={"type": "video", "model": "Trident"},
+            files={"photos": self.image()},
+            follow_redirects=False,
+        )
         aid = self.created(r, "parts")
         assert (main.IMAGES_DIR / "parts" / f"{aid}.jpg").exists()
         assert client.get(f"/api/parts/{aid}").json()["image"] == f"parts/{aid}.jpg"
 
     def test_several_arrive_together_and_the_first_is_the_primary(self, client):
         from app import main
-        r = client.post("/computers/new", data={"model": "Gallery"},
-                        files=[("photos", self.image("a.jpg")),
-                               ("photos", self.image("b.jpg")),
-                               ("photos", self.image("c.jpg"))],
-                        follow_redirects=False)
+
+        r = client.post(
+            "/computers/new",
+            data={"model": "Gallery"},
+            files=[
+                ("photos", self.image("a.jpg")),
+                ("photos", self.image("b.jpg")),
+                ("photos", self.image("c.jpg")),
+            ],
+            follow_redirects=False,
+        )
         aid = self.created(r)
         folder = main.IMAGES_DIR / "computers"
         assert (folder / f"{aid}.jpg").exists()
         assert (folder / f"{aid}-2.jpg").exists()
         assert (folder / f"{aid}-3.jpg").exists()
-        assert client.get(f"/api/computers/{aid}").json()["image"] == \
-            f"computers/{aid}.jpg"
+        assert client.get(f"/api/computers/{aid}").json()["image"] == f"computers/{aid}.jpg"
 
     def test_a_file_that_is_not_an_image_creates_nothing_at_all(self, client):
         """Checked before the machine is written rather than after. A file refused
@@ -3462,29 +4048,37 @@ class TestPhotographsOnACreateForm:
         import io
 
         from app import main
+
         folder = main.IMAGES_DIR / "computers"
         folder.mkdir(parents=True, exist_ok=True)
         before = sorted(p.name for p in folder.iterdir())
-        r = client.post("/computers/new", data={"model": "Rejected"},
-                        files={"photos": ("notes.txt", io.BytesIO(b"nope"),
-                                          "text/plain")},
-                        follow_redirects=False)
+        r = client.post(
+            "/computers/new",
+            data={"model": "Rejected"},
+            files={"photos": ("notes.txt", io.BytesIO(b"nope"), "text/plain")},
+            follow_redirects=False,
+        )
         assert r.status_code == 400
         assert client.get("/api/computers").json() == []
         assert sorted(p.name for p in folder.iterdir()) == before
 
-    def test_a_drive_folded_into_a_machine_photographs_the_machine(self, client,
-                                                                   computer):
+    def test_a_drive_folded_into_a_machine_photographs_the_machine(self, client, computer):
         """A floppy becomes a row on the machine rather than an asset of its own, so
         it has no tag of its own to file a photograph under: the machine it went
         into is the only place they can go."""
         aid = computer()["asset_id"]
-        client.post("/parts/new",
-                    data={"type": "storage", "kind": "Floppy/Gotek",
-                          "computer_id": aid, "drive_desc": '3.5" 1.44MB'},
-                    files={"photos": self.image()}, follow_redirects=False)
-        assert client.get(f"/api/computers/{aid}").json()["image"] == \
-            f"computers/{aid}.jpg"
+        client.post(
+            "/parts/new",
+            data={
+                "type": "storage",
+                "kind": "Floppy/Gotek",
+                "computer_id": aid,
+                "drive_desc": '3.5" 1.44MB',
+            },
+            files={"photos": self.image()},
+            follow_redirects=False,
+        )
+        assert client.get(f"/api/computers/{aid}").json()["image"] == f"computers/{aid}.jpg"
 
     @pytest.mark.parametrize("path", ["/computers/new", "/parts/new"])
     def test_the_form_offers_the_picker_and_can_carry_a_file(self, client, path):
@@ -3496,8 +4090,10 @@ class TestPhotographsOnACreateForm:
         """The item already has a page, where a photograph uploads the moment it is
         picked; a second, slower way to do the same thing on the edit form would
         only be a way of doing it worse."""
-        for path in (f"/computers/{computer()['asset_id']}/edit",
-                     f"/parts/{part()['asset_id']}/edit"):
+        for path in (
+            f"/computers/{computer()['asset_id']}/edit",
+            f"/parts/{part()['asset_id']}/edit",
+        ):
             assert 'name="photos"' not in client.get(path).text
 
     def test_the_picker_is_not_the_one_that_uploads_on_selection(self, client):
@@ -3511,16 +4107,27 @@ class TestTheIconSet:
     tools/make_icons.py. The artwork is a design matter; that it keeps its
     transparency on the way into every format is not.
     """
+
     STATIC = Path(__file__).resolve().parent.parent / "app" / "static"
 
     def open(self, name):
         from PIL import Image
+
         return Image.open(self.STATIC / name)
 
-    @pytest.mark.parametrize("name", ["app-icon.png", "favicon-16x16.png",
-                                      "favicon-32x32.png", "icon-192.png",
-                                      "icon-512.png", "logo-512.png",
-                                      "logo-256.png", "favicon.ico"])
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "app-icon.png",
+            "favicon-16x16.png",
+            "favicon-32x32.png",
+            "icon-192.png",
+            "icon-512.png",
+            "logo-512.png",
+            "logo-256.png",
+            "favicon.ico",
+        ],
+    )
     def test_the_background_stays_transparent(self, name):
         im = self.open(name).convert("RGBA")
         assert im.getchannel("A").getextrema()[0] == 0, f"{name} lost its alpha"
@@ -3531,11 +4138,16 @@ class TestTheIconSet:
         im = self.open("apple-touch-icon.png").convert("RGBA")
         assert im.getchannel("A").getextrema() == (255, 255)
 
-    @pytest.mark.parametrize("name,size", [("favicon-16x16.png", 16),
-                                           ("favicon-32x32.png", 32),
-                                           ("apple-touch-icon.png", 180),
-                                           ("icon-192.png", 192),
-                                           ("icon-512.png", 512)])
+    @pytest.mark.parametrize(
+        "name,size",
+        [
+            ("favicon-16x16.png", 16),
+            ("favicon-32x32.png", 32),
+            ("apple-touch-icon.png", 180),
+            ("icon-192.png", 192),
+            ("icon-512.png", 512),
+        ],
+    )
     def test_each_slot_is_the_square_it_claims(self, name, size):
         assert self.open(name).size == (size, size)
 
@@ -3558,6 +4170,7 @@ class TestTheIconSet:
         """No transparent margin left on the master, so every icon made from it uses
         the whole slot."""
         from PIL import Image
+
         im: Image.Image = self.open("app-icon.png").convert("RGBA")
         solid = im.getchannel("A").point(lambda v: 255 if v > 32 else 0)
         assert solid.getbbox() == (0, 0, im.width, im.height)
@@ -3573,11 +4186,13 @@ class TestWatermark:
     @staticmethod
     def write_photo(path):
         from PIL import Image
+
         path.parent.mkdir(parents=True, exist_ok=True)
         Image.new("RGB", (600, 400), (90, 110, 130)).save(path, "JPEG", quality=95)
 
     def test_our_own_photo_comes_back_marked(self, client, part):
         from app import main
+
         aid = part()["asset_id"]
         photo = main.IMAGES_DIR / "parts" / f"{aid}.jpg"
         self.write_photo(photo)
@@ -3594,6 +4209,7 @@ class TestWatermark:
         it stays legible on a 5712px photo and unobtrusive on a small one."""
         from PIL import Image
         from app import main
+
         marks = []
         for size in ((400, 300), (2000, 1500)):
             mark = Image.open(main.WM_SRC).convert("RGBA")
@@ -3605,6 +4221,7 @@ class TestWatermark:
     def test_a_reference_photo_is_left_alone(self, client, part):
         """Someone else's picture of the same model is not ours to sign."""
         from app import main
+
         aid = part()["asset_id"]
         rel = f"parts/{aid}.jpg"
         photo = main.IMAGES_DIR / rel
@@ -3618,6 +4235,7 @@ class TestWatermark:
 
     def test_the_cache_directory_is_not_served(self, client):
         from app import main
+
         assert client.get("/images/.wm/parts/anything.jpg").status_code == 404
         assert client.get(f"/images/.wm/{main.WM_CACHE.name}/parts/x.jpg").status_code == 404
 
@@ -3626,6 +4244,7 @@ class TestWatermark:
         so changing the size used to leave every existing watermark at the old one.
         The parameters are in the directory name, so a change misses the cache."""
         from app import main
+
         assert main.WM_CACHE.parent.name == ".wm"
         assert str(main.WM_SCALE) in main.WM_CACHE.name
         assert str(main.WM_MIN_PX) in main.WM_CACHE.name
@@ -3634,6 +4253,7 @@ class TestWatermark:
         """Changing how the copy is made, rather than the numbers it is made with,
         also has to miss the old cache -- baking in the orientation did."""
         from app import main
+
         assert f"b{main.WM_BUILD}" in main.WM_CACHE.name
 
 
@@ -3645,13 +4265,14 @@ class TestAPhotoLyingOnItsSide:
     photo altogether: off centre, and the wrong shape.
     """
 
-    ORIENT = 6      # "turn 90° clockwise to view"
-    SIZE = (1200, 900)   # landscape pixels, so it should be served 900x1200
+    ORIENT = 6  # "turn 90° clockwise to view"
+    SIZE = (1200, 900)  # landscape pixels, so it should be served 900x1200
 
     def upload(self, client, aid):
         import io
 
         from PIL import Image, ImageDraw
+
         im = Image.new("RGB", self.SIZE, (40, 40, 50))
         d = ImageDraw.Draw(im)
         d.rectangle([0, 0, 300, 220], fill=(220, 60, 60))
@@ -3660,15 +4281,18 @@ class TestAPhotoLyingOnItsSide:
         buf = io.BytesIO()
         im.save(buf, "JPEG", quality=90, exif=exif)
         buf.seek(0)
-        client.post(f"/parts/{aid}/photo",
-                    files={"photos": ("phone.jpeg", buf, "image/jpeg")},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/photo",
+            files={"photos": ("phone.jpeg", buf, "image/jpeg")},
+            follow_redirects=False,
+        )
         return f"parts/{aid}.jpeg"
 
     def served(self, client, rel):
         import io
 
         from PIL import Image
+
         return Image.open(io.BytesIO(client.get(f"/images/{rel}").content))
 
     def test_it_arrives_the_way_up_it_should_be_seen(self, client, part):
@@ -3683,16 +4307,18 @@ class TestAPhotoLyingOnItsSide:
         from PIL import Image
 
         from app import main
+
         aid = part()["asset_id"]
         rel = self.upload(client, aid)
         sw, sh = self.served(client, rel).size
         x, y, w, h = 0.10, 0.55, 0.40, 0.30
-        client.post(f"/parts/{aid}/photo-crop",
-                    data={"image": rel, "x": x, "y": y, "w": w, "h": h},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/photo-crop",
+            data={"image": rel, "x": x, "y": y, "w": w, "h": h},
+            follow_redirects=False,
+        )
         # Rounded the way the crop rounds, from the size the browser was given.
-        want = (round((x + w) * sw) - round(x * sw),
-                round((y + h) * sh) - round(y * sh))
+        want = (round((x + w) * sw) - round(x * sw), round((y + h) * sh) - round(y * sh))
         with Image.open(main.IMAGES_DIR / rel) as out:
             assert out.size == want
 
@@ -3700,6 +4326,7 @@ class TestAPhotoLyingOnItsSide:
         """The og:image dimensions let a link preview lay the image out without
         fetching it, so they have to describe the copy that is actually served."""
         from app import main
+
         aid = part()["asset_id"]
         self.upload(client, aid)
         assert main._image_size(f"parts/{aid}.jpeg") == (self.SIZE[1], self.SIZE[0])
@@ -3731,8 +4358,13 @@ class TestStartingFromAnExistingPart:
         assert f'"id": "{aid}"' in page
 
     def test_starting_from_a_part_fills_in_what_describes_the_model(self, client, part):
-        src = part(type="video", manufacturer="Tseng", model="ET4000", year=1993,
-                   specs="Chip: ET4000 | Interface: VLB")
+        src = part(
+            type="video",
+            manufacturer="Tseng",
+            model="ET4000",
+            year=1993,
+            specs="Chip: ET4000 | Interface: VLB",
+        )
         page = client.get(f"/parts/new?from={src['asset_id']}").text
         assert 'value="Tseng"' in page and 'value="ET4000"' in page
         assert 'value="1993"' in page
@@ -3742,7 +4374,7 @@ class TestStartingFromAnExistingPart:
         """The source must not be overwritten: the form posts to /parts/new."""
         src = part(type="video", manufacturer="Tseng", model="ET4000")
         page = client.get(f"/parts/new?from={src['asset_id']}").text
-        form = page[page.index('<form class="edit"'):]
+        form = page[page.index('<form class="edit"') :]
         assert 'action="/parts/new"' in form[:200]
         assert f"/parts/{src['asset_id']}/edit" not in form[:200]
 
@@ -3757,8 +4389,14 @@ class TestStartingFromAnExistingPart:
         on it -- being offered the answer is the opposite of being given it, which
         is the distinction this test is about."""
         import re
-        src = part(manufacturer="Tseng", model="ET4000", source="eBay",
-                   acquired_date="2026-01-05", notes="a bit bent")
+
+        src = part(
+            manufacturer="Tseng",
+            model="ET4000",
+            source="eBay",
+            acquired_date="2026-01-05",
+            notes="a bit bent",
+        )
         page = client.get(f"/parts/new?from={src['asset_id']}").text
         for field in ("source", "acquired_date"):
             box = re.search(rf'<input[^>]*\bname="{field}"[^>]*>', page, re.S)
@@ -3782,8 +4420,7 @@ class TestStartingFromAnExistingPart:
         assert r.status_code == 200
         assert "Started from" not in r.text
 
-    def test_it_keeps_the_machine_the_part_is_being_added_to(self, client, part,
-                                                            computer):
+    def test_it_keeps_the_machine_the_part_is_being_added_to(self, client, part, computer):
         cid = computer()["asset_id"]
         src = part(type="video", manufacturer="Tseng", model="ET4000")
         page = client.get(f"/parts/new?from={src['asset_id']}&computer_id={cid}").text
@@ -3838,6 +4475,7 @@ class TestTheNumbersPage:
 
     def test_the_traffic_report_is_still_private(self, client, monkeypatch):
         from app import main
+
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.get("/traffic", follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
@@ -3864,31 +4502,44 @@ class TestFollowingAFigureToItsItems:
         comes out with its separator as `&amp;` -- which is the correct way to write
         an `&` in HTML, and what a browser turns back into `&` before requesting it.
         Comparing the raw attribute would be testing the escaping, not the link."""
-        return sorted({html.unescape(h)
-                       for h in re.findall(r'href="(/browse\?[^"]*)"', page)})
+        return sorted({html.unescape(h) for h in re.findall(r'href="(/browse\?[^"]*)"', page)})
 
     @staticmethod
     def _cards(page):
         """The asset ids of the cards in the grid."""
-        return [href.rsplit("/", 1)[1]
-                for href in re.findall(r'class="card" href="([^"]+)"', page)]
+        return [href.rsplit("/", 1)[1] for href in re.findall(r'class="card" href="([^"]+)"', page)]
 
     def _a_bit_of_everything(self, client, computer, part):
         """One machine with memory, chips and drives, and parts with the child rows
         the aggregate figures are summed from, so every tile renders."""
-        c = computer(year=1991, condition="Working", acquired_date="2026-05-01",
-                     drives='2x 5.25" 360K; 1x Gotek 1.44MB')
-        client.post(f"/computers/{c['asset_id']}/edit",
-                    data={"ramchip:41256": "18"}, follow_redirects=False)
-        part(computer_id=c["asset_id"], type="motherboard", manufacturer="IBM",
-             model="Planar", year=1988, condition="Working",
-             specs="Form factor: AT | Slots: 8× 8-bit ISA | Ports: DIN keyboard")
-        part(type="storage", manufacturer="SanDisk", model="CF card", year=1999,
-             specs="Kind: CF | Capacity: 4GB")
+        c = computer(
+            year=1991,
+            condition="Working",
+            acquired_date="2026-05-01",
+            drives='2x 5.25" 360K; 1x Gotek 1.44MB',
+        )
+        client.post(
+            f"/computers/{c['asset_id']}/edit", data={"ramchip:41256": "18"}, follow_redirects=False
+        )
+        part(
+            computer_id=c["asset_id"],
+            type="motherboard",
+            manufacturer="IBM",
+            model="Planar",
+            year=1988,
+            condition="Working",
+            specs="Form factor: AT | Slots: 8× 8-bit ISA | Ports: DIN keyboard",
+        )
+        part(
+            type="storage",
+            manufacturer="SanDisk",
+            model="CF card",
+            year=1999,
+            specs="Kind: CF | Capacity: 4GB",
+        )
         return c
 
-    def test_every_figure_on_the_page_leads_somewhere_real(self, client, computer,
-                                                           part):
+    def test_every_figure_on_the_page_leads_somewhere_real(self, client, computer, part):
         """A sweep of the whole page. A filter name misspelt in one tile would
         otherwise stay hidden until someone clicked that one tile.
 
@@ -3917,8 +4568,7 @@ class TestFollowingAFigureToItsItems:
         part(type="sound", model="CT2830")
         assert self._cards(client.get("/browse?f=type&v=video").text) == [card]
 
-    def test_the_best_equipped_machine_leads_to_the_parts_in_it(self, client,
-                                                                computer, part):
+    def test_the_best_equipped_machine_leads_to_the_parts_in_it(self, client, computer, part):
         cid = computer()["asset_id"]
         fitted = part(computer_id=cid, model="fitted")["asset_id"]
         part(model="spare")
@@ -3937,8 +4587,7 @@ class TestFollowingAFigureToItsItems:
         assert 'id="showdisposed" checked>' in page
 
     def test_the_gallery_itself_still_hides_them(self, client, part):
-        client.patch(f"/api/parts/{part(model='gone')['asset_id']}",
-                     json={"disposed": True})
+        client.patch(f"/api/parts/{part(model='gone')['asset_id']}", json={"disposed": True})
         assert 'id="showdisposed">' in client.get("/").text
 
     def test_an_unknown_view_is_a_404(self, client):
@@ -3950,6 +4599,7 @@ class TestFollowingAFigureToItsItems:
 
     def test_it_is_public_like_the_figures_it_came_from(self, client, monkeypatch):
         from app import main
+
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         r = client.get("/browse?f=all", follow_redirects=False)
         assert r.status_code == 200
@@ -3989,6 +4639,7 @@ class TestEveryObjectHasItsPortrait:
             f.write_bytes(b"not really a jpeg")
             written.append(f)
             return f
+
         yield make
         for f in written:
             f.unlink(missing_ok=True)
@@ -4007,8 +4658,9 @@ class TestEveryObjectHasItsPortrait:
     @staticmethod
     def queued(page):
         """The asset ids the queue behind the figure lists."""
-        return sorted(href.rsplit("/", 1)[1]
-                      for href in re.findall(r'class="card" href="([^"]+)"', page))
+        return sorted(
+            href.rsplit("/", 1)[1] for href in re.findall(r'class="card" href="([^"]+)"', page)
+        )
 
     def test_the_figure_is_on_the_page_every_visit(self, client, computer):
         """The tiles are eight drawn from a pool of dozens, so a figure in there is
@@ -4018,8 +4670,7 @@ class TestEveryObjectHasItsPortrait:
         for _ in range(12):
             assert "have no portrait yet" in self.standing(client.get("/stats").text)
 
-    def test_it_is_not_dealt_into_the_shuffle_as_well(self, client, db, computer,
-                                                      part):
+    def test_it_is_not_dealt_into_the_shuffle_as_well(self, client, db, computer, part):
         """Promoted out, not copied out. A figure in both places would come up beside
         itself on a fair fraction of renders, which reads as the shuffle being broken
         -- and gui_stats' own guard against that compares tiles with each other, not
@@ -4027,11 +4678,10 @@ class TestEveryObjectHasItsPortrait:
         computer()
         part()
         pool = main._facts(db, main._collection_stats(db), date.today().year)
-        assert pool                                   # or this proves nothing
+        assert pool  # or this proves nothing
         assert not [f for f in pool if f["href"] == "/browse?f=nophotos"]
 
-    def test_the_figure_and_the_queue_are_the_same_answer(self, client, computer,
-                                                          part, shoot):
+    def test_the_figure_and_the_queue_are_the_same_answer(self, client, computer, part, shoot):
         """The whole point of the stage. The headline said five and the list behind
         it named fourteen, which means one of them was wrong and a visitor had no way
         to tell which."""
@@ -4065,18 +4715,21 @@ class TestEveryObjectHasItsPortrait:
         import io
 
         from PIL import Image
+
         aid = computer()["asset_id"]
         buf = io.BytesIO()
         Image.new("RGB", (400, 300), (60, 90, 120)).save(buf, "JPEG", quality=90)
         buf.seek(0)
-        client.post(f"/computers/{aid}/note", data={"message": "recapped it"},
-                    files={"photos": ("shot.jpg", buf, "image/jpeg")},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/note",
+            data={"message": "recapped it"},
+            files={"photos": ("shot.jpg", buf, "image/jpeg")},
+            follow_redirects=False,
+        )
         assert self.counted(client.get("/stats").text) == 1
         assert self.queued(client.get("/browse?f=nophotos").text) == [aid]
 
-    def test_a_photograph_named_for_the_side_it_shows_still_counts(self, client,
-                                                                   part, shoot):
+    def test_a_photograph_named_for_the_side_it_shows_still_counts(self, client, part, shoot):
         """RH-0001-back-left is the part's photograph the same way RH-0001-2 is, and
         the gallery has always thought so. The count used to take one hyphen off the
         stem and not the second, so a folder of them would have left the part in the
@@ -4087,8 +4740,7 @@ class TestEveryObjectHasItsPortrait:
         assert "Every one of them" in self.standing(client.get("/stats").text)
         assert self.queued(client.get("/browse?f=nophotos").text) == []
 
-    def test_a_photograph_in_the_wrong_folder_is_nobody_s_portrait(self, client,
-                                                                   computer, shoot):
+    def test_a_photograph_in_the_wrong_folder_is_nobody_s_portrait(self, client, computer, shoot):
         """A picture in parts/ is a picture of a part. Filed under a machine's tag it
         is not the machine's portrait -- the machine's page does not show it -- so it
         must not answer the machine's question either."""
@@ -4105,7 +4757,7 @@ class TestEveryObjectHasItsPortrait:
         assert "Every one of them" in line and "no portrait" not in line
 
     def test_an_empty_register_claims_nothing(self, client):
-        """"Every one of them has had its portrait taken" is true of nothing and
+        """ "Every one of them has had its portrait taken" is true of nothing and
         reads as a boast on a fresh install."""
         page = client.get("/stats")
         assert page.status_code == 200
@@ -4123,6 +4775,7 @@ class TestTheCataloguePage:
 
     def test_every_model_in_the_catalogue_is_on_it(self, client):
         from app import machines
+
         page = client.get("/machines").text
         for m in machines.models():
             assert html.escape(m["model"]) in page, m["key"]
@@ -4131,12 +4784,13 @@ class TestTheCataloguePage:
         """The other view of the catalogue: not what was made, but how much of it
         is on the shelf."""
         from app.models import Computer
+
         aid = computer()["asset_id"]
         client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": "c64"}})
         page = client.get("/machines").text
         assert 'title="1 in the register"' in page
         assert ">(1)</a>" in page
-        assert '/browse?f=model&amp;v=c64' in page
+        assert "/browse?f=model&amp;v=c64" in page
         assert db.get(Computer, aid) is not None
 
     def test_a_model_nothing_is_filed_as_says_nothing(self, client):
@@ -4153,8 +4807,7 @@ class TestTheCataloguePage:
         client.patch(f"/api/computers/{c}", json={"machine": {"model_key": "amiga-500"}})
         client.patch(f"/api/parts/{p}", json={"machine": {"model_key": "amiga-500"}})
         page = client.get("/browse?f=model&v=amiga-500").text
-        assert sorted(re.findall(r'class="card" href="[^"]*/([A-Z0-9-]+)"', page)) \
-            == sorted([c, p])
+        assert sorted(re.findall(r'class="card" href="[^"]*/([A-Z0-9-]+)"', page)) == sorted([c, p])
 
     def test_a_model_the_catalogue_never_had_is_a_404(self, client):
         assert client.get("/browse?f=model&v=zx-spectrum-1024k").status_code == 404
@@ -4164,6 +4817,7 @@ class TestTheCataloguePage:
         what was made, not what is here -- so there is nothing on it to sign in
         for, and the JSON behind it is public for the same reason."""
         from app import main
+
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         for path in ("/machines", "/api/machines"):
             r = client.get(path, follow_redirects=False)
@@ -4171,6 +4825,7 @@ class TestTheCataloguePage:
 
     def test_the_rest_of_the_api_is_still_not(self, client, monkeypatch):
         from app import main
+
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get("/api/computers", follow_redirects=False).status_code == 401
 
@@ -4184,22 +4839,27 @@ class TestSearchTerms:
 
     def test_words_are_separate_terms(self):
         from app.main import search_terms
+
         assert search_terms("amstrad faulty") == ["amstrad", "faulty"]
 
     def test_case_and_spacing_do_not_matter(self):
         from app.main import search_terms
+
         assert search_terms("  AMSTRAD   PC1640 ") == ["amstrad", "pc1640"]
 
     def test_a_quoted_run_is_one_term(self):
         from app.main import search_terms
+
         assert search_terms('"etherlink iii"') == ["etherlink iii"]
 
     def test_quoted_and_bare_terms_mix(self):
         from app.main import search_terms
+
         assert search_terms('ibm "16-bit isa"') == ["ibm", "16-bit isa"]
 
     def test_an_empty_query_asks_for_nothing(self):
         from app.main import search_terms
+
         assert search_terms("") == [] and search_terms("   ") == []
 
 
@@ -4229,8 +4889,9 @@ class TestSearchingEveryField:
 
     def test_a_word_only_in_the_history(self, client, part):
         aid = part(model="Widget")["asset_id"]
-        client.post(f"/parts/{aid}/note", data={"message": "recapped the lot"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/note", data={"message": "recapped the lot"}, follow_redirects=False
+        )
         part(model="Other")
         page = client.get("/?q=recapped").text
         assert aid in page and page.count('class="card"') == 1
@@ -4253,7 +4914,7 @@ class TestSearchingEveryField:
     def test_a_quoted_phrase_must_be_contiguous(self, client, part):
         run = part(model="Etherlink III combo")["asset_id"]
         part(model="Etherlink", name="III elsewhere in the record")
-        page = client.get('/?q=%22etherlink+iii%22').text
+        page = client.get("/?q=%22etherlink+iii%22").text
         assert run in page and page.count('class="card"') == 1
 
     def test_nothing_matching_says_so(self, client, part):
@@ -4274,11 +4935,12 @@ class TestSearchingEveryField:
         part(notes="battery damage")
         page = served(client, client.get("/?q=battery").text)
         assert '"query": "battery"' in page
-        card = page[page.index('<a class="card"'):]
-        assert "battery" not in card[:card.index("</a>")]
+        card = page[page.index('<a class="card"') :]
+        assert "battery" not in card[: card.index("</a>")]
 
     def test_searching_is_public(self, client, part, monkeypatch):
         from app import main
+
         part(notes="battery damage")
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get("/?q=battery").status_code == 200
@@ -4318,34 +4980,33 @@ class TestTheFirstFewMatchesWhileYouType:
         assert out["items"][0]["aid"] == wanted
         assert out["total"] > 1
 
-    def test_a_name_that_starts_with_it_beats_one_that_merely_contains_it(
-            self, client, part):
+    def test_a_name_that_starts_with_it_beats_one_that_merely_contains_it(self, client, part):
         starts = part(name="Adaptec AHA-1542CF")["asset_id"]
         contains = part(name="Cable for Adaptec host adapters")["asset_id"]
         order = [i["aid"] for i in self.sug(client, "adaptec")["items"]]
         assert order.index(starts) < order.index(contains)
 
-    def test_a_hit_only_in_the_history_is_offered_but_sorts_below_a_named_one(
-            self, client, part):
+    def test_a_hit_only_in_the_history_is_offered_but_sorts_below_a_named_one(self, client, part):
         named = part(name="Recapped PSU tester")["asset_id"]
         logged = part(name="Mystery board")["asset_id"]
-        client.post(f"/parts/{logged}/note", data={"message": "recapped the lot"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{logged}/note", data={"message": "recapped the lot"}, follow_redirects=False
+        )
         order = [i["aid"] for i in self.sug(client, "recapped")["items"]]
         assert order == [named, logged]
 
     def test_a_disposed_item_is_offered_last_and_says_so(self, client, part):
         gone = part(name="Maxtor spare")["asset_id"]
         here = part(name="Maxtor keeper")["asset_id"]
-        client.post(f"/parts/{gone}/dispose", data={"note": "died", "date": ""},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{gone}/dispose", data={"note": "died", "date": ""}, follow_redirects=False
+        )
         items = self.sug(client, "maxtor")["items"]
         assert [i["aid"] for i in items] == [here, gone]
         assert items[1]["disposed"] is True and items[0]["disposed"] is False
 
     def test_each_row_carries_what_the_list_draws(self, client, computer):
-        aid = computer(manufacturer="Commodore", model="Amiga 2000",
-                       year=1987)["asset_id"]
+        aid = computer(manufacturer="Commodore", model="Amiga 2000", year=1987)["asset_id"]
         row = self.sug(client, "amiga")["items"][0]
         assert row["url"] == f"/computers/{aid}"
         assert row["name"] == "Commodore Amiga 2000"
@@ -4362,11 +5023,11 @@ class TestTheFirstFewMatchesWhileYouType:
         """The gallery tells a floppy from a disc from a disk by its Kind spec; a
         list of ten under the search box has the same job and the same answer."""
         part(type="storage", model="TEAC FD-235HF", specs="Kind: Floppy")
-        assert self.sug(client, "fd-235")["items"][0]["icon"] \
-            == "/static/placeholders/floppy.svg"
+        assert self.sug(client, "fd-235")["items"][0]["icon"] == "/static/placeholders/floppy.svg"
 
     def test_suggesting_is_public(self, client, part, monkeypatch):
         from app import main
+
         part(notes="battery damage")
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         assert client.get("/suggest", params={"q": "battery"}).status_code == 200
@@ -4383,18 +5044,22 @@ class TestTheBigPhotoView:
     def upload(client, kind, aid, size=(900, 600)):
         import io
         from PIL import Image
+
         buf = io.BytesIO()
         Image.new("RGB", size, (120, 90, 60)).save(buf, "JPEG", quality=92)
         buf.seek(0)
-        client.post(f"/{kind}/{aid}/photo",
-                    files={"photos": (f"{aid}.jpg", buf, "image/jpeg")},
-                    follow_redirects=False)
+        client.post(
+            f"/{kind}/{aid}/photo",
+            files={"photos": (f"{aid}.jpg", buf, "image/jpeg")},
+            follow_redirects=False,
+        )
         return f"{kind}/{aid}.jpg"
 
     @staticmethod
     def served_size(client, rel):
         import io
         from PIL import Image
+
         return Image.open(io.BytesIO(client.get(f"/images/{rel}").content)).size
 
     def test_each_photo_says_where_it_lives(self, client, part):
@@ -4406,8 +5071,7 @@ class TestTheBigPhotoView:
             page = client.get(f"/parts/{aid}").text
             assert f'data-kind="parts" data-aid="{aid}" data-rel="{rel}"' in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_the_zoom_is_not_shut_inside_the_photo_shape(self, client, part):
         """A tall photo opens with a black band either side of it, and zooming in
@@ -4423,11 +5087,9 @@ class TestTheBigPhotoView:
             assert "#lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
             assert "fit.style.transform = " in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
-    def test_a_mac_trackpad_is_answered_in_both_of_the_ways_it_is_reported(
-            self, client, part):
+    def test_a_mac_trackpad_is_answered_in_both_of_the_ways_it_is_reported(self, client, part):
         """A pinch on a trackpad reaches the page as ctrl+wheel in Chrome and in
         Firefox, and as Safari's own gesture events, which are non-standard and
         the only report Safari sends -- so both are listened for. The wheel is
@@ -4441,11 +5103,13 @@ class TestTheBigPhotoView:
             assert "addEventListener('gesturestart'" in page
             assert "addEventListener('gesturechange'" in page
             assert "e.ctrlKey || e.metaKey" in page
-            assert re.search(r"'wheel', e => \{\s*if \(cropping\(\)\) return;"
-                             r"\s*(//[^\n]*\n\s*)*e.preventDefault\(\);", page)
+            assert re.search(
+                r"'wheel', e => \{\s*if \(cropping\(\)\) return;"
+                r"\s*(//[^\n]*\n\s*)*e.preventDefault\(\);",
+                page,
+            )
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_a_photograph_on_a_phone_is_flicked_away_to_close_it(self, client, part):
         """A photograph at its own size on a phone is not on a page you can leave,
@@ -4463,8 +5127,7 @@ class TestTheBigPhotoView:
             assert "e.pointerType !== 'mouse'" in page
             assert "Math.abs(dy) > AWAY" in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_a_trip_home_cut_short_still_puts_the_overlay_away(self, client, part):
         """The overlay closes by sending the photo back into its thumbnail, and
@@ -4482,17 +5145,18 @@ class TestTheBigPhotoView:
             page = served(client, client.get(f"/parts/{aid}").text)
             # Stopped mid-trip, the trip is finished rather than dropped
             assert "const done = tween && tween.then;" in page
-            assert re.search(r"frame = null; tween = null; idle = null; vx = vy = 0;"
-                             r"\s*if \(done\) done\(\);", page)
+            assert re.search(
+                r"frame = null; tween = null; idle = null; vx = vy = 0;"
+                r"\s*if \(done\) done\(\);",
+                page,
+            )
             # and the things that stop it leave a photo on its way home alone
             assert re.search(r"e\.preventDefault\(\);\s*if \(going\) return;", page)
             assert "if (cropping() || held.size || going) return;" in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
-    def test_the_double_click_that_comes_back_out_of_a_zoom_is_heard(self, client,
-                                                                     part):
+    def test_the_double_click_that_comes_back_out_of_a_zoom_is_heard(self, client, part):
         """Double click to go in, double click to come back out -- except the way
         back out was never heard. Panning a zoomed photo holds the pointer capture,
         and a captured pointer's click and double click are delivered to the
@@ -4506,11 +5170,9 @@ class TestTheBigPhotoView:
             assert "box.addEventListener('dblclick'" in page
             assert "stage.addEventListener('dblclick'" not in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
-    def test_a_click_on_a_zoomed_photo_is_not_a_click_on_the_black(self, client,
-                                                                    part):
+    def test_a_click_on_a_zoomed_photo_is_not_a_click_on_the_black(self, client, part):
         """The same pointer capture makes a click on a zoomed photo arrive looking
         exactly like a click on the backdrop, which is the one click that means
         close -- so a zoomed photo dismissed itself at a touch. What the press
@@ -4525,11 +5187,9 @@ class TestTheBigPhotoView:
             assert "if (!dragged && e.target === box && downOn === box) close();" in page
             assert "if (e.target.closest('button, #lb-tools')) return;" in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
-    def test_the_whole_overlay_takes_the_gesture_not_just_the_photo(self, client,
-                                                                     part):
+    def test_the_whole_overlay_takes_the_gesture_not_just_the_photo(self, client, part):
         """On a phone most of what is on screen is the black around the photo, so
         a flick that starts there is still a flick -- and left to itself the phone
         scrolls the page underneath while the photo sits there doing nothing."""
@@ -4541,26 +5201,24 @@ class TestTheBigPhotoView:
             assert "box.addEventListener('pointermove'" in page
             assert re.search(r"#lightbox \{[^}]*touch-action: none", page, re.S)
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
-    def test_the_movement_is_dropped_for_anyone_who_asked_for_less_of_it(
-            self, client, part):
+    def test_the_movement_is_dropped_for_anyone_who_asked_for_less_of_it(self, client, part):
         """The glide, the spring at the edges and the eased zoom are all feel, and
         feel is exactly what a reader who has asked their system for less movement
         does not want. They get the same photo, put where it belongs at once."""
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            assert "matchMedia('(prefers-reduced-motion: reduce)')" in \
-                served(client, client.get(f"/parts/{aid}").text)
+            assert "matchMedia('(prefers-reduced-motion: reduce)')" in served(
+                client, client.get(f"/parts/{aid}").text
+            )
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
-    def test_the_editing_tools_are_only_for_the_logged_in(self, client, part,
-                                                          monkeypatch):
+    def test_the_editing_tools_are_only_for_the_logged_in(self, client, part, monkeypatch):
         from app import main
+
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
@@ -4571,15 +5229,13 @@ class TestTheBigPhotoView:
             assert "zoomable" in anon
         finally:
             monkeypatch.setattr(main.auth, "AUTH_ENABLED", False)
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_the_old_editor_page_opens_the_big_view_instead(self, client, part):
         """It was its own page; keeping the link working means one crop
         implementation rather than two."""
         aid = part()["asset_id"]
-        r = client.get(f"/parts/{aid}/edit-photo?image=parts%2F{aid}.jpg",
-                       follow_redirects=False)
+        r = client.get(f"/parts/{aid}/edit-photo?image=parts%2F{aid}.jpg", follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"] == f"/parts/{aid}?photo=parts/{aid}.jpg"
 
@@ -4589,53 +5245,57 @@ class TestTheBigPhotoView:
         back = f"/parts/{aid}?photo={rel}"
         try:
             assert self.served_size(client, rel) == (900, 600)
-            r = client.post(f"/parts/{aid}/photo-rotate",
-                            data={"image": rel, "dir": "cw", "next": back},
-                            follow_redirects=False)
+            r = client.post(
+                f"/parts/{aid}/photo-rotate",
+                data={"image": rel, "dir": "cw", "next": back},
+                follow_redirects=False,
+            )
             assert r.status_code == 303 and r.headers["location"] == back
             assert self.served_size(client, rel) == (600, 900)
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_cropping_from_the_view_returns_to_the_same_photo(self, client, part):
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         back = f"/parts/{aid}?photo={rel}"
         try:
-            r = client.post(f"/parts/{aid}/photo-crop",
-                            data={"image": rel, "x": "0.25", "y": "0.25",
-                                  "w": "0.5", "h": "0.5", "next": back},
-                            follow_redirects=False)
+            r = client.post(
+                f"/parts/{aid}/photo-crop",
+                data={"image": rel, "x": "0.25", "y": "0.25", "w": "0.5", "h": "0.5", "next": back},
+                follow_redirects=False,
+            )
             assert r.status_code == 303 and r.headers["location"] == back
             assert self.served_size(client, rel) == (450, 300)
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_a_nonsense_crop_box_is_refused(self, client, part):
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            r = client.post(f"/parts/{aid}/photo-crop",
-                            data={"image": rel, "x": "a", "y": "b", "w": "c", "h": "d"},
-                            follow_redirects=False)
+            r = client.post(
+                f"/parts/{aid}/photo-crop",
+                data={"image": rel, "x": "a", "y": "b", "w": "c", "h": "d"},
+                follow_redirects=False,
+            )
             assert r.status_code == 400
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_an_edit_is_recorded_in_the_history(self, client, part):
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            client.post(f"/parts/{aid}/photo-rotate", data={"image": rel, "dir": "ccw"},
-                        follow_redirects=False)
+            client.post(
+                f"/parts/{aid}/photo-rotate",
+                data={"image": rel, "dir": "ccw"},
+                follow_redirects=False,
+            )
             messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
             assert "rotated a photo" in messages
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_one_mode_of_the_toolbar_at_a_time(self, client, part):
         """crop swaps its button for an apply/cancel form using the hidden
@@ -4656,19 +5316,18 @@ class TestTheBigPhotoView:
             assert 'id="lb-delete"' in page
             assert 'data-act="photo-delete"' in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_it_asks_first(self, client, part):
         """The one tool in the row that cannot be undone, so it is the one that
         asks -- the same question the column's own delete asks."""
         page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert page.count("Delete this photo? This cannot be undone.") >= 1
-        assert re.search(r'id="lb-delete"[^>]*\n?\s*data-confirm="',
-                         page) is not None
+        assert re.search(r'id="lb-delete"[^>]*\n?\s*data-confirm="', page) is not None
 
     def test_it_is_only_for_the_logged_in(self, client, part, monkeypatch):
         from app import main
+
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
@@ -4676,17 +5335,15 @@ class TestTheBigPhotoView:
             assert 'id="lb-delete"' not in client.get(f"/parts/{aid}").text
         finally:
             monkeypatch.setattr(main.auth, "AUTH_ENABLED", False)
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
-    def test_it_carries_no_next_because_there_is_nowhere_to_return_to(
-            self, client, part):
+    def test_it_carries_no_next_because_there_is_nowhere_to_return_to(self, client, part):
         """Its neighbours come back to the same photograph still open. A deleted one
         will not be there, so this form does not ask to be sent back to it -- and
         the script that fills the toolbar in has to cope with that."""
         page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         form = page.split('id="lb-delete"')[1].split("</form>")[0]
-        assert "name=\"image\"" in form and "name=\"next\"" not in form
+        assert 'name="image"' in form and 'name="next"' not in form
         assert "const nxt = f.querySelector('[name=next]');" in page
         assert "if (nxt) nxt.value = back;" in page
 
@@ -4694,12 +5351,12 @@ class TestTheBigPhotoView:
         """Not on the photograph, which is the whole difference from a rotate."""
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
-        r = client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+        r = client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
         assert r.status_code == 303 and r.headers["location"] == f"/parts/{aid}"
         assert client.get(f"/images/{rel}").status_code == 404
         assert "deleted a photo" in [
-            e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+            e["message"] for e in client.get(f"/api/items/{aid}/log").json()
+        ]
 
     def test_it_steps_out_of_the_row_while_cropping(self, client, part):
         """Cropping puts an apply button where the row was. A delete left standing
@@ -4723,11 +5380,10 @@ class TestTheBigPhotoView:
         try:
             page = client.get(f"/parts/{aid}").text
             assert "rotate or crop" not in page
-            assert f'?photo=parts%2F{aid}' not in page
+            assert f"?photo=parts%2F{aid}" not in page
             assert 'tabindex="0" role="button"' in page
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
 
 class TestAPhotographIsNeverHalfWritten:
@@ -4751,19 +5407,27 @@ class TestAPhotographIsNeverHalfWritten:
     def upload(client, aid, size=(1400, 1000)):
         import io
         from PIL import Image
+
         buf = io.BytesIO()
         # Noise rather than flat colour: a flat JPEG is small enough to write in one
         # go, and would hide the very window this is about.
         import random
+
         rnd = random.Random(7)
         im = Image.new("RGB", size)
-        im.putdata([(rnd.randrange(256), rnd.randrange(256), rnd.randrange(256))
-                    for _ in range(size[0] * size[1])])
+        im.putdata(
+            [
+                (rnd.randrange(256), rnd.randrange(256), rnd.randrange(256))
+                for _ in range(size[0] * size[1])
+            ]
+        )
         im.save(buf, "JPEG", quality=95)
         buf.seek(0)
-        client.post(f"/parts/{aid}/photo",
-                    files={"photos": (f"{aid}.jpg", buf, "image/jpeg")},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/photo",
+            files={"photos": (f"{aid}.jpg", buf, "image/jpeg")},
+            follow_redirects=False,
+        )
         return f"parts/{aid}.jpg"
 
     def test_a_reader_never_sees_a_fragment(self, client, part):
@@ -4784,6 +5448,7 @@ class TestAPhotographIsNeverHalfWritten:
         import threading
         from app.main import IMAGES_DIR
         from PIL import Image
+
         aid = part()["asset_id"]
         rel = self.upload(client, aid)
         src = IMAGES_DIR / rel
@@ -4805,9 +5470,11 @@ class TestAPhotographIsNeverHalfWritten:
             t.start()
         try:
             for _ in range(6):
-                client.post(f"/parts/{aid}/photo-crop",
-                            data={"image": rel, "x": "0", "y": "0",
-                                  "w": "1", "h": "0.8"}, follow_redirects=False)
+                client.post(
+                    f"/parts/{aid}/photo-crop",
+                    data={"image": rel, "x": "0", "y": "0", "w": "1", "h": "0.8"},
+                    follow_redirects=False,
+                )
         finally:
             stop.set()
             for t in readers:
@@ -4820,18 +5487,21 @@ class TestAPhotographIsNeverHalfWritten:
         not be mistaken for one of the item's photographs while it exists, and must
         not survive the move."""
         from app.main import IMAGES_DIR
+
         aid = part()["asset_id"]
         rel = self.upload(client, aid)
-        client.post(f"/parts/{aid}/photo-crop",
-                    data={"image": rel, "x": "0", "y": "0", "w": "1", "h": "0.5"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/photo-crop",
+            data={"image": rel, "x": "0", "y": "0", "w": "1", "h": "0.5"},
+            follow_redirects=False,
+        )
         assert not list((IMAGES_DIR / "parts").glob("*.part"))
         # And were one there mid-write, the folder listing would pass over it.
         (IMAGES_DIR / "parts" / f"{aid}.jpg.part").write_bytes(b"not an image")
         try:
             from app.common import folder_images
-            assert not [n for _stem, n in folder_images("parts")
-                        if n.endswith(".part")]
+
+            assert not [n for _stem, n in folder_images("parts") if n.endswith(".part")]
             assert client.get(f"/parts/{aid}").status_code == 200
         finally:
             (IMAGES_DIR / "parts" / f"{aid}.jpg.part").unlink()
@@ -4840,11 +5510,14 @@ class TestAPhotographIsNeverHalfWritten:
         """Writing it somewhere else first must not change what comes out."""
         aid = part()["asset_id"]
         rel = self.upload(client, aid, size=(1000, 800))
-        client.post(f"/parts/{aid}/photo-crop",
-                    data={"image": rel, "x": "0", "y": "0", "w": "0.5", "h": "0.5"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/photo-crop",
+            data={"image": rel, "x": "0", "y": "0", "w": "0.5", "h": "0.5"},
+            follow_redirects=False,
+        )
         import io
         from PIL import Image
+
         with Image.open(io.BytesIO(client.get(f"/images/{rel}").content)) as im:
             assert im.size == (500, 400)
 
@@ -4855,6 +5528,7 @@ class TestAPhotographIsNeverHalfWritten:
         photograph, and therefore fresh forever."""
         import os
         from app.main import IMAGES_DIR, WM_CACHE, _watermarked_file
+
         aid = part()["asset_id"]
         rel = self.upload(client, aid)
         src = IMAGES_DIR / rel
@@ -4863,6 +5537,7 @@ class TestAPhotographIsNeverHalfWritten:
         (WM_CACHE / rel).unlink(missing_ok=True)
         made = _watermarked_file(rel)
         assert made.stat().st_mtime == src.stat().st_mtime
+
 
 class TestChangingAPartsType:
     """What a part is asked depends on what it is, so the type menu has to fetch the
@@ -4897,12 +5572,16 @@ class TestChangingAPartsType:
         select has no option to match it, so the browser sends the first one and a
         Delta 300W becomes a motherboard on the next save. Power supplies were out
         of the vocabulary and back in it, and this is the round trip that says so."""
-        aid = part(type="psu", manufacturer="Delta Electronics Ltd",
-                   model="DPS-300SB-1 B Rev. 00")["asset_id"]
+        aid = part(type="psu", manufacturer="Delta Electronics Ltd", model="DPS-300SB-1 B Rev. 00")[
+            "asset_id"
+        ]
         page = client.get(f"/parts/{aid}/edit").text
         assert '<option value="psu" selected>Power supply</option>' in page
-        client.post(f"/parts/{aid}/edit", data={"type": "psu", "condition": "Working"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={"type": "psu", "condition": "Working"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/parts/{aid}").json()["type"] == "psu"
 
     def test_what_the_old_type_recorded_comes_across(self, client, part):
@@ -4910,11 +5589,14 @@ class TestChangingAPartsType:
         old type owns, and only what would not fit there is an attribute -- so
         retyping used to drop everything that did fit. A video card became a display
         and lost the chip it was built round."""
-        aid = part(type="video",
-                   specs="Chip: S3 Trio64 | Interface: PCI | Memory: 2MiB")["asset_id"]
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "display", "spec_type": "CRT"},
-                    follow_redirects=False)
+        aid = part(type="video", specs="Chip: S3 Trio64 | Interface: PCI | Memory: 2MiB")[
+            "asset_id"
+        ]
+        client.post(
+            f"/parts/{aid}/edit",
+            data={"type": "display", "spec_type": "CRT"},
+            follow_redirects=False,
+        )
         specs = client.get(f"/api/parts/{aid}").json()["specs"]
         assert "Chip: S3 Trio64" in specs and "Memory: 2 MiB" in specs
         assert specs.startswith("Type: CRT")
@@ -4926,18 +5608,20 @@ class TestChangingAPartsType:
         # answered rather than by being carried.
         page = client.get(f"/parts/{aid}/edit?type=display").text
         assert re.search(r'id="spec_interface_custom"[^>]*value="PCI"', page)
-        client.post(f"/parts/{aid}/edit",
-                    data={"type": "display", "spec_type": "CRT",
-                          "spec_interface_custom": "PCI"}, follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit",
+            data={"type": "display", "spec_type": "CRT", "spec_interface_custom": "PCI"},
+            follow_redirects=False,
+        )
         assert "Interface: PCI" in client.get(f"/api/parts/{aid}").json()["specs"]
 
     def test_an_ordinary_edit_still_carries_only_its_attributes(self, client, part):
         """Saving without retyping behaves exactly as it did."""
         aid = part(type="video", specs="Chip: S3 | Voltage: 5V")["asset_id"]
-        client.post(f"/parts/{aid}/edit", data={"type": "video", "spec_chip": "S3"},
-                    follow_redirects=False)
-        assert client.get(f"/api/parts/{aid}").json()["specs"] == \
-            "Chip: S3 | Voltage: 5V"
+        client.post(
+            f"/parts/{aid}/edit", data={"type": "video", "spec_chip": "S3"}, follow_redirects=False
+        )
+        assert client.get(f"/api/parts/{aid}").json()["specs"] == "Chip: S3 | Voltage: 5V"
 
     def test_the_menu_asks_before_it_throws_away_what_you_typed(self, client, part):
         page = served(client, client.get(f"/parts/{part()['asset_id']}/edit").text)
@@ -4952,8 +5636,13 @@ class TestDeletingAHistoryEntry:
 
     def ids_for(self, db, aid, message):
         from app.models import LogEntry
-        return [i for (i,) in db.query(LogEntry.id)
-                .filter(LogEntry.asset_id == aid, LogEntry.message == message)]
+
+        return [
+            i
+            for (i,) in db.query(LogEntry.id).filter(
+                LogEntry.asset_id == aid, LogEntry.message == message
+            )
+        ]
 
     def messages(self, client, aid):
         return [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
@@ -4961,11 +5650,12 @@ class TestDeletingAHistoryEntry:
     def test_one_entry_goes(self, client, db, part):
         aid = part()["asset_id"]
         for i in range(3):
-            client.post(f"/parts/{aid}/note", data={"message": f"note {i}"},
-                        follow_redirects=False)
-        r = client.post(f"/items/{aid}/log/delete",
-                        data={"id": self.ids_for(db, aid, "note 1")},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/note", data={"message": f"note {i}"}, follow_redirects=False)
+        r = client.post(
+            f"/items/{aid}/log/delete",
+            data={"id": self.ids_for(db, aid, "note 1")},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         assert self.messages(client, aid) == ["note 2", "note 0", "created"]
 
@@ -4976,31 +5666,27 @@ class TestDeletingAHistoryEntry:
         aid = part()["asset_id"]
         # All three uploaded first and then all three removed, so the removals are
         # next to each other in the history -- only adjacent entries fold.
-        rels = [TestAPhotographIsNeverHalfWritten.upload(client, aid, (60, 40))
-                for _ in range(3)]
+        rels = [TestAPhotographIsNeverHalfWritten.upload(client, aid, (60, 40)) for _ in range(3)]
         for rel in rels:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
         deleted = self.ids_for(db, aid, "deleted a photo")
         assert len(deleted) == 3, deleted
         # The page reads them as one line and offers every id behind that one line.
         page = client.get(f"/parts/{aid}").text
         forms = [f.split("</form>")[0] for f in page.split("/log/delete")[1:]]
-        assert any(all(f'value="{i}"' in form for i in deleted) for form in forms), \
+        assert any(all(f'value="{i}"' in form for i in deleted) for form in forms), (
             "no single form carried the whole run"
-        client.post(f"/items/{aid}/log/delete", data={"id": deleted},
-                    follow_redirects=False)
+        )
+        client.post(f"/items/{aid}/log/delete", data={"id": deleted}, follow_redirects=False)
         assert "deleted a photo" not in self.messages(client, aid)
 
     def test_it_cannot_reach_another_items_history(self, client, db, part):
         """An id on its own would let one machine's history be deleted from
         another machine's page."""
         mine, theirs = part()["asset_id"], part()["asset_id"]
-        client.post(f"/parts/{theirs}/note", data={"message": "theirs"},
-                    follow_redirects=False)
+        client.post(f"/parts/{theirs}/note", data={"message": "theirs"}, follow_redirects=False)
         ids = self.ids_for(db, theirs, "theirs")
-        r = client.post(f"/items/{mine}/log/delete", data={"id": ids},
-                        follow_redirects=False)
+        r = client.post(f"/items/{mine}/log/delete", data={"id": ids}, follow_redirects=False)
         assert r.status_code == 404
         assert "theirs" in self.messages(client, theirs)
 
@@ -5009,11 +5695,12 @@ class TestDeletingAHistoryEntry:
         is not something that happened to the machine, and a history that logged its
         own editing would grow a line for every line it lost."""
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/note", data={"message": "gone"},
-                    follow_redirects=False)
-        client.post(f"/items/{aid}/log/delete",
-                    data={"id": self.ids_for(db, aid, "gone")},
-                    follow_redirects=False)
+        client.post(f"/parts/{aid}/note", data={"message": "gone"}, follow_redirects=False)
+        client.post(
+            f"/items/{aid}/log/delete",
+            data={"id": self.ids_for(db, aid, "gone")},
+            follow_redirects=False,
+        )
         assert self.messages(client, aid) == ["created"]
 
     def test_the_photographs_on_it_go_with_it(self, client, db, part):
@@ -5022,29 +5709,30 @@ class TestDeletingAHistoryEntry:
         import io
         from app.models import LogPhoto
         from PIL import Image
+
         aid = part()["asset_id"]
-        client.post(f"/parts/{aid}/note", data={"message": "recapped"},
-                    follow_redirects=False)
+        client.post(f"/parts/{aid}/note", data={"message": "recapped"}, follow_redirects=False)
         log_id = self.ids_for(db, aid, "recapped")[0]
         buf = io.BytesIO()
         Image.new("RGB", (60, 40), (10, 20, 30)).save(buf, "JPEG")
         buf.seek(0)
-        client.post(f"/items/{aid}/log/{log_id}/photo",
-                    files={"photos": ("x.jpg", buf, "image/jpeg")},
-                    follow_redirects=False)
+        client.post(
+            f"/items/{aid}/log/{log_id}/photo",
+            files={"photos": ("x.jpg", buf, "image/jpeg")},
+            follow_redirects=False,
+        )
         db.expire_all()
-        rels = [r for (r,) in db.query(LogPhoto.rel)
-                .filter(LogPhoto.log_id == log_id)]
+        rels = [r for (r,) in db.query(LogPhoto.rel).filter(LogPhoto.log_id == log_id)]
         assert rels, "the photograph did not attach"
         assert client.get(f"/images/{rels[0]}").status_code == 200
-        client.post(f"/items/{aid}/log/delete", data={"id": [log_id]},
-                    follow_redirects=False)
+        client.post(f"/items/{aid}/log/delete", data={"id": [log_id]}, follow_redirects=False)
         assert client.get(f"/images/{rels[0]}").status_code == 404
         db.expire_all()
         assert not db.query(LogPhoto).filter(LogPhoto.log_id == log_id).count()
 
     def test_it_is_only_for_the_logged_in(self, client, part, monkeypatch):
         from app import main
+
         aid = part()["asset_id"]
         assert "log/delete" in client.get(f"/parts/{aid}").text
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
@@ -5078,8 +5766,9 @@ class TestAPageNoticesItHasChanged:
     def test_a_change_moves_it(self, client, part):
         aid = part(model="Before")["asset_id"]
         was = self.token(client, aid)
-        client.post(f"/parts/{aid}/edit", data={"type": "other", "model": "After"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/edit", data={"type": "other", "model": "After"}, follow_redirects=False
+        )
         assert self.token(client, aid) != was
 
     def test_a_photograph_moves_it_too(self, client, part):
@@ -5094,19 +5783,19 @@ class TestAPageNoticesItHasChanged:
         token the page will ask for no longer matches the one it holds.
         """
         aid = part()["asset_id"]
-        built_with = re.search(r'data-built="([^"]+)"',
-                               served(client, client.get(f"/parts/{aid}").text)).group(1)
+        built_with = re.search(
+            r'data-built="([^"]+)"', served(client, client.get(f"/parts/{aid}").text)
+        ).group(1)
         assert built_with == self.token(client, aid)
         rel = TestAPhotographIsNeverHalfWritten.upload(client, aid)
         try:
             assert self.token(client, aid) != built_with
             # And the page served now agrees with itself again.
-            assert re.search(r'data-built="([^"]+)"',
-                             served(client, client.get(f"/parts/{aid}").text)).group(1) == \
-                self.token(client, aid)
+            assert re.search(
+                r'data-built="([^"]+)"', served(client, client.get(f"/parts/{aid}").text)
+            ).group(1) == self.token(client, aid)
         finally:
-            client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                        follow_redirects=False)
+            client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
     def test_deleting_or_cropping_a_photograph_moves_it_as_well(self, client, part):
         """Every edit to a photograph is a change to the record, and the phone is
@@ -5114,13 +5803,14 @@ class TestAPageNoticesItHasChanged:
         aid = part()["asset_id"]
         rel = TestAPhotographIsNeverHalfWritten.upload(client, aid)
         after_upload = self.token(client, aid)
-        client.post(f"/parts/{aid}/photo-crop",
-                    data={"image": rel, "x": "0", "y": "0", "w": "0.6", "h": "0.6"},
-                    follow_redirects=False)
+        client.post(
+            f"/parts/{aid}/photo-crop",
+            data={"image": rel, "x": "0", "y": "0", "w": "0.6", "h": "0.6"},
+            follow_redirects=False,
+        )
         after_crop = self.token(client, aid)
         assert after_crop != after_upload
-        client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
-                    follow_redirects=False)
+        client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
         assert self.token(client, aid) != after_crop
 
     def test_a_file_moves_it_although_it_belongs_to_no_item(self, client, part):
@@ -5128,11 +5818,15 @@ class TestAPageNoticesItHasChanged:
         shelf, so nothing about it reaches that item's history -- and an item page
         shows it all the same."""
         import io
+
         aid = part(manufacturer="Creative", model="SB16")["asset_id"]
         was = self.token(client, aid)
-        client.post("/files", files={"uploads": ("sb16.zip", io.BytesIO(b"x"),
-                                                 "application/zip")},
-                    data={"tags": "SB16"}, follow_redirects=False)
+        client.post(
+            "/files",
+            files={"uploads": ("sb16.zip", io.BytesIO(b"x"), "application/zip")},
+            data={"tags": "SB16"},
+            follow_redirects=False,
+        )
         assert self.token(client, aid) != was
 
     def test_reading_the_page_does_not_move_it(self, client, part):
@@ -5151,10 +5845,10 @@ class TestAPageNoticesItHasChanged:
         was = self.token(client, aid)
         # Deleting takes a disposal first and the item's own URL as the
         # confirmation -- see _confirms_url.
-        client.post(f"/parts/{aid}/dispose", data={"note": "gone"},
-                    follow_redirects=False)
-        r = client.post(f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"},
-                        follow_redirects=False)
+        client.post(f"/parts/{aid}/dispose", data={"note": "gone"}, follow_redirects=False)
+        r = client.post(
+            f"/parts/{aid}/delete", data={"confirm": f"/parts/{aid}"}, follow_redirects=False
+        )
         assert r.status_code == 303, r.text[:200]
         assert client.get(f"/parts/{aid}").status_code == 404
         assert self.token(client, aid) != was
@@ -5162,7 +5856,7 @@ class TestAPageNoticesItHasChanged:
     def test_it_is_asked_only_of_an_item_page(self, client, part):
         """The gallery has no one item to ask about, so it is not given the script."""
         part()
-        assert 'const AID' not in client.get("/").text
+        assert "const AID" not in client.get("/").text
 
     def test_it_waits_rather_than_reloading_under_your_hands(self, client, part):
         """A page that reloaded itself mid-crop or mid-sentence would be worse than
@@ -5197,30 +5891,24 @@ class TestATopBenchScore:
 
     def test_the_form_takes_one_and_gives_it_back(self, client, computer):
         aid = computer()["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"topbench": "187"},
-                    follow_redirects=False)
+        client.post(f"/computers/{aid}/edit", data={"topbench": "187"}, follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["topbench"] == 187
         assert 'value="187"' in client.get(f"/computers/{aid}/edit").text
 
     def test_the_form_can_take_it_back_off(self, client, computer):
         aid = computer(topbench=187)["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"topbench": ""},
-                    follow_redirects=False)
+        client.post(f"/computers/{aid}/edit", data={"topbench": ""}, follow_redirects=False)
         assert client.get(f"/api/computers/{aid}").json()["topbench"] is None
 
     def test_the_page_shows_it(self, client, computer):
-        assert "TopBench" in client.get(
-            f"/computers/{computer(topbench=187)['asset_id']}").text
+        assert "TopBench" in client.get(f"/computers/{computer(topbench=187)['asset_id']}").text
 
-    def test_and_says_nothing_about_a_machine_that_has_no_score(self, client,
-                                                                computer):
-        assert "TopBench" not in client.get(
-            f"/computers/{computer()['asset_id']}").text
+    def test_and_says_nothing_about_a_machine_that_has_no_score(self, client, computer):
+        assert "TopBench" not in client.get(f"/computers/{computer()['asset_id']}").text
 
     def test_the_change_is_recorded_in_the_history(self, client, computer):
         aid = computer(topbench=187)["asset_id"]
-        client.post(f"/computers/{aid}/edit", data={"topbench": "212"},
-                    follow_redirects=False)
+        client.post(f"/computers/{aid}/edit", data={"topbench": "212"}, follow_redirects=False)
         messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
         assert any("187 → 212" in m for m in messages)
 
@@ -5233,12 +5921,13 @@ class TestATopBenchScore:
         page = client.get(f"/computers/{computer()['asset_id']}/edit").text
         assert "data-x86-only" in page
 
-    def test_a_score_survives_the_machine_being_filed_as_a_catalogue_one(
-            self, client, computer):
+    def test_a_score_survives_the_machine_being_filed_as_a_catalogue_one(self, client, computer):
         aid = computer(topbench=187)["asset_id"]
-        client.post(f"/computers/{aid}/edit",
-                    data={"mach_model": "zx-spectrum-48k", "topbench": "187"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{aid}/edit",
+            data={"mach_model": "zx-spectrum-48k", "topbench": "187"},
+            follow_redirects=False,
+        )
         assert client.get(f"/api/computers/{aid}").json()["topbench"] == 187
 
 
@@ -5262,8 +5951,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         assert page.count('<article class="itemcard">') == 1
         assert "Stealth 24</h4>" in page
 
-    def test_they_are_shown_as_labelled_pairs_below_the_part(self, client, computer,
-                                                            part):
+    def test_they_are_shown_as_labelled_pairs_below_the_part(self, client, computer, part):
         aid = computer()["asset_id"]
         part(type="video", computer_id=aid, specs="Chip: S3 Trio64 | Interface: PCI")
         page = client.get(f"/computers/{aid}").text
@@ -5271,8 +5959,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         assert "<dt>Chip</dt><dd>S3 Trio64</dd>" in page
         assert "<dt>Interface</dt><dd>PCI</dd>" in page
 
-    def test_a_part_with_nothing_recorded_gets_no_second_line(self, client,
-                                                              computer, part):
+    def test_a_part_with_nothing_recorded_gets_no_second_line(self, client, computer, part):
         aid = computer()["asset_id"]
         part(type="peripheral", computer_id=aid, name="Keyboard")
         page = client.get(f"/computers/{aid}").text
@@ -5315,10 +6002,17 @@ class TestAHistoryThatReadsAsOneSitting:
     def repeat(db, aid, message, times, apart_minutes=1, day=1):
         """`times` of the same thing, `apart_minutes` apart, oldest first."""
         from app.models import LogEntry
+
         when = datetime(2026, 8, day, 12, 0)
         for i in range(times):
-            db.add(LogEntry(asset_id=aid, created_at=when + timedelta(
-                minutes=i * apart_minutes), kind="change", message=message))
+            db.add(
+                LogEntry(
+                    asset_id=aid,
+                    created_at=when + timedelta(minutes=i * apart_minutes),
+                    kind="change",
+                    message=message,
+                )
+            )
         db.commit()
 
     def test_ten_deleted_photos_are_one_line(self, client, computer, db):
@@ -5352,8 +6046,7 @@ class TestAHistoryThatReadsAsOneSitting:
         rows = self.log_rows(client, aid)
         assert "rotated 2 photos" in rows and "deleted 3 photos" in rows
 
-    def test_a_message_naming_no_single_thing_takes_a_count(self, client, computer,
-                                                            db):
+    def test_a_message_naming_no_single_thing_takes_a_count(self, client, computer, db):
         aid = computer()["asset_id"]
         self.repeat(db, aid, "changed the default photo", 3)
         assert "changed the default photo ×3" in self.log_rows(client, aid)
@@ -5363,8 +6056,9 @@ class TestAHistoryThatReadsAsOneSitting:
         however like the last one it reads."""
         aid = computer()["asset_id"]
         for _ in range(3):
-            client.post(f"/computers/{aid}/note", data={"message": "tested"},
-                        follow_redirects=False)
+            client.post(
+                f"/computers/{aid}/note", data={"message": "tested"}, follow_redirects=False
+            )
         page = client.get(f"/computers/{aid}").text
         assert page.count("note</span> tested") == 3
 
@@ -5398,6 +6092,7 @@ class TestPhotographsOnTheHistory:
         import io
 
         from PIL import Image
+
         buf = io.BytesIO()
         Image.new("RGB", (400, 300), (60, 90, 120)).save(buf, "JPEG", quality=90)
         buf.seek(0)
@@ -5408,6 +6103,7 @@ class TestPhotographsOnTheHistory:
         """The rows, oldest first. Rolled back first so the reads that follow a POST
         see what the app committed rather than this session's older snapshot."""
         from app.models import LogEntry
+
         db.rollback()
         q = db.query(LogEntry).filter(LogEntry.asset_id == aid)
         if kind:
@@ -5422,17 +6118,22 @@ class TestPhotographsOnTheHistory:
     @staticmethod
     def shots(db, log_id):
         from app.models import LogPhoto
+
         db.rollback()
-        return [p.rel for p in db.query(LogPhoto).filter(LogPhoto.log_id == log_id)
-                .order_by(LogPhoto.id)]
+        return [
+            p.rel
+            for p in db.query(LogPhoto).filter(LogPhoto.log_id == log_id).order_by(LogPhoto.id)
+        ]
 
     def note(self, client, aid, message, files=None, kind="computers"):
-        return client.post(f"/{kind}/{aid}/note", data={"message": message},
-                           files=files, follow_redirects=False)
+        return client.post(
+            f"/{kind}/{aid}/note", data={"message": message}, files=files, follow_redirects=False
+        )
 
     def test_a_note_and_its_photographs_arrive_together(self, client, computer, db):
         """One gesture: the sentence and the pictures of what it describes."""
         from app import main
+
         aid = computer()["asset_id"]
         self.note(client, aid, "recapped the PSU", {"photos": self.image()})
         [row] = self.notes(db, aid)
@@ -5443,15 +6144,18 @@ class TestPhotographsOnTheHistory:
 
     def test_several_photographs_go_on_the_one_entry(self, client, computer, db):
         aid = computer()["asset_id"]
-        self.note(client, aid, "before and after",
-                  [("photos", self.image("a.jpg")), ("photos", self.image("b.jpg"))])
+        self.note(
+            client,
+            aid,
+            "before and after",
+            [("photos", self.image("a.jpg")), ("photos", self.image("b.jpg"))],
+        )
         [row] = self.notes(db, aid)
         assert len(self.shots(db, row.id)) == 2
 
     def test_a_part_carries_them_the_same_way(self, client, part, db):
         aid = part()["asset_id"]
-        self.note(client, aid, "reflowed the socket", {"photos": self.image()},
-                  kind="parts")
+        self.note(client, aid, "reflowed the socket", {"photos": self.image()}, kind="parts")
         [row] = self.notes(db, aid)
         assert len(self.shots(db, row.id)) == 1
 
@@ -5460,27 +6164,30 @@ class TestPhotographsOnTheHistory:
         photograph of a repair filed there would have become one of the machine's
         gallery pictures and -- being the first -- its portrait."""
         from app import main
+
         aid = computer()["asset_id"]
         self.note(client, aid, "found a bulged cap", {"photos": self.image()})
         assert main.detect_images("computers", aid) == []
         assert not client.get(f"/api/computers/{aid}").json()["image"]
 
     def test_the_count_of_photographs_in_the_register_does_not_absorb_it(
-            self, client, computer, db):
+        self, client, computer, db
+    ):
         """A picture of a recap is not a picture of the machine, and the figure that
         says how many photographs the collection has means the second thing."""
         from app import main
+
         aid = computer()["asset_id"]
         before = main._collection_stats(db)["photos"]
         self.note(client, aid, "cleaned the keyboard", {"photos": self.image()})
         db.rollback()
         assert main._collection_stats(db)["photos"] == before
 
-    def test_photographs_with_no_words_are_an_entry_of_their_own(self, client,
-                                                                 computer, db):
+    def test_photographs_with_no_words_are_an_entry_of_their_own(self, client, computer, db):
         """A photograph of the thing is a thing said about it. It used to need a
         sentence typed beside it before the register would keep it at all."""
         from app.models import LogPhoto
+
         aid = computer()["asset_id"]
         self.note(client, aid, "   ", {"photos": self.image()})
         [row] = self.entries(db, aid, "photo")
@@ -5515,46 +6222,50 @@ class TestPhotographsOnTheHistory:
         """An empty box and no photographs is somebody pressing the button by
         accident, not an entry about nothing."""
         from app.models import LogPhoto
+
         aid = computer()["asset_id"]
         self.note(client, aid, "  ")
         assert self.notes(db, aid) == [] and self.entries(db, aid, "photo") == []
         assert db.query(LogPhoto).count() == 0
 
-    def test_the_last_photograph_off_a_photograph_entry_takes_the_entry(
-            self, client, computer, db):
+    def test_the_last_photograph_off_a_photograph_entry_takes_the_entry(self, client, computer, db):
         """The photographs are what it said. An entry with words keeps its line,
         because the words are still what it said."""
         aid = computer()["asset_id"]
         self.note(client, aid, "", {"photos": self.image()})
         [row] = self.entries(db, aid, "photo")
         [rel] = self.shots(db, row.id)
-        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
-                    follow_redirects=False)
+        client.post(
+            f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel}, follow_redirects=False
+        )
         assert self.entries(db, aid, "photo") == []
 
-    def test_a_worded_entry_keeps_its_line_when_its_photograph_goes(self, client,
-                                                                   computer, db):
+    def test_a_worded_entry_keeps_its_line_when_its_photograph_goes(self, client, computer, db):
         aid = computer()["asset_id"]
         self.note(client, aid, "recapped it", {"photos": self.image()})
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
-        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
-                    follow_redirects=False)
+        client.post(
+            f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel}, follow_redirects=False
+        )
         assert [n.message for n in self.notes(db, aid)] == ["recapped it"]
 
-    def test_a_file_that_is_not_an_image_writes_no_entry_either(self, client,
-                                                               computer, db):
+    def test_a_file_that_is_not_an_image_writes_no_entry_either(self, client, computer, db):
         """Checked before the entry is written, as a create form's are: a refused
         upload should not leave a note behind saying something was photographed."""
         import io
+
         aid = computer()["asset_id"]
-        r = self.note(client, aid, "with a text file",
-                      {"photos": ("notes.txt", io.BytesIO(b"nope"), "text/plain")})
+        r = self.note(
+            client,
+            aid,
+            "with a text file",
+            {"photos": ("notes.txt", io.BytesIO(b"nope"), "text/plain")},
+        )
         assert r.status_code == 400
         assert self.notes(db, aid) == []
 
-    def test_the_page_shows_them_under_the_line_they_belong_to(self, client,
-                                                              computer, db):
+    def test_the_page_shows_them_under_the_line_they_belong_to(self, client, computer, db):
         aid = computer()["asset_id"]
         self.note(client, aid, "the underside", {"photos": self.image()})
         [row] = self.notes(db, aid)
@@ -5565,8 +6276,7 @@ class TestPhotographsOnTheHistory:
         # the photograph is told about it.
         assert 'alt="the underside"' in page
 
-    def test_it_hangs_in_the_entry_s_own_column_and_not_the_date_s(self, client,
-                                                                   computer, db):
+    def test_it_hangs_in_the_entry_s_own_column_and_not_the_date_s(self, client, computer, db):
         """A row across the entry, under whatever it says. The date column holds the
         date: a photograph in there stacks down a column 120px wide."""
         aid = computer()["asset_id"]
@@ -5574,8 +6284,8 @@ class TestPhotographsOnTheHistory:
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
         page = client.get(f"/computers/{aid}").text
-        stamp = page[page.index('<td class="logwhen">'):]
-        assert f"/images/{rel}" not in stamp[:stamp.index("</td>")]
+        stamp = page[page.index('<td class="logwhen">') :]
+        assert f"/images/{rel}" not in stamp[: stamp.index("</td>")]
         assert page.index('class="logmsg"') < page.index(f"/images/{rel}")
 
     def test_a_photograph_has_no_delete_of_its_own(self, client, computer, db):
@@ -5595,8 +6305,11 @@ class TestPhotographsOnTheHistory:
         aid = computer()["asset_id"]
         self.note(client, aid, "fitted a new PSU")
         [row] = self.notes(db, aid)
-        r = client.post(f"/items/{aid}/log/{row.id}/photo",
-                        files={"photos": self.image()}, follow_redirects=False)
+        r = client.post(
+            f"/items/{aid}/log/{row.id}/photo",
+            files={"photos": self.image()},
+            follow_redirects=False,
+        )
         assert r.headers["location"] == f"/computers/{aid}"
         assert len(self.shots(db, row.id)) == 1
 
@@ -5604,49 +6317,57 @@ class TestPhotographsOnTheHistory:
         aid = part()["asset_id"]
         self.note(client, aid, "tested", kind="parts")
         [row] = self.notes(db, aid)
-        r = client.post(f"/items/{aid}/log/{row.id}/photo",
-                        files={"photos": self.image()}, follow_redirects=False)
+        r = client.post(
+            f"/items/{aid}/log/{row.id}/photo",
+            files={"photos": self.image()},
+            follow_redirects=False,
+        )
         assert r.headers["location"] == f"/parts/{aid}"
 
-    def test_an_entry_of_another_asset_is_not_somewhere_to_put_it(self, client,
-                                                                  computer, db):
+    def test_an_entry_of_another_asset_is_not_somewhere_to_put_it(self, client, computer, db):
         """The id in the URL is checked against the entry's. An entry id on its own
         would let a photograph of one machine be hung on another's history."""
         mine, theirs = computer()["asset_id"], computer()["asset_id"]
         self.note(client, mine, "mine")
         [row] = self.notes(db, mine)
-        r = client.post(f"/items/{theirs}/log/{row.id}/photo",
-                        files={"photos": self.image()}, follow_redirects=False)
+        r = client.post(
+            f"/items/{theirs}/log/{row.id}/photo",
+            files={"photos": self.image()},
+            follow_redirects=False,
+        )
         assert r.status_code == 404
         assert self.shots(db, row.id) == []
 
     def test_removing_one_takes_the_row_and_the_file(self, client, computer, db):
         from app import main
+
         aid = computer()["asset_id"]
         self.note(client, aid, "a duplicate shot", {"photos": self.image()})
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
-        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
-                    follow_redirects=False)
+        client.post(
+            f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel}, follow_redirects=False
+        )
         assert self.shots(db, row.id) == []
         assert not (main.IMAGES_DIR / rel).exists()
         # The entry itself stays: what happened still happened.
         assert len(self.notes(db, aid)) == 1
 
-    def test_a_photograph_on_another_entry_is_not_this_one_s_to_delete(
-            self, client, computer, db):
+    def test_a_photograph_on_another_entry_is_not_this_one_s_to_delete(self, client, computer, db):
         aid = computer()["asset_id"]
         self.note(client, aid, "first", {"photos": self.image()})
         self.note(client, aid, "second")
         first, second = self.notes(db, aid)
         [rel] = self.shots(db, first.id)
-        r = client.post(f"/items/{aid}/log/{second.id}/photo-delete",
-                        data={"image": rel}, follow_redirects=False)
+        r = client.post(
+            f"/items/{aid}/log/{second.id}/photo-delete",
+            data={"image": rel},
+            follow_redirects=False,
+        )
         assert r.status_code == 404
         assert self.shots(db, first.id) == [rel]
 
-    def test_the_removal_is_not_itself_written_into_the_history(self, client,
-                                                               computer, db):
+    def test_the_removal_is_not_itself_written_into_the_history(self, client, computer, db):
         """An entry gaining or losing a photograph is an edit to the record, not
         something that happened to the machine. A history that logged its own editing
         would grow a line for every line it has."""
@@ -5654,48 +6375,55 @@ class TestPhotographsOnTheHistory:
         self.note(client, aid, "one photo", {"photos": self.image()})
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
-        client.post(f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel},
-                    follow_redirects=False)
+        client.post(
+            f"/items/{aid}/log/{row.id}/photo-delete", data={"image": rel}, follow_redirects=False
+        )
         assert [e.message for e in self.notes(db, aid)] == ["one photo"]
 
-    def test_an_entry_carrying_photographs_is_never_folded(self, client, computer,
-                                                           db):
+    def test_an_entry_carrying_photographs_is_never_folded(self, client, computer, db):
         """Folding rewrites several entries as one sentence. The photographs would
         then be lost with the entries that are no longer shown, or gathered under a
         line that is not the one they were taken for."""
         from app.models import LogEntry
         from datetime import datetime
         from app import history
+
         aid = computer()["asset_id"]
         when = datetime(2026, 8, 1, 12, 0)
         for i in range(3):
-            db.add(LogEntry(asset_id=aid, created_at=when.replace(minute=i),
-                            kind="change", message="deleted a photo"))
+            db.add(
+                LogEntry(
+                    asset_id=aid,
+                    created_at=when.replace(minute=i),
+                    kind="change",
+                    message="deleted a photo",
+                )
+            )
         db.commit()
-        middle = [e for e in self.entries(db, aid)
-                  if e.message == "deleted a photo"][1]
-        client.post(f"/items/{aid}/log/{middle.id}/photo",
-                    files={"photos": self.image()}, follow_redirects=False)
+        middle = [e for e in self.entries(db, aid) if e.message == "deleted a photo"][1]
+        client.post(
+            f"/items/{aid}/log/{middle.id}/photo",
+            files={"photos": self.image()},
+            follow_redirects=False,
+        )
         db.rollback()
-        lines = [len(e.photos) for e in history._history(db, aid)
-                 if e.message == "deleted a photo"]
+        lines = [len(e.photos) for e in history._history(db, aid) if e.message == "deleted a photo"]
         assert lines == [0, 1, 0]
 
     def test_the_api_lists_what_an_entry_carries(self, client, computer, db):
         aid = computer()["asset_id"]
         self.note(client, aid, "with a picture", {"photos": self.image()})
         [row] = self.notes(db, aid)
-        [written] = [e for e in client.get(f"/api/items/{aid}/log").json()
-                     if e["kind"] == "note"]
+        [written] = [e for e in client.get(f"/api/items/{aid}/log").json() if e["kind"] == "note"]
         assert written["message"] == "with a picture"
         assert written["photos"] == self.shots(db, row.id)
 
-    def test_deleting_the_machine_takes_them_off_the_disk(self, client, computer,
-                                                          db):
+    def test_deleting_the_machine_takes_them_off_the_disk(self, client, computer, db):
         """They go the way every other photograph of a deleted record goes: the rows
         first, because a file cannot be rolled back."""
         from app import main
         from app.models import LogPhoto
+
         aid = computer(disposed=True)["asset_id"]
         self.note(client, aid, "before it went", {"photos": self.image()})
         [row] = self.notes(db, aid)
@@ -5708,6 +6436,7 @@ class TestPhotographsOnTheHistory:
 
     def test_deleting_a_part_takes_its_own_with_it(self, client, part, db):
         from app import main
+
         aid = part(disposed=True)["asset_id"]
         self.note(client, aid, "as found", {"photos": self.image()}, kind="parts")
         [row] = self.notes(db, aid)
@@ -5715,8 +6444,7 @@ class TestPhotographsOnTheHistory:
         client.delete(f"/api/parts/{aid}")
         assert not (main.IMAGES_DIR / rel).exists()
 
-    def test_the_confirmation_page_counts_them_among_what_goes(self, client,
-                                                               computer, db):
+    def test_the_confirmation_page_counts_them_among_what_goes(self, client, computer, db):
         """The page can only promise what the delete actually does, and the delete
         takes these off the disk too."""
         aid = computer(disposed=True)["asset_id"]
@@ -5729,15 +6457,16 @@ class TestPhotographsOnTheHistory:
         The hyphen is what keeps the second from swallowing the first, which is the
         whole of why a log entry's id can stand where an asset id stands."""
         from app import main
+
         listing = [("12", "12.jpg"), ("12-2", "12-2.jpg"), ("120", "120.jpg")]
-        assert main.pick_images("log", "12", listing) == ["log/12.jpg",
-                                                          "log/12-2.jpg"]
+        assert main.pick_images("log", "12", listing) == ["log/12.jpg", "log/12-2.jpg"]
         assert main.pick_images("log", "120", listing) == ["log/120.jpg"]
 
     def test_they_are_marked_like_any_other_photograph_of_the_collection(self):
         """The watermark is about where a photograph goes, not which panel of the
         site it was shown on."""
         from app import main
+
         assert main._is_own_photo("log/1.jpg") == main._is_own_photo("computers/A.jpg")
 
     def test_the_note_bar_offers_the_picker(self, client, computer):
@@ -5750,8 +6479,7 @@ class TestWhereTheFilesSit:
     def test_they_come_before_the_history(self, client, computer, part):
         """Files are part of what the item is -- the driver disk it needs, the
         manual for it. The history is a log to be consulted, so it goes last."""
-        for kind, aid in (("computers", computer()["asset_id"]),
-                          ("parts", part()["asset_id"])):
+        for kind, aid in (("computers", computer()["asset_id"]), ("parts", part()["asset_id"])):
             page = client.get(f"/{kind}/{aid}").text
             assert page.index("Files") < page.index(">History<")
 
@@ -5763,8 +6491,7 @@ class TestEverySectionIsAPanel:
     section was itself a list of things with gaps inside them."""
 
     @pytest.mark.parametrize("title", ["Details", "Files", "History"])
-    def test_the_machine_page_says_where_each_section_starts(self, client, computer,
-                                                             title):
+    def test_the_machine_page_says_where_each_section_starts(self, client, computer, title):
         page = client.get(f"/computers/{computer()['asset_id']}").text
         assert f"<h3>{title}</h3>" in page
 
@@ -5773,8 +6500,7 @@ class TestEverySectionIsAPanel:
         page = client.get(f"/parts/{part()['asset_id']}").text
         assert f"<h3>{title}</h3>" in page
 
-    def test_a_section_of_cards_is_one_panel_and_not_a_box_each(self, client,
-                                                                computer, part):
+    def test_a_section_of_cards_is_one_panel_and_not_a_box_each(self, client, computer, part):
         """The panel draws the box, so the cards in it give theirs up and keep their
         bands -- a border round each inside a border round all of them is what makes
         a page look busy."""
@@ -5784,7 +6510,7 @@ class TestEverySectionIsAPanel:
         part(type="sound", computer_id=aid, specs="Chip: CT1745A")
         page = client.get(f"/computers/{aid}").text
         assert page.count('<section class="panel">') >= 3
-        assert page.count('<div class="itemcards">') == 2   # the board, and the parts
+        assert page.count('<div class="itemcards">') == 2  # the board, and the parts
         assert page.count('<article class="itemcard">') == 3
 
     def test_the_specs_of_a_part_are_their_own_panel(self, client, part):
@@ -5800,11 +6526,12 @@ class TestFilesReadLikeThePartsDo:
 
     @staticmethod
     def upload(client, aid, name="sb16.img", tags="", note=""):
-        r = client.post("/files", data={"aid": aid, "tags": tags or aid, "note": note,
-                                        "next": f"/computers/{aid}"},
-                        files={"uploads": (name, b"\0" * 2048,
-                                           "application/octet-stream")},
-                        follow_redirects=False)
+        r = client.post(
+            "/files",
+            data={"aid": aid, "tags": tags or aid, "note": note, "next": f"/computers/{aid}"},
+            files={"uploads": (name, b"\0" * 2048, "application/octet-stream")},
+            follow_redirects=False,
+        )
         assert r.status_code == 303, r.text
 
     def test_a_file_is_a_card_with_its_name_on_it(self, client, computer):
@@ -5828,15 +6555,13 @@ class TestFilesReadLikeThePartsDo:
         page = client.get(f"/computers/{aid}").text
         assert f'name="tags" value="{aid}, Creative Labs Sound Blaster"' in page
 
-    def test_a_visitor_gets_the_names_without_the_box(self, client, computer,
-                                                      monkeypatch):
+    def test_a_visitor_gets_the_names_without_the_box(self, client, computer, monkeypatch):
         aid = computer()["asset_id"]
         self.upload(client, aid, tags=f"{aid}, Creative Labs Sound Blaster")
         # Published first, or there is no card for a visitor to be shown the
         # chips on: an upload is kept back until it is ticked (ADR-0009).
         fid = client.get("/api/files").json()[0]["id"]
-        client.post(f"/files/{fid}/public", data={"public": "1"},
-                    follow_redirects=False)
+        client.post(f"/files/{fid}/public", data={"public": "1"}, follow_redirects=False)
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
         page = client.get(f"/computers/{aid}").text
         assert '<span class="chip">Creative Labs Sound Blaster</span>' in page
@@ -5855,19 +6580,22 @@ class TestPagesAreNotKeptByBrowsers:
             r = client.get(path)
             assert r.headers["cache-control"] == "no-cache", path
 
-    def test_but_a_stamped_photograph_is_still_kept_for_a_year(self, client,
-                                                              tmp_path):
+    def test_but_a_stamped_photograph_is_still_kept_for_a_year(self, client, tmp_path):
         """The opposite rule, on purpose: those URLs carry the version in them, so
         they can never go stale and never need asking about."""
         from PIL import Image
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Acme", "model": "PC"}).json()["asset_id"]
+
+        aid = client.post("/api/computers", json={"manufacturer": "Acme", "model": "PC"}).json()[
+            "asset_id"
+        ]
         src = tmp_path / "big.jpg"
         Image.new("RGB", (400, 300), (30, 60, 120)).save(src, "JPEG")
         with src.open("rb") as fh:
-            client.post(f"/computers/{aid}/photo",
-                        files={"photos": ("big.jpg", fh, "image/jpeg")},
-                        follow_redirects=False)
+            client.post(
+                f"/computers/{aid}/photo",
+                files={"photos": ("big.jpg", fh, "image/jpeg")},
+                follow_redirects=False,
+            )
         head = client.get(f"/images/computers/{aid}.jpg?v=123").headers["cache-control"]
         assert "immutable" in head and "no-cache" not in head
 
@@ -5882,14 +6610,18 @@ class TestPhotographsAreServedAtTheSizeAsked:
     def shot(self, client, tmp_path, px=1600):
         """A real JPEG, big enough to be worth shrinking, on a real computer."""
         from PIL import Image
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Acme", "model": "PC"}).json()["asset_id"]
+
+        aid = client.post("/api/computers", json={"manufacturer": "Acme", "model": "PC"}).json()[
+            "asset_id"
+        ]
         src = tmp_path / "big.jpg"
         Image.new("RGB", (px, int(px * 0.75)), (30, 60, 120)).save(src, "JPEG")
         with src.open("rb") as fh:
-            r = client.post(f"/computers/{aid}/photo",
-                            files={"photos": ("big.jpg", fh, "image/jpeg")},
-                            follow_redirects=False)
+            r = client.post(
+                f"/computers/{aid}/photo",
+                files={"photos": ("big.jpg", fh, "image/jpeg")},
+                follow_redirects=False,
+            )
         assert r.status_code in (200, 303), r.status_code
         return aid
 
@@ -5901,6 +6633,7 @@ class TestPhotographsAreServedAtTheSizeAsked:
     def test_a_width_is_smaller_than_the_original(self, client, tmp_path):
         from PIL import Image
         import io
+
         aid = self.shot(client, tmp_path)
         rel = f"computers/{aid}.jpg"
         whole = self.size_of(client, f"/images/{rel}")
@@ -5925,15 +6658,13 @@ class TestPhotographsAreServedAtTheSizeAsked:
         whole = self.size_of(client, f"/images/{rel}")
         assert self.size_of(client, f"/images/{rel}?w=417") == whole
 
-    def test_a_photograph_smaller_than_the_width_is_served_as_it_is(self, client,
-                                                                    tmp_path):
+    def test_a_photograph_smaller_than_the_width_is_served_as_it_is(self, client, tmp_path):
         aid = self.shot(client, tmp_path, px=250)
         rel = f"computers/{aid}.jpg"
         whole = self.size_of(client, f"/images/{rel}")
         assert self.size_of(client, f"/images/{rel}?w=300") == whole
 
-    def test_a_stamped_url_may_be_kept_and_an_unstamped_one_may_not(self, client,
-                                                                    tmp_path):
+    def test_a_stamped_url_may_be_kept_and_an_unstamped_one_may_not(self, client, tmp_path):
         """?v= names which version of the photograph the URL wants, so it can never
         go stale and can be cached for a year. Without it, an hour."""
         aid = self.shot(client, tmp_path)
@@ -5941,8 +6672,7 @@ class TestPhotographsAreServedAtTheSizeAsked:
         assert "immutable" in client.get(f"/images/{rel}?v=123").headers["cache-control"]
         assert "immutable" not in client.get(f"/images/{rel}").headers["cache-control"]
 
-    def test_the_gallery_asks_for_card_sized_copies_and_keeps_the_original(
-            self, client, tmp_path):
+    def test_the_gallery_asks_for_card_sized_copies_and_keeps_the_original(self, client, tmp_path):
         aid = self.shot(client, tmp_path)
         page = client.get("/").text
         assert "w=300" in page and "srcset" in page
@@ -5951,8 +6681,7 @@ class TestPhotographsAreServedAtTheSizeAsked:
         assert "w=1200" in item
         assert f'data-full="/images/computers/{aid}.jpg?v=' in item
 
-    def test_the_static_files_may_be_kept_when_the_url_says_which_version(self,
-                                                                          client):
+    def test_the_static_files_may_be_kept_when_the_url_says_which_version(self, client):
         stamped = client.get("/static/site.webmanifest?v=abc").headers["cache-control"]
         plain = client.get("/static/site.webmanifest").headers["cache-control"]
         assert "immutable" in stamped and "31536000" in stamped

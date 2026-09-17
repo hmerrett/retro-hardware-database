@@ -5,6 +5,7 @@ declarations themselves because that is where the behaviour lives: no page can b
 asked what size iOS thinks its search box is, or what contrast a button's text
 has against its own background.
 """
+
 import re
 from pathlib import Path
 
@@ -24,10 +25,7 @@ def css() -> str:
 
 def rules(text: str) -> list[tuple[str, str]]:
     """Every `selector { body }` pair, ignoring the `@media` wrappers themselves."""
-    return [
-        (head.strip(), body)
-        for head, body in re.findall(r"([^{}@]+)\{([^{}]*)\}", text)
-    ]
+    return [(head.strip(), body) for head, body in re.findall(r"([^{}@]+)\{([^{}]*)\}", text)]
 
 
 def selectors(head: str) -> list[str]:
@@ -128,9 +126,7 @@ def test_the_two_dark_theme_blocks_agree():
         re.S,
     )
     assert preferred, "the prefers-color-scheme dark block has gone"
-    by_preference = dict(
-        re.findall(r"(--[\w-]+)\s*:\s*([^;]+?)\s*;", preferred.group(1))
-    )
+    by_preference = dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+?)\s*;", preferred.group(1)))
     assert by_preference == theme_variables("dark")
 
 
@@ -145,7 +141,9 @@ def test_an_accent_fill_states_the_text_colour_on_it():
         if re.search(r"background(-color)?\s*:[^;]*var\(--accent\)", body)
         and not re.search(r"(?:^|[;\s])color\s*:", body)
     ]
-    assert silent == [], "these rules fill with the accent but do not say what colour the text on it is"
+    assert silent == [], (
+        "these rules fill with the accent but do not say what colour the text on it is"
+    )
 
 
 def over(foreground: str, background: str) -> str:

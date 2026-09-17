@@ -13,6 +13,7 @@ phone has room for either comes down the page as blocks, or scrolls inside its
 own box. Both answers exist in the stylesheet already; what was missing was
 anything that noticed a third table doing neither.
 """
+
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -93,21 +94,33 @@ def furnished(client, computer, part):
     empty list says "nothing yet" and would pass every check below by having
     nothing to check."""
     made = computer(manufacturer="Amstrad", model="PC1512")
-    card = part(manufacturer="Trident", model="TVGA8900", type="video",
-                computer_id=made["asset_id"])
-    client.post("/files", files={"uploads": ("tvga8900-drivers.zip", b"driver bytes")},
-                data={"tags": "Trident TVGA8900", "note": "DOS and Windows 3.1 drivers"},
-                follow_redirects=False)
-    client.post("/projects", data={"title": "Recap the PC1512", "status": "active"},
-                follow_redirects=False)
+    card = part(
+        manufacturer="Trident", model="TVGA8900", type="video", computer_id=made["asset_id"]
+    )
+    client.post(
+        "/files",
+        files={"uploads": ("tvga8900-drivers.zip", b"driver bytes")},
+        data={"tags": "Trident TVGA8900", "note": "DOS and Windows 3.1 drivers"},
+        follow_redirects=False,
+    )
+    client.post(
+        "/projects", data={"title": "Recap the PC1512", "status": "active"}, follow_redirects=False
+    )
     return {"computer": made["asset_id"], "part": card["asset_id"]}
 
 
 def pages(ids):
     return [
-        "/", "/files", "/projects", "/machines", "/stats", "/for-sale",
-        f"/computers/{ids['computer']}", f"/computers/{ids['computer']}/edit",
-        f"/parts/{ids['part']}", f"/parts/{ids['part']}/edit",
+        "/",
+        "/files",
+        "/projects",
+        "/machines",
+        "/stats",
+        "/for-sale",
+        f"/computers/{ids['computer']}",
+        f"/computers/{ids['computer']}/edit",
+        f"/parts/{ids['part']}",
+        f"/parts/{ids['part']}/edit",
     ]
 
 
@@ -124,8 +137,9 @@ def test_no_list_is_wider_than_the_phone_it_is_read_on(client, furnished):
                 continue
             if not stacks_on_a_phone(css, table["classes"]):
                 too_wide.append(f"{path}: {describe(table)}, {table['widest']} columns")
-    assert too_wide == [], (
-        "these tables neither stack nor scroll, so the page does: " + "; ".join(too_wide))
+    assert too_wide == [], "these tables neither stack nor scroll, so the page does: " + "; ".join(
+        too_wide
+    )
 
 
 def test_a_stacked_row_says_what_each_value_is(client, furnished):
@@ -142,7 +156,8 @@ def test_a_stacked_row_says_what_each_value_is(client, furnished):
     ]
     assert unlabelled == [], (
         "these cells would stack as values with nothing to say what they are: "
-        + "; ".join(unlabelled))
+        + "; ".join(unlabelled)
+    )
 
 
 def test_the_box_you_type_into_asks_for_a_width_rather_than_demanding_one():
@@ -155,7 +170,8 @@ def test_the_box_you_type_into_asks_for_a_width_rather_than_demanding_one():
     assert rule, "the re-file box has lost its rule; this test is looking at nothing"
     demanded = re.search(r"min-width:\s*(\d+)px", rule.group(0))
     assert not demanded or demanded.group(1) == "0", (
-        f"the re-file box demands {demanded.group(0)}, which its column cannot go below")
+        f"the re-file box demands {demanded.group(0)}, which its column cannot go below"
+    )
 
 
 def test_a_long_filename_cannot_hold_the_list_open():

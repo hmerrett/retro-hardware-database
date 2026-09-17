@@ -2,6 +2,7 @@
 guessable at unlimited speed. A small in-memory sliding-window limiter, keyed by
 client IP, caps failed attempts.
 """
+
 from app import main
 from app.auth import _RateLimiter
 
@@ -45,16 +46,19 @@ def test_login_blocks_after_too_many_failures(client, monkeypatch):
     monkeypatch.setattr(main.auth, "_login_limiter", _RateLimiter(3, 300))
 
     for _ in range(3):
-        r = client.post("/login", data={"username": "admin", "password": "wrong"},
-                        follow_redirects=False)
+        r = client.post(
+            "/login", data={"username": "admin", "password": "wrong"}, follow_redirects=False
+        )
         assert r.status_code == 401
     # The fourth attempt is refused outright...
-    r = client.post("/login", data={"username": "admin", "password": "wrong"},
-                    follow_redirects=False)
+    r = client.post(
+        "/login", data={"username": "admin", "password": "wrong"}, follow_redirects=False
+    )
     assert r.status_code == 429
     # ...and the correct password is refused too while the block stands.
-    r = client.post("/login", data={"username": "admin", "password": "correct-horse"},
-                    follow_redirects=False)
+    r = client.post(
+        "/login", data={"username": "admin", "password": "correct-horse"}, follow_redirects=False
+    )
     assert r.status_code == 429
 
 
@@ -65,13 +69,16 @@ def test_a_good_login_clears_the_count(client, monkeypatch):
     monkeypatch.setattr(main.auth, "_login_limiter", _RateLimiter(3, 300))
 
     for _ in range(2):
-        client.post("/login", data={"username": "admin", "password": "wrong"},
-                    follow_redirects=False)
-    ok = client.post("/login", data={"username": "admin", "password": "correct-horse"},
-                     follow_redirects=False)
+        client.post(
+            "/login", data={"username": "admin", "password": "wrong"}, follow_redirects=False
+        )
+    ok = client.post(
+        "/login", data={"username": "admin", "password": "correct-horse"}, follow_redirects=False
+    )
     assert ok.status_code == 303
     # Count reset: a fresh run of failures is allowed again rather than instantly
     # blocked.
-    r = client.post("/login", data={"username": "admin", "password": "wrong"},
-                    follow_redirects=False)
+    r = client.post(
+        "/login", data={"username": "admin", "password": "wrong"}, follow_redirects=False
+    )
     assert r.status_code == 401

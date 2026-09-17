@@ -30,6 +30,7 @@ history saying what the job is about.
 On the server, with the stack up, or from the repo root with RHDB_API pointing at
 it. Reverse any of them by setting the job back to "the project" on its own page.
 """
+
 import argparse
 import sys
 
@@ -60,18 +61,25 @@ def pick(details):
 
 def candidates(only=()):
     import rhdb
-    ids = [p["asset_id"] for p in rhdb._request("GET", "/api/projects")
-           if not only or p["asset_id"] in only]
+
+    ids = [
+        p["asset_id"]
+        for p in rhdb._request("GET", "/api/projects")
+        if not only or p["asset_id"] in only
+    ]
     return pick(rhdb._request("GET", f"/api/projects/{i}") for i in ids)
 
 
 def main(argv=None):
     import rhdb
+
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--write", action="store_true",
-                        help="actually attach (default: say what would change)")
-    parser.add_argument("--only", nargs="*", metavar="RH-XXXX", default=[],
-                        help="only these projects, by asset id")
+    parser.add_argument(
+        "--write", action="store_true", help="actually attach (default: say what would change)"
+    )
+    parser.add_argument(
+        "--only", nargs="*", metavar="RH-XXXX", default=[], help="only these projects, by asset id"
+    )
     rhdb.add_api_arg(parser)
     args = parser.parse_args(argv)
     rhdb.apply_api_arg(args)
@@ -87,14 +95,15 @@ def main(argv=None):
             print(f"      {t['text'][:70]}")
             n += 1
     if not args.write:
-        print(f"\n{n} job(s) on {len(rows)} project(s) would be attached. "
-              "Re-run with --write.")
+        print(f"\n{n} job(s) on {len(rows)} project(s) would be attached. Re-run with --write.")
         return 0
     for project, item_id, tasks in rows:
         for t in tasks:
-            rhdb._request("PATCH",
-                          f"/api/projects/{project['asset_id']}/tasks/{t['id']}",
-                          json={"asset_id": item_id})
+            rhdb._request(
+                "PATCH",
+                f"/api/projects/{project['asset_id']}/tasks/{t['id']}",
+                json={"asset_id": item_id},
+            )
     print(f"\nAttached {n} job(s) on {len(rows)} project(s).")
     return 0
 

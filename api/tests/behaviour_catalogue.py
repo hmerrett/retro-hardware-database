@@ -10,6 +10,7 @@ executed on every push. That is the whole reason the catalogue is generated from
 here rather than written by hand -- and the reason a test name is expected to read
 like a sentence (testing-standards).
 """
+
 import ast
 import re
 from pathlib import Path
@@ -51,8 +52,9 @@ def group_name(classname: str) -> str:
     wants; run together as written it is one word and reads as none. Split on the
     case changes, keeping an acronym whole.
     """
-    words = re.sub(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ",
-                   classname.removeprefix("Test")).split()
+    words = re.sub(
+        r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ", classname.removeprefix("Test")
+    ).split()
     kept = [w if w.isupper() else w.lower() for w in words]
     return " ".join(kept)[:1].upper() + " ".join(kept)[1:]
 
@@ -92,8 +94,9 @@ def entries(source: str) -> list[tuple[str, str, str]]:
 
 
 def _is_test(node: ast.AST) -> bool:
-    return (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.name.startswith("test_"))
+    return isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith(
+        "test_"
+    )
 
 
 def render() -> str:

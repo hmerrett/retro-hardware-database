@@ -1,6 +1,7 @@
 """The liveness endpoint a deploy smoke check or an uptime monitor hits. It must be
 public (the check has no credentials) and must actually touch the database, so a
 box that is up but cannot reach MariaDB reports unhealthy rather than ok."""
+
 from app import main
 from app.db import get_db
 
@@ -15,10 +16,12 @@ def test_healthz_reports_503_when_db_unreachable(client):
     """A liveness check that returns 200 while the database is down is worse than
     useless -- it would let a broken deploy pass the smoke check. Force the DB
     dependency to fail and prove the route surfaces it as 503."""
+
     def broken_db():
         class _Boom:
             def execute(self, *_args, **_kwargs):
                 raise RuntimeError("database unreachable")
+
         yield _Boom()
 
     main.app.dependency_overrides[get_db] = broken_db

@@ -181,7 +181,6 @@ SUMMARIES = {
         who needed the speed immediately. The most capable of the launch three and the
         one that actually justified the transition.
         """,
-
     # --- IBM PC -----------------------------------------------------------
     "ibm-5150": """
         The original IBM PC, and the machine whose architecture the industry still
@@ -225,7 +224,6 @@ SUMMARIES = {
         IBM's adoption made the standard. Uncommon, and the snap-on modules are the
         parts that go missing.
         """,
-
     # --- IBM PS/1 and PS/2 ------------------------------------------------
     "ps1-2011": """
         The first PS/1: an all-in-one 286 with the power supply in the monitor, sold
@@ -272,7 +270,6 @@ SUMMARIES = {
         complex cards make it more upgradeable than most of the range. A good one is
         the best-balanced MCA machine to own.
         """,
-
     # --- Compaq -----------------------------------------------------------
     "compaq-portable": """
         The machine that created the clone industry. Compaq reverse-engineered IBM's

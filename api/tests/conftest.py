@@ -7,6 +7,7 @@ schema by running the real Alembic migrations, so every run also proves the
 migrations reach head and match the models. Point DATABASE_URL at a MariaDB
 database the tests may build and empty (CI provides one; locally, the compose db).
 """
+
 import os
 import re
 import tempfile
@@ -52,15 +53,15 @@ _ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
 
 @event.listens_for(engine, "connect")
 def _read_committed(dbapi_connection, _record):
-        """Many tests hold the long-lived `db` fixture session and then make writes
-        through the app's own session (the `client`). Under MariaDB's default
-        REPEATABLE READ the `db` session keeps reading the snapshot its transaction
-        opened with and never sees those writes. READ COMMITTED matches how the app
-        actually behaves -- a fresh session per request -- so the observing session
-        sees committed writes. SQLite's visibility model made this moot."""
-        cur = dbapi_connection.cursor()
-        cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
-        cur.close()
+    """Many tests hold the long-lived `db` fixture session and then make writes
+    through the app's own session (the `client`). Under MariaDB's default
+    REPEATABLE READ the `db` session keeps reading the snapshot its transaction
+    opened with and never sees those writes. READ COMMITTED matches how the app
+    actually behaves -- a fresh session per request -- so the observing session
+    sees committed writes. SQLite's visibility model made this moot."""
+    cur = dbapi_connection.cursor()
+    cur.execute("SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED")
+    cur.close()
 
 
 def _reset_and_migrate():
@@ -132,11 +133,13 @@ def db():
 @pytest.fixture
 def computer(client):
     """A saved computer, as the API creates one."""
+
     def make(**fields):
         body = {"manufacturer": "Acme", "model": "Test"} | fields
         r = client.post("/api/computers", json=body)
         assert r.status_code == 200, r.text
         return r.json()
+
     return make
 
 
@@ -147,6 +150,7 @@ def part(client):
         r = client.post("/api/parts", json=body)
         assert r.status_code == 200, r.text
         return r.json()
+
     return make
 
 
@@ -155,11 +159,21 @@ def a_page_of_everything(client, computer, part):
     """One machine with a part on it, so the forms, the item pages and the lists
     all render the controls they only have when there is something to show."""
     made = computer(manufacturer="Amstrad", model="PC1512")
-    card = part(manufacturer="Trident", model="TVGA8900", type="video",
-                computer_id=made["asset_id"])
+    card = part(
+        manufacturer="Trident", model="TVGA8900", type="video", computer_id=made["asset_id"]
+    )
     return [
-        "/", "/machines", "/projects", "/projects/new", "/files", "/stats", "/for-sale",
-        f"/computers/{made['asset_id']}", f"/computers/{made['asset_id']}/edit",
-        "/computers/new", "/parts/new",
-        f"/parts/{card['asset_id']}", f"/parts/{card['asset_id']}/edit",
+        "/",
+        "/machines",
+        "/projects",
+        "/projects/new",
+        "/files",
+        "/stats",
+        "/for-sale",
+        f"/computers/{made['asset_id']}",
+        f"/computers/{made['asset_id']}/edit",
+        "/computers/new",
+        "/parts/new",
+        f"/parts/{card['asset_id']}",
+        f"/parts/{card['asset_id']}/edit",
     ]

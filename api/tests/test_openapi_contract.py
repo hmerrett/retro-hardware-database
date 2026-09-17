@@ -11,6 +11,7 @@ itself on the page.
 
 Rerun with RHDB_UPDATE_OPENAPI=1 to record a change you meant to make.
 """
+
 import json
 import os
 from pathlib import Path
@@ -38,9 +39,11 @@ def differences(live: dict, kept: dict) -> list[str]:
     out = []
     sections = (
         ("route", live.get("paths", {}), kept.get("paths", {})),
-        ("model",
-         live.get("components", {}).get("schemas", {}),
-         kept.get("components", {}).get("schemas", {})),
+        (
+            "model",
+            live.get("components", {}).get("schemas", {}),
+            kept.get("components", {}).get("schemas", {}),
+        ),
     )
     for name, now, before in sections:
         for key in sorted(set(now) - set(before)):

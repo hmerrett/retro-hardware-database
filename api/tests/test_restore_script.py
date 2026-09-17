@@ -6,6 +6,7 @@ wrong, or would go wrong quietly, if the script were edited without it. The scri
 was exercised end to end when written: a backup of a seeded stack restored into a
 fresh one, every table's count and every archived file checked.
 """
+
 from pathlib import Path
 
 RESTORE = (Path(__file__).resolve().parents[2] / "tools" / "restore.sh").read_text()
@@ -62,7 +63,7 @@ class TestItLeavesTheSiteWorkingNotJustLoaded:
         before a migration that may backfill; the pages are a check of the site as
         it will serve, so they come after."""
         code = _code()
-        counted = code.index('SELECT COUNT(*) FROM')
+        counted = code.index("SELECT COUNT(*) FROM")
         migrated = code.index("alembic upgrade head")
         pages = code.index("for page in")
         assert counted < migrated < pages

@@ -14,6 +14,7 @@ year is an integer, acquired_date and disposed_at are ISO date strings
 unchanged", the integer and date fields can be set but not cleared from here;
 clear them in the GUI.
 """
+
 import os
 
 import httpx
@@ -60,14 +61,16 @@ def _machine(fields):
     takes. Left out entirely when none of them were given, which is what tells the
     API to leave a machine's catalogue rows alone; a blank machine_model_key means
     the opposite, forget the catalogue for that machine."""
-    machine = {k[len("machine_"):]: fields.pop(k) for k in list(fields)
-               if k.startswith("machine_")}
+    machine = {
+        k[len("machine_") :]: fields.pop(k) for k in list(fields) if k.startswith("machine_")
+    }
     if machine:
         fields["machine"] = machine
     return fields
 
 
 # --- computers -------------------------------------------------------------
+
 
 @mcp.tool()
 def list_computers() -> list[dict]:
@@ -220,6 +223,7 @@ def delete_computer(asset_id: str) -> dict:
 
 
 # --- parts -----------------------------------------------------------------
+
 
 @mcp.tool()
 def list_parts(computer_id: str | None = None, type: str | None = None) -> list[dict]:
@@ -376,8 +380,7 @@ def list_projects(status: str | None = None, open: bool | None = None) -> list[d
     Private ones are listed here like any other: this server talks to the API, which
     is behind the login entire. What `private` governs is what the public site
     shows."""
-    return _request("GET", "/api/projects",
-                    params=_clean({"status": status, "open": open}))
+    return _request("GET", "/api/projects", params=_clean({"status": status, "open": open}))
 
 
 @mcp.tool()
@@ -448,15 +451,17 @@ def delete_project(asset_id: str) -> dict:
 
 
 @mcp.tool()
-def add_project_item(project_id: str, asset_id: str,
-                     note: str | None = None) -> dict:
+def add_project_item(project_id: str, asset_id: str, note: str | None = None) -> dict:
     """Say that a project is about a computer or a part, e.g. the machine being
     repaired or the board being used as a donor. note says why it is there.
 
     The asset must already be in the register: a project is about things that
     exist. Returns the project as it now stands."""
-    return _request("POST", f"/api/projects/{project_id}/items",
-                    json=_clean({"asset_id": asset_id, "note": note}))
+    return _request(
+        "POST",
+        f"/api/projects/{project_id}/items",
+        json=_clean({"asset_id": asset_id, "note": note}),
+    )
 
 
 @mcp.tool()
@@ -469,18 +474,21 @@ def remove_project_item(project_id: str, asset_id: str) -> dict:
 def add_project_task(project_id: str, text: str, done: bool = False) -> dict:
     """Add a job to a project's list. Deliberately just a sentence and a tick --
     write it in the words it will be recognised by."""
-    return _request("POST", f"/api/projects/{project_id}/tasks",
-                    json={"text": text, "done": done})
+    return _request("POST", f"/api/projects/{project_id}/tasks", json={"text": text, "done": done})
 
 
 @mcp.tool()
-def update_project_task(project_id: str, task_id: int, text: str | None = None,
-                        done: bool | None = None) -> dict:
+def update_project_task(
+    project_id: str, task_id: int, text: str | None = None, done: bool | None = None
+) -> dict:
     """Tick a job off, put it back, or reword it. Ticking dates it with today;
     un-ticking clears that date, because a job that is not done has no day it was
     done on."""
-    return _request("PATCH", f"/api/projects/{project_id}/tasks/{task_id}",
-                    json=_clean({"text": text, "done": done}))
+    return _request(
+        "PATCH",
+        f"/api/projects/{project_id}/tasks/{task_id}",
+        json=_clean({"text": text, "done": done}),
+    )
 
 
 @mcp.tool()
@@ -518,12 +526,12 @@ def add_project_order(
 
 
 @mcp.tool()
-def mark_project_order_delivered(project_id: str, order_id: int,
-                                 delivered: bool = True) -> dict:
+def mark_project_order_delivered(project_id: str, order_id: int, delivered: bool = True) -> dict:
     """Tick an order as arrived, dating it today; pass delivered=false to put it
     back to still coming, which clears that date."""
-    return _request("PATCH", f"/api/projects/{project_id}/orders/{order_id}",
-                    json={"delivered": delivered})
+    return _request(
+        "PATCH", f"/api/projects/{project_id}/orders/{order_id}", json={"delivered": delivered}
+    )
 
 
 @mcp.tool()

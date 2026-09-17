@@ -6,17 +6,18 @@ machine: disposing of one disposes of what was fitted inside it, and restoring i
 brings back only those that went with it and not the ones disposed of separately
 beforehand. That bookkeeping is here.
 """
+
 from .history import add_log
 from .models import Part
-
 
 
 def _disposal_log(obj, with_machine=None):
     """The history line for a disposal: when, and why if a reason was given."""
     when = obj.disposed_at.isoformat() if obj.disposed_at else "date unknown"
     who = f" with {with_machine}" if with_machine else ""
-    return f"marked disposed{who} ({when})" + (f": {obj.disposed_note}"
-                                               if obj.disposed_note else "")
+    return f"marked disposed{who} ({when})" + (
+        f": {obj.disposed_note}" if obj.disposed_note else ""
+    )
 
 
 def _parts_in_computer(db, aid):
@@ -26,8 +27,11 @@ def _parts_in_computer(db, aid):
     found, seen = [], set()
     ids, first = [aid], True
     while ids:
-        q = db.query(Part).filter(Part.computer_id == aid) if first \
+        q = (
+            db.query(Part).filter(Part.computer_id == aid)
+            if first
             else db.query(Part).filter(Part.parent_id.in_(ids))
+        )
         rows = [p for p in q.order_by(Part.asset_id).all() if p.asset_id not in seen]
         seen.update(p.asset_id for p in rows)
         found.extend(rows)
@@ -55,8 +59,9 @@ def _restore_contents(db, c, was_at, was_note):
     still in it, and still carrying its disposal record -- come back with it."""
     n = 0
     for p in _parts_in_computer(db, c.asset_id):
-        if not (p.disposed and p.disposed_at == was_at
-                and (p.disposed_note or "") == (was_note or "")):
+        if not (
+            p.disposed and p.disposed_at == was_at and (p.disposed_note or "") == (was_note or "")
+        ):
             continue
         p.disposed, p.disposed_at, p.disposed_note = False, None, ""
         add_log(db, p.asset_id, f"restored with {c.asset_id}")

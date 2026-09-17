@@ -9,6 +9,7 @@ menu. Which is how it was found: somebody asked where the traffic page had gone.
 `RHDB_OPEN` is the missing bit of information, and these are the four states it
 makes possible.
 """
+
 import logging
 
 import pytest
@@ -21,16 +22,17 @@ def said(caplog):
     """What _announce_auth logs for one pair of flags, and whether it asks for the
     banner. A pure function rather than a side effect at import, so the suite can
     ask it what it says instead of racing it."""
+
     def ask(enabled, on_purpose):
         caplog.clear()
         with caplog.at_level(logging.INFO, logger=main.auth.log.name):
             banner = main.auth._announce_auth(enabled, on_purpose)
         return banner, caplog.records
+
     return ask
 
 
 class TestWhatItSaysAtStartup:
-
     def test_a_site_with_a_login_says_nothing(self, said):
         """The state nearly every installation is in. It was quiet before and stays
         quiet; a warning everybody sees every start is a warning nobody reads."""
@@ -59,8 +61,7 @@ class TestWhatItSaysAtStartup:
         assert banner is False
         assert [r.levelno for r in records] == [logging.INFO]
 
-    def test_opting_in_while_a_login_is_configured_warns_it_is_doing_nothing(
-            self, said):
+    def test_opting_in_while_a_login_is_configured_warns_it_is_doing_nothing(self, said):
         """Silently ignoring a variable somebody deliberately set is the same fault
         as the one this whole change is about."""
         banner, records = said(enabled=True, on_purpose=True)
@@ -84,11 +85,21 @@ class TestWhatItSaysAtStartup:
 
 
 class TestHowItIsRead:
-
-    @pytest.mark.parametrize("value,meant", [
-        ("1", True), ("true", True), ("TRUE", True), ("yes", True), ("on", True),
-        ("", False), ("0", False), ("false", False), ("no", False), ("off", False),
-    ])
+    @pytest.mark.parametrize(
+        "value,meant",
+        [
+            ("1", True),
+            ("true", True),
+            ("TRUE", True),
+            ("yes", True),
+            ("on", True),
+            ("", False),
+            ("0", False),
+            ("false", False),
+            ("no", False),
+            ("off", False),
+        ],
+    )
     def test_the_opt_in_reads_the_usual_words(self, value, meant, monkeypatch):
         monkeypatch.setenv("RHDB_OPEN", value)
         assert main.auth._open_on_purpose() is meant
@@ -101,9 +112,7 @@ class TestHowItIsRead:
 
 
 class TestTheBannerOnThePage:
-
-    def test_the_pages_carry_it_when_the_site_is_open_by_accident(
-            self, client, monkeypatch):
+    def test_the_pages_carry_it_when_the_site_is_open_by_accident(self, client, monkeypatch):
         monkeypatch.setitem(main.templates.env.globals, "auth_open_warning", True)
         page = client.get("/").text
         assert "No login" in page
@@ -114,16 +123,14 @@ class TestTheBannerOnThePage:
         page = client.get("/").text
         assert "No login" not in page
 
-    def test_it_is_on_an_item_page_too_and_not_only_the_gallery(
-            self, client, part, monkeypatch):
+    def test_it_is_on_an_item_page_too_and_not_only_the_gallery(self, client, part, monkeypatch):
         """Every page, because the pages somebody edits from are the item pages and
         a warning only on the front door is a warning most visits never see."""
         aid = part()["asset_id"]
         monkeypatch.setitem(main.templates.env.globals, "auth_open_warning", True)
         assert "No login" in client.get(f"/parts/{aid}").text
 
-    def test_the_banner_is_the_one_the_stylesheet_already_warns_with(
-            self, client, monkeypatch):
+    def test_the_banner_is_the_one_the_stylesheet_already_warns_with(self, client, monkeypatch):
         """Reusing .banner rather than inventing a class: it is already the site's
         warning colour, and the stylesheet's contrast tests already cover it in both
         themes, so this adds no rule for them to have missed
@@ -157,12 +164,12 @@ class TestTheAppCanStillSpeak:
 
 
 class TestTheWiring:
-
     def test_the_app_decided_the_banner_from_the_two_flags(self):
         """The global the templates read is what _announce_auth returned, rather than
         a second reading of the environment that could come to disagree with it."""
         assert main.templates.env.globals["auth_open_warning"] == (
-            not main.auth.AUTH_ENABLED and not main.auth._open_on_purpose())
+            not main.auth.AUTH_ENABLED and not main.auth._open_on_purpose()
+        )
 
     def test_the_suite_itself_runs_open_and_says_so(self):
         """conftest pops both credentials -- that is how the suite gets to be the
@@ -176,6 +183,7 @@ class TestTheWiring:
 
     def test_the_decision_is_written_down(self):
         from pathlib import Path
+
         root = Path(__file__).parents[2]
         adr = root / "adr" / "0019-running-open-is-supported-but-never-silent.md"
         assert adr.exists()

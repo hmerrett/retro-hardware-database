@@ -20,6 +20,7 @@ Every output keeps its alpha channel except apple-touch-icon.png, which is
 deliberately flattened on white because iOS composites transparency on black.
 Rebuild the api image afterwards so the files are copied in.
 """
+
 import os
 
 from PIL import Image
@@ -101,10 +102,8 @@ CARD_FILL = 0.72  # of the card's width, leaving it room to breathe
 def make_share_card(tight):
     card = Image.new("RGB", CARD_SIZE, CARD_BG)
     art = tight.copy()
-    art.thumbnail((int(CARD_SIZE[0] * CARD_FILL), int(CARD_SIZE[1] * CARD_FILL)),
-                  Image.LANCZOS)
-    card.paste(art, ((CARD_SIZE[0] - art.width) // 2,
-                     (CARD_SIZE[1] - art.height) // 2), art)
+    art.thumbnail((int(CARD_SIZE[0] * CARD_FILL), int(CARD_SIZE[1] * CARD_FILL)), Image.LANCZOS)
+    card.paste(art, ((CARD_SIZE[0] - art.width) // 2, (CARD_SIZE[1] - art.height) // 2), art)
     card.save(f"{STATIC}/og-image.png", optimize=True)
     print(f"og-image.png at {card.size}, logo {art.size}")
 

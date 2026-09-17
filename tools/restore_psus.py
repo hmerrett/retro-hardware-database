@@ -33,6 +33,7 @@ Idempotent, and it says so rather than doing it twice: a taken asset id is left
 alone, and the Kentex -- which cannot be recognised by its id, since it gets a new
 one -- is matched on its maker and model.
 """
+
 import sys
 from datetime import UTC, date, datetime
 
@@ -51,21 +52,37 @@ def log(db, aid, message, kind="change"):
 
 
 WANTED = [
-    ({"asset_id": "RH-0189", "type": "psu",
-      "manufacturer": "Delta Electronics Ltd", "model": "DPS-300SB-1 B Rev. 00",
-      "specs": "Form factor: ATX | Output: 300W", "condition": "Working",
-      "source": "RABS, Retrofest 2026", "acquired_date": date(2026, 5, 30)},
-     "Back from the flat-file register, where this was RH-0189 until 6 July 2026,"
-     " when power supplies stopped being a type and the four of them were deleted."
-     " Maker, model, condition and where it came from are that row's, not re-read"
-     " off the unit; ATX and 300W are what the model is."),
-    ({"asset_id": None, "type": "psu", "computer_id": "RH-0204",
-      "manufacturer": "Kentex Electronic Co Ltd", "model": "KTX-9006-81",
-      "year": 1992, "condition": "Working"},
-     "Back from the flat-file register, where this was RH-0215 until 6 July 2026,"
-     " when power supplies stopped being a type. That number is an Opus PCV Turbo"
-     " now, so this one is filed under a tag of its own. Maker, model, year and the"
-     " machine it is in are the old row's."),
+    (
+        {
+            "asset_id": "RH-0189",
+            "type": "psu",
+            "manufacturer": "Delta Electronics Ltd",
+            "model": "DPS-300SB-1 B Rev. 00",
+            "specs": "Form factor: ATX | Output: 300W",
+            "condition": "Working",
+            "source": "RABS, Retrofest 2026",
+            "acquired_date": date(2026, 5, 30),
+        },
+        "Back from the flat-file register, where this was RH-0189 until 6 July 2026,"
+        " when power supplies stopped being a type and the four of them were deleted."
+        " Maker, model, condition and where it came from are that row's, not re-read"
+        " off the unit; ATX and 300W are what the model is.",
+    ),
+    (
+        {
+            "asset_id": None,
+            "type": "psu",
+            "computer_id": "RH-0204",
+            "manufacturer": "Kentex Electronic Co Ltd",
+            "model": "KTX-9006-81",
+            "year": 1992,
+            "condition": "Working",
+        },
+        "Back from the flat-file register, where this was RH-0215 until 6 July 2026,"
+        " when power supplies stopped being a type. That number is an Opus PCV Turbo"
+        " now, so this one is filed under a tag of its own. Maker, model, year and the"
+        " machine it is in are the old row's.",
+    ),
 ]
 
 
@@ -84,12 +101,15 @@ def main(write=True):
                 # Its own old number belongs to something else now, so it takes a
                 # new one -- which means the id cannot say whether this has run
                 # before. What the part is says it instead.
-                already = (db.query(Part)
-                           .filter(Part.manufacturer == fields["manufacturer"],
-                                   Part.model == fields["model"]).first())
+                already = (
+                    db.query(Part)
+                    .filter(
+                        Part.manufacturer == fields["manufacturer"], Part.model == fields["model"]
+                    )
+                    .first()
+                )
                 if already:
-                    print(f"{already.asset_id} is already"
-                          f" {fields['model']} -- skipped")
+                    print(f"{already.asset_id} is already {fields['model']} -- skipped")
                     continue
                 aid = "(a new tag)" if not write else next_asset_id(db)
             host = fields.get("computer_id")

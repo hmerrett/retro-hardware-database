@@ -9,6 +9,7 @@ instead of it, and nothing in that directory is in git.
 The rule that matters is the one below: a name nobody has overridden still comes
 back, so an installation replaces the one file it cares about rather than all ten.
 """
+
 import pytest
 
 from app import main
@@ -24,6 +25,7 @@ def branding():
         path.write_bytes(data)
         written.append(path)
         return data
+
     yield put
     for path in written:
         path.unlink(missing_ok=True)
@@ -50,8 +52,7 @@ class TestServingIt:
         assert r.status_code == 200
         assert r.content == (main.STATIC_DIR / "logo-256.png").read_bytes()
 
-    def test_a_static_file_is_replaced_by_the_installations_own(self, client,
-                                                                branding):
+    def test_a_static_file_is_replaced_by_the_installations_own(self, client, branding):
         data = branding("logo-256.png")
         assert client.get("/static/logo-256.png").content == data
 

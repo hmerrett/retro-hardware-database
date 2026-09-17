@@ -6,6 +6,7 @@ read back into its columns, a disposal, a deletion, the work it is wanted for. T
 are here, so that the two page modules hold what differs and not what does not --
 and so that the JSON API, which deletes and edits the same rows, is not a third copy.
 """
+
 from urllib.parse import urlparse
 
 
@@ -43,12 +44,34 @@ from . import entry, filesdb, machinedb, machines, projects, specdb
 from .common import folder_images, to_dict
 from .disposal import _parts_in_computer
 from .history import add_log
-from .models import (AssetChip, AssetVariant, Computer, ComputerDrive, ComputerRamChip,
-                     ComputerRamModule, LogEntry, Part, Project)
-from .photos import (_asset_log_photos, _crop_op, _drop_log_photos, _edit_image, _favicon_for_rel,
-                     _purge_photos, _restore_original, _rotate_op, _save_photo,
-                     _storage_placeholder, _tuneup_op, detect_images, has_original,
-                     is_reference, pick_images)
+from .models import (
+    AssetChip,
+    AssetVariant,
+    Computer,
+    ComputerDrive,
+    ComputerRamChip,
+    ComputerRamModule,
+    LogEntry,
+    Part,
+    Project,
+)
+from .photos import (
+    _asset_log_photos,
+    _crop_op,
+    _drop_log_photos,
+    _edit_image,
+    _favicon_for_rel,
+    _purge_photos,
+    _restore_original,
+    _rotate_op,
+    _save_photo,
+    _storage_placeholder,
+    _tuneup_op,
+    detect_images,
+    has_original,
+    is_reference,
+    pick_images,
+)
 from .register import get_or_404
 from .web import _abs_url
 from .work import _take_on_work, _work_lines
@@ -57,19 +80,24 @@ from .work import _take_on_work, _work_lines
 # What a typed answer to one of the catalogue pickers may be as long as: the column
 # it lands in. The same rule the drive pickers follow (see _ASK_WIDTHS) -- a box that
 # accepted more than the column holds would fail on save rather than at the keyboard.
-_MACHINE_WIDTHS = {"issue": AssetVariant.issue.type.length,
-                   "style": AssetVariant.style.type.length,
-                   "region": AssetVariant.region.type.length,
-                   "chip": AssetChip.variant.type.length}
+_MACHINE_WIDTHS = {
+    "issue": AssetVariant.issue.type.length,
+    "style": AssetVariant.style.type.length,
+    "region": AssetVariant.region.type.length,
+    "chip": AssetChip.variant.type.length,
+}
 
 
 def _bezel_ctx():
     """The bezel vocabularies and their swatches, for any form that records one:
     a machine's drive rows, a storage part and a display all do."""
-    return {"bezel_colours": entry.BEZEL_COLOURS, "yellowing": entry.YELLOWING,
-            "bezel_colour_labels": entry.BEZEL_COLOUR_LABELS,
-            "yellowing_labels": entry.YELLOWING_LABELS,
-            "bezel_swatches": entry.bezel_swatch_map()}
+    return {
+        "bezel_colours": entry.BEZEL_COLOURS,
+        "yellowing": entry.YELLOWING,
+        "bezel_colour_labels": entry.BEZEL_COLOUR_LABELS,
+        "yellowing_labels": entry.YELLOWING_LABELS,
+        "bezel_swatches": entry.bezel_swatch_map(),
+    }
 
 
 def _machine_ctx(obj, db=None, board=False):
@@ -79,17 +107,23 @@ def _machine_ctx(obj, db=None, board=False):
     The whole catalogue goes to the browser as JSON because the variation fields are
     built from whichever model is picked: sixty models' worth of menus rendered at
     once would be most of the page, and all but one set of them would be wrong."""
-    saved = machinedb.read(db, obj) if (obj is not None and db is not None) \
-        else dict(machinedb.BLANK)
+    saved = (
+        machinedb.read(db, obj) if (obj is not None and db is not None) else dict(machinedb.BLANK)
+    )
     # What the catalogue names, plus what the register has since been told: a chip
     # somebody had to type once is a radio button from then on. Boards teach it the
     # same as machines do -- the query behind this reads the whole register.
-    catalogue = machines.with_recorded(machines.form_catalogue(),
-                                       machinedb.recorded(db) if db is not None
-                                       else {})
-    return {"machine_groups": machines.grouped(), "machine_saved": saved,
-            "machine_catalogue": catalogue, "machine_widths": _MACHINE_WIDTHS,
-            "machine_board": board}
+    catalogue = machines.with_recorded(
+        machines.form_catalogue(), machinedb.recorded(db) if db is not None else {}
+    )
+    return {
+        "machine_groups": machines.grouped(),
+        "machine_saved": saved,
+        "machine_catalogue": catalogue,
+        "machine_widths": _MACHINE_WIDTHS,
+        "machine_board": board,
+    }
+
 
 # The two answers a board is not asked for. A case or keyboard style and the market
 # a machine was built for are facts about a whole computer in a case, so a board's
@@ -131,8 +165,7 @@ def _clear_computer_rows(db, c, with_parts=()):
     projects.forget_asset(db, aid)
     filesdb.forget_asset(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
-        db.query(model).filter(
-            model.asset_id == aid).delete(synchronize_session=False)
+        db.query(model).filter(model.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("computers", aid)
     db.delete(c)
     return photos
@@ -163,8 +196,7 @@ def _clear_part_rows(db, part, also_going=()):
     projects.forget_asset(db, aid)
     filesdb.forget_asset(db, aid)
     for model in (AssetChip, AssetVariant, LogEntry):
-        db.query(model).filter(
-            model.asset_id == aid).delete(synchronize_session=False)
+        db.query(model).filter(model.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("parts", aid)
     db.delete(part)
     return photos
@@ -173,10 +205,7 @@ def _clear_part_rows(db, part, also_going=()):
 def _log_count(db, asset_ids):
     if not asset_ids:
         return 0
-    return (db.query(func.count(LogEntry.id))
-            .filter(LogEntry.asset_id.in_(asset_ids)).scalar() or 0)
-
-
+    return db.query(func.count(LogEntry.id)).filter(LogEntry.asset_id.in_(asset_ids)).scalar() or 0
 
 
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
@@ -187,8 +216,7 @@ COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
 
 # These are rendered from the memory, drive and catalogue child tables, so the form
 # loop must not write them, and the change log need not repeat the derived total.
-DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note",
-                  "variant"}
+DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note", "variant"}
 
 
 PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
@@ -209,8 +237,18 @@ PART_DERIVED_FIELDS = {"variant"}
 # A plan used to be on that list too, when one was a column here. It is a project of
 # its own now, and a project is attached to an asset rather than copied with one --
 # so a duplicate is simply not in it, and there is nothing to leave out.
-DUP_EXCLUDE = {"image", "disposed", "disposed_at", "disposed_note", "source",
-               "acquired_date", "notes", "serial", "computer_id", "parent_id"}
+DUP_EXCLUDE = {
+    "image",
+    "disposed",
+    "disposed_at",
+    "disposed_note",
+    "source",
+    "acquired_date",
+    "notes",
+    "serial",
+    "computer_id",
+    "parent_id",
+}
 
 
 def _attach_photos(db, obj, kind, uploads):
@@ -254,8 +292,7 @@ def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
     if kind == "computers":
         inside = _parts_in_computer(db, aid)
     else:
-        children = (db.query(Part).filter(Part.parent_id == aid)
-                    .order_by(Part.asset_id).all())
+        children = db.query(Part).filter(Part.parent_id == aid).order_by(Part.asset_id).all()
     # A part inside the machine that is not itself disposed is not deleted even
     # when the box is ticked: it is still in the collection, and the rule here is
     # that only what has already been marked as gone can go.
@@ -264,19 +301,27 @@ def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
     # gallery and are not the portrait, but they are files, they go when the record
     # goes, and the page's promise is "deleted from disk" -- so leaving them out
     # would be under-promising what the button does.
-    return {"kind": kind, "obj": obj, "aid": aid,
-            "name": entry.display_name(to_dict(obj)),
-            "url": _abs_url(request, f"/{kind}/{aid}"),
-            "photos": detect_images(kind, aid) + _asset_log_photos(db, aid),
-            "logs": _log_count(db, [aid]),
-            "inside": inside, "deletable": deletable,
-            "kept": [p for p in inside if not p.disposed],
-            "parts_photos": sum(len(detect_images("parts", p.asset_id))
-                                + len(_asset_log_photos(db, p.asset_id))
-                                for p in deletable),
-            "parts_logs": _log_count(db, [p.asset_id for p in deletable]),
-            "children": children, "with_parts": with_parts, "error": error,
-            "noindex": True}
+    return {
+        "kind": kind,
+        "obj": obj,
+        "aid": aid,
+        "name": entry.display_name(to_dict(obj)),
+        "url": _abs_url(request, f"/{kind}/{aid}"),
+        "photos": detect_images(kind, aid) + _asset_log_photos(db, aid),
+        "logs": _log_count(db, [aid]),
+        "inside": inside,
+        "deletable": deletable,
+        "kept": [p for p in inside if not p.disposed],
+        "parts_photos": sum(
+            len(detect_images("parts", p.asset_id)) + len(_asset_log_photos(db, p.asset_id))
+            for p in deletable
+        ),
+        "parts_logs": _log_count(db, [p.asset_id for p in deletable]),
+        "children": children,
+        "with_parts": with_parts,
+        "error": error,
+        "noindex": True,
+    }
 
 
 def _do_photo_crop(db, model, kind, aid, form):
@@ -347,14 +392,16 @@ def _machine_from_form(form, board=False):
     asked = ["issue"] if board else ["issue", *_MACHINE_ONLY]
     for field in asked:
         out[field] = _machine_pick(form, f"mach_{field}")
-    out["chips"] = {role: _machine_pick(form, f"chip:{role}")
-                    for role in machines.roles(key)}
+    out["chips"] = {role: _machine_pick(form, f"chip:{role}") for role in machines.roles(key)}
     # The tickbox beside each chip: on for a socket, off for soldered to the board.
     # A box that is off is only an answer for a chip that has one -- a socket left
     # at "not recorded" stores no row at all, so saving the form cannot quietly
     # decide that a chip nobody has looked at is soldered down.
-    out["sockets"] = {role: bool(form.get(f"chip:{role}:socketed"))
-                      for role in machines.roles(key) if out["chips"].get(role)}
+    out["sockets"] = {
+        role: bool(form.get(f"chip:{role}:socketed"))
+        for role in machines.roles(key)
+        if out["chips"].get(role)
+    }
     return out
 
 
@@ -393,13 +440,23 @@ def _machine_page(db, obj):
         # catalogue and not the record, like every label here: the paragraph is
         # about the model, so correcting it corrects every machine filed as one.
         "summary": m.get("summary", "") if m else "",
-        "rows": [(label, value) for label, value in
-                 ((machines.ISSUE_KEY, v["issue"]), (machines.STYLE_KEY, v["style"]),
-                  (machines.REGION_KEY, v["region"])) if value],
-        "chips": [{"label": machines.chip_label(v["model_key"], role),
-                   "variant": variant,
-                   "socketed": v["sockets"].get(role)}
-                  for role, variant in v["chips"].items()],
+        "rows": [
+            (label, value)
+            for label, value in (
+                (machines.ISSUE_KEY, v["issue"]),
+                (machines.STYLE_KEY, v["style"]),
+                (machines.REGION_KEY, v["region"]),
+            )
+            if value
+        ],
+        "chips": [
+            {
+                "label": machines.chip_label(v["model_key"], role),
+                "variant": variant,
+                "socketed": v["sockets"].get(role),
+            }
+            for role, variant in v["chips"].items()
+        ],
     }
 
 
@@ -410,8 +467,10 @@ def _require_disposed(obj, kind):
     purpose, on an earlier day."""
     if not obj.disposed:
         raise HTTPException(
-            400, f"{obj.asset_id} is still in the collection. Mark it disposed "
-                 f"first -- only a disposed {kind} can be deleted.")
+            400,
+            f"{obj.asset_id} is still in the collection. Mark it disposed "
+            f"first -- only a disposed {kind} can be deleted.",
+        )
 
 
 async def _set_for_sale(db, model, aid, request: Request):
@@ -430,8 +489,9 @@ async def _set_for_sale(db, model, aid, request: Request):
     form = await request.form()
     row.for_sale = bool(form.get("for_sale"))
     db.commit()
-    return RedirectResponse(f"/{'computers' if model is Computer else 'parts'}/{aid}",
-                            status_code=303)
+    return RedirectResponse(
+        f"/{'computers' if model is Computer else 'parts'}/{aid}", status_code=303
+    )
 
 
 def _work_from_form(db, obj, form):
@@ -478,10 +538,14 @@ def part_thumbs(db, parts):
         rel = imgs[0] if imgs else ""
         ptype = p.type or "other"
         thumbs[p.asset_id] = {
-            "img": rel, "ref": is_reference(rel),
+            "img": rel,
+            "ref": is_reference(rel),
             "icon": _favicon_for_rel(rel),
-            "ph": (_storage_placeholder(kinds.get(p.asset_id)) if ptype == "storage"
-                   else entry.placeholder_for(ptype)),
+            "ph": (
+                _storage_placeholder(kinds.get(p.asset_id))
+                if ptype == "storage"
+                else entry.placeholder_for(ptype)
+            ),
         }
     return thumbs
 

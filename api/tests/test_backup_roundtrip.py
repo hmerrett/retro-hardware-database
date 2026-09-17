@@ -3,6 +3,7 @@ must restore cleanly into an empty database with its rows intact. This runs
 against the same MariaDB the suite uses (DATABASE_URL); it is skipped when the
 dump/restore client binaries are absent so it never fails a machine that lacks
 them."""
+
 import os
 import shutil
 import subprocess
@@ -36,7 +37,10 @@ def test_dump_and_restore_roundtrip():
 
     dump = subprocess.run(
         [DUMP, "-h", host, "-P", str(port), "-u", user, db, "backup_probe"],
-        env=env, capture_output=True, text=True, check=True,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
 
     with eng.begin() as c:
@@ -44,7 +48,10 @@ def test_dump_and_restore_roundtrip():
 
     subprocess.run(
         [CLIENT, "-h", host, "-P", str(port), "-u", user, db],
-        input=dump, env=env, text=True, check=True,
+        input=dump,
+        env=env,
+        text=True,
+        check=True,
     )
 
     with eng.connect() as c:

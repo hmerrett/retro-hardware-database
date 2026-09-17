@@ -6,6 +6,7 @@ Everything here is pure (no DB, no HTTP): the GUI endpoints in main.py call thes
 to turn friendly input (port letters, slot codes, 'N x size' RAM) into the stored
 'Key: value | Key: value' specs and computer fields.
 """
+
 from __future__ import annotations
 
 import re
@@ -24,16 +25,37 @@ from markupsafe import Markup, escape
 # the label and the drawing for it were never taken out. It is not a step in the
 # build walk, though: nobody builds a machine out by being asked for its PSU.
 TYPE_ORDER = [
-    "motherboard", "cpu", "ram", "video", "sound", "network", "io",
-    "storage", "display", "psu", "cooler", "peripheral", "other",
+    "motherboard",
+    "cpu",
+    "ram",
+    "video",
+    "sound",
+    "network",
+    "io",
+    "storage",
+    "display",
+    "psu",
+    "cooler",
+    "peripheral",
+    "other",
 ]
 
 TYPE_LABELS = {
-    "motherboard": "Motherboard", "cpu": "CPU", "ram": "Memory", "video": "Video",
-    "sound": "Sound", "network": "Network", "io": "I/O", "storage": "Storage",
+    "motherboard": "Motherboard",
+    "cpu": "CPU",
+    "ram": "Memory",
+    "video": "Video",
+    "sound": "Sound",
+    "network": "Network",
+    "io": "I/O",
+    "storage": "Storage",
     "display": "Display",
-    "optical": "Optical drive", "floppy": "Floppy drive", "psu": "Power supply",
-    "cooler": "Cooling", "peripheral": "Peripheral", "other": "Other",
+    "optical": "Optical drive",
+    "floppy": "Floppy drive",
+    "psu": "Power supply",
+    "cooler": "Cooling",
+    "peripheral": "Peripheral",
+    "other": "Other",
 }
 
 # Expansion-card categories walked through when building out a machine.
@@ -62,24 +84,52 @@ CARD_KIND = "SD/CF card"
 
 # --- pick-list vocabularies ------------------------------------------------
 
-CONDITIONS = ["Working", "Untested", "Partially working", "Faulty",
-              "For parts/repair", "Restored"]
+CONDITIONS = ["Working", "Untested", "Partially working", "Faulty", "For parts/repair", "Restored"]
 MOBO_FORM_FACTORS = ["AT", "Baby-AT", "ATX", "LPX", "NLX", "proprietary"]
-CPU_FAMILIES = ["8088-class", "286-class", "386-class", "486-class",
-                "Pentium-class", "Pentium Pro-class", "Pentium II/III-class",
-                "Pentium 4-class", "Athlon-class", "Z80"]
+CPU_FAMILIES = [
+    "8088-class",
+    "286-class",
+    "386-class",
+    "486-class",
+    "Pentium-class",
+    "Pentium Pro-class",
+    "Pentium II/III-class",
+    "Pentium 4-class",
+    "Athlon-class",
+    "Z80",
+]
 RAM_SLOT_TYPES = ["30-pin SIMM", "72-pin SIMM", "168-pin DIMM", "184-pin DIMM"]
-CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "EISA", "MCA", "VLB",
-                   "PCI", "AGP", "PCIe x16", "USB"]
-VIDEO_CONNECTORS = ["VGA", "DVI", "HDMI", "DisplayPort", "S-Video", "Composite",
-                    "Component", "MDA", "CGA", "EGA"]
+CARD_INTERFACES = ["8-bit ISA", "16-bit ISA", "EISA", "MCA", "VLB", "PCI", "AGP", "PCIe x16", "USB"]
+VIDEO_CONNECTORS = [
+    "VGA",
+    "DVI",
+    "HDMI",
+    "DisplayPort",
+    "S-Video",
+    "Composite",
+    "Component",
+    "MDA",
+    "CGA",
+    "EGA",
+]
 # Ordered as the radio group reads: the buses a drive is usually on, then the
 # pre-IDE disk interfaces, the two floppy ribbons (a slimline drive takes a 26-pin
 # flex cable, not the 34-pin header of a desktop drive), removable media, and last
 # the early CD-ROMs that hung off a sound card rather than a disk controller.
-STORAGE_INTERFACES = ["IDE", "SATA", "SCSI", "MFM", "RLL", "ESDI",
-                      "34-pin floppy", "26-pin floppy", "CF", "SD", "USB",
-                      "Proprietary"]
+STORAGE_INTERFACES = [
+    "IDE",
+    "SATA",
+    "SCSI",
+    "MFM",
+    "RLL",
+    "ESDI",
+    "34-pin floppy",
+    "26-pin floppy",
+    "CF",
+    "SD",
+    "USB",
+    "Proprietary",
+]
 STORAGE_KINDS = ["Hard disk", "SD/CF card", "Tape", "Optical", "Floppy/Gotek"]
 STORAGE_PROTOCOLS = ["ATA", "ATAPI", "SATA", "XTA", "RLL", "MFM", "ESDI", "SCSI"]
 PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
@@ -92,24 +142,40 @@ PERIPHERAL_INTERFACES = ["USB", "PS/2", "Serial", "Parallel", "VGA", "DIN"]
 # register could no longer answer "every CRT" once somebody filed one as a
 # Trinitron. So the tube or panel construction is its own field, and "every CRT"
 # and "every aperture grille" are both questions the collection can answer.
-DISPLAY_TYPES = ["CRT", "LCD", "Plasma", "OLED", "Electroluminescent", "VFD",
-                 "LED matrix", "E-paper"]
+DISPLAY_TYPES = [
+    "CRT",
+    "LCD",
+    "Plasma",
+    "OLED",
+    "Electroluminescent",
+    "VFD",
+    "LED matrix",
+    "E-paper",
+]
 
 # How the tube or the panel is built. The CRT masks first, then the panel
 # technologies, because that is the order the collection runs in. Trinitron and
 # Diamondtron are named beside the thing they are -- they are Sony's and
 # Mitsubishi's aperture grilles -- so that looking for either finds it, and so that
 # a grille filed under a trade name is still a grille.
-DISPLAY_PANELS = ["Shadow mask", "Aperture grille (Trinitron)",
-                  "Aperture grille (Diamondtron)", "Aperture grille", "Slot mask",
-                  "TN", "IPS", "VA", "DSTN (passive)", "STN (passive)"]
+DISPLAY_PANELS = [
+    "Shadow mask",
+    "Aperture grille (Trinitron)",
+    "Aperture grille (Diamondtron)",
+    "Aperture grille",
+    "Slot mask",
+    "TN",
+    "IPS",
+    "VA",
+    "DSTN (passive)",
+    "STN (passive)",
+]
 
 # What comes out of it, which on this hardware is as often one colour as it is all
 # of them. A green screen and an amber one are different objects to look at and
 # different objects to want, and neither is "monochrome" to anybody who has owned
 # one -- so the phosphor is named rather than the absence of colour.
-DISPLAY_PICTURES = ["Colour", "Green", "Amber", "White", "Paper white",
-                    "Greyscale"]
+DISPLAY_PICTURES = ["Colour", "Green", "Amber", "White", "Paper white", "Greyscale"]
 
 # The shape of the picture, which for everything in this collection's period is
 # one of the first two.
@@ -119,23 +185,62 @@ DISPLAY_ASPECTS = ["4:3", "5:4", "16:10", "16:9", "3:2"]
 # analogue VGA that replaced them and everything since, then the ways a home
 # computer or a console put a picture on a screen. Comma-separated where a monitor
 # has more than one socket, which by the DVI years most of them did.
-DISPLAY_INTERFACES = ["VGA (HD-15)", "DVI-D", "DVI-I", "DVI-A", "HDMI",
-                      "DisplayPort", "9-pin TTL (MDA)", "9-pin TTL (CGA)",
-                      "9-pin TTL (EGA)", "13W3", "BNC", "SCART", "S-Video",
-                      "Composite", "Component", "RGB DIN", "RF"]
+DISPLAY_INTERFACES = [
+    "VGA (HD-15)",
+    "DVI-D",
+    "DVI-I",
+    "DVI-A",
+    "HDMI",
+    "DisplayPort",
+    "9-pin TTL (MDA)",
+    "9-pin TTL (CGA)",
+    "9-pin TTL (EGA)",
+    "13W3",
+    "BNC",
+    "SCART",
+    "S-Video",
+    "Composite",
+    "Component",
+    "RGB DIN",
+    "RF",
+]
 
 # The sizes screens were actually sold in. A tube was sold by the size of the tube
 # and a panel by the picture, which is why 14" and 15" both exist and why the
 # laptop and industrial sizes are down at the bottom of the list.
-DISPLAY_SIZES = ['9"', '12"', '14"', '15"', '17"', '19"', '20"', '21"', '22"',
-                 '24"', '5"', '7"', '10"', '13.3"']
+DISPLAY_SIZES = [
+    '9"',
+    '12"',
+    '14"',
+    '15"',
+    '17"',
+    '19"',
+    '20"',
+    '21"',
+    '22"',
+    '24"',
+    '5"',
+    '7"',
+    '10"',
+    '13.3"',
+]
 
 # The modes a screen of this period is described by. A multisync tube does a range
 # and says so in the custom box: what belongs here is the one figure a monitor is
 # known by, which for a panel is the only one it has.
-DISPLAY_RESOLUTIONS = ["640×480", "800×600", "1024×768", "1152×864", "1280×1024",
-                       "1400×1050", "1600×1200", "1920×1080", "1920×1200",
-                       "720×348 (Hercules)", "320×200 (CGA)"]
+DISPLAY_RESOLUTIONS = [
+    "640×480",
+    "800×600",
+    "1024×768",
+    "1152×864",
+    "1280×1024",
+    "1400×1050",
+    "1600×1200",
+    "1920×1080",
+    "1920×1200",
+    "720×348 (Hercules)",
+    "320×200 (CGA)",
+]
 
 # What a monitor will do at the resolution above, and like the line rate below it,
 # usually more than one thing. 50 Hz is where the television-rate modes of a home
@@ -143,8 +248,7 @@ DISPLAY_RESOLUTIONS = ["640×480", "800×600", "1024×768", "1152×864", "1280×
 # panel sits and a tube flickers; 85 is where a tube stops flickering, and is the
 # figure worth recording about one. A screen that does several is ticked several
 # times, and a multiscan quoting a range (the AKF18's 47–90 Hz) says so in the box.
-DISPLAY_REFRESH = ["50 Hz", "60 Hz", "70 Hz", "72 Hz", "75 Hz", "85 Hz", "100 Hz",
-                   "120 Hz"]
+DISPLAY_REFRESH = ["50 Hz", "60 Hz", "70 Hz", "72 Hz", "75 Hz", "85 Hz", "100 Hz", "120 Hz"]
 
 # The line rates a screen will lock to -- the horizontal figure to the vertical one
 # above, and the answer that decides whether a machine can drive the screen at all
@@ -161,15 +265,33 @@ DISPLAY_REFRESH = ["50 Hz", "60 Hz", "70 Hz", "72 Hz", "75 Hz", "85 Hz", "100 Hz
 # Round figures in the list, because they are what the hardware is known by: the TV
 # rate is 15.625 kHz in PAL and 15.734 in NTSC, and both are "a 15 kHz monitor" to
 # anyone who has owned one.
-DISPLAY_SYNCS = ["15 kHz", "24 kHz", "31 kHz", "35 kHz", "38 kHz", "48 kHz",
-                 "56 kHz", "64 kHz", "80 kHz"]
+DISPLAY_SYNCS = [
+    "15 kHz",
+    "24 kHz",
+    "31 kHz",
+    "35 kHz",
+    "38 kHz",
+    "48 kHz",
+    "56 kHz",
+    "64 kHz",
+    "80 kHz",
+]
 
 # The pitches quoted on the box, finest first, because finer is the thing being
 # claimed. A grille is measured horizontally and a mask diagonally, so the two are
 # not quite comparable -- which is an argument for recording both this and the
 # panel type, not for recording neither.
-DISPLAY_PITCHES = ["0.20 mm", "0.22 mm", "0.24 mm", "0.25 mm", "0.26 mm",
-                   "0.27 mm", "0.28 mm", "0.31 mm", "0.39 mm"]
+DISPLAY_PITCHES = [
+    "0.20 mm",
+    "0.22 mm",
+    "0.24 mm",
+    "0.25 mm",
+    "0.26 mm",
+    "0.27 mm",
+    "0.28 mm",
+    "0.31 mm",
+    "0.39 mm",
+]
 
 # What a screen is asked, and with what. One table, on the pattern STORAGE_ASKS
 # set: the form builds itself from it and the server reads every answer back
@@ -181,50 +303,102 @@ DISPLAY_PITCHES = ["0.20 mm", "0.22 mm", "0.24 mm", "0.25 mm", "0.26 mm",
 #   multi    several answers rather than one -- checkboxes instead of radios
 #   max      how long a custom answer may be: the width of the column it lands in
 DISPLAY_ASKS = [
-    {"key": "Type", "label": "Type", "hint": "what makes the picture",
-     "options": DISPLAY_TYPES, "max": 64,
-     "placeholder": "e.g. LCoS, DLP, Nixie"},
-    {"key": "Panel", "label": "Tube or panel", "hint": "how it is built",
-     "options": DISPLAY_PANELS, "max": 64,
-     "placeholder": "e.g. Cromaclear, black matrix"},
-    {"key": "Screen size", "label": "Screen size",
-     "hint": "the diagonal, as it was sold", "options": DISPLAY_SIZES, "max": 32,
-     "placeholder": 'e.g. 13.3", 16"'},
-    {"key": "Aspect", "label": "Aspect ratio", "hint": "the shape of the picture",
-     "options": DISPLAY_ASPECTS, "max": 16, "placeholder": "e.g. 5:3"},
-    {"key": "Resolution", "label": "Resolution",
-     "hint": "a panel's native one, or the most a tube will do",
-     "options": DISPLAY_RESOLUTIONS, "max": 64,
-     "placeholder": "e.g. 640×480 to 1280×1024"},
+    {
+        "key": "Type",
+        "label": "Type",
+        "hint": "what makes the picture",
+        "options": DISPLAY_TYPES,
+        "max": 64,
+        "placeholder": "e.g. LCoS, DLP, Nixie",
+    },
+    {
+        "key": "Panel",
+        "label": "Tube or panel",
+        "hint": "how it is built",
+        "options": DISPLAY_PANELS,
+        "max": 64,
+        "placeholder": "e.g. Cromaclear, black matrix",
+    },
+    {
+        "key": "Screen size",
+        "label": "Screen size",
+        "hint": "the diagonal, as it was sold",
+        "options": DISPLAY_SIZES,
+        "max": 32,
+        "placeholder": 'e.g. 13.3", 16"',
+    },
+    {
+        "key": "Aspect",
+        "label": "Aspect ratio",
+        "hint": "the shape of the picture",
+        "options": DISPLAY_ASPECTS,
+        "max": 16,
+        "placeholder": "e.g. 5:3",
+    },
+    {
+        "key": "Resolution",
+        "label": "Resolution",
+        "hint": "a panel's native one, or the most a tube will do",
+        "options": DISPLAY_RESOLUTIONS,
+        "max": 64,
+        "placeholder": "e.g. 640×480 to 1280×1024",
+    },
     # Ticked rather than chosen, for the reason the line rate is: a screen that
     # does 50 Hz for a television-rate mode and 85 for its best VGA one does both,
     # and the highest of them is not the useful half on its own -- whether a machine
     # putting out 50 Hz will be met is the question a record of it should answer.
-    {"key": "Refresh", "label": "Refresh rate",
-     "hint": "tick every rate it will do",
-     "options": DISPLAY_REFRESH, "multi": True, "max": 255,
-     "placeholder": "e.g. 47–90 Hz, 66 Hz"},
+    {
+        "key": "Refresh",
+        "label": "Refresh rate",
+        "hint": "tick every rate it will do",
+        "options": DISPLAY_REFRESH,
+        "multi": True,
+        "max": 255,
+        "placeholder": "e.g. 47–90 Hz, 66 Hz",
+    },
     # One of the two questions a screen may answer more than once. A tube that
     # locks to 15 kHz and to 31 kHz is two monitors in one case, and being made to
     # choose would mean recording the half that is less useful -- so the rates are
     # ticked. A multiscan that quotes a range (the AKF18's 15–38 kHz) types it in
     # the box instead of ticking every figure inside it.
-    {"key": "Sync", "label": "Sync rate",
-     "hint": "tick every line rate it will lock to",
-     "options": DISPLAY_SYNCS, "multi": True, "max": 255,
-     "placeholder": "e.g. 30–70 kHz, 15.625 kHz"},
-    {"key": "Dot pitch", "label": "Dot pitch", "hint": "in millimetres",
-     "options": DISPLAY_PITCHES, "max": 32, "placeholder": "e.g. 0.297 mm"},
+    {
+        "key": "Sync",
+        "label": "Sync rate",
+        "hint": "tick every line rate it will lock to",
+        "options": DISPLAY_SYNCS,
+        "multi": True,
+        "max": 255,
+        "placeholder": "e.g. 30–70 kHz, 15.625 kHz",
+    },
+    {
+        "key": "Dot pitch",
+        "label": "Dot pitch",
+        "hint": "in millimetres",
+        "options": DISPLAY_PITCHES,
+        "max": 32,
+        "placeholder": "e.g. 0.297 mm",
+    },
     # The other, and the one most screens answer more than once: a monitor of the
     # DVI years has a VGA socket beside it, and a home-computer monitor takes
     # composite as well as RGB. Radios would make you choose which of a machine's
     # sockets to lie about, so these are checkboxes.
-    {"key": "Interface", "label": "Interface", "hint": "tick every socket it has",
-     "options": DISPLAY_INTERFACES, "multi": True, "max": 255,
-     "placeholder": "e.g. 6-pin DIN, EGA/CGA switchable"},
-    {"key": "Picture", "label": "Picture",
-     "hint": "colour, or which phosphor a monochrome screen has",
-     "options": DISPLAY_PICTURES, "max": 32, "placeholder": "e.g. Blue-white"},
+    {
+        "key": "Interface",
+        "label": "Interface",
+        "hint": "tick every socket it has",
+        "options": DISPLAY_INTERFACES,
+        "multi": True,
+        "max": 255,
+        "placeholder": "e.g. 6-pin DIN, EGA/CGA switchable",
+    },
+    {
+        "key": "Picture",
+        "label": "Picture",
+        "hint": "colour, or which phosphor a monochrome screen has",
+        "options": DISPLAY_PICTURES,
+        "max": 32,
+        "placeholder": "e.g. Blue-white",
+    },
 ]
 
 # --- optical drives --------------------------------------------------------
@@ -237,16 +411,23 @@ DISPLAY_ASKS = [
 # reads everything below it: a CD-RW writer reads pressed CD-ROMs, and saying so
 # on every record would be noise. A drive that reads a disc it cannot write is
 # named for what it reads (a DVD-ROM that burns CDs is the combo).
-OPTICAL_MEDIA = ["CD-ROM", "CD-R", "CD-RW", "DVD-ROM", "DVD/CD-RW combo",
-                 "DVD±RW", "DVD-RAM", "Blu-ray"]
+OPTICAL_MEDIA = [
+    "CD-ROM",
+    "CD-R",
+    "CD-RW",
+    "DVD-ROM",
+    "DVD/CD-RW combo",
+    "DVD±RW",
+    "DVD-RAM",
+    "Blu-ray",
+]
 
 # The × rating on the front of the drive, 1× being the 150 KB/s a CD player runs
 # at. The list is the ratings that were actually sold; a drive quoting three
 # figures (48×/24×/48× for write, rewrite and read) is typed into the custom box,
 # because which of the three a single number means is a question this catalogue
 # should not answer on the owner's behalf.
-OPTICAL_SPEEDS = ["1×", "2×", "4×", "6×", "8×", "12×", "16×", "24×", "32×",
-                  "40×", "48×", "52×"]
+OPTICAL_SPEEDS = ["1×", "2×", "4×", "6×", "8×", "12×", "16×", "24×", "32×", "40×", "48×", "52×"]
 
 # --- the rest of what a drive is asked --------------------------------------
 
@@ -263,9 +444,20 @@ FLOPPY_SIZES = ["160K", "180K", "320K", "360K", "720K", "1.2MB", "1.44MB", "2.88
 # What a tape drive takes. The cartridge families a PC of this era was backed up
 # onto, coarsest first; a drive quoting a length or a raw/compressed pair goes in
 # the custom box.
-TAPE_MEDIA = ["QIC-40", "QIC-80", "QIC-3010", "QIC-3020",
-              "Travan TR-1", "Travan TR-2", "Travan TR-3", "Travan TR-4",
-              "DC6150", "DDS/DAT", "DLT", "LTO"]
+TAPE_MEDIA = [
+    "QIC-40",
+    "QIC-80",
+    "QIC-3010",
+    "QIC-3020",
+    "Travan TR-1",
+    "Travan TR-2",
+    "Travan TR-3",
+    "Travan TR-4",
+    "DC6150",
+    "DDS/DAT",
+    "DLT",
+    "LTO",
+]
 
 # A spindle's speed, which is what "how fast" means for a disk -- the × ratings
 # above are a reader's, and the two must not share a list. Anything off the shelf
@@ -284,36 +476,76 @@ _ALL_STORAGE_KINDS = (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND, CARD_KIND
 #   options  the closed list it is picked from, per kind where that differs, or
 #            None for a plain text box
 STORAGE_ASKS = [
-    {"key": "Interface", "kinds": _ALL_STORAGE_KINDS,
-     "options": STORAGE_INTERFACES, "required": True,
-     "label": "Interface", "hint": "how it attaches",
-     "placeholder": "e.g. QIC-02, Panasonic/Matsushita"},
-    {"key": "Protocol", "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, CARD_KIND),
-     "options": STORAGE_PROTOCOLS,
-     "label": "Protocol", "hint": "the command set it speaks",
-     "placeholder": "e.g. ATA-3, Fast SCSI-2"},
-    {"key": "Form factor", "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND),
-     "options": DRIVE_INCHES,
-     "label": "Bay size", "hint": "the bay it fits",
-     "placeholder": "e.g. 3\" (Amstrad CF-2), 2.5\""},
-    {"key": "Media", "kinds": (OPTICAL_KIND, TAPE_KIND, FLOPPY_KIND),
-     "options": {OPTICAL_KIND: OPTICAL_MEDIA, TAPE_KIND: TAPE_MEDIA,
-                 FLOPPY_KIND: DRIVE_INCHES},
-     "label": "Media", "hint": "what it takes",
-     "placeholder": "e.g. HD DVD, magneto-optical, AIT"},
-    {"key": "Size", "kinds": (FLOPPY_KIND,), "options": FLOPPY_SIZES,
-     "label": "Capacity", "hint": "what the disk is called, not a measured size",
-     "placeholder": "e.g. 21MB Floptical, 120MB LS-120"},
-    {"key": "Capacity", "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, CARD_KIND),
-     "options": None, "label": "Capacity", "hint": "e.g. 540 MiB"},
-    {"key": "Speed", "kinds": (OPTICAL_KIND, DISK_KIND),
-     "options": {OPTICAL_KIND: OPTICAL_SPEEDS, DISK_KIND: DISK_SPEEDS},
-     "label": "Speed", "hint": "the rating on the front, or the spindle",
-     "placeholder": "e.g. 48×/24×/48× (write/rewrite/read), 4200 rpm"},
-    {"key": "CHS", "kinds": (DISK_KIND, CARD_KIND), "options": None,
-     "label": "CHS geometry", "hint": "cylinders/heads/sectors, e.g. 1024/16/63"},
-    {"key": "Role", "kinds": _ALL_STORAGE_KINDS, "options": None,
-     "label": "Role", "hint": "what it was for"},
+    {
+        "key": "Interface",
+        "kinds": _ALL_STORAGE_KINDS,
+        "options": STORAGE_INTERFACES,
+        "required": True,
+        "label": "Interface",
+        "hint": "how it attaches",
+        "placeholder": "e.g. QIC-02, Panasonic/Matsushita",
+    },
+    {
+        "key": "Protocol",
+        "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, CARD_KIND),
+        "options": STORAGE_PROTOCOLS,
+        "label": "Protocol",
+        "hint": "the command set it speaks",
+        "placeholder": "e.g. ATA-3, Fast SCSI-2",
+    },
+    {
+        "key": "Form factor",
+        "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND),
+        "options": DRIVE_INCHES,
+        "label": "Bay size",
+        "hint": "the bay it fits",
+        "placeholder": 'e.g. 3" (Amstrad CF-2), 2.5"',
+    },
+    {
+        "key": "Media",
+        "kinds": (OPTICAL_KIND, TAPE_KIND, FLOPPY_KIND),
+        "options": {OPTICAL_KIND: OPTICAL_MEDIA, TAPE_KIND: TAPE_MEDIA, FLOPPY_KIND: DRIVE_INCHES},
+        "label": "Media",
+        "hint": "what it takes",
+        "placeholder": "e.g. HD DVD, magneto-optical, AIT",
+    },
+    {
+        "key": "Size",
+        "kinds": (FLOPPY_KIND,),
+        "options": FLOPPY_SIZES,
+        "label": "Capacity",
+        "hint": "what the disk is called, not a measured size",
+        "placeholder": "e.g. 21MB Floptical, 120MB LS-120",
+    },
+    {
+        "key": "Capacity",
+        "kinds": (DISK_KIND, TAPE_KIND, OPTICAL_KIND, CARD_KIND),
+        "options": None,
+        "label": "Capacity",
+        "hint": "e.g. 540 MiB",
+    },
+    {
+        "key": "Speed",
+        "kinds": (OPTICAL_KIND, DISK_KIND),
+        "options": {OPTICAL_KIND: OPTICAL_SPEEDS, DISK_KIND: DISK_SPEEDS},
+        "label": "Speed",
+        "hint": "the rating on the front, or the spindle",
+        "placeholder": "e.g. 48×/24×/48× (write/rewrite/read), 4200 rpm",
+    },
+    {
+        "key": "CHS",
+        "kinds": (DISK_KIND, CARD_KIND),
+        "options": None,
+        "label": "CHS geometry",
+        "hint": "cylinders/heads/sectors, e.g. 1024/16/63",
+    },
+    {
+        "key": "Role",
+        "kinds": _ALL_STORAGE_KINDS,
+        "options": None,
+        "label": "Role",
+        "hint": "what it was for",
+    },
 ]
 
 # The two that are not spec text at all: the bezel is a pair of colour menus, and
@@ -335,6 +567,7 @@ def storage_asks(kind):
         out.append(ask | {"options": options})
     return out
 
+
 # --- bezel colour and yellowing --------------------------------------------
 # Two things, recorded separately: the shade a drive was made in, and how far it
 # has yellowed since. They are not one field because they answer different
@@ -348,19 +581,23 @@ def storage_asks(kind):
 # the shelf are described in the same words -- and so is the monitor sat on top of
 # it, which is the same plastic, made in the same beige, gone the same colour.
 BEZEL_COLOURS = [
-    {"label": "Black", "hex": "#1a1b1d",
-     "note": "black plastic or a painted bezel"},
-    {"label": "Dark grey", "hex": "#4b4f55",
-     "note": "a grey that reads darker than the case around it"},
+    {"label": "Black", "hex": "#1a1b1d", "note": "black plastic or a painted bezel"},
+    {
+        "label": "Dark grey",
+        "hex": "#4b4f55",
+        "note": "a grey that reads darker than the case around it",
+    },
     {"label": "Grey", "hex": "#8b9097", "note": "mid grey, with no warmth in it"},
     {"label": "Light grey", "hex": "#c3c7cc", "note": "pale grey, cooler than beige"},
     {"label": "White", "hex": "#f6f6f4", "note": "a true white, no cream in it"},
-    {"label": "Off-white", "hex": "#ece8dc",
-     "note": "white with a little cream, as made rather than as aged"},
+    {
+        "label": "Off-white",
+        "hex": "#ece8dc",
+        "note": "white with a little cream, as made rather than as aged",
+    },
     {"label": "Beige", "hex": "#dad0b8", "note": "the classic PC beige"},
     {"label": "Warm beige", "hex": "#cebb9a", "note": "beige with more brown in it"},
-    {"label": "Grey-beige", "hex": "#c8c5b5",
-     "note": "beige with the warmth taken out"},
+    {"label": "Grey-beige", "hex": "#c8c5b5", "note": "beige with the warmth taken out"},
 ]
 
 # How far it has gone. `weight` is how much of `tint` to mix into the original
@@ -368,18 +605,37 @@ BEZEL_COLOURS = [
 # without touching a single record. Blank means it has not yellowed, or nobody has
 # looked yet: the same blank every other unrecorded field uses.
 YELLOWING = [
-    {"label": "Lightly yellowed", "weight": 0.20, "tint": "#c49a44",
-     "note": "just off its original shade; tells beside a clean part"},
-    {"label": "Yellowed", "weight": 0.38, "tint": "#bd8f34",
-     "note": "plainly yellow, evenly across the bezel"},
-    {"label": "Heavily yellowed", "weight": 0.58, "tint": "#b3822c",
-     "note": "deep yellow going to tan"},
-    {"label": "Browned", "weight": 0.78, "tint": "#8a6a35",
-     "note": "past yellow into brown; UV, heat or years of smoke"},
-    {"label": "Unevenly yellowed", "weight": 0.15, "weight2": 0.55,
-     "tint": "#bd8f34",
-     "note": "patchy, or one side only -- a sun-facing edge, or the shadow of a "
-             "bracket"},
+    {
+        "label": "Lightly yellowed",
+        "weight": 0.20,
+        "tint": "#c49a44",
+        "note": "just off its original shade; tells beside a clean part",
+    },
+    {
+        "label": "Yellowed",
+        "weight": 0.38,
+        "tint": "#bd8f34",
+        "note": "plainly yellow, evenly across the bezel",
+    },
+    {
+        "label": "Heavily yellowed",
+        "weight": 0.58,
+        "tint": "#b3822c",
+        "note": "deep yellow going to tan",
+    },
+    {
+        "label": "Browned",
+        "weight": 0.78,
+        "tint": "#8a6a35",
+        "note": "past yellow into brown; UV, heat or years of smoke",
+    },
+    {
+        "label": "Unevenly yellowed",
+        "weight": 0.15,
+        "weight2": 0.55,
+        "tint": "#bd8f34",
+        "note": "patchy, or one side only -- a sun-facing edge, or the shadow of a bracket",
+    },
 ]
 BEZEL_COLOUR_LABELS = [c["label"] for c in BEZEL_COLOURS]
 YELLOWING_LABELS = [y["label"] for y in YELLOWING]
@@ -407,7 +663,7 @@ def _by_label(vocab, label):
 
 def _mix(base, tint, weight):
     """`base` hex moved `weight` of the way towards `tint` hex."""
-    pairs = [(int(base[i:i + 2], 16), int(tint[i:i + 2], 16)) for i in (1, 3, 5)]
+    pairs = [(int(base[i : i + 2], 16), int(tint[i : i + 2], 16)) for i in (1, 3, 5)]
     return "#" + "".join(f"{round(b + (t - b) * weight):02x}" for b, t in pairs)
 
 
@@ -446,7 +702,9 @@ def bezel_swatch_map():
                 out[f"{colour}|{level}"] = css
     return out
 
+
 # --- specs parsing / merging -----------------------------------------------
+
 
 def parse_specs(specs: str) -> list[tuple[str, str]]:
     """Turn 'CPU: x | RAM: y' into [('CPU','x'), ('RAM','y')]."""
@@ -503,12 +761,25 @@ def build_specs(pairs) -> str:
 # is parsed back on the next save. They are read and never written.
 KIB, MIB, GIB, TIB = "KiB", "MiB", "GiB", "TiB"
 
-_KB_UNITS = {"": 1024, "k": 1, "kb": 1, "ki": 1, "kib": 1,
-             "m": 1024, "mb": 1024, "mi": 1024, "mib": 1024,
-             "g": 1024 * 1024, "gb": 1024 * 1024, "gi": 1024 * 1024,
-             "gib": 1024 * 1024,
-             "t": 1024 * 1024 * 1024, "tb": 1024 * 1024 * 1024,
-             "ti": 1024 * 1024 * 1024, "tib": 1024 * 1024 * 1024}
+_KB_UNITS = {
+    "": 1024,
+    "k": 1,
+    "kb": 1,
+    "ki": 1,
+    "kib": 1,
+    "m": 1024,
+    "mb": 1024,
+    "mi": 1024,
+    "mib": 1024,
+    "g": 1024 * 1024,
+    "gb": 1024 * 1024,
+    "gi": 1024 * 1024,
+    "gib": 1024 * 1024,
+    "t": 1024 * 1024 * 1024,
+    "tb": 1024 * 1024 * 1024,
+    "ti": 1024 * 1024 * 1024,
+    "tib": 1024 * 1024 * 1024,
+}
 
 
 def to_kb(text: str):
@@ -600,10 +871,16 @@ def _round_kb(kb) -> str:
 # 4164s. Neither ever turns up in a PC, and both are the whole answer to "how much
 # memory has this got" on the machines that do use them.
 RAM_CHIPS = [
-    ("4116", 2, "16K×1"), ("4532", 4, "32K×1"), ("4164", 8, "64K×1"),
-    ("4416", 8, "16K×4"), ("4464", 32, "64K×4"), ("41464", 32, "64K×4"),
-    ("41256", 32, "256K×1"), ("44256", 128, "256K×4"),
-    ("411000", 128, "1M×1"), ("514256", 128, "256K×4"),
+    ("4116", 2, "16K×1"),
+    ("4532", 4, "32K×1"),
+    ("4164", 8, "64K×1"),
+    ("4416", 8, "16K×4"),
+    ("4464", 32, "64K×4"),
+    ("41464", 32, "64K×4"),
+    ("41256", 32, "256K×1"),
+    ("44256", 128, "256K×4"),
+    ("411000", 128, "1M×1"),
+    ("514256", 128, "256K×4"),
 ]
 RAM_CHIP_KB = {pn: kb for pn, kb, _ in RAM_CHIPS}
 RAM_CHIP_ORG = {pn: org for pn, _kb, org in RAM_CHIPS}
@@ -640,8 +917,7 @@ def chip_capacity(counts):
         org = RAM_CHIP_ORG.get(pn, "")
         depth = _chip_depth(org)
         bits, kb = groups.get(depth, (0, 0))
-        groups[depth] = (bits + n * _chip_width(org),
-                         kb + n * RAM_CHIP_KB.get(pn, 0))
+        groups[depth] = (bits + n * _chip_width(org), kb + n * RAM_CHIP_KB.get(pn, 0))
     total_kb, parity = 0, False
     for bits, kb in groups.values():
         if bits % 9 == 0:
@@ -665,13 +941,18 @@ def format_ram_chips(counts):
 # Common memory modules for machines with RAM on SIMMs / SIPPs rather than
 # soldered chips. Each is (slug for the form field, KiB per module, label).
 RAM_MODULES = [
-    ("30p256k", 256, "256KiB 30-pin"), ("30p1m", 1024, "1MiB 30-pin"),
+    ("30p256k", 256, "256KiB 30-pin"),
+    ("30p1m", 1024, "1MiB 30-pin"),
     ("30p4m", 4096, "4MiB 30-pin"),
-    ("sipp256k", 256, "256KiB SIPP"), ("sipp1m", 1024, "1MiB SIPP"),
+    ("sipp256k", 256, "256KiB SIPP"),
+    ("sipp1m", 1024, "1MiB SIPP"),
     ("sipp4m", 4096, "4MiB SIPP"),
-    ("72p1m", 1024, "1MiB 72-pin"), ("72p2m", 2048, "2MiB 72-pin"),
-    ("72p4m", 4096, "4MiB 72-pin"), ("72p8m", 8192, "8MiB 72-pin"),
-    ("72p16m", 16384, "16MiB 72-pin"), ("72p32m", 32768, "32MiB 72-pin"),
+    ("72p1m", 1024, "1MiB 72-pin"),
+    ("72p2m", 2048, "2MiB 72-pin"),
+    ("72p4m", 4096, "4MiB 72-pin"),
+    ("72p8m", 8192, "8MiB 72-pin"),
+    ("72p16m", 16384, "16MiB 72-pin"),
+    ("72p32m", 32768, "32MiB 72-pin"),
 ]
 RAM_MODULE_KB = {s: kb for s, kb, _ in RAM_MODULES}
 RAM_MODULE_LABEL = {s: lbl for s, _kb, lbl in RAM_MODULES}
@@ -690,8 +971,7 @@ def format_ram_modules(counts):
 def ram_total_kb(modules, chips) -> int:
     """Usable KiB fitted, from [(slug, n)] modules and [(chip, n)] chips. Parity
     chips are not capacity, so chip_capacity discounts them."""
-    return (sum(n * RAM_MODULE_KB.get(slug, 0) for slug, n in modules if n)
-            + chip_capacity(chips)[0])
+    return sum(n * RAM_MODULE_KB.get(slug, 0) for slug, n in modules if n) + chip_capacity(chips)[0]
 
 
 def render_installed_ram(modules, chips, total_kb=None, note="") -> str:
@@ -711,10 +991,21 @@ def render_installed_ram(modules, chips, total_kb=None, note="") -> str:
 
 # --- quick-entry: ports (io cards + motherboard onboard I/O) ---------------
 
-PORT_CODES = [("I", "IDE"), ("C", "SCSI"), ("A", "SATA"), ("M", "MFM"),
-              ("R", "RLL"), ("F", "Floppy"), ("S", "Serial"), ("P", "Parallel"),
-              ("G", "Game"), ("K", "PS/2 keyboard"), ("O", "PS/2 mouse"),
-              ("D", "DIN keyboard"), ("U", "USB")]
+PORT_CODES = [
+    ("I", "IDE"),
+    ("C", "SCSI"),
+    ("A", "SATA"),
+    ("M", "MFM"),
+    ("R", "RLL"),
+    ("F", "Floppy"),
+    ("S", "Serial"),
+    ("P", "Parallel"),
+    ("G", "Game"),
+    ("K", "PS/2 keyboard"),
+    ("O", "PS/2 mouse"),
+    ("D", "DIN keyboard"),
+    ("U", "USB"),
+]
 
 PORT_LEGEND = " ".join(f"{ltr}={name}" for ltr, name in PORT_CODES)
 PORT_NAMES = [name for _, name in PORT_CODES]
@@ -794,17 +1085,47 @@ def expand_slots(raw: str) -> str:
         name = alias.get(key.upper())
         if name:
             counts[name] += n
-    return ", ".join(f"{counts[name]}× {name}" if counts[name] > 1 else name
-                     for name in SLOT_NAMES if counts.get(name))
+    return ", ".join(
+        f"{counts[name]}× {name}" if counts[name] > 1 else name
+        for name in SLOT_NAMES
+        if counts.get(name)
+    )
 
 
 # --- shared display helpers ------------------------------------------------
 
 SHOUT_ACRONYMS = {
-    "SCSI", "SATA", "PATA", "EISA", "ESDI", "VESA", "SVGA", "WXGA", "ATAPI",
-    "BIOS", "UEFI", "DRAM", "SRAM", "SDRAM", "VRAM", "SIMM", "DIMM", "RIMM",
-    "SIPP", "COAST", "CMOS", "MIDI", "EPROM", "EEPROM", "PROM", "MCGA",
-    "PLCC", "NTSC", "SECAM", "WLAN", "ASIC",
+    "SCSI",
+    "SATA",
+    "PATA",
+    "EISA",
+    "ESDI",
+    "VESA",
+    "SVGA",
+    "WXGA",
+    "ATAPI",
+    "BIOS",
+    "UEFI",
+    "DRAM",
+    "SRAM",
+    "SDRAM",
+    "VRAM",
+    "SIMM",
+    "DIMM",
+    "RIMM",
+    "SIPP",
+    "COAST",
+    "CMOS",
+    "MIDI",
+    "EPROM",
+    "EEPROM",
+    "PROM",
+    "MCGA",
+    "PLCC",
+    "NTSC",
+    "SECAM",
+    "WLAN",
+    "ASIC",
 }
 
 
@@ -815,10 +1136,9 @@ def deshout(text: str) -> str:
     out = []
     for tok in re.split(r"(\s+)", text or ""):
         core = tok.strip(".,:;()[]{}/\\\"'")
-        if (core.isalpha() and core.isupper() and len(core) >= 5
-                and core not in SHOUT_ACRONYMS):
+        if core.isalpha() and core.isupper() and len(core) >= 5 and core not in SHOUT_ACRONYMS:
             i = tok.find(core)
-            tok = tok[:i] + core[0] + core[1:].lower() + tok[i + len(core):]
+            tok = tok[:i] + core[0] + core[1:].lower() + tok[i + len(core) :]
         out.append(tok)
     return "".join(out)
 
@@ -826,8 +1146,7 @@ def deshout(text: str) -> str:
 def display_name(row) -> str:
     if row.get("name"):
         return row["name"]
-    joined = " ".join(p for p in (row.get("manufacturer", ""),
-                                  row.get("model", "")) if p).strip()
+    joined = " ".join(p for p in (row.get("manufacturer", ""), row.get("model", "")) if p).strip()
     return joined or row.get("asset_id", "")
 
 
@@ -845,11 +1164,22 @@ def type_sort_key(t: str) -> int:
 # Placeholder icon (served from /static/placeholders/) shown when an item has no
 # photo -- same set as the old public site.
 PLACEHOLDER = {
-    "computer": "computer", "motherboard": "board", "cpu": "chip", "ram": "ram",
-    "video": "card", "sound": "card", "network": "card", "io": "card",
-    "storage": "drive", "optical": "disc", "floppy": "floppy", "psu": "psu",
+    "computer": "computer",
+    "motherboard": "board",
+    "cpu": "chip",
+    "ram": "ram",
+    "video": "card",
+    "sound": "card",
+    "network": "card",
+    "io": "card",
+    "storage": "drive",
+    "optical": "disc",
+    "floppy": "floppy",
+    "psu": "psu",
     "display": "monitor",
-    "cooler": "fan", "peripheral": "keyboard", "other": "box",
+    "cooler": "fan",
+    "peripheral": "keyboard",
+    "other": "box",
 }
 
 
@@ -872,7 +1202,8 @@ def placeholder_for(kind_or_type: str) -> str:
 #
 # Only these schemes, and never whatever a text box happens to say before a colon:
 # javascript: is a scheme too, and this text arrives from a form.
-_LINK_RE = re.compile(r"""
+_LINK_RE = re.compile(
+    r"""
     (?<![\w@.-])                                # not mid-word, nor an address's tail
     (?:
         (?:https?|ftps?|sftp)://[^\s<>"']+      # said outright
@@ -880,7 +1211,9 @@ _LINK_RE = re.compile(r"""
       | www\.[^\s<>"']+                         # the shorthand everybody writes
       | [\w.+%-]+@[\w-]+(?:\.[\w-]+)+           # an email address
     )
-""", re.VERBOSE | re.IGNORECASE)
+""",
+    re.VERBOSE | re.IGNORECASE,
+)
 
 # Punctuation that ends the sentence rather than the URL. A closing bracket is the
 # URL's own as long as one opened inside it, which is what tells
@@ -915,7 +1248,7 @@ def linked(text) -> Markup:
         url = _link_end(m.group(0))
         if not url:
             continue
-        out.append(escape(s[at:m.start()]))
+        out.append(escape(s[at : m.start()]))
         low = url.lower()
         if low.startswith("www."):
             # http, not https: a host that has TLS redirects to it, and one that
@@ -928,9 +1261,13 @@ def linked(text) -> Markup:
             href, tab = url, True
         else:
             href, tab = "mailto:" + url, False
-        out.append(Markup(
-            '<a class="url" href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
-            if tab else '<a class="url" href="{}">{}</a>').format(href, url))
+        out.append(
+            Markup(
+                '<a class="url" href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
+                if tab
+                else '<a class="url" href="{}">{}</a>'
+            ).format(href, url)
+        )
         at = m.start() + len(url)
     out.append(escape(s[at:]))
     return Markup("").join(out)
