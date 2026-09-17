@@ -51,6 +51,9 @@ branding belong to the installation and live outside the repo (`.env`,
   judgment calls yourself; ask only when different readings would lead to
   materially different work.
 - **British English** in code, comments, docs and UI.
+- **Work from the manual first.** `MANUAL.md` is the specification: write the
+  entry that describes the change, derive the tests from what it promises, then
+  write the code until they pass (manual-first).
 - **Every change is tested.** Prefer test-first: write a test that fails before
   the change and passes after, and keep the whole suite green (testing-standards).
 - **Comments explain *why*, not *what*** — this codebase does that well; match it.
@@ -65,6 +68,8 @@ branding belong to the installation and live outside the repo (`.env`,
 
 - `.claude/rules/backend-standards.md` — Python/FastAPI conventions, tooling.
 - `.claude/rules/database-standards.md` — models, sessions, **Alembic migrations**.
+- `.claude/rules/manual-first.md` — the order of work: manual, then tests, then
+  code, and what to do when the manual and the code disagree.
 - `.claude/rules/testing-standards.md` — how the suite runs, on MariaDB alone.
 - `.claude/rules/workflow-and-ci.md` — branches, commits, CI, dependencies.
 - `.claude/rules/docker-environments.md` — Compose, environments, secrets.
