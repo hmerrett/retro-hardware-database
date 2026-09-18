@@ -54,6 +54,14 @@ Three kinds of thing live in the register:
        ▼
     uvicorn → FastAPI ("api") .. listens on localhost only
        │
+       ├── content_security_policy  middleware: every response says what the
+       │                         page may load, and it is all `'self'`. Outermost
+       │                         of the three, so it covers the responses the gate
+       │                         makes itself — a login redirect is a response too.
+       │                         The app's, not Caddy's: the policy is a fact about
+       │                         these templates and static files, so it lives where
+       │                         a test can read it (ADR-0021).
+       │
        ├── no_stale_pages ...... middleware: every HTML response gets
        │                         `Cache-Control: no-cache`, so a deployed change
        │                         is never masked by yesterday's copy in Safari.
@@ -142,7 +150,7 @@ and re-render; never edit the string and hope.
 
 ## 5. The modules
 
-`api/app/main.py` is `create_app()`: the two middlewares, the static mount and
+`api/app/main.py` is `create_app()`: the three middlewares, the static mount and
 every router, and nothing else. The routes live in `api/app/routers/`, one module
 to a group, and everything else is a module with one job. `common.py` is
 deliberately dependency-free, so the rest can import downward without a cycle.
@@ -151,7 +159,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 
 | module | what it owns |
 |---|---|
-| `main.py` | create_app(): the middlewares, the static mount and every router — the wiring, and nothing else |
+| `main.py` | create_app(): the middlewares (including the content policy), the static mount and every router — the wiring, and nothing else |
 | `auth.py` | the login, the logout, and the gate every request passes through |
 | `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion |
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
@@ -202,8 +210,9 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 Outside `api/`:
 
 - `api/app/templates/` — 27 Jinja2 templates. `api/app/static/` — the stylesheet
-  and scripts, moved out of `base.html` so they can be cached and so a real
-  Content-Security-Policy becomes possible.
+  and scripts, moved out of `base.html` so they can be cached — and that move is
+  what made the content policy in `main.py` possible, there being nothing inline
+  left to have to allow.
 - `tools/` — operator scripts with their own venv: backups, label sheets, imports,
   reports. Not imported by the app.
 - `mcp/` — an MCP server, a separate compose service, so an assistant can read and
@@ -263,9 +272,11 @@ breaking one turns CI red rather than merely being wrong.
   module, group routes into `APIRouter`s, in small independently verifiable steps.
   `stats.py`, `search.py`, `photos.py`, `common.py` and `projects.py` came out
   this way.
-- **Inline CSS and JS are moving into static files.** That is what unlocks a real
-  Content-Security-Policy, which is the strongest single anti-XSS control
-  available here.
+- **The content policy allows `'unsafe-inline'` on styles.** 69 `style`
+  attributes across the templates and two small `<style>` blocks, and taking them
+  out is its own piece of work. A test in
+  `test_content_security_policy.py` ties the token to the markup, so the one
+  cannot go without the other (ADR-0021).
 - **Named in the standards as *adopt next*:** `ruff format --check`, `mypy
   --strict` in CI, `uv` with a committed lockfile, SQLAlchemy 2.0 typed ORM, and
   per-environment compose overrides with a multi-stage Dockerfile.

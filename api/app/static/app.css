@@ -227,6 +227,13 @@
     .filetable .inline-form input[name=tags] { min-width: 0; width: 100%; margin-bottom: 5px; }
   }
   a { color: var(--accent); }
+  /* Back, where a link used to be: it sits in the prose and should read as one,
+     but it performs an action rather than going to an address, so it is a button.
+     Given no size of its own -- `font: inherit` -- so it needs no restating in the
+     coarse-pointer block, and no colour of its own beyond the one links already
+     use, so it adds no pair to the contrast tests. */
+  button.backlink { background: none; border: 0; padding: 0; font: inherit;
+    color: var(--accent); text-decoration: underline; cursor: pointer; }
   /* A link found in what somebody wrote -- a note, a summary, a history entry, a
      spec value; anything the `linked` filter has been through. It breaks anywhere
      rather than setting a minimum width for whatever it sits in: a URL is one

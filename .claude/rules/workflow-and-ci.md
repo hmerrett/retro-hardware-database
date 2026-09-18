@@ -52,5 +52,7 @@ diff of the file is the change being asked for.
   search) into their own modules and group routes into `APIRouter`s — leaning on
   the test suite as the safety net. Extract in small, independently-verifiable
   steps; don't rewrite wholesale.
-- Inline CSS/JS in `base.html` is being moved into cacheable static files; that
-  also unlocks a real Content-Security-Policy (security-standards).
+- Inline CSS/JS has moved out of `base.html` into cacheable static files, and the
+  Content-Security-Policy that unlocked is sent by the app (ADR-0021,
+  security-standards). What is left of that thread is the 69 inline `style`
+  attributes, which keep `'unsafe-inline'` on `style-src` until they go.

@@ -3,7 +3,7 @@
 {% import "_machine.html" as M %}
 {% block title %}{{ title }} — Retro Hardware Database{% endblock %}
 {% block content %}
-<p><a href="javascript:history.back()">&larr; back</a></p>
+<p><button type="button" class="backlink" data-back>&larr; back</button></p>
 <h2>{{ title }}</h2>
 <form class="edit" method="post" enctype="multipart/form-data"
       action="{{ ('/computers/' + c.asset_id + '/edit') if c else '/computers/new' }}">

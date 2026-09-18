@@ -148,3 +148,18 @@ def part(client):
         assert r.status_code == 200, r.text
         return r.json()
     return make
+
+
+@pytest.fixture
+def a_page_of_everything(client, computer, part):
+    """One machine with a part on it, so the forms, the item pages and the lists
+    all render the controls they only have when there is something to show."""
+    made = computer(manufacturer="Amstrad", model="PC1512")
+    card = part(manufacturer="Trident", model="TVGA8900", type="video",
+                computer_id=made["asset_id"])
+    return [
+        "/", "/machines", "/projects", "/projects/new", "/files", "/stats", "/for-sale",
+        f"/computers/{made['asset_id']}", f"/computers/{made['asset_id']}/edit",
+        "/computers/new", "/parts/new",
+        f"/parts/{card['asset_id']}", f"/parts/{card['asset_id']}/edit",
+    ]
