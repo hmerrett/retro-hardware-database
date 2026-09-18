@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1413 behaviours, from 36 files.*
+*1417 behaviours, from 37 files.*
 
 
 ## A file where text was expected
@@ -2614,6 +2614,16 @@ Regenerate with:
   The three pairs tested before this were the three that had already been reported broken.
 - every surface words are written on holds them  
   A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
+
+
+## The database url is required
+
+*test_the_database_url_is_required.py — 4 behaviours*
+
+- uses the configured url when present
+- refuses to start without one
+- says how to set it rather than only that it is missing
+- the message carries no password anybody could paste
 
 
 ## Type checking
