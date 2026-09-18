@@ -34,8 +34,12 @@ import /etc/caddy/conf.d/*.caddy
 	# reach this name over HTTPS only, for a year. nosniff stops a browser
 	# second-guessing a declared content-type (the file downloads already send it;
 	# this covers everything). The referrer policy keeps the path off cross-site
-	# requests. SAMEORIGIN refuses framing by other sites. A full Content-Security-
-	# Policy waits on the inline CSS/JS moving out of base.html into static files.
+	# requests. SAMEORIGIN refuses framing by other sites.
+	#
+	# The Content-Security-Policy is deliberately not here: it is a fact about the
+	# app's own markup and static files rather than about transport, so the app
+	# sends it and the test suite holds it to what the templates actually do
+	# (ADR-0021). Adding a second one here would give two policies to drift apart.
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options "nosniff"

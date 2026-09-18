@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1393 behaviours, from 30 files.*
+*1402 behaviours, from 31 files.*
 
 
 ## Api
@@ -1153,6 +1153,30 @@ Regenerate with:
 - and the home screen icon
 - nothing outside the two directories is reachable  
   The branding directory goes in front of the shipped one in the static mount's own search list, so the traversal checks are the ones it already makes -- this says so out loud, because a directory that can be written to from outside the image sitting in the serving path is worth a test.
+
+
+## Content security policy
+
+*test_content_security_policy.py — 9 behaviours*
+
+- every response carries the policy  
+  Including the ones nobody thinks of as pages.
+- a response the gate makes itself carries it too  
+  The middleware is registered last, so it wraps the auth gate rather than sitting inside it.
+- the policy is the one recorded  
+  ADR-0021 states the directives; this is that statement as an assertion.
+- the directives that do not fall back are stated  
+  `form-action`, `frame-ancestors` and `base-uri` ignore `default-src`.
+- no page carries a script the policy would block  
+  A <script> with no `src` is code in the page, which is what the policy is for.
+- no page carries an inline event handler  
+  `onclick="..."` is script in an attribute, and the policy blocks it as surely as a script tag.
+- no link runs script instead of going somewhere  
+  `href="javascript:history.back()"` is a control that does nothing at all under the policy, and says nothing about it.
+- nothing is loaded from another origin  
+  Every directive is `'self'`, which is a description and not a wish: the photographs are served from the images volume, reference pictures are fetched into it server-side rather than hot-linked, and the QR decoder is vendored.
+- style attributes are allowed only while the policy allows them  
+  The one loosener the policy keeps, tied to the markup that needs it.
 
 
 ## Deployment

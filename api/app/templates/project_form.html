@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ title }} — Retro Hardware Database{% endblock %}
 {% block content %}
-<p><a href="javascript:history.back()">&larr; back</a></p>
+<p><button type="button" class="backlink" data-back>&larr; back</button></p>
 <h2>{{ title }}</h2>
 {# What was typed, kept, when the form comes back refused. `p` is the record on an
    edit and the rejected form's own values on a create -- both read the same way,

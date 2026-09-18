@@ -58,9 +58,19 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 
 - Caddy sends HSTS, `X-Content-Type-Options: nosniff`, a `Referrer-Policy` and
   `X-Frame-Options`.
-- *Adopt next:* a **Content-Security-Policy** — possible once `base.html`'s inline
-  scripts move to static files (workflow-and-ci). This is the strongest single
-  anti-XSS control, so it's the payoff of that refactor.
+- **The Content-Security-Policy is the app's, not Caddy's** (ADR-0021). It is a
+  fact about these templates and static files rather than about transport, so it
+  is sent by a middleware in `main.py`, where the suite can read it and where it
+  holds for an install that is not behind Caddy. Caddy does not send a second one:
+  two policies drift apart. Everything is `'self'`; `style-src` keeps
+  `'unsafe-inline'` for the style attributes still in the templates, and a test
+  ties the two together so the token cannot be dropped while they remain.
+- **New markup fits the policy, and the suite says so.** No inline `<script>`
+  (a data island carries values instead — `type="application/json"`), no `on*=`
+  handler (delegate from a static file, as `data-confirm` and `data-back` do), no
+  `javascript:` URL, nothing loaded from another origin. `test_content_security_policy.py`
+  walks the rendered pages for each of those, because a violation is silent in
+  the browser and invisible in review.
 
 ## Dependencies
 

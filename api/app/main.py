@@ -42,6 +42,51 @@ from .search import search_terms  # noqa: F401 -- re-exported for the tests, unu
 
 
 
+# What the app will load, which is only ever itself. `img_url` yields `/images/...`,
+# a reference photograph is fetched into that volume server-side rather than hot-
+# linked, and the QR decoder is vendored under /static/vendor -- so `'self'`
+# throughout is a description of the code and not an aspiration for it.
+#
+# `form-action`, `frame-ancestors` and `base-uri` are stated because they do not
+# fall back to `default-src`: left out they are simply absent, which reads like a
+# tight policy and is not one.
+#
+# `style-src` keeps `'unsafe-inline'` for the 69 style attributes still in the
+# templates. It is a far smaller hole than the same token on scripts -- it buys an
+# attacker who already has injection the ability to restyle a page, not to run
+# code -- and taking it out is its own piece of work. ADR-0021.
+CONTENT_SECURITY_POLICY = "; ".join((
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self'",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'self'",
+    "base-uri 'none'",
+    "object-src 'none'",
+))
+
+
+async def content_security_policy(request: Request, call_next):
+    """Say what the page is allowed to load, on every response.
+
+    The other security headers -- HSTS, nosniff, the referrer policy -- are
+    Caddy's, because they are facts about transport and hold whatever the app
+    renders. This one is a fact about *this app's* markup and static files, so it
+    lives with them, where a test can read it and where it applies to an install
+    that is not behind Caddy. Caddy does not send one too: two policies drift
+    apart, and the stricter of the pair wins in ways nobody predicted.
+
+    `setdefault`, not assignment, so a route that needs its own policy can say so
+    and keep it -- nothing does today, and the tests would notice if one started.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
+    return response
+
+
 async def no_stale_pages(request: Request, call_next):
     """Every page, freshly asked for.
 
@@ -115,14 +160,20 @@ def create_app() -> FastAPI:
     them; what is left here is the wiring, which is the one thing that cannot move
     because it is what there is to wire.
 
-    The order of the two middlewares is load-bearing. Starlette puts each new one
-    outside the last, so the gate is registered second and therefore runs first on
-    the way in and last on the way out -- the order the decorators gave when both
-    of them lived in this file.
+    The order of the middlewares is load-bearing. Starlette puts each new one
+    outside the last, so the gate is registered after the cache header and
+    therefore runs first on the way in and last on the way out -- the order the
+    decorators gave when both of them lived in this file.
+
+    The policy is registered last of all, which puts it outside the gate. That
+    matters: a gate that turns a stranger away answers without ever calling the
+    stack inside it, so a policy registered further in would miss the login
+    redirect -- the one response an unauthenticated stranger is most likely to get.
     """
     app = FastAPI(title="Retro Hardware Database API", version=__version__)
     app.middleware("http")(no_stale_pages)
     app.middleware("http")(auth.auth_gate)
+    app.middleware("http")(content_security_policy)
     app.mount("/static", _static_files(), name="static")
     for router in (auth.router, seo.router, images.router, catalogue.router,
                    stats_routes.router, gallery.router, items.router,
