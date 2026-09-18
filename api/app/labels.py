@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import io
 import os
+from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import NotRequired, TypedDict, cast
 
 import segno
 from reportlab.lib.units import inch, mm
@@ -38,9 +40,34 @@ _MACHINE_KEYS = (ISSUE_KEY, STYLE_KEY, REGION_KEY)
 
 FONT_PATH = Path(__file__).resolve().parent / "label_font.ttf"
 
+# A register row as a label reads it: the model's columns as a dict (common.to_dict),
+# sometimes with the typed spec pairs attached under "spec_pairs". A row read column
+# by column holds each value as widely as a column can, which is why the reads below
+# have to say which of them are text.
+type Row = Mapping[str, object]
+
+
+def _txt(row: Row, key: str) -> str:
+    """One of a row's values as the label prints it, blank where there is none."""
+    value = row.get(key)
+    return "" if value is None else str(value)
+
+
+class LabelSpec(TypedDict):
+    """One label's geometry: its size in points, the QR error-correction level and
+    the quarter-turn the page is printed at."""
+
+    w: float
+    h: float
+    qr: str
+    rotate: int
+    # How far in from the ends of the tape the body keeps, where the medium has ends.
+    safe_mm: NotRequired[int]
+
+
 # Label geometry, mirroring the flat-file config.yml defaults.
-FULL = {"w": 6 * inch, "h": 4 * inch, "qr": "M", "rotate": 90}
-SMALL = {"w": 51 * mm, "h": 19 * mm, "qr": "M", "rotate": 90, "safe_mm": 3}
+FULL: LabelSpec = {"w": 6 * inch, "h": 4 * inch, "qr": "M", "rotate": 90}
+SMALL: LabelSpec = {"w": 51 * mm, "h": 19 * mm, "qr": "M", "rotate": 90, "safe_mm": 3}
 
 BUILD_ROWS = [
     ("cpu", "CPU"),
@@ -102,11 +129,16 @@ SMALL_SPECS = {
 }
 
 
-def _pairs_of(part):
+def _pairs_of(part: Row) -> list[tuple[str, str]]:
     """A part's (key, value) spec pairs: the ones the caller read from the typed
     tables if it attached them, else parsed from the rendered specs string."""
     pairs = part.get("spec_pairs")
-    return pairs if pairs is not None else parse_specs(part.get("specs", ""))
+    if pairs is None:
+        return parse_specs(_txt(part, "specs"))
+    # The caller attached these itself, out of specdb.pairs. A row read column by
+    # column is a dict of values as wide as a column, and cannot say that one of
+    # them is that list.
+    return cast("list[tuple[str, str]]", pairs)
 
 
 _font_ready = False
@@ -125,7 +157,7 @@ def item_url(asset_id: str) -> str:
     return f"{base_url()}/items/{asset_id}/"
 
 
-def _fonts():
+def _fonts() -> tuple[str, str]:
     """Register the display TTF once; fall back to Helvetica if it's missing."""
     global _font_ready
     if _font_ready:
@@ -140,7 +172,7 @@ def _fonts():
     return ("Helvetica-Bold", "Helvetica")
 
 
-def _qr(data, error="M"):
+def _qr(data: str, error: str = "M") -> ImageReader:
     # micro=False, or segno picks a Micro QR whenever the data is short enough for
     # one -- and most readers, the scanner on the gallery included, decode standard
     # QR only. Any URL is comfortably too long to trigger it, so this is not load
@@ -152,7 +184,7 @@ def _qr(data, error="M"):
     return ImageReader(buf)
 
 
-def qr_svg(data, error="M") -> str:
+def qr_svg(data: str, error: str = "M") -> str:
     """The same code as a label's, as SVG markup to drop straight into a page.
 
     Black on an opaque white ground rather than the page's own colours: half this
@@ -177,7 +209,7 @@ def qr_svg(data, error="M") -> str:
     return buf.getvalue().decode("utf-8")
 
 
-def _wrap(c, text, font, size, max_w):
+def _wrap(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> list[str]:
     words, lines, cur = text.split(), [], ""
     for w in words:
         trial = (cur + " " + w).strip()
@@ -191,25 +223,35 @@ def _wrap(c, text, font, size, max_w):
     return lines or [""]
 
 
-def _fit(c, text, font, start, min_size, max_w):
+def _fit(
+    c: canvas.Canvas, text: str, font: str, start: float, min_size: float, max_w: float
+) -> float:
     size = start
     while size > min_size and c.stringWidth(text, font, size) > max_w:
         size -= 1
     return size
 
 
-def _fit_lines(c, text, font, start, min_size, width, max_lines):
+def _fit_lines(
+    c: canvas.Canvas,
+    text: str,
+    font: str,
+    start: float,
+    min_size: float,
+    width: float,
+    max_lines: int,
+) -> float:
     size = start
     while size > min_size and len(_wrap(c, text, font, size, width)) > max_lines:
         size -= 0.5
     return size
 
 
-def rotated_page(spec):
+def rotated_page(spec: LabelSpec) -> tuple[float, float]:
     return (spec["h"], spec["w"]) if spec["rotate"] in (90, 270) else (spec["w"], spec["h"])
 
 
-def _apply_rotation(c, W, H, rot):
+def _apply_rotation(c: canvas.Canvas, W: float, H: float, rot: int) -> None:
     if rot == 90:
         c.translate(H, 0)
         c.rotate(90)
@@ -224,7 +266,7 @@ def _apply_rotation(c, W, H, rot):
 # --- content ---------------------------------------------------------------
 
 
-def _catalogue_lines(asset):
+def _catalogue_lines(asset: Row) -> list[str]:
     """An asset's catalogue identity as label lines, from its rendered variant.
 
     On a sealed machine the board issue and the ULA are what a label is for, since
@@ -237,7 +279,7 @@ def _catalogue_lines(asset):
     different true things -- and two lines both headed CPU read as a contradiction
     rather than as two facts."""
     lines, chips = [], []
-    for key, value in parse_specs(asset.get("variant", "")):
+    for key, value in parse_specs(_txt(asset, "variant")):
         if not key:
             lines.append(f"Machine: {value}")
         elif key in _MACHINE_KEYS:
@@ -249,13 +291,13 @@ def _catalogue_lines(asset):
     return lines
 
 
-def computer_lines(comp, parts, form_factor=""):
+def computer_lines(comp: Row, parts: Sequence[Row], form_factor: str = "") -> list[str]:
     """Label body for a machine. `form_factor` comes from the linked board's typed
     column (see main.gui_computer_label); it falls back to the rendered specs
     string only so a caller that has not looked it up still gets a label."""
     kids = sorted(
         (p for p in parts if p.get("computer_id") == comp["asset_id"]),
-        key=lambda p: p.get("type", ""),
+        key=lambda p: _txt(p, "type"),
     )
     # No "Type: Computer" first line any more: the word now runs up the end of the
     # label, and the bullet was saying it a second time in the most valuable line on
@@ -283,9 +325,9 @@ def computer_lines(comp, parts, form_factor=""):
     ):
         if comp.get(key):
             lines.append(f"{label}: {comp[key]}")
-    by_type = {}
+    by_type: dict[str, list[Row]] = {}
     for p in kids:
-        by_type.setdefault(p.get("type", ""), []).append(p)
+        by_type.setdefault(_txt(p, "type"), []).append(p)
     for ptype, label in BUILD_ROWS:
         if ptype not in by_type:
             continue
@@ -301,7 +343,9 @@ def computer_lines(comp, parts, form_factor=""):
     return lines
 
 
-def small_body(asset, kind, spec_pairs=None):
+def small_body(
+    asset: Row, kind: str, spec_pairs: list[tuple[str, str]] | None = None
+) -> tuple[str, list[str]]:
     """(name, [spec lines]) for the small label's text below the asset id.
 
     Separate values rather than one sentence: each spec goes on a line of its own,
@@ -315,12 +359,12 @@ def small_body(asset, kind, spec_pairs=None):
     """
     name = display_name(asset)
     if kind == PROJECT:
-        return name, [status_label(asset.get("status", ""))]
-    wanted = () if kind == COMPUTER else SMALL_SPECS.get(asset.get("type", ""), ())
+        return name, [status_label(_txt(asset, "status"))]
+    wanted = () if kind == COMPUTER else SMALL_SPECS.get(_txt(asset, "type"), ())
     if not wanted:
         return name, []
     if spec_pairs is None:
-        spec_pairs = parse_specs(asset.get("specs", ""))
+        spec_pairs = parse_specs(_txt(asset, "specs"))
     have = dict(spec_pairs)
     lines = []
     for group in wanted:
@@ -330,8 +374,8 @@ def small_body(asset, kind, spec_pairs=None):
     return name, lines
 
 
-def part_lines(part, spec_pairs=None):
-    lines = [f"Type: {type_label(part.get('type', ''))}"]
+def part_lines(part: Row, spec_pairs: list[tuple[str, str]] | None = None) -> list[str]:
+    lines = [f"Type: {type_label(_txt(part, 'type'))}"]
     for label, key in (("Manufacturer", "manufacturer"), ("Year", "year")):
         if part.get(key):
             lines.append(f"{label}: {part[key]}")
@@ -340,7 +384,7 @@ def part_lines(part, spec_pairs=None):
     # is likely to be empty.
     lines += _catalogue_lines(part)
     if spec_pairs is None:
-        spec_pairs = parse_specs(part.get("specs", ""))
+        spec_pairs = parse_specs(_txt(part, "specs"))
     lines += [f"{k}: {v}" if k else v for k, v in spec_pairs]
     if part.get("computer_id"):
         lines.append(f"Installed in: {part['computer_id']}")
@@ -349,7 +393,7 @@ def part_lines(part, spec_pairs=None):
     return lines
 
 
-def project_lines(project):
+def project_lines(project: Row) -> list[str]:
     """The full label's body for a project.
 
     Its own columns and nothing counted: how many jobs are left and how many things
@@ -357,7 +401,7 @@ def project_lines(project):
     is printed once and then lives on a box for a year. What is put on it is what
     will still be true when it is read -- what the project is called, what state it
     was in, and the dates -- and the QR code is there for everything that moves."""
-    lines = [f"Status: {status_label(project.get('status', ''))}"]
+    lines = [f"Status: {status_label(_txt(project, 'status'))}"]
     for label, key in (
         ("Started", "started_at"),
         ("Wanted by", "target_date"),
@@ -366,7 +410,7 @@ def project_lines(project):
         if project.get(key):
             lines.append(f"{label}: {project[key]}")
     if project.get("summary"):
-        lines.append(project["summary"])
+        lines.append(_txt(project, "summary"))
     return lines
 
 
@@ -384,10 +428,12 @@ def project_lines(project):
 # category is quieter than a fact -- which is true on a screen and false on a
 # thermal printer, where there is no grey to print: the head is on or off, so grey
 # comes out as a dither, and a dithered word at five and a half point is a smudge.
-KIND_WORDS = {COMPUTER: "COMPUTER", PART: "PART", PROJECT: "PROJECT"}
+KIND_WORDS: dict[str | None, str] = {COMPUTER: "COMPUTER", PART: "PART", PROJECT: "PROJECT"}
 
 
-def _vertical(c, x0, x1, y, text, font, size):
+def _vertical(
+    c: canvas.Canvas, x0: float, x1: float, y: float, text: str, font: str, size: float
+) -> None:
     """One word running bottom to top, centred in the strip between x0 and x1 and
     on `y` along its length.
 
@@ -414,7 +460,18 @@ def _vertical(c, x0, x1, y, text, font, size):
     c.restoreState()
 
 
-def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont, kind=None):
+def _render_full(
+    c: canvas.Canvas,
+    W: float,
+    H: float,
+    asset_id: str,
+    title: str,
+    lines: Sequence[str],
+    url: str,
+    hfont: str,
+    bfont: str,
+    kind: str | None = None,
+) -> None:
     margin = 0.22 * inch
     qr_size = min(H - 2 * margin, 2.1 * inch)
     qr_x = W - margin - qr_size
@@ -458,7 +515,7 @@ def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont, kind=None):
     c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
 
 
-def _clip(c, text, font, size, max_w):
+def _clip(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> str:
     """`text` cut down until it fits, with an ellipsis to say it was.
 
     The last resort, for a run with no space in it to break at -- a resolution, a
@@ -472,7 +529,9 @@ def _clip(c, text, font, size, max_w):
     return (text.rstrip() + "…") if text.strip() else ""
 
 
-def _small_body_lines(c, title, tags, bfont, tw, avail):
+def _small_body_lines(
+    c: canvas.Canvas, title: str, tags: Sequence[str], bfont: str, tw: float, avail: float
+) -> tuple[float, list[str]]:
     """(size, lines) for a small label's body: the name, then the specs, each
     wrapped to the width there actually is.
 
@@ -504,7 +563,19 @@ def _small_body_lines(c, title, tags, bfont, tw, avail):
         size -= 0.5
 
 
-def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=(), kind=None):
+def _render_small(
+    c: canvas.Canvas,
+    W: float,
+    H: float,
+    asset_id: str,
+    title: str,
+    url: str,
+    hfont: str,
+    bfont: str,
+    safe: float = 0.0,
+    tags: Sequence[str] = (),
+    kind: str | None = None,
+) -> None:
     my = 1.2 * mm
     mx = my + safe * mm
     c.setFillColorRGB(0, 0, 0)
@@ -540,7 +611,14 @@ def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=()
         c.drawString(tx, y, line)
 
 
-def render_pdf(asset, parts, kind, small=False, form_factor="", spec_pairs=None) -> bytes:
+def render_pdf(
+    asset: Row,
+    parts: Sequence[Row],
+    kind: str,
+    small: bool = False,
+    form_factor: str = "",
+    spec_pairs: list[tuple[str, str]] | None = None,
+) -> bytes:
     """Render one label PDF and return its bytes. `asset` is the computer, part or
     project row (dict) and `kind` says which; `parts` is the full parts list (used
     for a computer's build). `form_factor` and `spec_pairs` come from the typed
@@ -554,7 +632,7 @@ def render_pdf(asset, parts, kind, small=False, form_factor="", spec_pairs=None)
     hfont, bfont = _fonts()
     spec = SMALL if small else FULL
     title = display_name(asset)
-    url = item_url(asset["asset_id"])
+    url = item_url(_txt(asset, "asset_id"))
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=rotated_page(spec))
     c.saveState()
@@ -565,7 +643,7 @@ def render_pdf(asset, parts, kind, small=False, form_factor="", spec_pairs=None)
             c,
             spec["w"],
             spec["h"],
-            asset["asset_id"],
+            _txt(asset, "asset_id"),
             name,
             url,
             hfont,
@@ -582,7 +660,16 @@ def render_pdf(asset, parts, kind, small=False, form_factor="", spec_pairs=None)
         else:
             lines = part_lines(asset, spec_pairs)
         _render_full(
-            c, spec["w"], spec["h"], asset["asset_id"], title, lines, url, hfont, bfont, kind=kind
+            c,
+            spec["w"],
+            spec["h"],
+            _txt(asset, "asset_id"),
+            title,
+            lines,
+            url,
+            hfont,
+            bfont,
+            kind=kind,
         )
     c.restoreState()
     c.showPage()

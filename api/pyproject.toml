@@ -47,78 +47,23 @@ dev = [
 [tool.uv]
 package = false
 
-# mypy is strict, and a module is strict unless it is named below as not there yet.
-# That way round on purpose: a list of the modules that ARE strict would let a new
-# one arrive unlisted and unchecked, where this one makes strict what a new module
-# gets by doing nothing. The list only shrinks, and the work is finished when the
-# override under it is deleted (ROADMAP).
+# mypy is strict, on every module, with no list of exceptions. There was one -- the
+# modules not typed yet, named in an override that could only shrink -- and it is
+# gone because it is empty. Do not bring it back for a new module: strict is what a
+# new module gets by doing nothing, and that is the point of having finished.
 [tool.mypy]
 python_version = "3.12"
 strict = true
 plugins = ["pydantic.mypy"]
-# The ways out are closed, so that getting a module off the list means typing it
-# and not silencing it: no bare `# type: ignore`, none left behind once its error
-# has gone, and no `Any` written by hand.
+# The ways out are closed, so that a type error is answered by a type and not by
+# silence: no bare `# type: ignore`, none left behind once its error has gone, and
+# no `Any` written by hand.
 enable_error_code = ["ignore-without-code"]
 warn_unused_ignores = true
 disallow_any_explicit = true
-# A strict module may still call into one that is not typed yet. Without this the
-# order modules could be done in would be dictated by who calls whom.
-untyped_calls_exclude = [
-    "app.assets",
-    "app.drivedb",
-    "app.entry",
-    "app.filesdb",
-    "app.labels",
-    "app.machinedb",
-    "app.machines",
-    "app.photos",
-    "app.projects",
-    "app.search",
-    "app.specstruct",
-    "app.stats",
-    "app.work",
-    "app.routers.api_assets",
-    "app.routers.api_projects",
-    "app.routers.computers",
-    "app.routers.files",
-    "app.routers.gallery",
-    "app.routers.parts",
-    "app.routers.projects",
-]
 
-[[tool.mypy.overrides]]
-module = [
-    "app.assets",
-    "app.drivedb",
-    "app.entry",
-    "app.filesdb",
-    "app.labels",
-    "app.machinedb",
-    "app.machines",
-    "app.photos",
-    "app.projects",
-    "app.search",
-    "app.specstruct",
-    "app.stats",
-    "app.work",
-    "app.routers.api_assets",
-    "app.routers.api_projects",
-    "app.routers.computers",
-    "app.routers.files",
-    "app.routers.gallery",
-    "app.routers.parts",
-    "app.routers.projects",
-]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_calls = false
-disallow_any_generics = false
-check_untyped_defs = false
-warn_return_any = false
-
-# Not on the way to being removed, unlike the list above. Every pydantic model
-# trips `disallow_any_explicit` through no `Any` of its own: BaseModel's
+# The one standing exception, and not a module waiting its turn. Every pydantic
+# model trips `disallow_any_explicit` through no `Any` of its own: BaseModel's
 # constructor takes `**data: Any`, and mypy reports the class that inherits it.
 [[tool.mypy.overrides]]
 module = ["app.schemas"]

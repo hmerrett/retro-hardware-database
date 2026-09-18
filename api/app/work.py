@@ -6,9 +6,11 @@ the project's own page, the page of a thing it is about, and the JSON API -- so
 they are here rather than in any one of them.
 """
 
+from collections.abc import Iterable
 from enum import Enum
 
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from . import entry, projects
 from .common import to_dict
@@ -22,7 +24,7 @@ from .models import Computer, LogEntry, Part, Project, ProjectAsset, ProjectTask
 PROJECT_TAGS: list[str | Enum] = ["projects"]
 
 
-def _asset_display(db, asset_id):
+def _asset_display(db: Session, asset_id: str) -> str | None:
     """What a computer or part is called, or None if the register has no such
     thing. The name is a fact about the item and is asked for in two voices -- a
     sentence in a history, and the name of a project about it -- so it is read in
@@ -33,7 +35,7 @@ def _asset_display(db, asset_id):
     return None
 
 
-def _project_named(p):
+def _project_named(p: Project) -> str:
     """A project in a sentence written in another item's history. The name, because
     that is what it is known by, with the id so the line still points somewhere when
     two projects are called nearly the same thing."""
@@ -52,7 +54,7 @@ PROJECT_FIELDS = (
 )
 
 
-def _asset_named(db, asset_id):
+def _asset_named(db: Session, asset_id: str) -> str:
     """A computer or part in a sentence written in a project's history: what it is
     called, and its id. Falls back to the bare id for something that has since
     gone, so a history line never reads as a blank."""
@@ -60,7 +62,7 @@ def _asset_named(db, asset_id):
     return f"{name} ({asset_id})" if name else asset_id
 
 
-def _task_asset(db, project_id, raw):
+def _task_asset(db: Session, project_id: str, raw: str | None) -> str | None:
     """The thing a job names, checked against the project it is written on. None for
     a job about no one thing in particular -- 'order the caps', 'find a manual' --
     which is most of what a project-wide list holds."""
@@ -72,7 +74,7 @@ def _task_asset(db, project_id, raw):
     return aid
 
 
-def _member_log(db, project, asset_id, joining=True):
+def _member_log(db: Session, project: Project, asset_id: str, joining: bool = True) -> None:
     """Write the item's side of a membership -- but only while the project is one
     anybody may read.
 
@@ -98,7 +100,7 @@ def _member_log(db, project, asset_id, joining=True):
     )
 
 
-def _work_project_name(db, asset_id):
+def _work_project_name(db: Session, asset_id: str) -> str:
     """What a project raised from an item's own form is called.
 
     The form asks for no name: what is being described is the work, and the only
@@ -121,7 +123,7 @@ def _work_project_name(db, asset_id):
     return _asset_display(db, asset_id) or asset_id
 
 
-def _work_lines(raw):
+def _work_lines(raw: str | None) -> list[str]:
     """The jobs out of a work box, one to a line.
 
     Faults arrive as a list -- recap, belt, keyboard sticks -- and one box holding
@@ -131,7 +133,13 @@ def _work_lines(raw):
     return [line.strip() for line in (raw or "").splitlines() if line.strip()]
 
 
-def _take_on_work(db, asset_id, jobs, project=None, name=""):
+def _take_on_work(
+    db: Session,
+    asset_id: str,
+    jobs: Iterable[str],
+    project: Project | None = None,
+    name: str = "",
+) -> Project:
     """Put an item and its jobs on a project, making one if none was given.
 
     The one path everything that notes work runs down -- the quick box, both entry
@@ -186,7 +194,7 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
     return project
 
 
-def _publish_log(db, project):
+def _publish_log(db: Session, project: Project) -> None:
     """Bring the members' histories into line after a project's privacy changed.
 
     Publishing writes the lines that were held back; withdrawing deletes them. That
@@ -213,7 +221,7 @@ def _publish_log(db, project):
             add_log(db, asset_id, f"wanted for {_project_named(project)}")
 
 
-def _api_task(db, p, tid):
+def _api_task(db: Session, p: Project, tid: int) -> ProjectTask:
     row = db.get(ProjectTask, tid)
     if row is None or row.project_id != p.asset_id:
         raise HTTPException(404, f"no task {tid} in {p.asset_id}")
