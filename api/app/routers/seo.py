@@ -6,6 +6,7 @@ that, which is why they are the first group out of main.py: the site's page rout
 can move afterwards without this corner moving again.
 """
 
+from datetime import datetime
 from xml.sax.saxutils import escape
 
 from fastapi import APIRouter, Depends, Request
@@ -57,10 +58,12 @@ def robots_txt(request: Request):
 def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
     # Newest change per asset, for <lastmod>.
-    last = dict(
-        db.query(LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id)
+    last: dict[str | None, datetime | None] = dict(
+        db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
+        .group_by(LogEntry.asset_id)
+        .tuples()
     )
-    urls = [
+    urls: list[tuple[str, datetime | None]] = [
         (f"{base}/", None),
         (f"{base}/stats", None),
         (f"{base}/machines", None),

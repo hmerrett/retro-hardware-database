@@ -42,7 +42,7 @@ def _public_ip(host: str) -> bool:
         return False
     for info in infos:
         try:
-            ip = ipaddress.ip_address(info[4][0].split("%")[0])
+            ip = ipaddress.ip_address(str(info[4][0]).split("%")[0])
         except ValueError:
             return False
         if (

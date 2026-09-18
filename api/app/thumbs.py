@@ -115,11 +115,11 @@ def _make(src: Path, dst: Path, width: int) -> bool:
     with Image.open(src) as im:
         if im.width <= width:
             return False
-        im = im.convert("RGB") if im.mode in ("RGBA", "P", "LA") else im
-        im.thumbnail((width, width), Image.LANCZOS)
+        small = im.convert("RGB") if im.mode in ("RGBA", "P", "LA") else im
+        small.thumbnail((width, width), Image.Resampling.LANCZOS)
         # Written aside and moved into place, so a second request arriving while
         # this one is still encoding never reads a half-written file.
-        _write_atomically(dst, lambda tmp: im.save(tmp, "JPEG", quality=QUALITY, optimize=True))
+        _write_atomically(dst, lambda tmp: small.save(tmp, "JPEG", quality=QUALITY, optimize=True))
     return True
 
 

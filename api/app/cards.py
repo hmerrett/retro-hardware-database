@@ -148,7 +148,7 @@ def _tile(path: Path, box_w: int, box_h: int):
         # Upright, as the photograph is served: one lying on its side and saying so
         # only in its EXIF block would otherwise be tiled on its side.
         upright = ImageOps.exif_transpose(im) or im
-        return ImageOps.fit(upright.convert("RGB"), (box_w, box_h), Image.LANCZOS)
+        return ImageOps.fit(upright.convert("RGB"), (box_w, box_h), Image.Resampling.LANCZOS)
 
 
 def _stamp(card):
@@ -168,7 +168,7 @@ def _stamp(card):
 
         mark = Image.open(WM_SRC).convert("RGBA")
         target = max(WM_MIN_PX, int(min(card.size) * WM_SCALE))
-        mark.thumbnail((target, target), Image.LANCZOS)
+        mark.thumbnail((target, target), Image.Resampling.LANCZOS)
         mark.putalpha(mark.getchannel("A").point(lambda a: int(a * WM_OPACITY)))
         margin = max(6, int(min(card.size) * WM_MARGIN))
         card.paste(

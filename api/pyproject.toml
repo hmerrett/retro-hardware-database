@@ -29,17 +29,143 @@ dependencies = [
 ]
 
 # Test and lint tooling, kept out of the runtime image: `uv sync --no-dev` in the
-# Dockerfile installs the list above and nothing here. pytest and ruff are pinned
-# so test results and lint rules do not shift under CI; pip-audit is left to float
+# Dockerfile installs the list above and nothing here. pytest, ruff and mypy are pinned
+# so test results, lint rules and type errors do not shift under CI; pip-audit is left to float
 # so the scanner stays current.
 [dependency-groups]
 dev = [
     "pytest==9.1.1",
     "ruff==0.16.7",
     "pip-audit",
+    "mypy==2.3.1",
+    "types-PyYAML==6.0.12.20260906",
+    "types-reportlab==5.0.0.20260911",
 ]
 
 # Nothing here is a package to be built and installed -- the app is copied into the
 # image and run from /app. Without this, uv would try to build a wheel of it.
 [tool.uv]
 package = false
+
+# mypy is strict, and a module is strict unless it is named below as not there yet.
+# That way round on purpose: a list of the modules that ARE strict would let a new
+# one arrive unlisted and unchecked, where this one makes strict what a new module
+# gets by doing nothing. The list only shrinks, and the work is finished when the
+# override under it is deleted (ROADMAP).
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+# The ways out are closed, so that getting a module off the list means typing it
+# and not silencing it: no bare `# type: ignore`, none left behind once its error
+# has gone, and no `Any` written by hand.
+enable_error_code = ["ignore-without-code"]
+warn_unused_ignores = true
+disallow_any_explicit = true
+# A strict module may still call into one that is not typed yet. Without this the
+# order modules could be done in would be dictated by who calls whom.
+untyped_calls_exclude = [
+    "app.assets",
+    "app.audit_storage",
+    "app.auth",
+    "app.cards",
+    "app.common",
+    "app.disposal",
+    "app.drivedb",
+    "app.enrich",
+    "app.entry",
+    "app.filesdb",
+    "app.forms",
+    "app.history",
+    "app.ids",
+    "app.labels",
+    "app.machinedb",
+    "app.machines",
+    "app.main",
+    "app.pages",
+    "app.photos",
+    "app.projects",
+    "app.ramdb",
+    "app.register",
+    "app.resync",
+    "app.search",
+    "app.specdb",
+    "app.specstruct",
+    "app.stats",
+    "app.thumbs",
+    "app.web",
+    "app.work",
+    "app.routers.api_assets",
+    "app.routers.api_projects",
+    "app.routers.catalogue",
+    "app.routers.computers",
+    "app.routers.files",
+    "app.routers.gallery",
+    "app.routers.health",
+    "app.routers.images",
+    "app.routers.items",
+    "app.routers.parts",
+    "app.routers.projects",
+    "app.routers.seo",
+    "app.routers.stats",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "app.assets",
+    "app.audit_storage",
+    "app.auth",
+    "app.cards",
+    "app.common",
+    "app.disposal",
+    "app.drivedb",
+    "app.enrich",
+    "app.entry",
+    "app.filesdb",
+    "app.forms",
+    "app.history",
+    "app.ids",
+    "app.labels",
+    "app.machinedb",
+    "app.machines",
+    "app.main",
+    "app.pages",
+    "app.photos",
+    "app.projects",
+    "app.ramdb",
+    "app.register",
+    "app.resync",
+    "app.search",
+    "app.specdb",
+    "app.specstruct",
+    "app.stats",
+    "app.thumbs",
+    "app.web",
+    "app.work",
+    "app.routers.api_assets",
+    "app.routers.api_projects",
+    "app.routers.catalogue",
+    "app.routers.computers",
+    "app.routers.files",
+    "app.routers.gallery",
+    "app.routers.health",
+    "app.routers.images",
+    "app.routers.items",
+    "app.routers.parts",
+    "app.routers.projects",
+    "app.routers.seo",
+    "app.routers.stats",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+check_untyped_defs = false
+warn_return_any = false
+
+# Not on the way to being removed, unlike the list above. Every pydantic model
+# trips `disallow_any_explicit` through no `Any` of its own: BaseModel's
+# constructor takes `**data: Any`, and mypy reports the class that inherits it.
+[[tool.mypy.overrides]]
+module = ["app.schemas"]
+disallow_any_explicit = false

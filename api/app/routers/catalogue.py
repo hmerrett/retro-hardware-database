@@ -33,7 +33,7 @@ def gui_machines(request: Request, db: Session = Depends(get_db)):
     The count of what is held against each model comes from the register, so the
     page doubles as the other view of the catalogue: not what was made, but how
     much of it is on the shelf."""
-    held = Counter()
+    held: Counter[str] = Counter()
     for row in db.query(AssetVariant.model_key).filter(AssetVariant.model_key != ""):
         held[row[0]] += 1
     families = [{"name": name, "models": group} for name, group in machines.grouped()]

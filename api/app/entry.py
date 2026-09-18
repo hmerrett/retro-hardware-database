@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from typing import NotRequired, TypedDict
 
 from markupsafe import Markup, escape
 
@@ -475,7 +476,23 @@ _ALL_STORAGE_KINDS = (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND, CARD_KIND
 #   kinds    the kinds that are asked at all; every other kind hides it
 #   options  the closed list it is picked from, per kind where that differs, or
 #            None for a plain text box
-STORAGE_ASKS = [
+
+
+class StorageAsk(TypedDict):
+    """One row of the table below, spelt out so that what reads the table is checked
+    against it: a dict of mixed values is `object` to a type checker, and `object`
+    can be neither indexed nor lower-cased."""
+
+    key: str
+    kinds: tuple[str, ...]
+    options: list[str] | dict[str, list[str]] | None
+    label: str
+    hint: str
+    placeholder: NotRequired[str]
+    required: NotRequired[bool]
+
+
+STORAGE_ASKS: list[StorageAsk] = [
     {
         "key": "Interface",
         "kinds": _ALL_STORAGE_KINDS,
@@ -604,7 +621,18 @@ BEZEL_COLOURS = [
 # shade to draw it -- a rendering, not data, so these numbers can be adjusted
 # without touching a single record. Blank means it has not yellowed, or nobody has
 # looked yet: the same blank every other unrecorded field uses.
-YELLOWING = [
+
+
+class Yellowing(TypedDict):
+    label: str
+    weight: float
+    # The far end of an uneven one, which is drawn as a gradient between the two.
+    weight2: NotRequired[float]
+    tint: str
+    note: str
+
+
+YELLOWING: list[Yellowing] = [
     {
         "label": "Lightly yellowed",
         "weight": 0.20,
@@ -1052,6 +1080,9 @@ def parse_port_list(value: str):
     out = []
     for tok in items:
         m = _PORT_ITEM_RE.match(tok)
+        # "." stops at a line break, so an item with one inside it matches nothing.
+        if m is None:
+            return None
         name = m.group(2).strip()
         if name not in PORT_NAMES:
             return None
@@ -1099,7 +1130,7 @@ def expand_slots(raw: str) -> str:
     """'8I:2 16I:6 VLB' -> '2x 8-bit ISA, 6x 16-bit ISA, VLB'. Tokens are 'key',
     'key:n', 'key*n' or 'keyxn'; order-independent; unknown tokens ignored."""
     alias = {c.upper(): name for name, codes in SLOT_TYPES for c in codes}
-    counts = Counter()
+    counts: Counter[str] = Counter()
     for tok in re.split(r"[\s,]+", (raw or "").strip()):
         if not tok:
             continue

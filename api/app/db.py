@@ -2,9 +2,10 @@
 service)."""
 
 import os
+from collections.abc import Iterator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://retro:retro@db:3306/retro")
 
@@ -18,7 +19,7 @@ class Base(DeclarativeBase):
     something to mypy only when it can see what the model inherits from."""
 
 
-def get_db():
+def get_db() -> Iterator[Session]:
     db = SessionLocal()
     try:
         yield db

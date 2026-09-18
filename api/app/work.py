@@ -6,6 +6,8 @@ the project's own page, the page of a thing it is about, and the JSON API -- so
 they are here rather than in any one of them.
 """
 
+from enum import Enum
+
 from fastapi import HTTPException
 
 from . import entry, projects
@@ -15,7 +17,9 @@ from .ids import next_asset_id
 from .models import Computer, LogEntry, Part, Project, ProjectAsset, ProjectTask
 
 
-PROJECT_TAGS = ["projects"]
+# Typed as FastAPI types a route's tags: a list is invariant, so a bare list[str]
+# is not one of these however obviously it ought to be.
+PROJECT_TAGS: list[str | Enum] = ["projects"]
 
 
 def _asset_display(db, asset_id):

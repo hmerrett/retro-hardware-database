@@ -182,7 +182,7 @@ ORDER = {
     ],
 }
 # Which column a display key reads from in format() (first alias wins).
-DISPLAY_COL = {t: {} for t in SCALARS}
+DISPLAY_COL: dict[str, dict[str, str]] = {t: {} for t in SCALARS}
 for _t, _m in SCALARS.items():
     for _key, _col in _m.items():
         DISPLAY_COL[_t].setdefault(_col, _key)

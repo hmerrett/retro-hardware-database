@@ -99,7 +99,7 @@ def _og(
     things has. Neither, and the site's own card, which is what a page with no
     photographs on it has.
     """
-    og = {
+    og: dict[str, str | int] = {
         "title": title,
         "url": _abs_url(request, request.url.path),
         "description": " ".join((description or "").split())[:280],
