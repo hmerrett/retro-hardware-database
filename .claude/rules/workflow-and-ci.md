@@ -15,8 +15,7 @@ CI (`.github/workflows/ci.yml`) runs on pull requests. The backend job shape is:
 
 1. `uv sync --project api --all-groups --frozen` (the lockfile as committed),
 2. `uv run --project api ruff check .`, `ruff format --check .`, and
-   `uv run --directory api mypy app` -- strict, less the shrinking list of modules
-   `api/pyproject.toml` names as not typed yet (backend-standards),
+   `uv run --directory api mypy app` -- strict, on every module (backend-standards),
 3. `pytest` against a **real MariaDB service container** — the suite builds its
    schema by running the migrations from empty, so this covers both the migration
    path and the tests (ADR-0008),

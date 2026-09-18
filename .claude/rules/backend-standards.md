@@ -20,10 +20,10 @@ Python + FastAPI, server-rendered Jinja2. British English.
 - **Types: mypy, strict.** Config is `[tool.mypy]` in `api/pyproject.toml`, with
   the pydantic plugin; CI runs `uv run --directory api mypy app`, and so should
   you before committing.
-  - **Strict is the default, and the exceptions are a list that only shrinks.**
-    The modules not yet typed are named in one override. A new module is not on
-    it, so it is strict by doing nothing; a module comes off it by being typed,
-    and never goes back on.
+  - **Every module is strict, and there is no list of exceptions.** There was
+    one while the code was being typed, and it was deleted when it was empty.
+    A new module is strict by doing nothing; do not add an override to let one
+    in untyped.
   - **The ways round it are closed.** No bare `# type: ignore` and none left
     behind once its error has gone (both configured as errors), and no `Any`
     written by hand. An ignore that has to stay names its error code and says

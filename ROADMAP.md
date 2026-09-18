@@ -115,7 +115,20 @@ rather than being wondered about later.
   autogenerate would write against a migrated database and requires the answer to
   be nothing. mypy earned its place on the first run, by reading a form value as
   `UploadFile | str`: a file posted under a text field's name was a 500 on every
-  form handler, the login included. Strict on the modules still untyped is item 1.
+  form handler, the login included.
+- **Every module is held to `mypy --strict`.** All fifty-one, with no list of
+  exceptions left in `api/pyproject.toml` and the ways round it — a bare
+  `# type: ignore`, a hand-written `Any` — configured as errors rather than left to
+  review. It was scoped as "strict per module, ratcheted forward", for fear that
+  strict everywhere would block the release or fill the code with `Any`; measured
+  rather than feared, it was about 550 unannotated functions and fewer than 200
+  errors that needed thought, so the ratchet was turned all the way instead of
+  being left half way. What it found on the way is the argument for having done
+  it: a machine's chip mountings could not be changed over the API without sending
+  the chips again (a loop reused the name of the row the next line read), and a
+  label would not print for a machine holding a part with no type. The tables the
+  forms are built from, the catalogue and the gallery's cards are typed as what
+  they are rather than as dictionaries of anything.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
   against the dump, every archived photograph and file, and the public pages
@@ -124,23 +137,7 @@ rather than being wondered about later.
 
 ## The work, in order
 
-**1. `mypy --strict` on every module.** The gate is in: mypy runs in CI, strict
-is the default, and the modules not typed yet are a named list in
-`api/pyproject.toml` that only shrinks — so a new module is strict by doing
-nothing, and the ways round it (a bare `# type: ignore`, a hand-written `Any`)
-are configured as errors rather than left to review. What is left is the list
-itself: twenty modules of fifty-one, five of which — `stats`, `routers/parts`,
-`routers/computers`, `routers/projects`, `machines` — hold most of the missing
-signatures. They are typed leaf-first, the helpers before the routers that call
-them, and the item is done when the override naming them is deleted.
-
-This was scoped as "strict per module, ratcheted forward", with the worry that
-strict everywhere would either block the release or fill the code with `Any`.
-Measured rather than feared, it came to about 550 unannotated functions and
-fewer than 200 errors that needed thought, which is days and not weeks — so
-0.1 is held to strict everywhere, not to a ratchet left half turned.
-
-**2. Walk the install on a clean host.** The reading half of this item
+**1. Walk the install on a clean host.** The reading half of this item
 is done (#78): every guide and every rule file was read against the tree and
 against the running stack, what had drifted was corrected, and `CHANGELOG.md` is
 started. What is left is the part no reading can stand in for.
@@ -150,7 +147,7 @@ restored into a second stack with `tools/restore.sh` (a release that invites
 people to self-host should have restored one at least once), and whatever that
 walk turns up corrected.
 
-**3. A test deployment on k3s.** The last thing before the tag. Compose is the
+**2. A test deployment on k3s.** The last thing before the tag. Compose is the
 only way this has ever been run, and it has only ever been run on the box it was
 written on — so "it installs on your own server" is a claim with one witness, who
 is also the author. Kubernetes is where a second installer is most likely to put
