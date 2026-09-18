@@ -38,7 +38,7 @@ from ..assets import (
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import _disposal_log
-from ..forms import _coerce, _field_diffs, _parse_date
+from ..forms import _coerce, _field_diffs, _parse_date, posted
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import ComputerDrive, Computer, Part, StorageSpec, StoredFile
@@ -601,7 +601,7 @@ def gui_new_part(
 
 @router.post("/parts/new", include_in_schema=False)
 async def gui_create_part(request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     photos = _chosen_photos(form)
     ptype = form.get("type", "other") or "other"
     computer_id = form.get("computer_id", "") or ""
@@ -773,7 +773,7 @@ def gui_edit_part(aid: str, request: Request, type: str = "", db: Session = Depe
 @router.post("/parts/{aid}/edit", include_in_schema=False)
 async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     ptype = form.get("type", p.type) or "other"
     _require_storage_interface(ptype, form)
     # Unmanaged keys live in part_attribute; carry them across the edit.
@@ -793,7 +793,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     carried = specdb.pairs(db, p) if ptype != old_type else specdb.read(db, p).attributes
     data = await _part_from_form(form, ptype, carried)
     if ptype == "storage" and (form.get("kind", "") or ""):
-        data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind"))
+        data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind", ""))
     old = {k: getattr(p, k) for k in data}
     for k, v in data.items():
         setattr(p, k, v)
@@ -845,7 +845,7 @@ async def gui_part_for_sale(aid: str, request: Request, db: Session = Depends(ge
 @router.post("/parts/{aid}/dispose", include_in_schema=False)
 async def gui_dispose_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     p.disposed = True
     p.disposed_at = _parse_date(form.get("date", "")) or date.today()
     p.disposed_note = form.get("note", "") or ""
@@ -876,7 +876,7 @@ def gui_delete_part_form(aid: str, request: Request, db: Session = Depends(get_d
 async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     _require_disposed(p, "part")
-    form = await request.form()
+    form = await posted(request)
     if not _confirms_url(form.get("confirm", ""), "parts", p.asset_id):
         return templates.TemplateResponse(
             request,
@@ -896,7 +896,7 @@ async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_
 @router.post("/parts/{aid}/note", include_in_schema=False)
 async def gui_part_note(aid: str, request: Request, db: Session = Depends(get_db)):
     get_or_404(db, Part, aid)
-    _note_with_photos(db, aid, await request.form())
+    _note_with_photos(db, aid, await posted(request))
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
 
@@ -936,7 +936,7 @@ def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)):
 @router.post("/parts/{aid}/unlink", include_in_schema=False)
 async def gui_unlink_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     nxt = form.get("next", "") or f"/parts/{aid}"
     old_cid = p.computer_id
     p.computer_id = None
@@ -950,7 +950,7 @@ async def gui_unlink_part(aid: str, request: Request, db: Session = Depends(get_
 async def gui_link_part_to_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     """Install this part into an existing computer (chosen from the part page)."""
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     cid = form.get("computer_id", "") or ""
     if cid:
         get_or_404(db, Computer, cid)
@@ -966,7 +966,7 @@ async def gui_link_part_to_computer(aid: str, request: Request, db: Session = De
 async def gui_attach_part(aid: str, request: Request, db: Session = Depends(get_db)):
     """Mount another part onto this one (e.g. a hard disk on a controller card)."""
     get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
         return RedirectResponse(f"/parts/{aid}", status_code=303)
@@ -982,7 +982,7 @@ async def gui_attach_part(aid: str, request: Request, db: Session = Depends(get_
 @router.post("/parts/{aid}/detach", include_in_schema=False)
 async def gui_detach_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     old_host = p.parent_id
     p.parent_id = None
     if old_host:
@@ -994,7 +994,7 @@ async def gui_detach_part(aid: str, request: Request, db: Session = Depends(get_
 @router.post("/parts/{aid}/primary-photo", include_in_schema=False)
 async def gui_part_primary(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     p.image = _set_primary_photo("parts", aid, form.get("image", ""))
     add_log(db, aid, "changed the default photo")
     db.commit()
@@ -1004,7 +1004,7 @@ async def gui_part_primary(aid: str, request: Request, db: Session = Depends(get
 @router.post("/parts/{aid}/photo-delete", include_in_schema=False)
 async def gui_part_photo_delete(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     was_primary, new_primary = _delete_image("parts", aid, form.get("image", ""))
     if was_primary:
         p.image = new_primary or ""
@@ -1016,7 +1016,7 @@ async def gui_part_photo_delete(aid: str, request: Request, db: Session = Depend
 @router.post("/parts/{aid}/photo-reference", include_in_schema=False)
 async def gui_part_photo_reference(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    form = await request.form()
+    form = await posted(request)
     rel = form.get("image", "")
     if rel not in detect_images("parts", aid):
         raise HTTPException(404, "no such photo for this item")
@@ -1036,28 +1036,28 @@ def gui_part_edit_photo(aid: str, image: str = ""):
 
 @router.post("/parts/{aid}/photo-rotate", include_in_schema=False)
 async def gui_part_photo_rotate(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_rotate(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-tuneup", include_in_schema=False)
 async def gui_part_photo_tuneup(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_tuneup(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-revert", include_in_schema=False)
 async def gui_part_photo_revert(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_revert(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-crop", include_in_schema=False)
 async def gui_part_photo_crop(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_crop(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 

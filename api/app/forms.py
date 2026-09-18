@@ -7,9 +7,54 @@ the change log says "year: 1986 -> 1987" rather than that something was edited.
 """
 
 from datetime import datetime
+from typing import overload
+
+from starlette.datastructures import FormData, UploadFile
+from starlette.requests import Request
 
 from . import entry
 from .history import _short
+
+
+class Posted:
+    """A posted form, read as the text its fields were drawn to hold.
+
+    A multipart body lets any field arrive as a file, whatever the page that drew
+    the form intended, and Starlette says so: a value is ``UploadFile | str``. The
+    handlers read a field and call ``.strip()`` on it, so an upload posted under a
+    text field's name was an AttributeError and a 500. Read through this, a file
+    where text was expected is the field left blank -- which every handler already
+    has an answer for -- and the one place that does want the files asks for them
+    by name with ``uploads``.
+    """
+
+    def __init__(self, data: FormData) -> None:
+        self._data = data
+
+    @overload
+    def get(self, name: str) -> str | None: ...
+    @overload
+    def get(self, name: str, default: str) -> str: ...
+    def get(self, name: str, default: str | None = None) -> str | None:
+        value = self._data.get(name, default)
+        return value if isinstance(value, str) else default
+
+    def getlist(self, name: str) -> list[str]:
+        return [v for v in self._data.getlist(name) if isinstance(v, str)]
+
+    def uploads(self, name: str) -> list[UploadFile]:
+        return [v for v in self._data.getlist(name) if not isinstance(v, str)]
+
+    def __contains__(self, name: object) -> bool:
+        return name in self._data
+
+    def __getitem__(self, name: str) -> str:
+        value = self._data[name]
+        return value if isinstance(value, str) else ""
+
+
+async def posted(request: Request) -> Posted:
+    return Posted(await request.form())
 
 
 def _parse_date(raw):

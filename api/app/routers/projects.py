@@ -41,7 +41,7 @@ from sqlalchemy.orm import Session
 from .. import cards, entry, labels, projects
 from ..common import _visible, folder_images, to_dict
 from ..db import get_db
-from ..forms import _coerce, _field_diffs, _parse_date
+from ..forms import _coerce, _field_diffs, _parse_date, posted
 from ..history import _history, _now, _short, add_log
 from ..ids import next_asset_id
 from ..models import Computer, LogEntry, Part, Project, ProjectAsset, ProjectOrder, ProjectTask
@@ -382,7 +382,7 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
 
     One route for both boxes and for the entry forms, so what gets made does not
     depend on which of them was to hand."""
-    form = await request.form()
+    form = await posted(request)
     jobs = _work_lines(form.get("job"))
     asset_id = (form.get("aid") or "").strip().upper()
     name = (form.get("name") or "").strip()
@@ -425,7 +425,7 @@ async def gui_create_project(request: Request, db: Session = Depends(get_db)):
     falls back to its manufacturer and model and then to its asset id, and a
     project has neither -- an untitled one is a row nobody will ever recognise
     again. Everything else can be filled in later or never."""
-    form = await request.form()
+    form = await posted(request)
     data = _project_from_form(form)
     if not data["name"]:
         return templates.TemplateResponse(
@@ -526,7 +526,7 @@ def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)):
 @router.post("/projects/{aid}/edit", include_in_schema=False)
 async def gui_update_project(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
-    form = await request.form()
+    form = await posted(request)
     data = _project_from_form(form)
     if not data["name"]:
         return templates.TemplateResponse(
@@ -572,7 +572,7 @@ async def gui_project_note(aid: str, request: Request, db: Session = Depends(get
     """The same note bar the machines have, posting to the same shape of URL, which
     is why _history.html needed nothing said to it about projects."""
     get_or_404(db, Project, aid)
-    _note_with_photos(db, aid, await request.form())
+    _note_with_photos(db, aid, await posted(request))
     return RedirectResponse(f"/projects/{aid}", status_code=303)
 
 
@@ -602,7 +602,7 @@ async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
 @router.post("/projects/{aid}/add-item", include_in_schema=False)
 async def gui_project_add_item(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
-    form = await request.form()
+    form = await posted(request)
     asset_id = (form.get("asset_id", "") or "").strip().upper()
     note = (form.get("note", "") or "").strip()
     if projects.add_asset(db, p.asset_id, asset_id, note):
@@ -616,7 +616,7 @@ async def gui_project_add_item(aid: str, request: Request, db: Session = Depends
 @router.post("/projects/{aid}/remove-item", include_in_schema=False)
 async def gui_project_remove_item(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
-    form = await request.form()
+    form = await posted(request)
     asset_id = (form.get("asset_id", "") or "").strip().upper()
     if projects.drop_asset(db, p.asset_id, asset_id):
         add_log(db, p.asset_id, f"let go of {_asset_named(db, asset_id)}")
@@ -628,7 +628,7 @@ async def gui_project_remove_item(aid: str, request: Request, db: Session = Depe
 @router.post("/projects/{aid}/task", include_in_schema=False)
 async def gui_project_add_task(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Project, aid)
-    form = await request.form()
+    form = await posted(request)
     text = (form.get("text", "") or "").strip()
     if text:
         db.add(
@@ -653,7 +653,7 @@ async def gui_project_task_about(
     this most are the ones already written -- see api_project_update_task."""
     p = get_or_404(db, Project, aid)
     row = _api_task(db, p, tid)
-    form = await request.form()
+    form = await posted(request)
     before = row.asset_id
     row.asset_id = _task_asset(db, p.asset_id, form.get("asset", ""))
     if before != row.asset_id:
@@ -691,7 +691,7 @@ async def gui_project_toggle_task(
     row.done_at = date.today() if row.done else None
     add_log(db, p.asset_id, ("done: " if row.done else "back on the list: ") + _short(row.text))
     db.commit()
-    form = await request.form()
+    form = await posted(request)
     return RedirectResponse(
         _safe_next(form.get("next", "") or f"/projects/{p.asset_id}"), status_code=303
     )
@@ -713,7 +713,7 @@ async def gui_project_add_order(aid: str, request: Request, db: Session = Depend
     order written down the moment it is placed rarely has a delivery date yet, and
     a form that insisted on one would be filled in later or not at all."""
     p = get_or_404(db, Project, aid)
-    form = await request.form()
+    form = await posted(request)
     description = (form.get("description", "") or "").strip()
     if not description:
         return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)

@@ -76,7 +76,7 @@ from ..assets import (
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import _and_parts, _disposal_log, _dispose_contents, _restore_contents
-from ..forms import _coerce, _field_diffs, _parse_date
+from ..forms import _coerce, _field_diffs, _parse_date, posted
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import Computer, Part, StoredFile
@@ -295,7 +295,7 @@ def gui_new_computer(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/computers/new", include_in_schema=False)
 async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     photos = _chosen_photos(form)
     # Everything the child tables render is left to them, as the edit path does: the
     # form's own installed_ram and drive fields are read by ramdb and drivedb below.
@@ -431,7 +431,7 @@ def gui_edit_computer(aid: str, request: Request, db: Session = Depends(get_db))
 @router.post("/computers/{aid}/edit", include_in_schema=False)
 async def gui_save_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    form = await request.form()
+    form = await posted(request)
     old = {k: getattr(c, k) for k in COMPUTER_FIELDS}
     for k in COMPUTER_FIELDS:
         if k not in form:
@@ -458,7 +458,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
 @router.post("/computers/{aid}/link-motherboard", include_in_schema=False)
 async def gui_link_motherboard(aid: str, request: Request, db: Session = Depends(get_db)):
     get_or_404(db, Computer, aid)
-    form = await request.form()
+    form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
         return RedirectResponse(f"/computers/{aid}?build=1", status_code=303)
@@ -476,7 +476,7 @@ async def gui_link_motherboard(aid: str, request: Request, db: Session = Depends
 async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db)):
     """Install an existing standalone part into this computer."""
     get_or_404(db, Computer, aid)
-    form = await request.form()
+    form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
         return RedirectResponse(f"/computers/{aid}", status_code=303)
@@ -516,7 +516,7 @@ async def gui_detach_board(aid: str, request: Request, db: Session = Depends(get
     out and before it goes back in, and that moment does not come round again."""
     c = get_or_404(db, Computer, aid)
     v = _board_out_of(db, c)
-    form = await request.form()
+    form = await posted(request)
     photos = _chosen_photos(form)
     # The maker and the model come across because the maker of the machine made the
     # board and it is the board for that model -- the same carry the duplicate
@@ -560,7 +560,7 @@ async def gui_detach_board(aid: str, request: Request, db: Session = Depends(get
 @router.post("/computers/{aid}/dispose", include_in_schema=False)
 async def gui_dispose_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    form = await request.form()
+    form = await posted(request)
     c.disposed = True
     c.disposed_at = _parse_date(form.get("date", "")) or date.today()
     c.disposed_note = form.get("note", "") or ""
@@ -604,7 +604,7 @@ def gui_delete_computer_form(aid: str, request: Request, db: Session = Depends(g
 async def gui_delete_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     _require_disposed(c, "computer")
-    form = await request.form()
+    form = await posted(request)
     with_parts = bool(form.get("with_parts"))
     if not _confirms_url(form.get("confirm", ""), "computers", c.asset_id):
         # Back to the page rather than an error: a paste that went wrong is the
@@ -630,7 +630,7 @@ async def gui_delete_computer(aid: str, request: Request, db: Session = Depends(
 @router.post("/computers/{aid}/note", include_in_schema=False)
 async def gui_computer_note(aid: str, request: Request, db: Session = Depends(get_db)):
     get_or_404(db, Computer, aid)
-    _note_with_photos(db, aid, await request.form())
+    _note_with_photos(db, aid, await posted(request))
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
@@ -670,7 +670,7 @@ def gui_computer_fetch_image(aid: str, db: Session = Depends(get_db)):
 @router.post("/computers/{aid}/primary-photo", include_in_schema=False)
 async def gui_computer_primary(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    form = await request.form()
+    form = await posted(request)
     c.image = _set_primary_photo("computers", aid, form.get("image", ""))
     add_log(db, aid, "changed the default photo")
     db.commit()
@@ -680,7 +680,7 @@ async def gui_computer_primary(aid: str, request: Request, db: Session = Depends
 @router.post("/computers/{aid}/photo-delete", include_in_schema=False)
 async def gui_computer_photo_delete(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    form = await request.form()
+    form = await posted(request)
     was_primary, new_primary = _delete_image("computers", aid, form.get("image", ""))
     if was_primary:
         c.image = new_primary or ""
@@ -692,7 +692,7 @@ async def gui_computer_photo_delete(aid: str, request: Request, db: Session = De
 @router.post("/computers/{aid}/photo-reference", include_in_schema=False)
 async def gui_computer_photo_reference(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    form = await request.form()
+    form = await posted(request)
     rel = form.get("image", "")
     if rel not in detect_images("computers", aid):
         raise HTTPException(404, "no such photo for this item")
@@ -712,28 +712,28 @@ def gui_computer_edit_photo(aid: str, image: str = ""):
 
 @router.post("/computers/{aid}/photo-rotate", include_in_schema=False)
 async def gui_computer_photo_rotate(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_rotate(db, Computer, "computers", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
 @router.post("/computers/{aid}/photo-tuneup", include_in_schema=False)
 async def gui_computer_photo_tuneup(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_tuneup(db, Computer, "computers", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
 @router.post("/computers/{aid}/photo-revert", include_in_schema=False)
 async def gui_computer_photo_revert(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_revert(db, Computer, "computers", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
 @router.post("/computers/{aid}/photo-crop", include_in_schema=False)
 async def gui_computer_photo_crop(aid: str, request: Request, db: Session = Depends(get_db)):
-    form = await request.form()
+    form = await posted(request)
     _do_photo_crop(db, Computer, "computers", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 

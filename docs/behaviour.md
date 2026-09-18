@@ -16,7 +16,16 @@ Regenerate with:
 
 
 
-*1404 behaviours, from 32 files.*
+*1406 behaviours, from 33 files.*
+
+
+## A file where text was expected
+
+*test_a_file_where_text_was_expected.py — 2 behaviours*
+
+- an order whose description is a file is an order with no description
+- a login whose password is a file is a failed login  
+  The one form a stranger can post to.
 
 
 ## Api

@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
 from ..db import get_db
+from ..forms import posted
 from ..history import PHOTO_ENTRY, item_log, log_photos
 from ..models import LogEntry, LogPhoto
 from ..photos import _attach_log_photos, _chosen_photos, _purge_photos
@@ -94,7 +95,7 @@ def _log_entry_or_404(db, aid, log_id):
 @router.post("/items/{aid}/log/{log_id}/photo", include_in_schema=False)
 async def gui_log_photo(aid: str, log_id: int, request: Request, db: Session = Depends(get_db)):
     row, where = _log_entry_or_404(db, aid, log_id)
-    _attach_log_photos(db, row, _chosen_photos(await request.form()))
+    _attach_log_photos(db, row, _chosen_photos(await posted(request)))
     db.commit()
     return RedirectResponse(where, status_code=303)
 
@@ -104,7 +105,7 @@ async def gui_log_photo_delete(
     aid: str, log_id: int, request: Request, db: Session = Depends(get_db)
 ):
     row, where = _log_entry_or_404(db, aid, log_id)
-    form = await request.form()
+    form = await posted(request)
     photo = (
         db.query(LogPhoto)
         .filter(LogPhoto.log_id == row.id, LogPhoto.rel == form.get("image", ""))
@@ -151,7 +152,7 @@ async def gui_log_delete(aid: str, request: Request, db: Session = Depends(get_d
     """
     aid = (aid or "").upper()
     where = _asset_page(db, aid)
-    form = await request.form()
+    form = await posted(request)
     ids = [int(i) for i in form.getlist("id") if str(i).strip().isdigit()]
     rows = (
         db.query(LogEntry).filter(LogEntry.id.in_(ids), LogEntry.asset_id == aid).all()

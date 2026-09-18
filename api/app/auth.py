@@ -25,6 +25,7 @@ from urllib.parse import quote, urlparse
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from .forms import posted
 from .web import _safe_next, templates
 
 router = APIRouter()
@@ -331,7 +332,7 @@ def gui_login(request: Request, next: str = "/"):
 
 @router.post("/login", include_in_schema=False)
 async def gui_do_login(request: Request):
-    form = await request.form()
+    form = await posted(request)
     nxt = _safe_next(form.get("next", "/") or "/")
     ip = _client_ip(request)
     if not _login_limiter.check(ip):
@@ -387,7 +388,7 @@ def _way_out(nxt: str) -> str:
 
 @router.post("/logout", include_in_schema=False)
 async def gui_logout(request: Request):
-    form = await request.form()
+    form = await posted(request)
     resp = RedirectResponse(_way_out(form.get("next", "") or ""), status_code=303)
     resp.delete_cookie(COOKIE)
     return resp
