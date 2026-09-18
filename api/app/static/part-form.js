@@ -8,6 +8,14 @@
 // The path is whatever is already in the address bar, so the same handler serves
 // the new form, the edit form, and the new form started from another part -- and
 // whatever else is in the query (computer_id, parent_id, from) rides along.
+// What the server knew when it rendered this form: the storage kinds that fold
+// into a machine's drives row, whether this form routes to a machine at all, the
+// floppy and optical vocabularies, and the parts already in the collection.
+// Read once, at module scope, because two separate blocks below want it -- it
+// began life inside the first of them, where the second could not see it and
+// threw a ReferenceError on every part form (ADR-0021's browser check found it).
+const FORM = JSON.parse(document.getElementById('part-form-data').textContent);
+
 const pt = document.getElementById('ptype');
 if (pt) {
   // What the menu was on, so declining can put it back where it was.
@@ -59,7 +67,6 @@ if (pt) {
 const kind = document.getElementById('kind');
 if (kind) {
   // The kinds that fold into a machine's drives field rather than becoming a part.
-  const FORM = JSON.parse(document.getElementById('part-form-data').textContent);
   const ROW_KINDS = FORM.rowKinds;
   // Whether there is a machine to fold one into, which is what gui_create_part
   // routes on. An edit is always of a part that already exists.
