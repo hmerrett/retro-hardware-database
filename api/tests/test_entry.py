@@ -151,7 +151,7 @@ class TestBezelSwatches:
 
     def test_the_swatch_map_covers_every_pair(self):
         m = entry.bezel_swatch_map()
-        assert m["Beige|Heavily yellowed"] == entry.bezel_css("Beige", "Heavily yellowed")
+        assert m["Beige|Heavily yellowed"] == entry.bezel_class("Beige", "Heavily yellowed")
         # Every pair but the one where neither is recorded, which draws nothing.
         assert len(m) == (len(entry.BEZEL_COLOURS) + 1) * (len(entry.YELLOWING) + 1) - 1
         assert "|" not in m

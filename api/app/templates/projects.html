@@ -17,9 +17,9 @@
    private project is kept out of, and why it is only private with all five. #}
 
 <div class="flex">
-  <h2 style="margin:0">Projects</h2>
+  <h2 class="flush">Projects</h2>
   <span class="muted">{% if live %}{{ live }} in hand{% else %}none in hand{% endif %}{% if rows|length != live %} · {{ rows|length }} altogether{% endif %}</span>
-  <span style="flex:1"></span>
+  <span class="grow"></span>
   {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ Project</a>{% endif %}
 </div>
 

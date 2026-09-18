@@ -1175,8 +1175,8 @@ Regenerate with:
   `href="javascript:history.back()"` is a control that does nothing at all under the policy, and says nothing about it.
 - nothing is loaded from another origin  
   Every directive is `'self'`, which is a description and not a wish: the photographs are served from the images volume, reference pictures are fetched into it server-side rather than hot-linked, and the QR decoder is vendored.
-- style attributes are allowed only while the policy allows them  
-  The one loosener the policy keeps, tied to the markup that needs it.
+- no page carries a style attribute  
+  The policy allows none (ADR-0022), so one written into a template would not be applied -- silent in the browser and easy to miss in review, because the markup looks right and the page merely comes out wrong.
 
 
 ## Deployment

@@ -2,7 +2,7 @@
 {% block title %}Files — Retro Hardware Database{% endblock %}
 {% block content %}
 <div class="flex">
-  <h2 style="margin:0">Files</h2>
+  <h2 class="flush">Files</h2>
   <span class="muted">{{ files|length }}</span>
 </div>
 <p class="hint">Drivers, manuals, ROM dumps and utility disks, each attached to what
@@ -25,7 +25,7 @@
          file attached to nothing appears on no item page to correct it on. #}
       <div>{% for t in f.tags %}<a class="chip" href="/files?tag={{ t | urlencode }}">{{ t }}</a> {% endfor %}</div>
       {% if request.state.authed %}
-      <form class="inline-form" method="post" action="/files/{{ f.id }}/tags" style="margin-top:5px">
+      <form class="inline-form mt-5" method="post" action="/files/{{ f.id }}/tags">
         <input type="hidden" name="next" value="{{ back }}">
         <input name="tags" value="{{ f.tags | join(', ') }}" aria-label="tags for this file">
         <button class="btn sm" type="submit">save tags</button>
@@ -56,8 +56,8 @@
         </form>{% endif %}</span>
       {% endfor %}
       {% if request.state.authed %}
-      <form class="inline-form" method="post" action="/files/{{ f.id }}/attach"
-            style="margin-top:5px">
+      <form class="inline-form mt-5" method="post" action="/files/{{ f.id }}/attach"
+           >
         <input type="hidden" name="next" value="{{ back }}">
         <input name="aid" list="dl_assets" placeholder="asset id"
                aria-label="attach this file to an item" required>
@@ -75,14 +75,14 @@
        ticked ones. It is the whole of what this page can tell you that the item
        pages cannot: what is on the open web, in one list, sorted by nothing but
        when it arrived. #}
-    <td class="tight meta" data-label="public"><form method="post" action="/files/{{ f.id }}/public" style="margin:0"
+    <td class="tight meta" data-label="public"><form class="flush" method="post" action="/files/{{ f.id }}/public"
               data-ticksend>
         <input type="hidden" name="next" value="{{ back }}">
         <label class="tickbox"><input type="checkbox" name="public" value="1"
           {{ 'checked' if f.public else '' }}
           aria-label="{{ f.filename }} is public"></label>
         <button class="btn sm" type="submit" data-send-go>save</button></form></td>
-    <td class="meta"><form method="post" action="/files/{{ f.id }}/delete" style="margin:0"
+    <td class="meta"><form class="flush" method="post" action="/files/{{ f.id }}/delete"
               data-confirm="Delete {{ f.filename }}?">
         <input type="hidden" name="next" value="{{ back }}">
         <button class="btn sm danger" type="submit">delete</button></form></td>

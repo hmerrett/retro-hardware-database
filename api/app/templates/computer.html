@@ -9,9 +9,9 @@
   {% include "_itemnav.html" %}
 </div>
 <div class="flex">
-  <h2 style="margin:0">{{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</h2>
+  <h2 class="flush">{{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</h2>
   <span class="muted">{{ c.asset_id }}</span>
-  <span style="flex:1"></span>
+  <span class="grow"></span>
   {% if request.state.authed %}
   <span class="hdr-actions">
     <a class="iconbtn" href="/computers/{{ c.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
@@ -114,7 +114,7 @@
          side. A card each, small enough to sit two or three across: what is written
          on a chip is a part number, and a tick says how it is held. #}
       {% if machine.chips %}
-      <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each</p>
+      <p class="hint subhead">Chips fitted — what is marked on each</p>
       {{ P.chipcards(machine.chips) }}
       {% endif %}
       {# Here rather than beside the edit button at the top, because this is the panel
@@ -122,7 +122,7 @@
          facts, written on the machine only while the board is not a thing of its own.
          Behind a page, which says what will move and takes the board's photograph. #}
       {% if detachable %}
-      <p class="hint" style="margin:12px 0 0"><a href="/computers/{{ c.asset_id }}/detach-board">detach the board…</a>
+      <p class="hint top-12"><a href="/computers/{{ c.asset_id }}/detach-board">detach the board…</a>
         — give it an asset tag of its own</p>
       {% endif %}
     {% endcall %}

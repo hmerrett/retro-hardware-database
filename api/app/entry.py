@@ -689,18 +689,41 @@ def bezel_css(colour="", yellowing=""):
     return _mix(base, lvl["tint"], lvl["weight"])
 
 
-def bezel_swatch_map():
-    """Every colour/yellowing pair as its CSS background, keyed 'colour|yellowing'.
+def bezel_slug(label):
+    """A vocabulary label as the part of a class name it becomes."""
+    return re.sub(r"[^a-z0-9]+", "-", (label or "").strip().lower()).strip("-")
 
-    The browser repaints the swatch beside a menu from this rather than doing the
-    mixing again in JavaScript, so there is one implementation of it."""
-    out = {}
+
+def bezel_class(colour="", yellowing=""):
+    """The class that paints a swatch for a bezel as made and as it has aged, or ''
+    where there is no colour to give.
+
+    A class rather than the CSS itself, because the content policy allows no style
+    attribute in the markup (ADR-0022). The mixing still happens once, here: the
+    rules these names refer to are generated from bezel_css into the stylesheet at
+    /style/data.css, so the chart, the swatch beside a menu and the swatch on an
+    item page cannot disagree any more than they did before."""
+    if not bezel_css(colour, yellowing):
+        return ""
+    return f"bz-{bezel_slug(colour) or 'x'}-{bezel_slug(yellowing) or 'x'}"
+
+
+def bezel_pairs():
+    """Every colour/yellowing pair that has a swatch, as (colour, level, css)."""
     for colour in ["", *BEZEL_COLOUR_LABELS]:
         for level in ["", *YELLOWING_LABELS]:
             css = bezel_css(colour, level)
             if css:
-                out[f"{colour}|{level}"] = css
-    return out
+                yield colour, level, css
+
+
+def bezel_swatch_map():
+    """Every colour/yellowing pair as its swatch class, keyed 'colour|yellowing'.
+
+    The browser repaints the swatch beside a menu by swapping the class from this
+    rather than doing the mixing again in JavaScript, so there is one
+    implementation of it."""
+    return {f"{colour}|{level}": bezel_class(colour, level) for colour, level, _ in bezel_pairs()}
 
 
 # --- specs parsing / merging -----------------------------------------------

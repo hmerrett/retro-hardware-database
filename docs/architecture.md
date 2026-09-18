@@ -183,6 +183,8 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
 | `routers/catalogue.py` | the catalogue as a page and as JSON: /machines and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
+| `routers/styles.py` | /style/data.css: the generated stylesheet, served the way a static one is |
+| `datacss.py` | the rules whose values are data — a bezel's swatch, a bar's length — built at import |
 | `models.py` | the ORM tables and their relationships |
 | `db.py` | the engine and the per-request session — the only place either is made |
 | `schemas.py` | the request and response shapes for `/api/*` |
@@ -273,11 +275,12 @@ breaking one turns CI red rather than merely being wrong.
   group of routes in its own router, lifted in small independently verifiable
   steps. `stats.py`, `search.py`, `photos.py`, `common.py` and `projects.py` came
   out that way, and `routers/` holds the rest.
-- **The content policy allows `'unsafe-inline'` on styles.** 69 `style`
-  attributes across the templates and two small `<style>` blocks, and taking them
-  out is its own piece of work. A test in
-  `test_content_security_policy.py` ties the token to the markup, so the one
-  cannot go without the other (ADR-0021).
+- **The content policy is `'self'` in every directive**, with no token anywhere:
+  the 69 `style` attributes are classes in `app.css`, and the two whose values are
+  data — a bezel's swatch, a bar's length — name rules generated into
+  `/style/data.css` (ADR-0021, ADR-0022). A new kind of data-valued rule goes in
+  `datacss.py`; `test_content_security_policy.py` is what stops it going into the
+  markup instead.
 - **Named in the standards as *adopt next*:** `mypy --strict` in CI and the
   SQLAlchemy 2.0 typed ORM (`Mapped[...]` + `mapped_column`) that has to come
   first for the models to be checkable at all. The rest of that list has landed:

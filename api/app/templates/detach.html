@@ -16,11 +16,11 @@
 {% block content %}
 <div class="crumbnav"><a href="/computers/{{ aid }}">&larr; back to {{ aid }}</a></div>
 
-<h2 style="margin:0 0 2px">Detach the board from {{ name }}</h2>
-<p class="muted" style="margin:0 0 14px">{{ aid }} · {{ model }}</p>
+<h2 class="lede">Detach the board from {{ name }}</h2>
+<p class="muted lede-tail">{{ aid }} · {{ model }}</p>
 
 <div class="detach-box">
-  <p style="margin:0 0 8px">The board becomes an object of its own — its own asset
+  <p class="stack-8">The board becomes an object of its own — its own asset
   tag, photographs and history — linked back to the machine it came out of. Do it
   once the board is actually out.</p>
 
@@ -35,14 +35,14 @@
   </ul>
 
   {% if chips %}
-  <p class="hint" style="margin:10px 0 2px">Moving with the board</p>
+  <p class="hint subhead">Moving with the board</p>
   {{ P.chipcards(chips) }}
   {% endif %}
 
   {# What a case answers and a board does not. Said out loud, because "detach" reads
      like the machine is being taken to pieces and it is not: the style and the region
      are facts about the assembled computer in its box, and the box is not moving. #}
-  <p style="margin:12px 0 0">{{ aid }} keeps its asset tag, its history, its
+  <p class="top-12">{{ aid }} keeps its asset tag, its history, its
   photographs and its catalogue model{% if staying %} — and
   {% for label, value in staying %}{{ label | lower }} <strong>{{ value }}</strong>{{ '' if loop.last else ' and ' }}{% endfor %},
   which {{ 'is a fact' if staying | length == 1 else 'are facts' }} about the case
@@ -65,19 +65,11 @@
     <p class="hint">the board is out and on the bench, which is the one moment it can
       be photographed. The first becomes its portrait.</p>
 
-    <div class="flex" style="margin-top: 14px; gap: 8px">
+    <div class="flex actions-row">
       <a class="btn" href="/computers/{{ aid }}">cancel</a>
       <button class="btn primary" type="submit">detach the board</button>
     </div>
   </form>
 </div>
 
-<style>
-  /* The delete page's box without its colour: the same "read this before you press
-     it" shape, and nothing here is dangerous. */
-  .detach-box { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
-    margin: 12px 0; max-width: 620px; }
-  .detach-box ul.going { margin: 0; padding-left: 20px; }
-  .detach-box ul.going li { margin: 3px 0; }
-</style>
 {% endblock %}

@@ -249,7 +249,7 @@ def _public_page(path: str) -> bool:
     # would be a lock on a door in a field.
     if path in ("/machines", "/api/machines"):
         return True
-    if path.startswith(("/images/", "/static/")):
+    if path.startswith(("/images/", "/static/", "/style/")):
         return True
     # The share card a grid page's link previews as (ADR-0017), and it has to be
     # public or the feature does not exist: a preview is fetched *anonymously* --

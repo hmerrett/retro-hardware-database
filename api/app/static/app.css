@@ -1153,3 +1153,59 @@
       scroll-behavior: auto !important;
     }
   }
+
+  /* The confirmation pages. These rules were a <style> block in delete.html and
+     another in detach.html, which the content policy cannot allow any more than
+     it allows an inline script; they are the same shape either way. */
+  .danger-box { border: 1px solid #b45300aa; border-radius: 8px; padding: 14px 16px;
+    margin: 12px 0; max-width: 620px; }
+  .danger-box ul.going { margin: 0; padding-left: 20px; }
+  .danger-box ul.going li { margin: 3px 0; }
+  /* Selectable on its own line: it is there to be copied, and a line of its own
+     is the difference between a double-click taking the URL and taking a word. */
+  .confirm-url { margin: 2px 0 6px; }
+  .confirm-url code { user-select: all; word-break: break-all; }
+  /* The delete page's box without its colour: the same "read this before you press
+     it" shape, and nothing here is dangerous. */
+  .detach-box { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
+    margin: 12px 0; max-width: 620px; }
+  .detach-box ul.going { margin: 0; padding-left: 20px; }
+  .detach-box ul.going li { margin: 3px 0; }
+
+  /* The last of the inline styles, as classes.
+
+     Sixty-seven `style` attributes were spread across nineteen templates, almost
+     all of them a margin on one element, and each one was a reason the policy had
+     to keep `'unsafe-inline'` on `style-src`. They are one-offs rather than a
+     kind of element, so they are named for what they do and kept together here
+     rather than pretended into components they are not.
+
+     This block stays last in the file. Several of them override a rule of equal
+     specificity -- `.tuck` against `.hint`, `textarea.box-90` against
+     `form.edit textarea` -- and at equal specificity the later rule wins, which
+     is what an inline style used to do by outranking everything. */
+  .flush { margin: 0; }
+  .flush-top { margin-top: 0; }
+  .flush-bottom { margin-bottom: 0; }
+  .grow { flex: 1; }
+  .is-hidden { display: none; }
+  .tuck { margin: 5px 0 0; }
+  .mt-5 { margin-top: 5px; }
+  .mt-14 { margin-top: 14px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-26 { margin-top: 26px; }
+  .ml-22 { margin-left: 22px; }
+  .top-12 { margin: 12px 0 0; }
+  .lede { margin: 0 0 2px; }
+  .stack-8 { margin: 0 0 8px; }
+  .lede-tail { margin: 0 0 14px; }
+  .subhead { margin: 10px 0 2px; }
+  .subhead-loose { margin: 10px 0 4px; }
+  .actions-row { margin-top: 14px; gap: 8px; }
+  .btn-row { margin: 0; display: flex; gap: 4px; }
+  .login-box { max-width: 320px; }
+  .stat-h { margin: 0; font-size: 17px; }
+  .stat-sub { font-size: 13px; }
+  textarea.box-70 { min-height: 70px; }
+  textarea.box-90 { min-height: 90px; }
+  textarea.box-110 { min-height: 110px; }

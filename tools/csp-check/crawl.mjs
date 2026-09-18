@@ -46,6 +46,35 @@ const INTERACTIONS = [
     if (await kind.count()) { await kind.selectOption({ index: 1 }).catch(() => {}); }
     await page.waitForTimeout(300);
   }],
+  // Two elements the markup starts hidden with a class rather than with a style
+  // attribute (ADR-0022), which is a browser question and nothing else: a class
+  // rule outranks an inline `display: ''`, so the script has to take the class
+  // off. Setting the inline style instead leaves them hidden for ever, and every
+  // test in the suite still passes -- which is how this nearly shipped.
+  ['the empty line, when the filters hold everything back', '/', async (page) => {
+    const box = page.locator('#q');
+    if (!await box.count()) return;
+    await box.fill('zzzz-no-such-thing-zzzz');
+    await page.waitForTimeout(300);
+    const empty = page.locator('#empty');
+    if (!await empty.isVisible()) {
+      throw new Error('#empty stayed hidden with every card filtered out');
+    }
+    await box.fill('');
+    await page.waitForTimeout(300);
+    if (await empty.isVisible()) throw new Error('#empty stayed up once cards came back');
+  }],
+  ['the same-make offer on a new part', '/parts/new', async (page) => {
+    const note = page.locator('#samemake');
+    if (!await note.count()) return;
+    await page.locator('#manufacturer').fill('Trident');
+    await page.locator('#model').fill('TVGA8900');
+    await page.locator('#model').dispatchEvent('input');
+    await page.waitForTimeout(400);
+    if (!await note.isVisible()) {
+      throw new Error('#samemake stayed hidden for a make and model already in the register');
+    }
+  }],
   ['lightbox', null, async (page, ctx) => {
     if (!ctx.itemPage) return;
     await page.goto(BASE + ctx.itemPage, { waitUntil: 'networkidle' });
@@ -56,6 +85,12 @@ const INTERACTIONS = [
 
 const violations = [];
 const errors = [];
+// An interaction that throws is a failure of its own kind: not the policy, and
+// not a page error either, because the page is perfectly happy -- it is simply
+// not doing what it is there to do. It used to be printed and otherwise ignored,
+// so a run could report that an interaction "could not be driven" and still end
+// OK, which is the monitor-that-only-greps-for-success ADR-0021 argues against.
+const undriven = [];
 
 function watch(page) {
   // `page.url()` at the moment it fires, not a label captured when the listener
@@ -140,7 +175,10 @@ for (const [label, path, act] of INTERACTIONS) {
     if (path) await page.goto(BASE + path, { waitUntil: 'networkidle' });
     await act(page, ctx);
   } catch (e) {
+    undriven.push({ where, what: String(e).slice(0, 200) });
     console.log(`  ${label}: could not be driven (${String(e).slice(0, 120)})`);
+    await drain(page, where);
+    continue;
   }
   await drain(page, where);
   console.log(`  exercised ${label}`);
@@ -156,8 +194,12 @@ if (errors.length) {
   console.error(`\n${errors.length} script error(s) -- not the policy, but broken all the same:\n`);
   for (const e of errors) console.error(`  [${e.where}] ${e.what}`);
 }
-if (violations.length || errors.length) {
+if (undriven.length) {
+  console.error(`\n${undriven.length} interaction(s) that could not be driven:\n`);
+  for (const u of undriven) console.error(`  [${u.where}] ${u.what}`);
+}
+if (violations.length || errors.length || undriven.length) {
   console.error('\nFAIL');
   process.exit(1);
 }
-console.log('\nOK: nothing was refused, and no page threw.');
+console.log('\nOK: nothing was refused, no page threw, and every interaction ran.');

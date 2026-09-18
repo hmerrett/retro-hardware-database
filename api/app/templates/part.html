@@ -10,10 +10,10 @@
   {% include "_itemnav.html" %}
 </div>
 <div class="flex">
-  <h2 style="margin:0">{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}</h2>
+  <h2 class="flush">{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}</h2>
   <span class="chip">{{ type_label(p.type) }}</span>
   <span class="muted">{{ p.asset_id }}</span>
-  <span style="flex:1"></span>
+  <span class="grow"></span>
   {% if request.state.authed %}
   <span class="hdr-actions">
     <a class="iconbtn" href="/parts/{{ p.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
@@ -88,7 +88,7 @@
     </table>
 
     {% if request.state.authed and computers %}
-    <div class="toolbar" style="margin-bottom:0">
+    <div class="toolbar flush-bottom">
       <span class="muted">Install in computer:</span>
       <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/link">
         {# Opens on nothing, and the browser will not submit until something is
@@ -120,7 +120,7 @@
         {% endfor %}
       </table>
       {% if machine.chips %}
-      <p class="hint" style="margin:10px 0 2px">Chips fitted — what is marked on each</p>
+      <p class="hint subhead">Chips fitted — what is marked on each</p>
       {{ P.chipcards(machine.chips) }}
       {% endif %}
     {% endcall %}
@@ -132,7 +132,7 @@
          colour rather than only naming it -- and shows it as the pair, since the
          shade and the yellowing are one piece of plastic. #}
       {% set specs = dict(spec_pairs) %}
-      {% set bezel = bezel_css(specs.get('Colour', ''), specs.get('Yellowing', '')) %}
+      {% set bezel = bezel_class(specs.get('Colour', ''), specs.get('Yellowing', '')) %}
       <table class="kv">
         {% for k, v in spec_pairs %}
         <tr><th scope="row">{{ k or '—' }}</th>
@@ -148,10 +148,10 @@
       {% if children %}
       {{ P.cards(children, 'detach', 'unmount', '/parts/' + p.asset_id,
                  request.state.authed, thumbs) }}
-      {% else %}<div class="pbody"><p class="muted" style="margin:0">Nothing mounted on this card yet.</p></div>{% endif %}
+      {% else %}<div class="pbody"><p class="muted flush">Nothing mounted on this card yet.</p></div>{% endif %}
       {% if build_host %}
       <div class="pbody">
-      <div class="toolbar" style="margin:0">
+      <div class="toolbar flush">
         <a class="btn sm" href="/parts/new?type=storage&parent_id={{ p.asset_id }}">add storage</a>
         {% if candidates %}
         <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/attach">

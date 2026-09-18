@@ -120,7 +120,7 @@
   {{ fld('acquired_date', 'Acquired date', type='date') }}
   {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
   <label for="summary">Summary</label>
-  <textarea id="summary" name="summary" style="min-height:110px">{{ (c.summary if c else '') or '' }}</textarea>
+  <textarea class="box-110" id="summary" name="summary">{{ (c.summary if c else '') or '' }}</textarea>
   <p class="hint">the description shown at the top of the page</p>
   <label for="notes">Notes</label>
   <textarea id="notes" name="notes">{{ (c.notes if c else '') or '' }}</textarea>
@@ -141,7 +141,7 @@
    echoed the jobs back would add every one of them a second time on the next save.
 #}
   <label for="work_needed">Work needed</label>
-  <textarea id="work_needed" name="work_needed" style="min-height:70px"
+  <textarea class="box-70" id="work_needed" name="work_needed"
             placeholder="recap · new belt · keyboard sticks — one job to a line"></textarea>
   <label for="work_project">…as part of</label>
   <select id="work_project" name="work_project">
@@ -163,7 +163,7 @@
     <span class="hint" data-photo-count></span>
   </div>
   {% endif %}
-  <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
+  <p class="mt-16"><button class="btn primary" type="submit">Save</button></p>
 </form>
 {# Only for the machine whose own page has dropped these: a catalogue machine with
    nothing fitted. Outside the form above, because they post to endpoints of their

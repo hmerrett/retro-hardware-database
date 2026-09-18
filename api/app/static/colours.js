@@ -1,4 +1,6 @@
 (function () {
+  // The swatch classes, mixed once in Python and generated into /style/data.css;
+  // this only picks which of them the dot is wearing.
   const CSS = JSON.parse(
     document.getElementById('colours-data').textContent).swatches;
   document.querySelectorAll('.bezel-cell').forEach(cell => {
@@ -9,11 +11,10 @@
       return el ? el.value : '';
     };
     const paint = () => {
-      const css = CSS[`${val('colour')}|${val('yellowing')}`] || '';
-      dot.style.background = css;
+      const cls = CSS[`${val('colour')}|${val('yellowing')}`] || '';
       // Nothing recorded, or a value from outside the chart: a hatch rather than
       // a swatch, so an empty menu does not read as a colour of its own.
-      dot.classList.toggle('none', !css);
+      dot.className = cls ? `swatch ${cls}` : 'swatch none';
     };
     menus.forEach(m => m.addEventListener('change', paint));
     paint();
