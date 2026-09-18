@@ -47,11 +47,12 @@ diff of the file is the change being asked for.
 
 ## Structural work in flight
 
-- `api/app/main.py` is a single large module holding most routes and helpers.
-  The direction is to split it — lift cohesive non-route blocks (stats, photos,
-  search) into their own modules and group routes into `APIRouter`s — leaning on
-  the test suite as the safety net. Extract in small, independently-verifiable
-  steps; don't rewrite wholesale.
+- The split of `api/app/main.py` is finished (#66-#70): it is `create_app()`
+  and nothing else, the routes are `APIRouter`s in `api/app/routers/` and the
+  helpers they share are modules beside them. The habit it was done by still
+  holds for the next one — lift cohesive non-route blocks out in small,
+  independently-verifiable steps, leaning on the suite, rather than rewriting
+  wholesale.
 - Inline CSS/JS has moved out of `base.html` into cacheable static files, and the
   Content-Security-Policy that unlocked is sent by the app (ADR-0021,
   security-standards). What is left of that thread is the 69 inline `style`
