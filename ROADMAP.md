@@ -134,6 +134,19 @@ rather than being wondered about later.
   against the dump, every archived photograph and file, and the public pages
   answering (#41) — and a round-trip test guards the dump-and-restore commands it
   leans on (#43).
+- **The install was walked on a clean host, and a backup restored.** The reading
+  half was done first (#78) — every guide and every rule file read against the
+  tree and against the running stack, what had drifted corrected, and
+  `CHANGELOG.md` started — but the part no reading can stand in for is the walk
+  itself, and it has now been made: `INSTALL.md` followed from the top on a clean
+  host that had never run this, and a backup of that host restored into a second
+  stack with `tools/restore.sh`. So "it installs on your own server" stops being
+  a claim with one witness, who was also the author.
+
+  Between this and the k3s deployment above, 0.1 goes out having been stood up
+  three times in two shapes — the author's own box, a clean host from the guide,
+  and a Kubernetes cluster that shares none of Compose's assumptions. That was
+  the point of putting both before the tag rather than after it.
 - **The stack stands up on k3s.** Deployed to a three-node Civo cluster at a real
   domain, with a real certificate, and written up in
   [docs/deploying-on-k3s.md](docs/deploying-on-k3s.md). It answered all four
@@ -176,15 +189,8 @@ rather than being wondered about later.
 
 ## The work, in order
 
-**1. Walk the install on a clean host.** The reading half of this item
-is done (#78): every guide and every rule file was read against the tree and
-against the running stack, what had drifted was corrected, and `CHANGELOG.md` is
-started. What is left is the part no reading can stand in for.
-
-The release gate: the install walk repeated on a clean host, a backup of that host
-restored into a second stack with `tools/restore.sh` (a release that invites
-people to self-host should have restored one at least once), and whatever that
-walk turns up corrected. **Then tag `v0.1.0`.**
+Nothing. Every item that 0.1 was defined by has left this file, which is what
+that definition was for. **Tag `v0.1.0`.**
 
 ## After 0.1
 
