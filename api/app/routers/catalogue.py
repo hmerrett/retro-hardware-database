@@ -21,7 +21,7 @@ router = APIRouter()
 
 
 @router.get("/machines", response_class=HTMLResponse, include_in_schema=False)
-def gui_machines(request: Request, db: Session = Depends(get_db)):
+def gui_machines(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     """Every machine the catalogue names, on one page, and which of them are here.
 
     catalogue.txt answers this question in a text file and /api/machines answers it
@@ -55,8 +55,11 @@ def gui_machines(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/api/machines", tags=["computers"])
-def api_list_machines():
+# response_model=None: the annotation is for the type checker. FastAPI would
+# otherwise publish it as the response's shape, which the pinned contract
+# (ADR-0010) leaves open.
+@router.get("/api/machines", tags=["computers"], response_model=None)
+def api_list_machines() -> dict[str, list[dict[str, object]]]:
     """The catalogue of machines the register knows as models -- home computers,
     consoles and the documented branded PCs -- with the memory sizes, board issues,
     case and keyboard styles, regions and chip sockets each was built in. `key` is

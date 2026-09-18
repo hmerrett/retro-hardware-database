@@ -6,7 +6,8 @@ being free text. These turn one into the other, and work out what changed, so th
 the change log says "year: 1986 -> 1987" rather than that something was edited.
 """
 
-from datetime import datetime
+from collections.abc import Iterable, Mapping
+from datetime import date, datetime
 from typing import overload
 
 from starlette.datastructures import FormData, UploadFile
@@ -57,7 +58,7 @@ async def posted(request: Request) -> Posted:
     return Posted(await request.form())
 
 
-def _parse_date(raw):
+def _parse_date(raw: str | None) -> date | None:
     """A date from a form field. ISO is what <input type="date"> submits; the
     day-first form is accepted too because it is what gets typed by hand.
     Anything else, including blank, means not recorded."""
@@ -70,7 +71,7 @@ def _parse_date(raw):
     return None
 
 
-def _coerce(field, raw):
+def _coerce(field: str, raw: str | None) -> str | int | bool | date | None:
     """A form string as the column's type: blank means not recorded."""
     if field in ("year", "topbench"):
         v = (raw or "").strip()
@@ -82,7 +83,12 @@ def _coerce(field, raw):
     return raw or ""
 
 
-def _field_diffs(old, new, keys, semantic_specs=False):
+def _field_diffs(
+    old: Mapping[str, object],
+    new: Mapping[str, object],
+    keys: Iterable[str],
+    semantic_specs: bool = False,
+) -> str:
     """A one-change-per-line diff of old vs new field values, for the change log.
     specs is broken down per spec key; re-canonicalising an unchanged specs
     string produces no diff.
@@ -91,11 +97,14 @@ def _field_diffs(old, new, keys, semantic_specs=False):
     `project_note`, so that a plan could not reach an item's public history; a plan
     is a project of its own now, with a page and a privacy of its own, and there is
     nothing left on a computer or a part that has to be kept out of its own log."""
-    lines = []
+    lines: list[str] = []
     for k in keys:
         ov, nv = old.get(k) or "", new.get(k) or ""
         if semantic_specs and k == "specs":
-            o, n = dict(entry.parse_specs(ov)), dict(entry.parse_specs(nv))
+            # The mapping is a whole row, so its values are typed as widely as the
+            # columns are; specs is the text one, and is checked rather than assumed.
+            o = dict(entry.parse_specs(ov if isinstance(ov, str) else ""))
+            n = dict(entry.parse_specs(nv if isinstance(nv, str) else ""))
             for sk in [x for x in n if x not in o or o[x] != n[x]]:
                 lines.append(f"{sk or 'spec'}: {_short(o.get(sk))} → {_short(n[sk])}")
             for sk in [x for x in o if x not in n]:

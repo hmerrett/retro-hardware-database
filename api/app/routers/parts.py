@@ -774,7 +774,7 @@ def gui_edit_part(aid: str, request: Request, type: str = "", db: Session = Depe
 async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     form = await posted(request)
-    ptype = form.get("type", p.type) or "other"
+    ptype = form.get("type", p.type or "") or "other"
     _require_storage_interface(ptype, form)
     # Unmanaged keys live in part_attribute; carry them across the edit.
     #

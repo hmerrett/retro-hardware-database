@@ -6,7 +6,9 @@ search, photos) and main can all import them downward without a circular import.
 
 import hashlib
 import os
+from collections.abc import Container, Mapping
 from pathlib import Path
+from typing import TypeVar
 
 
 # Whether a project is one of the private ones, asked as a query rather than as a
@@ -21,9 +23,14 @@ from pathlib import Path
 # item is wanted for one. Miss any one and the other four are decoration.
 
 from sqlalchemy import case, func
+from sqlalchemy.orm import Query, Session
 
 from . import entry
+from .db import Base
 from .models import Computer, Part, Project
+
+# The rows a query hands back, kept as it passes through the filters below.
+_Row = TypeVar("_Row")
 
 # Container paths by default (the `images` volume); overridable so the app can be
 # imported and run outside Docker for local development.
@@ -57,29 +64,31 @@ OWNER_ONLY = frozenset({"for_sale"})
 # Disposed items are records of things that have gone. A figure about the collection
 # is about what is in it, so everything on /stats counts only what is still held.
 # This is the filter, in one place, so "still here" means one thing.
-def _held(query, model):
+def _held(query: Query[_Row], model: type[Computer] | type[Part]) -> Query[_Row]:
     return query.filter(model.disposed.is_(False))
 
 
-def _all_years(db, held=True):
+def _all_years(db: Session, held: bool = True) -> list[int]:
     """Every year recorded against anything still here, machines and parts together."""
-    out = []
+    out: list[int] = []
     for model in (Computer, Part):
         q = db.query(model.year).filter(model.year.isnot(None))
-        out += [y for (y,) in (_held(q, model) if held else q)]
+        # The query has already dropped the years nobody recorded; saying so again
+        # here is what makes the list one of years rather than of maybe-years.
+        out += [y for (y,) in (_held(q, model) if held else q) if y is not None]
     return out
 
 
-def _visible(query, authed):
+def _visible(query: Query[_Row], authed: bool) -> Query[_Row]:
     """A project query narrowed to what this reader may see."""
     return query if authed else query.filter(Project.private.is_(False))
 
 
-def to_dict(obj):
+def to_dict(obj: Base) -> dict[str, object]:
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 
-def _maker_reliability(db):
+def _maker_reliability(db: Session) -> list[tuple[str | None, int, int, int]]:
     """(maker, parts, working, percent) per maker, best record first.
 
     Reliability here means one thing and only one: the share of that maker's parts
@@ -89,7 +98,7 @@ def _maker_reliability(db):
 
     Ties are settled by sample size: with equal records, the maker who earned it
     over more parts has made the better case."""
-    rows = []
+    rows: list[tuple[str | None, int, int, int]] = []
     for maker, n, working in (
         db.query(
             Part.manufacturer,
@@ -112,7 +121,7 @@ def _maker_reliability(db):
     return rows
 
 
-def folder_images(kind):
+def folder_images(kind: str) -> list[tuple[str, str]]:
     """(stem, filename) for every photo in one of the image folders, in a single
     pass. A page showing many assets reads the folder once and picks from the
     result rather than scanning it per row."""
@@ -122,7 +131,7 @@ def folder_images(kind):
     return [(f.stem, f.name) for f in folder.iterdir() if f.suffix.lower() in IMAGE_EXTS]
 
 
-def _stem_owner(stem, ids):
+def _stem_owner(stem: str, ids: Container[str]) -> str | None:
     """Whose photograph a filename is, or None. A photo is <asset_id>.<ext> or
     <asset_id>-<something>.<ext>, so the owner is the stem itself or the stem with
     its suffix taken off. The suffix comes off one hyphen at a time, so that
@@ -134,12 +143,12 @@ def _stem_owner(stem, ids):
     return None
 
 
-def _photo_counts(ids_by_kind):
+def _photo_counts(ids_by_kind: Mapping[str, set[str]]) -> dict[str, int]:
     """How many portraits each asset has, from one pass over each folder named.
     Keyed by kind, because a photograph belongs to the folder it is in. Only
     computers/ and parts/ are ever read, which is how a photograph on a history
     entry (filed under log/) stays out of this."""
-    counts = {}
+    counts: dict[str, int] = {}
     for kind, ids in ids_by_kind.items():
         for stem, _name in folder_images(kind):
             aid = _stem_owner(stem, ids)
@@ -148,7 +157,7 @@ def _photo_counts(ids_by_kind):
     return counts
 
 
-def _portraits(db):
+def _portraits(db: Session) -> tuple[dict[str, int], set[str]]:
     """(counts, missing): how many portraits each thing still here has, and the tags
     of the ones that have none. Held items only -- a disposed item cannot be
     photographed, so putting one on the "unphotographed" job list is handing
@@ -162,7 +171,7 @@ def _portraits(db):
     return counts, missing
 
 
-def _big_total(kb):
+def _big_total(kb: int) -> str:
     """A grand total in the unit a person would say it in. entry.fmt_kb keeps a
     non-round figure in MiB, which is right for one drive and unreadable for the
     sum of every drive there is."""

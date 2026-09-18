@@ -37,6 +37,7 @@ import contextlib
 import os
 import shutil
 import tempfile
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
 
 # What the templates may ask for, and why each one is there. The card in the
@@ -73,7 +74,7 @@ def cache_dir(images_dir: Path) -> Path:
     return Path(images_dir) / ".sized" / f"q{QUALITY}-b{BUILD}"
 
 
-def sweep(images_dir: Path):
+def sweep(images_dir: Path) -> None:
     """Drop copies made by an older build of this module."""
     keep = cache_dir(images_dir)
     with contextlib.suppress(OSError):
@@ -83,7 +84,7 @@ def sweep(images_dir: Path):
                 shutil.rmtree(stale, ignore_errors=True)
 
 
-def _write_atomically(dst: Path, write):
+def _write_atomically(dst: Path, write: Callable[[Path], object]) -> None:
     """Write a file by way of a temporary one beside it, then move it into place.
     `write` is handed the temporary path.
 
@@ -123,7 +124,7 @@ def _make(src: Path, dst: Path, width: int) -> bool:
     return True
 
 
-def served_path(images_dir: Path, rel: str, width, source: Path) -> Path:
+def served_path(images_dir: Path, rel: str, width: int, source: Path) -> Path:
     """The path to serve for one photograph at one width: the cached copy, made now
     if it is missing or older than the photograph behind it. Falls back to `source`
     for a width nobody asked to support, a photograph already smaller than that, or
@@ -152,14 +153,19 @@ def served_path(images_dir: Path, rel: str, width, source: Path) -> Path:
         return source
 
 
-def forget(images_dir: Path, rel: str):
+def forget(images_dir: Path, rel: str) -> None:
     """Drop every copy of one photograph, for when it is deleted or replaced."""
     for width in WIDTHS:
         with contextlib.suppress(OSError):
             (cache_dir(images_dir) / str(width) / rel).with_suffix(".jpg").unlink(missing_ok=True)
 
 
-def warm(images_dir: Path, pairs, widths=WIDTHS, log=None):
+def warm(
+    images_dir: Path,
+    pairs: Iterable[tuple[str, Path]],
+    widths: Sequence[int] = WIDTHS,
+    log: Callable[[str], object] | None = None,
+) -> tuple[int, int]:
     """Make the copies for a list of (rel, source path) now.
 
     Generating on demand means whoever opens the gallery first after a deploy pays
@@ -178,7 +184,7 @@ def warm(images_dir: Path, pairs, widths=WIDTHS, log=None):
     return made, small
 
 
-def _main(argv=None):
+def _main(argv: list[str] | None = None) -> int:
     """`python -m app.thumbs` -- make every copy the site will ask for.
 
     Run after a deploy, and after a bulk import: otherwise whoever opens the
@@ -190,7 +196,7 @@ def _main(argv=None):
     import sys
     import time
 
-    args = argparse.ArgumentParser(description=_main.__doc__.splitlines()[0])
+    args = argparse.ArgumentParser(description=(_main.__doc__ or "").splitlines()[0])
     args.add_argument("--images", default=os.getenv("RHDB_IMAGES_DIR", "/app/images"))
     args.add_argument("--quiet", action="store_true")
     opts = args.parse_args(argv)
@@ -213,7 +219,8 @@ def _main(argv=None):
     # Made from what the site would serve, which for a photograph of this
     # collection means the watermarked copy. Imported here so the module stays
     # importable without the app.
-    from .photos import IMAGES_DIR, _is_own_photo, _watermarked_file
+    from .common import IMAGES_DIR
+    from .photos import _is_own_photo, _watermarked_file
 
     started = time.time()
     made, small = warm(

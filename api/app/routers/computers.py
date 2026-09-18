@@ -303,8 +303,10 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
         k: _coerce(k, form[k]) for k in COMPUTER_FIELDS if k in form and k not in DERIVED_FIELDS
     }
     for f in ("manufacturer", "model"):
-        if f in data:
-            data[f] = entry.deshout(data[f])
+        # _coerce hands these two back as the text they were typed as; the check
+        # is for the type checker, which sees every column's type at once.
+        if isinstance(text := data.get(f), str):
+            data[f] = entry.deshout(text)
     obj = Computer(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()
@@ -439,7 +441,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
         if k in DERIVED_FIELDS:
             continue
         v = _coerce(k, form[k])
-        if k in ("manufacturer", "model"):
+        if k in ("manufacturer", "model") and isinstance(v, str):
             v = entry.deshout(v)
         setattr(c, k, v)
     mods, chips, note, total_kb = _ram_from_form(form)

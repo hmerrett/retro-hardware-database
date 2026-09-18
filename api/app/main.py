@@ -10,10 +10,14 @@ Two surfaces over the same MariaDB:
 Interactive API docs live at /docs (OpenAPI).
 """
 
+import os
 from urllib.parse import parse_qs
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.staticfiles import PathLike
+from starlette.types import Scope
 
 from . import __version__
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
@@ -107,7 +111,7 @@ CONTENT_SECURITY_POLICY = "; ".join(
 )
 
 
-async def content_security_policy(request: Request, call_next):
+async def content_security_policy(request: Request, call_next: RequestResponseEndpoint) -> Response:
     """Say what the page is allowed to load, on every response.
 
     The other security headers -- HSTS, nosniff, the referrer policy -- are
@@ -125,7 +129,7 @@ async def content_security_policy(request: Request, call_next):
     return response
 
 
-async def no_stale_pages(request: Request, call_next):
+async def no_stale_pages(request: Request, call_next: RequestResponseEndpoint) -> Response:
     """Every page, freshly asked for.
 
     The pages carried no cache headers at all, and a response with neither
@@ -166,7 +170,13 @@ class _CachedStatic(StaticFiles):
     keeps a short life so it cannot pin an old copy in a cache for a year.
     """
 
-    def file_response(self, full_path, stat_result, scope, status_code=200):
+    def file_response(
+        self,
+        full_path: PathLike,
+        stat_result: os.stat_result,
+        scope: Scope,
+        status_code: int = 200,
+    ) -> Response:
         response = super().file_response(full_path, stat_result, scope, status_code)
         query = parse_qs(scope.get("query_string", b"").decode("latin-1"))
         response.headers["Cache-Control"] = (
@@ -175,7 +185,7 @@ class _CachedStatic(StaticFiles):
         return response
 
 
-def _static_files():
+def _static_files() -> _CachedStatic:
     """The static mount, with this installation's own artwork in front of it."""
     for sub in ("computers", "parts"):
         (IMAGES_DIR / sub).mkdir(parents=True, exist_ok=True)

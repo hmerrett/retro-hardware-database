@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get("/images/{path:path}", include_in_schema=False)
-def serve_image(path: str, v: str = "", w: int = 0):
+def serve_image(path: str, v: str = "", w: int = 0) -> FileResponse:
     # Reject traversal, dotfiles/dotdirs (e.g. the .wm and .sized caches) and
     # non-images.
     if any(seg.startswith(".") for seg in path.split("/")):
@@ -45,7 +45,7 @@ def serve_image(path: str, v: str = "", w: int = 0):
 
 
 @router.get("/og/{name}", include_in_schema=False)
-def serve_card(name: str):
+def serve_card(name: str) -> FileResponse:
     """The montage a grid page's shared link previews as (ADR-0017).
 
     It opens a file by hash and does nothing else: no query is read, no search is

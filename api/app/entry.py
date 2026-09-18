@@ -1204,8 +1204,8 @@ def display_name(row) -> str:
     return joined or row.get("asset_id", "")
 
 
-def type_label(t: str) -> str:
-    return TYPE_LABELS.get(t, (t or "other").title())
+def type_label(t: str | None) -> str:
+    return TYPE_LABELS.get(t or "", (t or "other").title())
 
 
 def type_sort_key(t: str) -> int:

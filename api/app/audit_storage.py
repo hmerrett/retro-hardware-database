@@ -18,6 +18,9 @@ from __future__ import annotations
 
 import sys
 from collections import Counter, defaultdict
+from collections.abc import Sequence
+
+from sqlalchemy.orm import Session
 
 from . import entry, specdb, specstruct
 from .db import SessionLocal
@@ -29,11 +32,11 @@ ALWAYS = ("Kind", "Description")
 BEZEL = ("Colour", "Yellowing")
 
 
-def _keys(db, part):
+def _keys(db: Session, part: Part) -> dict[str, str]:
     return {k: v for k, v in specstruct.pairs(part.type or "storage", specdb.read(db, part)) if k}
 
 
-def check(db, part):
+def check(db: Session, part: Part) -> tuple[str, list[str]]:
     """Everything wrong with one part: (kind, [sentences])."""
     keys = _keys(db, part)
     kind = keys.get("Kind", "")
@@ -42,7 +45,7 @@ def check(db, part):
     if kind not in entry.STORAGE_KINDS:
         return kind, [f"kind {kind!r} is not one the menu offers"]
 
-    out = []
+    out: list[str] = []
     asks = {a["key"]: a for a in entry.storage_asks(kind)}
     allowed = set(asks) | set(ALWAYS) | (set(BEZEL) if kind in entry.BEZEL_KINDS else set())
     for key, value in keys.items():
@@ -68,11 +71,12 @@ def check(db, part):
     return kind, out
 
 
-def gaps(db, parts):
+def gaps(db: Session, parts: Sequence[Part]) -> tuple[defaultdict[str, Counter[str]], Counter[str]]:
     """Per kind, how many are missing each answer it is asked for. Blank is a fair
     answer -- nobody may have looked yet -- so this is a completeness report rather
     than a list of faults."""
-    missing, totals = defaultdict(Counter), Counter()
+    missing: defaultdict[str, Counter[str]] = defaultdict(Counter)
+    totals: Counter[str] = Counter()
     for part in parts:
         keys = _keys(db, part)
         kind = keys.get("Kind", "")
@@ -85,7 +89,7 @@ def gaps(db, parts):
     return missing, totals
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     db = SessionLocal()
     try:

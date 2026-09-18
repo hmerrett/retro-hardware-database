@@ -22,7 +22,7 @@ router = APIRouter()
 
 
 @router.get("/robots.txt", include_in_schema=False)
-def robots_txt(request: Request):
+def robots_txt(request: Request) -> Response:
     base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
     body = (
         "User-agent: *\n"
@@ -55,7 +55,7 @@ def robots_txt(request: Request):
 
 
 @router.get("/sitemap.xml", include_in_schema=False)
-def sitemap_xml(request: Request, db: Session = Depends(get_db)):
+def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
     base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
     # Newest change per asset, for <lastmod>.
     last: dict[str | None, datetime | None] = dict(
@@ -100,11 +100,11 @@ _ICON_CACHE = {"Cache-Control": "public, max-age=86400"}
 
 # Browsers and crawlers request these at the domain root regardless of markup.
 @router.get("/favicon.ico", include_in_schema=False)
-def favicon():
+def favicon() -> FileResponse:
     return FileResponse(branded("favicon.ico"), headers=_ICON_CACHE)
 
 
 @router.get("/apple-touch-icon.png", include_in_schema=False)
 @router.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
-def apple_touch_icon():
+def apple_touch_icon() -> FileResponse:
     return FileResponse(branded("apple-touch-icon.png"), headers=_ICON_CACHE)
