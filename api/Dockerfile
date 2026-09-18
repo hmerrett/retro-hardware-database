@@ -2,7 +2,7 @@
 # lockfile alone and rebuilt only when the lockfile changes, while the code above
 # it changes several times a day. That is the whole reason for the split, and it
 # is why it arrived with uv rather than before it (backend-standards).
-FROM python:3.12-slim AS deps
+FROM python:3.14-slim AS deps
 # Pinned, like everything else the build depends on: a floating tag here would
 # make the layer below it reproducible and the tool that built it not.
 COPY --from=ghcr.io/astral-sh/uv:0.12.15 /uv /usr/local/bin/uv
@@ -14,7 +14,7 @@ COPY pyproject.toml uv.lock ./
 # a package, so there is no project to install either.
 RUN uv sync --frozen --no-dev --no-install-project
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 WORKDIR /app
 
 # The app runs as its own unprivileged user rather than as root, so a process that
