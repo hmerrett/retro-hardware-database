@@ -73,8 +73,10 @@ FOLD_WINDOW = timedelta(minutes=5)
 _ONE_OF = re.compile(r"\ba (photo|file)\b")
 
 
-def _folded_message(message: str, n: int) -> str:
-    if n < 2:
+def _folded_message(message: str | None, n: int) -> str | None:
+    # The column is nullable, and a row from a restored dump can hold a null the
+    # app itself would never write. Nothing to pluralise is nothing to fold.
+    if n < 2 or not message:
         return message
     plural, hit = _ONE_OF.subn(lambda m: f"{n} {m.group(1)}s", message, count=1)
     return plural if hit else f"{message} ×{n}"

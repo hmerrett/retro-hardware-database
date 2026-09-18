@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1406 behaviours, from 33 files.*
+*1407 behaviours, from 34 files.*
 
 
 ## A file where text was expected
@@ -1607,6 +1607,13 @@ Regenerate with:
   A liveness check that returns 200 while the database is down is worse than useless -- it would let a broken deploy pass the smoke check.
 - healthz is public even when auth is enabled  
   The deploy smoke check has no credentials -- it runs before any exist for that box.
+
+
+## History without a message
+
+*test_history_without_a_message.py — 1 behaviours*
+
+- two entries with no message do not stop the page opening
 
 
 ## Image writes
