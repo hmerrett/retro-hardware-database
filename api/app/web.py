@@ -13,6 +13,7 @@ and the history stamp. main registers those on this same object, and they will
 follow their own helpers out when those move.
 """
 
+from collections.abc import Mapping
 from datetime import date
 from pathlib import Path
 
@@ -79,7 +80,7 @@ def _abs_url(request: Request, path: str) -> str:
     return base + path
 
 
-def _dot(*parts) -> str:
+def _dot(*parts: object) -> str:
     return " · ".join(str(p) for p in parts if p)
 
 
@@ -89,7 +90,7 @@ def _og(
     description: str = "",
     image_rel: str | None = None,
     card: tuple[str, int, int] | None = None,
-):
+) -> dict[str, str | int]:
     """Open Graph / Twitter-card context for a page's social-share preview.
 
     Three ways a page can have a picture, in the order they are preferred.
@@ -99,7 +100,7 @@ def _og(
     things has. Neither, and the site's own card, which is what a page with no
     photographs on it has.
     """
-    og = {
+    og: dict[str, str | int] = {
         "title": title,
         "url": _abs_url(request, request.url.path),
         "description": " ".join((description or "").split())[:280],
@@ -125,10 +126,12 @@ def _og(
     return og
 
 
-def _jsonld(og, asset_id, brand, category):
+def _jsonld(
+    og: Mapping[str, str | int], asset_id: str, brand: str | None, category: str
+) -> dict[str, str | int | dict[str, str]]:
     """schema.org Product data for an item, so search engines can show a richer
     result. Built from the same values as the social-share card."""
-    d = {
+    d: dict[str, str | int | dict[str, str]] = {
         "@context": "https://schema.org",
         "@type": "Product",
         "name": og["title"],

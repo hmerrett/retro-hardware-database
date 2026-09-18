@@ -16,15 +16,33 @@ fitted, silently.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from enum import Enum, auto
+
+from sqlalchemy.orm import Session
+
 from . import entry
-from .models import ComputerRamChip, ComputerRamModule
+from .models import Computer, ComputerRamChip, ComputerRamModule
+
+
+class _Keep(Enum):
+    """The sentinel's own type, so "leave it as it is" is a value a signature can
+    name rather than one only the body can recognise."""
+
+    TOKEN = auto()
+
 
 # Default for write()'s total_kb: "leave it as it is", so that passing None can
 # mean "clear it" -- a caller replacing the whole field must be able to.
-KEEP = object()
+KEEP = _Keep.TOKEN
+
+# How many of one module or chip are fitted, and a machine's worth of them: the
+# pairs the tables store, read() hands back and write() is given.
+Count = tuple[str, int | None]
+Counts = list[Count]
 
 
-def read(db, computer):
+def read(db: Session, computer: Computer) -> tuple[Counts, Counts]:
     """A machine's fitted memory as ([(slug, n)], [(chip, n)]), in entry order."""
     aid = computer.asset_id
     mods = (
@@ -42,7 +60,14 @@ def read(db, computer):
     return ([(r.module, r.count) for r in mods], [(r.chip, r.count) for r in chips])
 
 
-def write(db, computer, modules=None, chips=None, note=None, total_kb=KEEP):
+def write(
+    db: Session,
+    computer: Computer,
+    modules: Sequence[Count] | None = None,
+    chips: Sequence[Count] | None = None,
+    note: str | None = None,
+    total_kb: int | _Keep | None = KEEP,
+) -> None:
     """Store a machine's memory and refresh the derived column and string.
 
     modules / chips are [(key, count)]; passing None leaves those rows alone, so a
@@ -82,7 +107,7 @@ def write(db, computer, modules=None, chips=None, note=None, total_kb=KEEP):
     )
 
 
-def from_string(text):
+def from_string(text: str | None) -> tuple[int | None, str]:
     """A plain installed-RAM string as (total_kb, note): a bare amount is the
     total, anything else is kept verbatim. This is the REST/MCP path, where a
     caller sends '640KB' rather than a module breakdown -- the breakdown has its

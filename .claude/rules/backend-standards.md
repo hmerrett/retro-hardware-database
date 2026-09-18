@@ -17,8 +17,22 @@ Python + FastAPI, server-rendered Jinja2. British English.
   weekly.
   - Locally: `uv sync --project api --all-groups`, then `uv run --project api
     pytest`. There is no requirements.txt any more.
-- *Adopt next:* **mypy `--strict`** with the pydantic plugin, run in CI
-  (`mypy app`). Type the code as you touch it.
+- **Types: mypy, strict.** Config is `[tool.mypy]` in `api/pyproject.toml`, with
+  the pydantic plugin; CI runs `uv run --directory api mypy app`, and so should
+  you before committing.
+  - **Strict is the default, and the exceptions are a list that only shrinks.**
+    The modules not yet typed are named in one override. A new module is not on
+    it, so it is strict by doing nothing; a module comes off it by being typed,
+    and never goes back on.
+  - **The ways round it are closed.** No bare `# type: ignore` and none left
+    behind once its error has gone (both configured as errors), and no `Any`
+    written by hand. An ignore that has to stay names its error code and says
+    why on the lines above it -- `test_type_checking.py` fails one that does
+    not. The answer to "mypy is wrong here" is nearly always a more exact type:
+    a `TypedDict` for a table of dicts, `object` for a value that really is
+    anything, a union where two things really arrive.
+  - **An annotation on a model is a schema statement.** `Mapped[str]` means NOT
+    NULL; `Mapped[str | None]` is what a nullable column is (database-standards).
 
 ## Structure & conventions
 

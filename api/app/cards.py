@@ -26,11 +26,18 @@ import logging
 import os
 import re
 import shutil
+from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .common import IMAGES_DIR
 from .photos import WATERMARK, WM_MARGIN, WM_MIN_PX, WM_OPACITY, WM_SCALE, WM_SRC
 from .thumbs import _write_atomically
+
+if TYPE_CHECKING:
+    # Pillow is opened where it is used, as it is everywhere else here: importing it
+    # costs more than this module does.
+    from PIL.Image import Image as PilImage
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +75,7 @@ def cache_dir() -> Path:
     return IMAGES_DIR / ".og" / f"b{BUILD}"
 
 
-def sweep():
+def sweep() -> None:
     """Drop cards made by an older build of this module."""
     keep = cache_dir()
     with contextlib.suppress(OSError):
@@ -81,7 +88,7 @@ def sweep():
 sweep()
 
 
-def _source(rel) -> Path | None:
+def _source(rel: str) -> Path | None:
     """The photograph behind one of a page's image paths, or None if it is not one.
 
     A row with no photograph carries "", and a project's members hand back a
@@ -101,9 +108,10 @@ def _source(rel) -> Path | None:
     return path if path.is_file() else None
 
 
-def photographs(rels, limit=MAX_TILES):
+def photographs(rels: Iterable[str], limit: int = MAX_TILES) -> list[tuple[str, Path]]:
     """The first few real photographs among a page's image paths, as (rel, path)."""
-    out, seen = [], set()
+    out: list[tuple[str, Path]] = []
+    seen: set[str] = set()
     for rel in rels or ():
         if rel in seen:
             continue
@@ -115,7 +123,7 @@ def photographs(rels, limit=MAX_TILES):
     return out
 
 
-def _tiles(n):
+def _tiles(n: int) -> list[tuple[int, int, int, int]]:
     """Where each photograph goes, for n of them: (x, y, width, height) in reading
     order. Fewer than four fill the space rather than leaving a hole in it."""
     w, h = SIZE
@@ -135,7 +143,7 @@ def _tiles(n):
     ]
 
 
-def _tile(path: Path, box_w: int, box_h: int):
+def _tile(path: Path, box_w: int, box_h: int) -> "PilImage":
     """One photograph cropped to fill one tile. Filled, not letterboxed: bands of
     cream inside a montage read as a broken image rather than as a tall photo."""
     from PIL import Image, ImageOps
@@ -148,10 +156,10 @@ def _tile(path: Path, box_w: int, box_h: int):
         # Upright, as the photograph is served: one lying on its side and saying so
         # only in its EXIF block would otherwise be tiled on its side.
         upright = ImageOps.exif_transpose(im) or im
-        return ImageOps.fit(upright.convert("RGB"), (box_w, box_h), Image.LANCZOS)
+        return ImageOps.fit(upright.convert("RGB"), (box_w, box_h), Image.Resampling.LANCZOS)
 
 
-def _stamp(card):
+def _stamp(card: "PilImage") -> None:
     """The site's mark in the card's own corner, at the card's scale.
 
     Once, not once per tile: the tiles come from the photographs rather than from
@@ -168,7 +176,7 @@ def _stamp(card):
 
         mark = Image.open(WM_SRC).convert("RGBA")
         target = max(WM_MIN_PX, int(min(card.size) * WM_SCALE))
-        mark.thumbnail((target, target), Image.LANCZOS)
+        mark.thumbnail((target, target), Image.Resampling.LANCZOS)
         mark.putalpha(mark.getchannel("A").point(lambda a: int(a * WM_OPACITY)))
         margin = max(6, int(min(card.size) * WM_MARGIN))
         card.paste(
@@ -178,7 +186,7 @@ def _stamp(card):
         log.warning("share card made without the site's mark", exc_info=True)
 
 
-def _key(found) -> str:
+def _key(found: Sequence[tuple[str, Path]]) -> str:
     """A card's name: what went into it, hashed.
 
     The photographs and their modification times, so a crop is a new name rather
@@ -194,7 +202,7 @@ def _key(found) -> str:
     return h.hexdigest()[:16]
 
 
-def _build(found, dst: Path):
+def _build(found: Sequence[tuple[str, Path]], dst: Path) -> None:
     from PIL import Image
 
     card = Image.new("RGB", SIZE, CARD_BG)
@@ -209,7 +217,7 @@ def _build(found, dst: Path):
     )
 
 
-def _prune():
+def _prune() -> None:
     """Keep the newest CAP cards. Only ever runs after a miss, so the cost sits with
     whoever is filling the cache rather than with every reader."""
     with contextlib.suppress(OSError):
@@ -219,7 +227,7 @@ def _prune():
                 stale.unlink()
 
 
-def montage(rels):
+def montage(rels: Iterable[str]) -> tuple[str, int, int] | None:
     """The share card for a page showing these photographs, as (path, width,
     height), or None to fall back to the site's own card.
 

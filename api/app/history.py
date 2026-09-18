@@ -11,14 +11,17 @@ is defined there.
 """
 
 import re
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+
+from sqlalchemy.orm import Session
 
 from .models import LogEntry, LogPhoto
 from .web import templates
 
 
-def _now():
+def _now() -> datetime:
     """Naive UTC, matching the column and every row already in it. utcnow() is
     deprecated, and an aware value here would be inconsistent with the history
     written before this."""
@@ -32,7 +35,9 @@ def _now():
 PHOTO_ENTRY = "photo"
 
 
-def add_log(db, asset_id, message, kind="change"):
+def add_log(
+    db: Session, asset_id: str | None, message: str, kind: str = "change"
+) -> LogEntry | None:
     """Record a dated history entry for an asset, and hand the row back for
     anything that wants to hang photographs on it. The caller commits.
 
@@ -48,7 +53,7 @@ def add_log(db, asset_id, message, kind="change"):
     return row
 
 
-def item_log(db, asset_id):
+def item_log(db: Session, asset_id: str) -> list[LogEntry]:
     return (
         db.query(LogEntry)
         .filter(LogEntry.asset_id == asset_id)
@@ -68,19 +73,21 @@ FOLD_WINDOW = timedelta(minutes=5)
 _ONE_OF = re.compile(r"\ba (photo|file)\b")
 
 
-def _folded_message(message, n):
-    if n < 2:
+def _folded_message(message: str | None, n: int) -> str | None:
+    # The column is nullable, and a row from a restored dump can hold a null the
+    # app itself would never write. Nothing to pluralise is nothing to fold.
+    if n < 2 or not message:
         return message
     plural, hit = _ONE_OF.subn(lambda m: f"{n} {m.group(1)}s", message, count=1)
     return plural if hit else f"{message} ×{n}"
 
 
-def log_photos(db, log_ids):
+def log_photos(db: Session, log_ids: Sequence[int]) -> dict[int, list[str]]:
     """{log entry id: [photo path]} for a page's worth of entries, in one query and
     in the order they were attached."""
     if not log_ids:
         return {}
-    out = {}
+    out: dict[int, list[str]] = {}
     for log_id, rel in (
         db.query(LogPhoto.log_id, LogPhoto.rel)
         .filter(LogPhoto.log_id.in_(log_ids))
@@ -90,7 +97,9 @@ def log_photos(db, log_ids):
     return out
 
 
-def _fold_log(entries, photos=None):
+def _fold_log(
+    entries: Sequence[LogEntry], photos: dict[int, list[str]] | None = None
+) -> list[SimpleNamespace]:
     """The history as a page shows it, with a run of the same thing done over and
     over collapsed into one line.
 
@@ -115,7 +124,7 @@ def _fold_log(entries, photos=None):
     an entry with none behaves exactly as it did before this existed.
     """
     photos = photos or {}
-    out = []
+    out: list[SimpleNamespace] = []
     for e in entries:
         last = out[-1] if out else None
         mine = photos.get(e.id) or []
@@ -150,12 +159,12 @@ def _fold_log(entries, photos=None):
         )
     # Newest first, so a run's own stamp is the last time it was done; the count in
     # the message says the rest.
-    for e in out:
-        e.message = _folded_message(e.message, e.count)
+    for line in out:
+        line.message = _folded_message(line.message, line.count)
     return out
 
 
-def _history(db, asset_id):
+def _history(db: Session, asset_id: str) -> list[SimpleNamespace]:
     """One item's history as its page wants it: folded, with each entry's
     photographs on it. Two queries whatever the history is long -- the entries, and
     the photographs of all of them at once."""
@@ -163,7 +172,7 @@ def _history(db, asset_id):
     return _fold_log(entries, log_photos(db, [e.id for e in entries]))
 
 
-def log_stamp(created_at, authed):
+def log_stamp(created_at: datetime | None, authed: bool) -> str:
     """A history line's date, with the clock time only for whoever is signed in.
     Editing wants the minute -- it is how you tell apart two corrections to the same
     photo -- but a visitor is reading about the machine, and the time of day says
@@ -176,7 +185,7 @@ def log_stamp(created_at, authed):
 templates.env.globals["log_stamp"] = log_stamp
 
 
-def _short(v, limit=80):
+def _short(v: object, limit: int = 80) -> str:
     v = "" if v is None else str(v).strip()
     if not v:
         return "(empty)"

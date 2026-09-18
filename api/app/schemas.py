@@ -27,7 +27,7 @@ from datetime import date
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
-def _null_is_blank(v):
+def _null_is_blank(v: object) -> object:
     """A serial that reads as null is one nobody wrote down, which is "".
 
     Belt to 0034's braces. That migration makes the column NOT NULL so the app's
@@ -174,7 +174,13 @@ class ComputerOut(ComputerIn):
     installed_ram_kb: int | None = None
     installed_ram_note: str = ""
     drives_note: str = ""
-    machine: MachineOut | None = None
+    # What is read back is more than what may be written -- the catalogue's own
+    # facts about the model come with it -- so the response narrows the field the
+    # request declared. Pydantic means this to be done; mypy reads it as an
+    # attribute changing type under a subclass, which for a mutable one it is. The
+    # alternative is a shared base without the field, and that reorders the
+    # published schema (ADR-0010) to satisfy a checker.
+    machine: MachineOut | None = None  # type: ignore[assignment]
     variant: str = ""
 
 
@@ -215,7 +221,7 @@ class PartIn(BaseModel):
 
     @field_validator("computer_id", "parent_id", mode="before")
     @classmethod
-    def _blank_link_is_none(cls, v):
+    def _blank_link_is_none(cls, v: object) -> object:
         """A blank link means standalone, which the column stores as NULL."""
         return v or None
 
@@ -229,7 +235,8 @@ class PartCreate(PartIn, WorkIn):
 class PartOut(PartIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
-    machine: BoardOut | None = None
+    # Narrowed on the way out, as ComputerOut's is and for the reason given there.
+    machine: BoardOut | None = None  # type: ignore[assignment]
     variant: str = ""
     # By tag, for the reason a computer's is (see ComputerOut).
     project: str | None = None

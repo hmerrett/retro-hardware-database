@@ -7,9 +7,10 @@ The column set began as a mirror of the flat-file system's CSV schema, where
 everything was a string; quantities and dates are being given real types as the
 data proves clean enough to convert."""
 
+from datetime import date, datetime
+
 from sqlalchemy import (
     Boolean,
-    Column,
     Date,
     DateTime,
     ForeignKey,
@@ -19,28 +20,31 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
 from .db import Base
 
 
-def _part_fk():
+def _part_fk() -> MappedColumn[str]:
     """part_id column referencing a part, cascading on delete."""
-    return Column(String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"), primary_key=True)
+    return mapped_column(
+        String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"), primary_key=True
+    )
 
 
-def _part_fk_indexed():
-    return Column(
+def _part_fk_indexed() -> MappedColumn[str]:
+    return mapped_column(
         String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"), index=True, nullable=False
     )
 
 
 class Computer(Base):
     __tablename__ = "computers"
-    asset_id = Column(String(16), primary_key=True)
-    name = Column(String(255), default="")
-    manufacturer = Column(String(255), default="")
-    model = Column(String(255), default="")
-    year = Column(SmallInteger)
+    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    name: Mapped[str | None] = mapped_column(String(255), default="")
+    manufacturer: Mapped[str | None] = mapped_column(String(255), default="")
+    model: Mapped[str | None] = mapped_column(String(255), default="")
+    year: Mapped[int | None] = mapped_column(SmallInteger)
     # What the maker stamped on this particular one, as against the model, which is
     # what it is one of. The only identity field that is never true of a second
     # object -- which is why a duplicate does not carry it across, and why it is
@@ -49,10 +53,10 @@ class Computer(Base):
     # somebody who knows how.
     # Not nullable: "" is the one spelling of a number nobody has written down, so
     # the column cannot hold the second one the API used to choke on (0034).
-    serial = Column(String(64), nullable=False, default="", server_default="")
-    chassis = Column(String(64), default="")
-    os = Column(String(255), default="")
-    cpu = Column(String(255), default="")
+    serial: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    chassis: Mapped[str | None] = mapped_column(String(64), default="")
+    os: Mapped[str | None] = mapped_column(String(255), default="")
+    cpu: Mapped[str | None] = mapped_column(String(255), default="")
     # What this machine scores in TopBench, the DOS benchmark that puts a PC in
     # order against a table of known ones. It sits beside the CPU because that is
     # mostly what decides it, and it is the one measured number in a record that
@@ -64,69 +68,83 @@ class Computer(Base):
     # to be had for a Spectrum. NULL is a machine it has not been run on, which is
     # most of them, and no number is inferred from the CPU -- running it is the
     # whole point.
-    topbench = Column(Integer)
-    installed_ram = Column(String(255), default="")
-    installed_ram_kb = Column(Integer)
-    installed_ram_note = Column(String(255), nullable=False, default="", server_default="")
+    topbench: Mapped[int | None] = mapped_column(Integer)
+    installed_ram: Mapped[str | None] = mapped_column(String(255), default="")
+    installed_ram_kb: Mapped[int | None] = mapped_column(Integer)
+    installed_ram_note: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=""
+    )
     # The rendered cache of the catalogue rows, in the same relation to
     # asset_variant / asset_chip as installed_ram is to the memory tables:
     # written from them on every change, read by the page, the label, the search
     # index and the wire format, and never parsed back (see machinedb).
-    variant = Column(Text, nullable=False, default="", server_default="")
-    drives = Column(Text, default="")
-    drives_note = Column(String(255), nullable=False, default="", server_default="")
-    condition = Column(String(64), default="")
-    source = Column(String(255), default="")
-    acquired_date = Column(Date)
-    image = Column(String(255), default="")
-    url = Column(Text, default="")
-    summary = Column(Text, default="")
-    notes = Column(Text, default="")
-    disposed = Column(Boolean, nullable=False, default=False, server_default="0")
-    disposed_at = Column(Date)
-    disposed_note = Column(Text, nullable=False, default="", server_default="")
+    variant: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    drives: Mapped[str | None] = mapped_column(Text, default="")
+    drives_note: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=""
+    )
+    condition: Mapped[str | None] = mapped_column(String(64), default="")
+    source: Mapped[str | None] = mapped_column(String(255), default="")
+    acquired_date: Mapped[date | None] = mapped_column(Date)
+    image: Mapped[str | None] = mapped_column(String(255), default="")
+    url: Mapped[str | None] = mapped_column(Text, default="")
+    summary: Mapped[str | None] = mapped_column(Text, default="")
+    notes: Mapped[str | None] = mapped_column(Text, default="")
+    disposed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    disposed_at: Mapped[date | None] = mapped_column(Date)
+    disposed_note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     # Might go: the step before disposal, and the owner's alone (ADR-0018). Kept off
     # a visitor's page, out of their search (common.OWNER_ONLY) and out of the API.
-    for_sale = Column(Boolean, nullable=False, default=False, server_default="0")
+    for_sale: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
 
 class Part(Base):
     __tablename__ = "parts"
-    asset_id = Column(String(16), primary_key=True)
-    computer_id = Column(
+    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    computer_id: Mapped[str | None] = mapped_column(
         String(16), ForeignKey("computers.asset_id", ondelete="SET NULL"), index=True
     )
-    parent_id = Column(String(16), ForeignKey("parts.asset_id", ondelete="SET NULL"), index=True)
-    type = Column(String(32), default="")
-    manufacturer = Column(String(255), default="")
-    model = Column(String(255), default="")
-    name = Column(String(255), default="")
-    year = Column(SmallInteger)
+    parent_id: Mapped[str | None] = mapped_column(
+        String(16), ForeignKey("parts.asset_id", ondelete="SET NULL"), index=True
+    )
+    type: Mapped[str | None] = mapped_column(String(32), default="")
+    manufacturer: Mapped[str | None] = mapped_column(String(255), default="")
+    model: Mapped[str | None] = mapped_column(String(255), default="")
+    name: Mapped[str | None] = mapped_column(String(255), default="")
+    year: Mapped[int | None] = mapped_column(SmallInteger)
     # The number on this one, for the reason a machine has one (see Computer.serial).
     # A part is where it matters most often: two identical SIMMs are told apart by
     # nothing else, and a drive's own label is the only place its date code lives.
-    serial = Column(String(64), nullable=False, default="", server_default="")
-    specs = Column(Text, default="")
+    serial: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    specs: Mapped[str | None] = mapped_column(Text, default="")
     # The rendered cache of the catalogue rows, in exactly the relation to
     # asset_variant / asset_chip that computers.variant is: written from them on
     # every change and never parsed back. Only a board ever has one -- a catalogue
     # identity is something a machine or the board out of one can answer to, and a
     # SIMM cannot -- so on every other part this stays the empty string it starts as.
-    variant = Column(Text, nullable=False, default="", server_default="")
-    condition = Column(String(64), default="")
-    source = Column(String(255), default="")
-    acquired_date = Column(Date)
-    image = Column(String(255), default="")
-    url = Column(Text, default="")
-    summary = Column(Text, default="")
-    notes = Column(Text, default="")
-    disposed = Column(Boolean, nullable=False, default=False, server_default="0")
-    disposed_at = Column(Date)
-    disposed_note = Column(Text, nullable=False, default="", server_default="")
+    variant: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    condition: Mapped[str | None] = mapped_column(String(64), default="")
+    source: Mapped[str | None] = mapped_column(String(255), default="")
+    acquired_date: Mapped[date | None] = mapped_column(Date)
+    image: Mapped[str | None] = mapped_column(String(255), default="")
+    url: Mapped[str | None] = mapped_column(Text, default="")
+    summary: Mapped[str | None] = mapped_column(Text, default="")
+    notes: Mapped[str | None] = mapped_column(Text, default="")
+    disposed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    disposed_at: Mapped[date | None] = mapped_column(Date)
+    disposed_note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     # See Computer.for_sale. The same flag on the other half of the register,
     # because a spare card is as likely to be the thing going as a whole machine.
-    for_sale = Column(Boolean, nullable=False, default=False, server_default="0")
-    disk_image = Column(String(255), default="")
+    for_sale: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    disk_image: Mapped[str | None] = mapped_column(String(255), default="")
 
 
 # --- normalised spec tables ------------------------------------------------
@@ -144,93 +162,93 @@ class Part(Base):
 
 class MotherboardSpec(Base):
     __tablename__ = "motherboard_spec"
-    part_id = _part_fk()
-    chipset = Column(String(255))
-    cpu_family = Column(String(255))
-    form_factor = Column(String(64))
-    onboard_ram = Column(String(64))
-    cache_kb = Column(Integer)
-    bios = Column(String(255))
-    onboard_video = Column(String(255))
+    part_id: Mapped[str] = _part_fk()
+    chipset: Mapped[str | None] = mapped_column(String(255))
+    cpu_family: Mapped[str | None] = mapped_column(String(255))
+    form_factor: Mapped[str | None] = mapped_column(String(64))
+    onboard_ram: Mapped[str | None] = mapped_column(String(64))
+    cache_kb: Mapped[int | None] = mapped_column(Integer)
+    bios: Mapped[str | None] = mapped_column(String(255))
+    onboard_video: Mapped[str | None] = mapped_column(String(255))
 
 
 class CpuSpec(Base):
     __tablename__ = "cpu_spec"
-    part_id = _part_fk()
-    socket = Column(String(64))
+    part_id: Mapped[str] = _part_fk()
+    socket: Mapped[str | None] = mapped_column(String(64))
     # kHz, not MHz: the 8088's 4.77 MHz would not survive an integer MHz column.
-    speed_khz = Column(Integer)
-    fsb_khz = Column(Integer)
-    cores = Column(Integer)
-    cache_kb = Column(Integer)
+    speed_khz: Mapped[int | None] = mapped_column(Integer)
+    fsb_khz: Mapped[int | None] = mapped_column(Integer)
+    cores: Mapped[int | None] = mapped_column(Integer)
+    cache_kb: Mapped[int | None] = mapped_column(Integer)
 
 
 class RamSpec(Base):
     __tablename__ = "ram_spec"
-    part_id = _part_fk()
-    ram_type = Column(String(64))
-    size_kb = Column(Integer)
+    part_id: Mapped[str] = _part_fk()
+    ram_type: Mapped[str | None] = mapped_column(String(64))
+    size_kb: Mapped[int | None] = mapped_column(Integer)
     # Module access time (70, 60, ...). SDRAM clock speeds belong in ram_type.
-    speed_ns = Column(Integer)
+    speed_ns: Mapped[int | None] = mapped_column(Integer)
 
 
 class VideoSpec(Base):
     __tablename__ = "video_spec"
-    part_id = _part_fk()
-    chip = Column(String(255))
-    interface = Column(String(64))
-    connector = Column(String(255))
-    memory_kb = Column(Integer)
-    video_type = Column(String(64))
+    part_id: Mapped[str] = _part_fk()
+    chip: Mapped[str | None] = mapped_column(String(255))
+    interface: Mapped[str | None] = mapped_column(String(64))
+    connector: Mapped[str | None] = mapped_column(String(255))
+    memory_kb: Mapped[int | None] = mapped_column(Integer)
+    video_type: Mapped[str | None] = mapped_column(String(64))
 
 
 class SoundSpec(Base):
     __tablename__ = "sound_spec"
-    part_id = _part_fk()
-    chip = Column(String(255))
-    interface = Column(String(64))
-    fm = Column(String(255))
-    ports = Column(String(255))
+    part_id: Mapped[str] = _part_fk()
+    chip: Mapped[str | None] = mapped_column(String(255))
+    interface: Mapped[str | None] = mapped_column(String(64))
+    fm: Mapped[str | None] = mapped_column(String(255))
+    ports: Mapped[str | None] = mapped_column(String(255))
 
 
 class NetworkSpec(Base):
     __tablename__ = "network_spec"
-    part_id = _part_fk()
-    chip = Column(String(255))
-    interface = Column(String(64))
-    connector = Column(String(255))
+    part_id: Mapped[str] = _part_fk()
+    chip: Mapped[str | None] = mapped_column(String(255))
+    interface: Mapped[str | None] = mapped_column(String(64))
+    connector: Mapped[str | None] = mapped_column(String(255))
 
 
 class IoSpec(Base):
     __tablename__ = "io_spec"
-    part_id = _part_fk()
-    chip = Column(String(255))
-    interface = Column(String(64))
+    part_id: Mapped[str] = _part_fk()
+    chip: Mapped[str | None] = mapped_column(String(255))
+    interface: Mapped[str | None] = mapped_column(String(64))
 
 
 class StorageSpec(Base):
     __tablename__ = "storage_spec"
-    part_id = _part_fk()
-    kind = Column(String(64))
-    interface = Column(String(64))
-    protocol = Column(String(64))
-    capacity_kb = Column(Integer)
-    chs_c = Column(Integer)
-    chs_h = Column(Integer)
-    chs_s = Column(Integer)
-    media = Column(String(255))
-    speed_rpm = Column(Integer)
+    part_id: Mapped[str] = _part_fk()
+    kind: Mapped[str | None] = mapped_column(String(64))
+    interface: Mapped[str | None] = mapped_column(String(64))
+    protocol: Mapped[str | None] = mapped_column(String(64))
+    capacity_kb: Mapped[int | None] = mapped_column(Integer)
+    chs_c: Mapped[int | None] = mapped_column(Integer)
+    chs_h: Mapped[int | None] = mapped_column(Integer)
+    chs_s: Mapped[int | None] = mapped_column(Integer)
+    media: Mapped[str | None] = mapped_column(String(255))
+    speed_rpm: Mapped[int | None] = mapped_column(Integer)
     # The other sort of drive speed: the × rating of an optical drive, where 1× is
     # the 150 KB/s a CD player runs at. Its own column because 48× and 5400 rpm are
     # different quantities and one column could not sort or compare both; they
     # share the Speed spec key, and the unit written in the value says which is
     # meant (see specstruct.ALT_COLS).
-    speed_x = Column(Integer)
-    role = Column(String(255))
+    speed_x: Mapped[int | None] = mapped_column(Integer)
+    role: Mapped[str | None] = mapped_column(String(255))
     # The same two things a machine's drive rows record about the same plastic (see
     # ComputerDrive), so a drive on the shelf and one fitted are described alike.
-    colour = Column(String(32))
-    yellowing = Column(String(32))
+    colour: Mapped[str | None] = mapped_column(String(32))
+    yellowing: Mapped[str | None] = mapped_column(String(32))
 
 
 class DisplaySpec(Base):
@@ -276,55 +294,55 @@ class DisplaySpec(Base):
     so it is described in the words the register already uses for plastic."""
 
     __tablename__ = "display_spec"
-    part_id = _part_fk()
-    tech = Column(String(64))
-    panel = Column(String(64))
-    screen_in_tenths = Column(Integer)
-    aspect = Column(String(16))
-    resolution = Column(String(64))
-    refresh = Column(String(255))
-    sync = Column(String(255))
-    dot_pitch_um = Column(Integer)
-    interface = Column(String(255))
-    picture = Column(String(32))
-    colour = Column(String(32))
-    yellowing = Column(String(32))
+    part_id: Mapped[str] = _part_fk()
+    tech: Mapped[str | None] = mapped_column(String(64))
+    panel: Mapped[str | None] = mapped_column(String(64))
+    screen_in_tenths: Mapped[int | None] = mapped_column(Integer)
+    aspect: Mapped[str | None] = mapped_column(String(16))
+    resolution: Mapped[str | None] = mapped_column(String(64))
+    refresh: Mapped[str | None] = mapped_column(String(255))
+    sync: Mapped[str | None] = mapped_column(String(255))
+    dot_pitch_um: Mapped[int | None] = mapped_column(Integer)
+    interface: Mapped[str | None] = mapped_column(String(255))
+    picture: Mapped[str | None] = mapped_column(String(32))
+    colour: Mapped[str | None] = mapped_column(String(32))
+    yellowing: Mapped[str | None] = mapped_column(String(32))
 
 
 class PartSlot(Base):
     __tablename__ = "part_slot"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    part_id = _part_fk_indexed()
-    bus = Column(String(64))
-    count = Column(Integer, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    part_id: Mapped[str] = _part_fk_indexed()
+    bus: Mapped[str | None] = mapped_column(String(64))
+    count: Mapped[int | None] = mapped_column(Integer, default=1)
 
 
 class PartRamSlot(Base):
     __tablename__ = "part_ram_slot"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    part_id = _part_fk_indexed()
-    slot_type = Column(String(64))
-    count = Column(Integer, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    part_id: Mapped[str] = _part_fk_indexed()
+    slot_type: Mapped[str | None] = mapped_column(String(64))
+    count: Mapped[int | None] = mapped_column(Integer, default=1)
 
 
 class PartPort(Base):
     __tablename__ = "part_port"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    part_id = _part_fk_indexed()
-    port = Column(String(64))
-    count = Column(Integer, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    part_id: Mapped[str] = _part_fk_indexed()
+    port: Mapped[str | None] = mapped_column(String(64))
+    count: Mapped[int | None] = mapped_column(Integer, default=1)
 
 
 class PartAttribute(Base):
     __tablename__ = "part_attribute"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    part_id = _part_fk_indexed()
-    akey = Column(String(128), default="")
-    avalue = Column(Text, default="")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    part_id: Mapped[str] = _part_fk_indexed()
+    akey: Mapped[str | None] = mapped_column(String(128), default="")
+    avalue: Mapped[str | None] = mapped_column(Text, default="")
 
 
-def _computer_fk():
-    return Column(
+def _computer_fk() -> MappedColumn[str]:
+    return mapped_column(
         String(16), ForeignKey("computers.asset_id", ondelete="CASCADE"), index=True, nullable=False
     )
 
@@ -349,17 +367,17 @@ class ComputerDrive(Base):
     rewriting anyone's data."""
 
     __tablename__ = "computer_drive"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    computer_id = _computer_fk()
-    count = Column(Integer, default=1)
-    kind = Column(String(32), nullable=False, default="")
-    form_factor = Column(String(16), nullable=False, default="")
-    size = Column(String(32), nullable=False, default="")
-    media = Column(String(32), nullable=False, default="", server_default="")
-    speed = Column(String(16), nullable=False, default="", server_default="")
-    model = Column(String(255), nullable=False, default="")
-    colour = Column(String(32), nullable=False, default="")
-    yellowing = Column(String(32), nullable=False, default="")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    computer_id: Mapped[str] = _computer_fk()
+    count: Mapped[int | None] = mapped_column(Integer, default=1)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    form_factor: Mapped[str] = mapped_column(String(16), nullable=False, default="")
+    size: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    media: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
+    speed: Mapped[str] = mapped_column(String(16), nullable=False, default="", server_default="")
+    model: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    colour: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    yellowing: Mapped[str] = mapped_column(String(32), nullable=False, default="")
 
 
 class ComputerRamModule(Base):
@@ -368,10 +386,10 @@ class ComputerRamModule(Base):
     is free to change without orphaning anyone's data."""
 
     __tablename__ = "computer_ram_module"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    computer_id = _computer_fk()
-    module = Column(String(32), nullable=False)
-    count = Column(Integer, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    computer_id: Mapped[str] = _computer_fk()
+    module: Mapped[str] = mapped_column(String(32), nullable=False)
+    count: Mapped[int | None] = mapped_column(Integer, default=1)
 
 
 class ComputerRamChip(Base):
@@ -379,10 +397,10 @@ class ComputerRamChip(Base):
     number (4164, 41256, ...)."""
 
     __tablename__ = "computer_ram_chip"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    computer_id = _computer_fk()
-    chip = Column(String(32), nullable=False)
-    count = Column(Integer, default=1)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    computer_id: Mapped[str] = _computer_fk()
+    chip: Mapped[str] = mapped_column(String(32), nullable=False)
+    count: Mapped[int | None] = mapped_column(Integer, default=1)
 
 
 class AssetVariant(Base):
@@ -416,11 +434,13 @@ class AssetVariant(Base):
     rather than the two moving to a table of their own."""
 
     __tablename__ = "asset_variant"
-    asset_id = Column(String(16), primary_key=True)
-    model_key = Column(String(64), nullable=False, default="", server_default="")
-    issue = Column(String(64), nullable=False, default="", server_default="")
-    style = Column(String(64), nullable=False, default="", server_default="")
-    region = Column(String(32), nullable=False, default="", server_default="")
+    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    model_key: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="", server_default=""
+    )
+    issue: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    style: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    region: Mapped[str] = mapped_column(String(32), nullable=False, default="", server_default="")
 
 
 class AssetChip(Base):
@@ -443,15 +463,15 @@ class AssetChip(Base):
     afterwards, which is the whole of what detaching a board moves."""
 
     __tablename__ = "asset_chip"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    asset_id = Column(String(16), index=True, nullable=False)
-    role = Column(String(32), nullable=False)
-    variant = Column(String(64), nullable=False, default="", server_default="")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    variant: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
     # Whether it sits in a socket or is soldered to the board -- the difference
     # between a chip that can be swapped to test a fault and one that means
     # desoldering forty pins. NULL is a chip recorded before the question was asked;
     # nothing claims a chip is soldered because nobody has said otherwise.
-    socketed = Column(Boolean, nullable=True)
+    socketed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
 
 class StoredFile(Base):
@@ -469,12 +489,12 @@ class StoredFile(Base):
     `filename` for the download to be called by, and never used as a path."""
 
     __tablename__ = "files"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    stored = Column(String(72), nullable=False, unique=True)
-    filename = Column(String(255), nullable=False)
-    size = Column(Integer, nullable=False, default=0)
-    note = Column(String(255), nullable=False, default="", server_default="")
-    created_at = Column(DateTime, index=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stored: Mapped[str] = mapped_column(String(72), nullable=False, unique=True)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
     # Whether a visitor may see this one at all.
     #
     # The other way up from projects.private, and on purpose. A project is a piece
@@ -483,7 +503,7 @@ class StoredFile(Base):
     # on them as readily as it holds a driver disk. So nothing is published until
     # somebody says it is, and the tick that says so is the only thing standing
     # between a scanned invoice and the open web (ADR-0009).
-    public = Column(Boolean, nullable=False, default=False, server_default="0")
+    public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
 
 class FileTag(Base):
@@ -496,12 +516,12 @@ class FileTag(Base):
     still only a tag."""
 
     __tablename__ = "file_tag"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    tag = Column(String(120), nullable=False)
-    fold = Column(String(120), nullable=False, index=True)
+    tag: Mapped[str] = mapped_column(String(120), nullable=False)
+    fold: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
 
 
 class FileAsset(Base):
@@ -515,11 +535,11 @@ class FileAsset(Base):
     than a reason to delete anything (ADR-0006)."""
 
     __tablename__ = "file_asset"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    asset_id = Column(String(16), nullable=False, index=True)
+    asset_id: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     __table_args__ = (UniqueConstraint("file_id", "asset_id", name="uq_file_asset_pair"),)
 
 
@@ -541,13 +561,13 @@ class FileModel(Base):
     change to how `filesdb.fold` folds must not quietly move a file."""
 
     __tablename__ = "file_model"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    file_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    kind = Column(String(16), nullable=False)
-    model_key = Column(String(160), nullable=False, index=True)
-    label = Column(String(255), nullable=False, default="", server_default="")
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    model_key: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    label: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     __table_args__ = (
         UniqueConstraint("file_id", "kind", "model_key", name="uq_file_model_triple"),
     )
@@ -559,11 +579,11 @@ class LogEntry(Base):
     it is a plain column rather than a foreign key to one table."""
 
     __tablename__ = "log_entry"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    asset_id = Column(String(16), index=True)
-    created_at = Column(DateTime, index=True)
-    kind = Column(String(16), default="change")
-    message = Column(Text, default="")
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[str | None] = mapped_column(String(16), index=True)
+    created_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+    kind: Mapped[str | None] = mapped_column(String(16), default="change")
+    message: Mapped[str | None] = mapped_column(Text, default="")
 
 
 class LogPhoto(Base):
@@ -590,11 +610,11 @@ class LogPhoto(Base):
     """
 
     __tablename__ = "log_photo"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    log_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    log_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("log_entry.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    rel = Column(String(255), nullable=False)
+    rel: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
 # --- projects: the work, as against the things it is done to -----------------
@@ -632,14 +652,16 @@ class Project(Base):
     and none of the three is inferred from another."""
 
     __tablename__ = "projects"
-    asset_id = Column(String(16), primary_key=True)
-    name = Column(String(255), nullable=False, default="", server_default="")
-    status = Column(String(16), nullable=False, default="planned", server_default="planned")
-    summary = Column(Text, default="")
-    notes = Column(Text, default="")
-    started_at = Column(Date)
-    target_date = Column(Date)
-    finished_at = Column(Date)
+    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="planned", server_default="planned"
+    )
+    summary: Mapped[str | None] = mapped_column(Text, default="")
+    notes: Mapped[str | None] = mapped_column(Text, default="")
+    started_at: Mapped[date | None] = mapped_column(Date)
+    target_date: Mapped[date | None] = mapped_column(Date)
+    finished_at: Mapped[date | None] = mapped_column(Date)
     # Whether this one is kept back from the public site.
     #
     # The register is a public catalogue with a login over the editing rather than
@@ -660,7 +682,9 @@ class Project(Base):
     # This replaces the `project` / `project_note` pair that computers and parts
     # carried, which said the same thing about an item rather than about the work
     # (see migration 0031).
-    private = Column(Boolean, nullable=False, default=False, server_default="0")
+    private: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
 
 
 class ProjectAsset(Base):
@@ -691,12 +715,12 @@ class ProjectAsset(Base):
 
     __tablename__ = "project_asset"
     __table_args__ = (UniqueConstraint("asset_id", name="uq_project_asset_item"),)
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(
         String(16), ForeignKey("projects.asset_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    asset_id = Column(String(16), nullable=False, index=True)
-    note = Column(String(255), nullable=False, default="", server_default="")
+    asset_id: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
 
 
 class ProjectTask(Base):
@@ -723,14 +747,14 @@ class ProjectTask(Base):
     The delete paths clear these by hand."""
 
     __tablename__ = "project_task"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(
         String(16), ForeignKey("projects.asset_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    asset_id = Column(String(16), index=True)
-    text = Column(Text, nullable=False, default="")
-    done = Column(Boolean, nullable=False, default=False, server_default="0")
-    done_at = Column(Date)
+    asset_id: Mapped[str | None] = mapped_column(String(16), index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    done: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+    done_at: Mapped[date | None] = mapped_column(Date)
 
 
 class ProjectOrder(Base):
@@ -758,17 +782,21 @@ class ProjectOrder(Base):
     things that exist."""
 
     __tablename__ = "project_order"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(
         String(16), ForeignKey("projects.asset_id", ondelete="CASCADE"), nullable=False, index=True
     )
-    description = Column(String(255), nullable=False, default="")
-    supplier = Column(String(255), nullable=False, default="", server_default="")
-    url = Column(Text, default="")
-    qty = Column(Integer, nullable=False, default=1, server_default="1")
-    cost_p = Column(Integer)
-    ordered_at = Column(Date)
-    expected_at = Column(Date)
-    delivered = Column(Boolean, nullable=False, default=False, server_default="0")
-    delivered_at = Column(Date)
-    note = Column(String(255), nullable=False, default="", server_default="")
+    description: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    supplier: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=""
+    )
+    url: Mapped[str | None] = mapped_column(Text, default="")
+    qty: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    cost_p: Mapped[int | None] = mapped_column(Integer)
+    ordered_at: Mapped[date | None] = mapped_column(Date)
+    expected_at: Mapped[date | None] = mapped_column(Date)
+    delivered: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    delivered_at: Mapped[date | None] = mapped_column(Date)
+    note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")

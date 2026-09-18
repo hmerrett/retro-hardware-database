@@ -32,13 +32,16 @@ database into step in one pass instead, and prints what it would change first.
 from __future__ import annotations
 
 import sys
+from typing import cast
+
+from sqlalchemy.orm import Session
 
 from . import entry, machinedb, machines, ramdb, specdb, specstruct
 from .db import SessionLocal
 from .models import Computer, Part
 
 
-def plan(db):
+def plan(db: Session) -> list[tuple[Part, str, str]]:
     """[(part, current specs, rendered specs)] for every part whose string differs."""
     out = []
     for part in db.query(Part).order_by(Part.asset_id).all():
@@ -48,10 +51,10 @@ def plan(db):
     return out
 
 
-def plan_memory(db):
+def plan_memory(db: Session) -> list[tuple[Computer, str, str, ramdb.Counts, ramdb.Counts]]:
     """[(computer, current, rendered)] for every machine whose memory cache differs
     from what its module and chip rows now say."""
-    out = []
+    out: list[tuple[Computer, str, str, ramdb.Counts, ramdb.Counts]] = []
     for c in db.query(Computer).order_by(Computer.asset_id).all():
         mods, chips = ramdb.read(db, c)
         kb = entry.ram_total_kb(mods, chips) or c.installed_ram_kb
@@ -69,7 +72,7 @@ def plan_memory(db):
     return out
 
 
-def plan_variant(db):
+def plan_variant(db: Session) -> list[tuple[Computer | Part, str, str]]:
     """[(asset, current, rendered)] for every machine and every board whose catalogue
     line differs from what its variant and chip rows now say.
 
@@ -82,9 +85,13 @@ def plan_variant(db):
     Both registers in one pass and in one list, because a board is filed against the
     same catalogue as the machine it came out of and goes stale with it -- renaming a
     model has to reach the Amiga 500 and the Amiga 500 board alike."""
-    out = []
+    out: list[tuple[Computer | Part, str, str]] = []
+    model: type[Computer] | type[Part]
     for model in (Computer, Part):
-        for obj in db.query(model).order_by(model.asset_id).all():
+        # One query per register, but the rows of both are the same thing to what
+        # follows; session.query() over a union of models widens them to Base.
+        rows = cast(list[Computer | Part], db.query(model).order_by(model.asset_id).all())
+        for obj in rows:
             v = machinedb.read(db, obj)
             rendered = machines.render(
                 v["model_key"], v["issue"], v["style"], v["region"], v["chips"]
@@ -94,7 +101,7 @@ def plan_variant(db):
     return out
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     write = "--write" in argv
     db = SessionLocal()

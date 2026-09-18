@@ -8,12 +8,17 @@ than one per photograph.
 
 from collections import Counter
 
+from sqlalchemy.orm import InstrumentedAttribute, Session
+
+from .forms import Posted
 from .history import PHOTO_ENTRY, add_log
 from .models import Computer, Part
 from .photos import _attach_log_photos, _chosen_photos
 
 
-def _answers_given(db, *columns, limit=200):
+def _answers_given(
+    db: Session, *columns: InstrumentedAttribute[str | None], limit: int = 200
+) -> list[str]:
     """Every answer already given to a free-text field, commonest first, for the
     pick list on the box that asks it.
 
@@ -42,7 +47,8 @@ def _answers_given(db, *columns, limit=200):
     Capped: this goes into the markup of every form that asks, and two hundred is
     already past what anybody scrolls.
     """
-    counts, spellings = Counter(), {}
+    counts: Counter[str] = Counter()
+    spellings: dict[str, Counter[str]] = {}
     for column in columns:
         for (value,) in db.query(column):
             text = (value or "").strip()
@@ -54,7 +60,7 @@ def _answers_given(db, *columns, limit=200):
     return [spellings[key].most_common(1)[0][0] for key, _ in counts.most_common(limit)]
 
 
-def _datalists(db, computer=False):
+def _datalists(db: Session, computer: bool = False) -> dict[str, list[str]]:
     """The pick lists a form's free-text boxes are offered, in one place because
     two forms ask several of the same questions.
 
@@ -74,7 +80,7 @@ def _datalists(db, computer=False):
     return lists
 
 
-def _note_with_photos(db, aid, form):
+def _note_with_photos(db: Session, aid: str, form: Posted) -> None:
     """Whatever the note bar was filled in with: words, photographs, or both.
 
     Neither half needs the other. Words alone are a note, as they always were.

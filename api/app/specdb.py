@@ -13,6 +13,10 @@ search and the REST/MCP wire format.
 
 from __future__ import annotations
 
+from typing import cast
+
+from sqlalchemy.orm import InstrumentedAttribute, Session
+
 from . import specstruct
 from .models import (
     CpuSpec,
@@ -20,6 +24,7 @@ from .models import (
     IoSpec,
     MotherboardSpec,
     NetworkSpec,
+    Part,
     PartAttribute,
     PartPort,
     PartRamSlot,
@@ -30,8 +35,25 @@ from .models import (
     VideoSpec,
 )
 
+# The one-row-per-part tables, and those plus the children a part can have many
+# of: named as types so that what every one of them has in common -- a part_id --
+# is something a reader and a type checker can both see.
+type ScalarSpec = (
+    MotherboardSpec
+    | CpuSpec
+    | RamSpec
+    | VideoSpec
+    | SoundSpec
+    | NetworkSpec
+    | IoSpec
+    | StorageSpec
+    | DisplaySpec
+)
+type SpecTable = ScalarSpec | PartSlot | PartRamSlot | PartPort | PartAttribute
+type CountedTable = PartSlot | PartRamSlot | PartPort
+
 # Which typed spec table backs each part type.
-SPEC_MODEL = {
+SPEC_MODEL: dict[str, type[ScalarSpec]] = {
     "motherboard": MotherboardSpec,
     "cpu": CpuSpec,
     "ram": RamSpec,
@@ -42,7 +64,13 @@ SPEC_MODEL = {
     "storage": StorageSpec,
     "display": DisplaySpec,
 }
-SPEC_TABLES = [*list(SPEC_MODEL.values()), PartSlot, PartRamSlot, PartPort, PartAttribute]
+SPEC_TABLES: list[type[SpecTable]] = [
+    *list(SPEC_MODEL.values()),
+    PartSlot,
+    PartRamSlot,
+    PartPort,
+    PartAttribute,
+]
 
 # CHS lives in three columns but travels as one tuple on the Struct.
 _CHS_COLS = ("chs_c", "chs_h", "chs_s")
@@ -55,7 +83,7 @@ _LIST_TABLES = (
 )
 
 
-def write(db, part):
+def write(db: Session, part: Part) -> None:
     """Keep the typed tables in step with a part's specs string, and canonicalise
     the string itself. Called on every part create/update; the part must already
     be flushed so its asset_id exists for the foreign key."""
@@ -63,22 +91,22 @@ def write(db, part):
     st = specstruct.parse(ptype, part.specs or "")
     part.specs = specstruct.format(ptype, st)
     aid = part.asset_id
-    for model in SPEC_TABLES:
-        db.query(model).filter(model.part_id == aid).delete(synchronize_session=False)
+    for table in SPEC_TABLES:
+        db.query(table).filter(table.part_id == aid).delete(synchronize_session=False)
     model = SPEC_MODEL.get(ptype)
     if model:
         cols = dict(st.scalars)
         if ptype == "storage" and st.chs:
             cols["chs_c"], cols["chs_h"], cols["chs_s"] = st.chs
         db.add(model(part_id=aid, **cols))
-    for model, attr, listname in _LIST_TABLES:
+    for child, attr, listname in _LIST_TABLES:
         for value, n in getattr(st, listname):
-            db.add(model(part_id=aid, **{attr: value}, count=n))
+            db.add(child(part_id=aid, **{attr: value}, count=n))
     for k, v in st.attributes:
         db.add(PartAttribute(part_id=aid, akey=k or "", avalue=v))
 
 
-def read(db, part) -> specstruct.Struct:
+def read(db: Session, part: Part) -> specstruct.Struct:
     """A part's structured specs from the typed tables -- the inverse of write().
 
     Children are ordered by insertion (id) so slots and ports keep the order they
@@ -102,7 +130,12 @@ def read(db, part) -> specstruct.Struct:
             for c in _CHS_COLS:
                 st.scalars.pop(c, None)
     for child, attr, listname in _LIST_TABLES:
-        rows = db.query(child).filter(child.part_id == aid).order_by(child.id).all()
+        # Queried with a class picked out of several, the rows come back typed as
+        # the base the three share, which is not where `count` is declared.
+        rows = cast(
+            "list[CountedTable]",
+            db.query(child).filter(child.part_id == aid).order_by(child.id).all(),
+        )
         setattr(st, listname, [(getattr(r, attr), r.count) for r in rows])
     st.attributes = [
         (r.akey, r.avalue)
@@ -114,33 +147,41 @@ def read(db, part) -> specstruct.Struct:
     return st
 
 
-def pairs(db, part, display=False):
+def pairs(db: Session, part: Part, display: bool = False) -> list[tuple[str, str]]:
     """Ordered (display key, rendered value) pairs for a part's spec table.
 
     `display` on is for a page or a label; off gives the edit form and the stored
     specs string values that parse back to the same numbers."""
-    return specstruct.pairs(part.type or "other", read(db, part), display)
+    rendered: list[tuple[str, str]] = specstruct.pairs(
+        part.type or "other", read(db, part), display
+    )
+    return rendered
 
 
-def scalars(db, part) -> dict:
+def scalars(db: Session, part: Part) -> dict[str, str | int]:
     """A part's typed scalar spec columns, keyed by column name."""
-    return read(db, part).scalars
+    cols: dict[str, str | int] = read(db, part).scalars
+    return cols
 
 
 # --- bulk lookups (constant queries, for list pages) -----------------------
 
 
-def column_by_part(db, model, column) -> dict:
+def column_by_part(
+    db: Session, model: type[ScalarSpec], column: InstrumentedAttribute[str | None]
+) -> dict[str, str | None]:
     """{part_id: value} for one typed column across every part, in one query --
     so a list page does not fall into a query per row."""
-    return dict(db.query(model.part_id, column).filter(column.isnot(None)).all())
+    # .tuples() is for the type checker rather than the database: it says the rows
+    # are the pairs dict() is being handed, and leaves the query itself alone.
+    return dict(db.query(model.part_id, column).filter(column.isnot(None)).tuples().all())
 
 
-def storage_kinds(db) -> dict:
+def storage_kinds(db: Session) -> dict[str, str | None]:
     """{part_id: Kind} for storage parts, for placeholder-icon routing."""
     return column_by_part(db, StorageSpec, StorageSpec.kind)
 
 
-def form_factors(db) -> dict:
+def form_factors(db: Session) -> dict[str, str | None]:
     """{part_id: Form factor} for motherboards."""
     return column_by_part(db, MotherboardSpec, MotherboardSpec.form_factor)

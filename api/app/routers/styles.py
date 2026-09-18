@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.get("/style/data.css", include_in_schema=False)
-def data_css(request: Request):
+def data_css(request: Request) -> Response:
     """The rules whose values are data. Public, like the stylesheet beside it: a
     page a stranger may read is a page they may read the styling of."""
     stamped = "v" in request.query_params
