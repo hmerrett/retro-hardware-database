@@ -1,0 +1,1470 @@
+// Everything the site does in the browser, in the order it was written in
+// base.html before it moved out here: the lightbox and the photo tools, the
+// autocomplete, the label scanner, the uploads, the banner and the phone's bar.
+//
+// Deferred, so it runs after the document is parsed -- which is where it ran when
+// it sat at the foot of the body. Each part looks for the elements it works on and
+// does nothing where they are absent, so one file serves every page.
+(function () {
+  const box = document.getElementById('lightbox');
+  const stage = document.getElementById('lb-stage');
+  const fit = document.getElementById('lb-fit');
+  const img = box.querySelector('img');
+  const prev = box.querySelector('.lb-prev');
+  const next = box.querySelector('.lb-next');
+  const tools = document.getElementById('lb-tools');
+  const tune = document.getElementById('lb-tune');
+  const untune = document.getElementById('lb-untune');
+  const cropLayer = document.getElementById('lb-crop');
+  const cropForm = document.getElementById('lb-crop-form');
+  const cropOn = document.getElementById('lb-crop-on');
+  const cropOff = document.getElementById('lb-crop-off');
+  const cropApply = document.getElementById('lb-crop-apply');
+  const del = document.getElementById('lb-delete');
+  const hint = document.getElementById('lb-hint');
+  const shots = Array.from(document.querySelectorAll('img.zoomable'));
+  if (!shots.length) return;
+
+  let idx = 0, sel = null, mode = null, startPt = null, startSel = null;
+
+  function current() { return shots[idx]; }
+
+  function show() {
+    const el = current();
+    stand(el);                  // something to look at until the original lands
+    img.src = el.dataset.full || el.src;
+    const multi = shots.length > 1;
+    prev.style.display = next.style.display = multi ? '' : 'none';
+    cropMode(false);
+    resetZoom();
+    if (tools) {
+      // Each photo carries where it lives, so one toolbar serves them all.
+      const d = el.dataset;
+      tools.style.display = d.rel ? '' : 'none';
+      const back = d.aid ? `/${d.kind}/${d.aid}?photo=${encodeURIComponent(d.rel)}` : '';
+      tools.querySelectorAll('form.lb-act').forEach(f => {
+        f.action = `/${d.kind}/${d.aid}/${f.dataset.act}`;
+        f.querySelector('[name=image]').value = d.rel || '';
+        // Not every tool has somewhere to come back to: see the delete form.
+        const nxt = f.querySelector('[name=next]');
+        if (nxt) nxt.value = back;
+      });
+      // Read off the photo itself, so stepping through them with the arrows
+      // shows the right one of the pair without asking the server again.
+      const kept = d.tuned === '1';
+      if (tune) tune.hidden = kept;
+      if (untune) untune.hidden = !kept;
+    }
+    if (hint) hint.textContent = multi ? `${idx + 1} of ${shots.length}` : '';
+  }
+  // Opened by hand, from a thumbnail: the photo grows out of the one that was
+  // clicked. Opened by the page itself -- coming back from a rotate with the same
+  // photograph still open -- there was no gesture and there is nothing to grow out
+  // of, so it is simply already there, as it was before the reload.
+  function open(i, from) {
+    idx = i;
+    // A trip home caught still running is abandoned rather than finished: what it
+    // promised was to put the overlay away, and the overlay is wanted open.
+    if (tween) tween.then = null;
+    going = false;
+    box.classList.add('open');
+    show();
+    if (from) arrive(from);
+  }
+  // The way out is back into the thumbnail, and out of the way only once it has
+  // arrived: the eye keeps hold of which of the photographs on the page this was.
+  function close() {
+    if (going) return;
+    cropMode(false);
+    goHome();
+  }
+  // The overlay actually put away. What the trip home ends with, and what stands
+  // in for the trip where there is no thumbnail to go to.
+  function shut() {
+    cropMode(false); resetZoom();
+    box.style.backgroundColor = '';
+    box.classList.remove('open'); img.src = '';
+    bare();
+    dragged = false; going = false;
+  }
+  function step(d) {
+    if (mode || going) return;
+    idx = (idx + d + shots.length) % shots.length;
+    show();
+  }
+
+  // --- crop, in fractions of the image so the overlay's size is irrelevant ---
+  // Cropping wants the whole photo in view and the drag to itself, so it starts
+  // from a photo zoomed back out.
+  function cropMode(on) {
+    sel = null; mode = null;
+    if (on) resetZoom();
+    stage.classList.toggle('cropping', on);
+    cropLayer.hidden = true;
+    if (cropForm) cropForm.hidden = !on;
+    if (cropOn) cropOn.hidden = on;
+    if (del) del.hidden = on;
+    if (cropApply) cropApply.disabled = true;
+  }
+  const clamp = v => Math.min(1, Math.max(0, v));
+  function ptFrac(e) {
+    const r = img.getBoundingClientRect();
+    return { x: clamp((e.clientX - r.left) / r.width),
+             y: clamp((e.clientY - r.top) / r.height) };
+  }
+  function render() {
+    const ok = sel && sel.w > 0.02 && sel.h > 0.02;
+    cropLayer.hidden = !sel;
+    cropApply.disabled = !ok;
+    if (!sel) return;
+    cropLayer.style.left = (sel.x * 100) + '%';
+    cropLayer.style.top = (sel.y * 100) + '%';
+    cropLayer.style.width = (sel.w * 100) + '%';
+    cropLayer.style.height = (sel.h * 100) + '%';
+    if (ok) {
+      cropForm.querySelector('[name=x]').value = sel.x.toFixed(4);
+      cropForm.querySelector('[name=y]').value = sel.y.toFixed(4);
+      cropForm.querySelector('[name=w]').value = sel.w.toFixed(4);
+      cropForm.querySelector('[name=h]').value = sel.h.toFixed(4);
+    }
+  }
+  if (cropOn) {
+    cropOn.addEventListener('click', () => cropMode(true));
+    cropOff.addEventListener('click', () => cropMode(false));
+    stage.addEventListener('pointerdown', e => {
+      if (!stage.classList.contains('cropping')) return;
+      const p = ptFrac(e);
+      if (sel && e.target === cropLayer.querySelector('.handle')) mode = 'resize';
+      else if (sel && e.target === cropLayer) {
+        mode = 'move'; startPt = p; startSel = Object.assign({}, sel);
+      } else { mode = 'draw'; startPt = p; sel = { x: p.x, y: p.y, w: 0, h: 0 }; }
+      stage.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    stage.addEventListener('pointermove', e => {
+      if (!mode) return;
+      const p = ptFrac(e);
+      if (mode === 'draw') {
+        sel = { x: Math.min(startPt.x, p.x), y: Math.min(startPt.y, p.y),
+                w: Math.abs(p.x - startPt.x), h: Math.abs(p.y - startPt.y) };
+      } else if (mode === 'resize') {
+        sel.w = Math.max(0.01, Math.min(1 - sel.x, p.x - sel.x));
+        sel.h = Math.max(0.01, Math.min(1 - sel.y, p.y - sel.y));
+      } else {
+        sel.x = Math.min(1 - startSel.w, Math.max(0, startSel.x + (p.x - startPt.x)));
+        sel.y = Math.min(1 - startSel.h, Math.max(0, startSel.y + (p.y - startPt.y)));
+      }
+      render();
+    });
+    stage.addEventListener('pointerup', () => {
+      if (mode === 'draw' && sel && (sel.w < 0.02 || sel.h < 0.02)) sel = null;
+      mode = null;
+      render();
+    });
+  }
+
+  // --- zoom ---------------------------------------------------------------
+  // The controls a photo viewer is expected to have: double-click or double-tap
+  // to go in and out, the wheel (or a trackpad pinch) and two fingers to choose
+  // how far, and a drag to move around once there is more photo than window.
+  // Kept out of the way of cropping, which wants the same drag for itself.
+  //
+  // And it moves like something with weight. A flick carries on and slows; an
+  // edge dragged past resists, and springs back when let go; a zoom that was
+  // asked for rather than dragged eases in rather than jumping. The sums are
+  // all in pixels and milliseconds, so they read the same whatever the frame
+  // rate turns out to be.
+  const MAX_ZOOM = 6, TAP_ZOOM = 2.5, STEP_ZOOM = 1.6;
+  const GLIDE = 0.998;   // of its speed a let-go photo keeps, per millisecond
+  const STOP = 0.06;     // px/ms -- 60 pixels a second, near enough to stopped
+  const SPRING = 0.02;   // rad/ms: the pull of an edge that was gone past
+  const PULL = 0.55;     // how hard that edge resisted going past in the first place
+  const GIVE = 0.3;      // and the most a pinch may stretch past the last of the zoom
+  const EASE = 300;      // ms for a zoom asked for by tap or key rather than dragged
+  const TRAVEL = 300;    // ms for the trip between a thumbnail and the big view
+  const CORNER = 8;      // px: the corner the big view's photo is cut with, as the CSS has it
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+
+  let scale = 1, tx = 0, ty = 0, vx = 0, vy = 0;
+  const held = new Map();
+  let pan = null, pinch = null, tap = null, lastTap = 0, lastKind = 'mouse';
+  // A flick away: how far along it the photo is, 0 to 1, and whether the gesture
+  // in hand has moved at all -- a drag that ends on the backdrop is not a click
+  // on the backdrop, whatever the browser makes of it.
+  //
+  // And where the press this click belongs to landed. A pan takes the pointer
+  // capture, and a captured pointer sends its click to the overlay whatever it
+  // was aimed at -- so a click on a zoomed photo arrives looking exactly like a
+  // click on the black behind it, which is the one click that means close.
+  let drag = null, dim = 0, dragged = false, downOn = null;
+  // The thumbnail this photograph belongs to, measured at the start of a trip to
+  // or from it, and how far into that trip the photo is: 0 out in the big view, 1
+  // sitting in the thumbnail's box and cut down to it. `going` is a trip home in
+  // progress, which nothing may interrupt -- a photo caught halfway home would
+  // hang there over a page it had already half uncovered.
+  let nest = null, crop = 0, cut = false, going = false, faded = -1;
+  let frame = null, mark = 0, tween = null, anchor = null, idle = null;
+  // A Safari trackpad gesture in progress, and how long ago the last one ended:
+  // it also sends wheels for the same fingers, and the wheels are to be ignored.
+  let gest = null, lastGest = -1e5;
+  const gesturing = () => !!gest || performance.now() - lastGest < 200;
+
+  const zoomed = () => scale > 1.001;
+  const cropping = () => stage.classList.contains('cropping');
+  function stageBox() { return stage.getBoundingClientRect(); }
+  // The photo's box before any of this ran, and the one every sum below works
+  // in: a transform leaves layout alone, so this is the same box at any zoom.
+  // Measured and divided back rather than read from offsetWidth, which rounds
+  // to whole pixels -- half a pixel there is half a pixel times the zoom here,
+  // and it shows as a hairline of backdrop against an edge said to be flush.
+  //
+  // Divided by the zoom it was last drawn at, which is not always the zoom it
+  // is about to be drawn at: cropping and stepping to the next photograph both
+  // set the zoom back to 1 and then ask where the photo goes, and dividing the
+  // old measurement by the new number said the photo was several times the size
+  // of the window -- so it was pinned to the left edge, being too big to centre.
+  let shown = 1;
+  function fitBox() {
+    const r = fit.getBoundingClientRect();
+    return { w: r.width / shown, h: r.height / shown };
+  }
+  // What it would take to fill the window -- 1 for a photo the shape of the
+  // window, more for one that opened with bands beside it or above and below.
+  function fillScale() {
+    const r = stageBox(), b = fitBox();
+    if (!b.w || !b.h) return 1;
+    return Math.max(1, Math.max(r.width / b.w, r.height / b.h));
+  }
+  // Far enough to fill the window, wherever that is further than the plain limit.
+  const ceiling = () => Math.max(MAX_ZOOM, fillScale());
+  function gap(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+  // Where the photo is allowed to sit, each axis in its own right: enlarged past
+  // the window it may be anywhere that still covers it and nowhere that would
+  // show a strip of backdrop down that side; still smaller than the window --
+  // which is where the bands beside a tall photo live -- it has one place, the
+  // middle, and min and max are the same number.
+  function limits(s) {
+    const r = stageBox(), b = fitBox();
+    const w = b.w * (s || scale), h = b.h * (s || scale);
+    const mid = (room, size) => ({ min: (room - size) / 2, max: (room - size) / 2 });
+    return {
+      x: w <= r.width ? mid(r.width, w) : { min: r.width - w, max: 0 },
+      y: h <= r.height ? mid(r.height, h) : { min: r.height - h, max: 0 },
+      w: r.width, h: r.height,
+    };
+  }
+  const pin = (v, l) => Math.min(l.max, Math.max(l.min, v));
+  // The give of a rubber band: the first pixels past the edge come easily and
+  // the rest come slower, so it can never be dragged further than a windowful
+  // and it is obvious the whole time that the edge is there.
+  const bend = (over, dim) => (1 - 1 / (over * PULL / dim + 1)) * dim;
+  function slack(v, l, dim) {
+    if (still.matches) return pin(v, l);
+    if (v > l.max) return l.max + bend(v - l.max, dim);
+    if (v < l.min) return l.min - bend(l.min - v, dim);
+    return v;
+  }
+  // The same give for a pinch past the last of the zoom, in proportion rather
+  // than in pixels, since that is how zoom is felt: a third again at the very
+  // most, however hard the fingers insist, and taken back on letting go.
+  function soften(want) {
+    const top = ceiling();
+    if (still.matches) return Math.min(top, Math.max(1, want));
+    if (want > top) return top * (1 + bend(want / top - 1, GIVE));
+    if (want < 1) return 1 - bend(1 - want, GIVE);
+    return want;
+  }
+
+  // Write the zoom out to the photo. (The crop overlay has a render of its own,
+  // further up: this one is the transform, that one is the selection box.)
+  function paint() {
+    fit.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    shown = scale;
+    clipTo();                   // and cut to the thumbnail's shape, if it is going there
+    // The backdrop goes with the photo on its way out, so what is being uncovered
+    // is the page it came from rather than a black sheet, and the buttons go with
+    // it. Only when it has actually changed, though: this is every frame of every
+    // pan and zoom as well, and none of those are uncovering anything.
+    if (dim !== faded) {
+      faded = dim;
+      box.style.backgroundColor = dim ? `rgba(0, 0, 0, ${(0.85 * (1 - dim)).toFixed(3)})` : '';
+      box.style.setProperty('--chrome', (1 - dim).toFixed(3));
+    }
+    stage.classList.toggle('zoomed', zoomed());
+    if (!zoomed()) stage.classList.remove('panning');
+  }
+  // Put the photo where it is allowed to be, this instant and with no argument:
+  // for the things that are not gestures at all, like a window being resized.
+  function applyZoom() {
+    const l = limits();
+    tx = pin(tx, l.x); ty = pin(ty, l.y);
+    paint();
+  }
+
+  // --- the moving of it ---------------------------------------------------
+  // One frame loop for both of the ways the photo moves on its own: gliding to
+  // a stop after a flick, and springing back from an edge it was dragged past.
+  // A gesture starting is what stops it -- catching a moving photo holds it.
+  function run() {
+    if (frame === null) { mark = performance.now(); frame = requestAnimationFrame(tick); }
+  }
+  // Stop where it stands. A trip home cut short here is still finished, though:
+  // the overlay is put away by the `then` the trip carries, and dropping that on
+  // the floor left `going` true with nothing left running to ever clear it --
+  // and `going` is what makes the photo uninterruptible, so the big view stayed
+  // up with a photo frozen halfway home and every way out of it refusing.
+  function halt() {
+    if (frame !== null) cancelAnimationFrame(frame);
+    clearTimeout(idle);
+    const done = tween && tween.then;
+    frame = null; tween = null; idle = null; vx = vy = 0;
+    if (done) done();
+  }
+  function tick(now) {
+    // A dropped frame or a backgrounded tab must not fling the photo across the
+    // window, so no step is ever worth more than two frames of movement.
+    const dt = Math.min(32, Math.max(1, now - mark));
+    mark = now;
+    frame = null;
+    const busy = tween ? tweening(now) : gliding(dt);
+    paint();
+    if (busy) frame = requestAnimationFrame(tick);
+  }
+  // Friction while it is within its bounds, and a critically damped spring --
+  // one that returns and does not wobble -- while it is past them.
+  function drift(p, v, l, dt) {
+    const edge = p > l.max ? l.max : p < l.min ? l.min : null;
+    if (edge !== null) {
+      v += (-(SPRING * SPRING) * (p - edge) - 2 * SPRING * v) * dt;
+      p += v * dt;
+      // Within a pixel and barely moving is arrived: the tail of a spring is
+      // otherwise a long crawl through distances nobody can see.
+      if (Math.abs(p - edge) < 0.75 && Math.abs(v) < 0.05) return { p: edge, v: 0 };
+    } else {
+      v *= Math.pow(GLIDE, dt);
+      p += v * dt;
+      if (Math.abs(v) < STOP) v = 0;
+    }
+    return { p, v };
+  }
+  function gliding(dt) {
+    const l = limits();
+    const a = drift(tx, vx, l.x, dt), b = drift(ty, vy, l.y, dt);
+    tx = a.p; vx = a.v; ty = b.p; vy = b.v;
+    return !!(vx || vy) || tx !== pin(tx, l.x) || ty !== pin(ty, l.y);
+  }
+  // Zooms that were asked for, which have somewhere definite to arrive: out of
+  // the gate quickly and slowing into place, the way a thing being put down does.
+  const easing = t => 1 - Math.pow(1 - t, 3);
+  function tweening(now) {
+    const t = Math.min(1, (now - tween.at) / tween.ms), k = easing(t);
+    const at = (a, b) => a + (b - a) * k;
+    scale = at(tween.from.scale, tween.to.scale);
+    tx = at(tween.from.tx, tween.to.tx);
+    ty = at(tween.from.ty, tween.to.ty);
+    dim = at(tween.from.dim || 0, tween.to.dim || 0);
+    crop = at(tween.from.crop || 0, tween.to.crop || 0);
+    if (t < 1) return true;
+    const done = tween.then;
+    tween = null;
+    if (done) done();
+    return false;
+  }
+  function glideTo(to, ms, then) {
+    halt();
+    if (still.matches || !ms) {
+      scale = to.scale; tx = to.tx; ty = to.ty; dim = to.dim || 0; crop = to.crop || 0;
+      applyZoom();
+      if (then) then();
+      return;
+    }
+    tween = { from: here(), to: to, at: performance.now(), ms: ms, then: then };
+    run();
+  }
+
+  // Where a zoom about a point on screen ends up: whatever was under the point
+  // stays under it, as far as the photo's own bounds allow.
+  function aimAt(want, cx, cy, from) {
+    const r = stageBox();
+    const next = Math.min(ceiling(), Math.max(1, want));
+    const k = next / from.scale;
+    const l = limits(next);
+    return {
+      scale: next,
+      tx: pin((cx - r.left) - ((cx - r.left) - from.tx) * k, l.x),
+      ty: pin((cy - r.top) - ((cy - r.top) - from.ty) * k, l.y),
+    };
+  }
+  const here = () => ({ scale: scale, tx: tx, ty: ty, dim: dim, crop: crop });
+  const fitted = () => {
+    const l = limits(1);
+    return { scale: 1, tx: l.x.min, ty: l.y.min, dim: 0, crop: 0 };
+  };
+  // Straight there, for the wheel and the pinch: they are being turned by hand,
+  // and easing something already under the hand only makes it feel loose.
+  function zoomAbout(want, cx, cy, from, driftX, driftY) {
+    halt();
+    const r = stageBox();
+    const next = soften(want);
+    const k = next / from.scale;
+    const nx = (cx - r.left) - ((cx - r.left) - from.tx) * k + (driftX || 0);
+    const ny = (cy - r.top) - ((cy - r.top) - from.ty) * k + (driftY || 0);
+    scale = next;
+    const l = limits();
+    tx = slack(nx, l.x, l.w); ty = slack(ny, l.y, l.h);
+    paint();
+  }
+  // The wheel has no letting go to wait for, so it gets no give: it arrives at
+  // the limits and stops there, rather than stretching past and springing back.
+  function wheelZoom(factor, cx, cy) {
+    const to = aimAt(scale * factor, cx, cy, here());
+    halt();
+    scale = to.scale; tx = to.tx; ty = to.ty;
+    paint();
+  }
+  function resetZoom() {
+    halt();
+    scale = 1; tx = 0; ty = 0; dim = 0; crop = 0;
+    pan = pinch = tap = drag = nest = null;
+    applyZoom();
+  }
+  // Letting go: anything pinched past the end of the zoom is eased back to it
+  // about the same spot, and anything else is handed to the frame loop, which
+  // has the flick to carry on and the edges to answer for.
+  function settle() {
+    const r = stageBox();
+    const at = anchor || { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    const top = ceiling();
+    if (scale > top || scale < 1) glideTo(aimAt(scale, at.x, at.y, here()), 260);
+    else run();
+  }
+  // --- flicking it away ----------------------------------------------------
+  // A photo at its own size on a phone is not on a page you can leave, so the
+  // way out is the way out of anything on iOS: push it off the screen. It comes
+  // with the finger, shrinking and letting the page behind show through as it
+  // goes, and it goes back if the finger changes its mind. Zoomed in the same
+  // drag is how the photo is moved about, so this is for the fitted one only.
+  //
+  // Off the screen is not where it ends up, though, and which edge it was pushed
+  // towards stops mattering the moment it is let go: it has one place to be, and
+  // that is the thumbnail it came out of. The next section is the trip there.
+  const AWAY = 90;       // px down or up past which letting go lets it go
+  const FLICK = 0.5;     // px/ms -- or this fast, however far it got
+  function away(dx, dy) {
+    const t = Math.min(1, Math.abs(dy) / 500);
+    const s = 1 - 0.3 * t;
+    const l = limits(s);
+    scale = s;
+    tx = l.x.min + dx * 0.5;   // it follows sideways as well, at half the rate
+    ty = l.y.min + dy;
+    dim = t;
+    paint();
+  }
+
+  // --- there and back ------------------------------------------------------
+  // The big view opens out of the thumbnail that was clicked and shuts back into
+  // it, and a photo let go of goes there rather than on off the edge of the
+  // screen: one photograph moving between two places on the page, instead of a
+  // black sheet with a picture on it appearing over the top of everything. Both
+  // ways are the same sums and the same tween the zoom itself uses.
+  //
+  // A thumbnail crops what it shows -- 150 by 110 of a photograph that is neither
+  // -- so shrinking the photo onto one is not enough on its own: it has to be cut
+  // down to the thumbnail's shape on the way, or it would arrive the wrong shape
+  // and change shape on landing. That is what `crop` is for.
+
+  // The thumbnail's box, in the numbers the transform wants: the zoom that puts
+  // the photo in it, where that leaves the photo's top-left corner, how much of
+  // the photo the box does not show, and the corner the box is cut with. Measured
+  // when the trip starts rather than when the photo opened, because the page may
+  // have been scrolled in between.
+  function nestAt(el) {
+    const r = el.getBoundingClientRect(), b = fitBox(), s = stageBox();
+    if (!r.width || !r.height || !b.w || !b.h) return null;
+    const cs = getComputedStyle(el);
+    // A thumbnail that crops (object-fit: cover, which is the strip and the log)
+    // shows the middle of the photograph at whatever zoom fills its box. One that
+    // fits the whole photograph in (the main photo, which is contain) shows all of
+    // it, smaller, with the box's spare width or height left over either side --
+    // and it is the picture the photo has to land on rather than the box, so the
+    // zoom is the smaller of the two instead.
+    const fills = cs.objectFit !== 'contain';
+    const k = fills ? Math.max(r.width / b.w, r.height / b.h)
+                    : Math.min(r.width / b.w, r.height / b.h);
+    return {
+      scale: k,
+      tx: (r.left + r.width / 2 - s.left) - b.w * k / 2,
+      ty: (r.top + r.height / 2 - s.top) - b.h * k / 2,
+      cutX: Math.max(0, (b.w - r.width / k) / 2),
+      cutY: Math.max(0, (b.h - r.height / k) / 2),
+      round: parseFloat(cs.borderTopLeftRadius) || 0,
+    };
+  }
+  // The cut itself, written out with the transform each frame. Nothing at all is
+  // cut at crop 0, and nothing may be: an inset of nought still clips, and the
+  // shadow the photo casts in the big view lies outside its own box.
+  function clipTo() {
+    if (!nest || crop <= 0) {
+      if (cut) { fit.style.clipPath = 'none'; cut = false; }
+      return;
+    }
+    const x = nest.cutX * crop, y = nest.cutY * crop;
+    // The corner is wanted in pixels on the screen -- the big view's own eight out
+    // here, the thumbnail's once home -- and this is drawn inside a transform that
+    // multiplies it by whatever zoom the photo is at on the way.
+    const r = (CORNER + (nest.round - CORNER) * crop) / (scale || 1);
+    fit.style.clipPath = `inset(${y.toFixed(2)}px ${x.toFixed(2)}px round ${r.toFixed(2)}px)`;
+    cut = true;
+  }
+  // Where this photograph goes home to: its own thumbnail, which after a walk
+  // through the arrows is not the one the big view was opened on. A thumbnail
+  // scrolled off the page is put back on it first -- under a backdrop that is
+  // still up, so there is nothing of that to see, and it leaves the photo
+  // somewhere to go and the page showing what was being looked at.
+  function homeward() {
+    if (still.matches) return null;
+    const el = current();
+    const r = el.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > innerHeight) el.scrollIntoView({ block: 'center' });
+    nest = nestAt(el);
+    if (!nest) return null;
+    return { scale: nest.scale, tx: nest.tx, ty: nest.ty, dim: 1, crop: 1 };
+  }
+  // Home, and then away. The one way out of the big view, whether the photo was
+  // flicked, clicked away or dismissed with a key.
+  function goHome() {
+    const home = homeward();
+    if (!home) { shut(); return; }
+    going = true;
+    glideTo(home, TRAVEL, shut);
+  }
+  // And the same trip the other way round, on opening.
+  function arrive(el) {
+    if (still.matches) return;
+    // Nothing to see, nothing to move. A thumbnail still being decoded -- one just
+    // scrolled to and tapped inside the same moment -- leaves no stand-in behind
+    // the photo, and an original that has not arrived yet leaves nothing in front
+    // of it: the trip would be an empty box growing out of a thumbnail, which is
+    // worse than simply being open, and being open is what this did before any of
+    // it. The photo lands the moment it has loaded, as it always did.
+    if (!fit.style.backgroundImage && !(img.complete && img.naturalWidth)) return;
+    const to = fitted();
+    nest = nestAt(el);
+    if (!nest) return;
+    scale = nest.scale; tx = nest.tx; ty = nest.ty; dim = 1; crop = 1;
+    paint();
+    glideTo(to, TRAVEL);
+  }
+  // Something to look at from the first frame. The original is the whole
+  // photograph, three or four thousand pixels of it, and a trip out of a thumbnail
+  // cannot start on an empty box -- so the thumbnail's own copy stands in behind
+  // the photo, stretched to the size the photo is about to be, until the original
+  // paints over it. The size has to be said out loud in pixels: an <img> with
+  // nothing loaded yet has no size of its own, and every sum here is measured off
+  // the box. The copies keep the photograph's shape, so the stand-in fills that
+  // box exactly rather than having to be cropped to it.
+  function stand(el) {
+    const a = el.naturalWidth && el.naturalHeight ? el.naturalWidth / el.naturalHeight : 0;
+    const r = stageBox();
+    if (!a || !r.width) { bare(); return; }
+    const w = Math.min(r.width, r.height * a);
+    img.style.width = w + 'px';
+    img.style.height = (w / a) + 'px';
+    fit.style.backgroundImage =
+      `url("${(el.currentSrc || el.src).replace(/["\\]/g, '\\$&')}")`;
+  }
+  // The stand-in taken away, once the photograph itself is there to be measured.
+  function bare() {
+    img.style.width = img.style.height = '';
+    fit.style.backgroundImage = '';
+  }
+
+  // In goes at least far enough to fill the window, so a double tap on a tall
+  // photo spends the bands either side of it rather than magnifying them.
+  function toggleZoom(cx, cy) {
+    if (zoomed()) glideTo(fitted(), EASE);
+    else glideTo(aimAt(Math.max(TAP_ZOOM, fillScale()), cx, cy, here()), EASE);
+  }
+  function zoomKeys(factor) {
+    const r = stageBox();
+    glideTo(aimAt(scale * factor, r.left + r.width / 2, r.top + r.height / 2, here()), 220);
+  }
+
+  // Mice only: a phone that reports a double tap as a double click as well would
+  // otherwise zoom in on the tap and straight back out on the click.
+  //
+  // On the overlay rather than on the stage, because panning a zoomed photo holds
+  // the pointer capture and a captured pointer's double click is delivered to the
+  // overlay -- so the stage never heard the one double click that matters, the one
+  // asking to come back out of a zoom. It went in and would not come out.
+  box.addEventListener('dblclick', e => {
+    if (cropping() || lastKind !== 'mouse') return;
+    if (e.target.closest('button, #lb-tools')) return;
+    e.preventDefault();
+    toggleZoom(e.clientX, e.clientY);
+  });
+  // Two fingers on a trackpad, moving the photo about the way two fingers move
+  // anything on a Mac. The system sends its own momentum after the fingers
+  // lift, so there is nothing to add here but the edges. It ends when the
+  // events stop coming: a scroll has no letting go to be told about.
+  function wheelPan(dx, dy) {
+    halt();
+    const l = limits();
+    tx = slack(tx - dx, l.x, l.w);
+    ty = slack(ty - dy, l.y, l.h);
+    paint();
+    idle = setTimeout(() => { anchor = null; settle(); }, 120);
+  }
+  box.addEventListener('wheel', e => {
+    if (cropping()) return;
+    // Always, whatever comes of it: a sideways scroll left alone is Safari's
+    // swipe back to the previous page, and ctrl or cmd with one is the browser
+    // zooming the page, scrollbars, banner and all.
+    e.preventDefault();
+    if (going) return;         // a photo on its way home is not to be caught
+    if (gesturing()) return;   // Safari sends gestures and wheels both; take one
+    // Lines and pages to pixels first, or a wheel that reports in lines would
+    // creep while one reporting in pixels jumps.
+    const px = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+    const dx = e.deltaX * px, dy = e.deltaY * px;
+    // A pinch on a trackpad arrives as ctrl+wheel, whatever the keyboard is
+    // doing, and cmd+scroll is how a Mac has always asked to zoom in.
+    if (e.ctrlKey || e.metaKey) wheelZoom(Math.exp(-dy * 0.01), e.clientX, e.clientY);
+    // Zoomed in, two fingers move about the photo, as they would move about
+    // anything else. Zoomed out there is nothing to move about, so they are
+    // still the way in -- which is also the wheel a mouse has.
+    else if (zoomed()) wheelPan(dx, dy);
+    else wheelZoom(Math.exp(-dy * 0.0025), e.clientX, e.clientY);
+  }, { passive: false });
+
+  // Safari's own way of reporting a trackpad pinch, which it sends instead of
+  // the ctrl+wheel the others send. Non-standard and WebKit-only, so it is an
+  // addition to that rather than a replacement for it.
+  //
+  // iOS sends these for a two-finger pinch as well, on top of the pointer
+  // events already handling it -- hence the check for fingers down, which a
+  // trackpad has none of and a phone always has two.
+  box.addEventListener('gesturestart', e => {
+    if (cropping() || held.size || going) return;
+    e.preventDefault();
+    halt();
+    gest = { scale: scale, tx: tx, ty: ty, x: e.clientX, y: e.clientY };
+    anchor = { x: e.clientX, y: e.clientY };
+  });
+  box.addEventListener('gesturechange', e => {
+    if (!gest) return;
+    e.preventDefault();
+    zoomAbout(gest.scale * e.scale, gest.x, gest.y, gest);
+  });
+  function gestureOver(e) {
+    if (!gest) return;
+    if (e) e.preventDefault();
+    gest = null;
+    lastGest = performance.now();
+    settle();
+    anchor = null;
+  }
+  box.addEventListener('gestureend', gestureOver);
+  // A photo is draggable to a browser by default, which fights panning.
+  img.addEventListener('dragstart', e => e.preventDefault());
+
+  box.addEventListener('pointerdown', e => {
+    if (cropping() || going) return;   // a photo on its way home is not to be caught
+    downOn = e.target;
+    // The chrome answers for its own presses. Taking the capture below would send
+    // their clicks to the overlay instead, leaving the close button and the
+    // toolbar dead for as long as the photo was zoomed in.
+    if (e.target.closest('button, #lb-tools')) return;
+    lastKind = e.pointerType || 'mouse';
+    halt();                       // a finger on a moving photo stops it
+    dragged = false;              // this gesture has not moved anywhere yet
+    held.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (held.size === 2) {
+      // A second finger means a pinch, not a flick away: put back whatever the
+      // first one had started before taking the zoom from where it really is.
+      if (drag) { drag = null; dim = 0; scale = 1; applyZoom(); }
+      const [a, b] = [...held.values()];
+      pinch = { d: gap(a, b), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2,
+                scale: scale, tx: tx, ty: ty };
+      anchor = { x: pinch.cx, y: pinch.cy };
+      pan = tap = null;
+    } else if (held.size === 1) {
+      tap = e.pointerType === 'mouse' ? null : { x: e.clientX, y: e.clientY };
+      if (zoomed()) {
+        pan = { x: e.clientX, y: e.clientY, tx: tx, ty: ty,
+                px: e.clientX, py: e.clientY, t: e.timeStamp };
+        stage.classList.add('panning');
+      } else if (e.pointerType !== 'mouse') {
+        // A mouse is left out: it has a corner to click and a key to press, and
+        // a dragged mouse here has always meant nothing at all.
+        drag = { x: e.clientX, y: e.clientY, py: e.clientY, t: e.timeStamp, axis: null };
+      }
+    }
+    // Capture so a drag that leaves the photo keeps panning it. Touch does this
+    // of its own accord, and a pointer can be gone before we ask -- which is no
+    // loss, since a tap that quick had nothing to pan with.
+    if (pan || pinch || drag) {
+      try { box.setPointerCapture(e.pointerId); } catch (err) { /* gone */ }
+    }
+  });
+  box.addEventListener('pointermove', e => {
+    if (!held.has(e.pointerId)) return;
+    held.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (tap && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) > 12) tap = null;
+    if (drag && held.size === 1) {
+      const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      // Which gesture this is gets decided once, at the first movement worth
+      // reading, and then stays decided: sideways is the next photograph, and
+      // is left to the swipe below, which asks the same question of the whole
+      // gesture at the end of it.
+      if (!drag.axis && Math.hypot(dx, dy) > 10) {
+        drag.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      }
+      if (drag.axis === 'y') {
+        const dt = e.timeStamp - drag.t;
+        if (dt > 0) {
+          vy = vy * 0.2 + ((e.clientY - drag.py) / dt) * 0.8;
+          drag.py = e.clientY; drag.t = e.timeStamp;
+        }
+        drag.dy = dy;
+        dragged = true;
+        away(dx, dy);
+        e.preventDefault();
+        return;
+      }
+    }
+    if (pinch && held.size >= 2) {
+      const [a, b] = [...held.values()];
+      if (!pinch.d) return;
+      // The gesture is measured from where it began, so a pinch that wanders
+      // does not drift, and moving both fingers together pans.
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      zoomAbout(pinch.scale * gap(a, b) / pinch.d, pinch.cx, pinch.cy, pinch,
+                mx - pinch.cx, my - pinch.cy);
+      e.preventDefault();
+    } else if (pan) {
+      dragged = true;
+      const l = limits();
+      tx = slack(pan.tx + (e.clientX - pan.x), l.x, l.w);
+      ty = slack(pan.ty + (e.clientY - pan.y), l.y, l.h);
+      // How fast the hand is going, mostly by the last of it: what a flick is
+      // worth is what it was doing as it left, not its average on the way.
+      const dt = e.timeStamp - pan.t;
+      if (dt > 0) {
+        vx = vx * 0.2 + ((e.clientX - pan.px) / dt) * 0.8;
+        vy = vy * 0.2 + ((e.clientY - pan.py) / dt) * 0.8;
+        pan.px = e.clientX; pan.py = e.clientY; pan.t = e.timeStamp;
+      }
+      paint();
+      e.preventDefault();
+    }
+  });
+  function letGo(e) {
+    if (!held.has(e.pointerId)) return;
+    const wasPanning = !!pan, wasPinch = !!pinch;
+    const flick = drag && drag.axis === 'y' ? drag : null;
+    const restedAt = pan ? pan.t : 0;   // when the hand last actually moved
+    held.delete(e.pointerId);
+    if (!held.size) drag = null;
+    if (flick && !held.size) {
+      const dy = flick.dy || 0;
+      const rested = e.timeStamp - flick.t > 80;   // stopped before it let go
+      const gone = e.type === 'pointerup'
+        && (Math.abs(dy) > AWAY || (!rested && Math.abs(vy) > FLICK));
+      tap = null;
+      if (gone) goHome();
+      else { vy = 0; glideTo(fitted(), 260); }
+      stage.classList.remove('panning');
+      return;
+    }
+    if (held.size < 2) pinch = null;
+    if (!held.size) { pan = null; stage.classList.remove('panning'); }
+    // Double-tap, the touch counterpart of a double-click: two taps in the same
+    // spot in quick succession, and no pinch in between.
+    if (tap && !wasPinch && e.type === 'pointerup') {
+      if (e.timeStamp - lastTap < 350) { lastTap = 0; toggleZoom(e.clientX, e.clientY); }
+      else lastTap = e.timeStamp;
+    }
+    tap = null;
+    if (!held.size && !tween) {
+      // A hand that had come to rest before it let go was not a flick, whatever
+      // it was doing a moment before that.
+      if (wasPanning && e.timeStamp - restedAt > 80) { vx = 0; vy = 0; }
+      if (still.matches) applyZoom();
+      else settle();
+      anchor = null;
+    }
+  }
+  box.addEventListener('pointerup', letGo);
+  box.addEventListener('pointercancel', letGo);
+  // The stage is sized in vw/vh, so a turn of the phone changes what the photo
+  // is being centred in and can leave a zoomed one parked outside its bounds.
+  addEventListener('resize', () => { halt(); applyZoom(); });
+  // A photo's size is not known until it has loaded, and the centring is worked
+  // out from it -- so it is worked out again once there is something to measure,
+  // and the thumbnail standing in for it in the meantime is taken away. Not the
+  // centring mid-trip, though: on its way out of a thumbnail the photo is nowhere
+  // near the middle of the window on purpose, and putting it there would snatch it
+  // out of the air.
+  img.addEventListener('load', () => {
+    bare();
+    if (tween) paint(); else applyZoom();
+  });
+
+  // --- getting about ------------------------------------------------------
+  // The photo itself is the way in -- there is no separate button for it, so it
+  // answers to the keyboard as well as to a click or a tap.
+  shots.forEach((el, i) => {
+    el.addEventListener('click', () => open(i, el));
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(i, el); }
+    });
+  });
+  prev.addEventListener('click', e => { e.stopPropagation(); step(-1); });
+  next.addEventListener('click', e => { e.stopPropagation(); step(1); });
+  box.querySelector('.lb-close').addEventListener('click', close);
+  box.addEventListener('click', e => {
+    if (!dragged && e.target === box && downOn === box) close();
+  });
+  // The stage reaches beyond the photo now, so the black beside a tall one is
+  // the stage rather than the backdrop -- and a click there still closes, as it
+  // did when that click landed on the backdrop itself. Not while zoomed, where
+  // the same click is the end of a drag.
+  stage.addEventListener('click', e => {
+    if (dragged) return;          // the end of a drag, not a click on the black
+    if (e.target !== img && !cropping() && !zoomed()) close();
+  });
+  // Zoomed in, the arrows move about the photo rather than off it -- 0 zooms back
+  // out and hands them back. + and - are there for a keyboard with no wheel.
+  function nudge(dx, dy) {
+    const l = limits();
+    glideTo({ scale: scale, tx: pin(tx + dx, l.x), ty: pin(ty + dy, l.y) }, 180);
+  }
+  document.addEventListener('keydown', e => {
+    if (!box.classList.contains('open') || going) return;
+    if (e.key === 'Escape') { cropping() ? cropMode(false) : close(); }
+    else if (e.key === '+' || e.key === '=') zoomKeys(STEP_ZOOM);
+    else if (e.key === '-' || e.key === '_') zoomKeys(1 / STEP_ZOOM);
+    else if (e.key === '0') glideTo(fitted(), EASE);
+    else if (e.key === 'ArrowLeft') zoomed() ? nudge(60, 0) : step(-1);
+    else if (e.key === 'ArrowRight') zoomed() ? nudge(-60, 0) : step(1);
+    else if (e.key === 'ArrowUp' && zoomed()) nudge(0, 60);
+    else if (e.key === 'ArrowDown' && zoomed()) nudge(0, -60);
+    else return;
+    e.preventDefault();
+  });
+  // A swipe moves between photos, but not while a crop is being dragged out, and
+  // not zoomed in, where one finger is how the photo is moved about instead.
+  let touch = null;
+  box.addEventListener('touchstart', e => {
+    touch = e.touches.length === 1 && e.changedTouches[0]
+      ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : null;
+  }, { passive: true });
+  box.addEventListener('touchend', e => {
+    if (!touch || cropping() || zoomed()) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touch.x, dy = t.clientY - touch.y;
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) step(dx < 0 ? 1 : -1);
+    touch = null;
+  }, { passive: true });
+
+  // Arriving from a rotate or a crop: reopen on the photo just edited. Already
+  // open, as far as anyone watching is concerned, so it opens where it was rather
+  // than climbing out of its thumbnail again.
+  const want = new URLSearchParams(location.search).get('photo');
+  if (want) {
+    const at = shots.findIndex(el => (el.dataset.rel || '') === want);
+    if (at >= 0) open(at);
+  }
+})();
+
+
+// The first few matches, offered while you are still typing. The server does the
+// matching -- the same match Enter performs, over every field and the history --
+// because no page but the gallery has the catalogue to search, and the gallery's
+// own copy carries none of the prose or history that the search reads.
+(function () {
+  const box = document.getElementById('q');
+  const list = document.getElementById('suggest');
+  if (!box || !list) return;
+
+  const MIN = 2;          // one letter matches most of the register: not a list
+  const WAIT = 140;       // long enough that a typed word is one request, not six
+  let timer = null, pending = null, rows = [], at = -1, last = null;
+
+  function close() {
+    list.hidden = true;
+    list.innerHTML = '';
+    box.setAttribute('aria-expanded', 'false');
+    box.removeAttribute('aria-activedescendant');
+    rows = []; at = -1;
+  }
+  // Belt and braces against a query arriving as markup: the text goes in as text,
+  // and the only attribute built from data is a URL this server itself minted.
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function highlight(i) {
+    if (at >= 0 && rows[at]) rows[at].setAttribute('aria-selected', 'false');
+    at = i;
+    if (at >= 0 && rows[at]) {
+      rows[at].setAttribute('aria-selected', 'true');
+      box.setAttribute('aria-activedescendant', rows[at].id);
+      rows[at].scrollIntoView({ block: 'nearest' });
+    } else {
+      box.removeAttribute('aria-activedescendant');
+    }
+  }
+
+  function draw(data) {
+    list.innerHTML = '';
+    rows = []; at = -1;
+    if (!data.items.length) {
+      list.appendChild(el('div', 'sg-none', 'Nothing matches that.'));
+    }
+    data.items.forEach(function (it, i) {
+      const a = el('a', 'sg');
+      a.href = it.url;
+      a.id = 'sg-' + i;
+      a.setAttribute('role', 'option');
+      a.setAttribute('aria-selected', 'false');
+      const img = el('img');
+      img.src = it.img || it.icon;
+      if (!it.img) img.className = 'ph';
+      img.alt = '';
+      img.loading = 'lazy';
+      a.appendChild(img);
+      const t = el('div', 't');
+      t.appendChild(el('div', 'nm', it.name));
+      // What tells two similar boards apart at a glance, in the order you would
+      // read it out: the tag, what kind of thing it is, and when it is from.
+      const bits = [it.aid, it.cat];
+      if (it.year) bits.push(it.year);
+      if (it.disposed) bits.push('disposed');
+      t.appendChild(el('div', 'sub', bits.join(' · ')));
+      a.appendChild(t);
+      // Choosing with the pointer moves the same marker the keys move, so what is
+      // lit is always what opens.
+      a.addEventListener('mousemove', function () { highlight(i); });
+      list.appendChild(a);
+      rows.push(a);
+    });
+    if (data.total > data.items.length) {
+      const more = el('a', 'sg-more',
+        'and ' + (data.total - data.items.length) + ' more — press Enter for all '
+        + data.total);
+      more.href = '/?q=' + encodeURIComponent(data.q);
+      list.appendChild(more);
+    }
+    list.hidden = false;
+    box.setAttribute('aria-expanded', 'true');
+  }
+
+  function ask() {
+    const query = box.value.trim();
+    if (query.length < MIN) { close(); last = null; return; }
+    if (query === last && !list.hidden) return;
+    last = query;
+    // Only the newest question is worth an answer: a reply to a prefix typed
+    // three keystrokes ago would otherwise overwrite the list for what is in the
+    // box now, and does, on a slow connection.
+    if (pending) pending.abort();
+    const ctl = new AbortController();
+    pending = ctl;
+    fetch('/suggest?q=' + encodeURIComponent(query), { signal: ctl.signal })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (ctl !== pending || !data) return;
+        pending = null;
+        if (box.value.trim() !== query) return;   // typed on while it was in flight
+        draw(data);
+      })
+      .catch(function () { /* aborted, offline: leave the list as it stands */ });
+  }
+
+  box.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(ask, WAIT);
+  });
+  // Coming back to a box that already holds a word: offer the list again without
+  // making them retype a character to see it.
+  box.addEventListener('focus', function () { if (box.value.trim().length >= MIN) ask(); });
+
+  box.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (!list.hidden) { e.preventDefault(); e.stopPropagation(); close(); }
+      return;
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (list.hidden || !rows.length) return;
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      // Off either end returns to the typed text, which is how a list you have
+      // arrowed into by mistake is escaped without losing what you wrote.
+      const next = at + step;
+      highlight(next < -1 ? rows.length - 1 : next >= rows.length ? -1 : next);
+      return;
+    }
+    // Enter on a lit row opens it; Enter on none of them searches, as it always
+    // has. Nothing else here interferes with typing.
+    if (e.key === 'Enter' && at >= 0 && rows[at]) {
+      e.preventDefault();
+      location.href = rows[at].href;
+    }
+  });
+
+  // A click lands before the blur that would otherwise pull the row out from
+  // under it, so the list closes on mousedown anywhere that is not the list.
+  document.addEventListener('mousedown', function (e) {
+    if (!list.hidden && !e.target.closest('#suggest') && e.target !== box) close();
+  });
+  box.addEventListener('blur', function () {
+    // A tap on a row is a blur first on a touch screen, so let the tap through.
+    setTimeout(function () { if (!list.contains(document.activeElement)) close(); }, 160);
+  });
+})();
+
+
+// The scan button. The decoder is fetched the first time it is pressed rather
+// than with the page: it is by far the largest asset on the site, and almost
+// every visit is someone reading rather than holding a drive.
+(function () {
+  // Two buttons open this now -- the one beside the search box and the one in
+  // the phone's bar -- so they are found by class and share every handler.
+  const opens = [...document.querySelectorAll('.scan-open')];
+  const box = document.getElementById('scanner');
+  if (!opens.length || !box) return;
+  // A camera is the whole feature, so without one the buttons never appear. This
+  // also covers plain http, where getUserMedia does not exist at all -- a
+  // capability check rather than a guess about which phone this is.
+  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
+  opens.forEach(function (b) { b.hidden = false; });
+
+  const video = document.getElementById('scan-video');
+  const note = document.getElementById('scan-note');
+  const shut = document.getElementById('scan-close');
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const DECODER = '/static/vendor/jsqr-1.4.0.js';
+  let stream = null, timer = null, loading = null, found = false;
+
+  function decoder() {
+    if (window.jsQR) return Promise.resolve(window.jsQR);
+    if (!loading) {
+      loading = new Promise(function (resolve, reject) {
+        const s = document.createElement('script');
+        s.src = DECODER;
+        s.onload = function () { resolve(window.jsQR); };
+        s.onerror = function () { loading = null; reject(new Error('load failed')); };
+        document.head.appendChild(s);
+      });
+    }
+    return loading;
+  }
+
+  // What a code has to say to be one of ours. A printed URL, a URL from a label
+  // made when the site answered to a different name, or a bare asset tag all end
+  // up at /items/<tag>, the one address that resolves to either kind. The host in
+  // the code is never followed -- only the tag is taken from it.
+  //
+  // Nor is what comes before the /items/ segment. The catalogue was published to
+  // GitHub Pages before this app was the site, and a project page lives under the
+  // repository's name -- so the labels printed then read
+  // https://hmerrett.github.io/retro-hardware-database/items/RH-0001/, whose path
+  // has a segment in front that an anchored pattern refuses. Since only the tag is
+  // ever taken, where in the path it sits does not matter.
+  function pathFor(text) {
+    let p = (text || '').trim();
+    try { p = new URL(p).pathname; } catch (e) { /* not a URL: maybe a bare tag */ }
+    const m = p.match(/(?:^|\/)(?:items|computers|parts)\/([A-Za-z0-9-]+)\/?$/i)
+           || p.match(/^([A-Za-z]{2}-[A-Za-z0-9]+)$/);
+    return m ? '/items/' + m[1].toUpperCase() : null;
+  }
+
+  function stop() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    video.srcObject = null;
+    box.hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function tick() {
+    timer = null;
+    if (found) return;
+    const w = video.videoWidth, h = video.videoHeight;
+    if (window.jsQR && w && h) {
+      // The middle square of the frame, at no more than 640px: the full frame at
+      // a phone camera's resolution is slow to read, and the middle is what the
+      // camera is being pointed with.
+      const side = Math.min(w, h);
+      canvas.width = canvas.height = Math.min(side, 640);
+      ctx.drawImage(video, (w - side) / 2, (h - side) / 2, side, side,
+                    0, 0, canvas.width, canvas.height);
+      const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const hit = window.jsQR(frame.data, frame.width, frame.height,
+                             { inversionAttempts: 'dontInvert' });
+      if (hit) {
+        const path = pathFor(hit.data);
+        if (path) {
+          found = true;
+          note.textContent = 'Found it — opening…';
+          stop();
+          location.href = path;
+          return;
+        }
+        note.textContent = 'That code is not one of ours.';
+      }
+    }
+    timer = setTimeout(tick, 120);
+  }
+
+  function begin() {
+    found = false;
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+    note.textContent = 'Starting the camera…';
+    decoder().then(function () {
+      return navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }, audio: false });
+    }).then(function (s) {
+      stream = s;
+      video.srcObject = s;
+      // Safari will not play a stream without this, and wants the muted +
+      // playsinline attributes on the element as well. A rejection here is not
+      // fatal and must not be reported as one: the camera is already running, and
+      // what matters is whether frames arrive, which tick() finds out.
+      video.play().catch(function () {});
+      note.textContent = 'Point the camera at the code on the label.';
+      tick();
+    }).catch(function (err) {
+      const why = err && err.name;
+      note.textContent =
+        why === 'NotAllowedError'
+          ? 'The camera was not allowed. Allow it for this site, then try again.'
+        : why === 'NotFoundError' || why === 'OverconstrainedError'
+          ? 'No camera to read with.'
+        : why === 'NotReadableError'
+          ? 'The camera is busy in another app.'
+          : 'Could not start scanning. Your phone’s own camera app opens a label’s code too.';
+    });
+  }
+  opens.forEach(function (b) { b.addEventListener('click', begin); });
+
+  shut.addEventListener('click', stop);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !box.hidden) stop();
+  });
+  // Leaving the page with the camera still running would keep the light on.
+  window.addEventListener('pagehide', stop);
+})();
+
+
+// Prev/next on an item page. The buttons arrive filled in with register order; if
+// the gallery has been visited this session it left the order it was showing, and
+// that wins -- walking a search result or a category should follow that list, not
+// the register. The buttons are the whole gesture: a sideways swipe used to do
+// this too, but it is the phone's own back gesture, and taking it over left no
+// way to go back.
+(function () {
+  const nav = document.getElementById('itemnav');
+  if (!nav) return;
+  const prev = document.getElementById('nav-prev');
+  const next = document.getElementById('nav-next');
+
+  let order = [];
+  try { order = JSON.parse(sessionStorage.getItem('rhdb-order') || '[]'); } catch (e) {}
+  const here = location.pathname.replace(/\/+$/, '');
+  const at = order.findIndex(row => row[0].replace(/\/+$/, '') === here);
+  if (at >= 0) {
+    // Only the ends differ from the server's answer: the list the browser has may
+    // be a filtered one, so its first and last really are the first and last.
+    [[prev, order[at - 1]], [next, order[at + 1]]].forEach(([btn, row]) => {
+      btn.hidden = !row;
+      if (row) { btn.href = row[0]; btn.title = row[1] || ''; }
+    });
+  }
+})();
+
+
+// Photos and files upload as soon as they are chosen. Picking a file and then
+// having to find a button was two gestures for one intention; the button stays in
+// the markup for a browser that never runs this, and hides itself here.
+//
+// Any form marked data-autosend behaves this way, rather than a named few: the
+// history grew one of these per entry, and a list of ids would have had to be
+// written by the page instead of by the form that wants the behaviour. The file
+// form has boxes of its own above the picker -- the names it is filed under, and a
+// note -- which is why the picker is last in it: by the time it is reached, what
+// it needs has been said. The note bar is deliberately not marked: its photographs
+// are waiting on a caption still being typed.
+(function () {
+  for (const form of document.querySelectorAll('form[data-autosend]')) {
+    const input = form.querySelector('input[type=file]');
+    const go = form.querySelector('[data-send-go]');
+    const busy = form.querySelector('[data-send-busy]');
+    if (go) go.hidden = true;
+    let sent = false;
+    input.addEventListener('change', () => {
+      // A cancelled picker fires change too, with nothing chosen.
+      if (sent || !input.files || !input.files.length) return;
+      sent = true;
+      if (busy) busy.hidden = false;
+      // The label stops taking clicks rather than the input being disabled: a
+      // disabled input is not submitted, which would send the upload empty.
+      form.classList.add('sending');
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+  }
+})();
+
+// A tick is an answer, not a draft. Marked data-ticksend, a form with a checkbox
+// in it sends the moment the box changes, for the reason the picker above does:
+// the gesture was made, and hunting for a save button afterwards is the second
+// half of one intention. The button stays in the markup and hides itself here,
+// so a browser running none of this still has the two-gesture version.
+(function () {
+  for (const form of document.querySelectorAll('form[data-ticksend]')) {
+    const box = form.querySelector('input[type=checkbox]');
+    const go = form.querySelector('[data-send-go]');
+    if (!box) continue;
+    if (go) go.hidden = true;
+    box.addEventListener('change', () => {
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+  }
+})();
+
+
+// Photos picked on a create form are held until it is submitted, so the picker
+// has to say what it is holding: the styled button covers the native input that
+// would otherwise name the files itself.
+(function () {
+  document.querySelectorAll('.newphotos').forEach(function (wrap) {
+    var input = wrap.querySelector('input[type=file]');
+    var out = wrap.querySelector('[data-photo-count]');
+    if (!input || !out) return;
+    input.addEventListener('change', function () {
+      var n = input.files ? input.files.length : 0;
+      out.textContent = n === 0 ? '' :
+        n === 1 ? input.files[0].name : n + ' files chosen';
+    });
+  });
+})();
+
+
+(function () {
+  var note = document.getElementById('cookienote');
+  var ok = document.getElementById('cookieok');
+  if (!note || !ok) return;
+  ok.addEventListener('click', function () {
+    window.rhdbCookie.write(note.dataset.cookie, '1');
+    note.remove();
+  });
+})();
+
+
+(function () {
+  // In a menu now rather than on the banner, so it says which theme it would
+  // switch to in words. Two of them -- the desktop menu and the phone's sheet --
+  // and both have to relabel when either is used.
+  var btns = [].slice.call(document.querySelectorAll('.js-theme'));
+  if (!btns.length) return;
+  function effective() {
+    var ds = document.documentElement.dataset.theme;
+    if (ds) return ds;
+    return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function refresh() {
+    var word = effective() === 'dark' ? 'Light theme' : 'Dark theme';
+    btns.forEach(function (b) { b.textContent = word; });
+  }
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var next = effective() === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next;
+      try { localStorage.setItem('theme', next); } catch (e) {}
+      refresh();
+    });
+  });
+  refresh();
+})();
+
+
+/* Share, and reload -- and only where the browser is not already offering both.
+
+   The manifest asks for display:standalone, so on a phone's home screen there
+   is no address bar to reload from and no browser menu to share out of. In an
+   ordinary tab there is both, and a pair of buttons duplicating them used to
+   be shown anyway on the argument that a control appearing only in a mode you
+   cannot see you are in reads worse than one that is occasionally redundant.
+   That was a fair trade at six controls in the banner. At fourteen it was not,
+   so the pair is now gated on the mode it was built for and the two menus hide
+   the entries when they are not needed.
+
+   Share hands the page to whatever the device shares with, which is how an
+   item's link gets into a message or a forum post; where there is no share
+   sheet the link goes on the clipboard and the button says so for a moment.
+   Either way what is shared is the page you are on, filters and all: a gallery
+   narrowed to the Spectrums is a thing worth sending someone. */
+(function () {
+  var standalone = matchMedia('(display-mode: standalone)').matches
+    || matchMedia('(display-mode: minimal-ui)').matches
+    || window.navigator.standalone === true;
+  if (!standalone) return;
+
+  var shares = [].slice.call(document.querySelectorAll('.js-share'));
+  var reloads = [].slice.call(document.querySelectorAll('.js-reload'));
+  reloads.forEach(function (b) {
+    b.hidden = false;
+    b.addEventListener('click', function () { location.reload(); });
+  });
+  if (!shares.length) return;
+  shares.forEach(function (b) { b.hidden = false; });
+
+  var faces = shares.map(function (b) { return b.textContent; });
+  var timer = null;
+  function say(word) {
+    clearTimeout(timer);
+    shares.forEach(function (b) { b.textContent = word; });
+    timer = setTimeout(function () {
+      shares.forEach(function (b, i) { b.textContent = faces[i]; });
+    }, 1600);
+  }
+
+  function copy(url) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { say('Copied'); },
+                                              function () { say('Copy failed'); });
+      return;
+    }
+    // Older browsers, and any page not served over HTTPS: a hidden input is
+    // still selectable and execCommand still copies from one.
+    var box = document.createElement('input');
+    box.value = url;
+    box.setAttribute('readonly', '');
+    box.style.position = 'fixed';
+    box.style.opacity = '0';
+    document.body.appendChild(box);
+    box.select();
+    var done = false;
+    try { done = document.execCommand('copy'); } catch (e) {}
+    box.remove();
+    say(done ? 'Copied' : 'Copy failed');
+  }
+
+  shares.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var url = location.href;
+      if (navigator.share) {
+        // A share the person backs out of rejects, and is not a failure worth
+        // reporting -- they closed the sheet on purpose.
+        navigator.share({title: document.title, url: url}).catch(function () {});
+        return;
+      }
+      copy(url);
+    });
+  });
+})();
+
+
+// Closing the banner's menus. <details> opens itself; what it will not do is
+// shut when the choice has been made somewhere else, so Escape and a click
+// landing outside are wired here. One handler for every menu on the page.
+(function () {
+  var menus = [].slice.call(document.querySelectorAll('details.menu'));
+  if (!menus.length) return;
+  function shut(except) {
+    menus.forEach(function (m) { if (m !== except) m.open = false; });
+  }
+  // mousedown, not click: a click on a link inside a menu would otherwise be
+  // preceded by this closing the menu out from under the pointer.
+  document.addEventListener('mousedown', function (e) {
+    if (!e.target.closest('details.menu')) shut(null);
+  });
+  // Only one open at a time -- two popups over each other name nothing useful.
+  menus.forEach(function (m) {
+    m.addEventListener('toggle', function () { if (m.open) shut(m); });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    var open = menus.filter(function (m) { return m.open; });
+    if (!open.length) return;
+    e.stopPropagation();
+    open.forEach(function (m) {
+      m.open = false;
+      var s = m.querySelector('summary');
+      if (s) s.focus();
+    });
+  });
+})();
+
+
+// The phone's bar. Find puts the cursor in the banner's own search box rather
+// than opening a second one; More opens the sheet that holds everything the
+// banner used to spell out.
+(function () {
+  var find = document.getElementById('tab-find');
+  var more = document.getElementById('tab-more');
+  var sheet = document.getElementById('sheet');
+  if (find) {
+    find.addEventListener('click', function () {
+      var box = document.getElementById('q');
+      if (!box) return;
+      // Scroll first, then focus: focusing alone scrolls the box into view by
+      // the browser's own reckoning, which on a page part-way down lands it
+      // hard under the top edge.
+      //
+      // The stylesheet cannot answer for this one: an explicit behavior passed
+      // to scrollTo outranks `scroll-behavior` in CSS, so a reader who asked
+      // for less motion would get the travel anyway. Ask here instead.
+      var still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: still ? 'auto' : 'smooth' });
+      box.focus();
+    });
+  }
+  if (!more || !sheet) return;
+  function open(on) {
+    sheet.hidden = !on;
+    more.setAttribute('aria-expanded', on ? 'true' : 'false');
+    more.classList.toggle('on', on);
+    document.body.style.overflow = on ? 'hidden' : '';
+    if (on) {
+      var first = sheet.querySelector('a, button');
+      if (first) first.focus();
+    }
+  }
+  more.addEventListener('click', function () { open(sheet.hidden); });
+  var shut = document.getElementById('sheet-shut');
+  if (shut) shut.addEventListener('click', function () { open(false); });
+  // The backdrop is the sheet itself; the panel inside it stops the tap.
+  sheet.addEventListener('click', function (e) {
+    if (!e.target.closest('.sheet-body')) open(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !sheet.hidden) { e.stopPropagation(); open(false); }
+  });
+})();
+
+
+// A form that asks before it does something there is no undoing. The question is
+// written on the form as data-confirm, beside the button it belongs to, which is
+// where it was when it was an onsubmit attribute -- and an attribute is markup
+// rather than script, so a Content-Security-Policy that forbids inline script
+// leaves it alone.
+//
+// Capturing, so the question is asked before any other handler for the same submit
+// has begun; answering no stops the submit exactly as `return false` did.
+document.addEventListener('submit', function (ev) {
+  var form = ev.target;
+  var question = form && form.dataset ? form.dataset.confirm : '';
+  if (question && !window.confirm(question)) {
+    ev.preventDefault();
+    ev.stopPropagation();
+  }
+}, true);

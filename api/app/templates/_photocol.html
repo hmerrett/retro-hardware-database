@@ -24,7 +24,7 @@
       <input type="hidden" name="set" value="{{ '0' if marked else '1' }}">
       <button class="iconbtn{{ ' on' if marked else '' }}" type="submit" title="{{ 'Unmark reference image' if marked else 'Mark as reference image (not this unit)' }}" aria-label="Toggle reference image">{{ I.ico('tag') }}</button>
     </form>
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete" onsubmit="return confirm('Delete this photo? This cannot be undone.')">
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete" data-confirm="Delete this photo? This cannot be undone.">
       <input type="hidden" name="image" value="{{ img }}">
       <button class="iconbtn danger" type="submit" title="Delete photo" aria-label="Delete photo">{{ I.ico('trash') }}</button>
     </form>
