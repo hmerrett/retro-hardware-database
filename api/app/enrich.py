@@ -14,10 +14,15 @@ import ipaddress
 import os
 import re
 import socket
+from typing import TYPE_CHECKING, cast
 from urllib.parse import quote, unquote, urljoin, urlparse
 
 import httpx
 from PIL import Image
+
+if TYPE_CHECKING:
+    from PIL.IcnsImagePlugin import IcnsImageFile
+    from PIL.IcoImagePlugin import IcoImageFile
 
 # What we call ourselves when fetching somebody else's page. The convention is to
 # say where the request came from so the other end can find out who is asking; that
@@ -67,15 +72,19 @@ def _safe_url(url: str) -> bool:
     return _public_ip(p.hostname)
 
 
-def _safe_get(client, url, **kw):
+def _safe_get(client: httpx.Client, url: str) -> httpx.Response | None:
     """client.get, but validating the target and every redirect hop against
     _safe_url: a public URL can 302 to an internal one, so redirects are followed
     by hand rather than by httpx. Returns None if the chain leaves what is public
-    or runs too long."""
+    or runs too long.
+
+    It takes a URL and nothing else on purpose. Keyword arguments passed through
+    to httpx would include follow_redirects, which is the one thing this exists
+    to keep out of httpx's hands."""
     for _ in range(6):
         if not _safe_url(url):
             return None
-        resp = client.get(url, **kw)
+        resp = client.get(url)
         if resp.is_redirect and "location" in resp.headers:
             url = urljoin(url, resp.headers["location"])
             continue
@@ -90,12 +99,12 @@ SKIP_SHA1 = {
 }
 
 
-def _client():
+def _client() -> httpx.Client:
     # Redirects are followed by _safe_get instead, so each hop can be checked.
     return httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30.0, follow_redirects=False)
 
 
-def _wikipedia_image(client, url):
+def _wikipedia_image(client: httpx.Client, url: str) -> str | None:
     m = re.search(r"/wiki/([^?#]+)", url)
     if not m:
         return None
@@ -110,7 +119,7 @@ def _wikipedia_image(client, url):
     return (data.get("originalimage") or data.get("thumbnail") or {}).get("source")
 
 
-def _og_image(client, url):
+def _og_image(client: httpx.Client, url: str) -> str | None:
     resp = _safe_get(client, url)
     if resp is None or resp.status_code >= 400:
         return None
@@ -124,17 +133,18 @@ def _og_image(client, url):
             r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']' + prop, html, re.I
         )
         if m:
-            return urljoin(url, m.group(1))
+            found: str = m.group(1)
+            return urljoin(url, found)
     return None
 
 
-def _favicon_url(client, url):
+def _favicon_url(client: httpx.Client, url: str) -> str | None:
     """Best link to the site's icon: a declared <link rel=icon/apple-touch-icon>,
     else the conventional /favicon.ico."""
     try:
         resp = _safe_get(client, url)
         if resp is not None and resp.status_code < 400:
-            best = None
+            best: str | None = None
             for m in re.finditer(r"<link\b([^>]+)>", resp.text, re.I):
                 attrs = m.group(1)
                 if not re.search(r'rel=["\'][^"\']*icon', attrs, re.I):
@@ -142,7 +152,7 @@ def _favicon_url(client, url):
                 href = re.search(r'href=["\']([^"\']+)', attrs, re.I)
                 if not href:
                     continue
-                cand = urljoin(url, href.group(1))
+                cand: str = urljoin(url, href.group(1))
                 # Prefer an apple-touch-icon (usually a clean, larger PNG).
                 if re.search(r"apple-touch", attrs, re.I):
                     return cand
@@ -155,7 +165,7 @@ def _favicon_url(client, url):
     return f"{p.scheme}://{p.hostname}/favicon.ico" if p.scheme and p.hostname else None
 
 
-def fetch_favicon(url):
+def fetch_favicon(url: str | None) -> bytes | None:
     """Return small square PNG bytes of the site's favicon, or None. Used as a
     provenance marker on reference images, cached locally so nothing hotlinks."""
     url = (url or "").strip()
@@ -169,11 +179,13 @@ def fetch_favicon(url):
             resp = _safe_get(client, icon_url)
             if resp is None or resp.status_code >= 400 or not resp.content:
                 return None
-            img = Image.open(io.BytesIO(resp.content))
+            img: Image.Image = Image.open(io.BytesIO(resp.content))
             # For multi-size .ico, pick the largest frame available.
             sizes = getattr(img, "info", {}).get("sizes")
             if sizes:
-                img.size = max(sizes)
+                # Choosing a frame by setting the size is the multi-frame formats'
+                # own doing, and not something Image itself offers.
+                cast("IcoImageFile | IcnsImageFile", img).size = max(sizes)
                 img.load()
             img = img.convert("RGBA")
     except Exception:
@@ -184,7 +196,7 @@ def fetch_favicon(url):
     return buf.getvalue()
 
 
-def fetch_jpeg(url):
+def fetch_jpeg(url: str | None) -> bytes | None:
     """Return downscaled JPEG bytes for the item's reference URL, or None if
     nothing usable was found."""
     url = (url or "").strip()
