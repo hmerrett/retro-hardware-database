@@ -14,17 +14,7 @@ from typing import ClassVar
 import pytest
 
 from app import main, schemas
-
-
-def served(client, page):
-    """A page together with the static CSS/JS it links, so an assertion about a
-    style or a script holds whether that content is inline or in a static file.
-    Lets these tests keep checking what actually reaches the browser as the CSS
-    and JS move out of the templates."""
-    out = [page]
-    for url in re.findall(r'(?:href|src)="(/static/[^"?#]+\.(?:css|js))', page):
-        out.append(client.get(url).text)
-    return "\n".join(out)
+from conftest import served
 
 
 class TestTypedColumns:
@@ -1397,20 +1387,20 @@ class TestAStoragePartSInterface:
     def test_a_spare_of_a_routed_kind_is_asked_on_screen(self, client):
         """The bug: no machine to route to, so it becomes a part -- and the field it
         has to fill was hidden by the kind alone."""
-        page = client.get("/parts/new?type=storage").text
-        assert "const routes = false;" in page
+        page = served(client, client.get("/parts/new?type=storage").text)
+        assert '"routes": false' in page
         assert 'name="spec_interface" value="34-pin floppy"' in \
             " ".join(page.split())
 
     def test_editing_a_routed_kind_is_asked_on_screen_too(self, client):
         aid = self.part(client, kind="Floppy/Gotek",
                         spec_interface="34-pin floppy")
-        assert "const routes = false;" in client.get(f"/parts/{aid}/edit").text
+        assert '"routes": false' in served(client, client.get(f"/parts/{aid}/edit").text)
 
     def test_building_a_drive_into_a_machine_still_routes(self, client, computer):
         cid = computer()["asset_id"]
-        page = client.get(f"/parts/new?type=storage&computer_id={cid}").text
-        assert "const routes = true;" in page
+        page = served(client, client.get(f"/parts/new?type=storage&computer_id={cid}").text)
+        assert '"routes": true' in page
 
     def test_a_spare_optical_drive_records_its_discs_and_its_bus_together(self, client):
         """The two questions are independent: what the drive is, from the pickers the
@@ -1654,22 +1644,23 @@ class TestRememberingHowYouLeftIt:
         a cookie written under one name and read under another is not remembered."""
         from app import main
         computer(model="A")
-        page = client.get("/").text
+        page = served(client, client.get("/").text)
         assert main.auth.SORT_COOKIE == "rhdb_sort"
-        assert f'rhdbCookie.read("{main.auth.SORT_COOKIE}")' in page
-        assert f'rhdbCookie.write("{main.auth.SORT_COOKIE}"' in page
+        assert f'"sortCookie": "{main.auth.SORT_COOKIE}"' in page
+        assert f'"sortCookie": "{main.auth.SORT_COOKIE}"' in page
+        assert "rhdbCookie.write(PAGE.sortCookie" in page
 
     def test_a_sort_that_no_longer_exists_is_not_trusted(self, client, computer):
         """A stale or hand-edited cookie naming a sort the page dropped would
         otherwise leave the grid sorted by nothing."""
         computer(model="A")
         assert "if (saved && SORTS[saved]) sortSel.value = saved;" \
-            in client.get("/").text
+            in served(client, client.get("/").text)
 
     def test_it_is_written_on_the_sorts_own_change_and_not_on_every_keystroke(
             self, client, computer):
         computer(model="A")
-        page = client.get("/").text
+        page = served(client, client.get("/").text)
         assert "sortSel.addEventListener('change', function () {" in page
 
     def test_the_helpers_are_defined_before_the_page_uses_them(self, client, computer):
@@ -1677,8 +1668,8 @@ class TestRememberingHowYouLeftIt:
         to be defined above it in the document. Put after, it threw on load and took
         the sorting and filtering with it."""
         computer(model="A")
-        page = client.get("/").text
-        assert page.index("window.rhdbCookie = {") < page.index("</head>")
+        page = served(client, client.get("/").text)
+        assert page.index("/static/head.js") < page.index("</head>")
 
 
 class TestTheCookieNotice:
@@ -1737,7 +1728,7 @@ class TestTheGalleryOpensShuffled:
         """Filtering and searching re-sort on every keystroke, so a shuffle that
         re-dealt each time would throw the cards up in the air while you typed."""
         computer(model="A")
-        page = client.get("/").text
+        page = served(client, client.get("/").text)
         assert "function deal()" in page and "el._shuffle = Math.random()" in page
         # Dealt again only when Random is chosen afresh, which is what makes the
         # option useful once you are already on it.
@@ -1747,7 +1738,7 @@ class TestTheGalleryOpensShuffled:
         """The same rule the recency sorts follow: a shuffle that opens on a screenful
         of unphotographed things looks like a broken page, not a random one."""
         computer(model="A")
-        page = client.get("/").text
+        page = served(client, client.get("/").text)
         assert "random: (a, b) => hasImg(b) - hasImg(a) || a._shuffle - b._shuffle" \
             in page
 
@@ -2245,7 +2236,7 @@ class TestASerialNumber:
         question a serial is written down to answer."""
         computer(manufacturer="Acorn", model="A5000", serial="27-AKD52-1234567")
         computer(manufacturer="Acorn", model="A5000", serial="27-AKD52-7654321")
-        page = client.get("/machines?q=27-AKD52-1234567").text
+        page = served(client, client.get("/machines?q=27-AKD52-1234567").text)
         assert "27-AKD52-7654321" not in page
         assert page.count("RH-") >= 1
 
@@ -2937,12 +2928,12 @@ class TestWalkingFromItemToItem:
         """Sorted and filtered as the visitor left it, which is the order their
         prev/next should follow -- not the register's."""
         computer()
-        page = client.get("/").text
+        page = served(client, client.get("/").text)
         assert "sessionStorage.setItem('rhdb-order'" in page
         assert "el.style.display !== 'none'" in page
 
     def test_the_item_page_prefers_that_order(self, client, part):
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "sessionStorage.getItem('rhdb-order')" in page
         assert "nav-next" in page
 
@@ -3246,7 +3237,7 @@ class TestChoosingPhotos:
                          r'<input type="file"', page)
 
     def test_it_uploads_without_a_button_press(self, client, part):
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "input.addEventListener('change'" in page
         assert "requestSubmit" in page
 
@@ -4281,8 +4272,8 @@ class TestSearchingEveryField:
         """Otherwise the instant filter would hide rows that matched on a field the
         browser's own copy does not carry."""
         part(notes="battery damage")
-        page = client.get("/?q=battery").text
-        assert 'const serverQuery = "battery"' in page
+        page = served(client, client.get("/?q=battery").text)
+        assert '"query": "battery"' in page
         card = page[page.index('<a class="card"'):]
         assert "battery" not in card[:card.index("</a>")]
 
@@ -4446,7 +4437,7 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            page = client.get(f"/parts/{aid}").text
+            page = served(client, client.get(f"/parts/{aid}").text)
             assert "addEventListener('gesturestart'" in page
             assert "addEventListener('gesturechange'" in page
             assert "e.ctrlKey || e.metaKey" in page
@@ -4467,7 +4458,7 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            page = client.get(f"/parts/{aid}").text
+            page = served(client, client.get(f"/parts/{aid}").text)
             assert "function away(dx, dy)" in page
             assert "e.pointerType !== 'mouse'" in page
             assert "Math.abs(dy) > AWAY" in page
@@ -4488,7 +4479,7 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            page = client.get(f"/parts/{aid}").text
+            page = served(client, client.get(f"/parts/{aid}").text)
             # Stopped mid-trip, the trip is finished rather than dropped
             assert "const done = tween && tween.then;" in page
             assert re.search(r"frame = null; tween = null; idle = null; vx = vy = 0;"
@@ -4511,7 +4502,7 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            page = client.get(f"/parts/{aid}").text
+            page = served(client, client.get(f"/parts/{aid}").text)
             assert "box.addEventListener('dblclick'" in page
             assert "stage.addEventListener('dblclick'" not in page
         finally:
@@ -4529,7 +4520,7 @@ class TestTheBigPhotoView:
         aid = part()["asset_id"]
         rel = self.upload(client, "parts", aid)
         try:
-            page = client.get(f"/parts/{aid}").text
+            page = served(client, client.get(f"/parts/{aid}").text)
             assert "downOn = e.target;" in page
             assert "if (!dragged && e.target === box && downOn === box) close();" in page
             assert "if (e.target.closest('button, #lb-tools')) return;" in page
@@ -4562,7 +4553,7 @@ class TestTheBigPhotoView:
         rel = self.upload(client, "parts", aid)
         try:
             assert "matchMedia('(prefers-reduced-motion: reduce)')" in \
-                client.get(f"/parts/{aid}").text
+                served(client, client.get(f"/parts/{aid}").text)
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
                         follow_redirects=False)
@@ -4671,9 +4662,9 @@ class TestTheBigPhotoView:
     def test_it_asks_first(self, client, part):
         """The one tool in the row that cannot be undone, so it is the one that
         asks -- the same question the column's own delete asks."""
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert page.count("Delete this photo? This cannot be undone.") >= 1
-        assert re.search(r'id="lb-delete"[^>]*\n?\s*onsubmit="return confirm',
+        assert re.search(r'id="lb-delete"[^>]*\n?\s*data-confirm="',
                          page) is not None
 
     def test_it_is_only_for_the_logged_in(self, client, part, monkeypatch):
@@ -4693,7 +4684,7 @@ class TestTheBigPhotoView:
         """Its neighbours come back to the same photograph still open. A deleted one
         will not be there, so this form does not ask to be sent back to it -- and
         the script that fills the toolbar in has to cope with that."""
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         form = page.split('id="lb-delete"')[1].split("</form>")[0]
         assert "name=\"image\"" in form and "name=\"next\"" not in form
         assert "const nxt = f.querySelector('[name=next]');" in page
@@ -4714,7 +4705,7 @@ class TestTheBigPhotoView:
         """Cropping puts an apply button where the row was. A delete left standing
         beside it is a misclick waiting to happen, so it goes with the crop
         button it sits next to."""
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "if (del) del.hidden = on;" in page
 
     def test_it_reads_as_the_destructive_one(self, client, part):
@@ -4949,7 +4940,7 @@ class TestChangingAPartsType:
             "Chip: S3 | Voltage: 5V"
 
     def test_the_menu_asks_before_it_throws_away_what_you_typed(self, client, part):
-        page = client.get(f"/parts/{part()['asset_id']}/edit").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}/edit").text)
         assert "Anything you have entered since opening it will be lost." in page
         assert "window.location.pathname + u.search" in page
 
@@ -5080,9 +5071,9 @@ class TestAPageNoticesItHasChanged:
 
     def test_the_page_carries_the_token_it_was_built_with(self, client, part):
         aid = part()["asset_id"]
-        page = client.get(f"/parts/{aid}").text
-        assert f'const BUILT = "{self.token(client, aid)}"' in page
-        assert f'const AID = "{aid}"' in page
+        page = served(client, client.get(f"/parts/{aid}").text)
+        assert f'data-built="{self.token(client, aid)}"' in page
+        assert f'data-aid="{aid}"' in page
 
     def test_a_change_moves_it(self, client, part):
         aid = part(model="Before")["asset_id"]
@@ -5103,15 +5094,15 @@ class TestAPageNoticesItHasChanged:
         token the page will ask for no longer matches the one it holds.
         """
         aid = part()["asset_id"]
-        built_with = re.search(r'const BUILT = "([^"]+)"',
-                               client.get(f"/parts/{aid}").text).group(1)
+        built_with = re.search(r'data-built="([^"]+)"',
+                               served(client, client.get(f"/parts/{aid}").text)).group(1)
         assert built_with == self.token(client, aid)
         rel = TestAPhotographIsNeverHalfWritten.upload(client, aid)
         try:
             assert self.token(client, aid) != built_with
             # And the page served now agrees with itself again.
-            assert re.search(r'const BUILT = "([^"]+)"',
-                             client.get(f"/parts/{aid}").text).group(1) == \
+            assert re.search(r'data-built="([^"]+)"',
+                             served(client, client.get(f"/parts/{aid}").text)).group(1) == \
                 self.token(client, aid)
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel},
@@ -5176,12 +5167,12 @@ class TestAPageNoticesItHasChanged:
     def test_it_waits_rather_than_reloading_under_your_hands(self, client, part):
         """A page that reloaded itself mid-crop or mid-sentence would be worse than
         one that is out of date."""
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "document.querySelector('#lightbox.open')" in page
         assert 'id="changed"' in page
 
     def test_it_only_asks_while_it_is_being_looked_at(self, client, part):
-        page = client.get(f"/parts/{part()['asset_id']}").text
+        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
         assert "document.visibilityState !== 'visible'" in page
         assert "visibilitychange" in page
 

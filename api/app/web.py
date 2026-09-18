@@ -57,6 +57,11 @@ SITE_CARD = ("/static/og-image.png", 1200, 630)
 
 templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
 templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
+# One stamp per script, read once at import the way the stylesheet's is. The
+# scripts are served with a year's cache (see _CachedStatic), so the stamp in the
+# URL is what makes a change to one of them arrive at all.
+templates.env.globals["js_ver"] = {p.name: _file_ver(p)
+                                   for p in sorted(STATIC_DIR.glob("*.js"))}
 # Social sites cache a card hard, so its URL carries the artwork's hash too.
 SITE_CARD_VER = _file_ver(branded(SITE_CARD[0].removeprefix("/static/")))
 

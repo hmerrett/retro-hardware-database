@@ -11,6 +11,7 @@ about, a list of jobs, and a pile of things on order with what they cost.
 """
 import io
 
+from conftest import served
 from app import ids, main, projects
 from app.models import Project, ProjectAsset, ProjectOrder, ProjectTask
 
@@ -631,7 +632,7 @@ class TestBeingFound:
 
     def test_a_search_matching_nothing_says_so(self, client):
         make(client)
-        assert "Nothing matches that" in client.get("/projects?q=zzzz").text
+        assert "Nothing matches that" in served(client, client.get("/projects?q=zzzz").text)
 
     def test_the_gallery_says_when_projects_match_as_well(self, client, computer):
         """A search bar that says 'anything' and quietly means 'the shelf' would be

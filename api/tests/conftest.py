@@ -8,6 +8,7 @@ migrations reach head and match the models. Point DATABASE_URL at a MariaDB
 database the tests may build and empty (CI provides one; locally, the compose db).
 """
 import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -75,6 +76,17 @@ def _reset_and_migrate():
     # the working directory (the suite runs from the repo root, not api/).
     cfg.set_main_option("script_location", str(_ALEMBIC_INI.parent / "migrations"))
     command.upgrade(cfg, "head")
+
+
+def served(client, page):
+    """A page together with the static CSS/JS it links, so an assertion about a
+    style or a script holds whether that content is inline or in a static file.
+    Lets these tests keep checking what actually reaches the browser as the CSS
+    and JS move out of the templates."""
+    out = [page]
+    for url in re.findall(r'(?:href|src)="(/static/[^"?#]+\.(?:css|js))', page):
+        out.append(client.get(url).text)
+    return "\n".join(out)
 
 
 @pytest.fixture(scope="session", autouse=True)

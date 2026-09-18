@@ -98,7 +98,7 @@
       {% if f.created_at %}<span class="muted">· {{ log_stamp(f.created_at, authed) }}</span>{% endif %}
       {% if authed %}
       <form method="post" action="/files/{{ f.id }}/delete"
-            onsubmit="return confirm('Delete {{ f.filename }}? It goes from everything it is attached to.')">
+            data-confirm="Delete {{ f.filename }}? It goes from everything it is attached to.">
         <input type="hidden" name="next" value="{{ back }}">
         <button class="btn sm danger" type="submit">delete</button></form>
       {% endif %}

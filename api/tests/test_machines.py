@@ -15,6 +15,7 @@ from typing import ClassVar
 
 import pytest
 
+from conftest import served
 from app import entry, machinedb, machines
 from app.history import item_log
 from app.models import AssetChip, AssetVariant, Computer, Part
@@ -879,8 +880,8 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         which form it is on, and it draws neither of them for a board. The save reads
         the form the same way round, so a stray field left over from a machine's form
         in the same browser tab is not read either."""
-        page = client.get("/parts/new?type=motherboard").text
-        assert "const BOARD = true" in page
+        page = served(client, client.get("/parts/new?type=motherboard").text)
+        assert '"board": true' in page
         aid = self._board(client, mach_model="amiga-500", mach_fields="1",
                           mach_style="A500", mach_region="PAL")
         v = machinedb.read(db, db.get(Part, aid))
@@ -1277,10 +1278,10 @@ class TestDetachingTheBoard:
         """It arrives filed, so its edit form comes back with what moved -- and it is
         the board's form, which does not ask the two a case answers."""
         c = self.machine(client, db)
-        page = client.get(f"/parts/{self.detach(client, c.asset_id)}/edit").text
+        page = served(client, client.get(f"/parts/{self.detach(client, c.asset_id)}/edit").text)
         assert 'value="zx-spectrum-48k" selected' in page
         assert "Issue 4B" in page and "6C001E-7" in page
-        assert "const BOARD = true" in page
+        assert '"board": true' in page
 
     def test_the_memory_rows_stay_on_the_machine(self, client, db):
         """Left where they are on purpose, and noted as an open question rather than

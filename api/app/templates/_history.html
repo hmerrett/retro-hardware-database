@@ -69,7 +69,7 @@
                 {# A single-quoted string inside the attribute, as the photo
                    deletes do. `tojson` is for a script block: it leaves double
                    quotes alone, which inside a double-quoted attribute ends it. #}
-                onsubmit="return confirm('{{ 'Delete this history entry?' if e.count == 1 else 'Delete all ' ~ e.count ~ ' of these history entries?' }} This cannot be undone.')">
+                data-confirm="{{ 'Delete this history entry?' if e.count == 1 else 'Delete all ' ~ e.count ~ ' of these history entries?' }} This cannot be undone.">
             {% for i in e.ids %}<input type="hidden" name="id" value="{{ i }}">{% endfor %}
             <button class="iconbtn danger" type="submit"
                     title="{{ 'Delete this history entry' if e.count == 1 else 'Delete these ' ~ e.count ~ ' history entries' }}"
