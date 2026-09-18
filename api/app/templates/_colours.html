@@ -5,11 +5,12 @@
    A screen cannot promise a colour, so the chart is a starting point rather than a
    standard: hold the bezel up to it and take the nearest. Names are the data --
    see entry.BEZEL_COLOURS and entry.YELLOWING -- and every swatch here comes from
-   entry.bezel_css (the `bezel_css` global), so the chart, the menus and anything
-   else that draws one cannot disagree. #}
+   entry.bezel_class (the `bezel_class` global), which names a rule generated from
+   entry.bezel_css into /style/data.css -- so the chart, the menus and anything else
+   that draws one cannot disagree, and no style attribute is needed to say it
+   (ADR-0022). #}
 
-{% macro dot(css, title='') %}<span class="swatch{{ '' if css else ' none' }}"
-  {%- if css %} style="background:{{ css }}"{% endif %}
+{% macro dot(cls, title='') %}<span class="swatch{{ (' ' ~ cls) if cls else ' none' }}"
   {%- if title %} title="{{ title }}"{% endif %}></span>{% endmacro %}
 
 {# One menu. `cur` is kept as an option of its own when it is from outside the
@@ -28,7 +29,7 @@
 {% macro pair(prefix, colour, level, colours, yellowing, colour_labels,
               yellowing_labels, about='') %}
 <div class="bezel-cell">
-  {{ dot(bezel_css(colour, level)) }}
+  {{ dot(bezel_class(colour, level)) }}
   {{ menu(prefix + 'colour', 'colour', colours, colour_labels, colour, 'shade —', about) }}
   {{ menu(prefix + 'yellowing', 'yellowing', yellowing, yellowing_labels, level,
           'not yellowed', about) }}
@@ -52,7 +53,7 @@
   <p class="cc-grp">The shade it was made in</p>
   <div class="cc-grid">
     {% for col in colours %}
-    <div class="cc-item">{{ dot(bezel_css(col.label, ''), col.label) }}<span class="cc-lbl">{{ col.label }}<span class="hint">{{ col.note }}</span></span></div>
+    <div class="cc-item">{{ dot(bezel_class(col.label, ''), col.label) }}<span class="cc-lbl">{{ col.label }}<span class="hint">{{ col.note }}</span></span></div>
     {% endfor %}
   </div>
   <p class="cc-grp">How far it has yellowed — on white, off-white and beige, because
@@ -62,7 +63,7 @@
     <div class="cc-item">
       <span class="cc-ladder">
         {%- for base in ('White', 'Off-white', 'Beige') -%}
-        {{ dot(bezel_css(base, lvl.label), base + ' — ' + lvl.label | lower) }}
+        {{ dot(bezel_class(base, lvl.label), base + ' — ' + lvl.label | lower) }}
         {%- endfor -%}
       </span>
       <span class="cc-lbl">{{ lvl.label }}<span class="hint">{{ lvl.note }}</span></span>

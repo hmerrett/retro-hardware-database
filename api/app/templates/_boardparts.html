@@ -49,7 +49,7 @@
 {% call PN.panel('Parts', parts | length, flush=true) %}
   {% if request.state.authed %}
   <div class="pbody">
-  <div class="toolbar" style="margin-top:0">
+  <div class="toolbar flush-top">
     <span class="muted">Add:</span>
     <a class="btn sm" href="/parts/new?type=storage&computer_id={{ c.asset_id }}">storage / drive</a>
     {% for ptype, label in card_steps %}
@@ -79,6 +79,6 @@
   {{ P.cards(parts, 'unlink', 'unlink', '/computers/' + c.asset_id, request.state.authed,
              thumbs | default({}, true)) }}
   {% else %}
-  <div class="pbody"><p class="muted" style="margin:0">Nothing fitted in it yet.</p></div>
+  <div class="pbody"><p class="muted flush">Nothing fitted in it yet.</p></div>
   {% endif %}
 {% endcall %}

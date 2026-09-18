@@ -202,7 +202,7 @@ document.querySelectorAll('#fs-display .ask').forEach(function (ask) {
   function look() {
     const m = norm(make.value), d = norm(model.value);
     const hit = (m && d) ? known.find(k => norm(k.m) === m && norm(k.d) === d) : null;
-    if (!hit) { note.style.display = 'none'; return; }
+    if (!hit) { note.classList.add('is-hidden'); return; }
     const q = new URLSearchParams(location.search);
     const params = new URLSearchParams({from: hit.id});
     for (const k of ['computer_id', 'parent_id']) {
@@ -210,7 +210,9 @@ document.querySelectorAll('#fs-display .ask').forEach(function (ask) {
     }
     note.innerHTML = `<a href="/parts/new?${params}">${hit.id} is the same make and `
       + `model — start from it</a> to copy its type, year and specs.`;
-    note.style.display = '';
+    // As in index.js: the note starts hidden by class, so it is the class that
+    // has to go, not an inline display that was never there.
+    note.classList.remove('is-hidden');
     if (type && hit.t && !q.get('type')) type.value = hit.t;
   }
   make.addEventListener('input', () => { narrow(); look(); });

@@ -61,3 +61,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   maker and a model, not only a catalogue key — *Accepted*
 - [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md) —
   The Content-Security-Policy is the app's, and the suite holds it — *Accepted*
+- [0022](0022-no-style-attribute-and-the-rules-that-are-data-are-generated.md) —
+  No style attribute, and the rules whose values are data are generated —
+  *Accepted*

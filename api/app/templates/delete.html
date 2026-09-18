@@ -7,13 +7,13 @@
 {% set noun = 'computer' if kind == 'computers' else 'part' %}
 <div class="crumbnav"><a href="/{{ kind }}/{{ aid }}">&larr; back to {{ aid }}</a></div>
 
-<h2 style="margin:0 0 2px">Delete {{ name }}</h2>
-<p class="muted" style="margin:0 0 14px">{{ aid }} · disposed{% if obj.disposed_at %} {{ obj.disposed_at }}{% endif %}</p>
+<h2 class="lede">Delete {{ name }}</h2>
+<p class="muted lede-tail">{{ aid }} · disposed{% if obj.disposed_at %} {{ obj.disposed_at }}{% endif %}</p>
 
 {% if error %}<div class="banner">{{ error }}</div>{% endif %}
 
 <div class="danger-box">
-  <p style="margin:0 0 8px"><strong>This cannot be undone.</strong> Disposing an item
+  <p class="stack-8"><strong>This cannot be undone.</strong> Disposing an item
   can be reversed; deleting the record cannot.</p>
 
   <ul class="going">
@@ -41,12 +41,12 @@
 
   <form method="post" action="/{{ kind }}/{{ aid }}/delete" class="edit">
     {% if deletable %}
-    <div class="checks" style="margin: 12px 0 0">
+    <div class="checks top-12">
       <label><input type="checkbox" name="with_parts" value="1"{{ ' checked' if with_parts else '' }}>
         <span>also delete the {{ deletable | length }} disposed
           part{{ '' if deletable | length == 1 else 's' }} that went with it</span></label>
     </div>
-    <p class="hint" style="margin-left: 22px">
+    <p class="hint ml-22">
       {% for p in deletable %}<a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}
       — a further {{ parts_photos }} photo{{ '' if parts_photos == 1 else 's' }}
       and {{ parts_logs }} history entr{{ 'y' if parts_logs == 1 else 'ies' }}.
@@ -59,28 +59,18 @@
       dispose {{ 'it' if kept | length == 1 else 'them' }} first if {{ 'it' if kept | length == 1 else 'they' }} should go too.</p>
     {% endif %}
 
-    <label for="confirm" style="margin-top: 14px">Paste this {{ noun }}'s URL to confirm</label>
+    <label class="mt-14" for="confirm">Paste this {{ noun }}'s URL to confirm</label>
     <p class="confirm-url"><code>{{ url }}</code></p>
     {# No placeholder holding the answer: a greyed-out copy of the URL in the box
        reads as one already typed, which is the opposite of what this asks for. #}
     <input id="confirm" name="confirm" autocomplete="off" autocapitalize="off"
            spellcheck="false" placeholder="paste it here" required>
 
-    <div class="flex" style="margin-top: 14px; gap: 8px">
+    <div class="flex actions-row">
       <a class="btn" href="/{{ kind }}/{{ aid }}">cancel</a>
       <button class="btn danger" type="submit">delete this {{ noun }}</button>
     </div>
   </form>
 </div>
 
-<style>
-  .danger-box { border: 1px solid #b45300aa; border-radius: 8px; padding: 14px 16px;
-    margin: 12px 0; max-width: 620px; }
-  .danger-box ul.going { margin: 0; padding-left: 20px; }
-  .danger-box ul.going li { margin: 3px 0; }
-  /* Selectable on its own line: it is there to be copied, and a line of its own
-     is the difference between a double-click taking the URL and taking a word. */
-  .confirm-url { margin: 2px 0 6px; }
-  .confirm-url code { user-select: all; word-break: break-all; }
-</style>
 {% endblock %}

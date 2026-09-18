@@ -16,7 +16,7 @@
   {{ P.filecards(files, '/' + kind + '/' + item.asset_id, request.state.authed,
                  item, file_models | default([])) }}
   {% else %}
-  <div class="pbody"><p class="muted" style="margin:0">No files for this one yet.</p></div>
+  <div class="pbody"><p class="muted flush">No files for this one yet.</p></div>
   {% endif %}
 
   {% if request.state.authed %}

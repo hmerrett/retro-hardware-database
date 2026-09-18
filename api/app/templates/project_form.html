@@ -41,12 +41,12 @@
     though it were not there. The register is a public catalogue; what is wrong with
     a thing, in your own words, does not have to be part of it.</p>
   <label for="summary">Summary</label>
-  <textarea id="summary" name="summary" style="min-height:90px">{{ (p['summary'] if p else '') or '' }}</textarea>
+  <textarea class="box-90" id="summary" name="summary">{{ (p['summary'] if p else '') or '' }}</textarea>
   <p class="hint">the line shown at the top of the page and beside it in the list</p>
   <label for="notes">Notes</label>
   <textarea id="notes" name="notes">{{ (p['notes'] if p else '') or '' }}</textarea>
   <p class="hint">the standing description. What happened on a particular evening is
     a note on the history instead, at the foot of the project's own page.</p>
-  <p style="margin-top:16px"><button class="btn primary" type="submit">Save</button></p>
+  <p class="mt-16"><button class="btn primary" type="submit">Save</button></p>
 </form>
 {% endblock %}

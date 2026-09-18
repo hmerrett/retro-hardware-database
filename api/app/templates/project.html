@@ -5,11 +5,11 @@
 {% block content %}
 <div class="crumbnav"><a href="/projects">&larr; all projects</a></div>
 <div class="flex">
-  <h2 style="margin:0">{{ p.name or p.asset_id }}</h2>
+  <h2 class="flush">{{ p.name or p.asset_id }}</h2>
   <span class="chip st-{{ p.status }}">{{ status_label(p.status) }}</span>
   {% if p.private %}<span class="chip">private</span>{% endif %}
   <span class="muted">{{ p.asset_id }}</span>
-  <span style="flex:1"></span>
+  <span class="grow"></span>
   {% if request.state.authed %}
   <span class="hdr-actions">
     <a class="iconbtn" href="/projects/{{ p.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
@@ -62,7 +62,7 @@
           <span class="muted">{{ obj.asset_id }}</span>
           {% if row.note %}<br><span class="hint">{{ row.note | linked }}</span>{% endif %}</td>
         {% if request.state.authed %}
-        <td class="tight"><form method="post" action="/projects/{{ p.asset_id }}/remove-item" style="margin:0">
+        <td class="tight"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/remove-item">
           <input type="hidden" name="asset_id" value="{{ obj.asset_id }}">
           <button class="iconbtn danger" type="submit" title="Take out of this project"
                   aria-label="Take out of this project">{{ I.ico('trash') }}</button>
@@ -72,7 +72,7 @@
       {% endfor %}
     </table>
     {% else %}
-    <p class="muted" style="margin:0">Nothing attached yet — which is fine. A project
+    <p class="muted flush">Nothing attached yet — which is fine. A project
       is allowed to be an idea before it is a pile of hardware.</p>
     {% endif %}
     {% if request.state.authed %}
@@ -94,7 +94,7 @@
       {% for t in tasks %}
       <tr class="{{ 'done' if t.done else '' }}">
         {% if request.state.authed %}
-        <td class="tight"><form method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/toggle" style="margin:0">
+        <td class="tight"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/toggle">
           <button class="btn sm" type="submit" title="{{ 'Put it back on the list' if t.done else 'Tick it off' }}">{{ '✓' if t.done else '○' }}</button>
         </form></td>
         {% else %}
@@ -108,7 +108,7 @@
            take one. #}
         <td class="tight">
           {%- if request.state.authed %}
-          <form method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/about" style="margin:0;display:flex;gap:4px">
+          <form class="btn-row" method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/about">
             <select name="asset" aria-label="what {{ t.text[:40] }} is about">
               <option value="">the project</option>
               {% for kind, obj, row in members %}
@@ -122,7 +122,7 @@
         {% endif %}
         <td class="tight muted">{{ t.done_at or '' }}</td>
         {% if request.state.authed %}
-        <td class="tight"><form method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/delete" style="margin:0"
+        <td class="tight"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/delete"
               data-confirm="Drop this task?">
           <button class="iconbtn danger" type="submit" title="Drop this task" aria-label="Drop this task">{{ I.ico('trash') }}</button>
         </form></td>
@@ -130,7 +130,7 @@
       </tr>
       {% endfor %}
     </table>
-    {% else %}<p class="muted" style="margin:0">Nothing on the list.</p>{% endif %}
+    {% else %}<p class="muted flush">Nothing on the list.</p>{% endif %}
     {% if request.state.authed %}
     <form class="addbar" method="post" action="/projects/{{ p.asset_id }}/task">
       <input name="text" placeholder="something to do" required>
@@ -173,14 +173,14 @@
         {% if request.state.authed %}<td class="tight money" data-label="cost">{{ money(o.cost_p) }}</td>{% endif %}
         <td class="tight act">
           {% if request.state.authed %}
-          <form method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delivered" style="margin:0">
+          <form class="flush" method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delivered">
             <button class="btn sm" type="submit"
                     title="{{ 'Put it back to still coming' if o.delivered else 'It has arrived' }}">{{ 'came' if o.delivered else 'mark in' }}</button>
           </form>
           {% else %}<span class="muted">{{ 'arrived' if o.delivered else 'on order' }}</span>{% endif %}
         </td>
         {% if request.state.authed %}
-        <td class="tight act"><form method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delete" style="margin:0"
+        <td class="tight act"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delete"
               data-confirm="Remove this order?">
           <button class="iconbtn danger" type="submit" title="Remove this order" aria-label="Remove this order">{{ I.ico('trash') }}</button>
         </form></td>
@@ -196,7 +196,7 @@
     <p class="hint">{% if spent %}{{ money(spent) }} so far{% else %}Nothing priced yet{% endif %}{% if unpriced %},
       with {{ unpriced }} line{{ '' if unpriced == 1 else 's' }} whose cost was not written down{% endif %}.</p>
     {% endif %}
-    {% else %}<p class="muted" style="margin:0">Nothing on order.</p>{% endif %}
+    {% else %}<p class="muted flush">Nothing on order.</p>{% endif %}
     {% if request.state.authed %}
     <form class="addbar orderbar" method="post" action="/projects/{{ p.asset_id }}/order">
       <input name="description" placeholder="what you have ordered" required>

@@ -111,7 +111,7 @@
   {% endcall %}
   {% if not obj.disposed %}
   {% call PN.panel('Disposal') %}
-    <div class="photo-actions" style="margin-top:0">
+    <div class="photo-actions flush-top">
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose">
       <input name="note" placeholder="why — sold, binned, donated…"
              aria-label="why it went">

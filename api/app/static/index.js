@@ -103,7 +103,10 @@ function apply() {
   // of its own, and a leading bullet then sits orphaned at the start of it.
   count.textContent = shown === cards.length
     ? '' : '(showing ' + shown + ' of ' + cards.length + ')';
-  empty.style.display = shown ? 'none' : '';
+  // The class, not the inline style: the markup starts it hidden with `is-hidden`
+  // now that no template may carry a style attribute (ADR-0022), and a class rule
+  // outranks an empty inline `display`, so clearing that would leave it hidden.
+  empty.classList.toggle('is-hidden', Boolean(shown));
   remember();
 }
 

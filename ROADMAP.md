@@ -95,6 +95,18 @@ rather than being wondered about later.
   every one of them. Nothing new was decided by it, since the formatter reads the
   `line-length = 100` already in `pyproject.toml`; layout simply stopped being
   something to argue about in review.
+- **The content policy allows nothing inline, styles included.** `style-src` is
+  `'self'` like every other directive, with no token anywhere: the 69 `style`
+  attributes across nineteen templates and the two `<style>` blocks are classes in
+  `app.css`, and the two whose values are data — the swatch for a bezel's shade and
+  its yellowing, mixed in Python, and the length of a bar on `/stats` — name rules
+  generated into `/style/data.css` by `datacss.py`, cached for a year against a
+  stamp of their contents ([ADR-0022](adr/0022-no-style-attribute-and-the-rules-that-are-data-are-generated.md)).
+  The roadmap offered keeping the token and writing down why as a legitimate
+  outcome; it was refused because the work turned out to be a day, and a stated
+  compromise nobody retires is how a temporary hole becomes a permanent one. The
+  test that used to skip while the token stood now asserts, so a style attribute
+  in a template fails CI rather than silently having no effect.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
   against the dump, every archived photograph and file, and the public pages
@@ -114,35 +126,15 @@ modules already extracted and ratcheted forward as more come out. Demanding
 strict across a `main.py` of this size would either block the release or produce a
 lot of `Any`.
 
-**2. Content-Security-Policy.** `security-standards` calls it the strongest
-single anti-XSS control, and the CSS half is already done. Counted rather than
-guessed at, what stands in the way is larger than "the inline scripts in
-`base.html`": 13 script blocks and 1,526 lines of JavaScript in that file, five
-more templates with a block of their own, 8 inline event handlers and 65 inline
-`style` attributes. So three steps, not two:
-
-- move the JavaScript to a cacheable static file, versioned the way `app.css` is,
-  and repoint the tests that assert on the markup of a page containing it;
-- deal with the handlers and the `style` attributes, or decide to keep
-  `'unsafe-inline'` for styles alone and write down why;
-- send the header from Caddy, **`Content-Security-Policy-Report-Only` first**, so
-  a week of real traffic says what it would have broken before anything breaks.
-
-Still independent of items 3 and 4, so it can go earlier — though the plan is to
-take it after the split, to keep two people out of the same templates at once.
-
-**3. Read the docs against the running app, then tag.** README, INSTALL, DEPLOY
-and MANUAL are detailed, which is exactly why they drift — and the drift is not
-only in the user-facing docs. This pass found `testing-standards`,
-`workflow-and-ci` and `CLAUDE.md` all describing a SQLite test run that no longer
-exists, and a README crediting contributors without ever stating the project's
-licence. So this item covers `.claude/rules/` and `CLAUDE.md` too — including
-`accessibility-standards`, which the accessibility decision has just rewritten.
+**2. Walk the install on a clean host, then tag.** The reading half of this item
+is done (#78): every guide and every rule file was read against the tree and
+against the running stack, what had drifted was corrected, and `CHANGELOG.md` is
+started. What is left is the part no reading can stand in for.
 
 The release gate: the install walk repeated on a clean host, a backup of that host
 restored into a second stack with `tools/restore.sh` (a release that invites
-people to self-host should have restored one at least once), the docs corrected to
-match, a `CHANGELOG.md` started, then tag `v0.1.0`.
+people to self-host should have restored one at least once), whatever that walk
+turns up corrected, then tag `v0.1.0`.
 
 ## After 0.1
 
@@ -218,8 +210,8 @@ what is possible and the device says what is preferred; per
 account, so there is nowhere per-user to put it and no reason to want one. The
 chooser hangs off the print button rather than living on a settings page nobody
 would find, the packet encoding stays in Python where the suite can reach it, and
-the chooser's JavaScript is a static file from the start — item 2 will not accept
-another inline block.
+the chooser's JavaScript is a static file from the start — the content policy
+(ADR-0021, ADR-0022) will not accept another inline block.
 
 **The orders still in the post, on the item's page.** The Work panel on a thing now
 lists the jobs written against it, outstanding first, with its project named above
