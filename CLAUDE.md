@@ -27,8 +27,9 @@ branding belong to the installation and live outside the repo (`.env`,
 
 ## Where things live
 
-- `api/app/main.py` — the app and its routes *(large; being split — see
-  workflow-and-ci)*.
+- `api/app/main.py` — `create_app()`: the middlewares, the static mount and
+  every router, and nothing else. The routes are in `api/app/routers/`, a module
+  to a group, and the helpers they share are modules beside them.
 - `api/app/models.py` — SQLAlchemy models. `api/app/db.py` — engine/session.
 - `api/app/machines.yaml` — the machine catalogue (validated, self-documenting;
   add machines here with a text editor).

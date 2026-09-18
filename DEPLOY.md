@@ -149,20 +149,28 @@ Leave that last step a few days. It is the only irreversible part.
 
 `.env` holds the DB and login credentials and is **git-ignored** — it lives only
 on the server and is never committed. If you add a new setting, update `.env` on
-the box by hand; a fresh clone needs its own `.env` (see the keys referenced in
-`docker-compose.yml`: `DB_*`, `RHDB_AUTH_USER`, `RHDB_AUTH_PASSWORD`,
-`RHDB_BASE_URL`).
+the box by hand; a fresh clone needs its own `.env`. `.env.example` is the list,
+with what each key is for written beside it: `DB_*`, `RHDB_AUTH_USER`,
+`RHDB_AUTH_PASSWORD`, `RHDB_SECRET_KEY` (the app refuses to start without it once
+the credentials are set), `RHDB_OPEN`, `RHDB_DOMAIN`, `RHDB_ACME_EMAIL`,
+`RHDB_BASE_URL` and `RHDB_WATERMARK`.
 
 ## Special case: changing the site icon
 
-Everything the brand appears on is generated from `api/app/static/app-icon.png`:
-the favicons and app icons (square, transparent), `logo-256.png` for the header
-and `logo-512.png` for the photo watermark (the logo's own proportions), and
-`og-image.png`, the card a shared link previews as. After replacing that master,
-regenerate the set before rebuilding:
+This installation's artwork lives in **`branding/`**, which is not in git and is
+mounted read-only in front of the shipped files: a name that is not overridden
+there falls through to the placeholder under `api/app/static`, so an update never
+overwrites your logo and your logo never turns up in a pull request. Edit
+`branding/`, never `api/app/static` — the latter is what ships to everybody.
+
+Everything the brand appears on is generated from one master,
+`branding/app-icon.png`: the favicons and app icons (square, transparent),
+`logo-256.png` for the header and `logo-512.png` for the photo watermark (the
+logo's own proportions), and `og-image.png`, the card a shared link previews as.
+After replacing that master, regenerate the set before rebuilding:
 
 ```sh
-docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
+docker run --rm -v "$PWD/branding:/static" -v "$PWD/tools:/tools" \
   retro-hardware-database-api python /tools/make_icons.py
 ./deploy.sh
 ```
@@ -170,8 +178,9 @@ docker run --rm -v "$PWD/api/app/static:/static" -v "$PWD/tools:/tools" \
 The master should be a transparent PNG; the script crops it to its artwork,
 squares it for the icon slots, and keeps the alpha channel everywhere except
 `apple-touch-icon.png` (iOS composites transparency on black, so that one is
-flattened on white). Anywhere with Pillow, `RHDB_STATIC=api/app/static python3
-tools/make_icons.py` does the same without Docker.
+flattened on white). Anywhere with Pillow, `RHDB_STATIC=branding python3
+tools/make_icons.py` does the same without Docker. `branding/README.md` says what
+each file is.
 
 Both caches key themselves on the artwork, so nothing has to be cleared by hand:
 the `?v=` in the page head follows the favicon's hash, and the watermark cache
@@ -220,7 +229,8 @@ docker compose logs -f caddy      # TLS / proxy logs
 curl -I "https://$RHDB_DOMAIN/"   # should return 200
 ```
 
-Traffic stats are at `https://$RHDB_DOMAIN/stats` (login required).
+The traffic report is at `https://$RHDB_DOMAIN/traffic` (login required); the
+collection's own statistics are at `/stats`, and those are public.
 
 ## Rolling back
 
