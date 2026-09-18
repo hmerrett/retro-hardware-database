@@ -217,7 +217,7 @@ def _file_ver(path: Path) -> str:
         return "0"
 
 
-def _text_ver(content) -> str:
+def _text_ver(content: str | bytes) -> str:
     """The same stamp for something built rather than read from disk -- the
     generated stylesheet, which has no file to hash."""
     if isinstance(content, str):
