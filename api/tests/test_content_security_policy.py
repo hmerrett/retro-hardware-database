@@ -12,6 +12,7 @@ against it. They are markup tests in the same spirit as test_keyboard_and_motion
 the browser is not here, so the assertion is made against what would be sent to
 one. ADR-0021.
 """
+
 import re
 
 import pytest
@@ -37,15 +38,19 @@ def executable(attributes: str) -> bool:
     """Whether the browser would run this <script>'s contents -- which is the
     only case `script-src` has an opinion about."""
     if HAS_SRC.search(attributes):
-        return False            # a file, and the policy judges it by its origin
+        return False  # a file, and the policy judges it by its origin
     declared = TYPE.search(attributes)
     return declared is None or bool(JAVASCRIPT.match(declared.group(1)))
 
+
 # on* as an attribute name only: `ondisk="..."` in a form field is not a handler,
 # and neither is the word "online" in prose.
-INLINE_HANDLER = re.compile(r"""[\s"'](on(?:click|change|submit|input|load|error|"""
-                            r"""focus|blur|keydown|keyup|mouseover|mouseout|"""
-                            r"""select|reset|drop|dragover))\s*=""", re.I)
+INLINE_HANDLER = re.compile(
+    r"""[\s"'](on(?:click|change|submit|input|load|error|"""
+    r"""focus|blur|keydown|keyup|mouseover|mouseout|"""
+    r"""select|reset|drop|dragover))\s*=""",
+    re.I,
+)
 
 # Anything the browser is told to fetch. A scheme and a host means another origin;
 # `/images/...` and `/static/...` mean this one.
@@ -55,13 +60,24 @@ INLINE_HANDLER = re.compile(r"""[\s"'](on(?:click|change|submit|input|load|error
 # at the site's real public address -- is metadata for a search engine that the
 # browser never requests. Judging those by their URL flags the canonical link on
 # every page and says the policy is broken when it is not.
-FETCHED = re.compile(r"""<(?:script|img|iframe|source|video|audio|embed|object)\b[^>]*"""
-                     r"""\b(?:src|data)\s*=\s*["']([^"']+)["']""", re.I)
+FETCHED = re.compile(
+    r"""<(?:script|img|iframe|source|video|audio|embed|object)\b[^>]*"""
+    r"""\b(?:src|data)\s*=\s*["']([^"']+)["']""",
+    re.I,
+)
 LINK_TAG = re.compile(r"<link\b([^>]*)>", re.I)
 REL = re.compile(r"""\brel\s*=\s*["']?([^"'>]+)""", re.I)
 HREF = re.compile(r"""\bhref\s*=\s*["']([^"']+)["']""", re.I)
-FETCHING_RELS = {"stylesheet", "icon", "shortcut", "apple-touch-icon", "manifest",
-                 "preload", "prefetch", "preconnect"}
+FETCHING_RELS = {
+    "stylesheet",
+    "icon",
+    "shortcut",
+    "apple-touch-icon",
+    "manifest",
+    "preload",
+    "prefetch",
+    "preconnect",
+}
 OFF_SITE = re.compile(r"^(?:[a-z][a-z0-9+.-]*:)?//", re.I)
 
 
@@ -75,6 +91,7 @@ def link_fetches(attributes: str) -> str | None:
     if FETCHING_RELS & {word.lower() for word in rel.group(1).split()}:
         return href.group(1)
     return None
+
 
 # A link that runs script instead of going somewhere. `script-src 'self'` blocks
 # a javascript: URL, so one of these is a dead control, not a slow one.
@@ -109,19 +126,23 @@ def directives(header: str) -> dict:
     return out
 
 
-@pytest.mark.parametrize("path", [
-    "/",                       # a rendered page
-    "/api/assets",             # the JSON API
-    "/static/app.js",          # a static file, served by the mount
-    "/healthz",                # the health check
-    "/computers/RH-9999",      # a 404: an error is a response somebody sees
-])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/",  # a rendered page
+        "/api/assets",  # the JSON API
+        "/static/app.js",  # a static file, served by the mount
+        "/healthz",  # the health check
+        "/computers/RH-9999",  # a 404: an error is a response somebody sees
+    ],
+)
 def test_every_response_carries_the_policy(client, path):
     """Including the ones nobody thinks of as pages. A 404 renders markup and a
     static file is script; both are places an injection would like to land."""
     response = client.get(path)
-    assert "Content-Security-Policy" in response.headers, \
+    assert "Content-Security-Policy" in response.headers, (
         f"{path} ({response.status_code}) was sent with no policy"
+    )
 
 
 def test_a_response_the_gate_makes_itself_carries_it_too(client, monkeypatch):
@@ -131,10 +152,12 @@ def test_a_response_the_gate_makes_itself_carries_it_too(client, monkeypatch):
     would go out bare."""
     monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
     response = client.get("/computers/new", follow_redirects=False)
-    assert response.status_code in (302, 303, 307, 401), \
+    assert response.status_code in (302, 303, 307, 401), (
         f"expected the gate to turn this away, got {response.status_code}"
-    assert "Content-Security-Policy" in response.headers, \
+    )
+    assert "Content-Security-Policy" in response.headers, (
         "the gate's own response went out with no policy"
+    )
 
 
 def test_the_policy_is_the_one_recorded(client):
@@ -162,9 +185,10 @@ def test_no_page_carries_a_script_the_policy_would_block(client, a_page_of_every
         for attributes in SCRIPT_TAG.findall(page.text):
             if executable(attributes):
                 inline.append(f"{path}: <script{attributes}>")
-    assert inline == [], \
-        "script-src 'self' blocks these; give the code a file or the data a type: " + \
-        "; ".join(inline[:8])
+    assert inline == [], (
+        "script-src 'self' blocks these; give the code a file or the data a type: "
+        + "; ".join(inline[:8])
+    )
 
 
 def test_no_page_carries_an_inline_event_handler(client, a_page_of_everything):
@@ -176,8 +200,9 @@ def test_no_page_carries_an_inline_event_handler(client, a_page_of_everything):
         page = client.get(path)
         for match in INLINE_HANDLER.finditer(page.text):
             handlers.append(f"{path}: {match.group(1)}=")
-    assert handlers == [], \
-        "these would not fire under the policy: " + "; ".join(sorted(set(handlers))[:8])
+    assert handlers == [], "these would not fire under the policy: " + "; ".join(
+        sorted(set(handlers))[:8]
+    )
 
 
 def test_no_link_runs_script_instead_of_going_somewhere(client, a_page_of_everything):
@@ -188,8 +213,7 @@ def test_no_link_runs_script_instead_of_going_somewhere(client, a_page_of_everyt
     for path in a_page_of_everything:
         if SCRIPT_URL.search(client.get(path).text):
             dead.append(path)
-    assert dead == [], \
-        "a javascript: link is blocked by script-src 'self': " + ", ".join(dead)
+    assert dead == [], "a javascript: link is blocked by script-src 'self': " + ", ".join(dead)
 
 
 def test_nothing_is_loaded_from_another_origin(client, a_page_of_everything):
@@ -205,12 +229,12 @@ def test_nothing_is_loaded_from_another_origin(client, a_page_of_everything):
         for url in requested:
             if OFF_SITE.match(url.strip()):
                 external.append(f"{path}: {url}")
-    assert external == [], \
-        "the policy allows this origin only: " + "; ".join(external[:8])
+    assert external == [], "the policy allows this origin only: " + "; ".join(external[:8])
 
 
 def test_style_attributes_are_allowed_only_while_the_policy_allows_them(
-        client, a_page_of_everything):
+    client, a_page_of_everything
+):
     """The one loosener the policy keeps, tied to the markup that needs it.
     `'unsafe-inline'` on styles is there for 69 style attributes across the
     templates; take the token out without taking them out and this fails rather
@@ -218,7 +242,9 @@ def test_style_attributes_are_allowed_only_while_the_policy_allows_them(
     style_src = directives(client.get("/").headers["Content-Security-Policy"])["style-src"]
     if "'unsafe-inline'" in style_src:
         pytest.skip("the policy still permits them; ADR-0021 records why")
-    attributed = [path for path in a_page_of_everything
-                  if STYLE_ATTRIBUTE.search(client.get(path).text)]
-    assert attributed == [], \
+    attributed = [
+        path for path in a_page_of_everything if STYLE_ATTRIBUTE.search(client.get(path).text)
+    ]
+    assert attributed == [], (
         "style-src no longer allows these, so they have no effect: " + ", ".join(attributed)
+    )

@@ -9,6 +9,7 @@ Routes, the change-log helpers (`add_log`, `get_or_404`) and the photo-edit
 orchestrators stay in main: this module only ever touches the filesystem and
 the photo/log-photo rows, never the log itself.
 """
+
 import contextlib
 import json
 import os
@@ -30,6 +31,7 @@ def _image_size(image_rel: str):
     especially) render the large image immediately without a probe fetch."""
     try:
         from PIL import Image, ImageOps
+
         with Image.open(IMAGES_DIR / image_rel) as im:
             # As served, which is upright: a photo lying on its side in the file
             # would otherwise be announced to a preview the wrong way round.
@@ -94,8 +96,9 @@ WM_BUILD = 3
 # means a change simply misses the old cache instead of needing anyone to remember;
 # the artwork's hash is in there because a new site icon is a new watermark, and
 # every photo already served carries the old one.
-WM_CACHE = (IMAGES_DIR / ".wm"
-            / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}-b{WM_BUILD}-i{_file_ver(WM_SRC)}")
+WM_CACHE = (
+    IMAGES_DIR / ".wm" / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}-b{WM_BUILD}-i{_file_ver(WM_SRC)}"
+)
 
 if WATERMARK:
     WM_CACHE.mkdir(parents=True, exist_ok=True)
@@ -142,8 +145,7 @@ def _write_atomically(dst: Path, write):
     dst.parent.mkdir(parents=True, exist_ok=True)
     # Not a .jpeg/.png: folder_images picks photographs out of the directory by
     # extension, so a half-written one must not look like a photograph to it.
-    fd, name = tempfile.mkstemp(dir=dst.parent, prefix=f"{dst.name}.",
-                                suffix=".part")
+    fd, name = tempfile.mkstemp(dir=dst.parent, prefix=f"{dst.name}.", suffix=".part")
     os.close(fd)
     tmp = Path(name)
     try:
@@ -160,12 +162,17 @@ def _image_format(path: Path, opened=None) -> str:
     one, and from the extension otherwise -- it cannot be left to Pillow to infer,
     because what it would infer it from is the temporary name ending in .part."""
     from PIL import Image
-    return (opened.format if opened is not None and opened.format
-            else Image.registered_extensions().get(path.suffix.lower(), "JPEG"))
+
+    return (
+        opened.format
+        if opened is not None and opened.format
+        else Image.registered_extensions().get(path.suffix.lower(), "JPEG")
+    )
 
 
 def _make_watermark(src_path: Path, dst_path: Path):
     from PIL import Image, ImageOps
+
     # Bake in EXIF orientation, exactly as editing a photo does. This copy is
     # re-encoded without the EXIF block, so a photo whose pixels lie on their side
     # and say so only in that block would be served -- and shown -- on its side.
@@ -184,8 +191,7 @@ def _make_watermark(src_path: Path, dst_path: Path):
     out = Image.alpha_composite(base, layer)
     if dst_path.suffix.lower() in (".jpg", ".jpeg"):
         rgb = out.convert("RGB")
-        _write_atomically(dst_path,
-                          lambda tmp: rgb.save(tmp, "JPEG", quality=88))
+        _write_atomically(dst_path, lambda tmp: rgb.save(tmp, "JPEG", quality=88))
     else:
         fmt = _image_format(dst_path)
         _write_atomically(dst_path, lambda tmp: out.save(tmp, fmt))
@@ -231,9 +237,12 @@ def _is_own_photo(rel: str) -> bool:
     # work, and the mark is there for where a photograph goes rather than for
     # which page of the site it was shown on.
     ext = Path(rel).suffix.lower()
-    return (WATERMARK and ext in IMAGE_EXTS
-            and (rel.startswith(("computers/", "parts/", LOG_KIND + "/")))
-            and not is_reference(rel))
+    return (
+        WATERMARK
+        and ext in IMAGE_EXTS
+        and (rel.startswith(("computers/", "parts/", LOG_KIND + "/")))
+        and not is_reference(rel)
+    )
 
 
 def _image_cache(versioned: bool) -> dict:
@@ -245,8 +254,11 @@ def _image_cache(versioned: bool) -> dict:
     and therefore the URL, which is the whole point of having one. A URL without a
     stamp could mean anything later, so it gets the hour it always had.
     """
-    return {"Cache-Control": "public, max-age=31536000, immutable" if versioned
-            else "public, max-age=3600"}
+    return {
+        "Cache-Control": "public, max-age=31536000, immutable"
+        if versioned
+        else "public, max-age=3600"
+    }
 
 
 def pick_images(kind, asset_id, listing):
@@ -260,7 +272,7 @@ def pick_images(kind, asset_id, listing):
             extras.append((stem, name))
 
     def sort_key(item):
-        suffix = item[0][len(asset_id) + 1:]
+        suffix = item[0][len(asset_id) + 1 :]
         return (0, int(suffix), "") if suffix.isdigit() else (1, 0, suffix.lower())
 
     return primary + [f"{kind}/{name}" for _stem, name in sorted(extras, key=sort_key)]
@@ -304,6 +316,7 @@ def _verify_image(source):
     otherwise be stored and then served with an image content-type. `source` is a
     path or an open binary file. Raises 400 if it is not a valid, accepted image."""
     from PIL import Image
+
     try:
         with Image.open(source) as im:
             fmt = im.format
@@ -344,8 +357,9 @@ def _chosen_photos(form):
     # A form value is either text or an upload, and the upload is Starlette's own
     # class -- not the FastAPI subclass the typed routes are annotated with, so it
     # is the text case that is worth excluding here.
-    ups = [u for u in form.getlist("photos")
-           if not isinstance(u, str) and (u.filename or "").strip()]
+    ups = [
+        u for u in form.getlist("photos") if not isinstance(u, str) and (u.filename or "").strip()
+    ]
     for up in ups:
         ext = Path(up.filename or "").suffix.lower() or ".jpg"
         if ext not in IMAGE_EXTS:
@@ -368,6 +382,7 @@ def _chosen_photos(form):
 # so _photo_target's <id>.jpg, <id>-2.jpg naming works unchanged, and entry 12's
 # photographs cannot be claimed by entry 120 because the second name always has the
 # hyphen in it.
+
 
 def _attach_log_photos(db, row, uploads):
     """Store photographs against a history entry. Returns how many were kept.
@@ -393,14 +408,14 @@ def _drop_log_photos(db, asset_id):
     themselves are: the paths have to be read while the rows are still there, since
     a file is the one thing here that cannot be rolled back.
     """
-    ids = [i for (i,) in db.query(LogEntry.id)
-           .filter(LogEntry.asset_id == asset_id)]
+    ids = [i for (i,) in db.query(LogEntry.id).filter(LogEntry.asset_id == asset_id)]
     if not ids:
         return []
-    rels = [rel for (rel,) in db.query(LogPhoto.rel)
-            .filter(LogPhoto.log_id.in_(ids)).order_by(LogPhoto.id)]
-    db.query(LogPhoto).filter(LogPhoto.log_id.in_(ids)).delete(
-        synchronize_session=False)
+    rels = [
+        rel
+        for (rel,) in db.query(LogPhoto.rel).filter(LogPhoto.log_id.in_(ids)).order_by(LogPhoto.id)
+    ]
+    db.query(LogPhoto).filter(LogPhoto.log_id.in_(ids)).delete(synchronize_session=False)
     return rels
 
 
@@ -466,8 +481,10 @@ def reference_marks(kind, asset_id):
     for rel in detect_images(kind, asset_id):
         info = _read_ref(rel)
         if info is not None:
-            out[rel] = {"note": info["note"] or _DEFAULT_REF_NOTE,
-                        "icon": _favicon_rel(info["source"])}
+            out[rel] = {
+                "note": info["note"] or _DEFAULT_REF_NOTE,
+                "icon": _favicon_rel(info["source"]),
+            }
     return out
 
 
@@ -538,8 +555,9 @@ def _cache_favicon(source):
 def _mark_reference(rel, on, note="", source=""):
     sc = _ref_sidecar(rel)
     if on:
-        sc.write_text(json.dumps({"note": note or _DEFAULT_REF_NOTE, "source": source}),
-                      encoding="utf-8")
+        sc.write_text(
+            json.dumps({"note": note or _DEFAULT_REF_NOTE, "source": source}), encoding="utf-8"
+        )
         if source:
             _cache_favicon(source)
     elif sc.exists():
@@ -682,6 +700,7 @@ def _edit_image(kind, asset_id, rel, fn, revertible=False):
     else:
         _drop_original(rel)
     from PIL import Image, ImageOps
+
     src = IMAGES_DIR / rel
     with Image.open(src) as im:
         out = fn(ImageOps.exif_transpose(im))
@@ -704,12 +723,14 @@ def _edit_image(kind, asset_id, rel, fn, revertible=False):
 
 def _rotate_op(direction):
     from PIL import Image
+
     turn = Image.Transpose.ROTATE_270 if direction == "cw" else Image.Transpose.ROTATE_90
     return lambda im: im.transpose(turn)
 
 
 def _crop_op(x, y, w, h):
     """Crop to a box given as fractions (0..1) of the image's width/height."""
+
     def crop(im):
         iw, ih = im.size
         left, top = max(0, round(x * iw)), max(0, round(y * ih))
@@ -718,12 +739,14 @@ def _crop_op(x, y, w, h):
         if right - left < 8 or bottom - top < 8:
             return im
         return im.crop((left, top, right, bottom))
+
     return crop
 
 
 def _tuneup_op():
     """The one-touch tuneup. See app/enhance.py for what it actually does."""
     from .enhance import tuneup
+
     return tuneup
 
 
@@ -737,6 +760,10 @@ def _photo_edit_redirect(kind, aid, image):
 def _asset_log_photos(db, asset_id):
     """The photographs hung on one asset's history, read without touching them --
     what _drop_log_photos will return when the record is actually deleted."""
-    return [rel for (rel,) in db.query(LogPhoto.rel)
-            .join(LogEntry, LogEntry.id == LogPhoto.log_id)
-            .filter(LogEntry.asset_id == asset_id).order_by(LogPhoto.id)]
+    return [
+        rel
+        for (rel,) in db.query(LogPhoto.rel)
+        .join(LogEntry, LogEntry.id == LogPhoto.log_id)
+        .filter(LogEntry.asset_id == asset_id)
+        .order_by(LogPhoto.id)
+    ]

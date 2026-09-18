@@ -6,6 +6,7 @@ tables holds it, which is the whole point of the label: scan it and land on the
 right page. The history routes are here rather than with the pages because a log
 entry belongs to the id, not to whichever kind of thing wears it.
 """
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -43,9 +44,15 @@ def api_item_log(aid: str, db: Session = Depends(get_db)):
     the entry, to be fetched from /images/ like any other photograph."""
     entries = item_log(db, aid)
     photos = log_photos(db, [e.id for e in entries])
-    return [{"created_at": e.created_at.isoformat() if e.created_at else None,
-             "kind": e.kind, "message": e.message,
-             "photos": photos.get(e.id, [])} for e in entries]
+    return [
+        {
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+            "kind": e.kind,
+            "message": e.message,
+            "photos": photos.get(e.id, []),
+        }
+        for e in entries
+    ]
 
 
 @router.get("/items/{aid}/version", include_in_schema=False)
@@ -85,8 +92,7 @@ def _log_entry_or_404(db, aid, log_id):
 
 
 @router.post("/items/{aid}/log/{log_id}/photo", include_in_schema=False)
-async def gui_log_photo(aid: str, log_id: int, request: Request,
-                        db: Session = Depends(get_db)):
+async def gui_log_photo(aid: str, log_id: int, request: Request, db: Session = Depends(get_db)):
     row, where = _log_entry_or_404(db, aid, log_id)
     _attach_log_photos(db, row, _chosen_photos(await request.form()))
     db.commit()
@@ -94,13 +100,16 @@ async def gui_log_photo(aid: str, log_id: int, request: Request,
 
 
 @router.post("/items/{aid}/log/{log_id}/photo-delete", include_in_schema=False)
-async def gui_log_photo_delete(aid: str, log_id: int, request: Request,
-                               db: Session = Depends(get_db)):
+async def gui_log_photo_delete(
+    aid: str, log_id: int, request: Request, db: Session = Depends(get_db)
+):
     row, where = _log_entry_or_404(db, aid, log_id)
     form = await request.form()
-    photo = (db.query(LogPhoto).filter(LogPhoto.log_id == row.id,
-                                       LogPhoto.rel == form.get("image", ""))
-             .first())
+    photo = (
+        db.query(LogPhoto)
+        .filter(LogPhoto.log_id == row.id, LogPhoto.rel == form.get("image", ""))
+        .first()
+    )
     if photo is None:
         raise HTTPException(404, "no such photo on this history entry")
     rel = photo.rel
@@ -144,20 +153,25 @@ async def gui_log_delete(aid: str, request: Request, db: Session = Depends(get_d
     where = _asset_page(db, aid)
     form = await request.form()
     ids = [int(i) for i in form.getlist("id") if str(i).strip().isdigit()]
-    rows = (db.query(LogEntry).filter(LogEntry.id.in_(ids),
-                                      LogEntry.asset_id == aid).all()
-            if ids else [])
+    rows = (
+        db.query(LogEntry).filter(LogEntry.id.in_(ids), LogEntry.asset_id == aid).all()
+        if ids
+        else []
+    )
     if not rows:
         raise HTTPException(404, f"no such history entry for {aid}")
     # The photographs hung on them go too, and their paths are read while the rows
     # are still there: a file is the one thing here that cannot be rolled back.
     found = [r.id for r in rows]
-    rels = [rel for (rel,) in db.query(LogPhoto.rel)
-            .filter(LogPhoto.log_id.in_(found)).order_by(LogPhoto.id)]
-    db.query(LogPhoto).filter(LogPhoto.log_id.in_(found)).delete(
-        synchronize_session=False)
+    rels = [
+        rel
+        for (rel,) in db.query(LogPhoto.rel)
+        .filter(LogPhoto.log_id.in_(found))
+        .order_by(LogPhoto.id)
+    ]
+    db.query(LogPhoto).filter(LogPhoto.log_id.in_(found)).delete(synchronize_session=False)
     for row in rows:
         db.delete(row)
-    db.commit()   # the rows first, then the files
+    db.commit()  # the rows first, then the files
     _purge_photos(rels)
     return RedirectResponse(where, status_code=303)

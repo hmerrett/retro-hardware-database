@@ -1,5 +1,6 @@
 """The pages of a part: its own page, its form, its photographs, and the machine or
 board it is fitted to."""
+
 from sqlalchemy import func
 
 
@@ -15,27 +16,51 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import drivedb, entry, filesdb, labels, machinedb, projects, specdb
-from ..assets import (DUP_EXCLUDE,
-                      PART_DERIVED_FIELDS, PART_FIELDS, _attach_photos, _confirms_url,
-                      _delete_ctx, _do_photo_crop, _do_photo_revert, _do_photo_rotate,
-                      _do_photo_tuneup, _machine_from_form, _machine_page,
-                      _require_disposed, _set_for_sale, _work_from_form, delete_part, part_thumbs)
+from ..assets import (
+    DUP_EXCLUDE,
+    PART_DERIVED_FIELDS,
+    PART_FIELDS,
+    _attach_photos,
+    _confirms_url,
+    _delete_ctx,
+    _do_photo_crop,
+    _do_photo_revert,
+    _do_photo_rotate,
+    _do_photo_tuneup,
+    _machine_from_form,
+    _machine_page,
+    _require_disposed,
+    _set_for_sale,
+    _work_from_form,
+    delete_part,
+    part_thumbs,
+)
 from ..common import to_dict
 from ..db import get_db
-from ..disposal import (_disposal_log)
+from ..disposal import _disposal_log
 from ..forms import _coerce, _field_diffs, _parse_date
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import ComputerDrive, Computer, Part, StorageSpec, StoredFile
 from ..pages import _answers_given, _note_with_photos
-from ..photos import (_chosen_photos, _delete_image, _fetch_reference_photo,
-                      _mark_reference, _photo_edit_redirect, _save_photo,
-                      _set_primary_photo, detect_images, reference_marks, tuned_photos)
+from ..photos import (
+    _chosen_photos,
+    _delete_image,
+    _fetch_reference_photo,
+    _mark_reference,
+    _photo_edit_redirect,
+    _save_photo,
+    _set_primary_photo,
+    detect_images,
+    reference_marks,
+    tuned_photos,
+)
 from ..register import _change_token, _item_nav, get_or_404
 from ..web import _dot, _jsonld, _og, _safe_next, templates
 
 from .. import specstruct
 from fastapi import Query
+
 
 def _apply_drive_picks(form, rows):
     """Put what the pickers chose on drives just read from a typed description.
@@ -52,8 +77,7 @@ def _apply_drive_picks(form, rows):
     is, so let it answer: read through drivedb's own vocabulary rather than a
     second mapping of the same words, and only where the text did not say.
     """
-    picks = {col: _picked_ask(form, key) or ""
-             for key, (_f, col) in DRIVE_PICKS.items()}
+    picks = {col: _picked_ask(form, key) or "" for key, (_f, col) in DRIVE_PICKS.items()}
     picks["colour"] = form.get("drive_colour", "") or ""
     picks["yellowing"] = form.get("drive_yellowing", "") or ""
     # The make and model, from the fields that ask for them. A routed drive never
@@ -65,8 +89,13 @@ def _apply_drive_picks(form, rows):
     # pickers have taken their share is the words they could not say (a "SS/DD"),
     # and those are the last thing to overwrite.
     named = " ".join(
-        x for x in (entry.deshout((form.get("manufacturer", "") or "").strip()),
-                    entry.deshout((form.get("model", "") or "").strip())) if x)
+        x
+        for x in (
+            entry.deshout((form.get("manufacturer", "") or "").strip()),
+            entry.deshout((form.get("model", "") or "").strip()),
+        )
+        if x
+    )
     # The first word of the menu's label: "Floppy/Gotek" and "SD/CF card" are pairs
     # of alternatives that drivedb reads as neither, and a Gotek names itself.
     menu = (form.get("kind", "") or "").split("/")[0]
@@ -91,9 +120,9 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
             mb_slots = dict(st.slots)
             mb_ram = dict(st.ram_slots)
             mb_ports = dict(st.ports)
-            mb_cpufams = [x.strip() for x
-                          in (st.scalars.get("cpu_family") or "").split(",")
-                          if x.strip()]
+            mb_cpufams = [
+                x.strip() for x in (st.scalars.get("cpu_family") or "").split(",") if x.strip()
+            ]
     # A stored CPU family that is not in the pick list (older rows say '486'
     # where the vocabulary says '486-class') still needs a checkbox, or saving the
     # form would silently drop it.
@@ -109,19 +138,27 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
     catalogue = _machine_ctx(obj, db, board=True) if ptype == "motherboard" else {}
     return {
         **catalogue,
-        "p": obj, "ptype": ptype, "computer_id": computer_id, "parent_id": parent_id,
+        "p": obj,
+        "ptype": ptype,
+        "computer_id": computer_id,
+        "parent_id": parent_id,
         "spec_keys": spec_keys,
         "action": action or (f"/parts/{obj.asset_id}/edit" if obj else "/parts/new"),
-        "makes": makes, "models": models, "known": known,
+        "makes": makes,
+        "models": models,
+        "known": known,
         "conditions": entry.CONDITIONS,
         "work_projects": projects.open_projects(db),
         "dl": _datalists(db),
         "vocab": {
-            "form_factors": entry.MOBO_FORM_FACTORS, "cpu_families": cpu_families,
-            "ram_slots": entry.RAM_SLOT_TYPES, "card_interfaces": entry.CARD_INTERFACES,
+            "form_factors": entry.MOBO_FORM_FACTORS,
+            "cpu_families": cpu_families,
+            "ram_slots": entry.RAM_SLOT_TYPES,
+            "card_interfaces": entry.CARD_INTERFACES,
             "video_connectors": entry.VIDEO_CONNECTORS,
             "storage_interfaces": entry.STORAGE_INTERFACES,
-            "storage_kinds": entry.STORAGE_KINDS, "storage_protocols": entry.STORAGE_PROTOCOLS,
+            "storage_kinds": entry.STORAGE_KINDS,
+            "storage_protocols": entry.STORAGE_PROTOCOLS,
             "peripheral_interfaces": entry.PERIPHERAL_INTERFACES,
         },
         # Every question a drive is asked, for the form to build itself from.
@@ -130,24 +167,42 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
         "display_asks": _display_asks_ctx(),
         "bezel_kinds": list(entry.BEZEL_KINDS),
         "disk_image_kinds": list(entry.DISK_IMAGE_KINDS),
-        "row_kinds": [k for k in entry.STORAGE_KINDS
-                      if k not in entry.PART_STORAGE_KINDS],
-        "floppy_kind": entry.FLOPPY_KIND, "optical_kind": entry.OPTICAL_KIND,
+        "row_kinds": [k for k in entry.STORAGE_KINDS if k not in entry.PART_STORAGE_KINDS],
+        "floppy_kind": entry.FLOPPY_KIND,
+        "optical_kind": entry.OPTICAL_KIND,
         **_bezel_ctx(),
-        "slot_names": entry.SLOT_NAMES, "port_names": entry.PORT_NAMES,
-        "mb_slots": mb_slots, "mb_ram": mb_ram, "mb_ports": mb_ports,
+        "slot_names": entry.SLOT_NAMES,
+        "port_names": entry.PORT_NAMES,
+        "mb_slots": mb_slots,
+        "mb_ram": mb_ram,
+        "mb_ports": mb_ports,
         "mb_cpufams": mb_cpufams,
         "port_legend": entry.PORT_LEGEND,
-        "type_labels": entry.TYPE_LABELS, "type_order": entry.TYPE_ORDER,
+        "type_labels": entry.TYPE_LABELS,
+        "type_order": entry.TYPE_ORDER,
     }
 
 
 async def _part_from_form(form, ptype, extra=()):
-    data = {"type": ptype,
-            "computer_id": form.get("computer_id", "") or None,
-            "parent_id": form.get("parent_id", "") or None}
-    for f in ("manufacturer", "model", "name", "year", "serial", "condition",
-              "source", "acquired_date", "url", "summary", "notes", "disk_image"):
+    data = {
+        "type": ptype,
+        "computer_id": form.get("computer_id", "") or None,
+        "parent_id": form.get("parent_id", "") or None,
+    }
+    for f in (
+        "manufacturer",
+        "model",
+        "name",
+        "year",
+        "serial",
+        "condition",
+        "source",
+        "acquired_date",
+        "url",
+        "summary",
+        "notes",
+        "disk_image",
+    ):
         data[f] = _coerce(f, form.get(f, ""))
     for f in ("manufacturer", "model"):
         data[f] = entry.deshout(data[f])
@@ -180,8 +235,12 @@ def _require_storage_interface(ptype, form):
     if picked is None:
         return
     if not picked:
-        raise HTTPException(400, "a storage part needs an interface: one of "
-                            + ", ".join(entry.STORAGE_INTERFACES) + ", or custom")
+        raise HTTPException(
+            400,
+            "a storage part needs an interface: one of "
+            + ", ".join(entry.STORAGE_INTERFACES)
+            + ", or custom",
+        )
 
 
 # The pick-or-type groups, and the drive row column each becomes where the drive is
@@ -200,9 +259,13 @@ DRIVE_PICKS = {
 # drive_-prefixed names a machine's own form posts, and the rest are named for their
 # spec key like every other field on the part form.
 PICK_FIELDS = {
-    ask["key"]: (DRIVE_PICKS[ask["key"]][0] if ask["key"] in DRIVE_PICKS
-                 else "spec_" + ask["key"].lower().replace(" ", "_"))
-    for ask in entry.STORAGE_ASKS if ask["options"]
+    ask["key"]: (
+        DRIVE_PICKS[ask["key"]][0]
+        if ask["key"] in DRIVE_PICKS
+        else "spec_" + ask["key"].lower().replace(" ", "_")
+    )
+    for ask in entry.STORAGE_ASKS
+    if ask["options"]
 }
 
 
@@ -246,21 +309,53 @@ def _assemble_specs(ptype, form, extra=()):
     if ptype == "motherboard":
         return _assemble_motherboard_specs(form, extra)
     managed = {
-        "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
-                        "Onboard RAM", "Slots", "Cache", "BIOS",
-                        "Onboard video", "Ports"],
+        "motherboard": [
+            "Chipset",
+            "CPU family",
+            "Form factor",
+            "RAM slots",
+            "Onboard RAM",
+            "Slots",
+            "Cache",
+            "BIOS",
+            "Onboard video",
+            "Ports",
+        ],
         "cpu": ["Socket", "Speed", "FSB", "Cores", "Cache"],
         "ram": ["Type", "Size", "Speed"],
         "video": ["Chip", "Interface", "Connector", "Memory", "Type"],
         "sound": ["Chip", "Interface", "FM", "Ports"],
         "network": ["Chip", "Interface", "Connector"],
         "io": ["Chip", "Interface", "Ports"],
-        "storage": ["Kind", "Description", "Form factor", "Size", "Interface",
-                    "Protocol", "Capacity", "CHS", "Media", "Speed", "Role",
-                    "Colour", "Yellowing"],
-        "display": ["Type", "Panel", "Screen size", "Aspect", "Resolution",
-                    "Refresh", "Sync", "Dot pitch", "Interface", "Picture",
-                    "Colour", "Yellowing"],
+        "storage": [
+            "Kind",
+            "Description",
+            "Form factor",
+            "Size",
+            "Interface",
+            "Protocol",
+            "Capacity",
+            "CHS",
+            "Media",
+            "Speed",
+            "Role",
+            "Colour",
+            "Yellowing",
+        ],
+        "display": [
+            "Type",
+            "Panel",
+            "Screen size",
+            "Aspect",
+            "Resolution",
+            "Refresh",
+            "Sync",
+            "Dot pitch",
+            "Interface",
+            "Picture",
+            "Colour",
+            "Yellowing",
+        ],
     }.get(ptype)
     # 'other' / 'peripheral' keep a free-text specs box (no data loss).
     if managed is None:
@@ -309,11 +404,16 @@ def _storage_asks_ctx():
     custom answer may be, and whether the answer has anywhere to go on a machine's
     drive row -- the four that do are the only ones still asked once a drive is folded
     into a machine, the rest being fields on a part that will not exist."""
-    return [ask | {"field": PICK_FIELDS.get(ask["key"], _spec_field(ask["key"])),
-                   "max": _ASK_WIDTHS.get(ask["key"], 255),
-                   "row": ask["key"] in DRIVE_PICKS,
-                   "kinds": list(ask["kinds"])}
-            for ask in entry.STORAGE_ASKS]
+    return [
+        ask
+        | {
+            "field": PICK_FIELDS.get(ask["key"], _spec_field(ask["key"])),
+            "max": _ASK_WIDTHS.get(ask["key"], 255),
+            "row": ask["key"] in DRIVE_PICKS,
+            "kinds": list(ask["kinds"]),
+        }
+        for ask in entry.STORAGE_ASKS
+    ]
 
 
 def _display_asks_ctx():
@@ -333,10 +433,12 @@ def _known_makes(db):
     offering here; the (make, model) pairs stay parts-only, because what they are
     for is starting a new part from an identical one."""
     makes = _answers_given(db, Part.manufacturer, Computer.manufacturer)
-    pairs = (db.query(Part.manufacturer, Part.model, Part.type,
-                      func.max(Part.asset_id))
-             .filter(Part.manufacturer != "", Part.model != "")
-             .group_by(Part.manufacturer, Part.model, Part.type).all())
+    pairs = (
+        db.query(Part.manufacturer, Part.model, Part.type, func.max(Part.asset_id))
+        .filter(Part.manufacturer != "", Part.model != "")
+        .group_by(Part.manufacturer, Part.model, Part.type)
+        .all()
+    )
     known = [{"m": mk, "d": md, "t": t, "id": aid} for mk, md, t, aid in pairs]
     models = sorted({p["d"] for p in known})
     return makes, models, known
@@ -396,21 +498,19 @@ def _ask_options(key, kind):
 def _assemble_motherboard_specs(form, extra=()):
     """Build a motherboard's specs from the structured grids (slot/RAM/port
     counts and CPU-family checkboxes) plus the plain text fields."""
-    pairs = [("Chipset", (form.get("spec_chipset", "") or "").strip()),
-             ("CPU family", ", ".join(form.getlist("cpufam"))),
-             ("Form factor", (form.get("spec_form_factor", "") or "").strip()),
-             ("RAM slots", entry.format_counts(
-                 _counts_from_form(form, "ram", entry.RAM_SLOT_TYPES))),
-             ("Onboard RAM", (form.get("spec_onboard_ram", "") or "").strip()),
-             ("Slots", entry.format_counts(
-                 _counts_from_form(form, "slot", entry.SLOT_NAMES))),
-             ("Cache", (form.get("spec_cache", "") or "").strip()),
-             ("BIOS", (form.get("spec_bios", "") or "").strip()),
-             ("Onboard video", (form.get("spec_onboard_video", "") or "").strip()),
-             ("Ports", entry.format_counts(
-                 _counts_from_form(form, "port", entry.PORT_NAMES)))]
-    return _append_unmanaged(entry.build_specs(pairs), extra,
-                             [k for k, _ in pairs])
+    pairs = [
+        ("Chipset", (form.get("spec_chipset", "") or "").strip()),
+        ("CPU family", ", ".join(form.getlist("cpufam"))),
+        ("Form factor", (form.get("spec_form_factor", "") or "").strip()),
+        ("RAM slots", entry.format_counts(_counts_from_form(form, "ram", entry.RAM_SLOT_TYPES))),
+        ("Onboard RAM", (form.get("spec_onboard_ram", "") or "").strip()),
+        ("Slots", entry.format_counts(_counts_from_form(form, "slot", entry.SLOT_NAMES))),
+        ("Cache", (form.get("spec_cache", "") or "").strip()),
+        ("BIOS", (form.get("spec_bios", "") or "").strip()),
+        ("Onboard video", (form.get("spec_onboard_video", "") or "").strip()),
+        ("Ports", entry.format_counts(_counts_from_form(form, "port", entry.PORT_NAMES))),
+    ]
+    return _append_unmanaged(entry.build_specs(pairs), extra, [k for k, _ in pairs])
 
 
 def _picked_display(form, ask):
@@ -438,8 +538,6 @@ def _picked_display(form, ask):
     return raw if raw in ask["options"] else ""
 
 
-
-
 def _counts_from_form(form, prefix, names):
     """Read a grid of per-name number inputs (name='<prefix>:<n>') into
     [(name, count), ...], skipping zeros/blanks."""
@@ -459,9 +557,14 @@ router = APIRouter()
 
 
 @router.get("/parts/new", response_class=HTMLResponse, include_in_schema=False)
-def gui_new_part(request: Request, type: str = "other", computer_id: str = "",
-                 parent_id: str = "", db: Session = Depends(get_db),
-                 source: str = Query("", alias="from")):
+def gui_new_part(
+    request: Request,
+    type: str = "other",
+    computer_id: str = "",
+    parent_id: str = "",
+    db: Session = Depends(get_db),
+    source: str = Query("", alias="from"),
+):
     """The new-part form. `from` starts it filled in from an existing part -- the
     same fields duplicating one copies, so a second of something already recorded
     is a couple of clicks rather than retyping its specs. Nothing is saved until
@@ -477,8 +580,13 @@ def gui_new_part(request: Request, type: str = "other", computer_id: str = "",
     ctx = _part_form_ctx(db, src, ptype, computer_id, parent_id, action="/parts/new")
     # A transient Part, never added to the session: the descriptive fields of the
     # source with everything belonging to that particular object left out.
-    ctx["p"] = Part(**{k: getattr(src, k) for k in PART_FIELDS
-                       if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS})
+    ctx["p"] = Part(
+        **{
+            k: getattr(src, k)
+            for k in PART_FIELDS
+            if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS
+        }
+    )
     ctx["title"] = f"New {entry.type_label(ptype)}"
     ctx["from_part"] = src.asset_id
     # The same rule the duplicate button follows: another board of this model is
@@ -486,7 +594,8 @@ def gui_new_part(request: Request, type: str = "other", computer_id: str = "",
     # sockets are found by looking at the board in your hand.
     if ctx.get("machine_saved"):
         ctx["machine_saved"] = dict(machinedb.BLANK) | {
-            "model_key": ctx["machine_saved"]["model_key"]}
+            "model_key": ctx["machine_saved"]["model_key"]
+        }
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
 
@@ -516,8 +625,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
                 drivedb.write(db, c, drivedb.read(db, c) + added)
                 # The canonical rendering rather than what was typed, so the history
                 # names the bezel that was picked from the menus as well.
-                add_log(db, computer_id,
-                        f"added drive: {drivedb.render(added) or desc}")
+                add_log(db, computer_id, f"added drive: {drivedb.render(added) or desc}")
                 # This drive is a field on the machine rather than an asset of its
                 # own, so it has no tag of its own to file a photo under: any that
                 # were chosen belong to the machine the drive went into.
@@ -528,18 +636,18 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
                 # its own for a project to be about.
                 _work_from_form(db, c, form)
                 db.commit()
-                return RedirectResponse(f"/computers/{computer_id}?build=1",
-                                        status_code=303)
+                return RedirectResponse(f"/computers/{computer_id}?build=1", status_code=303)
     _require_storage_interface(ptype, form)
     data = await _part_from_form(form, ptype)
     if ptype == "storage":
-        data["specs"] = entry.merge_spec(data["specs"], "Kind",
-                                         form.get("kind", "") or "")
+        data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind", "") or "")
         # A routed kind with no machine to route to becomes a part after all, so a
         # bezel picked on that path comes with it rather than being dropped on the
         # floor -- the part's own menus were not on screen to say otherwise.
-        for key, routed, own in (("Colour", "drive_colour", "spec_colour"),
-                                 ("Yellowing", "drive_yellowing", "spec_yellowing")):
+        for key, routed, own in (
+            ("Colour", "drive_colour", "spec_colour"),
+            ("Yellowing", "drive_yellowing", "spec_yellowing"),
+        ):
             picked = (form.get(routed, "") or "").strip()
             if picked and not (form.get(own, "") or "").strip():
                 data["specs"] = entry.merge_spec(data["specs"], key, picked)
@@ -550,8 +658,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
     # Only a board is filed against the catalogue, whatever a hand-made post claims:
     # the pickers are on no other type's form, and a SIMM filed as a Commodore 64
     # would be a record of nothing anybody owns.
-    if ptype == "motherboard" and \
-            (mach := _machine_from_form(form, board=True)) is not None:
+    if ptype == "motherboard" and (mach := _machine_from_form(form, board=True)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
     _work_from_form(db, obj, form)
@@ -560,69 +667,93 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
         _attach_photos(db, obj, "parts", photos)
         db.commit()
     parent_id = form.get("parent_id", "") or ""
-    dest = (f"/computers/{computer_id}?build=1" if computer_id
-            else f"/parts/{parent_id}" if parent_id
-            else f"/parts/{obj.asset_id}")
+    dest = (
+        f"/computers/{computer_id}?build=1"
+        if computer_id
+        else f"/parts/{parent_id}"
+        if parent_id
+        else f"/parts/{obj.asset_id}"
+    )
     return RedirectResponse(dest, status_code=303)
 
 
 @router.get("/parts/{aid}", response_class=HTMLResponse, include_in_schema=False)
-def gui_part(aid: str, request: Request, imgerr: int = 0, fileerr: int = 0,
-             db: Session = Depends(get_db)):
+def gui_part(
+    aid: str, request: Request, imgerr: int = 0, fileerr: int = 0, db: Session = Depends(get_db)
+):
     p = get_or_404(db, Part, aid)
     parent = db.get(Computer, p.computer_id) if p.computer_id else None
     host = db.get(Part, p.parent_id) if p.parent_id else None
-    children = (db.query(Part).filter(Part.parent_id == aid)
-                .order_by(Part.asset_id).all())
+    children = db.query(Part).filter(Part.parent_id == aid).order_by(Part.asset_id).all()
     candidates, computers = [], []
     if request.state.authed:
-        candidates = (db.query(Part)
-                      .filter(Part.type == "storage", Part.asset_id != aid,
-                              Part.parent_id.is_(None))
-                      .order_by(Part.asset_id).all())
+        candidates = (
+            db.query(Part)
+            .filter(Part.type == "storage", Part.asset_id != aid, Part.parent_id.is_(None))
+            .order_by(Part.asset_id)
+            .all()
+        )
         if not p.computer_id and not p.parent_id:
             computers = db.query(Computer).order_by(Computer.asset_id).all()
     images = detect_images("parts", aid)
     spec_pairs = specdb.pairs(db, p, display=True)
     # The preview text and the structured data are read rather than parsed, so they
     # say the figures the page says -- not the stored string's exact-to-the-KiB ones.
-    blurb = p.summary or _dot(entry.type_label(p.type),
-                              " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
-                              specstruct.join(spec_pairs))
-    return templates.TemplateResponse(request, "part.html", {
-        "machine": _machine_page(db, p),
-        "p": p, "parent": parent, "host": host, "children": children,
-        "thumbs": part_thumbs(db, children),
-        "item": (pdict := to_dict(p)), "kind": "parts",
-        "files": filesdb.for_item(db, pdict, request.state.authed),
-        "file_models": filesdb.model_ids_for(db, pdict),
-        "fileerr": bool(fileerr),
-        "dl_filenotes": _answers_given(db, StoredFile.note),
-        "on_project": (found := projects.project_for(db, aid,
-                                                     request.state.authed)),
-        "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
-        "project_tasks": (projects.project_wide_tasks(db, found.asset_id)
-                          if found is not None else []),
-        # For the picker in that panel, which only an owner is shown -- so a
-        # visitor's page does not ask the question at all.
-        "work_projects": (projects.open_projects(db) if request.state.authed
-                          else []),
-        "candidates": candidates, "computers": computers,
-        "images": images, "placeholder": _part_placeholder(db, p),
-        "ref_marks": reference_marks("parts", aid),
-        "tuned": tuned_photos("parts", aid),
-        "spec_pairs": spec_pairs, "imgerr": bool(imgerr),
-        "log": _history(db, aid), "nav": _item_nav(db, aid),
-        "live_aid": aid, "live_v": _change_token(db, aid),
-        "og": (og := _og(request, entry.display_name(to_dict(p)), blurb,
-                         images[0] if images else None)),
-        "jsonld": _jsonld(og, p.asset_id, p.manufacturer,
-                          entry.type_label(p.type) or "Computer part")})
+    blurb = p.summary or _dot(
+        entry.type_label(p.type),
+        " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
+        specstruct.join(spec_pairs),
+    )
+    return templates.TemplateResponse(
+        request,
+        "part.html",
+        {
+            "machine": _machine_page(db, p),
+            "p": p,
+            "parent": parent,
+            "host": host,
+            "children": children,
+            "thumbs": part_thumbs(db, children),
+            "item": (pdict := to_dict(p)),
+            "kind": "parts",
+            "files": filesdb.for_item(db, pdict, request.state.authed),
+            "file_models": filesdb.model_ids_for(db, pdict),
+            "fileerr": bool(fileerr),
+            "dl_filenotes": _answers_given(db, StoredFile.note),
+            "on_project": (found := projects.project_for(db, aid, request.state.authed)),
+            "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
+            "project_tasks": (
+                projects.project_wide_tasks(db, found.asset_id) if found is not None else []
+            ),
+            # For the picker in that panel, which only an owner is shown -- so a
+            # visitor's page does not ask the question at all.
+            "work_projects": (projects.open_projects(db) if request.state.authed else []),
+            "candidates": candidates,
+            "computers": computers,
+            "images": images,
+            "placeholder": _part_placeholder(db, p),
+            "ref_marks": reference_marks("parts", aid),
+            "tuned": tuned_photos("parts", aid),
+            "spec_pairs": spec_pairs,
+            "imgerr": bool(imgerr),
+            "log": _history(db, aid),
+            "nav": _item_nav(db, aid),
+            "live_aid": aid,
+            "live_v": _change_token(db, aid),
+            "og": (
+                og := _og(
+                    request, entry.display_name(to_dict(p)), blurb, images[0] if images else None
+                )
+            ),
+            "jsonld": _jsonld(
+                og, p.asset_id, p.manufacturer, entry.type_label(p.type) or "Computer part"
+            ),
+        },
+    )
 
 
 @router.get("/parts/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
-def gui_edit_part(aid: str, request: Request, type: str = "",
-                  db: Session = Depends(get_db)):
+def gui_edit_part(aid: str, request: Request, type: str = "", db: Session = Depends(get_db)):
     """The edit form. `type` builds it for a type other than the one the part is
     filed under, which is what the type menu asks for: what a part is asked depends
     on its type, so changing that has to fetch the form again to have the new
@@ -659,8 +790,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     # for. A key both types ask about is left to the form, because that is the answer
     # somebody has just given to a question they were actually shown.
     old_type = p.type or "other"
-    carried = (specdb.pairs(db, p) if ptype != old_type
-               else specdb.read(db, p).attributes)
+    carried = specdb.pairs(db, p) if ptype != old_type else specdb.read(db, p).attributes
     data = await _part_from_form(form, ptype, carried)
     if ptype == "storage" and (form.get("kind", "") or ""):
         data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind"))
@@ -691,8 +821,11 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
     board -- and the revision and the chips do not, because those are read off the
     board in your hand rather than off the one it was copied from."""
     src = get_or_404(db, Part, aid)
-    data = {k: getattr(src, k) for k in PART_FIELDS
-            if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS}
+    data = {
+        k: getattr(src, k)
+        for k in PART_FIELDS
+        if k not in DUP_EXCLUDE and k not in PART_DERIVED_FIELDS
+    }
     obj = Part(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()
@@ -705,8 +838,7 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
 
 
 @router.post("/parts/{aid}/for-sale", include_in_schema=False)
-async def gui_part_for_sale(aid: str, request: Request,
-                            db: Session = Depends(get_db)):
+async def gui_part_for_sale(aid: str, request: Request, db: Session = Depends(get_db)):
     return await _set_for_sale(db, Part, aid, request)
 
 
@@ -737,8 +869,7 @@ def gui_restore_part(aid: str, db: Session = Depends(get_db)):
 def gui_delete_part_form(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     _require_disposed(p, "part")
-    return templates.TemplateResponse(request, "delete.html",
-                                      _delete_ctx(request, db, "parts", p))
+    return templates.TemplateResponse(request, "delete.html", _delete_ctx(request, db, "parts", p))
 
 
 @router.post("/parts/{aid}/delete", include_in_schema=False)
@@ -748,10 +879,13 @@ async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_
     form = await request.form()
     if not _confirms_url(form.get("confirm", ""), "parts", p.asset_id):
         return templates.TemplateResponse(
-            request, "delete.html",
-            _delete_ctx(request, db, "parts", p,
-                        error="That is not this item's URL. Nothing was deleted."),
-            status_code=400)
+            request,
+            "delete.html",
+            _delete_ctx(
+                request, db, "parts", p, error="That is not this item's URL. Nothing was deleted."
+            ),
+            status_code=400,
+        )
     # Back to the machine it was in if it was in one, since that page is now a
     # part short and is the thing worth looking at; otherwise to the gallery.
     where = f"/computers/{p.computer_id}" if p.computer_id else "/"
@@ -767,8 +901,9 @@ async def gui_part_note(aid: str, request: Request, db: Session = Depends(get_db
 
 
 @router.post("/parts/{aid}/photo", include_in_schema=False)
-async def gui_part_photo(aid: str, photos: list[UploadFile] = File(...),
-                         db: Session = Depends(get_db)):
+async def gui_part_photo(
+    aid: str, photos: list[UploadFile] = File(...), db: Session = Depends(get_db)
+):
     p = get_or_404(db, Part, aid)
     first = None
     n = 0
@@ -795,8 +930,7 @@ def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)):
             p.image = rel
         add_log(db, aid, "fetched a photo from the reference")
         db.commit()
-    return RedirectResponse(f"/parts/{aid}" + ("" if rel else "?imgerr=1"),
-                            status_code=303)
+    return RedirectResponse(f"/parts/{aid}" + ("" if rel else "?imgerr=1"), status_code=303)
 
 
 @router.post("/parts/{aid}/unlink", include_in_schema=False)
@@ -813,8 +947,7 @@ async def gui_unlink_part(aid: str, request: Request, db: Session = Depends(get_
 
 
 @router.post("/parts/{aid}/link", include_in_schema=False)
-async def gui_link_part_to_computer(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
+async def gui_link_part_to_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     """Install this part into an existing computer (chosen from the part page)."""
     p = get_or_404(db, Part, aid)
     form = await request.form()
@@ -855,13 +988,11 @@ async def gui_detach_part(aid: str, request: Request, db: Session = Depends(get_
     if old_host:
         add_log(db, aid, f"unmounted from {old_host}")
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next", "") or f"/parts/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next", "") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/primary-photo", include_in_schema=False)
-async def gui_part_primary(aid: str, request: Request,
-                           db: Session = Depends(get_db)):
+async def gui_part_primary(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     form = await request.form()
     p.image = _set_primary_photo("parts", aid, form.get("image", ""))
@@ -871,8 +1002,7 @@ async def gui_part_primary(aid: str, request: Request,
 
 
 @router.post("/parts/{aid}/photo-delete", include_in_schema=False)
-async def gui_part_photo_delete(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
+async def gui_part_photo_delete(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     form = await request.form()
     was_primary, new_primary = _delete_image("parts", aid, form.get("image", ""))
@@ -884,8 +1014,7 @@ async def gui_part_photo_delete(aid: str, request: Request,
 
 
 @router.post("/parts/{aid}/photo-reference", include_in_schema=False)
-async def gui_part_photo_reference(aid: str, request: Request,
-                                   db: Session = Depends(get_db)):
+async def gui_part_photo_reference(aid: str, request: Request, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
     form = await request.form()
     rel = form.get("image", "")
@@ -893,8 +1022,9 @@ async def gui_part_photo_reference(aid: str, request: Request,
         raise HTTPException(404, "no such photo for this item")
     on = form.get("set", "1") == "1"
     _mark_reference(rel, on, (form.get("note", "") or "").strip(), p.url or "")
-    add_log(db, aid, "flagged a photo as a reference image" if on
-            else "unflagged a reference photo")
+    add_log(
+        db, aid, "flagged a photo as a reference image" if on else "unflagged a reference photo"
+    )
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
@@ -905,45 +1035,41 @@ def gui_part_edit_photo(aid: str, image: str = ""):
 
 
 @router.post("/parts/{aid}/photo-rotate", include_in_schema=False)
-async def gui_part_photo_rotate(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
+async def gui_part_photo_rotate(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_rotate(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-tuneup", include_in_schema=False)
-async def gui_part_photo_tuneup(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
+async def gui_part_photo_tuneup(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_tuneup(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-revert", include_in_schema=False)
-async def gui_part_photo_revert(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
+async def gui_part_photo_revert(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_revert(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-crop", include_in_schema=False)
-async def gui_part_photo_crop(aid: str, request: Request,
-                              db: Session = Depends(get_db)):
+async def gui_part_photo_crop(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_crop(db, Part, "parts", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.get("/parts/{aid}/label.pdf", include_in_schema=False)
 def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
     p = get_or_404(db, Part, aid)
-    pdf = labels.render_pdf(to_dict(p), [], labels.PART, small=bool(small),
-                            spec_pairs=specdb.pairs(db, p, display=True))
-    return Response(pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
+    pdf = labels.render_pdf(
+        to_dict(p), [], labels.PART, small=bool(small), spec_pairs=specdb.pairs(db, p, display=True)
+    )
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'},
+    )

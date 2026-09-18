@@ -32,6 +32,7 @@ migration 0011 was written to undo -- the display string had become the storage,
 renaming a label silently orphaned records -- and the reason the rows hold stable
 slugs and the string is written one way only.
 """
+
 from __future__ import annotations
 
 from . import machines
@@ -39,8 +40,7 @@ from .models import AssetChip, AssetVariant
 
 # What read() gives for an asset the catalogue knows nothing about, so callers can
 # treat "no catalogue row" and "a row saying nothing" alike.
-BLANK = {"model_key": "", "issue": "", "style": "", "region": "", "chips": {},
-         "sockets": {}}
+BLANK = {"model_key": "", "issue": "", "style": "", "region": "", "chips": {}, "sockets": {}}
 
 
 def read(db, asset):
@@ -49,21 +49,25 @@ def read(db, asset):
     {role: bool} for the ones whose mounting has been looked at -- a socket a
     person has not answered for is absent rather than false."""
     row = db.get(AssetVariant, asset.asset_id)
-    chips = (db.query(AssetChip)
-             .filter(AssetChip.asset_id == asset.asset_id)
-             .order_by(AssetChip.id).all())
+    chips = (
+        db.query(AssetChip)
+        .filter(AssetChip.asset_id == asset.asset_id)
+        .order_by(AssetChip.id)
+        .all()
+    )
     if row is None and not chips:
         return dict(BLANK)
     key = row.model_key if row else ""
     ordered = machines.in_role_order(key, [(c.role, c.variant) for c in chips])
     held = {c.role: c.socketed for c in chips if c.variant}
-    return {"model_key": key,
-            "issue": (row.issue if row else "") or "",
-            "style": (row.style if row else "") or "",
-            "region": (row.region if row else "") or "",
-            "chips": {role: variant for role, variant in ordered if variant},
-            "sockets": {role: bool(held[role]) for role, _v in ordered
-                        if held.get(role) is not None}}
+    return {
+        "model_key": key,
+        "issue": (row.issue if row else "") or "",
+        "style": (row.style if row else "") or "",
+        "region": (row.region if row else "") or "",
+        "chips": {role: variant for role, variant in ordered if variant},
+        "sockets": {role: bool(held[role]) for role, _v in ordered if held.get(role) is not None},
+    }
 
 
 def read_many(db, assets):
@@ -76,24 +80,23 @@ def read_many(db, assets):
     if not ids:
         return {}
     out = {}
-    for row in (db.query(AssetVariant)
-                .filter(AssetVariant.asset_id.in_(ids)).all()):
-        out[row.asset_id] = {"model_key": row.model_key or "",
-                             "issue": row.issue or "", "style": row.style or "",
-                             "region": row.region or "", "chips": {},
-                             "sockets": {}}
-    for row in (db.query(AssetChip)
-                .filter(AssetChip.asset_id.in_(ids))
-                .order_by(AssetChip.id).all()):
+    for row in db.query(AssetVariant).filter(AssetVariant.asset_id.in_(ids)).all():
+        out[row.asset_id] = {
+            "model_key": row.model_key or "",
+            "issue": row.issue or "",
+            "style": row.style or "",
+            "region": row.region or "",
+            "chips": {},
+            "sockets": {},
+        }
+    for row in db.query(AssetChip).filter(AssetChip.asset_id.in_(ids)).order_by(AssetChip.id).all():
         if row.variant:
-            out.setdefault(row.asset_id,
-                           dict(BLANK) | {"chips": {}, "sockets": {}})
+            out.setdefault(row.asset_id, dict(BLANK) | {"chips": {}, "sockets": {}})
             out[row.asset_id]["chips"][row.role] = row.variant
             if row.socketed is not None:
                 out[row.asset_id]["sockets"][row.role] = bool(row.socketed)
     for identity in out.values():
-        identity["chips"] = dict(machines.in_role_order(identity["model_key"],
-                                                        identity["chips"]))
+        identity["chips"] = dict(machines.in_role_order(identity["model_key"], identity["chips"]))
     return out
 
 
@@ -118,29 +121,35 @@ def recorded(db):
     out = {}
 
     def bucket(key):
-        return out.setdefault(key, {"issues": [], "styles": [], "regions": [],
-                                    "chips": {}})
+        return out.setdefault(key, {"issues": [], "styles": [], "regions": [], "chips": {}})
 
-    variants = (db.query(AssetVariant.model_key, AssetVariant.issue,
-                         AssetVariant.style, AssetVariant.region)
-                .filter(AssetVariant.model_key != "").distinct().all())
+    variants = (
+        db.query(
+            AssetVariant.model_key, AssetVariant.issue, AssetVariant.style, AssetVariant.region
+        )
+        .filter(AssetVariant.model_key != "")
+        .distinct()
+        .all()
+    )
     for key, issue, style, region in variants:
         got = bucket(key)
-        for field, value in (("issues", issue), ("styles", style),
-                             ("regions", region)):
+        for field, value in (("issues", issue), ("styles", style), ("regions", region)):
             if (value or "").strip():
                 got[field].append(value.strip())
-    chips = (db.query(AssetVariant.model_key, AssetChip.role, AssetChip.variant)
-             .join(AssetChip, AssetChip.asset_id == AssetVariant.asset_id)
-             .filter(AssetVariant.model_key != "").distinct().all())
+    chips = (
+        db.query(AssetVariant.model_key, AssetChip.role, AssetChip.variant)
+        .join(AssetChip, AssetChip.asset_id == AssetVariant.asset_id)
+        .filter(AssetVariant.model_key != "")
+        .distinct()
+        .all()
+    )
     for key, role, variant in chips:
         if (variant or "").strip():
             bucket(key)["chips"].setdefault(role, []).append(variant.strip())
     return out
 
 
-def write(db, asset, model_key=None, issue=None, style=None, region=None,
-          chips=None, sockets=None):
+def write(db, asset, model_key=None, issue=None, style=None, region=None, chips=None, sockets=None):
     """Store what is known about an asset's catalogue identity and re-render the
     cache. The asset must already be flushed so its asset_id exists.
 
@@ -159,8 +168,12 @@ def write(db, asset, model_key=None, issue=None, style=None, region=None,
     if row is None:
         row = AssetVariant(asset_id=aid)
         db.add(row)
-    for field, value in (("model_key", model_key), ("issue", issue),
-                         ("style", style), ("region", region)):
+    for field, value in (
+        ("model_key", model_key),
+        ("issue", issue),
+        ("style", style),
+        ("region", region),
+    ):
         if value is not None:
             setattr(row, field, (value or "").strip())
     if chips is not None:
@@ -168,16 +181,15 @@ def write(db, asset, model_key=None, issue=None, style=None, region=None,
         # survive the rewrite: an answer in this call wins, and a socket this call
         # says nothing about keeps the answer it already had rather than going back
         # to "nobody has looked".
-        was = {c.role: c.socketed for c in db.query(AssetChip).filter(
-            AssetChip.asset_id == aid).all()}
-        db.query(AssetChip).filter(
-            AssetChip.asset_id == aid).delete(synchronize_session=False)
+        was = {
+            c.role: c.socketed for c in db.query(AssetChip).filter(AssetChip.asset_id == aid).all()
+        }
+        db.query(AssetChip).filter(AssetChip.asset_id == aid).delete(synchronize_session=False)
         given = _flags(sockets)
         for role, variant in _pairs(chips):
             if variant:
                 held = given[role] if role in given else was.get(role)
-                db.add(AssetChip(asset_id=aid, role=role, variant=variant,
-                                 socketed=held))
+                db.add(AssetChip(asset_id=aid, role=role, variant=variant, socketed=held))
     elif sockets is not None:
         # Told only how the chips are held, which is an answer of its own: the
         # variants stay exactly as they are.
@@ -196,8 +208,7 @@ def clear(db, asset):
     rendered string."""
     aid = asset.asset_id
     for model in (AssetChip, AssetVariant):
-        db.query(model).filter(
-            model.asset_id == aid).delete(synchronize_session=False)
+        db.query(model).filter(model.asset_id == aid).delete(synchronize_session=False)
     db.flush()
     asset.variant = ""
 
@@ -207,8 +218,7 @@ def refresh(db, asset):
     write, and by app.resync when the catalogue's own words have changed underneath
     something that has not been edited since."""
     v = read(db, asset)
-    asset.variant = machines.render(v["model_key"], v["issue"], v["style"],
-                                    v["region"], v["chips"])
+    asset.variant = machines.render(v["model_key"], v["issue"], v["style"], v["region"], v["chips"])
     return asset.variant
 
 
@@ -219,8 +229,7 @@ def _flags(sockets):
     if sockets is None:
         return {}
     items = sockets.items() if isinstance(sockets, dict) else sockets
-    return {(role or "").strip(): (None if held is None else bool(held))
-            for role, held in items}
+    return {(role or "").strip(): (None if held is None else bool(held)) for role, held in items}
 
 
 def _pairs(chips):
@@ -228,8 +237,7 @@ def _pairs(chips):
     A blank variant is how a socket is cleared, so it is kept here and dropped by
     the caller rather than being quietly turned into a row."""
     items = chips.items() if isinstance(chips, dict) else chips
-    return [((role or "").strip(), (variant or "").strip())
-            for role, variant in items]
+    return [((role or "").strip(), (variant or "").strip()) for role, variant in items]
 
 
 def _drop_foreign_chips(db, aid, model_key):

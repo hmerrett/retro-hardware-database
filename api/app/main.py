@@ -9,37 +9,71 @@ Two surfaces over the same MariaDB:
 
 Interactive API docs live at /docs (OpenAPI).
 """
+
 from urllib.parse import parse_qs
 
-from fastapi import (FastAPI, Request)
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
-    BRANDING_DIR, IMAGES_DIR, STATIC_DIR)
+    BRANDING_DIR,
+    IMAGES_DIR,
+    STATIC_DIR,
+)
 from .common import (  # noqa: F401 -- re-exported for the tests, unused here
-    _all_years, to_dict)
-from .routers import (api_assets, api_projects, catalogue, computers as computer_pages,
-                      files as file_pages, gallery, health, images, items,
-                      parts as part_pages, projects as project_pages, seo)
+    _all_years,
+    to_dict,
+)
+from .routers import (
+    api_assets,
+    api_projects,
+    catalogue,
+    computers as computer_pages,
+    files as file_pages,
+    gallery,
+    health,
+    images,
+    items,
+    parts as part_pages,
+    projects as project_pages,
+    seo,
+)
 from . import auth
 from .routers import stats as stats_routes
 from .common import (  # noqa: F401 -- re-exported for the tests, unused here
-    RELIABILITY_MIN, _maker_reliability, branded)
+    RELIABILITY_MIN,
+    _maker_reliability,
+    branded,
+)
 from .pages import _answers_given  # noqa: F401 -- re-exported for the tests
 from .photos import (  # noqa: F401 -- re-exported for the tests, unused here
-    detect_images, has_original, img_url, pick_images, tuned_photos)
+    detect_images,
+    has_original,
+    img_url,
+    pick_images,
+    tuned_photos,
+)
 from .web import templates  # noqa: F401 -- re-exported for the tests, unused here
 from .stats import FACTS_SHOWN, _collection_stats, _facts, _facts_projects, _facts_register  # noqa: F401
 from .photos import (  # noqa: F401 -- re-exported for the tests, unused here
-    WM_CACHE, WM_SRC, WM_SCALE, WM_MIN_PX, WM_BUILD, _watermarked_file, _wm_forget,
-    _is_own_photo, _image_size, _ref_sidecar, _write_atomically, _original_of,
+    WM_CACHE,
+    WM_SRC,
+    WM_SCALE,
+    WM_MIN_PX,
+    WM_BUILD,
+    _watermarked_file,
+    _wm_forget,
+    _is_own_photo,
+    _image_size,
+    _ref_sidecar,
+    _write_atomically,
+    _original_of,
 )
 from .search import search_terms  # noqa: F401 -- re-exported for the tests, unused here
 
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
 # start); no create_all here.
-
 
 
 # What the app will load, which is only ever itself. `img_url` yields `/images/...`,
@@ -55,18 +89,20 @@ from .search import search_terms  # noqa: F401 -- re-exported for the tests, unu
 # templates. It is a far smaller hole than the same token on scripts -- it buys an
 # attacker who already has injection the ability to restyle a page, not to run
 # code -- and taking it out is its own piece of work. ADR-0021.
-CONTENT_SECURITY_POLICY = "; ".join((
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self'",
-    "font-src 'self'",
-    "connect-src 'self'",
-    "form-action 'self'",
-    "frame-ancestors 'self'",
-    "base-uri 'none'",
-    "object-src 'none'",
-))
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self'",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'self'",
+        "base-uri 'none'",
+        "object-src 'none'",
+    )
+)
 
 
 async def content_security_policy(request: Request, call_next):
@@ -107,8 +143,6 @@ async def no_stale_pages(request: Request, call_next):
     return response
 
 
-
-
 # Container paths by default (the `images` volume and the goaccess report mount);
 # overridable so the app can be imported and run outside Docker for local
 # development, which the hardcoded absolute paths used to make impossible.
@@ -134,8 +168,8 @@ class _CachedStatic(StaticFiles):
         response = super().file_response(full_path, stat_result, scope, status_code)
         query = parse_qs(scope.get("query_string", b"").decode("latin-1"))
         response.headers["Cache-Control"] = (
-            "public, max-age=31536000, immutable" if query.get("v")
-            else "public, max-age=3600")
+            "public, max-age=31536000, immutable" if query.get("v") else "public, max-age=3600"
+        )
         return response
 
 
@@ -175,11 +209,22 @@ def create_app() -> FastAPI:
     app.middleware("http")(auth.auth_gate)
     app.middleware("http")(content_security_policy)
     app.mount("/static", _static_files(), name="static")
-    for router in (auth.router, seo.router, images.router, catalogue.router,
-                   stats_routes.router, gallery.router, items.router,
-                   file_pages.router, computer_pages.router, part_pages.router,
-                   project_pages.router, api_assets.router, api_projects.router,
-                   health.router):
+    for router in (
+        auth.router,
+        seo.router,
+        images.router,
+        catalogue.router,
+        stats_routes.router,
+        gallery.router,
+        items.router,
+        file_pages.router,
+        computer_pages.router,
+        part_pages.router,
+        project_pages.router,
+        api_assets.router,
+        api_projects.router,
+        health.router,
+    ):
         app.include_router(router)
     return app
 

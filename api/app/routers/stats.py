@@ -5,6 +5,7 @@ content changes between two looks at it. /traffic is not the register at all -- 
 is the report GoAccess writes from the access logs, handed out as it was written,
 and it is behind the login because who reads the site is the owner's business.
 """
+
 import os
 import random
 from datetime import date
@@ -26,6 +27,7 @@ router = APIRouter()
 # shared volume). The route is login-only via the auth gate above.
 STATS_DIR = Path(os.getenv("RHDB_STATS_DIR", "/app/stats"))
 
+
 @router.get("/traffic", response_class=HTMLResponse, include_in_schema=False)
 def gui_traffic():
     report = STATS_DIR / "index.html"
@@ -33,17 +35,14 @@ def gui_traffic():
         return HTMLResponse(
             "<p style='font-family:system-ui;margin:2rem'>No traffic report yet "
             "&mdash; it is generated from the access logs every five minutes, so "
-            "check back shortly.</p>")
+            "check back shortly.</p>"
+        )
     return HTMLResponse(report.read_text(encoding="utf-8"))
+
 
 # --- the pointless department -----------------------------------------------
 # Figures that answer nothing anyone needs to know, which is the point of them. A
 # page of totals says how big the collection is; these say what it is like.
-
-
-
-
-
 
 
 @router.get("/stats", response_class=HTMLResponse, include_in_schema=False)
@@ -77,8 +76,12 @@ def gui_stats(request: Request, db: Session = Depends(get_db)):
     st["reliability_min"] = RELIABILITY_MIN
     # The description a crawler or a chat window sees is the collection, not
     # whichever eight figures this particular render drew.
-    blurb = (f"{st['n_total']} things in the register: {st['n_computers']} machines "
-             f"and {st['n_parts']} parts, averaging {st['mean_year']}.")
-    return templates.TemplateResponse(request, "stats.html", {
-        "st": st, "this_year": this_year,
-        "og": _og(request, "The collection by numbers", blurb)})
+    blurb = (
+        f"{st['n_total']} things in the register: {st['n_computers']} machines "
+        f"and {st['n_parts']} parts, averaging {st['mean_year']}."
+    )
+    return templates.TemplateResponse(
+        request,
+        "stats.html",
+        {"st": st, "this_year": this_year, "og": _og(request, "The collection by numbers", blurb)},
+    )

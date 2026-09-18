@@ -12,6 +12,7 @@ stay in agreement.
 Everything here is pure (no DB); models.py owns the tables and main.py maps a
 Struct onto them.
 """
+
 from __future__ import annotations
 
 import re
@@ -21,31 +22,72 @@ from .entry import KIB, fmt_kb, parse_specs
 # Spec-key -> column name, per typed table. Aliases (Chipset->chip) collapse on
 # the way in; format() uses the display order below on the way out.
 SCALARS = {
-    "motherboard": {"Chipset": "chipset", "CPU family": "cpu_family",
-                    "Form factor": "form_factor", "Onboard RAM": "onboard_ram",
-                    "Cache": "cache_kb", "BIOS": "bios",
-                    "Onboard video": "onboard_video"},
-    "cpu": {"Socket": "socket", "Speed": "speed_khz", "FSB": "fsb_khz",
-            "Cores": "cores", "Cache": "cache_kb", "L2 cache": "cache_kb",
-            "L1/L2 cache": "cache_kb"},
+    "motherboard": {
+        "Chipset": "chipset",
+        "CPU family": "cpu_family",
+        "Form factor": "form_factor",
+        "Onboard RAM": "onboard_ram",
+        "Cache": "cache_kb",
+        "BIOS": "bios",
+        "Onboard video": "onboard_video",
+    },
+    "cpu": {
+        "Socket": "socket",
+        "Speed": "speed_khz",
+        "FSB": "fsb_khz",
+        "Cores": "cores",
+        "Cache": "cache_kb",
+        "L2 cache": "cache_kb",
+        "L1/L2 cache": "cache_kb",
+    },
     "ram": {"Type": "ram_type", "Size": "size_kb", "Speed": "speed_ns"},
-    "video": {"Chip": "chip", "Chipset": "chip", "Interface": "interface",
-              "Connector": "connector", "Memory": "memory_kb", "Type": "video_type"},
-    "sound": {"Chip": "chip", "Chipset": "chip", "Interface": "interface",
-              "FM": "fm", "Ports": "ports"},
-    "network": {"Chip": "chip", "Chipset": "chip", "Interface": "interface",
-                "Connector": "connector"},
+    "video": {
+        "Chip": "chip",
+        "Chipset": "chip",
+        "Interface": "interface",
+        "Connector": "connector",
+        "Memory": "memory_kb",
+        "Type": "video_type",
+    },
+    "sound": {
+        "Chip": "chip",
+        "Chipset": "chip",
+        "Interface": "interface",
+        "FM": "fm",
+        "Ports": "ports",
+    },
+    "network": {
+        "Chip": "chip",
+        "Chipset": "chip",
+        "Interface": "interface",
+        "Connector": "connector",
+    },
     "io": {"Chip": "chip", "Chipset": "chip", "Interface": "interface"},
-    "storage": {"Kind": "kind", "Interface": "interface", "Protocol": "protocol",
-                "Capacity": "capacity_kb", "Media": "media", "Speed": "speed_rpm",
-                "Role": "role", "Colour": "colour", "Yellowing": "yellowing"},
-    "display": {"Type": "tech", "Panel": "panel",
-                "Screen size": "screen_in_tenths", "Aspect": "aspect",
-                "Resolution": "resolution", "Refresh": "refresh",
-                "Sync": "sync", "Dot pitch": "dot_pitch_um",
-                "Interface": "interface",
-                "Picture": "picture", "Colour": "colour",
-                "Yellowing": "yellowing"},
+    "storage": {
+        "Kind": "kind",
+        "Interface": "interface",
+        "Protocol": "protocol",
+        "Capacity": "capacity_kb",
+        "Media": "media",
+        "Speed": "speed_rpm",
+        "Role": "role",
+        "Colour": "colour",
+        "Yellowing": "yellowing",
+    },
+    "display": {
+        "Type": "tech",
+        "Panel": "panel",
+        "Screen size": "screen_in_tenths",
+        "Aspect": "aspect",
+        "Resolution": "resolution",
+        "Refresh": "refresh",
+        "Sync": "sync",
+        "Dot pitch": "dot_pitch_um",
+        "Interface": "interface",
+        "Picture": "picture",
+        "Colour": "colour",
+        "Yellowing": "yellowing",
+    },
 }
 
 # --- numeric columns -------------------------------------------------------
@@ -91,23 +133,53 @@ LIST_KEYS = {
 
 # Display order per type for format() (includes list + CHS keys).
 ORDER = {
-    "motherboard": ["Chipset", "CPU family", "Form factor", "RAM slots",
-                    "Onboard RAM", "Slots", "Cache", "BIOS", "Onboard video",
-                    "Ports"],
+    "motherboard": [
+        "Chipset",
+        "CPU family",
+        "Form factor",
+        "RAM slots",
+        "Onboard RAM",
+        "Slots",
+        "Cache",
+        "BIOS",
+        "Onboard video",
+        "Ports",
+    ],
     "cpu": ["Socket", "Speed", "FSB", "Cores", "Cache"],
     "ram": ["Type", "Size", "Speed"],
     "video": ["Chip", "Interface", "Connector", "Memory", "Type"],
     "sound": ["Chip", "Interface", "FM", "Ports"],
     "network": ["Chip", "Interface", "Connector"],
     "io": ["Chip", "Interface", "Ports"],
-    "storage": ["Kind", "Interface", "Protocol", "Capacity", "CHS", "Media",
-                "Speed", "Role", "Colour", "Yellowing"],
+    "storage": [
+        "Kind",
+        "Interface",
+        "Protocol",
+        "Capacity",
+        "CHS",
+        "Media",
+        "Speed",
+        "Role",
+        "Colour",
+        "Yellowing",
+    ],
     # What the picture is made of, then how big it is, then what it will show, then
     # how it plugs in -- and the plastic last, the way a drive's is, because the
     # bezel is what the thing looks like rather than what it does.
-    "display": ["Type", "Panel", "Screen size", "Aspect", "Resolution", "Refresh",
-                "Sync", "Dot pitch", "Interface", "Picture", "Colour",
-                "Yellowing"],
+    "display": [
+        "Type",
+        "Panel",
+        "Screen size",
+        "Aspect",
+        "Resolution",
+        "Refresh",
+        "Sync",
+        "Dot pitch",
+        "Interface",
+        "Picture",
+        "Colour",
+        "Yellowing",
+    ],
 }
 # Which column a display key reads from in format() (first alias wins).
 DISPLAY_COL = {t: {} for t in SCALARS}
@@ -205,6 +277,7 @@ def _simple_int(pattern):
     def parse(text):
         m = pattern.match(text or "")
         return int(m.group(1)) if m else None
+
     return parse
 
 
@@ -239,8 +312,10 @@ def numeric_handler(col, display=False):
         # A spec that says zero is saying something ('Cache: 0'), where a memory
         # total of zero is just a machine with none recorded -- so this does not
         # inherit fmt_kb's nothing-for-nothing.
-        return ((lambda v: _to_kb(v, bare)),
-                (lambda n: fmt_kb(n, display=display) if n else f"{n} {KIB}"))
+        return (
+            (lambda v: _to_kb(v, bare)),
+            (lambda n: fmt_kb(n, display=display) if n else f"{n} {KIB}"),
+        )
     if col in KHZ_COLS:
         return _to_khz, _fmt_khz
     if col in NS_COLS:
@@ -369,14 +444,25 @@ def pairs(ptype, s, display=False):
                 if s.chs:
                     pairs.append(("CHS", "{}/{}/{}".format(*s.chs)))
             else:
-                col = next((c for c in _display_column(ptype, key)
-                            if c and s.scalars.get(c) not in (None, "")), None)
+                col = next(
+                    (
+                        c
+                        for c in _display_column(ptype, key)
+                        if c and s.scalars.get(c) not in (None, "")
+                    ),
+                    None,
+                )
                 if col:
                     val = s.scalars[col]
                     handler = numeric_handler(col, display)
-                    pairs.append((key, handler[1](val)
-                                  if handler and isinstance(val, (int, float))
-                                  else str(val)))
+                    pairs.append(
+                        (
+                            key,
+                            handler[1](val)
+                            if handler and isinstance(val, (int, float))
+                            else str(val),
+                        )
+                    )
     pairs.extend(s.attributes)
     return pairs
 

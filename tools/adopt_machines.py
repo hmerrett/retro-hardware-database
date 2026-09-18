@@ -28,6 +28,7 @@ is work nobody needs. Boards are left out too -- a motherboard can carry a model
 key (that is what the catalogue's board side is for), but a board is filed by
 reading it, not by matching a name typed on a shelf.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -70,19 +71,25 @@ def unfiled(computers, only=None):
 def report(computer):
     """One machine's line in the report: what is typed, and what the catalogue
     thinks it might be."""
-    found = machines.suggest(computer.get("manufacturer", ""),
-                             computer.get("model", ""), SHOWN)
-    return [{"key": key, "score": score, "exact": exact,
-             "name": machines.full_name(key),
-             "year": machines.model(key)["year"],
-             "differs": machines.disagreements(key, computer)}
-            for key, score, exact in found]
+    found = machines.suggest(computer.get("manufacturer", ""), computer.get("model", ""), SHOWN)
+    return [
+        {
+            "key": key,
+            "score": score,
+            "exact": exact,
+            "name": machines.full_name(key),
+            "year": machines.model(key)["year"],
+            "differs": machines.disagreements(key, computer),
+        }
+        for key, score, exact in found
+    ]
 
 
 def describe(computer):
     """The typed record, as the fields the catalogue has an opinion about."""
-    bits = [f"{k}={computer[k]}" for k in ("manufacturer", "model", "year", "cpu")
-            if computer.get(k)]
+    bits = [
+        f"{k}={computer[k]}" for k in ("manufacturer", "model", "year", "cpu") if computer.get(k)
+    ]
     return ", ".join(bits) or "(nothing typed)"
 
 
@@ -96,8 +103,10 @@ def show(computer, name, found):
         mark = "the same name" if m["exact"] else f"{round(100 * m['score'])}% alike"
         print(f"  {n}) {m['name']} ({m['year']})  [{m['key']}]  — {mark}")
         for field, mine, theirs in m["differs"]:
-            print(f"       {field}: the record says {mine!r},"
-                  f" the catalogue says {theirs!r} — the record stands")
+            print(
+                f"       {field}: the record says {mine!r},"
+                f" the catalogue says {theirs!r} — the record stands"
+            )
 
 
 def ask(found):
@@ -113,24 +122,32 @@ def ask(found):
 
 
 def main(argv=None):
-    from rhdb import (add_api_arg, apply_api_arg, display_name, load_computers,
-                      update_computer)
+    from rhdb import add_api_arg, apply_api_arg, display_name, load_computers, update_computer
+
     ap = argparse.ArgumentParser(
-        description=__doc__.splitlines()[0],
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+        description=__doc__.splitlines()[0], formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     add_api_arg(ap)
-    ap.add_argument("only", nargs="?", default=None,
-                    help="just this asset id (default: every uncatalogued machine)")
-    ap.add_argument("--list", action="store_true", dest="listing",
-                    help="print the report and write nothing")
+    ap.add_argument(
+        "only",
+        nargs="?",
+        default=None,
+        help="just this asset id (default: every uncatalogued machine)",
+    )
+    ap.add_argument(
+        "--list", action="store_true", dest="listing", help="print the report and write nothing"
+    )
     args = ap.parse_args(argv)
     apply_api_arg(args)
 
     computers = load_computers()
     todo = unfiled(computers, args.only)
     if not todo:
-        print("Every machine still here is filed against a catalogue model."
-              if not args.only else f"No uncatalogued machine {args.only}.")
+        print(
+            "Every machine still here is filed against a catalogue model."
+            if not args.only
+            else f"No uncatalogued machine {args.only}."
+        )
         return 0
 
     filed = offered = 0
@@ -154,8 +171,10 @@ def main(argv=None):
         print(f"  filed as {chosen['name']}.")
         filed += 1
 
-    print(f"\n{len(todo)} machine(s) with no catalogue model, {offered} with"
-          f" something to offer, {filed} filed.")
+    print(
+        f"\n{len(todo)} machine(s) with no catalogue model, {offered} with"
+        f" something to offer, {filed} filed."
+    )
     if args.listing and offered:
         print("Nothing was written — run it without --list to go through them.")
     return 0

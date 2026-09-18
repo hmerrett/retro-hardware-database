@@ -10,6 +10,7 @@ first. It is a datalist and not a menu on purpose -- the next machine may well c
 from somewhere new, and nothing here refuses a new answer. What it does is make the
 answer already given the easier one to give again.
 """
+
 from app import main
 from app.models import Computer, Part, StoredFile
 
@@ -21,6 +22,7 @@ def sources(db):
 def options(html, list_id):
     """The values a page offers in one datalist."""
     import re
+
     m = re.search(rf'<datalist id="{list_id}">(.*?)</datalist>', html, re.S)
     return re.findall(r'<option value="([^"]*)"', m.group(1)) if m else None
 
@@ -38,8 +40,7 @@ class TestWhatIsOffered:
         computer(source="eBay")
         assert sources(db) == ["Pete Farm", "eBay"]
 
-    def test_the_same_answer_typed_two_ways_is_one_answer(self, client, db,
-                                                          computer):
+    def test_the_same_answer_typed_two_ways_is_one_answer(self, client, db, computer):
         """Case and stray spaces are how one answer becomes two. They fold together
         for the counting, and the spelling offered back is the one used most -- so
         "eBay" wins by having been typed, not by a rule about capitals."""
@@ -49,8 +50,7 @@ class TestWhatIsOffered:
         computer(source="  eBay  ")
         assert sources(db) == ["eBay"]
 
-    def test_the_minority_spelling_does_not_win_by_being_stored_first(
-            self, client, db, computer):
+    def test_the_minority_spelling_does_not_win_by_being_stored_first(self, client, db, computer):
         """The one the database would have picked. MariaDB's collation folds case
         and ignores trailing spaces, so GROUP BY had already merged these three
         before we saw them and handed back whichever row it read first as the
@@ -76,24 +76,20 @@ class TestWhatIsOffered:
 class TestTheFormsOfferThem:
     def test_the_machine_form_offers_a_source(self, client, computer):
         computer(source="Stephen Usher")
-        assert options(client.get("/computers/new").text,
-                       "dl_source") == ["Stephen Usher"]
+        assert options(client.get("/computers/new").text, "dl_source") == ["Stephen Usher"]
 
     def test_the_part_form_offers_the_same_sources(self, client, computer):
         computer(source="Stephen Usher")
-        assert options(client.get("/parts/new").text,
-                       "dl_sources") == ["Stephen Usher"]
+        assert options(client.get("/parts/new").text, "dl_sources") == ["Stephen Usher"]
 
     def test_a_machine_is_offered_the_makes_it_knows(self, client, computer, part):
         """Parts had this and machines did not, though a Compaq is a Compaq whether
         it is the box or the board out of it."""
         computer(manufacturer="Compaq")
         part(manufacturer="Adaptec")
-        assert set(options(client.get("/computers/new").text,
-                           "dl_makes")) == {"Compaq", "Adaptec"}
+        assert set(options(client.get("/computers/new").text, "dl_makes")) == {"Compaq", "Adaptec"}
 
-    def test_a_part_is_offered_a_make_only_a_machine_has_used(self, client,
-                                                              computer):
+    def test_a_part_is_offered_a_make_only_a_machine_has_used(self, client, computer):
         computer(manufacturer="Amstrad")
         assert "Amstrad" in options(client.get("/parts/new").text, "dl_makes")
 
@@ -102,11 +98,9 @@ class TestTheFormsOfferThem:
         thousand answers to a different question."""
         computer(model="PC1512")
         part(model="AHA-1542CF")
-        assert options(client.get("/computers/new").text,
-                       "dl_models") == ["PC1512"]
+        assert options(client.get("/computers/new").text, "dl_models") == ["PC1512"]
 
-    def test_the_three_a_machine_is_asked_and_a_part_is_not(self, client,
-                                                            computer):
+    def test_the_three_a_machine_is_asked_and_a_part_is_not(self, client, computer):
         computer(chassis="desktop", os="MS-DOS 6.22", cpu="Intel 486DX2-66")
         page = client.get("/computers/new").text
         assert options(page, "dl_chassis") == ["desktop"]
@@ -117,25 +111,22 @@ class TestTheFormsOfferThem:
         """The same boxes, and the same drift: an edit is where a spelling gets
         changed into a second one."""
         aid = computer(source="Stephen Usher")["asset_id"]
-        assert options(client.get(f"/computers/{aid}/edit").text,
-                       "dl_source") == ["Stephen Usher"]
+        assert options(client.get(f"/computers/{aid}/edit").text, "dl_source") == ["Stephen Usher"]
 
 
 class TestElsewhere:
     def test_a_project_offers_who_things_were_bought_from(self, client, db):
         p = client.post("/api/projects", json={"name": "A500"}).json()["asset_id"]
-        client.post(f"/api/projects/{p}/orders",
-                    json={"description": "belt", "supplier": "Retro Bits"})
-        assert options(client.get(f"/projects/{p}").text,
-                       "dl_suppliers") == ["Retro Bits"]
+        client.post(
+            f"/api/projects/{p}/orders", json={"description": "belt", "supplier": "Retro Bits"}
+        )
+        assert options(client.get(f"/projects/{p}").text, "dl_suppliers") == ["Retro Bits"]
 
-    def test_the_files_panel_offers_what_files_have_been_called(self, client, db,
-                                                               computer):
+    def test_the_files_panel_offers_what_files_have_been_called(self, client, db, computer):
         db.add(StoredFile(stored="x.bin", filename="x.bin", note="ROM dump"))
         db.commit()
         aid = computer()["asset_id"]
-        assert options(client.get(f"/computers/{aid}").text,
-                       "dl_filenotes") == ["ROM dump"]
+        assert options(client.get(f"/computers/{aid}").text, "dl_filenotes") == ["ROM dump"]
 
     def test_a_visitor_is_offered_nothing(self, client, computer, monkeypatch):
         """The pick lists are on the forms, and the forms are behind the login --

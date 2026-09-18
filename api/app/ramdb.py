@@ -13,6 +13,7 @@ label. The label used to be the key -- installed_ram was parsed back with a rege
 built from it -- so renaming one orphaned every machine that had that module
 fitted, silently.
 """
+
 from __future__ import annotations
 
 from . import entry
@@ -26,14 +27,19 @@ KEEP = object()
 def read(db, computer):
     """A machine's fitted memory as ([(slug, n)], [(chip, n)]), in entry order."""
     aid = computer.asset_id
-    mods = (db.query(ComputerRamModule)
-            .filter(ComputerRamModule.computer_id == aid)
-            .order_by(ComputerRamModule.id).all())
-    chips = (db.query(ComputerRamChip)
-             .filter(ComputerRamChip.computer_id == aid)
-             .order_by(ComputerRamChip.id).all())
-    return ([(r.module, r.count) for r in mods],
-            [(r.chip, r.count) for r in chips])
+    mods = (
+        db.query(ComputerRamModule)
+        .filter(ComputerRamModule.computer_id == aid)
+        .order_by(ComputerRamModule.id)
+        .all()
+    )
+    chips = (
+        db.query(ComputerRamChip)
+        .filter(ComputerRamChip.computer_id == aid)
+        .order_by(ComputerRamChip.id)
+        .all()
+    )
+    return ([(r.module, r.count) for r in mods], [(r.chip, r.count) for r in chips])
 
 
 def write(db, computer, modules=None, chips=None, note=None, total_kb=KEEP):
@@ -48,14 +54,16 @@ def write(db, computer, modules=None, chips=None, note=None, total_kb=KEEP):
     """
     aid = computer.asset_id
     if modules is not None:
-        db.query(ComputerRamModule).filter(
-            ComputerRamModule.computer_id == aid).delete(synchronize_session=False)
+        db.query(ComputerRamModule).filter(ComputerRamModule.computer_id == aid).delete(
+            synchronize_session=False
+        )
         for slug, n in modules:
             if n:
                 db.add(ComputerRamModule(computer_id=aid, module=slug, count=n))
     if chips is not None:
-        db.query(ComputerRamChip).filter(
-            ComputerRamChip.computer_id == aid).delete(synchronize_session=False)
+        db.query(ComputerRamChip).filter(ComputerRamChip.computer_id == aid).delete(
+            synchronize_session=False
+        )
         for pn, n in chips:
             if n:
                 db.add(ComputerRamChip(computer_id=aid, chip=pn, count=n))
@@ -70,7 +78,8 @@ def write(db, computer, modules=None, chips=None, note=None, total_kb=KEEP):
     elif total_kb is not KEEP:
         computer.installed_ram_kb = total_kb or None
     computer.installed_ram = entry.render_installed_ram(
-        mods, chps, computer.installed_ram_kb, computer.installed_ram_note or "")
+        mods, chps, computer.installed_ram_kb, computer.installed_ram_note or ""
+    )
 
 
 def from_string(text):

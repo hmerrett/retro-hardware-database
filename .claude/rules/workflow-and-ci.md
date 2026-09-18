@@ -14,8 +14,8 @@ British English. Scaled for a small team / solo maintainer — light, not ceremo
 CI (`.github/workflows/ci.yml`) runs on pull requests. The backend job shape is:
 
 1. `uv sync --project api --all-groups --frozen` (the lockfile as committed),
-2. `uv run --project api ruff check .` (and *adopt next:* `ruff format --check .`,
-   `mypy app`),
+2. `uv run --project api ruff check .` and `ruff format --check .` (and
+   *adopt next:* `mypy app`),
 3. `pytest` against a **real MariaDB service container** — the suite builds its
    schema by running the migrations from empty, so this covers both the migration
    path and the tests (ADR-0008),

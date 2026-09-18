@@ -5,11 +5,11 @@ is not a date -- which is what broke the create path when those columns stopped
 being free text. These turn one into the other, and work out what changed, so that
 the change log says "year: 1986 -> 1987" rather than that something was edited.
 """
+
 from datetime import datetime
 
 from . import entry
 from .history import _short
-
 
 
 def _parse_date(raw):
@@ -30,8 +30,7 @@ def _coerce(field, raw):
     if field in ("year", "topbench"):
         v = (raw or "").strip()
         return int(v) if v.isdigit() else None
-    if field in ("acquired_date", "disposed_at",
-                 "started_at", "target_date", "finished_at"):
+    if field in ("acquired_date", "disposed_at", "started_at", "target_date", "finished_at"):
         return _parse_date(raw)
     if field == "disposed":
         return (raw or "").strip() not in ("", "0", "false")

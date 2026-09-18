@@ -5,6 +5,7 @@ The same rows the pages edit, read and written by something that is not a browse
 shape rather than a page's: a machine with its memory, its drives and the catalogue
 model it answers to, flattened into one document.
 """
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -21,8 +22,7 @@ from ..history import add_log
 from ..ids import next_asset_id
 from ..models import Computer, Part, Project
 from ..register import get_or_404
-from ..schemas import (ComputerCreate, ComputerIn, ComputerOut, PartCreate, PartIn,
-                       PartOut)
+from ..schemas import ComputerCreate, ComputerIn, ComputerOut, PartCreate, PartIn, PartOut
 from ..work import _take_on_work, _work_lines
 
 router = APIRouter()
@@ -61,15 +61,16 @@ def _machine_from_api(db, asset, machine):
     fields = machine.model_dump(exclude_unset=True)
     key = fields.get("model_key")
     if key and machines.model(key) is None:
-        raise HTTPException(422, f"no such machine model: {key} -- "
-                                 "GET /api/machines lists them")
+        raise HTTPException(422, f"no such machine model: {key} -- GET /api/machines lists them")
     # Which model the chips are being checked against: the one this request sets, or
     # the one the asset is already filed as.
     against = key if key is not None else machinedb.read(db, asset)["model_key"]
     for role in {*(fields.get("chips") or {}), *(fields.get("sockets") or {})}:
         if role not in machines.roles(against):
-            raise HTTPException(422, f"{against or 'a machine with no model'} has no "
-                                     f"{role} socket to record a chip in")
+            raise HTTPException(
+                422,
+                f"{against or 'a machine with no model'} has no {role} socket to record a chip in",
+            )
     machinedb.write(db, asset, **fields)
 
 
@@ -83,8 +84,10 @@ def _board_from_api(db, part, machine):
     may be asked to forget a catalogue identity it has not got."""
     if machine is not None and (part.type or "") != "motherboard":
         raise HTTPException(
-            422, f"a {entry.type_label(part.type) or 'part'} cannot be a catalogue "
-                 "machine -- only a motherboard is filed against the catalogue")
+            422,
+            f"a {entry.type_label(part.type) or 'part'} cannot be a catalogue "
+            "machine -- only a motherboard is filed against the catalogue",
+        )
     _machine_from_api(db, part, machine)
 
 
@@ -111,8 +114,9 @@ def _project_id(db, asset_id, prefetched=None):
     Nothing is hidden here. A private project is kept back from the public pages,
     and the API is behind the login entire -- there is nobody on this side of it to
     keep anything from."""
-    found = (prefetched.get(asset_id) if prefetched is not None
-             else projects.project_for(db, asset_id))
+    found = (
+        prefetched.get(asset_id) if prefetched is not None else projects.project_for(db, asset_id)
+    )
     return found.asset_id if found is not None else None
 
 
@@ -122,7 +126,8 @@ def _computer_out(db, computer, identity=None, in_projects=None):
     it is on."""
     return to_dict(computer) | {
         "machine": _machine_out(db, computer, identity),
-        "project": _project_id(db, computer.asset_id, in_projects)}
+        "project": _project_id(db, computer.asset_id, in_projects),
+    }
 
 
 def _part_out(db, part, identity=None, in_projects=None):
@@ -130,7 +135,8 @@ def _part_out(db, part, identity=None, in_projects=None):
     part that is not a board `machine` is simply null."""
     return to_dict(part) | {
         "machine": _machine_out(db, part, identity),
-        "project": _project_id(db, part.asset_id, in_projects)}
+        "project": _project_id(db, part.asset_id, in_projects),
+    }
 
 
 def _check_links(db, fields):
@@ -170,9 +176,10 @@ def api_list_computers(db: Session = Depends(get_db)):
     # memberships in one more for the same reason.
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [c.asset_id for c in rows])
-    return [_computer_out(db, c, identities.get(c.asset_id, dict(machinedb.BLANK)),
-                          in_projects)
-            for c in rows]
+    return [
+        _computer_out(db, c, identities.get(c.asset_id, dict(machinedb.BLANK)), in_projects)
+        for c in rows
+    ]
 
 
 @router.post("/api/computers", response_model=ComputerOut, tags=["computers"])
@@ -240,12 +247,17 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
             # well, so the record to match the parts against is whichever of the
             # two the request left behind.
             n = _restore_contents(
-                db, obj,
+                db,
+                obj,
                 old["disposed_at"] if "disposed_at" in fields else obj.disposed_at,
-                old["disposed_note"] if "disposed_note" in fields else obj.disposed_note)
+                old["disposed_note"] if "disposed_note" in fields else obj.disposed_note,
+            )
     if diff or n:
-        add_log(db, aid, (diff + _and_parts(
-            n, "went with it" if obj.disposed else "came back too")).strip())
+        add_log(
+            db,
+            aid,
+            (diff + _and_parts(n, "went with it" if obj.disposed else "came back too")).strip(),
+        )
     db.commit()
     db.refresh(obj)
     return _computer_out(db, obj)
@@ -262,20 +274,23 @@ def api_delete_computer(aid: str, db: Session = Depends(get_db)):
 
 
 @router.get("/api/parts", response_model=list[PartOut], tags=["parts"])
-def api_list_parts(computer_id: str | None = None, type: str | None = None,
-                   db: Session = Depends(get_db)):
+def api_list_parts(
+    computer_id: str | None = None, type: str | None = None, db: Session = Depends(get_db)
+):
     q = db.query(Part)
     if computer_id is not None:
-        q = q.filter(Part.computer_id.is_(None) if computer_id == ""
-                     else Part.computer_id == computer_id)
+        q = q.filter(
+            Part.computer_id.is_(None) if computer_id == "" else Part.computer_id == computer_id
+        )
     if type is not None:
         q = q.filter(Part.type == type)
     rows = q.order_by(Part.asset_id).all()
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [p.asset_id for p in rows])
-    return [_part_out(db, p, identities.get(p.asset_id, dict(machinedb.BLANK)),
-                      in_projects)
-            for p in rows]
+    return [
+        _part_out(db, p, identities.get(p.asset_id, dict(machinedb.BLANK)), in_projects)
+        for p in rows
+    ]
 
 
 @router.post("/api/parts", response_model=PartOut, tags=["parts"])

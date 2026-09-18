@@ -4,6 +4,7 @@ Public and content-free on purpose: a deploy's smoke check runs before any
 credentials exist, and an uptime monitor should learn nothing from it but up or
 down.
 """
+
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import text

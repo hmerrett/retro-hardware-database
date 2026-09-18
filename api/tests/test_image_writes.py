@@ -21,6 +21,7 @@ after an edit and right after a refresh, and it is not a race at all: the ?v= st
 that lets a photograph be cached for a year was the mtime in whole seconds, so two
 edits inside one second produced the same URL for two different pictures.
 """
+
 import os
 import threading
 
@@ -44,13 +45,23 @@ def racing_writers(call, dst, n=2):
                 f.flush()
                 barrier.wait()
                 f.write(marker * 200_000)
+
         try:
             call(dst, write)
         except Exception as exc:  # reported below rather than swallowed
             errors.append(exc)
 
-    threads = [threading.Thread(target=run, args=(bytes([b],),))
-               for b in (b"A"[0], b"B"[0])[:n]]
+    threads = [
+        threading.Thread(
+            target=run,
+            args=(
+                bytes(
+                    [b],
+                ),
+            ),
+        )
+        for b in (b"A"[0], b"B"[0])[:n]
+    ]
     for t in threads:
         t.start()
     for t in threads:
@@ -93,8 +104,7 @@ def test_the_sized_copies_follow_the_same_rule(tmp_path):
     assert len(set(temps)) == 2 and errors == []
 
 
-def test_a_photograph_asked_for_by_several_requests_at_once_is_whole(client,
-                                                                     computer):
+def test_a_photograph_asked_for_by_several_requests_at_once_is_whole(client, computer):
     """The whole gesture, through the app: a photograph uploaded, then asked for by
     several requests together the way a reloaded page asks for it. Every one of them
     must be a picture that decodes."""
@@ -102,14 +112,17 @@ def test_a_photograph_asked_for_by_several_requests_at_once_is_whole(client,
     from concurrent.futures import ThreadPoolExecutor
 
     from PIL import Image
+
     aid = computer()["asset_id"]
     buf = io.BytesIO()
     # Big enough that encoding a copy takes long enough to overlap.
     Image.effect_noise((1600, 1200), 90).convert("RGB").save(buf, "JPEG")
     buf.seek(0)
-    client.post(f"/computers/{aid}/photo",
-                files={"photos": ("shot.jpg", buf, "image/jpeg")},
-                follow_redirects=False)
+    client.post(
+        f"/computers/{aid}/photo",
+        files={"photos": ("shot.jpg", buf, "image/jpeg")},
+        follow_redirects=False,
+    )
     rel = main.detect_images("computers", aid)[0]
     # Every copy made from this photograph is now stale, which is the state a crop
     # leaves it in.

@@ -1,4 +1,5 @@
 """Vocabularies, amount handling and the quick-entry expanders."""
+
 from typing import ClassVar
 
 import pytest
@@ -7,13 +8,21 @@ from app import entry
 
 
 class TestAmounts:
-    @pytest.mark.parametrize("text,kb", [
-        ("2MiB", 2048), ("512KiB", 512), ("512K", 512), ("2", 2048),
-        ("1GiB", 1048576),
-        # The spellings the register used to write, which every string already
-        # stored still says and so has to keep reading.
-        ("2MB", 2048), ("512KB", 512), ("1GB", 1048576),
-    ])
+    @pytest.mark.parametrize(
+        "text,kb",
+        [
+            ("2MiB", 2048),
+            ("512KiB", 512),
+            ("512K", 512),
+            ("2", 2048),
+            ("1GiB", 1048576),
+            # The spellings the register used to write, which every string already
+            # stored still says and so has to keep reading.
+            ("2MB", 2048),
+            ("512KB", 512),
+            ("1GB", 1048576),
+        ],
+    )
     def test_to_kb(self, text, kb):
         assert entry.to_kb(text) == kb
 
@@ -34,18 +43,20 @@ class TestWhichUnitAFigureIsSaidIn:
     here has always been 1024 bytes, and KiB is the word for that.
     """
 
-    @pytest.mark.parametrize("kb,text", [
-        (1024, "1 MiB"),                # not '1024 KiB'
-        (2048, "2 MiB"),
-        (8192, "8 MiB"),
-        (640, "640 KiB"),               # below a mebibyte, so KiB is the word
-        (512, "512 KiB"),
-        (20971520, "20 GiB"),           # not '20971520 KiB'
-        (1258291, "1.2 GiB"),           # exact at one decimal
-        (1475, "1.44 MiB"),             # a floppy, exact at two
-    ])
-    def test_a_figure_that_can_be_said_exactly_is_said_that_way_everywhere(self, kb,
-                                                                          text):
+    @pytest.mark.parametrize(
+        "kb,text",
+        [
+            (1024, "1 MiB"),  # not '1024 KiB'
+            (2048, "2 MiB"),
+            (8192, "8 MiB"),
+            (640, "640 KiB"),  # below a mebibyte, so KiB is the word
+            (512, "512 KiB"),
+            (20971520, "20 GiB"),  # not '20971520 KiB'
+            (1258291, "1.2 GiB"),  # exact at one decimal
+            (1475, "1.44 MiB"),  # a floppy, exact at two
+        ],
+    )
+    def test_a_figure_that_can_be_said_exactly_is_said_that_way_everywhere(self, kb, text):
         """No split to make here: the same words serve the page and the form."""
         assert entry.fmt_kb(kb) == text
         assert entry.fmt_kb(kb, display=True) == text
@@ -61,12 +72,14 @@ class TestWhichUnitAFigureIsSaidIn:
         assert entry.fmt_kb(kb) == text
         assert entry.fmt_kb(kb, display=True) == text
 
-    @pytest.mark.parametrize("kb,exact,shown", [
-        (38828, "38828 KiB", "37.9 MiB"),      # a 38 MiB drive, from its geometry
-        (2116800, "2116800 KiB", "2.02 GiB"),
-    ])
-    def test_a_figure_that_cannot_is_rounded_only_where_it_is_read(self, kb, exact,
-                                                                  shown):
+    @pytest.mark.parametrize(
+        "kb,exact,shown",
+        [
+            (38828, "38828 KiB", "37.9 MiB"),  # a 38 MiB drive, from its geometry
+            (2116800, "2116800 KiB", "2.02 GiB"),
+        ],
+    )
+    def test_a_figure_that_cannot_is_rounded_only_where_it_is_read(self, kb, exact, shown):
         """Rounding cannot be undone, so it is offered to a page and a label and
         withheld from the form and the specs string, which are parsed back."""
         assert entry.fmt_kb(kb) == exact
@@ -110,10 +123,14 @@ class TestBezelSwatches:
 
     def test_yellowing_darkens_and_warms_the_shade(self):
         """Each step has to move the same way, or the ladder would not read as one."""
+
         def rgb(css):
-            return [int(css[i:i + 2], 16) for i in (1, 3, 5)]
-        steps = [entry.bezel_css("White", lvl) for lvl in
-                 ("", "Lightly yellowed", "Yellowed", "Heavily yellowed", "Browned")]
+            return [int(css[i : i + 2], 16) for i in (1, 3, 5)]
+
+        steps = [
+            entry.bezel_css("White", lvl)
+            for lvl in ("", "Lightly yellowed", "Yellowed", "Heavily yellowed", "Browned")
+        ]
         blues = [rgb(s)[2] for s in steps]
         assert blues == sorted(blues, reverse=True)
         # ...and every step stays a colour a browser will accept.
@@ -134,8 +151,7 @@ class TestBezelSwatches:
 
     def test_the_swatch_map_covers_every_pair(self):
         m = entry.bezel_swatch_map()
-        assert m["Beige|Heavily yellowed"] == entry.bezel_css("Beige",
-                                                              "Heavily yellowed")
+        assert m["Beige|Heavily yellowed"] == entry.bezel_css("Beige", "Heavily yellowed")
         # Every pair but the one where neither is recorded, which draws nothing.
         assert len(m) == (len(entry.BEZEL_COLOURS) + 1) * (len(entry.YELLOWING) + 1) - 1
         assert "|" not in m
@@ -180,8 +196,7 @@ class TestInstalledRam:
         assert entry.chip_capacity([("4164", 8)]) == (64, False)
 
     def test_the_ninth_chip_adds_no_capacity(self):
-        assert entry.chip_capacity([("4164", 9)])[0] == \
-            entry.chip_capacity([("4164", 8)])[0]
+        assert entry.chip_capacity([("4164", 9)])[0] == entry.chip_capacity([("4164", 8)])[0]
 
     def test_no_chips_is_no_capacity(self):
         assert entry.chip_capacity([]) == (0, False)
@@ -235,8 +250,7 @@ class TestPortsAndSlots:
         assert entry.parse_port_list("2× Serial, Game") == [("Serial", 2), ("Game", 1)]
 
     def test_slot_shorthand_expands(self):
-        assert entry.expand_slots("8I:2 16I:6 VLB") == \
-            "2× 8-bit ISA, 6× 16-bit ISA, VLB"
+        assert entry.expand_slots("8I:2 16I:6 VLB") == "2× 8-bit ISA, 6× 16-bit ISA, VLB"
 
     def test_slot_shorthand_is_order_independent(self):
         assert entry.expand_slots("VLB 16I:6") == entry.expand_slots("16I:6 VLB")
@@ -250,19 +264,22 @@ class TestPortsAndSlots:
 
 class TestSpecStrings:
     def test_parse_specs_splits_on_pipes_and_colons(self):
-        assert entry.parse_specs("Chip: S3 | Interface: PCI") == \
-            [("Chip", "S3"), ("Interface", "PCI")]
+        assert entry.parse_specs("Chip: S3 | Interface: PCI") == [
+            ("Chip", "S3"),
+            ("Interface", "PCI"),
+        ]
 
     def test_a_keyless_chunk_keeps_an_empty_key(self):
         assert entry.parse_specs("840MB") == [("", "840MB")]
 
     def test_merge_spec_replaces_a_key_in_place(self):
-        assert entry.merge_spec("Chip: S3 | Interface: PCI", "Chip", "Trident") == \
-            "Chip: Trident | Interface: PCI"
+        assert (
+            entry.merge_spec("Chip: S3 | Interface: PCI", "Chip", "Trident")
+            == "Chip: Trident | Interface: PCI"
+        )
 
     def test_merge_spec_appends_a_new_key(self):
-        assert entry.merge_spec("Chip: S3", "Interface", "PCI") == \
-            "Chip: S3 | Interface: PCI"
+        assert entry.merge_spec("Chip: S3", "Interface", "PCI") == "Chip: S3 | Interface: PCI"
 
     def test_build_specs_drops_blanks(self):
         assert entry.build_specs([("Chip", "S3"), ("Interface", "")]) == "Chip: S3"
@@ -282,16 +299,23 @@ class TestNames:
         assert entry.display_name({"name": "Beast", "manufacturer": "Acme"}) == "Beast"
 
     def test_display_name_falls_back_to_maker_and_model(self):
-        assert entry.display_name(
-            {"name": "", "manufacturer": "Acme", "model": "5000"}) == "Acme 5000"
+        assert (
+            entry.display_name({"name": "", "manufacturer": "Acme", "model": "5000"}) == "Acme 5000"
+        )
 
     def test_display_name_falls_back_to_the_asset_id(self):
         assert entry.display_name({"asset_id": "RH-0001"}) == "RH-0001"
 
-    @pytest.mark.parametrize("ptype,label", [
-        ("io", "I/O"), ("ram", "Memory"), ("psu", "Power supply"),
-        ("optical", "Optical drive"), ("floppy", "Floppy drive"),
-    ])
+    @pytest.mark.parametrize(
+        "ptype,label",
+        [
+            ("io", "I/O"),
+            ("ram", "Memory"),
+            ("psu", "Power supply"),
+            ("optical", "Optical drive"),
+            ("floppy", "Floppy drive"),
+        ],
+    )
     def test_every_vocabulary_type_has_a_written_label(self, ptype, label):
         """These three were missing, so type_label fell back to .title() and gave
         back "Psu"."""
@@ -308,11 +332,9 @@ class TestWhatEachKindOfDriveIsAsked:
     a field quietly missing rather than anything that breaks."""
 
     ASKED: ClassVar[dict[str, set[str]]] = {
-        "Hard disk": {"Interface", "Protocol", "Capacity", "CHS", "Speed",
-                      "Form factor", "Role"},
+        "Hard disk": {"Interface", "Protocol", "Capacity", "CHS", "Speed", "Form factor", "Role"},
         "Tape": {"Interface", "Protocol", "Capacity", "Media", "Form factor", "Role"},
-        "Optical": {"Interface", "Protocol", "Capacity", "Media", "Speed",
-                    "Form factor", "Role"},
+        "Optical": {"Interface", "Protocol", "Capacity", "Media", "Speed", "Form factor", "Role"},
         "Floppy/Gotek": {"Interface", "Size", "Media", "Form factor", "Role"},
         "SD/CF card": {"Interface", "Protocol", "Capacity", "CHS", "Role"},
     }
@@ -326,19 +348,21 @@ class TestWhatEachKindOfDriveIsAsked:
         for kind in entry.STORAGE_KINDS:
             assert entry.storage_asks(kind), kind
 
-    @pytest.mark.parametrize("kind,key,expected", [
-        # What "how fast" means depends on what is spinning: a reader's × rating is
-        # not a spindle's rpm, and one list offering both would invite the wrong one.
-        ("Optical", "Speed", entry.OPTICAL_SPEEDS),
-        ("Hard disk", "Speed", entry.DISK_SPEEDS),
-        # Nor is what a drive takes the same question for a disc, a cartridge and a
-        # floppy, whose own width is the disk it takes.
-        ("Optical", "Media", entry.OPTICAL_MEDIA),
-        ("Tape", "Media", entry.TAPE_MEDIA),
-        ("Floppy/Gotek", "Media", entry.DRIVE_INCHES),
-    ])
-    def test_a_shared_question_offers_each_kind_its_own_answers(self, kind, key,
-                                                               expected):
+    @pytest.mark.parametrize(
+        "kind,key,expected",
+        [
+            # What "how fast" means depends on what is spinning: a reader's × rating is
+            # not a spindle's rpm, and one list offering both would invite the wrong one.
+            ("Optical", "Speed", entry.OPTICAL_SPEEDS),
+            ("Hard disk", "Speed", entry.DISK_SPEEDS),
+            # Nor is what a drive takes the same question for a disc, a cartridge and a
+            # floppy, whose own width is the disk it takes.
+            ("Optical", "Media", entry.OPTICAL_MEDIA),
+            ("Tape", "Media", entry.TAPE_MEDIA),
+            ("Floppy/Gotek", "Media", entry.DRIVE_INCHES),
+        ],
+    )
+    def test_a_shared_question_offers_each_kind_its_own_answers(self, kind, key, expected):
         asks = {a["key"]: a["options"] for a in entry.storage_asks(kind)}
         assert asks[key] == expected
 
@@ -361,47 +385,56 @@ class TestLinksInWhatPeopleWrote:
     address with an @ in it. Half the part numbers in the register have a domain's
     shape and none of them is one."""
 
-    @pytest.mark.parametrize("text,href", [
-        ("see http://example.test/a", "http://example.test/a"),
-        ("see https://example.test/a", "https://example.test/a"),
-        ("ftp://ftp.funet.fi/pub/cbm/", "ftp://ftp.funet.fi/pub/cbm/"),
-        ("ftps://x.test/a", "ftps://x.test/a"),
-        ("sftp://x.test/a", "sftp://x.test/a"),
-        ("mailto:bob@shop.test", "mailto:bob@shop.test"),
-        # The two shapes with no scheme in front of them, given the one they meant.
-        ("www.zx81.co.uk", "http://www.zx81.co.uk"),
-        ("bob.smith+kit@vintage-shop.co.uk", "mailto:bob.smith+kit@vintage-shop.co.uk"),
-    ])
+    @pytest.mark.parametrize(
+        "text,href",
+        [
+            ("see http://example.test/a", "http://example.test/a"),
+            ("see https://example.test/a", "https://example.test/a"),
+            ("ftp://ftp.funet.fi/pub/cbm/", "ftp://ftp.funet.fi/pub/cbm/"),
+            ("ftps://x.test/a", "ftps://x.test/a"),
+            ("sftp://x.test/a", "sftp://x.test/a"),
+            ("mailto:bob@shop.test", "mailto:bob@shop.test"),
+            # The two shapes with no scheme in front of them, given the one they meant.
+            ("www.zx81.co.uk", "http://www.zx81.co.uk"),
+            ("bob.smith+kit@vintage-shop.co.uk", "mailto:bob.smith+kit@vintage-shop.co.uk"),
+        ],
+    )
     def test_what_becomes_a_link(self, text, href):
         assert f'href="{href}"' in str(entry.linked(text))
 
-    @pytest.mark.parametrize("text", [
-        # Every one of these is the shape of a hostname and none of them is one.
-        "boots from config.sys",
-        "a 1.44MB floppy",
-        "marked 74LS00.rev2",
-        "vintage-computer.com",          # a bare host: too many false friends
-        "user@host, no dotted domain",
-        "@handle",
-        # Schemes are a fixed list, because this text came out of a form.
-        "javascript:alert(1)",
-        "data:text/html,<script>alert(1)</script>",
-        "file:///etc/passwd",
-        "nothing here at all",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            # Every one of these is the shape of a hostname and none of them is one.
+            "boots from config.sys",
+            "a 1.44MB floppy",
+            "marked 74LS00.rev2",
+            "vintage-computer.com",  # a bare host: too many false friends
+            "user@host, no dotted domain",
+            "@handle",
+            # Schemes are a fixed list, because this text came out of a form.
+            "javascript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "file:///etc/passwd",
+            "nothing here at all",
+        ],
+    )
     def test_what_does_not(self, text):
         assert "<a " not in str(entry.linked(text))
 
-    @pytest.mark.parametrize("text,shown", [
-        ("http://x.test/p.", "http://x.test/p"),
-        ("http://x.test/p, and", "http://x.test/p"),
-        ("(see http://x.test/p)", "http://x.test/p"),
-        ("http://x.test/p]", "http://x.test/p"),
-        ("is it http://x.test/p?", "http://x.test/p"),
-        # A bracket that opened inside the URL is the URL's own.
-        ("https://x.test/Amiga_(computer)", "https://x.test/Amiga_(computer)"),
-        ("(see https://x.test/Amiga_(computer))", "https://x.test/Amiga_(computer)"),
-    ])
+    @pytest.mark.parametrize(
+        "text,shown",
+        [
+            ("http://x.test/p.", "http://x.test/p"),
+            ("http://x.test/p, and", "http://x.test/p"),
+            ("(see http://x.test/p)", "http://x.test/p"),
+            ("http://x.test/p]", "http://x.test/p"),
+            ("is it http://x.test/p?", "http://x.test/p"),
+            # A bracket that opened inside the URL is the URL's own.
+            ("https://x.test/Amiga_(computer)", "https://x.test/Amiga_(computer)"),
+            ("(see https://x.test/Amiga_(computer))", "https://x.test/Amiga_(computer)"),
+        ],
+    )
     def test_where_the_url_stops_and_the_sentence_carries_on(self, text, shown):
         out = str(entry.linked(text))
         assert f'href="{shown}"' in out and f">{shown}</a>" in out
@@ -412,19 +445,21 @@ class TestLinksInWhatPeopleWrote:
         assert out.endswith("</a> — a bit bent")
 
     def test_a_link_opens_in_a_tab_of_its_own_and_an_address_does_not(self):
-        assert 'target="_blank" rel="noopener noreferrer"' in str(
-            entry.linked("http://x.test/p"))
+        assert 'target="_blank" rel="noopener noreferrer"' in str(entry.linked("http://x.test/p"))
         assert "target=" not in str(entry.linked("bob@shop.test"))
 
     def test_the_lines_a_note_was_typed_in_are_left_alone(self):
         out = str(entry.linked("first http://x.test/a\nsecond www.y.test/b"))
         assert out.count("<a ") == 2 and "\n" in out
 
-    @pytest.mark.parametrize("text", [
-        "<script>alert(1)</script>",
-        "http://x.test/a <script>alert(1)</script>",
-        "<b>bold</b> http://x.test/a",
-    ])
+    @pytest.mark.parametrize(
+        "text",
+        [
+            "<script>alert(1)</script>",
+            "http://x.test/a <script>alert(1)</script>",
+            "<b>bold</b> http://x.test/a",
+        ],
+    )
     def test_nothing_out_of_a_text_box_arrives_as_markup(self, text):
         out = str(entry.linked(text))
         assert "<script>" not in out and "<b>" not in out

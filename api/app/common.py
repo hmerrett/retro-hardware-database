@@ -3,6 +3,7 @@ small query helpers, the image-folder location and listing, and the collection
 constants. Kept in one dependency-free place so the feature modules (stats,
 search, photos) and main can all import them downward without a circular import.
 """
+
 import hashlib
 import os
 from pathlib import Path
@@ -90,12 +91,20 @@ def _maker_reliability(db):
     over more parts has made the better case."""
     rows = []
     for maker, n, working in (
-            db.query(Part.manufacturer, func.count(Part.asset_id),
-                     func.sum(case((Part.condition == "Working", 1), else_=0)))
-            .filter(Part.manufacturer.isnot(None), Part.manufacturer != "",
-                    Part.condition.isnot(None), Part.condition != "",
-                    Part.disposed.is_(False))
-            .group_by(Part.manufacturer)):
+        db.query(
+            Part.manufacturer,
+            func.count(Part.asset_id),
+            func.sum(case((Part.condition == "Working", 1), else_=0)),
+        )
+        .filter(
+            Part.manufacturer.isnot(None),
+            Part.manufacturer != "",
+            Part.condition.isnot(None),
+            Part.condition != "",
+            Part.disposed.is_(False),
+        )
+        .group_by(Part.manufacturer)
+    ):
         if n < RELIABILITY_MIN or (maker or "").strip().lower() in NOT_A_MAKER:
             continue
         rows.append((maker, n, int(working or 0), round(100 * (working or 0) / n)))
@@ -110,8 +119,7 @@ def folder_images(kind):
     folder = IMAGES_DIR / kind
     if not folder.exists():
         return []
-    return [(f.stem, f.name) for f in folder.iterdir()
-            if f.suffix.lower() in IMAGE_EXTS]
+    return [(f.stem, f.name) for f in folder.iterdir() if f.suffix.lower() in IMAGE_EXTS]
 
 
 def _stem_owner(stem, ids):
@@ -145,8 +153,10 @@ def _portraits(db):
     of the ones that have none. Held items only -- a disposed item cannot be
     photographed, so putting one on the "unphotographed" job list is handing
     somebody work they cannot do."""
-    ids = {"computers": {a for (a,) in _held(db.query(Computer.asset_id), Computer)},
-           "parts": {a for (a,) in _held(db.query(Part.asset_id), Part)}}
+    ids = {
+        "computers": {a for (a,) in _held(db.query(Computer.asset_id), Computer)},
+        "parts": {a for (a,) in _held(db.query(Part.asset_id), Part)},
+    }
     counts = _photo_counts(ids)
     missing = {a for group in ids.values() for a in group if a not in counts}
     return counts, missing

@@ -5,6 +5,7 @@ site is a best effort grab of its Open Graph image (`og:image`). The bytes are
 downscaled and re-saved as JPEG; known placeholder images are skipped. No bot
 protection is bypassed, so a Cloudflare-gated site may simply return nothing.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -44,8 +45,14 @@ def _public_ip(host: str) -> bool:
             ip = ipaddress.ip_address(info[4][0].split("%")[0])
         except ValueError:
             return False
-        if (ip.is_private or ip.is_loopback or ip.is_link_local
-                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
             return False
     return True
 
@@ -75,6 +82,7 @@ def _safe_get(client, url, **kw):
         return resp
     return None
 
+
 # SHA1s of "please send a picture" placeholder images to ignore.
 SKIP_SHA1 = {
     "0e07517a48ddafd09fe2834ef5e50d52dbbaeec0",
@@ -84,8 +92,7 @@ SKIP_SHA1 = {
 
 def _client():
     # Redirects are followed by _safe_get instead, so each hop can be checked.
-    return httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30.0,
-                        follow_redirects=False)
+    return httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30.0, follow_redirects=False)
 
 
 def _wikipedia_image(client, url):
@@ -109,10 +116,13 @@ def _og_image(client, url):
         return None
     html = resp.text
     for prop in ("og:image", "twitter:image"):
-        m = (re.search(r'<meta[^>]+(?:property|name)=["\']' + prop
-                       + r'["\'][^>]+content=["\']([^"\']+)', html, re.I)
-             or re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']'
-                          + prop, html, re.I))
+        m = re.search(
+            r'<meta[^>]+(?:property|name)=["\']' + prop + r'["\'][^>]+content=["\']([^"\']+)',
+            html,
+            re.I,
+        ) or re.search(
+            r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']' + prop, html, re.I
+        )
         if m:
             return urljoin(url, m.group(1))
     return None

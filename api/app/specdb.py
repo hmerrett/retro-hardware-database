@@ -10,18 +10,37 @@ search and the REST/MCP wire format.
     read(db, part)    typed rows -> Struct
     pairs(db, part)   typed rows -> ordered (key, value) pairs for display
 """
+
 from __future__ import annotations
 
 from . import specstruct
-from .models import (CpuSpec, DisplaySpec, IoSpec, MotherboardSpec, NetworkSpec,
-                     PartAttribute, PartPort, PartRamSlot, PartSlot, RamSpec,
-                     SoundSpec, StorageSpec, VideoSpec)
+from .models import (
+    CpuSpec,
+    DisplaySpec,
+    IoSpec,
+    MotherboardSpec,
+    NetworkSpec,
+    PartAttribute,
+    PartPort,
+    PartRamSlot,
+    PartSlot,
+    RamSpec,
+    SoundSpec,
+    StorageSpec,
+    VideoSpec,
+)
 
 # Which typed spec table backs each part type.
 SPEC_MODEL = {
-    "motherboard": MotherboardSpec, "cpu": CpuSpec, "ram": RamSpec,
-    "video": VideoSpec, "sound": SoundSpec, "network": NetworkSpec,
-    "io": IoSpec, "storage": StorageSpec, "display": DisplaySpec,
+    "motherboard": MotherboardSpec,
+    "cpu": CpuSpec,
+    "ram": RamSpec,
+    "video": VideoSpec,
+    "sound": SoundSpec,
+    "network": NetworkSpec,
+    "io": IoSpec,
+    "storage": StorageSpec,
+    "display": DisplaySpec,
 }
 SPEC_TABLES = [*list(SPEC_MODEL.values()), PartSlot, PartRamSlot, PartPort, PartAttribute]
 
@@ -29,9 +48,11 @@ SPEC_TABLES = [*list(SPEC_MODEL.values()), PartSlot, PartRamSlot, PartPort, Part
 _CHS_COLS = ("chs_c", "chs_h", "chs_s")
 
 # (model, attribute holding the value, Struct list) for the count-list children.
-_LIST_TABLES = ((PartSlot, "bus", "slots"),
-                (PartRamSlot, "slot_type", "ram_slots"),
-                (PartPort, "port", "ports"))
+_LIST_TABLES = (
+    (PartSlot, "bus", "slots"),
+    (PartRamSlot, "slot_type", "ram_slots"),
+    (PartPort, "port", "ports"),
+)
 
 
 def write(db, part):
@@ -81,12 +102,15 @@ def read(db, part) -> specstruct.Struct:
             for c in _CHS_COLS:
                 st.scalars.pop(c, None)
     for child, attr, listname in _LIST_TABLES:
-        rows = (db.query(child).filter(child.part_id == aid)
-                .order_by(child.id).all())
+        rows = db.query(child).filter(child.part_id == aid).order_by(child.id).all()
         setattr(st, listname, [(getattr(r, attr), r.count) for r in rows])
-    st.attributes = [(r.akey, r.avalue) for r in
-                     db.query(PartAttribute).filter(PartAttribute.part_id == aid)
-                     .order_by(PartAttribute.id).all()]
+    st.attributes = [
+        (r.akey, r.avalue)
+        for r in db.query(PartAttribute)
+        .filter(PartAttribute.part_id == aid)
+        .order_by(PartAttribute.id)
+        .all()
+    ]
     return st
 
 
@@ -104,6 +128,7 @@ def scalars(db, part) -> dict:
 
 
 # --- bulk lookups (constant queries, for list pages) -----------------------
+
 
 def column_by_part(db, model, column) -> dict:
     """{part_id: value} for one typed column across every part, in one query --

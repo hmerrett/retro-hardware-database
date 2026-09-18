@@ -27,6 +27,7 @@ Usage (the description sits above each command):
     reprint a tag and send it to the printer:
         python scripts/make_labels.py --small --print RH-0002
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,19 +42,34 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-from rhdb import (ROOT, add_api_arg, apply_api_arg, display_name, index_by_id,
-                  item_url, load_computers, load_config, load_parts,
-                  parse_specs, parts_for, type_label)
+from rhdb import (
+    ROOT,
+    add_api_arg,
+    apply_api_arg,
+    display_name,
+    index_by_id,
+    item_url,
+    load_computers,
+    load_config,
+    load_parts,
+    parse_specs,
+    parts_for,
+    type_label,
+)
 
 LABELS_DIR = ROOT / "labels"
 
 BUILD_ROWS = [
-    ("cpu", "CPU"), ("ram", "Memory"), ("video", "Video"), ("sound", "Sound"),
-    ("storage", "Storage"), ("network", "Network"), ("optical", "Optical"),
+    ("cpu", "CPU"),
+    ("ram", "Memory"),
+    ("video", "Video"),
+    ("sound", "Sound"),
+    ("storage", "Storage"),
+    ("network", "Network"),
+    ("optical", "Optical"),
     ("floppy", "Floppy"),
 ]
-SPEC_PICK = {"ram": "Size", "storage": "Capacity", "optical": "Media",
-             "floppy": "Media"}
+SPEC_PICK = {"ram": "Size", "storage": "Capacity", "optical": "Media", "floppy": "Media"}
 
 
 def register_fonts(config, quiet=False):
@@ -165,8 +181,13 @@ def computer_lines(comp, parts):
         lines.append(f"Year: {comp['year']}")
     if form_factor:
         lines.append(f"Form factor: {form_factor}")
-    for label, key in (("CPU", "cpu"), ("RAM", "installed_ram"),
-                       ("Drives", "drives"), ("Chassis", "chassis"), ("OS", "os")):
+    for label, key in (
+        ("CPU", "cpu"),
+        ("RAM", "installed_ram"),
+        ("Drives", "drives"),
+        ("Chassis", "chassis"),
+        ("OS", "os"),
+    ):
         if comp.get(key):
             lines.append(f"{label}: {comp[key]}")
 
@@ -211,8 +232,7 @@ def render_label(c, W, H, asset_id, title, lines, url, qr_error, hfont, bfont):
 
     c.setLineWidth(1)
     c.setStrokeColorRGB(0.65, 0.65, 0.65)
-    c.roundRect(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch,
-                8, stroke=1, fill=0)
+    c.roundRect(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8, stroke=1, fill=0)
     c.setFillColorRGB(0, 0, 0)
 
     aid_size = fit_size(c, asset_id, hfont, 24, 12, text_w)
@@ -233,14 +253,20 @@ def render_label(c, W, H, asset_id, title, lines, url, qr_error, hfont, bfont):
                 break
             y -= 12
             c.setFont(bfont, bsize)
-            c.drawString(margin if i == 0 else margin + 8, y,
-                         line if i == 0 else "  " + line)
+            c.drawString(margin if i == 0 else margin + 8, y, line if i == 0 else "  " + line)
         if y - 12 < bottom:
             break
 
     qr_y = (H - qr_size) / 2 + 0.10 * inch
-    c.drawImage(qr_reader(url, qr_error), qr_x, qr_y, width=qr_size, height=qr_size,
-                preserveAspectRatio=True, mask="auto")
+    c.drawImage(
+        qr_reader(url, qr_error),
+        qr_x,
+        qr_y,
+        width=qr_size,
+        height=qr_size,
+        preserveAspectRatio=True,
+        mask="auto",
+    )
     c.setFont(bfont, 7.5)
     c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
 
@@ -261,8 +287,15 @@ def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont, sa
     # landscape: QR left, text right
     if W >= H:
         qr = H - 2 * my
-        c.drawImage(qr_reader(url, qr_error), mx, my, width=qr, height=qr,
-                    preserveAspectRatio=True, mask="auto")
+        c.drawImage(
+            qr_reader(url, qr_error),
+            mx,
+            my,
+            width=qr,
+            height=qr,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
         tx = mx + qr + 1.5 * mm
         tw = W - tx - mx
         aid_size = fit_size(c, asset_id, hfont, 11, 5, tw)
@@ -279,8 +312,15 @@ def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont, sa
     # portrait: QR top, text below
     else:
         qr = W - 2 * my
-        c.drawImage(qr_reader(url, qr_error), my, H - mx - qr, width=qr, height=qr,
-                    preserveAspectRatio=True, mask="auto")
+        c.drawImage(
+            qr_reader(url, qr_error),
+            my,
+            H - mx - qr,
+            width=qr,
+            height=qr,
+            preserveAspectRatio=True,
+            mask="auto",
+        )
         tw = W - 2 * my
         y = H - mx - qr - 1.5 * mm
         aid_size = fit_size(c, asset_id, hfont, 10, 5, tw)
@@ -297,6 +337,7 @@ def render_small_label(c, W, H, asset_id, title, url, qr_error, hfont, bfont, sa
 
 
 # --- shared content + drawing ----------------------------------------------
+
 
 def asset_content(aid, comp_by_id, part_by_id, parts):
     """(title, lines) for an asset, or None if the id is unknown."""
@@ -323,6 +364,7 @@ def draw_one(c, W, H, aid, small, config, title, lines, qr_error, hfont, bfont):
 
 
 # --- automatic labels ------------------------------------------------------
+
 
 def auto_plan(aid, comp_by_id, part_by_id):
     """Which labels a device gets: computers -> full + small; any real (non-
@@ -381,9 +423,9 @@ def regenerate(asset_ids, config=None):
 
 def all_auto_ids():
     computers, parts = load_computers(), load_parts()
-    return ([c["asset_id"] for c in computers]
-            + [p["asset_id"] for p in parts
-               if p.get("manufacturer", "").strip().lower() != "generic"])
+    return [c["asset_id"] for c in computers] + [
+        p["asset_id"] for p in parts if p.get("manufacturer", "").strip().lower() != "generic"
+    ]
 
 
 def print_pdf(path, printer="", copies=1):
@@ -428,18 +470,30 @@ def print_label_file(path, config):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     add_api_arg(ap)
     ap.add_argument("ids", nargs="*", help="asset_ids to print (default: all)")
-    ap.add_argument("--small", action="store_true",
-                    help="compact QR + number + make/model label (config: label_small)")
-    ap.add_argument("--auto", action="store_true",
-                    help="auto set: computers full+small, real (non-generic) parts small")
-    ap.add_argument("--print", dest="do_print", action="store_true",
-                    help="also send the generated label(s) to the printer (macOS lp)")
-    ap.add_argument("-o", "--out", default=None,
-                    help="output PDF path (default: named after the asset id(s))")
+    ap.add_argument(
+        "--small",
+        action="store_true",
+        help="compact QR + number + make/model label (config: label_small)",
+    )
+    ap.add_argument(
+        "--auto",
+        action="store_true",
+        help="auto set: computers full+small, real (non-generic) parts small",
+    )
+    ap.add_argument(
+        "--print",
+        dest="do_print",
+        action="store_true",
+        help="also send the generated label(s) to the printer (macOS lp)",
+    )
+    ap.add_argument(
+        "-o", "--out", default=None, help="output PDF path (default: named after the asset id(s))"
+    )
     args = ap.parse_args()
     apply_api_arg(args)
 
@@ -464,15 +518,16 @@ def main():
     base_url = config.get("base_url") or ""
     if not base_url or "USERNAME" in base_url:
         print("WARNING: config.yml base_url still has a placeholder.")
-        print("         QR codes will not resolve until you set it to your "
-              "GitHub Pages URL.\n")
+        print("         QR codes will not resolve until you set it to your GitHub Pages URL.\n")
 
     small = args.small
     W, H, qr_error = label_geom(config, small)
     suffix = "-small" if small else ""
     out_path = Path(args.out) if args.out else LABELS_DIR / default_filename(args.ids, suffix)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    c = canvas.Canvas(str(out_path), pagesize=rotated_page_size(W, H, label_rotation(config, small)))
+    c = canvas.Canvas(
+        str(out_path), pagesize=rotated_page_size(W, H, label_rotation(config, small))
+    )
 
     printed = 0
     for aid in ids:

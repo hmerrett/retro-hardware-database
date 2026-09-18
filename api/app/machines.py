@@ -59,6 +59,7 @@ A bad edit to machines.yaml stops the register from starting, on purpose and wit
 the family, the model and the field named in the message. The alternative is a
 catalogue that half-loads and quietly offers a Spectrum no ULA.
 """
+
 from __future__ import annotations
 
 import difflib
@@ -75,13 +76,24 @@ CATALOGUE_FILE = Path(__file__).resolve().parent / "machines.yaml"
 # models.AssetChip). Checked here as well as in the tests, because a suggestion
 # too long for its column would fail on save rather than at the keyboard, and the
 # person it would fail for is the one who edited the file.
-_LIMITS = {"key": 64, "issues": 64, "styles": 64, "regions": 32, "socket": 32,
-           "variants": 64}
+_LIMITS = {"key": 64, "issues": 64, "styles": 64, "regions": 32, "socket": 32, "variants": 64}
 
 _TOP_FIELDS = {"lists", "families"}
 _FAMILY_FIELDS = {"key", "name", "manufacturer", "regions", "chips", "models"}
-_MODEL_FIELDS = {"key", "model", "manufacturer", "year", "cpu", "chassis", "os",
-                 "ram", "issues", "styles", "chips", "summary"}
+_MODEL_FIELDS = {
+    "key",
+    "model",
+    "manufacturer",
+    "year",
+    "cpu",
+    "chassis",
+    "os",
+    "ram",
+    "issues",
+    "styles",
+    "chips",
+    "summary",
+}
 _CHIP_FIELDS = {"socket", "label", "note", "variants"}
 
 
@@ -111,8 +123,11 @@ def _fields(got, allowed, where):
     for name in got:
         if name not in allowed:
             near = difflib.get_close_matches(str(name), sorted(allowed), 1, 0.6)
-            hint = f" -- did you mean '{near[0]}'?" if near else \
-                f" -- the fields here are: {', '.join(sorted(allowed))}"
+            hint = (
+                f" -- did you mean '{near[0]}'?"
+                if near
+                else f" -- the fields here are: {', '.join(sorted(allowed))}"
+            )
             _fault(where, f"unknown field '{name}'{hint}")
 
 
@@ -135,11 +150,16 @@ def _strings(value, lists, where, field):
         name = value.strip()
         if name not in lists:
             near = difflib.get_close_matches(name, sorted(lists), 1, 0.6)
-            hint = f" -- did you mean '{near[0]}'?" if near else \
-                (f" -- the shared lists are: {', '.join(sorted(lists))}" if lists
-                 else " -- there are no shared lists in this file")
-            _fault(where, f"'{field}' names a shared list '{name}' that is not"
-                          f" there{hint}")
+            hint = (
+                f" -- did you mean '{near[0]}'?"
+                if near
+                else (
+                    f" -- the shared lists are: {', '.join(sorted(lists))}"
+                    if lists
+                    else " -- there are no shared lists in this file"
+                )
+            )
+            _fault(where, f"'{field}' names a shared list '{name}' that is not there{hint}")
         return list(lists[name])
     if not isinstance(value, list):
         _fault(where, f"'{field}' should be a list, or the name of a shared list")
@@ -150,8 +170,11 @@ def _strings(value, lists, where, field):
         line = str(item).strip()
         limit = _LIMITS.get(field)
         if limit and len(line) > limit:
-            _fault(where, f"'{field}' has an answer of {len(line)} characters, and"
-                          f" the register stores {limit}: {line!r}")
+            _fault(
+                where,
+                f"'{field}' has an answer of {len(line)} characters, and"
+                f" the register stores {limit}: {line!r}",
+            )
         if line:
             out.append(line)
     if len(set(out)) != len(out):
@@ -186,17 +209,27 @@ def _chips(raw, lists, where, inherited=None):
         _fields(item, _CHIP_FIELDS, at)
         role = _text(item.get("socket"), at, "socket", required=True)
         if len(role) > _LIMITS["socket"]:
-            _fault(at, f"'socket' is {len(role)} characters and the register stores"
-                       f" {_LIMITS['socket']}")
+            _fault(
+                at,
+                f"'socket' is {len(role)} characters and the register stores {_LIMITS['socket']}",
+            )
         if role in seen:
             _fault(where, f"the '{role}' socket is asked twice")
         seen.add(role)
         at = f"{where}, {role}"
-        label = _text(item.get("label"), at, "label") \
-            or (inherited or {}).get(role, {}).get("label") or _label_for(role)
-        out.append(_chip(role, label,
-                         _strings(item.get("variants"), lists, at, "variants"),
-                         _text(item.get("note"), at, "note")))
+        label = (
+            _text(item.get("label"), at, "label")
+            or (inherited or {}).get(role, {}).get("label")
+            or _label_for(role)
+        )
+        out.append(
+            _chip(
+                role,
+                label,
+                _strings(item.get("variants"), lists, at, "variants"),
+                _text(item.get("note"), at, "note"),
+            )
+        )
     return out
 
 
@@ -208,8 +241,11 @@ def _ram(raw, lists, where):
     for label in _strings(raw, lists, where, "ram"):
         kb = entry.to_kb(label)
         if kb is None:
-            _fault(where, f"'ram' has a size the register cannot read: {label!r}"
-                          " -- write it as 48K, 128K, 1MiB")
+            _fault(
+                where,
+                f"'ram' has a size the register cannot read: {label!r}"
+                " -- write it as 48K, 128K, 1MiB",
+            )
         out.append((label, kb))
     return out
 
@@ -260,36 +296,46 @@ def load(path=None):
             mkey = _text(mod.get("key"), mat, "key", required=True)
             mat = f"{at}, model '{mkey}'"
             if len(mkey) > _LIMITS["key"]:
-                _fault(mat, f"the key is {len(mkey)} characters and the register"
-                            f" stores {_LIMITS['key']}")
+                _fault(
+                    mat,
+                    f"the key is {len(mkey)} characters and the register stores {_LIMITS['key']}",
+                )
             if mkey in keys:
-                _fault(mat, f"that key is already used, in {keys[mkey]} -- a key is"
-                            " what a machine's record stores, so two models cannot"
-                            " share one")
+                _fault(
+                    mat,
+                    f"that key is already used, in {keys[mkey]} -- a key is"
+                    " what a machine's record stores, so two models cannot"
+                    " share one",
+                )
             keys[mkey] = at
             year = mod.get("year")
             if not isinstance(year, int):
                 _fault(mat, f"'year' should be a plain year like 1982, not {year!r}")
-            family["models"].append({
-                "key": mkey,
-                "model": _text(mod.get("model"), mat, "model", required=True),
-                "year": year,
-                "cpu": _text(mod.get("cpu"), mat, "cpu"),
-                "chassis": _text(mod.get("chassis"), mat, "chassis"),
-                "os": _text(mod.get("os"), mat, "os"),
-                # What makes the model worth holding, in a paragraph. Optional and
-                # often absent: a summary nobody could write accurately is better
-                # missing than invented, and the pages that show it fall back to
-                # the specs, which were never the interesting part but are at
-                # least true.
-                "summary": _text(mod.get("summary"), mat, "summary"),
-                "ram": _ram(mod.get("ram"), lists, mat),
-                "issues": _strings(mod.get("issues"), lists, mat, "issues"),
-                "styles": _strings(mod.get("styles"), lists, mat, "styles"),
-                "chips": _chips(mod.get("chips"), lists, mat, inherited),
-                **({"manufacturer": _text(mod["manufacturer"], mat, "manufacturer")}
-                   if mod.get("manufacturer") else {}),
-            })
+            family["models"].append(
+                {
+                    "key": mkey,
+                    "model": _text(mod.get("model"), mat, "model", required=True),
+                    "year": year,
+                    "cpu": _text(mod.get("cpu"), mat, "cpu"),
+                    "chassis": _text(mod.get("chassis"), mat, "chassis"),
+                    "os": _text(mod.get("os"), mat, "os"),
+                    # What makes the model worth holding, in a paragraph. Optional and
+                    # often absent: a summary nobody could write accurately is better
+                    # missing than invented, and the pages that show it fall back to
+                    # the specs, which were never the interesting part but are at
+                    # least true.
+                    "summary": _text(mod.get("summary"), mat, "summary"),
+                    "ram": _ram(mod.get("ram"), lists, mat),
+                    "issues": _strings(mod.get("issues"), lists, mat, "issues"),
+                    "styles": _strings(mod.get("styles"), lists, mat, "styles"),
+                    "chips": _chips(mod.get("chips"), lists, mat, inherited),
+                    **(
+                        {"manufacturer": _text(mod["manufacturer"], mat, "manufacturer")}
+                        if mod.get("manufacturer")
+                        else {}
+                    ),
+                }
+            )
         # By name, whatever order they are written in -- the same reasoning as
         # sorting the families, and it keeps a machine slotted in next to the one it
         # was copied from from landing out of sequence.
@@ -308,8 +354,11 @@ def _by_name(name):
     # Each chunk is (which kind, the number, the letters), so a name that starts
     # with a digit and one that starts with a letter can still be compared -- an
     # Atari 400 against an Atari Lynx. Numbers sort before letters.
-    return [(0, int(part), "") if part.isdigit() else (1, 0, part.casefold())
-            for part in re.split(r"(\d+)", name or "") if part != ""]
+    return [
+        (0, int(part), "") if part.isdigit() else (1, 0, part.casefold())
+        for part in re.split(r"(\d+)", name or "")
+        if part != ""
+    ]
 
 
 def _by_maker(family):
@@ -337,6 +386,7 @@ FAMILIES = load()
 
 # --- lookups ----------------------------------------------------------------
 
+
 def _merge(family, mod):
     """One model as everything known about it: the family's fields where the model
     is silent, and the family's chip sockets where it names none of its own.
@@ -347,11 +397,19 @@ def _merge(family, mod):
     variants removes the socket, which is how a VIC-20 says it has no SID and a
     ZX80 that it has no ULA, without either repeating the rest of its family.
     """
-    out = {"family": family["name"], "family_key": family["key"],
-           "manufacturer": family.get("manufacturer", ""),
-           "regions": list(family.get("regions", [])),
-           "ram": [], "issues": [], "styles": [], "cpu": "", "chassis": "",
-           "os": "", "year": None}
+    out = {
+        "family": family["name"],
+        "family_key": family["key"],
+        "manufacturer": family.get("manufacturer", ""),
+        "regions": list(family.get("regions", [])),
+        "ram": [],
+        "issues": [],
+        "styles": [],
+        "cpu": "",
+        "chassis": "",
+        "os": "",
+        "year": None,
+    }
     out.update({k: v for k, v in mod.items() if k != "chips"})
     own = {c["role"]: c for c in mod.get("chips", [])}
     chips = [own.pop(c["role"], c) for c in family.get("chips", [])]
@@ -366,8 +424,7 @@ def _merge(family, mod):
     # stuttering it.
     maker, name = out["manufacturer"], out["model"]
     doubled = maker and name.lower().startswith(maker.lower())
-    out["full_name"] = name if doubled else \
-        " ".join(p for p in (maker, name) if p)
+    out["full_name"] = name if doubled else " ".join(p for p in (maker, name) if p)
     return out
 
 
@@ -399,8 +456,7 @@ def grouped():
     """[(family name, [model])] in catalogue order, for the picker's optgroups."""
     out = []
     for family in FAMILIES:
-        out.append((family["name"],
-                    [_MODELS[m["key"]] for m in family["models"]]))
+        out.append((family["name"], [_MODELS[m["key"]] for m in family["models"]]))
     return out
 
 
@@ -434,9 +490,14 @@ def prefill(key):
     m = model(key)
     if not m:
         return {}
-    return {"manufacturer": m.get("manufacturer", ""), "model": m.get("model", ""),
-            "year": m.get("year"), "cpu": m.get("cpu", ""),
-            "chassis": m.get("chassis", ""), "os": m.get("os", "")}
+    return {
+        "manufacturer": m.get("manufacturer", ""),
+        "model": m.get("model", ""),
+        "year": m.get("year"),
+        "cpu": m.get("cpu", ""),
+        "chassis": m.get("chassis", ""),
+        "os": m.get("os", ""),
+    }
 
 
 def full_name(key):
@@ -505,8 +566,9 @@ def in_role_order(model_key, chips):
     longer filed as, or a socket since removed from the catalogue."""
     pairs = list(chips.items()) if isinstance(chips, dict) else list(chips)
     order = roles(model_key)
-    return sorted(pairs, key=lambda kv: (order.index(kv[0]) if kv[0] in order
-                                         else len(order), kv[0]))
+    return sorted(
+        pairs, key=lambda kv: (order.index(kv[0]) if kv[0] in order else len(order), kv[0])
+    )
 
 
 def _fold(text):
@@ -665,8 +727,7 @@ def suggest(manufacturer, model, limit=3):
         for style in m["styles"]:
             also = _whole(m.get("manufacturer", ""), style)
             if also and whole:
-                score = max(score, _BY_STYLE * max(_alike(a, b)
-                                                   for a in whole for b in also))
+                score = max(score, _BY_STYLE * max(_alike(a, b) for a in whole for b in also))
         if score >= MATCH_FLOOR:
             scored.append((key, round(score, 3), bool(want & have)))
     # The same name first, whatever the scores say. A machine typed as "BBC Micro
@@ -717,9 +778,10 @@ def with_recorded(catalogue, recorded):
         for field in ("issues", "styles", "regions"):
             entry_out[field] = _extend(model[field], seen.get(field, ()))
         chips_seen = seen.get("chips") or {}
-        entry_out["chips"] = [dict(c, variants=_extend(c["variants"],
-                                                       chips_seen.get(c["role"], ())))
-                              for c in model["chips"]]
+        entry_out["chips"] = [
+            dict(c, variants=_extend(c["variants"], chips_seen.get(c["role"], ())))
+            for c in model["chips"]
+        ]
         out[key] = entry_out
     return out
 
@@ -737,11 +799,20 @@ def form_catalogue():
     for key in _ORDER:
         m = _MODELS[key]
         out[key] = {
-            "model": m["model"], "issues": m["issues"], "styles": m["styles"],
-            "regions": m["regions"], "ram": ram_labels(key),
+            "model": m["model"],
+            "issues": m["issues"],
+            "styles": m["styles"],
+            "regions": m["regions"],
+            "ram": ram_labels(key),
             "prefill": {k: v for k, v in prefill(key).items() if v not in (None, "")},
-            "chips": [{"role": c["role"], "label": c["label"],
-                       "variants": c["variants"], "note": c.get("note", "")}
-                      for c in m["chips"]],
+            "chips": [
+                {
+                    "role": c["role"],
+                    "label": c["label"],
+                    "variants": c["variants"],
+                    "note": c.get("note", ""),
+                }
+                for c in m["chips"]
+            ],
         }
     return out

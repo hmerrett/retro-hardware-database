@@ -7,6 +7,7 @@ disagrees with what it caches is worse than no cache. And the two doors -- the f
 and the API -- because everything in this register has to arrive by either and leave
 the same record behind.
 """
+
 import sys
 import textwrap
 from datetime import date
@@ -91,10 +92,17 @@ class TestCatalogueConsistency:
     def test_the_machines_asked_for_are_all_there(self):
         """The list this was built for, by the names they are known by -- which is
         the maker and the model together, since the catalogue holds them apart."""
-        wanted = ["Commodore 64", "Sinclair ZX Spectrum+", "Commodore 16",
-                  "Atari 65XE", "Sega Mega Drive", "Amstrad CPC 464",
-                  "Amstrad CPC 6128", "Acorn BBC Micro Model B",
-                  "Commodore Amiga 500"]
+        wanted = [
+            "Commodore 64",
+            "Sinclair ZX Spectrum+",
+            "Commodore 16",
+            "Atari 65XE",
+            "Sega Mega Drive",
+            "Amstrad CPC 464",
+            "Amstrad CPC 6128",
+            "Acorn BBC Micro Model B",
+            "Commodore Amiga 500",
+        ]
         have = {machines.full_name(k) for k in machines.keys()}  # noqa: SIM118
         assert not [w for w in wanted if w not in have]
 
@@ -107,9 +115,11 @@ class TestCatalogueConsistency:
         ColecoVision is one word that Coleco is inside of, not a maker written
         twice, and there is no split of it that is not a worse name -- so the rule
         is about the separator, and full_name says such a name once."""
-        doubled = [(m["manufacturer"], m["model"]) for m in machines.models()
-                   if m["manufacturer"]
-                   and m["model"].lower().startswith(m["manufacturer"].lower() + " ")]
+        doubled = [
+            (m["manufacturer"], m["model"])
+            for m in machines.models()
+            if m["manufacturer"] and m["model"].lower().startswith(m["manufacturer"].lower() + " ")
+        ]
         assert doubled == []
 
     def test_a_name_its_maker_is_inside_of_is_said_once(self):
@@ -118,13 +128,14 @@ class TestCatalogueConsistency:
 
     def test_a_model_inherits_its_family_sockets(self):
         assert "ula" in machines.roles("zx-spectrum-48k")
-        assert machines.chip("zx-spectrum-48k", "ula")["variants"] == \
-            machines.chip("zx-spectrum-16k", "ula")["variants"]
+        assert (
+            machines.chip("zx-spectrum-48k", "ula")["variants"]
+            == machines.chip("zx-spectrum-16k", "ula")["variants"]
+        )
 
     def test_a_model_can_replace_one_of_them(self):
         """The +2A has Amstrad's gate array where the family has a Ferranti ULA."""
-        assert machines.chip("zx-spectrum-plus2a", "ula")["variants"] == \
-            ["Amstrad 40056"]
+        assert machines.chip("zx-spectrum-plus2a", "ula")["variants"] == ["Amstrad 40056"]
         assert machines.chip("zx-spectrum-plus2a", "ula")["label"] == "ASIC"
 
     def test_a_model_can_say_it_has_no_such_socket(self):
@@ -145,14 +156,32 @@ class TestCatalogueConsistency:
     def test_the_machines_a_person_asked_for_are_all_there(self):
         """The second round: the 8- and 16-bit machines of Europe, America and
         Japan, by the names they are known by."""
-        wanted = ["Apple IIe", "Apple Macintosh Plus", "Tandy TRS-80 Model I",
-                  "Texas Instruments TI-99/4A", "ColecoVision", "Mattel Intellivision",
-                  "Commodore PET 2001", "Sinclair QL", "Oric Atmos", "Dragon 32",
-                  "MGT SAM Coupé", "Enterprise 128", "Thomson MO5",
-                  "Nintendo Entertainment System", "Nintendo Game Boy",
-                  "Nintendo Super NES", "NEC PC Engine", "Sharp X68000",
-                  "Fujitsu FM-7", "Toshiba HX-10", "Sega SG-1000",
-                  "Atari Lynx", "Acorn Atom", "Commodore CD32"]
+        wanted = [
+            "Apple IIe",
+            "Apple Macintosh Plus",
+            "Tandy TRS-80 Model I",
+            "Texas Instruments TI-99/4A",
+            "ColecoVision",
+            "Mattel Intellivision",
+            "Commodore PET 2001",
+            "Sinclair QL",
+            "Oric Atmos",
+            "Dragon 32",
+            "MGT SAM Coupé",
+            "Enterprise 128",
+            "Thomson MO5",
+            "Nintendo Entertainment System",
+            "Nintendo Game Boy",
+            "Nintendo Super NES",
+            "NEC PC Engine",
+            "Sharp X68000",
+            "Fujitsu FM-7",
+            "Toshiba HX-10",
+            "Sega SG-1000",
+            "Atari Lynx",
+            "Acorn Atom",
+            "Commodore CD32",
+        ]
         have = {machines.full_name(k) for k in machines.keys()}  # noqa: SIM118
         assert not [w for w in wanted if w not in have]
 
@@ -160,8 +189,7 @@ class TestCatalogueConsistency:
         """Seventy-odd makers and three hundred machines is only usable if you can
         guess where to look, so both lists are alphabetical -- worked out on load,
         so neither depends on the file staying tidy."""
-        makers = [(f["manufacturer"] or f["name"]).casefold()
-                  for f in machines.FAMILIES]
+        makers = [(f["manufacturer"] or f["name"]).casefold() for f in machines.FAMILIES]
         assert makers == sorted(makers)
         for family in machines.FAMILIES:
             names = [m["model"] for m in family["models"]]
@@ -200,10 +228,15 @@ class TestCatalogueConsistency:
 class TestRendering:
     def test_a_machine_reads_as_the_machine_it_is(self):
         assert machines.render(
-            "zx-spectrum-plus", "Issue 6A", "moulded keys", "PAL (UK/Europe)",
-            {"ula": "Ferranti 6C001E-7"}) == (
-                "ZX Spectrum+ | Board: Issue 6A | Style: moulded keys | "
-                "Region: PAL (UK/Europe) | ULA: Ferranti 6C001E-7")
+            "zx-spectrum-plus",
+            "Issue 6A",
+            "moulded keys",
+            "PAL (UK/Europe)",
+            {"ula": "Ferranti 6C001E-7"},
+        ) == (
+            "ZX Spectrum+ | Board: Issue 6A | Style: moulded keys | "
+            "Region: PAL (UK/Europe) | ULA: Ferranti 6C001E-7"
+        )
 
     def test_the_model_is_the_subject_rather_than_an_attribute(self):
         """It comes first and without a key, the way parse_specs keeps a keyless
@@ -222,10 +255,11 @@ class TestRendering:
         """What was seen on the board is not wrong for having gone out of the
         catalogue, so the role slug names itself: short ones read as the acronyms
         they are, longer ones as words."""
-        assert machines.render("c64", chips={"sidx": "Whatsit 9000"}) == \
-            "64 | SIDX: Whatsit 9000"
-        assert machines.render("c64", chips={"sound-chip": "Whatsit 9000"}) == \
-            "64 | Sound chip: Whatsit 9000"
+        assert machines.render("c64", chips={"sidx": "Whatsit 9000"}) == "64 | SIDX: Whatsit 9000"
+        assert (
+            machines.render("c64", chips={"sound-chip": "Whatsit 9000"})
+            == "64 | Sound chip: Whatsit 9000"
+        )
 
     def test_a_model_key_the_catalogue_lost_is_still_named(self):
         assert machines.render("zx-spectrum-2048k") == "zx-spectrum-2048k"
@@ -238,23 +272,31 @@ class TestStorage:
 
     def test_what_goes_in_comes_back(self, computer, db):
         c = db.get(Computer, computer()["asset_id"])
-        machinedb.write(db, c, model_key="c64", issue="ASSY 250425",
-                        style="rainbow label", region="PAL",
-                        chips={"sid": "MOS 6581R4", "vic": "MOS 6569R3"})
+        machinedb.write(
+            db,
+            c,
+            model_key="c64",
+            issue="ASSY 250425",
+            style="rainbow label",
+            region="PAL",
+            chips={"sid": "MOS 6581R4", "vic": "MOS 6569R3"},
+        )
         db.commit()
         assert machinedb.read(db, c) == {
-            "model_key": "c64", "issue": "ASSY 250425", "style": "rainbow label",
-            "region": "PAL", "chips": {"vic": "MOS 6569R3", "sid": "MOS 6581R4"},
+            "model_key": "c64",
+            "issue": "ASSY 250425",
+            "style": "rainbow label",
+            "region": "PAL",
+            "chips": {"vic": "MOS 6569R3", "sid": "MOS 6581R4"},
             # Nothing was said about how they are held, and nothing is assumed.
-            "sockets": {}}
+            "sockets": {},
+        }
 
-    def test_how_a_chip_is_held_survives_the_chips_being_rewritten(self, computer,
-                                                                   db):
+    def test_how_a_chip_is_held_survives_the_chips_being_rewritten(self, computer, db):
         """write() replaces the chip rows wholesale, so a later call that names only
         the variants must not lose what was said about their sockets."""
         c = db.get(Computer, computer()["asset_id"])
-        machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"},
-                        sockets={"sid": True})
+        machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"}, sockets={"sid": True})
         machinedb.write(db, c, chips={"sid": "MOS 6581R4", "cpu": "MOS 6510"})
         db.commit()
         v = machinedb.read(db, c)
@@ -279,8 +321,7 @@ class TestStorage:
         """The convention ramdb and drivedb already follow: a caller that knows one
         thing must not wipe the others."""
         c = db.get(Computer, computer()["asset_id"])
-        machinedb.write(db, c, model_key="c64", issue="ASSY 250407",
-                        chips={"sid": "MOS 6581"})
+        machinedb.write(db, c, model_key="c64", issue="ASSY 250407", chips={"sid": "MOS 6581"})
         machinedb.write(db, c, style="silver label")
         db.commit()
         v = machinedb.read(db, c)
@@ -289,17 +330,14 @@ class TestStorage:
 
     def test_a_blank_chip_clears_that_socket_and_leaves_the_others(self, computer, db):
         c = db.get(Computer, computer()["asset_id"])
-        machinedb.write(db, c, model_key="c64",
-                        chips={"sid": "MOS 6581", "cpu": "MOS 6510"})
+        machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581", "cpu": "MOS 6510"})
         machinedb.write(db, c, chips={"sid": "", "cpu": "MOS 6510"})
         db.commit()
         assert machinedb.read(db, c)["chips"] == {"cpu": "MOS 6510"}
 
-    def test_filing_a_machine_out_of_the_catalogue_forgets_all_of_it(self, computer,
-                                                                    db):
+    def test_filing_a_machine_out_of_the_catalogue_forgets_all_of_it(self, computer, db):
         c = db.get(Computer, computer()["asset_id"])
-        machinedb.write(db, c, model_key="c64", issue="ASSY 250425",
-                        chips={"sid": "MOS 6581"})
+        machinedb.write(db, c, model_key="c64", issue="ASSY 250425", chips={"sid": "MOS 6581"})
         machinedb.write(db, c, model_key="")
         db.commit()
         assert machinedb.read(db, c) == machinedb.BLANK
@@ -309,12 +347,10 @@ class TestStorage:
 
     def test_changing_model_keeps_the_chips_the_new_one_also_has(self, computer, db):
         c = db.get(Computer, computer()["asset_id"])
-        machinedb.write(db, c, model_key="c64",
-                        chips={"sid": "MOS 6581", "cpu": "MOS 6510"})
+        machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581", "cpu": "MOS 6510"})
         machinedb.write(db, c, model_key="c64c")
         db.commit()
-        assert machinedb.read(db, c)["chips"] == {"cpu": "MOS 6510",
-                                                 "sid": "MOS 6581"}
+        assert machinedb.read(db, c)["chips"] == {"cpu": "MOS 6510", "sid": "MOS 6581"}
 
     def test_changing_model_drops_the_chips_it_has_no_socket_for(self, computer, db):
         """A machine refiled as a Spectrum has no SID, and a record saying it has
@@ -326,8 +362,7 @@ class TestStorage:
         assert machinedb.read(db, c)["chips"] == {}
         assert c.variant == "ZX Spectrum 48K"
 
-    def test_reading_many_takes_two_queries_and_gets_the_same_answers(self, computer,
-                                                                     db):
+    def test_reading_many_takes_two_queries_and_gets_the_same_answers(self, computer, db):
         first = db.get(Computer, computer()["asset_id"])
         second = db.get(Computer, computer()["asset_id"])
         plain = db.get(Computer, computer()["asset_id"])
@@ -339,8 +374,7 @@ class TestStorage:
         assert many[second.asset_id] == machinedb.read(db, second)
         assert plain.asset_id not in many
 
-    def test_deleting_a_machine_takes_its_catalogue_rows_with_it(self, client,
-                                                                computer, db):
+    def test_deleting_a_machine_takes_its_catalogue_rows_with_it(self, client, computer, db):
         c = db.get(Computer, computer()["asset_id"])
         machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"})
         db.commit()
@@ -359,35 +393,56 @@ class TestApi:
         c64 = next(m for m in models if m["key"] == "c64")
         assert c64["model"] == "64" and c64["year"] == 1982
         assert "ASSY 250425" in c64["issues"]
-        assert "MOS 6581" in next(c["variants"] for c in c64["chips"]
-                                  if c["role"] == "sid")
+        assert "MOS 6581" in next(c["variants"] for c in c64["chips"] if c["role"] == "sid")
 
     def test_a_machine_can_be_created_as_one(self, client):
-        r = client.post("/api/computers", json={
-            "manufacturer": "Sinclair", "model": "ZX Spectrum+",
-            "machine": {"model_key": "zx-spectrum-plus", "issue": "Issue 6A",
-                        "style": "moulded keys",
-                        "chips": {"ula": "Ferranti 6C001E-7"}}})
+        r = client.post(
+            "/api/computers",
+            json={
+                "manufacturer": "Sinclair",
+                "model": "ZX Spectrum+",
+                "machine": {
+                    "model_key": "zx-spectrum-plus",
+                    "issue": "Issue 6A",
+                    "style": "moulded keys",
+                    "chips": {"ula": "Ferranti 6C001E-7"},
+                },
+            },
+        )
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["machine"]["model"] == "ZX Spectrum+"
         assert body["machine"]["family"] == "Sinclair ZX"
         assert body["machine"]["chips"] == {"ula": "Ferranti 6C001E-7"}
-        assert body["variant"] == ("ZX Spectrum+ | Board: Issue 6A | "
-                                   "Style: moulded keys | ULA: Ferranti 6C001E-7")
+        assert body["variant"] == (
+            "ZX Spectrum+ | Board: Issue 6A | Style: moulded keys | ULA: Ferranti 6C001E-7"
+        )
 
     def test_sockets_ride_over_the_wire_beside_the_chips(self, client):
-        r = client.post("/api/computers", json={
-            "manufacturer": "Commodore", "model": "64",
-            "machine": {"model_key": "c64", "chips": {"sid": "MOS 6581"},
-                        "sockets": {"sid": True}}})
+        r = client.post(
+            "/api/computers",
+            json={
+                "manufacturer": "Commodore",
+                "model": "64",
+                "machine": {
+                    "model_key": "c64",
+                    "chips": {"sid": "MOS 6581"},
+                    "sockets": {"sid": True},
+                },
+            },
+        )
         assert r.status_code == 200, r.text
         assert r.json()["machine"]["sockets"] == {"sid": True}
 
     def test_a_socket_for_a_chip_the_model_has_not_got_is_refused(self, client):
-        r = client.post("/api/computers", json={
-            "manufacturer": "Commodore", "model": "64",
-            "machine": {"model_key": "c64", "sockets": {"ula": True}}})
+        r = client.post(
+            "/api/computers",
+            json={
+                "manufacturer": "Commodore",
+                "model": "64",
+                "machine": {"model_key": "c64", "sockets": {"ula": True}},
+            },
+        )
         assert r.status_code == 422 and "ula" in r.text
 
     def test_a_machine_that_is_not_one_says_so(self, computer):
@@ -395,23 +450,23 @@ class TestApi:
 
     def test_it_comes_back_on_get_and_on_the_list(self, client, computer):
         c = computer(machine={"model_key": "c16"})
-        assert client.get(f"/api/computers/{c['asset_id']}").json()["machine"][
-            "model"] == "16"
+        assert client.get(f"/api/computers/{c['asset_id']}").json()["machine"]["model"] == "16"
         listed = {row["asset_id"]: row for row in client.get("/api/computers").json()}
         assert listed[c["asset_id"]]["machine"]["model_key"] == "c16"
 
     def test_a_patch_changes_only_what_it_names(self, client, computer):
-        c = computer(machine={"model_key": "c64", "issue": "ASSY 250407",
-                              "chips": {"sid": "MOS 6581"}})
-        r = client.patch(f"/api/computers/{c['asset_id']}",
-                         json={"machine": {"style": "silver label"}})
+        c = computer(
+            machine={"model_key": "c64", "issue": "ASSY 250407", "chips": {"sid": "MOS 6581"}}
+        )
+        r = client.patch(
+            f"/api/computers/{c['asset_id']}", json={"machine": {"style": "silver label"}}
+        )
         assert r.status_code == 200, r.text
         m = r.json()["machine"]
         assert m["issue"] == "ASSY 250407" and m["chips"] == {"sid": "MOS 6581"}
         assert m["style"] == "silver label"
 
-    def test_a_patch_that_says_nothing_about_it_leaves_it_alone(self, client,
-                                                               computer):
+    def test_a_patch_that_says_nothing_about_it_leaves_it_alone(self, client, computer):
         c = computer(machine={"model_key": "c64", "issue": "ASSY 250425"})
         r = client.patch(f"/api/computers/{c['asset_id']}", json={"notes": "cleaned"})
         assert r.json()["machine"]["issue"] == "ASSY 250425"
@@ -423,49 +478,57 @@ class TestApi:
         assert r.json()["machine"] is None and r.json()["variant"] == ""
 
     def test_a_model_the_catalogue_does_not_have_is_refused(self, client):
-        r = client.post("/api/computers",
-                        json={"model": "X", "machine": {"model_key": "zx-spectrum"}})
+        r = client.post(
+            "/api/computers", json={"model": "X", "machine": {"model_key": "zx-spectrum"}}
+        )
         assert r.status_code == 422
         assert "zx-spectrum" in r.text
 
     def test_a_socket_the_model_does_not_have_is_refused(self, client):
-        r = client.post("/api/computers", json={
-            "model": "X", "machine": {"model_key": "c64",
-                                      "chips": {"ula": "Ferranti 6C001E-7"}}})
+        r = client.post(
+            "/api/computers",
+            json={
+                "model": "X",
+                "machine": {"model_key": "c64", "chips": {"ula": "Ferranti 6C001E-7"}},
+            },
+        )
         assert r.status_code == 422
         assert "ula" in r.text
 
-    def test_a_chip_is_checked_against_the_model_already_on_file(self, client,
-                                                                computer):
+    def test_a_chip_is_checked_against_the_model_already_on_file(self, client, computer):
         c = computer(machine={"model_key": "c64"})
-        r = client.patch(f"/api/computers/{c['asset_id']}",
-                         json={"machine": {"chips": {"sid": "MOS 8580R5"}}})
+        r = client.patch(
+            f"/api/computers/{c['asset_id']}", json={"machine": {"chips": {"sid": "MOS 8580R5"}}}
+        )
         assert r.status_code == 200, r.text
-        bad = client.patch(f"/api/computers/{c['asset_id']}",
-                           json={"machine": {"chips": {"ted": "MOS 7360"}}})
+        bad = client.patch(
+            f"/api/computers/{c['asset_id']}", json={"machine": {"chips": {"ted": "MOS 7360"}}}
+        )
         assert bad.status_code == 422
 
     def test_the_rendered_line_is_read_only(self, client, computer):
         """It is written from the rows, so sending one has no effect -- the rule
         installed_ram and drives already follow."""
         c = computer(machine={"model_key": "c64"})
-        r = client.patch(f"/api/computers/{c['asset_id']}",
-                         json={"variant": "an Amiga, honestly"})
+        r = client.patch(f"/api/computers/{c['asset_id']}", json={"variant": "an Amiga, honestly"})
         assert r.json()["variant"] == "64"
 
     def test_a_change_of_machine_is_in_the_history(self, client, computer):
         c = computer(machine={"model_key": "c64"})
-        client.patch(f"/api/computers/{c['asset_id']}",
-                     json={"machine": {"chips": {"sid": "MOS 6581R4"}}})
+        client.patch(
+            f"/api/computers/{c['asset_id']}", json={"machine": {"chips": {"sid": "MOS 6581R4"}}}
+        )
         page = client.get(f"/computers/{c['asset_id']}").text
         assert "MOS 6581R4" in page
 
 
 class TestForm:
     def _new(self, client, **fields):
-        r = client.post("/computers/new",
-                        data={"manufacturer": "Sinclair", "model": "Spectrum",
-                              **fields}, follow_redirects=False)
+        r = client.post(
+            "/computers/new",
+            data={"manufacturer": "Sinclair", "model": "Spectrum", **fields},
+            follow_redirects=False,
+        )
         assert r.status_code == 303, r.text
         return r.headers["location"].split("/computers/")[1].split("?")[0]
 
@@ -477,11 +540,15 @@ class TestForm:
         assert "Ferranti 6C001E-7" in page
 
     def test_a_machine_can_be_filed_from_the_form(self, client, db):
-        aid = self._new(client, mach_model="zx-spectrum-48k", mach_fields="1",
-                        mach_issue="Issue 3B", mach_style="rubber keys",
-                        mach_region="PAL (UK/Europe)",
-                        **{"chip:ula": "Ferranti 6C001E-7",
-                           "chip:cpu": "NEC D780C-1"})
+        aid = self._new(
+            client,
+            mach_model="zx-spectrum-48k",
+            mach_fields="1",
+            mach_issue="Issue 3B",
+            mach_style="rubber keys",
+            mach_region="PAL (UK/Europe)",
+            **{"chip:ula": "Ferranti 6C001E-7", "chip:cpu": "NEC D780C-1"},
+        )
         c = db.get(Computer, aid)
         v = machinedb.read(db, c)
         assert v["model_key"] == "zx-spectrum-48k" and v["issue"] == "Issue 3B"
@@ -489,8 +556,13 @@ class TestForm:
         assert "ULA: Ferranti 6C001E-7" in c.variant
 
     def test_the_edit_form_comes_back_with_what_was_picked(self, client, db):
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        mach_issue="ASSY 250425", **{"chip:sid": "MOS 6581R4"})
+        aid = self._new(
+            client,
+            mach_model="c64",
+            mach_fields="1",
+            mach_issue="ASSY 250425",
+            **{"chip:sid": "MOS 6581R4"},
+        )
         page = client.get(f"/computers/{aid}/edit").text
         assert 'value="c64" selected' in page
         # The saved answers go to the script, which builds the boxes from them.
@@ -499,90 +571,122 @@ class TestForm:
     def test_a_socket_the_model_does_not_have_is_ignored(self, client, db):
         """Fields left over from another model in the same tab cannot put a ULA in a
         Commodore 64."""
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        **{"chip:ula": "Ferranti 6C001E-7",
-                           "chip:sid": "MOS 6581"})
+        aid = self._new(
+            client,
+            mach_model="c64",
+            mach_fields="1",
+            **{"chip:ula": "Ferranti 6C001E-7", "chip:sid": "MOS 6581"},
+        )
         c = db.get(Computer, aid)
         assert machinedb.read(db, c)["chips"] == {"sid": "MOS 6581"}
 
     def test_the_tickbox_says_which_chips_are_in_a_socket(self, client, db):
         """A socketed chip can be swapped to test a fault; a soldered one is forty
         pins and a desoldering station. The box beside each chip records which."""
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on",
-                           "chip:vic": "MOS 6569R3"})
+        aid = self._new(
+            client,
+            mach_model="c64",
+            mach_fields="1",
+            **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on", "chip:vic": "MOS 6569R3"},
+        )
         v = machinedb.read(db, db.get(Computer, aid))
         assert v["sockets"] == {"sid": True, "vic": False}
 
-    def test_a_socket_nobody_named_a_chip_for_is_not_answered_either(self, client,
-                                                                     db):
+    def test_a_socket_nobody_named_a_chip_for_is_not_answered_either(self, client, db):
         """The box is off for every socket on the form, including the ones left at
         "not recorded". Saving must not turn that into a claim that a chip nobody
         has looked at is soldered down -- there is no chip there to hold."""
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on"})
+        aid = self._new(
+            client,
+            mach_model="c64",
+            mach_fields="1",
+            **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on"},
+        )
         v = machinedb.read(db, db.get(Computer, aid))
         assert v["chips"] == {"sid": "MOS 6581"} and v["sockets"] == {"sid": True}
 
     def test_unticking_it_says_soldered_rather_than_forgetting(self, client, db):
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on"})
-        r = client.post(f"/computers/{aid}/edit",
-                        data={"manufacturer": "Commodore", "model": "64",
-                              "mach_model": "c64", "mach_fields": "1",
-                              "chip:sid": "MOS 6581"}, follow_redirects=False)
+        aid = self._new(
+            client,
+            mach_model="c64",
+            mach_fields="1",
+            **{"chip:sid": "MOS 6581", "chip:sid:socketed": "on"},
+        )
+        r = client.post(
+            f"/computers/{aid}/edit",
+            data={
+                "manufacturer": "Commodore",
+                "model": "64",
+                "mach_model": "c64",
+                "mach_fields": "1",
+                "chip:sid": "MOS 6581",
+            },
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         assert machinedb.read(db, db.get(Computer, aid))["sockets"] == {"sid": False}
 
-    def test_a_save_that_could_not_draw_the_fields_does_not_erase_them(self, client,
-                                                                      db):
+    def test_a_save_that_could_not_draw_the_fields_does_not_erase_them(self, client, db):
         """Without the marker the script sets, only the model choice is read: a
         browser that ran no JavaScript submits no variation fields, and a blank
         field it never drew must not read as an answer of "nothing"."""
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        mach_issue="ASSY 250425", **{"chip:sid": "MOS 6581"})
-        r = client.post(f"/computers/{aid}/edit",
-                        data={"manufacturer": "Commodore", "model": "64",
-                              "mach_model": "c64"}, follow_redirects=False)
+        aid = self._new(
+            client,
+            mach_model="c64",
+            mach_fields="1",
+            mach_issue="ASSY 250425",
+            **{"chip:sid": "MOS 6581"},
+        )
+        r = client.post(
+            f"/computers/{aid}/edit",
+            data={"manufacturer": "Commodore", "model": "64", "mach_model": "c64"},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         c = db.get(Computer, aid)
         v = machinedb.read(db, c)
         assert v["issue"] == "ASSY 250425" and v["chips"] == {"sid": "MOS 6581"}
 
     def test_choosing_not_a_catalogue_model_files_it_out(self, client, db):
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        mach_issue="ASSY 250425")
-        r = client.post(f"/computers/{aid}/edit",
-                        data={"manufacturer": "Commodore", "model": "64",
-                              "mach_model": ""}, follow_redirects=False)
+        aid = self._new(client, mach_model="c64", mach_fields="1", mach_issue="ASSY 250425")
+        r = client.post(
+            f"/computers/{aid}/edit",
+            data={"manufacturer": "Commodore", "model": "64", "mach_model": ""},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         c = db.get(Computer, aid)
         assert machinedb.read(db, c) == machinedb.BLANK and c.variant == ""
 
-    def test_a_form_that_never_asked_leaves_a_machine_alone(self, client, computer,
-                                                           db):
+    def test_a_form_that_never_asked_leaves_a_machine_alone(self, client, computer, db):
         """Another form posting to the same handler -- one with no machine picker on
         it at all -- must not clear what this one recorded."""
         c = db.get(Computer, computer()["asset_id"])
         machinedb.write(db, c, model_key="c64", issue="ASSY 250425")
         db.commit()
-        r = client.post(f"/computers/{c.asset_id}/edit",
-                        data={"manufacturer": "Commodore", "model": "64"},
-                        follow_redirects=False)
+        r = client.post(
+            f"/computers/{c.asset_id}/edit",
+            data={"manufacturer": "Commodore", "model": "64"},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         db.expire_all()
         assert machinedb.read(db, c)["issue"] == "ASSY 250425"
 
     def test_the_machine_page_says_what_it_is(self, client, db):
-        aid = self._new(client, mach_model="zx-spectrum-plus", mach_fields="1",
-                        mach_issue="Issue 6A", mach_style="moulded keys",
-                        **{"chip:ula": "Ferranti 6C001E-7"})
+        aid = self._new(
+            client,
+            mach_model="zx-spectrum-plus",
+            mach_fields="1",
+            mach_issue="Issue 6A",
+            mach_style="moulded keys",
+            **{"chip:ula": "Ferranti 6C001E-7"},
+        )
         page = client.get(f"/computers/{aid}").text
         assert "ZX Spectrum+" in page and "Issue 6A" in page
         assert "ULA" in page and "Ferranti 6C001E-7" in page
 
-    def test_a_machine_outside_the_catalogue_has_no_such_section(self, client,
-                                                                computer):
+    def test_a_machine_outside_the_catalogue_has_no_such_section(self, client, computer):
         page = client.get(f"/computers/{computer()['asset_id']}").text
         assert "Catalogue model" not in page
 
@@ -593,22 +697,27 @@ class TestForm:
         The chips share one line, named by their sockets: a machine has a CPU field
         and a CPU socket saying different true things, and two label lines both
         headed CPU would read as a contradiction."""
-        aid = self._new(client, mach_model="zx-spectrum-48k", mach_fields="1",
-                        mach_issue="Issue 3B", cpu="Zilog Z80A-3.5",
-                        **{"chip:ula": "Ferranti 6C001E-7",
-                           "chip:cpu": "NEC D780C-1"})
+        aid = self._new(
+            client,
+            mach_model="zx-spectrum-48k",
+            mach_fields="1",
+            mach_issue="Issue 3B",
+            cpu="Zilog Z80A-3.5",
+            **{"chip:ula": "Ferranti 6C001E-7", "chip:cpu": "NEC D780C-1"},
+        )
         from app import labels
         from app.common import to_dict
+
         lines = labels.computer_lines(to_dict(db.get(Computer, aid)), [])
         assert "Machine: ZX Spectrum 48K" in lines
         assert "Board: Issue 3B" in lines
         assert "Chips: CPU NEC D780C-1, ULA Ferranti 6C001E-7" in lines
         assert len([x for x in lines if x.startswith("CPU:")]) == 1
 
-    def test_a_label_for_a_machine_outside_the_catalogue_is_unchanged(self, computer,
-                                                                     db):
+    def test_a_label_for_a_machine_outside_the_catalogue_is_unchanged(self, computer, db):
         from app import labels
         from app.common import to_dict
+
         c = db.get(Computer, computer(cpu="Intel 486DX2-66")["asset_id"])
         lines = labels.computer_lines(to_dict(c), [])
         assert not [x for x in lines if x.startswith(("Machine:", "Chips:"))]
@@ -616,8 +725,13 @@ class TestForm:
     def test_a_duplicate_is_the_same_model_and_not_the_same_board(self, client, db):
         """Another one of these is another one of these; which board issue and which
         ULA are in it are found by opening it."""
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        mach_issue="ASSY 250425", **{"chip:sid": "MOS 6581"})
+        aid = self._new(
+            client,
+            mach_model="c64",
+            mach_fields="1",
+            mach_issue="ASSY 250425",
+            **{"chip:sid": "MOS 6581"},
+        )
         r = client.post(f"/computers/{aid}/duplicate", follow_redirects=False)
         copy = r.headers["location"].split("/computers/")[1]
         v = machinedb.read(db, db.get(Computer, copy))
@@ -628,8 +742,7 @@ class TestForm:
         """What the rendered cache is for: the register is searched over every text
         column, so a part number recorded in a socket is a way back to the
         machine."""
-        aid = self._new(client, mach_model="c64", mach_fields="1",
-                        **{"chip:sid": "MOS 8580R5"})
+        aid = self._new(client, mach_model="c64", mach_fields="1", **{"chip:sid": "MOS 8580R5"})
         hits = client.get("/?q=8580R5").text
         assert aid in hits
 
@@ -642,10 +755,16 @@ class TestWhereTheBoardAndPartsAreAskedFor:
     instead, which is where a drive that does turn up gets added from."""
 
     def _c64(self, client):
-        r = client.post("/computers/new",
-                        data={"manufacturer": "Commodore", "model": "64",
-                              "mach_model": "c64", "mach_fields": "1"},
-                        follow_redirects=False)
+        r = client.post(
+            "/computers/new",
+            data={
+                "manufacturer": "Commodore",
+                "model": "64",
+                "mach_model": "c64",
+                "mach_fields": "1",
+            },
+            follow_redirects=False,
+        )
         assert r.status_code == 303, r.text
         return r.headers["location"].split("/computers/")[1].split("?")[0]
 
@@ -680,14 +799,14 @@ class TestWhereTheBoardAndPartsAreAskedFor:
         marked on the chip."""
         aid = self._c64(client)
         c = db.get(Computer, aid)
-        machinedb.write(db, c, chips={"sid": "MOS 6581", "cpu": "MOS 6510"},
-                        sockets={"sid": True, "cpu": False})
+        machinedb.write(
+            db, c, chips={"sid": "MOS 6581", "cpu": "MOS 6510"}, sockets={"sid": True, "cpu": False}
+        )
         db.commit()
         page = client.get(f"/computers/{aid}").text
         assert '<div class="cardgrid">' in page
         assert 'aria-label="in a socket" title="in a socket">✓' in page
-        assert 'aria-label="soldered to the board" title="soldered to the board">✗' \
-            in page
+        assert 'aria-label="soldered to the board" title="soldered to the board">✗' in page
 
     def test_a_socket_nobody_has_looked_in_says_nothing(self, client, db):
         """Neither answer is not the same as soldered."""
@@ -709,8 +828,7 @@ class TestACatalogueThatGrows:
         return machines.with_recorded(machines.form_catalogue(), recorded)
 
     def ula(self, catalogue, key="zx-spectrum-48k"):
-        return next(c["variants"] for c in catalogue[key]["chips"]
-                    if c["role"] == "ula")
+        return next(c["variants"] for c in catalogue[key]["chips"] if c["role"] == "ula")
 
     def test_a_chip_the_catalogue_never_heard_of_is_offered(self):
         out = self.ula(self.cat({"zx-spectrum-48k": {"chips": {"ula": ["Ferranti 6C001W-8"]}}}))
@@ -720,19 +838,16 @@ class TestACatalogueThatGrows:
         """What was written down deliberately is what a person reads down first."""
         known = self.ula(self.cat({}))
         out = self.ula(self.cat({"zx-spectrum-48k": {"chips": {"ula": ["AAA first"]}}}))
-        assert out[:len(known)] == known
+        assert out[: len(known)] == known
         assert out[-1] == "AAA first"
 
     def test_one_already_offered_is_not_offered_twice(self):
-        out = self.ula(self.cat(
-            {"zx-spectrum-48k": {"chips": {"ula": ["Ferranti 6C001E-7"]}}}))
+        out = self.ula(self.cat({"zx-spectrum-48k": {"chips": {"ula": ["Ferranti 6C001E-7"]}}}))
         assert out.count("Ferranti 6C001E-7") == 1
 
     def test_a_difference_of_case_or_spacing_is_not_a_different_chip(self):
-        out = self.ula(self.cat(
-            {"zx-spectrum-48k": {"chips": {"ula": ["ferranti  6C001E-7"]}}}))
-        assert len([v for v in out if v.lower().replace("  ", " ")
-                    == "ferranti 6c001e-7"]) == 1
+        out = self.ula(self.cat({"zx-spectrum-48k": {"chips": {"ula": ["ferranti  6C001E-7"]}}}))
+        assert len([v for v in out if v.lower().replace("  ", " ") == "ferranti 6c001e-7"]) == 1
 
     def test_what_one_model_teaches_is_not_told_about_another(self):
         """A ULA found in a Spectrum says nothing about a Commodore 64."""
@@ -745,9 +860,15 @@ class TestACatalogueThatGrows:
         assert "ula" not in [c["role"] for c in cat["c64"]["chips"]]
 
     def test_the_other_variations_grow_the_same_way(self):
-        cat = self.cat({"c64": {"issues": ["ASSY 250466 rev B"],
-                                "styles": ["Aldi C64 (short board)"],
-                                "regions": ["PAL"]}})
+        cat = self.cat(
+            {
+                "c64": {
+                    "issues": ["ASSY 250466 rev B"],
+                    "styles": ["Aldi C64 (short board)"],
+                    "regions": ["PAL"],
+                }
+            }
+        )
         assert "ASSY 250466 rev B" in cat["c64"]["issues"]
         # ...and the ones it already knew are still there once each.
         assert cat["c64"]["styles"].count("Aldi C64 (short board)") == 1
@@ -755,8 +876,9 @@ class TestACatalogueThatGrows:
 
     def test_what_machines_say_is_read_back_by_model(self, computer, db):
         c = db.get(Computer, computer()["asset_id"])
-        machinedb.write(db, c, model_key="zx-spectrum-48k", issue="Issue 3B",
-                        chips={"ula": "Ferranti 6C001W-8"})
+        machinedb.write(
+            db, c, model_key="zx-spectrum-48k", issue="Issue 3B", chips={"ula": "Ferranti 6C001W-8"}
+        )
         db.commit()
         seen = machinedb.recorded(db)
         assert seen["zx-spectrum-48k"]["chips"]["ula"] == ["Ferranti 6C001W-8"]
@@ -771,40 +893,58 @@ class TestACatalogueThatGrows:
     def test_a_chip_typed_once_is_offered_on_the_next_machine(self, client):
         """The whole point, end to end: the custom box on one machine puts the chip
         into the list the next machine's form is built from."""
-        r = client.post("/computers/new",
-                        data={"manufacturer": "Sinclair", "model": "Spectrum",
-                              "mach_model": "zx-spectrum-48k", "mach_fields": "1",
-                              "chip:ula": "custom",
-                              "chip:ula_custom": "Ferranti 6C001W-8"},
-                        follow_redirects=False)
+        r = client.post(
+            "/computers/new",
+            data={
+                "manufacturer": "Sinclair",
+                "model": "Spectrum",
+                "mach_model": "zx-spectrum-48k",
+                "mach_fields": "1",
+                "chip:ula": "custom",
+                "chip:ula_custom": "Ferranti 6C001W-8",
+            },
+            follow_redirects=False,
+        )
         assert r.status_code == 303, r.text
         # A blank form: the only place this can appear is the catalogue the script
         # builds its buttons from.
         assert "Ferranti 6C001W-8" in client.get("/computers/new").text
 
     def test_the_custom_box_is_what_gets_stored(self, client, db):
-        r = client.post("/computers/new",
-                        data={"manufacturer": "Commodore", "model": "64",
-                              "mach_model": "c64", "mach_fields": "1",
-                              "mach_issue": "custom",
-                              "mach_issue_custom": "  ASSY 250425  rev C ",
-                              "chip:sid": "MOS 6582"}, follow_redirects=False)
+        r = client.post(
+            "/computers/new",
+            data={
+                "manufacturer": "Commodore",
+                "model": "64",
+                "mach_model": "c64",
+                "mach_fields": "1",
+                "mach_issue": "custom",
+                "mach_issue_custom": "  ASSY 250425  rev C ",
+                "chip:sid": "MOS 6582",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].split("/computers/")[1].split("?")[0]
         row = db.get(AssetVariant, aid)
         # Squeezed, like every other typed answer the form takes.
         assert row.issue == "ASSY 250425 rev C"
-        assert db.query(AssetChip).filter(
-            AssetChip.asset_id == aid).one().variant == "MOS 6582"
+        assert db.query(AssetChip).filter(AssetChip.asset_id == aid).one().variant == "MOS 6582"
 
     def test_custom_with_nothing_typed_records_nothing(self, client, db):
-        r = client.post("/computers/new",
-                        data={"manufacturer": "Commodore", "model": "64",
-                              "mach_model": "c64", "mach_fields": "1",
-                              "chip:sid": "custom", "chip:sid_custom": "   "},
-                        follow_redirects=False)
+        r = client.post(
+            "/computers/new",
+            data={
+                "manufacturer": "Commodore",
+                "model": "64",
+                "mach_model": "c64",
+                "mach_fields": "1",
+                "chip:sid": "custom",
+                "chip:sid_custom": "   ",
+            },
+            follow_redirects=False,
+        )
         aid = r.headers["location"].split("/computers/")[1].split("?")[0]
-        assert db.query(AssetChip).filter(
-            AssetChip.asset_id == aid).count() == 0
+        assert db.query(AssetChip).filter(AssetChip.asset_id == aid).count() == 0
 
 
 class TestABoardIsFiledLikeTheMachineItCameOutOf:
@@ -818,17 +958,22 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
     """
 
     def _board(self, client, **fields):
-        r = client.post("/parts/new",
-                        data={"type": "motherboard", **fields},
-                        follow_redirects=False)
+        r = client.post(
+            "/parts/new", data={"type": "motherboard", **fields}, follow_redirects=False
+        )
         assert r.status_code == 303, r.text
         return r.headers["location"].rsplit("/", 1)[1].split("?")[0]
 
     def test_what_goes_in_comes_back(self, part, db):
         p = db.get(Part, part(type="motherboard")["asset_id"])
-        machinedb.write(db, p, model_key="amiga-500", issue="Rev 6A",
-                        chips={"agnus": "8372A (ECS, 1MB)", "gary": "5719"},
-                        sockets={"agnus": True})
+        machinedb.write(
+            db,
+            p,
+            model_key="amiga-500",
+            issue="Rev 6A",
+            chips={"agnus": "8372A (ECS, 1MB)", "gary": "5719"},
+            sockets={"agnus": True},
+        )
         db.commit()
         v = machinedb.read(db, p)
         assert v["model_key"] == "amiga-500" and v["issue"] == "Rev 6A"
@@ -839,18 +984,21 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         """parts.variant is the same cache computers.variant is, over the same rows
         -- which is why refresh() does not have to know which it has been handed."""
         p = db.get(Part, part(type="motherboard")["asset_id"])
-        machinedb.write(db, p, model_key="amiga-500", issue="Rev 6A",
-                        chips={"gary": "5719"})
+        machinedb.write(db, p, model_key="amiga-500", issue="Rev 6A", chips={"gary": "5719"})
         db.commit()
         assert p.variant == "Amiga 500 | Board: Rev 6A | Gary: 5719"
 
     def test_a_bare_board_is_created_from_the_pickers(self, client, db):
         """The point of the whole thing: a shelf spare is filed as "Amiga 500 board,
         Rev 6A, these chips" from a menu, not as a sentence in the notes."""
-        aid = self._board(client, model="Amiga 500", mach_model="amiga-500",
-                          mach_fields="1", mach_issue="Rev 6A",
-                          **{"chip:agnus": "8372A (ECS, 1MB)",
-                             "chip:agnus:socketed": "on"})
+        aid = self._board(
+            client,
+            model="Amiga 500",
+            mach_model="amiga-500",
+            mach_fields="1",
+            mach_issue="Rev 6A",
+            **{"chip:agnus": "8372A (ECS, 1MB)", "chip:agnus:socketed": "on"},
+        )
         p = db.get(Part, aid)
         v = machinedb.read(db, p)
         assert v["model_key"] == "amiga-500" and v["issue"] == "Rev 6A"
@@ -858,8 +1006,7 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         assert v["sockets"] == {"agnus": True}
         assert p.computer_id is None
 
-    def test_the_form_offers_the_catalogue_to_a_board_and_to_nothing_else(self,
-                                                                         client):
+    def test_the_form_offers_the_catalogue_to_a_board_and_to_nothing_else(self, client):
         board = client.get("/parts/new?type=motherboard").text
         assert 'value="amiga-500"' in board and "Rev 6A" in board
         # A SIMM is not a model of machine, and the catalogue is a quarter of a
@@ -870,8 +1017,9 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
     def test_only_a_board_is_filed_however_the_form_arrives(self, client, db):
         """The pickers are on no other type's form, so this can only be a hand-made
         post -- and it is refused there too rather than in the markup alone."""
-        aid = self._board(client, type="ram", mach_model="c64", mach_fields="1",
-                          **{"chip:sid": "MOS 6581"})
+        aid = self._board(
+            client, type="ram", mach_model="c64", mach_fields="1", **{"chip:sid": "MOS 6581"}
+        )
         p = db.get(Part, aid)
         assert machinedb.read(db, p) == machinedb.BLANK and p.variant == ""
 
@@ -882,21 +1030,32 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         in the same browser tab is not read either."""
         page = served(client, client.get("/parts/new?type=motherboard").text)
         assert '"board": true' in page
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          mach_style="A500", mach_region="PAL")
+        aid = self._board(
+            client, mach_model="amiga-500", mach_fields="1", mach_style="A500", mach_region="PAL"
+        )
         v = machinedb.read(db, db.get(Part, aid))
         assert v["style"] == "" and v["region"] == ""
 
     def test_the_edit_form_comes_back_with_what_was_picked(self, client):
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          mach_issue="Rev 6A", **{"chip:gary": "5719"})
+        aid = self._board(
+            client,
+            mach_model="amiga-500",
+            mach_fields="1",
+            mach_issue="Rev 6A",
+            **{"chip:gary": "5719"},
+        )
         page = client.get(f"/parts/{aid}/edit").text
         assert 'value="amiga-500" selected' in page
         assert "Rev 6A" in page and "5719" in page
 
     def test_the_part_page_says_which_machine_it_is_out_of(self, client):
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          mach_issue="Rev 6A", **{"chip:gary": "5719"})
+        aid = self._board(
+            client,
+            mach_model="amiga-500",
+            mach_fields="1",
+            mach_issue="Rev 6A",
+            **{"chip:gary": "5719"},
+        )
         page = client.get(f"/parts/{aid}").text
         assert "Catalogue model" in page and "Amiga 500" in page
         assert "Rev 6A" in page and "Gary" in page and "5719" in page
@@ -910,21 +1069,24 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         place its revision is written where a person can read it."""
         from app import labels
         from app.common import to_dict
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          mach_issue="Rev 6A", **{"chip:gary": "5719"})
+
+        aid = self._board(
+            client,
+            mach_model="amiga-500",
+            mach_fields="1",
+            mach_issue="Rev 6A",
+            **{"chip:gary": "5719"},
+        )
         lines = labels.part_lines(to_dict(db.get(Part, aid)))
         assert "Machine: Amiga 500" in lines
         assert "Board: Rev 6A" in lines
         assert "Chips: Gary 5719" in lines
 
-    def test_retyping_it_out_of_being_a_board_forgets_the_catalogue(self, client,
-                                                                   db):
+    def test_retyping_it_out_of_being_a_board_forgets_the_catalogue(self, client, db):
         """A record saying this RAM stick is an Amiga 500 board describes nothing
         anybody owns -- the same rule as filing a machine out of the catalogue."""
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          mach_issue="Rev 6A")
-        r = client.post(f"/parts/{aid}/edit", data={"type": "ram"},
-                        follow_redirects=False)
+        aid = self._board(client, mach_model="amiga-500", mach_fields="1", mach_issue="Rev 6A")
+        r = client.post(f"/parts/{aid}/edit", data={"type": "ram"}, follow_redirects=False)
         assert r.status_code == 303
         p = db.get(Part, aid)
         db.refresh(p)
@@ -933,8 +1095,13 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
     def test_a_duplicate_is_the_same_model_and_not_the_same_board(self, client, db):
         """Another one of these is another one of these; which revision it is and
         what is in its sockets are read off the board in your hand."""
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          mach_issue="Rev 6A", **{"chip:gary": "5719"})
+        aid = self._board(
+            client,
+            mach_model="amiga-500",
+            mach_fields="1",
+            mach_issue="Rev 6A",
+            **{"chip:gary": "5719"},
+        )
         r = client.post(f"/parts/{aid}/duplicate", follow_redirects=False)
         copy = r.headers["location"].rsplit("/", 1)[1]
         v = machinedb.read(db, db.get(Part, copy))
@@ -944,8 +1111,7 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
     def test_deleting_a_board_takes_its_catalogue_rows_with_it(self, client, db):
         """There is no foreign key to cascade any more -- an asset id is the whole
         register's, not one table's -- so the delete path clears them by hand."""
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          **{"chip:gary": "5719"})
+        aid = self._board(client, mach_model="amiga-500", mach_fields="1", **{"chip:gary": "5719"})
         p = db.get(Part, aid)
         p.disposed = True
         db.commit()
@@ -957,37 +1123,45 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         """A Rev nobody had written up is the same evidence about Amiga 500 boards
         wherever it was read off: it is the same board either way, and which object
         it was found on is exactly what does not matter about it."""
-        self._board(client, mach_model="amiga-500", mach_fields="1",
-                    mach_issue="custom", mach_issue_custom="Rev 9Z",
-                    **{"chip:gary": "custom", "chip:gary_custom": "5719 (rev B)"})
+        self._board(
+            client,
+            mach_model="amiga-500",
+            mach_fields="1",
+            mach_issue="custom",
+            mach_issue_custom="Rev 9Z",
+            **{"chip:gary": "custom", "chip:gary_custom": "5719 (rev B)"},
+        )
         # A blank machine's form: the only place these can appear is the catalogue
         # its buttons are built from.
         page = client.get("/computers/new").text
         assert "Rev 9Z" in page and "5719 (rev B)" in page
 
-    def test_a_machine_and_its_board_share_one_pair_of_tables(self, client, computer,
-                                                              db):
+    def test_a_machine_and_its_board_share_one_pair_of_tables(self, client, computer, db):
         """Which is the whole of what keying them by asset id buys: one row each, in
         the same two tables, read and written by the same code."""
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          mach_issue="Rev 6A")
+        aid = self._board(client, mach_model="amiga-500", mach_fields="1", mach_issue="Rev 6A")
         c = db.get(Computer, computer()["asset_id"])
         machinedb.write(db, c, model_key="amiga-500", issue="Rev 8A")
         db.commit()
         assert {r.asset_id for r in db.query(AssetVariant).all()} == {aid, c.asset_id}
 
     def test_the_line_is_searchable_the_way_a_machine_s_is(self, client):
-        aid = self._board(client, mach_model="amiga-500", mach_fields="1",
-                          **{"chip:agnus": "8372A (ECS, 1MB)"})
+        aid = self._board(
+            client, mach_model="amiga-500", mach_fields="1", **{"chip:agnus": "8372A (ECS, 1MB)"}
+        )
         assert aid in client.get("/?q=8372A").text
 
 
 class TestTheBoardsDoorOnTheApi:
     def test_a_board_can_be_created_as_one(self, client):
-        r = client.post("/api/parts", json={
-            "type": "motherboard", "model": "Amiga 500",
-            "machine": {"model_key": "amiga-500", "issue": "Rev 6A",
-                        "chips": {"gary": "5719"}}})
+        r = client.post(
+            "/api/parts",
+            json={
+                "type": "motherboard",
+                "model": "Amiga 500",
+                "machine": {"model_key": "amiga-500", "issue": "Rev 6A", "chips": {"gary": "5719"}},
+            },
+        )
         assert r.status_code == 200, r.text
         body = r.json()
         assert body["machine"]["model"] == "Amiga 500"
@@ -999,9 +1173,10 @@ class TestTheBoardsDoorOnTheApi:
         assert p["machine"] is None and p["variant"] == ""
 
     def test_it_comes_back_on_get_and_on_the_list(self, client):
-        r = client.post("/api/parts", json={
-            "type": "motherboard",
-            "machine": {"model_key": "amiga-500", "issue": "Rev 6A"}})
+        r = client.post(
+            "/api/parts",
+            json={"type": "motherboard", "machine": {"model_key": "amiga-500", "issue": "Rev 6A"}},
+        )
         aid = r.json()["asset_id"]
         assert client.get(f"/api/parts/{aid}").json()["machine"]["issue"] == "Rev 6A"
         listed = {row["asset_id"]: row for row in client.get("/api/parts").json()}
@@ -1010,40 +1185,46 @@ class TestTheBoardsDoorOnTheApi:
     def test_only_a_motherboard_may_have_one(self, client):
         """A card or a SIMM filed as a Commodore 64 is a mistake worth hearing
         about, and one the register would have nowhere to show."""
-        r = client.post("/api/parts", json={
-            "type": "ram", "machine": {"model_key": "c64"}})
+        r = client.post("/api/parts", json={"type": "ram", "machine": {"model_key": "c64"}})
         assert r.status_code == 422 and "motherboard" in r.text
 
     def test_a_board_is_not_asked_about_a_case(self, client):
         """The two a machine answers are not in the shape at all, so sending one is
         the same mistake as sending any other field the register has not got."""
-        r = client.post("/api/parts", json={
-            "type": "motherboard",
-            "machine": {"model_key": "amiga-500", "style": "A500"}})
+        r = client.post(
+            "/api/parts",
+            json={"type": "motherboard", "machine": {"model_key": "amiga-500", "style": "A500"}},
+        )
         assert r.status_code == 422 and "style" in r.text
 
     def test_a_socket_the_model_does_not_have_is_refused(self, client):
-        r = client.post("/api/parts", json={
-            "type": "motherboard",
-            "machine": {"model_key": "amiga-500", "chips": {"sid": "MOS 6581"}}})
+        r = client.post(
+            "/api/parts",
+            json={
+                "type": "motherboard",
+                "machine": {"model_key": "amiga-500", "chips": {"sid": "MOS 6581"}},
+            },
+        )
         assert r.status_code == 422 and "sid" in r.text
 
     def test_a_patch_changes_only_what_it_names(self, client):
-        aid = client.post("/api/parts", json={
-            "type": "motherboard",
-            "machine": {"model_key": "amiga-500", "issue": "Rev 6A",
-                        "chips": {"gary": "5719"}}}).json()["asset_id"]
+        aid = client.post(
+            "/api/parts",
+            json={
+                "type": "motherboard",
+                "machine": {"model_key": "amiga-500", "issue": "Rev 6A", "chips": {"gary": "5719"}},
+            },
+        ).json()["asset_id"]
         r = client.patch(f"/api/parts/{aid}", json={"notes": "recapped"})
         assert r.json()["machine"]["issue"] == "Rev 6A"
-        r = client.patch(f"/api/parts/{aid}",
-                         json={"machine": {"issue": "Rev 8A"}})
+        r = client.patch(f"/api/parts/{aid}", json={"machine": {"issue": "Rev 8A"}})
         m = r.json()["machine"]
         assert m["issue"] == "Rev 8A" and m["chips"] == {"gary": "5719"}
 
     def test_null_forgets_the_catalogue(self, client):
-        aid = client.post("/api/parts", json={
-            "type": "motherboard",
-            "machine": {"model_key": "amiga-500"}}).json()["asset_id"]
+        aid = client.post(
+            "/api/parts", json={"type": "motherboard", "machine": {"model_key": "amiga-500"}}
+        ).json()["asset_id"]
         r = client.patch(f"/api/parts/{aid}", json={"machine": None})
         assert r.json()["machine"] is None and r.json()["variant"] == ""
 
@@ -1054,9 +1235,9 @@ class TestTheBoardsDoorOnTheApi:
         assert r.status_code == 200 and r.json()["machine"] is None
 
     def test_retyping_it_out_of_being_a_board_forgets_the_catalogue(self, client):
-        aid = client.post("/api/parts", json={
-            "type": "motherboard",
-            "machine": {"model_key": "amiga-500"}}).json()["asset_id"]
+        aid = client.post(
+            "/api/parts", json={"type": "motherboard", "machine": {"model_key": "amiga-500"}}
+        ).json()["asset_id"]
         r = client.patch(f"/api/parts/{aid}", json={"type": "ram"})
         assert r.status_code == 200, r.text
         assert r.json()["machine"] is None and r.json()["variant"] == ""
@@ -1064,9 +1245,9 @@ class TestTheBoardsDoorOnTheApi:
     def test_the_rendered_line_is_read_only(self, client):
         """Written from the rows, so sending one has no effect -- the rule
         installed_ram and drives already follow."""
-        aid = client.post("/api/parts", json={
-            "type": "motherboard",
-            "machine": {"model_key": "amiga-500"}}).json()["asset_id"]
+        aid = client.post(
+            "/api/parts", json={"type": "motherboard", "machine": {"model_key": "amiga-500"}}
+        ).json()["asset_id"]
         r = client.patch(f"/api/parts/{aid}", json={"variant": "a Spectrum, really"})
         assert r.json()["variant"] == "Amiga 500"
 
@@ -1092,6 +1273,7 @@ class TestDetachingTheBoard:
         import io
 
         from PIL import Image
+
         buf = io.BytesIO()
         Image.new("RGB", (400, 300), (40, 90, 60)).save(buf, "JPEG", quality=90)
         buf.seek(0)
@@ -1100,24 +1282,31 @@ class TestDetachingTheBoard:
     def machine(self, client, db, **fields):
         """A Spectrum with a board issue, a ULA, a case style and a region -- one of
         each of the four answers, so a test can tell which of them moved."""
-        c = db.get(Computer, client.post("/api/computers",
-                                        json={"manufacturer": "Sinclair",
-                                              "model": "ZX Spectrum 48K"}).json()
-                   ["asset_id"])
-        machinedb.write(db, c, model_key="zx-spectrum-48k", issue="Issue 4B",
-                        style="rubber keys", region="PAL (UK/Europe)",
-                        chips={"ula": "6C001E-7"}, sockets={"ula": True})
+        c = db.get(
+            Computer,
+            client.post(
+                "/api/computers", json={"manufacturer": "Sinclair", "model": "ZX Spectrum 48K"}
+            ).json()["asset_id"],
+        )
+        machinedb.write(
+            db,
+            c,
+            model_key="zx-spectrum-48k",
+            issue="Issue 4B",
+            style="rubber keys",
+            region="PAL (UK/Europe)",
+            chips={"ula": "6C001E-7"},
+            sockets={"ula": True},
+        )
         db.commit()
         return c
 
     def detach(self, client, aid, files=None):
-        r = client.post(f"/computers/{aid}/detach-board", files=files,
-                        follow_redirects=False)
+        r = client.post(f"/computers/{aid}/detach-board", files=files, follow_redirects=False)
         assert r.status_code == 303, r.text
         return r.headers["location"].rsplit("/", 1)[1]
 
-    def test_the_board_becomes_an_object_holding_the_board_s_own_answers(self, client,
-                                                                        db):
+    def test_the_board_becomes_an_object_holding_the_board_s_own_answers(self, client, db):
         c = self.machine(client, db)
         board = db.get(Part, self.detach(client, c.asset_id))
         assert board.type == "motherboard"
@@ -1153,14 +1342,13 @@ class TestDetachingTheBoard:
         assert "Issue 4B" not in c.variant and "6C001E-7" not in c.variant
         assert "rubber keys" in c.variant
 
-    def test_the_board_is_linked_back_into_the_machine_it_came_out_of(self, client,
-                                                                     db):
+    def test_the_board_is_linked_back_into_the_machine_it_came_out_of(self, client, db):
         """Detaching is about the object, not about where it is: the board is out of
         the case and still fitted to that machine."""
         c = self.machine(client, db)
         board = db.get(Part, self.detach(client, c.asset_id))
         assert board.computer_id == c.asset_id
-        assert f'/parts/{board.asset_id}' in client.get(f"/computers/{c.asset_id}").text
+        assert f"/parts/{board.asset_id}" in client.get(f"/computers/{c.asset_id}").text
 
     def test_both_histories_name_the_other(self, client, db):
         """One event, written down on both sides of it -- the register's answer to
@@ -1181,8 +1369,7 @@ class TestDetachingTheBoard:
         assert first.kind == "created"
         assert first.message == f"detached from computer {c.asset_id}"
 
-    def test_the_maker_and_the_model_come_across_and_nothing_else_does(self, client,
-                                                                      db):
+    def test_the_maker_and_the_model_come_across_and_nothing_else_does(self, client, db):
         """Enough that the board has a name in a list; not so much that the register
         claims to know the condition of a board nobody has looked at."""
         c = self.machine(client, db)
@@ -1194,12 +1381,12 @@ class TestDetachingTheBoard:
         assert not board.condition and not board.source
         assert board.year is None and board.acquired_date is None
 
-    def test_the_photograph_taken_while_it_is_out_becomes_its_portrait(self, client,
-                                                                      db):
+    def test_the_photograph_taken_while_it_is_out_becomes_its_portrait(self, client, db):
         """The point of the form. A board is photographable at the moment it is out
         of the case and before it goes back in, and that moment does not come round
         again -- so the file picker is on the page that records the separation."""
         from app import main
+
         c = self.machine(client, db)
         aid = self.detach(client, c.asset_id, files={"photos": self.image()})
         assert (main.IMAGES_DIR / "parts" / f"{aid}.jpg").exists()
@@ -1214,8 +1401,7 @@ class TestDetachingTheBoard:
         assert board.image in ("", None)
         assert machinedb.read(db, board)["issue"] == "Issue 4B"
 
-    def test_a_machine_the_catalogue_does_not_name_has_nothing_to_move(self, client,
-                                                                      computer):
+    def test_a_machine_the_catalogue_does_not_name_has_nothing_to_move(self, client, computer):
         """A PC's board is already an object described by its chipset and its slots,
         and is entered as a part in the ordinary way."""
         aid = computer()["asset_id"]
@@ -1232,8 +1418,7 @@ class TestDetachingTheBoard:
         assert r.status_code == 400 and first in r.text
         assert db.query(Part).filter(Part.type == "motherboard").count() == 1
 
-    def test_the_action_is_offered_where_the_answers_it_moves_are_read(self, client,
-                                                                      db):
+    def test_the_action_is_offered_where_the_answers_it_moves_are_read(self, client, db):
         c = self.machine(client, db)
         assert "detach-board" in client.get(f"/computers/{c.asset_id}").text
         self.detach(client, c.asset_id)
@@ -1248,9 +1433,7 @@ class TestDetachingTheBoard:
         assert "rubber keys" in page and "PAL (UK/Europe)" in page
         assert "keeps its asset tag" in page
 
-    def test_a_board_lifted_out_and_unlinked_can_be_refitted_like_any_part(self,
-                                                                          client,
-                                                                          db):
+    def test_a_board_lifted_out_and_unlinked_can_be_refitted_like_any_part(self, client, db):
         """One way only. Refitting is not a re-absorb -- there is no undo that would
         fold a tagged, photographed object back into a description -- it is setting
         computer_id, and the board keeps its own answers through both."""
@@ -1261,8 +1444,11 @@ class TestDetachingTheBoard:
         # run: the machine's own page once something else is fitted, and the edit
         # form for the catalogue machine with nothing in it.
         assert aid in client.get(f"/computers/{c.asset_id}/edit").text
-        r = client.post(f"/computers/{c.asset_id}/link-motherboard",
-                        data={"part_id": aid}, follow_redirects=False)
+        r = client.post(
+            f"/computers/{c.asset_id}/link-motherboard",
+            data={"part_id": aid},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         board = db.get(Part, aid)
         db.refresh(board)
@@ -1273,8 +1459,7 @@ class TestDetachingTheBoard:
         db.refresh(c)
         assert machinedb.read(db, c)["issue"] == ""
 
-    def test_a_detached_board_is_asked_the_catalogue_s_questions_on_its_own_form(
-            self, client, db):
+    def test_a_detached_board_is_asked_the_catalogue_s_questions_on_its_own_form(self, client, db):
         """It arrives filed, so its edit form comes back with what moved -- and it is
         the board's form, which does not ask the two a case answers."""
         c = self.machine(client, db)
@@ -1288,6 +1473,7 @@ class TestDetachingTheBoard:
         guessed at: those rows count chips rather than identify them, and they are
         half of how a machine's installed RAM is rendered."""
         from app import ramdb
+
         c = self.machine(client, db)
         ramdb.write(db, c, [], [("4116", 16)], "", None)
         db.commit()
@@ -1302,6 +1488,7 @@ class TestResync:
         """A board goes stale for the reason a machine does, and against the same
         catalogue: renaming a model has to reach both."""
         from app import resync
+
         p = db.get(Part, part(type="motherboard")["asset_id"])
         machinedb.write(db, p, model_key="amiga-500", chips={"gary": "5719"})
         p.variant = "Amiga 500 | Gary: something else"
@@ -1317,6 +1504,7 @@ class TestResync:
         machine filed under it rendering the old wording until it is edited. This is
         what brings them back into line."""
         from app import resync
+
         c = db.get(Computer, computer()["asset_id"])
         machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"})
         c.variant = "64 | SID: something else"
@@ -1365,13 +1553,13 @@ class TestReadingATypedRecordAgainstTheCatalogue:
         assert self.best("Amstrad", "PC1512") == "amstrad-pc1512"
 
     def test_a_model_that_says_more_than_the_catalogue_does_still_matches(self):
-        """"Olivetti Personal Computer M21" is what is on the badge, in full. The
+        """ "Olivetti Personal Computer M21" is what is on the badge, in full. The
         catalogue calls it the M21, and difflib's ratio halves for the extra
         words."""
         assert self.best("Olivetti", "Personal Computer M21") == "olivetti-m21"
 
     def test_an_aside_in_the_model_box_does_not_hide_the_match(self):
-        """"GRiDCASE 2 (Philips PC200)" is somebody recording a second opinion
+        """ "GRiDCASE 2 (Philips PC200)" is somebody recording a second opinion
         beside the name rather than naming the machine that."""
         key, score, exact = machines.suggest("Grid", "GRiDCASE 2 (Philips PC200)")[0]
         assert (key, exact) == ("grid-gridcase-2", True)
@@ -1385,12 +1573,12 @@ class TestReadingATypedRecordAgainstTheCatalogue:
         assert self.best("Compaq", "Deskpro 386") == "compaq-deskpro-386"
 
     def test_a_fuller_model_beats_the_line_it_belongs_to(self):
-        """"Compaq Portable" is a real machine and a real prefix of the one on the
+        """ "Compaq Portable" is a real machine and a real prefix of the one on the
         record, so both are offered -- but the record carries a number and the
         model that shares it is the better reading."""
         found = [k for k, _s, _e in machines.suggest("Compaq", "Portable 486/66")]
         assert found[0] == "compaq-portable-486"
-        assert "compaq-portable" in found          # still offered, just not first
+        assert "compaq-portable" in found  # still offered, just not first
 
     def test_a_machine_is_found_under_its_other_name(self):
         """Half the styles in the catalogue are second names: an Olivetti M24 is an
@@ -1409,8 +1597,7 @@ class TestReadingATypedRecordAgainstTheCatalogue:
         a Pocket 386 typed as model "386sx-40" matched the PS/1 Model 2121, whose
         styles list its two clock speeds."""
         assert self.best("Pocket DOS", "386sx-40") == "pocket-386"
-        assert "ps1-2121" not in [k for k, _s, _e in
-                                  machines.suggest("Pocket DOS", "386sx-40")]
+        assert "ps1-2121" not in [k for k, _s, _e in machines.suggest("Pocket DOS", "386sx-40")]
 
     def test_a_name_beats_the_same_score_reached_through_a_style(self):
         """A style is the second answer to what a machine is called, so where a
@@ -1431,8 +1618,12 @@ class TestReadingATypedRecordAgainstTheCatalogue:
         assert machines.suggest("   ", None) == []
 
     def test_every_score_is_a_fraction(self):
-        for maker, model in (("IBM", "5170"), ("Acorn", "BBC Micro Model B"),
-                             ("Compaq", "Portable 486/66"), ("Opus", "PCV Turbo")):
+        for maker, model in (
+            ("IBM", "5170"),
+            ("Acorn", "BBC Micro Model B"),
+            ("Compaq", "Portable 486/66"),
+            ("Opus", "PCV Turbo"),
+        ):
             for _key, score, _exact in machines.suggest(maker, model):
                 assert machines.MATCH_FLOOR <= score <= 1.0
 
@@ -1440,13 +1631,15 @@ class TestReadingATypedRecordAgainstTheCatalogue:
         """Shown so a person can see it, and never acted on. Two IBM 5170s in this
         register are dated 1985 and 1988; the AT came out in 1984, and all three of
         those are true of something."""
-        differs = {field: (mine, theirs) for field, mine, theirs
-                   in machines.disagreements("ibm-5170",
-                                             {"manufacturer": "IBM", "year": 1988,
-                                              "model": "5170"})}
+        differs = {
+            field: (mine, theirs)
+            for field, mine, theirs in machines.disagreements(
+                "ibm-5170", {"manufacturer": "IBM", "year": 1988, "model": "5170"}
+            )
+        }
         assert differs["year"] == ("1988", "1984")
         assert differs["model"] == ("5170", "PC/AT 5170")
-        assert "manufacturer" not in differs        # those two agree
+        assert "manufacturer" not in differs  # those two agree
 
     def test_a_blank_field_is_not_a_disagreement(self):
         """A record that says nothing about its CPU is not contradicting the
@@ -1464,11 +1657,20 @@ class TestTheBrandedPcsAreInTheCatalogue:
     what was added, and what was deliberately not.
     """
 
-    HELD: ClassVar = ["ibm-5170", "ps2-8530", "ps2-8555-sx", "ps2-8580",
-                      "ps1-2121",
-                      "amstrad-pc1640", "amstrad-pc2286",
-                      "compaq-portable-486", "olivetti-m21", "opus-pc-v-turbo",
-                      "grid-gridcase-2", "victor-9000"]
+    HELD: ClassVar = [
+        "ibm-5170",
+        "ps2-8530",
+        "ps2-8555-sx",
+        "ps2-8580",
+        "ps1-2121",
+        "amstrad-pc1640",
+        "amstrad-pc2286",
+        "compaq-portable-486",
+        "olivetti-m21",
+        "opus-pc-v-turbo",
+        "grid-gridcase-2",
+        "victor-9000",
+    ]
 
     @pytest.mark.parametrize("key", HELD)
     def test_a_machine_this_collection_holds_can_be_filed(self, key):
@@ -1478,17 +1680,25 @@ class TestTheBrandedPcsAreInTheCatalogue:
         """Keys are forever, so they are built from the maker's own stable
         designation rather than from a marketing name that moved: IBM's four-digit
         machine type is on the plate and was never reused."""
-        for key, number in (("ibm-5150", "5150"), ("ibm-5160", "5160"),
-                            ("ibm-5170", "5170"), ("ps2-8530", "8530"),
-                            ("ps2-8555-sx", "8555"), ("ps2-8580", "8580")):
+        for key, number in (
+            ("ibm-5150", "5150"),
+            ("ibm-5160", "5160"),
+            ("ibm-5170", "5170"),
+            ("ps2-8530", "8530"),
+            ("ps2-8555-sx", "8555"),
+            ("ps2-8580", "8580"),
+        ):
             assert number in machines.model(key)["model"], key
 
     def test_the_line_is_the_model_and_not_the_era(self):
         """A PC in the catalogue is not a contradiction of what the catalogue is
         for. It is there because it was sold as a model somebody documented, which
         is the only test any of these pass."""
-        pcs = [m for m in machines.models() if m["year"] >= 1981
-               and m["family"] in ("IBM PC", "IBM PS/2", "Compaq", "Amstrad PC")]
+        pcs = [
+            m
+            for m in machines.models()
+            if m["year"] >= 1981 and m["family"] in ("IBM PC", "IBM PS/2", "Compaq", "Amstrad PC")
+        ]
         assert len(pcs) > 20
         for m in pcs:
             assert m["manufacturer"] and m["cpu"]
@@ -1503,11 +1713,14 @@ class TestTheListOfWhatIsInIt:
     def test_it_is_in_step_with_the_catalogue(self):
         sys.path.insert(0, str(ROOT / "tools"))
         import catalogue_list
+
         wanted = catalogue_list.render(machines.FAMILIES)
         have = (ROOT / "catalogue.txt").read_text(encoding="utf-8")
-        assert have == wanted, ("catalogue.txt is out of step with"
-                                " api/app/machines.yaml -- run"
-                                " `python tools/catalogue_list.py`")
+        assert have == wanted, (
+            "catalogue.txt is out of step with"
+            " api/app/machines.yaml -- run"
+            " `python tools/catalogue_list.py`"
+        )
 
 
 class TestTheToolThatAdoptsAMachine:
@@ -1523,11 +1736,18 @@ class TestTheToolThatAdoptsAMachine:
     def tool():
         sys.path.insert(0, str(ROOT / "tools"))
         import adopt_machines
+
         return adopt_machines
 
     def rows(self, **over):
-        base = {"asset_id": "RH-0001", "manufacturer": "IBM", "model": "5170",
-                "year": 1985, "disposed": False, "machine": None}
+        base = {
+            "asset_id": "RH-0001",
+            "manufacturer": "IBM",
+            "model": "5170",
+            "year": 1985,
+            "disposed": False,
+            "machine": None,
+        }
         return [base | over]
 
     def test_a_machine_with_no_model_is_what_it_is_for(self):
@@ -1557,8 +1777,9 @@ class TestTheToolThatAdoptsAMachine:
         assert ("year", "1985", "1984") in first["differs"]
 
     def test_a_machine_the_catalogue_cannot_place_reports_nothing(self):
-        assert self.tool().report(self.rows(manufacturer="Mitac",
-                                            model="MiStation 4052F/M")[0]) == []
+        assert (
+            self.tool().report(self.rows(manufacturer="Mitac", model="MiStation 4052F/M")[0]) == []
+        )
 
 
 class TestTheFileTheCatalogueIsWrittenIn:
@@ -1609,8 +1830,7 @@ class TestTheFileTheCatalogueIsWrittenIn:
         assert families[0]["chips"][0]["variants"] == ["Zilog Z80A", "NEC D780C-1"]
 
     def test_a_shared_list_can_be_named_wherever_a_list_is_expected(self, tmp_path):
-        families = self.load(tmp_path, self.GOOD.replace(
-            "styles: [rubber keys]", "styles: z80"))
+        families = self.load(tmp_path, self.GOOD.replace("styles: [rubber keys]", "styles: z80"))
         assert families[0]["models"][0]["styles"] == ["Zilog Z80A", "NEC D780C-1"]
 
     def test_a_misspelled_field_says_what_was_meant(self, tmp_path):
@@ -1618,8 +1838,7 @@ class TestTheFileTheCatalogueIsWrittenIn:
         assert "styel" in message and "styles" in message
         assert "zx-spectrum-48k" in message
 
-    def test_a_field_that_is_no_kind_of_typo_lists_the_ones_there_are(self,
-                                                                     tmp_path):
+    def test_a_field_that_is_no_kind_of_typo_lists_the_ones_there_are(self, tmp_path):
         message = self.refused(tmp_path, self.GOOD.replace("styles:", "colour:"))
         assert "colour" in message and "chassis" in message
 
@@ -1631,39 +1850,42 @@ class TestTheFileTheCatalogueIsWrittenIn:
         assert "a lot" in message and "ram" in message
 
     def test_two_models_cannot_share_a_key(self, tmp_path):
-        message = self.refused(tmp_path, self.GOOD + textwrap.dedent("""
+        message = self.refused(
+            tmp_path,
+            self.GOOD
+            + textwrap.dedent("""
               - key: zx-spectrum-48k
                 model: ZX Spectrum 48K (again)
                 year: 1982
-        """))
+        """),
+        )
         assert "zx-spectrum-48k" in message
 
     def test_a_year_that_is_not_a_year_is_refused(self, tmp_path):
-        assert "year" in self.refused(tmp_path,
-                                      self.GOOD.replace("year: 1982", "year: '82"))
+        assert "year" in self.refused(tmp_path, self.GOOD.replace("year: 1982", "year: '82"))
 
     def test_a_model_with_no_name_is_refused(self, tmp_path):
-        message = self.refused(tmp_path,
-                               self.GOOD.replace("model: ZX Spectrum 48K", "cpu: Z80"))
+        message = self.refused(tmp_path, self.GOOD.replace("model: ZX Spectrum 48K", "cpu: Z80"))
         assert "model" in message
 
     def test_a_shared_list_that_is_not_there_is_refused(self, tmp_path):
-        message = self.refused(tmp_path, self.GOOD.replace("variants: z80",
-                                                           "variants: z80a"))
+        message = self.refused(tmp_path, self.GOOD.replace("variants: z80", "variants: z80a"))
         assert "z80a" in message and "z80" in message
 
     def test_one_socket_cannot_be_asked_twice(self, tmp_path):
-        message = self.refused(tmp_path, self.GOOD.replace(
-            "            variants: z80",
-            "            variants: z80\n          - socket: cpu\n"
-            "            variants: [MOS 6502]"))
+        message = self.refused(
+            tmp_path,
+            self.GOOD.replace(
+                "            variants: z80",
+                "            variants: z80\n          - socket: cpu\n"
+                "            variants: [MOS 6502]",
+            ),
+        )
         assert "cpu" in message
 
-    def test_an_answer_too_long_for_its_column_is_refused_at_the_file(self,
-                                                                     tmp_path):
+    def test_an_answer_too_long_for_its_column_is_refused_at_the_file(self, tmp_path):
         """Rather than on save, in front of whoever was recording the machine."""
-        message = self.refused(tmp_path, self.GOOD.replace(
-            "[rubber keys]", "[" + "x" * 80 + "]"))
+        message = self.refused(tmp_path, self.GOOD.replace("[rubber keys]", "[" + "x" * 80 + "]"))
         assert "styles" in message and "64" in message
 
     def test_a_file_that_is_not_yaml_at_all_says_so(self, tmp_path):
@@ -1676,5 +1898,4 @@ class TestTheFileTheCatalogueIsWrittenIn:
 
     def test_the_file_the_register_ships_is_the_one_it_loads(self):
         assert machines.CATALOGUE_FILE.exists()
-        assert [f["key"] for f in machines.load()] == \
-            [f["key"] for f in machines.FAMILIES]
+        assert [f["key"] for f in machines.load()] == [f["key"] for f in machines.FAMILIES]

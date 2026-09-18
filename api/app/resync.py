@@ -28,6 +28,7 @@ database into step in one pass instead, and prints what it would change first.
     docker compose exec api python -m app.resync           # report only
     docker compose exec api python -m app.resync --write   # apply
 """
+
 from __future__ import annotations
 
 import sys
@@ -54,11 +55,17 @@ def plan_memory(db):
     for c in db.query(Computer).order_by(Computer.asset_id).all():
         mods, chips = ramdb.read(db, c)
         kb = entry.ram_total_kb(mods, chips) or c.installed_ram_kb
-        rendered = entry.render_installed_ram(mods, chips, kb,
-                                              c.installed_ram_note or "")
+        rendered = entry.render_installed_ram(mods, chips, kb, c.installed_ram_note or "")
         if rendered != (c.installed_ram or "") or kb != c.installed_ram_kb:
-            out.append((c, f"{c.installed_ram or ''} [{c.installed_ram_kb} KiB]",
-                        f"{rendered} [{kb} KiB]", mods, chips))
+            out.append(
+                (
+                    c,
+                    f"{c.installed_ram or ''} [{c.installed_ram_kb} KiB]",
+                    f"{rendered} [{kb} KiB]",
+                    mods,
+                    chips,
+                )
+            )
     return out
 
 
@@ -79,8 +86,9 @@ def plan_variant(db):
     for model in (Computer, Part):
         for obj in db.query(model).order_by(model.asset_id).all():
             v = machinedb.read(db, obj)
-            rendered = machines.render(v["model_key"], v["issue"], v["style"],
-                                       v["region"], v["chips"])
+            rendered = machines.render(
+                v["model_key"], v["issue"], v["style"], v["region"], v["chips"]
+            )
             if rendered != (obj.variant or ""):
                 out.append((obj, obj.variant or "", rendered))
     return out
@@ -108,8 +116,7 @@ def main(argv=None):
             print(f"  + {after}")
         # By asset id, because one machine can turn up in both lists and is one thing
         # rewritten -- and because a board now turns up in the catalogue list too.
-        assets_touched = {c.asset_id for c, *_ in memory} | {
-            o.asset_id for o, *_ in variants}
+        assets_touched = {c.asset_id for c, *_ in memory} | {o.asset_id for o, *_ in variants}
         if not changes and not assets_touched:
             print("Every derived value already matches the rows behind it.")
             return 0
@@ -121,11 +128,12 @@ def main(argv=None):
             for obj, _before, _after in variants:
                 machinedb.refresh(db, obj)
             db.commit()
-            print(f"\nRewrote {len(changes)} part(s) and "
-                  f"{len(assets_touched)} asset(s).")
+            print(f"\nRewrote {len(changes)} part(s) and {len(assets_touched)} asset(s).")
         else:
-            print(f"\n{len(changes)} part(s) and {len(assets_touched)} asset(s) "
-                  "would change. Re-run with --write to apply.")
+            print(
+                f"\n{len(changes)} part(s) and {len(assets_touched)} asset(s) "
+                "would change. Re-run with --write to apply."
+            )
     finally:
         db.close()
     return 0

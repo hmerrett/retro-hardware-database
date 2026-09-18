@@ -5,6 +5,7 @@ ways it is offered out -- a page for somebody deciding whether their machine is
 known, and the same answer as JSON. Neither touches the register except to count
 how many of each model is held.
 """
+
 from collections import Counter
 
 from fastapi import APIRouter, Depends, Request
@@ -36,12 +37,22 @@ def gui_machines(request: Request, db: Session = Depends(get_db)):
     for row in db.query(AssetVariant.model_key).filter(AssetVariant.model_key != ""):
         held[row[0]] += 1
     families = [{"name": name, "models": group} for name, group in machines.grouped()]
-    return templates.TemplateResponse(request, "machines.html", {
-        "families": families, "held": held,
-        "n_models": len(machines.keys()), "n_families": len(families),
-        "og": _og(request, "Machines the catalogue names",
-                  f"{len(machines.keys())} machines the register knows as models, "
-                  "with the board issues, styles and chips each was built in.")})
+    return templates.TemplateResponse(
+        request,
+        "machines.html",
+        {
+            "families": families,
+            "held": held,
+            "n_models": len(machines.keys()),
+            "n_families": len(families),
+            "og": _og(
+                request,
+                "Machines the catalogue names",
+                f"{len(machines.keys())} machines the register knows as models, "
+                "with the board issues, styles and chips each was built in.",
+            ),
+        },
+    )
 
 
 @router.get("/api/machines", tags=["computers"])
@@ -53,17 +64,29 @@ def api_list_machines():
 
     Every list names what is commonly seen rather than everything that exists, so a
     board issue or a chip from outside one is recorded as it is given."""
-    return {"families": [{"name": name,
-                          "models": [{"key": m["key"], "model": m["model"],
-                                      "year": m["year"],
-                                      "manufacturer": m["manufacturer"],
-                                      "summary": m["summary"],
-                                      "ram": [lbl for lbl, _kb in m["ram"]],
-                                      "issues": m["issues"], "styles": m["styles"],
-                                      "regions": m["regions"],
-                                      "chips": [{"role": c["role"],
-                                                 "label": c["label"],
-                                                 "variants": c["variants"]}
-                                                for c in m["chips"]]}
-                                     for m in group]}
-                         for name, group in machines.grouped()]}
+    return {
+        "families": [
+            {
+                "name": name,
+                "models": [
+                    {
+                        "key": m["key"],
+                        "model": m["model"],
+                        "year": m["year"],
+                        "manufacturer": m["manufacturer"],
+                        "summary": m["summary"],
+                        "ram": [lbl for lbl, _kb in m["ram"]],
+                        "issues": m["issues"],
+                        "styles": m["styles"],
+                        "regions": m["regions"],
+                        "chips": [
+                            {"role": c["role"], "label": c["label"], "variants": c["variants"]}
+                            for c in m["chips"]
+                        ],
+                    }
+                    for m in group
+                ],
+            }
+            for name, group in machines.grouped()
+        ]
+    }

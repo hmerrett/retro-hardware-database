@@ -1,5 +1,6 @@
 """Database engine + session. MariaDB, from DATABASE_URL (defaulting to the docker
 service)."""
+
 import os
 
 from sqlalchemy import create_engine

@@ -5,6 +5,7 @@ They have nothing to do with the register and nothing to do with each other beyo
 that, which is why they are the first group out of main.py: the site's page routes
 can move afterwards without this corner moving again.
 """
+
 from xml.sax.saxutils import escape
 
 from fastapi import APIRouter, Depends, Request
@@ -47,17 +48,24 @@ def robots_txt(request: Request):
         "Disallow: /parts/new\n"
         "Disallow: /projects/new\n"
         "Disallow: /*/edit\n"
-        f"Sitemap: {base}/sitemap.xml\n")
+        f"Sitemap: {base}/sitemap.xml\n"
+    )
     return Response(body, media_type="text/plain")
+
 
 @router.get("/sitemap.xml", include_in_schema=False)
 def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
     # Newest change per asset, for <lastmod>.
-    last = dict(db.query(
-        LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id))
-    urls = [(f"{base}/", None), (f"{base}/stats", None),
-            (f"{base}/machines", None), (f"{base}/projects", None)]
+    last = dict(
+        db.query(LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id)
+    )
+    urls = [
+        (f"{base}/", None),
+        (f"{base}/stats", None),
+        (f"{base}/machines", None),
+        (f"{base}/projects", None),
+    ]
     for c in db.query(Computer.asset_id).order_by(Computer.asset_id):
         urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
     for p in db.query(Part.asset_id).order_by(Part.asset_id):
@@ -66,11 +74,14 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     # log_entry keyed by its own register id -- the same rows, the same query.
     # A private project is not named here. The sitemap is the one of the five that
     # is read by machines rather than people, and a tag in it is an invitation.
-    for pr in (db.query(Project.asset_id).filter(Project.private.is_(False))
-               .order_by(Project.asset_id)):
+    for pr in (
+        db.query(Project.asset_id).filter(Project.private.is_(False)).order_by(Project.asset_id)
+    ):
         urls.append((f"{base}/projects/{pr.asset_id}", last.get(pr.asset_id)))
-    lines = ['<?xml version="1.0" encoding="UTF-8"?>',
-             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ]
     for loc, ts in urls:
         lines.append("  <url>")
         lines.append(f"    <loc>{escape(loc)}</loc>")
@@ -80,7 +91,9 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)):
     lines.append("</urlset>")
     return Response("\n".join(lines), media_type="application/xml")
 
+
 _ICON_CACHE = {"Cache-Control": "public, max-age=86400"}
+
 
 # Browsers and crawlers request these at the domain root regardless of markup.
 @router.get("/favicon.ico", include_in_schema=False)

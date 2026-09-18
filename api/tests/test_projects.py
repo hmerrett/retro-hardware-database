@@ -9,6 +9,7 @@ having tests for.
 The rest is what a project has that an asset does not: a list of things it is
 about, a list of jobs, and a pile of things on order with what they cost.
 """
+
 import io
 
 from conftest import served
@@ -18,8 +19,7 @@ from app.models import Project, ProjectAsset, ProjectOrder, ProjectTask
 
 def make(client, name="Recap the +2A", **fields):
     """A saved project; returns its asset id."""
-    r = client.post("/projects/new", data={"name": name, **fields},
-                    follow_redirects=False)
+    r = client.post("/projects/new", data={"name": name, **fields}, follow_redirects=False)
     assert r.status_code == 303, r.text
     return r.headers["location"].rsplit("/", 1)[-1]
 
@@ -40,8 +40,7 @@ class TestARegisterAsset:
     """The claim the whole design rests on: a project is an id in the same register,
     so the things keyed by a register id work on it without being taught to."""
 
-    def test_the_allocator_will_not_reuse_a_projects_id(self, client, db,
-                                                        monkeypatch):
+    def test_the_allocator_will_not_reuse_a_projects_id(self, client, db, monkeypatch):
         aid = make(client)
         seq = iter([aid, "RH-ZZZ9"])
         monkeypatch.setattr(ids, "_random_id", lambda: next(seq))
@@ -57,10 +56,13 @@ class TestARegisterAsset:
 
     def test_items_still_resolves_the_two_asset_kinds(self, client, computer, part):
         c, p = computer()["asset_id"], part()["asset_id"]
-        assert client.get(f"/items/{c}", follow_redirects=False
-                          ).headers["location"] == f"/computers/{c}"
-        assert client.get(f"/items/{p}", follow_redirects=False
-                          ).headers["location"] == f"/parts/{p}"
+        assert (
+            client.get(f"/items/{c}", follow_redirects=False).headers["location"]
+            == f"/computers/{c}"
+        )
+        assert (
+            client.get(f"/items/{p}", follow_redirects=False).headers["location"] == f"/parts/{p}"
+        )
 
     def test_an_id_that_is_nothing_is_still_a_404(self, client):
         assert client.get("/items/RH-NONE", follow_redirects=False).status_code == 404
@@ -75,8 +77,9 @@ class TestItsHistory:
 
     def test_a_note_lands_on_it(self, client):
         aid = make(client)
-        client.post(f"/projects/{aid}/note", data={"message": "ordered the caps"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/note", data={"message": "ordered the caps"}, follow_redirects=False
+        )
         html = page(client, aid)
         assert "ordered the caps" in html
         assert "note" in html
@@ -86,18 +89,24 @@ class TestItsHistory:
         aid = make(client)
         buf = io.BytesIO()
         from PIL import Image
+
         Image.new("RGB", (200, 150), (80, 80, 80)).save(buf, "JPEG")
         buf.seek(0)
-        client.post(f"/projects/{aid}/note", data={"message": ""},
-                    files={"photos": ("board.jpg", buf, "image/jpeg")},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/note",
+            data={"message": ""},
+            files={"photos": ("board.jpg", buf, "image/jpeg")},
+            follow_redirects=False,
+        )
         assert "logshots" in page(client, aid)
 
     def test_an_edit_is_recorded_as_a_diff(self, client):
         aid = make(client, name="Recap the +2A")
-        client.post(f"/projects/{aid}/edit",
-                    data={"name": "Recap the +2A", "status": "active"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/edit",
+            data={"name": "Recap the +2A", "status": "active"},
+            follow_redirects=False,
+        )
         assert "status: planned → active" in page(client, aid)
 
 
@@ -110,8 +119,7 @@ class TestWhatItIsAbout:
 
     def test_a_computer_goes_in_and_shows_on_both_pages(self, client, computer):
         aid, c = make(client), computer(model="Spectrum +2A")["asset_id"]
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c}, follow_redirects=False)
         assert c in page(client, aid)
         # And the machine says what it is spoken for, which is the whole reason the
         # panel exists: you find out a board is promised while looking at the board.
@@ -119,88 +127,86 @@ class TestWhatItIsAbout:
 
     def test_a_part_goes_in_the_same_way(self, client, part):
         aid, p = make(client), part(model="Gotek")["asset_id"]
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": p},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": p}, follow_redirects=False)
         assert p in page(client, aid)
         assert f"/projects/{aid}" in client.get(f"/parts/{p}").text
 
     def test_the_note_says_why_it_is_there(self, client, part):
         aid, p = make(client), part(model="A500 board")["asset_id"]
-        client.post(f"/projects/{aid}/add-item",
-                    data={"asset_id": p, "note": "donor for the keyboard"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/add-item",
+            data={"asset_id": p, "note": "donor for the keyboard"},
+            follow_redirects=False,
+        )
         assert "donor for the keyboard" in page(client, aid)
 
     def test_adding_it_twice_leaves_it_in_once(self, client, db, part):
         aid, p = make(client), part()["asset_id"]
         for _ in range(2):
-            client.post(f"/projects/{aid}/add-item", data={"asset_id": p},
-                        follow_redirects=False)
-        assert db.query(ProjectAsset).filter(
-            ProjectAsset.project_id == aid).count() == 1
+            client.post(f"/projects/{aid}/add-item", data={"asset_id": p}, follow_redirects=False)
+        assert db.query(ProjectAsset).filter(ProjectAsset.project_id == aid).count() == 1
 
     def test_an_id_that_is_nothing_is_refused(self, client, db):
         """A project is about things that exist. A typo'd id stored here would be a
         membership that renders as nothing for ever."""
         aid = make(client)
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": "RH-XXXX"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/add-item", data={"asset_id": "RH-XXXX"}, follow_redirects=False
+        )
         assert db.query(ProjectAsset).count() == 0
 
     def test_a_project_is_not_an_item_of_another_project(self, client, db):
         """Members are computers and parts. Nesting projects is a different idea and
         the lookup would not find one anyway -- this pins that down."""
         one, two = make(client, "One"), make(client, "Two")
-        client.post(f"/projects/{one}/add-item", data={"asset_id": two},
-                    follow_redirects=False)
+        client.post(f"/projects/{one}/add-item", data={"asset_id": two}, follow_redirects=False)
         assert db.query(ProjectAsset).count() == 0
         # The same request with a real asset does add one, so the zero above is the
         # rule refusing rather than the route being broken.
-        c = client.post("/computers/new", data={"model": "Real"},
-                        follow_redirects=False
-                        ).headers["location"].split("/computers/")[1].split("?")[0]
-        client.post(f"/projects/{one}/add-item", data={"asset_id": c},
-                    follow_redirects=False)
+        c = (
+            client.post("/computers/new", data={"model": "Real"}, follow_redirects=False)
+            .headers["location"]
+            .split("/computers/")[1]
+            .split("?")[0]
+        )
+        client.post(f"/projects/{one}/add-item", data={"asset_id": c}, follow_redirects=False)
         assert db.query(ProjectAsset).count() == 1
 
     def test_taking_it_out_says_so_on_both(self, client, computer):
         aid, c = make(client), computer()["asset_id"]
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
-                    follow_redirects=False)
-        client.post(f"/projects/{aid}/remove-item", data={"asset_id": c},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c}, follow_redirects=False)
+        client.post(f"/projects/{aid}/remove-item", data={"asset_id": c}, follow_redirects=False)
         assert "let go of" in page(client, aid)
         assert "no longer wanted for" in client.get(f"/computers/{c}").text
 
-    def test_deleting_the_computer_forgets_the_membership(self, client, db,
-                                                          computer):
+    def test_deleting_the_computer_forgets_the_membership(self, client, db, computer):
         """project_asset.asset_id has no foreign key behind it, so nothing in the
         database will do this. If the delete path stops calling forget_asset, the
         project keeps a row pointing at a machine that no longer exists."""
         aid, c = make(client), computer()["asset_id"]
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c}, follow_redirects=False)
         # Or the count below would be zero for the wrong reason.
         assert db.query(ProjectAsset).count() == 1
-        client.post(f"/computers/{c}/dispose", data={"disposed_note": "gone"},
-                    follow_redirects=False)
-        client.post(f"/computers/{c}/delete", data={"confirm": f"/computers/{c}"},
-                    follow_redirects=False)
+        client.post(
+            f"/computers/{c}/dispose", data={"disposed_note": "gone"}, follow_redirects=False
+        )
+        client.post(
+            f"/computers/{c}/delete", data={"confirm": f"/computers/{c}"}, follow_redirects=False
+        )
         from app.models import Computer
+
         assert db.get(Computer, c) is None
         assert db.query(ProjectAsset).count() == 0
         assert client.get(f"/projects/{aid}").status_code == 200
 
     def test_deleting_a_part_forgets_it_too(self, client, db, part):
         from app.models import Part
+
         aid, p = make(client), part()["asset_id"]
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": p},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": p}, follow_redirects=False)
         assert db.query(ProjectAsset).count() == 1
-        client.post(f"/parts/{p}/dispose", data={"disposed_note": "gone"},
-                    follow_redirects=False)
-        client.post(f"/parts/{p}/delete", data={"confirm": f"/parts/{p}"},
-                    follow_redirects=False)
+        client.post(f"/parts/{p}/dispose", data={"disposed_note": "gone"}, follow_redirects=False)
+        client.post(f"/parts/{p}/delete", data={"confirm": f"/parts/{p}"}, follow_redirects=False)
         # The part really went, so the empty membership table means what it says.
         assert db.get(Part, p) is None
         assert db.query(ProjectAsset).count() == 0
@@ -209,20 +215,19 @@ class TestWhatItIsAbout:
 class TestTasks:
     def test_one_is_added_and_shown(self, client):
         aid = make(client)
-        client.post(f"/projects/{aid}/task", data={"text": "order the caps"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/task", data={"text": "order the caps"}, follow_redirects=False
+        )
         assert "order the caps" in page(client, aid)
 
     def test_a_blank_one_is_not_a_task(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/task", data={"text": "   "},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/task", data={"text": "   "}, follow_redirects=False)
         assert db.query(ProjectTask).count() == 0
 
     def test_ticking_it_dates_it(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/task", data={"text": "desolder"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/task", data={"text": "desolder"}, follow_redirects=False)
         t = db.query(ProjectTask).one()
         client.post(f"/projects/{aid}/task/{t.id}/toggle", follow_redirects=False)
         db.expire_all()
@@ -234,20 +239,17 @@ class TestTasks:
         behind would show a task as outstanding while still claiming a completion
         date."""
         aid = make(client)
-        client.post(f"/projects/{aid}/task", data={"text": "desolder"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/task", data={"text": "desolder"}, follow_redirects=False)
         t = db.query(ProjectTask).one()
         for _ in range(2):
-            client.post(f"/projects/{aid}/task/{t.id}/toggle",
-                        follow_redirects=False)
+            client.post(f"/projects/{aid}/task/{t.id}/toggle", follow_redirects=False)
         db.expire_all()
         t = db.query(ProjectTask).one()
         assert not t.done and t.done_at is None
 
     def test_it_can_be_dropped(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/task", data={"text": "nonsense"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/task", data={"text": "nonsense"}, follow_redirects=False)
         t = db.query(ProjectTask).one()
         client.post(f"/projects/{aid}/task/{t.id}/delete", follow_redirects=False)
         assert db.query(ProjectTask).count() == 0
@@ -256,20 +258,20 @@ class TestTasks:
         """A bare row id would otherwise reach across projects, the way a bare log
         entry id would reach across machines."""
         one, two = make(client, "One"), make(client, "Two")
-        client.post(f"/projects/{one}/task", data={"text": "mine"},
-                    follow_redirects=False)
+        client.post(f"/projects/{one}/task", data={"text": "mine"}, follow_redirects=False)
         t = db.query(ProjectTask).one()
-        r = client.post(f"/projects/{two}/task/{t.id}/toggle",
-                        follow_redirects=False)
+        r = client.post(f"/projects/{two}/task/{t.id}/toggle", follow_redirects=False)
         assert r.status_code == 404
 
 
 class TestOrders:
     def test_one_is_added_with_what_it_cost(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/order",
-                    data={"description": "Gotek", "supplier": "eBay",
-                          "cost": "£12.99"}, follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/order",
+            data={"description": "Gotek", "supplier": "eBay", "cost": "£12.99"},
+            follow_redirects=False,
+        )
         o = db.query(ProjectOrder).one()
         assert o.description == "Gotek" and o.cost_p == 1299
         html = page(client, aid)
@@ -277,28 +279,24 @@ class TestOrders:
 
     def test_it_is_dated_today_unless_told_otherwise(self, client, db):
         from datetime import date
+
         aid = make(client)
-        client.post(f"/projects/{aid}/order", data={"description": "caps"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "caps"}, follow_redirects=False)
         assert db.query(ProjectOrder).one().ordered_at == date.today()
 
     def test_a_blank_description_is_not_an_order(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/order", data={"description": " "},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": " "}, follow_redirects=False)
         assert db.query(ProjectOrder).count() == 0
 
     def test_marking_it_in_dates_it_and_back_again_clears_it(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"}, follow_redirects=False)
         o = db.query(ProjectOrder).one()
-        client.post(f"/projects/{aid}/order/{o.id}/delivered",
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order/{o.id}/delivered", follow_redirects=False)
         db.expire_all()
         assert db.query(ProjectOrder).one().delivered_at is not None
-        client.post(f"/projects/{aid}/order/{o.id}/delivered",
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order/{o.id}/delivered", follow_redirects=False)
         db.expire_all()
         o = db.query(ProjectOrder).one()
         assert not o.delivered and o.delivered_at is None
@@ -307,39 +305,43 @@ class TestOrders:
         """An order is a note about a purchase, not a half-made asset. What turns up
         is added to the register the ordinary way."""
         from app.models import Part
+
         aid = make(client)
-        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"}, follow_redirects=False)
         o = db.query(ProjectOrder).one()
-        client.post(f"/projects/{aid}/order/{o.id}/delivered",
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order/{o.id}/delivered", follow_redirects=False)
         assert db.query(Part).count() == 0
 
     def test_it_can_be_cancelled(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/order", data={"description": "wrong thing"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/order", data={"description": "wrong thing"}, follow_redirects=False
+        )
         o = db.query(ProjectOrder).one()
         client.post(f"/projects/{aid}/order/{o.id}/delete", follow_redirects=False)
         assert db.query(ProjectOrder).count() == 0
 
     def test_another_projects_order_cannot_be_ticked_from_here(self, client, db):
         one, two = make(client, "One"), make(client, "Two")
-        client.post(f"/projects/{one}/order", data={"description": "mine"},
-                    follow_redirects=False)
+        client.post(f"/projects/{one}/order", data={"description": "mine"}, follow_redirects=False)
         o = db.query(ProjectOrder).one()
-        assert client.post(f"/projects/{two}/order/{o.id}/delivered",
-                           follow_redirects=False).status_code == 404
+        assert (
+            client.post(
+                f"/projects/{two}/order/{o.id}/delivered", follow_redirects=False
+            ).status_code
+            == 404
+        )
 
     def test_the_total_says_how_much_of_it_is_a_total(self, client):
         """A figure quietly missing the unpriced lines would look exactly as
         authoritative as one that was not."""
         aid = make(client)
-        client.post(f"/projects/{aid}/order",
-                    data={"description": "Gotek", "cost": "12.00"},
-                    follow_redirects=False)
-        client.post(f"/projects/{aid}/order", data={"description": "caps"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/order",
+            data={"description": "Gotek", "cost": "12.00"},
+            follow_redirects=False,
+        )
+        client.post(f"/projects/{aid}/order", data={"description": "caps"}, follow_redirects=False)
         html = page(client, aid)
         assert "£12.00 so far" in html
         assert "1 line whose cost was not written down" in html
@@ -379,16 +381,17 @@ class TestTheForm:
     def test_a_project_needs_a_name(self, client, db):
         """The only thing it can be found by: a machine falls back to its
         manufacturer and model and then to its id, and a project has neither."""
-        r = client.post("/projects/new", data={"name": "  "},
-                        follow_redirects=False)
+        r = client.post("/projects/new", data={"name": "  "}, follow_redirects=False)
         assert r.status_code == 200
         assert "Give it a name" in r.text
         assert db.query(Project).count() == 0
 
     def test_what_was_typed_survives_the_refusal(self, client):
-        r = client.post("/projects/new",
-                        data={"name": "", "summary": "the one with the bad caps"},
-                        follow_redirects=False)
+        r = client.post(
+            "/projects/new",
+            data={"name": "", "summary": "the one with the bad caps"},
+            follow_redirects=False,
+        )
         assert "the one with the bad caps" in r.text
 
     def test_an_unknown_status_falls_back_rather_than_being_stored(self, client, db):
@@ -414,8 +417,7 @@ class TestTheList:
     def test_it_counts_what_is_still_coming(self, client):
         aid = make(client)
         for d in ("one", "two"):
-            client.post(f"/projects/{aid}/order", data={"description": d},
-                        follow_redirects=False)
+            client.post(f"/projects/{aid}/order", data={"description": d}, follow_redirects=False)
         assert "still coming" in page(client, aid)
 
     def test_an_empty_register_says_so(self, client):
@@ -452,8 +454,7 @@ class TestTheListOnAPhone:
 
     def test_a_count_that_exists_is_written_in(self, client):
         aid = make(client, "Busy")
-        client.post(f"/projects/{aid}/task", data={"text": "a job"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/task", data={"text": "a job"}, follow_redirects=False)
         row = table_row(client.get("/projects").text, "Busy")
         assert 'data-label="tasks">0/1</td>' in row
 
@@ -495,18 +496,18 @@ class TestDeleting:
         so the route clears it by hand. Left behind, the entries would attach
         themselves to whatever asset was next given that id."""
         from app.models import LogEntry
+
         aid = make(client)
-        client.post(f"/projects/{aid}/note", data={"message": "a note"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/note", data={"message": "a note"}, follow_redirects=False)
         client.post(f"/projects/{aid}/delete", follow_redirects=False)
         assert db.query(LogEntry).filter(LogEntry.asset_id == aid).count() == 0
 
     def test_it_takes_its_tasks_and_orders(self, client, db):
         aid = make(client)
-        client.post(f"/projects/{aid}/task", data={"text": "a job"},
-                    follow_redirects=False)
-        client.post(f"/projects/{aid}/order", data={"description": "a thing"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/task", data={"text": "a job"}, follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/order", data={"description": "a thing"}, follow_redirects=False
+        )
         client.post(f"/projects/{aid}/delete", follow_redirects=False)
         assert db.query(ProjectTask).count() == 0
         assert db.query(ProjectOrder).count() == 0
@@ -514,9 +515,9 @@ class TestDeleting:
     def test_it_leaves_the_hardware_alone(self, client, db, computer):
         """Deleting the plan is not disposing of the machine."""
         from app.models import Computer
+
         aid, c = make(client), computer()["asset_id"]
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": c},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": c}, follow_redirects=False)
         client.post(f"/projects/{aid}/delete", follow_redirects=False)
         assert db.get(Computer, c) is not None
         assert db.query(ProjectAsset).count() == 0
@@ -525,8 +526,7 @@ class TestDeleting:
         """Unlike a machine. Abandoning a project is already a status it can be left
         in, so the only thing delete is left to mean is that it was a mistake."""
         aid = make(client)
-        assert client.post(f"/projects/{aid}/delete",
-                           follow_redirects=False).status_code == 303
+        assert client.post(f"/projects/{aid}/delete", follow_redirects=False).status_code == 303
         assert db.query(Project).count() == 0
 
 
@@ -550,9 +550,13 @@ class TestWhoSeesWhat:
     def test_a_visitor_cannot_write(self, client, monkeypatch):
         aid = make(client)
         as_visitor(monkeypatch)
-        for url in (f"/projects/{aid}/task", f"/projects/{aid}/order",
-                    f"/projects/{aid}/add-item", f"/projects/{aid}/delete",
-                    f"/projects/{aid}/note"):
+        for url in (
+            f"/projects/{aid}/task",
+            f"/projects/{aid}/order",
+            f"/projects/{aid}/add-item",
+            f"/projects/{aid}/delete",
+            f"/projects/{aid}/note",
+        ):
             r = client.post(url, data={}, follow_redirects=False)
             assert r.status_code == 303 and "/login" in r.headers["location"], url
 
@@ -560,9 +564,11 @@ class TestWhoSeesWhat:
         """The projects are public because what is being built is worth reading
         about. What it cost is between the owner and the receipt."""
         aid = make(client)
-        client.post(f"/projects/{aid}/order",
-                    data={"description": "Gotek", "cost": "12.99"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/order",
+            data={"description": "Gotek", "cost": "12.99"},
+            follow_redirects=False,
+        )
         as_visitor(monkeypatch)
         html = client.get(f"/projects/{aid}").text
         assert "Gotek" in html
@@ -571,8 +577,7 @@ class TestWhoSeesWhat:
     def test_a_visitor_sees_whether_it_has_arrived(self, client, monkeypatch):
         """The rest of the row is as public as the machine it is destined for."""
         aid = make(client)
-        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"}, follow_redirects=False)
         as_visitor(monkeypatch)
         assert "on order" in client.get(f"/projects/{aid}").text
 
@@ -589,31 +594,33 @@ class TestBeingFound:
 
     def test_a_suggested_project_links_to_its_page(self, client):
         aid = make(client, "Recap the +2A")
-        item = next(i for i in client.get("/suggest?q=recap").json()["items"]
-                    if i["cat"] == "Project")
+        item = next(
+            i for i in client.get("/suggest?q=recap").json()["items"] if i["cat"] == "Project"
+        )
         assert item["url"] == f"/projects/{aid}"
         assert item["icon"].endswith("project.svg")
 
     def test_a_project_is_found_by_something_on_order(self, client):
         """The question somebody stood in front of a parcel actually asks."""
         aid = make(client, "Amiga floppy swap")
-        client.post(f"/projects/{aid}/order", data={"description": "Gotek SFR1M44"},
-                    follow_redirects=False)
-        assert any(i["cat"] == "Project"
-                   for i in client.get("/suggest?q=gotek").json()["items"])
+        client.post(
+            f"/projects/{aid}/order", data={"description": "Gotek SFR1M44"}, follow_redirects=False
+        )
+        assert any(i["cat"] == "Project" for i in client.get("/suggest?q=gotek").json()["items"])
 
     def test_a_project_is_found_by_a_job_on_its_list(self, client):
         aid = make(client, "Nondescript")
-        client.post(f"/projects/{aid}/task", data={"text": "desolder the RIFA"},
-                    follow_redirects=False)
-        assert any(i["cat"] == "Project"
-                   for i in client.get("/suggest?q=rifa").json()["items"])
+        client.post(
+            f"/projects/{aid}/task", data={"text": "desolder the RIFA"}, follow_redirects=False
+        )
+        assert any(i["cat"] == "Project" for i in client.get("/suggest?q=rifa").json()["items"])
 
     def test_a_project_is_found_by_its_status_in_words(self, client):
         """'active' is what the column holds; 'in progress' is what a person types."""
         make(client, "Halfway house", status="active")
-        assert any(i["cat"] == "Project" for i in
-                   client.get("/suggest?q=in+progress").json()["items"])
+        assert any(
+            i["cat"] == "Project" for i in client.get("/suggest?q=in+progress").json()["items"]
+        )
 
     def test_the_projects_page_sifts_itself(self, client):
         make(client, "Recap the +2A")
@@ -624,8 +631,7 @@ class TestBeingFound:
 
     def test_sifting_reaches_the_orders_too(self, client):
         aid = make(client, "Nondescript")
-        client.post(f"/projects/{aid}/order", data={"description": "Gotek"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/order", data={"description": "Gotek"}, follow_redirects=False)
         make(client, "Something else")
         html = client.get("/projects?q=gotek").text
         assert "Nondescript" in html and "Something else" not in html
@@ -649,14 +655,14 @@ class TestBeingFound:
         html = client.get("/?q=recap").text
         assert f'href="/projects/{aid}"' not in html.split('class="grid"')[1]
 
-    def test_a_project_does_not_leak_into_a_machines_search_text(self, client,
-                                                                 computer):
+    def test_a_project_does_not_leak_into_a_machines_search_text(self, client, computer):
         """Both are keyed by a register id, so a history read for the wrong one
         would put a project's notes in a machine's haystack."""
         c = computer(model="Unrelated")["asset_id"]
         aid = make(client, "Distinctivewording")
-        client.post(f"/projects/{aid}/note", data={"message": "peculiarphrase"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/note", data={"message": "peculiarphrase"}, follow_redirects=False
+        )
         rows = client.get("/?q=peculiarphrase").text.split('class="grid"')[1]
         assert c not in rows
 
@@ -664,11 +670,12 @@ class TestBeingFound:
 class TestTheFigures:
     def test_the_projects_show_up_among_the_facts(self, client, db):
         from app import main
+
         aid = make(client, status="active")
-        client.post(f"/projects/{aid}/task", data={"text": "a job"},
-                    follow_redirects=False)
-        client.post(f"/projects/{aid}/order", data={"description": "a thing"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/task", data={"text": "a job"}, follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/order", data={"description": "a thing"}, follow_redirects=False
+        )
         facts = main._facts_projects(db, {})
         headings = {f["k"] for f in facts}
         assert "Projects on the go" in headings
@@ -679,6 +686,7 @@ class TestTheFigures:
         """A figure is omitted rather than shown as a zero, the rule the whole
         pool follows."""
         from app import main
+
         assert main._facts_projects(db, {}) == []
 
     def test_no_figure_says_what_anything_cost(self, client, db):
@@ -686,12 +694,14 @@ class TestTheFigures:
         spent would put on the most public page of the site the one figure the item
         page takes care to withhold."""
         from app import main
+
         aid = make(client)
-        client.post(f"/projects/{aid}/order",
-                    data={"description": "Gotek", "cost": "999.99"},
-                    follow_redirects=False)
-        blob = " ".join(f"{f['k']} {f['v']} {f['s']}"
-                        for f in main._facts_projects(db, {}))
+        client.post(
+            f"/projects/{aid}/order",
+            data={"description": "Gotek", "cost": "999.99"},
+            follow_redirects=False,
+        )
+        blob = " ".join(f"{f['k']} {f['v']} {f['s']}" for f in main._facts_projects(db, {}))
         assert "999" not in blob and "£" not in blob
         # The rendered figure, not a bare "999": the chip's border-radius is 999px
         # and a substring test on the whole page would fail on the stylesheet.
@@ -702,12 +712,11 @@ class TestTheFigures:
         well be on a project. Looked for in two tables only, the tile would vanish
         on the day it was."""
         from app import main
+
         aid = make(client, "Wordy")
-        client.post(f"/projects/{aid}/note", data={"message": "x" * 300},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/note", data={"message": "x" * 300}, follow_redirects=False)
         facts = main._facts_register(db, {"portraits": {}, "n_parts": 0})
-        tile = next(f for f in facts
-                    if f["k"] == "The longest note anyone has written")
+        tile = next(f for f in facts if f["k"] == "The longest note anyone has written")
         assert tile["href"] == f"/projects/{aid}"
         assert tile["s"] == "Wordy"
 
@@ -748,8 +757,7 @@ class TestTheApi:
 
     def test_a_patch_cannot_take_the_name_away(self, client):
         p = self.new(client)
-        assert client.patch(f"/api/projects/{p['asset_id']}",
-                            json={"name": ""}).status_code == 422
+        assert client.patch(f"/api/projects/{p['asset_id']}", json={"name": ""}).status_code == 422
 
     def test_a_patch_is_written_into_the_history(self, client):
         p = self.new(client)
@@ -760,11 +768,9 @@ class TestTheApi:
     def test_the_list_can_be_narrowed_to_what_is_open(self, client):
         self.new(client, name="Going", status="active")
         self.new(client, name="Over", status="done")
-        names = {p["name"] for p in
-                 client.get("/api/projects", params={"open": True}).json()}
+        names = {p["name"] for p in client.get("/api/projects", params={"open": True}).json()}
         assert names == {"Going"}
-        shut = {p["name"] for p in
-                client.get("/api/projects", params={"open": False}).json()}
+        shut = {p["name"] for p in client.get("/api/projects", params={"open": False}).json()}
         assert shut == {"Over"}
 
     def test_the_list_can_be_narrowed_to_one_status(self, client):
@@ -773,44 +779,42 @@ class TestTheApi:
         got = client.get("/api/projects", params={"status": "stalled"}).json()
         assert [p["name"] for p in got] == ["Stuck"]
 
-    def test_deleting_takes_the_history_and_leaves_the_hardware(self, client, db,
-                                                                computer):
+    def test_deleting_takes_the_history_and_leaves_the_hardware(self, client, db, computer):
         from app.models import Computer, LogEntry
+
         p = self.new(client)
         c = computer()["asset_id"]
         client.post(f"/api/projects/{p['asset_id']}/items", json={"asset_id": c})
         assert client.delete(f"/api/projects/{p['asset_id']}").status_code == 200
-        assert db.query(LogEntry).filter(
-            LogEntry.asset_id == p["asset_id"]).count() == 0
+        assert db.query(LogEntry).filter(LogEntry.asset_id == p["asset_id"]).count() == 0
         assert db.get(Computer, c) is not None
         assert db.query(ProjectAsset).count() == 0
 
 
 class TestTheApiLists:
     def new(self, client, **fields):
-        return client.post("/api/projects",
-                           json={"name": "API project", **fields}).json()
+        return client.post("/api/projects", json={"name": "API project", **fields}).json()
 
     def test_an_item_goes_in_and_reads_back_with_its_kind(self, client, computer):
         p = self.new(client)
         c = computer(model="Spectrum")["asset_id"]
-        got = client.post(f"/api/projects/{p['asset_id']}/items",
-                          json={"asset_id": c, "note": "the patient"}).json()
-        assert got["items"] == [{"asset_id": c, "kind": "computers",
-                                 "name": "Acme Spectrum", "note": "the patient"}]
+        got = client.post(
+            f"/api/projects/{p['asset_id']}/items", json={"asset_id": c, "note": "the patient"}
+        ).json()
+        assert got["items"] == [
+            {"asset_id": c, "kind": "computers", "name": "Acme Spectrum", "note": "the patient"}
+        ]
 
     def test_a_part_reads_back_under_its_own_kind(self, client, part):
         """So a caller can build a link without knowing which table holds it."""
         p = self.new(client)
         pt = part(model="Gotek")["asset_id"]
-        got = client.post(f"/api/projects/{p['asset_id']}/items",
-                          json={"asset_id": pt}).json()
+        got = client.post(f"/api/projects/{p['asset_id']}/items", json={"asset_id": pt}).json()
         assert got["items"][0]["kind"] == "parts"
 
     def test_an_asset_that_is_nothing_is_refused(self, client):
         p = self.new(client)
-        r = client.post(f"/api/projects/{p['asset_id']}/items",
-                        json={"asset_id": "RH-XXXX"})
+        r = client.post(f"/api/projects/{p['asset_id']}/items", json={"asset_id": "RH-XXXX"})
         assert r.status_code == 404
 
     def test_adding_the_same_one_twice_is_not_an_error(self, client, part):
@@ -819,8 +823,7 @@ class TestTheApiLists:
         p = self.new(client)
         pt = part()["asset_id"]
         for _ in range(2):
-            r = client.post(f"/api/projects/{p['asset_id']}/items",
-                            json={"asset_id": pt})
+            r = client.post(f"/api/projects/{p['asset_id']}/items", json={"asset_id": pt})
             assert r.status_code == 200
         assert len(r.json()["items"]) == 1
 
@@ -833,85 +836,100 @@ class TestTheApiLists:
 
     def test_a_task_is_added_ticked_and_dropped(self, client):
         p = self.new(client)
-        t = client.post(f"/api/projects/{p['asset_id']}/tasks",
-                        json={"text": "desolder"}).json()
+        t = client.post(f"/api/projects/{p['asset_id']}/tasks", json={"text": "desolder"}).json()
         assert t["done"] is False and t["done_at"] is None
-        ticked = client.patch(f"/api/projects/{p['asset_id']}/tasks/{t['id']}",
-                              json={"done": True}).json()
+        ticked = client.patch(
+            f"/api/projects/{p['asset_id']}/tasks/{t['id']}", json={"done": True}
+        ).json()
         assert ticked["done"] and ticked["done_at"]
-        back = client.patch(f"/api/projects/{p['asset_id']}/tasks/{t['id']}",
-                            json={"done": False}).json()
+        back = client.patch(
+            f"/api/projects/{p['asset_id']}/tasks/{t['id']}", json={"done": False}
+        ).json()
         assert not back["done"] and back["done_at"] is None
-        assert client.delete(
-            f"/api/projects/{p['asset_id']}/tasks/{t['id']}").status_code == 200
+        assert client.delete(f"/api/projects/{p['asset_id']}/tasks/{t['id']}").status_code == 200
         assert client.get(f"/api/projects/{p['asset_id']}").json()["tasks"] == []
 
     def test_a_blank_task_is_refused(self, client):
         p = self.new(client)
-        assert client.post(f"/api/projects/{p['asset_id']}/tasks",
-                           json={"text": "  "}).status_code == 422
+        assert (
+            client.post(f"/api/projects/{p['asset_id']}/tasks", json={"text": "  "}).status_code
+            == 422
+        )
 
     def test_another_projects_task_is_not_reachable(self, client):
         one, two = self.new(client, name="One"), self.new(client, name="Two")
-        t = client.post(f"/api/projects/{one['asset_id']}/tasks",
-                        json={"text": "mine"}).json()
-        assert client.patch(f"/api/projects/{two['asset_id']}/tasks/{t['id']}",
-                            json={"done": True}).status_code == 404
+        t = client.post(f"/api/projects/{one['asset_id']}/tasks", json={"text": "mine"}).json()
+        assert (
+            client.patch(
+                f"/api/projects/{two['asset_id']}/tasks/{t['id']}", json={"done": True}
+            ).status_code
+            == 404
+        )
 
     def test_an_order_carries_its_cost_in_pence(self, client):
         """Pence as an integer, because that is what the column holds and what it
         holds is exact."""
         p = self.new(client)
-        o = client.post(f"/api/projects/{p['asset_id']}/orders",
-                        json={"description": "Gotek", "supplier": "eBay",
-                              "cost_p": 1299, "qty": 2}).json()
+        o = client.post(
+            f"/api/projects/{p['asset_id']}/orders",
+            json={"description": "Gotek", "supplier": "eBay", "cost_p": 1299, "qty": 2},
+        ).json()
         assert o["cost_p"] == 1299 and o["qty"] == 2
         assert o["ordered_at"] and not o["delivered"]
 
     def test_an_order_with_no_price_reads_back_as_null_not_zero(self, client):
         p = self.new(client)
-        o = client.post(f"/api/projects/{p['asset_id']}/orders",
-                        json={"description": "braid"}).json()
+        o = client.post(
+            f"/api/projects/{p['asset_id']}/orders", json={"description": "braid"}
+        ).json()
         assert o["cost_p"] is None
 
     def test_an_order_is_marked_in_and_back_out(self, client):
         p = self.new(client)
-        o = client.post(f"/api/projects/{p['asset_id']}/orders",
-                        json={"description": "Gotek"}).json()
-        got = client.patch(f"/api/projects/{p['asset_id']}/orders/{o['id']}",
-                           json={"delivered": True}).json()
+        o = client.post(
+            f"/api/projects/{p['asset_id']}/orders", json={"description": "Gotek"}
+        ).json()
+        got = client.patch(
+            f"/api/projects/{p['asset_id']}/orders/{o['id']}", json={"delivered": True}
+        ).json()
         assert got["delivered"] and got["delivered_at"]
-        back = client.patch(f"/api/projects/{p['asset_id']}/orders/{o['id']}",
-                            json={"delivered": False}).json()
+        back = client.patch(
+            f"/api/projects/{p['asset_id']}/orders/{o['id']}", json={"delivered": False}
+        ).json()
         assert not back["delivered"] and back["delivered_at"] is None
 
     def test_marking_it_in_writes_the_history(self, client):
         p = self.new(client)
-        o = client.post(f"/api/projects/{p['asset_id']}/orders",
-                        json={"description": "Gotek"}).json()
-        client.patch(f"/api/projects/{p['asset_id']}/orders/{o['id']}",
-                     json={"delivered": True})
+        o = client.post(
+            f"/api/projects/{p['asset_id']}/orders", json={"description": "Gotek"}
+        ).json()
+        client.patch(f"/api/projects/{p['asset_id']}/orders/{o['id']}", json={"delivered": True})
         log = client.get(f"/api/items/{p['asset_id']}/log").json()
         assert any("arrived: Gotek" in e["message"] for e in log)
 
     def test_a_blank_order_is_refused(self, client):
         p = self.new(client)
-        assert client.post(f"/api/projects/{p['asset_id']}/orders",
-                           json={"description": ""}).status_code == 422
+        assert (
+            client.post(
+                f"/api/projects/{p['asset_id']}/orders", json={"description": ""}
+            ).status_code
+            == 422
+        )
 
     def test_an_order_is_cancelled(self, client):
         p = self.new(client)
-        o = client.post(f"/api/projects/{p['asset_id']}/orders",
-                        json={"description": "wrong thing"}).json()
+        o = client.post(
+            f"/api/projects/{p['asset_id']}/orders", json={"description": "wrong thing"}
+        ).json()
         client.delete(f"/api/projects/{p['asset_id']}/orders/{o['id']}")
         assert client.get(f"/api/projects/{p['asset_id']}").json()["orders"] == []
 
     def test_another_projects_order_is_not_reachable(self, client):
         one, two = self.new(client, name="One"), self.new(client, name="Two")
-        o = client.post(f"/api/projects/{one['asset_id']}/orders",
-                        json={"description": "mine"}).json()
-        assert client.delete(
-            f"/api/projects/{two['asset_id']}/orders/{o['id']}").status_code == 404
+        o = client.post(
+            f"/api/projects/{one['asset_id']}/orders", json={"description": "mine"}
+        ).json()
+        assert client.delete(f"/api/projects/{two['asset_id']}/orders/{o['id']}").status_code == 404
 
     def test_the_whole_api_is_private(self, client, monkeypatch):
         """Unlike the pages. The register's JSON is behind the login and the
@@ -961,6 +979,7 @@ class TestItsLabel:
         here does, so a sticker printed today still resolves if the page it leads to
         is ever moved."""
         from app import labels
+
         aid = make(client)
         assert labels.item_url(aid).endswith(f"/items/{aid}/")
 
@@ -984,15 +1003,23 @@ class TestItsLabel:
     def test_the_small_one_carries_the_state(self):
         """What you want to know with the parcel in your hand, months later."""
         from app import labels
+
         name, tags = labels.small_body(
-            {"name": "Recap the +2A", "status": "active"}, labels.PROJECT)
+            {"name": "Recap the +2A", "status": "active"}, labels.PROJECT
+        )
         assert name == "Recap the +2A" and tags == ["in progress"]
 
     def test_the_full_one_carries_the_dates_it_has(self, client):
         from app import labels
-        lines = labels.project_lines({"name": "X", "status": "active",
-                                      "started_at": "2026-08-14",
-                                      "summary": "the caps are gone"})
+
+        lines = labels.project_lines(
+            {
+                "name": "X",
+                "status": "active",
+                "started_at": "2026-08-14",
+                "summary": "the caps are gone",
+            }
+        )
         assert "Status: in progress" in lines
         assert "Started: 2026-08-14" in lines
         assert "the caps are gone" in lines
@@ -1011,6 +1038,7 @@ class TestTheWordUpTheEnd:
 
     def test_each_kind_has_its_own_word(self):
         from app import labels
+
         assert labels.KIND_WORDS[labels.COMPUTER] == "COMPUTER"
         assert labels.KIND_WORDS[labels.PART] == "PART"
         assert labels.KIND_WORDS[labels.PROJECT] == "PROJECT"
@@ -1020,10 +1048,12 @@ class TestTheWordUpTheEnd:
         so what this checks is that a label with one differs from the same label
         without, at both sizes and for all three kinds."""
         from app import labels
-        rows = ((labels.COMPUTER, {"asset_id": "RH-0001", "model": "A"}),
-                (labels.PART, {"asset_id": "RH-0002", "type": "video", "model": "B"}),
-                (labels.PROJECT, {"asset_id": "RH-0003", "name": "C",
-                                  "status": "active"}))
+
+        rows = (
+            (labels.COMPUTER, {"asset_id": "RH-0001", "model": "A"}),
+            (labels.PART, {"asset_id": "RH-0002", "type": "video", "model": "B"}),
+            (labels.PROJECT, {"asset_id": "RH-0003", "name": "C", "status": "active"}),
+        )
         for kind, asset in rows:
             for small in (True, False):
                 with_word = labels.render_pdf(asset, [], kind, small=small)
@@ -1035,8 +1065,8 @@ class TestTheWordUpTheEnd:
         the most valuable line on the label. A part keeps its Type line, which says
         which sort of part and so completes the word rather than repeating it."""
         from app import labels
-        comp = labels.computer_lines({"asset_id": "RH-0001", "manufacturer": "Acme"},
-                                     [])
+
+        comp = labels.computer_lines({"asset_id": "RH-0001", "manufacturer": "Acme"}, [])
         assert not any(x.startswith("Type:") for x in comp)
         part = labels.part_lines({"asset_id": "RH-0002", "type": "storage"})
         assert part[0] == "Type: Storage"
@@ -1052,6 +1082,7 @@ class TestTheWordUpTheEnd:
         same. A name guessed here would pass while the fallback crashed."""
         from reportlab.pdfbase import pdfmetrics
         from app import labels
+
         hfont, _ = labels._fonts()
         for size in (5.5, 15, 30):
             ascent = pdfmetrics.getAscent(hfont) / 1000.0 * size
@@ -1070,8 +1101,10 @@ class TestTheWordUpTheEnd:
         point is a smudge."""
         import re
         from app import labels
-        pdf = labels.render_pdf({"asset_id": "RH-0001", "name": "X",
-                                 "status": "active"}, [], labels.PROJECT, small=True)
+
+        pdf = labels.render_pdf(
+            {"asset_id": "RH-0001", "name": "X", "status": "active"}, [], labels.PROJECT, small=True
+        )
         # No non-black fill is set anywhere in the content stream.
         greys = re.findall(rb"([\d.]+) ([\d.]+) ([\d.]+) rg", pdf)
         assert all(r == g == b and float(r) == 0 for r, g, b in greys), greys
@@ -1081,19 +1114,23 @@ class TestTheWordUpTheEnd:
         the tape. A single word set across it cannot: half a letter missing makes it
         unreadable rather than merely tight, so it keeps its own margin."""
         from app import labels
+
         assert labels.SMALL["safe_mm"] == 3
         # The body stops at mx; the word stops a millimetre further in again.
-        pdf = labels.render_pdf({"asset_id": "RH-0001", "name": "X",
-                                 "status": "active"}, [], labels.PROJECT, small=True)
+        pdf = labels.render_pdf(
+            {"asset_id": "RH-0001", "name": "X", "status": "active"}, [], labels.PROJECT, small=True
+        )
         assert pdf[:4] == b"%PDF"
 
     def test_the_code_still_scans_with_the_word_beside_it(self, client):
         """The strip is taken out of the text column and not out of the QR: a code
         below the size a phone can see is worth less than a name that wraps."""
         from app import labels
+
         aid = make(client)
-        big = labels.render_pdf({"asset_id": aid, "name": "X", "status": "active"},
-                                [], labels.PROJECT, small=False)
+        big = labels.render_pdf(
+            {"asset_id": aid, "name": "X", "status": "active"}, [], labels.PROJECT, small=False
+        )
         assert big[:4] == b"%PDF" and len(big) > 5000
 
 
@@ -1112,28 +1149,38 @@ class TestASmallLabelStaysOnTheLabel:
         """What the small label would actually print, at the size it would use."""
         from reportlab.pdfgen import canvas
         from app import labels
+
         _hfont, bfont = labels._fonts()
         c = canvas.Canvas("/dev/null")
-        asset = {"asset_id": "RH-MN11", "type": ptype, "name": name,
-                 "spec_pairs": spec_pairs}
+        asset = {"asset_id": "RH-MN11", "type": ptype, "name": name, "spec_pairs": spec_pairs}
         title, tags = labels.small_body(asset, labels.PART, spec_pairs)
         # The width the renderer leaves for the body on a 51mm label with the word.
         from reportlab.lib.units import mm
+
         my, safe = 1.2 * mm, labels.SMALL["safe_mm"] * mm
         mx = my + safe
         qr = labels.SMALL["h"] - 2 * my
         tw = labels.SMALL["w"] - (mx + qr + 1.5 * mm) - mx - 3.2 * mm - 1.0 * mm
-        size, lines = labels._small_body_lines(c, title, tags, bfont, tw,
-                                               labels.SMALL["h"] - 2 * my - 11)
+        size, lines = labels._small_body_lines(
+            c, title, tags, bfont, tw, labels.SMALL["h"] - 2 * my - 11
+        )
         return size, lines, tw, bfont, c
 
     def test_a_monitors_specs_all_fit_inside_the_label(self):
         """RH-MN11's own label, which is what showed this up: the resolution line
         ran off the end and through the word at the other end on the way."""
-        size, lines, tw, bfont, c = self.lines_for(self.specs(**{
-            "Screen size": '12"', "Panel": "Shadow mask", "Type": "CRT",
-            "Resolution": "320x200 (CGA)", "Refresh": "50 Hz, 60 Hz",
-            "Interface": "DE9 RGB"}))
+        size, lines, tw, bfont, c = self.lines_for(
+            self.specs(
+                **{
+                    "Screen size": '12"',
+                    "Panel": "Shadow mask",
+                    "Type": "CRT",
+                    "Resolution": "320x200 (CGA)",
+                    "Refresh": "50 Hz, 60 Hz",
+                    "Interface": "DE9 RGB",
+                }
+            )
+        )
         for line in lines:
             assert c.stringWidth(line, bfont, size) <= tw, line
 
@@ -1141,40 +1188,53 @@ class TestASmallLabelStaysOnTheLabel:
         """Joined to the resolution it wrapped mid-figure -- "320x200 (CGA) 50" and
         then "Hz, 60 Hz" -- which reads as a fault rather than as two facts."""
         from app import labels
+
         _, tags = labels.small_body(
-            {"asset_id": "RH-MN11", "type": "display"}, labels.PART,
-            [("Resolution", "320x200 (CGA)"), ("Refresh", "50 Hz, 60 Hz")])
+            {"asset_id": "RH-MN11", "type": "display"},
+            labels.PART,
+            [("Resolution", "320x200 (CGA)"), ("Refresh", "50 Hz, 60 Hz")],
+        )
         assert "320x200 (CGA)" in tags and "50 Hz, 60 Hz" in tags
 
     def test_a_drives_specs_are_unchanged(self):
         """The joining that does hold: a floppy is "a 3.5-inch 1.44MB", one thing
         said and not two."""
         from app import labels
+
         _, tags = labels.small_body(
-            {"asset_id": "RH-KP3D", "type": "storage"}, labels.PART,
-            [("Form factor", '3.5"'), ("Size", "1.44MB")])
+            {"asset_id": "RH-KP3D", "type": "storage"},
+            labels.PART,
+            [("Form factor", '3.5"'), ("Size", "1.44MB")],
+        )
         assert tags == ['3.5" 1.44MB']
 
     def test_a_run_with_nowhere_to_break_is_cut_and_says_so(self):
         """A resolution or a part number has no space in it to wrap at. Losing the
         end of one is bad; drawing it off the side of the label is worse, because
         there it is lost with nothing to say so."""
-        size, lines, tw, bfont, c = self.lines_for(
-            [("Resolution", "1" * 40)], name="X Y")
+        size, lines, tw, bfont, c = self.lines_for([("Resolution", "1" * 40)], name="X Y")
         assert any(x.endswith("…") for x in lines), lines
         for line in lines:
             assert c.stringWidth(line, bfont, size) <= tw, line
 
     def test_every_kind_of_part_stays_inside(self):
         for ptype, pairs in (
-                ("storage", [("Capacity", "42.8MB"), ("CHS", "820/6/17"),
-                             ("Speed", "3600 rpm")]),
-                ("storage", [("Form factor", '3.5"'), ("Size", "1.44MB")]),
-                ("display", [("Screen size", '21"'), ("Panel", "Aperture grille"),
-                             ("Type", "CRT"), ("Resolution", "1600x1200"),
-                             ("Refresh", "60 Hz, 75 Hz, 85 Hz"),
-                             ("Interface", "BNC, DE15")])):
+            ("storage", [("Capacity", "42.8MB"), ("CHS", "820/6/17"), ("Speed", "3600 rpm")]),
+            ("storage", [("Form factor", '3.5"'), ("Size", "1.44MB")]),
+            (
+                "display",
+                [
+                    ("Screen size", '21"'),
+                    ("Panel", "Aperture grille"),
+                    ("Type", "CRT"),
+                    ("Resolution", "1600x1200"),
+                    ("Refresh", "60 Hz, 75 Hz, 85 Hz"),
+                    ("Interface", "BNC, DE15"),
+                ],
+            ),
+        ):
             size, lines, tw, bfont, c = self.lines_for(
-                pairs, name="A Rather Long Manufacturer Name XYZ-9000", ptype=ptype)
+                pairs, name="A Rather Long Manufacturer Name XYZ-9000", ptype=ptype
+            )
             for line in lines:
                 assert c.stringWidth(line, bfont, size) <= tw, (ptype, line)

@@ -19,6 +19,7 @@ are cut from the photographs themselves so the card can be marked once rather th
 four times, and a second writer with a different idea of what belongs under that
 key would quietly serve the wrong thing on the item pages.
 """
+
 import contextlib
 import hashlib
 import logging
@@ -125,16 +126,20 @@ def _tiles(n):
     if n == 2:
         return [(0, 0, half_w, h), (right, 0, half_w, h)]
     if n == 3:
-        return [(0, 0, half_w, h),
-                (right, 0, half_w, half_h), (right, lower, half_w, half_h)]
-    return [(0, 0, half_w, half_h), (right, 0, half_w, half_h),
-            (0, lower, half_w, half_h), (right, lower, half_w, half_h)]
+        return [(0, 0, half_w, h), (right, 0, half_w, half_h), (right, lower, half_w, half_h)]
+    return [
+        (0, 0, half_w, half_h),
+        (right, 0, half_w, half_h),
+        (0, lower, half_w, half_h),
+        (right, lower, half_w, half_h),
+    ]
 
 
 def _tile(path: Path, box_w: int, box_h: int):
     """One photograph cropped to fill one tile. Filled, not letterboxed: bands of
     cream inside a montage read as a broken image rather than as a tall photo."""
     from PIL import Image, ImageOps
+
     with Image.open(path) as im:
         # JPEG decoding at a fraction of full size, which is most of what this costs
         # -- a phone photograph is 5712px wide and the tile it is going into is 594.
@@ -160,13 +165,15 @@ def _stamp(card):
         return
     try:
         from PIL import Image
+
         mark = Image.open(WM_SRC).convert("RGBA")
         target = max(WM_MIN_PX, int(min(card.size) * WM_SCALE))
         mark.thumbnail((target, target), Image.LANCZOS)
         mark.putalpha(mark.getchannel("A").point(lambda a: int(a * WM_OPACITY)))
         margin = max(6, int(min(card.size) * WM_MARGIN))
-        card.paste(mark, (card.width - mark.width - margin,
-                          card.height - mark.height - margin), mark)
+        card.paste(
+            mark, (card.width - mark.width - margin, card.height - mark.height - margin), mark
+        )
     except Exception:
         log.warning("share card made without the site's mark", exc_info=True)
 
@@ -189,6 +196,7 @@ def _key(found) -> str:
 
 def _build(found, dst: Path):
     from PIL import Image
+
     card = Image.new("RGB", SIZE, CARD_BG)
     for (_rel, path), (x, y, w, h) in zip(found, _tiles(len(found)), strict=True):
         card.paste(_tile(path, w, h), (x, y))
@@ -196,8 +204,9 @@ def _build(found, dst: Path):
     # Full chroma. A card is flat cream meeting photographs along hard straight
     # edges, and 4:2:0 smears a saturated tile across the gutter beside it -- the
     # one artefact this picture is shaped to show off.
-    _write_atomically(dst, lambda tmp: card.save(
-        tmp, "JPEG", quality=QUALITY, subsampling=0, optimize=True))
+    _write_atomically(
+        dst, lambda tmp: card.save(tmp, "JPEG", quality=QUALITY, subsampling=0, optimize=True)
+    )
 
 
 def _prune():
@@ -205,7 +214,7 @@ def _prune():
     whoever is filling the cache rather than with every reader."""
     with contextlib.suppress(OSError):
         kept = sorted(cache_dir().glob("*.jpg"), key=lambda p: p.stat().st_mtime_ns)
-        for stale in kept[:max(0, len(kept) - CAP)]:
+        for stale in kept[: max(0, len(kept) - CAP)]:
             with contextlib.suppress(OSError):
                 stale.unlink()
 
@@ -232,8 +241,9 @@ def montage(rels):
         try:
             _build(found, dst)
         except Exception:
-            log.warning("could not make a share card from %s",
-                        [rel for rel, _ in found], exc_info=True)
+            log.warning(
+                "could not make a share card from %s", [rel for rel, _ in found], exc_info=True
+            )
             return None
         _prune()
     return (f"/og/{key}.jpg", *SIZE)

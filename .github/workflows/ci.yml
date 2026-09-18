@@ -43,6 +43,12 @@ jobs:
         run: uv sync --project api --all-groups --frozen
       - name: Lint
         run: uv run --project api ruff check .
+      # The formatter is the other half of the same tool, and checking it here is
+      # what makes layout something nobody argues about in review: the settings are
+      # the ones already in pyproject.toml, so the only change is that they stopped
+      # being optional.
+      - name: Format
+        run: uv run --project api ruff format --check .
       # The backup round-trip test dumps and restores through MariaDB's own
       # client (mariadb-dump/mariadb) -- the family production uses. The runner
       # ships Oracle MySQL 8's mysqldump, whose default column-statistics query

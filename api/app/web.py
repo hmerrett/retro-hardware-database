@@ -12,6 +12,7 @@ what depends on something still in main: whether auth is on, the two cookie name
 and the history stamp. main registers those on this same object, and they will
 follow their own helpers out when those move.
 """
+
 from datetime import date
 from pathlib import Path
 
@@ -26,7 +27,8 @@ from .photos import _image_size, img_srcset, img_url
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 templates.env.globals.update(
-    display_name=entry.display_name, type_label=entry.type_label,
+    display_name=entry.display_name,
+    type_label=entry.type_label,
     bezel_css=entry.bezel_css,
     # For the pages that list parts rather than show one: a part's rendered specs
     # broken back into pairs so they can be laid out as labelled columns. The item's
@@ -39,10 +41,12 @@ templates.env.globals.update(
     today=lambda: date.today().isoformat(),
     # A project's vocabulary, so a status reads as words in every place one is
     # shown and the money is written the same way on the list page and the item.
-    money=projects.money, status_label=projects.status_label,
+    money=projects.money,
+    status_label=projects.status_label,
     # The statuses that mean a project is over, so the pages that dim a finished
     # one do not each keep their own idea of which those are.
-    closed_states=projects.CLOSED)
+    closed_states=projects.CLOSED,
+)
 # A filter rather than a global, because it reads as one thing done to another at
 # every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --
 # prose, notes, spec values, history entries -- and never for an attribute, which
@@ -60,20 +64,27 @@ templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
 # One stamp per script, read once at import the way the stylesheet's is. The
 # scripts are served with a year's cache (see _CachedStatic), so the stamp in the
 # URL is what makes a change to one of them arrive at all.
-templates.env.globals["js_ver"] = {p.name: _file_ver(p)
-                                   for p in sorted(STATIC_DIR.glob("*.js"))}
+templates.env.globals["js_ver"] = {p.name: _file_ver(p) for p in sorted(STATIC_DIR.glob("*.js"))}
 # Social sites cache a card hard, so its URL carries the artwork's hash too.
 SITE_CARD_VER = _file_ver(branded(SITE_CARD[0].removeprefix("/static/")))
+
 
 def _abs_url(request: Request, path: str) -> str:
     base = PUBLIC_BASE_URL or str(request.base_url).rstrip("/")
     return base + path
 
+
 def _dot(*parts) -> str:
     return " · ".join(str(p) for p in parts if p)
 
-def _og(request: Request, title: str, description: str = "", image_rel: str | None = None,
-        card: tuple[str, int, int] | None = None):
+
+def _og(
+    request: Request,
+    title: str,
+    description: str = "",
+    image_rel: str | None = None,
+    card: tuple[str, int, int] | None = None,
+):
     """Open Graph / Twitter-card context for a page's social-share preview.
 
     Three ways a page can have a picture, in the order they are preferred.
@@ -83,8 +94,11 @@ def _og(request: Request, title: str, description: str = "", image_rel: str | No
     things has. Neither, and the site's own card, which is what a page with no
     photographs on it has.
     """
-    og = {"title": title, "url": _abs_url(request, request.url.path),
-          "description": " ".join((description or "").split())[:280]}
+    og = {
+        "title": title,
+        "url": _abs_url(request, request.url.path),
+        "description": " ".join((description or "").split())[:280],
+    }
     if image_rel:
         og["image"] = _abs_url(request, img_url(image_rel))
         og["image_alt"] = title
@@ -105,11 +119,17 @@ def _og(request: Request, title: str, description: str = "", image_rel: str | No
         og["image_alt"] = "The Retro Hardware Database"
     return og
 
+
 def _jsonld(og, asset_id, brand, category):
     """schema.org Product data for an item, so search engines can show a richer
     result. Built from the same values as the social-share card."""
-    d = {"@context": "https://schema.org", "@type": "Product",
-         "name": og["title"], "sku": asset_id, "category": category}
+    d = {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": og["title"],
+        "sku": asset_id,
+        "category": category,
+    }
     if og.get("description"):
         d["description"] = og["description"]
     if og.get("image"):
@@ -120,8 +140,10 @@ def _jsonld(og, asset_id, brand, category):
         d["brand"] = {"@type": "Brand", "name": brand}
     return d
 
+
 def _safe_next(nxt: str) -> str:
     return nxt if nxt.startswith("/") and not nxt.startswith("//") else "/"
+
 
 templates.env.globals["img_url"] = img_url
 templates.env.globals["img_srcset"] = img_srcset

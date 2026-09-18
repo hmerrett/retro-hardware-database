@@ -74,7 +74,6 @@ SUMMARIES = {
         fighting and shooting libraries are outstanding. The internal battery and the
         optical drive are the two failure points.
         """,
-
     # --- Nintendo ---------------------------------------------------------
     "game-and-watch": """
         Gunpei Yokoi's calculator-parts handhelds, and the start of Nintendo as a
@@ -124,7 +123,6 @@ SUMMARIES = {
         Fascinating, uncomfortable, and the ribbon cables in the displays fail with
         age.
         """,
-
     # --- NEC --------------------------------------------------------------
     "pc-8001": """
         The machine that started Japanese personal computing: NEC's first complete
@@ -200,7 +198,6 @@ SUMMARIES = {
         One of the shortest-lived consoles ever sold. Expensive, scarce, and mostly of
         interest as a case study in panicking mid-generation.
         """,
-
     # --- SNK --------------------------------------------------------------
     "neo-geo-aes": """
         An arcade board sold for the home. SNK's Advanced Entertainment System runs
@@ -216,7 +213,6 @@ SUMMARIES = {
         cartridge system's for a fraction of the price, which is exactly why it
         exists.
         """,
-
     # --- Sony -------------------------------------------------------------
     "sony-smc-70": """
         Sony's first serious computer: a Z80 CP/M machine notable for adopting the
@@ -280,7 +276,6 @@ SUMMARIES = {
         was ordinary. Impractically small keyboard, remarkable object. One of the most
         distinctive laptops ever sold.
         """,
-
     # --- Sharp ------------------------------------------------------------
     "mz-80k": """
         Sharp's first computer, sold as a kit: the screen, keyboard and cassette deck
@@ -380,7 +375,6 @@ SUMMARIES = {
         of a Japanese laptop line that never had a Western equivalent and is
         consequently hard to research and harder to find complete.
         """,
-
     # --- Fujitsu ----------------------------------------------------------
     "fm-8": """
         Fujitsu's first computer, and an early adopter of bubble memory as an option —
@@ -418,7 +412,6 @@ SUMMARIES = {
         the PlayStation completely. Historically important as a first, and uncommon
         outside Japan.
         """,
-
     # --- Toshiba ----------------------------------------------------------
     "toshiba-pasopia": """
         Toshiba's entry into the Japanese home computer market: a Z80 machine with
@@ -465,7 +458,6 @@ SUMMARIES = {
         then be carried, with the same gorgeous orange display and the same complete
         dependence on a wall socket.
         """,
-
     # --- other Japanese makers -------------------------------------------
     "epoch-cassette-vision": """
         Japan's best-selling console before the Famicom, and an unusual design: most of
