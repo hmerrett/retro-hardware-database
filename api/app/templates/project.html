@@ -29,7 +29,7 @@
              escaping leaves an apostrophe alone -- so a project called "Henry's
              Amiga" would end the string early. The heading above says which project
              this is. #}
-          onsubmit="return confirm('Delete this project and its whole history? This cannot be undone.')">
+          data-confirm="Delete this project and its whole history? This cannot be undone.">
       <button class="iconbtn danger" type="submit" title="Delete this project" aria-label="Delete">{{ I.ico('trash') }}</button>
     </form>
   </span>
@@ -123,7 +123,7 @@
         <td class="tight muted">{{ t.done_at or '' }}</td>
         {% if request.state.authed %}
         <td class="tight"><form method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/delete" style="margin:0"
-              onsubmit="return confirm('Drop this task?')">
+              data-confirm="Drop this task?">
           <button class="iconbtn danger" type="submit" title="Drop this task" aria-label="Drop this task">{{ I.ico('trash') }}</button>
         </form></td>
         {% endif %}
@@ -181,7 +181,7 @@
         </td>
         {% if request.state.authed %}
         <td class="tight act"><form method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delete" style="margin:0"
-              onsubmit="return confirm('Remove this order?')">
+              data-confirm="Remove this order?">
           <button class="iconbtn danger" type="submit" title="Remove this order" aria-label="Remove this order">{{ I.ico('trash') }}</button>
         </form></td>
         {% endif %}

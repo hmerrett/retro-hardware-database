@@ -83,7 +83,7 @@
           aria-label="{{ f.filename }} is public"></label>
         <button class="btn sm" type="submit" data-send-go>save</button></form></td>
     <td class="meta"><form method="post" action="/files/{{ f.id }}/delete" style="margin:0"
-              onsubmit="return confirm('Delete {{ f.filename }}?')">
+              data-confirm="Delete {{ f.filename }}?">
         <input type="hidden" name="next" value="{{ back }}">
         <button class="btn sm danger" type="submit">delete</button></form></td>
     {% endif %}
