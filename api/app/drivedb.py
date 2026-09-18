@@ -13,6 +13,7 @@ Anything a segment does not yield goes to drives_note verbatim.
     read(db, computer)                  table -> [dict]
     from_string(text)                   typed text -> ([dict], leftover note)
 """
+
 from __future__ import annotations
 
 import re
@@ -46,33 +47,62 @@ _FLOPPY_SIZES = {s.lower() for s in SIZES}
 # are here so a typed drives field reads the same as the menus, and every label
 # answers to itself.
 _COLOUR_WORDS = {c["label"].lower(): c["label"] for c in entry.BEZEL_COLOURS} | {
-    "gray": "Grey", "dark gray": "Dark grey", "light gray": "Light grey",
-    "grey beige": "Grey-beige", "gray beige": "Grey-beige",
-    "off white": "Off-white", "cream": "Off-white", "ivory": "Off-white",
+    "gray": "Grey",
+    "dark gray": "Dark grey",
+    "light gray": "Light grey",
+    "grey beige": "Grey-beige",
+    "gray beige": "Grey-beige",
+    "off white": "Off-white",
+    "cream": "Off-white",
+    "ivory": "Off-white",
 }
 # What a person might write for each optical medium. Every spelling that drops the
 # hyphens or the ±, because that is how they are typed, and "cd"/"dvd" alone for
 # the drive nobody bothered to be precise about -- a bare "CD" drive is a reader,
 # which is what CD-ROM says.
 _MEDIA_WORDS = {m.lower(): m for m in entry.OPTICAL_MEDIA} | {
-    "cd": "CD-ROM", "cdrom": "CD-ROM", "cd rom": "CD-ROM",
-    "cdr": "CD-R", "cd r": "CD-R",
-    "cdrw": "CD-RW", "cd rw": "CD-RW", "cdw": "CD-RW",
-    "dvd": "DVD-ROM", "dvdrom": "DVD-ROM", "dvd rom": "DVD-ROM",
-    "combo": "DVD/CD-RW combo", "dvd/cd-rw": "DVD/CD-RW combo",
-    "dvdrw": "DVD±RW", "dvd-rw": "DVD±RW", "dvd+rw": "DVD±RW",
-    "dvd rw": "DVD±RW", "dvdr": "DVD±RW", "dvd-r": "DVD±RW", "dvd+r": "DVD±RW",
-    "dvd±r": "DVD±RW", "dvd rewriter": "DVD±RW", "dvd writer": "DVD±RW",
-    "dvdram": "DVD-RAM", "dvd ram": "DVD-RAM",
-    "bluray": "Blu-ray", "bd": "Blu-ray", "bd-rom": "Blu-ray",
+    "cd": "CD-ROM",
+    "cdrom": "CD-ROM",
+    "cd rom": "CD-ROM",
+    "cdr": "CD-R",
+    "cd r": "CD-R",
+    "cdrw": "CD-RW",
+    "cd rw": "CD-RW",
+    "cdw": "CD-RW",
+    "dvd": "DVD-ROM",
+    "dvdrom": "DVD-ROM",
+    "dvd rom": "DVD-ROM",
+    "combo": "DVD/CD-RW combo",
+    "dvd/cd-rw": "DVD/CD-RW combo",
+    "dvdrw": "DVD±RW",
+    "dvd-rw": "DVD±RW",
+    "dvd+rw": "DVD±RW",
+    "dvd rw": "DVD±RW",
+    "dvdr": "DVD±RW",
+    "dvd-r": "DVD±RW",
+    "dvd+r": "DVD±RW",
+    "dvd±r": "DVD±RW",
+    "dvd rewriter": "DVD±RW",
+    "dvd writer": "DVD±RW",
+    "dvdram": "DVD-RAM",
+    "dvd ram": "DVD-RAM",
+    "bluray": "Blu-ray",
+    "bd": "Blu-ray",
+    "bd-rom": "Blu-ray",
 }
 _YELLOW_WORDS = {y["label"].lower(): y["label"] for y in entry.YELLOWING} | {
-    "slightly yellowed": "Lightly yellowed", "lightly yellowing": "Lightly yellowed",
-    "yellowing": "Yellowed", "yellow": "Yellowed",
-    "very yellowed": "Heavily yellowed", "badly yellowed": "Heavily yellowed",
-    "brown": "Browned", "browning": "Browned",
-    "patchy yellowing": "Unevenly yellowed", "patchily yellowed": "Unevenly yellowed",
-    "unevenly yellowing": "Unevenly yellowed", "patchy": "Unevenly yellowed",
+    "slightly yellowed": "Lightly yellowed",
+    "lightly yellowing": "Lightly yellowed",
+    "yellowing": "Yellowed",
+    "yellow": "Yellowed",
+    "very yellowed": "Heavily yellowed",
+    "badly yellowed": "Heavily yellowed",
+    "brown": "Browned",
+    "browning": "Browned",
+    "patchy yellowing": "Unevenly yellowed",
+    "patchily yellowed": "Unevenly yellowed",
+    "unevenly yellowing": "Unevenly yellowed",
+    "patchy": "Unevenly yellowed",
 }
 
 
@@ -80,9 +110,13 @@ def _phrase_re(words, tail=""):
     """One alternation over every phrase, longest first -- so 'off-white' is not
     read as 'white' after a stray 'off-', nor 'heavily yellowed' as 'yellowed'
     after an adverb. `tail` is anything more the match has to satisfy."""
-    return re.compile(r"\b(" + "|".join(re.escape(w) for w in
-                                        sorted(words, key=len, reverse=True))
-                      + r")\b" + tail, re.I)
+    return re.compile(
+        r"\b("
+        + "|".join(re.escape(w) for w in sorted(words, key=len, reverse=True))
+        + r")\b"
+        + tail,
+        re.I,
+    )
 
 
 _COLOUR_RE = _phrase_re(_COLOUR_WORDS)
@@ -100,12 +134,24 @@ def _take(pattern, words, text):
     m = pattern.search(text)
     if not m:
         return "", text
-    return words[m.group(1).lower()], text[:m.start()] + " " + text[m.end():]
+    return words[m.group(1).lower()], text[: m.start()] + " " + text[m.end() :]
 
-_KIND_WORDS = {"floppy": "floppy", "fdd": "floppy", "gotek": "Gotek",
-               "optical": "optical", "cd-rom": "optical", "cdrom": "optical",
-               "cd": "optical", "dvd": "optical", "sd": "SD", "sdcard": "SD",
-               "cf": "CF", "compactflash": "CF", "tape": "tape"}
+
+_KIND_WORDS = {
+    "floppy": "floppy",
+    "fdd": "floppy",
+    "gotek": "Gotek",
+    "optical": "optical",
+    "cd-rom": "optical",
+    "cdrom": "optical",
+    "cd": "optical",
+    "dvd": "optical",
+    "sd": "SD",
+    "sdcard": "SD",
+    "cf": "CF",
+    "compactflash": "CF",
+    "tape": "tape",
+}
 # Words that describe nothing once the kind is known.
 _NOISE = {"drive", "drives", "emulator", "card", "x"}
 _OPTICAL_WORDS = {w for w, k in _KIND_WORDS.items() if k == "optical"}
@@ -116,7 +162,9 @@ def _is_optical(text):
     so outright. The only place a × rating can be, which is what keeps the "2 x" of
     '2 x 5.25" 360K' the two floppies it has always been."""
     return bool(_MEDIA_RE.search(text)) or any(
-        word.strip(".,;()").lower() in _OPTICAL_WORDS for word in text.split())
+        word.strip(".,;()").lower() in _OPTICAL_WORDS for word in text.split()
+    )
+
 
 _COUNT_RE = re.compile(r"^\s*(\d+)\s*(?:[x×]\s*|\s)", re.I)
 # The rating on the front. Not anchored like the count -- it turns up wherever the
@@ -179,24 +227,24 @@ def parse_segment(text):
         m = _SPEED_RE.search(raw)
         if m:
             speed = _canon_speed(m.group(1))
-            raw = raw[:m.start()] + " " + raw[m.end():]
+            raw = raw[: m.start()] + " " + raw[m.end() :]
 
     count = 1
     m = _COUNT_RE.match(raw)
     if m:
-        count, raw = int(m.group(1)), raw[m.end():]
+        count, raw = int(m.group(1)), raw[m.end() :]
 
     form = ""
     m = _FORM_RE.search(raw)
     if m and m.group(1) in ("5.25", "3.5", "8", "5", "3"):
         form = {"5": '5.25"', "3": '3.5"'}.get(m.group(1), f'{m.group(1)}"')
-        raw = raw[:m.start()] + " " + raw[m.end():]
+        raw = raw[: m.start()] + " " + raw[m.end() :]
 
     size = ""
     m = _SIZE_RE.search(raw)
     if m:
         size = _canon_size(m.group(1), m.group(2))
-        raw = raw[:m.start()] + " " + raw[m.end():]
+        raw = raw[: m.start()] + " " + raw[m.end() :]
 
     # Taken out whole, before the words are looked at one at a time: 'light grey'
     # and 'heavily yellowed' are each one phrase, not a colour beside a stray word
@@ -229,9 +277,17 @@ def parse_segment(text):
     model = " ".join(rest).strip(" -,;")
     if not (kind or size or form or model or colour or yellowing or media or speed):
         return None
-    return {"count": count, "kind": kind, "form_factor": form, "size": size,
-            "media": media, "speed": speed, "model": model, "colour": colour,
-            "yellowing": yellowing}
+    return {
+        "count": count,
+        "kind": kind,
+        "form_factor": form,
+        "size": size,
+        "media": media,
+        "speed": speed,
+        "model": model,
+        "colour": colour,
+        "yellowing": yellowing,
+    }
 
 
 def from_string(text):
@@ -263,11 +319,16 @@ def render(drives, note=""):
     the row it was rendered from."""
     out = []
     for d in drives:
-        bits = [d.get("model", ""), d.get("form_factor", ""), d.get("size", ""),
-                d.get("speed", ""), d.get("media", ""), d.get("kind", "")]
+        bits = [
+            d.get("model", ""),
+            d.get("form_factor", ""),
+            d.get("size", ""),
+            d.get("speed", ""),
+            d.get("media", ""),
+            d.get("kind", ""),
+        ]
         body = " ".join(b for b in bits if b)
-        bezel = ", ".join(x.lower() for x in (d.get("colour"), d.get("yellowing"))
-                          if x)
+        bezel = ", ".join(x.lower() for x in (d.get("colour"), d.get("yellowing")) if x)
         if bezel:
             body = f"{body} ({bezel})".strip()
         n = d.get("count") or 1
@@ -287,13 +348,26 @@ def render(drives, note=""):
 
 def read(db, computer):
     """A machine's drives as dicts, in the order they were entered."""
-    rows = (db.query(ComputerDrive)
-            .filter(ComputerDrive.computer_id == computer.asset_id)
-            .order_by(ComputerDrive.id).all())
-    return [{"count": r.count or 1, "kind": r.kind, "form_factor": r.form_factor,
-             "size": r.size, "media": r.media or "", "speed": r.speed or "",
-             "model": r.model, "colour": r.colour or "",
-             "yellowing": r.yellowing or ""} for r in rows]
+    rows = (
+        db.query(ComputerDrive)
+        .filter(ComputerDrive.computer_id == computer.asset_id)
+        .order_by(ComputerDrive.id)
+        .all()
+    )
+    return [
+        {
+            "count": r.count or 1,
+            "kind": r.kind,
+            "form_factor": r.form_factor,
+            "size": r.size,
+            "media": r.media or "",
+            "speed": r.speed or "",
+            "model": r.model,
+            "colour": r.colour or "",
+            "yellowing": r.yellowing or "",
+        }
+        for r in rows
+    ]
 
 
 def write(db, computer, drives=None, note=None):
@@ -301,18 +375,24 @@ def write(db, computer, drives=None, note=None):
     leaves the rows alone, so a caller that only has a note does not wipe them."""
     aid = computer.asset_id
     if drives is not None:
-        db.query(ComputerDrive).filter(
-            ComputerDrive.computer_id == aid).delete(synchronize_session=False)
+        db.query(ComputerDrive).filter(ComputerDrive.computer_id == aid).delete(
+            synchronize_session=False
+        )
         for d in drives:
-            db.add(ComputerDrive(computer_id=aid, count=d.get("count") or 1,
-                                 kind=d.get("kind", ""),
-                                 form_factor=d.get("form_factor", ""),
-                                 size=d.get("size", ""),
-                                 media=d.get("media", ""),
-                                 speed=d.get("speed", ""),
-                                 model=d.get("model", ""),
-                                 colour=d.get("colour", ""),
-                                 yellowing=d.get("yellowing", "")))
+            db.add(
+                ComputerDrive(
+                    computer_id=aid,
+                    count=d.get("count") or 1,
+                    kind=d.get("kind", ""),
+                    form_factor=d.get("form_factor", ""),
+                    size=d.get("size", ""),
+                    media=d.get("media", ""),
+                    speed=d.get("speed", ""),
+                    model=d.get("model", ""),
+                    colour=d.get("colour", ""),
+                    yellowing=d.get("yellowing", ""),
+                )
+            )
         db.flush()
     if note is not None:
         computer.drives_note = note

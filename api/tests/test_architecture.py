@@ -9,6 +9,7 @@ stays as it was.
 
 Rerun with RHDB_UPDATE_BEHAVIOUR=1 to rewrite the catalogue.
 """
+
 import os
 import re
 from pathlib import Path
@@ -50,8 +51,7 @@ def test_the_map_lists_every_module_and_no_others():
     # rglob, and named relative to api/app: a route group is a module inside
     # routers/, and a glob of the top level alone would let every one of them out
     # of this check -- which is the half of the map most likely to grow.
-    actual = {str(p.relative_to(MODULES)) for p in MODULES.rglob("*.py")
-              if p.name not in UNLISTED}
+    actual = {str(p.relative_to(MODULES)) for p in MODULES.rglob("*.py") if p.name not in UNLISTED}
     assert not actual - listed, f"modules the map does not list: {sorted(actual - listed)}"
     assert not listed - actual, f"the map lists modules that are gone: {sorted(listed - actual)}"
 

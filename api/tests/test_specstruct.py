@@ -1,4 +1,5 @@
 """The specs string <-> Struct conversion, which every part write goes through."""
+
 import pytest
 
 from app import specstruct
@@ -33,9 +34,15 @@ class TestScalars:
 
 
 class TestNumbers:
-    @pytest.mark.parametrize("text,kb", [
-        ("2MB", 2048), ("512KB", 512), ("1.44MB", 1475), ("20GB", 20971520),
-    ])
+    @pytest.mark.parametrize(
+        "text,kb",
+        [
+            ("2MB", 2048),
+            ("512KB", 512),
+            ("1.44MB", 1475),
+            ("20GB", 20971520),
+        ],
+    )
     def test_memory_amounts_become_kb(self, text, kb):
         assert specstruct.parse("ram", f"Size: {text}").scalars["size_kb"] == kb
 
@@ -91,8 +98,7 @@ class TestStorageGeometry:
 
 class TestCanonicalOrder:
     def test_keys_come_out_in_display_order(self):
-        assert render("sound", "Interface: ISA | Chip: ES1869F") == \
-            "Chip: ES1869F | Interface: ISA"
+        assert render("sound", "Interface: ISA | Chip: ES1869F") == "Chip: ES1869F | Interface: ISA"
 
     def test_formatting_is_idempotent(self):
         once = render("storage", "Kind: Hard disk | Capacity: 840MB | CHS: 1647/16/63")
@@ -118,10 +124,18 @@ class TestTheTwoSortsOfDriveSpeed:
         assert st.scalars["speed_x"] == 48
         assert "speed_rpm" not in st.scalars
 
-    @pytest.mark.parametrize("text,rendered", [
-        ("48x", "48×"), ("48X", "48×"), ("48 x", "48×"), ("48×", "48×"),
-        ("5400", "5400 rpm"), ("5400rpm", "5400 rpm"), ("7200 rpm", "7200 rpm"),
-    ])
+    @pytest.mark.parametrize(
+        "text,rendered",
+        [
+            ("48x", "48×"),
+            ("48X", "48×"),
+            ("48 x", "48×"),
+            ("48×", "48×"),
+            ("5400", "5400 rpm"),
+            ("5400rpm", "5400 rpm"),
+            ("7200 rpm", "7200 rpm"),
+        ],
+    )
     def test_each_renders_in_the_unit_it_was_read_in(self, text, rendered):
         assert render("storage", f"Speed: {text}") == f"Speed: {rendered}"
 
@@ -136,8 +150,10 @@ class TestTheTwoSortsOfDriveSpeed:
         assert st.scalars["media"] == "CD-RW"
 
     def test_an_optical_drive_renders_in_the_canonical_order(self):
-        assert render("storage", "Speed: 48x | Kind: Optical | Media: CD-RW") == \
-            "Kind: Optical | Media: CD-RW | Speed: 48×"
+        assert (
+            render("storage", "Speed: 48x | Kind: Optical | Media: CD-RW")
+            == "Kind: Optical | Media: CD-RW | Speed: 48×"
+        )
 
     def test_it_reads_back_as_it_renders(self):
         once = render("storage", "Kind: Optical | Media: CD-RW | Speed: 48x")
@@ -152,15 +168,20 @@ class TestABezel:
     """
 
     def test_the_two_keys_map_to_their_own_columns(self):
-        st = specstruct.parse("storage", "Kind: Hard disk | Colour: Beige | "
-                                         "Yellowing: Heavily yellowed")
-        assert st.scalars == {"kind": "Hard disk", "colour": "Beige",
-                              "yellowing": "Heavily yellowed"}
+        st = specstruct.parse(
+            "storage", "Kind: Hard disk | Colour: Beige | Yellowing: Heavily yellowed"
+        )
+        assert st.scalars == {
+            "kind": "Hard disk",
+            "colour": "Beige",
+            "yellowing": "Heavily yellowed",
+        }
 
     def test_they_come_last_in_the_canonical_order(self):
-        assert render("storage", "Yellowing: Yellowed | Colour: Beige | "
-                                 "Kind: Hard disk") == \
-            "Kind: Hard disk | Colour: Beige | Yellowing: Yellowed"
+        assert (
+            render("storage", "Yellowing: Yellowed | Colour: Beige | Kind: Hard disk")
+            == "Kind: Hard disk | Colour: Beige | Yellowing: Yellowed"
+        )
 
     def test_either_alone_survives(self):
         assert render("storage", "Yellowing: Browned") == "Yellowing: Browned"
@@ -169,10 +190,8 @@ class TestABezel:
     def test_a_display_records_the_same_two(self):
         """A monitor's front is plastic that was made in a shade and has yellowed
         since, exactly as a drive's bezel is, so it answers in the same words."""
-        st = specstruct.parse("display", "Type: CRT | Colour: Beige | "
-                                         "Yellowing: Yellowed")
-        assert st.scalars == {"tech": "CRT", "colour": "Beige",
-                              "yellowing": "Yellowed"}
+        st = specstruct.parse("display", "Type: CRT | Colour: Beige | Yellowing: Yellowed")
+        assert st.scalars == {"tech": "CRT", "colour": "Beige", "yellowing": "Yellowed"}
 
     def test_a_type_with_no_bezel_keeps_the_keys_verbatim(self):
         """A card has no plastic to describe, so on a type that is not asked the
@@ -224,8 +243,7 @@ class TestDriveCapacityFromGeometry:
     def test_a_derived_capacity_survives_being_saved_again(self):
         """The rendered figure must re-read as the same number, or it would drift
         every time the part was saved."""
-        once = specstruct.format(
-            "storage", specstruct.parse("storage", "CHS: 615/4/17"))
+        once = specstruct.format("storage", specstruct.parse("storage", "CHS: 615/4/17"))
         twice = specstruct.format("storage", specstruct.parse("storage", once))
         assert once == twice
         assert specstruct.parse("storage", once).scalars["capacity_kb"] == 20910
@@ -242,24 +260,32 @@ class TestADisplay:
     """
 
     def test_the_technology_and_the_tube_are_separate_columns(self):
-        st = specstruct.parse("display", "Type: CRT | "
-                                         "Panel: Aperture grille (Trinitron)")
-        assert st.scalars == {"tech": "CRT",
-                              "panel": "Aperture grille (Trinitron)"}
+        st = specstruct.parse("display", "Type: CRT | Panel: Aperture grille (Trinitron)")
+        assert st.scalars == {"tech": "CRT", "panel": "Aperture grille (Trinitron)"}
 
     def test_a_trinitron_still_counts_as_a_crt(self):
         """The whole reason for two columns: asking for every CRT finds this one."""
-        st = specstruct.parse("display", "Type: CRT | Panel: Aperture grille "
-                                         "(Trinitron) | Screen size: 21\"")
+        st = specstruct.parse(
+            "display", 'Type: CRT | Panel: Aperture grille (Trinitron) | Screen size: 21"'
+        )
         assert st.scalars["tech"] == "CRT"
 
-    @pytest.mark.parametrize("text,tenths", [
-        ('14"', 140), ("14", 140), ('13.3"', 133), ("15in", 150),
-        ("17 inch", 170), ("21.5", 215),
-    ])
+    @pytest.mark.parametrize(
+        "text,tenths",
+        [
+            ('14"', 140),
+            ("14", 140),
+            ('13.3"', 133),
+            ("15in", 150),
+            ("17 inch", 170),
+            ("21.5", 215),
+        ],
+    )
     def test_a_screen_size_is_tenths_of_an_inch(self, text, tenths):
-        assert specstruct.parse(
-            "display", f"Screen size: {text}").scalars["screen_in_tenths"] == tenths
+        assert (
+            specstruct.parse("display", f"Screen size: {text}").scalars["screen_in_tenths"]
+            == tenths
+        )
 
     def test_a_whole_size_does_not_render_a_fraction(self):
         """A 14" monitor is a 14-inch monitor, not a 14.0-inch one."""
@@ -279,13 +305,18 @@ class TestADisplay:
         st = specstruct.parse("display", "Refresh: 47–90 Hz")
         assert st.scalars["refresh"] == "47–90 Hz"
 
-    @pytest.mark.parametrize("text,um", [
-        ("0.28", 280), ("0.28 mm", 280), ("0.25mm", 250), ("280um", 280),
-        ("280 µm", 280),
-    ])
+    @pytest.mark.parametrize(
+        "text,um",
+        [
+            ("0.28", 280),
+            ("0.28 mm", 280),
+            ("0.25mm", 250),
+            ("280um", 280),
+            ("280 µm", 280),
+        ],
+    )
     def test_a_dot_pitch_is_micrometres_however_it_is_written(self, text, um):
-        assert specstruct.parse(
-            "display", f"Dot pitch: {text}").scalars["dot_pitch_um"] == um
+        assert specstruct.parse("display", f"Dot pitch: {text}").scalars["dot_pitch_um"] == um
 
     def test_a_dot_pitch_reads_back_in_millimetres(self):
         """Which is how it is written on the box and how anyone would type it."""
@@ -303,16 +334,22 @@ class TestADisplay:
         assert st.attributes == [("Screen size", "9-inch-ish, unbadged")]
 
     def test_the_canonical_order_runs_picture_size_signal_plastic(self):
-        assert render("display", 'Yellowing: Yellowed | Interface: VGA (HD-15) | '
-                                 'Screen size: 17" | Type: CRT') == \
-            'Type: CRT | Screen size: 17" | Interface: VGA (HD-15) | ' \
-            'Yellowing: Yellowed'
+        assert (
+            render(
+                "display",
+                'Yellowing: Yellowed | Interface: VGA (HD-15) | Screen size: 17" | Type: CRT',
+            )
+            == 'Type: CRT | Screen size: 17" | Interface: VGA (HD-15) | '
+            "Yellowing: Yellowed"
+        )
 
     def test_it_reads_back_as_it_renders(self):
-        specs = ('Type: CRT | Panel: Aperture grille (Trinitron) | '
-                 'Screen size: 21" | Aspect: 4:3 | Resolution: 1600×1200 | '
-                 'Refresh: 85 Hz | Dot pitch: 0.25 mm | Interface: VGA (HD-15), '
-                 'BNC | Picture: Colour | Colour: Beige | Yellowing: Yellowed')
+        specs = (
+            "Type: CRT | Panel: Aperture grille (Trinitron) | "
+            'Screen size: 21" | Aspect: 4:3 | Resolution: 1600×1200 | '
+            "Refresh: 85 Hz | Dot pitch: 0.25 mm | Interface: VGA (HD-15), "
+            "BNC | Picture: Colour | Colour: Beige | Yellowing: Yellowed"
+        )
         assert render("display", specs) == specs
 
     def test_a_screen_is_not_measured_like_a_drive(self):

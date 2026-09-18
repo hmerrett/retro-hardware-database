@@ -6,21 +6,32 @@ a computer or a host part unlinks what pointed at it rather than orphaning it.
 The column set began as a mirror of the flat-file system's CSV schema, where
 everything was a string; quantities and dates are being given real types as the
 data proves clean enough to convert."""
-from sqlalchemy import (Boolean, Column, Date, DateTime, ForeignKey, Integer,
-                        SmallInteger, String, Text, UniqueConstraint)
+
+from sqlalchemy import (
+    Boolean,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+)
 
 from .db import Base
 
 
 def _part_fk():
     """part_id column referencing a part, cascading on delete."""
-    return Column(String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"),
-                  primary_key=True)
+    return Column(String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"), primary_key=True)
 
 
 def _part_fk_indexed():
-    return Column(String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"),
-                  index=True, nullable=False)
+    return Column(
+        String(16), ForeignKey("parts.asset_id", ondelete="CASCADE"), index=True, nullable=False
+    )
 
 
 class Computer(Base):
@@ -56,16 +67,14 @@ class Computer(Base):
     topbench = Column(Integer)
     installed_ram = Column(String(255), default="")
     installed_ram_kb = Column(Integer)
-    installed_ram_note = Column(String(255), nullable=False, default="",
-                                server_default="")
+    installed_ram_note = Column(String(255), nullable=False, default="", server_default="")
     # The rendered cache of the catalogue rows, in the same relation to
     # asset_variant / asset_chip as installed_ram is to the memory tables:
     # written from them on every change, read by the page, the label, the search
     # index and the wire format, and never parsed back (see machinedb).
     variant = Column(Text, nullable=False, default="", server_default="")
     drives = Column(Text, default="")
-    drives_note = Column(String(255), nullable=False, default="",
-                         server_default="")
+    drives_note = Column(String(255), nullable=False, default="", server_default="")
     condition = Column(String(64), default="")
     source = Column(String(255), default="")
     acquired_date = Column(Date)
@@ -73,8 +82,7 @@ class Computer(Base):
     url = Column(Text, default="")
     summary = Column(Text, default="")
     notes = Column(Text, default="")
-    disposed = Column(Boolean, nullable=False, default=False,
-                      server_default="0")
+    disposed = Column(Boolean, nullable=False, default=False, server_default="0")
     disposed_at = Column(Date)
     disposed_note = Column(Text, nullable=False, default="", server_default="")
     # Might go: the step before disposal, and the owner's alone (ADR-0018). Kept off
@@ -85,12 +93,10 @@ class Computer(Base):
 class Part(Base):
     __tablename__ = "parts"
     asset_id = Column(String(16), primary_key=True)
-    computer_id = Column(String(16),
-                         ForeignKey("computers.asset_id", ondelete="SET NULL"),
-                         index=True)
-    parent_id = Column(String(16),
-                       ForeignKey("parts.asset_id", ondelete="SET NULL"),
-                       index=True)
+    computer_id = Column(
+        String(16), ForeignKey("computers.asset_id", ondelete="SET NULL"), index=True
+    )
+    parent_id = Column(String(16), ForeignKey("parts.asset_id", ondelete="SET NULL"), index=True)
     type = Column(String(32), default="")
     manufacturer = Column(String(255), default="")
     model = Column(String(255), default="")
@@ -114,8 +120,7 @@ class Part(Base):
     url = Column(Text, default="")
     summary = Column(Text, default="")
     notes = Column(Text, default="")
-    disposed = Column(Boolean, nullable=False, default=False,
-                      server_default="0")
+    disposed = Column(Boolean, nullable=False, default=False, server_default="0")
     disposed_at = Column(Date)
     disposed_note = Column(Text, nullable=False, default="", server_default="")
     # See Computer.for_sale. The same flag on the other half of the register,
@@ -269,6 +274,7 @@ class DisplaySpec(Base):
     from entry.BEZEL_COLOURS and entry.YELLOWING. A monitor's front is the largest
     piece of beige plastic in most collections and it yellows like everything else,
     so it is described in the words the register already uses for plastic."""
+
     __tablename__ = "display_spec"
     part_id = _part_fk()
     tech = Column(String(64))
@@ -318,8 +324,9 @@ class PartAttribute(Base):
 
 
 def _computer_fk():
-    return Column(String(16), ForeignKey("computers.asset_id", ondelete="CASCADE"),
-                  index=True, nullable=False)
+    return Column(
+        String(16), ForeignKey("computers.asset_id", ondelete="CASCADE"), index=True, nullable=False
+    )
 
 
 class ComputerDrive(Base):
@@ -340,6 +347,7 @@ class ComputerDrive(Base):
     hold a label rather than a hex value: what is recorded is which shade and which
     stage, so the swatch that stands for one is free to be adjusted without
     rewriting anyone's data."""
+
     __tablename__ = "computer_drive"
     id = Column(Integer, primary_key=True, autoincrement=True)
     computer_id = _computer_fk()
@@ -358,6 +366,7 @@ class ComputerRamModule(Base):
     """How many of each SIMM/SIPP module type are fitted in a machine. `module` is
     the stable slug from entry.RAM_MODULES, never the display label -- the label
     is free to change without orphaning anyone's data."""
+
     __tablename__ = "computer_ram_module"
     id = Column(Integer, primary_key=True, autoincrement=True)
     computer_id = _computer_fk()
@@ -368,6 +377,7 @@ class ComputerRamModule(Base):
 class ComputerRamChip(Base):
     """How many of each DRAM chip are fitted directly on the board, keyed by part
     number (4164, 41256, ...)."""
+
     __tablename__ = "computer_ram_chip"
     id = Column(Integer, primary_key=True, autoincrement=True)
     computer_id = _computer_fk()
@@ -404,6 +414,7 @@ class AssetVariant(Base):
     a board out of a rubber-key Spectrum is the same board as one out of a moulded
     one, and a PAL machine's board is not a PAL board. So a part leaves both blank
     rather than the two moving to a table of their own."""
+
     __tablename__ = "asset_variant"
     asset_id = Column(String(16), primary_key=True)
     model_key = Column(String(64), nullable=False, default="", server_default="")
@@ -430,6 +441,7 @@ class AssetChip(Base):
     Where the chips are read off is where they are recorded: a sealed machine
     answers for its own sockets, and a board lifted out of one answers for them
     afterwards, which is the whole of what detaching a board moves."""
+
     __tablename__ = "asset_chip"
     id = Column(Integer, primary_key=True, autoincrement=True)
     asset_id = Column(String(16), index=True, nullable=False)
@@ -455,6 +467,7 @@ class StoredFile(Base):
 
     `stored` is the name on disk, which is generated: what was uploaded is kept in
     `filename` for the download to be called by, and never used as a path."""
+
     __tablename__ = "files"
     id = Column(Integer, primary_key=True, autoincrement=True)
     stored = Column(String(72), nullable=False, unique=True)
@@ -481,10 +494,12 @@ class FileTag(Base):
     A label since 0039, and not an association: what a file is for is in
     `file_asset` and `file_model`. A tag that reads like the name of a machine is
     still only a tag."""
+
     __tablename__ = "file_tag"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"),
-                     nullable=False, index=True)
+    file_id = Column(
+        Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     tag = Column(String(120), nullable=False)
     fold = Column(String(120), nullable=False, index=True)
 
@@ -498,13 +513,14 @@ class FileAsset(Base):
     either. Deleting the item takes the link with it and never the bytes -- a file
     left with no links is unfiled, which is a state the files page shows rather
     than a reason to delete anything (ADR-0006)."""
+
     __tablename__ = "file_asset"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"),
-                     nullable=False, index=True)
+    file_id = Column(
+        Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     asset_id = Column(String(16), nullable=False, index=True)
-    __table_args__ = (UniqueConstraint("file_id", "asset_id",
-                                       name="uq_file_asset_pair"),)
+    __table_args__ = (UniqueConstraint("file_id", "asset_id", name="uq_file_asset_pair"),)
 
 
 class FileModel(Base):
@@ -523,21 +539,25 @@ class FileModel(Base):
     Matching is equality on `model_key`. Containment is what let a tag of "16"
     reach half the register, and the key stored is the one made at the time: a
     change to how `filesdb.fold` folds must not quietly move a file."""
+
     __tablename__ = "file_model"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"),
-                     nullable=False, index=True)
+    file_id = Column(
+        Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     kind = Column(String(16), nullable=False)
     model_key = Column(String(160), nullable=False, index=True)
     label = Column(String(255), nullable=False, default="", server_default="")
-    __table_args__ = (UniqueConstraint("file_id", "kind", "model_key",
-                                       name="uq_file_model_triple"),)
+    __table_args__ = (
+        UniqueConstraint("file_id", "kind", "model_key", name="uq_file_model_triple"),
+    )
 
 
 class LogEntry(Base):
     """A dated history entry for any asset (computer or part): automatic
     change records and free-text notes. asset_id is from the shared register, so
     it is a plain column rather than a foreign key to one table."""
+
     __tablename__ = "log_entry"
     id = Column(Integer, primary_key=True, autoincrement=True)
     asset_id = Column(String(16), index=True)
@@ -568,10 +588,12 @@ class LogPhoto(Base):
     filed beside a part would be claimed as one of that part's gallery pictures
     and counted as its portrait.
     """
+
     __tablename__ = "log_photo"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    log_id = Column(Integer, ForeignKey("log_entry.id", ondelete="CASCADE"),
-                    nullable=False, index=True)
+    log_id = Column(
+        Integer, ForeignKey("log_entry.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     rel = Column(String(255), nullable=False)
 
 
@@ -608,11 +630,11 @@ class Project(Base):
     only one that can be read off the history afterwards. A project can be finished
     without ever having been started -- the part turned up and it took an evening --
     and none of the three is inferred from another."""
+
     __tablename__ = "projects"
     asset_id = Column(String(16), primary_key=True)
     name = Column(String(255), nullable=False, default="", server_default="")
-    status = Column(String(16), nullable=False, default="planned",
-                    server_default="planned")
+    status = Column(String(16), nullable=False, default="planned", server_default="planned")
     summary = Column(Text, default="")
     notes = Column(Text, default="")
     started_at = Column(Date)
@@ -666,12 +688,13 @@ class ProjectAsset(Base):
     `note` is why this one is in this project -- 'donor for the keyboard', 'needs
     the recap' -- which is a fact about the pairing rather than about either end of
     it, and so has nowhere else to live."""
+
     __tablename__ = "project_asset"
     __table_args__ = (UniqueConstraint("asset_id", name="uq_project_asset_item"),)
     id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(String(16),
-                        ForeignKey("projects.asset_id", ondelete="CASCADE"),
-                        nullable=False, index=True)
+    project_id = Column(
+        String(16), ForeignKey("projects.asset_id", ondelete="CASCADE"), nullable=False, index=True
+    )
     asset_id = Column(String(16), nullable=False, index=True)
     note = Column(String(255), nullable=False, default="", server_default="")
 
@@ -698,11 +721,12 @@ class ProjectTask(Base):
     A plain column with no foreign key, like project_asset.asset_id and for the
     same reason: the register is two tables, so there is no one table to point at.
     The delete paths clear these by hand."""
+
     __tablename__ = "project_task"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(String(16),
-                        ForeignKey("projects.asset_id", ondelete="CASCADE"),
-                        nullable=False, index=True)
+    project_id = Column(
+        String(16), ForeignKey("projects.asset_id", ondelete="CASCADE"), nullable=False, index=True
+    )
     asset_id = Column(String(16), index=True)
     text = Column(Text, nullable=False, default="")
     done = Column(Boolean, nullable=False, default=False, server_default="0")
@@ -732,11 +756,12 @@ class ProjectOrder(Base):
     the ordinary way, and this row is ticked -- which keeps an order a note about
     a purchase rather than a half-made asset, and keeps the register a list of
     things that exist."""
+
     __tablename__ = "project_order"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    project_id = Column(String(16),
-                        ForeignKey("projects.asset_id", ondelete="CASCADE"),
-                        nullable=False, index=True)
+    project_id = Column(
+        String(16), ForeignKey("projects.asset_id", ondelete="CASCADE"), nullable=False, index=True
+    )
     description = Column(String(255), nullable=False, default="")
     supplier = Column(String(255), nullable=False, default="", server_default="")
     url = Column(Text, default="")

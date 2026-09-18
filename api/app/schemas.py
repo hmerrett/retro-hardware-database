@@ -21,6 +21,7 @@ issue and the chip sockets were always about, so a bare one on a shelf files as
 what it is instead of as free text. It answers a little less than a machine does
 (see BoardIn), and asking it of any other kind of part is refused.
 """
+
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict, field_validator
@@ -57,6 +58,7 @@ class MachineIn(BaseModel):
     puts it back to nobody having looked -- which is why this is a field of its own
     rather than a third state stuffed into the variant string.
     """
+
     model_key: str | None = None
     issue: str | None = None
     style: str | None = None
@@ -82,6 +84,7 @@ class BoardIn(BaseModel):
     meant and quietly put it nowhere. The same reasoning the catalogue file follows
     for a misspelled field (see machines._fields).
     """
+
     model_config = ConfigDict(extra="forbid")
 
     model_key: str | None = None
@@ -132,6 +135,7 @@ class WorkIn(BaseModel):
     work_needed is one job to a line. work_project names a project already going for
     the item to join instead of raising one of its own; a tag that names no project
     is refused rather than filed elsewhere."""
+
     work_needed: str = ""
     work_project: str = ""
 
@@ -145,6 +149,7 @@ class MachineOut(BaseModel):
     catalogue's own words for it. model and family come from app/machines.py rather
     than the database, so a caller does not have to hold the catalogue itself to
     know that `zx-spectrum-plus` is a Sinclair ZX Spectrum+."""
+
     model_key: str = ""
     model: str = ""
     family: str = ""
@@ -176,6 +181,7 @@ class ComputerOut(ComputerIn):
 class BoardOut(BaseModel):
     """What a board's catalogue identity reads back as. MachineOut without the two
     rows a case answers, for the reason BoardIn leaves them out."""
+
     model_key: str = ""
     model: str = ""
     family: str = ""
@@ -249,6 +255,7 @@ class ProjectIn(BaseModel):
     abandoned -- and anything else is stored as `planned` rather than refused, the
     same forgiveness the GUI's menu gives. The three dates are independent: a
     project can be finished without ever having been started."""
+
     name: str = ""
     status: str = ""
     summary: str = ""
@@ -266,6 +273,7 @@ class ProjectItemOut(BaseModel):
     """One computer or part a project is about. `kind` is the URL segment its page
     lives under, so a caller can build a link without knowing which of the two
     tables holds it."""
+
     asset_id: str
     kind: str
     name: str
@@ -281,6 +289,7 @@ class ProjectTaskIn(BaseModel):
     """A job. `asset_id` is the thing it is about, where it is about one -- it must
     be something the project already holds, and is left out for the jobs that are
     about the project rather than any single thing on it."""
+
     text: str = ""
     done: bool | None = None
     asset_id: str | None = None
@@ -306,6 +315,7 @@ class ProjectOrderIn(BaseModel):
 
     `qty` multiplies nothing: the cost is the cost of the line as paid. Four SIMMs
     for twelve pounds is qty 4 and cost_p 1200."""
+
     description: str = ""
     supplier: str = ""
     url: str = ""

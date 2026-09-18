@@ -6,6 +6,7 @@ What a file is for is a link it carries rather than a guess made from its name
 download put the same question to the same column, because a file kept off a page
 and still fetchable at its URL is not private.
 """
+
 from urllib.parse import quote
 
 
@@ -40,8 +41,7 @@ def _file_or_404(db, fid):
 
 
 @router.get("/files/{fid}/{name}", include_in_schema=False)
-def serve_file(fid: int, name: str, request: Request,
-               db: Session = Depends(get_db)):
+def serve_file(fid: int, name: str, request: Request, db: Session = Depends(get_db)):
     """Hand over the bytes, always as a download and never as a page.
 
     An upload is whatever somebody sent, and some of what people send is HTML, or
@@ -62,15 +62,19 @@ def serve_file(fid: int, name: str, request: Request,
     path = filesdb.path_of(row)
     if not path.is_file():
         raise HTTPException(404)
-    return FileResponse(path, media_type="application/octet-stream", headers={
-        "Content-Disposition": f'attachment; filename="{_ascii_filename(row.filename)}"',
-        "X-Content-Type-Options": "nosniff",
-        # A published file may be kept by anything that sees it; an unpublished one
-        # may not be kept at all. The owner is the only person who can fetch one,
-        # and the point of unticking the box is that the copy stops being handed
-        # out -- which a shared cache holding it for the hour would carry on doing.
-        "Cache-Control": ("public, max-age=3600" if row.public
-                          else "private, no-store")})
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{_ascii_filename(row.filename)}"',
+            "X-Content-Type-Options": "nosniff",
+            # A published file may be kept by anything that sees it; an unpublished one
+            # may not be kept at all. The owner is the only person who can fetch one,
+            # and the point of unticking the box is that the copy stops being handed
+            # out -- which a shared cache holding it for the hour would carry on doing.
+            "Cache-Control": ("public, max-age=3600" if row.public else "private, no-store"),
+        },
+    )
 
 
 def _ascii_filename(name):
@@ -81,8 +85,9 @@ def _ascii_filename(name):
 
 
 @router.post("/files", include_in_schema=False)
-async def gui_upload_files(request: Request, uploads: list[UploadFile] = File(...),
-                           db: Session = Depends(get_db)):
+async def gui_upload_files(
+    request: Request, uploads: list[UploadFile] = File(...), db: Session = Depends(get_db)
+):
     """Take one or more files, label them with the tags the form carries, and attach
     them to whatever the upload started on.
 
@@ -189,8 +194,7 @@ async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db
     form = await request.form()
     filesdb.set_tags(db, row, form.get("tags", ""))
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
 
 
 @router.post("/files/{fid}/public", include_in_schema=False)
@@ -204,8 +208,7 @@ async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_
     form = await request.form()
     row.public = bool(form.get("public"))
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
 
 
 @router.post("/files/{fid}/delete", include_in_schema=False)
@@ -214,8 +217,7 @@ async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_
     form = await request.form()
     filesdb.remove(db, row)
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
 
 
 @router.get("/files", response_class=HTMLResponse, include_in_schema=False)
@@ -227,11 +229,18 @@ def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
     The register's ids ride along for the attach box to offer, owner only: what it
     is is a list of everything owned, which is not a thing to hand a visitor who
     cannot attach anything anyway."""
-    return templates.TemplateResponse(request, "files.html", {
-        "files": filesdb.all_files(db, tag, request.state.authed), "tag": tag,
-        "assets": _register_order(db) if request.state.authed else [],
-        "og": _og(request, "Files", "Drivers, manuals and disks kept with the "
-                                    "hardware they belong to")})
+    return templates.TemplateResponse(
+        request,
+        "files.html",
+        {
+            "files": filesdb.all_files(db, tag, request.state.authed),
+            "tag": tag,
+            "assets": _register_order(db) if request.state.authed else [],
+            "og": _og(
+                request, "Files", "Drivers, manuals and disks kept with the hardware they belong to"
+            ),
+        },
+    )
 
 
 @router.get("/api/files", tags=["files"])
@@ -240,9 +249,18 @@ def api_list_files(tag: str = "", db: Session = Depends(get_db)):
     is attached to: `assets` are the units it is about and `models` the models every
     item of which it is about. `tag` narrows it to one tag, matched ignoring case
     and spacing."""
-    return [{"id": f.id, "filename": f.filename, "size": f.size, "note": f.note,
-             "tags": f.tags, "created_at": f.created_at, "public": f.public,
-             "assets": f.assets, "models": [
-                 {"kind": k, "key": key, "label": label} for k, key, label in f.models],
-             "url": f"/files/{f.id}/{quote(f.filename)}"}
-            for f in filesdb.all_files(db, tag)]
+    return [
+        {
+            "id": f.id,
+            "filename": f.filename,
+            "size": f.size,
+            "note": f.note,
+            "tags": f.tags,
+            "created_at": f.created_at,
+            "public": f.public,
+            "assets": f.assets,
+            "models": [{"kind": k, "key": key, "label": label} for k, key, label in f.models],
+            "url": f"/files/{f.id}/{quote(f.filename)}",
+        }
+        for f in filesdb.all_files(db, tag)
+    ]

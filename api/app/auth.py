@@ -14,6 +14,7 @@ main registers the gate as middleware rather than this module doing it, because
 middleware belongs to the app object and the order of the two matters: the gate is
 registered last so that it sits outside the cache-header one.
 """
+
 import base64
 import logging
 import os
@@ -78,31 +79,28 @@ def _announce_auth(enabled: bool, on_purpose: bool) -> bool:
             log.warning(
                 "RHDB_OPEN is set, but RHDB_AUTH_USER and RHDB_AUTH_PASSWORD are "
                 "set too, so the login is on and RHDB_OPEN is doing nothing. Unset "
-                "it, or clear the credentials if this site is meant to be open.")
+                "it, or clear the credentials if this site is meant to be open."
+            )
         return False
     if on_purpose:
-        log.info("Running with no login (RHDB_OPEN is set): every visitor may edit "
-                 "and delete anything in the register.")
+        log.info(
+            "Running with no login (RHDB_OPEN is set): every visitor may edit "
+            "and delete anything in the register."
+        )
         return False
     log.warning(
         "NO LOGIN: RHDB_AUTH_USER and RHDB_AUTH_PASSWORD are not set, so every "
         "visitor may edit and delete anything in the register. If that is not what "
         "you meant, set them and RHDB_SECRET_KEY -- a .env that is missing or was "
         "left behind when the checkout moved looks exactly like this. If it is what "
-        "you meant, set RHDB_OPEN=1 and this stops.")
+        "you meant, set RHDB_OPEN=1 and this stops."
+    )
     return True
 
 
 # Read once at import, beside the flag it is about, so there is no window in which
 # the app is configured open and has not said so.
-templates.env.globals["auth_open_warning"] = _announce_auth(AUTH_ENABLED,
-                                                            _open_on_purpose())
-
-
-
-
-
-
+templates.env.globals["auth_open_warning"] = _announce_auth(AUTH_ENABLED, _open_on_purpose())
 
 
 # Signed-cookie session for the browser (the API/tools keep using HTTP Basic).
@@ -193,8 +191,7 @@ def _check_basic(request: Request) -> bool:
         return False
     try:
         u, _, p = base64.b64decode(header[6:]).decode("utf-8").partition(":")
-        return (secrets.compare_digest(u, AUTH_USER)
-                and secrets.compare_digest(p, AUTH_PASS))
+        return secrets.compare_digest(u, AUTH_USER) and secrets.compare_digest(p, AUTH_PASS)
     except Exception:
         return False
 
@@ -228,9 +225,17 @@ def _public_page(path: str) -> bool:
     A question of its own because logging out asks it too: the way out lands on the
     page you were on, and "the page you were on" is only somewhere to land if it is
     still somewhere you can look at."""
-    if path in ("/", "/stats", "/browse", "/suggest", "/robots.txt", "/sitemap.xml",
-                "/favicon.ico",
-                "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"):
+    if path in (
+        "/",
+        "/stats",
+        "/browse",
+        "/suggest",
+        "/robots.txt",
+        "/sitemap.xml",
+        "/favicon.ico",
+        "/apple-touch-icon.png",
+        "/apple-touch-icon-precomposed.png",
+    ):
         return True
     # The deploy smoke check and any uptime monitor hit this with no credentials
     # at all -- it must answer before a login is possible, not redirect to one.
@@ -277,8 +282,7 @@ def _public_page(path: str) -> bool:
     if path == "/projects":
         return True
     if path.startswith(("/computers/", "/parts/", "/projects/")):
-        return not (path.endswith(("/new", "/delete"))
-                    or "/edit" in path or "/label.pdf" in path)
+        return not (path.endswith(("/new", "/delete")) or "/edit" in path or "/label.pdf" in path)
     return False
 
 
@@ -291,15 +295,14 @@ async def auth_gate(request: Request, call_next):
     # and docs also accept HTTP Basic for the MCP server and command-line tools.
     has_basic = request.headers.get("authorization", "").startswith("Basic ")
     basic_ok = api_path and has_basic and _check_basic(request)
-    request.state.authed = (not AUTH_ENABLED or _check_cookie(request) or basic_ok)
+    request.state.authed = not AUTH_ENABLED or _check_cookie(request) or basic_ok
     # A wrong Basic credential is a guess at the API's door; rate-limit it as the
     # login form is. Only counted when a Basic header was actually sent and wrong,
     # so ordinary anonymous reads are untouched.
     if AUTH_ENABLED and api_path and has_basic and not basic_ok:
         ip = _client_ip(request)
         if not _login_limiter.check(ip):
-            return Response("Too many failed attempts, try again later",
-                            status_code=429)
+            return Response("Too many failed attempts, try again later", status_code=429)
         _login_limiter.record(ip)
     # Read here so the notice can be left out of the markup altogether once it has
     # been dismissed, rather than shipped on every page and hidden by a script.
@@ -308,8 +311,11 @@ async def auth_gate(request: Request, call_next):
         return await call_next(request)
     if not request.state.authed and not _is_public_read(request):
         if api_path:
-            return Response("Authentication required", status_code=401, headers={
-                "WWW-Authenticate": 'Basic realm="Retro Hardware Database"'})
+            return Response(
+                "Authentication required",
+                status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="Retro Hardware Database"'},
+            )
         return RedirectResponse(f"/login?next={quote(path)}", status_code=303)
     return await call_next(request)
 
@@ -318,9 +324,9 @@ async def auth_gate(request: Request, call_next):
 def gui_login(request: Request, next: str = "/"):
     if request.state.authed:
         return RedirectResponse(_safe_next(next), status_code=303)
-    return templates.TemplateResponse(request, "login.html",
-                                      {"next": _safe_next(next), "error": False,
-                                       "noindex": True})
+    return templates.TemplateResponse(
+        request, "login.html", {"next": _safe_next(next), "error": False, "noindex": True}
+    )
 
 
 @router.post("/login", include_in_schema=False)
@@ -329,23 +335,32 @@ async def gui_do_login(request: Request):
     nxt = _safe_next(form.get("next", "/") or "/")
     ip = _client_ip(request)
     if not _login_limiter.check(ip):
-        return templates.TemplateResponse(request, "login.html",
-                                          {"next": nxt, "error": True,
-                                           "rate_limited": True, "noindex": True},
-                                          status_code=429)
-    ok = (AUTH_ENABLED
-          and secrets.compare_digest(form.get("username", ""), AUTH_USER)
-          and secrets.compare_digest(form.get("password", ""), AUTH_PASS))
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"next": nxt, "error": True, "rate_limited": True, "noindex": True},
+            status_code=429,
+        )
+    ok = (
+        AUTH_ENABLED
+        and secrets.compare_digest(form.get("username", ""), AUTH_USER)
+        and secrets.compare_digest(form.get("password", ""), AUTH_PASS)
+    )
     if not ok:
         _login_limiter.record(ip)
-        return templates.TemplateResponse(request, "login.html",
-                                          {"next": nxt, "error": True, "noindex": True},
-                                          status_code=401)
+        return templates.TemplateResponse(
+            request, "login.html", {"next": nxt, "error": True, "noindex": True}, status_code=401
+        )
     _login_limiter.reset(ip)
     resp = RedirectResponse(nxt, status_code=303)
-    resp.set_cookie(COOKIE, _signer.dumps("ok"), max_age=SESSION_MAX_AGE,
-                    httponly=True, samesite="lax",
-                    secure=request.headers.get("x-forwarded-proto") == "https")
+    resp.set_cookie(
+        COOKIE,
+        _signer.dumps("ok"),
+        max_age=SESSION_MAX_AGE,
+        httponly=True,
+        samesite="lax",
+        secure=request.headers.get("x-forwarded-proto") == "https",
+    )
     return resp
 
 

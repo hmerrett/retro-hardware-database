@@ -123,7 +123,6 @@ SUMMARIES = {
         cheapest way into one, at the cost of the expandability the Risc PC was sold
         on. A useful, unglamorous machine that schools bought by the trolley.
         """,
-
     # --- Amstrad ----------------------------------------------------------
     "cpc-464": """
         The machine that made Amstrad a computer company: a Z80 with the tape deck
@@ -218,7 +217,6 @@ SUMMARIES = {
         Heavier and hungrier for it, and sold in much smaller numbers, so it is the
         harder of the two to find. The drive is usually the part that has failed.
         """,
-
     # --- Amstrad PC -------------------------------------------------------
     "amstrad-pc1512": """
         The machine that broke the price of the PC in Britain. Amstrad sold a complete
@@ -254,7 +252,6 @@ SUMMARIES = {
         having, and the batteries left in the compartment for thirty years are the
         reason to open it before powering it up.
         """,
-
     # --- Apple II ---------------------------------------------------------
     "apple-ii": """
         The machine that created the personal computer market. Wozniak's design does

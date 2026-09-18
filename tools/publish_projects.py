@@ -29,6 +29,7 @@ On the server, with the stack up:
 or from the repo root with RHDB_API pointing at it. Reverse it on any project by
 ticking `private` again on its own form.
 """
+
 import argparse
 import sys
 
@@ -41,17 +42,18 @@ def private_projects():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--write", action="store_true",
-                        help="actually publish (default: say what would change)")
-    parser.add_argument("--only", nargs="*", metavar="RH-XXXX", default=[],
-                        help="only these projects, by asset id")
+    parser.add_argument(
+        "--write", action="store_true", help="actually publish (default: say what would change)"
+    )
+    parser.add_argument(
+        "--only", nargs="*", metavar="RH-XXXX", default=[], help="only these projects, by asset id"
+    )
     rhdb.add_api_arg(parser)
     args = parser.parse_args(argv)
     rhdb.apply_api_arg(args)
 
     wanted = {a.strip().upper() for a in args.only}
-    rows = [p for p in private_projects()
-            if not wanted or p["asset_id"] in wanted]
+    rows = [p for p in private_projects() if not wanted or p["asset_id"] in wanted]
     if not rows:
         print("Nothing private to publish.")
         return 0
@@ -61,8 +63,7 @@ def main(argv=None):
         print(f"\n{len(rows)} project(s) would be published. Re-run with --write.")
         return 0
     for p in rows:
-        rhdb._request("PATCH", f"/api/projects/{p['asset_id']}",
-                      json={"private": False})
+        rhdb._request("PATCH", f"/api/projects/{p['asset_id']}", json={"private": False})
     print(f"\nPublished {len(rows)}.")
     return 0
 

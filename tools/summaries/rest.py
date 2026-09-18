@@ -66,7 +66,6 @@ SUMMARIES = {
         in 1982 and killed by the crash, and quite unlike anything else ever sold for
         the home.
         """,
-
     # --- Spectravideo -----------------------------------------------------
     "svi-318": """
         The machine the MSX standard was built from: Spectravideo's design was close
@@ -80,7 +79,6 @@ SUMMARIES = {
         Together with the 318 it is the direct ancestor of the whole MSX standard,
         which is a considerable thing for a machine so little known.
         """,
-
     # --- Texas Instruments ------------------------------------------------
     "ti-99-4": """
         The first 16-bit home computer, in 1979, and hobbled by nearly every decision
@@ -101,7 +99,6 @@ SUMMARIES = {
         system was meant to connect printers and drives; the drive never shipped, so
         the machine could never save to tape or disc. A capable orphan.
         """,
-
     # --- VTech ------------------------------------------------------------
     "laser-110": """
         VTech's cheapest home computer: 4K, a monochrome display and a chiclet
@@ -158,7 +155,6 @@ SUMMARIES = {
         A keyboard overlay turned it into a BASIC computer. Uncommon, and the Australian
         Dick Smith Wizzard badge is the one most often seen.
         """,
-
     # --- Tandon -----------------------------------------------------------
     "tandon-pca": """
         Tandon's AT-class machine, from the drive maker that supplied half the industry
@@ -177,7 +173,6 @@ SUMMARIES = {
         drawer at night. That security idea was ahead of its time and is what makes the
         machine worth having.
         """,
-
     # --- Opus -------------------------------------------------------------
     "opus-pc-ii": """
         Opus Supplies had made disc drives and expansions for the BBC Micro before
@@ -196,7 +191,6 @@ SUMMARIES = {
         of the eighties. The interest is documentary rather than technical: this is what
         most of Britain's first PCs actually were, and hardly any of them were kept.
         """,
-
     # --- DZT --------------------------------------------------------------
     "book-8088": """
         A new machine, not an old one: a 2023 handheld built around a genuine Intel
@@ -210,7 +204,6 @@ SUMMARIES = {
         real hardware in the palm of your hand, and belongs in a collection as the
         modern end of a story that starts with the 5150.
         """,
-
     # --- Exelvision -------------------------------------------------------
     "exl-100": """
         A French machine built by ex-Texas Instruments engineers around TI's own

@@ -9,6 +9,7 @@ Held apart from the routes because everything writes to it -- an edit, a disposa
 a photograph, a job ticked off -- so a route group cannot leave main while add_log
 is defined there.
 """
+
 import re
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -43,14 +44,17 @@ def add_log(db, asset_id, message, kind="change"):
     """
     if not message and kind != PHOTO_ENTRY:
         return None
-    db.add(row := LogEntry(asset_id=asset_id, created_at=_now(),
-                           kind=kind, message=message))
+    db.add(row := LogEntry(asset_id=asset_id, created_at=_now(), kind=kind, message=message))
     return row
 
 
 def item_log(db, asset_id):
-    return (db.query(LogEntry).filter(LogEntry.asset_id == asset_id)
-            .order_by(LogEntry.created_at.desc(), LogEntry.id.desc()).all())
+    return (
+        db.query(LogEntry)
+        .filter(LogEntry.asset_id == asset_id)
+        .order_by(LogEntry.created_at.desc(), LogEntry.id.desc())
+        .all()
+    )
 
 
 # How far apart two of the same thing can be and still be one sitting. Long enough
@@ -77,9 +81,11 @@ def log_photos(db, log_ids):
     if not log_ids:
         return {}
     out = {}
-    for log_id, rel in (db.query(LogPhoto.log_id, LogPhoto.rel)
-                        .filter(LogPhoto.log_id.in_(log_ids))
-                        .order_by(LogPhoto.id)):
+    for log_id, rel in (
+        db.query(LogPhoto.log_id, LogPhoto.rel)
+        .filter(LogPhoto.log_id.in_(log_ids))
+        .order_by(LogPhoto.id)
+    ):
         out.setdefault(log_id, []).append(rel)
     return out
 
@@ -113,19 +119,35 @@ def _fold_log(entries, photos=None):
     for e in entries:
         last = out[-1] if out else None
         mine = photos.get(e.id) or []
-        if (last is not None and not mine and not last.photos
-                and e.kind != "note" and last.kind == e.kind
-                and last.message == e.message and last.created_at and e.created_at
-                and last.oldest - e.created_at <= FOLD_WINDOW):
+        if (
+            last is not None
+            and not mine
+            and not last.photos
+            and e.kind != "note"
+            and last.kind == e.kind
+            and last.message == e.message
+            and last.created_at
+            and e.created_at
+            and last.oldest - e.created_at <= FOLD_WINDOW
+        ):
             last.count += 1
             last.oldest = e.created_at
             # Every row the one line stands for, so that deleting it removes what it
             # says it is rather than one twentieth of it.
             last.ids.append(e.id)
             continue
-        out.append(SimpleNamespace(id=e.id, created_at=e.created_at, kind=e.kind,
-                                   message=e.message, count=1, photos=mine,
-                                   oldest=e.created_at, ids=[e.id]))
+        out.append(
+            SimpleNamespace(
+                id=e.id,
+                created_at=e.created_at,
+                kind=e.kind,
+                message=e.message,
+                count=1,
+                photos=mine,
+                oldest=e.created_at,
+                ids=[e.id],
+            )
+        )
     # Newest first, so a run's own stamp is the last time it was done; the count in
     # the message says the rest.
     for e in out:
@@ -158,4 +180,4 @@ def _short(v, limit=80):
     v = "" if v is None else str(v).strip()
     if not v:
         return "(empty)"
-    return v if len(v) <= limit else v[:limit - 1] + "…"
+    return v if len(v) <= limit else v[: limit - 1] + "…"

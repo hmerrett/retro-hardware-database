@@ -82,7 +82,6 @@ SUMMARIES = {
         reliable. Linus Torvalds learned on one. It killed Sinclair's credibility in
         business and is now a serious collector's machine.
         """,
-
     # --- Commodore PET ----------------------------------------------------
     "pet-2001": """
         One of the three machines that started personal computing in 1977, and the one
@@ -126,7 +125,6 @@ SUMMARIES = {
         stock was dumped. Interesting as the machine that occupies the gap between
         the PET and the C128, and genuinely uncommon.
         """,
-
     # --- Commodore 8-bit --------------------------------------------------
     "vic-20": """
         The first computer of any kind to sell a million. Commodore aimed it at
@@ -212,7 +210,6 @@ SUMMARIES = {
         America. The missing fan is the reason to keep an eye on temperatures, and the
         plastic case is the reason the metal one is more sought after.
         """,
-
     # --- Commodore Amiga --------------------------------------------------
     "amiga-1000": """
         The original Amiga, and the machine that showed everybody what a home computer
@@ -293,7 +290,6 @@ SUMMARIES = {
         months later. The expansion port takes a module that turns it back into a
         computer. Wanted both as a console and as the end of Commodore.
         """,
-
     # --- Commodore PC -----------------------------------------------------
     "commodore-pc-10": """
         Commodore building somebody else's architecture: a straightforward XT clone
@@ -326,7 +322,6 @@ SUMMARIES = {
         afterthought beside the Amiga and it sold accordingly. Worth having as the
         high-water mark of a line most people do not know existed.
         """,
-
     # --- Atari 8-bit ------------------------------------------------------
     "atari-400": """
         The cheap half of Atari's 1979 launch, and a machine designed by people who
@@ -380,7 +375,6 @@ SUMMARIES = {
         complete Atari 8-bit computer underneath, keyboard and all. Collected for the
         look as much as the machine.
         """,
-
     # --- Atari consoles ---------------------------------------------------
     "atari-2600": """
         The console that created the industry. A 6507 with 128 bytes of RAM and no
@@ -417,7 +411,6 @@ SUMMARIES = {
         hardware company. The Tempest 2000 soundtrack and the sheer strangeness of the
         design are the reasons to own one.
         """,
-
     # --- Atari ST ---------------------------------------------------------
     "atari-520st": """
         Built in under a year by Tramiel's Atari to beat the Amiga to market, and it

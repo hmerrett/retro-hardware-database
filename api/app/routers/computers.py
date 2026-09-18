@@ -1,5 +1,6 @@
 """The pages of a machine: its own page, its form, its photographs, and what is
 fitted inside it."""
+
 from .. import machines
 from ..assets import _bezel_ctx, _machine_ctx
 from ..pages import _datalists
@@ -52,27 +53,51 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from .. import drivedb, entry, filesdb, labels, machinedb, projects, specdb
-from ..assets import (COMPUTER_DIFF_FIELDS, COMPUTER_FIELDS, DERIVED_FIELDS, DUP_EXCLUDE,
-                      _attach_photos, _confirms_url,
-                      _delete_ctx, _do_photo_crop, _do_photo_revert, _do_photo_rotate,
-                      _do_photo_tuneup, _machine_from_form, _machine_page,
-                      _require_disposed, _set_for_sale, _work_from_form, delete_computer,
-                      part_thumbs)
+from ..assets import (
+    COMPUTER_DIFF_FIELDS,
+    COMPUTER_FIELDS,
+    DERIVED_FIELDS,
+    DUP_EXCLUDE,
+    _attach_photos,
+    _confirms_url,
+    _delete_ctx,
+    _do_photo_crop,
+    _do_photo_revert,
+    _do_photo_rotate,
+    _do_photo_tuneup,
+    _machine_from_form,
+    _machine_page,
+    _require_disposed,
+    _set_for_sale,
+    _work_from_form,
+    delete_computer,
+    part_thumbs,
+)
 from ..common import to_dict
 from ..db import get_db
-from ..disposal import (_and_parts, _disposal_log, _dispose_contents, _restore_contents)
+from ..disposal import _and_parts, _disposal_log, _dispose_contents, _restore_contents
 from ..forms import _coerce, _field_diffs, _parse_date
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import Computer, Part, StoredFile
 from ..pages import _answers_given, _note_with_photos
-from ..photos import (_chosen_photos, _delete_image, _fetch_reference_photo,
-                      _mark_reference, _photo_edit_redirect, _save_photo,
-                      _set_primary_photo, detect_images, reference_marks, tuned_photos)
+from ..photos import (
+    _chosen_photos,
+    _delete_image,
+    _fetch_reference_photo,
+    _mark_reference,
+    _photo_edit_redirect,
+    _save_photo,
+    _set_primary_photo,
+    detect_images,
+    reference_marks,
+    tuned_photos,
+)
 from ..register import _change_token, _item_nav, get_or_404
 from ..web import _dot, _jsonld, _og, _safe_next, templates
 
 from .. import ramdb
+
 
 def _board_out_of(db, c):
     """The machine's catalogue identity, if a board can be lifted out of it -- or a
@@ -89,16 +114,20 @@ def _board_out_of(db, c):
     v = machinedb.read(db, c)
     if not v["model_key"]:
         raise HTTPException(
-            400, f"{c.asset_id} is not a catalogue machine, so it has no board "
-                 f"issue and no chips to move onto one. A PC's board is entered as "
-                 f"a part in the ordinary way.")
-    fitted = (db.query(Part)
-              .filter(Part.computer_id == c.asset_id,
-                      Part.type == "motherboard").first())
+            400,
+            f"{c.asset_id} is not a catalogue machine, so it has no board "
+            f"issue and no chips to move onto one. A PC's board is entered as "
+            f"a part in the ordinary way.",
+        )
+    fitted = (
+        db.query(Part).filter(Part.computer_id == c.asset_id, Part.type == "motherboard").first()
+    )
     if fitted is not None:
         raise HTTPException(
-            400, f"{c.asset_id} already has board {fitted.asset_id} linked to it. "
-                 f"A machine has one board.")
+            400,
+            f"{c.asset_id} already has board {fitted.asset_id} linked to it. "
+            f"A machine has one board.",
+        )
     return v
 
 
@@ -109,17 +138,28 @@ def _computer_form_ctx(c, title, db=None):
         free = entry.fmt_kb(c.installed_ram_kb)
     drives = drivedb.read(db, c) if (c is not None and db is not None) else []
     blanks = max(2, MAX_DRIVE_ROWS - len(drives))
-    return {"c": c, "conditions": entry.CONDITIONS, "title": title,
-            "ram_modules": entry.RAM_MODULES, "ram_mod_counts": dict(mods),
-            "ram_chips": entry.RAM_CHIPS, "ram_counts": dict(chips),
-            "ram_free": free, "drives": drives + [{}] * blanks,
-            "drive_kinds": drivedb.KINDS, "drive_forms": drivedb.FORM_FACTORS,
-            "drive_sizes": drivedb.SIZES, "drive_media": drivedb.MEDIA,
-            "drive_speeds": drivedb.SPEEDS, **_bezel_ctx(), **_machine_ctx(c, db),
-            # The projects in hand, for the work box at the foot of the form.
-            "work_projects": projects.open_projects(db) if db is not None else [],
-            "dl": _datalists(db, computer=True) if db is not None else {},
-            **_boardparts_ctx(db, c)}
+    return {
+        "c": c,
+        "conditions": entry.CONDITIONS,
+        "title": title,
+        "ram_modules": entry.RAM_MODULES,
+        "ram_mod_counts": dict(mods),
+        "ram_chips": entry.RAM_CHIPS,
+        "ram_counts": dict(chips),
+        "ram_free": free,
+        "drives": drives + [{}] * blanks,
+        "drive_kinds": drivedb.KINDS,
+        "drive_forms": drivedb.FORM_FACTORS,
+        "drive_sizes": drivedb.SIZES,
+        "drive_media": drivedb.MEDIA,
+        "drive_speeds": drivedb.SPEEDS,
+        **_bezel_ctx(),
+        **_machine_ctx(c, db),
+        # The projects in hand, for the work box at the foot of the form.
+        "work_projects": projects.open_projects(db) if db is not None else [],
+        "dl": _datalists(db, computer=True) if db is not None else {},
+        **_boardparts_ctx(db, c),
+    }
 
 
 def _detach_ctx(db, c, v):
@@ -128,16 +168,31 @@ def _detach_ctx(db, c, v):
     Read through the catalogue's current words, exactly as _machine_page reads the
     panel this was picked from, so the page names what is about to move in the same
     language it was recorded in."""
-    return {"c": c, "aid": c.asset_id, "name": entry.display_name(to_dict(c)),
-            "model": machines.full_name(v["model_key"]),
-            "issue_label": machines.ISSUE_KEY, "issue": v["issue"],
-            "chips": [{"label": machines.chip_label(v["model_key"], role),
-                       "variant": variant, "socketed": v["sockets"].get(role)}
-                      for role, variant in v["chips"].items()],
-            "staying": [(label, value) for label, value in
-                        ((machines.STYLE_KEY, v["style"]),
-                         (machines.REGION_KEY, v["region"])) if value],
-            "noindex": True}
+    return {
+        "c": c,
+        "aid": c.asset_id,
+        "name": entry.display_name(to_dict(c)),
+        "model": machines.full_name(v["model_key"]),
+        "issue_label": machines.ISSUE_KEY,
+        "issue": v["issue"],
+        "chips": [
+            {
+                "label": machines.chip_label(v["model_key"], role),
+                "variant": variant,
+                "socketed": v["sockets"].get(role),
+            }
+            for role, variant in v["chips"].items()
+        ],
+        "staying": [
+            (label, value)
+            for label, value in (
+                (machines.STYLE_KEY, v["style"]),
+                (machines.REGION_KEY, v["region"]),
+            )
+            if value
+        ],
+        "noindex": True,
+    }
 
 
 def _drives_from_form(form):
@@ -145,9 +200,19 @@ def _drives_from_form(form):
     clearing a row's fields is how a drive is removed."""
     out = []
     for i in range(MAX_DRIVE_ROWS):
-        row = {k: (form.get(f"drive{i}_{k}", "") or "").strip()
-               for k in ("kind", "form_factor", "size", "media", "speed",
-                         "model", "colour", "yellowing")}
+        row = {
+            k: (form.get(f"drive{i}_{k}", "") or "").strip()
+            for k in (
+                "kind",
+                "form_factor",
+                "size",
+                "media",
+                "speed",
+                "model",
+                "colour",
+                "yellowing",
+            )
+        }
         if not any(row.values()):
             continue
         count = (form.get(f"drive{i}_count", "") or "").strip()
@@ -182,17 +247,26 @@ def _boardparts_ctx(db, c):
     parts = db.query(Part).filter(Part.computer_id == c.asset_id).all()
     if parts:
         return {}
-    return {"boardparts": True, "motherboard": None, "parts": [],
-            "card_steps": entry.CARD_STEPS,
-            "free_boards": (db.query(Part)
-                            .filter(Part.type == "motherboard",
-                                    Part.computer_id.is_(None))
-                            .order_by(Part.asset_id).all()),
-            "link_candidates": (db.query(Part)
-                                .filter(Part.type != "motherboard",
-                                        Part.computer_id.is_(None),
-                                        Part.parent_id.is_(None))
-                                .order_by(Part.type, Part.asset_id).all())}
+    return {
+        "boardparts": True,
+        "motherboard": None,
+        "parts": [],
+        "card_steps": entry.CARD_STEPS,
+        "free_boards": (
+            db.query(Part)
+            .filter(Part.type == "motherboard", Part.computer_id.is_(None))
+            .order_by(Part.asset_id)
+            .all()
+        ),
+        "link_candidates": (
+            db.query(Part)
+            .filter(
+                Part.type != "motherboard", Part.computer_id.is_(None), Part.parent_id.is_(None)
+            )
+            .order_by(Part.type, Part.asset_id)
+            .all()
+        ),
+    }
 
 
 def _grid_counts(form, prefix, items):
@@ -214,8 +288,9 @@ def gui_new_computer(request: Request, db: Session = Depends(get_db)):
     # With a session, because the catalogue's pickers offer what other machines have
     # already been found to have as well as what the catalogue names -- and the form
     # for a machine being entered for the first time is where that matters most.
-    return templates.TemplateResponse(request, "computer_form.html",
-                                      _computer_form_ctx(None, "New computer", db))
+    return templates.TemplateResponse(
+        request, "computer_form.html", _computer_form_ctx(None, "New computer", db)
+    )
 
 
 @router.post("/computers/new", include_in_schema=False)
@@ -224,8 +299,9 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     photos = _chosen_photos(form)
     # Everything the child tables render is left to them, as the edit path does: the
     # form's own installed_ram and drive fields are read by ramdb and drivedb below.
-    data = {k: _coerce(k, form[k]) for k in COMPUTER_FIELDS
-            if k in form and k not in DERIVED_FIELDS}
+    data = {
+        k: _coerce(k, form[k]) for k in COMPUTER_FIELDS if k in form and k not in DERIVED_FIELDS
+    }
     for f in ("manufacturer", "model"):
         if f in data:
             data[f] = entry.deshout(data[f])
@@ -233,8 +309,7 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
     db.add(obj)
     db.flush()
     ramdb.write(db, obj, *_ram_from_form(form))
-    drivedb.write(db, obj, _drives_from_form(form),
-                  (form.get("drives_note", "") or "").strip())
+    drivedb.write(db, obj, _drives_from_form(form), (form.get("drives_note", "") or "").strip())
     if (mach := _machine_from_form(form)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
@@ -250,81 +325,107 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/computers/{aid}", response_class=HTMLResponse, include_in_schema=False)
-def gui_computer(aid: str, request: Request, build: int = 0, imgerr: int = 0,
-                 fileerr: int = 0, db: Session = Depends(get_db)):
+def gui_computer(
+    aid: str,
+    request: Request,
+    build: int = 0,
+    imgerr: int = 0,
+    fileerr: int = 0,
+    db: Session = Depends(get_db),
+):
     c = get_or_404(db, Computer, aid)
     parts = db.query(Part).filter(Part.computer_id == aid).all()
-    parts.sort(key=lambda p: (entry.type_sort_key(p.type or ""),
-                              entry.display_name(to_dict(p))))
+    parts.sort(key=lambda p: (entry.type_sort_key(p.type or ""), entry.display_name(to_dict(p))))
     motherboard = next((p for p in parts if p.type == "motherboard"), None)
     # Unlinked boards that could be linked to this machine.
     free_boards, link_candidates = [], []
     if request.state.authed:
-        free_boards = (db.query(Part)
-                       .filter(Part.type == "motherboard",
-                               Part.computer_id.is_(None))
-                       .order_by(Part.asset_id).all())
-        link_candidates = (db.query(Part)
-                           .filter(Part.type != "motherboard",
-                                   Part.computer_id.is_(None),
-                                   Part.parent_id.is_(None))
-                           .order_by(Part.type, Part.asset_id).all())
+        free_boards = (
+            db.query(Part)
+            .filter(Part.type == "motherboard", Part.computer_id.is_(None))
+            .order_by(Part.asset_id)
+            .all()
+        )
+        link_candidates = (
+            db.query(Part)
+            .filter(
+                Part.type != "motherboard", Part.computer_id.is_(None), Part.parent_id.is_(None)
+            )
+            .order_by(Part.type, Part.asset_id)
+            .all()
+        )
     images = detect_images("computers", aid)
-    blurb = c.summary or _dot(" ".join(x for x in (c.manufacturer, c.model, str(c.year or "")) if x),
-                              c.cpu, c.condition)
+    blurb = c.summary or _dot(
+        " ".join(x for x in (c.manufacturer, c.model, str(c.year or "")) if x), c.cpu, c.condition
+    )
     # Form factor is a property of the board, shown on the machine -- which is
     # what the part form promises ("the computer's form factor is taken from
     # here"). Read it from the typed column rather than re-parsing the string.
-    form_factor = (specdb.scalars(db, motherboard).get("form_factor", "")
-                   if motherboard else "")
+    form_factor = specdb.scalars(db, motherboard).get("form_factor", "") if motherboard else ""
     # Whether a board can be lifted out of this machine, worked out from what the
     # page has already read rather than by asking again: a machine the catalogue
     # names, with no board linked to it yet. _board_out_of is the same two conditions
     # at the door, so the button and the route cannot disagree.
     machine = _machine_page(db, c)
-    detachable = bool(request.state.authed and machine and machine["key"]
-                      and motherboard is None)
-    return templates.TemplateResponse(request, "computer.html", {
-        "machine": machine, "detachable": detachable,
-        "item": (cdict := to_dict(c)), "kind": "computers",
-        "files": filesdb.for_item(db, cdict, request.state.authed),
-        "file_models": filesdb.model_ids_for(db, cdict),
-        "fileerr": bool(fileerr),
-        "dl_filenotes": _answers_given(db, StoredFile.note),
-        "on_project": (found := projects.project_for(db, aid,
-                                                     request.state.authed)),
-        "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
-        "project_tasks": (projects.project_wide_tasks(db, found.asset_id)
-                          if found is not None else []),
-        # For the picker in that panel, which only an owner is shown -- so a
-        # visitor's page does not ask the question at all.
-        "work_projects": (projects.open_projects(db) if request.state.authed
-                          else []),
-        "c": c, "parts": [p for p in parts if p is not motherboard],
-        "motherboard": motherboard, "form_factor": form_factor,
-        # A picture for each of them, read once for the page rather than per card.
-        "thumbs": part_thumbs(db, parts),
-        "free_boards": free_boards,
-        "link_candidates": link_candidates, "images": images,
-        # The drawing to stand in for a photograph nobody has taken yet -- the same
-        # one the gallery card for this item is already wearing, so the two places
-        # it appears agree about what it is a picture of.
-        "placeholder": entry.placeholder_for("computer"),
-        "ref_marks": reference_marks("computers", aid),
-        "tuned": tuned_photos("computers", aid),
-        "card_steps": entry.CARD_STEPS, "build": bool(build), "imgerr": bool(imgerr),
-        "log": _history(db, aid), "nav": _item_nav(db, aid),
-        "live_aid": aid, "live_v": _change_token(db, aid),
-        "og": (og := _og(request, entry.display_name(to_dict(c)), blurb,
-                         images[0] if images else None)),
-        "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer")})
+    detachable = bool(request.state.authed and machine and machine["key"] and motherboard is None)
+    return templates.TemplateResponse(
+        request,
+        "computer.html",
+        {
+            "machine": machine,
+            "detachable": detachable,
+            "item": (cdict := to_dict(c)),
+            "kind": "computers",
+            "files": filesdb.for_item(db, cdict, request.state.authed),
+            "file_models": filesdb.model_ids_for(db, cdict),
+            "fileerr": bool(fileerr),
+            "dl_filenotes": _answers_given(db, StoredFile.note),
+            "on_project": (found := projects.project_for(db, aid, request.state.authed)),
+            "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
+            "project_tasks": (
+                projects.project_wide_tasks(db, found.asset_id) if found is not None else []
+            ),
+            # For the picker in that panel, which only an owner is shown -- so a
+            # visitor's page does not ask the question at all.
+            "work_projects": (projects.open_projects(db) if request.state.authed else []),
+            "c": c,
+            "parts": [p for p in parts if p is not motherboard],
+            "motherboard": motherboard,
+            "form_factor": form_factor,
+            # A picture for each of them, read once for the page rather than per card.
+            "thumbs": part_thumbs(db, parts),
+            "free_boards": free_boards,
+            "link_candidates": link_candidates,
+            "images": images,
+            # The drawing to stand in for a photograph nobody has taken yet -- the same
+            # one the gallery card for this item is already wearing, so the two places
+            # it appears agree about what it is a picture of.
+            "placeholder": entry.placeholder_for("computer"),
+            "ref_marks": reference_marks("computers", aid),
+            "tuned": tuned_photos("computers", aid),
+            "card_steps": entry.CARD_STEPS,
+            "build": bool(build),
+            "imgerr": bool(imgerr),
+            "log": _history(db, aid),
+            "nav": _item_nav(db, aid),
+            "live_aid": aid,
+            "live_v": _change_token(db, aid),
+            "og": (
+                og := _og(
+                    request, entry.display_name(to_dict(c)), blurb, images[0] if images else None
+                )
+            ),
+            "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer"),
+        },
+    )
 
 
 @router.get("/computers/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
 def gui_edit_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    return templates.TemplateResponse(request, "computer_form.html",
-                                      _computer_form_ctx(c, f"Edit {aid}", db))
+    return templates.TemplateResponse(
+        request, "computer_form.html", _computer_form_ctx(c, f"Edit {aid}", db)
+    )
 
 
 @router.post("/computers/{aid}/edit", include_in_schema=False)
@@ -343,12 +444,10 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
         setattr(c, k, v)
     mods, chips, note, total_kb = _ram_from_form(form)
     ramdb.write(db, c, mods, chips, note, total_kb)
-    drivedb.write(db, c, _drives_from_form(form),
-                  (form.get("drives_note", "") or "").strip())
+    drivedb.write(db, c, _drives_from_form(form), (form.get("drives_note", "") or "").strip())
     if (mach := _machine_from_form(form)) is not None:
         machinedb.write(db, c, **mach)
-    diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS},
-                        COMPUTER_DIFF_FIELDS)
+    diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS}, COMPUTER_DIFF_FIELDS)
     if diff:
         add_log(db, aid, diff)
     _work_from_form(db, c, form)
@@ -357,8 +456,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
 
 
 @router.post("/computers/{aid}/link-motherboard", include_in_schema=False)
-async def gui_link_motherboard(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
+async def gui_link_motherboard(aid: str, request: Request, db: Session = Depends(get_db)):
     get_or_404(db, Computer, aid)
     form = await request.form()
     pid = form.get("part_id", "") or ""
@@ -391,18 +489,16 @@ async def gui_link_part(aid: str, request: Request, db: Session = Depends(get_db
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
 
-@router.get("/computers/{aid}/detach-board", response_class=HTMLResponse,
-         include_in_schema=False)
-def gui_detach_board_form(aid: str, request: Request,
-                          db: Session = Depends(get_db)):
+@router.get("/computers/{aid}/detach-board", response_class=HTMLResponse, include_in_schema=False)
+def gui_detach_board_form(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
-    return templates.TemplateResponse(request, "detach.html",
-                                      _detach_ctx(db, c, _board_out_of(db, c)))
+    return templates.TemplateResponse(
+        request, "detach.html", _detach_ctx(db, c, _board_out_of(db, c))
+    )
 
 
 @router.post("/computers/{aid}/detach-board", include_in_schema=False)
-async def gui_detach_board(aid: str, request: Request,
-                           db: Session = Depends(get_db)):
+async def gui_detach_board(aid: str, request: Request, db: Session = Depends(get_db)):
     """Make the board in this machine an object of its own.
 
     The identity move is a rewrite inside the two catalogue tables rather than a
@@ -428,13 +524,24 @@ async def gui_detach_board(aid: str, request: Request,
     # Nothing else does: the condition of a board out of a working machine, where it
     # came from and what it cost are its own answers now, and the machine's history
     # is where it came from.
-    board = Part(asset_id=next_asset_id(db), type="motherboard", computer_id=aid,
-                 manufacturer=c.manufacturer, model=c.model)
+    board = Part(
+        asset_id=next_asset_id(db),
+        type="motherboard",
+        computer_id=aid,
+        manufacturer=c.manufacturer,
+        model=c.model,
+    )
     db.add(board)
     db.flush()
     specdb.write(db, board)
-    machinedb.write(db, board, model_key=v["model_key"], issue=v["issue"],
-                    chips=v["chips"], sockets=v["sockets"])
+    machinedb.write(
+        db,
+        board,
+        model_key=v["model_key"],
+        issue=v["issue"],
+        chips=v["chips"],
+        sockets=v["sockets"],
+    )
     # Blanked, not cleared: clear() would take the model with it, and this machine is
     # still a Spectrum. The style and the region are not touched at all -- the form
     # never asked them of the board and the case did not go anywhere.
@@ -451,8 +558,7 @@ async def gui_detach_board(aid: str, request: Request,
 
 
 @router.post("/computers/{aid}/dispose", include_in_schema=False)
-async def gui_dispose_computer(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
+async def gui_dispose_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     form = await request.form()
     c.disposed = True
@@ -468,8 +574,7 @@ async def gui_dispose_computer(aid: str, request: Request,
 
 
 @router.post("/computers/{aid}/for-sale", include_in_schema=False)
-async def gui_computer_for_sale(aid: str, request: Request,
-                                db: Session = Depends(get_db)):
+async def gui_computer_for_sale(aid: str, request: Request, db: Session = Depends(get_db)):
     return await _set_for_sale(db, Computer, aid, request)
 
 
@@ -490,13 +595,13 @@ def gui_restore_computer(aid: str, db: Session = Depends(get_db)):
 def gui_delete_computer_form(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     _require_disposed(c, "computer")
-    return templates.TemplateResponse(request, "delete.html",
-                                      _delete_ctx(request, db, "computers", c))
+    return templates.TemplateResponse(
+        request, "delete.html", _delete_ctx(request, db, "computers", c)
+    )
 
 
 @router.post("/computers/{aid}/delete", include_in_schema=False)
-async def gui_delete_computer(aid: str, request: Request,
-                              db: Session = Depends(get_db)):
+async def gui_delete_computer(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     _require_disposed(c, "computer")
     form = await request.form()
@@ -505,10 +610,18 @@ async def gui_delete_computer(aid: str, request: Request,
         # Back to the page rather than an error: a paste that went wrong is the
         # ordinary way to arrive here, and the tick keeps whatever it was set to.
         return templates.TemplateResponse(
-            request, "delete.html",
-            _delete_ctx(request, db, "computers", c, with_parts=with_parts,
-                        error="That is not this item's URL. Nothing was deleted."),
-            status_code=400)
+            request,
+            "delete.html",
+            _delete_ctx(
+                request,
+                db,
+                "computers",
+                c,
+                with_parts=with_parts,
+                error="That is not this item's URL. Nothing was deleted.",
+            ),
+            status_code=400,
+        )
     ctx = _delete_ctx(request, db, "computers", c, with_parts=with_parts)
     delete_computer(db, c, with_parts=ctx["deletable"] if with_parts else ())
     return RedirectResponse("/", status_code=303)
@@ -522,8 +635,9 @@ async def gui_computer_note(aid: str, request: Request, db: Session = Depends(ge
 
 
 @router.post("/computers/{aid}/photo", include_in_schema=False)
-async def gui_computer_photo(aid: str, photos: list[UploadFile] = File(...),
-                             db: Session = Depends(get_db)):
+async def gui_computer_photo(
+    aid: str, photos: list[UploadFile] = File(...), db: Session = Depends(get_db)
+):
     c = get_or_404(db, Computer, aid)
     first = None
     n = 0
@@ -550,13 +664,11 @@ def gui_computer_fetch_image(aid: str, db: Session = Depends(get_db)):
             c.image = rel
         add_log(db, aid, "fetched a photo from the reference")
         db.commit()
-    return RedirectResponse(f"/computers/{aid}" + ("" if rel else "?imgerr=1"),
-                            status_code=303)
+    return RedirectResponse(f"/computers/{aid}" + ("" if rel else "?imgerr=1"), status_code=303)
 
 
 @router.post("/computers/{aid}/primary-photo", include_in_schema=False)
-async def gui_computer_primary(aid: str, request: Request,
-                               db: Session = Depends(get_db)):
+async def gui_computer_primary(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     form = await request.form()
     c.image = _set_primary_photo("computers", aid, form.get("image", ""))
@@ -566,8 +678,7 @@ async def gui_computer_primary(aid: str, request: Request,
 
 
 @router.post("/computers/{aid}/photo-delete", include_in_schema=False)
-async def gui_computer_photo_delete(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
+async def gui_computer_photo_delete(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     form = await request.form()
     was_primary, new_primary = _delete_image("computers", aid, form.get("image", ""))
@@ -579,8 +690,7 @@ async def gui_computer_photo_delete(aid: str, request: Request,
 
 
 @router.post("/computers/{aid}/photo-reference", include_in_schema=False)
-async def gui_computer_photo_reference(aid: str, request: Request,
-                                       db: Session = Depends(get_db)):
+async def gui_computer_photo_reference(aid: str, request: Request, db: Session = Depends(get_db)):
     c = get_or_404(db, Computer, aid)
     form = await request.form()
     rel = form.get("image", "")
@@ -588,8 +698,9 @@ async def gui_computer_photo_reference(aid: str, request: Request,
         raise HTTPException(404, "no such photo for this item")
     on = form.get("set", "1") == "1"
     _mark_reference(rel, on, (form.get("note", "") or "").strip(), c.url or "")
-    add_log(db, aid, "flagged a photo as a reference image" if on
-            else "unflagged a reference photo")
+    add_log(
+        db, aid, "flagged a photo as a reference image" if on else "unflagged a reference photo"
+    )
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
@@ -600,39 +711,31 @@ def gui_computer_edit_photo(aid: str, image: str = ""):
 
 
 @router.post("/computers/{aid}/photo-rotate", include_in_schema=False)
-async def gui_computer_photo_rotate(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
+async def gui_computer_photo_rotate(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_rotate(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
 @router.post("/computers/{aid}/photo-tuneup", include_in_schema=False)
-async def gui_computer_photo_tuneup(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
+async def gui_computer_photo_tuneup(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_tuneup(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
 @router.post("/computers/{aid}/photo-revert", include_in_schema=False)
-async def gui_computer_photo_revert(aid: str, request: Request,
-                                    db: Session = Depends(get_db)):
+async def gui_computer_photo_revert(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_revert(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
 @router.post("/computers/{aid}/photo-crop", include_in_schema=False)
-async def gui_computer_photo_crop(aid: str, request: Request,
-                                  db: Session = Depends(get_db)):
+async def gui_computer_photo_crop(aid: str, request: Request, db: Session = Depends(get_db)):
     form = await request.form()
     _do_photo_crop(db, Computer, "computers", aid, form)
-    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"),
-                            status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
 @router.get("/computers/{aid}/label.pdf", include_in_schema=False)
@@ -646,11 +749,17 @@ def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)):
         d["spec_pairs"] = specdb.pairs(db, p, display=True)
         rows.append(d)
     pdf = labels.render_pdf(
-        to_dict(c), rows, labels.COMPUTER, small=bool(small),
-        form_factor=(specdb.scalars(db, board).get("form_factor", "")
-                     if board else ""))
-    return Response(pdf, media_type="application/pdf", headers={
-        "Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'})
+        to_dict(c),
+        rows,
+        labels.COMPUTER,
+        small=bool(small),
+        form_factor=(specdb.scalars(db, board).get("form_factor", "") if board else ""),
+    )
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{aid}{"-small" if small else ""}.pdf"'},
+    )
 
 
 @router.post("/computers/{aid}/duplicate", include_in_schema=False)
@@ -662,14 +771,16 @@ def gui_duplicate_computer(aid: str, db: Session = Depends(get_db)):
     board issue and the chips do not, because those are found by opening this
     machine rather than the one it was copied from."""
     src = get_or_404(db, Computer, aid)
-    data = {k: getattr(src, k) for k in COMPUTER_FIELDS
-            if k not in DUP_EXCLUDE and k not in DERIVED_FIELDS}
+    data = {
+        k: getattr(src, k)
+        for k in COMPUTER_FIELDS
+        if k not in DUP_EXCLUDE and k not in DERIVED_FIELDS
+    }
     obj = Computer(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()
     mods, chips = ramdb.read(db, src)
-    ramdb.write(db, obj, mods, chips, src.installed_ram_note or "",
-                src.installed_ram_kb)
+    ramdb.write(db, obj, mods, chips, src.installed_ram_note or "", src.installed_ram_kb)
     drivedb.write(db, obj, drivedb.read(db, src), src.drives_note or "")
     machinedb.duplicated_from(db, src, obj)
     add_log(db, obj.asset_id, f"created as a duplicate of {aid}", kind="created")

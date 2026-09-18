@@ -9,6 +9,7 @@ Point it at the API with, in order of precedence: --api on the command line
 (scripts set RHDB_API before importing), the RHDB_API env var, config.yml's
 api_url, else http://localhost:8000.
 """
+
 from __future__ import annotations
 
 import os
@@ -24,22 +25,56 @@ CONFIG_PATH = BASE_DIR / "config.yml"
 TIMEOUT = 30
 
 PART_COLUMNS = [
-    "asset_id", "computer_id", "type", "manufacturer", "model", "name",
-    "year", "specs", "condition", "source", "acquired_date",
-    "image", "url", "summary", "notes", "disposed", "disk_image",
+    "asset_id",
+    "computer_id",
+    "type",
+    "manufacturer",
+    "model",
+    "name",
+    "year",
+    "specs",
+    "condition",
+    "source",
+    "acquired_date",
+    "image",
+    "url",
+    "summary",
+    "notes",
+    "disposed",
+    "disk_image",
 ]
 
 TYPE_ORDER = [
-    "motherboard", "cpu", "ram", "video", "sound", "network", "io",
-    "storage", "display", "cooler", "peripheral", "other",
+    "motherboard",
+    "cpu",
+    "ram",
+    "video",
+    "sound",
+    "network",
+    "io",
+    "storage",
+    "display",
+    "cooler",
+    "peripheral",
+    "other",
 ]
 
 TYPE_LABELS = {
-    "motherboard": "Motherboard", "cpu": "CPU", "ram": "Memory", "video": "Video",
-    "sound": "Sound", "network": "Network", "io": "I/O", "storage": "Storage",
+    "motherboard": "Motherboard",
+    "cpu": "CPU",
+    "ram": "Memory",
+    "video": "Video",
+    "sound": "Sound",
+    "network": "Network",
+    "io": "I/O",
+    "storage": "Storage",
     "display": "Display",
-    "optical": "Optical drive", "floppy": "Floppy drive", "psu": "Power supply",
-    "cooler": "Cooling", "peripheral": "Peripheral", "other": "Other",
+    "optical": "Optical drive",
+    "floppy": "Floppy drive",
+    "psu": "Power supply",
+    "cooler": "Cooling",
+    "peripheral": "Peripheral",
+    "other": "Other",
 }
 
 
@@ -57,8 +92,7 @@ def load_config() -> dict:
 
 
 def api_base() -> str:
-    url = (os.getenv("RHDB_API") or load_config().get("api_url")
-           or "http://localhost:8000")
+    url = os.getenv("RHDB_API") or load_config().get("api_url") or "http://localhost:8000"
     return url.rstrip("/")
 
 
@@ -73,9 +107,11 @@ def api_auth():
 
 # --- HTTP / data access ----------------------------------------------------
 
+
 def _request(method, path, **kwargs):
-    resp = requests.request(method, f"{api_base()}{path}", timeout=TIMEOUT,
-                            auth=api_auth(), **kwargs)
+    resp = requests.request(
+        method, f"{api_base()}{path}", timeout=TIMEOUT, auth=api_auth(), **kwargs
+    )
     if resp.status_code >= 400:
         raise RuntimeError(f"API {method} {path} -> {resp.status_code}: {resp.text}")
     return resp.json()
@@ -103,12 +139,12 @@ def create_part(fields: dict) -> dict:
 
 # --- pure helpers (verbatim from the flat-file common.py) ------------------
 
+
 def display_name(row: dict) -> str:
     """Best human label: explicit name, else manufacturer + model, else id."""
     if row.get("name"):
         return row["name"]
-    joined = " ".join(p for p in (row.get("manufacturer", ""),
-                                  row.get("model", "")) if p).strip()
+    joined = " ".join(p for p in (row.get("manufacturer", ""), row.get("model", "")) if p).strip()
     return joined or row.get("asset_id", "")
 
 
@@ -157,8 +193,9 @@ def item_url(config: dict, asset_id: str) -> str:
 def add_api_arg(parser):
     """Give a script a --api flag; when passed, it wins over env/config by
     setting RHDB_API before any request is made."""
-    parser.add_argument("--api", default="",
-                        help="REST API base URL (default: RHDB_API / config api_url)")
+    parser.add_argument(
+        "--api", default="", help="REST API base URL (default: RHDB_API / config api_url)"
+    )
 
 
 def apply_api_arg(args):

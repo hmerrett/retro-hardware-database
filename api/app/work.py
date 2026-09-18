@@ -5,6 +5,7 @@ the register and jobs against them. Those links are read from three directions -
 the project's own page, the page of a thing it is about, and the JSON API -- so
 they are here rather than in any one of them.
 """
+
 from fastapi import HTTPException
 
 from . import entry, projects
@@ -35,8 +36,16 @@ def _project_named(p):
     return f"{p.name or 'a project'} ({p.asset_id})"
 
 
-PROJECT_FIELDS = ("name", "status", "summary", "notes",
-                  "started_at", "target_date", "finished_at", "private")
+PROJECT_FIELDS = (
+    "name",
+    "status",
+    "summary",
+    "notes",
+    "started_at",
+    "target_date",
+    "finished_at",
+    "private",
+)
 
 
 def _asset_named(db, asset_id):
@@ -74,8 +83,15 @@ def _member_log(db, project, asset_id, joining=True):
     for a project that changes its mind."""
     if project.private:
         return
-    add_log(db, asset_id, (f"wanted for {_project_named(project)}" if joining
-                           else f"no longer wanted for {_project_named(project)}"))
+    add_log(
+        db,
+        asset_id,
+        (
+            f"wanted for {_project_named(project)}"
+            if joining
+            else f"no longer wanted for {_project_named(project)}"
+        ),
+    )
 
 
 def _work_project_name(db, asset_id):
@@ -138,9 +154,12 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
     if project is None:
         project = held
     if project is None:
-        project = Project(asset_id=next_asset_id(db),
-                          name=(name or _work_project_name(db, asset_id))[:255],
-                          status="planned", private=False)
+        project = Project(
+            asset_id=next_asset_id(db),
+            name=(name or _work_project_name(db, asset_id))[:255],
+            status="planned",
+            private=False,
+        )
         db.add(project)
         add_log(db, project.asset_id, "created", "created")
     if asset_id and projects.add_asset(db, project.asset_id, asset_id):
@@ -148,15 +167,17 @@ def _take_on_work(db, asset_id, jobs, project=None, name=""):
             # Said on the project losing it too. A thing leaving is as much a fact
             # about the old project as arriving is about the new one, and the old
             # one's history is where somebody will look for where it went.
-            add_log(db, held.asset_id,
-                    f"{_asset_named(db, asset_id)} moved to {_project_named(project)}")
+            add_log(
+                db,
+                held.asset_id,
+                f"{_asset_named(db, asset_id)} moved to {_project_named(project)}",
+            )
         add_log(db, project.asset_id, f"took on {_asset_named(db, asset_id)}")
         _member_log(db, project, asset_id)
     for job in jobs:
         # Against the thing, where there is one: an item's page lists its own jobs,
         # and a job typed on that page is about that item by definition.
-        db.add(ProjectTask(project_id=project.asset_id, text=job,
-                           asset_id=asset_id or None))
+        db.add(ProjectTask(project_id=project.asset_id, text=job, asset_id=asset_id or None))
         add_log(db, project.asset_id, f"to do: {_short(job)}")
     return project
 
@@ -168,16 +189,21 @@ def _publish_log(db, project):
     delete is the one place the register rewrites its own log, and it is the whole
     point: a name taken out of publication cannot be left behind in the one public
     place it was written, or withdrawing it would mean nothing."""
-    members = [row.asset_id for row in db.query(ProjectAsset)
-               .filter(ProjectAsset.project_id == project.asset_id)]
+    members = [
+        row.asset_id
+        for row in db.query(ProjectAsset).filter(ProjectAsset.project_id == project.asset_id)
+    ]
     if project.private:
         # Matched on the tag rather than the name: the name may have been edited in
         # the same breath, and the tag is what makes the line this project's.
         for asset_id in members:
-            (db.query(LogEntry)
-             .filter(LogEntry.asset_id == asset_id,
-                     LogEntry.message.like(f"%({project.asset_id})%"))
-             .delete(synchronize_session=False))
+            (
+                db.query(LogEntry)
+                .filter(
+                    LogEntry.asset_id == asset_id, LogEntry.message.like(f"%({project.asset_id})%")
+                )
+                .delete(synchronize_session=False)
+            )
     else:
         for asset_id in members:
             add_log(db, asset_id, f"wanted for {_project_named(project)}")

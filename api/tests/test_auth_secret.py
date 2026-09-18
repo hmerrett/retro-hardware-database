@@ -6,6 +6,7 @@ oracle for the password, with no rate limit to slow the guessing. The key must b
 independent of the credentials: set explicitly when auth is on, throwaway when the
 app runs open.
 """
+
 import pytest
 
 from app.auth import _resolve_secret_key

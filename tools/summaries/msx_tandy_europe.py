@@ -139,7 +139,6 @@ SUMMARIES = {
         numbers for the Japanese market in 1991 and now the most sought-after MSX
         there is.
         """,
-
     # --- Tandy ------------------------------------------------------------
     "trs-80-model-1": """
         One of the three machines that started personal computing in 1977, and the one
@@ -200,7 +199,6 @@ SUMMARIES = {
         and a proper memory management unit, which made OS-9 Level II genuinely usable.
         The best of the family by a wide margin and the one worth seeking out.
         """,
-
     # --- Oric, Dragon, Osborne, Jupiter, SAM ------------------------------
     "oric-1": """
         Britain's other 1983 home computer, and the one that got closest to the
@@ -265,7 +263,6 @@ SUMMARIES = {
         company failed twice. Beloved by a small, active community and genuinely good
         hardware.
         """,
-
     # --- other British and European ---------------------------------------
     "camputers-lynx": """
         A Cambridge-built machine with unusually good high-resolution graphics for

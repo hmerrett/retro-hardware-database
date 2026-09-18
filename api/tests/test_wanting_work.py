@@ -14,6 +14,7 @@ record that is meant to be unreadable has to be unreadable in every place a page
 could show it. The class below that name is the point of the feature as much as the
 quick box is: four of those five doors standing shut is a thing that is not private.
 """
+
 import pytest
 
 from app import main
@@ -21,8 +22,7 @@ from app.models import Computer, Project, ProjectAsset, ProjectTask
 
 
 def quick(client, job="needs a belt", **extra):
-    r = client.post("/projects/quick", data={"job": job, **extra},
-                    follow_redirects=False)
+    r = client.post("/projects/quick", data={"job": job, **extra}, follow_redirects=False)
     assert r.status_code == 303, r.text
     return r.headers["location"].rsplit("/", 1)[-1]
 
@@ -60,18 +60,19 @@ class TestNotingSomethingDown:
     def test_the_item_goes_on_it(self, client, db, part):
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
         aid = quick(client, "needs a belt", aid=pt)
-        assert db.query(ProjectAsset).filter(
-            ProjectAsset.project_id == aid,
-            ProjectAsset.asset_id == pt).count() == 1
+        assert (
+            db.query(ProjectAsset)
+            .filter(ProjectAsset.project_id == aid, ProjectAsset.asset_id == pt)
+            .count()
+            == 1
+        )
 
-    def test_it_is_named_after_the_item_when_you_do_not_name_it(self, client, db,
-                                                                part):
+    def test_it_is_named_after_the_item_when_you_do_not_name_it(self, client, db, part):
         """One name for the gesture, whichever box it was typed in -- and the item's
         own name, not its tag. "Chinon FZ-357A" is a line that can be read down a
         list; RH-9QD4 is one that has to be looked up first."""
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
-        assert db.get(Project, quick(client, "needs a belt", aid=pt)).name == \
-            "Chinon FZ-357A"
+        assert db.get(Project, quick(client, "needs a belt", aid=pt)).name == "Chinon FZ-357A"
 
     def test_a_name_you_give_it_wins(self, client, db, part):
         pt = part(manufacturer="Chinon", model="FZ-357A")["asset_id"]
@@ -79,20 +80,18 @@ class TestNotingSomethingDown:
         assert db.get(Project, aid).name == "Drive belt swap"
 
     def test_with_no_item_and_no_name_the_job_names_it(self, client, db):
-        assert db.get(Project, quick(client, "sort out the RIFA")).name == \
-            "sort out the RIFA"
+        assert db.get(Project, quick(client, "sort out the RIFA")).name == "sort out the RIFA"
 
     def test_it_lands_on_the_project_it_just_made(self, client):
-        r = client.post("/projects/quick", data={"job": "a job"},
-                        follow_redirects=False)
+        r = client.post("/projects/quick", data={"job": "a job"}, follow_redirects=False)
         assert r.headers["location"].startswith("/projects/RH-")
 
     def test_a_mistyped_tag_comes_back_to_the_box(self, client, db):
         """A 404 page would lose what was typed, and a mistyped tag is the ordinary
         way to get this wrong."""
-        r = client.post("/projects/quick",
-                        data={"job": "a job", "aid": "RH-XXXX"},
-                        follow_redirects=False)
+        r = client.post(
+            "/projects/quick", data={"job": "a job", "aid": "RH-XXXX"}, follow_redirects=False
+        )
         assert r.status_code == 400
         assert "RH-XXXX" in r.text
         assert db.query(Project).count() == 0
@@ -142,15 +141,13 @@ class TestItIsPrivate:
         assert db.get(Project, quick(client, "a job")).private is False
 
     def test_what_the_form_makes_is_too(self, client, db):
-        r = client.post("/projects/new", data={"name": "Recap the +2A"},
-                        follow_redirects=False)
+        r = client.post("/projects/new", data={"name": "Recap the +2A"}, follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
         assert db.get(Project, aid).private is False
 
     def test_a_visitor_does_not_see_it_on_the_list(self, client, monkeypatch):
         hidden(client)
-        client.post("/projects/new", data={"name": "Shown"},
-                    follow_redirects=False)
+        client.post("/projects/new", data={"name": "Shown"}, follow_redirects=False)
         visitor(monkeypatch)
         html = client.get("/projects").text
         assert "Shown" in html and "Hidden" not in html
@@ -163,8 +160,7 @@ class TestItIsPrivate:
         assert client.get(f"/projects/{aid}").status_code == 404
 
     def test_a_public_project_still_opens(self, client, monkeypatch):
-        r = client.post("/projects/new", data={"name": "Shown"},
-                        follow_redirects=False)
+        r = client.post("/projects/new", data={"name": "Shown"}, follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
         visitor(monkeypatch)
         assert client.get(f"/projects/{aid}").status_code == 200
@@ -195,15 +191,18 @@ class TestItIsPrivate:
         """The one of the five read by machines rather than people, where a tag is
         an invitation."""
         kept_back = hidden(client)
-        shown = client.post("/projects/new", data={"name": "Shown"},
-                            follow_redirects=False
-                            ).headers["location"].rsplit("/", 1)[-1]
+        shown = (
+            client.post("/projects/new", data={"name": "Shown"}, follow_redirects=False)
+            .headers["location"]
+            .rsplit("/", 1)[-1]
+        )
         xml = client.get("/sitemap.xml").text
         assert f"/projects/{shown}</loc>" in xml
         assert kept_back not in xml
 
     def test_it_is_not_named_on_the_page_of_the_machine_it_is_about(
-            self, client, part, monkeypatch):
+        self, client, part, monkeypatch
+    ):
         """An item page is public. Without this, a project kept off the list, out of
         the search and out of the sitemap would name itself on the page of every
         machine it is about -- the whole of what was being kept back, said in the one
@@ -215,13 +214,11 @@ class TestItIsPrivate:
         # Nowhere on the page: not the panel, and not the history either.
         assert "Hidden" not in client.get(f"/parts/{pt}").text
 
-    def test_publishing_one_shows_it_everywhere_at_once(self, client, db,
-                                                        monkeypatch):
+    def test_publishing_one_shows_it_everywhere_at_once(self, client, db, monkeypatch):
         """Clearing the tick is the act of publishing, and it has to reach all five
         doors -- otherwise it half-publishes, which is worse than either."""
         aid = hidden(client, "a job")
-        client.post(f"/projects/{aid}/edit", data={"name": "Hidden"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/edit", data={"name": "Hidden"}, follow_redirects=False)
         assert db.get(Project, aid).private is False
         visitor(monkeypatch)
         assert client.get(f"/projects/{aid}").status_code == 200
@@ -236,8 +233,7 @@ class TestPublishingAndWithdrawing:
         pt = part(model="Widget")["asset_id"]
         aid = hidden(client, "needs a belt", aid=pt, name="Nowpublic")
         assert "wanted for" not in client.get(f"/parts/{pt}").text
-        client.post(f"/projects/{aid}/edit", data={"name": "Nowpublic"},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/edit", data={"name": "Nowpublic"}, follow_redirects=False)
         assert "wanted for Nowpublic" in client.get(f"/parts/{pt}").text
 
     def test_withdrawing_takes_it_back_out(self, client, part):
@@ -245,15 +241,15 @@ class TestPublishingAndWithdrawing:
         name taken out of publication cannot be left behind in the one public place
         it was written."""
         pt = part(model="Widget")["asset_id"]
-        r = client.post("/projects/new", data={"name": "Wasopen"},
-                        follow_redirects=False)
+        r = client.post("/projects/new", data={"name": "Wasopen"}, follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
-        client.post(f"/projects/{aid}/add-item", data={"asset_id": pt},
-                    follow_redirects=False)
+        client.post(f"/projects/{aid}/add-item", data={"asset_id": pt}, follow_redirects=False)
         assert "wanted for Wasopen" in client.get(f"/parts/{pt}").text
-        client.post(f"/projects/{aid}/edit",
-                    data={"name": "Wasopen", "private": "1"},
-                    follow_redirects=False)
+        client.post(
+            f"/projects/{aid}/edit",
+            data={"name": "Wasopen", "private": "1"},
+            follow_redirects=False,
+        )
         # The history, specifically. The panel above it still names the project,
         # and should: that panel is drawn for whoever is logged in and takes the
         # private ones out for everybody else.
@@ -272,11 +268,9 @@ class TestTheApiCarriesIt:
     def test_it_reads_and_writes_like_any_other_column(self, client):
         """The API is behind the login entire, so there is nothing to hide from it;
         what `private` governs is what the public pages show."""
-        p = client.post("/api/projects",
-                        json={"name": "X", "private": True}).json()
+        p = client.post("/api/projects", json={"name": "X", "private": True}).json()
         assert p["private"] is True
-        got = client.patch(f"/api/projects/{p['asset_id']}",
-                           json={"private": False}).json()
+        got = client.patch(f"/api/projects/{p['asset_id']}", json={"private": False}).json()
         assert got["private"] is False
 
     def test_the_api_lists_private_ones(self, client):
@@ -296,14 +290,13 @@ class TestTheMigrationDidNotAnnounceThem:
 
     def test_no_public_history_names_a_private_project(self, client, db, part):
         from app.models import LogEntry
+
         pt = part(model="Widget")["asset_id"]
         aid = hidden(client, "a job", aid=pt, name="Hiddenzzz")
-        written = " ".join(
-            m for (m,) in db.query(LogEntry.message).filter(LogEntry.asset_id == pt))
+        written = " ".join(m for (m,) in db.query(LogEntry.message).filter(LogEntry.asset_id == pt))
         assert aid not in written and "Hiddenzzz" not in written
 
-    def test_a_private_projects_tag_is_not_on_the_item_page(self, client, part,
-                                                            monkeypatch):
+    def test_a_private_projects_tag_is_not_on_the_item_page(self, client, part, monkeypatch):
         """The tag alone is a disclosure: it says there is something there, and it
         is the one thing needed to try the door."""
         pt = part(model="Widget")["asset_id"]
@@ -318,35 +311,36 @@ class TestTheBoxOnAnItemsOwnPage:
     and whether it is a piece of work of its own."""
 
     def note(self, client, aid, job, **extra):
-        r = client.post("/projects/quick",
-                        data={"aid": aid, "job": job, **extra},
-                        follow_redirects=False)
+        r = client.post(
+            "/projects/quick", data={"aid": aid, "job": job, **extra}, follow_redirects=False
+        )
         assert r.status_code == 303, r.text
         return r.headers["location"].rsplit("/", 1)[-1]
 
     def test_a_line_is_a_job_here_too(self, client, db, part):
         pt = part(model="Widget")["asset_id"]
         pid = self.note(client, pt, "recap\nnew belt")
-        assert [t.text for t in db.query(ProjectTask)
-                .filter(ProjectTask.project_id == pid)
-                .order_by(ProjectTask.id)] == ["recap", "new belt"]
+        assert [
+            t.text
+            for t in db.query(ProjectTask)
+            .filter(ProjectTask.project_id == pid)
+            .order_by(ProjectTask.id)
+        ] == ["recap", "new belt"]
 
     def test_the_jobs_can_go_on_a_project_already_going(self, client, db, part):
         """The question this page is the right one to ask: you are looking at the
         board, and whether it is spoken for is a fact about the board."""
         pt = part(model="Widget")["asset_id"]
-        existing = client.post("/api/projects",
-                               json={"name": "A500"}).json()["asset_id"]
+        existing = client.post("/api/projects", json={"name": "A500"}).json()["asset_id"]
         assert self.note(client, pt, "fit it", project=existing) == existing
         assert db.query(Project).count() == 1
 
     def test_the_picker_offers_the_projects_in_hand(self, client, part):
         pt = part(model="Widget")["asset_id"]
-        live = client.post("/api/projects",
-                           json={"name": "Livezzz"}).json()["asset_id"]
-        done = client.post("/api/projects",
-                           json={"name": "Donezzz",
-                                 "status": "done"}).json()["asset_id"]
+        live = client.post("/api/projects", json={"name": "Livezzz"}).json()["asset_id"]
+        done = client.post("/api/projects", json={"name": "Donezzz", "status": "done"}).json()[
+            "asset_id"
+        ]
         page = client.get(f"/parts/{pt}").text
         assert live in page and done not in page
 
@@ -369,25 +363,30 @@ class TestTheBoxOnAnItemsOwnPage:
 
 def new_computer(client, **extra):
     """A machine through the entry form, as somebody checking one in files it."""
-    r = client.post("/computers/new",
-                    data={"manufacturer": "Acme", "model": "PC", **extra},
-                    follow_redirects=False)
+    r = client.post(
+        "/computers/new",
+        data={"manufacturer": "Acme", "model": "PC", **extra},
+        follow_redirects=False,
+    )
     assert r.status_code == 303, r.text
     return r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
 
 
 def new_part(client, **extra):
-    r = client.post("/parts/new",
-                    data={"type": "other", "model": "Widget", **extra},
-                    follow_redirects=False)
+    r = client.post(
+        "/parts/new", data={"type": "other", "model": "Widget", **extra}, follow_redirects=False
+    )
     assert r.status_code == 303, r.text
     return r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
 
 
 def tasks_of(db, project_id):
-    return [t.text for t in db.query(ProjectTask)
-            .filter(ProjectTask.project_id == project_id)
-            .order_by(ProjectTask.id)]
+    return [
+        t.text
+        for t in db.query(ProjectTask)
+        .filter(ProjectTask.project_id == project_id)
+        .order_by(ProjectTask.id)
+    ]
 
 
 def project_of(db, asset_id):
@@ -417,13 +416,11 @@ class TestNotingWorkWhileCheckingIn:
         """A machine entered with nothing filled in but a fault has no name to be
         called after. Its tag is what it has, and a project named after nothing at
         all is a row nobody will recognise again."""
-        r = client.post("/computers/new", data={"work_needed": "recap"},
-                        follow_redirects=False)
+        r = client.post("/computers/new", data={"work_needed": "recap"}, follow_redirects=False)
         aid = r.headers["location"].split("?")[0].rsplit("/", 1)[-1]
         assert project_of(db, aid).name == aid
 
-    def test_two_of_the_same_machine_are_told_apart_by_their_own_tags(self, client,
-                                                                     db):
+    def test_two_of_the_same_machine_are_told_apart_by_their_own_tags(self, client, db):
         """Two projects can come out with the same name, where the collection holds
         two of the same model. That is what the project's own tag beside it on every
         list is for; inventing a distinction in the name would be inventing it in
@@ -436,21 +433,22 @@ class TestNotingWorkWhileCheckingIn:
         """The same rule the quick box follows, and the register is a public
         catalogue: what a machine needs doing is a fact about it worth reading, and
         the tick on the project's own form is there for the one that is not."""
-        assert project_of(db, new_computer(client, work_needed="recap")).private \
-            is False
+        assert project_of(db, new_computer(client, work_needed="recap")).private is False
 
     def test_it_starts_planned(self, client, db):
         """Nothing has been done to it yet -- it has only just come through the
         door -- and calling that 'in progress' would make the in-hand list a lie."""
-        assert project_of(db, new_computer(client, work_needed="recap")).status \
-            == "planned"
+        assert project_of(db, new_computer(client, work_needed="recap")).status == "planned"
 
     def test_a_line_is_a_job(self, client, db):
         """What somebody types while looking at a machine is a list, because faults
         arrive as a list. One box, one job to a line, in the order they were seen."""
         aid = new_computer(client, work_needed="recap\nnew belt\n\nkeyboard sticks")
         assert tasks_of(db, project_of(db, aid).asset_id) == [
-            "recap", "new belt", "keyboard sticks"]
+            "recap",
+            "new belt",
+            "keyboard sticks",
+        ]
 
     def test_an_empty_box_makes_nothing(self, client, db):
         """Most machines are checked in with nothing wrong with them, and a project
@@ -494,7 +492,7 @@ class TestCheckingInOntoAProjectAlreadyGoing:
         assert tasks_of(db, pid) == ["test it", "fit the PSU"]
 
     def test_a_project_can_be_named_with_no_job_at_all(self, client, db):
-        """"This is for that" is a complete thought. The part that has just arrived
+        """ "This is for that" is a complete thought. The part that has just arrived
         is spoken for, and there is nothing to do to it yet."""
         pid = self.existing(client)
         aid = new_part(client, work_project=pid)
@@ -505,18 +503,22 @@ class TestCheckingInOntoAProjectAlreadyGoing:
         from the project's own page does -- and only for a project anybody may
         read, which is the invariant _member_log keeps."""
         from app.models import LogEntry
+
         pid = self.existing(client, private=False)
         aid = new_computer(client, work_project=pid)
-        written = " ".join(m for (m,) in db.query(LogEntry.message)
-                           .filter(LogEntry.asset_id == aid))
+        written = " ".join(
+            m for (m,) in db.query(LogEntry.message).filter(LogEntry.asset_id == aid)
+        )
         assert "wanted for" in written and pid in written
 
     def test_a_private_project_stays_quiet(self, client, db):
         from app.models import LogEntry
+
         pid = self.existing(client, private=True)
         aid = new_computer(client, work_project=pid)
-        written = " ".join(m for (m,) in db.query(LogEntry.message)
-                           .filter(LogEntry.asset_id == aid))
+        written = " ".join(
+            m for (m,) in db.query(LogEntry.message).filter(LogEntry.asset_id == aid)
+        )
         assert pid not in written
 
     def test_a_tag_that_names_no_project_still_keeps_the_note(self, client, db):
@@ -542,9 +544,11 @@ class TestNotingWorkOnAnItemThatExists:
 
     def test_the_edit_form_notes_work_too(self, client, db):
         aid = new_computer(client)
-        r = client.post(f"/computers/{aid}/edit",
-                        data={"manufacturer": "Acme", "model": "PC",
-                              "work_needed": "recap"}, follow_redirects=False)
+        r = client.post(
+            f"/computers/{aid}/edit",
+            data={"manufacturer": "Acme", "model": "PC", "work_needed": "recap"},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         assert tasks_of(db, project_of(db, aid).asset_id) == ["recap"]
 
@@ -553,15 +557,16 @@ class TestNotingWorkOnAnItemThatExists:
         project, so an ordinary save leaves the jobs alone. A box that echoed them
         back would add every job a second time on the next save."""
         aid = new_computer(client, work_needed="recap")
-        client.post(f"/computers/{aid}/edit",
-                    data={"manufacturer": "Acme", "model": "PC2"})
+        client.post(f"/computers/{aid}/edit", data={"manufacturer": "Acme", "model": "PC2"})
         assert tasks_of(db, project_of(db, aid).asset_id) == ["recap"]
 
     def test_a_part_edit_notes_work_too(self, client, db):
         pid = new_part(client)
-        r = client.post(f"/parts/{pid}/edit",
-                        data={"type": "other", "model": "Widget",
-                              "work_needed": "pins bent"}, follow_redirects=False)
+        r = client.post(
+            f"/parts/{pid}/edit",
+            data={"type": "other", "model": "Widget", "work_needed": "pins bent"},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         assert tasks_of(db, project_of(db, pid).asset_id) == ["pins bent"]
 
@@ -572,54 +577,57 @@ class TestNotingWorkThroughTheApi:
     with it there too, or the same second visit is needed."""
 
     def test_a_computer_arrives_with_its_faults(self, client, db):
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Acme", "model": "PC",
-                                "work_needed": "recap"}).json()["asset_id"]
+        aid = client.post(
+            "/api/computers", json={"manufacturer": "Acme", "model": "PC", "work_needed": "recap"}
+        ).json()["asset_id"]
         assert tasks_of(db, project_of(db, aid).asset_id) == ["recap"]
 
     def test_a_part_does_too(self, client, db):
-        pid = client.post("/api/parts",
-                          json={"type": "other", "model": "Widget",
-                                "work_needed": "pins bent"}).json()["asset_id"]
+        pid = client.post(
+            "/api/parts", json={"type": "other", "model": "Widget", "work_needed": "pins bent"}
+        ).json()["asset_id"]
         assert tasks_of(db, project_of(db, pid).asset_id) == ["pins bent"]
 
     def test_an_existing_project_can_be_named(self, client, db):
         pid = client.post("/api/projects", json={"name": "A500"}).json()["asset_id"]
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Acme", "model": "PC",
-                                "work_project": pid}).json()["asset_id"]
+        aid = client.post(
+            "/api/computers", json={"manufacturer": "Acme", "model": "PC", "work_project": pid}
+        ).json()["asset_id"]
         assert project_of(db, aid).asset_id == pid
 
     def test_a_project_that_does_not_exist_is_refused(self, client, db):
         """Unlike the form, which cannot mistype one. A caller that named a project
         meant that project, and quietly filing the work somewhere else would be a
         worse answer than being told."""
-        r = client.post("/api/computers",
-                        json={"manufacturer": "Acme", "model": "PC",
-                              "work_project": "RH-ZZZZ"})
+        r = client.post(
+            "/api/computers",
+            json={"manufacturer": "Acme", "model": "PC", "work_project": "RH-ZZZZ"},
+        )
         assert r.status_code == 404
 
     def test_nothing_is_created_when_it_is_refused(self, client, db):
         """The refusal comes before the machine is written, so a typo'd project tag
         does not leave a half-entered computer behind."""
-        client.post("/api/computers", json={"manufacturer": "Acme", "model": "PC",
-                                            "work_project": "RH-ZZZZ"})
+        client.post(
+            "/api/computers",
+            json={"manufacturer": "Acme", "model": "PC", "work_project": "RH-ZZZZ"},
+        )
         assert db.query(Computer).count() == 0
 
     def test_the_item_reads_back_with_its_project(self, client, db):
         """What the note did, said in the reply -- otherwise a caller that has just
         raised a project has no way to reach it but a search. One tag and not a
         list of them: a thing is on one project (ADR-0016)."""
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Acme", "model": "PC",
-                                "work_needed": "recap"}).json()["asset_id"]
+        aid = client.post(
+            "/api/computers", json={"manufacturer": "Acme", "model": "PC", "work_needed": "recap"}
+        ).json()["asset_id"]
         got = client.get(f"/api/computers/{aid}").json()
         assert got["project"] == project_of(db, aid).asset_id
 
     def test_the_list_reads_back_with_it_as_well(self, client, db):
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Acme", "model": "PC",
-                                "work_needed": "recap"}).json()["asset_id"]
+        aid = client.post(
+            "/api/computers", json={"manufacturer": "Acme", "model": "PC", "work_needed": "recap"}
+        ).json()["asset_id"]
         rows = client.get("/api/computers").json()
         assert rows[0]["project"] == project_of(db, aid).asset_id
 
@@ -634,8 +642,13 @@ def _migration_0033():
     register that rewrites something somebody could have typed."""
     import importlib.util
     from pathlib import Path
-    path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
-            / "0033_work_projects_named_after_the_thing.py")
+
+    path = (
+        Path(__file__).resolve().parent.parent
+        / "migrations"
+        / "versions"
+        / "0033_work_projects_named_after_the_thing.py"
+    )
     spec = importlib.util.spec_from_file_location("m0033", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -646,6 +659,7 @@ def run_migration(db, direction="upgrade"):
     """Run it against the session's own connection, the way alembic runs one."""
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
+
     module = _migration_0033()
     ctx = MigrationContext.configure(db.connection())
     with Operations.context(ctx):
@@ -661,12 +675,12 @@ class TestRenamingTheOnesAlreadyWritten:
 
     def old_style(self, client, db, **fields):
         """An item and a project named after its tag, as the app used to write it."""
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Amstrad", "model": "PC1640"}
-                          | fields).json()["asset_id"]
-        pid = client.post("/api/projects",
-                          json={"name": f"Work required by item: {aid}"}
-                          ).json()["asset_id"]
+        aid = client.post(
+            "/api/computers", json={"manufacturer": "Amstrad", "model": "PC1640"} | fields
+        ).json()["asset_id"]
+        pid = client.post("/api/projects", json={"name": f"Work required by item: {aid}"}).json()[
+            "asset_id"
+        ]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         return aid, pid
 
@@ -680,9 +694,9 @@ class TestRenamingTheOnesAlreadyWritten:
         tag of an item the project is actually about. A project called something
         else that happens to start with those words was named by a person."""
         aid, _ = self.old_style(client, db)
-        pid = client.post("/api/projects",
-                          json={"name": "Work required by item: the beige one"}
-                          ).json()["asset_id"]
+        pid = client.post(
+            "/api/projects", json={"name": "Work required by item: the beige one"}
+        ).json()["asset_id"]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         run_migration(db)
         assert db.get(Project, pid).name == "Work required by item: the beige one"
@@ -690,12 +704,11 @@ class TestRenamingTheOnesAlreadyWritten:
     def test_a_project_naming_another_items_tag_is_left_alone(self, client, db):
         """Named after one thing and about another is not a project this migration
         knows anything about."""
-        other = client.post("/api/computers",
-                            json={"model": "X"}).json()["asset_id"]
+        other = client.post("/api/computers", json={"model": "X"}).json()["asset_id"]
         aid, _ = self.old_style(client, db)
-        pid = client.post("/api/projects",
-                          json={"name": f"Work required by item: {other}"}
-                          ).json()["asset_id"]
+        pid = client.post("/api/projects", json={"name": f"Work required by item: {other}"}).json()[
+            "asset_id"
+        ]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         run_migration(db)
         assert db.get(Project, pid).name == f"Work required by item: {other}"
@@ -704,9 +717,9 @@ class TestRenamingTheOnesAlreadyWritten:
         """There is nothing else to call it, and a rename to the same thing is not
         a rename."""
         aid = client.post("/api/computers", json={}).json()["asset_id"]
-        pid = client.post("/api/projects",
-                          json={"name": f"Work required by item: {aid}"}
-                          ).json()["asset_id"]
+        pid = client.post("/api/projects", json={"name": f"Work required by item: {aid}"}).json()[
+            "asset_id"
+        ]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         run_migration(db)
         assert db.get(Project, pid).name == f"Work required by item: {aid}"
@@ -743,8 +756,13 @@ def _migration_0036():
     _migration_0033 is."""
     import importlib.util
     from pathlib import Path
-    path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
-            / "0036_work_projects_drop_the_prefix.py")
+
+    path = (
+        Path(__file__).resolve().parent.parent
+        / "migrations"
+        / "versions"
+        / "0036_work_projects_drop_the_prefix.py"
+    )
     spec = importlib.util.spec_from_file_location("m0036", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -754,6 +772,7 @@ def _migration_0036():
 def run_0036(db, direction="upgrade"):
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
+
     ctx = MigrationContext.configure(db.connection())
     with Operations.context(ctx):
         getattr(_migration_0036(), direction)()
@@ -767,12 +786,12 @@ class TestDroppingThePrefixFromTheOnesAlreadyWritten:
 
     def prefixed(self, client, db, **fields):
         """An item and a project named the way the app used to name one."""
-        aid = client.post("/api/computers",
-                          json={"manufacturer": "Amstrad", "model": "PC1640"}
-                          | fields).json()["asset_id"]
-        pid = client.post("/api/projects",
-                          json={"name": "Work required by item: Amstrad PC1640"}
-                          ).json()["asset_id"]
+        aid = client.post(
+            "/api/computers", json={"manufacturer": "Amstrad", "model": "PC1640"} | fields
+        ).json()["asset_id"]
+        pid = client.post(
+            "/api/projects", json={"name": "Work required by item: Amstrad PC1640"}
+        ).json()["asset_id"]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         return aid, pid
 
@@ -785,9 +804,9 @@ class TestDroppingThePrefixFromTheOnesAlreadyWritten:
         """The same narrow rule 0033 used: only the exact generated form for the
         item the project is actually about. Anything else was typed by a person."""
         aid, _ = self.prefixed(client, db)
-        pid = client.post("/api/projects",
-                          json={"name": "Work required by item: the beige one"}
-                          ).json()["asset_id"]
+        pid = client.post(
+            "/api/projects", json={"name": "Work required by item: the beige one"}
+        ).json()["asset_id"]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         run_0036(db)
         assert db.get(Project, pid).name == "Work required by item: the beige one"
@@ -796,9 +815,9 @@ class TestDroppingThePrefixFromTheOnesAlreadyWritten:
         """display_name falls back to the tag, so the prefixed form for a nameless
         item held its tag -- and what it should say now is that tag alone."""
         aid = client.post("/api/computers", json={}).json()["asset_id"]
-        pid = client.post("/api/projects",
-                          json={"name": f"Work required by item: {aid}"}
-                          ).json()["asset_id"]
+        pid = client.post("/api/projects", json={"name": f"Work required by item: {aid}"}).json()[
+            "asset_id"
+        ]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": aid})
         run_0036(db)
         assert db.get(Project, pid).name == aid
@@ -806,8 +825,7 @@ class TestDroppingThePrefixFromTheOnesAlreadyWritten:
     def test_a_project_about_two_things_is_left_alone(self, client, db):
         """A project with two items on it was never named this way."""
         _, pid = self.prefixed(client, db)
-        other = client.post("/api/computers",
-                            json={"model": "X"}).json()["asset_id"]
+        other = client.post("/api/computers", json={"model": "X"}).json()["asset_id"]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": other})
         run_0036(db)
         assert db.get(Project, pid).name == "Work required by item: Amstrad PC1640"
@@ -837,8 +855,12 @@ class TestDroppingThePrefixFromTheOnesAlreadyWritten:
 
 
 def tasks_against(db, asset_id):
-    return [t.text for t in db.query(ProjectTask)
-            .filter(ProjectTask.asset_id == asset_id).order_by(ProjectTask.id)]
+    return [
+        t.text
+        for t in db.query(ProjectTask)
+        .filter(ProjectTask.asset_id == asset_id)
+        .order_by(ProjectTask.id)
+    ]
 
 
 class TestOneProjectToAThing:
@@ -848,6 +870,7 @@ class TestOneProjectToAThing:
         """The rule is a unique constraint and not only a habit in the code, so a
         path nobody thought of cannot quietly put a thing in two places."""
         from sqlalchemy.exc import IntegrityError
+
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         first = quick(client, "recap", aid=pt)
         other = quick(client, "something else")
@@ -888,9 +911,9 @@ class TestOneProjectToAThing:
         assert tasks_of(db, first) == ["recap", "new belt"]
 
     def test_a_note_on_a_thing_with_no_project_raises_one(self, client, db):
-        pt = client.post("/api/parts",
-                         json={"manufacturer": "Tandon",
-                               "model": "TM262"}).json()["asset_id"]
+        pt = client.post("/api/parts", json={"manufacturer": "Tandon", "model": "TM262"}).json()[
+            "asset_id"
+        ]
         pid = quick(client, "recap", aid=pt)
         assert project_of(db, pt).asset_id == pid
         assert db.get(Project, pid).name == "Tandon TM262"
@@ -903,16 +926,14 @@ class TestOneProjectToAThing:
 
     def test_a_job_with_no_item_names_none(self, client, db):
         pid = quick(client, "order the caps")
-        assert db.query(ProjectTask).filter(
-            ProjectTask.project_id == pid).one().asset_id is None
+        assert db.query(ProjectTask).filter(ProjectTask.project_id == pid).one().asset_id is None
 
 
 class TestAJobMayNameAThing:
     def test_it_may_name_one_the_project_holds(self, client, db):
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = quick(client, "recap", aid=pt)
-        r = client.post(f"/api/projects/{pid}/tasks",
-                        json={"text": "new belt", "asset_id": pt})
+        r = client.post(f"/api/projects/{pid}/tasks", json={"text": "new belt", "asset_id": pt})
         assert r.status_code == 200, r.text
         assert r.json()["asset_id"] == pt
 
@@ -928,8 +949,7 @@ class TestAJobMayNameAThing:
         which is worse than no link at all."""
         pid = quick(client, "recap")
         other = client.post("/api/parts", json={"model": "X"}).json()["asset_id"]
-        r = client.post(f"/api/projects/{pid}/tasks",
-                        json={"text": "new belt", "asset_id": other})
+        r = client.post(f"/api/projects/{pid}/tasks", json={"text": "new belt", "asset_id": other})
         assert r.status_code == 422
 
     def test_an_item_lists_its_own_jobs_and_not_the_projects_others(self, client, db):
@@ -960,8 +980,13 @@ class TestKeepingTheEarliestMembership:
     def rule(self):
         import importlib.util
         from pathlib import Path
-        path = (Path(__file__).resolve().parent.parent / "migrations" / "versions"
-                / "0037_one_project_to_a_thing.py")
+
+        path = (
+            Path(__file__).resolve().parent.parent
+            / "migrations"
+            / "versions"
+            / "0037_one_project_to_a_thing.py"
+        )
         spec = importlib.util.spec_from_file_location("m0037", path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
@@ -986,8 +1011,7 @@ class TestAPrivateProjectsJobsAreNotOnTheItemPage:
     """The sixth door. The panel showing jobs rather than project names moved what
     a private project is hiding: the name was the leak before, the jobs are now."""
 
-    def test_a_visitor_sees_neither_the_name_nor_the_jobs(self, client, db,
-                                                          monkeypatch):
+    def test_a_visitor_sees_neither_the_name_nor_the_jobs(self, client, db, monkeypatch):
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         hidden(client, "the RIFA went bang", aid=pt)
         visitor(monkeypatch)
@@ -1016,8 +1040,7 @@ class TestSayingWhatAnExistingJobIsAbout:
     def setup_project(self, client):
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = quick(client, "recap", aid=pt)
-        tid = client.post(f"/api/projects/{pid}/tasks",
-                          json={"text": "test it"}).json()["id"]
+        tid = client.post(f"/api/projects/{pid}/tasks", json={"text": "test it"}).json()["id"]
         return pt, pid, tid
 
     def test_the_api_attaches_it(self, client, db):
@@ -1052,29 +1075,28 @@ class TestSayingWhatAnExistingJobIsAbout:
     def test_it_may_not_name_something_the_project_is_not_about(self, client, db):
         _, pid, tid = self.setup_project(client)
         other = client.post("/api/parts", json={"model": "X"}).json()["asset_id"]
-        r = client.patch(f"/api/projects/{pid}/tasks/{tid}",
-                         json={"asset_id": other})
+        r = client.patch(f"/api/projects/{pid}/tasks/{tid}", json={"asset_id": other})
         assert r.status_code == 422
 
     def test_the_form_on_the_project_page_does_it_too(self, client, db):
         pt, pid, tid = self.setup_project(client)
-        r = client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": pt},
-                        follow_redirects=False)
+        r = client.post(
+            f"/projects/{pid}/task/{tid}/about", data={"asset": pt}, follow_redirects=False
+        )
         assert r.status_code == 303
         assert "test it" in tasks_against(db, pt)
 
     def test_the_form_can_detach_it_as_well(self, client, db):
         pt, pid, tid = self.setup_project(client)
-        client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": pt},
-                    follow_redirects=False)
-        client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": ""},
-                    follow_redirects=False)
+        client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": pt}, follow_redirects=False)
+        client.post(f"/projects/{pid}/task/{tid}/about", data={"asset": ""}, follow_redirects=False)
         assert tasks_against(db, pt) == ["recap"]
 
     def test_the_add_form_can_name_one_on_the_way_in(self, client, db):
         pt, pid, _ = self.setup_project(client)
-        client.post(f"/projects/{pid}/task",
-                    data={"text": "new belt", "asset": pt}, follow_redirects=False)
+        client.post(
+            f"/projects/{pid}/task", data={"text": "new belt", "asset": pt}, follow_redirects=False
+        )
         assert tasks_against(db, pt) == ["recap", "new belt"]
 
 
@@ -1104,8 +1126,9 @@ class TestTheProjectsOwnJobsShowOnItsThings:
         pt, pid = self.setup(client)
         other = client.post("/api/parts", json={"model": "X"}).json()["asset_id"]
         client.post(f"/api/projects/{pid}/items", json={"asset_id": other})
-        tid = client.post(f"/api/projects/{pid}/tasks",
-                          json={"text": "align the heads", "asset_id": other}).json()["id"]
+        tid = client.post(
+            f"/api/projects/{pid}/tasks", json={"text": "align the heads", "asset_id": other}
+        ).json()["id"]
         assert tid
         assert "align the heads" not in client.get(f"/parts/{pt}").text
 
@@ -1115,8 +1138,7 @@ class TestTheProjectsOwnJobsShowOnItsThings:
         client.post(f"/api/projects/{pid}/items", json={"asset_id": other})
         assert "order the caps" in client.get(f"/parts/{other}").text
 
-    def test_a_private_projects_are_not_inherited_by_a_visitor(self, client,
-                                                               monkeypatch):
+    def test_a_private_projects_are_not_inherited_by_a_visitor(self, client, monkeypatch):
         """project_for withholds the project, so there is none to take jobs from."""
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = hidden(client, "the RIFA went bang", aid=pt)
@@ -1134,14 +1156,18 @@ class TestTickingAJobOffFromTheItemPage:
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = quick(client, "recap", aid=pt)
         own = client.get(f"/api/projects/{pid}").json()["tasks"][0]["id"]
-        wide = client.post(f"/api/projects/{pid}/tasks",
-                           json={"text": "order the caps"}).json()["id"]
+        wide = client.post(f"/api/projects/{pid}/tasks", json={"text": "order the caps"}).json()[
+            "id"
+        ]
         return pt, pid, own, wide
 
     def test_the_things_own_job_ticks_off(self, client, db):
         pt, pid, own, _ = self.setup(client)
-        r = client.post(f"/projects/{pid}/task/{own}/toggle",
-                        data={"next": f"/parts/{pt}"}, follow_redirects=False)
+        r = client.post(
+            f"/projects/{pid}/task/{own}/toggle",
+            data={"next": f"/parts/{pt}"},
+            follow_redirects=False,
+        )
         assert r.status_code == 303
         assert db.get(ProjectTask, own).done is True
 
@@ -1149,16 +1175,22 @@ class TestTickingAJobOffFromTheItemPage:
         """Not to the project's. Ticking a job at the bench, looking at the machine,
         used to throw you onto a different page."""
         pt, pid, own, _ = self.setup(client)
-        r = client.post(f"/projects/{pid}/task/{own}/toggle",
-                        data={"next": f"/parts/{pt}"}, follow_redirects=False)
+        r = client.post(
+            f"/projects/{pid}/task/{own}/toggle",
+            data={"next": f"/parts/{pt}"},
+            follow_redirects=False,
+        )
         assert r.headers["location"] == f"/parts/{pt}"
 
     def test_the_projects_own_job_ticks_off_from_here_too(self, client, db):
         """A job you can read and not tick is one you have to go elsewhere to
         finish, which is the trip this panel exists to save."""
         pt, pid, _, wide = self.setup(client)
-        client.post(f"/projects/{pid}/task/{wide}/toggle",
-                    data={"next": f"/parts/{pt}"}, follow_redirects=False)
+        client.post(
+            f"/projects/{pid}/task/{wide}/toggle",
+            data={"next": f"/parts/{pt}"},
+            follow_redirects=False,
+        )
         assert db.get(ProjectTask, wide).done is True
 
     def test_the_item_page_offers_a_tick_for_both_kinds(self, client):
@@ -1176,8 +1208,11 @@ class TestTickingAJobOffFromTheItemPage:
     def test_it_will_not_be_sent_off_the_site(self, client):
         """_safe_next: the field is on a page, so it is a field somebody can edit."""
         _pt, pid, own, _ = self.setup(client)
-        r = client.post(f"/projects/{pid}/task/{own}/toggle",
-                        data={"next": "//evil.example.com/"}, follow_redirects=False)
+        r = client.post(
+            f"/projects/{pid}/task/{own}/toggle",
+            data={"next": "//evil.example.com/"},
+            follow_redirects=False,
+        )
         assert r.headers["location"] == "/"
 
     def test_a_visitor_gets_no_tick(self, client, monkeypatch):
@@ -1192,8 +1227,8 @@ class TestWhatAProjectsSharedLinkShows:
 
     def og_image(self, client, url):
         import re
-        m = re.search(r'<meta property="og:image" content="([^"]+)"',
-                      client.get(url).text)
+
+        m = re.search(r'<meta property="og:image" content="([^"]+)"', client.get(url).text)
         return m.group(1) if m else None
 
     def test_with_no_items_it_falls_back_to_the_site_card(self, client):
@@ -1208,27 +1243,32 @@ class TestWhatAProjectsSharedLinkShows:
         pid = quick(client, "recap", aid=pt)
         assert "/static/og-image.png" in self.og_image(client, f"/projects/{pid}")
 
-    def test_an_items_photograph_becomes_the_card(self, client, tmp_path,
-                                                  monkeypatch):
+    def test_an_items_photograph_becomes_the_card(self, client, tmp_path, monkeypatch):
         # Patched on the module the route reads it from: the project pages bind
         # detect_images into their own globals at import, so patching photos -- or
         # the copy main re-exports -- would leave the real lookup running.
         from app.routers import projects as project_pages
+
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = quick(client, "recap", aid=pt)
-        monkeypatch.setattr(project_pages, "detect_images",
-                            lambda kind, aid: [f"/images/{kind}/{aid}.jpg"])
+        monkeypatch.setattr(
+            project_pages, "detect_images", lambda kind, aid: [f"/images/{kind}/{aid}.jpg"]
+        )
         assert f"/images/parts/{pt}.jpg" in self.og_image(client, f"/projects/{pid}")
 
-    def test_a_placeholder_is_skipped_for_a_real_photograph_behind_it(self, client,
-                                                                     monkeypatch):
+    def test_a_placeholder_is_skipped_for_a_real_photograph_behind_it(self, client, monkeypatch):
         """The first thing with a real photo, not the first thing."""
         a = client.post("/api/parts", json={"model": "A"}).json()["asset_id"]
         b = client.post("/api/parts", json={"model": "B"}).json()["asset_id"]
         pid = quick(client, "recap", aid=a)
         client.post(f"/api/projects/{pid}/items", json={"asset_id": b})
         from app.routers import projects as project_pages
-        monkeypatch.setattr(project_pages, "detect_images", lambda kind, aid: (
-            ["/static/placeholders/storage.svg"] if aid == a
-            else [f"/images/{kind}/{aid}.jpg"]))
+
+        monkeypatch.setattr(
+            project_pages,
+            "detect_images",
+            lambda kind, aid: (
+                ["/static/placeholders/storage.svg"] if aid == a else [f"/images/{kind}/{aid}.jpg"]
+            ),
+        )
         assert f"/images/parts/{b}.jpg" in self.og_image(client, f"/projects/{pid}")

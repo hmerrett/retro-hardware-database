@@ -16,6 +16,7 @@ Reports live in imports/ named after the asset id, e.g. imports/RH-0005.txt (or
 HWiNFO's memory total is unreliable on pre-Pentium machines, so RAM is left to
 the computer's installed_ram field (entered by hand).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,15 +25,36 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from rhdb import (PART_COLUMNS, ROOT, add_api_arg, apply_api_arg, create_part,
-                  display_name, index_by_id, load_computers, load_parts,
-                  parse_specs, update_computer, update_part)
+from rhdb import (
+    PART_COLUMNS,
+    ROOT,
+    add_api_arg,
+    apply_api_arg,
+    create_part,
+    display_name,
+    index_by_id,
+    load_computers,
+    load_parts,
+    parse_specs,
+    update_computer,
+    update_part,
+)
 
 IMPORTS_DIR = ROOT / "imports"
 
 CHS_RE = re.compile(r"(\d{2,5})\s*[/xX]\s*(\d{1,3})\s*[/xX]\s*(\d{1,4})")
-_EMPTY = {"", "n/a", "none", "not present", "unknown", "<empty>", "not found",
-          "<skipped>", "0", "unknown or standard vga"}
+_EMPTY = {
+    "",
+    "n/a",
+    "none",
+    "not present",
+    "unknown",
+    "<empty>",
+    "not found",
+    "<skipped>",
+    "0",
+    "unknown or standard vga",
+}
 
 
 def clean(v):
@@ -85,15 +107,18 @@ def detect_hwinfo(text):
     d = {}
     if has(find("main processor")):
         d["cpu"] = clean(find("main processor"))
-    for field, keys in (("os", ("operating system", "dos version")),
-                        ("bios", ("bios manufacturer",)),
-                        ("chipset", ("mainboard chipset",))):
+    for field, keys in (
+        ("os", ("operating system", "dos version")),
+        ("bios", ("bios manufacturer",)),
+        ("chipset", ("mainboard chipset",)),
+    ):
         if has(find(*keys)):
             d[field] = clean(find(*keys))
     if has(find("video chipset")):
         vmem = find("video memory size")
-        d["onboard_video"] = (clean(find("video chipset"))
-                              + (f" ({clean(vmem)})" if has(vmem) else ""))
+        d["onboard_video"] = clean(find("video chipset")) + (
+            f" ({clean(vmem)})" if has(vmem) else ""
+        )
 
     ports = []
     tl = text.lower()
@@ -110,8 +135,7 @@ def detect_hwinfo(text):
     if ports:
         d["ports"] = ", ".join(ports)
 
-    drives = [clean(v) for k, v in pairs
-              if ("model" in k or "drive" in k) and CHS_RE.search(v)]
+    drives = [clean(v) for k, v in pairs if ("model" in k or "drive" in k) and CHS_RE.search(v)]
     d["drives"] = drives
     return d
 
@@ -122,8 +146,7 @@ def _is_msd(text):
     t = text.lower()
     if "microsoft diagnostic" in t:
         return True
-    hits = sum(m in t for m in ("os version", "lpt ports", "com ports",
-                                "disk drives"))
+    hits = sum(m in t for m in ("os version", "lpt ports", "com ports", "disk drives"))
     return hits >= 2 and "hwinfo" not in t
 
 
@@ -162,9 +185,11 @@ def detect_msd(text):
 
     ports = []
     nlpt = as_int(find("lpt ports")) or sum(
-        1 for k, v in pairs if k in ("lpt1", "lpt2", "lpt3") and has(v))
+        1 for k, v in pairs if k in ("lpt1", "lpt2", "lpt3") and has(v)
+    )
     ncom = as_int(find("com ports")) or sum(
-        1 for k, v in pairs if k in ("com1", "com2", "com3", "com4") and has(v))
+        1 for k, v in pairs if k in ("com1", "com2", "com3", "com4") and has(v)
+    )
     if nlpt:
         ports.append(f"{nlpt}× Parallel" if nlpt > 1 else "Parallel")
     if ncom:
@@ -172,9 +197,11 @@ def detect_msd(text):
     if ports:
         d["ports"] = ", ".join(ports)
 
-    d["drives"] = [clean(v) for k, v in pairs
-                   if ("drive" in k or "disk" in k or "model" in k)
-                   and CHS_RE.search(v)]
+    d["drives"] = [
+        clean(v)
+        for k, v in pairs
+        if ("drive" in k or "disk" in k or "model" in k) and CHS_RE.search(v)
+    ]
     return d
 
 
@@ -203,8 +230,12 @@ def propose(comp, mobo, det):
     mupd = {}
     if mobo is not None:
         ms = dict(parse_specs(mobo.get("specs", "")))
-        for spec, key in (("Onboard video", "onboard_video"), ("BIOS", "bios"),
-                          ("Chipset", "chipset"), ("Ports", "ports")):
+        for spec, key in (
+            ("Onboard video", "onboard_video"),
+            ("BIOS", "bios"),
+            ("Chipset", "chipset"),
+            ("Ports", "ports"),
+        ):
             if det.get(key) and not ms.get(spec):
                 mupd[spec] = det[key]
 
@@ -215,8 +246,12 @@ def propose(comp, mobo, det):
         specs = "Kind: Hard disk | Interface: IDE"
         if chs:
             specs += f" | CHS: {chs.group(1)}/{chs.group(2)}/{chs.group(3)}"
-        r.update(type="storage", name="Detected drive", specs=specs,
-                 notes=f"detected via boot report: {drv}")
+        r.update(
+            type="storage",
+            name="Detected drive",
+            specs=specs,
+            notes=f"detected via boot report: {drv}",
+        )
         parts_out.append(r)
     return cupd, mupd, parts_out
 
@@ -229,11 +264,16 @@ def ask(q):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     add_api_arg(ap)
-    ap.add_argument("only", nargs="?", default=None,
-                    help="import just this asset id (default: every report in imports/)")
+    ap.add_argument(
+        "only",
+        nargs="?",
+        default=None,
+        help="import just this asset id (default: every report in imports/)",
+    )
     args = ap.parse_args()
     apply_api_arg(args)
     only = args.only
@@ -249,8 +289,7 @@ def main():
         if p.get("type") == "motherboard" and p.get("computer_id"):
             mobo_by_comp.setdefault(p["computer_id"], p)
 
-    reports = sorted(p for p in IMPORTS_DIR.iterdir()
-                     if p.is_file() and p.suffix.lower() == ".txt")
+    reports = sorted(p for p in IMPORTS_DIR.iterdir() if p.is_file() and p.suffix.lower() == ".txt")
     if only:
         reports = [r for r in reports if r.stem.lower() == only.lower()]
         if not reports:
@@ -265,9 +304,11 @@ def main():
         if not comp:
             # Auto-named report (e.g. SCAN03 from the boot disk's non-interactive
             # scan) — show what it detected, then attach it to a machine by hand.
-            ident = ", ".join(f"{k.replace('_', ' ')}={det[k]}"
-                              for k in ("cpu", "bios", "os", "onboard_video")
-                              if det.get(k))
+            ident = ", ".join(
+                f"{k.replace('_', ' ')}={det[k]}"
+                for k in ("cpu", "bios", "os", "onboard_video")
+                if det.get(k)
+            )
             print(f"\n{rpt.name}: not an asset id — detected {ident or '(nothing)'}")
             try:
                 ans = input("  attach to which asset id? (RH-xxxx, blank=skip): ").strip()
@@ -291,11 +332,12 @@ def main():
             print("  (already recorded, or nothing new detected)")
             continue
         if cupd:
-            print("  would set on the computer: "
-                  + ", ".join(f"{k}={v}" for k, v in cupd.items()))
+            print("  would set on the computer: " + ", ".join(f"{k}={v}" for k, v in cupd.items()))
         if mupd and mobo is not None:
-            print(f"  would set on motherboard {mobo['asset_id']}: "
-                  + ", ".join(f"{k}={v}" for k, v in mupd.items()))
+            print(
+                f"  would set on motherboard {mobo['asset_id']}: "
+                + ", ".join(f"{k}={v}" for k, v in mupd.items())
+            )
         for r in new_parts:
             print(f"  would add part: {r['type']}  [{r['specs']}]")
 
@@ -322,8 +364,10 @@ def main():
         print("  applied.")
 
     if wrote_c or wrote_p:
-        print(f"\nApplied to the API: {wrote_c} computer(s) updated, {wrote_p} "
-              "with motherboard/parts changes.")
+        print(
+            f"\nApplied to the API: {wrote_c} computer(s) updated, {wrote_p} "
+            "with motherboard/parts changes."
+        )
     else:
         print("\nNothing written.")
 

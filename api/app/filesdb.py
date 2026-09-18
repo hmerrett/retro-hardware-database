@@ -34,6 +34,7 @@ still hands it over is not privacy (ADR-0009).
 This module owns the bytes too. The name on disk is generated and the uploaded name
 is only ever data -- see `save`.
 """
+
 from __future__ import annotations
 
 import os
@@ -46,8 +47,7 @@ from sqlalchemy import and_, or_
 
 from . import machines
 from .entry import GIB, KIB, MIB
-from .models import (AssetVariant, FileAsset, FileModel, FileTag,
-                     StoredFile)
+from .models import AssetVariant, FileAsset, FileModel, FileTag, StoredFile
 
 FILES_DIR = Path(os.getenv("RHDB_FILES_DIR", "/app/files"))
 
@@ -90,16 +90,19 @@ def model_ids_for(db, item) -> list[tuple[str, str, str]]:
     out = []
     asset_id = (item.get("asset_id") or "").strip()
     if asset_id:
-        key = (db.query(AssetVariant.model_key)
-               .filter(AssetVariant.asset_id == asset_id).scalar() or "").strip()
+        key = (
+            db.query(AssetVariant.model_key).filter(AssetVariant.asset_id == asset_id).scalar()
+            or ""
+        ).strip()
         if key:
             known = machines.model(key)
             out.append((CATALOGUE, key, (known or {}).get("model") or key))
     maker = (item.get("manufacturer") or "").strip()
     model = (item.get("model") or "").strip()
     if fold(maker) or fold(model):
-        out.append((NAMED, named_key(maker, model),
-                    " ".join(word for word in (maker, model) if word)))
+        out.append(
+            (NAMED, named_key(maker, model), " ".join(word for word in (maker, model) if word))
+        )
     return out
 
 
@@ -108,13 +111,25 @@ def _file_ids_for(db, item) -> set[int]:
     asset_id = (item.get("asset_id") or "").strip()
     ids = set()
     if asset_id:
-        ids |= {row[0] for row in db.query(FileAsset.file_id)
-                .filter(FileAsset.asset_id == asset_id).all()}
+        ids |= {
+            row[0]
+            for row in db.query(FileAsset.file_id).filter(FileAsset.asset_id == asset_id).all()
+        }
     models = model_ids_for(db, item)
     if models:
-        ids |= {row[0] for row in db.query(FileModel.file_id).filter(
-            or_(*[and_(FileModel.kind == kind, FileModel.model_key == key)
-                  for kind, key, _ in models])).all()}
+        ids |= {
+            row[0]
+            for row in db.query(FileModel.file_id)
+            .filter(
+                or_(
+                    *[
+                        and_(FileModel.kind == kind, FileModel.model_key == key)
+                        for kind, key, _ in models
+                    ]
+                )
+            )
+            .all()
+        }
     return ids
 
 
@@ -138,8 +153,11 @@ def attach_asset(db, file_id: int, asset_id: str) -> bool:
     asset_id = (asset_id or "").strip()
     if not asset_id:
         return False
-    if db.query(FileAsset).filter(FileAsset.file_id == file_id,
-                                  FileAsset.asset_id == asset_id).first():
+    if (
+        db.query(FileAsset)
+        .filter(FileAsset.file_id == file_id, FileAsset.asset_id == asset_id)
+        .first()
+    ):
         return False
     db.add(FileAsset(file_id=file_id, asset_id=asset_id))
     db.flush()
@@ -150,9 +168,11 @@ def attach_model(db, file_id: int, kind: str, key: str, label: str = "") -> bool
     """Attach a file to a model. `label` is what to print; `key` is what matches."""
     if kind not in (CATALOGUE, NAMED) or not (key or "").strip():
         return False
-    if db.query(FileModel).filter(FileModel.file_id == file_id,
-                                  FileModel.kind == kind,
-                                  FileModel.model_key == key).first():
+    if (
+        db.query(FileModel)
+        .filter(FileModel.file_id == file_id, FileModel.kind == kind, FileModel.model_key == key)
+        .first()
+    ):
         return False
     db.add(FileModel(file_id=file_id, kind=kind, model_key=key, label=label or key))
     db.flush()
@@ -160,17 +180,16 @@ def attach_model(db, file_id: int, kind: str, key: str, label: str = "") -> bool
 
 
 def detach_asset(db, file_id: int, asset_id: str) -> None:
-    db.query(FileAsset).filter(FileAsset.file_id == file_id,
-                               FileAsset.asset_id == asset_id).delete(
-        synchronize_session=False)
+    db.query(FileAsset).filter(FileAsset.file_id == file_id, FileAsset.asset_id == asset_id).delete(
+        synchronize_session=False
+    )
     db.flush()
 
 
 def detach_model(db, file_id: int, kind: str, key: str) -> None:
-    db.query(FileModel).filter(FileModel.file_id == file_id,
-                               FileModel.kind == kind,
-                               FileModel.model_key == key).delete(
-        synchronize_session=False)
+    db.query(FileModel).filter(
+        FileModel.file_id == file_id, FileModel.kind == kind, FileModel.model_key == key
+    ).delete(synchronize_session=False)
     db.flush()
 
 
@@ -178,8 +197,7 @@ def forget_asset(db, asset_id: str) -> None:
     """Drop the links to an item being deleted. The bytes stay: a file with no
     links left is unfiled, which the files page says out loud rather than treating
     as rubbish (ADR-0006)."""
-    db.query(FileAsset).filter(FileAsset.asset_id == asset_id).delete(
-        synchronize_session=False)
+    db.query(FileAsset).filter(FileAsset.asset_id == asset_id).delete(synchronize_session=False)
     db.flush()
 
 
@@ -192,14 +210,15 @@ def with_links(db, rows):
         return []
     ids = [row.id for row in rows]
     assets: dict[int, list[str]] = {}
-    for link in db.query(FileAsset).filter(FileAsset.file_id.in_(ids)).order_by(
-            FileAsset.asset_id).all():
+    for link in (
+        db.query(FileAsset).filter(FileAsset.file_id.in_(ids)).order_by(FileAsset.asset_id).all()
+    ):
         assets.setdefault(link.file_id, []).append(link.asset_id)
     models: dict[int, list[tuple[str, str, str]]] = {}
-    for link in db.query(FileModel).filter(FileModel.file_id.in_(ids)).order_by(
-            FileModel.label).all():
-        models.setdefault(link.file_id, []).append(
-            (link.kind, link.model_key, link.label))
+    for link in (
+        db.query(FileModel).filter(FileModel.file_id.in_(ids)).order_by(FileModel.label).all()
+    ):
+        models.setdefault(link.file_id, []).append((link.kind, link.model_key, link.label))
     for row in rows:
         row.assets = assets.get(row.id, [])
         row.models = models.get(row.id, [])
@@ -217,9 +236,12 @@ def with_tags(db, rows):
     if not rows:
         return []
     tags: dict[int, list[str]] = {}
-    for row in (db.query(FileTag)
-                .filter(FileTag.file_id.in_([r.id for r in rows]))
-                .order_by(FileTag.id).all()):
+    for row in (
+        db.query(FileTag)
+        .filter(FileTag.file_id.in_([r.id for r in rows]))
+        .order_by(FileTag.id)
+        .all()
+    ):
         tags.setdefault(row.file_id, []).append(row.tag)
     for row in rows:
         row.tags = tags.get(row.id, [])
@@ -239,8 +261,7 @@ def all_files(db, tag="", authed=True):
     if not authed:
         q = q.filter(StoredFile.public.is_(True))
     if fold(tag):
-        ids = {row[0] for row in db.query(FileTag.file_id)
-               .filter(FileTag.fold == fold(tag)).all()}
+        ids = {row[0] for row in db.query(FileTag.file_id).filter(FileTag.fold == fold(tag)).all()}
         if not ids:
             return []
         q = q.filter(StoredFile.id.in_(ids))
@@ -263,8 +284,7 @@ def parse_tags(text) -> list[str]:
 def set_tags(db, stored: StoredFile, tags):
     """Replace a file's tags with these. Replace rather than add, because the box
     on the page shows all of them and what it shows is what a save means."""
-    db.query(FileTag).filter(FileTag.file_id == stored.id).delete(
-        synchronize_session=False)
+    db.query(FileTag).filter(FileTag.file_id == stored.id).delete(synchronize_session=False)
     for tag in parse_tags("\n".join(tags) if not isinstance(tags, str) else tags):
         db.add(FileTag(file_id=stored.id, tag=tag, fold=fold(tag)))
     db.flush()
@@ -298,9 +318,13 @@ def save(db, upload, tags, note=""):
     if not size:
         dest.unlink(missing_ok=True)
         return None
-    row = StoredFile(stored=stored, filename=name[:255], size=size,
-                     note=(note or "").strip()[:255],
-                     created_at=datetime.now(timezone.utc).replace(tzinfo=None))
+    row = StoredFile(
+        stored=stored,
+        filename=name[:255],
+        size=size,
+        note=(note or "").strip()[:255],
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+    )
     db.add(row)
     db.flush()
     set_tags(db, row, tags)
@@ -316,8 +340,7 @@ def remove(db, stored: StoredFile):
     cascades), and the row is gone whether or not the file was still on disk --
     a record pointing at nothing is worse than no record."""
     path_of(stored).unlink(missing_ok=True)
-    db.query(FileTag).filter(FileTag.file_id == stored.id).delete(
-        synchronize_session=False)
+    db.query(FileTag).filter(FileTag.file_id == stored.id).delete(synchronize_session=False)
     db.delete(stored)
 
 
@@ -326,7 +349,7 @@ def human_size(n) -> str:
     n = int(n or 0)
     if n < 1024:
         return f"{n} B"
-    for unit, scale in ((KIB, 1024), (MIB, 1024 ** 2), (GIB, 1024 ** 3)):
+    for unit, scale in ((KIB, 1024), (MIB, 1024**2), (GIB, 1024**3)):
         if n < scale * 1024 or unit == GIB:
             size = n / scale
             return f"{size:.0f} {unit}" if size >= 10 else f"{size:.1f} {unit}"

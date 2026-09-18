@@ -13,6 +13,7 @@ list has a custom box beside it for the hardware it does not name, and a value f
 there reopens on that box rather than being lost. Read it as "check this one", not
 "repair this one". Nothing is written either way.
 """
+
 from __future__ import annotations
 
 import sys
@@ -29,8 +30,7 @@ BEZEL = ("Colour", "Yellowing")
 
 
 def _keys(db, part):
-    return {k: v for k, v in
-            specstruct.pairs(part.type or "storage", specdb.read(db, part)) if k}
+    return {k: v for k, v in specstruct.pairs(part.type or "storage", specdb.read(db, part)) if k}
 
 
 def check(db, part):
@@ -44,14 +44,14 @@ def check(db, part):
 
     out = []
     asks = {a["key"]: a for a in entry.storage_asks(kind)}
-    allowed = set(asks) | set(ALWAYS) | (set(BEZEL) if kind in entry.BEZEL_KINDS
-                                         else set())
+    allowed = set(asks) | set(ALWAYS) | (set(BEZEL) if kind in entry.BEZEL_KINDS else set())
     for key, value in keys.items():
         if key not in allowed:
             out.append(f"has {key} = {value!r}, which this kind is not asked")
         elif (ask := asks.get(key)) and ask["options"] and value not in ask["options"]:
-            out.append(f"{key} = {value!r} is not on this kind's list "
-                       "(the custom box, or a mistake)")
+            out.append(
+                f"{key} = {value!r} is not on this kind's list (the custom box, or a mistake)"
+            )
     if not keys.get("Interface"):
         out.append("no interface, which every drive is asked for")
 
@@ -64,8 +64,7 @@ def check(db, part):
         if row.speed_rpm is not None and kind != entry.DISK_KIND:
             out.append(f"an rpm ({row.speed_rpm}) in the spindle's column")
     if part.disk_image and kind not in entry.DISK_IMAGE_KINDS:
-        out.append(f"a disk image ({part.disk_image!r}), which this kind is not "
-                   "asked for")
+        out.append(f"a disk image ({part.disk_image!r}), which this kind is not asked for")
     return kind, out
 
 
@@ -90,8 +89,7 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     db = SessionLocal()
     try:
-        parts = (db.query(Part).filter(Part.type == "storage")
-                 .order_by(Part.asset_id).all())
+        parts = db.query(Part).filter(Part.type == "storage").order_by(Part.asset_id).all()
         faults = 0
         for part in parts:
             kind, found = check(db, part)
@@ -99,12 +97,10 @@ def main(argv=None):
                 continue
             faults += 1
             name = " ".join(x for x in (part.manufacturer, part.model) if x)
-            print(f"{part.asset_id}  {kind or 'no kind'}"
-                  + (f" -- {name}" if name else ""))
+            print(f"{part.asset_id}  {kind or 'no kind'}" + (f" -- {name}" if name else ""))
             for line in found:
                 print(f"    {line}")
-        print(f"\n{len(parts)} storage part(s) checked, {faults} with something to "
-              "look at.")
+        print(f"\n{len(parts)} storage part(s) checked, {faults} with something to look at.")
         if "--gaps" in argv:
             missing, totals = gaps(db, parts)
             print("\nWhat is still blank:")
@@ -114,8 +110,10 @@ def main(argv=None):
                 print(f"\n  {kind} ({totals[kind]})")
                 for ask in entry.storage_asks(kind):
                     n = missing[kind][ask["key"]]
-                    print(f"    {ask['key']:12} "
-                          + ("answered on every one" if not n else f"blank on {n}"))
+                    print(
+                        f"    {ask['key']:12} "
+                        + ("answered on every one" if not n else f"blank on {n}")
+                    )
     finally:
         db.close()
     return 0

@@ -13,6 +13,7 @@ Being generated, it can go stale the moment a machine is added, so a test assert
 it has not (test_machines.TestTheListOfWhatIsInIt). Add a machine, run this, commit
 both.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,45 +35,56 @@ def render(families):
     years = [m["year"] for f in families for m in f["models"]]
 
     out = ["THE MACHINE CATALOGUE", "=" * WIDTH, ""]
-    out.append(textwrap.fill(
-        f"Every machine the register knows as a model -- home computers, consoles"
-        f" and the branded PCs that were sold under a model name: {models}"
-        f" machines from {len(makers)} makers, {min(years)} to {max(years)}. Filing"
-        " a machine against one of these fills in what is already known about the"
-        " model, and asks only what differs between two of the same -- the board"
-        " issue, the case, the region, the chips in the sockets.", WIDTH))
+    out.append(
+        textwrap.fill(
+            f"Every machine the register knows as a model -- home computers, consoles"
+            f" and the branded PCs that were sold under a model name: {models}"
+            f" machines from {len(makers)} makers, {min(years)} to {max(years)}. Filing"
+            " a machine against one of these fills in what is already known about the"
+            " model, and asks only what differs between two of the same -- the board"
+            " issue, the case, the region, the chips in the sockets.",
+            WIDTH,
+        )
+    )
     out.append("")
-    out.append(textwrap.fill(
-        "Listed alphabetically by maker, and alphabetically within each maker."
-        " Where a machine was built by someone other than the maker it is filed"
-        " under, that is given in brackets. The catalogue itself is"
-        " api/app/machines.yaml; this list is generated from it by"
-        " tools/catalogue_list.py.", WIDTH))
+    out.append(
+        textwrap.fill(
+            "Listed alphabetically by maker, and alphabetically within each maker."
+            " Where a machine was built by someone other than the maker it is filed"
+            " under, that is given in brackets. The catalogue itself is"
+            " api/app/machines.yaml; this list is generated from it by"
+            " tools/catalogue_list.py.",
+            WIDTH,
+        )
+    )
     out.append("")
 
     for family in families:
         maker = family["manufacturer"] or family["name"]
         # One maker with more than one family -- Apple's II line and its Macintosh,
         # Commodore's three -- says which of them this is.
-        head = maker if family["name"] in (maker, maker + " ZX") \
-            else f"{maker}  ({family['name']})"
+        head = maker if family["name"] in (maker, maker + " ZX") else f"{maker}  ({family['name']})"
         names = []
         for model in family["models"]:
             own = model.get("manufacturer")
-            names.append(f"{model['model']} [{own}]" if own and own != maker
-                         else model["model"])
-        out += ["", f"{head}   -- {len(names)}", "-" * WIDTH,
-                textwrap.fill(", ".join(names), WIDTH, initial_indent="  ",
-                              subsequent_indent="  ")]
+            names.append(f"{model['model']} [{own}]" if own and own != maker else model["model"])
+        out += [
+            "",
+            f"{head}   -- {len(names)}",
+            "-" * WIDTH,
+            textwrap.fill(", ".join(names), WIDTH, initial_indent="  ", subsequent_indent="  "),
+        ]
     out.append("")
     return "\n".join(out) + "\n"
 
 
 def main(argv=None):
     from app import machines
+
     args = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    args.add_argument("--check", action="store_true",
-                      help="exit 1 if catalogue.txt is not what this would write")
+    args.add_argument(
+        "--check", action="store_true", help="exit 1 if catalogue.txt is not what this would write"
+    )
     opts = args.parse_args(argv)
 
     wanted = render(machines.FAMILIES)
@@ -84,8 +96,10 @@ def main(argv=None):
     if have == wanted:
         print(f"{OUT.relative_to(ROOT)} is in step with the catalogue")
         return 0
-    print(f"{OUT.relative_to(ROOT)} is out of step -- run"
-          " `python tools/catalogue_list.py`", file=sys.stderr)
+    print(
+        f"{OUT.relative_to(ROOT)} is out of step -- run `python tools/catalogue_list.py`",
+        file=sys.stderr,
+    )
     return 1
 
 

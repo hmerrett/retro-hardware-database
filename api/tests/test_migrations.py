@@ -12,6 +12,7 @@ Skipped unless ``MIGRATION_TEST_DATABASE_URL`` names a MariaDB *server* (URL wit
 no database, or one whose database is ignored) under an account allowed to create
 and drop a scratch database. CI provides one; see the MariaDB CI job.
 """
+
 import os
 import subprocess
 import uuid
@@ -57,7 +58,10 @@ def test_upgrade_head_on_empty_database(scratch_db_url):
     env = {**os.environ, "DATABASE_URL": scratch_db_url}
     result = subprocess.run(
         ["alembic", "upgrade", "head"],
-        cwd=API_DIR, env=env, capture_output=True, text=True,
+        cwd=API_DIR,
+        env=env,
+        capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, (
         "alembic upgrade head failed on an empty database:\n"
@@ -73,7 +77,10 @@ BEFORE_SERIAL_FIX = "0033_work_project_names"
 def _alembic(url, *args):
     """Run the alembic CLI against `url` and return the completed process."""
     return subprocess.run(
-        ["alembic", *args], cwd=API_DIR, capture_output=True, text=True,
+        ["alembic", *args],
+        cwd=API_DIR,
+        capture_output=True,
+        text=True,
         env={**os.environ, "DATABASE_URL": url},
     )
 
@@ -97,26 +104,33 @@ def test_serials_left_null_before_0034_are_backfilled(scratch_db_url):
         # key then rejects -- unrelated to this migration, and not this test's
         # business to trip over.
         conn.execute(text("INSERT INTO computers (asset_id) VALUES ('RH-OLD1')"))
-        conn.execute(text("INSERT INTO computers (asset_id, serial) VALUES "
-                          "('RH-OLD2', 'SN-KEPT')"))
-        conn.execute(text("INSERT INTO parts (asset_id, parent_id) VALUES "
-                          "('RH-OLD3', NULL)"))
+        conn.execute(text("INSERT INTO computers (asset_id, serial) VALUES ('RH-OLD2', 'SN-KEPT')"))
+        conn.execute(text("INSERT INTO parts (asset_id, parent_id) VALUES ('RH-OLD3', NULL)"))
 
     up = _alembic(scratch_db_url, "upgrade", "head")
     assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
 
     with engine.begin() as conn:
-        rows = dict(conn.execute(text(
-            "SELECT asset_id, serial FROM computers UNION ALL "
-            "SELECT asset_id, serial FROM parts")).all())
+        rows = dict(
+            conn.execute(
+                text(
+                    "SELECT asset_id, serial FROM computers UNION ALL "
+                    "SELECT asset_id, serial FROM parts"
+                )
+            ).all()
+        )
         assert rows == {"RH-OLD1": "", "RH-OLD2": "SN-KEPT", "RH-OLD3": ""}
 
         # And the column can no longer hold the state that caused the bug.
         for table in ("computers", "parts"):
-            nullable = conn.execute(text(
-                "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE "
-                "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND "
-                "COLUMN_NAME = 'serial'"), {"t": table}).scalar_one()
+            nullable = conn.execute(
+                text(
+                    "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE "
+                    "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND "
+                    "COLUMN_NAME = 'serial'"
+                ),
+                {"t": table},
+            ).scalar_one()
             assert nullable == "NO", f"{table}.serial is still nullable"
     engine.dispose()
 
@@ -133,10 +147,14 @@ def test_the_serial_backfill_can_be_downgraded(scratch_db_url):
     engine = create_engine(scratch_db_url, future=True)
     with engine.begin() as conn:
         for table in ("computers", "parts"):
-            nullable = conn.execute(text(
-                "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE "
-                "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND "
-                "COLUMN_NAME = 'serial'"), {"t": table}).scalar_one()
+            nullable = conn.execute(
+                text(
+                    "SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE "
+                    "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND "
+                    "COLUMN_NAME = 'serial'"
+                ),
+                {"t": table},
+            ).scalar_one()
             assert nullable == "YES", f"{table}.serial did not go back to nullable"
     engine.dispose()
 
@@ -161,20 +179,31 @@ def test_files_already_on_file_stay_public_across_0035(scratch_db_url):
 
     engine = create_engine(scratch_db_url, future=True)
     with engine.begin() as conn:
-        conn.execute(text("INSERT INTO files (stored, filename, size) VALUES "
-                          "('abc123.zip', 'tvga.zip', 12)"))
+        conn.execute(
+            text("INSERT INTO files (stored, filename, size) VALUES ('abc123.zip', 'tvga.zip', 12)")
+        )
 
     up = _alembic(scratch_db_url, "upgrade", "head")
     assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
 
     with engine.begin() as conn:
-        assert conn.execute(text(
-            "SELECT public FROM files WHERE filename = 'tvga.zip'")).scalar_one() == 1
+        assert (
+            conn.execute(text("SELECT public FROM files WHERE filename = 'tvga.zip'")).scalar_one()
+            == 1
+        )
         # And the column an upload written after the migration lands in.
-        conn.execute(text("INSERT INTO files (stored, filename, size) VALUES "
-                          "('def456.pdf', 'receipt.pdf', 34)"))
-        assert conn.execute(text(
-            "SELECT public FROM files WHERE filename = 'receipt.pdf'")).scalar_one() == 0
+        conn.execute(
+            text(
+                "INSERT INTO files (stored, filename, size) VALUES "
+                "('def456.pdf', 'receipt.pdf', 34)"
+            )
+        )
+        assert (
+            conn.execute(
+                text("SELECT public FROM files WHERE filename = 'receipt.pdf'")
+            ).scalar_one()
+            == 0
+        )
     engine.dispose()
 
 
@@ -188,10 +217,16 @@ def test_the_public_flag_can_be_downgraded(scratch_db_url):
 
     engine = create_engine(scratch_db_url, future=True)
     with engine.begin() as conn:
-        assert conn.execute(text(
-            "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE "
-            "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'files' AND "
-            "COLUMN_NAME = 'public'")).scalar_one() == 0
+        assert (
+            conn.execute(
+                text(
+                    "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE "
+                    "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'files' AND "
+                    "COLUMN_NAME = 'public'"
+                )
+            ).scalar_one()
+            == 0
+        )
     engine.dispose()
 
 
@@ -217,36 +252,50 @@ def test_what_the_matcher_found_survives_0039(scratch_db_url):
 
     engine = create_engine(scratch_db_url, future=True)
     with engine.begin() as conn:
-        for aid, maker, model in (("RH-0001", "Trident", "TVGA8900"),
-                                  ("RH-0002", "Trident", "TVGA8900"),
-                                  ("RH-0003", "Tseng", "ET4000"),
-                                  ("RH-0004", "", "")):
-            conn.execute(text(
-                "INSERT INTO parts (asset_id, type, manufacturer, model, name, "
-                "disposed_note, computer_id, parent_id) "
-                "VALUES (:a, 'video', :m, :d, '', '', NULL, NULL)"),
-                {"a": aid, "m": maker, "d": model})
-        for fid, (stored, name) in enumerate((("a.zip", "tvga.zip"),
-                                              ("b.pdf", "receipt.pdf"),
-                                              ("c.zip", "nothing.zip"),
-                                              ("d.zip", "unnamed.zip")), start=1):
-            conn.execute(text("INSERT INTO files (id, stored, filename, size) "
-                              "VALUES (:i, :s, :f, 10)"),
-                         {"i": fid, "s": stored, "f": name})
-        for fid, tag in ((1, "Trident TVGA8900"), (2, "RH-0001"),
-                         (3, "Nothing At All"), (4, "RH-0004")):
-            conn.execute(text("INSERT INTO file_tag (file_id, tag, fold) "
-                              "VALUES (:i, :t, :f)"),
-                         {"i": fid, "t": tag, "f": "".join(tag.split()).lower()})
+        for aid, maker, model in (
+            ("RH-0001", "Trident", "TVGA8900"),
+            ("RH-0002", "Trident", "TVGA8900"),
+            ("RH-0003", "Tseng", "ET4000"),
+            ("RH-0004", "", ""),
+        ):
+            conn.execute(
+                text(
+                    "INSERT INTO parts (asset_id, type, manufacturer, model, name, "
+                    "disposed_note, computer_id, parent_id) "
+                    "VALUES (:a, 'video', :m, :d, '', '', NULL, NULL)"
+                ),
+                {"a": aid, "m": maker, "d": model},
+            )
+        for fid, (stored, name) in enumerate(
+            (
+                ("a.zip", "tvga.zip"),
+                ("b.pdf", "receipt.pdf"),
+                ("c.zip", "nothing.zip"),
+                ("d.zip", "unnamed.zip"),
+            ),
+            start=1,
+        ):
+            conn.execute(
+                text("INSERT INTO files (id, stored, filename, size) VALUES (:i, :s, :f, 10)"),
+                {"i": fid, "s": stored, "f": name},
+            )
+        for fid, tag in (
+            (1, "Trident TVGA8900"),
+            (2, "RH-0001"),
+            (3, "Nothing At All"),
+            (4, "RH-0004"),
+        ):
+            conn.execute(
+                text("INSERT INTO file_tag (file_id, tag, fold) VALUES (:i, :t, :f)"),
+                {"i": fid, "t": tag, "f": "".join(tag.split()).lower()},
+            )
 
     up = _alembic(scratch_db_url, "upgrade", "head")
     assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
 
     with engine.begin() as conn:
-        models = set(conn.execute(text(
-            "SELECT file_id, kind, model_key FROM file_model")).all())
-        assets = set(conn.execute(text(
-            "SELECT file_id, asset_id FROM file_asset")).all())
+        models = set(conn.execute(text("SELECT file_id, kind, model_key FROM file_model")).all())
+        assets = set(conn.execute(text("SELECT file_id, asset_id FROM file_asset")).all())
 
     # One link, not two: the tag reached two identical cards and they are one model,
     # which is the whole reason a model link exists.
@@ -265,19 +314,30 @@ def test_a_file_the_matcher_reached_nothing_with_is_left_unfiled(scratch_db_url)
     assert up.returncode == 0, f"upgrade to 0038 failed:\n{up.stderr}"
     engine = create_engine(scratch_db_url, future=True)
     with engine.begin() as conn:
-        conn.execute(text("INSERT INTO parts (asset_id, type, manufacturer, model, "
-                          "name, disposed_note, computer_id, parent_id) VALUES "
-                          "('RH-0009', 'video', 'Tseng', 'ET4000', '', '', NULL, NULL)"))
-        conn.execute(text("INSERT INTO files (id, stored, filename, size) "
-                          "VALUES (7, 'x.zip', 'orphan.zip', 10)"))
-        conn.execute(text("INSERT INTO file_tag (file_id, tag, fold) "
-                          "VALUES (7, 'Whatever', 'whatever')"))
+        conn.execute(
+            text(
+                "INSERT INTO parts (asset_id, type, manufacturer, model, "
+                "name, disposed_note, computer_id, parent_id) VALUES "
+                "('RH-0009', 'video', 'Tseng', 'ET4000', '', '', NULL, NULL)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO files (id, stored, filename, size) "
+                "VALUES (7, 'x.zip', 'orphan.zip', 10)"
+            )
+        )
+        conn.execute(
+            text("INSERT INTO file_tag (file_id, tag, fold) VALUES (7, 'Whatever', 'whatever')")
+        )
 
     up = _alembic(scratch_db_url, "upgrade", "head")
     assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
     with engine.begin() as conn:
         assert conn.execute(text("SELECT COUNT(*) FROM file_model")).scalar_one() == 0
         assert conn.execute(text("SELECT COUNT(*) FROM file_asset")).scalar_one() == 0
-        assert conn.execute(text(
-            "SELECT filename FROM files WHERE id = 7")).scalar_one() == "orphan.zip"
+        assert (
+            conn.execute(text("SELECT filename FROM files WHERE id = 7")).scalar_one()
+            == "orphan.zip"
+        )
     engine.dispose()

@@ -5,6 +5,7 @@ All three render the same grid from the same rows -- they differ only in which r
 survive and what the page says it is showing. The matching itself is search.py's;
 this is the page around it.
 """
+
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -25,6 +26,7 @@ router = APIRouter()
 
 # --- GUI: index ------------------------------------------------------------
 
+
 def _catalogue_rows(db, precise_times=True):
     """Every computer and part as one list of card rows. The gallery and /browse
     render the same grid from this; they differ only in which rows survive.
@@ -44,8 +46,8 @@ def _catalogue_rows(db, precise_times=True):
     # Newest/oldest log timestamp per asset, for the updated / added sorts.
     ts = {}
     for aid, latest, first in db.query(
-            LogEntry.asset_id, func.max(LogEntry.created_at),
-            func.min(LogEntry.created_at)).group_by(LogEntry.asset_id):
+        LogEntry.asset_id, func.max(LogEntry.created_at), func.min(LogEntry.created_at)
+    ).group_by(LogEntry.asset_id):
         ts[aid] = (latest, first)
 
     def stamp(when):
@@ -71,54 +73,96 @@ def _catalogue_rows(db, precise_times=True):
 
     rows = []
     for c in computers:
-        rows.append({
-            "obj": c, "kind": "computer", "cat": "computer",
-            "cat_label": "Computer", "parent": "", "year": c.year or "",
-            "name": entry.display_name(to_dict(c)),
-            "image": (cpi := primary_image("computers", c.asset_id)),
-            "ref_photo": is_reference(cpi), "ref_icon": _favicon_for_rel(cpi),
-            "placeholder": entry.placeholder_for("computer"),
-            "updated": stamps(c.asset_id)[0], "added": stamps(c.asset_id)[1],
-            "maker": (c.manufacturer or "").lower(),
-            "acquired": str(c.acquired_date or ""), "catsort": 0,
-            "sub": f"{counts.get(c.asset_id, 0)} part(s)",
-            "search": " ".join([c.asset_id, c.name or "", c.manufacturer or "",
-                                 c.model or "", c.os or "", c.cpu or "",
-                                 c.chassis or "", c.installed_ram or "",
-                                 c.drives or "", str(c.year or ""),
-                                 c.condition or "", c.source or "",
-                                 str(c.acquired_date or ""),
-                                 c.disposed_note or ""]).lower(),
-        })
+        rows.append(
+            {
+                "obj": c,
+                "kind": "computer",
+                "cat": "computer",
+                "cat_label": "Computer",
+                "parent": "",
+                "year": c.year or "",
+                "name": entry.display_name(to_dict(c)),
+                "image": (cpi := primary_image("computers", c.asset_id)),
+                "ref_photo": is_reference(cpi),
+                "ref_icon": _favicon_for_rel(cpi),
+                "placeholder": entry.placeholder_for("computer"),
+                "updated": stamps(c.asset_id)[0],
+                "added": stamps(c.asset_id)[1],
+                "maker": (c.manufacturer or "").lower(),
+                "acquired": str(c.acquired_date or ""),
+                "catsort": 0,
+                "sub": f"{counts.get(c.asset_id, 0)} part(s)",
+                "search": " ".join(
+                    [
+                        c.asset_id,
+                        c.name or "",
+                        c.manufacturer or "",
+                        c.model or "",
+                        c.os or "",
+                        c.cpu or "",
+                        c.chassis or "",
+                        c.installed_ram or "",
+                        c.drives or "",
+                        str(c.year or ""),
+                        c.condition or "",
+                        c.source or "",
+                        str(c.acquired_date or ""),
+                        c.disposed_note or "",
+                    ]
+                ).lower(),
+            }
+        )
     for p in parts:
         ptype = p.type or "other"
-        rows.append({
-            "obj": p, "kind": "part", "cat": ptype,
-            "cat_label": entry.type_label(ptype), "year": p.year or "",
-            "parent": p.computer_id if p.computer_id in comp_ids else "",
-            "name": entry.display_name(to_dict(p)),
-            "image": (ppi := primary_image("parts", p.asset_id)),
-            "ref_photo": is_reference(ppi), "ref_icon": _favicon_for_rel(ppi),
-            "placeholder": (_storage_placeholder(kinds.get(p.asset_id))
-                            if ptype == "storage"
-                            else entry.placeholder_for(ptype)),
-            "updated": stamps(p.asset_id)[0], "added": stamps(p.asset_id)[1],
-            "maker": (p.manufacturer or "").lower(),
-            "acquired": str(p.acquired_date or ""),
-            "catsort": entry.type_sort_key(ptype) + 1,
-            "sub": (p.computer_id if p.computer_id else "standalone"),
-            "search": " ".join([p.asset_id, p.name or "", p.manufacturer or "",
-                                 p.model or "", p.specs or "", p.type or "",
-                                 entry.type_label(ptype), str(p.year or ""),
-                                 p.condition or "", p.source or "",
-                                 str(p.acquired_date or ""), p.disk_image or "",
-                                 p.computer_id or "", p.disposed_note or ""]).lower(),
-        })
+        rows.append(
+            {
+                "obj": p,
+                "kind": "part",
+                "cat": ptype,
+                "cat_label": entry.type_label(ptype),
+                "year": p.year or "",
+                "parent": p.computer_id if p.computer_id in comp_ids else "",
+                "name": entry.display_name(to_dict(p)),
+                "image": (ppi := primary_image("parts", p.asset_id)),
+                "ref_photo": is_reference(ppi),
+                "ref_icon": _favicon_for_rel(ppi),
+                "placeholder": (
+                    _storage_placeholder(kinds.get(p.asset_id))
+                    if ptype == "storage"
+                    else entry.placeholder_for(ptype)
+                ),
+                "updated": stamps(p.asset_id)[0],
+                "added": stamps(p.asset_id)[1],
+                "maker": (p.manufacturer or "").lower(),
+                "acquired": str(p.acquired_date or ""),
+                "catsort": entry.type_sort_key(ptype) + 1,
+                "sub": (p.computer_id if p.computer_id else "standalone"),
+                "search": " ".join(
+                    [
+                        p.asset_id,
+                        p.name or "",
+                        p.manufacturer or "",
+                        p.model or "",
+                        p.specs or "",
+                        p.type or "",
+                        entry.type_label(ptype),
+                        str(p.year or ""),
+                        p.condition or "",
+                        p.source or "",
+                        str(p.acquired_date or ""),
+                        p.disk_image or "",
+                        p.computer_id or "",
+                        p.disposed_note or "",
+                    ]
+                ).lower(),
+            }
+        )
     # Newest change first. The browser re-sorts on load anyway, but its sort is
     # stable, so this is the order items updated on the same day keep -- the whole
     # of what the dropped clock time used to settle.
-    rows.sort(key=lambda r: ts.get(r["obj"].asset_id, (datetime.min,))[0] or datetime.min,
-              reverse=True)
+    rows.sort(
+        key=lambda r: ts.get(r["obj"].asset_id, (datetime.min,))[0] or datetime.min, reverse=True
+    )
     return rows
 
 
@@ -136,9 +180,17 @@ def _grid_page(request, rows, **extra):
     """Render the card grid. Counts come from the rows on the page rather than from
     the register, so a filtered view describes itself honestly."""
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
-    return templates.TemplateResponse(request, "index.html", {
-        "rows": rows, "cats": _cats_for(rows),
-        "n_computers": n_computers, "n_parts": len(rows) - n_computers, **extra})
+    return templates.TemplateResponse(
+        request,
+        "index.html",
+        {
+            "rows": rows,
+            "cats": _cats_for(rows),
+            "n_computers": n_computers,
+            "n_parts": len(rows) - n_computers,
+            **extra,
+        },
+    )
 
 
 @router.get("/suggest", include_in_schema=False)
@@ -159,21 +211,30 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
         # search that quietly ignored a whole section of the site would be a search
         # bar that says "anything" and means "the shelf". The line the page draws
         # from this points at /projects with the same query.
-        hit_projects = len(_projects_matching(
-            db, projects.summaries(db, authed=request.state.authed), q,
-            request.state.authed))
+        hit_projects = len(
+            _projects_matching(
+                db, projects.summaries(db, authed=request.state.authed), q, request.state.authed
+            )
+        )
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
     return _grid_page(
-        request, rows, q=q, searched=bool(q.strip()), total=total,
+        request,
+        rows,
+        q=q,
+        searched=bool(q.strip()),
+        total=total,
         hit_projects=hit_projects,
-        og=_og(request, "Retro Hardware Database",
-               f"{n_computers} computers and {len(rows) - n_computers} parts "
-               "in the collection.",
-               # The photographs on the page, tiled, rather than the logo: this is
-               # a wall of them, and a search is the page here most worth sending
-               # somebody (ADR-0017). The rows are already in hand, and only the
-               # first few of them that have a photograph are ever opened.
-               card=cards.montage(r["image"] for r in rows)))
+        og=_og(
+            request,
+            "Retro Hardware Database",
+            f"{n_computers} computers and {len(rows) - n_computers} parts in the collection.",
+            # The photographs on the page, tiled, rather than the logo: this is
+            # a wall of them, and a search is the page here most worth sending
+            # somebody (ADR-0017). The rows are already in hand, and only the
+            # first few of them that have a photograph are ever opened.
+            card=cards.montage(r["image"] for r in rows),
+        ),
+    )
 
 
 @router.get("/for-sale", response_class=HTMLResponse, include_in_schema=False)
@@ -192,31 +253,36 @@ def gui_for_sale(request: Request, db: Session = Depends(get_db)):
     No montage on the share card, and noindex: this is not a page to share, and the
     site's own card is what a page with nothing to advertise shows (ADR-0017).
     """
-    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed)
-            if r["obj"].for_sale]
+    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed) if r["obj"].for_sale]
     return _grid_page(
-        request, rows, heading="Might sell",
+        request,
+        rows,
+        heading="Might sell",
         note="things flagged as ones that could go — nobody else sees this",
         # Disposed items are shown: something on its way out can be both, and a
         # shortlist that silently dropped them would be answering a question that
         # was not asked.
         show_disposed=True,
         page_title="Might sell — Retro Hardware Database",
-        noindex=True, og=_og(request, "Might sell"))
+        noindex=True,
+        og=_og(request, "Might sell"),
+    )
 
 
 @router.get("/browse", response_class=HTMLResponse, include_in_schema=False)
-def gui_browse(request: Request, f: str = "", v: str = "",
-               db: Session = Depends(get_db)):
+def gui_browse(request: Request, f: str = "", v: str = "", db: Session = Depends(get_db)):
     """The items behind one figure on /stats, in the same grid as the gallery."""
     view = _browse_view(db, f, v)
     if view is None:
         raise HTTPException(404, f"no such view: {f or '(none)'}")
     heading, note, crumb, keep = view
-    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed)
-            if keep(r)]
+    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed) if keep(r)]
     return _grid_page(
-        request, rows, heading=heading, note=note, crumb=crumb,
+        request,
+        rows,
+        heading=heading,
+        note=note,
+        crumb=crumb,
         # The figures on /stats count disposed items too, so this page has to show
         # them by default or it would seem to contradict the number clicked on.
         show_disposed=True,
@@ -224,4 +290,5 @@ def gui_browse(request: Request, f: str = "", v: str = "",
         # A filtered slice of the gallery is not a page search engines want; the
         # items themselves are already indexed one by one.
         noindex=True,
-        og=_og(request, heading, note, card=cards.montage(r["image"] for r in rows)))
+        og=_og(request, heading, note, card=cards.montage(r["image"] for r in rows)),
+    )

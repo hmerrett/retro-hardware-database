@@ -8,6 +8,7 @@ code on screen and a code on a label are made the same way.
 
 Physical printing stays on the DYMO box; here we only generate the PDF.
 """
+
 from __future__ import annotations
 
 import io
@@ -41,8 +42,14 @@ FONT_PATH = Path(__file__).resolve().parent / "label_font.ttf"
 FULL = {"w": 6 * inch, "h": 4 * inch, "qr": "M", "rotate": 90}
 SMALL = {"w": 51 * mm, "h": 19 * mm, "qr": "M", "rotate": 90, "safe_mm": 3}
 
-BUILD_ROWS = [("cpu", "CPU"), ("ram", "Memory"), ("video", "Video"),
-              ("sound", "Sound"), ("storage", "Storage"), ("network", "Network")]
+BUILD_ROWS = [
+    ("cpu", "CPU"),
+    ("ram", "Memory"),
+    ("video", "Video"),
+    ("sound", "Sound"),
+    ("storage", "Storage"),
+    ("network", "Network"),
+]
 # The one spec that stands for a whole part, where a machine's label has room for
 # only a line each.
 SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
@@ -79,14 +86,20 @@ SPEC_PICK = {"ram": "Size", "storage": "Capacity"}
 # said, not one, and together they are wider than the label. Joined they wrapped
 # mid-figure -- "320x200 (CGA) 50" and then "Hz, 60 Hz" -- which reads as a fault in
 # the label rather than as two facts.
-SMALL_SPECS = {"storage": ((("Capacity", ""),),
-                           (("CHS", "CHS "),),
-                           (("Form factor", ""), ("Size", "")),
-                           (("Media", ""), ("Speed", ""))),
-               "display": ((("Screen size", ""), ("Panel", ""), ("Type", "")),
-                           (("Resolution", ""),),
-                           (("Refresh", ""),),
-                           (("Interface", ""),))}
+SMALL_SPECS = {
+    "storage": (
+        (("Capacity", ""),),
+        (("CHS", "CHS "),),
+        (("Form factor", ""), ("Size", "")),
+        (("Media", ""), ("Speed", "")),
+    ),
+    "display": (
+        (("Screen size", ""), ("Panel", ""), ("Type", "")),
+        (("Resolution", ""),),
+        (("Refresh", ""),),
+        (("Interface", ""),),
+    ),
+}
 
 
 def _pairs_of(part):
@@ -94,6 +107,7 @@ def _pairs_of(part):
     tables if it attached them, else parsed from the rendered specs string."""
     pairs = part.get("spec_pairs")
     return pairs if pairs is not None else parse_specs(part.get("specs", ""))
+
 
 _font_ready = False
 
@@ -133,8 +147,7 @@ def _qr(data, error="M"):
     # bearing today; it is here so that encoding something short one day (a bare
     # asset tag is a Micro QR) cannot quietly print labels nothing will read.
     buf = io.BytesIO()
-    segno.make(data, error=error.lower(), micro=False).save(
-        buf, kind="png", scale=10, border=1)
+    segno.make(data, error=error.lower(), micro=False).save(buf, kind="png", scale=10, border=1)
     buf.seek(0)
     return ImageReader(buf)
 
@@ -149,8 +162,18 @@ def qr_svg(data, error="M") -> str:
     """
     buf = io.BytesIO()
     segno.make(data, error=error.lower(), micro=False).save(
-        buf, kind="svg", scale=1, border=2, dark="#000", light="#fff",
-        omitsize=True, xmldecl=False, nl=False, svgclass=None, lineclass=None)
+        buf,
+        kind="svg",
+        scale=1,
+        border=2,
+        dark="#000",
+        light="#fff",
+        omitsize=True,
+        xmldecl=False,
+        nl=False,
+        svgclass=None,
+        lineclass=None,
+    )
     return buf.getvalue().decode("utf-8")
 
 
@@ -200,6 +223,7 @@ def _apply_rotation(c, W, H, rot):
 
 # --- content ---------------------------------------------------------------
 
+
 def _catalogue_lines(asset):
     """An asset's catalogue identity as label lines, from its rendered variant.
 
@@ -229,8 +253,10 @@ def computer_lines(comp, parts, form_factor=""):
     """Label body for a machine. `form_factor` comes from the linked board's typed
     column (see main.gui_computer_label); it falls back to the rendered specs
     string only so a caller that has not looked it up still gets a label."""
-    kids = sorted((p for p in parts if p.get("computer_id") == comp["asset_id"]),
-                  key=lambda p: p.get("type", ""))
+    kids = sorted(
+        (p for p in parts if p.get("computer_id") == comp["asset_id"]),
+        key=lambda p: p.get("type", ""),
+    )
     # No "Type: Computer" first line any more: the word now runs up the end of the
     # label, and the bullet was saying it a second time in the most valuable line on
     # the label. A part keeps its Type line, which says what sort of part -- Storage,
@@ -248,8 +274,13 @@ def computer_lines(comp, parts, form_factor=""):
     lines += _catalogue_lines(comp)
     if form_factor:
         lines.append(f"Form factor: {form_factor}")
-    for label, key in (("CPU", "cpu"), ("RAM", "installed_ram"),
-                       ("Drives", "drives"), ("Chassis", "chassis"), ("OS", "os")):
+    for label, key in (
+        ("CPU", "cpu"),
+        ("RAM", "installed_ram"),
+        ("Drives", "drives"),
+        ("Chassis", "chassis"),
+        ("OS", "os"),
+    ):
         if comp.get(key):
             lines.append(f"{label}: {comp[key]}")
     by_type = {}
@@ -293,8 +324,7 @@ def small_body(asset, kind, spec_pairs=None):
     have = dict(spec_pairs)
     lines = []
     for group in wanted:
-        said = [prefix + value for key, prefix in group
-                if (value := (have.get(key) or "").strip())]
+        said = [prefix + value for key, prefix in group if (value := (have.get(key) or "").strip())]
         if said:
             lines.append(" ".join(said))
     return name, lines
@@ -328,8 +358,11 @@ def project_lines(project):
     will still be true when it is read -- what the project is called, what state it
     was in, and the dates -- and the QR code is there for everything that moves."""
     lines = [f"Status: {status_label(project.get('status', ''))}"]
-    for label, key in (("Started", "started_at"), ("Wanted by", "target_date"),
-                       ("Finished", "finished_at")):
+    for label, key in (
+        ("Started", "started_at"),
+        ("Wanted by", "target_date"),
+        ("Finished", "finished_at"),
+    ):
         if project.get(key):
             lines.append(f"{label}: {project[key]}")
     if project.get("summary"):
@@ -395,8 +428,7 @@ def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont, kind=None):
     bottom = margin + 0.16 * inch
     c.setLineWidth(1)
     c.setStrokeColorRGB(0.65, 0.65, 0.65)
-    c.roundRect(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8,
-                stroke=1, fill=0)
+    c.roundRect(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8, stroke=1, fill=0)
     c.setFillColorRGB(0, 0, 0)
     if word:
         _vertical(c, margin, margin + strip, H / 2, word, hfont, 13)
@@ -415,13 +447,13 @@ def _render_full(c, W, H, asset_id, title, lines, url, hfont, bfont, kind=None):
                 break
             y -= 12
             c.setFont(bfont, 9)
-            c.drawString(text_x if i == 0 else text_x + 8, y,
-                         line if i == 0 else "  " + line)
+            c.drawString(text_x if i == 0 else text_x + 8, y, line if i == 0 else "  " + line)
         if y - 12 < bottom:
             break
     qr_y = (H - qr_size) / 2 + 0.10 * inch
-    c.drawImage(_qr(url), qr_x, qr_y, width=qr_size, height=qr_size,
-                preserveAspectRatio=True, mask="auto")
+    c.drawImage(
+        _qr(url), qr_x, qr_y, width=qr_size, height=qr_size, preserveAspectRatio=True, mask="auto"
+    )
     c.setFont(bfont, 7.5)
     c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
 
@@ -461,7 +493,7 @@ def _small_body_lines(c, title, tags, bfont, tw, avail):
     while True:
         room = max(1, int(avail // (size + 1.5)))
         spec_lines = [ln for t in tags for ln in _wrap(c, t, bfont, size, tw)]
-        keep = spec_lines[:max(0, room - 1)]
+        keep = spec_lines[: max(0, room - 1)]
         for_name = max(1, room - len(keep))
         lines = _wrap(c, title, bfont, size, tw)
         if len(lines) <= for_name or size <= 4.5:
@@ -472,14 +504,12 @@ def _small_body_lines(c, title, tags, bfont, tw, avail):
         size -= 0.5
 
 
-def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=(),
-                  kind=None):
+def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=(), kind=None):
     my = 1.2 * mm
     mx = my + safe * mm
     c.setFillColorRGB(0, 0, 0)
     qr = H - 2 * my
-    c.drawImage(_qr(url), mx, my, width=qr, height=qr, preserveAspectRatio=True,
-                mask="auto")
+    c.drawImage(_qr(url), mx, my, width=qr, height=qr, preserveAspectRatio=True, mask="auto")
     tx = mx + qr + 1.5 * mm
     tw = W - tx - mx
     # The far end from the code, which is the only end with room on a 51mm label.
@@ -510,8 +540,7 @@ def _render_small(c, W, H, asset_id, title, url, hfont, bfont, safe=0.0, tags=()
         c.drawString(tx, y, line)
 
 
-def render_pdf(asset, parts, kind, small=False, form_factor="",
-               spec_pairs=None) -> bytes:
+def render_pdf(asset, parts, kind, small=False, form_factor="", spec_pairs=None) -> bytes:
     """Render one label PDF and return its bytes. `asset` is the computer, part or
     project row (dict) and `kind` says which; `parts` is the full parts list (used
     for a computer's build). `form_factor` and `spec_pairs` come from the typed
@@ -532,8 +561,19 @@ def render_pdf(asset, parts, kind, small=False, form_factor="",
     _apply_rotation(c, spec["w"], spec["h"], spec["rotate"])
     if small:
         name, tags = small_body(asset, kind, spec_pairs)
-        _render_small(c, spec["w"], spec["h"], asset["asset_id"], name, url,
-                      hfont, bfont, spec.get("safe_mm", 0), tags=tags, kind=kind)
+        _render_small(
+            c,
+            spec["w"],
+            spec["h"],
+            asset["asset_id"],
+            name,
+            url,
+            hfont,
+            bfont,
+            spec.get("safe_mm", 0),
+            tags=tags,
+            kind=kind,
+        )
     else:
         if kind == COMPUTER:
             lines = computer_lines(asset, parts, form_factor)
@@ -541,8 +581,9 @@ def render_pdf(asset, parts, kind, small=False, form_factor="",
             lines = project_lines(asset)
         else:
             lines = part_lines(asset, spec_pairs)
-        _render_full(c, spec["w"], spec["h"], asset["asset_id"], title, lines,
-                     url, hfont, bfont, kind=kind)
+        _render_full(
+            c, spec["w"], spec["h"], asset["asset_id"], title, lines, url, hfont, bfont, kind=kind
+        )
     c.restoreState()
     c.showPage()
     c.save()

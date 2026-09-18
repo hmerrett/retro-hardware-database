@@ -5,6 +5,7 @@ directly: it is where the watermark is put on, where a request for a narrower co
 is answered, and where a path that tries to leave the photograph folder is refused.
 The upload side of the same store is in photos.py; this is only the reading of it.
 """
+
 import os
 
 from fastapi import APIRouter, HTTPException
