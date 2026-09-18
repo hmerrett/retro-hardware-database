@@ -183,7 +183,7 @@ def _make_watermark(src_path: Path, dst_path: Path):
     w, h = base.size
     mark = Image.open(WM_SRC).convert("RGBA")
     target = max(WM_MIN_PX, int(min(w, h) * WM_SCALE))
-    mark.thumbnail((target, target), Image.LANCZOS)
+    mark.thumbnail((target, target), Image.Resampling.LANCZOS)
     mark.putalpha(mark.getchannel("A").point(lambda a: int(a * WM_OPACITY)))
     margin = max(6, int(min(w, h) * WM_MARGIN))
     layer = Image.new("RGBA", base.size, (0, 0, 0, 0))
@@ -354,12 +354,7 @@ def _chosen_photos(form):
     written. The item is committed before its photos are stored, so its asset id is
     settled first: a file rejected half way would otherwise leave photos filed
     under an id the item never kept, which the next thing created would inherit."""
-    # A form value is either text or an upload, and the upload is Starlette's own
-    # class -- not the FastAPI subclass the typed routes are annotated with, so it
-    # is the text case that is worth excluding here.
-    ups = [
-        u for u in form.getlist("photos") if not isinstance(u, str) and (u.filename or "").strip()
-    ]
+    ups = [u for u in form.uploads("photos") if (u.filename or "").strip()]
     for up in ups:
         ext = Path(up.filename or "").suffix.lower() or ".jpg"
         if ext not in IMAGE_EXTS:

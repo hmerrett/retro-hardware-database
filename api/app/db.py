@@ -2,18 +2,24 @@
 service)."""
 
 import os
+from collections.abc import Iterator
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+pymysql://retro:retro@db:3306/retro")
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True, future=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, future=True)
-Base = declarative_base()
 
 
-def get_db():
+class Base(DeclarativeBase):
+    """The one declarative base. A class rather than ``declarative_base()`` because
+    that is the form a type checker can follow: ``Mapped[...]`` on a model means
+    something to mypy only when it can see what the model inherits from."""
+
+
+def get_db() -> Iterator[Session]:
     db = SessionLocal()
     try:
         yield db

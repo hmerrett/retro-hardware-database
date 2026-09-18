@@ -25,6 +25,8 @@ from urllib.parse import quote, urlparse
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from starlette.middleware.base import RequestResponseEndpoint
+from .forms import posted
 from .web import _safe_next, templates
 
 router = APIRouter()
@@ -286,7 +288,7 @@ def _public_page(path: str) -> bool:
     return False
 
 
-async def auth_gate(request: Request, call_next):
+async def auth_gate(request: Request, call_next: RequestResponseEndpoint) -> Response:
     """Public read-only browsing; login required to edit. Browsers use a session
     cookie (login page + logout); the API and tools use HTTP Basic."""
     path = request.url.path
@@ -321,7 +323,7 @@ async def auth_gate(request: Request, call_next):
 
 
 @router.get("/login", response_class=HTMLResponse, include_in_schema=False)
-def gui_login(request: Request, next: str = "/"):
+def gui_login(request: Request, next: str = "/") -> Response:
     if request.state.authed:
         return RedirectResponse(_safe_next(next), status_code=303)
     return templates.TemplateResponse(
@@ -330,8 +332,8 @@ def gui_login(request: Request, next: str = "/"):
 
 
 @router.post("/login", include_in_schema=False)
-async def gui_do_login(request: Request):
-    form = await request.form()
+async def gui_do_login(request: Request) -> Response:
+    form = await posted(request)
     nxt = _safe_next(form.get("next", "/") or "/")
     ip = _client_ip(request)
     if not _login_limiter.check(ip):
@@ -386,8 +388,8 @@ def _way_out(nxt: str) -> str:
 
 
 @router.post("/logout", include_in_schema=False)
-async def gui_logout(request: Request):
-    form = await request.form()
+async def gui_logout(request: Request) -> Response:
+    form = await posted(request)
     resp = RedirectResponse(_way_out(form.get("next", "") or ""), status_code=303)
     resp.delete_cookie(COOKIE)
     return resp

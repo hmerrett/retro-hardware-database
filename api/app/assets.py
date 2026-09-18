@@ -43,6 +43,7 @@ from sqlalchemy import func
 from . import entry, filesdb, machinedb, machines, projects, specdb
 from .common import folder_images, to_dict
 from .disposal import _parts_in_computer
+from .forms import posted
 from .history import add_log
 from .models import (
     AssetChip,
@@ -486,7 +487,7 @@ async def _set_for_sale(db, model, aid, request: Request):
     Sundays would otherwise fill its own record with the owner changing their mind.
     """
     row = get_or_404(db, model, aid)
-    form = await request.form()
+    form = await posted(request)
     row.for_sale = bool(form.get("for_sale"))
     db.commit()
     return RedirectResponse(

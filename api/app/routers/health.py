@@ -15,8 +15,10 @@ from ..db import get_db
 router = APIRouter()
 
 
-@router.get("/healthz", include_in_schema=False)
-def healthz(db: Session = Depends(get_db)):
+# response_model=None: the annotation says what the function returns, and FastAPI
+# would otherwise try to make a response model of a union it cannot express.
+@router.get("/healthz", include_in_schema=False, response_model=None)
+def healthz(db: Session = Depends(get_db)) -> JSONResponse | dict[str, str]:
     """Liveness plus database reachability, for a deploy's smoke check and any
     uptime monitor. Deliberately public and content-free: it says up or down and
     nothing else, so it needs no login and gives nothing away.

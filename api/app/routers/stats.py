@@ -29,7 +29,7 @@ STATS_DIR = Path(os.getenv("RHDB_STATS_DIR", "/app/stats"))
 
 
 @router.get("/traffic", response_class=HTMLResponse, include_in_schema=False)
-def gui_traffic():
+def gui_traffic() -> HTMLResponse:
     report = STATS_DIR / "index.html"
     if not report.exists():
         return HTMLResponse(
@@ -46,7 +46,7 @@ def gui_traffic():
 
 
 @router.get("/stats", response_class=HTMLResponse, include_in_schema=False)
-def gui_stats(request: Request, db: Session = Depends(get_db)):
+def gui_stats(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     this_year = date.today().year
     st = _collection_stats(db)
     # A different handful each time the page is looked at. The pool is only the
@@ -59,7 +59,8 @@ def gui_stats(request: Request, db: Session = Depends(get_db)):
     # number looks like the shuffle is broken rather than like two facts. Same reason
     # "arrived this year" stands down when this year is also the busiest.
     pool = _facts(db, st, this_year)
-    drawn, seen = [], set()
+    drawn: list[dict[str, object]] = []
+    seen: set[object] = set()
     for fact in random.sample(pool, len(pool)):
         if fact["v"] in seen:
             continue

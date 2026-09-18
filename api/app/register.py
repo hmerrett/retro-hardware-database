@@ -8,22 +8,33 @@ the register's order, and has the copy in front of you gone stale since it was
 opened.
 """
 
+from collections.abc import Sequence
+from typing import TypeVar
+
 from fastapi import HTTPException
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from . import entry
 from .common import REGISTER
-from .models import Computer, LogEntry, Part, StoredFile
+from .db import Base
+from .models import Computer, LogEntry, Part, Project, StoredFile
+
+_Model = TypeVar("_Model", bound=Base)
+
+# What the register is searched by: the (page, table) pairs of REGISTER, or the
+# narrower slice a caller that can only act on some of them passes in.
+Kinds = Sequence[tuple[str, type[Computer] | type[Part] | type[Project]]]
 
 
-def get_or_404(db, model, aid):
+def get_or_404(db: Session, model: type[_Model], aid: str | None) -> _Model:
     obj = db.get(model, (aid or "").upper())
     if not obj:
         raise HTTPException(404, f"{model.__tablename__} {aid} not found")
     return obj
 
 
-def _change_token(db, aid: str) -> str:
+def _change_token(db: Session, aid: str) -> str:
     """What an item's page was built from, as one short string.
 
     Every change to an asset writes a history entry -- a field edited, a photograph
@@ -43,14 +54,14 @@ def _change_token(db, aid: str) -> str:
     return f"{logged or 0}.{newest or 0}.{count or 0}"
 
 
-def _register_order(db):
+def _register_order(db: Session) -> list[tuple[str, str, str]]:
     """Every asset in register order, as (asset_id, kind, display name).
 
     Two small column queries: no photos are looked at, because this is only wanted
     for the prev/next buttons on an item page. It is the fallback order -- arrive
     from the gallery and the browser hands over the order it was actually showing,
     filtered and sorted as you left it (see base.html)."""
-    rows = []
+    rows: list[tuple[str, str, str]] = []
     for kind, cls in (("computers", Computer), ("parts", Part)):
         for aid, name, maker, model in db.query(
             cls.asset_id, cls.name, cls.manufacturer, cls.model
@@ -68,14 +79,14 @@ def _register_order(db):
     return rows
 
 
-def _item_nav(db, aid):
+def _item_nav(db: Session, aid: str) -> dict[str, dict[str, str] | None]:
     """{prev, next} for an item page: the assets either side of this one."""
     order = _register_order(db)
     here = next((n for n, row in enumerate(order) if row[0] == aid), None)
     if here is None:
         return {}
 
-    def at(n):
+    def at(n: int) -> dict[str, str] | None:
         if not 0 <= n < len(order):
             return None
         a, kind, name = order[n]
@@ -92,7 +103,7 @@ def _item_nav(db, aid):
 FLAGGABLE = REGISTER[:2]
 
 
-def _asset_find(db, aid, kinds=REGISTER):
+def _asset_find(db: Session, aid: str | None, kinds: Kinds = REGISTER) -> tuple[Base, str] | None:
     """One thing from the shared register and the page it lives on, whichever kind
     it turns out to be -- or None for no such asset.
 
@@ -110,7 +121,7 @@ def _asset_find(db, aid, kinds=REGISTER):
     return None
 
 
-def _asset_or_404(db, aid, kinds=REGISTER):
+def _asset_or_404(db: Session, aid: str | None, kinds: Kinds = REGISTER) -> tuple[Base, str]:
     """The same, for the callers that have nothing to say about a miss. Which is
     most of them: an id in a URL that is not an asset is a broken link, while an id
     typed into a box is a typo, and only the second has anywhere useful to go."""
@@ -120,6 +131,6 @@ def _asset_or_404(db, aid, kinds=REGISTER):
     return found
 
 
-def _asset_page(db, aid):
+def _asset_page(db: Session, aid: str | None) -> str:
     """Where a register id's page is, for a route that serves any of the kinds."""
     return _asset_or_404(db, aid)[1]

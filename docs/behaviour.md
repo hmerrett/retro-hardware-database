@@ -16,7 +16,16 @@ Regenerate with:
 
 
 
-*1402 behaviours, from 31 files.*
+*1412 behaviours, from 35 files.*
+
+
+## A file where text was expected
+
+*test_a_file_where_text_was_expected.py — 2 behaviours*
+
+- an order whose description is a file is an order with no description
+- a login whose password is a file is a failed login  
+  The one form a stranger can post to.
 
 
 ## Api
@@ -1600,6 +1609,13 @@ Regenerate with:
   The deploy smoke check has no credentials -- it runs before any exist for that box.
 
 
+## History without a message
+
+*test_history_without_a_message.py — 1 behaviours*
+
+- two entries with no message do not stop the page opening
+
+
 ## Image writes
 
 *test_image_writes.py — 7 behaviours*
@@ -1968,6 +1984,15 @@ Regenerate with:
   0039 stops a file being matched to an item by name and starts it being attached to one, and runs the old matcher once to write down what it found.
 - a file the matcher reached nothing with is left unfiled  
   Unfiled is a state and not a loss: the bytes are untouched and the files page says so.
+
+
+## Models match migrations
+
+*test_models_match_migrations.py — 2 behaviours*
+
+- autogenerate against the migrated schema finds nothing to do
+- a column that changes nullability is caught  
+  The check above is only worth having if it can fail.
 
 
 ## Openapi contract
@@ -2580,6 +2605,19 @@ Regenerate with:
   The three pairs tested before this were the three that had already been reported broken.
 - every surface words are written on holds them  
   A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
+
+
+## Type checking
+
+*test_type_checking.py — 5 behaviours*
+
+- mypy is strict with the ways round it closed
+- every module excused from strict is a module that exists
+- no package is excused wholesale  
+  ``app.routers.*`` would excuse every router written from now on.
+- calls into untyped code are allowed only into the excused modules  
+  The two lists are one list written twice, because mypy wants it twice.
+- a type ignore says why on the line above it
 
 
 ## Wanting work

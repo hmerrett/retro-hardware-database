@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from .. import filesdb
 from ..common import to_dict
 from ..db import get_db
+from ..forms import posted
 from ..history import add_log
 from ..models import Computer, Part, StoredFile
 from ..register import _register_order
@@ -95,7 +96,7 @@ async def gui_upload_files(
     the card as a model, so that is what it is attached to; an item with no model to
     speak of gets the file attached to itself (ADR-0020). Either way the panel says
     which it did and offers the other."""
-    form = await request.form()
+    form = await posted(request)
     tags = filesdb.parse_tags(form.get("tags", ""))
     note = form.get("note", "")
     nxt = _safe_next(form.get("next") or "/files")
@@ -151,7 +152,7 @@ async def gui_file_attach(fid: int, request: Request, db: Session = Depends(get_
     rather than failing, because the answer to "every one of these" where there is
     only the one is the one."""
     row = _file_or_404(db, fid)
-    form = await request.form()
+    form = await posted(request)
     item = _item_for_link(db, form.get("aid"))
     if item is None:
         raise HTTPException(404, "nothing here to attach a file to")
@@ -174,7 +175,7 @@ async def gui_file_detach(fid: int, request: Request, db: Session = Depends(get_
     about is a file quietly going in the bin with the last thing that pointed at
     it."""
     row = _file_or_404(db, fid)
-    form = await request.form()
+    form = await posted(request)
     aid = (form.get("aid") or "").strip().upper()
     kind, key = (form.get("kind") or "").strip(), (form.get("key") or "").strip()
     if aid:
@@ -191,7 +192,7 @@ async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db
     gone. A tag is a label now and decides nothing about where the file appears --
     that is what attach and detach are for."""
     row = _file_or_404(db, fid)
-    form = await request.form()
+    form = await posted(request)
     filesdb.set_tags(db, row, form.get("tags", ""))
     db.commit()
     return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
@@ -205,7 +206,7 @@ async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_
     checkbox sends nothing at all, which is the one form control whose off state
     has to be read from its silence."""
     row = _file_or_404(db, fid)
-    form = await request.form()
+    form = await posted(request)
     row.public = bool(form.get("public"))
     db.commit()
     return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
@@ -214,7 +215,7 @@ async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_
 @router.post("/files/{fid}/delete", include_in_schema=False)
 async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_db)):
     row = _file_or_404(db, fid)
-    form = await request.form()
+    form = await posted(request)
     filesdb.remove(db, row)
     db.commit()
     return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)

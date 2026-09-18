@@ -7,11 +7,15 @@ brings back only those that went with it and not the ones disposed of separately
 beforehand. That bookkeeping is here.
 """
 
+from datetime import date
+
+from sqlalchemy.orm import Session
+
 from .history import add_log
-from .models import Part
+from .models import Computer, Part
 
 
-def _disposal_log(obj, with_machine=None):
+def _disposal_log(obj: Computer | Part, with_machine: str | None = None) -> str:
     """The history line for a disposal: when, and why if a reason was given."""
     when = obj.disposed_at.isoformat() if obj.disposed_at else "date unknown"
     who = f" with {with_machine}" if with_machine else ""
@@ -20,11 +24,12 @@ def _disposal_log(obj, with_machine=None):
     )
 
 
-def _parts_in_computer(db, aid):
+def _parts_in_computer(db: Session, aid: str) -> list[Part]:
     """Everything inside a machine: the parts installed in it, and then whatever
     is mounted on those in turn. A disk on a controller card carries the card's
     id rather than the machine's, so following computer_id alone would miss it."""
-    found, seen = [], set()
+    found: list[Part] = []
+    seen: set[str] = set()
     ids, first = [aid], True
     while ids:
         q = (
@@ -39,7 +44,7 @@ def _parts_in_computer(db, aid):
     return found
 
 
-def _dispose_contents(db, c):
+def _dispose_contents(db: Session, c: Computer) -> int:
     """A machine goes to the tip with what is in it. A part already disposed keeps
     the record it has -- it did not go with this machine -- and so is left alone,
     which is also what lets a restore tell the two apart."""
@@ -54,7 +59,7 @@ def _dispose_contents(db, c):
     return n
 
 
-def _restore_contents(db, c, was_at, was_note):
+def _restore_contents(db: Session, c: Computer, was_at: date | None, was_note: str | None) -> int:
     """The other half of the cascade: the parts that went out with this machine --
     still in it, and still carrying its disposal record -- come back with it."""
     n = 0
@@ -69,6 +74,6 @@ def _restore_contents(db, c, was_at, was_note):
     return n
 
 
-def _and_parts(n, went="went with it"):
+def _and_parts(n: int, went: str = "went with it") -> str:
     """The tail of a machine's history line when the cascade touched anything."""
     return f"\n{n} part{'' if n == 1 else 's'} in it {went}" if n else ""

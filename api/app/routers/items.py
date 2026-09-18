@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
 from ..db import get_db
+from ..forms import posted
 from ..history import PHOTO_ENTRY, item_log, log_photos
 from ..models import LogEntry, LogPhoto
 from ..photos import _attach_log_photos, _chosen_photos, _purge_photos
@@ -37,8 +38,11 @@ from ..register import _asset_page, _change_token
 router = APIRouter()
 
 
-@router.get("/api/items/{aid}/log", tags=["log"])
-def api_item_log(aid: str, db: Session = Depends(get_db)):
+# response_model=None: the annotation is for the type checker. FastAPI would
+# otherwise publish it as the response's shape, which the pinned contract
+# (ADR-0010) leaves open.
+@router.get("/api/items/{aid}/log", tags=["log"], response_model=None)
+def api_item_log(aid: str, db: Session = Depends(get_db)) -> list[dict[str, object]]:
     """One asset's history, entry by entry and unfolded -- the record as it was
     written, not as a page reads it out. `photos` are the paths of anything hung on
     the entry, to be fetched from /images/ like any other photograph."""
@@ -56,7 +60,7 @@ def api_item_log(aid: str, db: Session = Depends(get_db)):
 
 
 @router.get("/items/{aid}/version", include_in_schema=False)
-def gui_item_version(aid: str, db: Session = Depends(get_db)):
+def gui_item_version(aid: str, db: Session = Depends(get_db)) -> dict[str, str]:
     """The token above, for a page to compare against the one it was built with.
 
     Public, like the page it belongs to: it says that something changed, never what.
@@ -67,7 +71,7 @@ def gui_item_version(aid: str, db: Session = Depends(get_db)):
 
 
 @router.get("/items/{aid}", include_in_schema=False)
-def gui_item(aid: str, db: Session = Depends(get_db)):
+def gui_item(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
     """The URL printed on labels: resolve an asset id to its page, whichever of the
     three things in the register it turns out to name. Keeps the same /items/<id>
     scheme the old QR codes used.
@@ -79,7 +83,7 @@ def gui_item(aid: str, db: Session = Depends(get_db)):
     return RedirectResponse(_asset_page(db, aid.upper()), status_code=307)
 
 
-def _log_entry_or_404(db, aid, log_id):
+def _log_entry_or_404(db: Session, aid: str, log_id: int) -> tuple[LogEntry, str]:
     """One history entry, and the page to go back to. The asset id in the URL is
     checked against the entry's rather than taken on trust: an entry id on its own
     would let a photograph of one machine be hung on another machine's history."""
@@ -92,9 +96,11 @@ def _log_entry_or_404(db, aid, log_id):
 
 
 @router.post("/items/{aid}/log/{log_id}/photo", include_in_schema=False)
-async def gui_log_photo(aid: str, log_id: int, request: Request, db: Session = Depends(get_db)):
+async def gui_log_photo(
+    aid: str, log_id: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     row, where = _log_entry_or_404(db, aid, log_id)
-    _attach_log_photos(db, row, _chosen_photos(await request.form()))
+    _attach_log_photos(db, row, _chosen_photos(await posted(request)))
     db.commit()
     return RedirectResponse(where, status_code=303)
 
@@ -102,9 +108,9 @@ async def gui_log_photo(aid: str, log_id: int, request: Request, db: Session = D
 @router.post("/items/{aid}/log/{log_id}/photo-delete", include_in_schema=False)
 async def gui_log_photo_delete(
     aid: str, log_id: int, request: Request, db: Session = Depends(get_db)
-):
+) -> RedirectResponse:
     row, where = _log_entry_or_404(db, aid, log_id)
-    form = await request.form()
+    form = await posted(request)
     photo = (
         db.query(LogPhoto)
         .filter(LogPhoto.log_id == row.id, LogPhoto.rel == form.get("image", ""))
@@ -132,7 +138,9 @@ async def gui_log_photo_delete(
 
 
 @router.post("/items/{aid}/log/delete", include_in_schema=False)
-async def gui_log_delete(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_log_delete(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Remove history entries.
 
     Several ids rather than one, because a run of the same thing done in one sitting
@@ -151,7 +159,7 @@ async def gui_log_delete(aid: str, request: Request, db: Session = Depends(get_d
     """
     aid = (aid or "").upper()
     where = _asset_page(db, aid)
-    form = await request.form()
+    form = await posted(request)
     ids = [int(i) for i in form.getlist("id") if str(i).strip().isdigit()]
     rows = (
         db.query(LogEntry).filter(LogEntry.id.in_(ids), LogEntry.asset_id == aid).all()

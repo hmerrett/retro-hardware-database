@@ -49,6 +49,11 @@ jobs:
       # being optional.
       - name: Format
         run: uv run --project api ruff format --check .
+      # Run from api/, because that is where mypy looks for its settings. Strict,
+      # except for the modules pyproject.toml names as not there yet -- a list that
+      # only shrinks, so a new module is held to strict by not being on it.
+      - name: Types
+        run: uv run --directory api mypy app
       # The backup round-trip test dumps and restores through MariaDB's own
       # client (mariadb-dump/mariadb) -- the family production uses. The runner
       # ships Oracle MySQL 8's mysqldump, whose default column-statistics query
