@@ -57,3 +57,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   alone — *Accepted*
 - [0019](0019-running-open-is-supported-but-never-silent.md) — Running open is
   supported, but never silent — *Accepted*
+- [0020](0020-a-model-link-names-a-maker-and-a-model.md) — A model link names a
+  maker and a model, not only a catalogue key — *Accepted*
+- [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md) —
+  The Content-Security-Policy is the app's, and the suite holds it — *Accepted*

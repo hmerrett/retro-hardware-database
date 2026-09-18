@@ -1,0 +1,24 @@
+# A throwaway stack for the browser check, layered on the base file.
+#
+#   tools/csp-check/run.sh
+#
+# Its own project name, so its volumes are its own and a teardown takes them with
+# it; nothing here can touch the volumes a real install keeps. Caddy answers on
+# 18080 over plain HTTP, bound to the loopback -- `http://localhost:18080` as a
+# site address is what turns Caddy's automatic HTTPS off, so the check needs no
+# certificate and reaches nothing outside this machine.
+#
+# The point of going through Caddy at all, rather than hitting the app directly,
+# is that the app is not the only thing that sets headers. A proxy that stripped
+# or rewrote the policy would be invisible to the test suite and obvious here.
+services:
+  caddy:
+    ports: !override
+      - "127.0.0.1:18080:18080"
+
+  # Neither is wanted for this, and the traffic report is a five-minute loop over
+  # every log it can find, which on a stack that lives for two minutes is pure heat.
+  goaccess:
+    profiles: ["unused"]
+  mcp:
+    profiles: ["unused"]

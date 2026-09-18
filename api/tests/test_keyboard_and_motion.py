@@ -213,21 +213,6 @@ class Controls(HTMLParser):
         ]
 
 
-@pytest.fixture
-def a_page_of_everything(client, computer, part):
-    """One machine with a part on it, so the forms, the item pages and the lists
-    all render the controls they only have when there is something to show."""
-    made = computer(manufacturer="Amstrad", model="PC1512")
-    card = part(manufacturer="Trident", model="TVGA8900", type="video",
-                computer_id=made["asset_id"])
-    return [
-        "/", "/machines", "/projects", "/projects/new", "/files", "/stats", "/for-sale",
-        f"/computers/{made['asset_id']}", f"/computers/{made['asset_id']}/edit",
-        "/computers/new", "/parts/new",
-        f"/parts/{card['asset_id']}", f"/parts/{card['asset_id']}/edit",
-    ]
-
-
 def test_every_control_says_what_it_is(client, a_page_of_everything):
     """A control with no name is read out as "edit text, blank" and nothing else,
     which on the drives grid was eight of them to a row. A column heading is not a
