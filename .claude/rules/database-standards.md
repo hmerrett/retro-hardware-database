@@ -5,9 +5,16 @@ MariaDB in production; SQLAlchemy + Alembic. British English.
 ## Models & sessions
 
 - Models are SQLAlchemy declarative classes on the single `Base` in
-  `api/app/db.py`. Keep them typed.
-  - *Adopt next:* SQLAlchemy 2.0 typed ORM (`Mapped[...]` + `mapped_column`), so
-    the models are covered by mypy strict.
+  `api/app/db.py`, in the SQLAlchemy 2.0 typed form: `Mapped[...]` on the
+  attribute and `mapped_column(...)` behind it, which is what lets mypy check the
+  code that reads them.
+  - **The annotation decides nullability unless `nullable=` does.** `Mapped[str]`
+    is NOT NULL and `Mapped[str | None]` is nullable, so typing a column is a
+    statement about the schema whether or not it was meant as one. Most of these
+    columns are nullable -- they began as a mirror of a CSV -- and are typed that
+    way. `test_models_match_migrations.py` asks Alembic what autogenerate would
+    write against a migrated database and requires the answer to be nothing, so
+    a model that drifts from the migrations fails the suite.
 - The engine and session come from `api/app/db.py` and read the URL from
   `DATABASE_URL` (the environment) — **never build an engine ad hoc**. Routes take
   a session via the `get_db` dependency and don't own its lifecycle.

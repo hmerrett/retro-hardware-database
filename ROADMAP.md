@@ -107,6 +107,15 @@ rather than being wondered about later.
   compromise nobody retires is how a temporary hole becomes a permanent one. The
   test that used to skip while the token stood now asserts, so a style attribute
   in a template fails CI rather than silently having no effect.
+- **The models are typed, and mypy is in CI.** All 203 columns are `Mapped[...]`
+  on `mapped_column`, converted by reading each one's nullability off the `Column`
+  it replaced — `Mapped[str]` means NOT NULL, and 119 of them had never said either
+  way. The schema did not move: the DDL the models compile to is byte-identical
+  before and after, and `test_models_match_migrations.py` now asks Alembic what
+  autogenerate would write against a migrated database and requires the answer to
+  be nothing. mypy earned its place on the first run, by reading a form value as
+  `UploadFile | str`: a file posted under a text field's name was a 500 on every
+  form handler, the login included. Strict on the modules still untyped is item 1.
 - **The backup can be restored, and is checked.** `tools/restore.sh` restores a
   backup and then checks it — every table's row count and the schema version
   against the dump, every archived photograph and file, and the public pages
@@ -115,16 +124,21 @@ rather than being wondered about later.
 
 ## The work, in order
 
-**1. SQLAlchemy 2.0 typed ORM, then `mypy app` in CI.** `Mapped[...]` and
-`mapped_column` on the models first, because that is what lets the models be
-type-checked at all.
+**1. `mypy --strict` on every module.** The gate is in: mypy runs in CI, strict
+is the default, and the modules not typed yet are a named list in
+`api/pyproject.toml` that only shrinks — so a new module is strict by doing
+nothing, and the ways round it (a bare `# type: ignore`, a hand-written `Any`)
+are configured as errors rather than left to review. What is left is the list
+itself: twenty modules of fifty-one, five of which — `stats`, `routers/parts`,
+`routers/computers`, `routers/projects`, `machines` — hold most of the missing
+signatures. They are typed leaf-first, the helpers before the routers that call
+them, and the item is done when the override naming them is deleted.
 
-*Scope needs deciding.* `backend-standards` says to type the code as you touch
-it, which is incremental and sits awkwardly with a release gate. Recommended:
-gate 0.1 on `mypy app` passing, with `--strict` enabled per module for the
-modules already extracted and ratcheted forward as more come out. Demanding
-strict across a `main.py` of this size would either block the release or produce a
-lot of `Any`.
+This was scoped as "strict per module, ratcheted forward", with the worry that
+strict everywhere would either block the release or fill the code with `Any`.
+Measured rather than feared, it came to about 550 unannotated functions and
+fewer than 200 errors that needed thought, which is days and not weeks — so
+0.1 is held to strict everywhere, not to a ratchet left half turned.
 
 **2. Walk the install on a clean host, then tag.** The reading half of this item
 is done (#78): every guide and every rule file was read against the tree and

@@ -288,11 +288,17 @@ breaking one turns CI red rather than merely being wrong.
   `/style/data.css` (ADR-0021, ADR-0022). A new kind of data-valued rule goes in
   `datacss.py`; `test_content_security_policy.py` is what stops it going into the
   markup instead.
-- **Named in the standards as *adopt next*:** `mypy --strict` in CI and the
-  SQLAlchemy 2.0 typed ORM (`Mapped[...]` + `mapped_column`) that has to come
-  first for the models to be checkable at all. The rest of that list has landed:
+- **mypy is strict, and twenty modules are not there yet.** The models are typed
+  (`Mapped[...]` on `mapped_column`), mypy runs in CI, and strict is the default:
+  the modules still untyped are one named override in `api/pyproject.toml`, so a
+  new module is strict by not being on it. Thirty-one of fifty-one are off it.
+  What is left is the large ones -- `stats`, `routers/parts`, `routers/computers`,
+  `routers/projects`, `machines` and the helpers around them -- typed leaf-first,
+  and finished when the override is deleted (ROADMAP item 1,
+  backend-standards). Nothing else is left of the standards' *adopt next* list:
   `ruff format --check` in CI (#77), `uv` with a committed lockfile and a
-  multi-stage Dockerfile (#72), and the development compose override (#40).
+  multi-stage Dockerfile (#72), and the development compose override (#40) had
+  already landed.
 
 ## 8. Open questions
 

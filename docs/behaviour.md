@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1407 behaviours, from 34 files.*
+*1412 behaviours, from 35 files.*
 
 
 ## A file where text was expected
@@ -2605,6 +2605,19 @@ Regenerate with:
   The three pairs tested before this were the three that had already been reported broken.
 - every surface words are written on holds them  
   A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
+
+
+## Type checking
+
+*test_type_checking.py — 5 behaviours*
+
+- mypy is strict with the ways round it closed
+- every module excused from strict is a module that exists
+- no package is excused wholesale  
+  ``app.routers.*`` would excuse every router written from now on.
+- calls into untyped code are allowed only into the excused modules  
+  The two lists are one list written twice, because mypy wants it twice.
+- a type ignore says why on the line above it
 
 
 ## Wanting work
