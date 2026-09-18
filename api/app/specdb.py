@@ -125,8 +125,9 @@ def read(db: Session, part: Part) -> specstruct.Struct:
                 value = getattr(row, col.name)
                 if value not in (None, ""):
                     st.scalars[col.name] = value
-            if all(st.scalars.get(c) is not None for c in _CHS_COLS):
-                st.chs = tuple(st.scalars[c] for c in _CHS_COLS)
+            c, h, s = (st.scalars.get(name) for name in _CHS_COLS)
+            if isinstance(c, int) and isinstance(h, int) and isinstance(s, int):
+                st.chs = (c, h, s)
             for c in _CHS_COLS:
                 st.scalars.pop(c, None)
     for child, attr, listname in _LIST_TABLES:
@@ -138,7 +139,7 @@ def read(db: Session, part: Part) -> specstruct.Struct:
         )
         setattr(st, listname, [(getattr(r, attr), r.count) for r in rows])
     st.attributes = [
-        (r.akey, r.avalue)
+        (r.akey or "", r.avalue or "")
         for r in db.query(PartAttribute)
         .filter(PartAttribute.part_id == aid)
         .order_by(PartAttribute.id)
@@ -152,16 +153,12 @@ def pairs(db: Session, part: Part, display: bool = False) -> list[tuple[str, str
 
     `display` on is for a page or a label; off gives the edit form and the stored
     specs string values that parse back to the same numbers."""
-    rendered: list[tuple[str, str]] = specstruct.pairs(
-        part.type or "other", read(db, part), display
-    )
-    return rendered
+    return specstruct.pairs(part.type or "other", read(db, part), display)
 
 
-def scalars(db: Session, part: Part) -> dict[str, str | int]:
+def scalars(db: Session, part: Part) -> dict[str, str | int | None]:
     """A part's typed scalar spec columns, keyed by column name."""
-    cols: dict[str, str | int] = read(db, part).scalars
-    return cols
+    return read(db, part).scalars
 
 
 # --- bulk lookups (constant queries, for list pages) -----------------------

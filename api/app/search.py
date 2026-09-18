@@ -8,9 +8,13 @@ the queries a view needs to name its asset ids; the /, /suggest, /browse and
 projects-list routes stay in main and call in here.
 """
 
+from collections.abc import Callable, Mapping
 from datetime import date, datetime
+from typing import Literal, NamedTuple, TypedDict, cast
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.query import RowReturningQuery
 
 from . import entry, machines, projects, specdb
 from .common import (
@@ -43,11 +47,67 @@ from .models import (
 )
 from .photos import _storage_placeholder, img_url, pick_images
 
+# The three things the register holds, which is what a search is over: a query, a
+# haystack and a suggestion are each asked of all three rather than of any one.
+type Asset = Computer | Part | Project
 
-def search_terms(query):
+
+# A card row as the gallery builds it (routers/gallery._catalogue_rows), spelt out
+# as a pair rather than left a dict of mixed values: "kind" is what the browse
+# tests below turn on, so tagging the two says which model r["obj"] holds on either
+# side of that guard, instead of leaving every test to read from `object`.
+class _CardFields(TypedDict):
+    """What a card carries whichever of the two kinds of thing it is about."""
+
+    cat: str
+    cat_label: str
+    parent: str
+    year: int | str
+    name: str
+    image: str
+    ref_photo: bool
+    ref_icon: str
+    placeholder: str
+    updated: str
+    added: str
+    maker: str
+    acquired: str
+    catsort: int
+    sub: str
+    search: str
+
+
+class ComputerCard(_CardFields):
+    kind: Literal["computer"]
+    obj: Computer
+
+
+class PartCard(_CardFields):
+    kind: Literal["part"]
+    obj: Part
+
+
+type Card = ComputerCard | PartCard
+type CardTest = Callable[[Card], bool]
+
+
+class BrowseView(NamedTuple):
+    """What _browse_view answers with. Named rather than a bare tuple for the type
+    checker's sake: a lambda inside a returned tuple literal is not checked against
+    the return type, and one handed to a constructor is -- so a test that reads a
+    column only a part has, without first asking whether the row is a part, is an
+    error here and would have been silence there."""
+
+    heading: str
+    note: str
+    crumb: tuple[str, str] | None
+    keep: CardTest
+
+
+def search_terms(query: str | None) -> list[str]:
     """A query as the list of things that must all appear. Bare words are words;
     "a quoted run" is one term, so a phrase can be asked for exactly."""
-    terms = []
+    terms: list[str] = []
     for i, chunk in enumerate((query or "").lower().split('"')):
         if i % 2:
             if chunk.strip():
@@ -57,7 +117,9 @@ def search_terms(query):
     return terms
 
 
-def _haystack(db, obj, history, authed=False):
+def _haystack(
+    db: Session, obj: Asset, history: Mapping[str, list[str]], authed: bool = False
+) -> str:
     """Everything written about one item, as one lowercase string: every text
     column, its rendered specs or memory and drives, and its history. This is what
     makes a search over "any field" true rather than nearly true.
@@ -94,14 +156,14 @@ def _haystack(db, obj, history, authed=False):
     return "\n".join(fields).lower()
 
 
-def _history_by_asset(db):
-    out = {}
+def _history_by_asset(db: Session) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
     for aid, message in db.query(LogEntry.asset_id, LogEntry.message):
         out.setdefault(aid, []).append(message or "")
     return out
 
 
-def _search(db, rows, query, authed=False):
+def _search(db: Session, rows: list[Card], query: str | None, authed: bool = False) -> list[Card]:
     """The rows whose text contains every term. Done in Python over the rows the
     page already loaded: at this size it is a few hundred string searches, and it
     matches exactly what a reader would call a match rather than what SQL collation
@@ -127,7 +189,7 @@ def _search(db, rows, query, authed=False):
 SUGGEST_LIMIT = 10
 
 
-def _suggest_tier(obj, name, raw):
+def _suggest_tier(obj: Asset, name: str, raw: str) -> int:
     """Which band of the list an item belongs in, lowest first: what was typed is
     its asset tag, or the start of one, or the start of its name, or somewhere in
     what identifies it -- or else it matched on a spec or a history entry, which
@@ -153,7 +215,18 @@ def _suggest_tier(obj, name, raw):
     return 3 if raw in ident else 4
 
 
-def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
+class _Hit(TypedDict):
+    """One thing a half-typed query matched, before the list is cut to ten."""
+
+    obj: Asset
+    kind: str
+    name: str
+    tier: int
+
+
+def _suggest(
+    db: Session, query: str | None, limit: int = SUGGEST_LIMIT, authed: bool = False
+) -> tuple[list[dict[str, object]], int]:
     """The first few items a query matches, and how many it matches in all.
 
     Deliberately the same match the search bar itself performs -- every field of
@@ -167,11 +240,14 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
         return [], 0
     history = _history_by_asset(db)
     latest = dict(
-        db.query(LogEntry.asset_id, func.max(LogEntry.created_at)).group_by(LogEntry.asset_id).all()
+        db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
+        .group_by(LogEntry.asset_id)
+        .tuples()
+        .all()
     )
     raw = " ".join((query or "").lower().split())
 
-    hits = []
+    hits: list[_Hit] = []
     # All three kinds the register holds. A project is offered here and not in the
     # gallery grid, and the two are not in tension: the grid is a wall of
     # photographs of things owned, which a plan is not, while this list is a row of
@@ -195,8 +271,9 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
     hits.sort(key=lambda h: (h["tier"], bool(getattr(h["obj"], "disposed", False))))
 
     shown = hits[:limit]
-    listings, kinds = {}, None
-    out = []
+    listings: dict[str, list[tuple[str, str]]] = {}
+    kinds: dict[str, str | None] | None = None
+    out: list[dict[str, object]] = []
     for h in shown:
         obj = h["obj"]
         # A project has no photograph folder of its own: what is hung on its history
@@ -216,6 +293,10 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
                 }
             )
             continue
+        # Past the projects, so what is left is one of the two kinds that are
+        # photographed, have a year and can be disposed of. The kind says which; the
+        # hit carries the thing itself and cannot narrow what it holds by it.
+        held = cast("Computer | Part", obj)
         folder = "computers" if h["kind"] == "computer" else "parts"
         if folder not in listings:
             listings[folder] = folder_images(folder)
@@ -223,9 +304,10 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
         if h["kind"] == "computer":
             cat, icon = "Computer", entry.placeholder_for("computer")
         else:
-            cat = entry.type_label(obj.type or "other")
-            icon = entry.placeholder_for(obj.type or "other")
-            if (obj.type or "") == "storage":
+            ptype = cast("Part", held).type or "other"
+            cat = entry.type_label(ptype)
+            icon = entry.placeholder_for(ptype)
+            if ptype == "storage":
                 # One query, and only when a drive is actually on the list, to tell
                 # a floppy from a disc from a disk as the gallery's cards do.
                 if kinds is None:
@@ -237,8 +319,8 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
                 "aid": obj.asset_id,
                 "name": h["name"],
                 "cat": cat,
-                "year": obj.year or "",
-                "disposed": bool(obj.disposed),
+                "year": held.year or "",
+                "disposed": bool(held.disposed),
                 "img": img_url(imgs[0], 300) if imgs else "",
                 "icon": f"/static/{icon}",
             }
@@ -249,14 +331,14 @@ def _suggest(db, query, limit=SUGGEST_LIMIT, authed=False):
 # --- GUI: browse, the items behind a figure on /stats -----------------------
 
 
-def _tagged(query):
+def _tagged(query: RowReturningQuery[tuple[str]]) -> CardTest:
     """A row test for the asset ids a single-column query returns. Asset ids are
     unique across the whole register, so the kind needs no separate check."""
     ids = {aid for (aid,) in query}
     return lambda r: r["obj"].asset_id in ids
 
 
-def _browse_view(db, key: str, val: str):
+def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
     """What /browse?f=<key> means: a heading, a line saying what is on the page, an
     optional link back to the thing it is about, and a test each catalogue row
     passes or fails.
@@ -267,23 +349,25 @@ def _browse_view(db, key: str, val: str):
     says whose they are, because the count on this page is of items, not of slots.
     Returns None for an unknown view, which the caller turns into a 404."""
     if key == "all":
-        return ("Everything in the register", "computers and parts together", None, lambda r: True)
+        return BrowseView(
+            "Everything in the register", "computers and parts together", None, lambda r: True
+        )
     if key == "computers":
-        return (
+        return BrowseView(
             "Computers",
             "every whole machine in the register",
             None,
             lambda r: r["kind"] == "computer",
         )
     if key == "parts":
-        return (
+        return BrowseView(
             "Parts",
             "everything tagged in its own right rather than as a machine",
             None,
             lambda r: r["kind"] == "part",
         )
     if key == "photos":
-        return (
+        return BrowseView(
             "Photographed",
             "items with at least one photograph on file",
             None,
@@ -296,42 +380,42 @@ def _browse_view(db, key: str, val: str):
         # unlike its opposite above this view excludes the disposed -- a record of
         # something gone can still have its picture, but nobody can go and take one.
         missing = _portraits(db)[1]
-        return (
+        return BrowseView(
             "Not photographed yet",
             "everything still here waiting for a camera",
             None,
             lambda r: r["obj"].asset_id in missing,
         )
     if key == "source":
-        return (
+        return BrowseView(
             f"Came from {val}",
             "as recorded in the source field",
             None,
             lambda r: (r["obj"].source or "") == val,
         )
     if key == "maker":
-        return (
+        return BrowseView(
             f"Parts made by {val}",
             "as recorded in the maker field",
             None,
             lambda r: r["kind"] == "part" and (r["obj"].manufacturer or "") == val,
         )
     if key == "type":
-        return (
+        return BrowseView(
             entry.type_label(val),
             "every one of them in the register",
             None,
             lambda r: r["kind"] == "part" and r["cat"] == val,
         )
     if key == "condition":
-        return (
+        return BrowseView(
             f"Parts recorded as {val}",
             "condition as it was last checked",
             None,
             lambda r: r["kind"] == "part" and (r["obj"].condition or "") == val,
         )
     if key == "year":
-        return (
+        return BrowseView(
             "Items with a year",
             "what the average year is worked out from",
             None,
@@ -340,7 +424,7 @@ def _browse_view(db, key: str, val: str):
     if key == "extremes":
         years = _all_years(db)
         ends = {min(years), max(years)} if years else set()
-        return (
+        return BrowseView(
             "The oldest and the newest",
             "the two ends of the range",
             None,
@@ -348,7 +432,7 @@ def _browse_view(db, key: str, val: str):
         )
     if key == "ram":
         sizes = sorted({int(x) for x in val.split(",") if x.strip().isdigit()})
-        return (
+        return BrowseView(
             ("Machines with " + " or ".join(entry.fmt_kb(kb) for kb in sizes) + " fitted")
             if sizes
             else "Machines by memory fitted",
@@ -357,56 +441,56 @@ def _browse_view(db, key: str, val: str):
             lambda r: r["kind"] == "computer" and r["obj"].installed_ram_kb in sizes,
         )
     if key == "ramfitted":
-        return (
+        return BrowseView(
             "Machines with their memory recorded",
             "the machines the memory total is added up from",
             None,
             lambda r: r["kind"] == "computer" and r["obj"].installed_ram_kb is not None,
         )
     if key == "storage":
-        return (
+        return BrowseView(
             "Storage with a capacity recorded",
             "the parts the storage total is added up from",
             None,
             _tagged(db.query(StorageSpec.part_id).filter(StorageSpec.capacity_kb.isnot(None))),
         )
     if key == "slots":
-        return (
+        return BrowseView(
             "Boards with expansion slots",
             "the boards those slots are on",
             None,
             _tagged(db.query(PartSlot.part_id).distinct()),
         )
     if key == "bus":
-        return (
+        return BrowseView(
             f"Boards with {val} slots",
             "the boards those slots are on",
             None,
             _tagged(db.query(PartSlot.part_id).filter(PartSlot.bus == val)),
         )
     if key == "port":
-        return (
+        return BrowseView(
             f"Fitted with a {val} port",
             "the cards and boards those ports are on",
             None,
             _tagged(db.query(PartPort.part_id).filter(PartPort.port == val)),
         )
     if key == "chips":
-        return (
+        return BrowseView(
             "Machines with memory chips on the board",
             "the machines those chips are soldered or socketed into",
             None,
             _tagged(db.query(ComputerRamChip.computer_id).distinct()),
         )
     if key == "drives":
-        return (
+        return BrowseView(
             "Machines with a drive fitted",
             "the machines those drives are in",
             None,
             _tagged(db.query(ComputerDrive.computer_id).distinct()),
         )
     if key == "gotek":
-        return (
+        return BrowseView(
             "Machines with a Gotek",
             "a floppy emulator standing in for a drive",
             None,
@@ -415,28 +499,28 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "fitted":
-        return (
+        return BrowseView(
             "Parts fitted in a machine",
             "installed rather than sitting on a shelf",
             None,
             lambda r: r["kind"] == "part" and bool(r["obj"].computer_id),
         )
     if key == "spares":
-        return (
+        return BrowseView(
             "Spares on the shelf",
             "parts not fitted in anything",
             None,
             lambda r: r["kind"] == "part" and not r["obj"].computer_id,
         )
     if key == "disposed":
-        return (
+        return BrowseView(
             "No longer in the collection",
             "binned, sold or donated",
             None,
             lambda r: bool(r["obj"].disposed),
         )
     if key == "held":
-        return (
+        return BrowseView(
             "Items with an acquisition date",
             "when each of these arrived, as recorded",
             None,
@@ -450,7 +534,7 @@ def _browse_view(db, key: str, val: str):
         m = machines.model(val)
         if m is None:
             return None
-        return (
+        return BrowseView(
             m["full_name"],
             "everything in the register filed as this model",
             None,
@@ -461,7 +545,7 @@ def _browse_view(db, key: str, val: str):
         if machine is None:
             return None
         name = entry.display_name(to_dict(machine))
-        return (
+        return BrowseView(
             f"Parts fitted in {name}",
             "everything installed in this machine",
             (f"/computers/{machine.asset_id}", name),
@@ -473,35 +557,35 @@ def _browse_view(db, key: str, val: str):
     # _tagged is for: the figure and the page behind it then cannot disagree, since
     # both are the same query.
     if key == "boards":
-        return (
+        return BrowseView(
             "Motherboards",
             "everything with a board's specs on file",
             None,
             _tagged(db.query(MotherboardSpec.part_id)),
         )
     if key == "formfactor":
-        return (
+        return BrowseView(
             f"Boards built to {val}",
             "as recorded in the form factor field",
             None,
             _tagged(db.query(MotherboardSpec.part_id).filter(MotherboardSpec.form_factor == val)),
         )
     if key == "bios":
-        return (
+        return BrowseView(
             f"Boards with a {val} BIOS",
             "as recorded in the BIOS field",
             None,
             _tagged(db.query(MotherboardSpec.part_id).filter(MotherboardSpec.bios == val)),
         )
     if key == "family":
-        return (
+        return BrowseView(
             f"Boards for a {val} processor",
             "as recorded in the CPU family field",
             None,
             _tagged(db.query(MotherboardSpec.part_id).filter(MotherboardSpec.cpu_family == val)),
         )
     if key == "cache":
-        return (
+        return BrowseView(
             "Boards with cache on them",
             "the boards the cache total is added up from",
             None,
@@ -512,7 +596,7 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "onboardvideo":
-        return (
+        return BrowseView(
             "Boards with video on the board",
             "no expansion card required",
             None,
@@ -526,7 +610,7 @@ def _browse_view(db, key: str, val: str):
         # The difference between two sets rather than a NOT EXISTS: the figure is
         # worked out that way too, and this page has to show the same boards.
         slotted = {a for (a,) in db.query(PartSlot.part_id).distinct()}
-        return (
+        return BrowseView(
             "Boards with no expansion slots",
             "nothing can be added to these",
             None,
@@ -537,14 +621,14 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "ramslots":
-        return (
+        return BrowseView(
             "Boards with memory sockets",
             "the boards those sockets are on",
             None,
             _tagged(db.query(PartRamSlot.part_id).distinct()),
         )
     if key == "ramslot":
-        return (
+        return BrowseView(
             f"Boards with {val} sockets",
             "the boards those sockets are on",
             None,
@@ -558,14 +642,14 @@ def _browse_view(db, key: str, val: str):
         ids = set()
         for spec in (VideoSpec, SoundSpec, NetworkSpec, IoSpec):
             ids |= {a for (a,) in db.query(spec.part_id)}
-        return (
+        return BrowseView(
             "Expansion cards",
             "video, sound, network and I/O together",
             None,
             lambda r: r["obj"].asset_id in ids,
         )
     if key == "vram":
-        return (
+        return BrowseView(
             "Graphics cards with their memory recorded",
             "the cards the video memory total is added up from",
             None,
@@ -577,7 +661,7 @@ def _browse_view(db, key: str, val: str):
         )
     if key == "vramsize":
         sizes = sorted({int(x) for x in val.split(",") if x.strip().isdigit()})
-        return (
+        return BrowseView(
             ("Graphics cards with " + " or ".join(entry.fmt_kb(kb, True) for kb in sizes))
             if sizes
             else "Graphics cards by memory",
@@ -592,7 +676,7 @@ def _browse_view(db, key: str, val: str):
     if key == "prevga":
         # The same four LIKEs the figure is counted with, so the page cannot show a
         # different set of cards from the one the number claimed.
-        return (
+        return BrowseView(
             "Graphics cards from before VGA",
             "MDA, CGA, EGA or composite, and nothing later",
             None,
@@ -612,21 +696,21 @@ def _browse_view(db, key: str, val: str):
                 a
                 for (a,) in db.query(spec.part_id).filter((spec.chip.is_(None)) | (spec.chip == ""))
             }
-        return (
+        return BrowseView(
             "Cards with no chip recorded",
             "nobody has written down what is on them",
             None,
             lambda r: r["obj"].asset_id in ids,
         )
     if key == "ports":
-        return (
+        return BrowseView(
             "Boards and cards with ports",
             "the things those ports are on",
             None,
             _tagged(db.query(PartPort.part_id).distinct()),
         )
     if key == "legacydisk":
-        return (
+        return BrowseView(
             "Drives on a dead interface",
             "MFM, RLL, ESDI and XTA: none of them survived the 1990s",
             None,
@@ -635,7 +719,7 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "rpm":
-        return (
+        return BrowseView(
             "Drives with a spindle speed recorded",
             "mechanical disks that say",
             None,
@@ -646,14 +730,14 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "optical":
-        return (
+        return BrowseView(
             "Optical drives",
             "everything that takes a disc",
             None,
             _tagged(db.query(StorageSpec.part_id).filter(StorageSpec.kind == entry.OPTICAL_KIND)),
         )
     if key == "geometry":
-        return (
+        return BrowseView(
             "Drives with their geometry on file",
             "cylinders, heads and sectors as the drive reports them",
             None,
@@ -664,7 +748,7 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "flash":
-        return (
+        return BrowseView(
             "Machines with a card standing in for a drive",
             "CF or SD where a disk or a floppy used to be",
             None,
@@ -675,35 +759,35 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "os":
-        return (
+        return BrowseView(
             "Machines with an operating system recorded",
             "what each of them boots, as last seen",
             None,
             lambda r: r["kind"] == "computer" and bool(r["obj"].os),
         )
     if key == "dos":
-        return (
+        return BrowseView(
             "Machines running DOS",
             "MS-DOS, FreeDOS or the like",
             None,
             lambda r: r["kind"] == "computer" and "DOS" in (r["obj"].os or ""),
         )
     if key == "cpu":
-        return (
+        return BrowseView(
             "Machines with their processor recorded",
             "the machines the processor figures are counted from",
             None,
             lambda r: r["kind"] == "computer" and bool(r["obj"].cpu),
         )
     if key == "chassis":
-        return (
+        return BrowseView(
             f"Machines in a {val} case",
             "as recorded in the chassis field",
             None,
             lambda r: r["kind"] == "computer" and (r["obj"].chassis or "") == val,
         )
     if key == "portable":
-        return (
+        return BrowseView(
             "Machines meant to be carried",
             "laptops and luggables, the second word doing a lot of work",
             None,
@@ -713,14 +797,14 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "benchmarked":
-        return (
+        return BrowseView(
             "Machines with a TopBench score",
             "the ones it has been run on",
             None,
             lambda r: r["kind"] == "computer" and r["obj"].topbench is not None,
         )
     if key == "variant":
-        return (
+        return BrowseView(
             "Filed as a catalogue model",
             "machines and boards the catalogue can name",
             None,
@@ -731,14 +815,14 @@ def _browse_view(db, key: str, val: str):
             c
             for (c,) in _held(db.query(Part.computer_id).filter(Part.computer_id.isnot(None)), Part)
         }
-        return (
+        return BrowseView(
             "Machines with nothing fitted",
             "no part in the register is installed in these",
             None,
             lambda r: r["kind"] == "computer" and r["obj"].asset_id not in fitted,
         )
     if key == "century":
-        return (
+        return BrowseView(
             "Made in this century",
             "2000 or later, by the year on the record",
             None,
@@ -746,7 +830,7 @@ def _browse_view(db, key: str, val: str):
         )
     if key == "recent":
         cutoff = date.today().year - 10
-        return (
+        return BrowseView(
             "Made in the last ten years",
             f"{cutoff} or later — new parts for old machines",
             None,
@@ -763,28 +847,28 @@ def _browse_view(db, key: str, val: str):
         )
         if key == "born":
             ids = {a for a, gap in gaps if gap == 0}
-            return (
+            return BrowseView(
                 "Fitted to a machine of its own year",
                 "part and machine made the same year",
                 None,
                 lambda r: r["obj"].asset_id in ids,
             )
         ids = {a for a, gap in gaps if gap is not None and gap < 0}
-        return (
+        return BrowseView(
             "Older than the machine it is in",
             "made before the thing it was fitted to",
             None,
             lambda r: r["obj"].asset_id in ids,
         )
     if key == "nosource":
-        return (
+        return BrowseView(
             "Parts with no recorded source",
             "nothing on file about where they came from",
             None,
             lambda r: r["kind"] == "part" and not (r["obj"].source or "").strip(),
         )
     if key == "unwritten":
-        return (
+        return BrowseView(
             "Parts with nothing written about them",
             "no summary and no notes",
             None,
@@ -793,21 +877,21 @@ def _browse_view(db, key: str, val: str):
             ),
         )
     if key == "links":
-        return (
+        return BrowseView(
             "Parts with a link out",
             "somebody else's page about the same thing",
             None,
             lambda r: r["kind"] == "part" and bool(r["obj"].url),
         )
     if key == "diskimages":
-        return (
+        return BrowseView(
             "Parts with a disk image kept",
             "the contents as well as the object",
             None,
             lambda r: r["kind"] == "part" and bool(r["obj"].disk_image),
         )
     if key == "subparts":
-        return (
+        return BrowseView(
             "Parts fitted to another part",
             "a daughterboard, a riser, or a chip on a carrier",
             None,
@@ -820,14 +904,14 @@ def _browse_view(db, key: str, val: str):
         # is case-insensitive under both engines the app runs on. A bare
         # str.startswith is not, and would show fewer items than the number claimed.
         fold = val.lower()
-        return (
+        return BrowseView(
             f"Came from {val}",
             "everything whose source starts with this",
             None,
             lambda r: (r["obj"].source or "").lower().startswith(fold),
         )
     if key == "sparetype":
-        return (
+        return BrowseView(
             f"{entry.type_label(val)} on the shelf",
             "not fitted to anything",
             None,
@@ -848,7 +932,7 @@ def _browse_view(db, key: str, val: str):
             .all()
             if n > 1
         }
-        return (
+        return BrowseView(
             "Held more than once",
             "the same maker and model, twice or more",
             None,
@@ -860,7 +944,9 @@ def _browse_view(db, key: str, val: str):
     return None
 
 
-def _projects_matching(db, rows, query, authed=False):
+def _projects_matching(
+    db: Session, rows: list[projects.Summary], query: str | None, authed: bool = False
+) -> list[projects.Summary]:
     """The project rows whose text contains every term.
 
     The same match the gallery makes of a machine -- every column, plus the history

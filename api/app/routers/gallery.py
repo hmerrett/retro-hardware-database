@@ -18,7 +18,7 @@ from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import Computer, LogEntry, Part
 from ..photos import _favicon_for_rel, _storage_placeholder, is_reference, pick_images
-from ..search import _browse_view, _projects_matching, _search, _suggest
+from ..search import Card, _browse_view, _projects_matching, _search, _suggest
 from ..web import _og, templates
 
 router = APIRouter()
@@ -27,7 +27,7 @@ router = APIRouter()
 # --- GUI: index ------------------------------------------------------------
 
 
-def _catalogue_rows(db, precise_times=True):
+def _catalogue_rows(db: Session, precise_times: bool = True) -> list[Card]:
     """Every computer and part as one list of card rows. The gallery and /browse
     render the same grid from this; they differ only in which rows survive.
 
@@ -37,25 +37,25 @@ def _catalogue_rows(db, precise_times=True):
     edits in order once the browser sorts on dates that are all equal."""
     computers = db.query(Computer).order_by(Computer.asset_id).all()
     parts = db.query(Part).order_by(Part.asset_id).all()
-    counts = {}
+    counts: dict[str, int] = {}
     for p in parts:
         if p.computer_id:
             counts[p.computer_id] = counts.get(p.computer_id, 0) + 1
     comp_ids = {c.asset_id for c in computers}
 
     # Newest/oldest log timestamp per asset, for the updated / added sorts.
-    ts = {}
+    ts: dict[str | None, tuple[datetime | None, datetime | None]] = {}
     for aid, latest, first in db.query(
         LogEntry.asset_id, func.max(LogEntry.created_at), func.min(LogEntry.created_at)
     ).group_by(LogEntry.asset_id):
         ts[aid] = (latest, first)
 
-    def stamp(when):
+    def stamp(when: datetime | None) -> str:
         if not when:
             return ""
         return when.isoformat() if precise_times else when.strftime("%Y-%m-%d")
 
-    def stamps(aid):
+    def stamps(aid: str) -> tuple[str, str]:
         latest, first = ts.get(aid, (None, None))
         return (stamp(latest), stamp(first))
 
@@ -63,7 +63,7 @@ def _catalogue_rows(db, precise_times=True):
     # this route's time (0.38s of 0.50s across 293 assets).
     listings = {kind: folder_images(kind) for kind in ("computers", "parts")}
 
-    def primary_image(kind, aid):
+    def primary_image(kind: str, aid: str) -> str:
         imgs = pick_images(kind, aid, listings[kind])
         return imgs[0] if imgs else ""
 
@@ -71,7 +71,7 @@ def _catalogue_rows(db, precise_times=True):
     # string (or a lookup per row) just to choose an icon.
     kinds = specdb.storage_kinds(db)
 
-    rows = []
+    rows: list[Card] = []
     for c in computers:
         rows.append(
             {
@@ -157,26 +157,30 @@ def _catalogue_rows(db, precise_times=True):
                 ).lower(),
             }
         )
+
+    def changed(row: Card) -> datetime:
+        return ts.get(row["obj"].asset_id, (None, None))[0] or datetime.min
+
     # Newest change first. The browser re-sorts on load anyway, but its sort is
     # stable, so this is the order items updated on the same day keep -- the whole
     # of what the dropped clock time used to settle.
-    rows.sort(
-        key=lambda r: ts.get(r["obj"].asset_id, (datetime.min,))[0] or datetime.min, reverse=True
-    )
+    rows.sort(key=changed, reverse=True)
     return rows
 
 
-def _cats_for(rows):
+def _cats_for(rows: list[Card]) -> list[tuple[str, str]]:
     """Options for the toolbar's category menu: only the kinds actually present, so
     a filtered page does not offer to filter down to nothing."""
-    cats = [("computer", "Computers")] if any(r["kind"] == "computer" for r in rows) else []
+    cats: list[tuple[str, str]] = (
+        [("computer", "Computers")] if any(r["kind"] == "computer" for r in rows) else []
+    )
     present = {r["cat"] for r in rows if r["kind"] == "part"}
     for t in sorted(present, key=entry.type_sort_key):
         cats.append((t, entry.type_label(t)))
     return cats
 
 
-def _grid_page(request, rows, **extra):
+def _grid_page(request: Request, rows: list[Card], **extra: object) -> HTMLResponse:
     """Render the card grid. Counts come from the rows on the page rather than from
     the register, so a filtered view describes itself honestly."""
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
@@ -194,13 +198,13 @@ def _grid_page(request, rows, **extra):
 
 
 @router.get("/suggest", include_in_schema=False)
-def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)):
+def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)) -> dict[str, object]:
     items, total = _suggest(db, q, authed=request.state.authed)
     return {"q": q, "items": items, "total": total}
 
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
-def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
+def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
     rows = _catalogue_rows(db, precise_times=request.state.authed)
     total = len(rows)
     hit_projects = 0
@@ -238,7 +242,7 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)):
 
 
 @router.get("/for-sale", response_class=HTMLResponse, include_in_schema=False)
-def gui_for_sale(request: Request, db: Session = Depends(get_db)):
+def gui_for_sale(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     """The owner's shortlist: everything ticked "might sell" (ADR-0018).
 
     In the same grid as the gallery, because deciding what could go is done by
@@ -270,7 +274,9 @@ def gui_for_sale(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/browse", response_class=HTMLResponse, include_in_schema=False)
-def gui_browse(request: Request, f: str = "", v: str = "", db: Session = Depends(get_db)):
+def gui_browse(
+    request: Request, f: str = "", v: str = "", db: Session = Depends(get_db)
+) -> HTMLResponse:
     """The items behind one figure on /stats, in the same grid as the gallery."""
     view = _browse_view(db, f, v)
     if view is None:

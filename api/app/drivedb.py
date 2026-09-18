@@ -17,9 +17,30 @@ Anything a segment does not yield goes to drives_note verbatim.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TypedDict
+
+from sqlalchemy.orm import Session
 
 from . import entry
-from .models import ComputerDrive
+from .models import Computer, ComputerDrive
+
+
+class Drive(TypedDict):
+    """One fitted drive, in the same nine answers the row holds -- spelt out so
+    that what builds one and what renders it are checked against each other, which
+    a dict of mixed values is not."""
+
+    count: int
+    kind: str
+    form_factor: str
+    size: str
+    media: str
+    speed: str
+    model: str
+    colour: str
+    yellowing: str
+
 
 # Display forms, so a row renders as it is stored.
 KINDS = ["floppy", "Gotek", "optical", "SD", "CF", "tape"]
@@ -106,7 +127,7 @@ _YELLOW_WORDS = {y["label"].lower(): y["label"] for y in entry.YELLOWING} | {
 }
 
 
-def _phrase_re(words, tail=""):
+def _phrase_re(words: Iterable[str], tail: str = "") -> re.Pattern[str]:
     """One alternation over every phrase, longest first -- so 'off-white' is not
     read as 'white' after a stray 'off-', nor 'heavily yellowed' as 'yellowed'
     after an adverb. `tail` is anything more the match has to satisfy."""
@@ -129,7 +150,7 @@ _YELLOW_RE = _phrase_re(_YELLOW_WORDS)
 _MEDIA_RE = _phrase_re(_MEDIA_WORDS, tail=r"(?!-\w)")
 
 
-def _take(pattern, words, text):
+def _take(pattern: re.Pattern[str], words: Mapping[str, str], text: str) -> tuple[str, str]:
     """(label, text without it) for the first phrase `pattern` finds."""
     m = pattern.search(text)
     if not m:
@@ -157,7 +178,7 @@ _NOISE = {"drive", "drives", "emulator", "card", "x"}
 _OPTICAL_WORDS = {w for w, k in _KIND_WORDS.items() if k == "optical"}
 
 
-def _is_optical(text):
+def _is_optical(text: str) -> bool:
     """Whether a segment describes an optical drive: it names a medium, or it says
     so outright. The only place a × rating can be, which is what keeps the "2 x" of
     '2 x 5.25" 360K' the two floppies it has always been."""
@@ -180,7 +201,7 @@ _SPEED_RE = re.compile(rf"(?<![\w.])({_FIGURE}(?:\s*[/,]?\s*{_FIGURE})*)(?!\w)",
 _DIGITS_RE = re.compile(r"\d+")
 
 
-def _canon_speed(run):
+def _canon_speed(run: str) -> str:
     """A rating as it is written down here: '52x32x52x' and '4x 2x 20x' both become
     '52×/32×/52×', so the same drive reads the same however it was typed."""
     return "/".join(f"{n}×" for n in _DIGITS_RE.findall(run))
@@ -202,14 +223,14 @@ _SIZE_RE = re.compile(r"\b(\d+(?:\.\d+)?)\s*(KiB|MiB|GiB|K|KB|MB|GB)\b", re.I)
 _IEC_SIZE_UNITS = {"KIB": "KiB", "MIB": "MiB", "GIB": "GiB"}
 
 
-def _canon_size(number, unit):
+def _canon_size(number: str, unit: str) -> str:
     upper = unit.upper()
     unit = _IEC_SIZE_UNITS.get(upper) or ("K" if upper in ("K", "KB") else upper)
     number = number.rstrip(".")
     return f"{number}{unit}"
 
 
-def parse_segment(text):
+def parse_segment(text: str | None) -> Drive | None:
     """One typed drive ('2 x 5.25" 360K') as a dict, or None if nothing is left
     to say. Unrecognised words become the model, which is where a make belongs."""
     raw = " ".join((text or "").split())
@@ -290,10 +311,11 @@ def parse_segment(text):
     }
 
 
-def from_string(text):
+def from_string(text: str | None) -> tuple[list[Drive], str]:
     """A typed drives field as ([drive dict], note). A segment that yields
     nothing keeps its text in the note rather than being dropped."""
-    drives, leftover = [], []
+    drives: list[Drive] = []
+    leftover: list[str] = []
     for seg in (text or "").split(";"):
         if not seg.strip():
             continue
@@ -305,7 +327,7 @@ def from_string(text):
     return drives, "; ".join(leftover)
 
 
-def render(drives, note=""):
+def render(drives: Iterable[Drive], note: str = "") -> str:
     """The canonical string: '2× 5.25" 360K floppy (beige, heavily yellowed)', or
     '5.25" 48× CD-RW optical' for the drive that takes discs rather than disks.
 
@@ -346,7 +368,7 @@ def render(drives, note=""):
     return "; ".join(x for x in out if x)
 
 
-def read(db, computer):
+def read(db: Session, computer: Computer) -> list[Drive]:
     """A machine's drives as dicts, in the order they were entered."""
     rows = (
         db.query(ComputerDrive)
@@ -370,7 +392,12 @@ def read(db, computer):
     ]
 
 
-def write(db, computer, drives=None, note=None):
+def write(
+    db: Session,
+    computer: Computer,
+    drives: Sequence[Drive] | None = None,
+    note: str | None = None,
+) -> None:
     """Store a machine's drives and refresh the rendered string. drives=None
     leaves the rows alone, so a caller that only has a note does not wipe them."""
     aid = computer.asset_id

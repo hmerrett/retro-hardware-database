@@ -7,6 +7,8 @@ are here, so that the two page modules hold what differs and not what does not -
 and so that the JSON API, which deletes and edits the same rows, is not a third copy.
 """
 
+from collections.abc import Collection, Iterable, Sequence
+from typing import Literal, TypedDict
 from urllib.parse import urlparse
 
 
@@ -39,11 +41,13 @@ from fastapi import HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from . import entry, filesdb, machinedb, machines, projects, specdb
 from .common import folder_images, to_dict
 from .disposal import _parts_in_computer
-from .forms import posted
+from .forms import Posted, posted
 from .history import add_log
 from .models import (
     AssetChip,
@@ -89,7 +93,7 @@ _MACHINE_WIDTHS = {
 }
 
 
-def _bezel_ctx():
+def _bezel_ctx() -> dict[str, object]:
     """The bezel vocabularies and their swatches, for any form that records one:
     a machine's drive rows, a storage part and a display all do."""
     return {
@@ -101,7 +105,9 @@ def _bezel_ctx():
     }
 
 
-def _machine_ctx(obj, db=None, board=False):
+def _machine_ctx(
+    obj: Computer | Part | None, db: Session | None = None, board: bool = False
+) -> dict[str, object]:
     """The catalogue and this asset's place in it, for the edit form of a machine or
     of a board.
 
@@ -129,10 +135,10 @@ def _machine_ctx(obj, db=None, board=False):
 # The two answers a board is not asked for. A case or keyboard style and the market
 # a machine was built for are facts about a whole computer in a case, so a board's
 # form leaves them off -- and the save reads only what the form asked.
-_MACHINE_ONLY = ("style", "region")
+_MACHINE_ONLY: tuple[Literal["style", "region"], ...] = ("style", "region")
 
 
-def _machine_pick(form, field):
+def _machine_pick(form: Posted, field: str) -> str:
     """What one of the catalogue's radio groups chose: one of the answers it offered,
     or whatever was typed beside "custom" for the machine the catalogue has not met
     yet. Blank is a deliberate answer too -- it is how a socket nobody has looked at
@@ -143,13 +149,13 @@ def _machine_pick(form, field):
     return picked
 
 
-def _clear_computer_rows(db, c, with_parts=()):
+def _clear_computer_rows(db: Session, c: Computer, with_parts: Iterable[Part] = ()) -> list[str]:
     """The same for a computer: its drive and memory rows, its history, and either
     the parts inside it or the link they hold to it. `with_parts` is the parts to
     delete along with it; the rest are unlinked and kept."""
     aid = c.asset_id
     going = {p.asset_id for p in with_parts}
-    photos = []
+    photos: list[str] = []
     # The same walk disposal uses, so that what a delete calls "in the machine" is
     # what disposal called it: a disk on a controller card carries the card's id,
     # not the machine's. A kept part only needs the link it holds to the machine
@@ -165,14 +171,14 @@ def _clear_computer_rows(db, c, with_parts=()):
     photos += _drop_log_photos(db, aid)
     projects.forget_asset(db, aid)
     filesdb.forget_asset(db, aid)
-    for model in (AssetChip, AssetVariant, LogEntry):
-        db.query(model).filter(model.asset_id == aid).delete(synchronize_session=False)
+    for table in (AssetChip, AssetVariant, LogEntry):
+        db.query(table).filter(table.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("computers", aid)
     db.delete(c)
     return photos
 
 
-def _clear_part_rows(db, part, also_going=()):
+def _clear_part_rows(db: Session, part: Part, also_going: Collection[str] = ()) -> list[str]:
     """Everything in the database belonging to one part, and the links other parts
     hold to it. Returns its photos, for the caller to delete once the transaction
     is safe. `also_going` names assets being deleted in the same breath, which are
@@ -196,17 +202,20 @@ def _clear_part_rows(db, part, also_going=()):
     # nothing is unfiled, which the files page says rather than bins (ADR-0006).
     projects.forget_asset(db, aid)
     filesdb.forget_asset(db, aid)
-    for model in (AssetChip, AssetVariant, LogEntry):
-        db.query(model).filter(model.asset_id == aid).delete(synchronize_session=False)
+    for table in (AssetChip, AssetVariant, LogEntry):
+        db.query(table).filter(table.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("parts", aid)
     db.delete(part)
     return photos
 
 
-def _log_count(db, asset_ids):
+def _log_count(db: Session, asset_ids: Sequence[str]) -> int:
     if not asset_ids:
         return 0
-    return db.query(func.count(LogEntry.id)).filter(LogEntry.asset_id.in_(asset_ids)).scalar() or 0
+    counted: int | None = (
+        db.query(func.count(LogEntry.id)).filter(LogEntry.asset_id.in_(asset_ids)).scalar()
+    )
+    return counted or 0
 
 
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
@@ -252,11 +261,13 @@ DUP_EXCLUDE = {
 }
 
 
-def _attach_photos(db, obj, kind, uploads):
+def _attach_photos(
+    db: Session, obj: Computer | Part, kind: str, uploads: Sequence[UploadFile]
+) -> None:
     """Store photos against an item that has only just been created. Nothing can
     upload while a create form is still being filled in -- there is no asset id to
     file a photo under yet -- so they come with the form and are written here."""
-    first = None
+    first: str | None = None
     for up in uploads:
         rel = _save_photo(kind, obj.asset_id, up)
         if first is None:
@@ -267,7 +278,7 @@ def _attach_photos(db, obj, kind, uploads):
         add_log(db, obj.asset_id, f"added {len(uploads)} photo(s)")
 
 
-def _confirms_url(text, kind, aid) -> bool:
+def _confirms_url(text: str | None, kind: str, aid: str) -> bool:
     """The safety net: the item's own URL, pasted in. Nothing about this asks the
     database a question it does not already know the answer to -- the point is to
     make deleting the wrong thing take a deliberate act, so that a delete cannot
@@ -280,7 +291,14 @@ def _confirms_url(text, kind, aid) -> bool:
     return path.upper() == f"/{kind}/{aid}".upper()
 
 
-def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
+def _delete_ctx(
+    request: Request,
+    db: Session,
+    kind: str,
+    obj: Computer | Part,
+    error: str = "",
+    with_parts: bool = False,
+) -> dict[str, object]:
     """What deleting this would take with it, for the confirmation page. Read with
     the same queries the deletion itself runs, so the page cannot promise one
     thing and the button do another.
@@ -289,6 +307,8 @@ def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
     against the tick, so both are on the page whichever way the tick is set and
     neither needs a script to keep them honest."""
     aid = obj.asset_id
+    inside: list[Part]
+    children: list[Part]
     inside = children = []
     if kind == "computers":
         inside = _parts_in_computer(db, aid)
@@ -325,7 +345,9 @@ def _delete_ctx(request, db, kind, obj, error="", with_parts=False):
     }
 
 
-def _do_photo_crop(db, model, kind, aid, form):
+def _do_photo_crop(
+    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+) -> None:
     get_or_404(db, model, aid)
     try:
         x, y, w, h = (float(form.get(k, "")) for k in ("x", "y", "w", "h"))
@@ -336,7 +358,9 @@ def _do_photo_crop(db, model, kind, aid, form):
     db.commit()
 
 
-def _do_photo_revert(db, model, kind, aid, form):
+def _do_photo_revert(
+    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+) -> None:
     get_or_404(db, model, aid)
     rel = form.get("image", "")
     if rel not in detect_images(kind, aid):
@@ -346,14 +370,18 @@ def _do_photo_revert(db, model, kind, aid, form):
     db.commit()
 
 
-def _do_photo_rotate(db, model, kind, aid, form):
+def _do_photo_rotate(
+    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+) -> None:
     get_or_404(db, model, aid)
     _edit_image(kind, aid, form.get("image", ""), _rotate_op(form.get("dir", "cw")))
     add_log(db, aid, "rotated a photo")
     db.commit()
 
 
-def _do_photo_tuneup(db, model, kind, aid, form):
+def _do_photo_tuneup(
+    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+) -> None:
     get_or_404(db, model, aid)
     rel = form.get("image", "")
     # Pressing it twice is the accident this guards: the file is re-encoded on
@@ -368,7 +396,20 @@ def _do_photo_tuneup(db, model, kind, aid, form):
     db.commit()
 
 
-def _machine_from_form(form, board=False):
+class MachineAnswers(TypedDict, total=False):
+    """What the catalogue pickers answered, as machinedb.write's keyword arguments.
+    Every key is optional because a question the form never put is left unnamed
+    rather than blanked -- which is what machinedb reads an absent field as."""
+
+    model_key: str
+    issue: str
+    style: str
+    region: str
+    chips: dict[str, str]
+    sockets: dict[str, bool]
+
+
+def _machine_from_form(form: Posted, board: bool = False) -> MachineAnswers | None:
     """An asset's catalogue identity as the form gives it, as keyword arguments for
     machinedb.write -- or None where the form did not carry the question at all.
 
@@ -387,10 +428,12 @@ def _machine_from_form(form, board=False):
     if "mach_model" not in form:
         return None
     key = (form.get("mach_model", "") or "").strip()
-    out = {"model_key": key}
+    out: MachineAnswers = {"model_key": key}
     if not key or not (form.get("mach_fields", "") or "").strip():
         return out
-    asked = ["issue"] if board else ["issue", *_MACHINE_ONLY]
+    asked: list[Literal["issue", "style", "region"]] = (
+        ["issue"] if board else ["issue", *_MACHINE_ONLY]
+    )
     for field in asked:
         out[field] = _machine_pick(form, f"mach_{field}")
     out["chips"] = {role: _machine_pick(form, f"chip:{role}") for role in machines.roles(key)}
@@ -406,7 +449,7 @@ def _machine_from_form(form, board=False):
     return out
 
 
-def _machine_page(db, obj):
+def _machine_page(db: Session, obj: Computer | Part) -> dict[str, object] | None:
     """An asset's catalogue identity for its page: what it is filed as, then what
     makes this one of them, then the chips in the order a board is read in. None for
     an asset outside the catalogue, so the section does not appear at all.
@@ -461,7 +504,7 @@ def _machine_page(db, obj):
     }
 
 
-def _require_disposed(obj, kind):
+def _require_disposed(obj: Computer | Part, kind: str) -> None:
     """Only a disposed item can be deleted from the GUI. Disposal is reversible
     and deletion is not, so the reversible step is made a precondition of the
     other: whatever is about to go has already been marked as gone once, on
@@ -474,7 +517,9 @@ def _require_disposed(obj, kind):
         )
 
 
-async def _set_for_sale(db, model, aid, request: Request):
+async def _set_for_sale(
+    db: Session, model: type[Computer] | type[Part], aid: str, request: Request
+) -> RedirectResponse:
     """Tick or untick "might sell" on one item (ADR-0018).
 
     The box on the page is the answer, so an absent field is "no": an unticked
@@ -495,7 +540,7 @@ async def _set_for_sale(db, model, aid, request: Request):
     )
 
 
-def _work_from_form(db, obj, form):
+def _work_from_form(db: Session, obj: Computer | Part, form: Posted) -> Project | None:
     """The work box on an entry or edit form, acted on once the item itself is saved.
 
     Nothing typed and nothing picked makes nothing, which is the ordinary case: most
@@ -514,7 +559,7 @@ def _work_from_form(db, obj, form):
     return _take_on_work(db, obj.asset_id, jobs, project)
 
 
-def part_thumbs(db, parts):
+def part_thumbs(db: Session, parts: Iterable[Part]) -> dict[str, dict[str, object]]:
     """The picture to put on each part's card in a list of them, by asset id.
 
     A list of parts said what each one was and never showed it: "PT-0031 · storage /
@@ -533,7 +578,7 @@ def part_thumbs(db, parts):
     """
     listing = folder_images("parts")
     kinds = specdb.storage_kinds(db)
-    thumbs = {}
+    thumbs: dict[str, dict[str, object]] = {}
     for p in parts:
         imgs = pick_images("parts", p.asset_id, listing)
         rel = imgs[0] if imgs else ""
@@ -551,14 +596,14 @@ def part_thumbs(db, parts):
     return thumbs
 
 
-def delete_computer(db, c, with_parts=()):
+def delete_computer(db: Session, c: Computer, with_parts: Iterable[Part] = ()) -> list[str]:
     photos = _clear_computer_rows(db, c, with_parts)
     db.commit()
     _purge_photos(photos)
     return photos
 
 
-def delete_part(db, part):
+def delete_part(db: Session, part: Part) -> list[str]:
     """Delete a part and commit. Returns the photos that went with it."""
     photos = _clear_part_rows(db, part)
     db.commit()  # the rows first: if this raises, the photos are still there

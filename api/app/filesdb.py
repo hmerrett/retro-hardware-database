@@ -40,10 +40,13 @@ from __future__ import annotations
 import os
 import re
 import secrets
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
+from starlette.datastructures import UploadFile
 
 from . import machines
 from .entry import GIB, KIB, MIB
@@ -62,7 +65,7 @@ MAX_BYTES = 64 * 1024 * 1024
 _SAFE_SUFFIX = re.compile(r"^\.[A-Za-z0-9]{1,8}$")
 
 
-def fold(text) -> str:
+def fold(text: str | None) -> str:
     """The form several spellings of one name have in common: no spaces at all, no
     case. Every space rather than runs of them, because a name is as often written
     closed up as apart -- SoundBlaster, Sound Blaster -- and neither spelling is the
@@ -73,7 +76,7 @@ def fold(text) -> str:
 CATALOGUE, NAMED = "catalogue", "named"
 
 
-def named_key(maker, model) -> str:
+def named_key(maker: str | None, model: str | None) -> str:
     """The handle for a model the catalogue does not know: the maker and the model
     folded and joined. Joined with a character neither can contain once folded, so
     a maker of "Sound" and a model of "Blaster" cannot collide with a maker of
@@ -81,14 +84,16 @@ def named_key(maker, model) -> str:
     return f"{fold(maker)}|{fold(model)}"
 
 
-def model_ids_for(db, item) -> list[tuple[str, str, str]]:
+def model_ids_for(db: Session, item: Mapping[str, object]) -> list[tuple[str, str, str]]:
     """The models an item answers to, as (kind, key, label).
 
     Both where it has both: a Spectrum +2 is a catalogue machine *and* a Sinclair
     ZX Spectrum +2, and identifying a machine in the catalogue after a file was
     attached to it by name must not take the file away."""
     out = []
-    asset_id = (item.get("asset_id") or "").strip()
+    # str(): the dict is a row read column by column, so every value in it is typed
+    # as wide as a column can be; these three are text.
+    asset_id = str(item.get("asset_id") or "").strip()
     if asset_id:
         key = (
             db.query(AssetVariant.model_key).filter(AssetVariant.asset_id == asset_id).scalar()
@@ -96,9 +101,9 @@ def model_ids_for(db, item) -> list[tuple[str, str, str]]:
         ).strip()
         if key:
             known = machines.model(key)
-            out.append((CATALOGUE, key, (known or {}).get("model") or key))
-    maker = (item.get("manufacturer") or "").strip()
-    model = (item.get("model") or "").strip()
+            out.append((CATALOGUE, key, (known["model"] if known else "") or key))
+    maker = str(item.get("manufacturer") or "").strip()
+    model = str(item.get("model") or "").strip()
     if fold(maker) or fold(model):
         out.append(
             (NAMED, named_key(maker, model), " ".join(word for word in (maker, model) if word))
@@ -106,10 +111,10 @@ def model_ids_for(db, item) -> list[tuple[str, str, str]]:
     return out
 
 
-def _file_ids_for(db, item) -> set[int]:
+def _file_ids_for(db: Session, item: Mapping[str, object]) -> set[int]:
     """The ids of the files attached to this item or to a model it answers to."""
-    asset_id = (item.get("asset_id") or "").strip()
-    ids = set()
+    asset_id = str(item.get("asset_id") or "").strip()
+    ids: set[int] = set()
     if asset_id:
         ids |= {
             row[0]
@@ -133,7 +138,7 @@ def _file_ids_for(db, item) -> set[int]:
     return ids
 
 
-def for_item(db, item, authed=True):
+def for_item(db: Session, item: Mapping[str, object], authed: bool = True) -> list[StoredFile]:
     """Every file attached to this item or to a model it answers to, newest first,
     each with its tags attached as `.tags`. A visitor is shown the published ones
     alone."""
@@ -147,7 +152,7 @@ def for_item(db, item, authed=True):
     return with_links(db, with_tags(db, rows))
 
 
-def attach_asset(db, file_id: int, asset_id: str) -> bool:
+def attach_asset(db: Session, file_id: int, asset_id: str | None) -> bool:
     """Attach a file to one unit. True when it was not already, so the caller can
     say what it did without asking twice."""
     asset_id = (asset_id or "").strip()
@@ -164,7 +169,7 @@ def attach_asset(db, file_id: int, asset_id: str) -> bool:
     return True
 
 
-def attach_model(db, file_id: int, kind: str, key: str, label: str = "") -> bool:
+def attach_model(db: Session, file_id: int, kind: str, key: str, label: str = "") -> bool:
     """Attach a file to a model. `label` is what to print; `key` is what matches."""
     if kind not in (CATALOGUE, NAMED) or not (key or "").strip():
         return False
@@ -179,21 +184,21 @@ def attach_model(db, file_id: int, kind: str, key: str, label: str = "") -> bool
     return True
 
 
-def detach_asset(db, file_id: int, asset_id: str) -> None:
+def detach_asset(db: Session, file_id: int, asset_id: str) -> None:
     db.query(FileAsset).filter(FileAsset.file_id == file_id, FileAsset.asset_id == asset_id).delete(
         synchronize_session=False
     )
     db.flush()
 
 
-def detach_model(db, file_id: int, kind: str, key: str) -> None:
+def detach_model(db: Session, file_id: int, kind: str, key: str) -> None:
     db.query(FileModel).filter(
         FileModel.file_id == file_id, FileModel.kind == kind, FileModel.model_key == key
     ).delete(synchronize_session=False)
     db.flush()
 
 
-def forget_asset(db, asset_id: str) -> None:
+def forget_asset(db: Session, asset_id: str) -> None:
     """Drop the links to an item being deleted. The bytes stay: a file with no
     links left is unfiled, which the files page says out loud rather than treating
     as rubbish (ADR-0006)."""
@@ -201,7 +206,7 @@ def forget_asset(db, asset_id: str) -> None:
     db.flush()
 
 
-def with_links(db, rows):
+def with_links(db: Session, rows: Iterable[StoredFile]) -> list[StoredFile]:
     """The same rows, each carrying what it is attached to: `.assets` is a list of
     asset ids and `.models` a list of (kind, key, label). Two queries for the whole
     page rather than two per file, the way `with_tags` works."""
@@ -215,10 +220,10 @@ def with_links(db, rows):
     ):
         assets.setdefault(link.file_id, []).append(link.asset_id)
     models: dict[int, list[tuple[str, str, str]]] = {}
-    for link in (
+    for tie in (
         db.query(FileModel).filter(FileModel.file_id.in_(ids)).order_by(FileModel.label).all()
     ):
-        models.setdefault(link.file_id, []).append((link.kind, link.model_key, link.label))
+        models.setdefault(tie.file_id, []).append((tie.kind, tie.model_key, tie.label))
     for row in rows:
         row.assets = assets.get(row.id, [])
         row.models = models.get(row.id, [])
@@ -229,26 +234,26 @@ def with_links(db, rows):
     return rows
 
 
-def with_tags(db, rows):
+def with_tags(db: Session, rows: Iterable[StoredFile]) -> list[StoredFile]:
     """The same rows, each carrying its tags in one extra query rather than one
     per file."""
     rows = list(rows)
     if not rows:
         return []
     tags: dict[int, list[str]] = {}
-    for row in (
+    for label in (
         db.query(FileTag)
         .filter(FileTag.file_id.in_([r.id for r in rows]))
         .order_by(FileTag.id)
         .all()
     ):
-        tags.setdefault(row.file_id, []).append(row.tag)
+        tags.setdefault(label.file_id, []).append(label.tag)
     for row in rows:
         row.tags = tags.get(row.id, [])
     return rows
 
 
-def all_files(db, tag="", authed=True):
+def all_files(db: Session, tag: str = "", authed: bool = True) -> list[StoredFile]:
     """Everything on file, newest first, each with its tags and what it is attached
     to -- or, given a tag, the files carrying that tag.
 
@@ -269,10 +274,10 @@ def all_files(db, tag="", authed=True):
     return with_links(db, with_tags(db, rows))
 
 
-def parse_tags(text) -> list[str]:
+def parse_tags(text: str | None) -> list[str]:
     """The tags box as a list: one name per line or separated by commas, blanks
     dropped and each name kept once, in the order they were written."""
-    out, seen = [], set()
+    out, seen = [], set[str]()
     for raw in re.split(r"[,\n]", text or ""):
         name = " ".join(raw.split())
         if name and fold(name) not in seen and len(name) <= 120:
@@ -281,7 +286,7 @@ def parse_tags(text) -> list[str]:
     return out
 
 
-def set_tags(db, stored: StoredFile, tags):
+def set_tags(db: Session, stored: StoredFile, tags: Sequence[str] | str) -> None:
     """Replace a file's tags with these. Replace rather than add, because the box
     on the page shows all of them and what it shows is what a save means."""
     db.query(FileTag).filter(FileTag.file_id == stored.id).delete(synchronize_session=False)
@@ -290,7 +295,9 @@ def set_tags(db, stored: StoredFile, tags):
     db.flush()
 
 
-def save(db, upload, tags, note=""):
+def save(
+    db: Session, upload: UploadFile, tags: Sequence[str] | str, note: str = ""
+) -> StoredFile | None:
     """Store an upload and file it under `tags`. Returns the row, or None for an
     empty upload; raises ValueError if it is over MAX_BYTES.
 
@@ -335,7 +342,7 @@ def path_of(stored: StoredFile) -> Path:
     return FILES_DIR / stored.stored
 
 
-def remove(db, stored: StoredFile):
+def remove(db: Session, stored: StoredFile) -> None:
     """Forget a file, bytes and all. The tags go with it (the foreign key
     cascades), and the row is gone whether or not the file was still on disk --
     a record pointing at nothing is worse than no record."""
@@ -344,7 +351,7 @@ def remove(db, stored: StoredFile):
     db.delete(stored)
 
 
-def human_size(n) -> str:
+def human_size(n: int | None) -> str:
     """A size as it would be said out loud, which is what a download link wants."""
     n = int(n or 0)
     if n < 1024:

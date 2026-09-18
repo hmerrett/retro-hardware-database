@@ -434,6 +434,31 @@ class TestApi:
         assert r.status_code == 200, r.text
         assert r.json()["machine"]["sockets"] == {"sid": True}
 
+    def test_a_mounting_can_be_changed_without_saying_the_chips_again(self, client):
+        """The web form always sends the two together, so nothing had tried this:
+        sockets alone, on a machine that already has a chip recorded. A loop over
+        the chip rows reused the name the variant row was held under, and the next
+        line asked a chip for its model."""
+        made = client.post(
+            "/api/computers",
+            json={
+                "manufacturer": "Commodore",
+                "model": "64",
+                "machine": {
+                    "model_key": "c64",
+                    "chips": {"sid": "MOS 6581"},
+                    "sockets": {"sid": True},
+                },
+            },
+        ).json()
+        r = client.patch(
+            f"/api/computers/{made['asset_id']}",
+            json={"machine": {"model_key": "c64", "sockets": {"sid": False}}},
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["machine"]["sockets"] == {"sid": False}
+        assert r.json()["machine"]["chips"] == {"sid": "MOS 6581"}
+
     def test_a_socket_for_a_chip_the_model_has_not_got_is_refused(self, client):
         r = client.post(
             "/api/computers",

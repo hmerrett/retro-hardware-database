@@ -15,8 +15,12 @@ the forms, the way it holds the file routes over filesdb.
 """
 
 import re
+from collections.abc import Iterable
+from typing import Literal, TypedDict, cast
 
 from sqlalchemy import func
+from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.orm import Session
 
 from .models import Computer, Part, Project, ProjectAsset, ProjectOrder, ProjectTask
 
@@ -52,14 +56,14 @@ CLOSED = ("done", "abandoned")
 LIST_ORDER = ["active", "planned", "stalled", "done", "abandoned"]
 
 
-def status_label(slug):
+def status_label(slug: str | None) -> str:
     """The words for a status, falling back to whatever is stored. A row written
     under a status this list no longer names still reads back as itself rather than
     as a blank."""
     return STATUS_LABELS.get(slug or "", slug or "")
 
 
-def clean_status(raw):
+def clean_status(raw: str | None) -> str:
     slug = (raw or "").strip().lower()
     return slug if slug in STATUS_LABELS else DEFAULT_STATUS
 
@@ -75,7 +79,7 @@ def clean_status(raw):
 _MONEY = re.compile(r"^\d*(?:\.\d*)?$")
 
 
-def parse_money(raw):
+def parse_money(raw: str | None) -> int | None:
     """Pence from whatever was typed in a cost box, or None for not recorded.
 
     Accepts the pound sign, thousands commas and a bare number of pounds, because
@@ -93,7 +97,7 @@ def parse_money(raw):
     return int(whole or 0) * 100 + int((frac + "00")[:2])
 
 
-def money(pence):
+def money(pence: int | None) -> str:
     """Pence as it is written. Empty for None, so a template can print it straight
     into a cell that means 'not recorded' when it is blank."""
     if pence is None:
@@ -104,7 +108,7 @@ def money(pence):
 # --- reading a project's contents --------------------------------------------
 
 
-def tasks(db, project_id):
+def tasks(db: Session, project_id: str) -> list[ProjectTask]:
     """A project's jobs: the outstanding ones first, then the finished, each in the
     order they were written. Undone first because the list is read to find out what
     to do next, and a long tail of ticked lines between you and it is the thing that
@@ -117,7 +121,7 @@ def tasks(db, project_id):
     )
 
 
-def orders(db, project_id):
+def orders(db: Session, project_id: str) -> list[ProjectOrder]:
     """A project's purchases: what is still coming first, then what has arrived.
 
     Same reason the tasks sort that way, with one addition -- the outstanding ones
@@ -134,7 +138,7 @@ def orders(db, project_id):
     return rows
 
 
-def members(db, project_id):
+def members(db: Session, project_id: str) -> list[tuple[str, Computer | Part, ProjectAsset]]:
     """What the project is about, as [(kind, object)] with kind the URL segment.
 
     Three queries whatever the membership: the rows, then the computers and the
@@ -155,11 +159,15 @@ def members(db, project_id):
     if not rows:
         return []
     ids = [r.asset_id for r in rows]
-    found = {}
+    found: dict[str, tuple[str, Computer | Part]] = {}
     for kind, cls in (("computers", Computer), ("parts", Part)):
-        for obj in db.query(cls).filter(cls.asset_id.in_(ids)):
+        # A query over either of two model classes hands its rows back as the base
+        # class they share, which has no columns on it; these are the two the loop
+        # names and can be nothing else.
+        rows_of = cast("Iterable[Computer | Part]", db.query(cls).filter(cls.asset_id.in_(ids)))
+        for obj in rows_of:
             found[obj.asset_id] = (kind, obj)
-    out = []
+    out: list[tuple[str, Computer | Part, ProjectAsset]] = []
     for r in rows:
         if r.asset_id in found:
             kind, obj = found[r.asset_id]
@@ -167,7 +175,7 @@ def members(db, project_id):
     return out
 
 
-def project_by_asset(db, asset_ids):
+def project_by_asset(db: Session, asset_ids: Iterable[str]) -> dict[str, Project]:
     """{asset_id: Project} for a page's worth of items, in one query.
 
     The list version of project_for, for the queue on /projects: it answers
@@ -185,7 +193,7 @@ def project_by_asset(db, asset_ids):
     }
 
 
-def project_for(db, asset_id, authed=True):
+def project_for(db: Session, asset_id: str, authed: bool = True) -> Project | None:
     """The project one computer or part is on, or None -- there is at most one
     (ADR-0016).
 
@@ -204,7 +212,7 @@ def project_for(db, asset_id, authed=True):
     return q.first()
 
 
-def project_wide_tasks(db, project_id):
+def project_wide_tasks(db: Session, project_id: str) -> list[ProjectTask]:
     """A project's jobs that name no one thing.
 
     Shown on the page of every thing the project is about, beneath that thing's
@@ -229,7 +237,7 @@ def project_wide_tasks(db, project_id):
     )
 
 
-def tasks_for_asset(db, asset_id, authed=True):
+def tasks_for_asset(db: Session, asset_id: str, authed: bool = True) -> list[ProjectTask]:
     """The jobs written against one thing, outstanding first.
 
     What an item's own page shows, in place of the project chips it used to: the
@@ -254,7 +262,9 @@ def tasks_for_asset(db, asset_id, authed=True):
     return q.order_by(ProjectTask.done, ProjectTask.id).all()
 
 
-def add_asset(db, project_id, asset_id, note=""):
+def add_asset(
+    db: Session, project_id: str, asset_id: str | None, note: str | None = ""
+) -> Literal["moved", "added", False]:
     """Put a computer or part on a project. Returns what happened: "added" for one
     that was on nothing, "moved" for one taken off another project, and False for
     one already here or for an id that is in neither asset table -- a project is
@@ -288,7 +298,7 @@ def add_asset(db, project_id, asset_id, note=""):
     return "moved" if held is not None else "added"
 
 
-def holds(db, project_id, asset_id):
+def holds(db: Session, project_id: str, asset_id: str | None) -> bool:
     """Whether this project is about this thing. What a task naming an asset is
     checked against: a job may name one of its project's things or nothing at all,
     but not something the project is not about -- that row would surface on an
@@ -303,7 +313,7 @@ def holds(db, project_id, asset_id):
     )
 
 
-def drop_asset(db, project_id, asset_id):
+def drop_asset(db: Session, project_id: str, asset_id: str | None) -> bool:
     """Take one out. Returns whether there was one to take."""
     n = (
         db.query(ProjectAsset)
@@ -316,7 +326,7 @@ def drop_asset(db, project_id, asset_id):
     return bool(n)
 
 
-def forget_asset(db, asset_id):
+def forget_asset(db: Session, asset_id: str) -> int:
     """Everything an asset that is being deleted leaves behind: its membership, and
     the thing-shaped half of the jobs written against it.
 
@@ -343,15 +353,35 @@ def forget_asset(db, asset_id):
 # --- the list page -----------------------------------------------------------
 
 
-def _counts(db, model, *conds):
+class Summary(TypedDict):
+    """One row of the projects list: the project, and the four things counted
+    beside it. Spelt out because a dict holding a project and five integers is
+    `object` to a type checker, and the search that sifts these rows has to be able
+    to read the project back out of one."""
+
+    p: Project
+    assets: int
+    tasks: int
+    tasks_done: int
+    orders: int
+    orders_out: int
+
+
+def _counts(
+    db: Session,
+    model: type[ProjectAsset] | type[ProjectTask] | type[ProjectOrder],
+    *conds: ColumnElement[bool],
+) -> dict[str, int]:
     """{project_id: n} for one child table, in one query."""
     q = db.query(model.project_id, func.count(model.id)).group_by(model.project_id)
     for cond in conds:
         q = q.filter(cond)
-    return dict(q.all())
+    # tuples() is a typing filter and nothing else: it says the rows are the pair
+    # they were selected as, which is what makes them a dict.
+    return dict(q.tuples().all())
 
 
-def summaries(db, authed=True):
+def summaries(db: Session, authed: bool = True) -> list[Summary]:
     """Every project with the numbers its row on the list page shows, in five
     queries however many there are: the projects, then one grouped count per thing
     counted. Written this way rather than as a property on the model because a list
@@ -375,7 +405,7 @@ def summaries(db, authed=True):
     tasks_done = _counts(db, ProjectTask, ProjectTask.done.is_(True))
     orders_all = _counts(db, ProjectOrder)
     orders_out = _counts(db, ProjectOrder, ProjectOrder.delivered.is_(False))
-    out = []
+    out: list[Summary] = []
     for p in rows:
         out.append(
             {
@@ -388,7 +418,7 @@ def summaries(db, authed=True):
             }
         )
 
-    def rank(status):
+    def rank(status: str) -> int:
         # A status this list no longer names sorts with the open ones rather than
         # being dropped to the bottom: it is not known to be over.
         return LIST_ORDER.index(status) if status in LIST_ORDER else len(LIST_ORDER)
@@ -397,7 +427,7 @@ def summaries(db, authed=True):
     return out
 
 
-def searchable(db, project_id):
+def searchable(db: Session, project_id: str) -> list[str]:
     """Everything written under a project that is not one of its own columns: the
     jobs on its list and the things it has on order, as plain lines.
 
@@ -408,7 +438,7 @@ def searchable(db, project_id):
     parcel actually asks. The cost is left out -- a search for "12.99" is not a
     search anybody makes, and the figure is not shown to a visitor anyway.
     """
-    out = []
+    out: list[str] = []
     for (text,) in db.query(ProjectTask.text).filter(ProjectTask.project_id == project_id):
         out.append(text or "")
     for row in db.query(ProjectOrder.description, ProjectOrder.supplier, ProjectOrder.note).filter(
@@ -418,7 +448,7 @@ def searchable(db, project_id):
     return [x for x in out if x]
 
 
-def spend(rows):
+def spend(rows: Iterable[ProjectOrder]) -> tuple[int, int]:
     """What a project's orders have cost, as (pence, how many lines had no price).
 
     The second number is the point of returning a pair. A total is a claim, and a
@@ -429,7 +459,7 @@ def spend(rows):
     return total, unpriced
 
 
-def open_projects(db):
+def open_projects(db: Session) -> list[Project]:
     """The projects a thing arriving today could be joining: the ones still in hand,
     by name.
 

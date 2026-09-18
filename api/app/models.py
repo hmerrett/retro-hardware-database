@@ -8,6 +8,7 @@ everything was a string; quantities and dates are being given real types as the
 data proves clean enough to convert."""
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -504,6 +505,18 @@ class StoredFile(Base):
     # somebody says it is, and the tick that says so is the only thing standing
     # between a scanned invoice and the open web (ADR-0009).
     public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
+
+    # Not columns. filesdb.with_links and with_tags hang these on the rows of a page
+    # so that a list of files costs three queries and not three per file, and the
+    # templates read them back. Declared for the type checker alone: SQLAlchemy
+    # never sees this block, so nothing here is mapped, stored or migrated, and a
+    # row that has not been through those two functions does not have them.
+    if TYPE_CHECKING:
+        assets: list[str]
+        models: list[tuple[str, str, str]]
+        model_pairs: set[tuple[str, str]]
+        unfiled: bool
+        tags: list[str]
 
 
 class FileTag(Base):
