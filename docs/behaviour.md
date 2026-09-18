@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1402 behaviours, from 31 files.*
+*1404 behaviours, from 32 files.*
 
 
 ## Api
@@ -1968,6 +1968,15 @@ Regenerate with:
   0039 stops a file being matched to an item by name and starts it being attached to one, and runs the old matcher once to write down what it found.
 - a file the matcher reached nothing with is left unfiled  
   Unfiled is a state and not a loss: the bytes are untouched and the files page says so.
+
+
+## Models match migrations
+
+*test_models_match_migrations.py — 2 behaviours*
+
+- autogenerate against the migrated schema finds nothing to do
+- a column that changes nullability is caught  
+  The check above is only worth having if it can fail.
 
 
 ## Openapi contract

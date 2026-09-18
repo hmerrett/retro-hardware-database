@@ -267,6 +267,13 @@ breaking one turns CI red rather than merely being wrong.
   variables. *(enforced: `test_stylesheet.py`)*
 - **The suite runs on MariaDB and builds its schema from the real migrations.**
   There is no SQLite path to fall back to. *(ADR-0008)*
+- **The models describe the schema the migrations build, and nothing else.**
+  Asked what it would write, `alembic revision --autogenerate` answers nothing:
+  no table, column, type or nullability differs between `Base.metadata` and a
+  database migrated from empty. A model is typed for mypy's benefit and never as
+  a way of changing what is stored -- `Mapped[str]` without `Optional` means NOT
+  NULL, so an annotation is a schema statement whether or not it was meant as one.
+  *(enforced: `test_models_match_migrations.py`)*
 
 ## 7. Where the work is
 
