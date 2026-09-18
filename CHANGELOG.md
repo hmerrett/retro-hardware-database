@@ -11,7 +11,7 @@ Versions are [semantic](https://semver.org), and the version has one home,
 starts, so a schema change needs no step of its own. Anything that does need a
 hand is written under the release that needs it.
 
-## Unreleased — 0.1.0
+## 0.1.0 — 2026-09-18
 
 The first release, and so not a list of changes: there is nothing before it to
 have changed from. What it is, in one paragraph, is a self-hosted register for a
@@ -22,7 +22,7 @@ a command-line toolkit beside the web pages. [README.md](README.md) says what it
 is for, [MANUAL.md](MANUAL.md) what every part of it does, and
 [INSTALL.md](INSTALL.md) how to run your own.
 
-[ROADMAP.md](ROADMAP.md) has what is left before it is tagged.
+[ROADMAP.md](ROADMAP.md) has what comes after it.
 
 **Installing it for the first time:** follow [INSTALL.md](INSTALL.md) from the
 top. Set `RHDB_BASE_URL` before printing any labels — it is what their QR codes
