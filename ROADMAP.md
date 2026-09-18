@@ -134,6 +134,45 @@ rather than being wondered about later.
   against the dump, every archived photograph and file, and the public pages
   answering (#41) — and a round-trip test guards the dump-and-restore commands it
   leans on (#43).
+- **The stack stands up on k3s.** Deployed to a three-node Civo cluster at a real
+  domain, with a real certificate, and written up in
+  [docs/deploying-on-k3s.md](docs/deploying-on-k3s.md). It answered all four
+  questions it was set, two of them differently from how they were guessed:
+  - **`.env` becomes one Secret**, read with `envFrom`, and the app needs no change
+    to take it. But `${VAR:?message}` really has no equivalent, and the gap is
+    worse than "no fail-fast": `api/app/db.py` defaults `DATABASE_URL` to
+    `retro:retro@db`, so a Secret missing that key does not stop the stack, it
+    quietly tries a guessable password. Compose has been hiding that default for
+    as long as it has existed. Raised as a finding rather than fixed here.
+  - **`fix-volumes.sh` does not become an init container.** It does not need to
+    become anything: `fsGroup` on the pod does declaratively what the script does
+    imperatively, for the app's uid 10001 and for MariaDB's 999 alike. The guess
+    was that Kubernetes would need the same work in a different shape; it needs
+    the work not to exist.
+  - **The migrations-on-start race did not arise, and not by design.** The volumes
+    are ReadWriteOnce block storage, which forces `strategy: Recreate` and caps
+    the app at one replica — so the storage class prevents the second replica that
+    would race, and nothing in the app does. Anyone moving to a shared filesystem
+    gets the race back with no warning.
+  - **TLS and the hostname went to an ingress**, so Caddy left the stack — and
+    `caddy/conf.d` means nothing in this deployment. What that costs is the four
+    headers Caddy sends, which are gone. What it does not cost is the
+    Content-Security-Policy, because ADR-0021 had already moved it into the app;
+    the split it drew is exactly the line the ingress cut along, which is the
+    nearest thing to a controlled test that decision will get.
+
+  Two things the item did not think to ask turned out to matter more than one that
+  it did. `build: ./api` has no equivalent — Compose builds on the host it runs
+  on, and Kubernetes needs a registry and an image built for the nodes'
+  architecture, which is most of the write-up. And GoAccess reads Caddy's log off
+  a shared volume, so dropping Caddy drops `/traffic` with it; the traffic report
+  is coupled to the proxy, not to the app.
+
+  The deployment was three nodes rather than the single node the item named, which
+  is what surfaced the ReadWriteOnce constraint. Whether manifests ship in the
+  repository stays open: the write-up carries them inline, which is enough for a
+  second installer to follow and stops short of a second delivery path nobody has
+  asked for yet.
 
 ## The work, in order
 
@@ -145,32 +184,7 @@ started. What is left is the part no reading can stand in for.
 The release gate: the install walk repeated on a clean host, a backup of that host
 restored into a second stack with `tools/restore.sh` (a release that invites
 people to self-host should have restored one at least once), and whatever that
-walk turns up corrected.
-
-**2. A test deployment on k3s.** The last thing before the tag. Compose is the
-only way this has ever been run, and it has only ever been run on the box it was
-written on — so "it installs on your own server" is a claim with one witness, who
-is also the author. Kubernetes is where a second installer is most likely to put
-it, and standing the stack up there is the cheapest way to find what the compose
-file has been quietly providing.
-
-Single-node k3s, and a *test* deployment rather than a supported one: the point is
-to learn what breaks, not to take on a second delivery path before anybody has
-asked for one. What it has to answer:
-
-- `.env` becomes a Secret and a ConfigMap, and the app reads the environment
-  either way — but `${VAR:?message}`, which is what makes a missing password stop
-  the stack rather than default it (docker-environments), has no equivalent there;
-- the three named volumes become PVCs, and `api-init`'s `fix-volumes.sh` becomes
-  an init container, since the app runs as uid 10001 and a fresh PVC does not;
-- `alembic upgrade head` on start is fine for one replica and is a race for two,
-  which is the first thing Kubernetes invites somebody to change;
-- Caddy either stays in the stack as it is, or the TLS and the hostname go to an
-  ingress and the app sits behind it — and that decides whether an installation's
-  `caddy/conf.d` still means anything.
-
-Whether the manifests ship in the repository, and whether this runs anywhere but
-by hand, are both open. **Then tag `v0.1.0`.**
+walk turns up corrected. **Then tag `v0.1.0`.**
 
 ## After 0.1
 
