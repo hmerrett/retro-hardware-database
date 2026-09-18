@@ -6,7 +6,7 @@ page is the one place all three are read together.
 """
 
 import random
-from datetime import date
+from datetime import date, datetime
 
 
 # --- projects: the work, as against the things it is done to ------------------
@@ -32,6 +32,8 @@ from datetime import date
 
 # --- the jobs, and the things on order ---------------------------------------
 
+from collections.abc import Iterable, Mapping, Sequence
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func
@@ -41,7 +43,7 @@ from sqlalchemy.orm import Session
 from .. import cards, entry, labels, projects
 from ..common import _visible, folder_images, to_dict
 from ..db import get_db
-from ..forms import _coerce, _field_diffs, _parse_date, posted
+from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted
 from ..history import _history, _now, _short, add_log
 from ..ids import next_asset_id
 from ..models import Computer, LogEntry, Part, Project, ProjectAsset, ProjectOrder, ProjectTask
@@ -64,7 +66,7 @@ from ..work import (
 )
 
 
-def _task_or_404(db, p, tid):
+def _task_or_404(db: Session, p: Project, tid: int) -> ProjectTask:
     row = db.get(ProjectTask, tid)
     # The project id is checked rather than taken on trust, for the reason a history
     # entry's asset id is: a bare row id would otherwise let one project's task be
@@ -74,7 +76,9 @@ def _task_or_404(db, p, tid):
     return row
 
 
-def _projects_page(request, db, q="", error="", status=200):
+def _projects_page(
+    request: Request, db: Session, q: str = "", error: str = "", status: int = 200
+) -> HTMLResponse:
     """The page, drawn.
 
     A function rather than the route's body because the quick box has to render it
@@ -128,24 +132,28 @@ def _projects_page(request, db, q="", error="", status=200):
     )
 
 
-def _project_from_form(form):
+def _project_from_form(form: Posted) -> dict[str, str | int | bool | date | None]:
     data = {k: _coerce(k, form.get(k, "")) for k in PROJECT_FIELDS}
-    data["name"] = (data["name"] or "").strip()
-    data["status"] = projects.clean_status(data["status"])
+    # _coerce hands a project's name and status back as the text they were typed
+    # as; the two checks are for the type checker, which sees every column's type
+    # at once rather than the two being read here.
+    name, status = data["name"], data["status"]
+    data["name"] = (name if isinstance(name, str) else "").strip()
+    data["status"] = projects.clean_status(status if isinstance(status, str) else "")
     # A tickbox that is not ticked sends nothing at all, so its absence is the
     # answer rather than a missing one.
     data["private"] = bool(form.get("private"))
     return data
 
 
-def _order_or_404(db, p, oid):
+def _order_or_404(db: Session, p: Project, oid: int) -> ProjectOrder:
     row = db.get(ProjectOrder, oid)
     if row is None or row.project_id != p.asset_id:
         raise HTTPException(404, f"no order {oid} in {p.asset_id}")
     return row
 
 
-def _project_card(members):
+def _project_card(members: Iterable[tuple[str, Computer | Part, ProjectAsset]]) -> str | None:
     """The photograph a project's shared link shows: the first of its things that
     has one, or None to fall back to the site's own card.
 
@@ -172,7 +180,7 @@ def _project_card(members):
     return None
 
 
-def _today_panel(db, project):
+def _today_panel(db: Session, project: Project | None) -> dict[str, object] | None:
     """What the suggestion shows: the project, a photograph or three of the things
     it is about, the jobs still to do, and how long it has been quiet.
 
@@ -231,7 +239,9 @@ def _today_panel(db, project):
     }
 
 
-def _projects_card(db, rows, limit=cards.MAX_TILES):
+def _projects_card(
+    db: Session, rows: Sequence[projects.Summary], limit: int = cards.MAX_TILES
+) -> list[str]:
     """The photographs the projects *list* tiles its share card from: the first
     photograph of each project on the page, in the order the page reads (ADR-0017).
 
@@ -251,7 +261,7 @@ def _projects_card(db, rows, limit=cards.MAX_TILES):
     ids = [r["p"].asset_id for r in rows]
     if not ids:
         return []
-    owned = {}
+    owned: dict[str, list[str]] = {}
     for pid, aid in (
         db.query(ProjectAsset.project_id, ProjectAsset.asset_id)
         .filter(ProjectAsset.project_id.in_(ids))
@@ -281,11 +291,13 @@ def _projects_card(db, rows, limit=cards.MAX_TILES):
 router = APIRouter()
 
 
-def _project_form_ctx(p, title, error=""):
+def _project_form_ctx(
+    p: Project | Mapping[str, object] | None, title: str, error: str = ""
+) -> dict[str, object]:
     return {"p": p, "title": title, "statuses": projects.STATUSES, "error": error}
 
 
-def _project_of_the_day(db, authed):
+def _project_of_the_day(db: Session, authed: bool) -> Project | None:
     """One project to suggest, drawn now, or None if there is nothing in hand.
 
     Weighted towards the neglected, because the point of a nudge is the thing you
@@ -308,10 +320,11 @@ def _project_of_the_day(db, authed):
         return None
     # The last thing written about each of them, in one query: a project's history
     # is what says when it was last thought about at all.
-    last = dict(
+    last: dict[str | None, datetime | None] = dict(
         db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
         .filter(LogEntry.asset_id.in_([p.asset_id for p in pool]))
         .group_by(LogEntry.asset_id)
+        .tuples()
     )
     now = _now()
     weights = []
@@ -349,7 +362,7 @@ TODAY_STALLED_WEIGHT = 2
 
 
 @router.get("/projects", response_class=HTMLResponse, include_in_schema=False)
-def gui_projects(request: Request, q: str = "", db: Session = Depends(get_db)):
+def gui_projects(request: Request, q: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
     """Everything planned, in hand or finished. `q` narrows it, and is a box of its
     own rather than the banner's: the banner searches the register and lands on the
     gallery, and a page of projects wants to be siftable without leaving it."""
@@ -357,7 +370,7 @@ def gui_projects(request: Request, q: str = "", db: Session = Depends(get_db)):
 
 
 @router.post("/projects/quick", include_in_schema=False)
-async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
+async def gui_project_quick(request: Request, db: Session = Depends(get_db)) -> Response:
     """A project in one gesture, from the list's own page.
 
     This is what the flag on an item used to be, and it is here for the same
@@ -411,14 +424,14 @@ async def gui_project_quick(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/projects/new", response_class=HTMLResponse, include_in_schema=False)
-def gui_new_project(request: Request):
+def gui_new_project(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request, "project_form.html", _project_form_ctx(None, "New project")
     )
 
 
 @router.post("/projects/new", include_in_schema=False)
-async def gui_create_project(request: Request, db: Session = Depends(get_db)):
+async def gui_create_project(request: Request, db: Session = Depends(get_db)) -> Response:
     """A project needs a name and nothing else.
 
     A name because it is the only thing a project can be found by: a machine
@@ -443,7 +456,7 @@ async def gui_create_project(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/projects/{aid}", response_class=HTMLResponse, include_in_schema=False)
-def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
+def gui_project(aid: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     p = get_or_404(db, Project, aid)
     # The second of the five. Not a 403 and not a redirect to the login: a visitor
     # who guessed the tag of a private project should not be told there is one to
@@ -516,7 +529,7 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/projects/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
-def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)):
+def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     p = get_or_404(db, Project, aid)
     return templates.TemplateResponse(
         request, "project_form.html", _project_form_ctx(p, "Edit project")
@@ -524,7 +537,7 @@ def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/projects/{aid}/edit", include_in_schema=False)
-async def gui_update_project(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_update_project(aid: str, request: Request, db: Session = Depends(get_db)) -> Response:
     p = get_or_404(db, Project, aid)
     form = await posted(request)
     data = _project_from_form(form)
@@ -547,7 +560,7 @@ async def gui_update_project(aid: str, request: Request, db: Session = Depends(g
 
 
 @router.get("/projects/{aid}/label.pdf", include_in_schema=False)
-def gui_project_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
+def gui_project_label(aid: str, small: int = 1, db: Session = Depends(get_db)) -> Response:
     """A printable label for a project, so a thing bought for one can carry a
     sticker saying what it is for.
 
@@ -568,7 +581,9 @@ def gui_project_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
 
 
 @router.post("/projects/{aid}/note", include_in_schema=False)
-async def gui_project_note(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_project_note(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """The same note bar the machines have, posting to the same shape of URL, which
     is why _history.html needed nothing said to it about projects."""
     get_or_404(db, Project, aid)
@@ -577,7 +592,7 @@ async def gui_project_note(aid: str, request: Request, db: Session = Depends(get
 
 
 @router.post("/projects/{aid}/delete", include_in_schema=False)
-async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
+async def gui_delete_project(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
     """Delete a project outright, with no disposal step in front of it.
 
     A machine has to be marked disposed before it can be deleted, because deleting
@@ -600,7 +615,9 @@ async def gui_delete_project(aid: str, db: Session = Depends(get_db)):
 
 
 @router.post("/projects/{aid}/add-item", include_in_schema=False)
-async def gui_project_add_item(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_project_add_item(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Project, aid)
     form = await posted(request)
     asset_id = (form.get("asset_id", "") or "").strip().upper()
@@ -614,7 +631,9 @@ async def gui_project_add_item(aid: str, request: Request, db: Session = Depends
 
 
 @router.post("/projects/{aid}/remove-item", include_in_schema=False)
-async def gui_project_remove_item(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_project_remove_item(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Project, aid)
     form = await posted(request)
     asset_id = (form.get("asset_id", "") or "").strip().upper()
@@ -626,7 +645,9 @@ async def gui_project_remove_item(aid: str, request: Request, db: Session = Depe
 
 
 @router.post("/projects/{aid}/task", include_in_schema=False)
-async def gui_project_add_task(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_project_add_task(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Project, aid)
     form = await posted(request)
     text = (form.get("text", "") or "").strip()
@@ -646,7 +667,7 @@ async def gui_project_add_task(aid: str, request: Request, db: Session = Depends
 @router.post("/projects/{aid}/task/{tid}/about", include_in_schema=False)
 async def gui_project_task_about(
     aid: str, tid: int, request: Request, db: Session = Depends(get_db)
-):
+) -> RedirectResponse:
     """Say which of the project's things a job is about, from the project's page.
 
     Its own route rather than a field on the add form, because the jobs that need
@@ -673,7 +694,7 @@ async def gui_project_task_about(
 @router.post("/projects/{aid}/task/{tid}/toggle", include_in_schema=False)
 async def gui_project_toggle_task(
     aid: str, tid: int, request: Request, db: Session = Depends(get_db)
-):
+) -> RedirectResponse:
     """Tick a job, or put it back.
 
     Un-ticking clears the date rather than keeping it. A job that is not done has
@@ -698,7 +719,7 @@ async def gui_project_toggle_task(
 
 
 @router.post("/projects/{aid}/task/{tid}/delete", include_in_schema=False)
-def gui_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
+def gui_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)) -> RedirectResponse:
     p = get_or_404(db, Project, aid)
     row = _task_or_404(db, p, tid)
     add_log(db, p.asset_id, f"dropped: {_short(row.text)}")
@@ -708,7 +729,9 @@ def gui_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
 
 
 @router.post("/projects/{aid}/order", include_in_schema=False)
-async def gui_project_add_order(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_project_add_order(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Something bought for this project. Only the description is required: an
     order written down the moment it is placed rarely has a delivery date yet, and
     a form that insisted on one would be filled in later or not at all."""
@@ -740,7 +763,9 @@ async def gui_project_add_order(aid: str, request: Request, db: Session = Depend
 
 
 @router.post("/projects/{aid}/order/{oid}/delivered", include_in_schema=False)
-def gui_project_order_delivered(aid: str, oid: int, db: Session = Depends(get_db)):
+def gui_project_order_delivered(
+    aid: str, oid: int, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """The tick. What arrives is added to the register the ordinary way -- this row
     is a note about a purchase, not a half-made asset -- so all that happens here is
     that it stops being one of the things still coming."""
@@ -758,7 +783,7 @@ def gui_project_order_delivered(aid: str, oid: int, db: Session = Depends(get_db
 
 
 @router.post("/projects/{aid}/order/{oid}/delete", include_in_schema=False)
-def gui_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
+def gui_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)) -> RedirectResponse:
     p = get_or_404(db, Project, aid)
     row = _order_or_404(db, p, oid)
     add_log(db, p.asset_id, f"cancelled: {_short(row.description)}")

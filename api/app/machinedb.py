@@ -35,15 +35,66 @@ slugs and the string is written one way only.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
+from typing import TypedDict
+
+from sqlalchemy.orm import Session
+
 from . import machines
-from .models import AssetChip, AssetVariant
+from .models import AssetChip, AssetVariant, Computer, Part
+
+# A catalogue question is asked of a machine or of the board out of one, and both
+# answer it the same way -- which is what the tables being keyed by a plain asset
+# id buys, and why nothing here needs to know which it has.
+type Asset = Computer | Part
+# What a caller may hand write() for the chips and their mountings: a mapping, or
+# the pairs one would be built from.
+type ChipsIn = dict[str, str] | Iterable[tuple[str, str]]
+# Both dicts are named because a dict is invariant: what read() hands back holds
+# no None, and has to be something write() will take.
+type SocketsIn = dict[str, bool] | dict[str, bool | None] | Iterable[tuple[str, bool | None]]
+
+
+class Identity(TypedDict):
+    """What an asset says about its catalogue identity: the model it is filed as,
+    the three variations a record holds, the chip in each socket, and which of those
+    sockets somebody has looked at."""
+
+    model_key: str
+    issue: str
+    style: str
+    region: str
+    chips: dict[str, str]
+    sockets: dict[str, bool]
+
+
+class Recorded(TypedDict, total=False):
+    """Every answer one model has actually been given, which is what the catalogue's
+    lists are extended with (machines.with_recorded).
+
+    No key is required. recorded() fills all four, but what reads one takes a record
+    that says nothing about styles as a model nobody has recorded a style for, and
+    that is how a caller with one fact to state is able to state it."""
+
+    issues: list[str]
+    styles: list[str]
+    regions: list[str]
+    chips: dict[str, list[str]]
+
 
 # What read() gives for an asset the catalogue knows nothing about, so callers can
 # treat "no catalogue row" and "a row saying nothing" alike.
-BLANK = {"model_key": "", "issue": "", "style": "", "region": "", "chips": {}, "sockets": {}}
+BLANK: Identity = {
+    "model_key": "",
+    "issue": "",
+    "style": "",
+    "region": "",
+    "chips": {},
+    "sockets": {},
+}
 
 
-def read(db, asset):
+def read(db: Session, asset: Asset) -> Identity:
     """An asset's catalogue identity as a dict: the model key, the board issue,
     the style, the region, {role: variant} for the chips in catalogue order, and
     {role: bool} for the ones whose mounting has been looked at -- a socket a
@@ -56,7 +107,7 @@ def read(db, asset):
         .all()
     )
     if row is None and not chips:
-        return dict(BLANK)
+        return BLANK.copy()
     key = row.model_key if row else ""
     ordered = machines.in_role_order(key, [(c.role, c.variant) for c in chips])
     held = {c.role: c.socketed for c in chips if c.variant}
@@ -70,7 +121,7 @@ def read(db, asset):
     }
 
 
-def read_many(db, assets):
+def read_many(db: Session, assets: Sequence[Asset]) -> dict[str, Identity]:
     """{asset_id: identity} for a whole list of assets in two queries, so a list
     page or the API's list endpoint does not fall into a query per row -- the same
     reason specdb has its bulk lookups. Assets with no catalogue row are absent
@@ -79,7 +130,7 @@ def read_many(db, assets):
     ids = [a.asset_id for a in assets]
     if not ids:
         return {}
-    out = {}
+    out: dict[str, Identity] = {}
     for row in db.query(AssetVariant).filter(AssetVariant.asset_id.in_(ids)).all():
         out[row.asset_id] = {
             "model_key": row.model_key or "",
@@ -89,18 +140,20 @@ def read_many(db, assets):
             "chips": {},
             "sockets": {},
         }
-    for row in db.query(AssetChip).filter(AssetChip.asset_id.in_(ids)).order_by(AssetChip.id).all():
-        if row.variant:
-            out.setdefault(row.asset_id, dict(BLANK) | {"chips": {}, "sockets": {}})
-            out[row.asset_id]["chips"][row.role] = row.variant
-            if row.socketed is not None:
-                out[row.asset_id]["sockets"][row.role] = bool(row.socketed)
+    for chip in (
+        db.query(AssetChip).filter(AssetChip.asset_id.in_(ids)).order_by(AssetChip.id).all()
+    ):
+        if chip.variant:
+            out.setdefault(chip.asset_id, BLANK | {"chips": {}, "sockets": {}})
+            out[chip.asset_id]["chips"][chip.role] = chip.variant
+            if chip.socketed is not None:
+                out[chip.asset_id]["sockets"][chip.role] = bool(chip.socketed)
     for identity in out.values():
         identity["chips"] = dict(machines.in_role_order(identity["model_key"], identity["chips"]))
     return out
 
 
-def recorded(db):
+def recorded(db: Session) -> dict[str, Recorded]:
     """Every answer already given to a catalogue question, keyed by model:
     {model_key: {"issues": [...], "styles": [...], "regions": [...],
                  "chips": {role: [...]}}}.
@@ -118,9 +171,9 @@ def recorded(db):
     Keyed by the model the asset is filed as now: a chip is only evidence about the
     model it was found in.
     """
-    out = {}
+    out: dict[str, Recorded] = {}
 
-    def bucket(key):
+    def bucket(key: str) -> Recorded:
         return out.setdefault(key, {"issues": [], "styles": [], "regions": [], "chips": {}})
 
     variants = (
@@ -133,9 +186,13 @@ def recorded(db):
     )
     for key, issue, style, region in variants:
         got = bucket(key)
-        for field, value in (("issues", issue), ("styles", style), ("regions", region)):
+        for seen, value in (
+            (got["issues"], issue),
+            (got["styles"], style),
+            (got["regions"], region),
+        ):
             if (value or "").strip():
-                got[field].append(value.strip())
+                seen.append(value.strip())
     chips = (
         db.query(AssetVariant.model_key, AssetChip.role, AssetChip.variant)
         .join(AssetChip, AssetChip.asset_id == AssetVariant.asset_id)
@@ -149,7 +206,16 @@ def recorded(db):
     return out
 
 
-def write(db, asset, model_key=None, issue=None, style=None, region=None, chips=None, sockets=None):
+def write(
+    db: Session,
+    asset: Asset,
+    model_key: str | None = None,
+    issue: str | None = None,
+    style: str | None = None,
+    region: str | None = None,
+    chips: ChipsIn | None = None,
+    sockets: SocketsIn | None = None,
+) -> None:
     """Store what is known about an asset's catalogue identity and re-render the
     cache. The asset must already be flushed so its asset_id exists.
 
@@ -194,26 +260,27 @@ def write(db, asset, model_key=None, issue=None, style=None, region=None, chips=
         # Told only how the chips are held, which is an answer of its own: the
         # variants stay exactly as they are.
         given = _flags(sockets)
-        for row in db.query(AssetChip).filter(AssetChip.asset_id == aid).all():
-            if row.role in given:
-                row.socketed = given[row.role]
+        for chip in db.query(AssetChip).filter(AssetChip.asset_id == aid).all():
+            if chip.role in given:
+                chip.socketed = given[chip.role]
     db.flush()
     if model_key is not None:
         _drop_foreign_chips(db, aid, row.model_key)
     refresh(db, asset)
 
 
-def clear(db, asset):
+def clear(db: Session, asset: Asset) -> None:
     """Forget that an asset was ever a catalogue model: the row, its chips and the
     rendered string."""
     aid = asset.asset_id
-    for model in (AssetChip, AssetVariant):
-        db.query(model).filter(model.asset_id == aid).delete(synchronize_session=False)
+    table: type[AssetChip] | type[AssetVariant]
+    for table in (AssetChip, AssetVariant):
+        db.query(table).filter(table.asset_id == aid).delete(synchronize_session=False)
     db.flush()
     asset.variant = ""
 
 
-def refresh(db, asset):
+def refresh(db: Session, asset: Asset) -> str:
     """Re-render the asset's variant string from the rows behind it. Called on every
     write, and by app.resync when the catalogue's own words have changed underneath
     something that has not been edited since."""
@@ -222,7 +289,7 @@ def refresh(db, asset):
     return asset.variant
 
 
-def _flags(sockets):
+def _flags(sockets: SocketsIn | None) -> dict[str, bool | None]:
     """{role: True/False/None} from a dict or pairs. None is kept and means nobody
     has looked, which is not the same answer as soldered -- so it is stored rather
     than folded into False."""
@@ -232,7 +299,7 @@ def _flags(sockets):
     return {(role or "").strip(): (None if held is None else bool(held)) for role, held in items}
 
 
-def _pairs(chips):
+def _pairs(chips: ChipsIn) -> list[tuple[str, str]]:
     """(role, variant) pairs from a dict or an iterable of pairs, both stripped.
     A blank variant is how a socket is cleared, so it is kept here and dropped by
     the caller rather than being quietly turned into a row."""
@@ -240,7 +307,7 @@ def _pairs(chips):
     return [((role or "").strip(), (variant or "").strip()) for role, variant in items]
 
 
-def _drop_foreign_chips(db, aid, model_key):
+def _drop_foreign_chips(db: Session, aid: str, model_key: str) -> None:
     """Delete the chip rows whose socket the asset's model does not have."""
     keep = set(machines.roles(model_key))
     rows = db.query(AssetChip).filter(AssetChip.asset_id == aid).all()
@@ -250,7 +317,7 @@ def _drop_foreign_chips(db, aid, model_key):
     db.flush()
 
 
-def duplicated_from(db, src, dest):
+def duplicated_from(db: Session, src: Asset, dest: Asset) -> None:
     """Give a duplicate of an asset the model its original is filed as, and
     nothing else.
 

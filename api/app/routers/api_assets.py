@@ -22,13 +22,22 @@ from ..history import add_log
 from ..ids import next_asset_id
 from ..models import Computer, Part, Project
 from ..register import get_or_404
-from ..schemas import ComputerCreate, ComputerIn, ComputerOut, PartCreate, PartIn, PartOut
+from ..schemas import (
+    BoardIn,
+    ComputerCreate,
+    ComputerIn,
+    ComputerOut,
+    MachineIn,
+    PartCreate,
+    PartIn,
+    PartOut,
+)
 from ..work import _take_on_work, _work_lines
 
 router = APIRouter()
 
 
-def _drives_from_api(db, computer, text):
+def _drives_from_api(db: Session, computer: Computer, text: str) -> None:
     """drives over the wire is what a person would type, ';'-separated, and is
     parsed into rows the way the specs string is -- anything a segment does not
     yield is kept verbatim in drives_note."""
@@ -36,7 +45,7 @@ def _drives_from_api(db, computer, text):
     drivedb.write(db, computer, drives, note)
 
 
-def _ram_from_api(db, computer, text):
+def _ram_from_api(db: Session, computer: Computer, text: str) -> None:
     """installed_ram over the wire is a plain amount ('640KiB') or free text, never
     a module breakdown -- that has its own grids in the GUI. A caller sending one
     replaces any note and total but leaves the fitted modules and chips alone."""
@@ -44,7 +53,9 @@ def _ram_from_api(db, computer, text):
     ramdb.write(db, computer, note=note, total_kb=total_kb)
 
 
-def _machine_from_api(db, asset, machine):
+def _machine_from_api(
+    db: Session, asset: Computer | Part, machine: MachineIn | BoardIn | None
+) -> None:
     """An asset's catalogue identity as the wire gives it: an object naming a
     catalogue model and any of the variations it was built in, or null to forget the
     catalogue for it.
@@ -74,7 +85,7 @@ def _machine_from_api(db, asset, machine):
     machinedb.write(db, asset, **fields)
 
 
-def _board_from_api(db, part, machine):
+def _board_from_api(db: Session, part: Part, machine: BoardIn | None) -> None:
     """The same for a part, which only a motherboard may have. Every other kind is
     refused rather than quietly ignored: a card or a SIMM filed as a Commodore 64 is
     a mistake the caller wants to hear about, and the register would have no way to
@@ -91,18 +102,22 @@ def _board_from_api(db, part, machine):
     _machine_from_api(db, part, machine)
 
 
-def _machine_out(db, asset, identity=None):
+def _machine_out(
+    db: Session, asset: Computer | Part, identity: machinedb.Identity | None = None
+) -> dict[str, object] | None:
     """An asset's catalogue identity for the wire: what is stored, plus the
     catalogue's own name for the model, or None for one that is not filed as a
     catalogue machine at all."""
     v = machinedb.read(db, asset) if identity is None else identity
     if not any(v.values()):
         return None
-    m = machines.model(v["model_key"]) or {}
-    return v | {"model": m.get("model", ""), "family": m.get("family", "")}
+    m = machines.model(v["model_key"])
+    return v | {"model": m["model"] if m else "", "family": m["family"] if m else ""}
 
 
-def _project_id(db, asset_id, prefetched=None):
+def _project_id(
+    db: Session, asset_id: str, prefetched: dict[str, Project] | None = None
+) -> str | None:
     """The project an item is on, as a tag, or None. One of them (ADR-0016): this
     was a list of tags while a thing could be on several, and a list that can only
     ever hold one entry asks every caller to unpack a question that has one answer.
@@ -120,7 +135,12 @@ def _project_id(db, asset_id, prefetched=None):
     return found.asset_id if found is not None else None
 
 
-def _computer_out(db, computer, identity=None, in_projects=None):
+def _computer_out(
+    db: Session,
+    computer: Computer,
+    identity: machinedb.Identity | None = None,
+    in_projects: dict[str, Project] | None = None,
+) -> dict[str, object]:
     """One computer as the API returns it: its own columns, the catalogue identity
     read from its rows rather than from the line rendered off them, and the project
     it is on."""
@@ -130,7 +150,12 @@ def _computer_out(db, computer, identity=None, in_projects=None):
     }
 
 
-def _part_out(db, part, identity=None, in_projects=None):
+def _part_out(
+    db: Session,
+    part: Part,
+    identity: machinedb.Identity | None = None,
+    in_projects: dict[str, Project] | None = None,
+) -> dict[str, object]:
     """One part as the API returns it. The same pieces as a computer's, and for a
     part that is not a board `machine` is simply null."""
     return to_dict(part) | {
@@ -139,7 +164,7 @@ def _part_out(db, part, identity=None, in_projects=None):
     }
 
 
-def _check_links(db, fields):
+def _check_links(db: Session, fields: dict[str, object]) -> None:
     """A part's links must point at something that exists. The foreign keys
     refuse a bad one anyway; this says which id was wrong."""
     cid = fields.get("computer_id")
@@ -150,7 +175,7 @@ def _check_links(db, fields):
         raise HTTPException(404, f"no part {pid}")
 
 
-def _work_from_api(db, fields):
+def _work_from_api(db: Session, fields: dict[str, object]) -> tuple[list[str], Project | None]:
     """`work_needed` / `work_project` off a create body: the jobs, and the project
     they go on, taken out of the fields on their way past.
 
@@ -159,8 +184,13 @@ def _work_from_api(db, fields):
     named a project meant that project, so filing the work somewhere else quietly
     would be a worse answer than being told. Checking first is what keeps the typo
     from leaving a half-entered machine behind it."""
-    jobs = _work_lines(fields.pop("work_needed", "") or "")
-    picked = (fields.pop("work_project", "") or "").strip().upper()
+    # The fields are a body's model_dump, so they are typed as widely as the body
+    # is; both of these are declared str on WorkIn and are checked rather than
+    # assumed, an absent one reading as blank exactly as a null one does.
+    needed = fields.pop("work_needed", "")
+    tag = fields.pop("work_project", "")
+    jobs = _work_lines(needed if isinstance(needed, str) else "")
+    picked = (tag if isinstance(tag, str) else "").strip().upper()
     project = None
     if picked:
         project = db.get(Project, picked)
@@ -170,20 +200,20 @@ def _work_from_api(db, fields):
 
 
 @router.get("/api/computers", response_model=list[ComputerOut], tags=["computers"])
-def api_list_computers(db: Session = Depends(get_db)):
+def api_list_computers(db: Session = Depends(get_db)) -> list[dict[str, object]]:
     rows = db.query(Computer).order_by(Computer.asset_id).all()
     # One pair of queries for the whole list rather than a pair per machine, and the
     # memberships in one more for the same reason.
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [c.asset_id for c in rows])
     return [
-        _computer_out(db, c, identities.get(c.asset_id, dict(machinedb.BLANK)), in_projects)
+        _computer_out(db, c, identities.get(c.asset_id, machinedb.BLANK.copy()), in_projects)
         for c in rows
     ]
 
 
 @router.post("/api/computers", response_model=ComputerOut, tags=["computers"])
-def api_create_computer(data: ComputerCreate, db: Session = Depends(get_db)):
+def api_create_computer(data: ComputerCreate, db: Session = Depends(get_db)) -> dict[str, object]:
     fields = data.model_dump()
     # Read before anything is written, so a project tag that names nothing is a 404
     # rather than a machine entered and a note dropped.
@@ -208,13 +238,15 @@ def api_create_computer(data: ComputerCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/api/computers/{aid}", response_model=ComputerOut, tags=["computers"])
-def api_get_computer(aid: str, db: Session = Depends(get_db)):
+def api_get_computer(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
     obj = get_or_404(db, Computer, aid)
     return _computer_out(db, obj)
 
 
 @router.patch("/api/computers/{aid}", response_model=ComputerOut, tags=["computers"])
-def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db)):
+def api_update_computer(
+    aid: str, data: ComputerIn, db: Session = Depends(get_db)
+) -> dict[str, object]:
     obj = get_or_404(db, Computer, aid)
     fields = data.model_dump(exclude_unset=True)
     ram = fields.pop("installed_ram", None)
@@ -263,8 +295,11 @@ def api_update_computer(aid: str, data: ComputerIn, db: Session = Depends(get_db
     return _computer_out(db, obj)
 
 
-@router.delete("/api/computers/{aid}", tags=["computers"])
-def api_delete_computer(aid: str, db: Session = Depends(get_db)):
+# response_model=None: the annotation is for the type checker. FastAPI would
+# otherwise publish it as the response's shape, which the pinned contract
+# (ADR-0010) leaves open.
+@router.delete("/api/computers/{aid}", tags=["computers"], response_model=None)
+def api_delete_computer(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
     """Delete a computer. The parts inside it are unlinked, not deleted; its
     photos, drive/memory rows and history go with it (see delete_computer). The
     API deletes any computer -- the disposed-only rule and the confirmation are
@@ -276,7 +311,7 @@ def api_delete_computer(aid: str, db: Session = Depends(get_db)):
 @router.get("/api/parts", response_model=list[PartOut], tags=["parts"])
 def api_list_parts(
     computer_id: str | None = None, type: str | None = None, db: Session = Depends(get_db)
-):
+) -> list[dict[str, object]]:
     q = db.query(Part)
     if computer_id is not None:
         q = q.filter(
@@ -288,13 +323,13 @@ def api_list_parts(
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [p.asset_id for p in rows])
     return [
-        _part_out(db, p, identities.get(p.asset_id, dict(machinedb.BLANK)), in_projects)
+        _part_out(db, p, identities.get(p.asset_id, machinedb.BLANK.copy()), in_projects)
         for p in rows
     ]
 
 
 @router.post("/api/parts", response_model=PartOut, tags=["parts"])
-def api_create_part(data: PartCreate, db: Session = Depends(get_db)):
+def api_create_part(data: PartCreate, db: Session = Depends(get_db)) -> dict[str, object]:
     fields = data.model_dump()
     jobs, work = _work_from_api(db, fields)
     machine = fields.pop("machine")
@@ -314,12 +349,12 @@ def api_create_part(data: PartCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/api/parts/{aid}", response_model=PartOut, tags=["parts"])
-def api_get_part(aid: str, db: Session = Depends(get_db)):
+def api_get_part(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
     return _part_out(db, get_or_404(db, Part, aid))
 
 
 @router.patch("/api/parts/{aid}", response_model=PartOut, tags=["parts"])
-def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)):
+def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)) -> dict[str, object]:
     obj = get_or_404(db, Part, aid)
     fields = data.model_dump(exclude_unset=True)
     machine = fields.pop("machine", ...)
@@ -345,8 +380,9 @@ def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)):
     return _part_out(db, obj)
 
 
-@router.delete("/api/parts/{aid}", tags=["parts"])
-def api_delete_part(aid: str, db: Session = Depends(get_db)):
+# response_model=None, as above: the annotation is for the type checker.
+@router.delete("/api/parts/{aid}", tags=["parts"], response_model=None)
+def api_delete_part(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
     """Delete a part, with its typed spec rows, photos and history. Anything
     mounted on it is unlinked, not deleted."""
     obj = get_or_404(db, Part, aid)

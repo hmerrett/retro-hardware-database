@@ -1,6 +1,9 @@
 """The pages of a part: its own page, its form, its photographs, and the machine or
 board it is fitted to."""
 
+from collections.abc import Collection, Iterable
+from typing import Literal
+
 from sqlalchemy import func
 
 
@@ -38,7 +41,7 @@ from ..assets import (
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import _disposal_log
-from ..forms import _coerce, _field_diffs, _parse_date, posted
+from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import ComputerDrive, Computer, Part, StorageSpec, StoredFile
@@ -62,7 +65,7 @@ from .. import specstruct
 from fastapi import Query
 
 
-def _apply_drive_picks(form, rows):
+def _apply_drive_picks(form: Posted, rows: list[drivedb.Drive]) -> None:
     """Put what the pickers chose on drives just read from a typed description.
 
     A picker is a deliberate answer, so it wins over the same thing said in the
@@ -77,7 +80,9 @@ def _apply_drive_picks(form, rows):
     is, so let it answer: read through drivedb's own vocabulary rather than a
     second mapping of the same words, and only where the text did not say.
     """
-    picks = {col: _picked_ask(form, key) or "" for key, (_f, col) in DRIVE_PICKS.items()}
+    picks: dict[DrivePick, str] = {
+        col: _picked_ask(form, key) or "" for key, (_f, col) in DRIVE_PICKS.items()
+    }
     picks["colour"] = form.get("drive_colour", "") or ""
     picks["yellowing"] = form.get("drive_yellowing", "") or ""
     # The make and model, from the fields that ask for them. A routed drive never
@@ -99,18 +104,29 @@ def _apply_drive_picks(form, rows):
     # The first word of the menu's label: "Floppy/Gotek" and "SD/CF card" are pairs
     # of alternatives that drivedb reads as neither, and a Gotek names itself.
     menu = (form.get("kind", "") or "").split("/")[0]
-    from_menu = (drivedb.parse_segment(menu) or {}).get("kind", "")
+    parsed = drivedb.parse_segment(menu)
+    from_menu = parsed["kind"] if parsed else ""
     for row in rows:
         for col, picked in picks.items():
-            row[col] = picked.strip() or row.get(col, "")
-        row["kind"] = row.get("kind", "") or from_menu
-        row["model"] = row.get("model", "") or named
+            row[col] = picked.strip() or row[col]
+        row["kind"] = row["kind"] or from_menu
+        row["model"] = row["model"] or named
 
 
-def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
+def _part_form_ctx(
+    db: Session,
+    obj: Part | None,
+    ptype: str,
+    computer_id: str,
+    parent_id: str = "",
+    action: str | None = None,
+) -> dict[str, object]:
     # Existing values come from the typed tables, not from re-parsing the string.
-    mb_slots, mb_ram, mb_ports, mb_cpufams = {}, {}, {}, []
-    spec_keys = {}
+    mb_slots: dict[str, int | None] = {}
+    mb_ram: dict[str, int | None] = {}
+    mb_ports: dict[str, int | None] = {}
+    mb_cpufams: list[str] = []
+    spec_keys: dict[str, str] = {}
     if obj:
         st = specdb.read(db, obj)
         # The form's text inputs are keyed by display name, and want the same
@@ -120,8 +136,10 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
             mb_slots = dict(st.slots)
             mb_ram = dict(st.ram_slots)
             mb_ports = dict(st.ports)
+            # str(): a scalar is whatever its column holds, a number as readily as
+            # a word; the families are a written list.
             mb_cpufams = [
-                x.strip() for x in (st.scalars.get("cpu_family") or "").split(",") if x.strip()
+                x.strip() for x in str(st.scalars.get("cpu_family") or "").split(",") if x.strip()
             ]
     # A stored CPU family that is not in the pick list (older rows say '486'
     # where the vocabulary says '486-class') still needs a checkbox, or saving the
@@ -183,8 +201,10 @@ def _part_form_ctx(db, obj, ptype, computer_id, parent_id="", action=None):
     }
 
 
-async def _part_from_form(form, ptype, extra=()):
-    data = {
+async def _part_from_form(
+    form: Posted, ptype: str, extra: Iterable[tuple[str, str]] = ()
+) -> dict[str, object]:
+    data: dict[str, object] = {
         "type": ptype,
         "computer_id": form.get("computer_id", "") or None,
         "parent_id": form.get("parent_id", "") or None,
@@ -205,12 +225,14 @@ async def _part_from_form(form, ptype, extra=()):
     ):
         data[f] = _coerce(f, form.get(f, ""))
     for f in ("manufacturer", "model"):
-        data[f] = entry.deshout(data[f])
+        # str(): the dict carries a row's worth of columns and is typed as widely,
+        # but a name is what was typed into a text box.
+        data[f] = entry.deshout(str(data[f]))
     data["specs"] = _assemble_specs(ptype, form, extra)
     return data
 
 
-def _part_placeholder(db, part):
+def _part_placeholder(db: Session, part: Part) -> str:
     """The stand-in drawing for one part, routed exactly as the gallery routes it.
 
     One row read rather than the whole table: the gallery wants every storage part's
@@ -218,10 +240,11 @@ def _part_placeholder(db, part):
     a card and the page it opens come to disagree about what a thing looks like."""
     if (part.type or "") != "storage":
         return entry.placeholder_for(part.type or "other")
-    return _storage_placeholder(specdb.scalars(db, part).get("kind"))
+    kind = specdb.scalars(db, part).get("kind")
+    return _storage_placeholder(kind if isinstance(kind, str) else None)
 
 
-def _require_storage_interface(ptype, form):
+def _require_storage_interface(ptype: str, form: Posted) -> None:
     """A storage part has to say how it attaches, so that "every SCSI drive" stays a
     question the collection can answer. The radios are marked required, so this is
     the backstop for anything posting straight to the endpoint. A drive folded into a
@@ -247,7 +270,12 @@ def _require_storage_interface(ptype, form):
 # folded into a machine. Which kinds are asked, and what each picks from, is not
 # repeated here: it comes from entry.STORAGE_ASKS, the one table the form is built
 # from, so a group cannot be on screen for a kind the server reads past.
-DRIVE_PICKS = {
+# Named as the literals they are, so that writing one into a drive row is checked
+# against the row's own columns (drivedb.Drive) rather than being a string that
+# happens to match one.
+DrivePick = Literal["form_factor", "size", "media", "speed", "colour", "yellowing"]
+
+DRIVE_PICKS: dict[str, tuple[str, DrivePick]] = {
     "Form factor": ("drive_form", "form_factor"),
     "Size": ("drive_size", "size"),
     "Media": ("drive_media", "media"),
@@ -274,7 +302,7 @@ PICK_FIELDS = {
 ASK_KINDS = {ask["key"]: ask["kinds"] for ask in entry.STORAGE_ASKS}
 
 
-def _picked_ask(form, key):
+def _picked_ask(form: Posted, key: str) -> str | None:
     """What one of those groups chose: one of the standard answers, or whatever was
     typed beside "custom" for the hardware the list does not name (a 3" Amstrad, a
     Floptical). Blank when nothing was picked, which leaves the description to say
@@ -300,7 +328,7 @@ def _picked_ask(form, key):
     return raw if raw in _ask_options(key, kind) else ""
 
 
-def _assemble_specs(ptype, form, extra=()):
+def _assemble_specs(ptype: str, form: Posted, extra: Iterable[tuple[str, str]] = ()) -> str:
     """Build a part's specs string from the typed form fields, running the same
     quick-entry expanders the guided flow has always used. `extra` carries the
     (key, value) pairs the form does not manage -- read from part_attribute, which
@@ -370,7 +398,7 @@ def _assemble_specs(ptype, form, extra=()):
         # spec_ prefix keeps these clear of the part's own columns (a RAM
         # 'Type' spec vs the part type, etc.).
         field = fields.get(key) or _spec_field(key)
-        raw = None
+        raw: str | None = None
         if ptype == "display" and key in DISPLAY_ASK_BY_KEY:
             # Picked from a group rather than typed into one box. Its answer stands,
             # blank included -- that is how a value is taken back off.
@@ -399,7 +427,7 @@ def _assemble_specs(ptype, form, extra=()):
     return _append_unmanaged(specs, extra, managed)
 
 
-def _storage_asks_ctx():
+def _storage_asks_ctx() -> list[dict[str, object]]:
     """entry.STORAGE_ASKS dressed for the form: the field each group posts, how long a
     custom answer may be, and whether the answer has anywhere to go on a machine's
     drive row -- the four that do are the only ones still asked once a drive is folded
@@ -416,12 +444,12 @@ def _storage_asks_ctx():
     ]
 
 
-def _display_asks_ctx():
+def _display_asks_ctx() -> list[dict[str, object]]:
     """entry.DISPLAY_ASKS dressed for the form: the field each group posts."""
     return [ask | {"field": DISPLAY_FIELDS[ask["key"]]} for ask in entry.DISPLAY_ASKS]
 
 
-def _known_makes(db):
+def _known_makes(db: Session) -> tuple[list[str], list[str], list[dict[str, str | None]]]:
     """The manufacturers and (make, model) pairs already recorded, for the new-part
     form's pick lists and for spotting that a part being entered is a second of
     something already here. One representative asset id per pair, so the form can
@@ -447,7 +475,7 @@ def _known_makes(db):
 DISPLAY_ASK_BY_KEY = {ask["key"]: ask for ask in entry.DISPLAY_ASKS}
 
 
-def _spec_field(key):
+def _spec_field(key: str) -> str:
     """The form field a spec key is asked with. The spec_ prefix keeps these clear of
     the part's own columns (a RAM 'Type' spec vs the part type, etc.)."""
     return "spec_" + key.lower().replace(" ", "_").replace("/", "_")
@@ -471,11 +499,13 @@ _ASK_WIDTHS = {
 }
 
 
-def _append_unmanaged(specs, extra, managed):
+def _append_unmanaged(
+    specs: str, extra: Iterable[tuple[str, str]], managed: Collection[str]
+) -> str:
     """Carry across the spec values the form does not manage. Keyed ones merge by
     key; keyless ones (bare values from the old CSV import, e.g. 'ES1869F') are
     appended verbatim -- they have no key to merge on and used to be dropped."""
-    keyless = []
+    keyless: list[str] = []
     for k, v in extra:
         if not k:
             keyless.append(v)
@@ -486,7 +516,7 @@ def _append_unmanaged(specs, extra, managed):
     return specs
 
 
-def _ask_options(key, kind):
+def _ask_options(key: str, kind: str) -> Collection[str]:
     """The answers one kind is offered for one ask, () where it is asked with a text
     box instead."""
     for ask in entry.storage_asks(kind):
@@ -495,7 +525,7 @@ def _ask_options(key, kind):
     return ()
 
 
-def _assemble_motherboard_specs(form, extra=()):
+def _assemble_motherboard_specs(form: Posted, extra: Iterable[tuple[str, str]] = ()) -> str:
     """Build a motherboard's specs from the structured grids (slot/RAM/port
     counts and CPU-family checkboxes) plus the plain text fields."""
     pairs = [
@@ -513,7 +543,7 @@ def _assemble_motherboard_specs(form, extra=()):
     return _append_unmanaged(entry.build_specs(pairs), extra, [k for k, _ in pairs])
 
 
-def _picked_display(form, ask):
+def _picked_display(form: Posted, ask: entry.DisplayAsk) -> str:
     """What one of a screen's groups chose.
 
     One of the offered answers, or whatever was typed beside "custom" for the
@@ -538,10 +568,10 @@ def _picked_display(form, ask):
     return raw if raw in ask["options"] else ""
 
 
-def _counts_from_form(form, prefix, names):
+def _counts_from_form(form: Posted, prefix: str, names: Iterable[str]) -> list[tuple[str, int]]:
     """Read a grid of per-name number inputs (name='<prefix>:<n>') into
     [(name, count), ...], skipping zeros/blanks."""
-    out = []
+    out: list[tuple[str, int]] = []
     for name in names:
         raw = (form.get(f"{prefix}:{name}", "") or "").strip()
         try:
@@ -564,7 +594,7 @@ def gui_new_part(
     parent_id: str = "",
     db: Session = Depends(get_db),
     source: str = Query("", alias="from"),
-):
+) -> HTMLResponse:
     """The new-part form. `from` starts it filled in from an existing part -- the
     same fields duplicating one copies, so a second of something already recorded
     is a couple of clicks rather than retyping its specs. Nothing is saved until
@@ -592,15 +622,14 @@ def gui_new_part(
     # The same rule the duplicate button follows: another board of this model is
     # another board of this model, but which revision it is and what is in its
     # sockets are found by looking at the board in your hand.
-    if ctx.get("machine_saved"):
-        ctx["machine_saved"] = dict(machinedb.BLANK) | {
-            "model_key": ctx["machine_saved"]["model_key"]
-        }
+    saved = ctx.get("machine_saved")
+    if saved and isinstance(saved, dict):
+        ctx["machine_saved"] = dict(machinedb.BLANK) | {"model_key": saved["model_key"]}
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
 
 @router.post("/parts/new", include_in_schema=False)
-async def gui_create_part(request: Request, db: Session = Depends(get_db)):
+async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
     form = await posted(request)
     photos = _chosen_photos(form)
     ptype = form.get("type", "other") or "other"
@@ -640,7 +669,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
     _require_storage_interface(ptype, form)
     data = await _part_from_form(form, ptype)
     if ptype == "storage":
-        data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind", "") or "")
+        data["specs"] = entry.merge_spec(str(data["specs"]), "Kind", form.get("kind", "") or "")
         # A routed kind with no machine to route to becomes a part after all, so a
         # bezel picked on that path comes with it rather than being dropped on the
         # floor -- the part's own menus were not on screen to say otherwise.
@@ -650,7 +679,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
         ):
             picked = (form.get(routed, "") or "").strip()
             if picked and not (form.get(own, "") or "").strip():
-                data["specs"] = entry.merge_spec(data["specs"], key, picked)
+                data["specs"] = entry.merge_spec(str(data["specs"]), key, picked)
     obj = Part(asset_id=next_asset_id(db), **data)
     db.add(obj)
     db.flush()
@@ -680,7 +709,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)):
 @router.get("/parts/{aid}", response_class=HTMLResponse, include_in_schema=False)
 def gui_part(
     aid: str, request: Request, imgerr: int = 0, fileerr: int = 0, db: Session = Depends(get_db)
-):
+) -> HTMLResponse:
     p = get_or_404(db, Part, aid)
     parent = db.get(Computer, p.computer_id) if p.computer_id else None
     host = db.get(Part, p.parent_id) if p.parent_id else None
@@ -753,7 +782,9 @@ def gui_part(
 
 
 @router.get("/parts/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
-def gui_edit_part(aid: str, request: Request, type: str = "", db: Session = Depends(get_db)):
+def gui_edit_part(
+    aid: str, request: Request, type: str = "", db: Session = Depends(get_db)
+) -> HTMLResponse:
     """The edit form. `type` builds it for a type other than the one the part is
     filed under, which is what the type menu asks for: what a part is asked depends
     on its type, so changing that has to fetch the form again to have the new
@@ -771,7 +802,9 @@ def gui_edit_part(aid: str, request: Request, type: str = "", db: Session = Depe
 
 
 @router.post("/parts/{aid}/edit", include_in_schema=False)
-async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_save_part(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     ptype = form.get("type", p.type or "") or "other"
@@ -793,7 +826,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     carried = specdb.pairs(db, p) if ptype != old_type else specdb.read(db, p).attributes
     data = await _part_from_form(form, ptype, carried)
     if ptype == "storage" and (form.get("kind", "") or ""):
-        data["specs"] = entry.merge_spec(data["specs"], "Kind", form.get("kind", ""))
+        data["specs"] = entry.merge_spec(str(data["specs"]), "Kind", form.get("kind", ""))
     old = {k: getattr(p, k) for k in data}
     for k, v in data.items():
         setattr(p, k, v)
@@ -815,7 +848,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
 
 
 @router.post("/parts/{aid}/duplicate", include_in_schema=False)
-def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
+def gui_duplicate_part(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
     """A second identical part. On a board the catalogue model comes across for the
     same reason the model field does -- another Amiga 500 board is another Amiga 500
     board -- and the revision and the chips do not, because those are read off the
@@ -838,12 +871,16 @@ def gui_duplicate_part(aid: str, db: Session = Depends(get_db)):
 
 
 @router.post("/parts/{aid}/for-sale", include_in_schema=False)
-async def gui_part_for_sale(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_for_sale(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     return await _set_for_sale(db, Part, aid, request)
 
 
 @router.post("/parts/{aid}/dispose", include_in_schema=False)
-async def gui_dispose_part(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_dispose_part(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     p.disposed = True
@@ -855,7 +892,7 @@ async def gui_dispose_part(aid: str, request: Request, db: Session = Depends(get
 
 
 @router.post("/parts/{aid}/restore", include_in_schema=False)
-def gui_restore_part(aid: str, db: Session = Depends(get_db)):
+def gui_restore_part(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     p.disposed = False
     p.disposed_at = None
@@ -866,14 +903,14 @@ def gui_restore_part(aid: str, db: Session = Depends(get_db)):
 
 
 @router.get("/parts/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)
-def gui_delete_part_form(aid: str, request: Request, db: Session = Depends(get_db)):
+def gui_delete_part_form(aid: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     p = get_or_404(db, Part, aid)
     _require_disposed(p, "part")
     return templates.TemplateResponse(request, "delete.html", _delete_ctx(request, db, "parts", p))
 
 
 @router.post("/parts/{aid}/delete", include_in_schema=False)
-async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_db)) -> Response:
     p = get_or_404(db, Part, aid)
     _require_disposed(p, "part")
     form = await posted(request)
@@ -894,7 +931,9 @@ async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_
 
 
 @router.post("/parts/{aid}/note", include_in_schema=False)
-async def gui_part_note(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_note(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     get_or_404(db, Part, aid)
     _note_with_photos(db, aid, await posted(request))
     return RedirectResponse(f"/parts/{aid}", status_code=303)
@@ -903,7 +942,7 @@ async def gui_part_note(aid: str, request: Request, db: Session = Depends(get_db
 @router.post("/parts/{aid}/photo", include_in_schema=False)
 async def gui_part_photo(
     aid: str, photos: list[UploadFile] = File(...), db: Session = Depends(get_db)
-):
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     first = None
     n = 0
@@ -922,7 +961,7 @@ async def gui_part_photo(
 
 
 @router.post("/parts/{aid}/fetch-image", include_in_schema=False)
-def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)):
+def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     rel = _fetch_reference_photo("parts", aid, p.url or "") if p.url else None
     if rel:
@@ -934,7 +973,9 @@ def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)):
 
 
 @router.post("/parts/{aid}/unlink", include_in_schema=False)
-async def gui_unlink_part(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_unlink_part(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     nxt = form.get("next", "") or f"/parts/{aid}"
@@ -947,7 +988,9 @@ async def gui_unlink_part(aid: str, request: Request, db: Session = Depends(get_
 
 
 @router.post("/parts/{aid}/link", include_in_schema=False)
-async def gui_link_part_to_computer(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_link_part_to_computer(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Install this part into an existing computer (chosen from the part page)."""
     p = get_or_404(db, Part, aid)
     form = await posted(request)
@@ -963,7 +1006,9 @@ async def gui_link_part_to_computer(aid: str, request: Request, db: Session = De
 
 
 @router.post("/parts/{aid}/attach", include_in_schema=False)
-async def gui_attach_part(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_attach_part(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Mount another part onto this one (e.g. a hard disk on a controller card)."""
     get_or_404(db, Part, aid)
     form = await posted(request)
@@ -980,7 +1025,9 @@ async def gui_attach_part(aid: str, request: Request, db: Session = Depends(get_
 
 
 @router.post("/parts/{aid}/detach", include_in_schema=False)
-async def gui_detach_part(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_detach_part(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     old_host = p.parent_id
@@ -992,7 +1039,9 @@ async def gui_detach_part(aid: str, request: Request, db: Session = Depends(get_
 
 
 @router.post("/parts/{aid}/primary-photo", include_in_schema=False)
-async def gui_part_primary(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_primary(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     p.image = _set_primary_photo("parts", aid, form.get("image", ""))
@@ -1002,7 +1051,9 @@ async def gui_part_primary(aid: str, request: Request, db: Session = Depends(get
 
 
 @router.post("/parts/{aid}/photo-delete", include_in_schema=False)
-async def gui_part_photo_delete(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_photo_delete(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     was_primary, new_primary = _delete_image("parts", aid, form.get("image", ""))
@@ -1014,7 +1065,9 @@ async def gui_part_photo_delete(aid: str, request: Request, db: Session = Depend
 
 
 @router.post("/parts/{aid}/photo-reference", include_in_schema=False)
-async def gui_part_photo_reference(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_photo_reference(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     rel = form.get("image", "")
@@ -1030,40 +1083,48 @@ async def gui_part_photo_reference(aid: str, request: Request, db: Session = Dep
 
 
 @router.get("/parts/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)
-def gui_part_edit_photo(aid: str, image: str = ""):
+def gui_part_edit_photo(aid: str, image: str = "") -> RedirectResponse:
     return _photo_edit_redirect("parts", aid, image)
 
 
 @router.post("/parts/{aid}/photo-rotate", include_in_schema=False)
-async def gui_part_photo_rotate(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_photo_rotate(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     form = await posted(request)
     _do_photo_rotate(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-tuneup", include_in_schema=False)
-async def gui_part_photo_tuneup(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_photo_tuneup(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     form = await posted(request)
     _do_photo_tuneup(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-revert", include_in_schema=False)
-async def gui_part_photo_revert(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_photo_revert(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     form = await posted(request)
     _do_photo_revert(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.post("/parts/{aid}/photo-crop", include_in_schema=False)
-async def gui_part_photo_crop(aid: str, request: Request, db: Session = Depends(get_db)):
+async def gui_part_photo_crop(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     form = await posted(request)
     _do_photo_crop(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
 
 
 @router.get("/parts/{aid}/label.pdf", include_in_schema=False)
-def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)):
+def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)) -> Response:
     p = get_or_404(db, Part, aid)
     pdf = labels.render_pdf(
         to_dict(p), [], labels.PART, small=bool(small), spec_pairs=specdb.pairs(db, p, display=True)

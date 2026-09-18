@@ -5,10 +5,14 @@ main and calls in here.
 """
 
 from collections import Counter
+from collections.abc import Iterable
 from datetime import date
+from typing import NotRequired, TypedDict, cast
 from urllib.parse import quote
 
-from sqlalchemy import func
+from sqlalchemy import Row, false, func
+from sqlalchemy.orm import InstrumentedAttribute, Query, Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from . import entry, projects
 from .common import (
@@ -22,6 +26,7 @@ from .common import (
     folder_images,
     to_dict,
 )
+from .db import Base
 from .models import (
     AssetVariant,
     Computer,
@@ -44,8 +49,85 @@ from .models import (
     VideoSpec,
 )
 
+# One figure as the page reads it: a heading, a value, a line of small print, and
+# the link behind the tile -- which a figure about the whole register does not have.
+type Fact = dict[str, object]
 
-def _facts(db, st, this_year):
+# (value, count, the value /browse needs): the three fields a ranked list carries so
+# that a bar on the page can link to the items behind it.
+type Ranked = list[tuple[str, int, str]]
+
+# The tables a card or a drive files its typed answers in, named as a union rather
+# than as the base they share, because what the helpers below read off one --
+# part_id, interface, chip -- is declared on each of them and not on Base.
+type SpecTable = (
+    type[IoSpec]
+    | type[MotherboardSpec]
+    | type[NetworkSpec]
+    | type[SoundSpec]
+    | type[StorageSpec]
+    | type[VideoSpec]
+)
+
+
+class Stats(TypedDict):
+    """The summary figures the page is built from, as _collection_stats counts them.
+
+    The last four are the page's own rather than the collection's: the /stats route
+    puts them here once it has drawn its handful out of the pool."""
+
+    n_computers: int
+    n_parts: int
+    n_total: int
+    makers: Ranked
+    types: Ranked
+    buses: Ranked
+    ports: Ranked
+    types_labelled: Ranked
+    conditions: Ranked
+    top_maker: tuple[str, int, str] | None
+    top_type: tuple[str, int, str] | None
+    top_ram: list[tuple[str, int, int]]
+    top_ram_kb: list[int]
+    mean_year: int | None
+    oldest_year: int | None
+    newest_year: int | None
+    fitted_kb: int
+    stored_kb: int
+    slots: int
+    boards: int
+    chips: int
+    drives: int
+    gotek: int
+    working: int
+    disposed: int
+    photos: int
+    portraits: dict[str, int]
+    unphotographed: int
+    unphotographed_pct: str
+    fullest: tuple[Computer, int] | None
+    oldest_held: Part | None
+    fitted: int
+    spares: int
+    fitted_per_machine: float | None
+    working_pct: int | None
+    slots_per_board: float | None
+    facts: NotRequired[list[Fact]]
+    n_facts: NotRequired[int]
+    reliability_rank: NotRequired[list[tuple[str | None, int, str | None]]]
+    reliability_min: NotRequired[int]
+
+
+def _either(query: Query[Base], model: type[Computer] | type[Part]) -> Query[Computer | Part]:
+    """_held, for a query built from whichever of the two registers is in hand.
+
+    A query over a model picked out of the two widens its rows to the base they
+    share, which is not where a year or an acquisition date is declared, so the
+    pair is named again here (as resync does for the same reason)."""
+    return cast("Query[Computer | Part]", _held(query, model))
+
+
+def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
     """Every figure the collection can currently answer, in one pool for the page to
     draw a handful from.
 
@@ -62,12 +144,12 @@ def _facts(db, st, this_year):
     Disposed items are left out throughout -- see _held -- bar the one figure that is
     about them.
     """
-    out = []
+    out: list[Fact] = []
 
-    def add(k, v, s, href=None):
+    def add(k: str, v: str, s: str, href: str | None = None) -> None:
         out.append({"k": k, "v": v, "s": s, "href": href})
 
-    def named(obj):
+    def named(obj: Computer | Part) -> str:
         return entry.display_name(to_dict(obj))
 
     # --- how big it is ------------------------------------------------------
@@ -150,7 +232,7 @@ def _facts(db, st, this_year):
             f"{st['working']} of {st['n_parts']} parts",
             "/browse?f=condition&v=Working",
         )
-    if st["oldest_year"] and st["newest_year"] > st["oldest_year"]:
+    if st["oldest_year"] and st["newest_year"] and st["newest_year"] > st["oldest_year"]:
         add(
             "Oldest and newest",
             f"{st['oldest_year']}–{st['newest_year']}",
@@ -196,33 +278,37 @@ def _facts(db, st, this_year):
         best, worst = rel[0], rel[-1]
         add(
             "Most reliable maker",
-            best[0],
+            best[0] or "",
             f"{best[2]} of {best[1]} parts working",
-            f"/browse?f=maker&v={quote(best[0])}",
+            f"/browse?f=maker&v={quote(best[0] or '')}",
         )
         add(
             "Least reliable maker",
-            worst[0],
+            worst[0] or "",
             f"{worst[2]} of {worst[1]} parts working",
-            f"/browse?f=maker&v={quote(worst[0])}",
+            f"/browse?f=maker&v={quote(worst[0] or '')}",
         )
 
     # The long wait: made one year, arrived another. Computers and parts together,
     # because the record is the same record either way.
-    waits = []
+    waits: list[tuple[int, Computer | Part, int]] = []
+    obj: Computer | Part | None
     for model in (Computer, Part):
-        for obj in _held(
+        for obj in _either(
             db.query(model).filter(model.year.isnot(None), model.acquired_date.isnot(None)), model
         ):
-            waits.append((obj.acquired_date.year - obj.year, obj))
+            # Both dates are in the filter above; saying so again is what makes the
+            # difference below a number rather than a maybe-number.
+            if obj.acquired_date is not None and obj.year is not None:
+                waits.append((obj.acquired_date.year - obj.year, obj, obj.acquired_date.year))
     waits = [w for w in waits if w[0] > 0]
     if waits:
-        gap, obj = max(waits, key=lambda w: w[0])
+        gap, obj, arrived = max(waits, key=lambda w: w[0])
         kind = "computers" if isinstance(obj, Computer) else "parts"
         add(
             "Longest wait",
             f"{gap} years",
-            f"{named(obj)}, made {obj.year}, arrived {obj.acquired_date.year}",
+            f"{named(obj)}, made {obj.year}, arrived {arrived}",
             f"/{kind}/{obj.asset_id}",
         )
 
@@ -259,7 +345,7 @@ def _facts(db, st, this_year):
 
     eventful = (
         db.query(LogEntry.asset_id, func.count(LogEntry.id))
-        .filter(LogEntry.asset_id.in_(held_ids) if held_ids else False)
+        .filter(LogEntry.asset_id.in_(held_ids) if held_ids else false())
         .group_by(LogEntry.asset_id)
         .order_by(func.count(LogEntry.id).desc())
         .first()
@@ -407,9 +493,10 @@ def _facts(db, st, this_year):
                 f"/computers/{machine.asset_id}",
             )
 
+    holder: Computer | Part | None
     longest, holder, holder_kind = 0, None, ""
     for model, kind in ((Computer, "computers"), (Part, "parts")):
-        for obj in _held(db.query(model), model):
+        for obj in _either(db.query(model), model):
             name = named(obj)
             if len(name) > longest:
                 longest, holder, holder_kind = len(name), obj, kind
@@ -423,7 +510,7 @@ def _facts(db, st, this_year):
 
     # Not when this year is also the busiest: two tiles saying "48 parts, 2026" in
     # one draw is the shuffle looking like it is broken.
-    if arrivals.get(this_year) and max(arrivals, key=arrivals.get) != this_year:
+    if arrivals.get(this_year) and max(arrivals, key=lambda y: arrivals[y]) != this_year:
         add(
             f"Arrived in {this_year}",
             str(arrivals[this_year]),
@@ -435,7 +522,9 @@ def _facts(db, st, this_year):
     # These read the typed storage columns, which is where the per-kind form now
     # files everything a drive is asked (see entry.STORAGE_ASKS).
 
-    def storage_rank(column, kind=None):
+    def storage_rank(
+        column: InstrumentedAttribute[str | None], kind: str | None = None
+    ) -> list[tuple[str, int]]:
         """(value, count) for one storage column, commonest first, held parts only."""
         q = _held(
             db.query(column, func.count(StorageSpec.part_id))
@@ -445,7 +534,8 @@ def _facts(db, st, this_year):
         )
         if kind:
             q = q.filter(StorageSpec.kind == kind)
-        return sorted(q.group_by(column).all(), key=lambda r: (-r[1], r[0]))
+        rows = q.group_by(column).all()
+        return sorted(((v, n) for v, n in rows if v is not None), key=lambda r: (-r[1], r[0]))
 
     ifaces = storage_rank(StorageSpec.interface)
     if ifaces:
@@ -555,10 +645,11 @@ def _facts(db, st, this_year):
         ("The oldest thing here", min, "the earliest year on anything"),
         ("The newest thing here", max, "the latest year on anything"),
     ):
-        dated = []
+        dated: list[tuple[int, str, Computer | Part]] = []
         for model, kind in ((Computer, "computers"), (Part, "parts")):
-            for obj in _held(db.query(model).filter(model.year.isnot(None)), model):
-                dated.append((obj.year, kind, obj))
+            for obj in _either(db.query(model).filter(model.year.isnot(None)), model):
+                if obj.year is not None:
+                    dated.append((obj.year, kind, obj))
         if dated:
             year, kind, obj = pick(dated, key=lambda d: d[0])
             add(label, str(year), f"{named(obj)} — {blurb}", f"/{kind}/{obj.asset_id}")
@@ -607,16 +698,21 @@ def _facts(db, st, this_year):
 # link to everything would be a link that lied about what it counted.
 
 
-def _fact(k, v, s, href=None):
+def _fact(k: str, v: str, s: str, href: str | None = None) -> Fact:
     """One figure for the pool, in the shape the template reads."""
     return {"k": k, "v": v, "s": s, "href": href}
 
 
-def _named(obj):
+def _named(obj: Computer | Part) -> str:
     return entry.display_name(to_dict(obj))
 
 
-def _spec_rank(db, model, column, *conds):
+def _spec_rank(
+    db: Session,
+    model: SpecTable,
+    column: InstrumentedAttribute[str | None],
+    *conds: ColumnElement[bool],
+) -> list[tuple[str, int]]:
     """(value, count) for one text column of a spec table, commonest first.
 
     The join back to `parts` is not decoration: a spec row has no disposed flag of
@@ -629,25 +725,29 @@ def _spec_rank(db, model, column, *conds):
     )
     for c in conds:
         q = q.filter(c)
-    return sorted(_held(q, Part).group_by(column).all(), key=lambda r: (-r[1], r[0]))
+    rows = _held(q, Part).group_by(column).all()
+    return sorted(((v, n) for v, n in rows if v is not None), key=lambda r: (-r[1], r[0]))
 
 
-def _spec_count(db, model, *conds):
+def _spec_count(db: Session, model: SpecTable, *conds: ColumnElement[bool]) -> int:
     """How many held parts have a spec row matching."""
     q = db.query(func.count(model.part_id)).join(Part, Part.asset_id == model.part_id)
     for c in conds:
         q = q.filter(c)
-    return _held(q, Part).scalar() or 0
+    n: int = _held(q, Part).scalar() or 0
+    return n
 
 
-def _commas(db, model, column):
+def _commas(
+    db: Session, model: SpecTable, column: InstrumentedAttribute[str | None]
+) -> Counter[str]:
     """A Counter over a text column that holds a comma-separated list.
 
     Video connectors are written 'VGA, EGA, Composite' -- one field, several
     answers -- so counting the column whole would file that card under a fourth
     kind of output rather than under the three it has. Ports and buses have proper
     child tables and are counted there; this is for the fields that do not."""
-    out = Counter()
+    out: Counter[str] = Counter()
     for (v,) in _held(
         db.query(column)
         .join(Part, Part.asset_id == model.part_id)
@@ -660,14 +760,14 @@ def _commas(db, model, column):
     return out
 
 
-def _facts_boards(db, st):
+def _facts_boards(db: Session, st: Stats) -> list[Fact]:
     """Figures about motherboards: what shape they are, whose BIOS they answer to,
     and what can be plugged into them.
 
     The board is the part everything else in a machine hangs off, and it is the
     best represented category in the register, so it carries more of these than
     anything else does."""
-    out = []
+    out: list[Fact] = []
     shapes = _spec_rank(db, MotherboardSpec, MotherboardSpec.form_factor)
     if shapes:
         n_shaped = sum(n for _s, n in shapes)
@@ -798,14 +898,26 @@ def _facts_boards(db, st):
         top = int(per_board[0][1])
         tied = [p for p, n in per_board if int(n) == top]
         holder = db.get(Part, tied[0])
-        out.append(
-            _fact(
-                "Most slots on one board",
-                str(top),
-                f"shared by {len(tied)} boards" if len(tied) > 1 else _named(holder),
-                "/browse?f=slots" if len(tied) > 1 else f"/parts/{holder.asset_id}",
+        # Read a query after the one that counted it, so it can have gone in
+        # between. A missing tile, and not a page that will not open.
+        if len(tied) > 1:
+            out.append(
+                _fact(
+                    "Most slots on one board",
+                    str(top),
+                    f"shared by {len(tied)} boards",
+                    "/browse?f=slots",
+                )
             )
-        )
+        elif holder:
+            out.append(
+                _fact(
+                    "Most slots on one board",
+                    str(top),
+                    _named(holder),
+                    f"/parts/{holder.asset_id}",
+                )
+            )
 
     # ISA outlasted its own replacements: a board here is likelier to have an ISA
     # slot than any other kind, forty years after the first one.
@@ -880,14 +992,14 @@ def _facts_boards(db, st):
     return out
 
 
-def _facts_cards(db, st):
+def _facts_cards(db: Session, st: Stats) -> list[Fact]:
     """Figures about the things that go in the slots: video, sound, network and I/O.
 
     These read the per-type spec tables, which is where the typed form files what a
     card is asked. The four tables share the shape of several columns -- `interface`
     for the bus, `chip` for the silicon -- so the questions that span all four are
     counted in one pass over them at the end, rather than four times over."""
-    out = []
+    out: list[Fact] = []
 
     # --- what a graphics card is ------------------------------------------
     outputs = _commas(db, VideoSpec, VideoSpec.connector)
@@ -1118,10 +1230,10 @@ def _facts_cards(db, st):
     return out
 
 
-def _facts_drives(db, st):
+def _facts_drives(db: Session, st: Stats) -> list[Fact]:
     """Figures about drives beyond the totals above: how they attach, how fast they
     turn, and what shape they claim to be."""
-    out = []
+    out: list[Fact] = []
     # Interfaces that were obsolete before most of this collection was made, and
     # are still represented in it. Named explicitly rather than inferred: what
     # makes MFM historic is not anything the database can work out.
@@ -1211,10 +1323,10 @@ def _facts_drives(db, st):
     return out
 
 
-def _facts_machines(db, st):
+def _facts_machines(db: Session, st: Stats) -> list[Fact]:
     """Figures about the whole machines. There are far fewer of these than there are
     parts, so anything counted here is counted against a small number and says so."""
-    out = []
+    out: list[Fact] = []
     n = st["n_computers"]
 
     ram = Counter(
@@ -1379,10 +1491,10 @@ def _facts_machines(db, st):
     return out
 
 
-def _facts_ages(db, st, this_year):
+def _facts_ages(db: Session, st: Stats, this_year: int) -> list[Fact]:
     """Figures about when all this was made, and about the gaps between the dates on
     things that ended up in the same box."""
-    out = []
+    out: list[Fact] = []
     years = _all_years(db)
     if years:
         span = max(years) - min(years) + 1
@@ -1440,16 +1552,16 @@ def _facts_ages(db, st, this_year):
     # Machines as well as parts: "thing" means both everywhere else on this page,
     # and a working machine of 1981 would be a strange one to leave out of a figure
     # about the oldest thing that still works.
-    working = []
+    working: list[tuple[int, Computer | Part, str]] = []
     for model, kind in ((Computer, "computers"), (Part, "parts")):
         oldest = (
-            _held(
+            _either(
                 db.query(model).filter(model.year.isnot(None), model.condition == "Working"), model
             )
             .order_by(model.year)
             .first()
         )
-        if oldest:
+        if oldest and oldest.year is not None:
             working.append((oldest.year, oldest, kind))
     if working:
         year, obj, kind = min(working, key=lambda w: w[0])
@@ -1506,11 +1618,11 @@ def _facts_ages(db, st, this_year):
     return out
 
 
-def _facts_provenance(db, st):
+def _facts_provenance(db: Session, st: Stats) -> list[Fact]:
     """Where things came from and when they turned up. Provenance is the field
     least often filled in, and the figure about how often is one of the more
     honest ones here."""
-    out = []
+    out: list[Fact] = []
     nowhere = (
         _held(
             db.query(func.count(Part.asset_id)).filter(
@@ -1611,7 +1723,7 @@ def _facts_provenance(db, st):
     return out
 
 
-def _facts_register(db, st):
+def _facts_register(db: Session, st: Stats) -> list[Fact]:
     """Figures about the register rather than about the hardware: how much has been
     written down, how much has been photographed, and how new all the writing is.
 
@@ -1621,7 +1733,7 @@ def _facts_register(db, st):
     The entry counts are also the one place _held does not apply: they count what
     has been written, and a note about something since disposed was still written.
     The figures about parts below are about the collection again, and do."""
-    out = []
+    out: list[Fact] = []
     entries = db.query(func.count(LogEntry.id)).scalar() or 0
     started = db.query(func.min(LogEntry.created_at)).scalar()
     if entries and started:
@@ -1633,7 +1745,14 @@ def _facts_register(db, st):
                 f"{entries:,} entries written since {started.date()}",
             )
         )
-    kinds = dict(db.query(LogEntry.kind, func.count(LogEntry.id)).group_by(LogEntry.kind).all())
+    # A row of two columns is a pair, but it is not typed as one, and dict() wants
+    # the pair; said here rather than by rebuilding every row into one.
+    kinds = dict(
+        cast(
+            "list[tuple[str | None, int]]",
+            db.query(LogEntry.kind, func.count(LogEntry.id)).group_by(LogEntry.kind).all(),
+        )
+    )
     if kinds.get("note"):
         out.append(
             _fact(
@@ -1653,8 +1772,13 @@ def _facts_register(db, st):
         # writes notes through the same bar a machine does. Looking in two tables
         # only would not be wrong so much as quietly incomplete: the tile would
         # disappear on the day the longest note happened to be on a project.
-        obj = next(
-            (o for _, cls in REGISTER if (o := db.get(cls, longest_note[0])) is not None), None
+        # Fetched through the three classes at once, so the rows come back typed as
+        # the base they share rather than as the three things they are.
+        obj = cast(
+            "Computer | Part | Project | None",
+            next(
+                (o for _, cls in REGISTER if (o := db.get(cls, longest_note[0])) is not None), None
+            ),
         )
         if obj is not None:
             kind = next(k for k, cls in REGISTER if isinstance(obj, cls))
@@ -1774,7 +1898,7 @@ def _facts_register(db, st):
             )
         )
         top = repeated[0][2]
-        tied = sorted(f"{r[0]} {r[1]}".strip() for r in repeated if r[2] == top)
+        tied = sorted(f"{r[0] or ''} {r[1]}".strip() for r in repeated if r[2] == top)
         if len(tied) == 1:
             said = tied[0]
         elif len(tied) == 2:
@@ -1787,9 +1911,9 @@ def _facts_register(db, st):
     # above. A second walk over every held object rather than one walk answering
     # both, because at this size it costs nothing and the two figures belong to
     # different groups.
-    names = []
+    names: list[tuple[int, Computer | Part, str]] = []
     for model in (Computer, Part):
-        for obj in _held(db.query(model), model):
+        for obj in _either(db.query(model), model):
             names.append((len(_named(obj)), obj, "computers" if model is Computer else "parts"))
     short = min(names, key=lambda n: n[0], default=None)
     if short and short[0] > 1:
@@ -1804,7 +1928,7 @@ def _facts_register(db, st):
     return out
 
 
-def _facts_projects(db, st):
+def _facts_projects(db: Session, st: Stats) -> list[Fact]:
     """Figures about the work rather than about the hardware: what is on the go,
     what is still to do, and what is in the post.
 
@@ -1815,7 +1939,7 @@ def _facts_projects(db, st):
 
     Everything is counted across all projects rather than per project, because a
     figure about one project is a fact about that project's own page."""
-    out = []
+    out: list[Fact] = []
     open_n = (
         db.query(func.count(Project.asset_id))
         .filter(Project.status.notin_(projects.CLOSED))
@@ -1880,7 +2004,7 @@ def _facts_projects(db, st):
         .order_by(Project.started_at)
         .first()
     )
-    if oldest is not None:
+    if oldest is not None and oldest.started_at is not None:
         days = (date.today() - oldest.started_at).days
         if days > 0:
             out.append(
@@ -1894,10 +2018,10 @@ def _facts_projects(db, st):
     return out
 
 
-def _facts_condition(db, st):
+def _facts_condition(db: Session, st: Stats) -> list[Fact]:
     """Figures about what state it is all in, beyond the working share on the page
     above and the two reliability tables below it."""
-    out = []
+    out: list[Fact] = []
     rel = _maker_reliability(db)
     perfect = [r for r in rel if r[3] == 100]
     if perfect and len(rel) > len(perfect):
@@ -1945,7 +2069,7 @@ def _facts_condition(db, st):
     return out
 
 
-def _collection_stats(db):
+def _collection_stats(db: Session) -> Stats:
     """Figures about the collection for the public /stats page. Everything here is
     counted from the typed columns and child tables rather than parsed out of
     strings, which is the whole point of their being typed.
@@ -1957,7 +2081,9 @@ def _collection_stats(db):
     n_computers = _held(db.query(func.count(Computer.asset_id)), Computer).scalar() or 0
     n_parts = _held(db.query(func.count(Part.asset_id)), Part).scalar() or 0
 
-    def ranked(query, limit=None):
+    # What the count is depends on the query -- COUNT() gives an integer and SUM()
+    # a decimal -- so it rides along rather than being named here.
+    def ranked[N](query: Iterable[Row[tuple[str | None, N]]], limit: int | None = None) -> Ranked:
         rows = [(k, n, k) for k, n in query if (k or "").strip()]
         rows.sort(key=lambda r: (-r[1], r[0]))
         return rows[:limit] if limit else rows
@@ -2141,7 +2267,7 @@ def _collection_stats(db):
         "portraits": portraits,
         "unphotographed": len(unphotographed),
         "unphotographed_pct": "under 1" if 0 < share < 0.5 else str(round(share)),
-        "fullest": (fullest_machine, fullest[1]) if fullest_machine else None,
+        "fullest": (fullest_machine, fullest[1]) if fullest and fullest_machine else None,
         "oldest_held": oldest_held,
         "fitted": fitted,
         "spares": n_parts - fitted,

@@ -10,23 +10,41 @@ orchestrators stay in main: this module only ever touches the filesystem and
 the photo/log-photo rows, never the log itself.
 """
 
+from __future__ import annotations
+
 import contextlib
 import json
 import os
 import shutil
 import tempfile
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
+from typing import IO, TYPE_CHECKING
 from urllib.parse import quote, urlparse
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+
+# Starlette's and not FastAPI's: a route parameter hands over FastAPI's subclass,
+# but forms.Posted.uploads hands over the plain one, and both arrive here.
+from starlette.datastructures import UploadFile
 
 from . import enrich, entry, thumbs
 from .common import IMAGES_DIR, IMAGE_EXTS, branded, _file_ver, folder_images
 from .models import LogEntry, LogPhoto
 
+if TYPE_CHECKING:
+    # Pillow is opened where it is used, as it is everywhere else here: importing
+    # it costs more than this module does. The form wrapper is held back for a
+    # different reason -- it reaches this module again through history and web, so
+    # importing it at runtime would close the circle.
+    from PIL.Image import Image as PilImage
 
-def _image_size(image_rel: str):
+    from .forms import Posted
+
+
+def _image_size(image_rel: str) -> tuple[int, int] | None:
     """(width, height) of a stored image, or None. Lets link previews (Discord
     especially) render the large image immediately without a probe fetch."""
     try:
@@ -110,7 +128,7 @@ if WATERMARK:
 thumbs.sweep(IMAGES_DIR)
 
 
-def _write_atomically(dst: Path, write):
+def _write_atomically(dst: Path, write: Callable[[Path], object]) -> None:
     """Write an image file by way of a temporary one beside it, then move it into
     place. `write` is handed the temporary path.
 
@@ -157,7 +175,7 @@ def _write_atomically(dst: Path, write):
         raise
 
 
-def _image_format(path: Path, opened=None) -> str:
+def _image_format(path: Path, opened: PilImage | None = None) -> str:
     """The format to encode as. Taken from the file that was opened where there is
     one, and from the extension otherwise -- it cannot be left to Pillow to infer,
     because what it would infer it from is the temporary name ending in .part."""
@@ -170,7 +188,7 @@ def _image_format(path: Path, opened=None) -> str:
     )
 
 
-def _make_watermark(src_path: Path, dst_path: Path):
+def _make_watermark(src_path: Path, dst_path: Path) -> None:
     from PIL import Image, ImageOps
 
     # Bake in EXIF orientation, exactly as editing a photo does. This copy is
@@ -218,7 +236,7 @@ def _watermarked_file(rel: str) -> Path:
         return src
 
 
-def _wm_forget(rel: str):
+def _wm_forget(rel: str) -> None:
     """Drop an image's cached watermark and its resized copies (on delete, rename or
     edit) so they regenerate.
 
@@ -245,7 +263,7 @@ def _is_own_photo(rel: str) -> bool:
     )
 
 
-def _image_cache(versioned: bool) -> dict:
+def _image_cache(versioned: bool) -> dict[str, str]:
     """How long the browser may keep an image.
 
     A URL carrying ?v= names which version of the photograph it wants -- img_url
@@ -261,29 +279,30 @@ def _image_cache(versioned: bool) -> dict:
     }
 
 
-def pick_images(kind, asset_id, listing):
+def pick_images(kind: str, asset_id: str, listing: Iterable[tuple[str, str]]) -> list[str]:
     """An asset's photos from a folder listing: <asset_id>.<ext> first, then -2,
     -3, ..., then any other suffix alphabetically."""
-    primary, extras = [], []
+    primary: list[str] = []
+    extras: list[tuple[str, str]] = []
     for stem, name in listing:
         if stem == asset_id:
             primary.append(f"{kind}/{name}")
         elif stem.startswith(asset_id + "-"):
             extras.append((stem, name))
 
-    def sort_key(item):
+    def sort_key(item: tuple[str, str]) -> tuple[int, int, str]:
         suffix = item[0][len(asset_id) + 1 :]
         return (0, int(suffix), "") if suffix.isdigit() else (1, 0, suffix.lower())
 
     return primary + [f"{kind}/{name}" for _stem, name in sorted(extras, key=sort_key)]
 
 
-def detect_images(kind, asset_id):
+def detect_images(kind: str, asset_id: str) -> list[str]:
     """Ordered photos for one asset."""
     return pick_images(kind, asset_id, folder_images(kind))
 
 
-def _storage_placeholder(kind):
+def _storage_placeholder(kind: str | None) -> str:
     """Which drive icon a storage part wears, read from its Kind spec: a floppy, a
     disc and a disk are all "storage" and none of them look alike."""
     kind = (kind or "").lower()
@@ -294,7 +313,7 @@ def _storage_placeholder(kind):
     return entry.placeholder_for("storage")
 
 
-def _photo_target(kind, asset_id, ext):
+def _photo_target(kind: str, asset_id: str, ext: str) -> tuple[Path, str]:
     """Path for a new photo: <asset_id>.<ext> for the first (the primary), then
     the next free -N suffix so an item can carry several."""
     folder = IMAGES_DIR / kind
@@ -310,7 +329,7 @@ def _photo_target(kind, asset_id, ext):
     return folder / name, f"{kind}/{name}"
 
 
-def _verify_image(source):
+def _verify_image(source: Path | IO[bytes]) -> None:
     """Confirm something really is one of the image types we accept, by decoding it
     rather than trusting its name -- an SVG or an HTML page renamed .png would
     otherwise be stored and then served with an image content-type. `source` is a
@@ -329,13 +348,13 @@ def _verify_image(source):
         raise HTTPException(400, f"unsupported image type: {fmt}")
 
 
-def _save_photo(kind, asset_id, upload: UploadFile):
+def _save_photo(kind: str, asset_id: str, upload: UploadFile) -> str:
     ext = Path(upload.filename or "").suffix.lower() or ".jpg"
     if ext not in IMAGE_EXTS:
         raise HTTPException(400, f"unsupported image type: {ext}")
     path, rel = _photo_target(kind, asset_id, ext)
 
-    def write(tmp):
+    def write(tmp: Path) -> None:
         with open(tmp, "wb") as f:
             shutil.copyfileobj(upload.file, f)
         # Refuse anything whose bytes are not really the image its name claims;
@@ -349,7 +368,7 @@ def _save_photo(kind, asset_id, upload: UploadFile):
     return rel
 
 
-def _chosen_photos(form):
+def _chosen_photos(form: Posted) -> list[UploadFile]:
     """The photos picked on a create form, every one of them checked before any is
     written. The item is committed before its photos are stored, so its asset id is
     settled first: a file rejected half way would otherwise leave photos filed
@@ -379,7 +398,7 @@ def _chosen_photos(form):
 # hyphen in it.
 
 
-def _attach_log_photos(db, row, uploads):
+def _attach_log_photos(db: Session, row: LogEntry | None, uploads: Sequence[UploadFile]) -> int:
     """Store photographs against a history entry. Returns how many were kept.
 
     The entry is flushed first: the photographs are filed under its id, and until
@@ -395,7 +414,7 @@ def _attach_log_photos(db, row, uploads):
     return len(uploads)
 
 
-def _drop_log_photos(db, asset_id):
+def _drop_log_photos(db: Session, asset_id: str) -> list[str]:
     """Clear the photographs hung on one asset's history, and return their paths for
     the caller to delete once the transaction is safe.
 
@@ -414,7 +433,7 @@ def _drop_log_photos(db, asset_id):
     return rels
 
 
-def _fetch_reference_photo(kind, asset_id, url):
+def _fetch_reference_photo(kind: str, asset_id: str, url: str) -> str | None:
     """Pull a photo from the item's reference URL (Wikipedia API or og:image),
     store it, and return its relative path (or None if nothing was found)."""
     data = enrich.fetch_jpeg(url)
@@ -437,16 +456,16 @@ FAVICON_DIR = IMAGES_DIR / "favicons"
 _DEFAULT_REF_NOTE = "Illustrative image, not this exact unit"
 
 
-def _ref_sidecar(rel):
+def _ref_sidecar(rel: str) -> Path:
     p = IMAGES_DIR / rel
     return p.with_name(p.name + ".ref")
 
 
-def is_reference(rel):
+def is_reference(rel: str) -> bool:
     return bool(rel) and _ref_sidecar(rel).exists()
 
 
-def _read_ref(rel):
+def _read_ref(rel: str) -> dict[str, str] | None:
     """{'note':.., 'source':..} for a reference image, or None if not flagged.
     Tolerates the pre-JSON format where the sidecar held a bare note string."""
     try:
@@ -462,7 +481,7 @@ def _read_ref(rel):
     return {"note": raw, "source": ""}
 
 
-def _favicon_rel(source):
+def _favicon_rel(source: str) -> str:
     """Relative path of the cached favicon for a source URL's host, if present."""
     host = urlparse(source or "").hostname or ""
     if host and (FAVICON_DIR / f"{host}.png").exists():
@@ -470,9 +489,9 @@ def _favicon_rel(source):
     return ""
 
 
-def reference_marks(kind, asset_id):
+def reference_marks(kind: str, asset_id: str) -> dict[str, dict[str, str]]:
     """{rel: {'note':.., 'icon':..}} for the item's flagged reference photos."""
-    out = {}
+    out: dict[str, dict[str, str]] = {}
     for rel in detect_images(kind, asset_id):
         info = _read_ref(rel)
         if info is not None:
@@ -483,19 +502,19 @@ def reference_marks(kind, asset_id):
     return out
 
 
-def tuned_photos(kind, asset_id):
+def tuned_photos(kind: str, asset_id: str) -> set[str]:
     """The item's photos that still have a kept original, so the big view can
     offer to put them back."""
     return {rel for rel in detect_images(kind, asset_id) if has_original(rel)}
 
 
-def _favicon_for_rel(rel):
+def _favicon_for_rel(rel: str) -> str:
     """Cached source favicon path for a single image rel, or '' (for index cards)."""
     info = _read_ref(rel) if rel else None
     return _favicon_rel(info["source"]) if info else ""
 
 
-def img_url(rel, width=None):
+def img_url(rel: str | None, width: int | None = None) -> str:
     """/images URL for a photo with a cache-busting ?v= stamp from its mtime, so
     the browser refetches after an edit or watermark change rather than showing a
     stale cached copy. Reflects the reference-marker sidecar too (its toggle
@@ -524,14 +543,14 @@ def img_url(rel, width=None):
     return f"/images/{rel}{query}"
 
 
-def img_srcset(rel, widths):
+def img_srcset(rel: str | None, widths: Iterable[int]) -> str:
     """A srcset for one photo at several widths, so the browser takes the one that
     suits its screen: a card is 400 wide on an ordinary display and 800 on a retina
     one, and only it knows which it is."""
     return ", ".join(f"{img_url(rel, w)} {w}w" for w in widths) if rel else ""
 
 
-def _cache_favicon(source):
+def _cache_favicon(source: str) -> str:
     """Fetch and cache the source site's favicon; return its rel path or ''."""
     host = urlparse(source or "").hostname or ""
     if not host:
@@ -547,7 +566,7 @@ def _cache_favicon(source):
     return f"favicons/{host}.png"
 
 
-def _mark_reference(rel, on, note="", source=""):
+def _mark_reference(rel: str, on: bool, note: str = "", source: str = "") -> None:
     sc = _ref_sidecar(rel)
     if on:
         sc.write_text(
@@ -560,7 +579,7 @@ def _mark_reference(rel, on, note="", source=""):
     _wm_forget(rel)  # reference state changed: rebuild (or drop) the watermark
 
 
-def _move_with_sidecar(src: Path, dst: Path):
+def _move_with_sidecar(src: Path, dst: Path) -> None:
     """Rename an image, carrying its reference-marker sidecar along with it, and
     dropping stale watermark caches for both names."""
     src.rename(dst)
@@ -574,7 +593,7 @@ def _move_with_sidecar(src: Path, dst: Path):
             _wm_forget(rel)
 
 
-def _set_primary_photo(kind, asset_id, rel):
+def _set_primary_photo(kind: str, asset_id: str, rel: str) -> str:
     """Promote one of an item's photos to the primary (the <asset_id>.<ext>
     file shown in the gallery and as the main photo). The current primary is
     demoted to the next free extra slot. Returns the new primary's path."""
@@ -596,7 +615,7 @@ def _set_primary_photo(kind, asset_id, rel):
     return f"{kind}/{new_primary.name}"
 
 
-def _delete_image(kind, asset_id, rel):
+def _delete_image(kind: str, asset_id: str, rel: str) -> tuple[bool, str]:
     """Delete a photo (and its reference sidecar). If it was the primary, the
     next remaining photo is promoted. Returns (was_primary, new_primary_rel)."""
     if rel not in detect_images(kind, asset_id):
@@ -617,7 +636,7 @@ def _delete_image(kind, asset_id, rel):
     return was_primary, new_primary
 
 
-def _purge_photos(rels):
+def _purge_photos(rels: Iterable[str]) -> None:
     """Delete photo files, each with its reference sidecar and cached watermark.
     Called after the rows are safely gone -- a file cannot be rolled back."""
     for rel in rels:
@@ -645,7 +664,7 @@ def has_original(rel: str) -> bool:
     return _original_of(rel).is_file()
 
 
-def _keep_original(rel: str):
+def _keep_original(rel: str) -> None:
     """Copy a photograph aside before it is tuned, if it is not already there.
 
     One slot, and the first copy wins: tuning an already-tuned photograph must
@@ -659,7 +678,7 @@ def _keep_original(rel: str):
     shutil.copy2(IMAGES_DIR / rel, dst)
 
 
-def _drop_original(rel: str):
+def _drop_original(rel: str) -> None:
     """Forget the kept copy. Called when it has stopped being the truth about this
     photograph -- the file has been cropped, rotated, renamed or deleted since.
     Reverting then would quietly undo that other edit as well, which is not what
@@ -668,7 +687,7 @@ def _drop_original(rel: str):
         _original_of(rel).unlink(missing_ok=True)
 
 
-def _restore_original(rel: str):
+def _restore_original(rel: str) -> None:
     """Put the kept copy back and take the slot away with it."""
     src = _original_of(rel)
     if not src.is_file():
@@ -680,7 +699,13 @@ def _restore_original(rel: str):
         src.unlink(missing_ok=True)
 
 
-def _edit_image(kind, asset_id, rel, fn, revertible=False):
+def _edit_image(
+    kind: str,
+    asset_id: str,
+    rel: str,
+    fn: Callable[[PilImage], PilImage],
+    revertible: bool = False,
+) -> None:
     """Apply fn(PIL.Image)->PIL.Image to a photo in place, baking in EXIF
     orientation, then invalidate its watermark cache.
 
@@ -700,7 +725,7 @@ def _edit_image(kind, asset_id, rel, fn, revertible=False):
     with Image.open(src) as im:
         out = fn(ImageOps.exif_transpose(im))
         fmt = _image_format(src, im)
-        kwargs = {}
+        kwargs: dict[str, int] = {}
         if src.suffix.lower() in (".jpg", ".jpeg"):
             out = out.convert("RGB")
             kwargs = {"quality": 90}
@@ -716,17 +741,17 @@ def _edit_image(kind, asset_id, rel, fn, revertible=False):
     # the freshness check cannot see, which is a photograph that is gone.
 
 
-def _rotate_op(direction):
+def _rotate_op(direction: str) -> Callable[[PilImage], PilImage]:
     from PIL import Image
 
     turn = Image.Transpose.ROTATE_270 if direction == "cw" else Image.Transpose.ROTATE_90
     return lambda im: im.transpose(turn)
 
 
-def _crop_op(x, y, w, h):
+def _crop_op(x: float, y: float, w: float, h: float) -> Callable[[PilImage], PilImage]:
     """Crop to a box given as fractions (0..1) of the image's width/height."""
 
-    def crop(im):
+    def crop(im: PilImage) -> PilImage:
         iw, ih = im.size
         left, top = max(0, round(x * iw)), max(0, round(y * ih))
         right, bottom = min(iw, round((x + w) * iw)), min(ih, round((y + h) * ih))
@@ -738,21 +763,21 @@ def _crop_op(x, y, w, h):
     return crop
 
 
-def _tuneup_op():
+def _tuneup_op() -> Callable[[PilImage], PilImage]:
     """The one-touch tuneup. See app/enhance.py for what it actually does."""
     from .enhance import tuneup
 
     return tuneup
 
 
-def _photo_edit_redirect(kind, aid, image):
+def _photo_edit_redirect(kind: str, aid: str, image: str) -> RedirectResponse:
     """The photo editor used to be its own page. Rotating and cropping now live in
     the big view on the item page, so there is one crop implementation rather than
     two; this keeps any link or bookmark to the old page working."""
     return RedirectResponse(f"/{kind}/{aid}?photo={quote(image or '')}", status_code=303)
 
 
-def _asset_log_photos(db, asset_id):
+def _asset_log_photos(db: Session, asset_id: str) -> list[str]:
     """The photographs hung on one asset's history, read without touching them --
     what _drop_log_photos will return when the record is actually deleted."""
     return [

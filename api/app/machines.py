@@ -64,13 +64,97 @@ from __future__ import annotations
 
 import difflib
 import re
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING, NoReturn, NotRequired, TypedDict
 
 import yaml
 
 from . import entry
 
+if TYPE_CHECKING:  # machinedb reads this module, so the import only ever annotates.
+    from .machinedb import Recorded
+
 CATALOGUE_FILE = Path(__file__).resolve().parent / "machines.yaml"
+
+# What a caller may hand the renderers for an asset's chips: a mapping of them, or
+# the pairs one would be built from.
+type ChipsIn = dict[str, str] | Iterable[tuple[str, str]]
+
+
+class Chip(TypedDict):
+    """One socket a record can name a chip for: the stable slug that gets stored,
+    what the form and the page call it, what the catalogue has seen in it, and the
+    line about what to look at."""
+
+    role: str
+    label: str
+    variants: list[str]
+    note: str
+
+
+class Model(TypedDict):
+    """One model as the file gives it, validated -- its own fields only, with its
+    family's still to be filled in (see _merge)."""
+
+    key: str
+    model: str
+    year: int
+    cpu: str
+    chassis: str
+    os: str
+    summary: str
+    ram: list[tuple[str, int]]
+    issues: list[str]
+    styles: list[str]
+    chips: list[Chip]
+    # Absent unless the model was built by somebody other than its family's maker,
+    # so that a model saying nothing does not blank what the family answers.
+    manufacturer: NotRequired[str]
+
+
+class Family(TypedDict):
+    key: str
+    name: str
+    manufacturer: str
+    regions: list[str]
+    chips: list[Chip]
+    models: list[Model]
+
+
+class CatalogueModel(TypedDict):
+    """A model as this module answers it out: everything known about it, the
+    family's fields filled in and the name it is known by worked out."""
+
+    key: str
+    model: str
+    year: int
+    cpu: str
+    chassis: str
+    os: str
+    summary: str
+    ram: list[tuple[str, int]]
+    issues: list[str]
+    styles: list[str]
+    chips: list[Chip]
+    manufacturer: str
+    family: str
+    family_key: str
+    regions: list[str]
+    full_name: str
+
+
+class FormModel(TypedDict):
+    """What one model offers the edit form's pickers, and what picking it fills in."""
+
+    model: str
+    issues: list[str]
+    styles: list[str]
+    regions: list[str]
+    ram: list[str]
+    prefill: dict[str, str | int]
+    chips: list[Chip]
+
 
 # What the columns behind these answers hold (see models.AssetVariant and
 # models.AssetChip). Checked here as well as in the tests, because a suggestion
@@ -102,11 +186,11 @@ class CatalogueError(ValueError):
     with where in the file to look."""
 
 
-def _fault(where, message):
+def _fault(where: str, message: str) -> NoReturn:
     raise CatalogueError(f"{CATALOGUE_FILE.name}: {where}: {message}")
 
 
-def _named(raw, what, n):
+def _named(raw: object, what: str, n: int) -> str:
     """Where in the file to look, by the key if there is one to go on. A message
     about "model 7" sends a person counting; one about 'zx-spectrum-48k' does not."""
     key = raw.get("key") if isinstance(raw, dict) else None
@@ -114,7 +198,7 @@ def _named(raw, what, n):
     return f"{what} '{key}'" if key else f"{what} {n}"
 
 
-def _fields(got, allowed, where):
+def _fields(got: object, allowed: set[str], where: str) -> None:
     """Refuse a field the catalogue does not have, and say which was meant. A typo
     that is quietly ignored is worse than one that stops the register: 'styel:' with
     no complaint is a model that lost its styles and nobody the wiser."""
@@ -131,7 +215,7 @@ def _fields(got, allowed, where):
             _fault(where, f"unknown field '{name}'{hint}")
 
 
-def _text(value, where, field, required=False):
+def _text(value: object, where: str, field: str, required: bool = False) -> str:
     if value is None:
         if required:
             _fault(where, f"'{field}' is needed and is not there")
@@ -141,7 +225,7 @@ def _text(value, where, field, required=False):
     return str(value).strip()
 
 
-def _strings(value, lists, where, field):
+def _strings(value: object, lists: Mapping[str, list[str]], where: str, field: str) -> list[str]:
     """A list of lines: either written out, or the name of one of the shared lists
     at the top of the file."""
     if value is None:
@@ -163,7 +247,7 @@ def _strings(value, lists, where, field):
         return list(lists[name])
     if not isinstance(value, list):
         _fault(where, f"'{field}' should be a list, or the name of a shared list")
-    out = []
+    out: list[str] = []
     for item in value:
         if isinstance(item, (list, dict)):
             _fault(where, f"'{field}' should be a list of lines, not of blocks")
@@ -183,27 +267,34 @@ def _strings(value, lists, where, field):
     return out
 
 
-def _label_for(role):
+def _label_for(role: str) -> str:
     """What to call a socket nobody has named: the slug tidied up. A short one is an
     initialism ('cpu' -> 'CPU'), a longer one a word ('kernal' -> 'Kernal')."""
     role = (role or "").replace("-", " ")
     return role.upper() if len(role) <= 4 else role.capitalize()
 
 
-def _chip(role, label, variants, note=""):
+def _chip(role: str, label: str, variants: Iterable[str], note: str = "") -> Chip:
     """One socket a model's record can name a chip for. `role` is the stable slug
     that gets stored, `label` is what the form and the page call it."""
     return {"role": role, "label": label, "variants": list(variants), "note": note}
 
 
-def _chips(raw, lists, where, inherited=None):
+def _chips(
+    raw: object,
+    lists: Mapping[str, list[str]],
+    where: str,
+    inherited: Mapping[str, Chip] | None = None,
+) -> list[Chip]:
     """The sockets a family or a model names, in the order they are written -- which
     is the order a person reads a board in."""
     if raw is None:
         return []
     if not isinstance(raw, list):
         _fault(where, "'chips' should be a list, one '- socket:' per socket")
-    out, seen = [], set()
+    out: list[Chip] = []
+    seen: set[str] = set()
+    known: Mapping[str, Chip] = inherited or {}
     for n, item in enumerate(raw, 1):
         at = f"{where}, chip {n}"
         _fields(item, _CHIP_FIELDS, at)
@@ -219,7 +310,7 @@ def _chips(raw, lists, where, inherited=None):
         at = f"{where}, {role}"
         label = (
             _text(item.get("label"), at, "label")
-            or (inherited or {}).get(role, {}).get("label")
+            or (known[role]["label"] if role in known else "")
             or _label_for(role)
         )
         out.append(
@@ -233,11 +324,11 @@ def _chips(raw, lists, where, inherited=None):
     return out
 
 
-def _ram(raw, lists, where):
+def _ram(raw: object, lists: Mapping[str, list[str]], where: str) -> list[tuple[str, int]]:
     """The standard memory sizes a model was sold with, as [(label, KiB)]. The label
     is what the memory box shows and reads back, so a size it cannot read is a size
     that would file the machine wrongly, and is refused here."""
-    out = []
+    out: list[tuple[str, int]] = []
     for label in _strings(raw, lists, where, "ram"):
         kb = entry.to_kb(label)
         if kb is None:
@@ -250,7 +341,7 @@ def _ram(raw, lists, where):
     return out
 
 
-def load(path=None):
+def load(path: str | Path | None = None) -> list[Family]:
     """machines.yaml as the list of families this module answers from. Separate from
     the module-level load so a test -- or someone checking a file before deploying
     it -- can read one without importing it."""
@@ -265,11 +356,12 @@ def load(path=None):
         _fault("the file", "should start with 'lists:' and 'families:'")
     _fields(raw, _TOP_FIELDS, "the file")
 
-    lists = {}
+    lists: dict[str, list[str]] = {}
     for name, items in (raw.get("lists") or {}).items():
         lists[str(name)] = _strings(items, {}, f"shared list '{name}'", "variants")
 
-    families, keys = [], {}
+    families: list[Family] = []
+    keys: dict[str, str] = {}
     if not raw.get("families"):
         _fault("the file", "has no families in it")
     for n, fam in enumerate(raw["families"], 1):
@@ -279,7 +371,7 @@ def load(path=None):
         _fields(fam, _FAMILY_FIELDS, at)
         key = _text(fam.get("key"), at, "key", required=True)
         at = f"family '{key}'"
-        family = {
+        family: Family = {
             "key": key,
             "name": _text(fam.get("name"), at, "name", required=True),
             "manufacturer": _text(fam.get("manufacturer"), at, "manufacturer"),
@@ -311,31 +403,27 @@ def load(path=None):
             year = mod.get("year")
             if not isinstance(year, int):
                 _fault(mat, f"'year' should be a plain year like 1982, not {year!r}")
-            family["models"].append(
-                {
-                    "key": mkey,
-                    "model": _text(mod.get("model"), mat, "model", required=True),
-                    "year": year,
-                    "cpu": _text(mod.get("cpu"), mat, "cpu"),
-                    "chassis": _text(mod.get("chassis"), mat, "chassis"),
-                    "os": _text(mod.get("os"), mat, "os"),
-                    # What makes the model worth holding, in a paragraph. Optional and
-                    # often absent: a summary nobody could write accurately is better
-                    # missing than invented, and the pages that show it fall back to
-                    # the specs, which were never the interesting part but are at
-                    # least true.
-                    "summary": _text(mod.get("summary"), mat, "summary"),
-                    "ram": _ram(mod.get("ram"), lists, mat),
-                    "issues": _strings(mod.get("issues"), lists, mat, "issues"),
-                    "styles": _strings(mod.get("styles"), lists, mat, "styles"),
-                    "chips": _chips(mod.get("chips"), lists, mat, inherited),
-                    **(
-                        {"manufacturer": _text(mod["manufacturer"], mat, "manufacturer")}
-                        if mod.get("manufacturer")
-                        else {}
-                    ),
-                }
-            )
+            entry_model: Model = {
+                "key": mkey,
+                "model": _text(mod.get("model"), mat, "model", required=True),
+                "year": year,
+                "cpu": _text(mod.get("cpu"), mat, "cpu"),
+                "chassis": _text(mod.get("chassis"), mat, "chassis"),
+                "os": _text(mod.get("os"), mat, "os"),
+                # What makes the model worth holding, in a paragraph. Optional and
+                # often absent: a summary nobody could write accurately is better
+                # missing than invented, and the pages that show it fall back to
+                # the specs, which were never the interesting part but are at
+                # least true.
+                "summary": _text(mod.get("summary"), mat, "summary"),
+                "ram": _ram(mod.get("ram"), lists, mat),
+                "issues": _strings(mod.get("issues"), lists, mat, "issues"),
+                "styles": _strings(mod.get("styles"), lists, mat, "styles"),
+                "chips": _chips(mod.get("chips"), lists, mat, inherited),
+            }
+            if mod.get("manufacturer"):
+                entry_model["manufacturer"] = _text(mod["manufacturer"], mat, "manufacturer")
+            family["models"].append(entry_model)
         # By name, whatever order they are written in -- the same reasoning as
         # sorting the families, and it keeps a machine slotted in next to the one it
         # was copied from from landing out of sequence.
@@ -345,7 +433,7 @@ def load(path=None):
     return families
 
 
-def _by_name(name):
+def _by_name(name: str | None) -> list[tuple[int, int, str]]:
     """A model name in the order a person means by alphabetical, which is not the
     order the characters are in: nearly every one of these names has a number in it,
     and comparing "1000" against "500" a character at a time files the Amiga 1000
@@ -361,7 +449,7 @@ def _by_name(name):
     ]
 
 
-def _by_maker(family):
+def _by_maker(family: Family) -> tuple[str, str]:
     """Families are offered in alphabetical order of who made them, whatever order
     the file happens to list them in.
 
@@ -381,13 +469,13 @@ def _by_maker(family):
 # fields win over its family's, and a chip it names replaces the family's chip for
 # that socket rather than adding a second one. See machines.yaml for what each
 # field means and how to add to it.
-FAMILIES = load()
+FAMILIES: list[Family] = load()
 
 
 # --- lookups ----------------------------------------------------------------
 
 
-def _merge(family, mod):
+def _merge(family: Family, mod: Model) -> CatalogueModel:
     """One model as everything known about it: the family's fields where the model
     is silent, and the family's chip sockets where it names none of its own.
 
@@ -397,26 +485,24 @@ def _merge(family, mod):
     variants removes the socket, which is how a VIC-20 says it has no SID and a
     ZX80 that it has no ULA, without either repeating the rest of its family.
     """
-    out = {
+    out: CatalogueModel = {
+        # The model's own fields first, then what its family answers for the ones
+        # it is silent about.
+        **mod,
         "family": family["name"],
         "family_key": family["key"],
-        "manufacturer": family.get("manufacturer", ""),
-        "regions": list(family.get("regions", [])),
-        "ram": [],
-        "issues": [],
-        "styles": [],
-        "cpu": "",
-        "chassis": "",
-        "os": "",
-        "year": None,
+        "manufacturer": mod["manufacturer"] if "manufacturer" in mod else family["manufacturer"],
+        "regions": list(family["regions"]),
+        "chips": [],
+        "full_name": "",
     }
-    out.update({k: v for k, v in mod.items() if k != "chips"})
-    own = {c["role"]: c for c in mod.get("chips", [])}
-    chips = [own.pop(c["role"], c) for c in family.get("chips", [])]
-    chips += [c for c in mod.get("chips", []) if c["role"] in own]
+    own = {c["role"]: c for c in mod["chips"]}
+    chips = [own.pop(c["role"], c) for c in family["chips"]]
+    chips += [c for c in mod["chips"] if c["role"] in own]
     out["chips"] = [c for c in chips if c["variants"]]
-    # After the update, so a model that names its own maker -- the Amstrad-built
-    # Spectrums -- is named after that one rather than its family's.
+    # Read off `out` rather than off `mod`, so a model that names its own maker --
+    # the Amstrad-built Spectrums -- is named after that one rather than its
+    # family's.
     #
     # A handful of machines were sold under a name their maker is already inside
     # of: a ColecoVision is not a "Coleco Vision" and cannot be split into the two
@@ -428,45 +514,45 @@ def _merge(family, mod):
     return out
 
 
-_MODELS = {}
-_ORDER = []
+_MODELS: dict[str, CatalogueModel] = {}
+_ORDER: list[str] = []
 for _family in FAMILIES:
     for _model in _family["models"]:
         _MODELS[_model["key"]] = _merge(_family, _model)
         _ORDER.append(_model["key"])
 
 
-def model(key):
+def model(key: str | None) -> CatalogueModel | None:
     """One catalogue model by key, with its family's fields filled in, or None for
     a key the catalogue does not know -- which is what a machine filed under a key
     since removed comes back as."""
     return _MODELS.get((key or "").strip()) or None
 
 
-def models():
+def models() -> list[CatalogueModel]:
     """Every model, in catalogue order."""
     return [_MODELS[k] for k in _ORDER]
 
 
-def keys():
+def keys() -> list[str]:
     return list(_ORDER)
 
 
-def grouped():
+def grouped() -> list[tuple[str, list[CatalogueModel]]]:
     """[(family name, [model])] in catalogue order, for the picker's optgroups."""
-    out = []
+    out: list[tuple[str, list[CatalogueModel]]] = []
     for family in FAMILIES:
         out.append((family["name"], [_MODELS[m["key"]] for m in family["models"]]))
     return out
 
 
-def roles(key):
+def roles(key: str | None) -> list[str]:
     """The chip sockets a model is asked about, in board-reading order."""
     m = model(key)
     return [c["role"] for c in m["chips"]] if m else []
 
 
-def chip(key, role):
+def chip(key: str | None, role: str) -> Chip | None:
     """One socket of one model, or None if that model has no such socket."""
     m = model(key)
     if not m:
@@ -474,7 +560,7 @@ def chip(key, role):
     return next((c for c in m["chips"] if c["role"] == role), None)
 
 
-def chip_label(key, role):
+def chip_label(key: str | None, role: str) -> str:
     """What to call a socket on a page or a label. Falls back to the role slug
     tidied up, so a chip recorded against a model or a socket the catalogue no
     longer lists still says what it is rather than disappearing."""
@@ -482,7 +568,7 @@ def chip_label(key, role):
     return c["label"] if c else _label_for(role)
 
 
-def prefill(key):
+def prefill(key: str | None) -> dict[str, str | int]:
     """What picking a model can fill in on a machine's record: the fields that are
     true of every one of that model. The form only ever puts these into a box that
     is empty, because the machine in front of you is the authority and the
@@ -500,7 +586,7 @@ def prefill(key):
     }
 
 
-def full_name(key):
+def full_name(key: str | None) -> str:
     """The name a model is known by, maker and all: "Commodore 64", "CPC 464".
 
     The catalogue stores the two apart, because that is how a machine's record
@@ -515,7 +601,7 @@ def full_name(key):
     return m["full_name"] if m else (key or "").strip()
 
 
-def ram_labels(key):
+def ram_labels(key: str | None) -> list[str]:
     """The standard memory sizes a model was sold with, as the labels the memory
     box takes ('16K', '48K')."""
     m = model(key)
@@ -537,7 +623,13 @@ STYLE_KEY = "Style"
 REGION_KEY = "Region"
 
 
-def render(model_key="", issue="", style="", region="", chips=()):
+def render(
+    model_key: str = "",
+    issue: str = "",
+    style: str = "",
+    region: str = "",
+    chips: ChipsIn = (),
+) -> str:
     """A machine's catalogue identity as one line, in the register's own
     'Key: value | Key: value' notation -- the model first, without a key, because
     it is the subject rather than an attribute of one.
@@ -551,7 +643,7 @@ def render(model_key="", issue="", style="", region="", chips=()):
     improved.
     """
     m = model(model_key)
-    pairs = []
+    pairs: list[tuple[str, str]] = []
     if model_key:
         pairs.append(("", m["model"] if m else model_key))
     pairs += [(ISSUE_KEY, issue), (STYLE_KEY, style), (REGION_KEY, region)]
@@ -560,7 +652,7 @@ def render(model_key="", issue="", style="", region="", chips=()):
     return entry.build_specs(pairs)
 
 
-def in_role_order(model_key, chips):
+def in_role_order(model_key: str | None, chips: ChipsIn) -> list[tuple[str, str]]:
     """(role, variant) pairs in the order the catalogue lists the sockets, with
     anything it does not list last -- a chip kept from a model this machine is no
     longer filed as, or a socket since removed from the catalogue."""
@@ -571,20 +663,20 @@ def in_role_order(model_key, chips):
     )
 
 
-def _fold(text):
+def _fold(text: str | None) -> str:
     """The form two spellings of one answer have in common, for telling whether
     something is already offered: case and spacing are how the same chip gets
     written twice, and neither makes it a different chip."""
     return " ".join((text or "").split()).lower()
 
 
-def _extend(known, seen):
+def _extend(known: Sequence[str], seen: Iterable[str]) -> list[str]:
     """`known` with everything in `seen` it does not already offer, the curated order
     kept and the discoveries after it in alphabetical order -- so the list a person
     reads down stays the one that was written deliberately, and what the register
     has taught it follows."""
     have = {_fold(k) for k in known}
-    extra = {}
+    extra: dict[str, str] = {}
     for value in seen:
         folded = _fold(value)
         if value and folded not in have:
@@ -637,13 +729,13 @@ _NUMBER_SHARED = 0.3
 _DIGITS = re.compile(r"\d+")
 
 
-def _whole(maker, name):
+def _whole(maker: str, name: str) -> set[str]:
     """One machine's name written out in full -- the maker and the model together --
     and the same again with any aside taken off.
 
     Folded, which is what absorbs the trailing space in "IBM " -- two of those are
     in the live register, and a space is not a different manufacturer."""
-    out = set()
+    out: set[str] = set()
     folded = _fold(" ".join(p for p in (maker, name) if (p or "").strip()))
     if folded:
         out.add(folded)
@@ -653,13 +745,13 @@ def _whole(maker, name):
     return out
 
 
-def _forms(maker, name):
+def _forms(maker: str, name: str) -> set[str]:
     """Every way of writing it worth comparing: in full, and the model on its own
     for the many records whose maker box says what the model box already implies."""
     return _whole(maker, name) | _whole("", name)
 
 
-def _alike(a, b):
+def _alike(a: str, b: str) -> float:
     """How alike two folded names are, 0 to 1.
 
     Two measures, the better of them taken. difflib's ratio asks how much of the
@@ -701,7 +793,7 @@ def _alike(a, b):
 _BY_STYLE = 0.95
 
 
-def suggest(manufacturer, model, limit=3):
+def suggest(manufacturer: str, model: str, limit: int = 3) -> list[tuple[str, float, bool]]:
     """Which catalogue models a typed manufacturer and model might mean, best first,
     as [(key, score, exact)]: a score from 0 to 1, and `exact` for a model whose
     name is the same name once case, spacing and asides are set aside.
@@ -719,7 +811,7 @@ def suggest(manufacturer, model, limit=3):
     # ("386SX-20", "two drives"), and a bare model box tested against those finds
     # the PS/1 for a machine whose model box happens to read "386sx-40".
     whole = _whole(manufacturer, model)
-    scored = []
+    scored: list[tuple[str, float, bool]] = []
     for key in _ORDER:
         m = _MODELS[key]
         have = _forms(m.get("manufacturer", ""), m["model"]) | {_fold(m["full_name"])}
@@ -738,7 +830,7 @@ def suggest(manufacturer, model, limit=3):
     return scored[:limit]
 
 
-def disagreements(key, record):
+def disagreements(key: str | None, record: Mapping[str, object]) -> list[tuple[str, str, str]]:
     """Where a typed record and the catalogue say different things about the same
     machine, as [(field, what the record says, what the catalogue says)].
 
@@ -749,9 +841,16 @@ def disagreements(key, record):
     m = model(key)
     if not m:
         return []
-    out = []
-    for field in ("manufacturer", "model", "year", "cpu"):
-        mine, theirs = record.get(field), m.get(field)
+    out: list[tuple[str, str, str]] = []
+    # The catalogue's answer is taken beside the field's name rather than by it, so
+    # the four keys read here are the four the catalogue is known to hold.
+    for field, theirs in (
+        ("manufacturer", m["manufacturer"]),
+        ("model", m["model"]),
+        ("year", m["year"]),
+        ("cpu", m["cpu"]),
+    ):
+        mine = record.get(field)
         if mine in (None, "") or theirs in (None, ""):
             continue
         if _fold(str(mine)) != _fold(str(theirs)):
@@ -759,7 +858,9 @@ def disagreements(key, record):
     return out
 
 
-def with_recorded(catalogue, recorded):
+def with_recorded(
+    catalogue: Mapping[str, FormModel], recorded: Mapping[str, Recorded]
+) -> dict[str, FormModel]:
     """A form catalogue with every answer already on file added to the lists it
     offers, so a variation that had to be typed once is picked from a radio button
     the next time -- which is what makes this a catalogue that grows rather than a
@@ -771,22 +872,25 @@ def with_recorded(catalogue, recorded):
     the catalogue has since dropped is not brought back by a machine that still
     names it.
     """
-    out = {}
+    out: dict[str, FormModel] = {}
     for key, model in catalogue.items():
-        seen = recorded.get(key) or {}
-        entry_out = dict(model)
-        for field in ("issues", "styles", "regions"):
-            entry_out[field] = _extend(model[field], seen.get(field, ()))
+        seen: Recorded = recorded.get(key) or {}
         chips_seen = seen.get("chips") or {}
-        entry_out["chips"] = [
-            dict(c, variants=_extend(c["variants"], chips_seen.get(c["role"], ())))
-            for c in model["chips"]
-        ]
+        entry_out: FormModel = {
+            **model,
+            "issues": _extend(model["issues"], seen.get("issues", ())),
+            "styles": _extend(model["styles"], seen.get("styles", ())),
+            "regions": _extend(model["regions"], seen.get("regions", ())),
+            "chips": [
+                {**c, "variants": _extend(c["variants"], chips_seen.get(c["role"], ()))}
+                for c in model["chips"]
+            ],
+        }
         out[key] = entry_out
     return out
 
 
-def form_catalogue():
+def form_catalogue() -> dict[str, FormModel]:
     """The whole catalogue as plain data for the edit form's pickers: what each
     model offers, and what picking it fills in.
 
@@ -795,7 +899,7 @@ def form_catalogue():
     menus for every model in the catalogue. The same lists the server reads a save back
     against, so the two cannot come to disagree about what a model was built in.
     """
-    out = {}
+    out: dict[str, FormModel] = {}
     for key in _ORDER:
         m = _MODELS[key]
         out[key] = {

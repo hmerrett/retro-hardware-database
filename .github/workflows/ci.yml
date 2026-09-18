@@ -50,8 +50,7 @@ jobs:
       - name: Format
         run: uv run --project api ruff format --check .
       # Run from api/, because that is where mypy looks for its settings. Strict,
-      # except for the modules pyproject.toml names as not there yet -- a list that
-      # only shrinks, so a new module is held to strict by not being on it.
+      # on every module: there is no list of exceptions for a new one to be added to.
       - name: Types
         run: uv run --directory api mypy app
       # The backup round-trip test dumps and restores through MariaDB's own

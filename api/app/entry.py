@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from typing import NotRequired, TypedDict
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import NotRequired, TypedDict, TypeVar
 
 from markupsafe import Markup, escape
 
@@ -303,7 +304,22 @@ DISPLAY_PITCHES = [
 #   options  the list it is picked from; every one of these also takes "custom"
 #   multi    several answers rather than one -- checkboxes instead of radios
 #   max      how long a custom answer may be: the width of the column it lands in
-DISPLAY_ASKS = [
+
+
+class DisplayAsk(TypedDict):
+    """One row of the table below, spelt out for the same reason StorageAsk is: what
+    reads the table is checked against it rather than against `object`."""
+
+    key: str
+    label: str
+    hint: str
+    options: list[str]
+    max: int
+    placeholder: str
+    multi: NotRequired[bool]
+
+
+DISPLAY_ASKS: list[DisplayAsk] = [
     {
         "key": "Type",
         "label": "Type",
@@ -571,10 +587,10 @@ BEZEL_KINDS = (DISK_KIND, TAPE_KIND, OPTICAL_KIND, FLOPPY_KIND)
 DISK_IMAGE_KINDS = (DISK_KIND,)
 
 
-def storage_asks(kind):
+def storage_asks(kind: str) -> list[StorageAsk]:
     """The asks that apply to one kind, each with the options that kind picks from
     (a per-kind vocabulary resolved, and None left as None for a text box)."""
-    out = []
+    out: list[StorageAsk] = []
     for ask in STORAGE_ASKS:
         if kind not in ask["kinds"]:
             continue
@@ -597,7 +613,16 @@ def storage_asks(kind):
 # Colour and Yellowing specs), so a drive fitted in a machine and the same drive on
 # the shelf are described in the same words -- and so is the monitor sat on top of
 # it, which is the same plastic, made in the same beige, gone the same colour.
-BEZEL_COLOURS = [
+
+
+class BezelColour(TypedDict):
+    label: str
+    # What to draw it as, and what a yellowed shade is mixed from.
+    hex: str
+    note: str
+
+
+BEZEL_COLOURS: list[BezelColour] = [
     {"label": "Black", "hex": "#1a1b1d", "note": "black plastic or a painted bezel"},
     {
         "label": "Dark grey",
@@ -673,29 +698,35 @@ YELLOWING_LABELS = [y["label"] for y in YELLOWING]
 ASSUMED_BEZEL = "#ded7c6"
 
 
-def bezel_colour(label):
+def bezel_colour(label: str | None) -> BezelColour | None:
     """The BEZEL_COLOURS entry for a recorded shade, or None for one from outside
     the vocabulary -- which is shown as its own words and no swatch."""
     return _by_label(BEZEL_COLOURS, label)
 
 
-def yellowing_level(label):
+def yellowing_level(label: str | None) -> Yellowing | None:
     """The YELLOWING entry for a recorded level, or None."""
     return _by_label(YELLOWING, label)
 
 
-def _by_label(vocab, label):
+# One lookup for both vocabularies, and the answer keeps the vocabulary's own shape:
+# a restricted variable rather than a common base, because the two tables have
+# nothing in common but the label they are found by.
+_Vocab = TypeVar("_Vocab", BezelColour, Yellowing)
+
+
+def _by_label(vocab: Sequence[_Vocab], label: str | None) -> _Vocab | None:
     want = (label or "").strip().lower()
     return next((v for v in vocab if v["label"].lower() == want), None) if want else None
 
 
-def _mix(base, tint, weight):
+def _mix(base: str, tint: str, weight: float) -> str:
     """`base` hex moved `weight` of the way towards `tint` hex."""
     pairs = [(int(base[i : i + 2], 16), int(tint[i : i + 2], 16)) for i in (1, 3, 5)]
     return "#" + "".join(f"{round(b + (t - b) * weight):02x}" for b, t in pairs)
 
 
-def bezel_css(colour="", yellowing=""):
+def bezel_css(colour: str | None = "", yellowing: str | None = "") -> str:
     """A CSS background for a bezel as made and as it has aged, or '' if neither is
     recorded. Uneven yellowing comes back as a two-tone gradient, which is the only
     honest way to draw one shade in two states.
@@ -717,12 +748,12 @@ def bezel_css(colour="", yellowing=""):
     return _mix(base, lvl["tint"], lvl["weight"])
 
 
-def bezel_slug(label):
+def bezel_slug(label: str | None) -> str:
     """A vocabulary label as the part of a class name it becomes."""
     return re.sub(r"[^a-z0-9]+", "-", (label or "").strip().lower()).strip("-")
 
 
-def bezel_class(colour="", yellowing=""):
+def bezel_class(colour: str | None = "", yellowing: str | None = "") -> str:
     """The class that paints a swatch for a bezel as made and as it has aged, or ''
     where there is no colour to give.
 
@@ -736,7 +767,7 @@ def bezel_class(colour="", yellowing=""):
     return f"bz-{bezel_slug(colour) or 'x'}-{bezel_slug(yellowing) or 'x'}"
 
 
-def bezel_pairs():
+def bezel_pairs() -> Iterator[tuple[str, str, str]]:
     """Every colour/yellowing pair that has a swatch, as (colour, level, css)."""
     for colour in ["", *BEZEL_COLOUR_LABELS]:
         for level in ["", *YELLOWING_LABELS]:
@@ -745,7 +776,7 @@ def bezel_pairs():
                 yield colour, level, css
 
 
-def bezel_swatch_map():
+def bezel_swatch_map() -> dict[str, str]:
     """Every colour/yellowing pair as its swatch class, keyed 'colour|yellowing'.
 
     The browser repaints the swatch beside a menu by swapping the class from this
@@ -757,7 +788,7 @@ def bezel_swatch_map():
 # --- specs parsing / merging -----------------------------------------------
 
 
-def parse_specs(specs: str) -> list[tuple[str, str]]:
+def parse_specs(specs: str | None) -> list[tuple[str, str]]:
     """Turn 'CPU: x | RAM: y' into [('CPU','x'), ('RAM','y')]."""
     out = []
     for chunk in (specs or "").split("|"):
@@ -786,7 +817,7 @@ def merge_spec(specs: str, key: str, value: str) -> str:
     return " | ".join(f"{k}: {v}" if k else v for k, v in out)
 
 
-def build_specs(pairs) -> str:
+def build_specs(pairs: Iterable[tuple[str, str | None]]) -> str:
     """Assemble ordered (key, value) pairs into a specs string, dropping blanks."""
     specs = ""
     for key, value in pairs:
@@ -833,7 +864,7 @@ _KB_UNITS = {
 }
 
 
-def to_kb(text: str):
+def to_kb(text: str | None) -> int | None:
     """'2MiB'->2048, '512KiB'->512, '2'->2048 (bare number assumed MiB). The older
     KB/MB spellings read the same, because that is what is already on file. None if
     unparseable."""
@@ -858,7 +889,7 @@ def normalise_amount(spec_key: str, amt: str) -> str:
     return amt
 
 
-def fmt_kb(kb, display: bool = False) -> str:
+def fmt_kb(kb: int | None, display: bool = False) -> str:
     """A KiB count in the unit a person would use. The one place that decides this,
     for spec columns, a machine's memory total and the figures on the stats page.
 
@@ -896,7 +927,7 @@ def fmt_kb(kb, display: bool = False) -> str:
     return _round_kb(kb) if display else f"{kb} {KIB}"
 
 
-def _round_kb(kb) -> str:
+def _round_kb(kb: int) -> str:
     """A KiB count at three significant figures in the largest unit it fills, for
     text that is read and never parsed back. 1475 KiB is the 1.44 MiB of a floppy;
     38828 KiB is a 37.9 MiB drive. Neither parses back to the KiB it came from,
@@ -937,19 +968,19 @@ RAM_CHIP_KB = {pn: kb for pn, kb, _ in RAM_CHIPS}
 RAM_CHIP_ORG = {pn: org for pn, _kb, org in RAM_CHIPS}
 
 
-def _chip_width(org):
+def _chip_width(org: str | None) -> int:
     """Data-bits-per-chip from an organisation string: '256K×1' -> 1, '64K×4' -> 4."""
     m = re.search(r"[×x](\d+)\s*$", org or "")
     return int(m.group(1)) if m else 1
 
 
-def _chip_depth(org):
+def _chip_depth(org: str | None) -> str:
     """The addressable depth from an organisation string: '64K×4' -> '64K'. Chips of
     the same depth are what make up a bank together, whatever their width."""
     return (org or "").split("×")[0].split("x")[0].strip()
 
 
-def chip_capacity(counts):
+def chip_capacity(counts: Iterable[tuple[str, int | None]]) -> tuple[int, bool]:
     """Usable KiB and whether parity is fitted, from [(chip, n), ...].
 
     A bank is made of chips of the same depth, and is nine bits wide where the
@@ -961,7 +992,7 @@ def chip_capacity(counts):
     an Amstrad PC1640 carries 4x 4464 for data with 2x 4164 alongside for their
     parity, and counting those two as data overstates the machine by 16 KiB.
     """
-    groups = {}
+    groups: dict[str, tuple[int, int]] = {}
     for pn, n in counts:
         if not n:
             continue
@@ -979,7 +1010,7 @@ def chip_capacity(counts):
     return total_kb, parity
 
 
-def format_ram_chips(counts):
+def format_ram_chips(counts: Iterable[tuple[str, int | None]]) -> str:
     """[(chip, n), ...] -> '9× 41256 (256 KiB + parity)' with the usable total."""
     counts = [(pn, n) for pn, n in counts if n]
     if not counts:
@@ -1009,23 +1040,30 @@ RAM_MODULE_KB = {s: kb for s, kb, _ in RAM_MODULES}
 RAM_MODULE_LABEL = {s: lbl for s, _kb, lbl in RAM_MODULES}
 
 
-def format_ram_modules(counts):
+def format_ram_modules(counts: Iterable[tuple[str, int | None]]) -> str:
     """[(slug, n), ...] -> '4× 1MiB 30-pin, 2× 4MiB 72-pin (12 MiB)' with the total."""
     counts = [(s, n) for s, n in counts if n]
     if not counts:
         return ""
-    total_kb = sum(n * RAM_MODULE_KB.get(s, 0) for s, n in counts)
+    total_kb = sum(n * RAM_MODULE_KB.get(s, 0) for s, n in counts if n)
     mods = ", ".join(f"{n}× {RAM_MODULE_LABEL[s]}" for s, n in counts)
     return f"{mods} ({fmt_kb(total_kb, display=True)})"
 
 
-def ram_total_kb(modules, chips) -> int:
+def ram_total_kb(
+    modules: Iterable[tuple[str, int | None]], chips: Iterable[tuple[str, int | None]]
+) -> int:
     """Usable KiB fitted, from [(slug, n)] modules and [(chip, n)] chips. Parity
     chips are not capacity, so chip_capacity discounts them."""
     return sum(n * RAM_MODULE_KB.get(slug, 0) for slug, n in modules if n) + chip_capacity(chips)[0]
 
 
-def render_installed_ram(modules, chips, total_kb=None, note="") -> str:
+def render_installed_ram(
+    modules: Iterable[tuple[str, int | None]],
+    chips: Iterable[tuple[str, int | None]],
+    total_kb: int | None = None,
+    note: str = "",
+) -> str:
     """A machine's installed RAM for display: the module and chip lists each with
     their own subtotal, or a bare total where there is no breakdown, plus any
     free text that is neither."""
@@ -1062,7 +1100,7 @@ PORT_LEGEND = " ".join(f"{ltr}={name}" for ltr, name in PORT_CODES)
 PORT_NAMES = [name for _, name in PORT_CODES]
 
 
-def format_counts(items) -> str:
+def format_counts(items: Iterable[tuple[str, int | None]]) -> str:
     """[(name, n), ...] -> 'n× name, ...' (the canonical count-list rendering)."""
     return ", ".join(f"{n}× {name}" if n and n > 1 else name for name, n in items)
 
@@ -1070,7 +1108,7 @@ def format_counts(items) -> str:
 _PORT_ITEM_RE = re.compile(r"^(?:(\d+)\s*[×x]\s*)?(.+)$")
 
 
-def parse_port_list(value: str):
+def parse_port_list(value: str | None) -> list[tuple[str, int]] | None:
     """[(port, count), ...] if `value` is already an expanded port list such as
     'IDE, Floppy, 2× Serial' -- that is, every comma-separated item names a known
     port. None if it is not, which means it should be read as letter codes."""
@@ -1197,11 +1235,15 @@ def deshout(text: str) -> str:
     return "".join(out)
 
 
-def display_name(row) -> str:
+def display_name(row: Mapping[str, object]) -> str:
+    """What one register row is called. Given a row read column by column (to_dict),
+    so what it holds is typed as widely as a column can be; these four are text."""
     if row.get("name"):
-        return row["name"]
-    joined = " ".join(p for p in (row.get("manufacturer", ""), row.get("model", "")) if p).strip()
-    return joined or row.get("asset_id", "")
+        return str(row["name"])
+    joined = " ".join(
+        str(p) for p in (row.get("manufacturer", ""), row.get("model", "")) if p
+    ).strip()
+    return joined or str(row.get("asset_id", ""))
 
 
 def type_label(t: str | None) -> str:
@@ -1284,7 +1326,7 @@ def _link_end(url: str) -> str:
     return url
 
 
-def linked(text) -> Markup:
+def linked(text: object) -> Markup:
     """What was written, with every link in it clickable and nothing else changed.
 
     Returns markup, so it escapes as it goes: the text came out of a form and is

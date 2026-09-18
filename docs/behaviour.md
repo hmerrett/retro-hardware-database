@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1412 behaviours, from 35 files.*
+*1413 behaviours, from 36 files.*
 
 
 ## A file where text was expected
@@ -26,6 +26,13 @@ Regenerate with:
 - an order whose description is a file is an order with no description
 - a login whose password is a file is a failed login  
   The one form a stranger can post to.
+
+
+## A label for a part of no type
+
+*test_a_label_for_a_part_of_no_type.py — 1 behaviours*
+
+- a part with no type does not stop the label printing
 
 
 ## Api
@@ -1666,7 +1673,7 @@ Regenerate with:
 
 ## Machines
 
-*test_machines.py — 171 behaviours*
+*test_machines.py — 172 behaviours*
 
 
 **Catalogue consistency**
@@ -1737,6 +1744,8 @@ Regenerate with:
 - the catalogue is readable over the wire
 - a machine can be created as one
 - sockets ride over the wire beside the chips
+- a mounting can be changed without saying the chips again  
+  The web form always sends the two together, so nothing had tried this: sockets alone, on a machine that already has a chip recorded.
 - a socket for a chip the model has not got is refused
 - a machine that is not one says so
 - it comes back on get and on the list
@@ -2609,14 +2618,13 @@ Regenerate with:
 
 ## Type checking
 
-*test_type_checking.py — 5 behaviours*
+*test_type_checking.py — 4 behaviours*
 
 - mypy is strict with the ways round it closed
-- every module excused from strict is a module that exists
-- no package is excused wholesale  
-  ``app.routers.*`` would excuse every router written from now on.
-- calls into untyped code are allowed only into the excused modules  
-  The two lists are one list written twice, because mypy wants it twice.
+- no module is excused from strict  
+  One override stands, and what it relaxes is not a strictness flag: pydantic's own constructor takes ``**data: Any``, and mypy reports every model for it.
+- a typed module may not call into an untyped one  
+  ``untyped_calls_exclude`` was how a typed module was allowed to call one that was not there yet.
 - a type ignore says why on the line above it
 
 

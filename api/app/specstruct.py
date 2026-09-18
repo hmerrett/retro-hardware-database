@@ -16,8 +16,19 @@ Struct onto them.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable, Iterable
 
 from .entry import KIB, fmt_kb, parse_specs
+
+# How many of one thing a part has ('6x 16-bit ISA'), and a list of them: the
+# count-list fields carry it on the Struct and the child tables behind them store
+# it, and a count nobody recorded is None rather than one.
+type Count = tuple[str, int | None]
+type Counts = list[Count]
+# A numeric column's pair: text in, the integer the column holds out, and back
+# again in the unit a person writes (see numeric_handler).
+type Parse = Callable[[str], int | None]
+type Render = Callable[[int], str]
 
 # Spec-key -> column name, per typed table. Aliases (Chipset->chip) collapse on
 # the way in; format() uses the display order below on the way out.
@@ -214,16 +225,16 @@ _UM_RE = re.compile(r"^\s*([\d.]+)\s*(mm|µm|μm|um)?\s*$", re.I)
 class Struct:
     __slots__ = ("attributes", "chs", "ports", "ram_slots", "scalars", "slots")
 
-    def __init__(self):
-        self.scalars = {}
-        self.slots = []
-        self.ram_slots = []
-        self.ports = []
-        self.chs = None
-        self.attributes = []
+    def __init__(self) -> None:
+        self.scalars: dict[str, str | int | None] = {}
+        self.slots: Counts = []
+        self.ram_slots: Counts = []
+        self.ports: Counts = []
+        self.chs: tuple[int, int, int] | None = None
+        self.attributes: list[tuple[str, str]] = []
 
 
-def _to_kb(text, bare=1):
+def _to_kb(text: str, bare: int = 1) -> int | None:
     """'2MiB'->2048, '20GiB'->20971520, '32.4MB'->33178. `bare` is the multiplier
     applied to a unitless number (see KB_BARE_MB_COLS)."""
     m = _KB_RE.match(text or "")
@@ -237,7 +248,7 @@ def _to_kb(text, bare=1):
         return None
 
 
-def _to_khz(text):
+def _to_khz(text: str) -> int | None:
     """'25 MHz'->25000, '4.77MHz'->4770, '33'->33000, '1475 kHz'->1475. A unitless
     number is MHz, which is how clock speeds are actually written."""
     m = _MHZ_RE.match(text or "")
@@ -250,7 +261,7 @@ def _to_khz(text):
         return None
 
 
-def _to_in10(text):
+def _to_in10(text: str) -> int | None:
     """'14"'->140, '13.3in'->133, '15'->150."""
     m = _INCH_RE.match(text or "")
     if not m:
@@ -261,7 +272,7 @@ def _to_in10(text):
         return None
 
 
-def _to_um(text):
+def _to_um(text: str) -> int | None:
     """'0.28mm'->280, '0.25'->250, '280um'->280."""
     m = _UM_RE.match(text or "")
     if not m:
@@ -273,15 +284,15 @@ def _to_um(text):
         return None
 
 
-def _simple_int(pattern):
-    def parse(text):
+def _simple_int(pattern: re.Pattern[str]) -> Parse:
+    def parse(text: str) -> int | None:
         m = pattern.match(text or "")
         return int(m.group(1)) if m else None
 
     return parse
 
 
-def _fmt_khz(khz):
+def _fmt_khz(khz: int) -> str:
     """Render as MHz when that is exactly reversible, else keep kHz -- so a stored
     speed never drifts by being rounded to the nearest MHz on display."""
     if khz % 1000 == 0:
@@ -292,17 +303,17 @@ def _fmt_khz(khz):
     return f"{khz} kHz"
 
 
-def _fmt_in10(tenths):
+def _fmt_in10(tenths: int) -> str:
     """Whole inches where the tenths are zero, so a 14" monitor is not a 14.0" one."""
     return f'{tenths // 10}"' if tenths % 10 == 0 else f'{tenths / 10:g}"'
 
 
-def _fmt_um(um):
+def _fmt_um(um: int) -> str:
     """Millimetres, which is how a dot pitch is written and read: 280 -> '0.28 mm'."""
     return f"{um / 1000:g} mm"
 
 
-def numeric_handler(col, display=False):
+def numeric_handler(col: str, display: bool = False) -> tuple[Parse, Render] | None:
     """(parse, format) for a numeric column, or None if the column is free text.
 
     `display` is passed through to the KiB formatter: on for text that is only read,
@@ -333,7 +344,7 @@ def numeric_handler(col, display=False):
     return None
 
 
-def _column_for(ptype, key, value, col):
+def _column_for(ptype: str, key: str, value: str, col: str) -> str:
     """Which of a key's columns a value belongs in (see ALT_COLS), by asking each
     in turn whether it can read it: '48×' is no kind of rpm and '5400' is no kind
     of × rating, so the value answers for itself and there is no second list of
@@ -346,12 +357,12 @@ def _column_for(ptype, key, value, col):
     return col
 
 
-def _display_column(ptype, key):
+def _display_column(ptype: str, key: str) -> tuple[str | None, ...]:
     """The columns a display key may read from, best first."""
     return ALT_COLS.get(ptype, {}).get(key) or (SCALARS[ptype].get(key),)
 
 
-def chs_capacity_kb(chs):
+def chs_capacity_kb(chs: tuple[int, int, int]) -> int:
     """Capacity in KiB from a drive's geometry: cylinders x heads x sectors, each
     sector 512 bytes, which is every drive this catalogue holds.
 
@@ -364,10 +375,10 @@ def chs_capacity_kb(chs):
     return (c * h * sec) // 2
 
 
-def _parse_counts(value):
+def _parse_counts(value: str) -> list[tuple[str, int]]:
     """'2× 8-bit ISA, 6× 16-bit ISA, VLB' -> [('8-bit ISA', 2), ('16-bit ISA', 6),
     ('VLB', 1)]."""
-    out = []
+    out: list[tuple[str, int]] = []
     for tok in (value or "").split(","):
         tok = tok.strip()
         if not tok:
@@ -380,11 +391,11 @@ def _parse_counts(value):
     return out
 
 
-def _fmt_counts(items):
+def _fmt_counts(items: Iterable[Count]) -> str:
     return ", ".join(f"{n}× {name}" if n and n > 1 else name for name, n in items)
 
 
-def parse(ptype, specs) -> Struct:
+def parse(ptype: str, specs: str) -> Struct:
     s = Struct()
     pairs = parse_specs(specs)
     if ptype not in TYPED:
@@ -423,7 +434,7 @@ def parse(ptype, specs) -> Struct:
     return s
 
 
-def pairs(ptype, s, display=False):
+def pairs(ptype: str, s: Struct, display: bool = False) -> list[tuple[str, str]]:
     """Canonical ordered (display key, rendered value) pairs for a Struct.
 
     The single source of display order, shared by format() and by the templates
@@ -433,7 +444,7 @@ def pairs(ptype, s, display=False):
     it for a page or a label, leave it off for the edit form and for format(),
     whose output is stored and re-parsed on the next save.
     """
-    pairs = []
+    pairs: list[tuple[str, str]] = []
     if ptype in ORDER:
         for key in ORDER[ptype]:
             if key in ("Slots", "RAM slots", "Ports") and key in LIST_KEYS.get(ptype, {}):
@@ -467,12 +478,12 @@ def pairs(ptype, s, display=False):
     return pairs
 
 
-def join(rendered) -> str:
+def join(rendered: Iterable[tuple[str, str]]) -> str:
     """Already-rendered pairs as one specs string. The separator lives here so the
     stored string and any prose built from display pairs read the same."""
     return " | ".join(f"{k}: {v}" if k else str(v) for k, v in rendered)
 
 
-def format(ptype, s) -> str:
+def format(ptype: str, s: Struct) -> str:
     """Canonical specs string from a Struct (or a mapping produced by main.py)."""
     return join(pairs(ptype, s))

@@ -46,7 +46,7 @@ from ..work import PROJECT_TAGS, _api_task, _asset_named, _member_log, _publish_
 router = APIRouter()
 
 
-def _project_out(db, p):
+def _project_out(db: Session, p: Project) -> dict[str, object]:
     """A project as it reads back: its own columns, the status in words, and its
     three lists. Four queries whatever it holds."""
     return to_dict(p) | {
@@ -65,11 +65,11 @@ def _project_out(db, p):
     }
 
 
-def _api_project(db, aid):
+def _api_project(db: Session, aid: str) -> Project:
     return get_or_404(db, Project, aid)
 
 
-def _api_order(db, p, oid):
+def _api_order(db: Session, p: Project, oid: int) -> ProjectOrder:
     row = db.get(ProjectOrder, oid)
     if row is None or row.project_id != p.asset_id:
         raise HTTPException(404, f"no order {oid} in {p.asset_id}")
@@ -79,7 +79,7 @@ def _api_order(db, p, oid):
 @router.get("/api/projects", response_model=list[ProjectOut], tags=PROJECT_TAGS)
 def api_list_projects(
     status: str | None = None, open: bool | None = None, db: Session = Depends(get_db)
-):
+) -> list[dict[str, object]]:
     """Every project, with what each is about, what is to be done and what is on
     order. `status` narrows it to one state; `open=true` to the ones not finished
     or abandoned, which is the question a list of projects is usually asked."""
@@ -96,7 +96,7 @@ def api_list_projects(
 
 
 @router.post("/api/projects", response_model=ProjectOut, tags=PROJECT_TAGS)
-def api_create_project(data: ProjectIn, db: Session = Depends(get_db)):
+def api_create_project(data: ProjectIn, db: Session = Depends(get_db)) -> dict[str, object]:
     """Start a project. Only the name is required -- it is the only thing a
     project can be found by, having no manufacturer or model to fall back on."""
     fields = data.model_dump()
@@ -113,12 +113,14 @@ def api_create_project(data: ProjectIn, db: Session = Depends(get_db)):
 
 
 @router.get("/api/projects/{aid}", response_model=ProjectOut, tags=PROJECT_TAGS)
-def api_get_project(aid: str, db: Session = Depends(get_db)):
+def api_get_project(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
     return _project_out(db, _api_project(db, aid))
 
 
 @router.patch("/api/projects/{aid}", response_model=ProjectOut, tags=PROJECT_TAGS)
-def api_update_project(aid: str, data: ProjectIn, db: Session = Depends(get_db)):
+def api_update_project(
+    aid: str, data: ProjectIn, db: Session = Depends(get_db)
+) -> dict[str, object]:
     p = _api_project(db, aid)
     fields = data.model_dump(exclude_unset=True)
     if "name" in fields:
@@ -138,8 +140,11 @@ def api_update_project(aid: str, data: ProjectIn, db: Session = Depends(get_db))
     return _project_out(db, p)
 
 
-@router.delete("/api/projects/{aid}", tags=PROJECT_TAGS)
-def api_delete_project(aid: str, db: Session = Depends(get_db)):
+# response_model=None: the annotation is for the type checker. FastAPI would
+# otherwise publish it as the response's shape, which the pinned contract
+# (ADR-0010) leaves open.
+@router.delete("/api/projects/{aid}", tags=PROJECT_TAGS, response_model=None)
+def api_delete_project(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
     """Delete a project. Its tasks, orders and memberships go with it by the
     foreign key; its history goes by hand, log_entry having nothing to cascade
     from. The hardware it was about is untouched -- deleting the plan is not
@@ -154,7 +159,9 @@ def api_delete_project(aid: str, db: Session = Depends(get_db)):
 
 
 @router.post("/api/projects/{aid}/items", response_model=ProjectOut, tags=PROJECT_TAGS)
-def api_project_add_item(aid: str, data: ProjectItemIn, db: Session = Depends(get_db)):
+def api_project_add_item(
+    aid: str, data: ProjectItemIn, db: Session = Depends(get_db)
+) -> dict[str, object]:
     """Put a computer or part in a project. An asset id that is in neither table is
     refused rather than stored: a project is about things that exist, and a
     membership pointing at nothing would render as nothing for ever.
@@ -173,7 +180,9 @@ def api_project_add_item(aid: str, data: ProjectItemIn, db: Session = Depends(ge
 
 
 @router.delete("/api/projects/{aid}/items/{asset_id}", response_model=ProjectOut, tags=PROJECT_TAGS)
-def api_project_drop_item(aid: str, asset_id: str, db: Session = Depends(get_db)):
+def api_project_drop_item(
+    aid: str, asset_id: str, db: Session = Depends(get_db)
+) -> dict[str, object]:
     p = _api_project(db, aid)
     asset_id = (asset_id or "").strip().upper()
     if projects.drop_asset(db, aid, asset_id):
@@ -184,7 +193,9 @@ def api_project_drop_item(aid: str, asset_id: str, db: Session = Depends(get_db)
 
 
 @router.post("/api/projects/{aid}/tasks", response_model=ProjectTaskOut, tags=PROJECT_TAGS)
-def api_project_add_task(aid: str, data: ProjectTaskIn, db: Session = Depends(get_db)):
+def api_project_add_task(
+    aid: str, data: ProjectTaskIn, db: Session = Depends(get_db)
+) -> ProjectTask:
     p = _api_project(db, aid)
     text = (data.text or "").strip()
     if not text:
@@ -206,7 +217,9 @@ def api_project_add_task(aid: str, data: ProjectTaskIn, db: Session = Depends(ge
 
 
 @router.patch("/api/projects/{aid}/tasks/{tid}", response_model=ProjectTaskOut, tags=PROJECT_TAGS)
-def api_project_update_task(aid: str, tid: int, data: ProjectTaskIn, db: Session = Depends(get_db)):
+def api_project_update_task(
+    aid: str, tid: int, data: ProjectTaskIn, db: Session = Depends(get_db)
+) -> ProjectTask:
     """Reword a job, tick it, or say which of the project's things it is about.
 
     `asset_id` takes one of the project's own members, or null to say the job is
@@ -246,8 +259,9 @@ def api_project_update_task(aid: str, tid: int, data: ProjectTaskIn, db: Session
     return row
 
 
-@router.delete("/api/projects/{aid}/tasks/{tid}", tags=PROJECT_TAGS)
-def api_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
+# response_model=None, as above: the annotation is for the type checker.
+@router.delete("/api/projects/{aid}/tasks/{tid}", tags=PROJECT_TAGS, response_model=None)
+def api_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)) -> dict[str, int]:
     p = _api_project(db, aid)
     row = _api_task(db, p, tid)
     add_log(db, aid, f"dropped: {_short(row.text)}")
@@ -257,7 +271,9 @@ def api_project_delete_task(aid: str, tid: int, db: Session = Depends(get_db)):
 
 
 @router.post("/api/projects/{aid}/orders", response_model=ProjectOrderOut, tags=PROJECT_TAGS)
-def api_project_add_order(aid: str, data: ProjectOrderIn, db: Session = Depends(get_db)):
+def api_project_add_order(
+    aid: str, data: ProjectOrderIn, db: Session = Depends(get_db)
+) -> ProjectOrder:
     """Record something bought for a project. Only the description is required: an
     order written down as it is placed rarely has a delivery date yet.
 
@@ -296,7 +312,7 @@ def api_project_add_order(aid: str, data: ProjectOrderIn, db: Session = Depends(
 @router.patch("/api/projects/{aid}/orders/{oid}", response_model=ProjectOrderOut, tags=PROJECT_TAGS)
 def api_project_update_order(
     aid: str, oid: int, data: ProjectOrderIn, db: Session = Depends(get_db)
-):
+) -> ProjectOrder:
     """Change an order, or mark it in. Setting `delivered` dates it; clearing it
     clears the date, for the reason un-ticking a task does."""
     p = _api_project(db, aid)
@@ -316,8 +332,9 @@ def api_project_update_order(
     return row
 
 
-@router.delete("/api/projects/{aid}/orders/{oid}", tags=PROJECT_TAGS)
-def api_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)):
+# response_model=None, as above: the annotation is for the type checker.
+@router.delete("/api/projects/{aid}/orders/{oid}", tags=PROJECT_TAGS, response_model=None)
+def api_project_delete_order(aid: str, oid: int, db: Session = Depends(get_db)) -> dict[str, int]:
     p = _api_project(db, aid)
     row = _api_order(db, p, oid)
     add_log(db, aid, f"cancelled: {_short(row.description)}")

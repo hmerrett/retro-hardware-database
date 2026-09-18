@@ -34,7 +34,7 @@ from ..web import _og, _safe_next, templates
 router = APIRouter()
 
 
-def _file_or_404(db, fid):
+def _file_or_404(db: Session, fid: int) -> StoredFile:
     row = db.get(StoredFile, fid)
     if row is None:
         raise HTTPException(404, f"file {fid} not found")
@@ -42,7 +42,9 @@ def _file_or_404(db, fid):
 
 
 @router.get("/files/{fid}/{name}", include_in_schema=False)
-def serve_file(fid: int, name: str, request: Request, db: Session = Depends(get_db)):
+def serve_file(
+    fid: int, name: str, request: Request, db: Session = Depends(get_db)
+) -> FileResponse:
     """Hand over the bytes, always as a download and never as a page.
 
     An upload is whatever somebody sent, and some of what people send is HTML, or
@@ -78,7 +80,7 @@ def serve_file(fid: int, name: str, request: Request, db: Session = Depends(get_
     )
 
 
-def _ascii_filename(name):
+def _ascii_filename(name: str | None) -> str:
     """A filename safe to put in a header: no quotes, no control characters, no
     non-ASCII (which a header cannot carry). The stored name keeps the original."""
     cleaned = "".join(ch for ch in (name or "") if ch.isprintable() and ord(ch) < 128)
@@ -88,7 +90,7 @@ def _ascii_filename(name):
 @router.post("/files", include_in_schema=False)
 async def gui_upload_files(
     request: Request, uploads: list[UploadFile] = File(...), db: Session = Depends(get_db)
-):
+) -> RedirectResponse:
     """Take one or more files, label them with the tags the form carries, and attach
     them to whatever the upload started on.
 
@@ -101,7 +103,8 @@ async def gui_upload_files(
     note = form.get("note", "")
     nxt = _safe_next(form.get("next") or "/files")
     aid = (form.get("aid") or "").strip().upper()
-    saved, errors = 0, []
+    saved = 0
+    errors: list[str] = []
     for up in uploads:
         if not (up.filename or "").strip():
             continue
@@ -118,7 +121,7 @@ async def gui_upload_files(
     return RedirectResponse(nxt + ("?fileerr=1" if errors else ""), status_code=303)
 
 
-def _item_for_link(db, aid):
+def _item_for_link(db: Session, aid: str | None) -> dict[str, object] | None:
     """The computer or part an asset id names, as the dict filesdb reads. None for
     a project, or an id that names nothing: a file is about hardware."""
     aid = (aid or "").strip().upper()
@@ -128,7 +131,7 @@ def _item_for_link(db, aid):
     return to_dict(obj) if obj else None
 
 
-def _attach_where_it_belongs(db, file_id, aid):
+def _attach_where_it_belongs(db: Session, file_id: int, aid: str) -> None:
     """What uploading from an item's page means: the model where the item has one,
     since a driver is a fact about a model, and the item itself where it has none --
     a custom build, or a card whose model was left blank."""
@@ -140,11 +143,15 @@ def _attach_where_it_belongs(db, file_id, aid):
         kind, key, label = models[0]
         filesdb.attach_model(db, file_id, kind, key, label)
     else:
-        filesdb.attach_asset(db, file_id, item["asset_id"])
+        # str(): the dict is a row read column by column, so every value in it is
+        # typed as wide as a column can be; an asset id is the primary key.
+        filesdb.attach_asset(db, file_id, str(item["asset_id"]))
 
 
 @router.post("/files/{fid}/attach", include_in_schema=False)
-async def gui_file_attach(fid: int, request: Request, db: Session = Depends(get_db)):
+async def gui_file_attach(
+    fid: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Attach a file that is already on file to this item, or to its model.
 
     `what` picks which: `unit` is that one machine or card, anything else is the
@@ -158,7 +165,7 @@ async def gui_file_attach(fid: int, request: Request, db: Session = Depends(get_
         raise HTTPException(404, "nothing here to attach a file to")
     models = filesdb.model_ids_for(db, item)
     if (form.get("what") or "model") == "unit" or not models:
-        filesdb.attach_asset(db, row.id, item["asset_id"])
+        filesdb.attach_asset(db, row.id, str(item["asset_id"]))
     else:
         kind, key, label = models[0]
         filesdb.attach_model(db, row.id, kind, key, label)
@@ -167,7 +174,9 @@ async def gui_file_attach(fid: int, request: Request, db: Session = Depends(get_
 
 
 @router.post("/files/{fid}/detach", include_in_schema=False)
-async def gui_file_detach(fid: int, request: Request, db: Session = Depends(get_db)):
+async def gui_file_detach(
+    fid: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Take a file off a unit or off a model.
 
     It never deletes anything. A file attached to nothing is unfiled, which the
@@ -187,7 +196,9 @@ async def gui_file_detach(fid: int, request: Request, db: Session = Depends(get_
 
 
 @router.post("/files/{fid}/tags", include_in_schema=False)
-async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db)):
+async def gui_file_tags(
+    fid: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Relabel one: what the box says is the whole list, so a tag taken out of it is
     gone. A tag is a label now and decides nothing about where the file appears --
     that is what attach and detach are for."""
@@ -199,7 +210,9 @@ async def gui_file_tags(fid: int, request: Request, db: Session = Depends(get_db
 
 
 @router.post("/files/{fid}/public", include_in_schema=False)
-async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_db)):
+async def gui_file_public(
+    fid: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     """Publish one, or take it back.
 
     The box on the page is the answer, so an absent field is "no": an unticked
@@ -213,7 +226,9 @@ async def gui_file_public(fid: int, request: Request, db: Session = Depends(get_
 
 
 @router.post("/files/{fid}/delete", include_in_schema=False)
-async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_db)):
+async def gui_file_delete(
+    fid: int, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     row = _file_or_404(db, fid)
     form = await posted(request)
     filesdb.remove(db, row)
@@ -222,7 +237,7 @@ async def gui_file_delete(fid: int, request: Request, db: Session = Depends(get_
 
 
 @router.get("/files", response_class=HTMLResponse, include_in_schema=False)
-def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
+def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
     """Everything on file, for finding the driver whose card is not in front of you,
     for seeing what a tag is spelled as before typing it again, and for filing the
     one that is attached to nothing.
@@ -244,8 +259,11 @@ def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)):
     )
 
 
-@router.get("/api/files", tags=["files"])
-def api_list_files(tag: str = "", db: Session = Depends(get_db)):
+# response_model=None: the annotation is for the type checker. FastAPI would
+# otherwise publish it as the response's shape, which the pinned contract
+# (ADR-0010) leaves open.
+@router.get("/api/files", tags=["files"], response_model=None)
+def api_list_files(tag: str = "", db: Session = Depends(get_db)) -> list[dict[str, object]]:
     """Files kept beside the register, newest first, each with its tags and what it
     is attached to: `assets` are the units it is about and `models` the models every
     item of which it is about. `tag` narrows it to one tag, matched ignoring case
