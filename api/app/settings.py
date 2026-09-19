@@ -39,7 +39,14 @@ SWITCH, TEXT, CHOICE = "switch", "text", "choice"
 # The fieldsets, in the order they are shown. Named here so a definition names one
 # rather than repeating the words.
 APPEARANCE = "Appearance"
+LABELS = "Labels"
 SERVER = "Local server options"
+
+# Where a small label goes when the print button is pressed. The two that need no
+# hardware named anywhere; a configured print agent adds one of its own (see
+# `choices_for`), because which printers exist is a fact about this installation
+# rather than about the software.
+PDF, BLUETOOTH, AGENT = "pdf", "bluetooth", "agent:"
 
 DEFAULT_SITE_NAME = "Retro Hardware Database"
 
@@ -74,6 +81,11 @@ class Definition:
     default: str
     choices: tuple[tuple[str, str], ...] = ()
     env: str = ""
+    # Whether the answers to this one are worked out when the page is drawn rather
+    # than written here. Only the label destination is: its list holds one entry per
+    # print agent, and those are named in the environment (ADR-0025), so a static
+    # tuple could only ever be out of date. See `choices_for`.
+    live: bool = False
 
 
 DEFINITIONS: tuple[Definition, ...] = (
@@ -117,6 +129,30 @@ DEFINITIONS: tuple[Definition, ...] = (
         ),
     ),
     Definition(
+        key="label_destination",
+        section=LABELS,
+        label="Small label goes to",
+        note=(
+            "What the small printer button does. A device that has chosen for itself "
+            "keeps its choice; this is what everything else does."
+        ),
+        kind=CHOICE,
+        default=PDF,
+        live=True,
+    ),
+    Definition(
+        key="label_bluetooth_media",
+        section=LABELS,
+        label="Bluetooth label size",
+        note=(
+            "The stock loaded in the Bluetooth printer. A label printed at the wrong "
+            "size is discovered by peeling it off something."
+        ),
+        kind=CHOICE,
+        default="niimbot-50x30",
+        live=True,
+    ),
+    Definition(
         key="block_search_engines",
         section=SERVER,
         label="Block search engines",
@@ -131,6 +167,37 @@ DEFINITIONS: tuple[Definition, ...] = (
 )
 
 BY_KEY = {d.key: d for d in DEFINITIONS}
+
+
+def choices_for(d: Definition) -> tuple[tuple[str, str], ...]:
+    """The answers a setting offers, now.
+
+    Written out on the definition for every setting but the two about labels. What
+    a label may be sent to depends on what printers this installation has -- the
+    print agents come from the environment and the Niimbot stocks from the label
+    module -- so writing them here would be keeping a third copy of a list that
+    already exists twice, and the copy would be the one that went stale.
+
+    Imported inside the function: `printing` reaches the models and `labels` the
+    renderer, and both of those are read while a page is being drawn, which is
+    exactly when this module is already being read.
+    """
+    if not d.live:
+        return d.choices
+    from . import labels, printing
+
+    if d.key == "label_bluetooth_media":
+        return tuple(
+            (name, media["what"]) for name, media in labels.MEDIA.items() if "niimbot" in name
+        )
+    return (
+        (PDF, "a PDF to download"),
+        (BLUETOOTH, "a Niimbot over Bluetooth, from this device"),
+        *(
+            (AGENT + a.name, f"{a.name} — {labels.MEDIA[a.media]['what']}")
+            for a in printing.agents().values()
+        ),
+    )
 
 
 def grouped() -> list[tuple[str, list[Definition]]]:
@@ -211,7 +278,7 @@ def clean(d: Definition, raw: str | None) -> str | None:
         return "0" if raw is None else "1"
     text = (raw or "").strip()
     if d.kind == CHOICE:
-        return text if text in dict(d.choices) else None
+        return text if text in dict(choices_for(d)) else None
     return text[:200]
 
 

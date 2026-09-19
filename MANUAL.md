@@ -1534,6 +1534,54 @@ printing from a phone through AirPrint.
 site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set
 it correctly before you print anything.**
 
+### Where the small label goes
+
+The small printer button used to do one thing: hand you a PDF. It now does
+**whatever this installation, or this device, says it should** — because a label
+is only useful where there is a printer, and which printer is within reach is a
+fact about the thing in your hand rather than about the collection.
+
+**⋯ → Settings → Labels** sets it. The choices are worked out from what you
+actually have:
+
+- **a PDF to download** — what it always did, and still the answer for a sheet
+  printer, for a Dymo through the print dialogue, and for AirPrint from a phone.
+- **a Niimbot over Bluetooth, from this device** — the browser connects to the
+  printer directly and sends it the label. Nothing goes through the server.
+- **one entry for each print agent you have configured** — *workshop-pi — 51×19 mm
+  multipurpose tape*, say. Pressing print puts the label on that printer's queue
+  and the agent prints it within a few seconds.
+
+**A device may overrule the site.** At the foot of the same page, *This device*
+sets where **this browser** sends a label, and it is remembered here and nowhere
+else — the phone by the shelf and the machine in the workshop answer differently,
+and neither needs to know about the other. It is the same shape as the theme
+button: the site says what a browser that has not chosen gets, and a browser that
+has chosen keeps its choice.
+
+**Nothing changes for an installation that changes nothing.** The default is the
+PDF, so the button behaves exactly as it did.
+
+**With no script, it is a PDF.** The button is a link to a PDF in the markup, and
+that is what it stays in a browser running no JavaScript. Everything above is the
+page deciding to do something else instead, never a promise the markup made and
+could not keep.
+
+#### Bluetooth, and the iPhone
+
+Bluetooth from a web page needs a browser that has it, which means **Chrome or
+Edge on a Mac, a PC or Android**. Safari does not have it and Apple has said it
+does not intend to add it, so on an iPhone or iPad the answer is one of:
+
+- **open the site in [Bluefy](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055)**, a browser that does have it. You will sign in
+  again there — it keeps its own cookies — and then the button works as it does
+  anywhere else.
+- **use a PDF and the share sheet**, which is what AirPrint is for.
+- **send it to a print agent**, if the label is going on a shelf rather than into
+  your hand.
+
+Pressing the Bluetooth button in Safari says so rather than failing quietly.
+
 ### Printing to a printer somewhere else
 
 The buttons hand you a file, which is right when the printer is on the machine you

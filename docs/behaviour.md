@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1515 behaviours, from 41 files.*
+*1534 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -2851,6 +2851,23 @@ Regenerate with:
 - the message carries no password anybody could paste
 
 
+## The niimbot packets
+
+*test_the_niimbot_packets.py — 6 behaviours*
+
+- the checksum rule matches what a real printer sends  
+  Command, length and every byte of the data, exclusive-ored together.
+- every packet is wrapped the way the driver wraps one
+- the driver sends the commands it means to  
+  The numbers are the protocol's, and a keystroke's difference between 0x83 and 0x85 is a printer that does nothing and says nothing about why.
+- the driver waits for the answers those commands have  
+  Every one of them is the command plus one, except the four that are not -- which is exactly why they are written down rather than worked out.
+- it says which printers it is for  
+  Other models differ in the print sequence rather than in the framing, so a driver that quietly claimed to be general would fail on a D11 in a way nobody could read.
+- it says where it came from  
+  It is a reimplementation of somebody else's reverse engineering, and the licence it was read under asks for the notice that honesty would ask for anyway.
+
+
 ## Type checking
 
 *test_type_checking.py — 4 behaviours*
@@ -3110,3 +3127,32 @@ Regenerate with:
 - an items photograph becomes the card
 - a placeholder is skipped for a real photograph behind it  
   The first thing with a real photo, not the first thing.
+
+
+## Where a small label goes
+
+*test_where_a_small_label_goes.py — 13 behaviours*
+
+- the destinations are a pdf bluetooth and every printer configured  
+  The list is worked out rather than written down: the printers come from the environment, so a list in the template could only ever be out of date.
+- a printer that is not configured is not offered
+- a printer says what stock is in it  
+  So a menu of printers is a menu of what will actually come out, rather than a list of names somebody has to remember the tape sizes for.
+- the bluetooth stock is offered from the stocks that exist  
+  And only the Niimbot ones: a Bluetooth printer is not going to be handed a 6x4 inch sheet.
+- the default can be set to a configured printer
+- a destination that is not on offer is refused  
+  The same reading `clean` takes of every other menu: an answer that was not offered did not come from this page.
+- a fresh install hands out a pdf  
+  Which is what the button did before there was anywhere else for it to go, so an installation that upgrades and changes nothing notices nothing.
+- every item page says what its button is for  
+  The button is a link to a PDF in the markup.
+- the page is told where labels go
+- the settings page and an item page are told the same thing  
+  One answer, read twice.
+- the button still links to a pdf  
+  With no script, or on a device that has chosen nothing, pressing it gets the file it has always got.
+- the device menu is hidden until the script fills it  
+  A menu that is nothing but script says nothing useful before the script has run, and a menu that forgets what you tell it is worse than no menu.
+- nothing about the destination is written inline  
+  The content policy is `self` throughout and the suite holds the markup to it (ADR-0021).

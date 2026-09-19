@@ -185,8 +185,12 @@ class TestTheTheme:
         and a fourth choice should cost a line rather than a redesign."""
         page = client.get("/settings").text
         assert '<select id="theme" name="theme">' in page
-        assert page.count("<option value=") == 3
-        assert '<option value="system" selected>' in page
+        # The theme's own three. Counted on that menu rather than on the page, which
+        # now holds other menus: the label destination's, whose length is a fact
+        # about how many printers are configured rather than about this setting.
+        menu = page.split('<select id="theme" name="theme">', 1)[1].split("</select>", 1)[0]
+        assert menu.count("<option value=") == 3
+        assert '<option value="system" selected>' in menu
 
     def test_the_menu_button_is_still_there(self, client):
         """The device's own choice is made where it always was, on any page, and
@@ -271,7 +275,11 @@ class TestHowThePageReads:
         page = client.get("/settings").text
         assert "<legend>Appearance</legend>" in page
         assert "<legend>Local server options</legend>" in page
-        assert [s for s, _ in settings.grouped()] == ["Appearance", "Local server options"]
+        assert [s for s, _ in settings.grouped()] == [
+            "Appearance",
+            "Labels",
+            "Local server options",
+        ]
 
     def test_a_setting_written_out_of_place_joins_its_own_section(self, client):
         """Rather than opening a second fieldset with the same legend, which is what
@@ -283,7 +291,10 @@ class TestHowThePageReads:
         """One tooltip per setting, so none of them is the one that was forgotten
         and left a control with nothing behind it."""
         page = client.get("/settings").text
-        assert page.count('class="srow" title="') == len(settings.DEFINITIONS)
+        # One per setting, and one more for the device's own answer -- which is a
+        # row on this page but not a setting: it is kept in the browser and never
+        # posted, so it is not in DEFINITIONS and cannot be (ADR-0023).
+        assert page.count('class="srow" title="') == len(settings.DEFINITIONS) + 1
 
 
 class TestSaving:

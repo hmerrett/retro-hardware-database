@@ -1,0 +1,14 @@
+{# What a small label's print button does, and the data it needs to do it.
+
+   The button is a link to a PDF in the markup and stays one if nothing here runs:
+   a browser with no JavaScript, or one that has never been told otherwise, gets
+   the file it always got. Everything else is this script deciding to do something
+   else instead (ADR-0023, ADR-0026).
+
+   Included by the three item pages and by the settings page -- the second needs
+   the same list of destinations to offer, and getting it from the same place is
+   what stops the menu and the button disagreeing about what exists. #}
+{% macro script() %}
+<script type="application/json" id="label-data">{{ label_send() | tojson }}</script>
+<script defer src="/static/labelsend.js?v={{ js_ver['labelsend.js'] }}"></script>
+{% endmacro %}

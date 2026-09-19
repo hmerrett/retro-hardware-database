@@ -197,6 +197,22 @@ def png_label(
     )
 
 
+def label_send() -> dict[str, object]:
+    """What the label button needs to know: where a label may go, where it goes
+    here, and what stock the Bluetooth printer has.
+
+    Worked out once per page rather than written into each template, and read from
+    `settings` rather than kept beside it, so the menu on the settings page and the
+    button on an item page cannot come to disagree about what exists (ADR-0026)."""
+    destination = settings.BY_KEY["label_destination"]
+    return {
+        "destinations": [list(pair) for pair in settings.choices_for(destination)],
+        "default": settings.value("label_destination"),
+        "bluetoothMedia": settings.value("label_bluetooth_media"),
+    }
+
+
+templates.env.globals["label_send"] = label_send
 templates.env.globals["img_url"] = img_url
 templates.env.globals["img_srcset"] = img_srcset
 templates.env.globals["THUMB_CARD"] = 300
