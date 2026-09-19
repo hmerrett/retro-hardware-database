@@ -25,8 +25,16 @@ WorkingDirectory=/opt/rhdb
 ExecStart=/usr/bin/python3 /opt/rhdb/print_agent.py
 
 # The agent holds no state, so restarting it is always safe and is the right answer
-# to every fault it cannot handle itself.
+# to every fault it cannot handle itself -- a lost network, a printer unplugged, a
+# register being redeployed.
+#
+# Except one: exit 78 is the agent saying it has been set up wrongly, and a key the
+# register does not know will not start being one. Restarting on that turns a typo
+# into ten failed logins a minute until the register's rate limiter stops answering,
+# which is this service denying itself service. It stops instead, and says why in
+# the journal, and waits for somebody to fix the key.
 Restart=always
+RestartPreventExitStatus=78
 RestartSec=10
 
 # It prints and it talks to one server. It has no business anywhere else on the
