@@ -208,7 +208,8 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `thumbs.py` | smaller copies of the photographs, made once and kept |
 | `enhance.py` | the one-touch tuneup: the automatic levels-and-colour fix a phone does |
 | `enrich.py` | fetching a photo for an item from its reference URL |
-| `labels.py` | print-ready label PDFs, with the QR encoding every printed label already uses |
+| `labels.py` | what a label says and where on it that goes, for either surface |
+| `surfaces.py` | the two things a label is drawn on: a PDF page, and a printer's own dots |
 | `audit_storage.py` | checking every storage part against the questions its kind is actually asked |
 
 Outside `api/`:

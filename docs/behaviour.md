@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1456 behaviours, from 38 files.*
+*1467 behaviours, from 39 files.*
 
 
 ## A file where text was expected
@@ -26,6 +26,33 @@ Regenerate with:
 - an order whose description is a file is an order with no description
 - a login whose password is a file is a failed login  
   The one form a stranger can post to.
+
+
+## A label drawn in the printers dots
+
+*test_a_label_drawn_in_the_printers_dots.py — 11 behaviours*
+
+- every kind of item has a label as a picture
+- the picture is one dot deep  
+  Not greyscale, and not a palette.
+- the stock decides the shape and the printer decides the dots  
+  Two questions that used to be one.
+- a head narrower than its tape is the registers fact and not the callers  
+  A B1 takes a 50mm label on a 48mm head.
+- the dots can be asked for  
+  A stock has the resolution of the printer it belongs to, and a printer that is not that one says so.
+- a stock the register does not know is refused rather than guessed  
+  Guessing prints a label of the wrong size, which is discovered by peeling it off something.
+- the code is drawn a whole number of dots to the square  
+  A code fitted to the space left over has squares a dot wider than their neighbours.
+- the picture is behind the login like the pdf  
+  A label is an editing action: it is printed by whoever owns the collection.
+- every stock the register knows can be drawn  
+  Including the 6x4in sheet: a raster is not only for the small labels, and a stock in the list that cannot be rendered is a menu entry that fails when it is chosen.
+- both surfaces lay out the same label  
+  The point of writing the layout once: a label proofed as a PDF is the label that comes out of the thermal printer, saying the same things in the same order.
+- a taller label does not give the code more than its share  
+  The code is as big as it can be, because one that will not scan is worth nothing -- but a sticker is read by a person too, and a label saying only "Seaga…" has failed at the half of the job the code cannot do.
 
 
 ## A label for a part of no type

@@ -52,7 +52,7 @@ from ..photos import _drop_log_photos, _purge_photos
 from ..photos import detect_images, pick_images
 from ..register import FLAGGABLE, _asset_find, _register_order, get_or_404
 from ..search import _projects_matching
-from ..web import _og, _safe_next, templates
+from ..web import _og, _safe_next, png_label, templates
 from ..work import (
     PROJECT_FIELDS,
     _api_task,
@@ -557,6 +557,14 @@ async def gui_update_project(aid: str, request: Request, db: Session = Depends(g
         _publish_log(db, p)
     db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
+@router.get("/projects/{aid}/label.png", include_in_schema=False)
+def gui_project_label_png(
+    aid: str, media: str = "", dpi: int = 0, db: Session = Depends(get_db)
+) -> Response:
+    p = get_or_404(db, Project, aid)
+    return png_label(to_dict(p), labels.PROJECT, media, dpi)
 
 
 @router.get("/projects/{aid}/label.pdf", include_in_schema=False)

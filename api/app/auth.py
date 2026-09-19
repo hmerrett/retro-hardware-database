@@ -284,7 +284,7 @@ def _public_page(path: str) -> bool:
     if path == "/projects":
         return True
     if path.startswith(("/computers/", "/parts/", "/projects/")):
-        return not (path.endswith(("/new", "/delete")) or "/edit" in path or "/label.pdf" in path)
+        return not (path.endswith(("/new", "/delete")) or "/edit" in path or "/label." in path)
     return False
 
 
