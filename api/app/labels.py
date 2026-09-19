@@ -1,12 +1,15 @@
-"""Print-ready label PDFs, rendered in the api so the GUI's "print label" action
-can hand back a file to download. A focused port of the flat-file make_labels.py:
-same 6x4in full label and 51x19mm small label, same QR encoding
-<base_url>/items/<asset_id>/ so the codes match every label already printed.
+"""Print-ready labels, rendered in the api so the GUI's "print label" action can
+hand back a file. A focused port of the flat-file make_labels.py: same 6x4in full
+label and 51x19mm small label, same QR encoding <base_url>/items/<asset_id>/ so
+the codes match every label already printed.
 
-Also home to the QR drawing itself (`_qr` for a PDF, `qr_svg` for a page), so a
-code on screen and a code on a label are made the same way.
+What a label says, and where on it that goes, is here. How a mark is actually made
+is `surfaces.py`, and there are two: a PDF page and a bitmap of a printer's own
+dots (ADR-0024). The layout is written once and runs on either, so the label that
+comes out of a thermal printer is the label somebody proofed as a PDF.
 
-Physical printing stays on the DYMO box; here we only generate the PDF.
+`qr_svg` is here too, so the code on an item's page and the code on its label are
+made by the same rule.
 """
 
 from __future__ import annotations
@@ -14,19 +17,15 @@ from __future__ import annotations
 import io
 import os
 from collections.abc import Mapping, Sequence
-from pathlib import Path
-from typing import NotRequired, TypedDict, cast
+from typing import TypedDict, cast
 
-import segno
 from reportlab.lib.units import inch, mm
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
 from .entry import display_name, parse_specs, type_label
 from .machines import ISSUE_KEY, REGION_KEY, STYLE_KEY
 from .projects import status_label
+from .surfaces import BODY, HEAD, PdfSurface, RasterSurface, Surface, blank, code
 
 # The three kinds of thing a label can be for. This was an `is_computer` boolean
 # while there were two, and stopped being able to be the day a project wanted a
@@ -37,8 +36,6 @@ COMPUTER, PART, PROJECT = "computer", "part", "project"
 # The three answers in a catalogue machine's line that are not a chip, and so get a
 # line of their own on a label (see computer_lines).
 _MACHINE_KEYS = (ISSUE_KEY, STYLE_KEY, REGION_KEY)
-
-FONT_PATH = Path(__file__).resolve().parent / "label_font.ttf"
 
 # A register row as a label reads it: the model's columns as a dict (common.to_dict),
 # sometimes with the typed spec pairs attached under "spec_pairs". A row read column
@@ -53,21 +50,114 @@ def _txt(row: Row, key: str) -> str:
     return "" if value is None else str(value)
 
 
-class LabelSpec(TypedDict):
-    """One label's geometry: its size in points, the QR error-correction level and
-    the quarter-turn the page is printed at."""
+class Media(TypedDict):
+    """One label stock: what it measures, and what prints it.
 
-    w: float
-    h: float
+    Those are two facts, and `small: bool` was one answer trying to be both -- it
+    could say 51x19mm or 6x4in and nothing else, which is not enough to say which
+    of two 50mm Niimbot labels is on the printer, or how many dots that printer
+    puts in a millimetre (ADR-0024).
+
+    `dots` is the printable width of the head this stock belongs to, where the head
+    is narrower than the stock -- a Niimbot B1 takes a 50mm label on a 48mm head --
+    and 0 where the printer reaches the whole of it. Keeping it here rather than in
+    each caller is what stops a label being laid out across 2mm of tape no printer
+    can reach.
+    """
+
+    what: str
+    w_mm: float
+    h_mm: float
     qr: str
+    # The quarter-turn the PDF page is printed at: a 6x4 label goes through a
+    # printer end-first on a 4x6 sheet. A fact about feeding paper, and so about
+    # the PDF alone -- a bitmap is the label the way it is read, and has nothing to
+    # turn.
     rotate: int
     # How far in from the ends of the tape the body keeps, where the medium has ends.
-    safe_mm: NotRequired[int]
+    safe_mm: float
+    dpi: int
+    dots: int
 
 
-# Label geometry, mirroring the flat-file config.yml defaults.
-FULL: LabelSpec = {"w": 6 * inch, "h": 4 * inch, "qr": "M", "rotate": 90}
-SMALL: LabelSpec = {"w": 51 * mm, "h": 19 * mm, "qr": "M", "rotate": 90, "safe_mm": 3}
+# The stocks the register knows. A name rather than a size, because a size does not
+# say what prints it; and a closed list rather than free measurements, because a
+# guessed stock is discovered by peeling a label off something.
+MEDIA: dict[str, Media] = {
+    "full-6x4": {
+        "what": "6×4 inch sheet",
+        "w_mm": 152.4,
+        "h_mm": 101.6,
+        "qr": "M",
+        "rotate": 90,
+        "safe_mm": 0,
+        "dpi": 300,
+        "dots": 0,
+    },
+    "dymo-11355": {
+        "what": "51×19 mm multipurpose tape (DYMO LabelWriter)",
+        "w_mm": 51,
+        "h_mm": 19,
+        "qr": "M",
+        "rotate": 90,
+        "safe_mm": 3,
+        "dpi": 300,
+        "dots": 0,
+    },
+    "niimbot-50x30": {
+        "what": "50×30 mm label (Niimbot B1, B21, B18)",
+        "w_mm": 50,
+        "h_mm": 30,
+        "qr": "M",
+        "rotate": 0,
+        "safe_mm": 1.5,
+        "dpi": 203,
+        "dots": 384,
+    },
+    "niimbot-40x30": {
+        "what": "40×30 mm label (Niimbot B1, B21, B18)",
+        "w_mm": 40,
+        "h_mm": 30,
+        "qr": "M",
+        "rotate": 0,
+        "safe_mm": 1.5,
+        "dpi": 203,
+        "dots": 0,
+    },
+}
+
+# What `small=True` and `small=False` have always meant. Every caller and every URL
+# printed against keeps working by being these two names.
+FULL, SMALL = "full-6x4", "dymo-11355"
+
+
+def printable_mm(media: Media) -> float:
+    """How much of the stock's width the head actually reaches."""
+    if not media["dots"]:
+        return media["w_mm"]
+    return media["dots"] / media["dpi"] * 25.4
+
+
+def layout_size(media: Media) -> tuple[float, float]:
+    """The label as the layout sees it, in points: as wide as can be printed, and
+    as tall as the stock."""
+    return (printable_mm(media) * mm, media["h_mm"] * mm)
+
+
+def size_dots(media: Media, dpi: int = 0) -> tuple[int, int]:
+    """The bitmap's size for this stock, at the printer's resolution or another.
+
+    `dots` is a count at the stock's own resolution, so asking for a different one
+    scales it: the head does not grow, but the dots it is described in change.
+    """
+    dpi = dpi or media["dpi"]
+    across = (
+        round(media["dots"] * dpi / media["dpi"])
+        if media["dots"]
+        else round(media["w_mm"] * dpi / 25.4)
+    )
+    return (across, round(media["h_mm"] * dpi / 25.4))
+
 
 BUILD_ROWS = [
     ("cpu", "CPU"),
@@ -141,9 +231,6 @@ def _pairs_of(part: Row) -> list[tuple[str, str]]:
     return cast("list[tuple[str, str]]", pairs)
 
 
-_font_ready = False
-
-
 def base_url() -> str:
     """Where the QR codes point. From the environment, because it is a fact about
     this installation and nothing else -- a label is printed once and stuck on a
@@ -157,33 +244,6 @@ def item_url(asset_id: str) -> str:
     return f"{base_url()}/items/{asset_id}/"
 
 
-def _fonts() -> tuple[str, str]:
-    """Register the display TTF once; fall back to Helvetica if it's missing."""
-    global _font_ready
-    if _font_ready:
-        return ("LabelFont", "LabelFont")
-    if FONT_PATH.exists():
-        try:
-            pdfmetrics.registerFont(TTFont("LabelFont", str(FONT_PATH)))
-            _font_ready = True
-            return ("LabelFont", "LabelFont")
-        except Exception:
-            pass
-    return ("Helvetica-Bold", "Helvetica")
-
-
-def _qr(data: str, error: str = "M") -> ImageReader:
-    # micro=False, or segno picks a Micro QR whenever the data is short enough for
-    # one -- and most readers, the scanner on the gallery included, decode standard
-    # QR only. Any URL is comfortably too long to trigger it, so this is not load
-    # bearing today; it is here so that encoding something short one day (a bare
-    # asset tag is a Micro QR) cannot quietly print labels nothing will read.
-    buf = io.BytesIO()
-    segno.make(data, error=error.lower(), micro=False).save(buf, kind="png", scale=10, border=1)
-    buf.seek(0)
-    return ImageReader(buf)
-
-
 def qr_svg(data: str, error: str = "M") -> str:
     """The same code as a label's, as SVG markup to drop straight into a page.
 
@@ -193,7 +253,7 @@ def qr_svg(data: str, error: str = "M") -> str:
     square and the stylesheet says how big.
     """
     buf = io.BytesIO()
-    segno.make(data, error=error.lower(), micro=False).save(
+    code(data, error).save(
         buf,
         kind="svg",
         scale=1,
@@ -209,11 +269,11 @@ def qr_svg(data: str, error: str = "M") -> str:
     return buf.getvalue().decode("utf-8")
 
 
-def _wrap(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> list[str]:
+def _wrap(s: Surface, text: str, font: str, size: float, max_w: float) -> list[str]:
     words, lines, cur = text.split(), [], ""
     for w in words:
         trial = (cur + " " + w).strip()
-        if not cur or c.stringWidth(trial, font, size) <= max_w:
+        if not cur or s.width_of(trial, font, size) <= max_w:
             cur = trial
         else:
             lines.append(cur)
@@ -223,17 +283,15 @@ def _wrap(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> 
     return lines or [""]
 
 
-def _fit(
-    c: canvas.Canvas, text: str, font: str, start: float, min_size: float, max_w: float
-) -> float:
+def _fit(s: Surface, text: str, font: str, start: float, min_size: float, max_w: float) -> float:
     size = start
-    while size > min_size and c.stringWidth(text, font, size) > max_w:
+    while size > min_size and s.width_of(text, font, size) > max_w:
         size -= 1
     return size
 
 
 def _fit_lines(
-    c: canvas.Canvas,
+    s: Surface,
     text: str,
     font: str,
     start: float,
@@ -242,13 +300,14 @@ def _fit_lines(
     max_lines: int,
 ) -> float:
     size = start
-    while size > min_size and len(_wrap(c, text, font, size, width)) > max_lines:
+    while size > min_size and len(_wrap(s, text, font, size, width)) > max_lines:
         size -= 0.5
     return size
 
 
-def rotated_page(spec: LabelSpec) -> tuple[float, float]:
-    return (spec["h"], spec["w"]) if spec["rotate"] in (90, 270) else (spec["w"], spec["h"])
+def rotated_page(media: Media) -> tuple[float, float]:
+    w, h = layout_size(media)
+    return (h, w) if media["rotate"] in (90, 270) else (w, h)
 
 
 def _apply_rotation(c: canvas.Canvas, W: float, H: float, rot: int) -> None:
@@ -430,46 +489,22 @@ def project_lines(project: Row) -> list[str]:
 # comes out as a dither, and a dithered word at five and a half point is a smudge.
 KIND_WORDS: dict[str | None, str] = {COMPUTER: "COMPUTER", PART: "PART", PROJECT: "PROJECT"}
 
-
-def _vertical(
-    c: canvas.Canvas, x0: float, x1: float, y: float, text: str, font: str, size: float
-) -> None:
-    """One word running bottom to top, centred in the strip between x0 and x1 and
-    on `y` along its length.
-
-    Rotated rather than set as a column of stacked letters: a word reads as a word
-    when its letters are joined, and the strip along a label's end is the one place
-    with room for it that costs the body nothing.
-
-    Rotated -90 and not +90. The page is already turned a quarter of the way round
-    (see rotated_page: a 6x4 label prints on a 4x6 sheet), and turning the word the
-    same way again stands it the right way up but pointing the other way down the
-    label, which on paper is upside down against everything beside it. The two
-    rotations have to disagree for the word to agree with the body.
-
-    Centred by measuring rather than by an offset picked to look right: the glyphs
-    stand to one side of the baseline, so which side and how far both change with
-    the type size, and a hand-tuned number is one that silently stops being centred
-    the moment anybody changes the size."""
-    ascent = pdfmetrics.getAscent(font) / 1000.0 * size
-    c.saveState()
-    c.translate(x0 + (x1 - x0 - ascent) / 2, y)
-    c.rotate(-90)
-    c.setFont(font, size)
-    c.drawCentredString(0, 0, text)
-    c.restoreState()
+# The most of a small label's width the QR code may take. A code that will not
+# scan is worth nothing, so it gets as much as it can -- but a label is read by a
+# person as well as by a phone, and a sticker on a parcel that says only "Seaga…"
+# has failed at the half of the job the code cannot do.
+QR_SHARE = 0.40
 
 
 def _render_full(
-    c: canvas.Canvas,
+    s: Surface,
     W: float,
     H: float,
     asset_id: str,
     title: str,
     lines: Sequence[str],
     url: str,
-    hfont: str,
-    bfont: str,
+    error: str = "M",
     kind: str | None = None,
 ) -> None:
     margin = 0.22 * inch
@@ -483,54 +518,45 @@ def _render_full(
     text_x = margin + strip
     text_w = qr_x - text_x - 0.10 * inch
     bottom = margin + 0.16 * inch
-    c.setLineWidth(1)
-    c.setStrokeColorRGB(0.65, 0.65, 0.65)
-    c.roundRect(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8, stroke=1, fill=0)
-    c.setFillColorRGB(0, 0, 0)
+    s.frame(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8)
     if word:
-        _vertical(c, margin, margin + strip, H / 2, word, hfont, 13)
-    aid_size = _fit(c, asset_id, hfont, 24, 12, text_w)
+        s.vertical(margin, margin + strip, H / 2, word, HEAD, 13)
+    aid_size = _fit(s, asset_id, HEAD, 24, 12, text_w)
     y = H - margin - aid_size + 4
-    c.setFont(hfont, aid_size)
-    c.drawString(text_x, y, asset_id)
-    c.setFont(hfont, 12)
-    for line in _wrap(c, title, hfont, 12, text_w)[:2]:
+    s.text(text_x, y, asset_id, HEAD, aid_size)
+    for line in _wrap(s, title, HEAD, 12, text_w)[:2]:
         y -= 16
-        c.drawString(text_x, y, line)
+        s.text(text_x, y, line, HEAD, 12)
     y -= 5
     for raw in lines:
-        for i, line in enumerate(_wrap(c, "• " + raw, bfont, 9, text_w)[:2]):
+        for i, line in enumerate(_wrap(s, "• " + raw, BODY, 9, text_w)[:2]):
             if y - 12 < bottom:
                 break
             y -= 12
-            c.setFont(bfont, 9)
-            c.drawString(text_x if i == 0 else text_x + 8, y, line if i == 0 else "  " + line)
+            s.text(text_x if i == 0 else text_x + 8, y, line if i == 0 else "  " + line, BODY, 9)
         if y - 12 < bottom:
             break
     qr_y = (H - qr_size) / 2 + 0.10 * inch
-    c.drawImage(
-        _qr(url), qr_x, qr_y, width=qr_size, height=qr_size, preserveAspectRatio=True, mask="auto"
-    )
-    c.setFont(bfont, 7.5)
-    c.drawCentredString(qr_x + qr_size / 2, qr_y - 11, "scan for details")
+    s.qr(qr_x, qr_y, qr_size, url, error)
+    s.text_centred(qr_x + qr_size / 2, qr_y - 11, "scan for details", BODY, 7.5)
 
 
-def _clip(c: canvas.Canvas, text: str, font: str, size: float, max_w: float) -> str:
+def _clip(s: Surface, text: str, font: str, size: float, max_w: float) -> str:
     """`text` cut down until it fits, with an ellipsis to say it was.
 
     The last resort, for a run with no space in it to break at -- a resolution, a
     part number. Losing the end of a spec is bad; drawing it off the side of the
     label is worse, because there it is lost with nothing to say so, and on the way
     out it crosses whatever else is printed there."""
-    if c.stringWidth(text, font, size) <= max_w:
+    if s.width_of(text, font, size) <= max_w:
         return text
-    while text and c.stringWidth(text + "…", font, size) > max_w:
+    while text and s.width_of(text + "…", font, size) > max_w:
         text = text[:-1]
     return (text.rstrip() + "…") if text.strip() else ""
 
 
 def _small_body_lines(
-    c: canvas.Canvas, title: str, tags: Sequence[str], bfont: str, tw: float, avail: float
+    s: Surface, title: str, tags: Sequence[str], tw: float, avail: float
 ) -> tuple[float, list[str]]:
     """(size, lines) for a small label's body: the name, then the specs, each
     wrapped to the width there actually is.
@@ -551,36 +577,43 @@ def _small_body_lines(
     size = 6.5
     while True:
         room = max(1, int(avail // (size + 1.5)))
-        spec_lines = [ln for t in tags for ln in _wrap(c, t, bfont, size, tw)]
+        spec_lines = [ln for t in tags for ln in _wrap(s, t, BODY, size, tw)]
         keep = spec_lines[: max(0, room - 1)]
         for_name = max(1, room - len(keep))
-        lines = _wrap(c, title, bfont, size, tw)
+        lines = _wrap(s, title, BODY, size, tw)
         if len(lines) <= for_name or size <= 4.5:
             out = [*lines[:for_name], *keep]
             # At the floor a single unbreakable run can still be too wide, and this
             # is the only place left to deal with it.
-            return size, [_clip(c, x, bfont, size, tw) for x in out]
+            return size, [_clip(s, x, BODY, size, tw) for x in out]
         size -= 0.5
 
 
 def _render_small(
-    c: canvas.Canvas,
+    s: Surface,
     W: float,
     H: float,
     asset_id: str,
     title: str,
     url: str,
-    hfont: str,
-    bfont: str,
     safe: float = 0.0,
+    error: str = "M",
     tags: Sequence[str] = (),
     kind: str | None = None,
 ) -> None:
     my = 1.2 * mm
     mx = my + safe * mm
-    c.setFillColorRGB(0, 0, 0)
-    qr = H - 2 * my
-    c.drawImage(_qr(url), mx, my, width=qr, height=qr, preserveAspectRatio=True, mask="auto")
+    # As tall as the label allows, but never so wide that the words have nowhere to
+    # go. On a 51x19mm tape the height is what binds and this changes nothing; on a
+    # 50x30mm Niimbot label it is not, and a code as tall as that label takes more
+    # than half its width -- which came out as "Seagate ST-225" clipped to "Seaga…"
+    # on a label with two thirds of itself empty.
+    qr = min(H - 2 * my, W * QR_SHARE)
+    # Centred in what height there is, for the same reason: on a squarer label a
+    # code sitting on the bottom margin leaves a hole above it that reads as a
+    # mistake rather than as a margin. On a tape there is no spare height and this
+    # is exactly the bottom margin.
+    s.qr(mx, my + (H - 2 * my - qr) / 2, qr, url, error)
     tx = mx + qr + 1.5 * mm
     tw = W - tx - mx
     # The far end from the code, which is the only end with room on a 51mm label.
@@ -597,18 +630,49 @@ def _render_small(
         # unreadable rather than merely tight. So this keeps its own margin, wider.
         edge = mx + 1.0 * mm
         tw -= strip + 1.0 * mm
-        _vertical(c, W - edge - strip, W - edge, H / 2, word, hfont, 5.0)
-    aid_size = _fit(c, asset_id, hfont, 11, 5, tw)
+        s.vertical(W - edge - strip, W - edge, H / 2, word, HEAD, 5.0)
+    aid_size = _fit(s, asset_id, HEAD, 11, 5, tw)
     y = H - my - aid_size
-    c.setFont(hfont, aid_size)
-    c.drawString(tx, y, asset_id)
-    bsize, lines = _small_body_lines(c, title, tags, bfont, tw, y - my)
+    s.text(tx, y, asset_id, HEAD, aid_size)
+    bsize, lines = _small_body_lines(s, title, tags, tw, y - my)
     for line in lines:
         if y - (bsize + 1.5) < my:
             break
         y -= bsize + 1.5
-        c.setFont(bfont, bsize)
-        c.drawString(tx, y, line)
+        s.text(tx, y, line, BODY, bsize)
+
+
+def _draw(
+    surface: Surface,
+    media: Media,
+    asset: Row,
+    parts: Sequence[Row],
+    kind: str,
+    small: bool,
+    form_factor: str = "",
+    spec_pairs: list[tuple[str, str]] | None = None,
+) -> None:
+    """One label, on whichever surface it was given.
+
+    The only thing either renderer does that the other does not is get the surface
+    ready -- a page to draw on, or a bitmap of the right number of dots. What goes
+    on it is decided once, here."""
+    W, H = layout_size(media)
+    asset_id = _txt(asset, "asset_id")
+    url = item_url(asset_id)
+    if small:
+        name, tags = small_body(asset, kind, spec_pairs)
+        _render_small(
+            surface, W, H, asset_id, name, url, media["safe_mm"], media["qr"], tags=tags, kind=kind
+        )
+        return
+    if kind == COMPUTER:
+        lines = computer_lines(asset, parts, form_factor)
+    elif kind == PROJECT:
+        lines = project_lines(asset)
+    else:
+        lines = part_lines(asset, spec_pairs)
+    _render_full(surface, W, H, asset_id, display_name(asset), lines, url, media["qr"], kind=kind)
 
 
 def render_pdf(
@@ -616,6 +680,7 @@ def render_pdf(
     parts: Sequence[Row],
     kind: str,
     small: bool = False,
+    media: Media | None = None,
     form_factor: str = "",
     spec_pairs: list[tuple[str, str]] | None = None,
 ) -> bytes:
@@ -629,49 +694,43 @@ def render_pdf(
     its own, because the whole of what a label is -- an asset id, a name, and a QR
     code back to /items/<id> -- is true of a project exactly as it is of a machine.
     What differs is the few lines of body text, which is what `kind` picks."""
-    hfont, bfont = _fonts()
-    spec = SMALL if small else FULL
-    title = display_name(asset)
-    url = item_url(_txt(asset, "asset_id"))
+    spec = media or MEDIA[SMALL if small else FULL]
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=rotated_page(spec))
     c.saveState()
-    _apply_rotation(c, spec["w"], spec["h"], spec["rotate"])
-    if small:
-        name, tags = small_body(asset, kind, spec_pairs)
-        _render_small(
-            c,
-            spec["w"],
-            spec["h"],
-            _txt(asset, "asset_id"),
-            name,
-            url,
-            hfont,
-            bfont,
-            spec.get("safe_mm", 0),
-            tags=tags,
-            kind=kind,
-        )
-    else:
-        if kind == COMPUTER:
-            lines = computer_lines(asset, parts, form_factor)
-        elif kind == PROJECT:
-            lines = project_lines(asset)
-        else:
-            lines = part_lines(asset, spec_pairs)
-        _render_full(
-            c,
-            spec["w"],
-            spec["h"],
-            _txt(asset, "asset_id"),
-            title,
-            lines,
-            url,
-            hfont,
-            bfont,
-            kind=kind,
-        )
+    _apply_rotation(c, *layout_size(spec), spec["rotate"])
+    _draw(PdfSurface(c), spec, asset, parts, kind, small, form_factor, spec_pairs)
     c.restoreState()
     c.showPage()
     c.save()
+    return buf.getvalue()
+
+
+def render_png(
+    asset: Row,
+    parts: Sequence[Row],
+    kind: str,
+    media: Media,
+    dpi: int = 0,
+    small: bool = True,
+    form_factor: str = "",
+    spec_pairs: list[tuple[str, str]] | None = None,
+) -> bytes:
+    """The same label as a bitmap of the printer's own dots, one bit deep.
+
+    No page rotation: a PDF is turned because a 6x4 label is fed into a printer
+    end-first on a 4x6 sheet, and a bitmap is not fed anywhere -- it is the label
+    as it will be read, and the printer is the thing that knows which way the tape
+    goes through it.
+
+    The default is the small layout, because this exists for the printers that take
+    a bitmap and every one of those is a small-label printer -- but a 6x4 stock
+    rasterises the same way, for a print server that would rather be handed dots
+    than a page.
+    """
+    image = blank(*size_dots(media, dpi))
+    surface = RasterSurface(image, dpi or media["dpi"])
+    _draw(surface, media, asset, parts, kind, small, form_factor, spec_pairs)
+    buf = io.BytesIO()
+    image.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
