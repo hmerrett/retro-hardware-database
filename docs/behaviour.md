@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1450 behaviours, from 38 files.*
+*1456 behaviours, from 38 files.*
 
 
 ## A file where text was expected
@@ -2430,7 +2430,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 33 behaviours*
+*test_settings.py — 39 behaviours*
 
 
 **Reaching the page**
@@ -2459,8 +2459,8 @@ Regenerate with:
 **Search engines**
 
 - a site is listed by default  
-  A catalogue meant to be found wants to be found.
-- turning it off tells every page not to be filed
+  A catalogue meant to be found wants to be found, so the box that would stop it is the one you have to tick.
+- blocking tells every page not to be filed
 - a page that was already private stays that way  
   The login page has said noindex on its own since long before this setting, and leaving the setting on must not publish it.
 - the crawler is still let in  
@@ -2470,10 +2470,10 @@ Regenerate with:
 
 **Photographs**
 
-- photographs are stamped by default
+- photographs are watermarked by default
 - turning it off serves the photograph unmarked  
   The original on disk was never touched, so there is nothing to undo: the mark stops being composited in and what is served is the file.
-- a reference photograph is never stamped either way  
+- a reference photograph is never watermarked either way  
   Marking somebody else's picture would be claiming it.
 - the montage is rebuilt rather than kept as it was  
   A share card made of four photographs has the mark composited into it too, and it is cached by content -- so the flag has to be part of what names the file, or turning it off leaves every card as it was.
@@ -2484,22 +2484,37 @@ Regenerate with:
   No attribute on the document element is what lets the stylesheet's prefers-color-scheme block decide, which is the rule it is guarded by.
 - a chosen default is on the page before it is painted  
   Server-rendered rather than left to the script, because the script that reads the browser's own choice runs before paint for exactly this reason: a theme applied afterwards is a white flash on every page.
+- the default is chosen from a menu  
+  A menu and not a row of buttons, because the list is expected to grow and a fourth choice should cost a line rather than a redesign.
 - the menu button is still there  
   The device's own choice is made where it always was, on any page, and goes on overruling the default.
-- the page offers the device its choice back  
-  Handing the choice back is the one thing the menu's theme button cannot do -- it only ever flips between the two -- so without this there is no way back to following the site's default.
 
 **Set in the environment**
 
 - the environment wins  
   A deployment that set the variable has said something deliberate, and a click that was forgotten at the next restart would be worse than one that never happened.
 - saving cannot overrule it
-- the page says which variable holds it  
-  A control that will not take an answer has to say why, or it is a bug report.
+- the pinned control shows the value and refuses to be changed  
+  The pinned value is off, so the box is unticked -- and cannot be ticked.
+- the page says once what greyed means  
+  A control that will not take an answer has to say why, or it is a bug report -- the same rule ADR-0019 applies to the open site.
+- nothing pinned says nothing  
+  There is no such thing as a greyed option on this installation, so an explanation of what one would mean is noise.
 - unsetting it hands the setting back  
   Which is the way out the manual promises: change it where it is set, or unset it and the page has it again.
 - an empty variable is not a pin  
   Compose passes `${RHDB_WATERMARK:-}`, so an unset variable arrives as an empty string rather than as nothing at all -- which is how a whole stack would otherwise come up pinned to a value nobody chose.
+
+**How the page reads**
+
+- a control says what it is and the reason is behind it  
+  The rule the whole page is built on: the label is a few words and the paragraph that used to sit under it is a tooltip on the row.
+- the settings are grouped into named sections  
+  A flat list of four is a list; a flat list of fifteen is a search.
+- a setting written out of place joins its own section  
+  Rather than opening a second fieldset with the same legend, which is what filtering per section would do and nothing would have caught.
+- every row carries its reason  
+  One tooltip per setting, so none of them is the one that was forgotten and left a control with nothing behind it.
 
 **Saving**
 

@@ -159,7 +159,7 @@ def _tile(path: Path, box_w: int, box_h: int) -> "PilImage":
         return ImageOps.fit(upright.convert("RGB"), (box_w, box_h), Image.Resampling.LANCZOS)
 
 
-def _stamp(card: "PilImage") -> None:
+def _watermark(card: "PilImage") -> None:
     """The site's mark in the card's own corner, at the card's scale.
 
     Once, not once per tile: the tiles come from the photographs rather than from
@@ -213,7 +213,7 @@ def _build(found: Sequence[tuple[str, Path]], dst: Path) -> None:
     card = Image.new("RGB", SIZE, CARD_BG)
     for (_rel, path), (x, y, w, h) in zip(found, _tiles(len(found)), strict=True):
         card.paste(_tile(path, w, h), (x, y))
-    _stamp(card)
+    _watermark(card)
     # Full chroma. A card is flat cream meeting photographs along hard straight
     # edges, and 4:2:0 smears a saturated tile across the gutter beside it -- the
     # one artefact this picture is shaped to show off.

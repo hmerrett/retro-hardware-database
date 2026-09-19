@@ -119,18 +119,18 @@
   <div class="hdr-desk">
     {% if request.state.authed %}
     <details class="menu">
-      <summary class="btn sm primary" role="button">+ New</summary>
+      <summary class="btn sm primary" role="button">+ new</summary>
       <div class="menupop">
-        <a href="/computers/new">+ Computer</a>
-        <a href="/parts/new">+ Part</a>
-        <a href="/projects/new">+ Project</a>
+        <a href="/computers/new">+ computer</a>
+        <a href="/parts/new">+ part</a>
+        <a href="/projects/new">+ project</a>
       </div>
     </details>
     {% endif %}
     <details class="menu">
       <summary class="btn sm dots" role="button" title="More" aria-label="More">⋯</summary>
       <div class="menupop">
-        <button type="button" class="js-theme">Dark theme</button>
+        <button type="button" class="js-theme">dark theme</button>
         {# Two jobs the browser normally does and the installed app cannot: the
            manifest asks for display:standalone, so on a phone's home screen
            there is no address bar to reload from and no browser menu to share
@@ -138,8 +138,8 @@
            controls the browser is already drawing, and the argument for keeping
            the redundant pair on screen stopped paying once there were a dozen
            other things to read past first. #}
-        <button type="button" class="js-share" hidden>Share this page</button>
-        <button type="button" class="js-reload" hidden>Reload</button>
+        <button type="button" class="js-share" hidden>share this page</button>
+        <button type="button" class="js-reload" hidden>reload</button>
         <hr>
         {% if request.state.authed %}
         {% if auth_enabled %}
@@ -199,19 +199,19 @@
    the box down here -- two search fields on one page is two places for a query
    to be, and only one of them would have the suggestion list attached. #}
 <nav class="tabbar" aria-label="Main">
-  <a href="/"{{ here('/') }}>{{ I.ico('grid') }}<span>Browse</span></a>
-  <button type="button" id="tab-find">{{ I.ico('search') }}<span>Find</span></button>
-  <button type="button" class="scan-open" hidden>{{ I.ico('scan') }}<span>Scan</span></button>
-  <button type="button" id="tab-more" aria-expanded="false" aria-controls="sheet">{{ I.ico('more') }}<span>More</span></button>
+  <a href="/"{{ here('/') }}>{{ I.ico('grid') }}<span>browse</span></a>
+  <button type="button" id="tab-find">{{ I.ico('search') }}<span>find</span></button>
+  <button type="button" class="scan-open" hidden>{{ I.ico('scan') }}<span>scan</span></button>
+  <button type="button" id="tab-more" aria-expanded="false" aria-controls="sheet">{{ I.ico('more') }}<span>more</span></button>
 </nav>
 
 <div id="sheet" hidden>
   <div class="sheet-body" role="dialog" aria-modal="true" aria-label="More">
     <button type="button" class="sheet-grip" id="sheet-shut" aria-label="Close"></button>
     {% if request.state.authed %}
-    <a href="/computers/new">+ Computer</a>
-    <a href="/parts/new">+ Part</a>
-    <a href="/projects/new">+ Project</a>
+    <a href="/computers/new">+ computer</a>
+    <a href="/parts/new">+ part</a>
+    <a href="/projects/new">+ project</a>
     <hr>
     {% endif %}
     <a href="/projects"{{ here('/projects') }}>projects</a>
@@ -220,9 +220,9 @@
     <a href="/files"{{ here('/files') }}>files</a>
     <a href="/docs">API docs</a>
     <hr>
-    <button type="button" class="js-theme">Dark theme</button>
-    <button type="button" class="js-share" hidden>Share this page</button>
-    <button type="button" class="js-reload" hidden>Reload</button>
+    <button type="button" class="js-theme">dark theme</button>
+    <button type="button" class="js-share" hidden>share this page</button>
+    <button type="button" class="js-reload" hidden>reload</button>
     <hr>
     {% if request.state.authed %}
     {% if auth_enabled %}
@@ -256,7 +256,7 @@
 {% if live_aid %}
 <div id="changed" hidden data-aid="{{ live_aid }}" data-built="{{ live_v }}">
   <span>This record has changed.</span>
-  <button class="btn sm primary" type="button" id="changed-go">Reload</button>
+  <button class="btn sm primary" type="button" id="changed-go">reload</button>
 </div>
 <script defer src="/static/live.js?v={{ js_ver['live.js'] }}"></script>
 {% endif %}
@@ -274,7 +274,7 @@
     order, the dark theme. First party only: no analytics, no advertising, nothing
     shared with anyone{% if auth_enabled %}. Signing in to edit adds a session
     cookie{% endif %}.</p>
-  <button class="btn sm" id="cookieok" type="button">Got it</button>
+  <button class="btn sm" id="cookieok" type="button">got it</button>
 </div>
 {% endif %}
 {# The big view: the photo as large as the window allows, and zoomable from there by

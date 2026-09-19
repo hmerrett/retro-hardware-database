@@ -20,7 +20,7 @@ def visitor(monkeypatch):
 def save(client, **fields):
     """Post the form the way the page does, with the defaults for everything the
     caller did not name -- a browser sends the whole form, not one field."""
-    data = {"site_name": "", "theme": "system", "search_engines": "1", "watermark": "1"} | {
+    data = {"site_name": "", "theme": "system", "watermark": "1"} | {
         k: v for k, v in fields.items() if v is not None
     }
     for blank in [k for k, v in fields.items() if v is None]:
@@ -100,11 +100,13 @@ class TestWhatTheSiteIsCalled:
 
 class TestSearchEngines:
     def test_a_site_is_listed_by_default(self, client):
-        """A catalogue meant to be found wants to be found."""
+        """A catalogue meant to be found wants to be found, so the box that would
+        stop it is the one you have to tick."""
+        assert settings.on("block_search_engines") is False
         assert '<meta name="robots" content="index, follow">' in client.get("/").text
 
-    def test_turning_it_off_tells_every_page_not_to_be_filed(self, client, a_page_of_everything):
-        save(client, search_engines=None)
+    def test_blocking_tells_every_page_not_to_be_filed(self, client, a_page_of_everything):
+        save(client, block_search_engines="1")
         for path in a_page_of_everything:
             assert 'name="robots" content="noindex' in client.get(path).text, path
 
@@ -118,7 +120,7 @@ class TestSearchEngines:
         """A crawler refused entry in robots.txt never reads the page, never sees
         the instruction not to list it, and files the address anyway from whatever
         links to it -- so asking to be left out means letting the crawler in."""
-        save(client, search_engines=None)
+        save(client, block_search_engines="1")
         body = client.get("/robots.txt").text
         assert "Disallow: /\n" not in body
         assert "Allow: /\n" in body
@@ -127,12 +129,12 @@ class TestSearchEngines:
         """Asking not to be listed while handing over a list of everything to list
         is two answers to one question."""
         assert "Sitemap:" in client.get("/robots.txt").text
-        save(client, search_engines=None)
+        save(client, block_search_engines="1")
         assert "Sitemap:" not in client.get("/robots.txt").text
 
 
 class TestPhotographs:
-    def test_photographs_are_stamped_by_default(self, client):
+    def test_photographs_are_watermarked_by_default(self, client):
         assert settings.on("watermark") is True
         assert photos._is_own_photo("computers/RH-0001.jpg") is True
 
@@ -142,7 +144,7 @@ class TestPhotographs:
         save(client, watermark=None)
         assert photos._is_own_photo("computers/RH-0001.jpg") is False
 
-    def test_a_reference_photograph_is_never_stamped_either_way(self, client):
+    def test_a_reference_photograph_is_never_watermarked_either_way(self, client):
         """Marking somebody else's picture would be claiming it."""
         rel = "computers/RH-0001.jpg"
         sidecar = photos._ref_sidecar(rel)
@@ -178,17 +180,19 @@ class TestTheTheme:
         save(client, theme=chosen)
         assert f'<html lang="en" data-theme="{chosen}">' in client.get("/").text
 
+    def test_the_default_is_chosen_from_a_menu(self, client):
+        """A menu and not a row of buttons, because the list is expected to grow
+        and a fourth choice should cost a line rather than a redesign."""
+        page = client.get("/settings").text
+        assert '<select id="theme" name="theme">' in page
+        assert page.count("<option value=") == 3
+        assert '<option value="system" selected>' in page
+
     def test_the_menu_button_is_still_there(self, client):
         """The device's own choice is made where it always was, on any page, and
         goes on overruling the default."""
         save(client, theme="dark")
         assert 'class="js-theme"' in client.get("/").text
-
-    def test_the_page_offers_the_device_its_choice_back(self, client):
-        """Handing the choice back is the one thing the menu's theme button cannot
-        do -- it only ever flips between the two -- so without this there is no way
-        back to following the site's default."""
-        assert 'id="theme-clear"' in client.get("/settings").text
 
 
 class TestSetInTheEnvironment:
@@ -206,17 +210,31 @@ class TestSetInTheEnvironment:
         save(client, watermark="1")
         assert settings.on("watermark") is False
 
-    def test_the_page_says_which_variable_holds_it(self, client, monkeypatch):
-        """A control that will not take an answer has to say why, or it is a bug
-        report. This is the same rule ADR-0019 applies to the open site: a state
-        that can only be inferred is a state nobody infers."""
+    def test_the_pinned_control_shows_the_value_and_refuses_to_be_changed(
+        self, client, monkeypatch
+    ):
+        """The pinned value is off, so the box is unticked -- and cannot be
+        ticked."""
         monkeypatch.setenv("RHDB_WATERMARK", "0")
         settings.forget()
         page = client.get("/settings").text
-        assert "RHDB_WATERMARK" in page
-        # Showing the pinned value, which is off, and refusing to be the control
-        # for it: an unticked box that cannot be ticked.
         assert 'name="watermark" disabled' in page.replace('type="checkbox" ', "")
+
+    def test_the_page_says_once_what_greyed_means(self, client, monkeypatch):
+        """A control that will not take an answer has to say why, or it is a bug
+        report -- the same rule ADR-0019 applies to the open site. Once at the foot
+        and not on every row: which variable holds which setting is a table in the
+        manual, and a page of preferences should not read as a page of
+        configuration (interface-text)."""
+        monkeypatch.setenv("RHDB_WATERMARK", "0")
+        settings.forget()
+        page = client.get("/settings").text
+        assert "Greyed options are set in <code>.env</code>" in page
+
+    def test_nothing_pinned_says_nothing(self, client):
+        """There is no such thing as a greyed option on this installation, so an
+        explanation of what one would mean is noise."""
+        assert "Greyed options" not in client.get("/settings").text
 
     def test_unsetting_it_hands_the_setting_back(self, client, monkeypatch):
         """Which is the way out the manual promises: change it where it is set, or
@@ -234,6 +252,38 @@ class TestSetInTheEnvironment:
         monkeypatch.setenv("RHDB_WATERMARK", "")
         settings.forget()
         assert settings.pinned(settings.BY_KEY["watermark"]) is None
+
+
+class TestHowThePageReads:
+    def test_a_control_says_what_it_is_and_the_reason_is_behind_it(self, client):
+        """The rule the whole page is built on: the label is a few words and the
+        paragraph that used to sit under it is a tooltip on the row. A page of
+        settings each carrying an explanation is a page nobody reads
+        (interface-text)."""
+        page = client.get("/settings").text
+        assert '<label for="site_name">Name</label>' in page
+        assert 'class="srow" title="In the banner, the browser&#39;s tab' in page
+
+    def test_the_settings_are_grouped_into_named_sections(self, client):
+        """A flat list of four is a list; a flat list of fifteen is a search. The
+        grouping is on the definitions rather than in the template, so a new
+        setting names its section and lands in it."""
+        page = client.get("/settings").text
+        assert "<legend>Appearance</legend>" in page
+        assert "<legend>Local server options</legend>" in page
+        assert [s for s, _ in settings.grouped()] == ["Appearance", "Local server options"]
+
+    def test_a_setting_written_out_of_place_joins_its_own_section(self, client):
+        """Rather than opening a second fieldset with the same legend, which is what
+        filtering per section would do and nothing would have caught."""
+        names = [s for s, _ in settings.grouped()]
+        assert len(names) == len(set(names))
+
+    def test_every_row_carries_its_reason(self, client):
+        """One tooltip per setting, so none of them is the one that was forgotten
+        and left a control with nothing behind it."""
+        page = client.get("/settings").text
+        assert page.count('class="srow" title="') == len(settings.DEFINITIONS)
 
 
 class TestSaving:

@@ -54,7 +54,7 @@ templates.env.globals.update(
     # render, so a name saved a moment ago is the name the next page carries.
     site_name=settings.site_name,
     site_theme=lambda: settings.value("theme"),
-    site_indexed=lambda: settings.on("search_engines"),
+    site_indexed=lambda: not settings.on("block_search_engines"),
 )
 # A filter rather than a global, because it reads as one thing done to another at
 # every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --

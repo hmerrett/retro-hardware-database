@@ -795,26 +795,26 @@ class TestWhereTheBoardAndPartsAreAskedFor:
 
     def test_a_bare_catalogue_machine_is_not_asked_about_either(self, client):
         page = client.get(f"/computers/{self._c64(client)}").text
-        assert "Create motherboard" not in page
+        assert "create motherboard" not in page
         assert ">Motherboard<" not in page and "Parts <span" not in page
 
     def test_its_edit_form_carries_them_instead(self, client):
         page = client.get(f"/computers/{self._c64(client)}/edit").text
-        assert "Create motherboard" in page
+        assert "create motherboard" in page
         assert "type=storage&computer_id=" in page
 
     def test_fitting_something_brings_them_back_to_the_page(self, client, part):
         aid = self._c64(client)
         part(type="storage", model="1541", computer_id=aid)
         page = client.get(f"/computers/{aid}").text
-        assert "Create motherboard" in page and "1541" in page
+        assert "create motherboard" in page and "1541" in page
         # ...and the form stops offering what the page now has.
-        assert "Create motherboard" not in client.get(f"/computers/{aid}/edit").text
+        assert "create motherboard" not in client.get(f"/computers/{aid}/edit").text
 
     def test_a_pc_keeps_them_on_its_page_and_off_its_form(self, client, computer):
         aid = computer()["asset_id"]
-        assert "Create motherboard" in client.get(f"/computers/{aid}").text
-        assert "Create motherboard" not in client.get(f"/computers/{aid}/edit").text
+        assert "create motherboard" in client.get(f"/computers/{aid}").text
+        assert "create motherboard" not in client.get(f"/computers/{aid}/edit").text
 
     def test_how_a_chip_is_held_rides_on_the_socket(self, client, db):
         """Six sockets each ending in "— soldered to the board" is a paragraph; a
