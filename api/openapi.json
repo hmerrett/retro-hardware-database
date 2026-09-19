@@ -2086,6 +2086,48 @@
         ]
       }
     },
+    "/api/label-media/{name}": {
+      "get": {
+        "description": "One stock's measurements, for a page that has to draw something the size of a\nlabel. The numbers are the register's -- writing them into a script as well is\nhow two answers to one question come to disagree.",
+        "operationId": "label_media_api_label_media__name__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Label Media Api Label Media  Name  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Label Media"
+      }
+    },
     "/api/machines": {
       "get": {
         "description": "The catalogue of machines the register knows as models -- home computers,\nconsoles and the documented branded PCs -- with the memory sizes, board issues,\ncase and keyboard styles, regions and chip sockets each was built in. `key` is\nwhat a computer's `machine.model_key` is set to.\n\nEvery list names what is commonly seen rather than everything that exists, so a\nboard issue or a chip from outside one is recorded as it is given.",
