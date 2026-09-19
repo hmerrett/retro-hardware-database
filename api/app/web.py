@@ -13,11 +13,11 @@ and the history stamp. main registers those on this same object, and they will
 follow their own helpers out when those move.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date
 from pathlib import Path
 
-from fastapi import Request
+from fastapi import HTTPException, Request, Response
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
@@ -159,6 +159,60 @@ def _safe_next(nxt: str) -> str:
     return nxt if nxt.startswith("/") and not nxt.startswith("//") else "/"
 
 
+def png_label(
+    row: Mapping[str, object],
+    kind: str,
+    media: str = "",
+    dpi: int = 0,
+    parts: Sequence[Mapping[str, object]] = (),
+    form_factor: str = "",
+    spec_pairs: list[tuple[str, str]] | None = None,
+    small: bool = True,
+) -> Response:
+    """A label as the dots a printer burns, for the three routes that serve one.
+
+    The stock is named in the query and looked up rather than measured from it: a
+    name the register does not know is a 404 and not a guess, because a guess is
+    discovered by peeling a label off something (ADR-0024).
+    """
+    name = media or (labels.SMALL if small else labels.FULL)
+    stock = labels.MEDIA.get(name)
+    if stock is None:
+        raise HTTPException(status_code=404, detail="No such label stock")
+    png = labels.render_png(
+        row,
+        parts,
+        kind,
+        stock,
+        dpi,
+        small=small,
+        form_factor=form_factor,
+        spec_pairs=spec_pairs,
+    )
+    aid = str(row.get("asset_id") or "label")
+    return Response(
+        png,
+        media_type="image/png",
+        headers={"Content-Disposition": f'inline; filename="{aid}-{name}.png"'},
+    )
+
+
+def label_send() -> dict[str, object]:
+    """What the label button needs to know: where a label may go, where it goes
+    here, and what stock the Bluetooth printer has.
+
+    Worked out once per page rather than written into each template, and read from
+    `settings` rather than kept beside it, so the menu on the settings page and the
+    button on an item page cannot come to disagree about what exists (ADR-0026)."""
+    destination = settings.BY_KEY["label_destination"]
+    return {
+        "destinations": [list(pair) for pair in settings.choices_for(destination)],
+        "default": settings.value("label_destination"),
+        "bluetoothMedia": settings.value("label_bluetooth_media"),
+    }
+
+
+templates.env.globals["label_send"] = label_send
 templates.env.globals["img_url"] = img_url
 templates.env.globals["img_srcset"] = img_srcset
 templates.env.globals["THUMB_CARD"] = 300

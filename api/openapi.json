@@ -1233,6 +1233,67 @@
         "title": "PartOut",
         "type": "object"
       },
+      "PrintJobIn": {
+        "description": "A label to be printed by an agent somewhere else (ADR-0025).\n\n`media`, `format` and `dpi` are blank by default and then come from the agent's\nown settings, because what stock is loaded and what the printer would rather be\nhanded are facts about the printer rather than about this request.",
+        "properties": {
+          "agent": {
+            "title": "Agent",
+            "type": "string"
+          },
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "copies": {
+            "default": 1,
+            "title": "Copies",
+            "type": "integer"
+          },
+          "dpi": {
+            "default": 0,
+            "title": "Dpi",
+            "type": "integer"
+          },
+          "format": {
+            "default": "",
+            "title": "Format",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "media": {
+            "default": "",
+            "title": "Media",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent",
+          "kind",
+          "asset_id"
+        ],
+        "title": "PrintJobIn",
+        "type": "object"
+      },
+      "PrintResultIn": {
+        "description": "How it went. `error` is what to show whoever sent the label, so it is the\nprinter's own words rather than a code -- \"no such printer\" is the whole of\nwhat somebody needs to know.",
+        "properties": {
+          "error": {
+            "default": "",
+            "title": "Error",
+            "type": "string"
+          },
+          "ok": {
+            "default": true,
+            "title": "Ok",
+            "type": "boolean"
+          }
+        },
+        "title": "PrintResultIn",
+        "type": "object"
+      },
       "ProjectIn": {
         "description": "A project as it arrives. Every field is optional so a PATCH can name one.\n\n`status` is a slug from app/projects.py -- planned, active, stalled, done,\nabandoned -- and anything else is stored as `planned` rather than refused, the\nsame forgiveness the GUI's menu gives. The three dates are independent: a\nproject can be finished without ever having been started.",
         "properties": {
@@ -2282,6 +2343,258 @@
         "tags": [
           "parts"
         ]
+      }
+    },
+    "/api/print/agent/claim": {
+      "post": {
+        "description": "The next label for this agent, or nothing.\n\nNothing is a 204 and not an error: an agent asks every few seconds forever, and\nan empty queue is its ordinary answer rather than a fault to fill a log with.",
+        "operationId": "claim_job_api_print_agent_claim_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Claim Job"
+      }
+    },
+    "/api/print/agent/jobs/{job_id}/done": {
+      "post": {
+        "operationId": "report_job_api_print_agent_jobs__job_id__done_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintResultIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Report Job Api Print Agent Jobs  Job Id  Done Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Report Job"
+      }
+    },
+    "/api/print/agent/jobs/{job_id}/label.{fmt}": {
+      "get": {
+        "description": "The label for a job this agent is holding, rendered now.\n\n410 where the item has gone since the job was made: the agent has to be told\nthat this one is never going to work, which a 404 -- the answer for a job that\nwas never its -- does not say.",
+        "operationId": "agent_label_api_print_agent_jobs__job_id__label__fmt__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "fmt",
+            "required": true,
+            "schema": {
+              "title": "Fmt",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Agent Label"
+      }
+    },
+    "/api/print/jobs": {
+      "get": {
+        "description": "What is waiting, what has printed and what went wrong -- so the answer to\n\"why has nothing come out\" is on the screen in the room the label was sent\nfrom, rather than in a log on the Pi.",
+        "operationId": "list_jobs_api_print_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "agent",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Agent",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "State",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Jobs Api Print Jobs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Jobs"
+      },
+      "post": {
+        "description": "Put a label on an agent's queue.\n\nThe item is looked up here rather than when the agent asks, so a mistyped tag\nis refused while the person who typed it is still looking at the screen.",
+        "operationId": "queue_label_api_print_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrintJobIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Queue Label Api Print Jobs Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Queue Label"
+      }
+    },
+    "/api/print/jobs/{job_id}": {
+      "delete": {
+        "description": "Take a job off the queue. Only one that has not been claimed: a job an agent\nis holding may already be half way through a printer, and the register is not\nin a position to know.",
+        "operationId": "cancel_job_api_print_jobs__job_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cancel Job Api Print Jobs  Job Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel Job"
       }
     },
     "/api/projects": {

@@ -31,6 +31,11 @@ os.environ["RHDB_FILES_DIR"] = str(_TMP / "files")
 os.environ["RHDB_BASE_URL"] = "https://example.test"
 os.environ.pop("RHDB_AUTH_USER", None)
 os.environ.pop("RHDB_AUTH_PASSWORD", None)
+# And the print agents, for the same reason and one more: a developer running the
+# suite on the box the site is deployed on has real ones in their own .env, and a
+# test about what printers exist would pass in CI and fail there -- or, worse, the
+# other way round. The suite starts with none, and the tests that want one say so.
+os.environ.pop("RHDB_PRINT_AGENTS", None)
 # The suite runs with no login on purpose -- most of it is about what the owner can
 # do, and popping the credentials is how it gets to be the owner. So it says so
 # (ADR-0019), which is exactly what RHDB_OPEN is for: without it every page rendered

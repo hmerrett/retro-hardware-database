@@ -360,3 +360,29 @@ class ProjectOut(ProjectIn):
     items: list[ProjectItemOut] = []
     tasks: list[ProjectTaskOut] = []
     orders: list[ProjectOrderOut] = []
+
+
+class PrintJobIn(BaseModel):
+    """A label to be printed by an agent somewhere else (ADR-0025).
+
+    `media`, `format` and `dpi` are blank by default and then come from the agent's
+    own settings, because what stock is loaded and what the printer would rather be
+    handed are facts about the printer rather than about this request.
+    """
+
+    agent: str
+    kind: str
+    asset_id: str
+    media: str = ""
+    format: str = ""
+    dpi: int = 0
+    copies: int = 1
+
+
+class PrintResultIn(BaseModel):
+    """How it went. `error` is what to show whoever sent the label, so it is the
+    printer's own words rather than a code -- "no such printer" is the whole of
+    what somebody needs to know."""
+
+    ok: bool = True
+    error: str = ""

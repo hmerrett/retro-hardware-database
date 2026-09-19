@@ -127,3 +127,27 @@ class TestTheDevelopmentOverride:
         command = _compose("docker-compose.dev.yml")["services"]["api"]["command"]
         assert "--reload" in command
         assert command[command.index("--reload-dir") + 1] == "app"
+
+
+class TestEverySettingReachesTheContainer:
+    """A variable the app reads, documented in `.env.example` and never passed
+    through Compose, is a setting that does nothing in the stack it was written for.
+
+    Compose does not forward the environment wholesale: each service lists what it
+    is given. So a new variable is two edits, the second is easy to forget, and
+    forgetting it fails in the one place nobody tests -- somebody else's install,
+    weeks later, with the value sitting correctly in their .env.
+    """
+
+    ROOT = Path(__file__).resolve().parent.parent.parent
+    EXAMPLE = ROOT / ".env.example"
+    COMPOSE = ROOT / "docker-compose.yml"
+
+    def test_every_documented_variable_is_passed_to_a_service(self):
+        import re
+
+        named = set(re.findall(r"^(RHDB_[A-Z0-9_]+)=", self.EXAMPLE.read_text(), re.M))
+        assert named, "no variables found in .env.example -- has it moved?"
+        compose = self.COMPOSE.read_text()
+        missing = sorted(v for v in named if v not in compose)
+        assert not missing, f"documented but never given to a container: {missing}"

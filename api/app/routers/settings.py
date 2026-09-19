@@ -33,6 +33,7 @@ def gui_settings(request: Request, saved: int = 0) -> Response:
         "settings.html",
         {
             "sections": settings.grouped(),
+            "choices_for": settings.choices_for,
             "value": settings.value,
             "on": settings.on,
             "pinned": settings.pinned,

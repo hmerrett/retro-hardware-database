@@ -40,6 +40,7 @@ from .routers import (
     images,
     items,
     parts as part_pages,
+    print_queue,
     projects as project_pages,
     seo,
     settings as settings_page,
@@ -238,6 +239,7 @@ def create_app() -> FastAPI:
         project_pages.router,
         api_assets.router,
         api_projects.router,
+        print_queue.router,
         health.router,
     ):
         app.include_router(router)

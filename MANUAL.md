@@ -1485,9 +1485,186 @@ still in the post are true this afternoon and false next week, and a label is
 printed once and then lives on a box for a year. The code is there for everything
 that moves.
 
+### The label as a picture
+
+A label is also a **picture of itself**, at `label.png` beside the `label.pdf` on
+every item. It is the same label — same lines, same code, same word up the end —
+drawn at the size and the resolution of a particular printer rather than as a page
+to be scaled onto one.
+
+That is what a small thermal label printer needs. A PDF is a description of a
+label that something has to decide how to print; these printers are not sent pages
+at all, but a bitmap the width of the print head, and a head prints a dot or
+leaves it blank with nothing in between. Handing one a scaled-down page gives you
+grey, and grey on a thermal printer is a dither: readable as a word, fatal to a QR
+code, whose squares have to stay square.
+
+So the picture is drawn in the printer's own dots. **Ask for it by the label stock
+you are printing on** — `?media=dymo-11355` for the 51×19 mm multipurpose tape,
+`?media=niimbot-50x30` for a 50×30 mm Niimbot label — and optionally `?dpi=` for a
+head that is not 300 dots to the inch. The stock decides the shape and the printer
+decides the dots, which are two different questions and used to be one.
+
+**The QR code is drawn at a whole number of dots to the square.** A code scaled to
+whatever was left over comes out with some squares a dot wider than their
+neighbours, and at eight dots to the millimetre that unevenness is a quarter of a
+square — enough that a phone reads the label as a picture of a QR code rather than
+as a code. It is sized down to the nearest whole multiple instead, and the
+remainder becomes margin.
+
+**The type grows with the label, up to what the column will hold.** The sizes on
+the small label are the tape's, because they are what fits on a tape; printed
+unchanged on a 50×30 mm label they left a third of it empty. So they are held as a
+proportion of the height and a taller label gets larger type — bounded by the
+width, since a 40×30 mm label is as tall as a 50×30 and a third narrower, and type
+sized by the height alone put *PC1512* in a column that could not hold it.
+
+**On a taller label the code stops growing.** It is sized by the height on a
+51×19 mm tape, where the height is what there is least of. A 50×30 mm label is a
+different shape, and a code as tall as that one takes over half its width — which
+came out as *Seagate ST-225* clipped to *Seaga…* on a label two thirds empty. So
+the code takes at most its share of the width and sits centred in the height, and
+the words get the rest. The tape is unaffected.
+
+Nothing about the existing buttons changes: they are still PDFs, and a PDF is
+still the right thing for a sheet, for a Dymo through the print dialogue, and for
+printing from a phone through AirPrint.
+
 `<base_url>` comes from `RHDB_BASE_URL` in `.env` for labels rendered by the
 site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set
 it correctly before you print anything.**
+
+### Where the small label goes
+
+The small printer button used to do one thing: hand you a PDF. It now does
+**whatever this installation, or this device, says it should** — because a label
+is only useful where there is a printer, and which printer is within reach is a
+fact about the thing in your hand rather than about the collection.
+
+**⋯ → Settings → Labels** sets it. The choices are worked out from what you
+actually have:
+
+- **a PDF to download** — what it always did, and still the answer for a sheet
+  printer, for a Dymo through the print dialogue, and for AirPrint from a phone.
+- **a Niimbot over Bluetooth, from this device** — the browser connects to the
+  printer directly and sends it the label. Nothing goes through the server. This
+  is written for the **B1 and the B21**, which have the same 384-dot head; the
+  B18 is a different printer despite the name and is not supported.
+- **one entry for each print agent you have configured** — *workshop-pi — 51×19 mm
+  multipurpose tape*, say. Pressing print puts the label on that printer's queue
+  and the agent prints it within a few seconds.
+
+**A device may overrule the site.** At the foot of the same page, *This device*
+sets where **this browser** sends a label, and it is remembered here and nowhere
+else — the phone by the shelf and the machine in the workshop answer differently,
+and neither needs to know about the other. It is the same shape as the theme
+button: the site says what a browser that has not chosen gets, and a browser that
+has chosen keeps its choice.
+
+**Nothing changes for an installation that changes nothing.** The default is the
+PDF, so the button behaves exactly as it did.
+
+**With no script, it is a PDF.** The button is a link to a PDF in the markup, and
+that is what it stays in a browser running no JavaScript. Everything above is the
+page deciding to do something else instead, never a promise the markup made and
+could not keep.
+
+#### Bluetooth, and the iPhone
+
+Bluetooth from a web page needs a browser that has it, which means **Chrome or
+Edge on a Mac, a PC or Android**. Safari does not have it and Apple has said it
+does not intend to add it, so on an iPhone or iPad the answer is one of:
+
+- **open the site in [Bluefy](https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055)**, a browser that does have it. You will sign in
+  again there — it keeps its own cookies — and then the button works as it does
+  anywhere else.
+- **use a PDF and the share sheet**, which is what AirPrint is for.
+- **send it to a print agent**, if the label is going on a shelf rather than into
+  your hand.
+
+Pressing the Bluetooth button in Safari says so rather than failing quietly.
+
+**If the printer is not in the list**, press **show every Bluetooth device** and
+look for it by name — it will be called something like `B1-G327071185`. The short
+list is filtered on what a NIIMBOT advertises about itself, and Bluefy does not
+handle that filtering the way a desktop browser does. The long list always works
+and is one extra tap.
+
+**If it is in the list but will not connect**, close the NIIMBOT app — properly,
+not just to the background. These printers talk to one thing at a time, and while
+their own app has hold of one nothing else can have it.
+
+**What you see in your phone's Bluetooth settings is a different radio.** These
+printers have two Bluetooth addresses — an old-style one, which is what appears in
+the settings list and refuses to pair, and a Low Energy one, which is the only one
+a browser can talk to and which does not appear there at all. Seeing the printer in
+iOS Settings therefore says nothing about whether this will work, and failing to
+pair it there is expected rather than a fault.
+
+**⋯ → Settings → Labels → test a printer** connects and reads out everything the
+browser can see on a printer — its name, its services, what each one can do — and
+prints nothing. It is the thing to press when the label button does nothing and
+there is no way to tell whose fault it is.
+
+### Printing to a printer somewhere else
+
+The buttons hand you a file, which is right when the printer is on the machine you
+are holding. It is no use at all when the label printer is on a Raspberry Pi in the
+workshop and you are upstairs with a phone.
+
+So the register keeps **a print queue**, and a small **agent** runs on the machine
+the printer is plugged into. You send a label to a named printer; the agent picks
+it up within a few seconds and prints it.
+
+**The agent asks; the register never calls out.** The agent opens every connection
+— it asks the register whether there is anything for it, fetches the label, prints
+it and says how it went. Nothing has to be forwarded to the machine in the
+workshop, no port is opened on your home network, and the register can be a server
+on the internet while the printer is on a desk behind a broadband router. It also
+means an agent that is switched off is not an error: its jobs wait for it.
+
+**Each agent has its own key**, set in `.env` on the server, and that key opens
+nothing else — an agent can ask for its own jobs, fetch the labels for them and
+report on them, and that is the whole of what it can do. It cannot read the
+register, and it never learns your password.
+
+```
+RHDB_PRINT_AGENTS=workshop-pi:9f3c…:dymo-11355:pdf,bench:1a7d…:niimbot-50x30:png
+```
+
+Each entry is `name:key:stock:format`. The name is what you send a label to; the
+stock is what is loaded in that printer; the format is what the printer would
+rather be handed — `pdf` for anything going through CUPS, which is a Dymo, a
+Brother or a sheet printer, and `png` for a printer that takes dots. Generate a key
+with `openssl rand -hex 32`, one each, and never reuse one.
+
+With nothing set there is no queue and no way in: the feature is off until an
+agent is named.
+
+**Sending a label:**
+
+```sh
+curl -u user:pass -X POST https://db.example.com/api/print/jobs \
+  -H 'content-type: application/json' \
+  -d '{"agent": "workshop-pi", "kind": "part", "asset_id": "RH-0117"}'
+```
+
+`media`, `dpi`, `format` and `copies` may be given and otherwise come from the
+agent's own settings. `GET /api/print/jobs` says what is queued, what has printed
+and what went wrong.
+
+**A job that is picked up and not finished comes back.** If the agent is unplugged
+mid-print, or its Pi reboots, the job returns to the queue after a few minutes
+rather than sitting claimed by a machine that is never going to come back. The
+cost of that is a label printed twice, which is a label; the cost of the other
+behaviour is a job lost in silence.
+
+Finished jobs are swept after a week. What is on the queue is a list of what is
+about to happen, not an archive — the item's own history is where a permanent
+record would belong, and a label being printed is not an event in the life of the
+machine.
+
+See [the print agent](#print_agentpy) for what to install on the Pi.
 
 For bulk printing, or for printing from the machine the label printer is attached
 to, see [command-line tools](#21-command-line-tools).
@@ -2012,6 +2189,48 @@ python make_labels.py -o out.pdf ...  # write somewhere specific
 Label geometry, the QR error-correction level, rotation, the display font and the
 printer names are all in `tools/config.yml`. List your printers with
 `lpstat -p`.
+
+### print_agent.py
+
+The half that runs on the machine the label printer is plugged into. It asks the
+register for a job, prints it and reports back, and it does nothing else — it is
+about a hundred lines and needs **nothing installed but Python 3 and CUPS**, so a
+Raspberry Pi with a Dymo on a USB port is a complete installation.
+
+```sh
+export RHDB_API=https://db.example.com
+export RHDB_PRINT_AGENT=workshop-pi
+export RHDB_PRINT_KEY=9f3c…            # this agent's key, from the server's .env
+export RHDB_PRINTER=DYMO_LabelWriter_450_Turbo   # blank = the system default
+export RHDB_MEDIA=w51h144                        # the roll that is loaded
+python3 print_agent.py
+```
+
+**Say which roll is loaded.** A label is rendered at exactly the size of the stock
+it is going on, so the page CUPS prints it on has to be that size too. Left unsaid,
+CUPS scales it onto the printer's default — which on a label printer is usually a
+different roll, and a scaled label is a soft QR code and a name that runs off the
+end. `lpoptions -p <printer> -l` lists the names your driver takes. Leave
+`RHDB_MEDIA` empty if you would rather set the default on the printer itself,
+which is the other right answer.
+
+`lpstat -p` lists the printers CUPS knows. `--once` does a single pass and stops,
+which is what to run first: it prints whatever is waiting and tells you what
+happened, without leaving anything running. `--dry-run` goes through the whole
+motion and writes the label to a file instead of printing it, for proving the
+connection before there is a printer at all.
+
+To leave it running, install it as a service:
+
+```sh
+sudo cp print-agent.service /etc/systemd/system/
+sudo systemctl enable --now print-agent
+journalctl -u print-agent -f
+```
+
+`tools/print-agent.service` is a working unit file with the environment in it;
+edit the three values at the top and nothing else. The agent holds no state, so
+restarting it is always safe and it recovers from a lost network by itself.
 
 ### import_report.py
 

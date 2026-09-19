@@ -1,0 +1,53 @@
+[Unit]
+# The print agent, for the machine the label printer is plugged into.
+#
+#   sudo cp print-agent.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now print-agent
+#   journalctl -u print-agent -f
+#
+# Edit the four Environment lines below and nothing else. The key is this agent's
+# own, out of RHDB_PRINT_AGENTS in the register's .env; it is not the password.
+Description=Retro Hardware Database print agent
+Documentation=https://github.com/hmerrett/retro-hardware-database
+After=network-online.target cups.service
+Wants=network-online.target
+
+[Service]
+Environment=RHDB_API=https://db.example.com
+Environment=RHDB_PRINT_AGENT=workshop-pi
+Environment=RHDB_PRINT_KEY=put-this-agents-key-here
+Environment=RHDB_PRINTER=
+# The page size of the roll that is loaded: lpoptions -p <printer> -l
+Environment=RHDB_MEDIA=
+
+WorkingDirectory=/opt/rhdb
+ExecStart=/usr/bin/python3 /opt/rhdb/print_agent.py
+
+# The agent holds no state, so restarting it is always safe and is the right answer
+# to every fault it cannot handle itself.
+Restart=always
+RestartSec=10
+
+# It prints and it talks to one server. It has no business anywhere else on the
+# disk, and the key is in this unit rather than in the process's arguments so it
+# does not show up in `ps` for everybody on the machine.
+#
+# DynamicUser rather than a named account: systemd makes one for the duration and
+# takes it away again, so installing this is copying a file rather than copying a
+# file and remembering to create a user first -- which is the step that fails with
+# "Failed to determine user credentials" on a machine you are not sitting at.
+# The lp group is what CUPS is spoken to through.
+DynamicUser=yes
+SupplementaryGroups=lp
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

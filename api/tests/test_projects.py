@@ -1076,19 +1076,20 @@ class TestTheWordUpTheEnd:
         them changes with the type size. A hand-picked offset would stop centring
         the moment anybody changed the size.
 
-        The font name comes from _fonts() rather than being written out here, which
-        also covers the branch that matters: if the display TTF is missing it falls
-        back to Helvetica, and _vertical asks that font for its ascent just the
-        same. A name guessed here would pass while the fallback crashed."""
-        from reportlab.pdfbase import pdfmetrics
-        from app import labels
+        The ascent is asked of the surface rather than worked out from a font name
+        written here, which also covers the branch that matters: if the display TTF
+        is missing the surface falls back to Helvetica and answers for that instead.
+        A name guessed here would pass while the fallback crashed."""
+        from reportlab.pdfgen import canvas
 
-        hfont, _ = labels._fonts()
+        from app import surfaces
+
+        page = surfaces.PdfSurface(canvas.Canvas("/dev/null"))
         for size in (5.5, 15, 30):
-            ascent = pdfmetrics.getAscent(hfont) / 1000.0 * size
+            ascent = page.ascent(surfaces.HEAD, size)
             assert ascent > 0
-            # What _vertical computes for a 10pt strip: centred, and inside it
-            # whenever it fits at all.
+            # What PdfSurface.vertical computes for a 10pt strip: centred, and
+            # inside it whenever it fits at all.
             left = (10 - ascent) / 2
             assert abs(left - (10 - ascent - left)) < 1e-9
             if ascent <= 10:
@@ -1115,7 +1116,7 @@ class TestTheWordUpTheEnd:
         unreadable rather than merely tight, so it keeps its own margin."""
         from app import labels
 
-        assert labels.SMALL["safe_mm"] == 3
+        assert labels.MEDIA[labels.SMALL]["safe_mm"] == 3
         # The body stops at mx; the word stops a millimetre further in again.
         pdf = labels.render_pdf(
             {"asset_id": "RH-0001", "name": "X", "status": "active"}, [], labels.PROJECT, small=True
@@ -1150,26 +1151,24 @@ class TestASmallLabelStaysOnTheLabel:
         from reportlab.pdfgen import canvas
         from app import labels
 
-        _hfont, bfont = labels._fonts()
-        c = canvas.Canvas("/dev/null")
+        from app import surfaces
+
+        page = surfaces.PdfSurface(canvas.Canvas("/dev/null"))
         asset = {"asset_id": "RH-MN11", "type": ptype, "name": name, "spec_pairs": spec_pairs}
         title, tags = labels.small_body(asset, labels.PART, spec_pairs)
-        # The width the renderer leaves for the body on a 51mm label with the word.
-        from reportlab.lib.units import mm
-
-        my, safe = 1.2 * mm, labels.SMALL["safe_mm"] * mm
-        mx = my + safe
-        qr = labels.SMALL["h"] - 2 * my
-        tw = labels.SMALL["w"] - (mx + qr + 1.5 * mm) - mx - 3.2 * mm - 1.0 * mm
-        size, lines = labels._small_body_lines(
-            c, title, tags, bfont, tw, labels.SMALL["h"] - 2 * my - 11
-        )
-        return size, lines, tw, bfont, c
+        # The column the renderer itself leaves for the body on a 51x19mm tape with
+        # the word up the end, asked of the renderer rather than worked out again
+        # here from the same constants.
+        tape = labels.MEDIA[labels.SMALL]
+        W, H = labels.layout_size(tape)
+        column = labels.small_text_column(W, H, tape["safe_mm"])
+        size, lines = labels._small_body_lines(page, title, tags, column.tw, H - 2 * column.my - 11)
+        return size, lines, column.tw, surfaces.BODY, page
 
     def test_a_monitors_specs_all_fit_inside_the_label(self):
         """RH-MN11's own label, which is what showed this up: the resolution line
         ran off the end and through the word at the other end on the way."""
-        size, lines, tw, bfont, c = self.lines_for(
+        size, lines, tw, font, page = self.lines_for(
             self.specs(
                 **{
                     "Screen size": '12"',
@@ -1182,7 +1181,7 @@ class TestASmallLabelStaysOnTheLabel:
             )
         )
         for line in lines:
-            assert c.stringWidth(line, bfont, size) <= tw, line
+            assert page.width_of(line, font, size) <= tw, line
 
     def test_the_refresh_gets_a_line_of_its_own(self):
         """Joined to the resolution it wrapped mid-figure -- "320x200 (CGA) 50" and
@@ -1212,10 +1211,10 @@ class TestASmallLabelStaysOnTheLabel:
         """A resolution or a part number has no space in it to wrap at. Losing the
         end of one is bad; drawing it off the side of the label is worse, because
         there it is lost with nothing to say so."""
-        size, lines, tw, bfont, c = self.lines_for([("Resolution", "1" * 40)], name="X Y")
+        size, lines, tw, font, page = self.lines_for([("Resolution", "1" * 40)], name="X Y")
         assert any(x.endswith("…") for x in lines), lines
         for line in lines:
-            assert c.stringWidth(line, bfont, size) <= tw, line
+            assert page.width_of(line, font, size) <= tw, line
 
     def test_every_kind_of_part_stays_inside(self):
         for ptype, pairs in (
@@ -1233,8 +1232,8 @@ class TestASmallLabelStaysOnTheLabel:
                 ],
             ),
         ):
-            size, lines, tw, bfont, c = self.lines_for(
+            size, lines, tw, font, page = self.lines_for(
                 pairs, name="A Rather Long Manufacturer Name XYZ-9000", ptype=ptype
             )
             for line in lines:
-                assert c.stringWidth(line, bfont, size) <= tw, (ptype, line)
+                assert page.width_of(line, font, size) <= tw, (ptype, line)

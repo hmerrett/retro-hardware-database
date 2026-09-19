@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_labelsend.html" as LS %}
 {% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
 {% block title %}{{ p.name or p.asset_id }} — {{ site_name() }}{% endblock %}
@@ -18,7 +19,7 @@
        the machine, and this one goes on the things bought for the project -- stick it
        on the jiffy bag and the code opens the project it was bought for, orders and
        all. Small first, because that is the one that fits a parcel. #}
-    <a class="iconbtn lbl-s" href="/projects/{{ p.asset_id }}/label.pdf?small=1" target="_blank" title="Small label (PDF) — for a parcel or a part bought for this" aria-label="Small label">{{ I.ico('printer') }}</a>
+    <a class="iconbtn lbl-s" href="/projects/{{ p.asset_id }}/label.pdf?small=1" data-kind="project" data-asset="{{ p.asset_id }}" target="_blank" title="Small label (PDF) — for a parcel or a part bought for this" aria-label="Small label">{{ I.ico('printer') }}</a>
     <a class="iconbtn lbl-l" href="/projects/{{ p.asset_id }}/label.pdf?small=0" target="_blank" title="Full label (PDF)" aria-label="Full label">{{ I.ico('printer') }}</a>
     {# No disposal step in front of it, unlike a machine: abandoning a project is
        already a status it can be left in, so the only thing left for delete to mean
@@ -218,4 +219,5 @@
 
   {% include "_history.html" %}
 </div>
+{{ LS.script() }}
 {% endblock %}
