@@ -1204,6 +1204,9 @@
   .actions-row { margin-top: 14px; gap: 8px; }
   .btn-row { margin: 0; display: flex; gap: 4px; }
   .login-box { max-width: 320px; }
+  /* Wide enough for a sentence of explanation under each control, narrow enough
+     that a text box is not a field the width of a desktop. */
+  .settings-box { max-width: 560px; }
   .stat-h { margin: 0; font-size: 17px; }
   .stat-sub { font-size: 13px; }
   textarea.box-70 { min-height: 70px; }
