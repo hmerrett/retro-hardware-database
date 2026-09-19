@@ -38,6 +38,15 @@ artwork. Replace any of them by hand instead if you would rather.
 | `favicon.ico`, `favicon-*.png` | the browser tab |
 | `apple-touch-icon.png` | an iOS home-screen shortcut (flattened on white) |
 | `icon-192.png`, `icon-512.png` | the installable web-app icon |
+| `site.webmanifest` | the name under that icon on a home screen |
+
+`site.webmanifest` is the odd one out: it is text rather than artwork, and
+`make_icons.py` does not write it. What this collection is called is a setting on
+the site now (⋯ → Settings), and that name reaches the pages, the browser's tab
+and a shared link's preview — but not the manifest, which is a static file read by
+the browser at install time. If you install the site to a phone's home screen and
+want your own name under the icon, copy `api/app/static/site.webmanifest` in here
+and edit its `name` and `short_name`.
 
 ## Restart after changing anything
 
