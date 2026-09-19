@@ -172,6 +172,35 @@
     }
   }
 
+  /* --- finding out what the browser can see ------------------------------- */
+
+  var test = document.getElementById("bt-test");
+  var report = document.getElementById("bt-report");
+  if (test && report) {
+    test.addEventListener("click", function () {
+      report.hidden = false;
+      report.textContent = "choose the printer…";
+      import("/static/niimbot.js")
+        .then(function (driver) {
+          return driver.probe();
+        })
+        .then(function (found) {
+          report.textContent =
+            (found.usable ? "This looks printable.\n\n" : "Nothing on this can be printed to.\n\n") +
+            JSON.stringify(found, null, 2);
+        })
+        .catch(function (err) {
+          report.textContent =
+            "Nothing came back: " +
+            String((err && err.message) || err) +
+            "\n\n" +
+            "An empty chooser means the printer is not advertising: the NIIMBOT app may\n" +
+            "still be holding it (close it, do not just background it), it may be asleep,\n" +
+            "or this browser may not have permission to use Bluetooth.";
+        });
+    });
+  }
+
   /* --- the menu on the settings page -------------------------------------- */
 
   var menu = document.getElementById("device_destination");

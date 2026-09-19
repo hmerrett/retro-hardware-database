@@ -1592,6 +1592,18 @@ and is one extra tap.
 not just to the background. These printers talk to one thing at a time, and while
 their own app has hold of one nothing else can have it.
 
+**What you see in your phone's Bluetooth settings is a different radio.** These
+printers have two Bluetooth addresses — an old-style one, which is what appears in
+the settings list and refuses to pair, and a Low Energy one, which is the only one
+a browser can talk to and which does not appear there at all. Seeing the printer in
+iOS Settings therefore says nothing about whether this will work, and failing to
+pair it there is expected rather than a fault.
+
+**⋯ → Settings → Labels → test a printer** connects and reads out everything the
+browser can see on a printer — its name, its services, what each one can do — and
+prints nothing. It is the thing to press when the label button does nothing and
+there is no way to tell whose fault it is.
+
 ### Printing to a printer somewhere else
 
 The buttons hand you a file, which is right when the printer is on the machine you

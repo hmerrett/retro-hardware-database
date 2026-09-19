@@ -291,10 +291,11 @@ class TestHowThePageReads:
         """One tooltip per setting, so none of them is the one that was forgotten
         and left a control with nothing behind it."""
         page = client.get("/settings").text
-        # One per setting, and one more for the device's own answer -- which is a
-        # row on this page but not a setting: it is kept in the browser and never
-        # posted, so it is not in DEFINITIONS and cannot be (ADR-0023).
-        assert page.count('class="srow" title="') == len(settings.DEFINITIONS) + 1
+        # One per setting, and two more that are rows on this page without being
+        # settings: the device's own answer, which is kept in the browser and never
+        # posted (ADR-0023), and the button that asks a Bluetooth printer what is on
+        # it. Both still carry their reason, which is what this is about.
+        assert page.count('class="srow" title="') == len(settings.DEFINITIONS) + 2
 
 
 class TestSaving:

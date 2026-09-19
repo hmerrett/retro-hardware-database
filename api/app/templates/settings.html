@@ -81,6 +81,14 @@
       <option value="">whatever the site says</option>
     </select>
   </div>
+  {# For the case the settings page cannot otherwise get out of: a chooser that
+     lists nothing, on a printer nobody debugging it can hold. Hidden with the rest
+     of the block until the script is there to answer it. #}
+  <div class="srow" title="Connects to a Bluetooth printer and reads out what is on it, without printing anything. For finding out whether the browser can see the printer at all.">
+    <label for="bt-test">Bluetooth</label>
+    <button class="btn" type="button" id="bt-test">test a printer</button>
+  </div>
+  <pre id="bt-report" class="hscroll" hidden></pre>
 </fieldset>
 {{ LS.script() }}
 {% endblock %}

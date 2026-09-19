@@ -67,13 +67,53 @@ const SERVICE = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
  * the device is invisible.
  */
 function chooser(showEverything) {
-  if (showEverything) {
+  if (showEverything || onApple()) {
     return { acceptAllDevices: true, optionalServices: [SERVICE] };
   }
   return {
     filters: [{ namePrefix: NAME_PREFIX }, { services: [SERVICE] }],
     optionalServices: [SERVICE],
   };
+}
+
+/** Whether this is the platform whose filtering cannot be trusted.
+ *
+ * Sniffing the browser, which is nearly always the wrong thing to do and is the
+ * right thing here: this is not a guess about what a browser can do -- it is a
+ * known defect in one implementation, on the one platform that has no second
+ * implementation to offer instead. The cost of being wrong is a longer list. */
+function onApple() {
+  return /iPhone|iPad|iPod/.test(navigator.userAgent);
+}
+
+/** What the browser can see, without printing anything.
+ *
+ * For the case this could not otherwise get out of: a chooser that lists nothing,
+ * on hardware nobody debugging it can hold. It connects, reads out every service
+ * and characteristic, and prints none of them -- so the answer to "is it even
+ * there" stops being a guess made from two rooms away.
+ */
+export async function probe() {
+  if (!navigator.bluetooth) throw new Error("this browser has no Web Bluetooth at all");
+  const device = await navigator.bluetooth.requestDevice(chooser(true));
+  const report = { name: device.name || "(unnamed)", id: device.id, services: [] };
+  const server = await device.gatt.connect();
+  try {
+    for (const service of await server.getPrimaryServices()) {
+      const found = { uuid: service.uuid, characteristics: [] };
+      for (const c of await service.getCharacteristics()) {
+        const can = Object.keys(c.properties).filter((k) => c.properties[k]);
+        found.characteristics.push({ uuid: c.uuid, can });
+      }
+      report.services.push(found);
+    }
+  } finally {
+    server.disconnect();
+  }
+  report.usable = report.services.some((s) =>
+    s.characteristics.some((c) => c.can.includes("notify") && c.can.includes("writeWithoutResponse"))
+  );
+  return report;
 }
 
 /* A NIIMBOT *serves* that service and does not necessarily *advertise* it, which
