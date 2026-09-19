@@ -12,7 +12,8 @@ branding directory, the public base URL. All of them are facts about a
 deployment, decided when the container is started by whoever starts it.
 
 The settings page is the first thing that is not like that. What the collection
-is called, whether search engines may list it, whether a photograph is stamped,
+is called, whether search engines may list it, whether a photograph is
+watermarked,
 which theme the site opens in — these are decided by the person who owns the
 collection, changed on a whim at four in the afternoon, and changed from a
 phone. Putting them in the environment means an SSH session and a restart to
@@ -37,14 +38,17 @@ server decides it — where the database is, what the credentials are, where the
 photographs are kept — it is configuration, and nothing about this changes it.
 
 **A device preference is stored in the browser and never travels.** The theme
-already worked this way and keeps working that way. The settings page shows what
-this browser has chosen and offers to hand the choice back, which is the one
-thing the ⋯ toggle cannot do; it does not make the choice travel.
+already worked this way and keeps working that way: the ⋯ toggle chooses for the
+browser it is pressed in, and overrules the installation's default. The settings
+page does not show or manage that choice — it sets the default the choice
+overrules, and the two are deliberately not mixed on one page.
 
 **Where both exist, the environment wins, and the page says so.** A setting may
 name an environment variable. If that variable is set, it is the value, the page
-shows it greyed with the variable named beside it, and a form post cannot change
-it.
+shows the control greyed and refusing an answer, and a form post cannot change
+it. Which variable holds it is in the manual rather than on the row: the page
+says once, at its foot, that greyed means set in `.env`, which is what somebody
+looking at a control they cannot move needs to know (interface-text).
 
 That last part is the decision that took the most arguing, because the other way
 round is friendlier: let the page overrule the environment and a click is the
@@ -74,9 +78,10 @@ fault; a state that says which one it is in is the fix.
 - `RHDB_WATERMARK` is the only variable that pins a setting at the moment, and
   it keeps working exactly as it did. What changed is that it is now the pin on a
   preference rather than the only way to express one.
-- The next thing on this page is where a label goes, and it lands in the device
-  half without any of this being revisited. That was the point of building it
-  first.
+- The next thing on this page is where a label goes, which is a fact about the
+  device rather than about the collection. Nothing here has to be revisited to
+  put it there: the storage question is answered, and what that setting needs is
+  a group of its own on the page rather than a new decision.
 - Accounts, when they come, are the fourth place: a preference belonging to a
   person rather than to the installation or the browser. The table takes a
   nullable owner column and the definitions grow a scope; nothing here has to be

@@ -20,7 +20,7 @@
   <h2 class="flush">Projects</h2>
   <span class="muted">{% if live %}{{ live }} in hand{% else %}none in hand{% endif %}{% if rows|length != live %} · {{ rows|length }} altogether{% endif %}</span>
   <span class="grow"></span>
-  {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ Project</a>{% endif %}
+  {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ project</a>{% endif %}
 </div>
 
 {% if suggestion %}

@@ -36,6 +36,11 @@ if TYPE_CHECKING:
 
 SWITCH, TEXT, CHOICE = "switch", "text", "choice"
 
+# The fieldsets, in the order they are shown. Named here so a definition names one
+# rather than repeating the words.
+APPEARANCE = "Appearance"
+SERVER = "Local server options"
+
 DEFAULT_SITE_NAME = "Retro Hardware Database"
 
 # What a switch reads as off, matching RHDB_WATERMARK's own reading of itself from
@@ -55,6 +60,14 @@ class Definition:
     """
 
     key: str
+    # Which fieldset it appears in. Definitions are written in the order they are
+    # shown, and `grouped` reads the sections off them rather than keeping a second
+    # list to fall out of step with.
+    section: str
+    # As short as it can be and still be unambiguous. The explanation is `note`,
+    # which the page shows on hover rather than printing under the control
+    # (interface-text); a control named only by its tooltip is an unnamed control,
+    # so the label has to carry the meaning on its own.
     label: str
     note: str
     kind: str
@@ -66,7 +79,8 @@ class Definition:
 DEFINITIONS: tuple[Definition, ...] = (
     Definition(
         key="site_name",
-        label="What this collection is called",
+        section=APPEARANCE,
+        label="Name",
         note=(
             "In the banner, the browser's tab, the foot of every page and the preview a "
             "shared link unfolds into. Empty goes back to the name the software ships with."
@@ -75,18 +89,9 @@ DEFINITIONS: tuple[Definition, ...] = (
         default=DEFAULT_SITE_NAME,
     ),
     Definition(
-        key="search_engines",
-        label="Let search engines list this site",
-        note=(
-            "Off asks every crawler not to file any page of it. It is a request and not "
-            "a lock: anything that must not be read by a stranger belongs behind the login."
-        ),
-        kind=SWITCH,
-        default="1",
-    ),
-    Definition(
         key="watermark",
-        label="Stamp photographs with the site's mark",
+        section=APPEARANCE,
+        label="Watermark photographs",
         note=(
             "Composited into the copy that is served, so a photograph saved elsewhere "
             "still says where it came from. The original on disk is never touched."
@@ -97,7 +102,8 @@ DEFINITIONS: tuple[Definition, ...] = (
     ),
     Definition(
         key="theme",
-        label="Opens in",
+        section=APPEARANCE,
+        label="Theme",
         note=(
             "What somebody gets who has never chosen a theme. A device that has chosen "
             "one keeps its choice."
@@ -110,9 +116,35 @@ DEFINITIONS: tuple[Definition, ...] = (
             ("dark", "dark"),
         ),
     ),
+    Definition(
+        key="block_search_engines",
+        section=SERVER,
+        label="Block search engines",
+        note=(
+            "Asks every crawler not to file any page of this site. It is a request and "
+            "not a lock: anything that must not be read by a stranger belongs behind "
+            "the login."
+        ),
+        kind=SWITCH,
+        default="0",
+    ),
 )
 
 BY_KEY = {d.key: d for d in DEFINITIONS}
+
+
+def grouped() -> list[tuple[str, list[Definition]]]:
+    """The definitions as the page lays them out: a fieldset to a section, in the
+    order the sections first appear.
+
+    A dict rather than a filter per section, so a definition written in the wrong
+    place joins its own section instead of opening a second fieldset with the same
+    legend."""
+    out: dict[str, list[Definition]] = {}
+    for d in DEFINITIONS:
+        out.setdefault(d.section, []).append(d)
+    return list(out.items())
+
 
 # Read once and kept, because these are asked for several times in the rendering of
 # every page and change about as often as the site is renamed. `forget` is what

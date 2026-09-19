@@ -57,7 +57,7 @@ def robots_txt(request: Request) -> Response:
     # address anyway from whatever links to it. What does go is the sitemap --
     # asking not to be listed while handing over a list of everything to list is
     # two answers to one question (ADR-0023).
-    if settings.on("search_engines"):
+    if not settings.on("block_search_engines"):
         body += f"Sitemap: {base}/sitemap.xml\n"
     return Response(body, media_type="text/plain")
 

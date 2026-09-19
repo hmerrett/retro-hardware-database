@@ -32,10 +32,14 @@ def gui_settings(request: Request, saved: int = 0) -> Response:
         request,
         "settings.html",
         {
-            "definitions": settings.DEFINITIONS,
+            "sections": settings.grouped(),
             "value": settings.value,
             "on": settings.on,
             "pinned": settings.pinned,
+            # Whether to say at the foot what greyed means. Asked once here rather
+            # than worked out in the template, and only true when there is
+            # something greyed to explain.
+            "pinned_any": any(settings.pinned(d) is not None for d in settings.DEFINITIONS),
             "saved": bool(saved),
             "noindex": True,
         },

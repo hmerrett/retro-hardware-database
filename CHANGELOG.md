@@ -14,12 +14,12 @@ hand is written under the release that needs it.
 ## Unreleased
 
 **A settings page**, at ⋯ → Settings, behind the login. Four things to start
-with: what this collection is called — which reaches the banner, the browser's
-tab, the foot of every page and the preview a shared link unfolds into — whether
-search engines may list the site, whether photographs are stamped with its mark,
-and which theme it opens in. The ⋯ menu's theme button is unchanged and still
-overrules the default for the browser it is pressed in; the page is where that
-choice can be handed back.
+with, in two groups. *Appearance*: what this collection is called — which reaches
+the banner, the browser's tab, the foot of every page and the preview a shared
+link unfolds into — whether photographs are watermarked, and which theme the site
+opens in. *Local server options*: whether to block search engines. The ⋯ menu's
+theme button is unchanged, and still overrules the default for the browser it is
+pressed in.
 
 Nothing has to be done to get it: every setting has the value the software
 already behaved as though it had, so an installation that opens the page and
