@@ -1534,6 +1534,66 @@ printing from a phone through AirPrint.
 site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set
 it correctly before you print anything.**
 
+### Printing to a printer somewhere else
+
+The buttons hand you a file, which is right when the printer is on the machine you
+are holding. It is no use at all when the label printer is on a Raspberry Pi in the
+workshop and you are upstairs with a phone.
+
+So the register keeps **a print queue**, and a small **agent** runs on the machine
+the printer is plugged into. You send a label to a named printer; the agent picks
+it up within a few seconds and prints it.
+
+**The agent asks; the register never calls out.** The agent opens every connection
+— it asks the register whether there is anything for it, fetches the label, prints
+it and says how it went. Nothing has to be forwarded to the machine in the
+workshop, no port is opened on your home network, and the register can be a server
+on the internet while the printer is on a desk behind a broadband router. It also
+means an agent that is switched off is not an error: its jobs wait for it.
+
+**Each agent has its own key**, set in `.env` on the server, and that key opens
+nothing else — an agent can ask for its own jobs, fetch the labels for them and
+report on them, and that is the whole of what it can do. It cannot read the
+register, and it never learns your password.
+
+```
+RHDB_PRINT_AGENTS=workshop-pi:9f3c…:dymo-11355:pdf,bench:1a7d…:niimbot-50x30:png
+```
+
+Each entry is `name:key:stock:format`. The name is what you send a label to; the
+stock is what is loaded in that printer; the format is what the printer would
+rather be handed — `pdf` for anything going through CUPS, which is a Dymo, a
+Brother or a sheet printer, and `png` for a printer that takes dots. Generate a key
+with `openssl rand -hex 32`, one each, and never reuse one.
+
+With nothing set there is no queue and no way in: the feature is off until an
+agent is named.
+
+**Sending a label:**
+
+```sh
+curl -u user:pass -X POST https://db.example.com/api/print/jobs \
+  -H 'content-type: application/json' \
+  -d '{"agent": "workshop-pi", "kind": "part", "asset_id": "RH-0117"}'
+```
+
+`media`, `dpi`, `format` and `copies` may be given and otherwise come from the
+agent's own settings. `GET /api/print/jobs` says what is queued, what has printed
+and what went wrong.
+
+**A job that is picked up and not finished comes back.** If the agent is unplugged
+mid-print, or its Pi reboots, the job returns to the queue after a few minutes
+rather than sitting claimed by a machine that is never going to come back. The
+cost of that is a label printed twice, which is a label; the cost of the other
+behaviour is a job lost in silence.
+
+Finished jobs are swept after a week. What is on the queue is a list of what is
+about to happen, not an archive — the item's own history is where a permanent
+record would belong, and a label being printed is not an event in the life of the
+machine.
+
+See [the print agent](#print_agentpy) for what to install on the Pi.
+
 For bulk printing, or for printing from the machine the label printer is attached
 to, see [command-line tools](#21-command-line-tools).
 
@@ -2057,6 +2117,39 @@ python make_labels.py -o out.pdf ...  # write somewhere specific
 Label geometry, the QR error-correction level, rotation, the display font and the
 printer names are all in `tools/config.yml`. List your printers with
 `lpstat -p`.
+
+### print_agent.py
+
+The half that runs on the machine the label printer is plugged into. It asks the
+register for a job, prints it and reports back, and it does nothing else — it is
+about a hundred lines and needs **nothing installed but Python 3 and CUPS**, so a
+Raspberry Pi with a Dymo on a USB port is a complete installation.
+
+```sh
+export RHDB_API=https://db.example.com
+export RHDB_PRINT_AGENT=workshop-pi
+export RHDB_PRINT_KEY=9f3c…            # this agent's key, from the server's .env
+export RHDB_PRINTER=DYMO_LabelWriter_450_Turbo   # blank = the system default
+python3 print_agent.py
+```
+
+`lpstat -p` lists the printers CUPS knows. `--once` does a single pass and stops,
+which is what to run first: it prints whatever is waiting and tells you what
+happened, without leaving anything running. `--dry-run` goes through the whole
+motion and writes the label to a file instead of printing it, for proving the
+connection before there is a printer at all.
+
+To leave it running, install it as a service:
+
+```sh
+sudo cp print-agent.service /etc/systemd/system/
+sudo systemctl enable --now print-agent
+journalctl -u print-agent -f
+```
+
+`tools/print-agent.service` is a working unit file with the environment in it;
+edit the three values at the top and nothing else. The agent holds no state, so
+restarting it is always safe and it recovers from a lost network by itself.
 
 ### import_report.py
 
