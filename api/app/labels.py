@@ -17,7 +17,7 @@ from __future__ import annotations
 import io
 import os
 from collections.abc import Mapping, Sequence
-from typing import TypedDict, cast
+from typing import NamedTuple, TypedDict, cast
 
 from reportlab.lib.units import inch, mm
 from reportlab.pdfgen import canvas
@@ -48,6 +48,17 @@ def _txt(row: Row, key: str) -> str:
     """One of a row's values as the label prints it, blank where there is none."""
     value = row.get(key)
     return "" if value is None else str(value)
+
+
+class SmallGeometry(NamedTuple):
+    """A small label's measurements, in points: the margins, the code's size, and
+    the column the words are set in."""
+
+    mx: float
+    my: float
+    qr: float
+    tx: float
+    tw: float
 
 
 class Media(TypedDict):
@@ -505,6 +516,30 @@ TAPE_H = 19 * mm
 # used is the largest of them the width will take.
 TAG_PT, BODY_PT = 11.0, 6.5
 
+# The small label's own margins: the same at top and bottom on every stock, and the
+# width of the strip the kind word stands in.
+SMALL_MARGIN = 1.2 * mm
+WORD_STRIP = 3.2 * mm
+
+
+def small_text_column(W: float, H: float, safe: float, worded: bool = True) -> SmallGeometry:
+    """Where a small label's code and words go, given the size of the label.
+
+    Worked out here rather than inside the renderer because it is asked twice: once
+    to draw the label, and once by the suite, which checks that what the label says
+    fits in the room there is. That check used to re-derive these numbers from the
+    same constants, which is a second copy of the arithmetic and free to drift from
+    the first without either of them noticing.
+    """
+    my = SMALL_MARGIN
+    mx = my + safe * mm
+    qr = min(H - 2 * my, W * QR_SHARE)
+    tx = mx + qr + 1.5 * mm
+    tw = W - tx - mx
+    if worded:
+        tw -= WORD_STRIP + 1.0 * mm
+    return SmallGeometry(mx=mx, my=my, qr=qr, tx=tx, tw=tw)
+
 
 def _render_full(
     s: Surface,
@@ -621,35 +656,29 @@ def _render_small(
     tags: Sequence[str] = (),
     kind: str | None = None,
 ) -> None:
-    my = 1.2 * mm
-    mx = my + safe * mm
-    # As tall as the label allows, but never so wide that the words have nowhere to
-    # go. On a 51x19mm tape the height is what binds and this changes nothing; on a
-    # 50x30mm Niimbot label it is not, and a code as tall as that label takes more
-    # than half its width -- which came out as "Seagate ST-225" clipped to "Seaga…"
-    # on a label with two thirds of itself empty.
-    qr = min(H - 2 * my, W * QR_SHARE)
-    # Centred in what height there is, for the same reason: on a squarer label a
-    # code sitting on the bottom margin leaves a hole above it that reads as a
-    # mistake rather than as a margin. On a tape there is no spare height and this
-    # is exactly the bottom margin.
-    s.qr(mx, my + (H - 2 * my - qr) / 2, qr, url, error)
-    tx = mx + qr + 1.5 * mm
-    tw = W - tx - mx
-    # The far end from the code, which is the only end with room on a 51mm label.
-    # The strip comes out of the text column, so a long name wraps a word sooner --
-    # the alternative was shrinking the QR, and a code that will not scan is worth
-    # less than a name that takes an extra line.
+    # The code is as tall as the label allows, but never so wide that the words
+    # have nowhere to go. On a 51x19mm tape the height is what binds and this
+    # changes nothing; on a 50x30mm Niimbot label it is not, and a code as tall as
+    # that label takes more than half its width -- which came out as "Seagate
+    # ST-225" clipped to "Seaga…" on a label two thirds empty.
+    #
+    # The strip the kind word stands in is taken out of the text column, so a long
+    # name wraps a word sooner. The alternative was shrinking the code, and one
+    # that will not scan is worth less than a name that takes an extra line.
     word = KIND_WORDS.get(kind, "")
+    mx, my, qr, tx, tw = small_text_column(W, H, safe, bool(word))
+    # Centred in what height there is: on a squarer label a code sitting on the
+    # bottom margin leaves a hole above it that reads as a mistake rather than as a
+    # margin. On a tape there is no spare height and this is exactly that margin.
+    s.qr(mx, my + (H - 2 * my - qr) / 2, qr, url, error)
     if word:
-        strip = 3.2 * mm
+        strip = WORD_STRIP
         # A millimetre further in than the text stops. `safe_mm` is the allowance
         # the body keeps from the ends of the tape, and it is enough for a line of
         # words that can afford to lose a hair off a descender; a single word set
         # across the tape cannot, since half a letter missing makes the word
         # unreadable rather than merely tight. So this keeps its own margin, wider.
         edge = mx + 1.0 * mm
-        tw -= strip + 1.0 * mm
         s.vertical(W - edge - strip, W - edge, H / 2, word, HEAD, 5.0)
     grow = H / TAPE_H
     aid_size = _fit(s, asset_id, HEAD, TAG_PT * grow, 5, tw)

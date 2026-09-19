@@ -3184,17 +3184,17 @@ class TestALabelSCodeCanActuallyBeRead:
         rather than a break anyone would see now."""
         import segno
 
-        from app import labels
+        from app import surfaces
 
         tag = "RH-0001"
         assert segno.make(tag, error="m").is_micro  # what segno would choose
-        w, h = labels._qr(tag).getSize()  # what the label gets
+        w, h = surfaces.code(tag, "M").symbol_size(scale=10, border=1)  # what the label gets
         assert w == h and w > self.LARGEST_MICRO_PX
 
     def test_the_url_on_a_label_is_a_full_size_code_too(self):
-        from app import labels
+        from app import labels, surfaces
 
-        w, _ = labels._qr(labels.item_url("RH-0001")).getSize()
+        w, _ = surfaces.code(labels.item_url("RH-0001"), "M").symbol_size(scale=10, border=1)
         assert w > self.LARGEST_MICRO_PX
 
     def test_the_code_holds_the_url_that_resolves_to_either_kind(self, client, computer, part):
@@ -3220,12 +3220,11 @@ class TestTheCapacityGetsALineOfItsOwn:
         from reportlab.lib.units import mm
         from reportlab.pdfgen import canvas
 
-        from app import labels
+        from app import labels, surfaces
 
-        c = canvas.Canvas("/dev/null")
-        _, bfont = labels._fonts()
+        page = surfaces.PdfSurface(canvas.Canvas("/dev/null"))
         # The body column on a 51x19mm label, and the height under the asset id.
-        return labels._small_body_lines(c, title, tags, bfont, 69.4, avail_mm * mm)
+        return labels._small_body_lines(page, title, tags, 69.4, avail_mm * mm)
 
     def test_the_capacity_is_the_last_line(self):
         _, lines = self.laid_out("Seagate ST-225", ["20 MB"])
