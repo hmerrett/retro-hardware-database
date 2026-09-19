@@ -119,8 +119,11 @@ def test_it_says_which_printers_it_is_for():
     driver that quietly claimed to be general would fail on a D11 in a way nobody
     could read."""
     source = DRIVER.read_text(encoding="utf-8")
-    assert "B1, B21, B18" in source
+    assert "Covers the B1 and the B21" in source
     assert "PRINTHEAD = 384" in source
+    # And says why the B18 is not in that list, having once been: same family by
+    # name, 96 dots and a sideways page by every number that matters.
+    assert "Not the B18" in source
 
 
 def test_it_says_where_it_came_from():

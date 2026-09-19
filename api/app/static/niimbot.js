@@ -11,9 +11,16 @@
  * the packet framing, the command numbers, the B1 print sequence and the way a row
  * of pixels is counted are all theirs. The mistakes are ours.
  *
- * Covers the B1 family (B1, B21, B18): a 48mm head at 203dpi. Other models differ
- * in the print sequence rather than in the framing, which is why this says which
- * ones it is for instead of pretending to be general.
+ * Covers the B1 and the B21: a 384-dot head at 203dpi, fed top first.
+ *
+ * Not the B18, which this used to claim and should not have. It is the same family
+ * by name and a different printer by every number that matters here -- a 96-dot
+ * head, a twelfth of the width, and a page fed sideways, so a label drawn for a B1
+ * would come out of it as a stripe. Read off niimbluelib's model library rather
+ * than assumed from the name.
+ *
+ * Other models differ in the print sequence rather than in the framing, which is
+ * why this says which ones it is for instead of pretending to be general.
  */
 
 /* [0x55, 0x55, CMD, LEN, DATA..., CHECKSUM, 0xAA, 0xAA] where the checksum is the
@@ -128,8 +135,9 @@ export async function probe() {
    afternoon. */
 const NAME_PREFIX = "B";
 
-/* The print head, in dots. Only used to decide how a row's black pixels are
-   counted -- see `rowCounts`. */
+/* The print head, in dots: a B1 and a B21 both have 384 of them. Used to decide
+   how a row's black pixels are counted (see `rowCounts`) and to refuse a label too
+   wide to come out whole. */
 const PRINTHEAD = 384;
 
 /* Between packets. The printer is a small microcontroller on a BLE link and will

@@ -1547,7 +1547,9 @@ actually have:
 - **a PDF to download** — what it always did, and still the answer for a sheet
   printer, for a Dymo through the print dialogue, and for AirPrint from a phone.
 - **a Niimbot over Bluetooth, from this device** — the browser connects to the
-  printer directly and sends it the label. Nothing goes through the server.
+  printer directly and sends it the label. Nothing goes through the server. This
+  is written for the **B1 and the B21**, which have the same 384-dot head; the
+  B18 is a different printer despite the name and is not supported.
 - **one entry for each print agent you have configured** — *workshop-pi — 51×19 mm
   multipurpose tape*, say. Pressing print puts the label on that printer's queue
   and the agent prints it within a few seconds.
