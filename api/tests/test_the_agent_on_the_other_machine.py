@@ -229,13 +229,39 @@ def test_the_label_is_not_left_lying_about_after_it_prints(
 
 
 def test_the_service_file_matches_the_script_it_starts(agent):
-    """The unit file is what actually gets installed, and a wrong path or a
-    variable the script does not read is a fault discovered by ssh."""
+    """The unit file is what actually gets installed, and a wrong path in it is a
+    fault discovered over ssh on a machine in another room."""
     unit = (TOOLS / "print-agent.service").read_text()
     assert "print_agent.py" in unit
-    for name in ("RHDB_API", "RHDB_PRINT_KEY", "RHDB_PRINTER"):
-        assert f"Environment={name}=" in unit
     assert "Restart=always" in unit
+    # A named user would have to exist before the unit can start, and creating it
+    # is the install step that gets left out.
+    assert "DynamicUser=yes" in unit
+
+
+def test_the_unit_sets_nothing_the_script_does_not_read(agent):
+    """A variable in the unit that the script ignores is worse than no variable at
+    all: somebody sets it, nothing happens, and there is nothing to say why. This
+    is the same fault as a setting Compose never forwards, one machine further
+    along -- see test_deployment.
+    """
+    import re
+
+    unit = (TOOLS / "print-agent.service").read_text()
+    script = (TOOLS / "print_agent.py").read_text()
+    for name in re.findall(r"^Environment=(RHDB_[A-Z0-9_]+)=", unit, re.M):
+        assert f'"{name}"' in script, f"the unit sets {name} and the agent never reads it"
+
+
+def test_the_script_reads_nothing_the_unit_leaves_out(agent):
+    """And the other direction: a variable the agent needs and the unit does not
+    mention is a service that starts and immediately gives up."""
+    import re
+
+    unit = (TOOLS / "print-agent.service").read_text()
+    script = (TOOLS / "print_agent.py").read_text()
+    for name in set(re.findall(r'os\.getenv\("(RHDB_[A-Z0-9_]+)"', script)):
+        assert f"Environment={name}=" in unit, f"the agent reads {name} and the unit never sets it"
 
 
 def test_it_says_what_it_did(agent, served, queue, fake_lp, caplog):

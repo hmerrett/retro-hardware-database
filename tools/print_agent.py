@@ -175,6 +175,13 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--api", default=os.getenv("RHDB_API", ""), help="the register's base URL")
     ap.add_argument("--key", default=os.getenv("RHDB_PRINT_KEY", ""), help="this agent's key")
     ap.add_argument("--printer", default=os.getenv("RHDB_PRINTER", ""), help="CUPS printer name")
+    # The name is the register's own answer -- a key belongs to exactly one agent,
+    # so nothing here has to be told which it is. It is taken anyway because it is
+    # the only thing that makes a line in the journal say which printer it is about,
+    # on a machine that may be running more than one of these.
+    ap.add_argument(
+        "--name", default=os.getenv("RHDB_PRINT_AGENT", ""), help="this agent's name, for the log"
+    )
     ap.add_argument("--once", action="store_true", help="print what is waiting, then stop")
     ap.add_argument("--dry-run", action="store_true", help="write the label to a file instead")
     ap.add_argument("--poll", type=float, default=POLL_SECONDS, help="seconds between asking")
@@ -187,12 +194,19 @@ def main(argv: list[str] | None = None) -> int:
         ap.error("RHDB_API and RHDB_PRINT_KEY (or --api and --key) are both needed")
 
     server = Server(args.api, args.key)
+    who = args.name or "print agent"
     if args.once:
         took = one_pass(server, args.printer, args.dry_run)
-        log.info("%d job%s", took, "" if took == 1 else "s")
+        log.info("%s: %d job%s", who, took, "" if took == 1 else "s")
         return 0
 
-    log.info("asking %s every %gs%s", server.base, args.poll, " (dry run)" if args.dry_run else "")
+    log.info(
+        "%s: asking %s every %gs%s",
+        who,
+        server.base,
+        args.poll,
+        " (dry run)" if args.dry_run else "",
+    )
     wait = BACKOFF_START
     while True:
         try:

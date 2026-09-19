@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1508 behaviours, from 41 files.*
+*1515 behaviours, from 41 files.*
 
 
 ## A file where text was expected
@@ -68,7 +68,7 @@ Regenerate with:
 
 ## A label printed somewhere else
 
-*test_a_label_printed_somewhere_else.py — 24 behaviours*
+*test_a_label_printed_somewhere_else.py — 29 behaviours*
 
 - with no agent named there is no queue  
   Not an empty queue: the feature does not exist until a key has been written down.
@@ -108,6 +108,16 @@ Regenerate with:
   The queue is a list of what is about to happen, not an archive.
 - what is still waiting is never swept  
   An agent switched off for a fortnight is an ordinary state, not a reason to throw its work away.
+- every route behind the agent prefix asks for a key  
+  The gate lets this prefix through without a login, because which agent is asking is the route's answer and not the gate's (ADR-0025).
+- the prefix the gate opens is the one the routes are under  
+  Two strings written in two modules that have to agree, and nothing else would notice if they stopped: the gate would send an agent to the login page, or -- the way that matters -- open a door the routes are not behind.
+- an agent named with no key is not an agent  
+  An empty key must never match anything.
+- an entry naming a stock that does not exist is dropped  
+  Rather than printing the wrong size on a printer somebody is not watching.
+- a key is not a password and a password is not a key  
+  The two doors do not open each other: the owner's credentials are not an agent's key, and an agent's key is not the owner's credentials.
 
 
 ## Api
@@ -2798,7 +2808,7 @@ Regenerate with:
 
 ## The agent on the other machine
 
-*test_the_agent_on_the_other_machine.py — 14 behaviours*
+*test_the_agent_on_the_other_machine.py — 16 behaviours*
 
 - it claims prints and reports in one pass  
   The whole of what it does, done once.
@@ -2822,7 +2832,11 @@ Regenerate with:
 - the label is not left lying about after it prints  
   A register behind a login does not leave its labels in /tmp on a machine other people use.
 - the service file matches the script it starts  
-  The unit file is what actually gets installed, and a wrong path or a variable the script does not read is a fault discovered by ssh.
+  The unit file is what actually gets installed, and a wrong path in it is a fault discovered over ssh on a machine in another room.
+- the unit sets nothing the script does not read  
+  A variable in the unit that the script ignores is worse than no variable at all: somebody sets it, nothing happens, and there is nothing to say why.
+- the script reads nothing the unit leaves out  
+  And the other direction: a variable the agent needs and the unit does not mention is a service that starts and immediately gives up.
 - it says what it did  
   The journal on the Pi is the only place anybody can look when the register says a job failed but not why.
 

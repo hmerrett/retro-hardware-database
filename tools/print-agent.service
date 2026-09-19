@@ -30,8 +30,14 @@ RestartSec=10
 # It prints and it talks to one server. It has no business anywhere else on the
 # disk, and the key is in this unit rather than in the process's arguments so it
 # does not show up in `ps` for everybody on the machine.
-User=print-agent
-Group=lp
+#
+# DynamicUser rather than a named account: systemd makes one for the duration and
+# takes it away again, so installing this is copying a file rather than copying a
+# file and remembering to create a user first -- which is the step that fails with
+# "Failed to determine user credentials" on a machine you are not sitting at.
+# The lp group is what CUPS is spoken to through.
+DynamicUser=yes
+SupplementaryGroups=lp
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict

@@ -337,3 +337,80 @@ def test_what_is_still_waiting_is_never_swept(client, queued, agents, db):
     db.commit()
     queued()
     assert db.get(PrintJob, job["id"]) is not None
+
+
+# --- the door itself ---------------------------------------------------------
+
+
+def every_route(app):
+    """Every route the app serves, walked rather than read off `app.routes`.
+
+    An included router is a wrapper here rather than a list of routes flattened
+    into the app, and it keeps the router it wrapped under `original_router`. So
+    the top level of `app.routes` holds none of the application's own paths, which
+    reads -- to a test that looks only there -- as an app with no routes at all
+    rather than as a test looking in the wrong place."""
+    found, stack = [], list(app.routes)
+    while stack:
+        route = stack.pop()
+        inner = getattr(route, "original_router", None)
+        stack.extend(getattr(inner, "routes", None) or getattr(route, "routes", None) or [])
+        if getattr(route, "path", None) and hasattr(route, "dependant"):
+            found.append(route)
+    return found
+
+
+def test_every_route_behind_the_agent_prefix_asks_for_a_key():
+    """The gate lets this prefix through without a login, because which agent is
+    asking is the route's answer and not the gate's (ADR-0025). That makes the
+    dependency the only thing standing there -- so a route added under the prefix
+    and given no key check would be public, and nothing about the URL would say so.
+    """
+    from app import auth, main
+    from app.routers.print_queue import agent_from_key
+
+    behind = [r for r in every_route(main.app) if r.path.startswith(auth.AGENT_PREFIX.rstrip("/"))]
+    assert behind, "no routes under the agent prefix -- has it moved?"
+    for route in behind:
+        takes = [d.call for d in getattr(route, "dependant", None).dependencies]
+        assert agent_from_key in takes, f"{route.path} does not ask for an agent's key"
+
+
+def test_the_prefix_the_gate_opens_is_the_one_the_routes_are_under():
+    """Two strings written in two modules that have to agree, and nothing else
+    would notice if they stopped: the gate would send an agent to the login page,
+    or -- the way that matters -- open a door the routes are not behind."""
+    from app import auth, main
+
+    assert auth.AGENT_PREFIX == "/api/print/agent/"
+    assert any(r.path.startswith(auth.AGENT_PREFIX) for r in every_route(main.app))
+
+
+def test_an_agent_named_with_no_key_is_not_an_agent(monkeypatch):
+    """An empty key must never match anything. `name::stock:format` is a plausible
+    typo in a variable that is edited by hand, and read carelessly it is an agent
+    whose key is the empty string -- which every request that sends no key has."""
+    monkeypatch.setenv("RHDB_PRINT_AGENTS", "ghost::dymo-11355:pdf,real:key-one:dymo-11355:pdf")
+    assert "ghost" not in printing.agents()
+    assert printing.agent_for("") is None
+
+
+def test_an_entry_naming_a_stock_that_does_not_exist_is_dropped(monkeypatch):
+    """Rather than printing the wrong size on a printer somebody is not watching."""
+    monkeypatch.setenv("RHDB_PRINT_AGENTS", "bad:key-x:no-such-stock:pdf,good:key-y::pdf")
+    named = printing.agents()
+    assert "bad" not in named
+    assert named["good"].media == labels.SMALL
+
+
+def test_a_key_is_not_a_password_and_a_password_is_not_a_key(client, agents, monkeypatch):
+    """The two doors do not open each other: the owner's credentials are not an
+    agent's key, and an agent's key is not the owner's credentials."""
+    from app import main
+
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    monkeypatch.setattr(main.auth, "AUTH_USER", "henry")
+    monkeypatch.setattr(main.auth, "AUTH_PASS", "hunter2")
+    assert claim(client, "hunter2").status_code == 401
+    assert client.get("/api/print/jobs", auth=("henry", "hunter2")).status_code == 200
+    assert client.get("/api/print/jobs", auth=("henry", "key-one")).status_code == 401
