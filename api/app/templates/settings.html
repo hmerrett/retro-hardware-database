@@ -5,63 +5,62 @@
 
 {# The one page in the register that is not about the collection. Everything else
    it holds is a fact about a machine or a part; these are here because somebody
-   prefers them, which is the line ADR-0023 draws and the line the two fieldsets
-   below are drawn along. #}
+   prefers them (ADR-0023).
+
+   Each row says what it is and no more, and carries its reason in a title the
+   browser shows on hover (interface-text). The title is on the row rather than on
+   the control so that resting on the label reaches it too, and the manual holds
+   the full version of every one of them -- a tooltip is a reminder, not the
+   specification. #}
 
 {% if saved %}<p class="hint" id="saved">Saved.</p>{% endif %}
 
 <form class="edit settings-box" method="post" action="/settings">
+  {% for section, rows in sections %}
   <fieldset>
-    <legend>This installation — everybody who opens the site</legend>
-    {% for d in definitions %}
+    <legend>{{ section }}</legend>
+    {% for d in rows %}
     {% set fixed = pinned(d) is not none %}
+    <div class="srow" title="{{ d.note }}">
 
-    {% if d.kind == 'text' %}
-    <label for="{{ d.key }}">{{ d.label }}</label>
-    <input id="{{ d.key }}" name="{{ d.key }}" maxlength="200" autocomplete="off"
-           value="{{ value(d.key) }}"{{ ' disabled' if fixed else '' }}>
+      {% if d.kind == 'text' %}
+      <label for="{{ d.key }}">{{ d.label }}</label>
+      <input id="{{ d.key }}" name="{{ d.key }}" maxlength="200" autocomplete="off"
+             value="{{ value(d.key) }}"{{ ' disabled' if fixed else '' }}>
 
-    {% elif d.kind == 'choice' %}
-    <label id="{{ d.key }}-label">{{ d.label }}</label>
-    {# The group is named by the label above it rather than by each radio's own
-       word: read one at a time, "light" says nothing about what is light. #}
-    <div class="checks" role="radiogroup" aria-labelledby="{{ d.key }}-label">
-      {% for word, said in d.choices %}
-      <label><input type="radio" name="{{ d.key }}" value="{{ word }}"
-                    {{- ' checked' if value(d.key) == word else '' }}
-                    {{- ' disabled' if fixed else '' }}> {{ said }}</label>
-      {% endfor %}
+      {% elif d.kind == 'choice' %}
+      {# A menu and not a row of radios: the lists here are expected to grow, and a
+         fourth choice should cost a line rather than a rethink of the layout. #}
+      <label for="{{ d.key }}">{{ d.label }}</label>
+      <select id="{{ d.key }}" name="{{ d.key }}"{{ ' disabled' if fixed else '' }}>
+        {% for word, said in d.choices %}
+        <option value="{{ word }}"{{ ' selected' if value(d.key) == word else '' }}>{{ said }}</option>
+        {% endfor %}
+      </select>
+
+      {% else %}
+      <div class="checks">
+        {# A tick posts nothing when it is off, which is the reading settings.clean
+           takes of its silence -- the same one the for-sale flag and a file's public
+           tick already take of the same gesture. #}
+        <label><input type="checkbox" name="{{ d.key }}"
+                      {{- ' checked' if on(d.key) else '' }}
+                      {{- ' disabled' if fixed else '' }}> {{ d.label }}</label>
+      </div>
+      {% endif %}
+
     </div>
-
-    {% else %}
-    <div class="checks">
-      {# A tick posts nothing when it is off, which is the reading settings.clean
-         takes of its silence -- the same one the for-sale flag and a file's public
-         tick already take of the same gesture. #}
-      <label><input type="checkbox" name="{{ d.key }}"
-                    {{- ' checked' if on(d.key) else '' }}
-                    {{- ' disabled' if fixed else '' }}> {{ d.label }}</label>
-    </div>
-    {% endif %}
-
-    <p class="hint">{{ d.note }}
-      {%- if fixed %} <strong>Set in the environment</strong>, by
-      <code>{{ d.env }}</code>: change it there and restart, or unset it and this
-      page has it back.{% endif %}</p>
     {% endfor %}
   </fieldset>
+  {% endfor %}
 
-  <p class="mt-14"><button class="btn primary" type="submit">Save</button></p>
+  <p class="mt-14"><button class="btn primary" type="submit">save</button></p>
+
+  {# Said once, at the foot, and only when there is something greyed to explain.
+     Which variable holds which setting is in the manual: naming it on every row is
+     a paragraph of configuration on a page of preferences. #}
+  {% if pinned_any %}
+  <p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
+  {% endif %}
 </form>
-
-{# Outside the form on purpose: nothing here is posted anywhere. It is written in
-   this browser and read by this browser, so the phone by the shelf and the machine
-   in the workshop can each answer differently (ADR-0023). #}
-<fieldset class="settings-box" id="devicetheme" data-default="{{ value('theme') }}">
-  <legend>This device — kept in this browser alone</legend>
-  <p class="hint" id="theme-state">The theme is chosen from the ⋯ menu, on any page.</p>
-  <p><button type="button" class="btn sm" id="theme-clear" hidden>Use the site's default</button></p>
-</fieldset>
-
-<script defer src="/static/settings.js?v={{ js_ver['settings.js'] }}"></script>
 {% endblock %}

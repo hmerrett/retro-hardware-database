@@ -36,15 +36,15 @@ rather than being wondered about later.
 
 - **A settings page.** `/settings`, behind the login and reached from the ⋯ menu
   and the phone's More sheet: what the collection is called, whether search
-  engines may list it, whether photographs are stamped, and which theme the site
-  opens in. Under it, the decision the item was really about
+  engines may list it, whether photographs are watermarked, and which theme the
+  opens in, in two groups. Under it, the decision the item was really about
   ([ADR-0023](adr/0023-a-preference-is-not-configuration.md)) — a preference is
   kept in the database and edited on a page, configuration stays in the
   environment, and where both speak the environment wins and the page says which
-  variable holds it. The device half is there too, which is what the printing
-  work below needs and why this came first. Not taken up: nothing was moved out
-  of the environment that was not already a preference wearing a config's
-  clothes, which was one variable.
+  variable holds it. Not taken up: a device half on the page, which the printing
+  work below will want and which is a group to add rather than a decision to
+  take; and nothing was moved out of the environment that was not already a
+  preference wearing a config's clothes, which was one variable.
 - **Docker environment separation.** The app runs as `appuser` and not root, the
   photograph and file volumes are put right before it starts, the database is
   behind a healthcheck the app waits on, and `docker-compose.dev.yml` layers the
@@ -271,10 +271,11 @@ ADR for.
 Where a label goes is then a preference — a PDF, a Bluetooth printer, or a named
 printer on an agent — and it is a fact about the device rather than about the
 collection: the phone by the shelf wants the Niimbot, the workshop machine the
-Dymo, a visitor the PDF. So it goes in the device half of `/settings`, which now
-exists and was built first for exactly this: the server says what is possible and
-the device says what is preferred, and neither has to be invented alongside the
-protocol work.
+Dymo, a visitor the PDF. So it goes on `/settings`, which now exists and was
+built first for exactly this: the server says what is possible and the device
+says what is preferred, and where a per-device preference is kept is answered
+(ADR-0023) rather than being invented alongside the protocol work. It wants a
+group of its own on that page, since the ones there now are the installation's.
 
 The packet encoding stays in Python where the suite can reach it, and the
 chooser's JavaScript is a static file from the start — the content policy

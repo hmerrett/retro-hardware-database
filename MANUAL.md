@@ -1036,7 +1036,7 @@ looking at it](#when-it-changes-while-you-are-looking-at-it).
 are its portrait; the ones on history entries are not, and `/stats` counts them
 separately for that reason — see [section 16](#16-statistics).
 
-**Watermarking.** Your own photographs are stamped with the site logo as they are
+**Watermarking.** Your own photographs are watermarked with the site logo as they are
 served, and so are the ones on history entries; reference images are not. Set `RHDB_WATERMARK=0` to serve everything
 untouched. The originals on disk are never modified — the watermark is applied to
 a cached copy.
@@ -1788,19 +1788,23 @@ card came out of this box. The settings are the first things it keeps because
 somebody *prefers* them, which is why they live on a page of their own rather
 than in a corner of an item's form.
 
-The page is in two halves, and the line between them is the point of it.
+Everything on it is kept in the database, so it survives a restart and
+everybody who opens the site gets it. It comes in two groups:
 
-**This installation** is everything above the rule: the site's name, whether
-search engines may list it, whether photographs are stamped, and which theme it
-opens in. It is kept in the database, so it survives a restart and everybody who
-opens the site gets it.
+**Appearance** — the site's name, whether photographs are watermarked, and which
+theme it opens in.
 
-**This device** is below the rule, and is kept in the browser you are reading
-in. Nothing there travels: the phone by the shelf and the machine in the
-workshop can each answer differently, and neither answer is anybody else's.
+**Local server options** — how this installation behaves out on the web, which
+for now is whether it asks to be kept out of search engines.
 
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
+
+The page itself is deliberately bare: a control says what it is in as few words
+as will do, and the reason for it is in a tooltip you get by resting the pointer
+on the row for a moment. A page of settings each carrying a paragraph is a page
+nobody reads. What follows here is the full version of those tooltips, which is
+what a manual is for.
 
 ### What the site is called
 
@@ -1819,9 +1823,14 @@ is also what a fresh install starts on.
 
 ### Search engines
 
-**Let search engines list this site** is on by default, which is what a
-catalogue meant to be found wants. Turn it off and every page tells a crawler
-not to file it, and the sitemap stops being advertised in `robots.txt`.
+**Block search engines** is off by default, which is what a catalogue meant to be
+found wants. Tick it and every page tells a crawler not to file it, and the
+sitemap stops being advertised in `robots.txt`.
+
+It is written as the thing you switch *on* rather than as a permission you switch
+off, because that is the way round somebody thinks of it: you go to the settings
+page wanting to keep the site out of Google, not wanting to revoke its licence to
+be in it.
 
 What it deliberately does *not* do is slam the door in `robots.txt`. A crawler
 that is refused entry never reads the page, never sees the instruction not to
@@ -1834,44 +1843,50 @@ that must not be read by a stranger belongs behind the login, not behind this.
 
 ### Photographs
 
-**Stamp photographs with the site's mark** is on by default. The mark is
+**Watermark photographs** is on by default. The mark is
 composited into a corner of the copy that is served, so a photograph saved or
 reposted elsewhere still says where it came from; the original on disk is never
 touched, and turning this off simply serves it.
 
 Reference photographs — the ones fetched from somewhere else because the
-collection has none of its own yet — are never stamped either way. Marking
+collection has none of its own yet — are never watermarked either way. Marking
 somebody else's picture would be claiming it.
 
 ### The theme
 
-**Opens in** is the theme a visitor gets who has never chosen one: *the
-visitor's system setting*, *light*, or *dark*. It is a default and not a rule.
+**Theme** is a menu, and holds the theme a visitor gets who has never chosen
+one: *the visitor's system setting*, *light*, or *dark*. It is a default and not
+a rule. A menu rather than a row of buttons because the list is expected to grow,
+and a fourth and fifth choice should cost a line each rather than a redesign.
 
-Below the rule, in the device half, the page says which theme this browser is
-actually using and why — its own choice, or the site's default. The ⋯ menu's
-theme button is what makes that choice, on any page, and it goes on working
-exactly as it did. **Use the site's default** hands the choice back: the browser
-forgets what it was told and follows the setting above again, which is the one
-thing the ⋯ button cannot do, since it only ever flips between the two.
+A device overrules it. The ⋯ menu's theme button chooses for the browser it is
+pressed in — the phone by the shelf and the machine in the workshop can each read
+differently — and that choice is kept in the browser and travels nowhere. Once a
+browser has made one it keeps it, and the setting here is what everybody who has
+not made one gets.
 
 ### Set in the environment
 
-An installation can pin a setting from outside the application, and one that is
-pinned says so on the page: the value is shown, greyed, with a note naming the
-variable that holds it, and saving the form leaves it alone.
+An installation can pin a setting from outside the application. One that is
+pinned is **greyed out** on the page — it shows the value it has been given, it
+will not take an answer, and saving the form leaves it alone. A line at the foot
+of the page says that is what greyed means, and appears only when something is
+greyed.
 
 The environment wins because it is the deployment speaking, and a setting a
 container was started with is not something a click should be able to overrule —
 the click would be forgotten at the next restart and nobody would know why. To
 change one of these, change it where it is set and restart; to hand it back to
-the page, unset it.
+the page, unset it and restart.
 
 | setting | pinned by |
 |---|---|
-| Stamp photographs | `RHDB_WATERMARK` |
+| Watermark photographs | `RHDB_WATERMARK` |
 
-The rest are the page's alone.
+The rest are the page's alone. This table is the place to look when you want to
+know *which* variable a greyed control is waiting on: the page says only that
+`.env` is where to go, because naming the variable on every row is the kind of
+detail that belongs in a manual rather than on a form.
 
 ---
 

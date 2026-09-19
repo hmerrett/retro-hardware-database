@@ -1207,6 +1207,13 @@
   /* Wide enough for a sentence of explanation under each control, narrow enough
      that a text box is not a field the width of a desktop. */
   .settings-box { max-width: 560px; }
+  /* A settings row is a control and its label, and its explanation is in the title
+     the row carries rather than under it (interface-text) -- so the rows need the
+     air the explanations used to put between them. The tick rows would otherwise
+     sit closer together than the boxed ones, .checks having its own smaller
+     margins. */
+  .srow + .srow { margin-top: 16px; }
+  .srow > .checks { margin: 0; }
   .stat-h { margin: 0; font-size: 17px; }
   .stat-sub { font-size: 13px; }
   textarea.box-70 { min-height: 70px; }

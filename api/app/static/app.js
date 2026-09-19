@@ -1281,7 +1281,7 @@
     return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   function refresh() {
-    var word = effective() === 'dark' ? 'Light theme' : 'Dark theme';
+    var word = effective() === 'dark' ? 'light theme' : 'dark theme';
     btns.forEach(function (b) { b.textContent = word; });
   }
   btns.forEach(function (b) {

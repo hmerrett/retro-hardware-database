@@ -77,6 +77,8 @@ branding belong to the installation and live outside the repo (`.env`,
 - `.claude/rules/security-standards.md` — the security rules this app holds to.
 - `.claude/rules/accessibility-standards.md` — what the stylesheet tests enforce,
   and what is expected of new markup.
+- `.claude/rules/interface-text.md` — what is written on a control, and what goes
+  in the tooltip behind it.
 
 If a rule here and a rule file ever disagree, the specific rule file wins; if
 both are silent, ask.
