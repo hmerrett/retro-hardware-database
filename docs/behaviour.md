@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1540 behaviours, from 43 files.*
+*1548 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -2808,7 +2808,7 @@ Regenerate with:
 
 ## The agent on the other machine
 
-*test_the_agent_on_the_other_machine.py — 18 behaviours*
+*test_the_agent_on_the_other_machine.py — 26 behaviours*
 
 - it claims prints and reports in one pass  
   The whole of what it does, done once.
@@ -2827,12 +2827,28 @@ Regenerate with:
   So the answer to "why has nothing come out" is on the screen in the room the label was sent from, rather than in a log on a Pi under a bench.
 - a wrong key stops rather than retrying for ever  
   A key the register does not know will not start working.
+- the unit does not restart a wrongly set up agent  
+  The other half of it, and the half that actually stops the storm: the agent can exit as deliberately as it likes if systemd starts it straight back up.
+- being rate limited is reported rather than raised  
+  What a restart loop earns itself.
+- the right key is never rate limited  
+  Only a wrong secret is counted, so an agent whose key is put right works at once rather than serving out somebody else's five minutes.
 - an item deleted before it prints is let go  
   The register has already failed the job by the time it answers, so there is nothing for the agent to print and nothing for it to report.
 - a dry run prints nothing and leaves the label to look at  
   For proving the connection on a machine that has no printer attached yet, which is the state this was written in.
+- check says the key works and puts back what it took  
+  A claim is a state change, so a check that finds a job has taken somebody's label off the queue.
+- check shows enough of the key to compare but not the key  
+  The fault it was written for is a key that differs from the server's in a way neither machine can see.
+- check says when a key is too short to be one  
+  Rather than printing most of a short key while claiming to hide it.
+- check on a wrong key says what to look at  
+  Including the one that had cost the most: an edited unit file is not read until daemon-reload, so a key somebody has just fixed can sit unused.
+- check notices whitespace round a key  
+  A key pasted with a trailing space is a key that looks right in every place somebody would look at it.
 - it needs to be told where the register is  
-  Rather than defaulting to something and failing somewhere less obvious.
+  Rather than defaulting to something and failing somewhere less obvious -- and as the same "I am set up wrongly" exit the unit refuses to restart on, because an address nobody gave it will not arrive by trying again.
 - the label is not left lying about after it prints  
   A register behind a login does not leave its labels in /tmp on a machine other people use.
 - the service file matches the script it starts  

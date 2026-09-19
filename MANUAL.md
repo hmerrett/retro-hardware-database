@@ -2214,6 +2214,14 @@ end. `lpoptions -p <printer> -l` lists the names your driver takes. Leave
 `RHDB_MEDIA` empty if you would rather set the default on the printer itself,
 which is the other right answer.
 
+**`--check` is the first thing to run**, and the thing to run again whenever it
+stops working. It says what the agent has been told — which register, which
+printer, which roll, and enough of the key to compare against the server without
+putting the whole of it on a screen — and then tries the key and says what came
+back. A key that is wrong is a fault neither machine can describe on its own: the
+register can only answer *not this key*, and the agent only knows the key it was
+handed.
+
 `lpstat -p` lists the printers CUPS knows. `--once` does a single pass and stops,
 which is what to run first: it prints whatever is waiting and tells you what
 happened, without leaving anything running. `--dry-run` goes through the whole
@@ -2229,7 +2237,15 @@ journalctl -u print-agent -f
 ```
 
 `tools/print-agent.service` is a working unit file with the environment in it;
-edit the three values at the top and nothing else. The agent holds no state, so
+edit the values at the top and nothing else.
+
+**An edited unit file is not read until `systemctl daemon-reload`.** Restarting
+alone serves the cached copy, so a key you have just corrected can sit unused
+while the journal goes on saying it is wrong. And if the service stops with
+`status=78`, it is saying it has been set up wrongly rather than that something
+went wrong — it will not restart on that, on purpose: a key the register does not
+know will not start being one, and retrying it every ten seconds only earns the
+address a rate limit. The agent holds no state, so
 restarting it is always safe and it recovers from a lost network by itself.
 
 ### import_report.py
