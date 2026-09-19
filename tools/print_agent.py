@@ -116,7 +116,12 @@ def send_to_cups(path: Path, printer: str, copies: int) -> tuple[bool, str]:
         return False, "lp did not answer"
     if res.returncode == 0:
         return True, (res.stdout or "").strip()
-    return False, (res.stderr or res.stdout or f"lp exited {res.returncode}").strip()
+    # Whatever it said, prefixed with the fact that it failed. lp writes its
+    # complaints to stderr and its receipts to stdout -- but a printer driver that
+    # gets that the wrong way round and exits non-zero would otherwise be reported
+    # as "FAILED -- request id is TEST-1073377", which reads like it worked.
+    said = (res.stderr or "").strip() or (res.stdout or "").strip()
+    return False, f"lp exited {res.returncode}" + (f": {said}" if said else "")
 
 
 def handle(server: Server, job: dict[str, object], printer: str, dry_run: bool) -> None:

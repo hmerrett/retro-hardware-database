@@ -175,7 +175,11 @@ def test_a_printer_that_refuses_is_reported_back_in_its_own_words(
     agent.main(["--api", served, "--key", "key-one", "--once"])
     job = client.get("/api/print/jobs").json()[0]
     assert job["state"] == "failed"
-    assert job["error"]
+    # And it says it failed, not merely something. The fake lp here writes to
+    # stdout and then exits non-zero, which is what a driver that has its streams
+    # the wrong way round does -- and taking its word for it reported a failure as
+    # "request id is TEST-1073377 (1 file(s))", which reads like it worked.
+    assert "exited 1" in job["error"], job["error"]
 
 
 def test_a_wrong_key_stops_rather_than_retrying_for_ever(agent, served, queue, fake_lp):
