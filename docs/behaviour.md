@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1538 behaviours, from 43 files.*
+*1540 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -2808,7 +2808,7 @@ Regenerate with:
 
 ## The agent on the other machine
 
-*test_the_agent_on_the_other_machine.py — 16 behaviours*
+*test_the_agent_on_the_other_machine.py — 18 behaviours*
 
 - it claims prints and reports in one pass  
   The whole of what it does, done once.
@@ -2816,6 +2816,10 @@ Regenerate with:
 - it asks for as many copies as the job says
 - one copy does not ask for a number  
   `lp -n 1` is the same as `lp`, and a command line that says only what it means is one somebody can read in a log.
+- it tells cups what roll is loaded  
+  The label is rendered at exactly the size of the stock, so the page has to be that size too.
+- saying nothing about the roll leaves the printer to it  
+  Somebody who has set the default on the printer itself, which is the other right answer, should not have it overruled by a blank.
 - it fetches the format the job asked for
 - nothing waiting is a quiet no  
   An agent asks for ever; an empty queue must not print, must not report and must not read as a fault.

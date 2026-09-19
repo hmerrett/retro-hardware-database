@@ -18,6 +18,8 @@ Environment=RHDB_API=https://db.example.com
 Environment=RHDB_PRINT_AGENT=workshop-pi
 Environment=RHDB_PRINT_KEY=put-this-agents-key-here
 Environment=RHDB_PRINTER=
+# The page size of the roll that is loaded: lpoptions -p <printer> -l
+Environment=RHDB_MEDIA=
 
 WorkingDirectory=/opt/rhdb
 ExecStart=/usr/bin/python3 /opt/rhdb/print_agent.py

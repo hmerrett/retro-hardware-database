@@ -95,7 +95,7 @@ class Server:
         self._open("POST", f"/api/print/agent/jobs/{job_id}/done", {"ok": ok, "error": error[:255]})
 
 
-def send_to_cups(path: Path, printer: str, copies: int) -> tuple[bool, str]:
+def send_to_cups(path: Path, printer: str, copies: int, media: str = "") -> tuple[bool, str]:
     """Hand the file to `lp`. Returns (printed, what to tell the register).
 
     The printer's own words go back verbatim, because the person who will read them
@@ -107,6 +107,13 @@ def send_to_cups(path: Path, printer: str, copies: int) -> tuple[bool, str]:
         cmd += ["-d", printer]
     if copies > 1:
         cmd += ["-n", str(copies)]
+    if media:
+        # The label is rendered at exactly the size of the stock, so the page it is
+        # printed on has to be that size too or CUPS will scale it to fit whatever
+        # the printer's default is -- which on a label printer is usually a
+        # different roll, and a scaled label is a soft QR code and a name that runs
+        # off the end. `lpoptions -p <printer> -l` lists the names this takes.
+        cmd += ["-o", "media=" + media]
     cmd.append(str(path))
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT)
@@ -124,7 +131,9 @@ def send_to_cups(path: Path, printer: str, copies: int) -> tuple[bool, str]:
     return False, f"lp exited {res.returncode}" + (f": {said}" if said else "")
 
 
-def handle(server: Server, job: dict[str, object], printer: str, dry_run: bool) -> None:
+def handle(
+    server: Server, job: dict[str, object], printer: str, dry_run: bool, media: str = ""
+) -> None:
     """One job, start to finish. Anything that goes wrong is reported to the
     register rather than raised: the agent's job is to keep printing, and a job it
     cannot do is news for whoever sent it rather than a reason to stop."""
@@ -148,7 +157,7 @@ def handle(server: Server, job: dict[str, object], printer: str, dry_run: bool) 
             log.info("job %s: %s written to %s (dry run, nothing printed)", job_id, tag, out)
             server.done(job_id, True, "")
             return
-        ok, said = send_to_cups(out, printer, copies)
+        ok, said = send_to_cups(out, printer, copies, media)
         log.info(
             "job %s: %s %s%s",
             job_id,
@@ -162,14 +171,14 @@ def handle(server: Server, job: dict[str, object], printer: str, dry_run: bool) 
             out.unlink(missing_ok=True)
 
 
-def one_pass(server: Server, printer: str, dry_run: bool) -> int:
+def one_pass(server: Server, printer: str, dry_run: bool, media: str = "") -> int:
     """Everything waiting, printed. Returns how many jobs were taken."""
     done = 0
     while True:
         job = server.claim()
         if job is None:
             return done
-        handle(server, job, printer, dry_run)
+        handle(server, job, printer, dry_run, media)
         done += 1
 
 
@@ -180,6 +189,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--api", default=os.getenv("RHDB_API", ""), help="the register's base URL")
     ap.add_argument("--key", default=os.getenv("RHDB_PRINT_KEY", ""), help="this agent's key")
     ap.add_argument("--printer", default=os.getenv("RHDB_PRINTER", ""), help="CUPS printer name")
+    ap.add_argument(
+        "--media",
+        default=os.getenv("RHDB_MEDIA", ""),
+        help="CUPS page size for the loaded roll (lpoptions -p <printer> -l)",
+    )
     # The name is the register's own answer -- a key belongs to exactly one agent,
     # so nothing here has to be told which it is. It is taken anyway because it is
     # the only thing that makes a line in the journal say which printer it is about,
@@ -201,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     server = Server(args.api, args.key)
     who = args.name or "print agent"
     if args.once:
-        took = one_pass(server, args.printer, args.dry_run)
+        took = one_pass(server, args.printer, args.dry_run, args.media)
         log.info("%s: %d job%s", who, took, "" if took == 1 else "s")
         return 0
 
@@ -215,7 +229,7 @@ def main(argv: list[str] | None = None) -> int:
     wait = BACKOFF_START
     while True:
         try:
-            one_pass(server, args.printer, args.dry_run)
+            one_pass(server, args.printer, args.dry_run, args.media)
             wait = BACKOFF_START
             time.sleep(args.poll)
         except KeyboardInterrupt:

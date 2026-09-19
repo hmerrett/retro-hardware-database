@@ -152,6 +152,24 @@ def test_one_copy_does_not_ask_for_a_number(agent, served, queue, fake_lp):
     assert "-n" not in fake_lp.read_text()
 
 
+def test_it_tells_cups_what_roll_is_loaded(agent, served, queue, fake_lp):
+    """The label is rendered at exactly the size of the stock, so the page has to be
+    that size too. Left unsaid, CUPS scales it onto whatever the printer's default
+    is -- which on a label printer is usually a different roll, and a scaled label
+    is a soft QR code and a name that runs off the end."""
+    queue()
+    agent.main(["--api", served, "--key", "key-one", "--media", "w51h144", "--once"])
+    assert "-o media=w51h144" in fake_lp.read_text()
+
+
+def test_saying_nothing_about_the_roll_leaves_the_printer_to_it(agent, served, queue, fake_lp):
+    """Somebody who has set the default on the printer itself, which is the other
+    right answer, should not have it overruled by a blank."""
+    queue()
+    agent.main(["--api", served, "--key", "key-one", "--once"])
+    assert "media=" not in fake_lp.read_text()
+
+
 def test_it_fetches_the_format_the_job_asked_for(agent, served, queue, fake_lp, tmp_path):
     queue(format="png", media="niimbot-50x30")
     agent.main(["--api", served, "--key", "key-one", "--once"])

@@ -2202,8 +2202,17 @@ export RHDB_API=https://db.example.com
 export RHDB_PRINT_AGENT=workshop-pi
 export RHDB_PRINT_KEY=9f3c…            # this agent's key, from the server's .env
 export RHDB_PRINTER=DYMO_LabelWriter_450_Turbo   # blank = the system default
+export RHDB_MEDIA=w51h144                        # the roll that is loaded
 python3 print_agent.py
 ```
+
+**Say which roll is loaded.** A label is rendered at exactly the size of the stock
+it is going on, so the page CUPS prints it on has to be that size too. Left unsaid,
+CUPS scales it onto the printer's default — which on a label printer is usually a
+different roll, and a scaled label is a soft QR code and a name that runs off the
+end. `lpoptions -p <printer> -l` lists the names your driver takes. Leave
+`RHDB_MEDIA` empty if you would rather set the default on the printer itself,
+which is the other right answer.
 
 `lpstat -p` lists the printers CUPS knows. `--once` does a single pass and stops,
 which is what to run first: it prints whatever is waiting and tells you what
