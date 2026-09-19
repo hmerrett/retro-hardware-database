@@ -495,6 +495,16 @@ KIND_WORDS: dict[str | None, str] = {COMPUTER: "COMPUTER", PART: "PART", PROJECT
 # has failed at the half of the job the code cannot do.
 QR_SHARE = 0.40
 
+# The 51x19mm tape, which is the label every other small one is in proportion to.
+TAPE_H = 19 * mm
+
+# What the tag and the body are set at on that tape, which is what fits on it.
+# Held as a size against a height rather than as two numbers, because a 50x30mm
+# label set in the tape's type is a third of a label with nothing on it -- the
+# words should grow with the room. Both are a ceiling and not the answer: the size
+# used is the largest of them the width will take.
+TAG_PT, BODY_PT = 11.0, 6.5
+
 
 def _render_full(
     s: Surface,
@@ -556,7 +566,7 @@ def _clip(s: Surface, text: str, font: str, size: float, max_w: float) -> str:
 
 
 def _small_body_lines(
-    s: Surface, title: str, tags: Sequence[str], tw: float, avail: float
+    s: Surface, title: str, tags: Sequence[str], tw: float, avail: float, start: float = BODY_PT
 ) -> tuple[float, list[str]]:
     """(size, lines) for a small label's body: the name, then the specs, each
     wrapped to the width there actually is.
@@ -574,7 +584,17 @@ def _small_body_lines(
     straight past it, through whatever else is printed on the way, and off into the
     part of the page the printer will never reach.
     """
-    size = 6.5
+    # The height says how big the type may be; the width says how big it can
+    # actually be. A 40x30mm label is as tall as a 50x30mm one and a third
+    # narrower, and type sized by the height alone put "PC1512" in a column that
+    # could not hold it -- where the only answer left is the clip, so it came out
+    # as "PC15…" on a label with room to spare. So the start comes down until the
+    # longest run that cannot be broken fits, and never below the tape's own size:
+    # going lower than that is the loop's job, and it has the whole label in view.
+    longest = max((w for line in (title, *tags) for w in line.split()), key=len, default="")
+    if longest:
+        start = _fit(s, longest, BODY, start, BODY_PT, tw)
+    size = start
     while True:
         room = max(1, int(avail // (size + 1.5)))
         spec_lines = [ln for t in tags for ln in _wrap(s, t, BODY, size, tw)]
@@ -631,10 +651,11 @@ def _render_small(
         edge = mx + 1.0 * mm
         tw -= strip + 1.0 * mm
         s.vertical(W - edge - strip, W - edge, H / 2, word, HEAD, 5.0)
-    aid_size = _fit(s, asset_id, HEAD, 11, 5, tw)
+    grow = H / TAPE_H
+    aid_size = _fit(s, asset_id, HEAD, TAG_PT * grow, 5, tw)
     y = H - my - aid_size
     s.text(tx, y, asset_id, HEAD, aid_size)
-    bsize, lines = _small_body_lines(s, title, tags, tw, y - my)
+    bsize, lines = _small_body_lines(s, title, tags, tw, y - my, BODY_PT * grow)
     for line in lines:
         if y - (bsize + 1.5) < my:
             break

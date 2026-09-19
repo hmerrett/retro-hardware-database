@@ -1512,6 +1512,13 @@ square — enough that a phone reads the label as a picture of a QR code rather 
 as a code. It is sized down to the nearest whole multiple instead, and the
 remainder becomes margin.
 
+**The type grows with the label, up to what the column will hold.** The sizes on
+the small label are the tape's, because they are what fits on a tape; printed
+unchanged on a 50×30 mm label they left a third of it empty. So they are held as a
+proportion of the height and a taller label gets larger type — bounded by the
+width, since a 40×30 mm label is as tall as a 50×30 and a third narrower, and type
+sized by the height alone put *PC1512* in a column that could not hold it.
+
 **On a taller label the code stops growing.** It is sized by the height on a
 51×19 mm tape, where the height is what there is least of. A 50×30 mm label is a
 different shape, and a code as tall as that one takes over half its width — which

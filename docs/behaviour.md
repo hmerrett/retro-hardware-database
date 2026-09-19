@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1467 behaviours, from 39 files.*
+*1469 behaviours, from 39 files.*
 
 
 ## A file where text was expected
@@ -30,7 +30,7 @@ Regenerate with:
 
 ## A label drawn in the printers dots
 
-*test_a_label_drawn_in_the_printers_dots.py — 11 behaviours*
+*test_a_label_drawn_in_the_printers_dots.py — 13 behaviours*
 
 - every kind of item has a label as a picture
 - the picture is one dot deep  
@@ -53,6 +53,10 @@ Regenerate with:
   The point of writing the layout once: a label proofed as a PDF is the label that comes out of the thermal printer, saying the same things in the same order.
 - a taller label does not give the code more than its share  
   The code is as big as it can be, because one that will not scan is worth nothing -- but a sticker is read by a person too, and a label saying only "Seaga…" has failed at the half of the job the code cannot do.
+- the type grows with the label  
+  The sizes on a small label are the tape's, because they are what fits on a tape.
+- growing the type does not outgrow the column  
+  A 40x30mm label is as tall as a 50x30mm one and a third narrower.
 
 
 ## A label for a part of no type

@@ -145,12 +145,14 @@ class Recording:
     def __init__(self, inner):
         self.inner = inner
         self.said = []
+        self.sizes = []
 
     def __getattr__(self, name):
         return getattr(self.inner, name)
 
     def text(self, x, y, text, font, size):
         self.said.append(text)
+        self.sizes.append(size)
         self.inner.text(x, y, text, font, size)
 
     def text_centred(self, x, y, text, font, size):
@@ -174,6 +176,18 @@ def both_surfaces(media, row, kind, small=True):
     dots = Recording(surfaces.RasterSurface(surfaces.blank(*labels.size_dots(stock)), stock["dpi"]))
     labels._draw(dots, stock, row, [], kind, small)
     return page.said, dots.said
+
+
+def type_sizes(media, row, kind, small=True):
+    """The type sizes a label was actually set in."""
+    from reportlab.pdfgen import canvas
+
+    stock = labels.MEDIA[media]
+    page = Recording(
+        surfaces.PdfSurface(canvas.Canvas(io.BytesIO(), pagesize=labels.rotated_page(stock)))
+    )
+    labels._draw(page, stock, row, [], kind, small)
+    return page.sizes
 
 
 DRIVE = {
@@ -234,7 +248,41 @@ def test_a_taller_label_does_not_give_the_code_more_than_its_share():
     was a 51x19mm tape, where the height is what binds. On a 50x30mm Niimbot label
     it took more than half the width, with two thirds of the label left empty.
     """
-    assert (
-        both_surfaces("niimbot-50x30", DRIVE, labels.PART)
-        == (["PART", "RH-0117", "Seagate", "ST-225", "20MB", "CHS 615/4/17", '5.25"'],) * 2
-    )
+    page, dots = both_surfaces("niimbot-50x30", DRIVE, labels.PART)
+    words = ["PART", "RH-0117", "Seagate", "ST-225", "20MB", "CHS", "615/4/17", '5.25"']
+    assert " ".join(page).split() == words
+    assert " ".join(dots).split() == words
+
+
+PROJECT = {
+    "asset_id": "RH-J0Y7",
+    "name": "Recap the PC1512",
+    "status": "active",
+    "specs": "",
+    "variant": "",
+}
+
+
+def test_the_type_grows_with_the_label():
+    """The sizes on a small label are the tape's, because they are what fits on a
+    tape. Printed unchanged on a label half as tall again they left a third of it
+    empty, which is a label that could have been read across the room and cannot."""
+    tape = type_sizes("dymo-11355", DRIVE, labels.PART)
+    taller = type_sizes("niimbot-50x30", DRIVE, labels.PART)
+    # The body, which is the smallest thing set on a label. Not the tag: that is
+    # sized to the width of its column, and a 50x30mm label has a narrower one than
+    # a 51x19mm tape -- so the tag comes out a fraction smaller on the bigger label,
+    # and asserting on the largest size would say the opposite of what this is about.
+    assert min(taller) > min(tape)
+
+
+@pytest.mark.parametrize("media", ["niimbot-50x30", "niimbot-40x30"])
+def test_growing_the_type_does_not_outgrow_the_column(media):
+    """A 40x30mm label is as tall as a 50x30mm one and a third narrower. Type sized
+    by the height alone put "PC1512" in a column that could not hold it, where the
+    only answer left is the clip -- so it came out as "PC15…" on a label with room
+    to spare, which is the fault the growth was meant to fix, arriving the other
+    way round."""
+    page, dots = both_surfaces(media, PROJECT, labels.PROJECT)
+    assert not [line for line in page if "…" in line], page
+    assert not [line for line in dots if "…" in line], dots
