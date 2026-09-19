@@ -8,6 +8,7 @@ rather than trusted: a real HTTP connection to the real routes, and a real
 What is faked is the printer, and only the printer.
 """
 
+import contextlib
 import importlib.util
 import os
 import stat
@@ -234,10 +235,8 @@ def test_being_rate_limited_is_reported_rather_than_raised(agent, served, queue,
     queue()
     # Spend the limiter, the way ten restarts in ninety seconds did.
     for _ in range(11):
-        try:
+        with contextlib.suppress(SystemExit):
             agent.main(["--api", served, "--key", "not-a-key", "--once"])
-        except SystemExit:
-            pass
     with caplog.at_level(logging.ERROR):
         code = agent.main(["--api", served, "--key", "not-a-key", "--once"])
     assert code == 1
@@ -253,10 +252,8 @@ def test_the_right_key_is_never_rate_limited(agent, served, queue, fake_lp, capl
     from app import main
 
     for _ in range(11):
-        try:
+        with contextlib.suppress(SystemExit):
             agent.main(["--api", served, "--key", "not-a-key", "--once"])
-        except SystemExit:
-            pass
     queue()
     assert agent.main(["--api", served, "--key", "key-one", "--once"]) == 0
     assert fake_lp.exists()
@@ -293,7 +290,7 @@ def test_check_says_the_key_works_and_puts_back_what_it_took(agent, served, queu
     pockets a label is not a check."""
     import logging
 
-    job, _ = queue()
+    queue()
     with caplog.at_level(logging.INFO):
         assert agent.main(["--api", served, "--key", "key-one", "--name", "bench", "--check"]) == 0
     assert "the key works" in caplog.text
