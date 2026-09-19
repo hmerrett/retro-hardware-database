@@ -1485,6 +1485,44 @@ still in the post are true this afternoon and false next week, and a label is
 printed once and then lives on a box for a year. The code is there for everything
 that moves.
 
+### The label as a picture
+
+A label is also a **picture of itself**, at `label.png` beside the `label.pdf` on
+every item. It is the same label — same lines, same code, same word up the end —
+drawn at the size and the resolution of a particular printer rather than as a page
+to be scaled onto one.
+
+That is what a small thermal label printer needs. A PDF is a description of a
+label that something has to decide how to print; these printers are not sent pages
+at all, but a bitmap the width of the print head, and a head prints a dot or
+leaves it blank with nothing in between. Handing one a scaled-down page gives you
+grey, and grey on a thermal printer is a dither: readable as a word, fatal to a QR
+code, whose squares have to stay square.
+
+So the picture is drawn in the printer's own dots. **Ask for it by the label stock
+you are printing on** — `?media=dymo-11355` for the 51×19 mm multipurpose tape,
+`?media=niimbot-50x30` for a 50×30 mm Niimbot label — and optionally `?dpi=` for a
+head that is not 300 dots to the inch. The stock decides the shape and the printer
+decides the dots, which are two different questions and used to be one.
+
+**The QR code is drawn at a whole number of dots to the square.** A code scaled to
+whatever was left over comes out with some squares a dot wider than their
+neighbours, and at eight dots to the millimetre that unevenness is a quarter of a
+square — enough that a phone reads the label as a picture of a QR code rather than
+as a code. It is sized down to the nearest whole multiple instead, and the
+remainder becomes margin.
+
+**On a taller label the code stops growing.** It is sized by the height on a
+51×19 mm tape, where the height is what there is least of. A 50×30 mm label is a
+different shape, and a code as tall as that one takes over half its width — which
+came out as *Seagate ST-225* clipped to *Seaga…* on a label two thirds empty. So
+the code takes at most its share of the width and sits centred in the height, and
+the words get the rest. The tape is unaffected.
+
+Nothing about the existing buttons changes: they are still PDFs, and a PDF is
+still the right thing for a sheet, for a Dymo through the print dialogue, and for
+printing from a phone through AirPrint.
+
 `<base_url>` comes from `RHDB_BASE_URL` in `.env` for labels rendered by the
 site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set
 it correctly before you print anything.**
