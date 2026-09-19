@@ -213,6 +213,29 @@ def _is_api_path(path: str) -> bool:
     return path.startswith(("/api", "/docs")) or path == "/openapi.json"
 
 
+# The one prefix a machine holding no password may knock on. Everything under it
+# takes a print agent's own key, checked by the route rather than here -- the same
+# shape ADR-0009 uses for files, where the door is open and the row decides. The
+# gate cannot do it: it would have to know which agent, which is the route's answer
+# and the whole of what the key is for.
+AGENT_PREFIX = "/api/print/agent/"
+
+
+def note_wrong_secret(request: Request) -> bool:
+    """Count one wrong secret at the API's door against the address that sent it,
+    and say whether to answer at all.
+
+    The same limiter the login form and HTTP Basic use, for the same reason: a door
+    a machine may knock on with no password is a door that can be knocked on all
+    night. False means the caller has had its share of guesses.
+    """
+    ip = _client_ip(request)
+    if not _login_limiter.check(ip):
+        return False
+    _login_limiter.record(ip)
+    return True
+
+
 def _is_public_read(request: Request) -> bool:
     """Anonymous visitors get read-only GETs: the gallery, item pages, photos and
     static assets. Editing GETs (new/edit forms, delete confirmations, labels),
@@ -310,6 +333,8 @@ async def auth_gate(request: Request, call_next: RequestResponseEndpoint) -> Res
     # been dismissed, rather than shipped on every page and hidden by a script.
     request.state.noticed = NOTICE_COOKIE in request.cookies
     if path in ("/login", "/logout"):
+        return await call_next(request)
+    if path.startswith(AGENT_PREFIX):
         return await call_next(request)
     if not request.state.authed and not _is_public_read(request):
         if api_path:
