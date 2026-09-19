@@ -201,6 +201,42 @@
     });
   }
 
+  var pattern = document.getElementById("bt-pattern");
+  if (pattern && report) {
+    pattern.addEventListener("click", function () {
+      report.hidden = false;
+      report.textContent = "choose the printer…";
+      var say = function (text) {
+        report.textContent = text;
+      };
+      /* The stock decides the shape, so the register is asked for it rather than
+         the numbers being written here a second time. */
+      var media = data.bluetoothMedia || "niimbot-50x30";
+      fetch("/api/label-media/" + encodeURIComponent(media))
+        .then(function (r) {
+          if (!r.ok) throw new Error("the register does not know " + media);
+          return r.json();
+        })
+        .then(function (stock) {
+          return import("/static/niimbot.js").then(function (driver) {
+            return driver.printPattern(stock.dots, stock.rows, say);
+          });
+        })
+        .then(function () {
+          report.textContent =
+            "Printed. What should come out, if everything is right:\n" +
+            "  - a solid square in the TOP LEFT\n" +
+            "  - a thin line down the LEFT edge\n" +
+            "  - a thick bar along the TOP edge\n" +
+            "  - five evenly spaced rungs down the RIGHT edge\n\n" +
+            "Photograph it. Where those land says what the printer did to the image.";
+        })
+        .catch(function (err) {
+          report.textContent = "Nothing came back: " + String((err && err.message) || err);
+        });
+    });
+  }
+
   /* --- the menu on the settings page -------------------------------------- */
 
   var menu = document.getElementById("device_destination");

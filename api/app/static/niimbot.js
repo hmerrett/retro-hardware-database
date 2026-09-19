@@ -295,6 +295,48 @@ class Printer {
   }
 }
 
+/** A pattern whose printed shape says what the printer did to it.
+ *
+ * Every corner is different and every edge is different, so whatever comes out
+ * says which way up it went, which way round, whether it was stretched and by how
+ * much -- in one label, from a photograph, without anybody having to describe it.
+ *
+ *   - a solid square in the TOP LEFT, a third the height
+ *   - a single thin line down the LEFT edge, full height
+ *   - a thick bar along the TOP edge, full width
+ *   - a ladder of five rungs down the RIGHT edge, evenly spaced
+ *
+ * Read it like this: the square marks the origin, the thick bar marks the first
+ * row printed, the thin line marks the first column, and the rungs count. Five
+ * rungs squashed into a corner is a scale; rungs along the bottom is a rotation;
+ * a square in the top right is a mirror.
+ */
+export function pattern(width, height) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const c = canvas.getContext("2d");
+  c.fillStyle = "#fff";
+  c.fillRect(0, 0, width, height);
+  c.fillStyle = "#000";
+  const unit = Math.round(height / 3);
+  c.fillRect(0, 0, unit, unit); /* the origin */
+  c.fillRect(0, 0, 2, height); /* the first column */
+  c.fillRect(0, 0, width, 8); /* the first row */
+  for (let n = 0; n < 5; n++) {
+    const y = Math.round((height / 6) * (n + 1));
+    c.fillRect(width - unit, y, unit, 4);
+  }
+  return canvas;
+}
+
+/** Print that pattern, at the size of the given stock. */
+export async function printPattern(mediaWidth, mediaHeight, say) {
+  const canvas = pattern(mediaWidth, mediaHeight);
+  const blob = await new Promise((done) => canvas.toBlob(done, "image/png"));
+  return print(blob, "", say);
+}
+
 /* --- what the button calls ------------------------------------------------ */
 
 /**
