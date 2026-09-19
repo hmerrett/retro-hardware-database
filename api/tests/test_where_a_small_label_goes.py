@@ -152,3 +152,25 @@ def test_nothing_about_the_destination_is_written_inline(client, part, agents):
     page = client.get(f"/parts/{part()['asset_id']}").text
     assert 'type="application/json" id="label-data"' in page
     assert "onclick=" not in page
+
+
+# --- the stock's own measurements, for a page that has to draw one -----------
+
+
+def test_a_page_can_ask_how_big_a_stock_is(client):
+    """A script that has to draw something the size of a label asks the register
+    rather than carrying its own copy of the numbers, which is how two answers to
+    one question come to disagree."""
+    got = client.get("/api/label-media/niimbot-50x30")
+    assert got.status_code == 200, got.text
+    assert got.json() == {
+        "name": "niimbot-50x30",
+        "what": "50×30 mm label (Niimbot B1, B21, B18)",
+        "dots": 384,
+        "rows": 240,
+        "dpi": 203,
+    }
+
+
+def test_a_stock_that_does_not_exist_is_a_404_there_too(client):
+    assert client.get("/api/label-media/nonesuch").status_code == 404
