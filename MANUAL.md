@@ -24,10 +24,11 @@ own server is [INSTALL.md](INSTALL.md).
 15. [Disposing, restoring and deleting](#15-disposing-restoring-and-deleting)
 16. [Statistics](#16-statistics)
 17. [Logging in](#17-logging-in)
-18. [The REST API](#18-the-rest-api)
-19. [The tool server](#19-the-tool-server)
-20. [Command-line tools](#20-command-line-tools)
-21. [Housekeeping](#21-housekeeping)
+18. [Settings](#18-settings)
+19. [The REST API](#19-the-rest-api)
+20. [The tool server](#20-the-tool-server)
+21. [Command-line tools](#21-command-line-tools)
+22. [Housekeeping](#22-housekeeping)
 
 ---
 
@@ -522,7 +523,7 @@ paragraph now lives inside the element that hides it, which has worked
 everywhere for a decade.
 
 Two other shapes of the same list: `catalogue.txt` in the repository, and
-[`/api/machines`](#18-the-rest-api) for anything that would rather read JSON —
+[`/api/machines`](#19-the-rest-api) for anything that would rather read JSON —
 public for the same reason the page is.
 
 ### Why they are boxes and not menus
@@ -1489,7 +1490,7 @@ site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set
 it correctly before you print anything.**
 
 For bulk printing, or for printing from the machine the label printer is attached
-to, see [command-line tools](#20-command-line-tools).
+to, see [command-line tools](#21-command-line-tools).
 
 ---
 
@@ -1776,7 +1777,105 @@ Editing controls simply do not appear when you are not logged in.
 
 ---
 
-## 18. The REST API
+## 18. Settings
+
+**⋯ → Settings**, or `/settings` directly. Behind the login, like everything
+else that changes the site rather than reads it, and not linked where a visitor
+would see it.
+
+Everything else the register holds is a fact: this machine has that chip, that
+card came out of this box. The settings are the first things it keeps because
+somebody *prefers* them, which is why they live on a page of their own rather
+than in a corner of an item's form.
+
+The page is in two halves, and the line between them is the point of it.
+
+**This installation** is everything above the rule: the site's name, whether
+search engines may list it, whether photographs are stamped, and which theme it
+opens in. It is kept in the database, so it survives a restart and everybody who
+opens the site gets it.
+
+**This device** is below the rule, and is kept in the browser you are reading
+in. Nothing there travels: the phone by the shelf and the machine in the
+workshop can each answer differently, and neither answer is anybody else's.
+
+Press **Save** and the page says so. There is no history on a setting — the
+change log is about the collection, and these are not.
+
+### What the site is called
+
+The name goes in the banner beside the logo, in the browser's tab, at the foot
+of every page, and in the preview a shared link unfolds into. Change it and all
+of them change together.
+
+It names *this collection*, not the software: the register is still the Retro
+Hardware Database wherever it is installed, and the API's own documentation at
+`/docs` still says so. Along with dropping your own `logo-256.png` into the
+branding directory — [INSTALL.md](INSTALL.md) has that — this is what makes an
+installation look like yours rather than like the one it was copied from.
+
+Leave the box empty and it goes back to the name the software ships with, which
+is also what a fresh install starts on.
+
+### Search engines
+
+**Let search engines list this site** is on by default, which is what a
+catalogue meant to be found wants. Turn it off and every page tells a crawler
+not to file it, and the sitemap stops being advertised in `robots.txt`.
+
+What it deliberately does *not* do is slam the door in `robots.txt`. A crawler
+that is refused entry never reads the page, never sees the instruction not to
+list it, and files the address anyway from whatever links to it — so the way to
+stay out of a search engine's results is to let the crawler in and tell it to
+leave. That is what this does.
+
+It is a request rather than a lock, and the honest crawlers honour it. Anything
+that must not be read by a stranger belongs behind the login, not behind this.
+
+### Photographs
+
+**Stamp photographs with the site's mark** is on by default. The mark is
+composited into a corner of the copy that is served, so a photograph saved or
+reposted elsewhere still says where it came from; the original on disk is never
+touched, and turning this off simply serves it.
+
+Reference photographs — the ones fetched from somewhere else because the
+collection has none of its own yet — are never stamped either way. Marking
+somebody else's picture would be claiming it.
+
+### The theme
+
+**Opens in** is the theme a visitor gets who has never chosen one: *the
+visitor's system setting*, *light*, or *dark*. It is a default and not a rule.
+
+Below the rule, in the device half, the page says which theme this browser is
+actually using and why — its own choice, or the site's default. The ⋯ menu's
+theme button is what makes that choice, on any page, and it goes on working
+exactly as it did. **Use the site's default** hands the choice back: the browser
+forgets what it was told and follows the setting above again, which is the one
+thing the ⋯ button cannot do, since it only ever flips between the two.
+
+### Set in the environment
+
+An installation can pin a setting from outside the application, and one that is
+pinned says so on the page: the value is shown, greyed, with a note naming the
+variable that holds it, and saving the form leaves it alone.
+
+The environment wins because it is the deployment speaking, and a setting a
+container was started with is not something a click should be able to overrule —
+the click would be forgotten at the next restart and nobody would know why. To
+change one of these, change it where it is set and restart; to hand it back to
+the page, unset it.
+
+| setting | pinned by |
+|---|---|
+| Stamp photographs | `RHDB_WATERMARK` |
+
+The rest are the page's alone.
+
+---
+
+## 19. The REST API
 
 Interactive documentation and a console are at `/docs` (login required). The
 schema is at `/openapi.json`.
@@ -1829,7 +1928,7 @@ curl -u user:pass https://db.example.com/api/parts?type=video
 
 ---
 
-## 19. The tool server
+## 20. The tool server
 
 The `mcp` service wraps the REST API and exposes it as a set of tools over the
 Model Context Protocol, on `http://localhost:8001/mcp` (streamable HTTP
@@ -1864,7 +1963,7 @@ database and obey the same rules. `create_*` assigns the next asset tag;
 
 ---
 
-## 20. Command-line tools
+## 21. Command-line tools
 
 The scripts in `tools/` talk to the REST API over the network, so they can run on
 whichever machine has the hardware attached — the one with the label printers, or
@@ -1962,7 +2061,7 @@ machine is added. Add one, run this, and commit both; a test fails if you forget
 Unlike the other scripts here it reads the catalogue file directly rather than the
 API, so it needs no network and no login.
 
-## 21. Housekeeping
+## 22. Housekeeping
 
 ### Derived values
 

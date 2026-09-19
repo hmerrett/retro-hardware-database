@@ -2,7 +2,7 @@
 {# The confirmation standing between a disposed item and its record being gone.
    It lists what will go before asking, and asks for the item's own URL rather
    than a yes: a delete should cost a deliberate act, not a click. #}
-{% block title %}Delete {{ aid }} — Retro Hardware Database{% endblock %}
+{% block title %}Delete {{ aid }} — {{ site_name() }}{% endblock %}
 {% block content %}
 {% set noun = 'computer' if kind == 'computers' else 'part' %}
 <div class="crumbnav"><a href="/{{ kind }}/{{ aid }}">&larr; back to {{ aid }}</a></div>

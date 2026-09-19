@@ -86,7 +86,7 @@ Now edit `.env`. Every setting, and what it does:
 | `RHDB_DOMAIN` | The name this site answers to, e.g. `db.example.com`. Caddy serves it and gets its certificate. |
 | `RHDB_ACME_EMAIL` | Where Let's Encrypt writes about those certificates. |
 | `RHDB_BASE_URL` | The public URL of your site. Defaults to `https://$RHDB_DOMAIN`; set it only if they differ. |
-| `RHDB_WATERMARK` | `1` to stamp your own photos with your site logo as they are served, `0` to serve them untouched. The logo is whatever is in `branding/`, or the shipped placeholder. |
+| `RHDB_WATERMARK` | `1` to stamp your own photos with your site logo as they are served, `0` to serve them untouched. The logo is whatever is in `branding/`, or the shipped placeholder. Also a setting on ⋯ → Settings; set here, this wins and the page says so. |
 
 Two of these matter more than they look:
 
@@ -287,6 +287,18 @@ The database is not rolled back with it. If a migration was the problem,
 `docker compose exec api alembic downgrade -1`.
 
 ## 9. Making it yours
+
+### The name
+
+Open **⋯ → Settings** and put your own in the first box. It goes in the banner
+beside the logo, in the browser's tab, at the foot of every page and in the
+preview a shared link unfolds into. There is nothing to restart and nothing to
+edit on the server: it is kept in the database, like the other three settings on
+that page, and the manual's [Settings](MANUAL.md#18-settings) section says what
+each of them does.
+
+The software is still called the Retro Hardware Database — `/docs` says so, and
+so does this guide. The name you set is the collection's.
 
 ### The logo and icons
 

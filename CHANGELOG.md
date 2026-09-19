@@ -13,6 +13,20 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**A settings page**, at ⋯ → Settings, behind the login. Four things to start
+with: what this collection is called — which reaches the banner, the browser's
+tab, the foot of every page and the preview a shared link unfolds into — whether
+search engines may list the site, whether photographs are stamped with its mark,
+and which theme it opens in. The ⋯ menu's theme button is unchanged and still
+overrules the default for the browser it is pressed in; the page is where that
+choice can be handed back.
+
+Nothing has to be done to get it: every setting has the value the software
+already behaved as though it had, so an installation that opens the page and
+changes nothing is the installation it was before. `RHDB_WATERMARK` goes on
+working, and pins that one setting — the page shows the value, says which
+variable holds it, and leaves it alone.
+
 **`DATABASE_URL` is now required, rather than defaulting.** It used to fall back
 to `mysql+pymysql://retro:retro@db:3306/retro` when unset. Under Docker Compose
 nobody ever met that default — `DB_PASSWORD` is `${VAR:?message}`, so a missing

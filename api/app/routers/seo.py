@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from .. import settings
 from ..common import PUBLIC_BASE_URL, branded
 from ..db import get_db
 from ..models import Computer, LogEntry, Part, Project
@@ -49,8 +50,15 @@ def robots_txt(request: Request) -> Response:
         "Disallow: /parts/new\n"
         "Disallow: /projects/new\n"
         "Disallow: /*/edit\n"
-        f"Sitemap: {base}/sitemap.xml\n"
     )
+    # A site that has asked not to be listed still lets the crawler in, and this is
+    # the whole reason it can: refused here, a crawler never reads the page, never
+    # meets the noindex that base.html now puts on every one of them, and files the
+    # address anyway from whatever links to it. What does go is the sitemap --
+    # asking not to be listed while handing over a list of everything to list is
+    # two answers to one question (ADR-0023).
+    if settings.on("search_engines"):
+        body += f"Sitemap: {base}/sitemap.xml\n"
     return Response(body, media_type="text/plain")
 
 

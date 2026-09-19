@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .common import IMAGES_DIR
-from .photos import WATERMARK, WM_MARGIN, WM_MIN_PX, WM_OPACITY, WM_SCALE, WM_SRC
+from .photos import WM_MARGIN, WM_MIN_PX, WM_OPACITY, WM_SCALE, WM_SRC, watermarking
 from .thumbs import _write_atomically
 
 if TYPE_CHECKING:
@@ -169,7 +169,7 @@ def _stamp(card: "PilImage") -> None:
     A card without a mark beats no card, so a missing or unreadable logo is logged
     and stepped over -- an installation supplies its own branding (ADR-0011).
     """
-    if not WATERMARK:
+    if not watermarking():
         return
     try:
         from PIL import Image
@@ -194,9 +194,14 @@ def _key(found: Sequence[tuple[str, Path]]) -> str:
     already makes, and what lets a card be served immutable for a year. The numbers
     that decide how a card is drawn are in here too, so changing one of them is
     also a new name.
+
+    The mark is one of those numbers rather than a flag read elsewhere, which is
+    what makes turning it off on the settings page reach the cards: without it every
+    card already made would keep the mark it was made with, under a name that says
+    nothing about it (ADR-0023).
     """
     h = hashlib.sha256()
-    h.update(f"b{BUILD}|{SIZE}|{GUTTER}|q{QUALITY}|w{int(WATERMARK)}".encode())
+    h.update(f"b{BUILD}|{SIZE}|{GUTTER}|q{QUALITY}|w{int(watermarking())}".encode())
     for rel, path in found:
         h.update(f"|{rel}|{path.stat().st_mtime_ns}".encode())
     return h.hexdigest()[:16]

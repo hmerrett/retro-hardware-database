@@ -181,6 +181,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/seo.py` | robots.txt, the sitemap, and the icons asked for at the domain root |
 | `routers/gallery.py` | the wall of cards, the /browse slice of it, the owner's /for-sale shortlist, and the suggestions under the search bar |
 | `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
+| `routers/settings.py` | /settings: the two routes behind the page of preferences |
 | `routers/catalogue.py` | the catalogue as a page and as JSON: /machines and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
 | `routers/styles.py` | /style/data.css: the generated stylesheet, served the way a static one is |
@@ -190,6 +191,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `schemas.py` | the request and response shapes for `/api/*` |
 | `ids.py` | allocating an asset id, unique across the whole register |
 | `common.py` | the "still held" filter, small query helpers, the image folder, collection constants |
+| `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
 | `machinedb.py` | mapping an asset's catalogue identity between its rows and plain values |
@@ -211,7 +213,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 
 Outside `api/`:
 
-- `api/app/templates/` — 27 Jinja2 templates. `api/app/static/` — the stylesheet
+- `api/app/templates/` — 28 Jinja2 templates. `api/app/static/` — the stylesheet
   and scripts, moved out of `base.html` so they can be cached — and that move is
   what made the content policy in `main.py` possible, there being nothing inline
   left to have to allow.
@@ -259,6 +261,12 @@ breaking one turns CI red rather than merely being wrong.
   a habit of remembering. *(ADR-0018, enforced: `test_for_sale.py`)*
 - **The API's published shape is pinned.** `api/openapi.json` is committed and a
   change a caller could see fails the suite. *(ADR-0010, enforced)*
+- **Configuration comes from the environment; a preference comes from the page.**
+  Told apart by who decides: whoever runs the server decides where the database
+  is, and whoever owns the collection decides what it is called. Where both can
+  speak the environment wins and the page says which variable holds it, because a
+  click that the next restart forgets is a fault nobody can find.
+  *(ADR-0023, enforced: `test_settings.py`)*
 - **Touch controls are 16px.** iOS zooms the page when it focuses a control whose
   text is smaller, and does not zoom back out. Any rule that sizes a control must
   be restated in the `@media (pointer: coarse)` block. *(enforced:

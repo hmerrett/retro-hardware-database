@@ -42,6 +42,7 @@ from .routers import (
     parts as part_pages,
     projects as project_pages,
     seo,
+    settings as settings_page,
     styles,
 )
 from . import auth
@@ -228,6 +229,7 @@ def create_app() -> FastAPI:
         images.router,
         catalogue.router,
         stats_routes.router,
+        settings_page.router,
         gallery.router,
         items.router,
         file_pages.router,

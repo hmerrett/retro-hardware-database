@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1417 behaviours, from 37 files.*
+*1450 behaviours, from 38 files.*
 
 
 ## A file where text was expected
@@ -2426,6 +2426,92 @@ Regenerate with:
 - the suite itself runs open and says so  
   conftest pops both credentials -- that is how the suite gets to be the owner -- and then sets RHDB_OPEN, because it meant to.
 - the decision is written down
+
+
+## Settings
+
+*test_settings.py — 33 behaviours*
+
+
+**Reaching the page**
+
+- the page is behind the login  
+  It changes the site rather than reads it, so it goes where the new and edit forms go: nowhere a visitor can reach.
+- saving is behind the login too  
+  The gate is on the method as much as the path: a page nobody can open is still a page somebody can post to.
+- the menu offers it to the owner
+- the menu does not offer it to a visitor  
+  A link to a page that answers with the login is an invitation to a door that is not yours, and it is how the traffic link and the shortlist are already handled.
+- a phone is offered it as well  
+  A control the desktop menu has and the phone's More sheet does not is a control that does not exist on half the devices the register is used from, and the sheet is where a phone looks for all of this.
+
+**What the site is called**
+
+- it starts as the name the software ships with
+- the name reaches the banner the tab and the foot of the page
+- the name reaches a shared link  
+  What a link unfolds into in a chat window is the site introducing itself to somebody who has never seen it.
+- an empty name goes back to the shipped one  
+  Blank is not a name, and a site with no name in its banner is a site that looks broken rather than one that looks unnamed.
+- the api documentation keeps the software s name  
+  The installation is renamed; the software is not.
+
+**Search engines**
+
+- a site is listed by default  
+  A catalogue meant to be found wants to be found.
+- turning it off tells every page not to be filed
+- a page that was already private stays that way  
+  The login page has said noindex on its own since long before this setting, and leaving the setting on must not publish it.
+- the crawler is still let in  
+  A crawler refused entry in robots.txt never reads the page, never sees the instruction not to list it, and files the address anyway from whatever links to it -- so asking to be left out means letting the crawler in.
+- the sitemap stops being advertised  
+  Asking not to be listed while handing over a list of everything to list is two answers to one question.
+
+**Photographs**
+
+- photographs are stamped by default
+- turning it off serves the photograph unmarked  
+  The original on disk was never touched, so there is nothing to undo: the mark stops being composited in and what is served is the file.
+- a reference photograph is never stamped either way  
+  Marking somebody else's picture would be claiming it.
+- the montage is rebuilt rather than kept as it was  
+  A share card made of four photographs has the mark composited into it too, and it is cached by content -- so the flag has to be part of what names the file, or turning it off leaves every card as it was.
+
+**The theme**
+
+- a site follows the reader s system by default  
+  No attribute on the document element is what lets the stylesheet's prefers-color-scheme block decide, which is the rule it is guarded by.
+- a chosen default is on the page before it is painted  
+  Server-rendered rather than left to the script, because the script that reads the browser's own choice runs before paint for exactly this reason: a theme applied afterwards is a white flash on every page.
+- the menu button is still there  
+  The device's own choice is made where it always was, on any page, and goes on overruling the default.
+- the page offers the device its choice back  
+  Handing the choice back is the one thing the menu's theme button cannot do -- it only ever flips between the two -- so without this there is no way back to following the site's default.
+
+**Set in the environment**
+
+- the environment wins  
+  A deployment that set the variable has said something deliberate, and a click that was forgotten at the next restart would be worse than one that never happened.
+- saving cannot overrule it
+- the page says which variable holds it  
+  A control that will not take an answer has to say why, or it is a bug report.
+- unsetting it hands the setting back  
+  Which is the way out the manual promises: change it where it is set, or unset it and the page has it again.
+- an empty variable is not a pin  
+  Compose passes `${RHDB_WATERMARK:-}`, so an unset variable arrives as an empty string rather than as nothing at all -- which is how a whole stack would otherwise come up pinned to a value nobody chose.
+
+**Saving**
+
+- a saved setting survives the page  
+  It is in the database and not in the process, which is the difference between a preference and a mood.
+- saving says so
+- a setting is written once rather than row upon row  
+  A key and a value, not a log.
+- an unknown field in the form is ignored  
+  The form is read through the definitions rather than written from, so a posted name that is not one of them cannot make a row.
+- a choice outside its list is refused  
+  Every choice on the page comes back as one of the words it was offered, and anything else is a form that did not come from the page.
 
 
 ## Share cards
