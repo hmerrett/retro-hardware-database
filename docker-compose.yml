@@ -58,6 +58,10 @@ services:
       RHDB_OPEN: ${RHDB_OPEN:-}
       RHDB_SECRET_KEY: ${RHDB_SECRET_KEY:-}
       RHDB_WATERMARK: ${RHDB_WATERMARK:-1}
+      # The label printers that are not on this machine, and the key each one's
+      # agent holds (ADR-0025). Empty is a stack with no print queue, which is
+      # what an installation that prints from the browser wants.
+      RHDB_PRINT_AGENTS: ${RHDB_PRINT_AGENTS:-}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:

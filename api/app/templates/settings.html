@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_labelsend.html" as LS %}
 {% block title %}Settings — {{ site_name() }}{% endblock %}
 {% block content %}
 <h2>Settings</h2>
@@ -33,7 +34,7 @@
          fourth choice should cost a line rather than a rethink of the layout. #}
       <label for="{{ d.key }}">{{ d.label }}</label>
       <select id="{{ d.key }}" name="{{ d.key }}"{{ ' disabled' if fixed else '' }}>
-        {% for word, said in d.choices %}
+        {% for word, said in choices_for(d) %}
         <option value="{{ word }}"{{ ' selected' if value(d.key) == word else '' }}>{{ said }}</option>
         {% endfor %}
       </select>
@@ -63,4 +64,31 @@
   <p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
   {% endif %}
 </form>
+
+{# The device's own answer, which never reaches the server (ADR-0023). It is on
+   this page because this is where somebody comes to change it, and outside the
+   form above because it is not one of the things that form saves -- pressing save
+   must not look as though it wrote this somewhere, and it did not.
+
+   The script fills the menu in and remembers what is chosen. Hidden until it has,
+   which is the honest state for a control that is nothing but script: an empty
+   menu that forgets what you tell it is worse than no menu. #}
+<fieldset class="settings-box" id="device-box" hidden>
+  <legend>This device</legend>
+  <div class="srow" title="Where this browser sends a small label, whatever the site default says. It is remembered here and goes nowhere else: the phone by the shelf and the machine in the workshop answer differently.">
+    <label for="device_destination">Small label goes to</label>
+    <select id="device_destination">
+      <option value="">whatever the site says</option>
+    </select>
+  </div>
+  {# For the case the settings page cannot otherwise get out of: a chooser that
+     lists nothing, on a printer nobody debugging it can hold. Hidden with the rest
+     of the block until the script is there to answer it. #}
+  <div class="srow" title="Connects to a Bluetooth printer and reads out what is on it, without printing anything. For finding out whether the browser can see the printer at all.">
+    <label for="bt-test">Bluetooth</label>
+    <button class="btn" type="button" id="bt-test">test a printer</button>
+  </div>
+  <pre id="bt-report" class="hscroll" hidden></pre>
+</fieldset>
+{{ LS.script() }}
 {% endblock %}

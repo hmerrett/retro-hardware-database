@@ -59,7 +59,7 @@ from ..photos import (
     tuned_photos,
 )
 from ..register import _change_token, _item_nav, get_or_404
-from ..web import _dot, _jsonld, _og, _safe_next, templates
+from ..web import _dot, _jsonld, _og, _safe_next, png_label, templates
 
 from .. import specstruct
 from fastapi import Query
@@ -1121,6 +1121,16 @@ async def gui_part_photo_crop(
     form = await posted(request)
     _do_photo_crop(db, Part, "parts", aid, form)
     return RedirectResponse(_safe_next(form.get("next") or f"/parts/{aid}"), status_code=303)
+
+
+@router.get("/parts/{aid}/label.png", include_in_schema=False)
+def gui_part_label_png(
+    aid: str, media: str = "", dpi: int = 0, db: Session = Depends(get_db)
+) -> Response:
+    p = get_or_404(db, Part, aid)
+    return png_label(
+        to_dict(p), labels.PART, media, dpi, spec_pairs=specdb.pairs(db, p, display=True)
+    )
 
 
 @router.get("/parts/{aid}/label.pdf", include_in_schema=False)

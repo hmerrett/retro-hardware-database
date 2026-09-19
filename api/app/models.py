@@ -815,6 +815,47 @@ class ProjectOrder(Base):
     note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
 
 
+class PrintJob(Base):
+    """One label waiting to be printed by an agent somewhere else (ADR-0025).
+
+    The register is a server and the label printer is behind a broadband router,
+    so there is no route from here to there: the agent asks for its jobs, and this
+    row is what it is told.
+
+    It holds a request to print an item, not a copy of one -- the label is rendered
+    when it is fetched, so a correction made in the two minutes before the agent
+    picks the job up is on the label that comes out, and the queue never becomes a
+    second place the register's data lives.
+
+    `asset_id` is a plain column and not a foreign key, as `log_entry`'s is: it is
+    an identity in the shared register, which is three tables. An item deleted
+    before its label prints leaves the job pointing at nothing, which is answered
+    when the agent asks for the label rather than by a cascade -- the agent has to
+    be told that this one will never work, and a row vanishing tells it nothing.
+
+    `claimed_at` is a lease and not a receipt. An agent that takes a job and stops
+    existing lets it fall back to the queue (printing.LEASE_SECONDS), because a
+    label printed twice is a label and a job lost in silence is somebody standing
+    at a printer wondering."""
+
+    __tablename__ = "print_job"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    asset_id: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    media: Mapped[str] = mapped_column(String(32), nullable=False)
+    fmt: Mapped[str] = mapped_column(String(8), nullable=False)
+    dpi: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    copies: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    state: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="queued", server_default="queued", index=True
+    )
+    error: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    claimed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
 class Setting(Base):
     """One thing the owner prefers, as against one thing that is true of the
     collection (ADR-0023).

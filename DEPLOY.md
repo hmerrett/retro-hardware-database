@@ -153,7 +153,7 @@ the box by hand; a fresh clone needs its own `.env`. `.env.example` is the list,
 with what each key is for written beside it: `DB_*`, `RHDB_AUTH_USER`,
 `RHDB_AUTH_PASSWORD`, `RHDB_SECRET_KEY` (the app refuses to start without it once
 the credentials are set), `RHDB_OPEN`, `RHDB_DOMAIN`, `RHDB_ACME_EMAIL`,
-`RHDB_BASE_URL` and `RHDB_WATERMARK`.
+`RHDB_BASE_URL`, `RHDB_WATERMARK` and `RHDB_PRINT_AGENTS`.
 
 ## Special case: changing the site icon
 

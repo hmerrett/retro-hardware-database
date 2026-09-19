@@ -171,6 +171,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/api_assets.py` | the JSON API for computers and parts |
 | `routers/api_projects.py` | the JSON API for projects, their jobs and their orders |
 | `routers/health.py` | /healthz: up, and able to reach the database |
+| `routers/print_queue.py` | the print queue: the owner's half, and the half a print agent's key opens |
 | `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
 | `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
 | `disposal.py` | disposing of a thing and bringing it back, including what was fitted inside it |
@@ -208,7 +209,9 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `thumbs.py` | smaller copies of the photographs, made once and kept |
 | `enhance.py` | the one-touch tuneup: the automatic levels-and-colour fix a phone does |
 | `enrich.py` | fetching a photo for an item from its reference URL |
-| `labels.py` | print-ready label PDFs, with the QR encoding every printed label already uses |
+| `labels.py` | what a label says and where on it that goes, for either surface |
+| `printing.py` | the queue of labels waiting for a printer on somebody else's machine |
+| `surfaces.py` | the two things a label is drawn on: a PDF page, and a printer's own dots |
 | `audit_storage.py` | checking every storage part against the questions its kind is actually asked |
 
 Outside `api/`:

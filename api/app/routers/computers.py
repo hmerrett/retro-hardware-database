@@ -96,7 +96,7 @@ from ..photos import (
     tuned_photos,
 )
 from ..register import _change_token, _item_nav, get_or_404
-from ..web import _dot, _jsonld, _og, _safe_next, templates
+from ..web import _dot, _jsonld, _og, _safe_next, png_label, templates
 
 from .. import ramdb
 
@@ -800,9 +800,10 @@ async def gui_computer_photo_crop(
     return RedirectResponse(_safe_next(form.get("next") or f"/computers/{aid}"), status_code=303)
 
 
-@router.get("/computers/{aid}/label.pdf", include_in_schema=False)
-def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)) -> Response:
-    c = get_or_404(db, Computer, aid)
+def _label_build(db: Session, aid: str) -> tuple[list[dict[str, object]], str]:
+    """A machine's installed parts as a label reads them, and its board's form
+    factor. Both labels ask the same question of the database, so they ask it in
+    the same place."""
     installed = db.query(Part).filter(Part.computer_id == aid).all()
     board = next((p for p in installed if p.type == "motherboard"), None)
     rows = []
@@ -813,12 +814,39 @@ def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)) 
     # Form factor is a text column; the check is for the type checker, which sees
     # the typed spec columns as the strings and the integers together.
     form_factor = specdb.scalars(db, board).get("form_factor", "") if board else ""
+    return rows, form_factor if isinstance(form_factor, str) else ""
+
+
+@router.get("/computers/{aid}/label.png", include_in_schema=False)
+def gui_computer_label_png(
+    aid: str, media: str = "", dpi: int = 0, small: int = 1, db: Session = Depends(get_db)
+) -> Response:
+    """A machine's label as a bitmap. Small by default, unlike the PDF: a 6x4 is
+    printed on a sheet and a bitmap is asked for by the printers that take one,
+    which are the small-label printers."""
+    c = get_or_404(db, Computer, aid)
+    rows, form_factor = _label_build(db, aid)
+    return png_label(
+        to_dict(c),
+        labels.COMPUTER,
+        media,
+        dpi,
+        parts=rows,
+        form_factor=form_factor,
+        small=bool(small),
+    )
+
+
+@router.get("/computers/{aid}/label.pdf", include_in_schema=False)
+def gui_computer_label(aid: str, small: int = 0, db: Session = Depends(get_db)) -> Response:
+    c = get_or_404(db, Computer, aid)
+    rows, form_factor = _label_build(db, aid)
     pdf = labels.render_pdf(
         to_dict(c),
         rows,
         labels.COMPUTER,
         small=bool(small),
-        form_factor=form_factor if isinstance(form_factor, str) else "",
+        form_factor=form_factor,
     )
     return Response(
         pdf,
