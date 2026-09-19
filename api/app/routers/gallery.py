@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, projects, specdb
+from .. import cards, entry, projects, settings, specdb
 from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import Computer, LogEntry, Part
@@ -230,7 +230,7 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> H
         hit_projects=hit_projects,
         og=_og(
             request,
-            "Retro Hardware Database",
+            settings.site_name(),
             f"{n_computers} computers and {len(rows) - n_computers} parts in the collection.",
             # The photographs on the page, tiled, rather than the logo: this is
             # a wall of them, and a search is the page here most worth sending
@@ -267,7 +267,7 @@ def gui_for_sale(request: Request, db: Session = Depends(get_db)) -> HTMLRespons
         # shortlist that silently dropped them would be answering a question that
         # was not asked.
         show_disposed=True,
-        page_title="Might sell — Retro Hardware Database",
+        page_title=f"Might sell — {settings.site_name()}",
         noindex=True,
         og=_og(request, "Might sell"),
     )
@@ -292,7 +292,7 @@ def gui_browse(
         # The figures on /stats count disposed items too, so this page has to show
         # them by default or it would seem to contradict the number clicked on.
         show_disposed=True,
-        page_title=f"{heading} — Retro Hardware Database",
+        page_title=f"{heading} — {settings.site_name()}",
         # A filtered slice of the gallery is not a page search engines want; the
         # items themselves are already indexed one by one.
         noindex=True,

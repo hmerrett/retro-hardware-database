@@ -813,3 +813,27 @@ class ProjectOrder(Base):
     )
     delivered_at: Mapped[date | None] = mapped_column(Date)
     note: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+
+
+class Setting(Base):
+    """One thing the owner prefers, as against one thing that is true of the
+    collection (ADR-0023).
+
+    A key and a value rather than a column apiece, because the page they are edited
+    on is expected to grow and a migration per preference would be a tax on exactly
+    the thing it is meant to make cheap. What each key means -- its label, its
+    default, the kind of control it is asked with, the environment variable that
+    pins it -- is in `settings.py`, which is also the only thing that writes here.
+
+    An absent row is not a missing value: every setting has a default in that
+    module, so an empty table is a working site and nothing has to be seeded
+    (ADR-0002).
+
+    `name` rather than `key`: KEY is reserved in MariaDB, and a column that has to
+    be quoted everywhere it is named is a column that will one day be named
+    somewhere that forgets."""
+
+    __tablename__ = "setting"
+    name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime)

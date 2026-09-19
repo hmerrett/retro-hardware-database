@@ -21,7 +21,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
-from . import entry, filesdb, labels, projects
+from . import entry, filesdb, labels, projects, settings
 from .common import PUBLIC_BASE_URL, STATIC_DIR, _file_ver, branded
 from .datacss import DATA_CSS_VER
 from .photos import _image_size, img_srcset, img_url
@@ -49,6 +49,12 @@ templates.env.globals.update(
     # The statuses that mean a project is over, so the pages that dim a finished
     # one do not each keep their own idea of which those are.
     closed_states=projects.CLOSED,
+    # The three settings every page is rendered through (ADR-0023). Callables
+    # rather than values: these are registered once at import and read on every
+    # render, so a name saved a moment ago is the name the next page carries.
+    site_name=settings.site_name,
+    site_theme=lambda: settings.value("theme"),
+    site_indexed=lambda: settings.on("search_engines"),
 )
 # A filter rather than a global, because it reads as one thing done to another at
 # every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --
@@ -122,7 +128,7 @@ def _og(
         # card, so a shared link is never the bare text preview it used to be.
         path, og["image_w"], og["image_h"] = SITE_CARD
         og["image"] = _abs_url(request, f"{path}?v={SITE_CARD_VER}")
-        og["image_alt"] = "The Retro Hardware Database"
+        og["image_alt"] = settings.site_name()
     return og
 
 

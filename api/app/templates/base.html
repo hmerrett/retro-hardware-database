@@ -1,16 +1,20 @@
 <!doctype html>
-<html lang="en">
+{# The theme this installation opens in, put on the element the server renders
+   rather than left to the script: head.js overrules it from localStorage when this
+   device has chosen one of its own, and "system" is no attribute at all, which is
+   what the stylesheet's prefers-color-scheme block is guarded on (ADR-0023). #}
+<html lang="en"{% if site_theme() != 'system' %} data-theme="{{ site_theme() }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Retro Hardware Database{% endblock %}</title>
+<title>{% block title %}{{ site_name() }}{% endblock %}</title>
 {# Social-media link preview (Open Graph + Twitter card). #}
 {% set _og = og | default(none) %}
-{% set _og_title = _og.title if _og else 'Retro Hardware Database' %}
+{% set _og_title = _og.title if _og else site_name() %}
 {# Search-engine basics: description, canonical URL and indexability. #}
 <meta name="description" content="{{ (_og.description if _og and _og.description else 'A catalogue of vintage computers and hardware.') }}">
 {% if _og and _og.url %}<link rel="canonical" href="{{ _og.url }}">{% endif %}
-<meta name="robots" content="{{ 'noindex, follow' if noindex | default(false) else 'index, follow' }}">
+<meta name="robots" content="{{ 'noindex, follow' if noindex | default(false) or not site_indexed() else 'index, follow' }}">
 {% if jsonld is defined and jsonld %}<script type="application/ld+json">{{ jsonld | tojson }}</script>{% endif %}
 {# Favicons / app icons. The ?v= busts the browser's sticky favicon cache
    whenever the artwork is regenerated (it is a hash of the icon file). #}
@@ -20,7 +24,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v={{ icon_ver }}">
 <link rel="manifest" href="/static/site.webmanifest?v={{ icon_ver }}">
 <meta name="theme-color" content="#2563eb">
-<meta property="og:site_name" content="Retro Hardware Database">
+<meta property="og:site_name" content="{{ site_name() }}">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="en_GB">
 <meta property="og:title" content="{{ _og_title }}">
@@ -64,14 +68,16 @@
 {%- if (seg == '/' and _p == '/') or (seg != '/' and _p.startswith(seg)) %} aria-current="page"{% endif -%}
 {%- endmacro %}
 <header>
-  {# The mark and the name together. What ships is a placeholder; an installation
-     drops its own logo-256.png into the branding directory and this becomes theirs
-     (see main.branded and INSTALL.md). Which is why the alt text says what the
-     picture is rather than naming anybody's site. #}
+  {# The mark and the name together, and both belong to the installation rather
+     than to the software: the logo is whatever was dropped into the branding
+     directory (see main.branded and INSTALL.md), and the name is what the settings
+     page says this collection is called. The alt text is that name because the
+     picture is the site's mark -- a logo whose alt text describes the artwork
+     tells a screen reader about a drawing nobody asked about. #}
   <a class="brand" href="/">
-    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="Retro Hardware Database"
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
          width="248" height="256">
-    <span>Retro Hardware Database</span>
+    <span>{{ site_name() }}</span>
   </a>
   {# The places, one of them lit. API docs is not among them: it is for whoever is
      writing against the register rather than reading it, and it lives at the foot
@@ -134,22 +140,29 @@
            other things to read past first. #}
         <button type="button" class="js-share" hidden>Share this page</button>
         <button type="button" class="js-reload" hidden>Reload</button>
-        {% if auth_enabled %}
         <hr>
         {% if request.state.authed %}
-        {# The owner's own shortlist, beside the other two things only they can
-           reach. Not in the sections nav: it is a note to yourself, not a part of
-           the catalogue (ADR-0018). #}
+        {% if auth_enabled %}
+        {# The owner's own shortlist, beside the other things only they can reach.
+           Not in the sections nav: it is a note to yourself, not a part of the
+           catalogue (ADR-0018). #}
         <a href="/for-sale">might sell</a>
         <a href="/traffic">traffic</a>
+        {% endif %}
+        {# Gated on being the owner rather than on there being a login, which is the
+           one of the two questions this actually turns on: with no credentials set
+           every visitor is the owner (ADR-0019), and the page is reachable, so a
+           menu that left it out would be hiding a page it cannot refuse. #}
+        <a href="/settings"{{ here('/settings') }}>settings</a>
+        {% if auth_enabled %}
         <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
+        {% endif %}
         {% else %}
         {# Carrying where you are, so logging in puts you back on it. That matters
            most to a phone that has arrived by scanning an item's code and would
            otherwise be handed the gallery and left to find the thing in its
            hands again. #}
         <a href="/login?next={{ _back | urlencode }}">log in</a>
-        {% endif %}
         {% endif %}
       </div>
     </details>
@@ -176,7 +189,7 @@
 <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
 
 <footer class="site">
-  <span>Retro Hardware Database</span>
+  <span>{{ site_name() }}</span>
   <a href="/docs">API docs</a>
 </footer>
 
@@ -210,15 +223,18 @@
     <button type="button" class="js-theme">Dark theme</button>
     <button type="button" class="js-share" hidden>Share this page</button>
     <button type="button" class="js-reload" hidden>Reload</button>
-    {% if auth_enabled %}
     <hr>
     {% if request.state.authed %}
+    {% if auth_enabled %}
     <a href="/for-sale">might sell</a>
     <a href="/traffic">traffic</a>
+    {% endif %}
+    <a href="/settings"{{ here('/settings') }}>settings</a>
+    {% if auth_enabled %}
     <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
+    {% endif %}
     {% else %}
     <a href="/login?next={{ _back | urlencode }}">log in</a>
-    {% endif %}
     {% endif %}
   </div>
 </div>

@@ -34,6 +34,17 @@ decide before the work below can start.
 An item leaves this file when it is done, so what has left is recorded once here
 rather than being wondered about later.
 
+- **A settings page.** `/settings`, behind the login and reached from the ⋯ menu
+  and the phone's More sheet: what the collection is called, whether search
+  engines may list it, whether photographs are stamped, and which theme the site
+  opens in. Under it, the decision the item was really about
+  ([ADR-0023](adr/0023-a-preference-is-not-configuration.md)) — a preference is
+  kept in the database and edited on a page, configuration stays in the
+  environment, and where both speak the environment wins and the page says which
+  variable holds it. The device half is there too, which is what the printing
+  work below needs and why this came first. Not taken up: nothing was moved out
+  of the environment that was not already a preference wearing a config's
+  clothes, which was one variable.
 - **Docker environment separation.** The app runs as `appuser` and not root, the
   photograph and file volumes are put right before it starts, the database is
   behind a healthcheck the app waits on, and `docker-compose.dev.yml` layers the
@@ -195,7 +206,7 @@ that definition was for. **Tag `v0.1.0`.**
 ## After 0.1
 
 0.2 is shaped by what 0.1's installers report; guessing now would be inventing
-requirements. Six items are decided already and waiting on the release:
+requirements. Five items are decided already and waiting on the release:
 
 **Make the repository public**, which is the first thing after the tag rather than
 one of 0.2's. The licence is in place, the guide names the right repository and
@@ -230,19 +241,6 @@ synchronisation. There is one catalogue, it ships with the code and it has one
 history, so duplicates only become possible once local-only entries exist — which
 is a decision to take when somebody has one worth protecting, not before.
 
-**A preferences page.** Printing options to start with — where a label goes — but
-that is the first thing on it rather than the point of it. It is the first place
-in the app where something is recorded because somebody *prefers* it rather than
-because it is true of the collection, and once that place exists a good deal wants
-to live there. It is also the foundation the multi-user work needs: accounts and
-tiered permissions are, underneath, somewhere to keep "this person prefers this"
-and "this person may do that", and building that on a page that already exists is
-a smaller job than inventing both at once.
-
-Fairly high up the list for soon after 0.1, and deliberately before the printing
-work below rather than after it, so the first preference has somewhere to be put
-down instead of being wedged in beside the theme.
-
 **Printing options: Niimbot, remote print servers, and the rest.** A small label
 is a PDF today, and getting one onto the Niimbot B1 means the phone's share sheet
 and the vendor app, which rescales it on the way. Both ends were proved on the
@@ -273,11 +271,10 @@ ADR for.
 Where a label goes is then a preference — a PDF, a Bluetooth printer, or a named
 printer on an agent — and it is a fact about the device rather than about the
 collection: the phone by the shelf wants the Niimbot, the workshop machine the
-Dymo, a visitor the PDF. So it belongs on the preferences page above, which is why
-that comes first; `localStorage` beside the theme is where a per-device choice
-still physically lands, but the place to *change* it is a page rather than a
-menu hanging off a button. The server says what is possible and the device says
-what is preferred.
+Dymo, a visitor the PDF. So it goes in the device half of `/settings`, which now
+exists and was built first for exactly this: the server says what is possible and
+the device says what is preferred, and neither has to be invented alongside the
+protocol work.
 
 The packet encoding stays in Python where the suite can reach it, and the
 chooser's JavaScript is a static file from the start — the content policy

@@ -45,7 +45,7 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import event, text
 
-from app import main
+from app import main, settings
 from app.db import Base, SessionLocal, engine
 
 _ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
@@ -113,6 +113,16 @@ def _reset_login_limiter():
     # module's own globals, so that is the only place a patch or a reset bites.
     main.auth._login_limiter._hits.clear()
     yield
+
+
+@pytest.fixture(autouse=True)
+def _reset_settings_cache():
+    """The settings are read once per process and kept (ADR-0023), and the tables
+    are emptied between tests -- so without this a test inherits whatever the last
+    one saved, from a cache whose rows have since been deleted."""
+    settings.forget()
+    yield
+    settings.forget()
 
 
 @pytest.fixture

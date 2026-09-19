@@ -12,7 +12,7 @@
    Not the delete page's URL-paste confirmation, though it borrows the box. Nothing
    here is destroyed: the machine keeps its id, its model and its history, and what
    happens is that one more thing gets a tag. #}
-{% block title %}Detach the board — {{ aid }} — Retro Hardware Database{% endblock %}
+{% block title %}Detach the board — {{ aid }} — {{ site_name() }}{% endblock %}
 {% block content %}
 <div class="crumbnav"><a href="/computers/{{ aid }}">&larr; back to {{ aid }}</a></div>
 

@@ -64,3 +64,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0022](0022-no-style-attribute-and-the-rules-that-are-data-are-generated.md) —
   No style attribute, and the rules whose values are data are generated —
   *Accepted*
+- [0023](0023-a-preference-is-not-configuration.md) — A preference is not
+  configuration, and the environment still wins — *Accepted*

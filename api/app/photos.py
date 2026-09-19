@@ -30,7 +30,7 @@ from sqlalchemy.orm import Session
 # but forms.Posted.uploads hands over the plain one, and both arrive here.
 from starlette.datastructures import UploadFile
 
-from . import enrich, entry, thumbs
+from . import enrich, entry, settings, thumbs
 from .common import IMAGES_DIR, IMAGE_EXTS, branded, _file_ver, folder_images
 from .models import LogEntry, LogPhoto
 
@@ -83,8 +83,18 @@ LOG_KIND = "log"
 # Our own photos are served with a small RHDB watermark composited in a corner,
 # so shared/saved copies carry attribution. Originals on disk are never altered;
 # the watermarked version is cached next to a mtime check. Reference (not-ours)
-# images and favicons are served untouched. Toggle with RHDB_WATERMARK=0.
-WATERMARK = os.getenv("RHDB_WATERMARK", "1").lower() not in ("0", "false", "no", "off")
+# images and favicons are served untouched.
+#
+# Asked at the moment a photograph is served rather than read once at import,
+# because it is a preference now and is turned off on the settings page as well as
+# by RHDB_WATERMARK (ADR-0023). Nothing on disk has to be undone when it changes:
+# the mark was only ever in the cached copy beside the original.
+
+
+def watermarking() -> bool:
+    return settings.on("watermark")
+
+
 # The logo at its own proportions (tools/make_icons.py writes it), not the squared
 # app icon: a mark letterbox-padded inside a square would sit on the photo smaller
 # than the numbers below ask for. Falls back to the square icon if it is missing.
@@ -118,11 +128,13 @@ WM_CACHE = (
     IMAGES_DIR / ".wm" / f"s{WM_SCALE}-m{WM_MIN_PX}-o{WM_OPACITY}-b{WM_BUILD}-i{_file_ver(WM_SRC)}"
 )
 
-if WATERMARK:
-    WM_CACHE.mkdir(parents=True, exist_ok=True)
-    for stale in WM_CACHE.parent.iterdir():
-        if stale.is_dir() and stale != WM_CACHE:
-            shutil.rmtree(stale, ignore_errors=True)
+# Unconditionally, now that the mark can be turned on again without a restart: a
+# cache directory that is only made when the flag was on at import is a directory
+# that is missing the first time somebody ticks the box.
+WM_CACHE.mkdir(parents=True, exist_ok=True)
+for stale in WM_CACHE.parent.iterdir():
+    if stale.is_dir() and stale != WM_CACHE:
+        shutil.rmtree(stale, ignore_errors=True)
 
 # The resized copies keep their own cache beside it, swept the same way.
 thumbs.sweep(IMAGES_DIR)
@@ -256,7 +268,7 @@ def _is_own_photo(rel: str) -> bool:
     # which page of the site it was shown on.
     ext = Path(rel).suffix.lower()
     return (
-        WATERMARK
+        watermarking()
         and ext in IMAGE_EXTS
         and (rel.startswith(("computers/", "parts/", LOG_KIND + "/")))
         and not is_reference(rel)
