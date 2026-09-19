@@ -45,10 +45,22 @@ const RX = {
   printEnd: 0xf4,
 };
 
-/* The service every NIIMBOT advertises. The characteristic inside it is found by
-   what it can do rather than by its own id, which is how the reference client does
-   it and is why this works across a family whose characteristics differ. */
+/* The service every NIIMBOT serves. The characteristic inside it is found by what
+   it can do rather than by its own id, which is how the reference client does it
+   and is why this works across a family whose characteristics differ. */
 const SERVICE = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
+
+/* A NIIMBOT *serves* that service and does not necessarily *advertise* it, which
+   are different things and the difference is the whole of why an earlier version
+   of this found nothing: an advertisement has 31 bytes to fit everything in, so
+   most of these printers spend them on their name -- "B1-G327071185" -- and leave
+   the service to be discovered after connecting.
+   A chooser filtered on the service alone is therefore an empty chooser, with
+   nothing on screen to say the printer was ever there. Matching the name as well
+   is what the reference client does, and it is the same reasoning: a filter that
+   shows one device too many costs a glance, and one that shows none costs an
+   afternoon. */
+const NAME_PREFIX = "B";
 
 /* The print head, in dots. Only used to decide how a row's black pixels are
    counted -- see `rowCounts`. */
@@ -226,11 +238,24 @@ export async function print(blob, media, say) {
   }
   say("choose your printer…");
   const device = await navigator.bluetooth.requestDevice({
-    filters: [{ services: [SERVICE] }],
+    /* Either: named like a NIIMBOT, or advertising the service. A device matching
+       any one filter is offered. */
+    filters: [{ namePrefix: NAME_PREFIX }, { services: [SERVICE] }],
+    /* Needed to reach the service at all on a device that was matched by its name,
+       which is most of them. Without this the connection succeeds and every service
+       on it is invisible. */
     optionalServices: [SERVICE],
   });
   say("connecting…");
-  const server = await device.gatt.connect();
+  let server;
+  try {
+    server = await device.gatt.connect();
+  } catch (e) {
+    /* Nearly always the same thing: a BLE printer talks to one thing at a time,
+       and the NIIMBOT app is still holding it. Backgrounding that app is not
+       enough -- it has to be closed. */
+    throw new Error("could not connect — close the NIIMBOT app if it is open, then try again");
+  }
   const channel = await findChannel(server);
   if (!channel) throw new Error("that device does not look like a NIIMBOT");
   await channel.startNotifications();

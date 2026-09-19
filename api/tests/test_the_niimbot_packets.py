@@ -130,3 +130,24 @@ def test_it_says_where_it_came_from():
     source = DRIVER.read_text(encoding="utf-8")
     assert "niimbluelib" in source
     assert "MIT" in source
+
+
+def test_the_chooser_looks_for_the_name_as_well_as_the_service():
+    """A NIIMBOT serves that service and does not necessarily advertise it -- an
+    advertisement has 31 bytes and these printers spend them on their name. Filtered
+    on the service alone the chooser comes up empty, with nothing on screen to say
+    the printer was ever there, which is exactly what happened the first time this
+    met a real one."""
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "filters: [{ namePrefix: NAME_PREFIX }, { services: [SERVICE] }]" in source
+    # And the service has to be asked for as optional, or a device matched by its
+    # name connects and shows no services at all.
+    assert "optionalServices: [SERVICE]" in source
+
+
+def test_a_refused_connection_says_what_to_do_about_it():
+    """A BLE printer talks to one thing at a time, and the thing holding it is
+    almost always the vendor's own app. "GATT operation failed" is not something
+    anybody can act on; "close the NIIMBOT app" is."""
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "close the NIIMBOT app" in source
