@@ -1582,6 +1582,16 @@ does not intend to add it, so on an iPhone or iPad the answer is one of:
 
 Pressing the Bluetooth button in Safari says so rather than failing quietly.
 
+**If the printer is not in the list**, press **show every Bluetooth device** and
+look for it by name — it will be called something like `B1-G327071185`. The short
+list is filtered on what a NIIMBOT advertises about itself, and Bluefy does not
+handle that filtering the way a desktop browser does. The long list always works
+and is one extra tap.
+
+**If it is in the list but will not connect**, close the NIIMBOT app — properly,
+not just to the background. These printers talk to one thing at a time, and while
+their own app has hold of one nothing else can have it.
+
 ### Printing to a printer somewhere else
 
 The buttons hand you a file, which is right when the printer is on the machine you

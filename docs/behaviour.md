@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1534 behaviours, from 43 files.*
+*1538 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -2853,7 +2853,7 @@ Regenerate with:
 
 ## The niimbot packets
 
-*test_the_niimbot_packets.py — 6 behaviours*
+*test_the_niimbot_packets.py — 10 behaviours*
 
 - the checksum rule matches what a real printer sends  
   Command, length and every byte of the data, exclusive-ored together.
@@ -2866,6 +2866,14 @@ Regenerate with:
   Other models differ in the print sequence rather than in the framing, so a driver that quietly claimed to be general would fail on a D11 in a way nobody could read.
 - it says where it came from  
   It is a reimplementation of somebody else's reverse engineering, and the licence it was read under asks for the notice that honesty would ask for anyway.
+- the chooser looks for the name as well as the service  
+  A NIIMBOT serves that service and does not necessarily advertise it -- an advertisement has 31 bytes and these printers spend them on their name.
+- there is a way past a chooser that shows nothing  
+  Filters behave differently in Bluefy, which is the only browser that reaches Bluetooth on iOS, and differently enough that the Web Bluetooth group has an open report about it with no answer in it.
+- picking the wrong thing from the wide chooser says so  
+  In a list of every radio in the room it is entirely possible to pick a pair of headphones, and "no suitable characteristic" is not a sentence about that.
+- a refused connection says what to do about it  
+  A BLE printer talks to one thing at a time, and the thing holding it is almost always the vendor's own app.
 
 
 ## Type checking

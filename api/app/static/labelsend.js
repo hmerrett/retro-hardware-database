@@ -65,10 +65,26 @@
     said.className = "hint";
     said.setAttribute("aria-live", "polite");
     near.parentNode.insertBefore(said, near.nextSibling);
-    return function (text, bad) {
+    var say = function (text, bad) {
       said.textContent = text;
       said.classList.toggle("warn", !!bad);
     };
+    /* A second go at something, offered as a button rather than done automatically:
+       the browser only opens its device chooser in answer to a press, so an offer
+       nobody presses is the only kind that can be made. */
+    say.offer = function (label, go) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn";
+      button.textContent = label;
+      button.addEventListener("click", function () {
+        button.remove();
+        go();
+      });
+      said.appendChild(document.createTextNode(" "));
+      said.appendChild(button);
+    };
+    return say;
   }
 
   /* --- the destinations --------------------------------------------------- */
@@ -92,7 +108,7 @@
       });
   }
 
-  function toBluetooth(kind, assetId, say) {
+  function toBluetooth(kind, assetId, say, showEverything) {
     if (!navigator.bluetooth) {
       /* The one case worth naming a browser for: no browser on iOS exposes this,
          and somebody standing there with an iPhone needs to be told what to do
@@ -115,11 +131,19 @@
       .then(function (blob) {
         return import("/static/niimbot.js").then(function (driver) {
           say("connecting…");
-          return driver.print(blob, media, say);
+          return driver.print(blob, media, say, showEverything);
         });
       })
       .catch(function (err) {
         say(String(err.message || err), true);
+        if (err && err.showEverything) {
+          /* The narrow chooser found nothing. On iOS that is as likely to be the
+             filter as the printer -- see niimbot.js -- so the wide one is offered
+             rather than left to be discovered by somebody reading the source. */
+          say.offer("show every Bluetooth device", function () {
+            toBluetooth(kind, assetId, say, true);
+          });
+        }
       });
   }
 

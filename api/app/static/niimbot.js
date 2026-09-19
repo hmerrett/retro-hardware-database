@@ -50,6 +50,32 @@ const RX = {
    and is why this works across a family whose characteristics differ. */
 const SERVICE = "e7810a71-73ae-499d-8c15-faa9aef0c3f2";
 
+/** What to ask the browser to show.
+ *
+ * Narrow first: named like a NIIMBOT, or advertising the service, which on a
+ * desktop browser is a chooser with the printer in it and nothing else.
+ *
+ * Then everything, because the narrow one cannot be relied on. Filters behave
+ * differently in Bluefy -- the only browser that reaches Bluetooth on iOS -- and
+ * differently enough that the Web Bluetooth group has an open report about it with
+ * no answer in it. A chooser listing every radio in the room is a poor thing to
+ * offer somebody; a chooser listing nothing at all, on the one platform where we
+ * cannot debug it, is worse.
+ *
+ * `optionalServices` is what makes the service reachable afterwards, and is
+ * required in both shapes: without it the connection succeeds and every service on
+ * the device is invisible.
+ */
+function chooser(showEverything) {
+  if (showEverything) {
+    return { acceptAllDevices: true, optionalServices: [SERVICE] };
+  }
+  return {
+    filters: [{ namePrefix: NAME_PREFIX }, { services: [SERVICE] }],
+    optionalServices: [SERVICE],
+  };
+}
+
 /* A NIIMBOT *serves* that service and does not necessarily *advertise* it, which
    are different things and the difference is the whole of why an earlier version
    of this found nothing: an advertisement has 31 bytes to fit everything in, so
@@ -231,21 +257,27 @@ class Printer {
  * click — which is why this is called from the button's handler and not from
  * anything that runs on its own.
  */
-export async function print(blob, media, say) {
+export async function print(blob, media, say, showEverything) {
   const page = await toRows(blob);
   if (page.width > PRINTHEAD) {
     throw new Error(`that label is ${page.width} dots wide and the head is ${PRINTHEAD}`);
   }
   say("choose your printer…");
-  const device = await navigator.bluetooth.requestDevice({
-    /* Either: named like a NIIMBOT, or advertising the service. A device matching
-       any one filter is offered. */
-    filters: [{ namePrefix: NAME_PREFIX }, { services: [SERVICE] }],
-    /* Needed to reach the service at all on a device that was matched by its name,
-       which is most of them. Without this the connection succeeds and every service
-       on it is invisible. */
-    optionalServices: [SERVICE],
-  });
+  let device;
+  try {
+    device = await navigator.bluetooth.requestDevice(chooser(showEverything));
+  } catch (e) {
+    /* NotFoundError is both "you pressed cancel" and "there was nothing to pick",
+       and the browser will not say which. If the narrow chooser came up empty the
+       caller is offered the wide one, which is the only thing that reliably works
+       on iOS -- see `chooser`. */
+    if (e && e.name === "NotFoundError" && !showEverything) {
+      const nothing = new Error("no printer in the list");
+      nothing.showEverything = true;
+      throw nothing;
+    }
+    throw e;
+  }
   say("connecting…");
   let server;
   try {
@@ -257,7 +289,12 @@ export async function print(blob, media, say) {
     throw new Error("could not connect — close the NIIMBOT app if it is open, then try again");
   }
   const channel = await findChannel(server);
-  if (!channel) throw new Error("that device does not look like a NIIMBOT");
+  if (!channel) {
+    server.disconnect();
+    /* Naming what was picked, because in the wide chooser it is entirely possible
+       to have picked a pair of headphones. */
+    throw new Error(`${device.name || "that device"} is not a NIIMBOT — nothing on it to print with`);
+  }
   await channel.startNotifications();
   try {
     await new Printer(channel).print(page, say);

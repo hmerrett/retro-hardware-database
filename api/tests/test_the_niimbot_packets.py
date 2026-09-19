@@ -145,6 +145,28 @@ def test_the_chooser_looks_for_the_name_as_well_as_the_service():
     assert "optionalServices: [SERVICE]" in source
 
 
+def test_there_is_a_way_past_a_chooser_that_shows_nothing():
+    """Filters behave differently in Bluefy, which is the only browser that reaches
+    Bluetooth on iOS, and differently enough that the Web Bluetooth group has an
+    open report about it with no answer in it. A chooser listing every radio in the
+    room is a poor thing to offer; one listing nothing at all, on the platform we
+    cannot debug, is worse -- so the wide chooser exists and is offered."""
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "acceptAllDevices: true" in source
+    # Offered rather than taken automatically: a browser opens its chooser only in
+    # answer to a press, so the second go has to be a press too.
+    assert "showEverything" in source
+    sender = DRIVER.parent / "labelsend.js"
+    assert "show every Bluetooth device" in sender.read_text(encoding="utf-8")
+
+
+def test_picking_the_wrong_thing_from_the_wide_chooser_says_so():
+    """In a list of every radio in the room it is entirely possible to pick a pair
+    of headphones, and "no suitable characteristic" is not a sentence about that."""
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "is not a NIIMBOT" in source
+
+
 def test_a_refused_connection_says_what_to_do_about_it():
     """A BLE printer talks to one thing at a time, and the thing holding it is
     almost always the vendor's own app. "GATT operation failed" is not something
