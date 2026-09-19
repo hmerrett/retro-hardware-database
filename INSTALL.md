@@ -87,6 +87,7 @@ Now edit `.env`. Every setting, and what it does:
 | `RHDB_ACME_EMAIL` | Where Let's Encrypt writes about those certificates. |
 | `RHDB_BASE_URL` | The public URL of your site. Defaults to `https://$RHDB_DOMAIN`; set it only if they differ. |
 | `RHDB_WATERMARK` | `1` to watermark your own photos with your site logo as they are served, `0` to serve them untouched. The logo is whatever is in `branding/`, or the shipped placeholder. Also a setting on ⋯ → Settings; set here, this wins and the page says so. |
+| `RHDB_PRINT_AGENTS` | Label printers that are not attached to this machine, as `name:key:stock:format` separated by commas. Leave empty unless you are running a print agent — see the manual. |
 
 Two of these matter more than they look:
 

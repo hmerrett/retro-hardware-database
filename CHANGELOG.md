@@ -13,6 +13,26 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Labels can be printed on a printer that is not attached to the machine you are
+holding.** Two things arrive together. A label is now also a picture of itself at
+`label.png`, drawn at the size and resolution of a particular printer rather than
+as a page to be scaled onto one — which is what a small thermal printer takes, and
+what keeps a QR code's squares square. And the register keeps a print queue: send
+a label to a named printer, and a small agent on the machine that printer is
+plugged into picks it up within a few seconds and prints it.
+
+The agent opens every connection, so nothing has to be forwarded to the machine in
+the workshop and no port is opened on your home network — the register can be a
+server on the internet while the printer is on a desk behind a router. Each agent
+holds its own key, which opens that agent's queue and nothing else.
+
+To use it: name your printers in `RHDB_PRINT_AGENTS` in `.env` (the format is in
+`.env.example` and the manual), then run `tools/print_agent.py` on the machine the
+printer is plugged into — Python 3 and CUPS, nothing to install.
+`tools/print-agent.service` is a systemd unit for leaving it running. Nothing has
+to be done by an installation that prints from the browser: with no agents named
+there is no queue, and the existing buttons are unchanged.
+
 **A settings page**, at ⋯ → Settings, behind the login. Four things to start
 with, in two groups. *Appearance*: what this collection is called — which reaches
 the banner, the browser's tab, the foot of every page and the preview a shared

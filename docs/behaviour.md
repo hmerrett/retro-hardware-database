@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1469 behaviours, from 39 files.*
+*1508 behaviours, from 41 files.*
 
 
 ## A file where text was expected
@@ -64,6 +64,50 @@ Regenerate with:
 *test_a_label_for_a_part_of_no_type.py — 1 behaviours*
 
 - a part with no type does not stop the label printing
+
+
+## A label printed somewhere else
+
+*test_a_label_printed_somewhere_else.py — 24 behaviours*
+
+- with no agent named there is no queue  
+  Not an empty queue: the feature does not exist until a key has been written down.
+- an agent the register does not know is refused
+- an item that is not there is refused at the door  
+  Rather than queued and discovered to be missing by a Pi in another room.
+- a wrong key opens nothing
+- an agents key does not open the rest of the api  
+  The whole point of a key per agent.
+- an agent claims its own jobs and not another agents
+- a job another agent holds is not readable or reportable
+- a job is claimed once  
+  Two agents under one name, or one agent asking twice before it has finished, must not both print it.
+- nothing waiting is not an error  
+  An agent asks every few seconds forever; an empty queue is its ordinary answer and must not read as a fault in the log.
+- the oldest job goes first
+- a claim says what to print and how  
+  Everything the agent needs in one answer, so it never has to ask the register a second question to know what it is doing.
+- the agents own settings are the default  
+  What stock is loaded and what the printer would rather be handed are facts about the printer, so they are answered once on the server rather than configured again on the machine in the workshop.
+- a job may say otherwise
+- a stock the register does not know is refused
+- the label is rendered when it is fetched  
+  A job is a request to print an item, not a copy of one -- so a label printed two minutes after a correction carries the correction, and the queue does not become a second place the register's data lives.
+- the label can be fetched as either a page or dots  
+  The job says which the printer would rather have and the claim passes that on, but the URL is what decides: an agent proving a connection wants to ask for the other one without a second job being made for it.
+- an item deleted before it prints fails the job rather than the agent  
+  The agent must be told that this one is never going to work, not handed a traceback to decide about.
+- an agent says how it went
+- a failure keeps what went wrong  
+  So the answer to "why has nothing come out" is on the screen in the room the label was sent from, rather than in a log on the Pi.
+- a job can be taken off the queue before it is claimed
+- a claimed job that is never finished comes back  
+  An agent takes a lease, not the job.
+- a finished job does not come back
+- what has finished is swept after a week  
+  The queue is a list of what is about to happen, not an archive.
+- what is still waiting is never swept  
+  An agent switched off for a fortnight is an ordinary state, not a reason to throw its work away.
 
 
 ## Api
@@ -1228,7 +1272,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 10 behaviours*
+*test_deployment.py — 11 behaviours*
 
 
 **The api trusts its proxy**
@@ -1256,6 +1300,10 @@ Regenerate with:
   So a development run migrates first and reads the proxy headers exactly as production does, rather than carrying its own copy of the uvicorn line that drifts from the real one.
 - it watches the code and not the photographs  
   uvicorn watches its whole working directory unless told otherwise, and the photograph volume is inside it: every upload would restart the server.
+
+**Every setting reaches the container**
+
+- every documented variable is passed to a service
 
 
 ## Drivedb
@@ -2746,6 +2794,37 @@ Regenerate with:
   The three pairs tested before this were the three that had already been reported broken.
 - every surface words are written on holds them  
   A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
+
+
+## The agent on the other machine
+
+*test_the_agent_on_the_other_machine.py — 14 behaviours*
+
+- it claims prints and reports in one pass  
+  The whole of what it does, done once.
+- it prints everything waiting not just the first
+- it asks for as many copies as the job says
+- one copy does not ask for a number  
+  `lp -n 1` is the same as `lp`, and a command line that says only what it means is one somebody can read in a log.
+- it fetches the format the job asked for
+- nothing waiting is a quiet no  
+  An agent asks for ever; an empty queue must not print, must not report and must not read as a fault.
+- a printer that refuses is reported back in its own words  
+  So the answer to "why has nothing come out" is on the screen in the room the label was sent from, rather than in a log on a Pi under a bench.
+- a wrong key stops rather than retrying for ever  
+  A key the register does not know will not start working.
+- an item deleted before it prints is let go  
+  The register has already failed the job by the time it answers, so there is nothing for the agent to print and nothing for it to report.
+- a dry run prints nothing and leaves the label to look at  
+  For proving the connection on a machine that has no printer attached yet, which is the state this was written in.
+- it needs to be told where the register is  
+  Rather than defaulting to something and failing somewhere less obvious.
+- the label is not left lying about after it prints  
+  A register behind a login does not leave its labels in /tmp on a machine other people use.
+- the service file matches the script it starts  
+  The unit file is what actually gets installed, and a wrong path or a variable the script does not read is a fault discovered by ssh.
+- it says what it did  
+  The journal on the Pi is the only place anybody can look when the register says a job failed but not why.
 
 
 ## The database url is required
