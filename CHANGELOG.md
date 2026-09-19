@@ -11,6 +11,20 @@ Versions are [semantic](https://semver.org), and the version has one home,
 starts, so a schema change needs no step of its own. Anything that does need a
 hand is written under the release that needs it.
 
+## Unreleased
+
+**`DATABASE_URL` is now required, rather than defaulting.** It used to fall back
+to `mysql+pymysql://retro:retro@db:3306/retro` when unset. Under Docker Compose
+nobody ever met that default — `DB_PASSWORD` is `${VAR:?message}`, so a missing
+value stops the stack long before the app starts — but nothing outside Compose
+has that guard. Started any other way, an unset variable did not fail: the app
+quietly tried a guessable password on a host called `db`. It now refuses to start
+and says how to set it.
+
+**If you run the supplied `docker-compose.yml`, this changes nothing for you.**
+If you run the app another way — Kubernetes, or by hand — and were relying on the
+default, set `DATABASE_URL` explicitly before upgrading.
+
 ## 0.1.0 — 2026-09-18
 
 The first release, and so not a list of changes: there is nothing before it to
