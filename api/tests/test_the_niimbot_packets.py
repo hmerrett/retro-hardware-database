@@ -222,3 +222,30 @@ def test_the_driver_sends_that_packet_for_a_row_of_a_few_dots():
     # looking entirely reasonable.
     assert "1 << (7 - bitPos)" in source
     assert "u16(bytePos * 8 + bitPos)" in source
+
+
+# The protocol's own tables, as niimbluelib's generated enumerations define them.
+# Written down here because every one of these is a small integer that looks like
+# it could be anything, and one of them was wrong for a day.
+TABLES = {
+    "SINGLE_COLOUR": 0,  # PageColorType.SingleColor -- 1 is DoubleColor
+    "LABEL_WITH_GAPS": 1,  # LabelType.WithGaps
+    "DENSITY": 3,  # the B1's own default, of 1..5
+}
+
+
+def test_the_driver_uses_the_numbers_the_protocol_uses():
+    """`SINGLE_COLOUR = 1` cost a day of looking at labels. One is DoubleColor, and
+    a two-colour page takes a different row format -- so the printer accepted every
+    packet, acknowledged every one, and made nonsense of rows it had been told were
+    something else. Nothing in the trace looked wrong because nothing had gone
+    wrong: it was answering a different question.
+
+    These are three small integers that look like they could be anything, which is
+    exactly why they are read off a table and not written from memory.
+    """
+    source = DRIVER.read_text(encoding="utf-8")
+    for name, value in TABLES.items():
+        found = re.search(rf"^const {name} = (\d+);", source, re.M)
+        assert found, f"{name} is not declared where this can check it"
+        assert int(found.group(1)) == value, f"{name} should be {value}"

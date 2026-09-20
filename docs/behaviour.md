@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1553 behaviours, from 43 files.*
+*1554 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -2873,7 +2873,7 @@ Regenerate with:
 
 ## The niimbot packets
 
-*test_the_niimbot_packets.py — 12 behaviours*
+*test_the_niimbot_packets.py — 13 behaviours*
 
 - the checksum rule matches what a real printer sends  
   Command, length and every byte of the data, exclusive-ored together.
@@ -2897,6 +2897,8 @@ Regenerate with:
 - a row of a few dots is a list of where they are  
   Not an optimisation, and not optional.
 - the driver sends that packet for a row of a few dots
+- the driver uses the numbers the protocol uses  
+  `SINGLE_COLOUR = 1` cost a day of looking at labels.
 
 
 ## Type checking
