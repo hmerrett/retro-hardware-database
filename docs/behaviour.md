@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1617 behaviours, from 44 files.*
+*1634 behaviours, from 44 files.*
 
 
 ## A file where text was expected
@@ -1766,7 +1766,7 @@ Regenerate with:
 
 ## Locations
 
-*test_locations.py — 62 behaviours*
+*test_locations.py — 69 behaviours*
 
 
 **Recording where something is**
@@ -1783,6 +1783,21 @@ Regenerate with:
   A duplicate copies what describes the model, not where this one sits.
 - a parts own answer stands beside where it is installed  
   The card-in-a-drawer case.
+
+**A row older than the feature**
+
+- a machine older than the column reads as blank
+- a part older than the column reads as blank
+- the lists survive one  
+  The half that made it a 500 rather than an untidiness: the response is validated as a whole list, so one row older than the feature took every caller's `GET /api/computers` with it -- and the MCP tools with that.
+- the pages survive one as well  
+  The gallery and the item pages read the column too, and a search reads it off every row at once.
+- such a row is still placed by what it is fitted in  
+  And the derived answer works over it, which it could not if blank had two spellings -- `inherited` reads the column and strips it.
+- the migrated schema leaves no nulls to find  
+  Read off the database the migrations built (conftest runs the real ones), rather than off the models that describe it.
+- the column cannot hold one  
+  The belt to the server default's braces.
 
 **A part is where what it is fitted in is**
 
@@ -2327,7 +2342,7 @@ Regenerate with:
 
 ## Projects
 
-*test_projects.py — 121 behaviours*
+*test_projects.py — 131 behaviours*
 
 
 **A register asset**
@@ -2401,6 +2416,22 @@ Regenerate with:
 - an unknown status falls back rather than being stored
 - the three dates are independent  
   A project can be finished without ever having been started -- the part turned up and it took an evening.
+
+**Marking one done**
+
+- one click finishes it
+- the finish date is today where none was recorded
+- a finish date already recorded is kept  
+  It says when the work actually stopped.
+- it is written into the history
+- the button is there while there is something to finish
+- there is no button once it is over  
+  Done and abandoned both.
+- a visitor is not offered it
+- a visitor cannot finish one
+- a project that is nothing cannot be finished
+- a finished project leaves the menu of projects going  
+  The picker on the entry forms asks what a thing arriving today could be joining, and a finished project is not an answer to that.
 
 **The list**
 

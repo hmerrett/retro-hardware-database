@@ -133,6 +133,127 @@ class TestRecordingWhereSomethingIs:
         assert "Installed in" in page and cid in page
 
 
+class TestARowOlderThanTheFeature:
+    """The case the suite could not see, and the one that took the live preview
+    down: a row that was in the register before the column existed.
+
+    Every other test here makes its rows through the app, where the model's
+    `default=""` fills the column in whatever the schema would otherwise have done
+    -- and SQLAlchemy applies that default to a Core insert as well, so even going
+    round the ORM does not reproduce it. Only the schema itself can, which is the
+    point: a column left nullable reads as "" throughout a suite like this one and
+    as NULL on any installation that had a collection in it when the migration ran.
+    That is how 0028 left `serial`, why 0034 had to go back for it, and what made
+    `GET /api/computers` a 500 for every caller in between.
+
+    So these write the row the way a database holds one -- naming the columns a
+    row older than the feature would have had, and letting the schema answer for
+    the rest. The column is now NOT NULL with a server default of "", so what the
+    schema answers is the same "" the app would have written.
+    """
+
+    def older_row(self, db, table, aid, **columns):
+        """A row as a version of the app that predates `location` left one.
+
+        Every column that version knew about is written the way it wrote them --
+        "" for the text ones, which is what its models said, and NULL for a link,
+        because a link to nothing is nothing and not the empty string. `location`
+        alone is left out, because it did not exist to be written: what the row
+        gets for it is the schema's answer and nothing else, which is the whole of
+        what these tests are about.
+
+        Raw SQL rather than a Core insert, and this is the reason the bug hid for
+        so long: SQLAlchemy applies a column's Python-side default to a Core insert
+        too, so even going round the ORM writes the "" the schema was supposed to
+        be asked for. Parameterised throughout (database-standards); the column
+        names are the table's own and never come from data.
+        """
+        from sqlalchemy import String, text
+
+        values: dict[str, object] = {}
+        for column in table.columns:
+            if column.name == "location":
+                continue
+            if column.foreign_keys:
+                values[column.name] = None
+            elif isinstance(column.type, String):
+                values[column.name] = ""
+        values |= {"asset_id": aid, **columns}
+        # Backticked, because `condition` is reserved in MariaDB -- the same rock
+        # Setting.name is named to steer round. The names come from the table's own
+        # metadata and never from data.
+        fields = ", ".join(f"`{name}`" for name in values)
+        binds = ", ".join(f":{name}" for name in values)
+        db.execute(text(f"INSERT INTO {table.name} ({fields}) VALUES ({binds})"), values)
+        db.commit()
+        return aid
+
+    def test_a_machine_older_than_the_column_reads_as_blank(self, client, db):
+        self.older_row(db, Computer.__table__, "RH-0001", model="Older")
+        got = client.get("/api/computers/RH-0001")
+        assert got.status_code == 200, got.text
+        assert got.json()["location"] == ""
+
+    def test_a_part_older_than_the_column_reads_as_blank(self, client, db):
+        self.older_row(db, Part.__table__, "RH-0002", type="other", model="Older")
+        got = client.get("/api/parts/RH-0002")
+        assert got.status_code == 200, got.text
+        assert got.json()["location"] == ""
+
+    def test_the_lists_survive_one(self, client, db):
+        """The half that made it a 500 rather than an untidiness: the response is
+        validated as a whole list, so one row older than the feature took every
+        caller's `GET /api/computers` with it -- and the MCP tools with that."""
+        self.older_row(db, Computer.__table__, "RH-0001", model="Older")
+        self.older_row(db, Part.__table__, "RH-0002", type="other", model="Older")
+        assert client.get("/api/computers").status_code == 200
+        assert client.get("/api/parts").status_code == 200
+
+    def test_the_pages_survive_one_as_well(self, client, db):
+        """The gallery and the item pages read the column too, and a search reads
+        it off every row at once."""
+        self.older_row(db, Computer.__table__, "RH-0001", model="Older")
+        self.older_row(db, Part.__table__, "RH-0002", type="other", computer_id="RH-0001")
+        assert client.get("/").status_code == 200
+        assert client.get("/?q=older").status_code == 200
+        assert client.get("/computers/RH-0001").status_code == 200
+        assert client.get("/parts/RH-0002").status_code == 200
+
+    def test_such_a_row_is_still_placed_by_what_it_is_fitted_in(self, client, db):
+        """And the derived answer works over it, which it could not if blank had
+        two spellings -- `inherited` reads the column and strips it."""
+        self.older_row(db, Computer.__table__, "RH-0001", model="Older")
+        self.older_row(db, Part.__table__, "RH-0002", type="other", computer_id="RH-0001")
+        client.patch("/api/computers/RH-0001", json={"location": CRATE})
+        assert CRATE in client.get("/parts/RH-0002").text
+
+    def test_the_migrated_schema_leaves_no_nulls_to_find(self, client, db, computer, part):
+        """Read off the database the migrations built (conftest runs the real ones),
+        rather than off the models that describe it."""
+        from sqlalchemy import text
+
+        computer()
+        part()
+        self.older_row(db, Computer.__table__, "RH-0001", model="Older")
+        for table in ("computers", "parts"):
+            nulls = db.execute(
+                text(f"SELECT COUNT(*) FROM {table} WHERE location IS NULL")
+            ).scalar()
+            assert nulls == 0, f"{table} holds a second spelling of nowhere recorded"
+
+    def test_the_column_cannot_hold_one(self, client, db):
+        """The belt to the server default's braces. Asked of the migrated schema
+        itself, so it is a fact about what an installation gets rather than about
+        what the server's strictness happens to be set to today."""
+        from sqlalchemy import inspect
+
+        from app.db import engine
+
+        for table in ("computers", "parts"):
+            column = next(c for c in inspect(engine).get_columns(table) if c["name"] == "location")
+            assert column["nullable"] is False, f"{table}.location can still be NULL"
+
+
 class TestAPartIsWhereWhatItIsFittedInIs:
     """A part fitted in a machine is wherever that machine is, so most parts never
     need the box filled in at all. Worked out at the moment it is shown and never

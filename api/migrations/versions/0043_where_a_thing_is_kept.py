@@ -13,11 +13,23 @@ by its machine's answer -- a card fitted in a machine is wherever that machine i
 but a card in a drawer is in the drawer, and the register cannot tell which case
 it is looking at from `computer_id` alone.
 
-Nullable, with nothing backfilled, and nothing to backfill from. Where a thing is
+Nothing is backfilled, and there is nothing to backfill from. Where a thing is
 kept is read off the shelf it is on; there is no column here it could be inferred
 from, and inferring it from a note that happens to mention the loft would be
 inventing a fact rather than migrating one (ADR-0002). A fresh install and an
 existing one both start with the column empty, which is the truth in both cases.
+
+Empty, though, and not NULL. `nullable=False` with a server default of "", which
+is the shape 0034 had to go back and put on `serial` after 0028 left it nullable.
+The lesson is worth restating here because it is the same one: the model beside
+this says `default=""` like every other text column, so rows written through the
+app get "" while rows already in the collection when the migration ran get NULL,
+and nothing in the app or the page tells the two apart. The API does. `location`
+is typed `str` on the wire, so one NULL row fails response validation for the
+*whole list* -- `GET /api/computers` a 500 for every caller, over rows whose only
+crime is being older than the feature. Born with a server default, the column has
+one spelling of "nobody has written it down" from the first row to the last, and
+there is no second state for a later migration to come back and tidy up.
 
 The `location` table is the other half, and the register's first stored vocabulary
 (ADR-0027). Every pick list so far has been derived from the column it offers
@@ -30,12 +42,15 @@ data it cannot have.
 
 Three steps, and MariaDB auto-commits DDL, so a failure partway leaves some of
 them applied: the column on `computers` and not on `parts`, or both columns and no
-table. Every step restarts safely. The columns are nullable with no default to
-compute, so re-running adds whichever is missing; `create_table` is the last step
-because a table nothing has written to yet is the cheapest thing to be without.
-A half-applied schema here is a database where half the register cannot say where
-it is, rather than one that will not start -- and nothing reads either the column
-or the table until the app is the version that has them.
+table. Every step restarts safely, and the server default is what makes that true
+of the columns -- MariaDB fills existing rows as it adds one, in the same
+statement, so there is no window in which the column exists and its rows do not
+have a value, and nothing to finish by hand if the next step fails. Re-running
+adds whichever of the two is missing. `create_table` is last because a table
+nothing has written to yet is the cheapest thing to be without. A half-applied
+schema here is a database where half the register cannot say where it is, rather
+than one that will not start -- and nothing reads either the column or the table
+until the app is the version that has them.
 
 Revision ID: 0043_where_a_thing_is_kept
 Revises: 0042_print_queue
@@ -55,7 +70,10 @@ TABLES = ("computers", "parts")
 
 def upgrade():
     for table in TABLES:
-        op.add_column(table, sa.Column("location", sa.String(255)))
+        op.add_column(
+            table,
+            sa.Column("location", sa.String(255), nullable=False, server_default=""),
+        )
     op.create_table(
         "location",
         sa.Column("name", sa.String(length=255), primary_key=True, nullable=False),

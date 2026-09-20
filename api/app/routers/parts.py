@@ -732,7 +732,7 @@ def gui_part(
     # is shown locations, because working one out for a row that cannot be rendered
     # is two queries spent on nothing.
     placed = None
-    if not (p.location or "").strip() and (request.state.authed or settings.on("public_locations")):
+    if not p.location.strip() and (request.state.authed or settings.on("public_locations")):
         placed = locations.inherited(db).get(aid)
     spec_pairs = specdb.pairs(db, p, display=True)
     # The preview text and the structured data are read rather than parsed, so they

@@ -94,7 +94,13 @@ class Computer(Base):
     #
     # Shown to a visitor only while `public_locations` says so, which is why this is
     # the one column search asks a setting about rather than reading off a fixed set.
-    location: Mapped[str | None] = mapped_column(String(255), default="")
+    #
+    # Not nullable, for the reason `serial` is not: "" is the one spelling of a place
+    # nobody has written down, and a column that can hold a second one is a column
+    # the API chokes on the first time it meets a row older than the feature (0034).
+    location: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=""
+    )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
     summary: Mapped[str | None] = mapped_column(Text, default="")
@@ -139,13 +145,15 @@ class Part(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
-    # See Computer.location. Blank is not "nowhere" on a part that is fitted in
-    # something: a card in a machine is wherever that machine is, so an empty column
-    # is read off the parent (locations.inherited) at the moment it is shown. Worked
-    # out and never written back, so carrying the machine upstairs is one edit and
-    # not one per card -- which is also why nothing may treat this column as the
-    # whole answer to where a part is.
-    location: Mapped[str | None] = mapped_column(String(255), default="")
+    # See Computer.location, including why it is not nullable. Blank is not "nowhere"
+    # on a part that is fitted in something: a card in a machine is wherever that
+    # machine is, so an empty column is read off the parent (locations.inherited) at
+    # the moment it is shown. Worked out and never written back, so carrying the
+    # machine upstairs is one edit and not one per card -- which is also why nothing
+    # may treat this column as the whole answer to where a part is.
+    location: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=""
+    )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
     summary: Mapped[str | None] = mapped_column(Text, default="")

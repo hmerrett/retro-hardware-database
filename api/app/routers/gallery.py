@@ -124,7 +124,7 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                         c.condition or "",
                         c.source or "",
                         str(c.acquired_date or ""),
-                        (c.location or "") if show_location else "",
+                        c.location if show_location else "",
                         c.disposed_note or "",
                     ]
                 ).lower(),
@@ -168,7 +168,7 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                         p.condition or "",
                         p.source or "",
                         str(p.acquired_date or ""),
-                        (p.location or "") if show_location else "",
+                        p.location if show_location else "",
                         # A part shown its machine's location answers to it here as
                         # well, or the card and the page it opens would disagree
                         # about the word written on both of them.

@@ -132,14 +132,17 @@ def inherited(db: Session) -> dict[str, Placed]:
     short values is cheaper than the ORM loads that page already does, and one
     implementation cannot disagree with itself about where a part is.
     """
+    # Stripped but not coalesced: the column is NOT NULL with "" for a place nobody
+    # has written down (models.Computer.location), so blank has one spelling here
+    # and a second reading of it would only disagree with the first.
     parts = {
-        aid: (parent, computer, (where or "").strip())
+        aid: (parent, computer, where.strip())
         for aid, parent, computer, where in db.query(
             Part.asset_id, Part.parent_id, Part.computer_id, Part.location
         )
     }
     computers = {
-        aid: (where or "").strip() for aid, where in db.query(Computer.asset_id, Computer.location)
+        aid: where.strip() for aid, where in db.query(Computer.asset_id, Computer.location)
     }
 
     def answer(aid: str, seen: frozenset[str]) -> Placed | None:
