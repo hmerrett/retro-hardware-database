@@ -174,3 +174,18 @@ def test_a_page_can_ask_how_big_a_stock_is(client):
 
 def test_a_stock_that_does_not_exist_is_a_404_there_too(client):
     assert client.get("/api/label-media/nonesuch").status_code == 404
+
+
+def test_the_driver_is_asked_for_by_version(client, part):
+    """Static files are served with an hour's cache, so a bare path is a file
+    somebody goes on running for an hour after it was fixed. This one is loaded by
+    `import()` from another script rather than by a tag in a template, which is how
+    it came to be the only script on the site without a version -- and a printer
+    driver being corrected against real hardware is the worst possible file to have
+    to wait an hour for."""
+    data = island(client.get(f"/parts/{part()['asset_id']}").text)
+    assert data["driver"].startswith("/static/niimbot.js?v=")
+    assert len(data["driver"].split("v=")[1]) > 4
+    sender = (client.get("/static/labelsend.js")).text
+    assert 'import("/static/niimbot.js")' not in sender
+    assert "import(driver())" in sender
