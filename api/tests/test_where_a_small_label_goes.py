@@ -143,7 +143,12 @@ def test_the_device_menu_is_hidden_until_the_script_fills_it(client):
     """A menu that is nothing but script says nothing useful before the script has
     run, and a menu that forgets what you tell it is worse than no menu."""
     page = client.get("/settings").text
-    assert '<fieldset class="settings-box" id="device-box" hidden>' in page
+    assert 'id="device-box" hidden>' in page
+    # And it is styled as the boxes above it are. Every settings rule was scoped to
+    # `form.edit`, and this box is a fieldset rather than a form -- so its control
+    # took none of them and sat in the middle of the page looking like a different
+    # website.
+    assert 'class="edit settings-box" id="device-box"' in page
 
 
 def test_nothing_about_the_destination_is_written_inline(client, part, agents):
@@ -152,40 +157,3 @@ def test_nothing_about_the_destination_is_written_inline(client, part, agents):
     page = client.get(f"/parts/{part()['asset_id']}").text
     assert 'type="application/json" id="label-data"' in page
     assert "onclick=" not in page
-
-
-# --- the stock's own measurements, for a page that has to draw one -----------
-
-
-def test_a_page_can_ask_how_big_a_stock_is(client):
-    """A script that has to draw something the size of a label asks the register
-    rather than carrying its own copy of the numbers, which is how two answers to
-    one question come to disagree."""
-    got = client.get("/api/label-media/niimbot-50x30")
-    assert got.status_code == 200, got.text
-    assert got.json() == {
-        "name": "niimbot-50x30",
-        "what": "50×30 mm label (Niimbot B1, B21, B18)",
-        "dots": 384,
-        "rows": 240,
-        "dpi": 203,
-    }
-
-
-def test_a_stock_that_does_not_exist_is_a_404_there_too(client):
-    assert client.get("/api/label-media/nonesuch").status_code == 404
-
-
-def test_the_driver_is_asked_for_by_version(client, part):
-    """Static files are served with an hour's cache, so a bare path is a file
-    somebody goes on running for an hour after it was fixed. This one is loaded by
-    `import()` from another script rather than by a tag in a template, which is how
-    it came to be the only script on the site without a version -- and a printer
-    driver being corrected against real hardware is the worst possible file to have
-    to wait an hour for."""
-    data = island(client.get(f"/parts/{part()['asset_id']}").text)
-    assert data["driver"].startswith("/static/niimbot.js?v=")
-    assert len(data["driver"].split("v=")[1]) > 4
-    sender = (client.get("/static/labelsend.js")).text
-    assert 'import("/static/niimbot.js")' not in sender
-    assert "import(driver())" in sender

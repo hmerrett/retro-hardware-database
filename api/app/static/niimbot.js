@@ -94,36 +94,6 @@ function onApple() {
   return /iPhone|iPad|iPod/.test(navigator.userAgent);
 }
 
-/** What the browser can see, without printing anything.
- *
- * For the case this could not otherwise get out of: a chooser that lists nothing,
- * on hardware nobody debugging it can hold. It connects, reads out every service
- * and characteristic, and prints none of them -- so the answer to "is it even
- * there" stops being a guess made from two rooms away.
- */
-export async function probe() {
-  if (!navigator.bluetooth) throw new Error("this browser has no Web Bluetooth at all");
-  const device = await navigator.bluetooth.requestDevice(chooser(true));
-  const report = { name: device.name || "(unnamed)", id: device.id, services: [] };
-  const server = await device.gatt.connect();
-  try {
-    for (const service of await server.getPrimaryServices()) {
-      const found = { uuid: service.uuid, characteristics: [] };
-      for (const c of await service.getCharacteristics()) {
-        const can = Object.keys(c.properties).filter((k) => c.properties[k]);
-        found.characteristics.push({ uuid: c.uuid, can });
-      }
-      report.services.push(found);
-    }
-  } finally {
-    server.disconnect();
-  }
-  report.usable = report.services.some((s) =>
-    s.characteristics.some((c) => c.can.includes("notify") && c.can.includes("writeWithoutResponse"))
-  );
-  return report;
-}
-
 /* A NIIMBOT *serves* that service and does not necessarily *advertise* it, which
    are different things and the difference is the whole of why an earlier version
    of this found nothing: an advertisement has 31 bytes to fit everything in, so
@@ -150,8 +120,8 @@ const GAP_MS = 10;
    `SINGLE_COLOUR = 1` was wrong: 1 is DoubleColor, and a two-colour page takes a
    different row format entirely -- so the printer accepted every packet, answered
    every one, and made nonsense of rows it had been told were something else. The
-   trace was clean because nothing had gone wrong; it was answering a different
-   question. */
+   printer accepted every packet and answered every one, because nothing had gone
+   wrong: it was answering a different question. */
 const LABEL_WITH_GAPS = 1; /* LabelType.WithGaps: die-cut labels on a backing strip */
 const SINGLE_COLOUR = 0; /* PageColorType.SingleColor */
 const DENSITY = 3; /* of 1..5 on a B1, and its own default. */
@@ -261,27 +231,14 @@ class Printer {
   constructor(characteristic) {
     this.channel = characteristic;
     this.waiting = null;
-    /* Every packet out and every packet in, in order. The printer is otherwise a
-       box that takes bytes and produces paper, and when the paper is wrong there
-       is nothing to look at -- which is how two wrong diagnoses were made from a
-       photograph before this existed. */
-    this.trace = [];
-    this.counts = { empty: 0, indexed: 0, bitmap: 0 };
     characteristic.addEventListener("characteristicvaluechanged", (event) => {
       this.heard(new Uint8Array(event.target.value.buffer));
     });
   }
 
-  note(line) {
-    /* The rows are thousands of near-identical lines; the first two of each kind
-       say everything the thousandth would. */
-    if (this.trace.length < 400) this.trace.push(line);
-  }
-
   /** A notification. Only the command byte matters here: this asks the printer to
       do things and waits to be told it did, and never reads an answer back. */
   heard(bytes) {
-    this.note(`  <- ${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join(" ")}`);
     if (bytes.length < 7 || bytes[0] !== 0x55 || bytes[1] !== 0x55) return;
     const command = bytes[2];
     if (this.waiting && this.waiting.expect === command) {
@@ -294,14 +251,12 @@ class Printer {
   async send(command, data, expect, timeoutMs = 5000) {
     await sleep(GAP_MS);
     const bytes = packet(command, data);
-    this.note(`-> 0x${command.toString(16)} len ${(data || []).length} (packet ${bytes.length})`);
     let wrote;
     try {
       wrote = this.channel.writeValueWithoutResponse(bytes.buffer);
     } catch (e) {
       /* A packet larger than the negotiated MTU throws here rather than being
          split, and a row of 384 dots is 61 bytes against a default MTU of 23. */
-      this.note(`   !! the write itself was refused: ${e.message || e}`);
       throw e;
     }
     if (expect === undefined) return wrote;
@@ -338,10 +293,6 @@ class Printer {
         continue; /* busy printing; ask again */
       }
       const status = readStatus(answer);
-      this.note(
-        `   status: page ${status.page}/${pages}, printed ${status.printProgress}%, ` +
-          `fed ${status.feedProgress}%, error ${status.error}`
-      );
       if (status.error) throw new Error(`the printer reported error ${status.error}`);
       say(`printing… ${status.printProgress}%`);
       if (status.page >= pages) return;
@@ -366,10 +317,8 @@ class Printer {
       if (black === 0) {
         /* A blank row is said rather than sent: it is three bytes instead of fifty,
            and a label is mostly blank. */
-        this.counts.empty++;
         await this.send(TX.printEmptyRow, [...u16(y), 1]);
       } else if (black <= FEW) {
-        this.counts.indexed++;
         /* A handful of dots goes as a list of where they are. This is the packet
            that was missing when the first real label came out as two bands at the
            edges of the paper: a rule, in the printer, that this did not know about. */
@@ -380,87 +329,14 @@ class Printer {
           ...pixelIndexes(row),
         ]);
       } else {
-        this.counts.bitmap++;
         await this.send(TX.printBitmapRow, [...u16(y), ...rowCounts(row, black), 1, ...row]);
       }
       if (y % 24 === 0) say(`printing… ${Math.round((y / page.rows.length) * 100)}%`);
     }
 
-    this.note(
-      `rows: ${this.counts.bitmap} bitmap, ${this.counts.indexed} indexed, ` +
-        `${this.counts.empty} empty, ${page.rows.length} in the image`
-    );
     await this.send(TX.pageEnd, [], RX.pageEnd, 10000);
     await this.waitForPage(1, say);
     await this.send(TX.printEnd, [], RX.printEnd, 10000);
-  }
-}
-
-/** A pattern whose printed shape says what the printer did to it.
- *
- * Every corner is different and every edge is different, so whatever comes out
- * says which way up it went, which way round, whether it was stretched and by how
- * much -- in one label, from a photograph, without anybody having to describe it.
- *
- *   - a solid square in the TOP LEFT, a third the height
- *   - a single thin line down the LEFT edge, full height
- *   - a thick bar along the TOP edge, full width
- *   - a ladder of five rungs down the RIGHT edge, evenly spaced
- *
- * Read it like this: the square marks the origin, the thick bar marks the first
- * row printed, the thin line marks the first column, and the rungs count. Five
- * rungs squashed into a corner is a scale; rungs along the bottom is a rotation;
- * a square in the top right is a mirror.
- */
-export function pattern(width, height) {
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const c = canvas.getContext("2d");
-  c.fillStyle = "#fff";
-  c.fillRect(0, 0, width, height);
-  c.fillStyle = "#000";
-  const unit = Math.round(height / 3);
-  c.fillRect(0, 0, unit, unit); /* the origin */
-  /* Words, because a shape tells you the image was turned and a word tells you
-     which way up it ended and whether it was mirrored -- and a photograph of a
-     word needs no describing by the person holding it. */
-  c.save();
-  c.fillStyle = "#fff";
-  c.font = `bold ${Math.round(unit * 0.5)}px sans-serif`;
-  c.textBaseline = "top";
-  c.fillText("TOP", 6, 10);
-  c.restore();
-  c.fillStyle = "#000";
-  c.font = `bold ${Math.round(unit * 0.4)}px sans-serif`;
-  c.textBaseline = "alphabetic";
-  c.fillText("bottom left", 6, height - 8);
-  c.fillRect(0, 0, 2, height); /* the first column */
-  c.fillRect(0, 0, width, 8); /* the first row */
-  for (let n = 0; n < 5; n++) {
-    const y = Math.round((height / 6) * (n + 1));
-    c.fillRect(width - unit, y, unit, 4);
-  }
-  return canvas;
-}
-
-/** Print that pattern, at the size of the given stock. */
-export async function printPattern(mediaWidth, mediaHeight, say) {
-  const canvas = pattern(mediaWidth, mediaHeight);
-  const blob = await new Promise((done) => canvas.toBlob(done, "image/png"));
-  return print(blob, "", say);
-}
-
-/** The same, and hand back everything that was said on the wire. */
-export async function tracePattern(mediaWidth, mediaHeight, say) {
-  const canvas = pattern(mediaWidth, mediaHeight);
-  const blob = await new Promise((done) => canvas.toBlob(done, "image/png"));
-  const lines = [`image: ${canvas.width} x ${canvas.height}`];
-  try {
-    const trace = await print(blob, "", say);
-    return lines.concat(trace || []);
-  } catch (e) {
-    return lines.concat([`FAILED: ${e.message || e}`], e.trace || []);
   }
 }
 
@@ -513,14 +389,9 @@ export async function print(blob, media, say, showEverything) {
     throw new Error(`${device.name || "that device"} is not a NIIMBOT — nothing on it to print with`);
   }
   await channel.startNotifications();
-  const printer = new Printer(channel);
   try {
-    await printer.print(page, say);
+    await new Printer(channel).print(page, say);
     say(`printed on ${device.name || "the printer"}`);
-    return printer.trace;
-  } catch (e) {
-    e.trace = printer.trace;
-    throw e;
   } finally {
     /* Always, including after a failure: a printer left connected will not pair
        with anything else, and the next attempt would fail for a reason that has

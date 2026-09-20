@@ -16,7 +16,7 @@
 
 {% if saved %}<p class="hint" id="saved">Saved.</p>{% endif %}
 
-<form class="edit settings-box" method="post" action="/settings">
+<form class="edit settings-box" id="settings-form" method="post" action="/settings">
   {% for section, rows in sections %}
   <fieldset>
     <legend>{{ section }}</legend>
@@ -55,17 +55,9 @@
   </fieldset>
   {% endfor %}
 
-  <p class="mt-14"><button class="btn primary" type="submit">save</button></p>
-
-  {# Said once, at the foot, and only when there is something greyed to explain.
-     Which variable holds which setting is in the manual: naming it on every row is
-     a paragraph of configuration on a page of preferences. #}
-  {% if pinned_any %}
-  <p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
-  {% endif %}
 </form>
 
-{# The device's own answer, which never reaches the server (ADR-0023). It is on
+{# The browser's own answer, which never reaches the server (ADR-0023). It is on
    this page because this is where somebody comes to change it, and outside the
    form above because it is not one of the things that form saves -- pressing save
    must not look as though it wrote this somewhere, and it did not.
@@ -73,23 +65,28 @@
    The script fills the menu in and remembers what is chosen. Hidden until it has,
    which is the honest state for a control that is nothing but script: an empty
    menu that forgets what you tell it is worse than no menu. #}
-<fieldset class="settings-box" id="device-box" hidden>
-  <legend>This device</legend>
+<fieldset class="edit settings-box" id="device-box" hidden>
+  <legend>This browser</legend>
   <div class="srow" title="Where this browser sends a small label, whatever the site default says. It is remembered here and goes nowhere else: the phone by the shelf and the machine in the workshop answer differently.">
     <label for="device_destination">Small label goes to</label>
     <select id="device_destination">
       <option value="">whatever the site says</option>
     </select>
   </div>
-  {# For the case the settings page cannot otherwise get out of: a chooser that
-     lists nothing, on a printer nobody debugging it can hold. Hidden with the rest
-     of the block until the script is there to answer it. #}
-  <div class="srow" title="Connects to a Bluetooth printer and reads out what is on it, without printing anything. For finding out whether the browser can see the printer at all.">
-    <label for="bt-test">Bluetooth</label>
-    <button class="btn" type="button" id="bt-test">test a printer</button>
-    <button class="btn" type="button" id="bt-pattern">print a test pattern</button>
-  </div>
-  <pre id="bt-report" class="hscroll" hidden></pre>
 </fieldset>
+
+{# At the foot, under everything it could be about, and reaching back into the
+   form by name: the button belongs at the end of the page rather than in the
+   middle of it, and what it saves is above. A form attribute is how a control
+   outside a form still belongs to it, which is what lets the browser's own
+   settings sit between the two without being swept up in the save. #}
+<p class="mt-14"><button class="btn primary" type="submit" form="settings-form">save</button></p>
+
+{# Said once, right at the bottom, and only when there is something greyed to
+   explain. Which variable holds which setting is in the manual: naming it on every
+   row is a paragraph of configuration on a page of preferences. #}
+{% if pinned_any %}
+<p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
+{% endif %}
 {{ LS.script() }}
 {% endblock %}
