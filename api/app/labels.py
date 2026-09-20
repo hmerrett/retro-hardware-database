@@ -504,7 +504,18 @@ KIND_WORDS: dict[str | None, str] = {COMPUTER: "COMPUTER", PART: "PART", PROJECT
 # scan is worth nothing, so it gets as much as it can -- but a label is read by a
 # person as well as by a phone, and a sticker on a parcel that says only "Seaga…"
 # has failed at the half of the job the code cannot do.
-QR_SHARE = 0.40
+#
+# Settled by printing it. At 0.40 the code was small and there was white to the
+# right of the words; at 0.52 the type shrank until "DK23DA-20F" clipped to
+# "DK23DA-…", which is a part number nobody can look up.
+QR_SHARE = 0.46
+
+# And the words keep this much whatever that share works out to. A share alone is
+# a rule about the label and not about what is written on it: the same 0.46 that
+# suited a 50mm label left a 40mm one with ten millimetres for the words, which
+# came out as "in progre…". A code is worth having as large as it can be, and not
+# at the price of the line underneath it.
+TEXT_MIN = 12 * mm
 
 # The 51x19mm tape, which is the label every other small one is in proportion to.
 TAPE_H = 19 * mm
@@ -533,7 +544,10 @@ def small_text_column(W: float, H: float, safe: float, worded: bool = True) -> S
     """
     my = SMALL_MARGIN
     mx = my + safe * mm
-    qr = min(H - 2 * my, W * QR_SHARE)
+    # What the words cost before any of them are written: the gap after the code,
+    # the margin at the far end, and the strip the kind word stands in.
+    spent = 1.5 * mm + mx + ((WORD_STRIP + 1.0 * mm) if worded else 0.0)
+    qr = min(H - 2 * my, W * QR_SHARE, W - mx - spent - TEXT_MIN)
     tx = mx + qr + 1.5 * mm
     tw = W - tx - mx
     if worded:
@@ -628,7 +642,12 @@ def _small_body_lines(
     # going lower than that is the loop's job, and it has the whole label in view.
     longest = max((w for line in (title, *tags) for w in line.split()), key=len, default="")
     if longest:
-        start = _fit(s, longest, BODY, start, BODY_PT, tw)
+        # Down to the floor, not down to the tape's size. Stopping at the tape's
+        # size meant a narrow label with big type had nowhere left to go but the
+        # clip, and "in progre…" is worse than the same words a point smaller --
+        # the clip is for a run that cannot be made to fit at any size, not for one
+        # that could have been if anybody had tried.
+        start = _fit(s, longest, BODY, start, 4.5, tw)
     size = start
     while True:
         room = max(1, int(avail // (size + 1.5)))
@@ -667,6 +686,16 @@ def _render_small(
     # that will not scan is worth less than a name that takes an extra line.
     word = KIND_WORDS.get(kind, "")
     mx, my, qr, tx, tw = small_text_column(W, H, safe, bool(word))
+    # What the code will not use, the words get. A code is drawn at a whole number
+    # of dots to the square, so a box sized to the nearest anything leaves up to a
+    # square's worth per square unused -- which on a 50x30mm label was four
+    # millimetres of white around a code that looked as though it had been given
+    # room and not taken it. Printing that as a margin is the one use for it that
+    # helps nobody.
+    drawn = s.qr_size(qr, url, error)
+    tx -= qr - drawn
+    tw += qr - drawn
+    qr = drawn
     # Centred in what height there is: on a squarer label a code sitting on the
     # bottom margin leaves a hole above it that reads as a mistake rather than as a
     # margin. On a tape there is no spare height and this is exactly that margin.
@@ -682,9 +711,16 @@ def _render_small(
         s.vertical(W - edge - strip, W - edge, H / 2, word, HEAD, 5.0)
     grow = H / TAPE_H
     aid_size = _fit(s, asset_id, HEAD, TAG_PT * grow, 5, tw)
-    y = H - my - aid_size
+    top = H - my
+    bsize, lines = _small_body_lines(s, title, tags, tw, top - aid_size - my, BODY_PT * grow)
+    # Centred down the label rather than hung from the top. What is written is as
+    # tall as it is; where the label is taller than that, the difference is a margin
+    # and belongs at both ends. Hung from the top it reads as a label somebody
+    # started and left, which is what a 50x30mm one looked like.
+    written = aid_size + len(lines) * (bsize + 1.5)
+    top -= max(0.0, (H - 2 * my - written) / 2)
+    y = top - aid_size
     s.text(tx, y, asset_id, HEAD, aid_size)
-    bsize, lines = _small_body_lines(s, title, tags, tw, y - my, BODY_PT * grow)
     for line in lines:
         if y - (bsize + 1.5) < my:
             break

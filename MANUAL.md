@@ -1519,6 +1519,17 @@ proportion of the height and a taller label gets larger type — bounded by the
 width, since a 40×30 mm label is as tall as a 50×30 and a third narrower, and type
 sized by the height alone put *PC1512* in a column that could not hold it.
 
+**What the code does not use, the words get.** A code is printed at a whole number
+of dots to the square, so a box sized to anything else leaves a fraction of a
+square per square unused — four millimetres of white, on a 50×30 mm label, around
+a code that looked as though it had been given room and not taken it. The words
+have that space now, and the code is as large as it can be with the words still
+whole.
+
+**The writing sits down the middle of the label**, not hung from the top. What is
+written is as tall as it is; where the label is taller than that, the difference
+is a margin and belongs at both ends.
+
 **On a taller label the code stops growing.** It is sized by the height on a
 51×19 mm tape, where the height is what there is least of. A 50×30 mm label is a
 different shape, and a code as tall as that one takes over half its width — which

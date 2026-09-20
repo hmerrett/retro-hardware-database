@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1556 behaviours, from 43 files.*
+*1558 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -30,7 +30,7 @@ Regenerate with:
 
 ## A label drawn in the printers dots
 
-*test_a_label_drawn_in_the_printers_dots.py — 13 behaviours*
+*test_a_label_drawn_in_the_printers_dots.py — 15 behaviours*
 
 - every kind of item has a label as a picture
 - the picture is one dot deep  
@@ -57,6 +57,10 @@ Regenerate with:
   The sizes on a small label are the tape's, because they are what fits on a tape.
 - growing the type does not outgrow the column  
   A 40x30mm label is as tall as a 50x30mm one and a third narrower.
+- the words survive the code being made larger  
+  The code's share of a small label was settled by printing it, and the number that settled it is the point where the words are still whole.
+- the tape is not moved by what a taller label needed  
+  Every change made for the Niimbot stock has been one the 51x19mm tape cannot feel: on it the height runs out before any of these shares or proportions do.
 
 
 ## A label for a part of no type
