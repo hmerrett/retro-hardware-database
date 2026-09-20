@@ -1,4 +1,10 @@
 .env
+# And anything beside it. `.env` alone did not cover `.env.bak-200948`, which a
+# `git add -A` then committed and pushed with every credential in it -- the
+# database passwords, the login, the signing key and the print agents' keys. One
+# name is not a rule; this is.
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 *.db
