@@ -116,18 +116,6 @@ def cancel_job(job_id: int, db: Session = Depends(get_db)) -> dict[str, object]:
 
 # response_model=None: the answer is a job or a bare 204, and FastAPI cannot make a
 # response model out of a union with a Response in it.
-@router.get("/api/label-media/{name}")
-def label_media(name: str) -> dict[str, object]:
-    """One stock's measurements, for a page that has to draw something the size of a
-    label. The numbers are the register's -- writing them into a script as well is
-    how two answers to one question come to disagree."""
-    media = labels.MEDIA.get(name)
-    if media is None:
-        raise HTTPException(status_code=404, detail="No such label stock")
-    dots, rows = labels.size_dots(media)
-    return {"name": name, "what": media["what"], "dots": dots, "rows": rows, "dpi": media["dpi"]}
-
-
 @router.post("/api/print/agent/claim", response_model=None)
 def claim_job(
     agent: Agent = Depends(agent_from_key), db: Session = Depends(get_db)

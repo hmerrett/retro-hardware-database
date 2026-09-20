@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1558 behaviours, from 43 files.*
+*1555 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -3171,7 +3171,7 @@ Regenerate with:
 
 ## Where a small label goes
 
-*test_where_a_small_label_goes.py — 16 behaviours*
+*test_where_a_small_label_goes.py — 13 behaviours*
 
 - the destinations are a pdf bluetooth and every printer configured  
   The list is worked out rather than written down: the printers come from the environment, so a list in the template could only ever be out of date.
@@ -3196,8 +3196,3 @@ Regenerate with:
   A menu that is nothing but script says nothing useful before the script has run, and a menu that forgets what you tell it is worse than no menu.
 - nothing about the destination is written inline  
   The content policy is `self` throughout and the suite holds the markup to it (ADR-0021).
-- a page can ask how big a stock is  
-  A script that has to draw something the size of a label asks the register rather than carrying its own copy of the numbers, which is how two answers to one question come to disagree.
-- a stock that does not exist is a 404 there too
-- the driver is asked for by version  
-  Static files are served with an hour's cache, so a bare path is a file somebody goes on running for an hour after it was fixed.

@@ -1565,8 +1565,8 @@ actually have:
   multipurpose tape*, say. Pressing print puts the label on that printer's queue
   and the agent prints it within a few seconds.
 
-**A device may overrule the site.** At the foot of the same page, *This device*
-sets where **this browser** sends a label, and it is remembered here and nowhere
+**A browser may overrule the site.** At the foot of the same page, *This browser*
+sets where that browser sends a label, and it is remembered here and nowhere
 else — the phone by the shelf and the machine in the workshop answer differently,
 and neither needs to know about the other. It is the same shape as the theme
 button: the site says what a browser that has not chosen gets, and a browser that
@@ -1612,10 +1612,6 @@ a browser can talk to and which does not appear there at all. Seeing the printer
 iOS Settings therefore says nothing about whether this will work, and failing to
 pair it there is expected rather than a fault.
 
-**⋯ → Settings → Labels → test a printer** connects and reads out everything the
-browser can see on a printer — its name, its services, what each one can do — and
-prints nothing. It is the thing to press when the label button does nothing and
-there is no way to tell whose fault it is.
 
 ### Printing to a printer somewhere else
 
@@ -1982,7 +1978,7 @@ everybody who opens the site gets it. It comes in two groups:
 **Appearance** — the site's name, whether photographs are watermarked, and which
 theme it opens in.
 
-**Local server options** — how this installation behaves out on the web, which
+**Server options** — how this installation behaves out on the web, which
 for now is whether it asks to be kept out of search engines.
 
 Press **Save** and the page says so. There is no history on a setting — the

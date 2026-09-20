@@ -40,7 +40,7 @@ SWITCH, TEXT, CHOICE = "switch", "text", "choice"
 # rather than repeating the words.
 APPEARANCE = "Appearance"
 LABELS = "Labels"
-SERVER = "Local server options"
+SERVER = "Server options"
 
 # Where a small label goes when the print button is pressed. The two that need no
 # hardware named anywhere; a configured print agent adds one of its own (see
@@ -123,7 +123,7 @@ DEFINITIONS: tuple[Definition, ...] = (
         kind=CHOICE,
         default="system",
         choices=(
-            ("system", "the visitor's system setting"),
+            ("system", "browser setting"),
             ("light", "light"),
             ("dark", "dark"),
         ),
