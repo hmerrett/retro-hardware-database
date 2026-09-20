@@ -57,10 +57,14 @@ def test_a_printer_that_is_not_configured_is_not_offered(client):
 
 def test_a_printer_says_what_stock_is_in_it(client, agents):
     """So a menu of printers is a menu of what will actually come out, rather than
-    a list of names somebody has to remember the tape sizes for."""
+    a list of names somebody has to remember the tape sizes for.
+
+    In as few words as will do: a list of printers is read to find one, and the
+    sentence that describes a stock belongs where a stock is being described rather
+    than in every line of a menu."""
     said = dict(settings.choices_for(settings.BY_KEY["label_destination"]))
-    assert "51" in said["agent:workshop-pi"]
-    assert "50" in said["agent:bench"]
+    assert said["agent:workshop-pi"] == "workshop-pi 51×19 mm"
+    assert said["agent:bench"] == "bench 50×30 mm"
 
 
 def test_the_bluetooth_stock_is_offered_from_the_stocks_that_exist(client):
@@ -116,9 +120,7 @@ def test_the_page_is_told_where_labels_go(client, part, agents):
     page = client.get(f"/parts/{part()['asset_id']}").text
     data = island(page)
     assert data["default"] == "pdf"
-    assert ["agent:workshop-pi", "workshop-pi — 51×19 mm multipurpose tape (DYMO LabelWriter)"] in (
-        data["destinations"]
-    )
+    assert ["agent:workshop-pi", "workshop-pi 51×19 mm"] in data["destinations"]
     assert data["bluetoothMedia"] == "niimbot-50x30"
 
 

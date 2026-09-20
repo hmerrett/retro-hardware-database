@@ -192,9 +192,9 @@ def choices_for(d: Definition) -> tuple[tuple[str, str], ...]:
         )
     return (
         (PDF, "a PDF to download"),
-        (BLUETOOTH, "a Niimbot over Bluetooth, from this device"),
+        (BLUETOOTH, "a Niimbot over Bluetooth"),
         *(
-            (AGENT + a.name, f"{a.name} — {labels.MEDIA[a.media]['what']}")
+            (AGENT + a.name, f"{a.name} {labels.MEDIA[a.media]['short']}")
             for a in printing.agents().values()
         ),
     )
