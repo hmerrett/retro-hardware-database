@@ -16,7 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import RowReturningQuery
 
-from . import entry, machines, projects, specdb
+from . import entry, machines, projects, settings, specdb
 from .common import (
     LEGACY_DISK_BUSES,
     OWNER_ONLY,
@@ -117,6 +117,26 @@ def search_terms(query: str | None) -> list[str]:
     return terms
 
 
+def _hidden_columns(authed: bool) -> frozenset[str]:
+    """The columns this reader is not shown, and so must not be able to search on.
+
+    OWNER_ONLY is the part of the answer settled once and for all (ADR-0018). Where
+    a thing is kept is the part the owner settles per installation, so the question
+    the haystack asks is "which columns are hidden from this reader", and that set
+    is one answer to it rather than the whole of it -- a frozenset cannot be
+    conditional, and making it so would be a set that means something different
+    depending on when it is read.
+
+    Asked afresh for every item matched, which costs nothing: the settings are read
+    once per process and kept (ADR-0023), so this is a dictionary lookup and a set
+    union rather than a query."""
+    if authed:
+        return frozenset()
+    if settings.on("public_locations"):
+        return OWNER_ONLY
+    return OWNER_ONLY | {"location"}
+
+
 def _haystack(
     db: Session, obj: Asset, history: Mapping[str, list[str]], authed: bool = False
 ) -> str:
@@ -125,19 +145,19 @@ def _haystack(
     makes a search over "any field" true rather than nearly true.
 
     "Any field" means every field the reader is looking at anyway -- so a field the
-    reader is not looking at has to come out, and OWNER_ONLY is the list of those.
-    Read from a named set rather than written out here, because the failure is
-    silent: a column added to a model joins this string without anybody deciding it
-    should, and a visitor searching "true" was handed the for-sale shortlist off a
-    page that shows no such thing (ADR-0018). The project columns come out the same
-    way, via _visible on the queries that reach one."""
+    reader is not looking at has to come out, and _hidden_columns is the list of
+    those. Read from a named set rather than written out here, because the failure
+    is silent: a column added to a model joins this string without anybody deciding
+    it should, and a visitor searching "true" was handed the for-sale shortlist off
+    a page that shows no such thing (ADR-0018). The project columns come out the
+    same way, via _visible on the queries that reach one."""
     # Blanked rather than dropped, so who is asking changes what the haystack says
     # and never how many fields it has: an item nobody has flagged then reads
     # identically for both, and the seams a quoted phrase must not match across stay
     # where they are either way.
+    hidden = _hidden_columns(authed)
     fields = [
-        "" if (not authed and c.name in OWNER_ONLY) else str(getattr(obj, c.name) or "")
-        for c in obj.__table__.columns
+        "" if c.name in hidden else str(getattr(obj, c.name) or "") for c in obj.__table__.columns
     ]
     fields += history.get(obj.asset_id, [])
     if isinstance(obj, Part):

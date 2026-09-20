@@ -111,6 +111,10 @@ class ComputerIn(BaseModel):
     condition: str = ""
     source: str = ""
     acquired_date: date | None = None
+    # Where it is kept, in the owner's words. Over the wire either way, unlike the
+    # for-sale flag: this is a fact about the object that a tool holding a shelf
+    # full of them needs to be able to write (ADR-0027).
+    location: str = ""
     image: str = ""
     url: str = ""
     summary: str = ""
@@ -209,6 +213,8 @@ class PartIn(BaseModel):
     condition: str = ""
     source: str = ""
     acquired_date: date | None = None
+    # See ComputerIn.location.
+    location: str = ""
     image: str = ""
     url: str = ""
     summary: str = ""

@@ -20,9 +20,15 @@ def visitor(monkeypatch):
 def save(client, **fields):
     """Post the form the way the page does, with the defaults for everything the
     caller did not name -- a browser sends the whole form, not one field."""
-    data = {"site_name": "", "theme": "system", "watermark": "1"} | {
-        k: v for k, v in fields.items() if v is not None
-    }
+    data = {
+        "site_name": "",
+        "theme": "system",
+        "watermark": "1",
+        # On by default, and a switch reads its silence -- so leaving it out of the
+        # form here would have every save in this file turn the location memory off
+        # and purge it (ADR-0027), which is not what any of them is about.
+        "remember_locations": "1",
+    } | {k: v for k, v in fields.items() if v is not None}
     for blank in [k for k, v in fields.items() if v is None]:
         data.pop(blank)
     r = client.post("/settings", data=data, follow_redirects=False)

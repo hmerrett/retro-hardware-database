@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1565 behaviours, from 43 files.*
+*1594 behaviours, from 44 files.*
 
 
 ## A file where text was expected
@@ -1764,6 +1764,94 @@ Regenerate with:
   The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
 
 
+## Locations
+
+*test_locations.py — 39 behaviours*
+
+
+**Recording where something is**
+
+- a machine records one and shows it
+- a part does too
+- an item starts with nowhere recorded  
+  Nothing is inferred.
+- the machine form saves one
+- the part form saves one
+- the form can take it back off  
+  Things move out of a crate as well as into one, and a place that is no longer true is worse than none.
+- a duplicate does not carry it across  
+  A duplicate copies what describes the model, not where this one sits.
+- a parts location is not the machine it is installed in  
+  Two rows and two questions.
+
+**Being offered where things go**
+
+- both forms offer a location already used
+- machines and parts share one list  
+  One crate holds both, so one list names it.
+- an edit form offers them as well  
+  An edit is where a spelling turns into a second one.
+- the box does not offer the browsers own memory instead  
+  A box called `location` is one every other site on the web has too, and the browser's memory of those would be offered over the register's answers.
+
+**Remembering where nothing is kept now**
+
+- a location cleared off its last item is still offered
+- a place in use is offered once rather than twice  
+  It is in the register and in the memory of the register, and those are one answer to the question the box asks.
+- what is in use comes before what is only remembered  
+  The crate something is in now is the likelier answer than the one it was in last year.
+- the gui teaches it as well as the api  
+  Both doors, because the forms are where most of these are typed.
+- a part teaches it too
+- nothing is written while the switch is off
+- a cleared location is not offered while the switch is off  
+  Off is not a broken mode: it is the behaviour every other pick list on this site has, which is the register asked a question about itself.
+
+**Turning it off forgets rather than hides**
+
+- switching off deletes what was remembered
+- switching back on does not bring it back  
+  The whole shape of the promise, end to end: used, cleared, forgotten, and still gone when remembering is asked for again.
+- a later save while it is off purges again  
+  The delete runs on every save made while the switch is off rather than on the save that turned it off, so the promise does not turn on a transition nobody can see.
+- it is on to begin with
+
+**Who is told where things are**
+
+- a site keeps locations to itself by default
+- a visitor is shown no location row
+- a visitors search does not match on it  
+  The half that is easy to miss.
+- the owners search does match on it  
+  The other direction, so what is private is a rule about who is asking rather than a column quietly dropped from the search for everybody.
+- the gallery card does not carry it to a visitor  
+  The cards hold a condensed blob the browser filters on.
+- the gallery card carries it for the owner
+- turning it on shows a visitor the row
+- turning it on lets a visitor search on it
+- the owner is shown it either way
+- the pick list is never offered to a visitor  
+  Whichever way the switch is set.
+
+**The hidden columns are asked for rather than assumed**
+
+- a setting gated column joins the owner only ones for a visitor
+- turning the setting on takes it back out
+- an item with nowhere recorded reads identically for both  
+  Hidden columns are blanked and not dropped, so who is asking changes what the haystack says and never how many fields it has -- otherwise the seams a quoted phrase must not match across move depending on the reader.
+
+**The page says what these are**
+
+- both switches are on the settings page with their reasons  
+  A control says what it is and the reason is behind it (interface-text).
+- they are server options
+
+**The decision is written down**
+
+- the adr is there and indexed
+
+
 ## Machines
 
 *test_machines.py — 172 behaviours*
@@ -2193,7 +2281,7 @@ Regenerate with:
 
 ## Projects
 
-*test_projects.py — 131 behaviours*
+*test_projects.py — 121 behaviours*
 
 
 **A register asset**
@@ -2267,22 +2355,6 @@ Regenerate with:
 - an unknown status falls back rather than being stored
 - the three dates are independent  
   A project can be finished without ever having been started -- the part turned up and it took an evening.
-
-**Marking one done**
-
-- one click finishes it
-- the finish date is today where none was recorded
-- a finish date already recorded is kept  
-  It says when the work actually stopped.
-- it is written into the history
-- the button is there while there is something to finish
-- there is no button once it is over  
-  Done and abandoned both.
-- a visitor is not offered it
-- a visitor cannot finish one
-- a project that is nothing cannot be finished
-- a finished project leaves the menu of projects going  
-  The picker on the entry forms asks what a thing arriving today could be joining, and a finished project is not an answer to that.
 
 **The list**
 

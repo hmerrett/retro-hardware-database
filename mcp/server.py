@@ -119,6 +119,7 @@ def create_computer(
     condition: str | None = None,
     source: str | None = None,
     acquired_date: str | None = None,
+    location: str | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,
@@ -147,6 +148,10 @@ def create_computer(
     serial is the number stamped on this particular machine, which is the one field
     here that is not a fact about the model. Only ever from the object itself: it
     cannot be inferred from anything else, and a wrong one is worse than none.
+
+    location is where the machine is physically kept, in the owner's own words --
+    'Loft, blue crate 3', 'Garage shelf B'. Free text, and only ever what somebody
+    has said: it cannot be worked out from anything else in the record.
 
     For a home computer or a console -- a Spectrum, a C64, an Apple IIe, an MSX --
     the machine_* arguments file it against the catalogue that list_machine_models
@@ -186,6 +191,7 @@ def update_computer(
     condition: str | None = None,
     source: str | None = None,
     acquired_date: str | None = None,
+    location: str | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,
@@ -259,6 +265,7 @@ def create_part(
     condition: str | None = None,
     source: str | None = None,
     acquired_date: str | None = None,
+    location: str | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,
@@ -277,7 +284,10 @@ def create_part(
     computer and parent_id mounts it on another part (a disk on a controller card,
     say); both blank means standalone. specs is free text formatted
     'Key: value | Key: value'. serial is the number marked on this particular one,
-    read off the object and never inferred. Storage parts are mechanical hard disks
+    read off the object and never inferred. location is where the part itself is
+    kept ('Spares drawer'), which is not computer_id read another way -- a card
+    fitted in a machine is wherever that machine is, and a card in a drawer is in
+    the drawer. Storage parts are mechanical hard disks
     and tape (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
     family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports; a
     screen (type 'display') carries Type (CRT, LCD, OLED), Panel (the mask or panel
@@ -323,6 +333,7 @@ def update_part(
     condition: str | None = None,
     source: str | None = None,
     acquired_date: str | None = None,
+    location: str | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,

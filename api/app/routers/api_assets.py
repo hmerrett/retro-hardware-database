@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 # --- JSON API: parts -------------------------------------------------------
 
-from .. import drivedb, entry, machinedb, machines, projects, ramdb, specdb
+from .. import drivedb, entry, locations, machinedb, machines, projects, ramdb, specdb
 from ..assets import delete_computer, delete_part
 from ..common import to_dict
 from ..db import get_db
@@ -230,6 +230,7 @@ def api_create_computer(data: ComputerCreate, db: Session = Depends(get_db)) -> 
     if machine is not None:
         _machine_from_api(db, obj, machine)
     add_log(db, obj.asset_id, "created", "created")
+    locations.remember(db, obj.location)
     if jobs or work is not None:
         _take_on_work(db, obj.asset_id, jobs, work)
     db.commit()
@@ -290,6 +291,7 @@ def api_update_computer(
             aid,
             (diff + _and_parts(n, "went with it" if obj.disposed else "came back too")).strip(),
         )
+    locations.remember(db, obj.location)
     db.commit()
     db.refresh(obj)
     return _computer_out(db, obj)
@@ -341,6 +343,7 @@ def api_create_part(data: PartCreate, db: Session = Depends(get_db)) -> dict[str
     if machine is not None:
         _board_from_api(db, obj, data.machine)
     add_log(db, obj.asset_id, "created", "created")
+    locations.remember(db, obj.location)
     if jobs or work is not None:
         _take_on_work(db, obj.asset_id, jobs, work)
     db.commit()
@@ -375,6 +378,7 @@ def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)) -> di
     diff = _field_diffs(old, new, list(fields), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
+    locations.remember(db, obj.location)
     db.commit()
     db.refresh(obj)
     return _part_out(db, obj)

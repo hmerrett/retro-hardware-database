@@ -408,12 +408,39 @@ nothing until you submit it.
 | **Condition** | Working, Untested, Partially working, Faulty, For parts/repair, Restored. Blank by default — "not recorded" is a real answer and should not be guessed as "Working". |
 | **Source** | Where or how you got it. |
 | **Acquired date** | |
+| **Location** | Where the machine is physically kept — `Loft, blue crate 3`, `Garage shelf B`, `on the bench`. Free text, and the box offers back what you have written before. See [where it is kept](#where-it-is-kept). |
 | **Reference URL** | Wikipedia, The Retro Web, a forum thread. Also what the "fetch photo from reference" button reads. |
 | **Summary** | The prose shown at the top of the page. |
 | **Notes** | Anything else. |
 | **Work needed** | What it needs doing, one job to a line — `recap`, `new belt`, `keyboard sticks`. Leave it empty if there is nothing to do. See [checking something in](#checking-something-in). |
 | **…as part of** | Which project those jobs go on. Left at *a project of its own*, they raise a new one about this machine; pick a project already going and the machine joins that instead. |
 | **Photographs** | Only on the new-machine form — there is no tag to file them under until it is saved. Afterwards they upload from the machine's own page. |
+
+### Where it is kept
+
+**Location** is where the object actually is, as you would say it to somebody
+you were sending to fetch it: `Loft, blue crate 3`, `Garage shelf B`, `on the
+bench`. It is free text because a collection's geography is its own — crates,
+shelves, rooms, somebody else's spare room — and no menu written here would fit
+yours.
+
+The box offers back what you have written before, commonest first, so the second
+thing into the same crate is picked rather than retyped and the crate ends up
+spelt one way. It is a suggestion and not a menu: type somewhere new and it is
+taken, and it joins the list.
+
+A part has the same box, and it is a different thing from **Installed in**. A
+card fitted in a machine is wherever that machine is; a card in a drawer is in
+the drawer. Neither is worked out from the other, so fill in whichever is true
+of the thing in front of you.
+
+**Duplicate** does not copy it. A duplicate is a second unit of the same model,
+and a second card is not in the same slot or the same crate — it is wherever you
+have just put it.
+
+Who else sees it is yours to decide, and out of the box nobody does: a visitor's
+page shows no Location row until you say otherwise. See [where things are
+kept](#where-things-are-kept) on the settings page.
 
 ### About TopBench
 
@@ -812,8 +839,8 @@ so a drive on the shelf and one fitted in a machine are described alike.
 
 Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
 **Name** (optional; defaults to maker + model), **Year**, **Serial number**,
-**Condition**, **Source**, **Acquired date**, **Reference URL**, **Summary**,
-**Notes**, **Installed in** and **Mounted on** — and, at the foot of the form,
+**Condition**, **Source**, **Acquired date**, **Location**, **Reference URL**,
+**Summary**, **Notes**, **Installed in** and **Mounted on** — and, at the foot of the form,
 **Work needed** and **…as part of** ([checking something in](#checking-something-in)).
 
 **Serial number** is the number marked on that particular one — the only field
@@ -822,6 +849,10 @@ leaves it behind along with the photographs and the provenance. It is worth the
 typing where nothing else tells two things apart: which of two identical SIMMs
 came out of which machine, or whether the drive back from a repair is the drive
 that went. It is searchable like every other field.
+
+**Location** is where the part is kept, and is not the same as **Installed in**:
+a card fitted in a machine is wherever that machine is, and a card in a drawer is
+in the drawer. See [where it is kept](#where-it-is-kept).
 
 What differs by type is the specification section.
 
@@ -1998,8 +2029,10 @@ everybody who opens the site gets it. It comes in two groups:
 **Appearance** — the site's name, whether photographs are watermarked, and which
 theme it opens in.
 
-**Server options** — how this installation behaves out on the web, which
-for now is whether it asks to be kept out of search engines.
+**Server options** — what this installation shows the outside world and what
+it remembers for itself: whether it asks to be kept out of search engines,
+whether a visitor is shown where things are kept, and whether a place nothing is
+kept in any more is still offered.
 
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
@@ -2044,6 +2077,35 @@ leave. That is what this does.
 
 It is a request rather than a lock, and the honest crawlers honour it. Anything
 that must not be read by a stranger belongs behind the login, not behind this.
+
+### Where things are kept
+
+Two switches, both about the **Location** box on a machine or a part ([where it
+is kept](#where-it-is-kept)).
+
+**Show locations** is off. Where a thing is kept is not something a catalogue has
+to publish — a public page saying which loft the rare machine is in is an address
+as much as a description. With it off, a visitor's item page has no Location row
+and a visitor's search does not match on one: searching the site for `loft` hands
+a stranger nothing. Signed in you always see it, whichever way the switch is set.
+Turn it on for a collection kept somewhere public — a museum shelf, a club room,
+a shared workshop — where where a thing lives is half of what a reader wants to
+know.
+
+Off is only as private as your login. An installation running with
+`RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` unset has no login at all and treats
+every visitor as the owner — see [section 17](#17-logging-in).
+
+**Remember old locations** is on. The register keeps a list of every location it
+has been given, so a crate you have emptied is still offered the next time you
+fill it. Without it, the last thing to leave `Loft, blue crate 3` takes the
+spelling of the crate with it, and the crate comes back a month later as
+`loft crate3`.
+
+Turn it off and it truly forgets: the remembered list is deleted there and then
+rather than merely ignored, and from that moment the box offers only the places
+something is actually kept now. Turn it back on and it starts again from what is
+in use — what it knew before is gone and does not come back.
 
 ### Photographs
 

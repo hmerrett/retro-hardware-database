@@ -66,3 +66,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   *Accepted*
 - [0023](0023-a-preference-is-not-configuration.md) — A preference is not
   configuration, and the environment still wins — *Accepted*
+- [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md) — A
+  remembered vocabulary is deleted when it is turned off — *Accepted*

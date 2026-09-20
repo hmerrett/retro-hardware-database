@@ -68,11 +68,19 @@
        exactly as it does on every other item page. #}
     {% if machine and machine.summary and not p.summary %}<p class="model-summary">{{ machine.summary | linked }}</p>{% endif %}
     {% if p.summary %}<p class="summary">{{ p.summary | linked }}</p>{% endif %}
+    {# Where it is kept is the owner's by default and everybody's by setting
+       (ADR-0027). Folded into the pair list as a blank rather than tested on a row
+       of its own, so the one list stays the one description of this panel -- the
+       loop below already drops a pair with nothing in it. #}
+    {% set show_location = request.state.authed or public_locations() %}
     {# The part's own facts, in a panel like every other section: what the register
        knows about it, and where it is installed. #}
     {% call PN.panel('Details') %}
     <table class="kv">
-    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
+    {# A row of its own and never folded into "Installed in" below: a card fitted in
+       a machine is wherever that machine is, and a card in a drawer is in the
+       drawer, so the two rows answer different questions. #}
+    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date), ('Location', p.location if show_location else '')] %}
       {% if v %}<tr><th scope="row">{{ k }}</th><td>{{ v | linked }}</td></tr>{% endif %}
     {% endfor %}
     {% if p.computer_id %}<tr><th scope="row">Installed in</th><td><a href="/computers/{{ p.computer_id }}">{{ p.computer_id }}</a>

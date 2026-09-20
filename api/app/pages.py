@@ -10,6 +10,7 @@ from collections import Counter
 
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
+from . import locations
 from .forms import Posted
 from .history import PHOTO_ENTRY, add_log
 from .models import Computer, Part
@@ -66,7 +67,13 @@ def _datalists(db: Session, computer: bool = False) -> dict[str, list[str]]:
 
     `computer` adds the three a machine is asked and a part is not. A part's
     equivalent of them is its typed spec table, which has its own vocabularies."""
-    lists = {"source": _answers_given(db, Computer.source, Part.source)}
+    lists = {
+        "source": _answers_given(db, Computer.source, Part.source),
+        # The one list that is not only the register asked a question. Where things
+        # are kept goes out of date by things being moved, so the places nothing is
+        # in at the moment are added back from what was remembered (ADR-0027).
+        "location": locations.suggestions(db, _answers_given(db, Computer.location, Part.location)),
+    }
     if computer:
         lists |= {
             "makes": _answers_given(db, Computer.manufacturer, Part.manufacturer),

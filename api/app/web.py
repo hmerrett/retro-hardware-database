@@ -49,12 +49,16 @@ templates.env.globals.update(
     # The statuses that mean a project is over, so the pages that dim a finished
     # one do not each keep their own idea of which those are.
     closed_states=projects.CLOSED,
-    # The three settings every page is rendered through (ADR-0023). Callables
-    # rather than values: these are registered once at import and read on every
-    # render, so a name saved a moment ago is the name the next page carries.
+    # The settings a page is rendered through (ADR-0023). Callables rather than
+    # values: these are registered once at import and read on every render, so a
+    # name saved a moment ago is the name the next page carries.
     site_name=settings.site_name,
     site_theme=lambda: settings.value("theme"),
     site_indexed=lambda: not settings.on("block_search_engines"),
+    # Whether a reader who is not signed in is told where a thing is kept. The item
+    # pages ask it beside `request.state.authed`, which is the other half of the
+    # same question (ADR-0027).
+    public_locations=lambda: settings.on("public_locations"),
 )
 # A filter rather than a global, because it reads as one thing done to another at
 # every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --

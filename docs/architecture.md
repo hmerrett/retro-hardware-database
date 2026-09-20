@@ -114,7 +114,7 @@ migrations that build them. Nothing else may construct an engine.
 
 **The two item tables.** `computers` and `parts` carry the columns every item has
 — identity, manufacturer, model, year, serial, condition, source, acquisition
-date, disposal. A part's `computer_id` links it to the computer it is fitted in
+date, location, disposal. A part's `computer_id` links it to the computer it is fitted in
 and `parent_id` to the part it is mounted on; both are real foreign keys and
 `NULL` when the part stands alone. Deleting a computer or a host part **unlinks**
 what pointed at it rather than deleting it — a card outlives the machine it came
@@ -146,6 +146,7 @@ and re-render; never edit the string and hope.
 | `log_entry`, `log_photo` | the dated history of an asset, and photographs attached to a line of it |
 | `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the tags that say what each one is |
 | `file_asset`, `file_model` | what a file is for: one unit by asset id, or every item of a model by catalogue key or by maker and model |
+| `location` | every place something has been kept, so an emptied crate is still offered by name — the register's one stored vocabulary, and deleted outright when the preference behind it is turned off (ADR-0027) |
 | `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the things it is about (one project to a thing), its job list — each job optionally naming one of those things — and what is on order for it |
 
 ## 5. The modules
@@ -193,6 +194,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `ids.py` | allocating an asset id, unique across the whole register |
 | `common.py` | the "still held" filter, small query helpers, the image folder, collection constants |
 | `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
+| `locations.py` | where things are kept: the remembered vocabulary of places, and what a form's pick list offers |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
 | `machinedb.py` | mapping an asset's catalogue identity between its rows and plain values |
@@ -262,6 +264,15 @@ breaking one turns CI red rather than merely being wrong.
   every column off the model, so a new one joins the anonymous search by merely
   existing. Owner-only columns are the named set `OWNER_ONLY` in `common.py`, not
   a habit of remembering. *(ADR-0018, enforced: `test_for_sale.py`)*
+- **What a setting hides, it hides from the search as well.** Where a thing is
+  kept is shown to a visitor only while `public_locations` says so, so
+  `_hidden_columns` asks which columns *this* reader is denied rather than reading
+  one fixed set — `OWNER_ONLY` is one answer to that question and not the whole of
+  it. *(ADR-0027, enforced: `test_locations.py`)*
+- **A remembered vocabulary is deleted when it is turned off.** The `location`
+  table holds the places nothing is kept in any more, so an emptied crate is still
+  offered; switching the preference off purges it rather than ignoring it.
+  *(ADR-0027, enforced: `test_locations.py`)*
 - **The API's published shape is pinned.** `api/openapi.json` is committed and a
   change a caller could see fails the suite. *(ADR-0010, enforced)*
 - **Configuration comes from the environment; a preference comes from the page.**
@@ -375,6 +386,7 @@ it was weighed against, and what it costs.
 | 0018 | A sale flag is the owner's alone |
 | 0019 | Running open is supported, but never silent |
 | 0020 | A model link names a maker and a model, not only a catalogue key |
+| 0027 | A remembered vocabulary is deleted when it is turned off |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import drivedb, entry, filesdb, labels, machinedb, projects, specdb
+from .. import drivedb, entry, filesdb, labels, locations, machinedb, projects, specdb
 from ..assets import (
     DUP_EXCLUDE,
     PART_DERIVED_FIELDS,
@@ -218,6 +218,7 @@ async def _part_from_form(
         "condition",
         "source",
         "acquired_date",
+        "location",
         "url",
         "summary",
         "notes",
@@ -690,6 +691,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
     if ptype == "motherboard" and (mach := _machine_from_form(form, board=True)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
+    locations.remember(db, obj.location)
     _work_from_form(db, obj, form)
     db.commit()
     if photos:
@@ -842,6 +844,7 @@ async def gui_save_part(
     diff = _field_diffs(old, {k: getattr(p, k) for k in data}, list(data), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
+    locations.remember(db, p.location)
     _work_from_form(db, p, form)
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)

@@ -58,6 +58,11 @@ NOT_A_MAKER = {"unknown", "generic", "various", "noname", "no name", "n/a", "-",
 # and a search for "true" would hand back every row carrying it, off a page that
 # shows no such thing. Hiding a column in the template is half the job; this is the
 # other half, and it is the half nobody remembers.
+#
+# Never shown, and so a frozenset: a column kept back only while a preference says
+# so does not belong in here, because the answer would depend on when the set was
+# read. Those are added on top of this one, per reader, by search._hidden_columns
+# (ADR-0027) -- which is the question this set is one answer to.
 OWNER_ONLY = frozenset({"for_sale"})
 
 
