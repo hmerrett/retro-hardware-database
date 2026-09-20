@@ -25,8 +25,9 @@ compose up -d`.
 **Every machine and every part can say where it is kept.** A free-text
 **Location** box on both forms — `Loft, blue crate 3`, `Garage shelf B`, `on the
 bench` — offering back the places you have already used, so one crate ends up
-spelt one way. It is a separate answer from which machine a part is installed in,
-and a duplicate does not carry it across.
+spelt one way. A part fitted in something need not be answered at all: left blank
+it shows where that thing is kept, and follows it when it moves. A duplicate does
+not carry a location across.
 
 Two switches on the settings page go with it. **Show locations** is off, so a
 visitor is not told where anything is kept — the row is not on their page and

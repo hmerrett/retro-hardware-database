@@ -120,16 +120,142 @@ class TestRecordingWhereSomethingIs:
         )
         assert client.get(f"/api/{kind}/{copy}").json()["location"] == ""
 
-    def test_a_parts_location_is_not_the_machine_it_is_installed_in(self, client, computer, part):
-        """Two rows and two questions. A card fitted in a machine is wherever that
-        machine is; a card in a drawer is in the drawer, and neither answer can be
-        worked out from the other."""
-        cid = computer()["asset_id"]
+    def test_a_parts_own_answer_stands_beside_where_it_is_installed(self, client, computer, part):
+        """The card-in-a-drawer case. Two rows, because a part can be fitted in a
+        machine and still be kept somewhere else -- a board out on the bench is
+        still the board out of that machine."""
+        cid = computer(location="Loft")["asset_id"]
         pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
         page = client.get(f"/parts/{pid}").text
         assert '<th scope="row">Location</th>' in page
         assert "Spares drawer" in page
+        assert "Loft" not in page, "its own answer wins over the one it is offered"
         assert "Installed in" in page and cid in page
+
+
+class TestAPartIsWhereWhatItIsFittedInIs:
+    """A part fitted in a machine is wherever that machine is, so most parts never
+    need the box filled in at all. Worked out at the moment it is shown and never
+    written down, which is what makes carrying the machine upstairs one edit."""
+
+    def test_a_part_in_a_machine_is_shown_the_machines_location(self, client, computer, part):
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        page = client.get(f"/parts/{pid}").text
+        assert '<th scope="row">Location</th>' in page
+        assert CRATE in page
+
+    def test_the_page_says_whose_answer_it_is_showing(self, client, computer, part):
+        """Otherwise it reads as something somebody typed on this part, and the
+        first thing anybody would do about a wrong one is edit the part -- which is
+        the one record that cannot fix it."""
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        page = client.get(f"/parts/{pid}").text
+        assert f'where <a href="/computers/{cid}">{cid}</a> is' in page
+
+    def test_a_chip_on_a_board_in_a_machine_is_in_the_machine(self, client, computer, part):
+        """The chain runs as far as it has to."""
+        cid = computer(location=CRATE)["asset_id"]
+        board = part(type="motherboard", computer_id=cid)["asset_id"]
+        chip = part(type="cpu", parent_id=board)["asset_id"]
+        assert CRATE in client.get(f"/parts/{chip}").text
+
+    def test_what_it_is_mounted_on_answers_before_what_it_is_installed_in(
+        self, client, computer, part
+    ):
+        """A chip on a board is where the board is, even when the machine the board
+        is in says something else: the nearer answer is the more specific one, and
+        a board out on the bench has its own parts on the bench with it."""
+        cid = computer(location="Loft")["asset_id"]
+        board = part(type="motherboard", location="On the bench")["asset_id"]
+        chip = part(type="cpu", parent_id=board, computer_id=cid)["asset_id"]
+        page = client.get(f"/parts/{chip}").text
+        assert "On the bench" in page
+        assert "Loft" not in page
+
+    def test_a_part_that_says_for_itself_is_not_given_an_answer(self, client, computer, part):
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
+        page = client.get(f"/parts/{pid}").text
+        assert "Spares drawer" in page
+        assert "blue crate 3" not in page
+
+    def test_clearing_the_box_hands_the_part_back_to_its_machine(self, client, computer, part):
+        """The way round the manual promises: type an answer and it wins, take it
+        out and the part follows what it is fitted in again."""
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
+        client.patch(f"/api/parts/{pid}", json={"location": ""})
+        assert CRATE in client.get(f"/parts/{pid}").text
+
+    def test_a_standalone_part_is_shown_nothing(self, client, part):
+        page = client.get(f"/parts/{part()['asset_id']}").text
+        assert '<th scope="row">Location</th>' not in page
+
+    def test_a_part_in_a_machine_nobody_has_placed_is_shown_nothing(self, client, computer, part):
+        """A chain that runs out yields nothing rather than an empty row. A part in
+        a machine nobody has placed is a part nobody has placed."""
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        page = client.get(f"/parts/{pid}").text
+        assert '<th scope="row">Location</th>' not in page
+
+    def test_moving_the_machine_moves_everything_in_it(self, client, computer, part):
+        """One edit, because nothing was written against the parts to go stale."""
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.patch(f"/api/computers/{cid}", json={"location": "Garage shelf B"})
+        assert "Garage shelf B" in client.get(f"/parts/{pid}").text
+
+    def test_an_inherited_answer_is_not_written_to_the_part(self, client, computer, part):
+        """Derived, and the column is the evidence: nothing stored means nothing to
+        correct when the machine moves."""
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        assert client.get(f"/api/parts/{pid}").json()["location"] == ""
+
+    def test_a_part_mounted_on_itself_does_not_hang_the_page(self, client, db, part):
+        """Nothing in the register can build one -- the forms do not offer it -- but
+        a walk that trusts that is a page that never finishes loading if one ever
+        exists."""
+        from app.models import Part
+
+        a = part(type="other")["asset_id"]
+        b = part(type="other", parent_id=a)["asset_id"]
+        db.get(Part, a).parent_id = b
+        db.commit()
+        assert client.get(f"/parts/{a}").status_code == 200
+        assert client.get(f"/parts/{b}").status_code == 200
+        assert client.get("/?q=anything").status_code == 200
+
+
+class TestAnInheritedAnswerIsNotRemembered:
+    """It is worked out rather than typed, and the vocabulary is of places somebody
+    has actually named."""
+
+    def test_it_does_not_join_the_table(self, client, db, computer, part):
+        cid = computer(location=CRATE)["asset_id"]
+        part(computer_id=cid)
+        assert [row.name for row in db.query(Location).all()] == [CRATE]
+
+    def test_it_is_offered_once_and_not_twice(self, client, computer, part):
+        """The machine's own answer is on the list because the machine is kept
+        there; the four cards in it do not put it there four more times."""
+        cid = computer(location=CRATE)["asset_id"]
+        for _ in range(3):
+            part(computer_id=cid)
+        assert machine_offers(client) == [CRATE]
+
+    def test_emptying_the_machine_does_not_leave_the_place_in_use(self, client, computer, part):
+        """What is in use is what somebody has written down. A part that was only
+        ever shown the crate was never in it as far as the register is concerned,
+        so clearing the machine leaves the crate to the remembered half."""
+        cid = computer(location=CRATE)["asset_id"]
+        part(computer_id=cid)
+        client.patch(f"/api/computers/{cid}", json={"location": ""})
+        save(client, remember_locations=None)
+        assert machine_offers(client) == []
 
 
 class TestBeingOfferedWhereThingsGo:
@@ -316,6 +442,38 @@ class TestWhoIsToldWhereThingsAre:
         assert aid in client.get("/?q=loft").text
         assert "blue crate 3" in client.get("/").text
 
+    def test_a_visitor_is_shown_no_inherited_location_either(
+        self, client, computer, part, monkeypatch
+    ):
+        """The gate is on the answer and not on the column, or a part would publish
+        what its machine keeps back."""
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        assert CRATE in client.get(f"/parts/{pid}").text, "the owner sees it"
+        visitor(monkeypatch)
+        page = client.get(f"/parts/{pid}").text
+        assert CRATE not in page
+        assert '<th scope="row">Location</th>' not in page
+
+    def test_a_visitors_search_does_not_match_on_an_inherited_one(
+        self, client, computer, part, monkeypatch
+    ):
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        visitor(monkeypatch)
+        assert pid not in client.get("/?q=loft").text
+        assert pid not in client.get("/suggest?q=loft").text
+
+    def test_turning_it_on_shows_and_finds_an_inherited_one(
+        self, client, computer, part, monkeypatch
+    ):
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        save(client, public_locations="1")
+        visitor(monkeypatch)
+        assert CRATE in client.get(f"/parts/{pid}").text
+        assert pid in client.get("/?q=loft").text
+
     def test_the_owner_is_shown_it_either_way(self, client, computer):
         aid = computer(location=CRATE)["asset_id"]
         assert CRATE in client.get(f"/computers/{aid}").text
@@ -331,6 +489,53 @@ class TestWhoIsToldWhereThingsAre:
         save(client, public_locations="1")
         visitor(monkeypatch)
         assert "dl_location" not in client.get(f"/computers/{cid}").text
+
+
+class TestFindingWhatIsInThere:
+    """A search for the loft finds what is in the loft, which is the machine and
+    everything fitted in it. The page says the word; the search has to know it."""
+
+    def test_an_installed_part_is_found_by_its_machines_location(self, client, computer, part):
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid, model="Inside")["asset_id"]
+        page = client.get("/?q=loft").text
+        assert cid in page and pid in page
+
+    def test_the_suggestion_list_agrees_with_the_search(self, client, computer, part):
+        """The two are meant to be one answer seen twice, so a part findable in one
+        and not the other is the pair disagreeing."""
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        assert pid in client.get("/suggest?q=loft").text
+
+    def test_a_chip_deep_in_a_machine_is_found_too(self, client, computer, part):
+        cid = computer(location=CRATE)["asset_id"]
+        board = part(type="motherboard", computer_id=cid)["asset_id"]
+        chip = part(type="cpu", parent_id=board)["asset_id"]
+        assert chip in client.get("/?q=loft").text
+
+    def test_a_part_kept_somewhere_else_is_not_found_by_its_machines_location(
+        self, client, computer, part
+    ):
+        """It is not there, and the page does not say it is."""
+        cid = computer(location=CRATE)["asset_id"]
+        pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
+        assert pid not in client.get("/?q=loft").text
+
+    def test_the_gallery_card_carries_the_inherited_answer(self, client, computer, part):
+        """The cards hold a blob the browser filters on without asking the server,
+        so a card that did not carry it would vanish from a type-ahead the full
+        search still answers."""
+        cid = computer(location=CRATE)["asset_id"]
+        part(computer_id=cid)
+        page = client.get("/").text
+        assert page.count("blue crate 3") >= 2
+
+    def test_a_visitors_card_does_not(self, client, computer, part, monkeypatch):
+        cid = computer(location=CRATE)["asset_id"]
+        part(computer_id=cid)
+        visitor(monkeypatch)
+        assert "blue crate 3" not in client.get("/").text
 
 
 class TestTheHiddenColumnsAreAskedForRatherThanAssumed:

@@ -429,10 +429,22 @@ thing into the same crate is picked rather than retyped and the crate ends up
 spelt one way. It is a suggestion and not a menu: type somewhere new and it is
 taken, and it joins the list.
 
-A part has the same box, and it is a different thing from **Installed in**. A
-card fitted in a machine is wherever that machine is; a card in a drawer is in
-the drawer. Neither is worked out from the other, so fill in whichever is true
-of the thing in front of you.
+A part has the same box and usually does not need it filled in. A card fitted in
+a machine is wherever that machine is, so a part left blank is shown the location
+of whatever it is fitted in — the board it is mounted on if it is on one, and the
+machine it is installed in otherwise — and its page says whose answer it is
+showing. The chain runs as far as it has to: a chip on a board in a machine in
+the loft is in the loft. Move the machine and everything in it moves with it, in
+one edit, and a search for the loft finds all of them.
+
+Fill the box in when that is not true. A card in a drawer is in the drawer, and a
+part's own answer always wins over the one it would have been given. Clear the
+box again and it goes back to following what it is fitted in.
+
+An inherited location is worked out rather than written down. It is not stored
+against the part, so nothing has to be tidied up when the machine moves, and it
+does not join the list of places the box offers — only somewhere you have
+actually typed does that.
 
 **Duplicate** does not copy it. A duplicate is a second unit of the same model,
 and a second card is not in the same slot or the same crate — it is wherever you
@@ -850,9 +862,10 @@ typing where nothing else tells two things apart: which of two identical SIMMs
 came out of which machine, or whether the drive back from a repair is the drive
 that went. It is searchable like every other field.
 
-**Location** is where the part is kept, and is not the same as **Installed in**:
-a card fitted in a machine is wherever that machine is, and a card in a drawer is
-in the drawer. See [where it is kept](#where-it-is-kept).
+**Location** is where the part is kept. Left blank on a part that is fitted in
+something, it shows where that thing is kept — the board it is mounted on, or the
+machine it is installed in — so only a part that lives somewhere of its own needs
+an answer typed into it. See [where it is kept](#where-it-is-kept).
 
 What differs by type is the specification section.
 

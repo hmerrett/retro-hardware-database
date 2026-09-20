@@ -139,9 +139,12 @@ class Part(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
-    # See Computer.location. A part keeps its own, and it is not `computer_id` read
-    # another way: a card in a machine is wherever that machine is, and a card in a
-    # drawer is in the drawer, so neither answer can be worked out from the other.
+    # See Computer.location. Blank is not "nowhere" on a part that is fitted in
+    # something: a card in a machine is wherever that machine is, so an empty column
+    # is read off the parent (locations.inherited) at the moment it is shown. Worked
+    # out and never written back, so carrying the machine upstairs is one edit and
+    # not one per card -- which is also why nothing may treat this column as the
+    # whole answer to where a part is.
     location: Mapped[str | None] = mapped_column(String(255), default="")
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")

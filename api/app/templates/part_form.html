@@ -344,12 +344,13 @@ Photos, source, acquired date and notes are not carried over.</p>
     <label for="acquired_date">Acquired date</label>
     <input id="acquired_date" name="acquired_date" type="date" value="{{ (p.acquired_date if p else '') or '' }}">
     <label for="location">Location</label>
-    {# Where the part itself is kept, which is not what "Installed in" says: a card
-       in a machine is wherever that machine is, and a card in a drawer is in the
-       drawer. Offered the places already used, machines and parts together, because
-       one crate holds both. autocomplete="off" for the reason the source box has
-       it -- the browser's own memory of a box called "location" on any other site
-       would otherwise be offered instead of the register's own answers. #}
+    {# Where the part itself is kept, and mostly left empty: a part fitted in
+       something is shown that thing's location instead, so this box is for the card
+       in a drawer rather than the card in a machine. Offered the places already
+       used, machines and parts together, because one crate holds both.
+       autocomplete="off" for the reason the source box has it -- the browser's own
+       memory of a box called "location" on any other site would otherwise be
+       offered instead of the register's own answers. #}
     <input id="location" name="location" list="dl_locations" autocomplete="off"
            value="{{ (p.location if p else '') or '' }}">
     <label for="url">Reference URL</label>

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1594 behaviours, from 44 files.*
+*1617 behaviours, from 44 files.*
 
 
 ## A file where text was expected
@@ -1766,7 +1766,7 @@ Regenerate with:
 
 ## Locations
 
-*test_locations.py — 39 behaviours*
+*test_locations.py — 62 behaviours*
 
 
 **Recording where something is**
@@ -1781,8 +1781,38 @@ Regenerate with:
   Things move out of a crate as well as into one, and a place that is no longer true is worse than none.
 - a duplicate does not carry it across  
   A duplicate copies what describes the model, not where this one sits.
-- a parts location is not the machine it is installed in  
-  Two rows and two questions.
+- a parts own answer stands beside where it is installed  
+  The card-in-a-drawer case.
+
+**A part is where what it is fitted in is**
+
+- a part in a machine is shown the machines location
+- the page says whose answer it is showing  
+  Otherwise it reads as something somebody typed on this part, and the first thing anybody would do about a wrong one is edit the part -- which is the one record that cannot fix it.
+- a chip on a board in a machine is in the machine  
+  The chain runs as far as it has to.
+- what it is mounted on answers before what it is installed in  
+  A chip on a board is where the board is, even when the machine the board is in says something else: the nearer answer is the more specific one, and a board out on the bench has its own parts on the bench with it.
+- a part that says for itself is not given an answer
+- clearing the box hands the part back to its machine  
+  The way round the manual promises: type an answer and it wins, take it out and the part follows what it is fitted in again.
+- a standalone part is shown nothing
+- a part in a machine nobody has placed is shown nothing  
+  A chain that runs out yields nothing rather than an empty row.
+- moving the machine moves everything in it  
+  One edit, because nothing was written against the parts to go stale.
+- an inherited answer is not written to the part  
+  Derived, and the column is the evidence: nothing stored means nothing to correct when the machine moves.
+- a part mounted on itself does not hang the page  
+  Nothing in the register can build one -- the forms do not offer it -- but a walk that trusts that is a page that never finishes loading if one ever exists.
+
+**An inherited answer is not remembered**
+
+- it does not join the table
+- it is offered once and not twice  
+  The machine's own answer is on the list because the machine is kept there; the four cards in it do not put it there four more times.
+- emptying the machine does not leave the place in use  
+  What is in use is what somebody has written down.
 
 **Being offered where things go**
 
@@ -1830,9 +1860,25 @@ Regenerate with:
 - the gallery card carries it for the owner
 - turning it on shows a visitor the row
 - turning it on lets a visitor search on it
+- a visitor is shown no inherited location either  
+  The gate is on the answer and not on the column, or a part would publish what its machine keeps back.
+- a visitors search does not match on an inherited one
+- turning it on shows and finds an inherited one
 - the owner is shown it either way
 - the pick list is never offered to a visitor  
   Whichever way the switch is set.
+
+**Finding what is in there**
+
+- an installed part is found by its machines location
+- the suggestion list agrees with the search  
+  The two are meant to be one answer seen twice, so a part findable in one and not the other is the pair disagreeing.
+- a chip deep in a machine is found too
+- a part kept somewhere else is not found by its machines location  
+  It is not there, and the page does not say it is.
+- the gallery card carries the inherited answer  
+  The cards hold a blob the browser filters on without asking the server, so a card that did not carry it would vanish from a type-ahead the full search still answers.
+- a visitors card does not
 
 **The hidden columns are asked for rather than assumed**
 

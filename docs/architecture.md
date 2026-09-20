@@ -194,7 +194,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `ids.py` | allocating an asset id, unique across the whole register |
 | `common.py` | the "still held" filter, small query helpers, the image folder, collection constants |
 | `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
-| `locations.py` | where things are kept: the remembered vocabulary of places, and what a form's pick list offers |
+| `locations.py` | where things are kept: the remembered vocabulary of places, what a form's pick list offers, and where a part is when it does not say for itself |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
 | `machinedb.py` | mapping an asset's catalogue identity between its rows and plain values |
@@ -273,6 +273,12 @@ breaking one turns CI red rather than merely being wrong.
   table holds the places nothing is kept in any more, so an emptied crate is still
   offered; switching the preference off purges it rather than ignoring it.
   *(ADR-0027, enforced: `test_locations.py`)*
+- **Where a fitted part is, is worked out and never written down.** A part with a
+  blank `location` is shown the location of what it is mounted on, else what it is
+  installed in, as far up the chain as it takes (`locations.inherited`). Nothing
+  writes that answer back, so moving a machine moves what is in it and no row goes
+  stale — and nothing may read the column alone as the whole answer.
+  *(enforced: `test_locations.py`)*
 - **The API's published shape is pinned.** `api/openapi.json` is committed and a
   change a caller could see fails the suite. *(ADR-0010, enforced)*
 - **Configuration comes from the environment; a preference comes from the page.**

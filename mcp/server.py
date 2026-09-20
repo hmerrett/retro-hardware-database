@@ -285,9 +285,10 @@ def create_part(
     say); both blank means standalone. specs is free text formatted
     'Key: value | Key: value'. serial is the number marked on this particular one,
     read off the object and never inferred. location is where the part itself is
-    kept ('Spares drawer'), which is not computer_id read another way -- a card
-    fitted in a machine is wherever that machine is, and a card in a drawer is in
-    the drawer. Storage parts are mechanical hard disks
+    kept ('Spares drawer'), and is only worth sending for a part that lives
+    somewhere of its own: left empty on a part that is fitted in something, the
+    register shows it wherever that thing is kept. Storage parts are mechanical
+    hard disks
     and tape (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
     family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports; a
     screen (type 'display') carries Type (CRT, LCD, OLED), Panel (the mask or panel

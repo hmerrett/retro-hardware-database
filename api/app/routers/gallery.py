@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, projects, settings, specdb
+from .. import cards, entry, locations, projects, settings, specdb
 from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import Computer, LogEntry, Part
@@ -82,6 +82,11 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
     # is untouched either way: what is written on a card is a design decision and
     # not a privacy one, and this is only what it answers to.
     show_location = authed or settings.on("public_locations")
+    # Where a part is because of what it is fitted in, for the ones that do not say
+    # for themselves. Read once for the whole wall, like the photo folders and the
+    # timestamps above -- a card is built per row, and a walk up the chain per row
+    # would be a query apiece for the answer the register already holds.
+    placed = locations.inherited(db) if show_location else {}
 
     rows: list[Card] = []
     for c in computers:
@@ -164,6 +169,10 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                         p.source or "",
                         str(p.acquired_date or ""),
                         (p.location or "") if show_location else "",
+                        # A part shown its machine's location answers to it here as
+                        # well, or the card and the page it opens would disagree
+                        # about the word written on both of them.
+                        (placed[p.asset_id].where if p.asset_id in placed else ""),
                         p.disk_image or "",
                         p.computer_id or "",
                         p.disposed_note or "",
