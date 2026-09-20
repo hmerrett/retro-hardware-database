@@ -422,6 +422,19 @@ export function pattern(width, height) {
   c.fillStyle = "#000";
   const unit = Math.round(height / 3);
   c.fillRect(0, 0, unit, unit); /* the origin */
+  /* Words, because a shape tells you the image was turned and a word tells you
+     which way up it ended and whether it was mirrored -- and a photograph of a
+     word needs no describing by the person holding it. */
+  c.save();
+  c.fillStyle = "#fff";
+  c.font = `bold ${Math.round(unit * 0.5)}px sans-serif`;
+  c.textBaseline = "top";
+  c.fillText("TOP", 6, 10);
+  c.restore();
+  c.fillStyle = "#000";
+  c.font = `bold ${Math.round(unit * 0.4)}px sans-serif`;
+  c.textBaseline = "alphabetic";
+  c.fillText("bottom left", 6, height - 8);
   c.fillRect(0, 0, 2, height); /* the first column */
   c.fillRect(0, 0, width, 8); /* the first row */
   for (let n = 0; n < 5; n++) {
