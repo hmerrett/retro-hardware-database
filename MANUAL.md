@@ -1557,7 +1557,7 @@ actually have:
 
 - **a PDF to download** — what it always did, and still the answer for a sheet
   printer, for a Dymo through the print dialogue, and for AirPrint from a phone.
-- **a Niimbot over Bluetooth, from this device** — the browser connects to the
+- **a Niimbot over Bluetooth** — the browser connects to the
   printer directly and sends it the label. Nothing goes through the server. This
   is written for the **B1 and the B21**, which have the same 384-dot head; the
   B18 is a different printer despite the name and is not supported.
