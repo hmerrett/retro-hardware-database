@@ -46,6 +46,7 @@ COMMANDS = {
     "setPageSize": 0x13,
     "setDensity": 0x21,
     "setLabelType": 0x23,
+    "printBitmapRowIndexed": 0x83,
     "printEmptyRow": 0x84,
     "printBitmapRow": 0x85,
     "printStatus": 0xA3,
@@ -176,3 +177,108 @@ def test_a_refused_connection_says_what_to_do_about_it():
     anybody can act on; "close the NIIMBOT app" is."""
     source = DRIVER.read_text(encoding="utf-8")
     assert "close the NIIMBOT app" in source
+
+
+# One indexed row, as niimbluelib documents it beside the packet that builds them:
+# four black dots at 39, 40, 41 and 42 on row 126. The only worked example of this
+# packet there is, and the reason it is quoted rather than described.
+INDEXED_ROW = "55 55 83 0e 00 7e 00 04 00 01 00 27 00 28 00 29 00 2a fa aa aa"
+
+
+def test_a_row_of_a_few_dots_is_a_list_of_where_they_are():
+    """Not an optimisation, and not optional. The reference implementation sends any
+    row of six dots or fewer as this packet instead of as a bitmap, and the note
+    against it is "printer powers off if black pixel count > 6".
+
+    This was missing when the driver first met a real printer: the label came out
+    with a band at the top and nothing after it, which is what a printer that has
+    stopped part way down a page looks like.
+    """
+    raw = bytes_of(INDEXED_ROW)
+    assert raw[2] == 0x83
+    length = raw[3]
+    pos = (raw[4] << 8) | raw[5]
+    counts, repeats = raw[6:9], raw[9]
+    indexes = raw[10 : 4 + length]
+    assert pos == 126
+    assert repeats == 1
+    assert counts == [0x00, 0x04, 0x00]  # four dots, as a total rather than in thirds
+    # Two bytes an index, big endian, and they are pixel positions across the row.
+    assert [(indexes[i] << 8) | indexes[i + 1] for i in range(0, len(indexes), 2)] == [
+        39,
+        40,
+        41,
+        42,
+    ]
+
+
+def test_the_driver_sends_that_packet_for_a_row_of_a_few_dots():
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "const FEW = 6;" in source
+    assert "black <= FEW" in source
+    assert "TX.printBitmapRowIndexed" in source
+    # Counting from the most significant bit of each byte, the way the row was
+    # packed -- the one detail that would put every dot in the wrong place while
+    # looking entirely reasonable.
+    assert "1 << (7 - bitPos)" in source
+    assert "u16(bytePos * 8 + bitPos)" in source
+
+
+# The protocol's own tables, as niimbluelib's generated enumerations define them.
+# Written down here because every one of these is a small integer that looks like
+# it could be anything, and one of them was wrong for a day.
+TABLES = {
+    "SINGLE_COLOUR": 0,  # PageColorType.SingleColor -- 1 is DoubleColor
+    "LABEL_WITH_GAPS": 1,  # LabelType.WithGaps
+    "DENSITY": 3,  # the B1's own default, of 1..5
+}
+
+
+def test_the_driver_uses_the_numbers_the_protocol_uses():
+    """`SINGLE_COLOUR = 1` cost a day of looking at labels. One is DoubleColor, and
+    a two-colour page takes a different row format -- so the printer accepted every
+    packet, acknowledged every one, and made nonsense of rows it had been told were
+    something else. Nothing in the trace looked wrong because nothing had gone
+    wrong: it was answering a different question.
+
+    These are three small integers that look like they could be anything, which is
+    exactly why they are read off a table and not written from memory.
+    """
+    source = DRIVER.read_text(encoding="utf-8")
+    for name, value in TABLES.items():
+        found = re.search(rf"^const {name} = (\d+);", source, re.M)
+        assert found, f"{name} is not declared where this can check it"
+        assert int(found.group(1)) == value, f"{name} should be {value}"
+
+
+# A print-status reply from the B1, mid-page: page 0, nothing printed, no error.
+# The one that was being read as "finished".
+STATUS_MIDWAY = "55 55 b3 0a 00 00 00 00 02 2f 00 01 00 00 95 aa aa"
+
+
+def test_a_status_reply_is_read_for_what_it_says_not_that_it_came():
+    """page is two bytes, then how far through printing and feeding, then -- in the
+    long form only -- the error. This reply says page 0, nothing printed, nothing
+    wrong: the printer had barely started.
+
+    It was being treated as "finished" because it arrived at all, and `printEnd`
+    stops a print -- so the answer to "have you finished" arriving as "no" was
+    followed by being told to stop. The printer started, stopped short of ejecting
+    the label, and beeped.
+    """
+    raw = bytes_of(STATUS_MIDWAY)
+    length = raw[3]
+    data = raw[4 : 4 + length]
+    page = (data[0] << 8) | data[1]
+    assert (page, data[2], data[3]) == (0, 0, 0)
+    assert length == 10
+    assert data[6] == 0  # no error: it was not a fault, it was not finished
+
+
+def test_the_driver_waits_for_the_page_rather_than_for_an_answer():
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "status.page >= pages" in source
+    assert "if (status.error) throw" in source
+    # And only the long form carries an error, so the short one must not be read
+    # as though byte six meant something.
+    assert "length === 10 ? data[6] : 0" in source

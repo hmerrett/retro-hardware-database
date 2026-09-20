@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1540 behaviours, from 43 files.*
+*1555 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -30,7 +30,7 @@ Regenerate with:
 
 ## A label drawn in the printers dots
 
-*test_a_label_drawn_in_the_printers_dots.py — 13 behaviours*
+*test_a_label_drawn_in_the_printers_dots.py — 15 behaviours*
 
 - every kind of item has a label as a picture
 - the picture is one dot deep  
@@ -57,6 +57,10 @@ Regenerate with:
   The sizes on a small label are the tape's, because they are what fits on a tape.
 - growing the type does not outgrow the column  
   A 40x30mm label is as tall as a 50x30mm one and a third narrower.
+- the words survive the code being made larger  
+  The code's share of a small label was settled by printing it, and the number that settled it is the point where the words are still whole.
+- the tape is not moved by what a taller label needed  
+  Every change made for the Niimbot stock has been one the 51x19mm tape cannot feel: on it the height runs out before any of these shares or proportions do.
 
 
 ## A label for a part of no type
@@ -2808,7 +2812,7 @@ Regenerate with:
 
 ## The agent on the other machine
 
-*test_the_agent_on_the_other_machine.py — 18 behaviours*
+*test_the_agent_on_the_other_machine.py — 26 behaviours*
 
 - it claims prints and reports in one pass  
   The whole of what it does, done once.
@@ -2827,12 +2831,28 @@ Regenerate with:
   So the answer to "why has nothing come out" is on the screen in the room the label was sent from, rather than in a log on a Pi under a bench.
 - a wrong key stops rather than retrying for ever  
   A key the register does not know will not start working.
+- the unit does not restart a wrongly set up agent  
+  The other half of it, and the half that actually stops the storm: the agent can exit as deliberately as it likes if systemd starts it straight back up.
+- being rate limited is reported rather than raised  
+  What a restart loop earns itself.
+- the right key is never rate limited  
+  Only a wrong secret is counted, so an agent whose key is put right works at once rather than serving out somebody else's five minutes.
 - an item deleted before it prints is let go  
   The register has already failed the job by the time it answers, so there is nothing for the agent to print and nothing for it to report.
 - a dry run prints nothing and leaves the label to look at  
   For proving the connection on a machine that has no printer attached yet, which is the state this was written in.
+- check says the key works and puts back what it took  
+  A claim is a state change, so a check that finds a job has taken somebody's label off the queue.
+- check shows enough of the key to compare but not the key  
+  The fault it was written for is a key that differs from the server's in a way neither machine can see.
+- check says when a key is too short to be one  
+  Rather than printing most of a short key while claiming to hide it.
+- check on a wrong key says what to look at  
+  Including the one that had cost the most: an edited unit file is not read until daemon-reload, so a key somebody has just fixed can sit unused.
+- check notices whitespace round a key  
+  A key pasted with a trailing space is a key that looks right in every place somebody would look at it.
 - it needs to be told where the register is  
-  Rather than defaulting to something and failing somewhere less obvious.
+  Rather than defaulting to something and failing somewhere less obvious -- and as the same "I am set up wrongly" exit the unit refuses to restart on, because an address nobody gave it will not arrive by trying again.
 - the label is not left lying about after it prints  
   A register behind a login does not leave its labels in /tmp on a machine other people use.
 - the service file matches the script it starts  
@@ -2857,7 +2877,7 @@ Regenerate with:
 
 ## The niimbot packets
 
-*test_the_niimbot_packets.py — 10 behaviours*
+*test_the_niimbot_packets.py — 15 behaviours*
 
 - the checksum rule matches what a real printer sends  
   Command, length and every byte of the data, exclusive-ored together.
@@ -2878,6 +2898,14 @@ Regenerate with:
   In a list of every radio in the room it is entirely possible to pick a pair of headphones, and "no suitable characteristic" is not a sentence about that.
 - a refused connection says what to do about it  
   A BLE printer talks to one thing at a time, and the thing holding it is almost always the vendor's own app.
+- a row of a few dots is a list of where they are  
+  Not an optimisation, and not optional.
+- the driver sends that packet for a row of a few dots
+- the driver uses the numbers the protocol uses  
+  `SINGLE_COLOUR = 1` cost a day of looking at labels.
+- a status reply is read for what it says not that it came  
+  page is two bytes, then how far through printing and feeding, then -- in the long form only -- the error.
+- the driver waits for the page rather than for an answer
 
 
 ## Type checking

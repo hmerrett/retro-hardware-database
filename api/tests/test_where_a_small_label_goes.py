@@ -143,7 +143,12 @@ def test_the_device_menu_is_hidden_until_the_script_fills_it(client):
     """A menu that is nothing but script says nothing useful before the script has
     run, and a menu that forgets what you tell it is worse than no menu."""
     page = client.get("/settings").text
-    assert '<fieldset class="settings-box" id="device-box" hidden>' in page
+    assert 'id="device-box" hidden>' in page
+    # And it is styled as the boxes above it are. Every settings rule was scoped to
+    # `form.edit`, and this box is a fieldset rather than a form -- so its control
+    # took none of them and sat in the middle of the page looking like a different
+    # website.
+    assert 'class="edit settings-box" id="device-box"' in page
 
 
 def test_nothing_about_the_destination_is_written_inline(client, part, agents):
