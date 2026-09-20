@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1550 behaviours, from 43 files.*
+*1552 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -2873,7 +2873,7 @@ Regenerate with:
 
 ## The niimbot packets
 
-*test_the_niimbot_packets.py — 10 behaviours*
+*test_the_niimbot_packets.py — 12 behaviours*
 
 - the checksum rule matches what a real printer sends  
   Command, length and every byte of the data, exclusive-ored together.
@@ -2894,6 +2894,9 @@ Regenerate with:
   In a list of every radio in the room it is entirely possible to pick a pair of headphones, and "no suitable characteristic" is not a sentence about that.
 - a refused connection says what to do about it  
   A BLE printer talks to one thing at a time, and the thing holding it is almost always the vendor's own app.
+- a row of a few dots is a list of where they are  
+  Not an optimisation, and not optional.
+- the driver sends that packet for a row of a few dots
 
 
 ## Type checking

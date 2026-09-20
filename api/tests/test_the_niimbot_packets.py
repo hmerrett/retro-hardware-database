@@ -46,6 +46,7 @@ COMMANDS = {
     "setPageSize": 0x13,
     "setDensity": 0x21,
     "setLabelType": 0x23,
+    "printBitmapRowIndexed": 0x83,
     "printEmptyRow": 0x84,
     "printBitmapRow": 0x85,
     "printStatus": 0xA3,
@@ -176,3 +177,48 @@ def test_a_refused_connection_says_what_to_do_about_it():
     anybody can act on; "close the NIIMBOT app" is."""
     source = DRIVER.read_text(encoding="utf-8")
     assert "close the NIIMBOT app" in source
+
+
+# One indexed row, as niimbluelib documents it beside the packet that builds them:
+# four black dots at 39, 40, 41 and 42 on row 126. The only worked example of this
+# packet there is, and the reason it is quoted rather than described.
+INDEXED_ROW = "55 55 83 0e 00 7e 00 04 00 01 00 27 00 28 00 29 00 2a fa aa aa"
+
+
+def test_a_row_of_a_few_dots_is_a_list_of_where_they_are():
+    """Not an optimisation, and not optional. The reference implementation sends any
+    row of six dots or fewer as this packet instead of as a bitmap, and the note
+    against it is "printer powers off if black pixel count > 6".
+
+    This was missing when the driver first met a real printer: the label came out
+    with a band at the top and nothing after it, which is what a printer that has
+    stopped part way down a page looks like.
+    """
+    raw = bytes_of(INDEXED_ROW)
+    assert raw[2] == 0x83
+    length = raw[3]
+    pos = (raw[4] << 8) | raw[5]
+    counts, repeats = raw[6:9], raw[9]
+    indexes = raw[10 : 4 + length]
+    assert pos == 126
+    assert repeats == 1
+    assert counts == [0x00, 0x04, 0x00]  # four dots, as a total rather than in thirds
+    # Two bytes an index, big endian, and they are pixel positions across the row.
+    assert [(indexes[i] << 8) | indexes[i + 1] for i in range(0, len(indexes), 2)] == [
+        39,
+        40,
+        41,
+        42,
+    ]
+
+
+def test_the_driver_sends_that_packet_for_a_row_of_a_few_dots():
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "const FEW = 6;" in source
+    assert "black <= FEW" in source
+    assert "TX.printBitmapRowIndexed" in source
+    # Counting from the most significant bit of each byte, the way the row was
+    # packed -- the one detail that would put every dot in the wrong place while
+    # looking entirely reasonable.
+    assert "1 << (7 - bitPos)" in source
+    assert "u16(bytePos * 8 + bitPos)" in source
