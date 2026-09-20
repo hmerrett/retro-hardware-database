@@ -48,6 +48,14 @@ BACKOFF_START, BACKOFF_MAX = 5.0, 120.0
 # Nothing here is worth waiting on for longer than this.
 TIMEOUT = 30
 
+# What this exits with when the fault is in how it was set up rather than in
+# anything that might pass. The unit file refuses to restart on it: a key the
+# register does not know will not start being one, and restarting on it turns a
+# typo into ten failed logins a minute until the register's rate limiter stops
+# answering -- which is this program denying itself service, and was exactly what
+# happened the first time it met a wrong key. sysexits.h calls this EX_CONFIG.
+EX_CONFIG = 78
+
 
 class Server:
     """The register, as this agent talks to it: four requests and a bearer key."""
@@ -76,7 +84,15 @@ class Server:
         if status == 204:
             return None
         if status == 401:
-            raise SystemExit("the register does not recognise this agent's key")
+            log.error(
+                "the register does not recognise this agent's key -- check "
+                "RHDB_PRINT_KEY against RHDB_PRINT_AGENTS on the server"
+            )
+            raise SystemExit(EX_CONFIG)
+        if status == 429:
+            # Its rate limiter, which counts wrong keys. Almost always the tail of
+            # an earlier run's mistake rather than anything this attempt did.
+            raise RuntimeError("the register is rate-limiting this address; it clears in 5 minutes")
         if status != 200:
             raise RuntimeError(f"claim answered {status}: {body[:200]!r}")
         got = json.loads(body)
@@ -171,6 +187,45 @@ def handle(
             out.unlink(missing_ok=True)
 
 
+def check(server: Server, args: argparse.Namespace) -> int:
+    """Say what this agent has been told and what the register makes of it.
+
+    Written after a key that was wrong in a way nothing on either machine would
+    say out loud: the register can only answer "not this key", and the agent only
+    knew the key it was handed, so the one thing nobody could see was the
+    difference between them. This prints enough of the key to compare against the
+    server without putting the whole of it in a terminal, and then tries it.
+    """
+    key = args.key or ""
+    ends = f"{key[:6]}…{key[-6:]}" if len(key) > 12 else "(too short to be one)"
+    log.info("register : %s", server.base)
+    log.info("agent    : %s", args.name or "(not named -- only affects this log)")
+    log.info("key      : %s  (%d characters)", ends, len(key))
+    log.info("printer  : %s", args.printer or "(the system default)")
+    log.info("media    : %s", args.media or "(the printer's own default)")
+    if key != key.strip():
+        log.error("the key has whitespace around it, which is almost certainly the fault")
+    try:
+        job = server.claim()
+    except SystemExit:
+        log.error("the register does not know that key. Compare the six characters at")
+        log.error("each end against RHDB_PRINT_AGENTS in the register's .env, and check")
+        log.error("`systemctl show print-agent -p Environment` -- an edited unit file is")
+        log.error("not read until `systemctl daemon-reload`, so a fixed key can sit unused.")
+        return EX_CONFIG
+    except Exception as exc:
+        log.error("could not ask: %s", exc)
+        return 1
+    if job is None:
+        log.info("the key works. Nothing is waiting for this agent.")
+        return 0
+    # A claim is a state change, so what it took has to go back: a check that
+    # quietly pockets somebody's label is not a check.
+    log.info("the key works. Job %s was waiting; putting it back.", job["id"])
+    server.done(int(job["id"]), False, "claimed by --check, not printed")
+    return 0
+
+
 def one_pass(server: Server, printer: str, dry_run: bool, media: str = "") -> int:
     """Everything waiting, printed. Returns how many jobs were taken."""
     done = 0
@@ -202,6 +257,9 @@ def main(argv: list[str] | None = None) -> int:
         "--name", default=os.getenv("RHDB_PRINT_AGENT", ""), help="this agent's name, for the log"
     )
     ap.add_argument("--once", action="store_true", help="print what is waiting, then stop")
+    ap.add_argument(
+        "--check", action="store_true", help="say what this is set up with, and try the key"
+    )
     ap.add_argument("--dry-run", action="store_true", help="write the label to a file instead")
     ap.add_argument("--poll", type=float, default=POLL_SECONDS, help="seconds between asking")
     args = ap.parse_args(argv)
@@ -210,12 +268,24 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s", stream=sys.stdout
     )
     if not args.api or not args.key:
-        ap.error("RHDB_API and RHDB_PRINT_KEY (or --api and --key) are both needed")
+        log.error("RHDB_API and RHDB_PRINT_KEY (or --api and --key) are both needed")
+        log.error("  RHDB_API is %s", args.api or "not set")
+        log.error("  RHDB_PRINT_KEY is %s", "set" if args.key else "not set")
+        return EX_CONFIG
 
     server = Server(args.api, args.key)
     who = args.name or "print agent"
+    if args.check:
+        return check(server, args)
     if args.once:
-        took = one_pass(server, args.printer, args.dry_run, args.media)
+        try:
+            took = one_pass(server, args.printer, args.dry_run, args.media)
+        except RuntimeError as exc:
+            # A single pass has nothing to back off to, so it says what happened
+            # and stops -- rather than ending in a traceback, which reads as a
+            # fault in this program rather than an answer from the register.
+            log.error("%s: %s", who, exc)
+            return 1
         log.info("%s: %d job%s", who, took, "" if took == 1 else "s")
         return 0
 

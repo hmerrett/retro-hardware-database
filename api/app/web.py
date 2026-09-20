@@ -209,6 +209,14 @@ def label_send() -> dict[str, object]:
         "destinations": [list(pair) for pair in settings.choices_for(destination)],
         "default": settings.value("label_destination"),
         "bluetoothMedia": settings.value("label_bluetooth_media"),
+        # Versioned like every other script on the site, and for the same reason:
+        # static files are served with an hour's cache, so a bare path is a file
+        # somebody goes on running for an hour after it was fixed. This one is
+        # loaded by `import()` from another script rather than by a tag in a
+        # template, which is how it came to be the only one without a version --
+        # and, for a printer driver being corrected against real hardware, the
+        # worst possible file to have to wait an hour for.
+        "driver": f"/static/niimbot.js?v={_file_ver(STATIC_DIR / 'niimbot.js')}",
     }
 
 

@@ -1519,6 +1519,17 @@ proportion of the height and a taller label gets larger type — bounded by the
 width, since a 40×30 mm label is as tall as a 50×30 and a third narrower, and type
 sized by the height alone put *PC1512* in a column that could not hold it.
 
+**What the code does not use, the words get.** A code is printed at a whole number
+of dots to the square, so a box sized to anything else leaves a fraction of a
+square per square unused — four millimetres of white, on a 50×30 mm label, around
+a code that looked as though it had been given room and not taken it. The words
+have that space now, and the code is as large as it can be with the words still
+whole.
+
+**The writing sits down the middle of the label**, not hung from the top. What is
+written is as tall as it is; where the label is taller than that, the difference
+is a margin and belongs at both ends.
+
 **On a taller label the code stops growing.** It is sized by the height on a
 51×19 mm tape, where the height is what there is least of. A 50×30 mm label is a
 different shape, and a code as tall as that one takes over half its width — which
@@ -1554,8 +1565,8 @@ actually have:
   multipurpose tape*, say. Pressing print puts the label on that printer's queue
   and the agent prints it within a few seconds.
 
-**A device may overrule the site.** At the foot of the same page, *This device*
-sets where **this browser** sends a label, and it is remembered here and nowhere
+**A browser may overrule the site.** At the foot of the same page, *This browser*
+sets where that browser sends a label, and it is remembered here and nowhere
 else — the phone by the shelf and the machine in the workshop answer differently,
 and neither needs to know about the other. It is the same shape as the theme
 button: the site says what a browser that has not chosen gets, and a browser that
@@ -1601,10 +1612,6 @@ a browser can talk to and which does not appear there at all. Seeing the printer
 iOS Settings therefore says nothing about whether this will work, and failing to
 pair it there is expected rather than a fault.
 
-**⋯ → Settings → Labels → test a printer** connects and reads out everything the
-browser can see on a printer — its name, its services, what each one can do — and
-prints nothing. It is the thing to press when the label button does nothing and
-there is no way to tell whose fault it is.
 
 ### Printing to a printer somewhere else
 
@@ -1971,7 +1978,7 @@ everybody who opens the site gets it. It comes in two groups:
 **Appearance** — the site's name, whether photographs are watermarked, and which
 theme it opens in.
 
-**Local server options** — how this installation behaves out on the web, which
+**Server options** — how this installation behaves out on the web, which
 for now is whether it asks to be kept out of search engines.
 
 Press **Save** and the page says so. There is no history on a setting — the
@@ -2214,6 +2221,14 @@ end. `lpoptions -p <printer> -l` lists the names your driver takes. Leave
 `RHDB_MEDIA` empty if you would rather set the default on the printer itself,
 which is the other right answer.
 
+**`--check` is the first thing to run**, and the thing to run again whenever it
+stops working. It says what the agent has been told — which register, which
+printer, which roll, and enough of the key to compare against the server without
+putting the whole of it on a screen — and then tries the key and says what came
+back. A key that is wrong is a fault neither machine can describe on its own: the
+register can only answer *not this key*, and the agent only knows the key it was
+handed.
+
 `lpstat -p` lists the printers CUPS knows. `--once` does a single pass and stops,
 which is what to run first: it prints whatever is waiting and tells you what
 happened, without leaving anything running. `--dry-run` goes through the whole
@@ -2229,7 +2244,15 @@ journalctl -u print-agent -f
 ```
 
 `tools/print-agent.service` is a working unit file with the environment in it;
-edit the three values at the top and nothing else. The agent holds no state, so
+edit the values at the top and nothing else.
+
+**An edited unit file is not read until `systemctl daemon-reload`.** Restarting
+alone serves the cached copy, so a key you have just corrected can sit unused
+while the journal goes on saying it is wrong. And if the service stops with
+`status=78`, it is saying it has been set up wrongly rather than that something
+went wrong — it will not restart on that, on purpose: a key the register does not
+know will not start being one, and retrying it every ten seconds only earns the
+address a rate limit. The agent holds no state, so
 restarting it is always safe and it recovers from a lost network by itself.
 
 ### import_report.py

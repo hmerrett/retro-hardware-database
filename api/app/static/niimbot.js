@@ -34,6 +34,7 @@ const TX = {
   setPageSize: 0x13,
   setDensity: 0x21,
   setLabelType: 0x23,
+  printBitmapRowIndexed: 0x83,
   printEmptyRow: 0x84,
   printBitmapRow: 0x85,
   printStatus: 0xa3,
@@ -93,36 +94,6 @@ function onApple() {
   return /iPhone|iPad|iPod/.test(navigator.userAgent);
 }
 
-/** What the browser can see, without printing anything.
- *
- * For the case this could not otherwise get out of: a chooser that lists nothing,
- * on hardware nobody debugging it can hold. It connects, reads out every service
- * and characteristic, and prints none of them -- so the answer to "is it even
- * there" stops being a guess made from two rooms away.
- */
-export async function probe() {
-  if (!navigator.bluetooth) throw new Error("this browser has no Web Bluetooth at all");
-  const device = await navigator.bluetooth.requestDevice(chooser(true));
-  const report = { name: device.name || "(unnamed)", id: device.id, services: [] };
-  const server = await device.gatt.connect();
-  try {
-    for (const service of await server.getPrimaryServices()) {
-      const found = { uuid: service.uuid, characteristics: [] };
-      for (const c of await service.getCharacteristics()) {
-        const can = Object.keys(c.properties).filter((k) => c.properties[k]);
-        found.characteristics.push({ uuid: c.uuid, can });
-      }
-      report.services.push(found);
-    }
-  } finally {
-    server.disconnect();
-  }
-  report.usable = report.services.some((s) =>
-    s.characteristics.some((c) => c.can.includes("notify") && c.can.includes("writeWithoutResponse"))
-  );
-  return report;
-}
-
 /* A NIIMBOT *serves* that service and does not necessarily *advertise* it, which
    are different things and the difference is the whole of why an earlier version
    of this found nothing: an advertisement has 31 bytes to fit everything in, so
@@ -144,11 +115,32 @@ const PRINTHEAD = 384;
    drop what it is sent while it is busy; the reference client waits too. */
 const GAP_MS = 10;
 
-const LABEL_WITH_GAPS = 1; /* die-cut labels on a backing strip, which is the roll */
-const SINGLE_COLOUR = 1;
-const DENSITY = 3; /* of 1..5 on a B1. Darker costs battery and bleeds thin strokes. */
+/* Both of these are numbers out of the protocol's own tables, and both were once
+   written here from the look of them rather than read off the table.
+   `SINGLE_COLOUR = 1` was wrong: 1 is DoubleColor, and a two-colour page takes a
+   different row format entirely -- so the printer accepted every packet, answered
+   every one, and made nonsense of rows it had been told were something else. The
+   printer accepted every packet and answered every one, because nothing had gone
+   wrong: it was answering a different question. */
+const LABEL_WITH_GAPS = 1; /* LabelType.WithGaps: die-cut labels on a backing strip */
+const SINGLE_COLOUR = 0; /* PageColorType.SingleColor */
+const DENSITY = 3; /* of 1..5 on a B1, and its own default. */
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
+
+/** A print-status reply, as the protocol lays one out: the page it is on, how far
+ * through printing and feeding it is, and the fault if there is one. */
+function readStatus(bytes) {
+  const length = bytes[3];
+  const data = bytes.slice(4, 4 + length);
+  return {
+    page: (data[0] << 8) | data[1],
+    printProgress: data[2],
+    feedProgress: data[3],
+    /* Only the long form carries one, and a printer with nothing wrong says 0. */
+    error: length === 10 ? data[6] : 0,
+  };
+}
 
 function u16(n) {
   return [(n >> 8) & 0xff, n & 0xff];
@@ -176,6 +168,26 @@ function packRow(pixels, width, y, bytesPerRow) {
     }
   }
   return { row, black };
+}
+
+/* A row with no more than this many black dots is not sent as a bitmap at all --
+   it is sent as a list of where they are. Not an optimisation: the reference
+   implementation's note against the indexed packet is "printer powers off if black
+   pixel count > 6", and a row of two dots sent the other way is what a rule with no
+   stated reason looks like from the outside. */
+const FEW = 6;
+
+/** Where the black dots are, as the indexed packet lists them: each position two
+ * bytes, big endian, counting from the most significant bit of each byte -- the
+ * same way `packRow` put them in. */
+function pixelIndexes(row) {
+  const out = [];
+  for (let bytePos = 0; bytePos < row.length; bytePos++) {
+    for (let bitPos = 0; bitPos < 8; bitPos++) {
+      if (row[bytePos] & (1 << (7 - bitPos))) out.push(...u16(bytePos * 8 + bitPos));
+    }
+  }
+  return out;
 }
 
 /** How many black pixels a row packet declares, in the shape the printer wants.
@@ -238,7 +250,15 @@ class Printer {
 
   async send(command, data, expect, timeoutMs = 5000) {
     await sleep(GAP_MS);
-    const wrote = this.channel.writeValueWithoutResponse(packet(command, data).buffer);
+    const bytes = packet(command, data);
+    let wrote;
+    try {
+      wrote = this.channel.writeValueWithoutResponse(bytes.buffer);
+    } catch (e) {
+      /* A packet larger than the negotiated MTU throws here rather than being
+         split, and a row of 384 dots is 61 bytes against a default MTU of 23. */
+      throw e;
+    }
     if (expect === undefined) return wrote;
     const heard = new Promise((resolve, reject) => {
       this.waiting = { expect, resolve, reject };
@@ -251,6 +271,33 @@ class Printer {
     });
     await wrote;
     return heard;
+  }
+
+  /** Wait until the printer says it has finished the page.
+   *
+   * Until it says *that*, and not until it answers at all. Asking whether it has
+   * finished and treating the first reply as yes is asking a question and acting
+   * on the fact that something was said -- and since `printEnd` stops a print, the
+   * answer to "have you finished" arriving as "no, 0%" was being followed by being
+   * told to stop. The printer started, stopped short of ejecting the label, and
+   * beeped, which is a fair summary of what it had been asked to do.
+   */
+  async waitForPage(pages, say) {
+    const until = Date.now() + 30000;
+    while (Date.now() < until) {
+      await sleep(300);
+      let answer;
+      try {
+        answer = await this.send(TX.printStatus, [1], RX.printStatus, 2000);
+      } catch (e) {
+        continue; /* busy printing; ask again */
+      }
+      const status = readStatus(answer);
+      if (status.error) throw new Error(`the printer reported error ${status.error}`);
+      say(`printing… ${status.printProgress}%`);
+      if (status.page >= pages) return;
+    }
+    throw new Error("the printer never said it had finished the page");
   }
 
   /** The B1 family's sequence. The order is the printer's, not ours. */
@@ -271,6 +318,16 @@ class Printer {
         /* A blank row is said rather than sent: it is three bytes instead of fifty,
            and a label is mostly blank. */
         await this.send(TX.printEmptyRow, [...u16(y), 1]);
+      } else if (black <= FEW) {
+        /* A handful of dots goes as a list of where they are. This is the packet
+           that was missing when the first real label came out as two bands at the
+           edges of the paper: a rule, in the printer, that this did not know about. */
+        await this.send(TX.printBitmapRowIndexed, [
+          ...u16(y),
+          ...rowCounts(row, black),
+          1,
+          ...pixelIndexes(row),
+        ]);
       } else {
         await this.send(TX.printBitmapRow, [...u16(y), ...rowCounts(row, black), 1, ...row]);
       }
@@ -278,19 +335,7 @@ class Printer {
     }
 
     await this.send(TX.pageEnd, [], RX.pageEnd, 10000);
-    say("waiting for the paper…");
-    /* Asked until it stops answering "not yet". The printer moves the label past
-       the head after the page ends, and cutting the connection before then leaves
-       it half out. */
-    for (let tries = 0; tries < 40; tries++) {
-      await sleep(300);
-      try {
-        await this.send(TX.printStatus, [1], RX.printStatus, 2000);
-        break;
-      } catch (e) {
-        /* Still busy. */
-      }
-    }
+    await this.waitForPage(1, say);
     await this.send(TX.printEnd, [], RX.printEnd, 10000);
   }
 }

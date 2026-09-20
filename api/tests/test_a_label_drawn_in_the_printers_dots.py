@@ -286,3 +286,34 @@ def test_growing_the_type_does_not_outgrow_the_column(media):
     page, dots = both_surfaces(media, PROJECT, labels.PROJECT)
     assert not [line for line in page if "…" in line], page
     assert not [line for line in dots if "…" in line], dots
+
+
+def test_the_words_survive_the_code_being_made_larger():
+    """The code's share of a small label was settled by printing it, and the number
+    that settled it is the point where the words are still whole. A part number cut
+    to "DK23DA-…" is one nobody can look up, which is most of what the words on a
+    drive's label are for."""
+    drive = {
+        "asset_id": "RH-QF9B",
+        "manufacturer": "Hitachi",
+        "model": "DK23DA-20F",
+        "type": "storage",
+        "specs": "Capacity: 20 GiB",
+        "variant": "",
+    }
+    _, dots = both_surfaces("niimbot-50x30", drive, labels.PART)
+    assert not [line for line in dots if "…" in line], dots
+    assert "DK23DA-20F" in " ".join(dots)
+    assert "20 GiB" in " ".join(dots)
+
+
+def test_the_tape_is_not_moved_by_what_a_taller_label_needed():
+    """Every change made for the Niimbot stock has been one the 51x19mm tape cannot
+    feel: on it the height runs out before any of these shares or proportions do.
+    A label already stuck to a machine keeps matching the one printed next to it."""
+    tape = labels.MEDIA[labels.SMALL]
+    W, H = labels.layout_size(tape)
+    column = labels.small_text_column(W, H, tape["safe_mm"])
+    # The code is bound by the height, not by its share of the width.
+    assert column.qr == H - 2 * labels.SMALL_MARGIN
+    assert column.qr < W * labels.QR_SHARE

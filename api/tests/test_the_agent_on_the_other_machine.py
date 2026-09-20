@@ -8,6 +8,7 @@ rather than trusted: a real HTTP connection to the real routes, and a real
 What is faked is the printer, and only the printer.
 """
 
+import contextlib
 import importlib.util
 import os
 import stat
@@ -204,9 +205,59 @@ def test_a_wrong_key_stops_rather_than_retrying_for_ever(agent, served, queue, f
     """A key the register does not know will not start working. Backing off and
     asking again for ever would hide the one fault a person has to fix."""
     queue()
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as stopped:
         agent.main(["--api", served, "--key", "not-a-key", "--once"])
     assert not fake_lp.exists()
+    # And says so in a code the unit file can act on. Exiting 1 had systemd restart
+    # it every ten seconds, which turned one typo into ten failed logins a minute
+    # until the register's rate limiter stopped answering -- the service denying
+    # itself service, which is what happened the first time this met a wrong key.
+    assert stopped.value.code == agent.EX_CONFIG
+
+
+def test_the_unit_does_not_restart_a_wrongly_set_up_agent(agent):
+    """The other half of it, and the half that actually stops the storm: the agent
+    can exit as deliberately as it likes if systemd starts it straight back up."""
+    unit = (TOOLS / "print-agent.service").read_text()
+    assert f"RestartPreventExitStatus={agent.EX_CONFIG}" in unit
+    # Everything else still restarts: a lost network, a printer unplugged, a
+    # register being redeployed are all things that come back on their own.
+    assert "Restart=always" in unit
+
+
+def test_being_rate_limited_is_reported_rather_than_raised(agent, served, queue, fake_lp, caplog):
+    """What a restart loop earns itself. A traceback out of a single pass reads as a
+    fault in this program rather than as an answer from the register."""
+    import logging
+
+    from app import main
+
+    queue()
+    # Spend the limiter, the way ten restarts in ninety seconds did.
+    for _ in range(11):
+        with contextlib.suppress(SystemExit):
+            agent.main(["--api", served, "--key", "not-a-key", "--once"])
+    with caplog.at_level(logging.ERROR):
+        code = agent.main(["--api", served, "--key", "not-a-key", "--once"])
+    assert code == 1
+    assert "rate-limiting" in caplog.text
+    main.auth._login_limiter._hits.clear()
+
+
+def test_the_right_key_is_never_rate_limited(agent, served, queue, fake_lp, caplog):
+    """Only a wrong secret is counted, so an agent whose key is put right works at
+    once rather than serving out somebody else's five minutes. Worth a test because
+    the opposite is the obvious reading, and it is the reading that would have had
+    somebody sitting waiting for nothing."""
+    from app import main
+
+    for _ in range(11):
+        with contextlib.suppress(SystemExit):
+            agent.main(["--api", served, "--key", "not-a-key", "--once"])
+    queue()
+    assert agent.main(["--api", served, "--key", "key-one", "--once"]) == 0
+    assert fake_lp.exists()
+    main.auth._login_limiter._hits.clear()
 
 
 def test_an_item_deleted_before_it_prints_is_let_go(agent, served, queue, fake_lp, client):
@@ -233,10 +284,73 @@ def test_a_dry_run_prints_nothing_and_leaves_the_label_to_look_at(
     assert len(written) == 1 and written[0].read_bytes().startswith(b"%PDF")
 
 
-def test_it_needs_to_be_told_where_the_register_is(agent, capsys):
-    """Rather than defaulting to something and failing somewhere less obvious."""
-    with pytest.raises(SystemExit):
-        agent.main(["--key", "key-one", "--once"])
+def test_check_says_the_key_works_and_puts_back_what_it_took(agent, served, queue, client, caplog):
+    """A claim is a state change, so a check that finds a job has taken somebody's
+    label off the queue. It says so and hands it back -- a check that quietly
+    pockets a label is not a check."""
+    import logging
+
+    queue()
+    with caplog.at_level(logging.INFO):
+        assert agent.main(["--api", served, "--key", "key-one", "--name", "bench", "--check"]) == 0
+    assert "the key works" in caplog.text
+    assert "putting it back" in caplog.text
+    listed = client.get("/api/print/jobs").json()
+    assert listed[0]["state"] == "failed"
+    assert "not printed" in listed[0]["error"]
+
+
+def test_check_shows_enough_of_the_key_to_compare_but_not_the_key(agent, served, caplog):
+    """The fault it was written for is a key that differs from the server's in a way
+    neither machine can see. Six characters at each end is enough to compare against
+    the register, and not enough to be a key -- these are 64 characters of hex, and
+    a terminal somebody screenshots should not have the whole of one in it."""
+    import logging
+
+    real = "63bbb8" + "a" * 52 + "451c0d"
+    assert len(real) == 64
+    with caplog.at_level(logging.INFO):
+        agent.main(["--api", served, "--key", real, "--check"])
+    assert "63bbb8…451c0d" in caplog.text
+    assert "(64 characters)" in caplog.text
+    assert real not in caplog.text
+
+
+def test_check_says_when_a_key_is_too_short_to_be_one(agent, served, caplog):
+    """Rather than printing most of a short key while claiming to hide it."""
+    import logging
+
+    with caplog.at_level(logging.INFO):
+        agent.main(["--api", served, "--key", "key-one", "--check"])
+    assert "too short to be one" in caplog.text
+    assert "key-one" not in caplog.text
+
+
+def test_check_on_a_wrong_key_says_what_to_look_at(agent, served, caplog):
+    """Including the one that had cost the most: an edited unit file is not read
+    until daemon-reload, so a key somebody has just fixed can sit unused."""
+    import logging
+
+    with caplog.at_level(logging.ERROR):
+        assert agent.main(["--api", served, "--key", "not-a-key", "--check"]) == agent.EX_CONFIG
+    assert "daemon-reload" in caplog.text
+
+
+def test_check_notices_whitespace_round_a_key(agent, served, caplog):
+    """A key pasted with a trailing space is a key that looks right in every place
+    somebody would look at it."""
+    import logging
+
+    with caplog.at_level(logging.ERROR):
+        agent.main(["--api", served, "--key", "key-one ", "--check"])
+    assert "whitespace" in caplog.text
+
+
+def test_it_needs_to_be_told_where_the_register_is(agent):
+    """Rather than defaulting to something and failing somewhere less obvious --
+    and as the same "I am set up wrongly" exit the unit refuses to restart on,
+    because an address nobody gave it will not arrive by trying again."""
+    assert agent.main(["--key", "key-one", "--once"]) == agent.EX_CONFIG
 
 
 def test_the_label_is_not_left_lying_about_after_it_prints(

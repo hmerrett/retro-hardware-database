@@ -46,6 +46,13 @@
     }
   }
 
+  /* The driver's URL, with the version the register gave us. Falling back to the
+     bare path if an older page is still open somewhere: a stale driver is better
+     than none. */
+  function driver() {
+    return data.driver || "/static/niimbot.js";
+  }
+
   function destination() {
     var chosen = remembered();
     var known = data.destinations || [];
@@ -129,7 +136,7 @@
         return r.blob();
       })
       .then(function (blob) {
-        return import("/static/niimbot.js").then(function (driver) {
+        return import(driver()).then(function (driver) {
           say("connecting…");
           return driver.print(blob, media, say, showEverything);
         });
@@ -170,35 +177,6 @@
         button.setAttribute("aria-label", "Small label to " + data.destinations[i][1]);
       }
     }
-  }
-
-  /* --- finding out what the browser can see ------------------------------- */
-
-  var test = document.getElementById("bt-test");
-  var report = document.getElementById("bt-report");
-  if (test && report) {
-    test.addEventListener("click", function () {
-      report.hidden = false;
-      report.textContent = "choose the printer…";
-      import("/static/niimbot.js")
-        .then(function (driver) {
-          return driver.probe();
-        })
-        .then(function (found) {
-          report.textContent =
-            (found.usable ? "This looks printable.\n\n" : "Nothing on this can be printed to.\n\n") +
-            JSON.stringify(found, null, 2);
-        })
-        .catch(function (err) {
-          report.textContent =
-            "Nothing came back: " +
-            String((err && err.message) || err) +
-            "\n\n" +
-            "An empty chooser means the printer is not advertising: the NIIMBOT app may\n" +
-            "still be holding it (close it, do not just background it), it may be asleep,\n" +
-            "or this browser may not have permission to use Bluetooth.";
-        });
-    });
   }
 
   /* --- the menu on the settings page -------------------------------------- */
