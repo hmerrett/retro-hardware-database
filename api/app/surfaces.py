@@ -69,6 +69,8 @@ class Surface(Protocol):
 
     def qr(self, x: float, y: float, size: float, data: str, error: str = "M") -> None: ...
 
+    def qr_size(self, size: float, data: str, error: str = "M") -> float: ...
+
     def frame(self, x: float, y: float, w: float, h: float, radius: float) -> None: ...
 
 
@@ -141,6 +143,10 @@ class PdfSurface:
         self._c.rotate(-90)
         self.text_centred(0, 0, text, font, size)
         self._c.restoreState()
+
+    def qr_size(self, size: float, data: str, error: str = "M") -> float:
+        """All of it. A PDF scales a code to whatever box it is given."""
+        return size
 
     def qr(self, x: float, y: float, size: float, data: str, error: str = "M") -> None:
         buf = io.BytesIO()
@@ -227,6 +233,19 @@ class RasterSurface:
         x = (x0 + x1) / 2 * self._scale - turned.width / 2
         cy = self._image.height - y * self._scale - turned.height / 2
         self._image.paste(turned, (round(x), round(cy)))
+
+    def qr_size(self, size: float, data: str, error: str = "M") -> float:
+        """How much of that box the code will actually fill.
+
+        Less than all of it, and by up to a whole square's worth per square: the
+        code is drawn at a whole number of dots to the square, so what is left over
+        is left over. Answering this lets the caller hand the slack to something
+        else rather than print it as a margin -- which on a 50x30mm label was four
+        millimetres of white around a code somebody wanted bigger.
+        """
+        space = round(size * self._scale)
+        across = int(code(data, error).symbol_size(scale=1, border=1)[0])
+        return whole_dots(space, data, error) * across / self._scale
 
     def qr(self, x: float, y: float, size: float, data: str, error: str = "M") -> None:
         """The code at a whole number of dots to the square, centred on what it was
