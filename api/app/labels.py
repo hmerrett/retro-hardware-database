@@ -77,6 +77,11 @@ class Media(TypedDict):
     """
 
     what: str
+    # The same stock in as few words as will do, for a menu of printers: a list of
+    # them is read to find one, and "dellski 51×19 mm" is what finding one needs.
+    # `what` is the sentence, for the one place that is describing a stock rather
+    # than naming it.
+    short: str
     w_mm: float
     h_mm: float
     qr: str
@@ -97,6 +102,7 @@ class Media(TypedDict):
 MEDIA: dict[str, Media] = {
     "full-6x4": {
         "what": "6×4 inch sheet",
+        "short": "6×4 inch",
         "w_mm": 152.4,
         "h_mm": 101.6,
         "qr": "M",
@@ -107,6 +113,7 @@ MEDIA: dict[str, Media] = {
     },
     "dymo-11355": {
         "what": "51×19 mm multipurpose tape (DYMO LabelWriter)",
+        "short": "51×19 mm",
         "w_mm": 51,
         "h_mm": 19,
         "qr": "M",
@@ -117,6 +124,7 @@ MEDIA: dict[str, Media] = {
     },
     "niimbot-50x30": {
         "what": "50×30 mm label (Niimbot B1, B21, B18)",
+        "short": "50×30 mm",
         "w_mm": 50,
         "h_mm": 30,
         "qr": "M",
@@ -127,6 +135,7 @@ MEDIA: dict[str, Media] = {
     },
     "niimbot-40x30": {
         "what": "40×30 mm label (Niimbot B1, B21, B18)",
+        "short": "40×30 mm",
         "w_mm": 40,
         "h_mm": 30,
         "qr": "M",
