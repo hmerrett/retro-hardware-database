@@ -240,14 +240,27 @@ class Printer {
   constructor(characteristic) {
     this.channel = characteristic;
     this.waiting = null;
+    /* Every packet out and every packet in, in order. The printer is otherwise a
+       box that takes bytes and produces paper, and when the paper is wrong there
+       is nothing to look at -- which is how two wrong diagnoses were made from a
+       photograph before this existed. */
+    this.trace = [];
+    this.counts = { empty: 0, indexed: 0, bitmap: 0 };
     characteristic.addEventListener("characteristicvaluechanged", (event) => {
       this.heard(new Uint8Array(event.target.value.buffer));
     });
   }
 
+  note(line) {
+    /* The rows are thousands of near-identical lines; the first two of each kind
+       say everything the thousandth would. */
+    if (this.trace.length < 400) this.trace.push(line);
+  }
+
   /** A notification. Only the command byte matters here: this asks the printer to
       do things and waits to be told it did, and never reads an answer back. */
   heard(bytes) {
+    this.note(`  <- ${[...bytes].map((b) => b.toString(16).padStart(2, "0")).join(" ")}`);
     if (bytes.length < 7 || bytes[0] !== 0x55 || bytes[1] !== 0x55) return;
     const command = bytes[2];
     if (this.waiting && this.waiting.expect === command) {
@@ -259,7 +272,17 @@ class Printer {
 
   async send(command, data, expect, timeoutMs = 5000) {
     await sleep(GAP_MS);
-    const wrote = this.channel.writeValueWithoutResponse(packet(command, data).buffer);
+    const bytes = packet(command, data);
+    this.note(`-> 0x${command.toString(16)} len ${(data || []).length} (packet ${bytes.length})`);
+    let wrote;
+    try {
+      wrote = this.channel.writeValueWithoutResponse(bytes.buffer);
+    } catch (e) {
+      /* A packet larger than the negotiated MTU throws here rather than being
+         split, and a row of 384 dots is 61 bytes against a default MTU of 23. */
+      this.note(`   !! the write itself was refused: ${e.message || e}`);
+      throw e;
+    }
     if (expect === undefined) return wrote;
     const heard = new Promise((resolve, reject) => {
       this.waiting = { expect, resolve, reject };
@@ -291,8 +314,10 @@ class Printer {
       if (black === 0) {
         /* A blank row is said rather than sent: it is three bytes instead of fifty,
            and a label is mostly blank. */
+        this.counts.empty++;
         await this.send(TX.printEmptyRow, [...u16(y), 1]);
       } else if (black <= FEW) {
+        this.counts.indexed++;
         /* A handful of dots goes as a list of where they are. This is the packet
            that was missing when the first real label came out as two bands at the
            edges of the paper: a rule, in the printer, that this did not know about. */
@@ -303,11 +328,16 @@ class Printer {
           ...pixelIndexes(row),
         ]);
       } else {
+        this.counts.bitmap++;
         await this.send(TX.printBitmapRow, [...u16(y), ...rowCounts(row, black), 1, ...row]);
       }
       if (y % 24 === 0) say(`printing… ${Math.round((y / page.rows.length) * 100)}%`);
     }
 
+    this.note(
+      `rows: ${this.counts.bitmap} bitmap, ${this.counts.indexed} indexed, ` +
+        `${this.counts.empty} empty, ${page.rows.length} in the image`
+    );
     await this.send(TX.pageEnd, [], RX.pageEnd, 10000);
     say("waiting for the paper…");
     /* Asked until it stops answering "not yet". The printer moves the label past
@@ -368,6 +398,19 @@ export async function printPattern(mediaWidth, mediaHeight, say) {
   return print(blob, "", say);
 }
 
+/** The same, and hand back everything that was said on the wire. */
+export async function tracePattern(mediaWidth, mediaHeight, say) {
+  const canvas = pattern(mediaWidth, mediaHeight);
+  const blob = await new Promise((done) => canvas.toBlob(done, "image/png"));
+  const lines = [`image: ${canvas.width} x ${canvas.height}`];
+  try {
+    const trace = await print(blob, "", say);
+    return lines.concat(trace || []);
+  } catch (e) {
+    return lines.concat([`FAILED: ${e.message || e}`], e.trace || []);
+  }
+}
+
 /* --- what the button calls ------------------------------------------------ */
 
 /**
@@ -417,9 +460,14 @@ export async function print(blob, media, say, showEverything) {
     throw new Error(`${device.name || "that device"} is not a NIIMBOT — nothing on it to print with`);
   }
   await channel.startNotifications();
+  const printer = new Printer(channel);
   try {
-    await new Printer(channel).print(page, say);
+    await printer.print(page, say);
     say(`printed on ${device.name || "the printer"}`);
+    return printer.trace;
+  } catch (e) {
+    e.trace = printer.trace;
+    throw e;
   } finally {
     /* Always, including after a failure: a printer left connected will not pair
        with anything else, and the next attempt would fail for a reason that has

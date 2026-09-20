@@ -225,18 +225,19 @@
           return r.json();
         })
         .then(function (stock) {
-          return import(driver()).then(function (driver) {
-            return driver.printPattern(stock.dots, stock.rows, say);
+          return import(driver()).then(function (mod) {
+            return mod.tracePattern(stock.dots, stock.rows, say);
           });
         })
-        .then(function () {
+        .then(function (trace) {
           report.textContent =
-            "Printed. What should come out, if everything is right:\n" +
+            "What should come out, if everything is right:\n" +
             "  - a solid square in the TOP LEFT\n" +
             "  - a thin line down the LEFT edge\n" +
             "  - a thick bar along the TOP edge\n" +
             "  - five evenly spaced rungs down the RIGHT edge\n\n" +
-            "Photograph it. Where those land says what the printer did to the image.";
+            "And everything that was said on the wire:\n\n" +
+            (trace || []).join("\n");
         })
         .catch(function (err) {
           report.textContent = "Nothing came back: " + String((err && err.message) || err);
