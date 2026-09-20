@@ -145,9 +145,16 @@ const PRINTHEAD = 384;
    drop what it is sent while it is busy; the reference client waits too. */
 const GAP_MS = 10;
 
-const LABEL_WITH_GAPS = 1; /* die-cut labels on a backing strip, which is the roll */
-const SINGLE_COLOUR = 1;
-const DENSITY = 3; /* of 1..5 on a B1. Darker costs battery and bleeds thin strokes. */
+/* Both of these are numbers out of the protocol's own tables, and both were once
+   written here from the look of them rather than read off the table.
+   `SINGLE_COLOUR = 1` was wrong: 1 is DoubleColor, and a two-colour page takes a
+   different row format entirely -- so the printer accepted every packet, answered
+   every one, and made nonsense of rows it had been told were something else. The
+   trace was clean because nothing had gone wrong; it was answering a different
+   question. */
+const LABEL_WITH_GAPS = 1; /* LabelType.WithGaps: die-cut labels on a backing strip */
+const SINGLE_COLOUR = 0; /* PageColorType.SingleColor */
+const DENSITY = 3; /* of 1..5 on a B1, and its own default. */
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
