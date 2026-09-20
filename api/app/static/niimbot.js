@@ -158,6 +158,20 @@ const DENSITY = 3; /* of 1..5 on a B1, and its own default. */
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
+/** A print-status reply, as the protocol lays one out: the page it is on, how far
+ * through printing and feeding it is, and the fault if there is one. */
+function readStatus(bytes) {
+  const length = bytes[3];
+  const data = bytes.slice(4, 4 + length);
+  return {
+    page: (data[0] << 8) | data[1],
+    printProgress: data[2],
+    feedProgress: data[3],
+    /* Only the long form carries one, and a printer with nothing wrong says 0. */
+    error: length === 10 ? data[6] : 0,
+  };
+}
+
 function u16(n) {
   return [(n >> 8) & 0xff, n & 0xff];
 }
@@ -304,6 +318,37 @@ class Printer {
     return heard;
   }
 
+  /** Wait until the printer says it has finished the page.
+   *
+   * Until it says *that*, and not until it answers at all. Asking whether it has
+   * finished and treating the first reply as yes is asking a question and acting
+   * on the fact that something was said -- and since `printEnd` stops a print, the
+   * answer to "have you finished" arriving as "no, 0%" was being followed by being
+   * told to stop. The printer started, stopped short of ejecting the label, and
+   * beeped, which is a fair summary of what it had been asked to do.
+   */
+  async waitForPage(pages, say) {
+    const until = Date.now() + 30000;
+    while (Date.now() < until) {
+      await sleep(300);
+      let answer;
+      try {
+        answer = await this.send(TX.printStatus, [1], RX.printStatus, 2000);
+      } catch (e) {
+        continue; /* busy printing; ask again */
+      }
+      const status = readStatus(answer);
+      this.note(
+        `   status: page ${status.page}/${pages}, printed ${status.printProgress}%, ` +
+          `fed ${status.feedProgress}%, error ${status.error}`
+      );
+      if (status.error) throw new Error(`the printer reported error ${status.error}`);
+      say(`printing… ${status.printProgress}%`);
+      if (status.page >= pages) return;
+    }
+    throw new Error("the printer never said it had finished the page");
+  }
+
   /** The B1 family's sequence. The order is the printer's, not ours. */
   async print(page, say) {
     await this.send(TX.setDensity, [DENSITY], RX.setDensity);
@@ -346,19 +391,7 @@ class Printer {
         `${this.counts.empty} empty, ${page.rows.length} in the image`
     );
     await this.send(TX.pageEnd, [], RX.pageEnd, 10000);
-    say("waiting for the paper…");
-    /* Asked until it stops answering "not yet". The printer moves the label past
-       the head after the page ends, and cutting the connection before then leaves
-       it half out. */
-    for (let tries = 0; tries < 40; tries++) {
-      await sleep(300);
-      try {
-        await this.send(TX.printStatus, [1], RX.printStatus, 2000);
-        break;
-      } catch (e) {
-        /* Still busy. */
-      }
-    }
+    await this.waitForPage(1, say);
     await this.send(TX.printEnd, [], RX.printEnd, 10000);
   }
 }
