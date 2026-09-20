@@ -249,3 +249,36 @@ def test_the_driver_uses_the_numbers_the_protocol_uses():
         found = re.search(rf"^const {name} = (\d+);", source, re.M)
         assert found, f"{name} is not declared where this can check it"
         assert int(found.group(1)) == value, f"{name} should be {value}"
+
+
+# A print-status reply from the B1, mid-page: page 0, nothing printed, no error.
+# The one that was being read as "finished".
+STATUS_MIDWAY = "55 55 b3 0a 00 00 00 00 02 2f 00 01 00 00 95 aa aa"
+
+
+def test_a_status_reply_is_read_for_what_it_says_not_that_it_came():
+    """page is two bytes, then how far through printing and feeding, then -- in the
+    long form only -- the error. This reply says page 0, nothing printed, nothing
+    wrong: the printer had barely started.
+
+    It was being treated as "finished" because it arrived at all, and `printEnd`
+    stops a print -- so the answer to "have you finished" arriving as "no" was
+    followed by being told to stop. The printer started, stopped short of ejecting
+    the label, and beeped.
+    """
+    raw = bytes_of(STATUS_MIDWAY)
+    length = raw[3]
+    data = raw[4 : 4 + length]
+    page = (data[0] << 8) | data[1]
+    assert (page, data[2], data[3]) == (0, 0, 0)
+    assert length == 10
+    assert data[6] == 0  # no error: it was not a fault, it was not finished
+
+
+def test_the_driver_waits_for_the_page_rather_than_for_an_answer():
+    source = DRIVER.read_text(encoding="utf-8")
+    assert "status.page >= pages" in source
+    assert "if (status.error) throw" in source
+    # And only the long form carries an error, so the short one must not be read
+    # as though byte six meant something.
+    assert "length === 10 ? data[6] : 0" in source
