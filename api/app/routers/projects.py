@@ -559,6 +559,32 @@ async def gui_update_project(aid: str, request: Request, db: Session = Depends(g
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
+@router.post("/projects/{aid}/complete", include_in_schema=False)
+def gui_complete_project(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
+    """The button that ends a project, with nothing in front of it.
+
+    Finishing is one fact, and saying it through the edit form meant opening a
+    page, changing a menu, typing today into a date box and saving -- four
+    gestures for one statement, which is how a register comes to be full of
+    projects that are over and do not say so.
+
+    A finish date already written down is kept. It says when the work actually
+    stopped, and a click that may come a fortnight later is in no position to
+    correct it; none of a project's three dates is worked out from another (see
+    the Project model) and this does not start. Today is written only into a blank.
+
+    A sentence rather than a field diff, as the tick on an order leaves: what
+    happened is that the project was finished, and a reader of the history wants
+    that rather than the two columns it moved."""
+    p = get_or_404(db, Project, aid)
+    p.status = "done"
+    if p.finished_at is None:
+        p.finished_at = date.today()
+    add_log(db, p.asset_id, "finished")
+    db.commit()
+    return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
+
+
 @router.get("/projects/{aid}/label.png", include_in_schema=False)
 def gui_project_label_png(
     aid: str, media: str = "", dpi: int = 0, db: Session = Depends(get_db)

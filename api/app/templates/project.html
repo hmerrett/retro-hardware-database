@@ -13,6 +13,16 @@
   <span class="grow"></span>
   {% if request.state.authed %}
   <span class="hdr-actions">
+    {# The whole of finishing a project, in one click: the status, and today as the
+       finish date where none is written down yet. Drawn only while there is
+       something left to finish -- a project already done or abandoned is reopened
+       on the edit form, which is also where a finish date that is not today goes. #}
+    {% if p.status not in closed_states %}
+    <form class="inline-form" method="post" action="/projects/{{ p.asset_id }}/complete">
+      <button class="btn sm" type="submit"
+              title="Sets the status to done, and records today as the finish date unless one is already recorded.">mark done</button>
+    </form>
+    {% endif %}
     <a class="iconbtn" href="/projects/{{ p.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
     {# The same two the machines and the parts carry, in the same place and the same
        order. What a project's label is for is different, though: a machine's goes on
