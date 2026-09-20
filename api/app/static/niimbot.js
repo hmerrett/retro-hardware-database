@@ -34,6 +34,7 @@ const TX = {
   setPageSize: 0x13,
   setDensity: 0x21,
   setLabelType: 0x23,
+  printBitmapRowIndexed: 0x83,
   printEmptyRow: 0x84,
   printBitmapRow: 0x85,
   printStatus: 0xa3,
@@ -178,6 +179,26 @@ function packRow(pixels, width, y, bytesPerRow) {
   return { row, black };
 }
 
+/* A row with no more than this many black dots is not sent as a bitmap at all --
+   it is sent as a list of where they are. Not an optimisation: the reference
+   implementation's note against the indexed packet is "printer powers off if black
+   pixel count > 6", and a row of two dots sent the other way is what a rule with no
+   stated reason looks like from the outside. */
+const FEW = 6;
+
+/** Where the black dots are, as the indexed packet lists them: each position two
+ * bytes, big endian, counting from the most significant bit of each byte -- the
+ * same way `packRow` put them in. */
+function pixelIndexes(row) {
+  const out = [];
+  for (let bytePos = 0; bytePos < row.length; bytePos++) {
+    for (let bitPos = 0; bitPos < 8; bitPos++) {
+      if (row[bytePos] & (1 << (7 - bitPos))) out.push(...u16(bytePos * 8 + bitPos));
+    }
+  }
+  return out;
+}
+
 /** How many black pixels a row packet declares, in the shape the printer wants.
  *
  * Three counts, one per third of the head, when the row fits in three chunks --
@@ -271,6 +292,16 @@ class Printer {
         /* A blank row is said rather than sent: it is three bytes instead of fifty,
            and a label is mostly blank. */
         await this.send(TX.printEmptyRow, [...u16(y), 1]);
+      } else if (black <= FEW) {
+        /* A handful of dots goes as a list of where they are. This is the packet
+           that was missing when the first real label came out as two bands at the
+           edges of the paper: a rule, in the printer, that this did not know about. */
+        await this.send(TX.printBitmapRowIndexed, [
+          ...u16(y),
+          ...rowCounts(row, black),
+          1,
+          ...pixelIndexes(row),
+        ]);
       } else {
         await this.send(TX.printBitmapRow, [...u16(y), ...rowCounts(row, black), 1, ...row]);
       }
