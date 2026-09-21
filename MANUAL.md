@@ -2358,9 +2358,9 @@ test run also proves the migrations reach head and match what the models say
 
 ### Backups
 
-`tools/backup.sh` writes a timestamped database dump and photo archive into
-`./backups`. Restore instructions are in the script's header comment, and the
-whole subject is covered in [INSTALL.md](INSTALL.md#7-back-it-up).
+`tools/backup.sh` writes timestamped archives of the database, the photographs
+and the files into `./backups`. Restore instructions are in the script's header
+comment, and the whole subject is covered in [INSTALL.md](INSTALL.md#7-back-it-up).
 
 ### Tests
 

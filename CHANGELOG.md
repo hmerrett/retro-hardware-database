@@ -13,6 +13,15 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**The off-site backup now includes the uploaded files.** `backup/pull-backup.sh`
+collected the database and the photographs but not the files volume, so the
+drivers, manuals and receipts kept beside the register had no copy anywhere but
+the server itself. It now rsyncs that volume the way it already did the photos,
+`check` proves it is reachable, and a restore hands back `stage/files/` alongside
+the rest. An installation running the puller picks this up by rebuilding it on
+the machine that holds the backup: `cd backup && docker compose build && docker
+compose up -d`.
+
 **Labels can be printed on a printer that is not attached to the machine you are
 holding.** Two things arrive together. A label is now also a picture of itself at
 `label.png`, drawn at the size and resolution of a particular printer rather than

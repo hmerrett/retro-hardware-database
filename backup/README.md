@@ -14,12 +14,13 @@ temporary dump to its own disk, so it cannot fill up.
 |---|---|---|
 | the database | `mariadb-dump` inside the db container, streamed to stdout over SSH | ~170 KB, uncompressed so restic can deduplicate it night to night |
 | the photos | `rsync` from the docker volume, minus `.wm` | ~195 MB that barely changes, so only new files cross the wire. `.wm` is the watermark cache, regenerated on demand and a third of the volume; the `.ref` sidecars are kept, being recorded state |
+| the files | `rsync` from the docker volume | the drivers, manuals, receipts and ROM dumps uploaded beside the register. Nothing is excluded: unlike the photos there is no regenerable cache in here, and every file exists nowhere else |
 | `.env` | `cat` over SSH, optional | a backup you cannot restore *with* is half a backup; the repository is encrypted |
 
 ## Where the backup lives
 
-`RHDB_DIR` and `RHDB_IMAGES` are paths **on the server**; `BACKUP_DIR` is the one
-on this machine. Two directories are created under it:
+`RHDB_DIR`, `RHDB_IMAGES` and `RHDB_FILES` are paths **on the server**;
+`BACKUP_DIR` is the one on this machine. Two directories are created under it:
 
 ```
 $BACKUP_DIR/repo    the restic repository -- this is the backup
@@ -56,7 +57,7 @@ Everything below also works without Compose, if you would rather not install it:
 docker build -t rhdb-backup .
 set -a; . ./.env; set +a
 docker run --rm \
-  -e RHDB_HOST -e RHDB_DIR -e RHDB_IMAGES -e BACKUP_AT -e TZ -e INCLUDE_ENV \
+  -e RHDB_HOST -e RHDB_DIR -e RHDB_IMAGES -e RHDB_FILES -e BACKUP_AT -e TZ -e INCLUDE_ENV \
   -e KEEP_DAILY -e KEEP_WEEKLY -e KEEP_MONTHLY -e KEEP_YEARLY \
   -e RESTIC_REPOSITORY=/repo -e RESTIC_PASSWORD_FILE=/run/secrets/restic-password \
   -e STAGE=/stage \
@@ -146,9 +147,8 @@ KEEP_YEARLY=3     three years
 ```
 
 That is 27 snapshots at the far end. Because restic stores each unique chunk once,
-the cost is roughly *the photo volume, plus whatever has changed since* -- about
-250 MB today, growing with the collection rather than with the number of
-snapshots. A night where nothing changed adds nothing at all.
+the cost is roughly *the photo and file volumes, plus whatever has changed since*
+-- growing with the collection rather than with the number of snapshots. A night where nothing changed adds nothing at all.
 
 Every run also verifies the repository's structure. On Sundays it re-reads 5% of
 the actual data, which is what catches a disk quietly rotting underneath it.
@@ -170,13 +170,14 @@ docker compose run --rm -v "$PWD/restored:/restored" backup shell
   restic restore latest --target /restored --include /stage/db.sql   # just the database
 ```
 
-You get `stage/db.sql`, `stage/images/` and `stage/env`.
+You get `stage/db.sql`, `stage/images/`, `stage/files/` and `stage/env`.
 
 To load the database onto a server, from the repo root there:
 
 ```sh
 docker compose exec -T -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb -uroot < db.sql
 docker compose exec -T api tar -xf - -C /app < <(tar -cf - -C restored/stage images)
+docker compose exec -T api tar -xf - -C /app < <(tar -cf - -C restored/stage files)
 ```
 
 The dump carries its own `CREATE DATABASE` and `USE`, so it always lands on the
@@ -207,3 +208,8 @@ pruned by the retention policy, restored, and compared. The restored `db.sql` wa
 byte-identical to what the server produced, all 624 photos matched the live volume
 by checksum, and loading the restored dump into a scratch database gave the same
 14 computers, 279 parts, 289 history entries and schema version as live.
+
+The files volume joined the backup on 2026-09-21 and was verified the same way:
+`check` found 30M on the server that nothing had been collecting, the first run
+moved all 12 files (31,397,392 bytes), and restoring that snapshot handed back a
+`stage/files/` identical file for file to what was collected.
