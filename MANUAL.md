@@ -1203,6 +1203,26 @@ None of the three is worked out from another, and any can be blank while the
 others are not — a project can be finished without ever having been recorded as
 started, because the part turned up and it took an evening.
 
+### Marking one done
+
+A project still in hand carries a **mark done** button at the top of its page,
+beside the edit and label buttons, for whoever is signed in. One click finishes
+it: the status becomes **done** and a dated line saying so is written into its
+history. There is no form in the way and nothing to confirm — it is one fact,
+and a status set by mistake is put right on the edit form.
+
+The **Finished** date is filled in with today, unless one is already recorded.
+A date already there is somebody's statement about when the work actually
+stopped — a machine finished in March and ticked off in May was finished in
+March — and a button pressed later is in no position to correct it. Where today
+is the wrong day, write the date on the edit form instead.
+
+The button is drawn only while there is something left to finish: a project
+already **done** or **abandoned** does not carry one, and either is reopened by
+changing its status on the edit form. A finished project also drops out of the
+menu of **projects already going**, which the entry forms and the **Work**
+panel offer — that menu asks what is in hand.
+
 ### What it is about
 
 Add any computer or part in the register. A note beside each says why it is there —

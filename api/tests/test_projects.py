@@ -11,6 +11,7 @@ about, a list of jobs, and a pile of things on order with what they cost.
 """
 
 import io
+from datetime import date
 
 from conftest import served
 from app import ids, main, projects
@@ -405,6 +406,79 @@ class TestTheForm:
         p = db.get(Project, aid)
         assert p.finished_at is not None
         assert p.started_at is None and p.target_date is None
+
+
+class TestMarkingOneDone:
+    """One click on a project still in hand and it is over: the status, the finish
+    date where there is not one already, and a line in the history saying so."""
+
+    def test_one_click_finishes_it(self, client, db):
+        aid = make(client, status="active")
+        r = client.post(f"/projects/{aid}/complete", follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == f"/projects/{aid}"
+        db.expire_all()
+        assert db.get(Project, aid).status == "done"
+
+    def test_the_finish_date_is_today_where_none_was_recorded(self, client, db):
+        aid = make(client, status="active")
+        client.post(f"/projects/{aid}/complete", follow_redirects=False)
+        db.expire_all()
+        assert db.get(Project, aid).finished_at == date.today()
+
+    def test_a_finish_date_already_recorded_is_kept(self, client, db):
+        """It says when the work actually stopped. A click a fortnight later is in
+        no position to correct it, so today is written only into a blank."""
+        aid = make(client, status="active", finished_at="2026-03-04")
+        client.post(f"/projects/{aid}/complete", follow_redirects=False)
+        db.expire_all()
+        p = db.get(Project, aid)
+        assert p.status == "done" and p.finished_at == date(2026, 3, 4)
+
+    def test_it_is_written_into_the_history(self, client, db):
+        from app.models import LogEntry
+
+        aid = make(client, status="active")
+        client.post(f"/projects/{aid}/complete", follow_redirects=False)
+        said = [e.message for e in db.query(LogEntry).filter(LogEntry.asset_id == aid)]
+        assert "finished" in said
+
+    def test_the_button_is_there_while_there_is_something_to_finish(self, client):
+        aid = make(client, status="active")
+        html = page(client, aid)
+        assert f'action="/projects/{aid}/complete"' in html
+        assert "mark done" in html
+
+    def test_there_is_no_button_once_it_is_over(self, client):
+        """Done and abandoned both. Either is reopened on the edit form, and a
+        button offering to finish something that is finished says nothing."""
+        for status in projects.CLOSED:
+            aid = make(client, status=status)
+            assert f'action="/projects/{aid}/complete"' not in page(client, aid), status
+
+    def test_a_visitor_is_not_offered_it(self, client, monkeypatch):
+        aid = make(client, status="active")
+        as_visitor(monkeypatch)
+        assert "/complete" not in client.get(f"/projects/{aid}").text
+
+    def test_a_visitor_cannot_finish_one(self, client, db, monkeypatch):
+        aid = make(client, status="active")
+        as_visitor(monkeypatch)
+        r = client.post(f"/projects/{aid}/complete", follow_redirects=False)
+        assert r.status_code == 303 and "/login" in r.headers["location"]
+        db.expire_all()
+        assert db.get(Project, aid).status == "active"
+
+    def test_a_project_that_is_nothing_cannot_be_finished(self, client):
+        assert client.post("/projects/RH-NONE/complete", follow_redirects=False).status_code == 404
+
+    def test_a_finished_project_leaves_the_menu_of_projects_going(self, client, db):
+        """The picker on the entry forms asks what a thing arriving today could be
+        joining, and a finished project is not an answer to that."""
+        aid = make(client, status="active")
+        assert aid in [p.asset_id for p in projects.open_projects(db)]
+        client.post(f"/projects/{aid}/complete", follow_redirects=False)
+        db.expire_all()
+        assert aid not in [p.asset_id for p in projects.open_projects(db)]
 
 
 class TestTheList:

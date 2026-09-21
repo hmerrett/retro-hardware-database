@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1555 behaviours, from 43 files.*
+*1565 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -2193,7 +2193,7 @@ Regenerate with:
 
 ## Projects
 
-*test_projects.py — 121 behaviours*
+*test_projects.py — 131 behaviours*
 
 
 **A register asset**
@@ -2267,6 +2267,22 @@ Regenerate with:
 - an unknown status falls back rather than being stored
 - the three dates are independent  
   A project can be finished without ever having been started -- the part turned up and it took an evening.
+
+**Marking one done**
+
+- one click finishes it
+- the finish date is today where none was recorded
+- a finish date already recorded is kept  
+  It says when the work actually stopped.
+- it is written into the history
+- the button is there while there is something to finish
+- there is no button once it is over  
+  Done and abandoned both.
+- a visitor is not offered it
+- a visitor cannot finish one
+- a project that is nothing cannot be finished
+- a finished project leaves the menu of projects going  
+  The picker on the entry forms asks what a thing arriving today could be joining, and a finished project is not an answer to that.
 
 **The list**
 
