@@ -223,6 +223,11 @@ cron entry and an `rsync` or `rclone` to somewhere else is enough:
 17 3 * * * cd /root/retro-hardware-database && ./tools/backup.sh >> /var/log/rhdb-backup.log 2>&1
 ```
 
+Or pull the backup from a machine at home instead: [backup/](backup/README.md)
+keeps a deduplicated nightly history of the database, the photographs and the
+files over SSH, with nothing open inbound at home and nothing installed on the
+server.
+
 Keep a copy of `.env` too. It is configuration rather than data, so the backup
 script does not include it, but restoring without it means restoring with
 different passwords than the dump expects.

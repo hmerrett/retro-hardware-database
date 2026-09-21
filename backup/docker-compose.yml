@@ -11,6 +11,7 @@ services:
       RHDB_HOST: ${RHDB_HOST:?set RHDB_HOST in .env}
       RHDB_DIR: ${RHDB_DIR:-/root/retro-hardware-database}
       RHDB_IMAGES: ${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-database_images/_data}
+      RHDB_FILES: ${RHDB_FILES:-/var/lib/docker/volumes/retro-hardware-database_files/_data}
       BACKUP_AT: ${BACKUP_AT:-03:30}
       TZ: ${TZ:-Europe/London}
       INCLUDE_ENV: ${INCLUDE_ENV:-1}

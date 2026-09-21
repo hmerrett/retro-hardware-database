@@ -5,10 +5,12 @@
 # reaches out to the server over SSH. Nothing needs to be open inbound at home,
 # and the server needs no knowledge of this at all.
 #
-# Two things are collected:
+# Three things are collected:
 #   * the database, dumped straight out of the db container to stdout, so no
 #     temporary file is written on the server and its disk cannot fill up
 #   * the photo volume, rsynced, so only what changed crosses the wire
+#   * the file volume -- the drivers, manuals and receipts kept beside the
+#     register -- rsynced the same way
 #
 # Both land in a staging directory that mirrors the server, and restic snapshots
 # that. The staging copy is what makes the transfers cheap; the snapshots are
@@ -18,6 +20,7 @@ set -eu
 : "${RHDB_HOST:?set RHDB_HOST, e.g. root@db.2600.me}"
 RHDB_DIR="${RHDB_DIR:-/root/retro-hardware-database}"
 RHDB_IMAGES="${RHDB_IMAGES:-/var/lib/docker/volumes/retro-hardware-database_images/_data}"
+RHDB_FILES="${RHDB_FILES:-/var/lib/docker/volumes/retro-hardware-database_files/_data}"
 STAGE="${STAGE:-/stage}"
 BACKUP_AT="${BACKUP_AT:-03:30}"
 INCLUDE_ENV="${INCLUDE_ENV:-1}"
@@ -120,6 +123,27 @@ $(find "$STAGE/images" -type f | wc -l | tr -d ' ') files"
         echo "took      $(since "$t")"
     } | detail
 
+    # The files kept beside the register -- drivers, manuals, receipts, ROM dumps.
+    # Same flags as the photos and for the same reasons. Nothing is excluded: the
+    # images volume carries a regenerable watermark cache, this one holds uploads
+    # alone, and every one of them exists nowhere else.
+    say "syncing files from $RHDB_FILES"
+    t=$(date +%s)
+    # shellcheck disable=SC2086
+    if ! rsync_out=$(rsync -rlt $rsync_v --delete --info=stats2 \
+            -e "$SSH" "$RHDB_HOST:$RHDB_FILES/" "$STAGE/files/" 2>&1); then
+        say "file sync failed:"
+        echo "$rsync_out" | tail -5 | detail
+        return 1
+    fi
+    echo "$rsync_out" \
+        | grep -E "^(Number of|Total|Literal|Matched|sent|total size)" | detail
+    {
+        echo "on disk   $(du -sh "$STAGE/files" | cut -f1) in \
+$(find "$STAGE/files" -type f | wc -l | tr -d ' ') files"
+        echo "took      $(since "$t")"
+    } | detail
+
     if [ "$INCLUDE_ENV" = "1" ]; then
         # Credentials are configuration, not data, but a backup you cannot
         # restore with is half a backup. The restic repository is encrypted.
@@ -206,6 +230,12 @@ host's ~/.ssh/authorized_keys, and is RHDB_HOST right?"
         || fail "no $RHDB_IMAGES on the server. Check RHDB_IMAGES, or the volume name."
     size=$($SSH "$RHDB_HOST" "du -sh $RHDB_IMAGES | cut -f1")
     say "  $RHDB_IMAGES found ($size)"
+
+    say "checking the files volume"
+    $SSH "$RHDB_HOST" "test -d $RHDB_FILES" \
+        || fail "no $RHDB_FILES on the server. Check RHDB_FILES, or the volume name."
+    size=$($SSH "$RHDB_HOST" "du -sh $RHDB_FILES | cut -f1")
+    say "  $RHDB_FILES found ($size)"
 
     say "checking the database dump"
     remote_dump 2>/dev/null | head -c 200 | grep -q "MariaDB dump" \
