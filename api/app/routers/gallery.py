@@ -13,7 +13,7 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, projects, settings, specdb
+from .. import cards, entry, locations, projects, settings, specdb
 from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import Computer, LogEntry, Part
@@ -27,14 +27,18 @@ router = APIRouter()
 # --- GUI: index ------------------------------------------------------------
 
 
-def _catalogue_rows(db: Session, precise_times: bool = True) -> list[Card]:
+def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
     """Every computer and part as one list of card rows. The gallery and /browse
     render the same grid from this; they differ only in which rows survive.
 
     The recency sort keys ride on the cards as data attributes, so anonymously they
-    carry the date alone, like the history does (`precise_times=False`). The rows
-    come back newest-change-first regardless, which is what keeps a day's worth of
-    edits in order once the browser sorts on dates that are all equal."""
+    carry the date alone, like the history does. The rows come back
+    newest-change-first regardless, which is what keeps a day's worth of edits in
+    order once the browser sorts on dates that are all equal.
+
+    One argument and not two, though it decides two things: the reader whose sort
+    keys are rounded is the same reader a card may not carry a location for, and
+    passing that fact twice is how the two would one day be passed differently."""
     computers = db.query(Computer).order_by(Computer.asset_id).all()
     parts = db.query(Part).order_by(Part.asset_id).all()
     counts: dict[str, int] = {}
@@ -53,7 +57,7 @@ def _catalogue_rows(db: Session, precise_times: bool = True) -> list[Card]:
     def stamp(when: datetime | None) -> str:
         if not when:
             return ""
-        return when.isoformat() if precise_times else when.strftime("%Y-%m-%d")
+        return when.isoformat() if authed else when.strftime("%Y-%m-%d")
 
     def stamps(aid: str) -> tuple[str, str]:
         latest, first = ts.get(aid, (None, None))
@@ -70,6 +74,19 @@ def _catalogue_rows(db: Session, precise_times: bool = True) -> list[Card]:
     # One query for every storage part's Kind, rather than re-parsing each specs
     # string (or a lookup per row) just to choose an icon.
     kinds = specdb.storage_kinds(db)
+
+    # Whether a card may carry where its item is kept. The blob below is markup the
+    # browser filters on, so a card that matched "loft" for a reader whose page does
+    # not show a location would be the leak with one more step in it -- the same
+    # answer the haystack gives (search._hidden_columns, ADR-0027). The card's `sub`
+    # is untouched either way: what is written on a card is a design decision and
+    # not a privacy one, and this is only what it answers to.
+    show_location = authed or settings.on("public_locations")
+    # Where a part is because of what it is fitted in, for the ones that do not say
+    # for themselves. Read once for the whole wall, like the photo folders and the
+    # timestamps above -- a card is built per row, and a walk up the chain per row
+    # would be a query apiece for the answer the register already holds.
+    placed = locations.inherited(db) if show_location else {}
 
     rows: list[Card] = []
     for c in computers:
@@ -107,6 +124,7 @@ def _catalogue_rows(db: Session, precise_times: bool = True) -> list[Card]:
                         c.condition or "",
                         c.source or "",
                         str(c.acquired_date or ""),
+                        c.location if show_location else "",
                         c.disposed_note or "",
                     ]
                 ).lower(),
@@ -150,6 +168,11 @@ def _catalogue_rows(db: Session, precise_times: bool = True) -> list[Card]:
                         p.condition or "",
                         p.source or "",
                         str(p.acquired_date or ""),
+                        p.location if show_location else "",
+                        # A part shown its machine's location answers to it here as
+                        # well, or the card and the page it opens would disagree
+                        # about the word written on both of them.
+                        (placed[p.asset_id].where if p.asset_id in placed else ""),
                         p.disk_image or "",
                         p.computer_id or "",
                         p.disposed_note or "",
@@ -205,7 +228,7 @@ def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)) ->
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
-    rows = _catalogue_rows(db, precise_times=request.state.authed)
+    rows = _catalogue_rows(db, request.state.authed)
     total = len(rows)
     hit_projects = 0
     if q.strip():
@@ -257,7 +280,7 @@ def gui_for_sale(request: Request, db: Session = Depends(get_db)) -> HTMLRespons
     No montage on the share card, and noindex: this is not a page to share, and the
     site's own card is what a page with nothing to advertise shows (ADR-0017).
     """
-    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed) if r["obj"].for_sale]
+    rows = [r for r in _catalogue_rows(db, request.state.authed) if r["obj"].for_sale]
     return _grid_page(
         request,
         rows,
@@ -282,7 +305,7 @@ def gui_browse(
     if view is None:
         raise HTTPException(404, f"no such view: {f or '(none)'}")
     heading, note, crumb, keep = view
-    rows = [r for r in _catalogue_rows(db, precise_times=request.state.authed) if keep(r)]
+    rows = [r for r in _catalogue_rows(db, request.state.authed) if keep(r)]
     return _grid_page(
         request,
         rows,

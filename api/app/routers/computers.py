@@ -54,7 +54,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import drivedb, entry, filesdb, labels, machinedb, projects, specdb
+from .. import drivedb, entry, filesdb, labels, locations, machinedb, projects, specdb
 from ..assets import (
     COMPUTER_DIFF_FIELDS,
     COMPUTER_FIELDS,
@@ -336,6 +336,7 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -
     if (mach := _machine_from_form(form)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
+    locations.remember(db, obj.location)
     # After the flush above, because a membership is refused for an asset that is not
     # in the register yet -- and this one is being entered as we speak.
     _work_from_form(db, obj, form)
@@ -475,6 +476,7 @@ async def gui_save_computer(
     diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS}, COMPUTER_DIFF_FIELDS)
     if diff:
         add_log(db, aid, diff)
+    locations.remember(db, c.location)
     _work_from_form(db, c, form)
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)

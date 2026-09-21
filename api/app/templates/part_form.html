@@ -78,6 +78,7 @@
 <datalist id="dl_storage_ifaces">{% for o in vocab.storage_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_proto">{% for o in vocab.storage_protocols %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_sources">{% for o in dl.source %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_locations">{% for o in dl.location %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_makes">{% for o in makes %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
@@ -342,6 +343,16 @@ Photos, source, acquired date and notes are not carried over.</p>
            value="{{ (p.source if p else '') or '' }}">
     <label for="acquired_date">Acquired date</label>
     <input id="acquired_date" name="acquired_date" type="date" value="{{ (p.acquired_date if p else '') or '' }}">
+    <label for="location">Location</label>
+    {# Where the part itself is kept, and mostly left empty: a part fitted in
+       something is shown that thing's location instead, so this box is for the card
+       in a drawer rather than the card in a machine. Offered the places already
+       used, machines and parts together, because one crate holds both.
+       autocomplete="off" for the reason the source box has it -- the browser's own
+       memory of a box called "location" on any other site would otherwise be
+       offered instead of the register's own answers. #}
+    <input id="location" name="location" list="dl_locations" autocomplete="off"
+           value="{{ (p.location if p else '') or '' }}">
     <label for="url">Reference URL</label>
     <input id="url" name="url" value="{{ (p.url if p else '') or '' }}">
     <label for="summary">Summary</label>

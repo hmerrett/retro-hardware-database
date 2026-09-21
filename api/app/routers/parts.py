@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import drivedb, entry, filesdb, labels, machinedb, projects, specdb
+from .. import drivedb, entry, filesdb, labels, locations, machinedb, projects, settings, specdb
 from ..assets import (
     DUP_EXCLUDE,
     PART_DERIVED_FIELDS,
@@ -218,6 +218,7 @@ async def _part_from_form(
         "condition",
         "source",
         "acquired_date",
+        "location",
         "url",
         "summary",
         "notes",
@@ -690,6 +691,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
     if ptype == "motherboard" and (mach := _machine_from_form(form, board=True)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
+    locations.remember(db, obj.location)
     _work_from_form(db, obj, form)
     db.commit()
     if photos:
@@ -725,6 +727,13 @@ def gui_part(
         if not p.computer_id and not p.parent_id:
             computers = db.query(Computer).order_by(Computer.asset_id).all()
     images = detect_images("parts", aid)
+    # Where this part is because of what it is fitted in. Asked only of a part that
+    # holds no answer of its own -- its own always wins -- and only for a reader who
+    # is shown locations, because working one out for a row that cannot be rendered
+    # is two queries spent on nothing.
+    placed = None
+    if not p.location.strip() and (request.state.authed or settings.on("public_locations")):
+        placed = locations.inherited(db).get(aid)
     spec_pairs = specdb.pairs(db, p, display=True)
     # The preview text and the structured data are read rather than parsed, so they
     # say the figures the page says -- not the stored string's exact-to-the-KiB ones.
@@ -758,6 +767,8 @@ def gui_part(
             # visitor's page does not ask the question at all.
             "work_projects": (projects.open_projects(db) if request.state.authed else []),
             "candidates": candidates,
+            # None unless this part is placed by something it is fitted in (above).
+            "placed": placed,
             "computers": computers,
             "images": images,
             "placeholder": _part_placeholder(db, p),
@@ -842,6 +853,7 @@ async def gui_save_part(
     diff = _field_diffs(old, {k: getattr(p, k) for k in data}, list(data), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
+    locations.remember(db, p.location)
     _work_from_form(db, p, form)
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)

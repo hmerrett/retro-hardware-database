@@ -164,6 +164,30 @@ DEFINITIONS: tuple[Definition, ...] = (
         kind=SWITCH,
         default="0",
     ),
+    Definition(
+        key="public_locations",
+        section=SERVER,
+        label="Show locations",
+        note=(
+            "Whether somebody who is not signed in is told where a thing is kept. Off, "
+            "the row is not on their page and their search does not match on it. You "
+            "always see it."
+        ),
+        kind=SWITCH,
+        default="0",
+    ),
+    Definition(
+        key="remember_locations",
+        section=SERVER,
+        label="Remember old locations",
+        note=(
+            "Keeps a place on the pick list after the last thing in it has moved out, so "
+            "an emptied crate is still offered by name. Turning this off deletes what it "
+            "has remembered rather than hiding it."
+        ),
+        kind=SWITCH,
+        default="1",
+    ),
 )
 
 BY_KEY = {d.key: d for d in DEFINITIONS}

@@ -68,13 +68,28 @@
        exactly as it does on every other item page. #}
     {% if machine and machine.summary and not p.summary %}<p class="model-summary">{{ machine.summary | linked }}</p>{% endif %}
     {% if p.summary %}<p class="summary">{{ p.summary | linked }}</p>{% endif %}
+    {# Where it is kept is the owner's by default and everybody's by setting
+       (ADR-0027). Folded into the pair list as a blank rather than tested on a row
+       of its own, so the one list stays the one description of this panel -- the
+       loop below already drops a pair with nothing in it. #}
+    {% set show_location = request.state.authed or public_locations() %}
     {# The part's own facts, in a panel like every other section: what the register
        knows about it, and where it is installed. #}
     {% call PN.panel('Details') %}
     <table class="kv">
-    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
+    {# Its own answer, where it has one. A part that does not hold one is placed by
+       whatever it is fitted in, which is the row after this loop -- the two are one
+       answer between them, and only one of them is ever shown. "Installed in" stays
+       a separate row either way: it is true of a part in a machine nobody has
+       placed, where there is no location to show at all. #}
+    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date), ('Location', p.location if show_location else '')] %}
       {% if v %}<tr><th scope="row">{{ k }}</th><td>{{ v | linked }}</td></tr>{% endif %}
     {% endfor %}
+    {# Worked out rather than stored, so the page says whose answer it is showing: a
+       location on a part that does not hold one would otherwise read as something
+       somebody typed here, and correcting it means editing the thing named. #}
+    {% if show_location and placed %}<tr><th scope="row">Location</th><td>{{ placed.where | linked }}
+      <span class="muted">— where <a href="/{{ placed.kind }}/{{ placed.whose }}">{{ placed.whose }}</a> is</span></td></tr>{% endif %}
     {% if p.computer_id %}<tr><th scope="row">Installed in</th><td><a href="/computers/{{ p.computer_id }}">{{ p.computer_id }}</a>
       {% if request.state.authed %}
       <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/unlink"><input type="hidden" name="next" value="/parts/{{ p.asset_id }}"><button class="btn sm" type="submit">unlink</button></form>

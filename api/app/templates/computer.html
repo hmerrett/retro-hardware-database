@@ -78,6 +78,11 @@
        exactly as it does on every other item page. #}
     {% if machine and machine.summary and not c.summary %}<p class="model-summary">{{ machine.summary | linked }}</p>{% endif %}
     {% if c.summary %}<p class="summary">{{ c.summary | linked }}</p>{% endif %}
+    {# Where it is kept is the owner's by default and everybody's by setting
+       (ADR-0027). Folded into the pair list as a blank rather than tested on a row
+       of its own, so the one list stays the one description of this panel -- the
+       loop below already drops a pair with nothing in it. #}
+    {% set show_location = request.state.authed or public_locations() %}
     {# The machine's own facts. A panel like every other section of the page, so what
        the register knows about it and what is fitted in it are read the same way. #}
     {% call PN.panel('Details') %}
@@ -87,7 +92,8 @@
                     ('Chassis', c.chassis), ('CPU', c.cpu), ('TopBench', c.topbench),
                     ('Installed RAM', c.installed_ram),
                     ('Drives', c.drives), ('OS', c.os), ('Condition', c.condition),
-                    ('Source', c.source), ('Acquired', c.acquired_date)] %}
+                    ('Source', c.source), ('Acquired', c.acquired_date),
+                    ('Location', c.location if show_location else '')] %}
       {% if v %}<tr><th scope="row">{{ k }}</th><td>{{ v | linked }}</td></tr>{% endif %}
     {% endfor %}
     {# Out of the list above, and last in it as it was, because this is the one value

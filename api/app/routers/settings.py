@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from .. import settings
+from .. import locations, settings
 from ..db import get_db
 from ..forms import posted
 from ..web import templates
@@ -56,4 +56,12 @@ async def gui_save_settings(request: Request, db: Session = Depends(get_db)) -> 
     and a browser's back button would keep the offer for as long as the tab lived.
     """
     settings.save(db, await posted(request))
+    # Off means forgotten, not ignored (ADR-0027). Here rather than in settings.save,
+    # which reads its definitions and knows nothing about what any of them is for --
+    # and on every save while the switch is off rather than only on the one that
+    # turned it off, because deleting everything is the same act however often it
+    # happens and needing to know what the switch was a moment ago would make the
+    # promise turn on a transition nobody can see.
+    if not settings.on("remember_locations"):
+        locations.purge(db)
     return RedirectResponse("/settings?saved=1", status_code=303)

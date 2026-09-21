@@ -118,6 +118,7 @@
   </select>
   {{ fld('source', 'Source', "where / how acquired", dl='source') }}
   {{ fld('acquired_date', 'Acquired date', type='date') }}
+  {{ fld('location', 'Location', "where it is kept — Loft, blue crate 3", dl='location') }}
   {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
   <label for="summary">Summary</label>
   <textarea class="box-110" id="summary" name="summary">{{ (c.summary if c else '') or '' }}</textarea>

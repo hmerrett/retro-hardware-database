@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1565 behaviours, from 43 files.*
+*1634 behaviours, from 44 files.*
 
 
 ## A file where text was expected
@@ -1762,6 +1762,155 @@ Regenerate with:
   `alt=""` is an answer -- it tells a screen reader to pass over a swatch or a rule.
 - nothing hides where the keyboard is  
   The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
+
+
+## Locations
+
+*test_locations.py — 69 behaviours*
+
+
+**Recording where something is**
+
+- a machine records one and shows it
+- a part does too
+- an item starts with nowhere recorded  
+  Nothing is inferred.
+- the machine form saves one
+- the part form saves one
+- the form can take it back off  
+  Things move out of a crate as well as into one, and a place that is no longer true is worse than none.
+- a duplicate does not carry it across  
+  A duplicate copies what describes the model, not where this one sits.
+- a parts own answer stands beside where it is installed  
+  The card-in-a-drawer case.
+
+**A row older than the feature**
+
+- a machine older than the column reads as blank
+- a part older than the column reads as blank
+- the lists survive one  
+  The half that made it a 500 rather than an untidiness: the response is validated as a whole list, so one row older than the feature took every caller's `GET /api/computers` with it -- and the MCP tools with that.
+- the pages survive one as well  
+  The gallery and the item pages read the column too, and a search reads it off every row at once.
+- such a row is still placed by what it is fitted in  
+  And the derived answer works over it, which it could not if blank had two spellings -- `inherited` reads the column and strips it.
+- the migrated schema leaves no nulls to find  
+  Read off the database the migrations built (conftest runs the real ones), rather than off the models that describe it.
+- the column cannot hold one  
+  The belt to the server default's braces.
+
+**A part is where what it is fitted in is**
+
+- a part in a machine is shown the machines location
+- the page says whose answer it is showing  
+  Otherwise it reads as something somebody typed on this part, and the first thing anybody would do about a wrong one is edit the part -- which is the one record that cannot fix it.
+- a chip on a board in a machine is in the machine  
+  The chain runs as far as it has to.
+- what it is mounted on answers before what it is installed in  
+  A chip on a board is where the board is, even when the machine the board is in says something else: the nearer answer is the more specific one, and a board out on the bench has its own parts on the bench with it.
+- a part that says for itself is not given an answer
+- clearing the box hands the part back to its machine  
+  The way round the manual promises: type an answer and it wins, take it out and the part follows what it is fitted in again.
+- a standalone part is shown nothing
+- a part in a machine nobody has placed is shown nothing  
+  A chain that runs out yields nothing rather than an empty row.
+- moving the machine moves everything in it  
+  One edit, because nothing was written against the parts to go stale.
+- an inherited answer is not written to the part  
+  Derived, and the column is the evidence: nothing stored means nothing to correct when the machine moves.
+- a part mounted on itself does not hang the page  
+  Nothing in the register can build one -- the forms do not offer it -- but a walk that trusts that is a page that never finishes loading if one ever exists.
+
+**An inherited answer is not remembered**
+
+- it does not join the table
+- it is offered once and not twice  
+  The machine's own answer is on the list because the machine is kept there; the four cards in it do not put it there four more times.
+- emptying the machine does not leave the place in use  
+  What is in use is what somebody has written down.
+
+**Being offered where things go**
+
+- both forms offer a location already used
+- machines and parts share one list  
+  One crate holds both, so one list names it.
+- an edit form offers them as well  
+  An edit is where a spelling turns into a second one.
+- the box does not offer the browsers own memory instead  
+  A box called `location` is one every other site on the web has too, and the browser's memory of those would be offered over the register's answers.
+
+**Remembering where nothing is kept now**
+
+- a location cleared off its last item is still offered
+- a place in use is offered once rather than twice  
+  It is in the register and in the memory of the register, and those are one answer to the question the box asks.
+- what is in use comes before what is only remembered  
+  The crate something is in now is the likelier answer than the one it was in last year.
+- the gui teaches it as well as the api  
+  Both doors, because the forms are where most of these are typed.
+- a part teaches it too
+- nothing is written while the switch is off
+- a cleared location is not offered while the switch is off  
+  Off is not a broken mode: it is the behaviour every other pick list on this site has, which is the register asked a question about itself.
+
+**Turning it off forgets rather than hides**
+
+- switching off deletes what was remembered
+- switching back on does not bring it back  
+  The whole shape of the promise, end to end: used, cleared, forgotten, and still gone when remembering is asked for again.
+- a later save while it is off purges again  
+  The delete runs on every save made while the switch is off rather than on the save that turned it off, so the promise does not turn on a transition nobody can see.
+- it is on to begin with
+
+**Who is told where things are**
+
+- a site keeps locations to itself by default
+- a visitor is shown no location row
+- a visitors search does not match on it  
+  The half that is easy to miss.
+- the owners search does match on it  
+  The other direction, so what is private is a rule about who is asking rather than a column quietly dropped from the search for everybody.
+- the gallery card does not carry it to a visitor  
+  The cards hold a condensed blob the browser filters on.
+- the gallery card carries it for the owner
+- turning it on shows a visitor the row
+- turning it on lets a visitor search on it
+- a visitor is shown no inherited location either  
+  The gate is on the answer and not on the column, or a part would publish what its machine keeps back.
+- a visitors search does not match on an inherited one
+- turning it on shows and finds an inherited one
+- the owner is shown it either way
+- the pick list is never offered to a visitor  
+  Whichever way the switch is set.
+
+**Finding what is in there**
+
+- an installed part is found by its machines location
+- the suggestion list agrees with the search  
+  The two are meant to be one answer seen twice, so a part findable in one and not the other is the pair disagreeing.
+- a chip deep in a machine is found too
+- a part kept somewhere else is not found by its machines location  
+  It is not there, and the page does not say it is.
+- the gallery card carries the inherited answer  
+  The cards hold a blob the browser filters on without asking the server, so a card that did not carry it would vanish from a type-ahead the full search still answers.
+- a visitors card does not
+
+**The hidden columns are asked for rather than assumed**
+
+- a setting gated column joins the owner only ones for a visitor
+- turning the setting on takes it back out
+- an item with nowhere recorded reads identically for both  
+  Hidden columns are blanked and not dropped, so who is asking changes what the haystack says and never how many fields it has -- otherwise the seams a quoted phrase must not match across move depending on the reader.
+
+**The page says what these are**
+
+- both switches are on the settings page with their reasons  
+  A control says what it is and the reason is behind it (interface-text).
+- they are server options
+
+**The decision is written down**
+
+- the adr is there and indexed
 
 
 ## Machines

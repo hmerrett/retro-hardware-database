@@ -16,7 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import RowReturningQuery
 
-from . import entry, machines, projects, specdb
+from . import entry, locations, machines, projects, settings, specdb
 from .common import (
     LEGACY_DISK_BUSES,
     OWNER_ONLY,
@@ -117,31 +117,74 @@ def search_terms(query: str | None) -> list[str]:
     return terms
 
 
+def _hidden_columns(authed: bool) -> frozenset[str]:
+    """The columns this reader is not shown, and so must not be able to search on.
+
+    OWNER_ONLY is the part of the answer settled once and for all (ADR-0018). Where
+    a thing is kept is the part the owner settles per installation, so the question
+    the haystack asks is "which columns are hidden from this reader", and that set
+    is one answer to it rather than the whole of it -- a frozenset cannot be
+    conditional, and making it so would be a set that means something different
+    depending on when it is read.
+
+    Asked afresh for every item matched, which costs nothing: the settings are read
+    once per process and kept (ADR-0023), so this is a dictionary lookup and a set
+    union rather than a query."""
+    if authed:
+        return frozenset()
+    if settings.on("public_locations"):
+        return OWNER_ONLY
+    return OWNER_ONLY | {"location"}
+
+
+# What a caller with nothing to place hands in: the projects search, because a
+# project is not fitted in anything. Named rather than defaulted inline so that a
+# call site leaving it out is saying that and not forgetting it.
+NOTHING_PLACED: Mapping[str, locations.Placed] = {}
+
+
 def _haystack(
-    db: Session, obj: Asset, history: Mapping[str, list[str]], authed: bool = False
+    db: Session,
+    obj: Asset,
+    history: Mapping[str, list[str]],
+    authed: bool = False,
+    placed: Mapping[str, locations.Placed] = NOTHING_PLACED,
 ) -> str:
     """Everything written about one item, as one lowercase string: every text
     column, its rendered specs or memory and drives, and its history. This is what
     makes a search over "any field" true rather than nearly true.
 
     "Any field" means every field the reader is looking at anyway -- so a field the
-    reader is not looking at has to come out, and OWNER_ONLY is the list of those.
-    Read from a named set rather than written out here, because the failure is
-    silent: a column added to a model joins this string without anybody deciding it
-    should, and a visitor searching "true" was handed the for-sale shortlist off a
-    page that shows no such thing (ADR-0018). The project columns come out the same
-    way, via _visible on the queries that reach one."""
+    reader is not looking at has to come out, and _hidden_columns is the list of
+    those. Read from a named set rather than written out here, because the failure
+    is silent: a column added to a model joins this string without anybody deciding
+    it should, and a visitor searching "true" was handed the for-sale shortlist off
+    a page that shows no such thing (ADR-0018). The project columns come out the
+    same way, via _visible on the queries that reach one.
+
+    `placed` is where each part is because of what it is fitted in
+    (locations.inherited), worked out once by the caller for the whole register
+    rather than per row. A part shown its machine's location has to be findable by
+    it -- the page says the loft, and a search for the loft that did not hand it
+    back would be the page and the search disagreeing about the same word -- and
+    it goes behind the same gate the column does, so a reader who is not shown
+    where things are cannot search on an inherited answer either."""
     # Blanked rather than dropped, so who is asking changes what the haystack says
     # and never how many fields it has: an item nobody has flagged then reads
     # identically for both, and the seams a quoted phrase must not match across stay
     # where they are either way.
+    hidden = _hidden_columns(authed)
     fields = [
-        "" if (not authed and c.name in OWNER_ONLY) else str(getattr(obj, c.name) or "")
-        for c in obj.__table__.columns
+        "" if c.name in hidden else str(getattr(obj, c.name) or "") for c in obj.__table__.columns
     ]
     fields += history.get(obj.asset_id, [])
     if isinstance(obj, Part):
         fields.append(entry.type_label(obj.type or "other"))
+        # Blank rather than absent when there is nothing to add, for the reason the
+        # hidden columns above are blanked: the field count is the same for both
+        # readers and for a part that inherits nothing, so the seams stay put.
+        found = placed.get(obj.asset_id)
+        fields.append("" if found is None or "location" in hidden else found.where)
     if isinstance(obj, Project):
         # The status as it is written on screen as well as the slug it is stored
         # as: "in progress" is what somebody would type, and 'active' is what the
@@ -176,9 +219,10 @@ def _search(db: Session, rows: list[Card], query: str | None, authed: bool = Fal
     if not terms:
         return rows
     history = _history_by_asset(db)
+    placed = locations.inherited(db)
     kept = []
     for r in rows:
-        hay = _haystack(db, r["obj"], history, authed)
+        hay = _haystack(db, r["obj"], history, authed, placed)
         if all(t in hay for t in terms):
             kept.append(r)
     return kept
@@ -239,6 +283,7 @@ def _suggest(
     if not terms:
         return [], 0
     history = _history_by_asset(db)
+    placed = locations.inherited(db)
     latest = dict(
         db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
         .group_by(LogEntry.asset_id)
@@ -258,7 +303,7 @@ def _suggest(
         + [(p, "part") for p in db.query(Part).all()]
         + [(pr, "project") for pr in _visible(db.query(Project), authed).all()]
     ):
-        if not all(t in _haystack(db, obj, history, authed) for t in terms):
+        if not all(t in _haystack(db, obj, history, authed, placed) for t in terms):
             continue
         name = entry.display_name(to_dict(obj))
         hits.append({"obj": obj, "kind": kind, "name": name, "tier": _suggest_tier(obj, name, raw)})
@@ -962,4 +1007,6 @@ def _projects_matching(
     if not terms:
         return rows
     history = _history_by_asset(db)
+    # No `placed`: a project is not fitted in anything, so there is nothing to work
+    # out and nothing to read off the register to work it out from.
     return [r for r in rows if all(t in _haystack(db, r["p"], history, authed) for t in terms)]

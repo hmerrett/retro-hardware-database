@@ -175,6 +175,11 @@
             "title": "Installed Ram",
             "type": "string"
           },
+          "location": {
+            "default": "",
+            "title": "Location",
+            "type": "string"
+          },
           "machine": {
             "anyOf": [
               {
@@ -330,6 +335,11 @@
           "installed_ram": {
             "default": "",
             "title": "Installed Ram",
+            "type": "string"
+          },
+          "location": {
+            "default": "",
+            "title": "Location",
             "type": "string"
           },
           "machine": {
@@ -502,6 +512,11 @@
           "installed_ram_note": {
             "default": "",
             "title": "Installed Ram Note",
+            "type": "string"
+          },
+          "location": {
+            "default": "",
+            "title": "Location",
             "type": "string"
           },
           "machine": {
@@ -818,6 +833,11 @@
             "title": "Image",
             "type": "string"
           },
+          "location": {
+            "default": "",
+            "title": "Location",
+            "type": "string"
+          },
           "machine": {
             "anyOf": [
               {
@@ -976,6 +996,11 @@
             "title": "Image",
             "type": "string"
           },
+          "location": {
+            "default": "",
+            "title": "Location",
+            "type": "string"
+          },
           "machine": {
             "anyOf": [
               {
@@ -1126,6 +1151,11 @@
           "image": {
             "default": "",
             "title": "Image",
+            "type": "string"
+          },
+          "location": {
+            "default": "",
+            "title": "Location",
             "type": "string"
           },
           "machine": {

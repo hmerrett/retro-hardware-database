@@ -87,6 +87,20 @@ class Computer(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
+    # Where the object is kept, in the owner's own words -- a loft, a crate, a shelf.
+    # Free text and not a link to anywhere: a collection's geography is its own, and
+    # the one thing that is certainly not a place is `computer_id`, which says what a
+    # part is fitted in rather than where that machine has been put (ADR-0027).
+    #
+    # Shown to a visitor only while `public_locations` says so, which is why this is
+    # the one column search asks a setting about rather than reading off a fixed set.
+    #
+    # Not nullable, for the reason `serial` is not: "" is the one spelling of a place
+    # nobody has written down, and a column that can hold a second one is a column
+    # the API chokes on the first time it meets a row older than the feature (0034).
+    location: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=""
+    )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
     summary: Mapped[str | None] = mapped_column(Text, default="")
@@ -131,6 +145,15 @@ class Part(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
+    # See Computer.location, including why it is not nullable. Blank is not "nowhere"
+    # on a part that is fitted in something: a card in a machine is wherever that
+    # machine is, so an empty column is read off the parent (locations.inherited) at
+    # the moment it is shown. Worked out and never written back, so carrying the
+    # machine upstairs is one edit and not one per card -- which is also why nothing
+    # may treat this column as the whole answer to where a part is.
+    location: Mapped[str] = mapped_column(
+        String(255), nullable=False, default="", server_default=""
+    )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
     summary: Mapped[str | None] = mapped_column(Text, default="")
@@ -878,3 +901,36 @@ class Setting(Base):
     name: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(Text, nullable=False)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class Location(Base):
+    """A place something has been kept, remembered so it can be offered again
+    (ADR-0027).
+
+    The register's first stored vocabulary, and it exists because the derived pick
+    lists cannot cover this one field. Every other list is the register asked a
+    question -- `pages._answers_given` counts the spellings in a column and offers
+    the commonest back -- and that works for a source, which is written once and
+    stays true. A location stops being true the moment the thing is moved, so the
+    last item out of a crate takes the crate's spelling with it, and the crate is
+    typed again a month later as something not quite the same.
+
+    So: a row per location ever saved, holding only what the derived list has lost.
+    The suggestions are still the union of the two, in-use first, which is what
+    keeps this table optional -- empty or deleted, the forms go on working.
+
+    Written only while `remember_locations` is on, and deleted outright when it is
+    turned off. Ignoring rows the owner has asked the register to forget would be
+    answering a different question from the one the switch asks.
+
+    `name` is the primary key, for the reason Setting.name is one: there is nothing
+    else to identify a place by, and a surrogate id would only let the same place in
+    twice. MariaDB's collation folds case here, which is wanted -- one crate, one
+    row, whichever way it was capitalised on the day."""
+
+    __tablename__ = "location"
+    name: Mapped[str] = mapped_column(String(255), primary_key=True)
+    # When it was last saved against something, which is the order the remembered
+    # half of the pick list is offered in: the crate filled last week is a likelier
+    # answer than one nothing has gone into since 2019.
+    used_at: Mapped[datetime | None] = mapped_column(DateTime)

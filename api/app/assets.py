@@ -240,9 +240,10 @@ PART_DERIVED_FIELDS = {"variant"}
 # A duplicate is a second identical unit, so it copies what describes the model --
 # the fields, the specs, a machine's fitted memory and drives -- and nothing that
 # belongs to the original object: its photos, its disposal, its provenance
-# (source / acquired date / notes), its serial number, and where it sits. A second
-# card is a second card, not another card in the same slot, so the copy starts
-# unplaced -- and no two objects ever wore the same serial.
+# (source / acquired date / notes), its serial number, where it sits and where it is
+# kept. A second card is a second card, not another card in the same slot or in the
+# same crate, so the copy starts unplaced -- and no two objects ever wore the same
+# serial.
 #
 # A plan used to be on that list too, when one was a column here. It is a project of
 # its own now, and a project is attached to an asset rather than copied with one --
@@ -256,6 +257,7 @@ DUP_EXCLUDE = {
     "acquired_date",
     "notes",
     "serial",
+    "location",
     "computer_id",
     "parent_id",
 }

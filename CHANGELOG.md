@@ -22,6 +22,20 @@ the rest. An installation running the puller picks this up by rebuilding it on
 the machine that holds the backup: `cd backup && docker compose build && docker
 compose up -d`.
 
+**Every machine and every part can say where it is kept.** A free-text
+**Location** box on both forms — `Loft, blue crate 3`, `Garage shelf B`, `on the
+bench` — offering back the places you have already used, so one crate ends up
+spelt one way. A part fitted in something need not be answered at all: left blank
+it shows where that thing is kept, and follows it when it moves. A duplicate does
+not carry a location across.
+
+Two switches on the settings page go with it. **Show locations** is off, so a
+visitor is not told where anything is kept — the row is not on their page and
+their search does not match on it. **Remember old locations** is on, and keeps a
+place on the pick list after the last thing in it has moved out; turning it off
+deletes what has been remembered rather than hiding it, and turning it back on
+starts again from what is in use.
+
 **Labels can be printed on a printer that is not attached to the machine you are
 holding.** Two things arrive together. A label is now also a picture of itself at
 `label.png`, drawn at the size and resolution of a particular printer rather than
