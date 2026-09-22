@@ -1924,16 +1924,16 @@ class TestRememberingHowYouLeftIt:
         """A stale or hand-edited cookie naming a sort the page dropped would
         otherwise leave the grid sorted by nothing."""
         computer(model="A")
-        assert "if (saved && SORTS[saved]) sortSel.value = saved;" in served(
-            client, client.get("/").text
-        )
+        client.cookies.set("rhdb_sort", "colour")
+        assert '<option value="random" selected>' in client.get("/").text
 
-    def test_it_is_written_on_the_sorts_own_change_and_not_on_every_keystroke(
+    def test_it_is_written_when_the_sort_is_chosen_and_not_when_a_link_names_one(
         self, client, computer
     ):
+        """Opening a link somebody sent, with a sort in it, is not choosing one."""
         computer(model="A")
         page = served(client, client.get("/").text)
-        assert "sortSel.addEventListener('change', function () {" in page
+        assert "if (e.target === sortSel) window.rhdbCookie.write(PAGE.sortCookie" in page
 
     def test_the_helpers_are_defined_before_the_page_uses_them(self, client, computer):
         """The gallery's script lives in the content block, so anything it calls has
@@ -1997,26 +1997,17 @@ class TestTheGalleryOpensShuffled:
         ]
         values = re.findall(r'<option value="([^"]*)"', select)
         assert values[0] == "random", values
-        # No `selected` anywhere in the group, so the first option is what opens --
-        # asserted because adding one elsewhere would silently take the default away.
-        assert "selected" not in select
+        # With no cookie and no sort in the link, Random is the one chosen.
+        assert re.findall(r'<option value="([^"]*)" selected>', select) == ["random"]
 
     def test_the_shuffle_is_dealt_once_and_held(self, client, computer):
-        """Filtering and searching re-sort on every keystroke, so a shuffle that
-        re-dealt each time would throw the cards up in the air while you typed."""
-        computer(model="A")
-        page = served(client, client.get("/").text)
-        assert "function deal()" in page and "el._shuffle = Math.random()" in page
-        # Dealt again only when Random is chosen afresh, which is what makes the
-        # option useful once you are already on it.
-        assert "if (mode === 'random' && mode !== lastMode) deal();" in page
-
-    def test_a_photoless_item_still_sorts_last(self, client, computer):
-        """The same rule the recency sorts follow: a shuffle that opens on a screenful
-        of unphotographed things looks like a broken page, not a random one."""
-        computer(model="A")
-        page = served(client, client.get("/").text)
-        assert "random: (a, b) => hasImg(b) - hasImg(a) || a._shuffle - b._shuffle" in page
+        """The hand is in the link, so reloading, turning the page or sending it to
+        somebody shows the same shuffle rather than a fresh one."""
+        for m in "ABCDEF":
+            computer(model=m)
+        one = client.get("/?sort=random&deal=5").text
+        again = client.get("/?sort=random&deal=5").text
+        assert TestSortingTheGallery._order(one) == TestSortingTheGallery._order(again)
 
 
 class TestWhatIsGoneIsNotCounted:
@@ -3456,8 +3447,7 @@ class TestWalkingFromItemToItem:
         prev/next should follow -- not the register's."""
         computer()
         page = served(client, client.get("/").text)
-        assert "sessionStorage.setItem('rhdb-order'" in page
-        assert "el.style.display !== 'none'" in page
+        assert "sessionStorage.setItem('rhdb-order', JSON.stringify(PAGE.order))" in page
 
     def test_the_item_page_prefers_that_order(self, client, part):
         page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
@@ -3473,54 +3463,33 @@ class TestWalkingFromItemToItem:
 
 
 class TestSortingTheGallery:
-    """The toolbar's sort menu reorders the cards in the browser, so the ordering
-    itself is not reachable from here. What is reachable, and what silently breaks
-    a sort if it goes missing, is the key each card carries."""
+    """The toolbar's sort menu, applied by the server to what each item records.
+    The rules themselves are pinned against plain rows in test_gallery_pages; these
+    are the same rules reading real items."""
 
     @staticmethod
-    def _card(page, aid):
-        match = re.search(rf'<a class="card"[^>]*/{aid}"(.*?)>', page, re.S)
-        assert match, f"no card for {aid}"
-        return match.group(1)
-
-    def test_a_machine_carries_every_key_the_menu_sorts_on(self, client, computer):
-        c = computer(manufacturer="Amstrad", model="PC1512", year=1986, acquired_date="2026-05-01")
-        card = self._card(client.get("/").text, c["asset_id"])
-        assert 'data-year="1986"' in card
-        assert 'data-maker="amstrad"' in card
-        assert 'data-acquired="2026-05-01"' in card
-        assert f'data-aid="{c["asset_id"]}"' in card
-
-    def test_a_part_carries_them_too(self, client, part):
-        p = part(
-            type="video",
-            manufacturer="Tseng",
-            model="ET4000",
-            year=1990,
-            acquired_date="2026-05-02",
+    def _order(page):
+        return re.findall(
+            r'class="card(?: is-disposed)?" href="/(?:computers|parts)/([A-Z0-9-]+)"', page
         )
-        card = self._card(client.get("/").text, p["asset_id"])
-        assert 'data-year="1990"' in card
-        assert 'data-maker="tseng"' in card
-        assert 'data-acquired="2026-05-02"' in card
 
-    def test_what_is_not_recorded_is_blank_rather_than_absent(self, client, part):
-        """A missing attribute reads as undefined in the sort; an empty one is
-        what the blanks-last rule looks for."""
-        p = part(manufacturer="", year=None, acquired_date=None)
-        card = self._card(client.get("/").text, p["asset_id"])
-        assert 'data-year=""' in card
-        assert 'data-maker=""' in card
-        assert 'data-acquired=""' in card
+    def test_year_reads_machines_and_parts_alike(self, client, computer, part):
+        c = computer(year=1986)["asset_id"]
+        p = part(type="video", year=1990)["asset_id"]
+        assert self._order(client.get("/?sort=yearnew").text) == [p, c]
+
+    def test_what_is_not_recorded_goes_last(self, client, part):
+        blank = part(manufacturer="", year=None, acquired_date=None)["asset_id"]
+        known = part(manufacturer="Tseng", year=1990, acquired_date="2026-05-02")["asset_id"]
+        for sort in ("maker", "yearnew", "yearold", "acquired"):
+            assert self._order(client.get(f"/?sort={sort}").text) == [known, blank], sort
 
     def test_machines_lead_the_category_order(self, client, computer, part):
         """Category sorts by the vocabulary's own order, not the label's spelling,
         and a computer is not one of the part types."""
-        c = computer()
-        p = part(type="video")
-        page = client.get("/").text
-        assert 'data-catsort="0"' in self._card(page, c["asset_id"])
-        assert 'data-catsort="0"' not in self._card(page, p["asset_id"])
+        p = part(type="video", model="AAA")["asset_id"]
+        c = computer(model="ZZZ")["asset_id"]
+        assert self._order(client.get("/?sort=cat").text) == [c, p]
 
     def test_the_menu_offers_each_of_them(self, client):
         page = client.get("/").text
@@ -3587,23 +3556,20 @@ class TestTheClockShowsOnlyWhenSignedIn:
         assert re.search(self.DATE, page)
         assert not re.search(self.DATE_TIME, page)
 
-    def test_the_gallery_sort_keys_lose_the_time_too(self, client, part, monkeypatch):
-        """They are not on show, but a timestamp in the page source is a timestamp
-        published all the same."""
+    def test_the_gallery_page_publishes_no_timestamp(self, client, part, monkeypatch):
+        """The recency sorts are done on the server now, so their keys are not in
+        the page source at all -- where a timestamp would be published all the same,
+        on show or not."""
         from app import main
 
-        p = part()
-        card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
-        assert re.search(rf'data-updated="{self.DATE}T', card)
+        part()
         monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-        card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
-        assert re.search(rf'data-updated="{self.DATE}"', card)
-        assert re.search(rf'data-added="{self.DATE}"', card)
+        assert not re.search(rf"{self.DATE}T\d", client.get("/").text)
 
-    def test_the_cards_arrive_newest_change_first(self, client, part, db):
-        """Dates alone are all the sort keys a visitor gets, and the browser's sort
-        is stable, so the order the cards arrive in is what still settles a run of
-        edits made on the same day."""
+    def test_recently_updated_is_newest_change_first(self, client, part, db):
+        """Dates alone are all the sort keys a visitor gets, and the sort is stable,
+        so the order the rows arrive in is what still settles a run of edits made
+        on the same day."""
         from app.models import LogEntry
 
         old = part(model="Older")["asset_id"]
@@ -3612,7 +3578,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
             {"created_at": datetime(2020, 1, 1)}
         )
         db.commit()
-        page = client.get("/").text
+        page = client.get("/?sort=updated").text
         assert page.index(f'/parts/{new}"') < page.index(f'/parts/{old}"')
 
 
@@ -4593,11 +4559,11 @@ class TestFollowingAFigureToItsItems:
         client.patch(f"/api/parts/{aid}", json={"disposed": True})
         page = client.get("/browse?f=disposed").text
         assert self._cards(page) == [aid]
-        assert 'id="showdisposed" checked>' in page
+        assert 'id="showdisposed" name="disposed" value="1" checked>' in page
 
     def test_the_gallery_itself_still_hides_them(self, client, part):
         client.patch(f"/api/parts/{part(model='gone')['asset_id']}", json={"disposed": True})
-        assert 'id="showdisposed">' in client.get("/").text
+        assert 'id="showdisposed" name="disposed" value="1">' in client.get("/").text
 
     def test_an_unknown_view_is_a_404(self, client):
         assert client.get("/browse?f=nonsense").status_code == 404
@@ -4941,14 +4907,13 @@ class TestSearchingEveryField:
         page = client.get("/?q=nothinghere").text
         assert "all\n  2 items" in page or "2 items" in page
 
-    def test_the_browser_is_told_what_the_server_matched(self, client, part):
-        """Otherwise the instant filter would hide rows that matched on a field the
-        browser's own copy does not carry."""
-        part(notes="battery damage")
-        page = served(client, client.get("/?q=battery").text)
-        assert '"query": "battery"' in page
+    def test_a_match_on_a_field_the_card_does_not_show_is_still_shown(self, client, part):
+        """The card says nothing about the notes, and the search found it there."""
+        aid = part(notes="battery damage")["asset_id"]
+        page = client.get("/?q=battery").text
         card = page[page.index('<a class="card"') :]
-        assert "battery" not in card[: card.index("</a>")]
+        card = card[: card.index("</a>")]
+        assert f"/parts/{aid}" in card and "battery" not in card
 
     def test_searching_is_public(self, client, part, monkeypatch):
         from app import main

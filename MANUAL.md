@@ -110,14 +110,30 @@ The toolbar above the grid gives you:
 - **Category** — computers, or one kind of part.
 - **Sort** — Random (the default), Recently updated, Recently added, Recently
   acquired, Year newest/oldest first, Name A–Z, Maker A–Z, Category, Asset
-  number. Your choice is remembered in a cookie. Choosing Random again deals a
-  new hand.
+  number. Your choice is remembered in a cookie.
 - **Show disposed** — items that have left the collection are hidden by default.
+
+Changing any of them redraws the page. With JavaScript switched off nothing
+happens until you press **Apply**, which is also the button a keyboard user can
+rely on. Either way the address bar ends up holding the whole view — category,
+sort, search, page — so a view is a link: bookmark it, or send it to somebody,
+and it opens as you left it.
+
+The grid shows **48 cards a page**, with **Prev** and **Next** beneath it and the
+page you are on between them. The figures beside the heading count everything,
+not just this page, and when the category or the disposed box is holding
+something back they say so as a fraction: *(showing 13 of 14)*.
 
 The default is Random on purpose: a shelf is more interesting shuffled than in
 the order things were last touched, and a recency sort only ever shows you the
 same dozen items. Recency and random sorts both put photographed items first, so
 the page does not open on a screenful of placeholder icons.
+
+A shuffle is **dealt once and then held**: turning the page, picking a category
+or searching keeps each item where the hand put it, so page 2 carries on from
+page 1 rather than being a fresh shuffle with repeats. Choosing Random from
+another sort deals a new hand. The hand is part of the link, so somebody you send
+it to sees the same shuffle.
 
 ### The header
 
@@ -197,8 +213,9 @@ box; with the setting on it arrives there without the travel.
 ### Moving between items
 
 An item page has **prev** and **next** buttons. They walk the list the gallery
-was last showing — that sort, that search, that category — which the browser
-hands over as you leave the gallery. Arrive from a printed label instead, with no
+was last showing — that sort, that search, that category, and every page of it,
+so *next* on the last card of page 1 is the first card of page 2 — which the
+browser hands over as you leave the gallery. Arrive from a printed label instead, with no
 gallery visit behind you, and they walk the register in asset order.
 
 The buttons are the whole gesture. A sideways swipe used to do this as well, but
@@ -295,10 +312,6 @@ things they have on order as well as their own text — so `Gotek` finds the pro
 with one in the post. They do not become cards in the gallery, which stays a wall
 of photographs of things owned; the line above the results says how many projects
 matched and links to them. See [section 12](#12-projects).
-
-**On the gallery, typing filters the cards as you type**, without a round trip.
-That filter reads a condensed blob on each card rather than the full text, so it
-is the faster, narrower answer; press Enter for the real one.
 
 **Type two characters** and a dropdown offers the first ten matches — computers,
 parts and projects alike. Arrow keys and Enter walk them; the last line says how

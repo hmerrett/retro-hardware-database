@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1505 behaviours, from 40 files.*
+*1544 behaviours, from 41 files.*
 
 
 ## A file where text was expected
@@ -37,7 +37,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 551 behaviours*
+*test_api.py — 549 behaviours*
 
 
 **Typed columns**
@@ -334,7 +334,8 @@ Regenerate with:
   The name is a template global rather than a string in two places, because a cookie written under one name and read under another is not remembered.
 - a sort that no longer exists is not trusted  
   A stale or hand-edited cookie naming a sort the page dropped would otherwise leave the grid sorted by nothing.
-- it is written on the sorts own change and not on every keystroke
+- it is written when the sort is chosen and not when a link names one  
+  Opening a link somebody sent, with a sort in it, is not choosing one.
 - the helpers are defined before the page uses them  
   The gallery's script lives in the content block, so anything it calls has to be defined above it in the document.
 
@@ -351,9 +352,7 @@ Regenerate with:
 
 - random is the first option and so the default
 - the shuffle is dealt once and held  
-  Filtering and searching re-sort on every keystroke, so a shuffle that re-dealt each time would throw the cards up in the air while you typed.
-- a photoless item still sorts last  
-  The same rule the recency sorts follow: a shuffle that opens on a screenful of unphotographed things looks like a broken page, not a random one.
+  The hand is in the link, so reloading, turning the page or sending it to somebody shows the same shuffle rather than a fresh one.
 
 **What is gone is not counted**
 
@@ -572,10 +571,8 @@ Regenerate with:
 
 **Sorting the gallery**
 
-- a machine carries every key the menu sorts on
-- a part carries them too
-- what is not recorded is blank rather than absent  
-  A missing attribute reads as undefined in the sort; an empty one is what the blanks-last rule looks for.
+- year reads machines and parts alike
+- what is not recorded goes last
 - machines lead the category order  
   Category sorts by the vocabulary's own order, not the label's spelling, and a computer is not one of the part types.
 - the menu offers each of them
@@ -591,10 +588,10 @@ Regenerate with:
 - the history gives the minute to whoever can edit it
 - a visitor gets the day alone
 - a machine history is the same
-- the gallery sort keys lose the time too  
-  They are not on show, but a timestamp in the page source is a timestamp published all the same.
-- the cards arrive newest change first  
-  Dates alone are all the sort keys a visitor gets, and the browser's sort is stable, so the order the cards arrive in is what still settles a run of edits made on the same day.
+- the gallery page publishes no timestamp  
+  The recency sorts are done on the server now, so their keys are not in the page source at all -- where a timestamp would be published all the same, on show or not.
+- recently updated is newest change first  
+  Dates alone are all the sort keys a visitor gets, and the sort is stable, so the order the rows arrive in is what still settles a run of edits made on the same day.
 
 **Photo lookup**
 
@@ -801,8 +798,8 @@ Regenerate with:
 - a quoted phrase must be contiguous
 - nothing matching says so
 - it reports what it searched
-- the browser is told what the server matched  
-  Otherwise the instant filter would hide rows that matched on a field the browser's own copy does not carry.
+- a match on a field the card does not show is still shown  
+  The card says nothing about the notes, and the search found it there.
 - searching is public
 
 **The first few matches while you type**
@@ -1603,6 +1600,74 @@ Regenerate with:
 - disposing a flagged item leaves the flag alone  
   Two different facts.
 - the decision is written down
+
+
+## Gallery pages
+
+*test_gallery_pages.py — 41 behaviours*
+
+
+**Pages**
+
+- a page holds 48 cards
+- more than a page draws the pager
+- one page draws no pager
+- the pages together hold every item once
+- a page past the end shows the last
+- a page that is not a number is the first
+- the figures count everything not just the page
+- the pager carries the whole view
+- a browse page keeps its own view through the pager
+
+**The toolbar**
+
+- it is a form that submits with get
+- apply is there for a browser running no script
+- the view in the link is the view the menus show
+- a search is kept when the menus change
+- a browse view keeps its figure when the menus change
+- the shortlist submits to itself
+
+**Filters**
+
+- a category keeps to its kind
+- a category the page does not offer is ignored
+- disposed items are hidden on the gallery by default
+- the box shows them
+- a submitted form without the box hides them on a browse page
+- held back items are counted as a fraction
+- nothing held back says nothing
+- no match says so
+
+**Sorts**
+
+- name is a to z ignoring case
+- recently updated puts photographs first
+- recently updated is newest first and keeps the order of a tie
+- undated items go last both ways round
+- maker is a to z with the name settling a tie
+- category follows the catalogue order
+- asset number
+- random puts photographs first
+- the same deal is the same shuffle
+- a different deal is a different shuffle
+- filtering keeps each item where the hand put it
+
+**The deal**
+
+- arriving on random deals a hand and the pager carries it
+- the hand is kept when the menus change
+- another sort carries no hand
+
+**The sort cookie**
+
+- a link with no sort opens in the one last chosen
+- the link outranks the cookie
+
+**The hand off**
+
+- prev and next are handed every page of the list
+- each is handed over under the name on its card
 
 
 ## Healthz

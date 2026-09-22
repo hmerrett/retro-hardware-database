@@ -176,17 +176,10 @@
 {# A gallery tile, from a row as gallery._catalogue_rows builds it. The whole card is
    the link, so everything inside it is a span. Disposed fades the photograph and
    says so in a chip: dimming the whole card, as 0.1 did, took the muted text under
-   4.5:1. The data- attributes are what index.js sorts and filters on. #}
+   4.5:1. #}
 {% macro card(item) -%}
 {%- set o = item.obj -%}
-<a class="card{{ ' is-disposed' if o.disposed }}" href="/{{ 'computers' if item.kind == 'computer' else 'parts' }}/{{ o.asset_id }}"
-   data-cat="{{ item.cat }}" data-search="{{ item.search }}"
-   data-disposed="{{ '1' if o.disposed else '0' }}"
-   data-updated="{{ item.updated }}" data-added="{{ item.added }}"
-   data-acquired="{{ item.acquired }}" data-year="{{ item.year }}"
-   data-maker="{{ item.maker }}" data-catsort="{{ item.catsort }}"
-   data-aid="{{ o.asset_id }}"
-   data-img="{{ '1' if item.image else '0' }}" data-name="{{ item.name | lower }}">
+<a class="card{{ ' is-disposed' if o.disposed }}" href="/{{ 'computers' if item.kind == 'computer' else 'parts' }}/{{ o.asset_id }}">
 <span class="thumb">
 {#- A card measures 229px on every desktop width -- the page is capped at 1000px --
     and the width of the screen on a phone. sizes says so, because a browser

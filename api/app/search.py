@@ -74,7 +74,6 @@ class _CardFields(TypedDict):
     acquired: str
     catsort: int
     sub: str
-    search: str
 
 
 class ComputerCard(_CardFields):
