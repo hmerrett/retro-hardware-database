@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1660 behaviours, from 47 files.*
+*1684 behaviours, from 48 files.*
 
 
 ## A file where text was expected
@@ -1821,6 +1821,58 @@ Regenerate with:
   The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
 
 
+## Login and confirm pages
+
+*test_login_and_confirm_pages.py — 23 behaviours*
+
+
+**The login page**
+
+- it says that browsing needs no login  
+  The page is where somebody lands who followed a link they did not mean to, and the useful thing to tell them is that they never needed it.
+- it says that signing in keeps one cookie
+- a wrong name and a wrong password are answered the same  
+  Which half was wrong would tell a stranger whether a guessed name exists.
+- the refusal is a danger banner a screen reader announces
+- being turned away for trying too often says so  
+  Not "incorrect": nothing was read.
+- the password manager is told which box is which
+- the refusal stands between the boxes and the button  
+  Read in the order it is met: what went wrong, then the thing to press.
+- it is the v0 2 login box
+
+**Confirming A delete**
+
+- it counts what will go
+- the destructive button is the danger one  
+  Never `primary`.
+- cancel stands beside it at the same size  
+  The same size, because an escape made small is an escape made hard.
+- it asks for the item s own url
+- a paste that went wrong comes back as a danger banner
+- there is one way back and it is the cancel button  
+  A crumb above the heading and a Cancel below it are two ways to the same place; the way out belongs with the decision.
+- it is the v0 2 confirm page
+- a part s page asks the same way
+
+**Confirming A detach**
+
+- it is the same page with a warning banner  
+  Nothing is destroyed: the machine keeps its tag, its history and its photographs, and one more thing gets a tag of its own.
+- its button is primary because nothing is lost
+- it still says what moves and what stays
+- the portrait can still be taken here  
+  The board is out and on the bench, which is the one moment it can be photographed.
+- there is one way back and it is the cancel button
+
+**What the stylesheet no longer carries**
+
+- the rule these pages were the last users of is gone  
+  0.1's app.css shrinks by what each migrated group stops using; a rule left behind is a rule that has to be reasoned about at the end of the phase.
+- the catalogue still names the spectrum  
+  The detach page reads the catalogue, so these tests assume it is there.
+
+
 ## Machines
 
 *test_machines.py — 174 behaviours*
@@ -2960,7 +3012,7 @@ Regenerate with:
 
 ## Stylesheet lint
 
-*test_stylesheet_lint.py — 5 behaviours*
+*test_stylesheet_lint.py — 6 behaviours*
 
 - no colour is stated outside the token files  
   A colour written into a component is one no preset can change and no contrast test reads.
@@ -2972,6 +3024,8 @@ Regenerate with:
   utilities.css is for one-off arrangement.
 - while app css is here it outranks the new stylesheets  
   The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
+- a bare 0 1 rule lets every tone past it  
+  0.1's `.banner` is kept for the one template still writing the class bare, and is written as a `:not()` list so a migrated page's toned banner falls through to components.css.
 
 
 ## Type checking

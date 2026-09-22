@@ -931,9 +931,7 @@ async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_
         return templates.TemplateResponse(
             request,
             "delete.html",
-            _delete_ctx(
-                request, db, "parts", p, error="That is not this item's URL. Nothing was deleted."
-            ),
+            _delete_ctx(request, db, "parts", p, error="That is not this item's URL."),
             status_code=400,
         )
     # Back to the machine it was in if it was in one, since that page is now a

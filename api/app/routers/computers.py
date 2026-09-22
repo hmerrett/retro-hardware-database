@@ -660,7 +660,7 @@ async def gui_delete_computer(
                 "computers",
                 c,
                 with_parts=with_parts,
-                error="That is not this item's URL. Nothing was deleted.",
+                error="That is not this item's URL.",
             ),
             status_code=400,
         )

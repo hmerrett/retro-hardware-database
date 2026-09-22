@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from app import main
+
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 BASE = TEMPLATES / "base.html"
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
@@ -160,13 +162,17 @@ def test_the_cookie_notice_does_not_swallow_it_either():
     )
 
 
-def test_the_login_boxes_say_what_they_are_for():
+def test_the_login_boxes_say_what_they_are_for(client, monkeypatch):
     """A password manager fills a form it can read: `autocomplete="username"` and
     `current-password` are what tell it which entry this is and which box the
     password goes in. Without them the one credential this register has must be
     typed from memory or carried between windows, which is what WCAG 2.2's 3.3.8
-    is about."""
-    html = (TEMPLATES / "login.html").read_text(encoding="utf-8")
+    is about.
+
+    Read off the rendered page rather than the template, because the boxes are the
+    `field` macro's now and what reaches the browser is what a manager reads."""
+    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    html = client.get("/login").text
     assert re.search(r'<input[^>]*name="username"[^>]*autocomplete="username"', html), (
         "the username box does not say what it is for"
     )

@@ -476,7 +476,22 @@
     display: flex; align-items: flex-end; justify-content: center; padding: var(--space-5); border-radius: var(--radius-lg); overflow: hidden; }
   .scanbox .reticle { position: absolute; inset: 18%; border: 2px solid var(--on-scrim); border-radius: var(--radius-md); }
   .scanbox .lb-hint { position: relative; color: var(--on-scrim-muted); font-size: 13px; }
+  /* A page that asks one question: the delete confirmation and the board detach.
+     Narrow, because the decision is the whole page and a long measure invites
+     skimming what has to be read; the banner carries the tone, and the two buttons
+     stand together at the foot, where the answer is given. */
   .confirm { max-width: 520px; margin: var(--space-7) auto; }
+  .confirm > .tag { margin: var(--space-2) 0 0; color: var(--text-muted); }
+  .confirm > p { margin: var(--space-4) 0 0; }
+  /* What will go, counted. A list and not a sentence: each count is read on its
+     own, and a phone has to break them somewhere. */
+  .confirm .going { margin: var(--space-4) 0 0; padding-left: var(--space-6); }
+  .confirm .going li { margin: var(--space-2) 0; }
+  /* The URL that has to be pasted back. On a line of its own and selectable whole,
+     which is the difference between a double-click taking the URL and taking a
+     word, and breakable anywhere, because nobody reads one as a word. */
+  .confirm .url { margin: 0 0 var(--space-2); }
+  .confirm .url code { user-select: all; overflow-wrap: anywhere; }
   .errorpage { max-width: 520px; margin: var(--space-7) auto; text-align: center; }
   .errorpage .figure { color: var(--text-muted); }
   /* A job: the tick, its words, then what it is about, when it was done and the drop.

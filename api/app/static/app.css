@@ -511,17 +511,10 @@
      rules above would outrank the browser's own `[hidden] { display: none }`, which
      is why there is one of our own at the top of this stylesheet. */
   #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
-  /* The way back, and the way on to the next item: one row, the pair pushed to the
-     far end so they fall under the thumb on a phone. */
-  .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
-    margin: 16px 0; }
   /* The side column leads an item page once it is one column, and a code that opens
      the page you are already reading is not worth a screenful of it. */
   @media (max-width: 860px) { .photo-qr { display: none; } }
   .section { margin-top: 24px; }
-  /* Wraps because the title row carries the heading, its chips and -- when logged
-     in -- the edit/print buttons, which is more than a phone's width. */
-  .flex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
   .count { color: var(--muted); font-size: 13px; }
   fieldset:not(main.v2 *) { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0; padding: 8px 14px 14px; }
   legend:not(main.v2 *) { color: var(--muted); font-size: 13px; padding: 0 6px; }
@@ -617,24 +610,6 @@
     }
   }
 
-  /* The confirmation pages. These rules were a <style> block in delete.html and
-     another in detach.html, which the content policy cannot allow any more than
-     it allows an inline script; they are the same shape either way. */
-  .danger-box { border: 1px solid #b45300aa; border-radius: 8px; padding: 14px 16px;
-    margin: 12px 0; max-width: 620px; }
-  .danger-box ul.going { margin: 0; padding-left: 20px; }
-  .danger-box ul.going li { margin: 3px 0; }
-  /* Selectable on its own line: it is there to be copied, and a line of its own
-     is the difference between a double-click taking the URL and taking a word. */
-  .confirm-url { margin: 2px 0 6px; }
-  .confirm-url code { user-select: all; word-break: break-all; }
-  /* The delete page's box without its colour: the same "read this before you press
-     it" shape, and nothing here is dangerous. */
-  .detach-box { border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
-    margin: 12px 0; max-width: 620px; }
-  .detach-box ul.going { margin: 0; padding-left: 20px; }
-  .detach-box ul.going li { margin: 3px 0; }
-
   /* The last of the inline styles, as classes.
 
      Sixty-seven `style` attributes were spread across nineteen templates, almost
@@ -652,18 +627,8 @@
   .grow { flex: 1; min-width: auto; }
   .is-hidden { display: none; }
   .tuck { margin: 5px 0 0; }
-  .mt-5 { margin-top: 5px; }
-  .mt-14 { margin-top: 14px; }
-  .ml-22 { margin-left: 22px; }
-  .top-12 { margin: 12px 0 0; }
-  .lede { margin: 0 0 2px; }
-  .stack-8 { margin: 0 0 8px; }
-  .lede-tail { margin: 0 0 14px; }
   .subhead { margin: 10px 0 2px; }
   .subhead-loose { margin: 10px 0 4px; }
-  .actions-row { margin-top: 14px; gap: 8px; }
-  .btn-row { margin: 0; display: flex; gap: 4px; }
-  .login-box { max-width: 320px; }
   /* Wide enough for a sentence of explanation under each control, narrow enough
      that a text box is not a field the width of a desktop. */
   .settings-box { max-width: 560px; }

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
 {% import "_partlist.html" as P %}
 {# The page that stands between a board inside a machine and a board on a shelf.
 
@@ -9,20 +10,22 @@
    camera: a board is photographable while it is out and before it goes back in, and
    that moment does not come round again. A file picker needs a form, and this is it.
 
-   Not the delete page's URL-paste confirmation, though it borrows the box. Nothing
-   here is destroyed: the machine keeps its id, its model and its history, and what
-   happens is that one more thing gets a tag. #}
+   The delete page's shape, in the other tone. Nothing here is destroyed -- the
+   machine keeps its id, its model and its history, and what happens is that one
+   more thing gets a tag -- so the banner is a warning and the button is primary.
+   Only destruction gets the danger one. #}
 {% block title %}Detach the board — {{ aid }} — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<div class="crumbnav"><a href="/computers/{{ aid }}">&larr; back to {{ aid }}</a></div>
+<form method="post" action="/computers/{{ aid }}/detach-board"
+      enctype="multipart/form-data" class="confirm">
+  <h1 class="heading">Detach the board from {{ name }}?</h1>
+  <p class="tag muted">{{ aid }} · {{ model }}</p>
 
-<h2 class="lede">Detach the board from {{ name }}</h2>
-<p class="muted lede-tail">{{ aid }} · {{ model }}</p>
-
-<div class="detach-box">
-  <p class="stack-8">The board becomes an object of its own — its own asset
-  tag, photographs and history — linked back to the machine it came out of. Do it
-  once the board is actually out.</p>
+  {# A short lead and the sentence after it: the lead does not wrap in the banner's
+     row, so a long one squeezes the words beside it into a column. #}
+  {% set detail = 'The board becomes an object of its own, linked back to the machine it came out of. Do it once the board is actually out.' %}
+  {{ U.banner('warning', 'Nothing is lost.', detail) }}
 
   <ul class="going">
     <li>a new <strong>motherboard</strong> part, filed as <strong>{{ model }}</strong></li>
@@ -35,39 +38,39 @@
   </ul>
 
   {% if chips %}
-  <p class="hint subhead">Moving with the board</p>
+  <p class="hint">Moving with the board</p>
   {{ P.chipcards(chips) }}
   {% endif %}
 
   {# What a case answers and a board does not. Said out loud, because "detach" reads
      like the machine is being taken to pieces and it is not: the style and the region
      are facts about the assembled computer in its box, and the box is not moving. #}
-  <p class="top-12">{{ aid }} keeps its asset tag, its history, its
+  <p>{{ aid }} keeps its asset tag, its history, its
   photographs and its catalogue model{% if staying %} — and
   {% for label, value in staying %}{{ label | lower }} <strong>{{ value }}</strong>{{ '' if loop.last else ' and ' }}{% endfor %},
   which {{ 'is a fact' if staying | length == 1 else 'are facts' }} about the case
   and not about the board{% endif %}.</p>
 
-  <form method="post" action="/computers/{{ aid }}/detach-board"
-        enctype="multipart/form-data" class="edit">
-    {# Asked for here and nowhere else, because here is the only place it can be
-       taken. Not required, though: a separation that really happened should be
-       recorded even with no camera to hand, and an object with no portrait is a gap
-       the register can be asked about later rather than a reason to write down the
-       wrong thing now. #}
-    <label title="The board is out and on the bench, the one moment it can be photographed. The first becomes its portrait.">The board's portrait</label>
+  {# Asked for here and nowhere else, because here is the only place it can be
+     taken. Not required, though: a separation that really happened should be
+     recorded even with no camera to hand, and an object with no portrait is a gap
+     the register can be asked about later rather than a reason to write down the
+     wrong thing now. #}
+  <div class="field">
+    <span class="lbl">The board's portrait</span>
     <div class="newphotos">
       <label class="btn sm filebtn">choose files
         <input type="file" name="photos" accept="image/*" multiple>
       </label>
       <span class="hint" data-photo-count></span>
     </div>
+    <p class="hint">the board is out and on the bench, which is the one moment it can
+      be photographed. The first becomes its portrait.</p>
+  </div>
 
-    <div class="flex actions-row">
-      <a class="btn" href="/computers/{{ aid }}">cancel</a>
-      <button class="btn primary" type="submit">detach the board</button>
-    </div>
-  </form>
-</div>
-
+  <p class="row mt-5">
+    {{ U.button('Detach the board', kind='primary', type='submit') }}
+    {{ U.button('Cancel', href='/computers/' ~ aid) }}
+  </p>
+</form>
 {% endblock %}
