@@ -1,15 +1,14 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
 {% import "_colours.html" as C %}
 {% import "_machine.html" as M %}
 {% block title %}{{ title }} — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<p><button type="button" class="backlink" data-back>&larr; back</button></p>
-<h2>{{ title }}</h2>
 
-{% macro sf(name, key, label, hint='', listid='') %}
-  <label for="{{ name }}"{% if hint %} title="{{ hint }}"{% endif %}>{{ label }}</label>
-  <input id="{{ name }}" name="{{ name }}" value="{{ spec_keys.get(key, '') }}"{% if listid %} list="{{ listid }}"{% endif %}{% if hint %} title="{{ hint }}"{% endif %}>
-{% endmacro %}
+{% macro sf(name, key, label, hint='', listid='') -%}
+  {{ U.field(name, label, value=spec_keys.get(key, ''), hint=hint, list=listid) }}
+{%- endmacro %}
 
 {# A short closed list, offered rather than typed, with a box for the hardware the
    list does not name -- revealed by "custom" alone, by the script at the foot of
@@ -24,29 +23,36 @@
    other group finds that answer missing from its own list, calls it custom, and
    checks its own custom radio, which then beats the real one and posts nothing. #}
 {% macro pick(field, key, label, hint, options, placeholder, maxlength, req=false,
-              active=true) %}
+              active=true, uid='') %}
   {% set cur = spec_keys.get(key, '') if active else '' %}
   {% set custom = cur and cur not in options %}
-  <label title="{{ hint }}">{{ label }}</label>
-  <div class="checks">
+  {# `uid` tells apart the groups one question has for several kinds, which share
+     a field name but each need their own label to be named by. #}
+  {% set gid = uid or field %}
+  <div class="field">
+  <span class="lbl" id="{{ gid }}-lbl">{{ label }}</span>
+  <div class="checks" role="group" aria-labelledby="{{ gid }}-lbl" aria-describedby="{{ gid }}-hint">
     {# A required group offers no way to say nothing: every one of these has an
        answer, and "not recorded" would be the easiest thing to leave it on. #}
     {# "not recorded" is an answer like any other, so an inactive group must not be
        sitting on it either: shared with the live group, it would win on markup order
        and post a blank over the real answer. An inactive group checks nothing. #}
     {% if not req %}
-    <label><input type="radio" name="{{ field }}" value=""
+    <label class="check"><input type="radio" name="{{ field }}" value=""
                   {{ ' checked' if active and not cur else '' }}> not recorded</label>
     {% endif %}
     {% for o in options %}
-    <label><input type="radio" name="{{ field }}" value="{{ o }}"
+    <label class="check"><input type="radio" name="{{ field }}" value="{{ o }}"
                   {{ ' checked' if o == cur else '' }}{{ ' required' if req else '' }}> {{ o }}</label>
     {% endfor %}
-    <label><input type="radio" name="{{ field }}" value="custom"
+    <label class="check"><input type="radio" name="{{ field }}" value="custom"
                   {{ ' checked' if custom else '' }}{{ ' required' if req else '' }}> custom</label>
   </div>
-  <input id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
-         value="{{ cur if custom else '' }}" placeholder="{{ placeholder }}" hidden>
+  <input class="input" id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
+         value="{{ cur if custom else '' }}" placeholder="{{ placeholder }}"
+         aria-labelledby="{{ gid }}-lbl" hidden>
+  <p class="hint" id="{{ gid }}-hint">{{ hint }}</p>
+  </div>
 {% endmacro %}
 
 {# pick()'s sibling for a question that has more than one answer at once. A monitor
@@ -59,15 +65,19 @@
   {% set cur = spec_keys.get(key, '') %}
   {% set chosen = cur.split(',') | map('trim') | select | list %}
   {% set extra = chosen | reject('in', options) | list %}
-  <label title="{{ hint }}">{{ label }}</label>
-  <div class="checks">
+  <div class="field">
+  <span class="lbl" id="{{ field }}-lbl">{{ label }}</span>
+  <div class="checks" role="group" aria-labelledby="{{ field }}-lbl" aria-describedby="{{ field }}-hint">
     {% for o in options %}
-    <label><input type="checkbox" name="{{ field }}" value="{{ o }}"
+    <label class="check"><input type="checkbox" name="{{ field }}" value="{{ o }}"
                   {{ ' checked' if o in chosen else '' }}> {{ o }}</label>
     {% endfor %}
   </div>
-  <input id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
-         value="{{ extra | join(', ') }}" placeholder="{{ placeholder }}">
+  <input class="input" id="{{ field }}_custom" name="{{ field }}_custom" maxlength="{{ maxlength }}"
+         value="{{ extra | join(', ') }}" placeholder="{{ placeholder }}"
+         aria-labelledby="{{ field }}-lbl">
+  <p class="hint" id="{{ field }}-hint">{{ hint }}</p>
+  </div>
 {% endmacro %}
 
 <datalist id="dl_form_factors">{% for o in vocab.form_factors %}<option value="{{ o }}">{% endfor %}</datalist>
@@ -81,17 +91,20 @@
 <datalist id="dl_makes">{% for o in makes %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
-{% if from_part %}
-<p class="hint" title="Photos, source, acquired date and notes are not carried over.">Copied from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.</p>
-{% endif %}
-
-<form class="edit" method="post" enctype="multipart/form-data" action="{{ action }}">
+<form class="editform" method="post" enctype="multipart/form-data" action="{{ action }}">
+  <div class="pagehead"><h1 class="heading">
+    {%- if p and p.asset_id and action != '/parts/new' %}Edit {{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }} <span class="tag muted">{{ p.asset_id }}</span>
+    {%- else %}{{ title }}{% endif %}</h1></div>
+  {% if from_part %}
+  <p class="hint">Started from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.
+  Photos, source, acquired date and notes are not carried over.</p>
+  {% endif %}
   <input type="hidden" name="computer_id" value="{{ computer_id }}">
   <input type="hidden" name="parent_id" value="{{ parent_id }}">
 
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>Type {% if computer_id %}· for {{ computer_id }}{% endif %}</legend>
-    <select name="type" id="ptype" aria-label="type of part">
+    <select class="select" name="type" id="ptype" aria-label="type of part">
       {% for t in type_order %}<option value="{{ t }}"{{ ' selected' if t == ptype else '' }}>{{ type_labels.get(t, t) }}</option>{% endfor %}
     </select>
   </fieldset>
@@ -102,42 +115,38 @@
      A bare board on a shelf is filed here as what it is -- "Amiga 500, Rev 6A,
      these chips" -- rather than as a sentence in the notes. #}
   {% if machine_board %}
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>Catalogue</legend>
     {{ M.picker(machine_groups, machine_saved, machine_catalogue, board=true) }}
   </fieldset>
   {% endif %}
 
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>Identity</legend>
-    <label for="manufacturer">Manufacturer</label>
-    <input id="manufacturer" name="manufacturer" list="dl_makes" autocomplete="off"
-           value="{{ (p.manufacturer if p else '') or '' }}">
-    <label for="model">Model</label>
-    <input id="model" name="model" list="dl_models" autocomplete="off"
-           value="{{ (p.model if p else '') or '' }}">
+    <div class="formgrid">
+      {{ U.field('manufacturer', 'Manufacturer', value=(p.manufacturer if p else '') or '',
+                 list='dl_makes', autocomplete='off') }}
+      {{ U.field('model', 'Model', value=(p.model if p else '') or '',
+                 list='dl_models', autocomplete='off') }}
+      {{ U.field('name', 'Name', value=(p.name if p else '') or '',
+                 hint='optional; defaults to maker + model') }}
+      {{ U.field('year', 'Year', value=(p.year if p else '') or '', type='number') }}
+      {# Last in the identity, and never carried across by the duplicate button: two
+         of the same card are the same card in every field above this one and in
+         none of them here. #}
+      {{ U.field('serial', 'Serial number', value=(p.serial if p else '') or '',
+                 hint='as marked on this one') }}
+    </div>
     <p class="hint is-hidden" id="samemake"></p>
-    <label for="name" title="Optional; defaults to maker + model">Name</label>
-    <input id="name" name="name" value="{{ (p.name if p else '') or '' }}">
-    <label for="year">Year</label>
-    <input id="year" name="year" type="number" value="{{ (p.year if p else '') or '' }}">
-    {# Last in the identity, and never carried across by the duplicate button: two
-       of the same card are the same card in every field above this one and in none
-       of them here. #}
-    <label for="serial" title="As marked on this one">Serial number</label>
-    <input id="serial" name="serial" value="{{ (p.serial if p else '') or '' }}">
   </fieldset>
 
   <!-- Storage: kind first; floppy/optical/SD-CF route to the computer's drives -->
   {% if ptype == 'storage' %}
-  <fieldset id="fs-storage">
+  <fieldset class="fieldset" id="fs-storage">
     <legend>Storage</legend>
     {# Hoisted: the groups below need to know which kind's answer is the live one. #}
     {% set curkind = spec_keys.get('Kind', '') %}
-    <label for="kind">Kind</label>
-    <select id="kind" name="kind">
-      {% for o in vocab.storage_kinds %}<option value="{{ o }}"{{ ' selected' if o == curkind else '' }}>{{ o }}</option>{% endfor %}
-    </select>
+    {{ U.field('kind', 'Kind', kind='choice', value=curkind, choices=vocab.storage_kinds) }}
 
     {# Every question a drive is asked, from the one table in entry.py that the
        server reads back through. Each carries the kinds it is asked for, and the
@@ -155,7 +164,7 @@
            the other and only one answer is ever posted. #}
         {% for k, opts in ask.options.items() %}
         <div data-kind="{{ k }}" hidden>
-          {{ pick(ask.field, ask.key, ask.label, ask.hint, opts, ask.placeholder, ask.max, ask.required, k == curkind) }}
+          {{ pick(ask.field, ask.key, ask.label, ask.hint, opts, ask.placeholder, ask.max, ask.required, k == curkind, ask.field ~ '-' ~ loop.index) }}
         </div>
         {% endfor %}
       {% elif ask.options %}
@@ -172,18 +181,23 @@
     {# data-row because the bezel is two columns on a drive row as well as two specs
        on a part, so it is still asked of a drive being folded into a machine. #}
     <div class="ask" data-kinds="{{ bezel_kinds|join('|') }}" data-row=1 hidden>
-      <div id="drive-bezel" hidden>
-        <label title="The shade it was made in, and how far it has yellowed. A bezel named in the description is read from there too; a menu wins where both say something.">Bezel</label>
+      <div class="field" id="drive-bezel" hidden>
+        <span class="lbl">Bezel</span>
         {# The same menus the machine's own form has -- it goes to the same two
            columns on the drive row. #}
         {{ C.pair('drive_', '', '', bezel_colours, yellowing, bezel_colour_labels,
                   yellowing_labels) }}
+        <p class="hint">the shade it was made in, and how far it has yellowed. A bezel
+          named in the description is read from there too; a menu wins where both say
+          something.</p>
         {{ C.chart(bezel_colours, yellowing) }}
       </div>
-      <div id="part-bezel" hidden>
-        <label title="The shade it was made in, and how far it has yellowed. A full-height drive shows its bezel; a bare 3.5&quot; disk never had one.">Bezel</label>
+      <div class="field" id="part-bezel" hidden>
+        <span class="lbl">Bezel</span>
         {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
                   bezel_colours, yellowing, bezel_colour_labels, yellowing_labels) }}
+        <p class="hint">the shade it was made in, and how far it has yellowed. A
+          full-height drive shows its bezel; a bare 3.5" disk never had one.</p>
         {{ C.chart(bezel_colours, yellowing) }}
       </div>
     </div>
@@ -196,55 +210,67 @@
        not somewhere to leave text nobody can see. The make and model go in
        Identity above, and reach a machine's drive row from there. #}
     <div id="drive-desc-row" hidden>
-      <label for="drive_desc" title="Anything the pickers cannot say — it goes on the machine's Drives field. A size named here is read from the text too; a picker above wins where both say something.">Drive description</label>
-      <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
-             placeholder="e.g. SS/DD; 3.5in 1.44MB floppy">
       {# Said here, where the box it is about is: a bay or a capacity written into
          the prose is still read out of it, and a picker set above wins over it. #}
+      {{ U.field('drive_desc', 'Drive description', value=spec_keys.get('Description', ''),
+                 placeholder='e.g. SS/DD; 3.5in 1.44MB floppy',
+                 hint="anything the pickers cannot say — it goes on the machine's Drives field. A size named here is read from the text too; a picker above wins where both say something.") }}
     </div>
 
     <div class="ask" data-kinds="{{ disk_image_kinds|join('|') }}" hidden>
-      <label for="disk_image" title="Image taken on arrival">Disk image filename</label>
-      <input id="disk_image" name="disk_image" value="{{ (p.disk_image if p else '') or '' }}">
+      {{ U.field('disk_image', 'Disk image filename', value=(p.disk_image if p else '') or '',
+                 hint='image taken on arrival') }}
     </div>
   </fieldset>
   {% elif ptype == 'motherboard' %}
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>Motherboard</legend>
     {{ sf('spec_chipset', 'Chipset', 'Chipset', 'e.g. Intel 430FX, OPTi 495') }}
-    <label title="Tick all that fit">CPU family</label>
-    <div class="checks">
-      {% for fam in vocab.cpu_families %}
-      <label><input type="checkbox" name="cpufam" value="{{ fam }}"{{ ' checked' if fam in mb_cpufams else '' }}> {{ fam }}</label>
-      {% endfor %}
+    <div class="field">
+      <span class="lbl" id="cpufam-lbl">CPU family</span>
+      <div class="checks" role="group" aria-labelledby="cpufam-lbl" aria-describedby="cpufam-hint">
+        {% for fam in vocab.cpu_families %}
+        <label class="check"><input type="checkbox" name="cpufam" value="{{ fam }}"{{ ' checked' if fam in mb_cpufams else '' }}> {{ fam }}</label>
+        {% endfor %}
+      </div>
+      <p class="hint" id="cpufam-hint">tick all that fit</p>
     </div>
     {{ sf('spec_form_factor', 'Form factor', 'Form factor', "the computer's form factor is taken from here", 'dl_form_factors') }}
-    <label title="How many of each">RAM slots</label>
-    <div class="countgrid">
-      {% for t in vocab.ram_slots %}
-      <label>{{ t }} <input type="number" min="0" name="ram:{{ t }}" value="{{ mb_ram.get(t, '') }}"></label>
-      {% endfor %}
+    <div class="field">
+      <span class="lbl" id="ramslot-lbl">RAM slots</span>
+      <div class="countgrid" role="group" aria-labelledby="ramslot-lbl" aria-describedby="ramslot-hint">
+        {% for t in vocab.ram_slots %}
+        <label class="count"><span>{{ t }}</span> <input class="input" type="number" min="0" name="ram:{{ t }}" value="{{ mb_ram.get(t, '') }}"></label>
+        {% endfor %}
+      </div>
+      <p class="hint" id="ramslot-hint">how many of each</p>
     </div>
-    <label title="How many of each">Expansion slots</label>
-    <div class="countgrid">
-      {% for b in slot_names %}
-      <label>{{ b }} <input type="number" min="0" name="slot:{{ b }}" value="{{ mb_slots.get(b, '') }}"></label>
-      {% endfor %}
+    <div class="field">
+      <span class="lbl" id="slot-lbl">Expansion slots</span>
+      <div class="countgrid" role="group" aria-labelledby="slot-lbl" aria-describedby="slot-hint">
+        {% for b in slot_names %}
+        <label class="count"><span>{{ b }}</span> <input class="input" type="number" min="0" name="slot:{{ b }}" value="{{ mb_slots.get(b, '') }}"></label>
+        {% endfor %}
+      </div>
+      <p class="hint" id="slot-hint">how many of each</p>
     </div>
     {{ sf('spec_onboard_ram', 'Onboard RAM', 'Onboard RAM', 'RAM soldered or socketed on the board itself, e.g. 64-256KiB') }}
     {{ sf('spec_cache', 'Cache', 'Cache', 'e.g. 256 KiB, COAST socket') }}
     {{ sf('spec_bios', 'BIOS', 'BIOS', 'e.g. AMI 1992, Award 4.51') }}
     {{ sf('spec_onboard_video', 'Onboard video', 'Onboard video', 'e.g. VGA, or VGA C&T 65545') }}
-    <label title="How many of each">Onboard I/O ports</label>
-    <div class="countgrid">
-      {% for pt in port_names %}
-      <label>{{ pt }} <input type="number" min="0" name="port:{{ pt }}" value="{{ mb_ports.get(pt, '') }}"></label>
-      {% endfor %}
+    <div class="field">
+      <span class="lbl" id="port-lbl">Onboard I/O ports</span>
+      <div class="countgrid" role="group" aria-labelledby="port-lbl" aria-describedby="port-hint">
+        {% for pt in port_names %}
+        <label class="count"><span>{{ pt }}</span> <input class="input" type="number" min="0" name="port:{{ pt }}" value="{{ mb_ports.get(pt, '') }}"></label>
+        {% endfor %}
+      </div>
+      <p class="hint" id="port-hint">how many of each</p>
     </div>
   </fieldset>
 
   {% elif ptype == 'cpu' %}
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>CPU</legend>
     {{ sf('spec_socket', 'Socket', 'Socket') }}
     {{ sf('spec_speed', 'Speed', 'Speed') }}
@@ -254,7 +280,7 @@
   </fieldset>
 
   {% elif ptype == 'ram' %}
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>Memory</legend>
     {{ sf('spec_type', 'Type', 'Type', 'e.g. 72-pin FPM, EDO, SDRAM') }}
     {{ sf('spec_size', 'Size', 'Size', 'e.g. 16MiB — normalised to KiB') }}
@@ -262,7 +288,7 @@
   </fieldset>
 
   {% elif ptype in ('video', 'sound', 'network', 'io') %}
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>{{ type_labels.get(ptype, ptype) }} card</legend>
     {{ sf('spec_chip', 'Chip', 'Main chip', 'e.g. Yamaha OPL3, S3 Trident, Realtek RTL8019') }}
     {{ sf('spec_interface', 'Interface', 'Interface (bus)', '', 'dl_card_ifaces') }}
@@ -283,7 +309,7 @@
      carries "custom" for the hardware the list does not name, and an answer already
      recorded from outside the list chooses it and fills the box, so a form reopens
      on what it saved. #}
-  <fieldset id="fs-display">
+  <fieldset class="fieldset" id="fs-display">
     <legend>Display</legend>
     {% for ask in display_asks %}
     <div class="ask">
@@ -296,7 +322,7 @@
       {% endif %}
     </div>
     {% endfor %}
-    <label title="The shade it was made in, and how far it has yellowed">Bezel</label>
+    <span class="lbl">Bezel</span>
     {# The same two menus a drive gets, going to the same two vocabularies: a
        monitor's front is the largest piece of beige plastic most collections own,
        and it goes the same colour as everything else. #}
@@ -306,95 +332,64 @@
   </fieldset>
 
   {% else %}
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>Specs</legend>
-    <label for="specs">Specs <span class="muted">(free text — Key: value | Key: value)</span></label>
-    <textarea id="specs" name="specs">{{ (p.specs if p else '') or '' }}</textarea>
+    {{ U.field('specs', 'Specs', kind='area', value=(p.specs if p else '') or '',
+               hint='free text — Key: value | Key: value') }}
   </fieldset>
   {% endif %}
 
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>Tracking</legend>
-    <label for="condition">Condition</label>
-    {# Nothing is assumed to work. A new part starts on the blank rather than at
-       "Working": the register should say a thing works because someone checked,
-       not because a menu was left where it was found. The blank stays in the list
-       so a condition can be taken back off as well as put on. #}
-    <select id="condition" name="condition">
+    <div class="formgrid">
+      {# Nothing is assumed to work. A new part starts on the blank rather than at
+         "Working": the register should say a thing works because someone checked,
+         not because a menu was left where it was found. The blank stays in the list
+         so a condition can be taken back off as well as put on. #}
       {% set cur = (p.condition if p else '') or '' %}
-      <option value="">not recorded</option>
-      {% if cur and cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
-      {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
-    </select>
-    <label for="source">Source</label>
-    {# Offered where it came from before -- the same list the machine form gets,
-       because a job lot arrives as a machine and a box of cards together and is one
-       provenance. autocomplete="off" keeps the browser's own memory of the word
-       "source" out of the way of the register's answers. #}
-    <input id="source" name="source" list="dl_sources" autocomplete="off"
-           value="{{ (p.source if p else '') or '' }}">
-    <label for="acquired_date">Acquired date</label>
-    <input id="acquired_date" name="acquired_date" type="date" value="{{ (p.acquired_date if p else '') or '' }}">
-    <label for="location">Location</label>
-    {# Where the part itself is kept, and mostly left empty: a part fitted in
-       something is shown that thing's location instead, so this box is for the card
-       in a drawer rather than the card in a machine. Offered the places already
-       used, machines and parts together, because one crate holds both.
-       autocomplete="off" for the reason the source box has it -- the browser's own
-       memory of a box called "location" on any other site would otherwise be
-       offered instead of the register's own answers. #}
-    <input id="location" name="location" list="dl_locations" autocomplete="off"
-           value="{{ (p.location if p else '') or '' }}">
-    <label for="url">Reference URL</label>
-    <input id="url" name="url" value="{{ (p.url if p else '') or '' }}">
-    <label for="summary" title="The description shown at the top of the page">Summary</label>
-    <textarea class="box-90" id="summary" name="summary">{{ (p.summary if p else '') or '' }}</textarea>
-    <label for="notes">Notes</label>
-    <textarea id="notes" name="notes">{{ (p.notes if p else '') or '' }}</textarea>
-  {# What it needs doing, written while it is in your hands.
-
-     The register says what a thing is; this says what is wrong with it, and the
-     moment that is known is this one -- the machine is on the bench, unpacked, and
-     the form that files it is already open. Sending somebody to /projects afterwards
-     is how the second fault they noticed gets forgotten, which is the same reason the
-     quick box exists on the projects page and on every item page.
-
-     What it makes is a project with this item on it and each line as a job, through
-     the one path everything else notes work down (main._take_on_work). It is public,
-     like the rest of the register; the tick on its own form keeps one back. Empty is
-     the ordinary case and makes nothing: most things arrive with nothing wrong.
-
-     Write-only, and never filled in with what the project already says. A box that
-     echoed the jobs back would add every one of them a second time on the next save.
-  #}
-    <label for="work_needed">Work needed</label>
-    <textarea class="box-70" id="work_needed" name="work_needed"
-              placeholder="one job per line"></textarea>
-    <label for="work_project" title="New project: one named after this, each line a job on it. Or add the jobs to a project already going — usually the case for a part bought for something. Leave the jobs empty if there is nothing to do.">Project</label>
-    <select id="work_project" name="work_project">
-      <option value="">new project</option>
-      {% for pr in work_projects %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
-    </select>
-    {% if action == '/parts/new' %}
-    {# On a part that exists, photos upload as soon as they are picked, from the
-       photo column on its own page. Here there is no asset tag to file them under
-       yet, so they wait and go with the rest of the form. #}
-    <label>Photographs</label>
-    <div class="newphotos">
-      <label class="btn sm filebtn">choose files
-        <input type="file" name="photos" accept="image/*" multiple>
-      </label>
-      <span class="hint" data-photo-count></span>
+      {{ U.field('condition', 'Condition', kind='choice', value=cur,
+                 choices=[('', 'Not recorded')] + ([cur] if cur and cur not in conditions else []) + conditions) }}
+      {# Offered where it came from before -- the same list the machine form gets,
+         because a job lot arrives as a machine and a box of cards together and is
+         one provenance. autocomplete="off" keeps the browser's own memory of the
+         word "source" out of the way of the register's answers. #}
+      {{ U.field('source', 'Source', value=(p.source if p else '') or '',
+                 list='dl_sources', autocomplete='off') }}
+      {{ U.field('acquired_date', 'Acquired date', value=(p.acquired_date if p else '') or '',
+                 type='date') }}
+      {{ U.field('url', 'Reference URL', value=(p.url if p else '') or '') }}
     </div>
-    {% endif %}
   </fieldset>
 
-  <p><button class="btn primary" type="submit">save</button></p>
+  <fieldset class="fieldset">
+    <legend>Description</legend>
+    {{ U.field('summary', 'Summary', kind='area', value=(p.summary if p else '') or '',
+               hint='the description shown at the top of the page', rows=4) }}
+    {{ U.field('notes', 'Notes', kind='area', value=(p.notes if p else '') or '', rows=4) }}
+  </fieldset>
+
+  {% include "_workneeded.html" %}
+
+  {% if action == '/parts/new' %}
+  {# On a part that exists, photos upload as soon as they are picked, from the
+     photo column on its own page. Here there is no asset tag to file them under
+     yet, so they wait and go with the rest of the form. #}
+  <fieldset class="fieldset">
+    <legend>Photographs</legend>
+    {% include "_newphotos.html" %}
+  </fieldset>
+  {% endif %}
+
+  {% if action != '/parts/new' %}{% set cancel = '/parts/' ~ p.asset_id %}
+  {% elif computer_id %}{% set cancel = '/computers/' ~ computer_id %}
+  {% elif parent_id %}{% set cancel = '/parts/' ~ parent_id %}
+  {% else %}{% set cancel = '/' %}{% endif %}
+  {% include "_actbar.html" %}
 </form>
 
 <script type="application/json" id="part-form-data">{{ {'rowKinds': row_kinds, 'routes': true if (computer_id and not p) else false, 'floppy': floppy_kind, 'optical': optical_kind, 'known': known} | tojson }}</script>
 <script defer src="/static/part-form.js?v={{ js_ver['part-form.js'] }}"></script>
-{% if ptype in ('storage', 'display') %}{{ C.script(bezel_swatches) }}{% endif %}
+{% if ptype in ('storage', 'display') %}{{ C.script(bezel_swatches, yellowing) }}{% endif %}
 {# No memory box on this form for the model's standard sizes to be offered on: what
    a machine was sold with is a fact about the machine, not about its board. #}
 {% if machine_board %}{{ M.script(machine_catalogue, machine_saved, machine_widths, '', true) }}{% endif %}

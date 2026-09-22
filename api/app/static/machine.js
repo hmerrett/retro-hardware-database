@@ -46,7 +46,7 @@
   };
 
   const radio = (name, value, checked, label) =>
-    `<label><input type="radio" name="${esc(name)}" value="${esc(value)}"` +
+    `<label class="check"><input type="radio" name="${esc(name)}" value="${esc(value)}"` +
     `${checked ? ' checked' : ''}> ${esc(label)}</label>`;
 
   // One question: what the catalogue offers, "not recorded" for the socket nobody
@@ -58,18 +58,18 @@
   // box left off beside "not recorded" answers nothing -- which is what keeps
   // saving a form from deciding that every chip nobody looked at is soldered.
   const socketBox = (name, held) =>
-    `<label class="socketed"><input type="checkbox" name="${esc(name)}:socketed"` +
+    `<label class="check socketed"><input type="checkbox" name="${esc(name)}:socketed"` +
     `${held ? ' checked' : ''}> in a socket <span class="muted">— rather than ` +
     `soldered to the board</span></label>`;
 
   const field = (name, label, hint, value, options, maxlen, role, socketed) => {
-    const attrs = `data-field="${esc(name)}"${role ? ` data-role="${esc(role)}"` : ''}`;
+    const attrs = `class="field" data-field="${esc(name)}"${role ? ` data-role="${esc(role)}"` : ''}`;
     const head = `<label for="${esc(name)}">${esc(label)}</label>` +
       (hint ? `<p class="hint">${esc(hint)}</p>` : '');
     const foot = role ? socketBox(name, socketed) : '';
     if (!options.length) {
       return `<div ${attrs}>${head}
-        <input type="text" id="${esc(name)}" name="${esc(name)}"
+        <input class="input" type="text" id="${esc(name)}" name="${esc(name)}"
                value="${esc(value)}" ${maxlen ? `maxlength="${maxlen}"` : ''}
                autocomplete="off">${foot}</div>`;
     }
@@ -80,7 +80,7 @@
         ${options.map(o => radio(name, o, o === value, o)).join('')}
         ${radio(name, 'custom', custom, 'custom')}
       </div>
-      <input name="${esc(name)}_custom" value="${esc(custom ? value : '')}"
+      <input class="input" name="${esc(name)}_custom" value="${esc(custom ? value : '')}"
              ${maxlen ? `maxlength="${maxlen}"` : ''} autocomplete="off"
              placeholder="as it is marked"${custom ? '' : ' hidden'}>${foot}</div>`;
   };
@@ -127,13 +127,13 @@
                     was.region || '', model.regions, WIDTHS.region);
     }
     if (model.chips.length) {
-      html += '<label>Chips fitted</label>' +
+      html += '<div class="field"><span class="lbl">Chips fitted</span>' +
         '<p class="hint">the sockets worth writing down on this model, each ' +
         'offering the numbers that turn up in it. Leave one at <em>not ' +
         'recorded</em> until it has been looked at — a guess is worse than ' +
         'nothing. Use <em>custom</em> for a marking the list has not got; it ' +
         'joins the list next time. Tick the ones in a socket — a chip named with ' +
-        'the box clear is recorded as soldered down.</p>';
+        'the box clear is recorded as soldered down.</p></div>';
       for (const chip of model.chips) {
         html += field(`chip:${chip.role}`, chip.label, chip.note,
                       was.chips[chip.role] || '', chip.variants,

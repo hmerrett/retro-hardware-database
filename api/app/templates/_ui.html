@@ -46,10 +46,18 @@
    to it. `note` is the explanation, and goes in a title on the row so hovering the
    label reaches it too. `pinned` is a value set by the environment: shown, and not
    editable. `error` is the one explanation printed rather than hovered -- under the
-   control, tied to it for a screen reader, and marked invalid. #}
-{% macro field(key, label, kind='text', value='', choices=[], note='', pinned=false, error=none) -%}
+   control, tied to it for a screen reader, and marked invalid.
+
+   `hint` is for the edit forms, whose lines under a field say what goes in it and
+   are read at the bench on a phone, where nothing can be hovered: printed under
+   the control and tied to it like an error. Any other keyword becomes an attribute
+   of the control (type, list, min, placeholder ...): true writes it bare, and
+   false, none and '' leave it off. #}
+{% macro field(key, label, kind='text', value='', choices=[], note='', pinned=false, error=none, hint='') -%}
 {%- set cls = ['field', 'is-pinned' if pinned else '', 'is-invalid' if error else ''] | select | join(' ') -%}
-{%- set attrs %}{% if error %} aria-invalid="true" aria-describedby="{{ key }}-err"{% endif %}{% if pinned %} disabled{% endif %}{% endset -%}
+{%- set described = ([key ~ '-hint'] if hint else []) + ([key ~ '-err'] if error else []) -%}
+{%- set attrs %}{% if error %} aria-invalid="true"{% endif %}{% if described %} aria-describedby="{{ described | join(' ') }}"{% endif %}{% if pinned %} disabled{% endif %}
+{%- for k, v in kwargs | dictsort %}{% if v is sameas true %} {{ k }}{% elif v is not none and v is not sameas false and v != '' %} {{ k }}="{{ v }}"{% endif %}{% endfor %}{% endset -%}
 <div class="{{ cls }}"{% if note %} title="{{ note }}"{% endif %}>
 {%- if kind == 'switch' -%}
 <label class="check"><input type="checkbox" id="{{ key }}" name="{{ key }}" value="1"{% if value %} checked{% endif %}{{ attrs }}> {{ label }}</label>
@@ -67,6 +75,7 @@
 <input class="input" id="{{ key }}" name="{{ key }}" value="{{ value }}"{{ attrs }}>
 {%- endif -%}
 {%- endif -%}
+{%- if hint %}<p class="hint" id="{{ key }}-hint">{{ hint }}</p>{% endif -%}
 {%- if error %}<p class="err" id="{{ key }}-err">{{ error }}</p>{% endif -%}
 </div>
 {%- endmacro %}

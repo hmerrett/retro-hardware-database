@@ -194,7 +194,7 @@ def test_no_page_carries_a_script_the_policy_would_block(client, a_page_of_every
 def test_no_page_carries_an_inline_event_handler(client, a_page_of_everything):
     """`onclick="..."` is script in an attribute, and the policy blocks it as
     surely as a script tag. The delegated listeners in app.js are the shape that
-    survives: `data-confirm` and `data-back` are markup, read by code in a file."""
+    survives: `data-confirm` and `data-ticksend` are markup, read by code in a file."""
     handlers = []
     for path in a_page_of_everything:
         page = client.get(path)

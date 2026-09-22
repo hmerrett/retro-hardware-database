@@ -1468,18 +1468,3 @@ document.addEventListener('submit', function (ev) {
     ev.stopPropagation();
   }
 }, true);
-
-// Back, on the three form pages. It was `href="javascript:history.back()"`, which
-// the content policy blocks outright (ADR-0021) -- and a link was the wrong element
-// anyway: going back is an action with no destination to put in an href, which is
-// why the no-script fallback was never anything but a dead link either way.
-//
-// Not capturing: nothing else handles these, and a normal-phase listener lets a
-// page override one if it ever needs to.
-document.addEventListener('click', function (ev) {
-  var back = ev.target.closest ? ev.target.closest('[data-back]') : null;
-  if (back) {
-    ev.preventDefault();
-    window.history.back();
-  }
-});

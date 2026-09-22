@@ -1,42 +1,51 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
 {% block title %}{{ title }} — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<p><button type="button" class="backlink" data-back>&larr; back</button></p>
-<h2>{{ title }}</h2>
-{# What was typed, kept, when the form comes back refused. `p` is the record on an
-   edit and the rejected form's own values on a create -- both read the same way,
-   which is why the create path hands back a dict shaped like the row. #}
-{% if error %}<div class="banner">{{ error }}</div>{% endif %}
-<form class="edit" method="post"
-      action="{{ ('/projects/' + p.asset_id + '/edit') if p and p.asset_id else '/projects/new' }}">
-  {% macro fld(key, label, hint='', type='text') %}
-    <label for="{{ key }}"{% if hint %} title="{{ hint }}"{% endif %}>{{ label }}</label>
-    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (p[key] if p else '') or '' }}"{% if hint %} title="{{ hint }}"{% endif %}>
-  {% endmacro %}
-  <label for="name" title="What you would call it out loud — &quot;recap the +2A&quot;, &quot;486 build&quot;. The one field that is required.">Name</label>
-  <input id="name" name="name" value="{{ (p['name'] if p else '') or '' }}" required>
-  <label for="status">Status</label>
-  <select id="status" name="status">
-    {% set cur = (p['status'] if p else '') or 'planned' %}
-    {% for slug, label in statuses %}<option value="{{ slug }}"{{ ' selected' if slug == cur else '' }}>{{ label }}</option>{% endfor %}
-  </select>
-  {# Three dates rather than one, because they answer three questions and any of
-     them can be unknown while the others are not. None is worked out from another:
-     a project can be finished without ever having been started -- the part turned
-     up and it took an evening. #}
-  {{ fld('started_at', 'Started', "when work actually began — not when you thought of it", type='date') }}
-  {{ fld('target_date', 'Wanted by', "a hope rather than a record; leave it blank if there is no date on it", type='date') }}
-  {{ fld('finished_at', 'Finished', type='date') }}
-  {# A tickbox rather than a menu beside the status, because it is not one of the
-     states a project passes through -- it is who may read it, which is true or false
-     at every one of them. The quick box on the list page sets it; this is where it
-     is deliberately cleared, which is the act of publishing. #}
-  <label title="Hidden from visitors: off the public list, the search, the sitemap and the pages of the machines it is about." class="socketed"><input type="checkbox" name="private" value="1"
-    {{ 'checked' if (p['private'] if p else False) else '' }}> Private</label>
-  <label for="summary" title="The line shown at the top of the page and beside it in the list">Summary</label>
-  <textarea class="box-90" id="summary" name="summary">{{ (p['summary'] if p else '') or '' }}</textarea>
-  <label for="notes" title="The standing description. What happened on a given evening goes in the history on the project's page.">Notes</label>
-  <textarea id="notes" name="notes">{{ (p['notes'] if p else '') or '' }}</textarea>
-  <p class="mt-16"><button class="btn primary" type="submit">save</button></p>
+{# `p` is the record on an edit and the rejected form's own values on a create --
+   both read the same way, which is why the create path hands back a dict shaped
+   like the row. #}
+{% set editing = p and p.asset_id %}
+<form class="editform" method="post"
+      action="{{ ('/projects/' + p.asset_id + '/edit') if editing else '/projects/new' }}">
+  <div class="pagehead"><h1 class="heading">
+    {%- if editing %}Edit {{ p['name'] or p.asset_id }} <span class="tag muted">{{ p.asset_id }}</span>
+    {%- else %}{{ title }}{% endif %}</h1></div>
+  {# What was typed, kept, when the form comes back refused. #}
+  {% if error %}{{ U.banner('danger', 'Not saved', error) }}{% endif %}
+  <fieldset class="fieldset">
+    <legend>Project</legend>
+    {{ U.field('name', 'Name', value=(p['name'] if p else '') or '', required=true,
+               hint='what you would call it out loud — "recap the +2A", "486 build". The only thing a project can be found by, so it is the one field that is asked for.') }}
+    {# Three dates rather than one, because they answer three questions and any of
+       them can be unknown while the others are not. None is worked out from another:
+       a project can be finished without ever having been started -- the part turned
+       up and it took an evening. #}
+    <div class="formgrid">
+      {{ U.field('status', 'Status', kind='choice', value=(p['status'] if p else '') or 'planned',
+                 choices=statuses) }}
+      {{ U.field('started_at', 'Started', value=(p['started_at'] if p else '') or '', type='date',
+                 hint='when work actually began — not when you thought of it') }}
+      {{ U.field('target_date', 'Wanted by', value=(p['target_date'] if p else '') or '', type='date',
+                 hint='a hope rather than a record; leave it blank if there is no date on it') }}
+      {{ U.field('finished_at', 'Finished', value=(p['finished_at'] if p else '') or '', type='date') }}
+    </div>
+    {# A tickbox rather than a menu beside the status, because it is not one of the
+       states a project passes through -- it is who may read it, which is true or false
+       at every one of them. The quick box on the list page sets it; this is where it
+       is deliberately cleared, which is the act of publishing. #}
+    {{ U.field('private', 'Private', kind='switch', value=(p['private'] if p else False),
+               hint='kept off the public list, out of the search and the sitemap, off the pages of the machines it is about, and its own page answers a visitor as though it were not there. The register is a public catalogue; what is wrong with a thing, in your own words, does not have to be part of it.') }}
+  </fieldset>
+  <fieldset class="fieldset">
+    <legend>Description</legend>
+    {{ U.field('summary', 'Summary', kind='area', value=(p['summary'] if p else '') or '', rows=3,
+               hint='the line shown at the top of the page and beside it in the list') }}
+    {{ U.field('notes', 'Notes', kind='area', value=(p['notes'] if p else '') or '', rows=5,
+               hint="the standing description. What happened on a particular evening is a note on the history instead, at the foot of the project's own page.") }}
+  </fieldset>
+  {% set cancel = ('/projects/' ~ p.asset_id) if editing else '/projects' %}
+  {% include "_actbar.html" %}
 </form>
 {% endblock %}

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1564 behaviours, from 42 files.*
+*1590 behaviours, from 43 files.*
 
 
 ## A file where text was expected
@@ -1307,6 +1307,46 @@ Regenerate with:
 
 - nothing in nothing out
 - a segment of punctuation yields no drive
+
+
+## Edit forms
+
+*test_edit_forms.py — 22 behaviours*
+
+
+**The layout**
+
+- every form is on the v2 components
+- the machine form is in its sections
+- photographs are only a section on a new machine
+- there is one heading
+- editing a machine the heading names it and its tag
+- editing a part the heading names it and its tag
+- a new form says what it makes
+
+**Hints**
+
+- a line under a field is tied to it
+- a field with nothing to explain carries no description
+- the project forms explanations are tied too
+
+**The action bar**
+
+- save and cancel close the form
+- cancel on a new form goes back to the list
+- cancel when editing goes back to the thing
+- cancel on a part being added to a machine goes back to the machine
+- cancel on a part being added to a card goes back to the card
+
+**Drives and bezels**
+
+- the drives table scrolls in its own box
+- nothing recorded is one hatched swatch
+- a yellowing with no shade is one swatch of pale plastic
+- a chosen shade is a ladder with its stage outlined
+- the ladder is decoration beside the words
+- the colour chart is shades down and stages across
+- the chart keeps what each shade and stage looks like
 
 
 ## Enrich ssrf
@@ -2808,7 +2848,7 @@ Regenerate with:
 
 ## Ui macros
 
-*test_ui_macros.py — 68 behaviours*
+*test_ui_macros.py — 72 behaviours*
 
 
 **The ui filter**
@@ -2845,6 +2885,10 @@ Regenerate with:
 - a switch is a tick with its label beside it
 - a pinned field is disabled and says it is
 - an error marks the field and prints the message under it
+- a hint is printed under the control and tied to it
+- a hint and an error both describe the control
+- a switch ties its hint to the tick
+- any other attribute reaches the control
 - no error leaves no trace
 - an error on a choice is tied to the select
 

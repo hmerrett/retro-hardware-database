@@ -161,6 +161,31 @@ class TestField:
         assert '<p class="err" id="year-err">Needs four digits, like 1988.</p>' in html
         assert html.index("<input") < html.index('class="err"')
 
+    def test_a_hint_is_printed_under_the_control_and_tied_to_it(self):
+        html = render("{{ U.field('cpu', 'CPU', hint='Maker model-MHz.') }}")
+        assert re.search(r'<input [^>]*aria-describedby="cpu-hint"', html)
+        assert '<p class="hint" id="cpu-hint">Maker model-MHz.</p>' in html
+        assert html.index("<input") < html.index('class="hint"')
+
+    def test_a_hint_and_an_error_both_describe_the_control(self):
+        html = render("{{ U.field('year', 'Year', hint='As made.', error='Four digits.') }}")
+        assert 'aria-describedby="year-hint year-err"' in html
+        assert html.index('class="hint"') < html.index('class="err"')
+
+    def test_a_switch_ties_its_hint_to_the_tick(self):
+        html = render("{{ U.field('private', 'Private', kind='switch', hint='Kept back.') }}")
+        assert re.search(r'<input type="checkbox" [^>]*aria-describedby="private-hint"', html)
+
+    def test_any_other_attribute_reaches_the_control(self):
+        html = render(
+            "{{ U.field('year', 'Year', type='number', min=0, list='dl_years',"
+            " required=true, autofocus=false) }}"
+        )
+        control = re.search(r"<input [^>]*>", html).group(0)
+        assert ' type="number"' in control and ' min="0"' in control
+        assert ' list="dl_years"' in control and re.search(r" required[ >]", control)
+        assert "autofocus" not in control
+
     def test_no_error_leaves_no_trace(self):
         html = render("{{ U.field('year', 'Year') }}")
         assert "aria-invalid" not in html and "err" not in html

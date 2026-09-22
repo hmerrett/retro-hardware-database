@@ -31,7 +31,7 @@
   .prose { font-size: 16px; line-height: 1.6; white-space: pre-line; }
   .heading { font-size: 18px; line-height: 1.4; font-weight: 600; }
   .tag { font-size: 12px; }
-  .hint { font-size: 12px; }
+  .hint { font-size: 12px; color: var(--text-muted); }
   @media (max-width: 560px) { .title { font-size: 22px; } }
   .num, td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
   .break { overflow-wrap: anywhere; }
@@ -664,6 +664,76 @@
   .firstrun .steps .t span { font-size: 13px; color: var(--text-muted); }
   @media (max-width: 560px) { .firstrun .steps li { grid-template-columns: 32px minmax(0, 1fr); }
     .firstrun .steps li > .btn { grid-column: 2; justify-self: start; } }
+
+  /* ---- 14i. The edit forms -------------------------------------------------
+     Long, dense and filled in with one hand at the bench (EditForm, PartForm,
+     ProjectForm). A line under a field says what goes in it and is printed rather
+     than put in a title, because a phone has nothing to hover. */
+  .field > .hint { margin-top: var(--space-2); }
+  .fieldset > .hint { margin-top: var(--space-3); }
+  /* A question with a few short answers: the answers side by side, wrapping. The
+     box beside "custom" and the socket tick sit under them. */
+  .checks { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
+  .checks + .input, .field > .check.socketed { margin-top: var(--space-3); }
+  /* How many of each: the name, and a box sized for a count rather than a column. */
+  .countgrid { display: grid; gap: var(--space-3) var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+  .countgrid .count { display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3); font-size: 13px; }
+  .countgrid .count > .input { width: 72px; flex: none; }
+  /* The drives table stays a table and scrolls in its own box (the reflow rule): a
+     drive is read across its row, and squeezed to the page each box would show two
+     characters of a model and none of the bezel. */
+  .hscroll > .table.drives { min-width: 900px; }
+  .table.drives td { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  /* Widths by what a column holds -- a menu of kinds, a capacity, a make and model --
+     sized so the table fits a desktop's form (918px inside the fieldset) and only
+     scrolls on a narrower screen. */
+  .table.drives th:nth-child(2), .table.drives th:nth-child(3) { width: 104px; }
+  .table.drives th:nth-child(4), .table.drives th:nth-child(5) { width: 80px; }
+  .table.drives th:nth-child(6) { width: 64px; }
+  .table.drives th:nth-child(7) { width: 130px; }
+  /* In a drive row the bezel stacks -- ladder, shade, yellowing -- because side by
+     side they want more width than the row has left. */
+  .table.drives .bezel-cell { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+  .table.drives .bezel-cell > .select { flex: none; width: 100%; }
+  /* A bezel's two menus and the ladder that shows them. They wrap rather than shrink,
+     because two half-width menus name nothing useful; "Heavily yellowed" is the
+     widest word either holds, and a menu that clips its own longest option is a
+     menu you have to open to read. */
+  .bezel-cell { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .bezel-cell > .select { width: auto; min-width: 0; flex: 1 1 112px; }
+  .bezel-cell > .select[data-bezel="yellowing"] { flex-basis: 160px; }
+  /* The chart: shades down, stages across, each head with its line on what it
+     looks like. */
+  .colourchart { margin-top: var(--space-4); }
+  .colourchart > summary { cursor: pointer; font-size: 13px; color: var(--text-muted); }
+  .colourchart > .hint { margin: var(--space-3) 0; }
+  .hscroll > .table.bezelchart { min-width: 880px; }
+  .hscroll > .table.bezelchart th:first-child { width: 190px; }
+  .table.bezelchart th { white-space: normal; }
+  .table.bezelchart th > .hint { display: block; font-weight: 400; }
+  .table.bezelchart td { vertical-align: middle; }
+  /* Save and Cancel, stuck to the foot of the viewport so the primary action is
+     under the thumb however long the form is; on a phone, on top of the tab bar.
+     A control tabbed to near the foot would otherwise scroll to the viewport's edge
+     and arrive behind the bar, so the scroll stops short of it (as for the tab bar). */
+  :root { --actbar-clear: 64px; }
+  .actbar { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: var(--space-3);
+    margin-top: var(--space-5); padding: var(--space-4) 0; background: var(--surface);
+    border-top: 1px solid var(--line); }
+  html:has(.actbar) { scroll-padding-bottom: calc(var(--actbar-clear) + var(--space-4)); }
+  /* While the cookie notice is up it holds the foot of the screen, and the bar stands
+     on it rather than behind it; the notice's own clearance already counts the tab
+     bar on a phone. */
+  html:has(#cookienote) .actbar { bottom: var(--notice-clear); }
+  html:has(#cookienote):has(.actbar) { scroll-padding-bottom: calc(var(--notice-clear) + var(--actbar-clear)); }
+  @media (max-width: 620px) {
+    .actbar { bottom: calc(var(--tabbar-clear) + env(safe-area-inset-bottom, 0px)); }
+    html:has(.actbar) { scroll-padding-bottom: calc(var(--tabbar-clear) + var(--actbar-clear) + var(--space-4) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote) .actbar { bottom: calc(var(--notice-clear-phone) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote):has(.actbar) { scroll-padding-bottom: calc(var(--notice-clear-phone) + var(--actbar-clear) + env(safe-area-inset-bottom, 0px)); }
+  }
 
   /* ---- 15. Preset picker (settings > Appearance) -------------------------- */
   /* Radios, so it posts with no script, is one tab stop, and arrow keys move the

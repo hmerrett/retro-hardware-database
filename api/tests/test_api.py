@@ -80,7 +80,7 @@ class TestCondition:
         was recorded as working when nobody had checked."""
         page = client.get(path).text
         assert '<option value="Working" selected>' not in page
-        assert '<option value="">not recorded</option>' in page
+        assert re.search(r'<option value=""(?: selected)?>Not recorded</option>', page)
 
     def test_a_condition_can_be_taken_back_off(self, client, computer):
         aid = computer(condition="Working")["asset_id"]
@@ -846,18 +846,18 @@ class TestDrives:
         """The chart is next to the menus because that is where the choice is made:
         a bezel is held up to the screen and the nearest one taken."""
         page = client.get(f"/computers/{computer()['asset_id']}/edit").text
-        assert "colour chart" in page
+        assert "Colour chart" in page
         for label in ("Black", "Grey", "White", "Beige", "Lightly yellowed"):
             assert f'<option value="{label}">' in page
         # The chart draws each level on three shades, from the same function the
         # menus' live swatch reads. The mixing shows up in the generated stylesheet
         # now rather than in the markup, because the policy allows no style
         # attribute -- so the page carries the classes and the sheet the colours.
-        assert page.count('class="swatch bz-') >= 3
+        assert page.count('class="bezel bz-') >= 3
         assert client.get("/style/data.css").text.count("linear-gradient(115deg") >= 3
         # The drive rows do not fit a phone; squeezed to fit, the row showed two
         # characters of a model and none of the bezel.
-        assert re.search(r'<div class="hscroll">\s*<table class="drives">', page)
+        assert re.search(r'<div class="hscroll">\s*<table class="table drives">', page)
 
     def test_a_bezel_is_searchable(self, client, computer):
         """It rides on the drives string, which the search index reads, so "which
@@ -959,7 +959,7 @@ class TestDrives:
     def test_the_routed_form_offers_the_menus_and_the_chart(self, client, computer):
         page = client.get(f"/parts/new?type=storage&computer_id={computer()['asset_id']}").text
         assert 'name="drive_colour"' in page and 'name="drive_yellowing"' in page
-        assert "colour chart" in page
+        assert "Colour chart" in page
 
     def test_a_routed_drive_with_no_machine_keeps_its_bezel(self, client):
         """No machine to route to, so it becomes a storage part after all -- and the
@@ -1729,7 +1729,9 @@ class TestReopeningADriveOnWhatItSaved:
         out = {}
         for m in re.finditer(r'name="(\w+)" value="([^"]*)"[^>]*?\schecked', flat):
             out[m.group(1)] = html.unescape(m.group(2))
-        for m in re.finditer(r'<input id="\w+" name="(\w+)"[^>]*?value="([^"]*)"', flat):
+        for m in re.finditer(
+            r'<input (?:class="input" )?id="\w+" name="(\w+)"[^>]*?value="([^"]*)"', flat
+        ):
             out.setdefault(m.group(1), html.unescape(m.group(2)))
         return out
 
@@ -2499,7 +2501,7 @@ class TestAStoragePartsBezel:
         aid = part(type="storage", specs="Kind: Tape | Colour: Black")["asset_id"]
         page = client.get(f"/parts/{aid}/edit").text
         assert '<option value="Black" selected>' in page
-        assert "colour chart" in page
+        assert "Colour chart" in page
 
     def test_editing_keeps_them(self, client, part):
         aid = part(type="storage", specs="Kind: Hard disk | Colour: Beige | Yellowing: Browned")[
@@ -2530,7 +2532,7 @@ class TestAStoragePartsBezel:
         )["asset_id"]
         page = client.get(f"/parts/{aid}").text
         cls = entry.bezel_class("Beige", "Heavily yellowed")
-        assert page.count(f'class="swatch {cls}"') == 2
+        assert page.count(f'class="bezel {cls} sm"') == 2
         css = entry.bezel_css("Beige", "Heavily yellowed")
         assert f".{cls} {{ background: {css}; }}" in client.get("/style/data.css").text
 
@@ -2984,7 +2986,7 @@ class TestADisplayPart:
 
         aid = part(type="display", specs="Colour: Beige | Yellowing: Yellowed")["asset_id"]
         cls = entry.bezel_class("Beige", "Yellowed")
-        assert client.get(f"/parts/{aid}").text.count(f'class="swatch {cls}"') == 2
+        assert client.get(f"/parts/{aid}").text.count(f'class="bezel {cls} sm"') == 2
 
     def test_a_screen_with_no_photograph_gets_a_monitor(self, client, part):
         """Rather than the box every unrecognised type falls back to."""
@@ -4346,7 +4348,7 @@ class TestStartingFromAnExistingPart:
         """The source must not be overwritten: the form posts to /parts/new."""
         src = part(type="video", manufacturer="Tseng", model="ET4000")
         page = client.get(f"/parts/new?from={src['asset_id']}").text
-        form = page[page.index('<form class="edit"') :]
+        form = page[page.index('<form class="editform"') :]
         assert 'action="/parts/new"' in form[:200]
         assert f"/parts/{src['asset_id']}/edit" not in form[:200]
 

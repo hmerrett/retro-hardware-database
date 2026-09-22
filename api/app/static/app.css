@@ -228,8 +228,6 @@
      Given no size of its own -- `font: inherit` -- so it needs no restating in the
      coarse-pointer block, and no colour of its own beyond the one links already
      use, so it adds no pair to the contrast tests. */
-  button.backlink { background: none; border: 0; padding: 0; font: inherit;
-    color: var(--accent); text-decoration: underline; cursor: pointer; }
   /* A link found in what somebody wrote -- a note, a summary, a history entry, a
      spec value; anything the `linked` filter has been through. It breaks anywhere
      rather than setting a minimum width for whatever it sits in: a URL is one
@@ -240,7 +238,7 @@
      browser, and a heading is a flex item that will not shrink below it. */
   h1, h2, h3 { overflow-wrap: anywhere; }
   :is(h1, h2, h3, h4):not(main.v2 *) { margin: revert; }
-  table { border-collapse: collapse; width: 100%; }
+  table:not(.table) { border-collapse: collapse; width: 100%; }
   /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
      sets the column's minimum width, and a table refuses to shrink below it. On a
      phone that is what pushes the whole page sideways, so let such a run break.
@@ -248,12 +246,12 @@
      to a single character, which lets the layout squeeze a narrow column until its
      heading reads one letter per line. Where a column really must be allowed to
      collapse that far, .wrap opts into it. */
-  th, td { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+  :is(th, td):not(.table *) { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; overflow-wrap: break-word; }
   /* Short columns never wrap: their content is a word or two, and wrapping them
      buys no room while making the table look broken. */
   td.tight, th.tight { white-space: nowrap; }
   .detail-main table th { white-space: nowrap; }
-  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  th:not(.table *) { color: var(--muted); font-weight: 500; font-size: 13px; }
   /* `main:not(.v2)` below: a page moved onto the v0.2 components says so with
      `class="v2"` on its <main>, and these 0.1 rules, unlayered and so outranking
      the v2 layer, stand back from it. They are still what draws the pages not yet
@@ -381,67 +379,14 @@
   .btn.primary:not(main.v2 *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm:not(main.v2 *) { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }
-  /* `.edit` and not `.edit`: the settings page has a box that is a fieldset
+  /* `.edit` and not `form.edit`: the settings page has a box that is a fieldset
      rather than a form -- what the browser remembers for itself is not something
      the form saves (ADR-0023) -- and a control in it that took none of these rules
      sat in the middle of the page looking like a different website. */
   .edit label { display: block; margin: 10px 0 3px; color: var(--muted); font-size: 13px; }
   .edit input, .edit textarea, .edit select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: transparent; color: inherit; }
   .edit textarea { min-height: 60px; }
-  /* min(Npx, 100%) rather than a bare Npx: on a screen narrower than one column
-     the track would otherwise keep its floor and hang off the side of the page. */
-  .countgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(190px, 100%), 1fr)); gap: 6px 16px; margin: 4px 0 10px; }
-  /* Said with the form in front of them, and the same for .checks below. These
-     groups only ever appear inside .edit, whose own `label` and `input` rules
-     are a class plus two elements to a bare class plus one -- so they were quietly
-     winning, and had been all along: a "how many" box filled its whole column
-     instead of being 60px, and a checkbox came out 106px wide with its own words
-     underneath it. The group's own layout is the one that should apply. */
-  .edit .countgrid label { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
-  .edit .countgrid input { width: 60px; padding: 4px 6px; }
-  /* The chips fitted in a catalogue machine. The same shape as a count grid but with
-     room in it: what goes in the box is a part number rather than a count, and the
-     label beside it carries the line about what that chip does. */
-  .chipgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); gap: 8px 16px; margin: 4px 0 10px; }
-  .edit .chipgrid label { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0; color: inherit; font-size: 13px; }
-  .edit .chipgrid label > span:first-child { flex: 1; }
-  .edit .chipgrid label .hint { display: block; margin: 0; }
-  .edit .chipgrid input { width: 140px; flex: none; padding: 4px 6px; }
-  table.drives { margin: 4px 0 10px; }
-  table.drives th, table.drives td { padding: 4px 8px 4px 0; border: 0; }
-  table.drives input, table.drives select { width: 100%; padding: 4px 6px; }
-  table.drives td:first-child input { width: 70px; }
-  /* The drive rows do not fit a phone, and squeezed to fit they show two characters
-     of a model and none of the bezel. The row keeps its usable widths and the table
-     scrolls sideways instead. */
-  .hscroll { overflow-x: auto; }
-  @media (max-width: 860px) { table.drives { min-width: 800px; } }
-  /* Drive bezel colours. A swatch is a literal colour rather than a themed one, so
-     it wears a border: black on a dark page and white on a light one both need an
-     edge to be a swatch at all. */
-  .swatch { display: inline-block; width: 22px; height: 15px; border-radius: 3px;
-    border: 1px solid var(--line); vertical-align: middle; flex: none; }
-  .swatch.none { background: repeating-linear-gradient(45deg,
-    transparent 0 3px, var(--line) 3px 4px); }
-  /* Shade and yellowing sit together with the swatch that combines them; they wrap
-     rather than shrink, because two half-width menus name nothing useful. */
-  .bezel-cell { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .bezel-cell select { min-width: 0; flex: 1 1 104px; }
-  /* 'Heavily yellowed' is a wider word than any shade, and a menu that clips its
-     own longest option is a menu you have to open to read. */
-  .bezel-cell select[data-bezel=yellowing] { flex: 1 1 152px; }
-  .cc-ladder { display: inline-flex; gap: 3px; flex: none; }
-  .colourchart { margin: 2px 0 10px; }
-  .colourchart summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-  .colourchart .cc-grp { margin: 12px 0 5px; font-size: 12px; color: var(--muted); }
-  .cc-grid { display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr));
-    gap: 8px 18px; }
-  .cc-item { display: flex; align-items: flex-start; gap: 8px; }
-  .cc-item .swatch { width: 32px; height: 21px; margin-top: 2px; }
-  .cc-lbl { font-size: 13px; line-height: 1.35; }
-  .cc-lbl .hint { display: block; }
-  .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
+  main:not(.v2) .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
   .edit .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
   /* The tickbox that rides under a chip's answer. Its own width, like the radios
      above it: everything else in an edit form is a full-width box, which on a
@@ -450,7 +395,7 @@
     margin: 0 0 10px; color: inherit; font-size: 13px; }
   .edit label.socketed input { width: auto; }
   .edit .checks input { width: auto; }
-  .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
+  .hint:not(main.v2 *) { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
   /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
      text wears an ink token. */
   .hero { margin: 18px 0 6px; }
@@ -847,8 +792,8 @@
      in -- the edit/print buttons, which is more than a phone's width. */
   .flex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
   .count { color: var(--muted); font-size: 13px; }
-  fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0; padding: 8px 14px 14px; }
-  legend { color: var(--muted); font-size: 13px; padding: 0 6px; }
+  fieldset:not(main.v2 *) { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0; padding: 8px 14px 14px; }
+  legend:not(main.v2 *) { color: var(--muted); font-size: 13px; padding: 0 6px; }
   .inline-form { display: inline; }
   /* Centred, because the box to type in is taller than the buttons beside it and a
      flex row left to itself stretches its children to match. The picker was safe --
@@ -918,8 +863,6 @@
   @media (pointer: coarse) {
     input, select, textarea,
     .edit input, .edit select, .edit textarea,
-    .edit .countgrid input, .edit .chipgrid input,
-    table.drives input, table.drives select,
     .toolbar input[type=text], .toolbar input[list],
     .toolbar input:not([type]), .toolbar select:not(.select),
     .addbar input, .addbar select, .addbar textarea,
@@ -971,9 +914,9 @@
      rather than pretended into components they are not.
 
      This block stays last in the file. Several of them override a rule of equal
-     specificity -- `.tuck` against `.hint`, `textarea.box-90` against
-     `.edit textarea` -- and at equal specificity the later rule wins, which
-     is what an inline style used to do by outranking everything. */
+     specificity -- `.tuck` against `.hint`, for one -- and at equal specificity
+     the later rule wins, which is what an inline style used to do by outranking
+     everything. */
   .flush { margin: 0; }
   .flush-top { margin-top: 0; }
   .grow { flex: 1; min-width: auto; }
@@ -981,7 +924,6 @@
   .tuck { margin: 5px 0 0; }
   .mt-5 { margin-top: 5px; }
   .mt-14 { margin-top: 14px; }
-  .mt-16 { margin-top: 16px; }
   .mt-26 { margin-top: 26px; }
   .ml-22 { margin-left: 22px; }
   .top-12 { margin: 12px 0 0; }
@@ -1005,6 +947,3 @@
   .srow > .checks { margin: 0; }
   .stat-h { margin: 0; font-size: 17px; }
   .stat-sub { font-size: 13px; }
-  textarea.box-70 { min-height: 70px; }
-  textarea.box-90 { min-height: 90px; }
-  textarea.box-110 { min-height: 110px; }

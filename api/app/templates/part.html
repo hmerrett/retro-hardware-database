@@ -1,7 +1,6 @@
 {% extends "base.html" %}
 {% import "_labelsend.html" as LS %}
 {% import "_ui.html" as U with context %}
-{% import "_colours.html" as CL %}
 {% import "_partlist.html" as P %}
 {% import "_panel.html" as PN %}
 {% block title %}{{ og.title }}{% if og.title != p.asset_id %} · {{ p.asset_id }}{% endif %} — {{ site_name() }}{% endblock %}
@@ -72,7 +71,7 @@
       {% set bezel = bezel_class(specs.get('Colour', ''), specs.get('Yellowing', '')) %}
       <dl class="specs">
         {% for k, v in spec_pairs %}
-        <div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{% if bezel and k in ('Colour', 'Yellowing') %}{{ CL.dot(bezel, specs.get('Colour', '') or 'yellowing, on a shade nobody recorded') }} {% endif %}{{ v | linked }}</dd></div>
+        <div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{% if bezel and k in ('Colour', 'Yellowing') %}{{ U.bezel(specs.get('Colour', ''), specs.get('Yellowing', ''), 'sm') }} {% endif %}{{ v | linked }}</dd></div>
         {% endfor %}
       </dl>
     {% endcall %}

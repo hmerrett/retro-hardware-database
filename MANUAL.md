@@ -416,7 +416,18 @@ nothing until you submit it.
 
 ## 5. Adding a computer
 
-**+ Computer** in the header. Field by field:
+**+ Computer** in the header.
+
+The form is in sections — **Identity**, **Memory**, **Drives**, **Tracking**,
+**Description**, **Work needed** and, on a new machine, **Photographs** — and a line under a field says what goes in
+it wherever that is not obvious. Editing, the heading names the machine and its
+tag, so two tabs open on two machines cannot be confused. **Save** and **Cancel**
+stay at the foot of the screen however far down the form you are, so the way out
+is always under the thumb. **Cancel** leaves without saving: back to the machine,
+or from a new one back to the gallery. The part and project forms work the same
+way.
+
+Field by field:
 
 | Field | What goes in it |
 |---|---|
@@ -868,6 +879,16 @@ choose by, and the same arithmetic draws the chart on the form, the swatch besid
 a menu and the swatch on the item page, so none of them can disagree about what
 "heavily yellowed beige" looks like.
 
+Beside the two menus is the chosen shade at every stage of yellowing, from as
+made to unevenly yellowed, with the stage chosen outlined: the pick can be held
+against the plastic without opening anything. Until a shade is chosen there is
+a single swatch: hatched while nothing is recorded, which is what "not recorded"
+looks like everywhere, and a pale plastic at that stage if only the yellowing
+is. The
+**colour chart** under the menus is the same thing for every shade at once —
+shades down the side, stages across, each with a line on what it looks like —
+and on a phone it scrolls sideways inside its own box rather than squeezing.
+
 Storage parts record the same two things as their `Colour` and `Yellowing` specs,
 so a drive on the shelf and one fitted in a machine are described alike.
 
@@ -894,6 +915,11 @@ that went. It is searchable like every other field.
 something, it shows where that thing is kept — the board it is mounted on, or the
 machine it is installed in — so only a part that lives somewhere of its own needs
 an answer typed into it. See [where it is kept](#where-it-is-kept).
+
+The form is laid out like the machine's — sections, a line under a field that
+needs one, **Save** and **Cancel** at the foot of the screen. **Cancel** goes back
+to the part, or from a new one to the machine or part it was being added to, and
+otherwise to the gallery.
 
 What differs by type is the specification section.
 

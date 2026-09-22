@@ -1,168 +1,179 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
 {% import "_colours.html" as C %}
 {% import "_machine.html" as M %}
 {% block title %}{{ title }} — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<p><button type="button" class="backlink" data-back>&larr; back</button></p>
-<h2>{{ title }}</h2>
-<form class="edit" method="post" enctype="multipart/form-data"
+{# `dl` names a pick list of what has already been answered to this box (see
+   main._answers_given). autocomplete="off" is for the browser's own memory of
+   what you have typed into a box called `source` on any site, which would
+   otherwise be offered instead of the list -- these are answers from the
+   register, and they are the ones worth having. #}
+{% set DL = dl | default({}) %}
+{% macro fld(key, label, hint='', type='', dl='') -%}
+  {{ U.field(key, label, value=(c[key] if c else '') or '', hint=hint, type=type,
+             list=('dl_' ~ dl) if dl and dl in DL else '',
+             autocomplete='off' if dl and dl in DL else '') }}
+{%- endmacro %}
+<form class="editform" method="post" enctype="multipart/form-data"
       action="{{ ('/computers/' + c.asset_id + '/edit') if c else '/computers/new' }}">
-  {# `dl` names a pick list of what has already been answered to this box (see
-     main._answers_given). autocomplete="off" is for the browser's own memory of
-     what you have typed into a box called `source` on any site, which would
-     otherwise be offered instead of the list -- these are answers from the
-     register, and they are the ones worth having. #}
-  {% macro fld(key, label, hint='', type='text', dl='') %}
-    <label for="{{ key }}"{% if hint %} title="{{ hint }}"{% endif %}>{{ label }}</label>
-    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (c[key] if c else '') or '' }}"
-           {%- if dl and dl in DL %} list="dl_{{ dl }}" autocomplete="off"{% endif %}{% if hint %} title="{{ hint }}"{% endif %}>
-  {% endmacro %}
-  {% set DL = dl | default({}) %}
+  {# Naming the machine rather than only its tag: two tabs open on two machines are
+     told apart by the heading, not by the address bar. #}
+  <div class="pagehead"><h1 class="heading">
+    {%- if c %}Edit {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }} <span class="tag muted">{{ c.asset_id }}</span>
+    {%- else %}{{ title }}{% endif %}</h1></div>
   {% for name, values in DL.items() %}
   <datalist id="dl_{{ name }}">{% for v in values %}<option value="{{ v }}">{% endfor %}</datalist>
   {% endfor %}
-  {# First, because picking a model fills in half of what follows and puts the right
-     variations on screen for the rest. #}
-  {{ M.picker(machine_groups, machine_saved, machine_catalogue) }}
-  {{ fld('name', 'Name', "display name; overrides manufacturer + model") }}
-  {{ fld('manufacturer', 'Manufacturer', "or 'Custom build'", dl='makes') }}
-  {{ fld('model', 'Model', dl='models') }}
-  {{ fld('year', 'Year', type='number') }}
-  {# With the identity rather than with the provenance below, because it is read off
-     the back of the machine in the same sitting as the model is -- and because it
-     answers "which of the two A5000s is this?", which is an identity question. #}
-  {{ fld('serial', 'Serial number', "as stamped on this machine — not a fact about the model") }}
-  {{ fld('chassis', 'Chassis / case', "desktop, tower, mini-tower, breadbin…", dl='chassis') }}
-  {{ fld('os', 'Operating system', dl='os') }}
-  {{ fld('cpu', 'CPU', "an attribute, not a part. Maker model-MHz — e.g. Intel 486DX2-66, Intel 80286-6, or 2x Pentium III 500", dl='cpu') }}
-  {# Beside the CPU, because that is mostly what decides it. Shown only while the
-     machine is not a catalogue model -- TopBench is a DOS program, the catalogue
-     holds nothing that runs one, and "not a catalogue model" is how this form
-     already says "a PC or a custom build". The box is hidden rather than dropped,
-     so a score already on file is not quietly erased by someone filing the machine
-     against the catalogue: a hidden input still submits what it holds. #}
-  <div data-x86-only>
-    {{ fld('topbench', 'TopBench score', "Its TopBench (DOS benchmark) score. Leave blank until it has been run.", type='number') }}
-  </div>
-  <label title="How many of each; the total is computed.">Memory modules (SIMMs / SIPPs)</label>
-  <div class="countgrid">
-    {% for slug, kb, label in ram_modules %}
-    <label><span>{{ label }}</span> <input type="number" min="0" name="rammod:{{ slug }}" value="{{ ram_mod_counts.get(slug, '') }}"></label>
-    {% endfor %}
-  </div>
-  <label title="DRAM soldered or socketed on the board rather than on SIMMs. A banks-of-9 count is treated as parity.">RAM chips on the board</label>
-  <div class="countgrid">
-    {% for pn, kb, org in ram_chips %}
-    <label><span>{{ pn }} <span class="muted">({{ org }})</span></span> <input type="number" min="0" name="ramchip:{{ pn }}" value="{{ ram_counts.get(pn, '') }}"></label>
-    {% endfor %}
-  </div>
-  <label for="installed_ram" title="Anything the grids above miss — DIMMs, odd sizes, or a plain total like 16MiB. All three are combined.">Other RAM</label>
-  <input id="installed_ram" name="installed_ram" value="{{ ram_free }}">
-  <label title="Floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove it.">Drives</label>
-  <div class="hscroll">
-  <table class="drives">
-    <tr><th scope="col">How many</th><th scope="col">Kind</th><th scope="col">Form factor</th><th scope="col">Size</th><th scope="col">Media</th><th scope="col">Speed</th><th scope="col">Make / model</th><th scope="col">Bezel — shade, and yellowing</th></tr>
-    {% for d in drives %}
-    <tr>
-      <td><input type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"
-                 aria-label="drive {{ loop.index }}, how many"></td>
-      <td><select name="drive{{ loop.index0 }}_kind" aria-label="drive {{ loop.index }}, kind">
-        <option value=""></option>
-        {% for k in drive_kinds %}<option value="{{ k }}"{{ ' selected' if k == d.get('kind') else '' }}>{{ k }}</option>{% endfor %}
-      </select></td>
-      <td><select name="drive{{ loop.index0 }}_form_factor" aria-label="drive {{ loop.index }}, form factor">
-        <option value=""></option>
-        {% for f in drive_forms %}<option value="{{ f }}"{{ ' selected' if f == d.get('form_factor') else '' }}>{{ f }}</option>{% endfor %}
-      </select></td>
-      <td><input name="drive{{ loop.index0 }}_size" list="dl_drive_sizes" value="{{ d.get('size', '') }}"
-                 aria-label="drive {{ loop.index }}, size"></td>
-      {# A capacity is what a floppy takes and a medium is what an optical drive
-         takes, so a row fills one or the other. Offered rather than closed, like
-         the capacity beside them: the lists name what was sold, not everything
-         that exists. #}
-      <td><input name="drive{{ loop.index0 }}_media" list="dl_drive_media" value="{{ d.get('media', '') }}"
-                 aria-label="drive {{ loop.index }}, media"></td>
-      <td><input name="drive{{ loop.index0 }}_speed" list="dl_drive_speeds" value="{{ d.get('speed', '') }}"
-                 aria-label="drive {{ loop.index }}, speed"></td>
-      <td><input name="drive{{ loop.index0 }}_model" value="{{ d.get('model', '') }}"
-                 aria-label="drive {{ loop.index }}, make and model"></td>
-      {# Two menus and one swatch: the shade as made, and how far it has yellowed.
-         The swatch shows the pair together, so the choice can be checked against
-         the chart below without reading back up the page. #}
-      <td>{{ C.pair('drive%d_' % loop.index0, d.get('colour', ''),
-                    d.get('yellowing', ''), bezel_colours, yellowing,
-                    bezel_colour_labels, yellowing_labels,
-                    'drive %d' % loop.index) }}</td>
-    </tr>
-    {% endfor %}
-  </table>
-  </div>
-  {{ C.chart(bezel_colours, yellowing) }}
-  <datalist id="dl_drive_sizes">{% for x in drive_sizes %}<option value="{{ x }}">{% endfor %}</datalist>
-  <datalist id="dl_drive_media">{% for x in drive_media %}<option value="{{ x }}">{% endfor %}</datalist>
-  <datalist id="dl_drive_speeds">{% for x in drive_speeds %}<option value="{{ x }}">{% endfor %}</datalist>
-  <label for="drives_note">Drives — anything the rows cannot say</label>
-  <input id="drives_note" name="drives_note" value="{{ (c.drives_note if c else '') or '' }}">
-  <label for="condition">Condition</label>
-  {# Blank by default, not "Working" -- see the same menu on the part form. #}
-  <select id="condition" name="condition">
-    {% set cur = (c.condition if c else '') or '' %}
-    <option value="">not recorded</option>
-    {% if cur and cur not in conditions %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
-    {% for opt in conditions %}<option value="{{ opt }}"{{ ' selected' if opt == cur else '' }}>{{ opt }}</option>{% endfor %}
-  </select>
-  {{ fld('source', 'Source', "where / how acquired", dl='source') }}
-  {{ fld('acquired_date', 'Acquired date', type='date') }}
-  {{ fld('location', 'Location', "where it is kept — Loft, blue crate 3", dl='location') }}
-  {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
-  <label for="summary" title="The description shown at the top of the page">Summary</label>
-  <textarea class="box-110" id="summary" name="summary">{{ (c.summary if c else '') or '' }}</textarea>
-  <label for="notes">Notes</label>
-  <textarea id="notes" name="notes">{{ (c.notes if c else '') or '' }}</textarea>
-{# What it needs doing, written while it is in your hands.
 
-   The register says what a thing is; this says what is wrong with it, and the
-   moment that is known is this one -- the machine is on the bench, unpacked, and
-   the form that files it is already open. Sending somebody to /projects afterwards
-   is how the second fault they noticed gets forgotten, which is the same reason the
-   quick box exists on the projects page and on every item page.
+  <fieldset class="fieldset">
+    <legend>Identity</legend>
+    {# First, because picking a model fills in half of what follows and puts the right
+       variations on screen for the rest. #}
+    {{ M.picker(machine_groups, machine_saved, machine_catalogue) }}
+    <div class="formgrid">
+      {{ fld('name', 'Name', "display name; overrides manufacturer + model") }}
+      {{ fld('manufacturer', 'Manufacturer', "or 'Custom build'", dl='makes') }}
+      {{ fld('model', 'Model', dl='models') }}
+      {{ fld('year', 'Year', type='number') }}
+      {# With the identity rather than with the provenance below, because it is read
+         off the back of the machine in the same sitting as the model is -- and
+         because it answers "which of the two A5000s is this?", which is an identity
+         question. #}
+      {{ fld('serial', 'Serial number', "as stamped on this machine — not a fact about the model") }}
+      {{ fld('chassis', 'Chassis / case', "desktop, tower, mini-tower, breadbin…", dl='chassis') }}
+      {{ fld('os', 'Operating system', dl='os') }}
+      {{ fld('cpu', 'CPU', "an attribute, not a part. Maker model-MHz — e.g. Intel 486DX2-66, Intel 80286-6, or 2x Pentium III 500", dl='cpu') }}
+      {# Beside the CPU, because that is mostly what decides it. Shown only while the
+         machine is not a catalogue model -- TopBench is a DOS program, the catalogue
+         holds nothing that runs one, and "not a catalogue model" is how this form
+         already says "a PC or a custom build". The box is hidden rather than dropped,
+         so a score already on file is not quietly erased by someone filing the
+         machine against the catalogue: a hidden input still submits what it holds. #}
+      <div data-x86-only>
+        {{ fld('topbench', 'TopBench score', "what this machine scores in TopBench, the DOS benchmark — leave it blank until it has actually been run on this machine", type='number') }}
+      </div>
+    </div>
+  </fieldset>
 
-   What it makes is a project with this item on it and each line as a job, through
-   the one path everything else notes work down (main._take_on_work). It is public,
-   like the rest of the register; the tick on its own form keeps one back. Empty is
-   the ordinary case and makes nothing: most things arrive with nothing wrong.
+  <fieldset class="fieldset">
+    <legend>Memory</legend>
+    <div class="field">
+      <span class="lbl" id="rammod-lbl">Memory modules (SIMMs / SIPPs)</span>
+      <div class="countgrid" role="group" aria-labelledby="rammod-lbl" aria-describedby="rammod-hint">
+        {% for slug, kb, label in ram_modules %}
+        <label class="count"><span>{{ label }}</span> <input class="input" type="number" min="0" name="rammod:{{ slug }}" value="{{ ram_mod_counts.get(slug, '') }}"></label>
+        {% endfor %}
+      </div>
+      <p class="hint" id="rammod-hint">how many of each; the total is computed.</p>
+    </div>
+    <div class="field">
+      <span class="lbl" id="ramchip-lbl">RAM chips (installed directly)</span>
+      <div class="countgrid" role="group" aria-labelledby="ramchip-lbl" aria-describedby="ramchip-hint">
+        {% for pn, kb, org in ram_chips %}
+        <label class="count"><span>{{ pn }} <span class="muted">({{ org }})</span></span> <input class="input" type="number" min="0" name="ramchip:{{ pn }}" value="{{ ram_counts.get(pn, '') }}"></label>
+        {% endfor %}
+      </div>
+      <p class="hint" id="ramchip-hint">DRAM on the board rather than on SIMMs. A banks-of-9 count is treated as parity.</p>
+    </div>
+    {{ U.field('installed_ram', 'Installed RAM — other / notes', value=ram_free,
+               hint="anything the grids above miss — DIMMs, odd sizes, or a plain total like 16MiB. All three are combined.") }}
+  </fieldset>
 
-   Write-only, and never filled in with what the project already says. A box that
-   echoed the jobs back would add every one of them a second time on the next save.
-#}
-  <label for="work_needed">Work needed</label>
-  <textarea class="box-70" id="work_needed" name="work_needed"
-            placeholder="one job per line"></textarea>
-  <label for="work_project" title="New project: one named after this, each line a job on it. Or add the jobs to a project already going — usually the case for a part bought for something. Leave the jobs empty if there is nothing to do.">Project</label>
-  <select id="work_project" name="work_project">
-    <option value="">new project</option>
-    {% for pr in work_projects %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
-  </select>
+  <fieldset class="fieldset">
+    <legend>Drives</legend>
+    <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove it.</p>
+    {# A table that has to stay a table: a drive is read across its row. It scrolls
+       inside its own box on a phone rather than squeezing each box to two
+       characters (test_reflow). #}
+    <div class="hscroll">
+    <table class="table drives">
+      <tr><th scope="col">How many</th><th scope="col">Kind</th><th scope="col">Form factor</th><th scope="col">Size</th><th scope="col">Media</th><th scope="col">Speed</th><th scope="col">Make / model</th><th scope="col">Bezel — shade, and yellowing</th></tr>
+      {% for d in drives %}
+      <tr>
+        <td><input class="input" type="number" min="1" name="drive{{ loop.index0 }}_count" value="{{ d.get('count', '') or '' }}"
+                   aria-label="drive {{ loop.index }}, how many"></td>
+        <td><select class="select" name="drive{{ loop.index0 }}_kind" aria-label="drive {{ loop.index }}, kind">
+          <option value=""></option>
+          {% for k in drive_kinds %}<option value="{{ k }}"{{ ' selected' if k == d.get('kind') else '' }}>{{ k }}</option>{% endfor %}
+        </select></td>
+        <td><select class="select" name="drive{{ loop.index0 }}_form_factor" aria-label="drive {{ loop.index }}, form factor">
+          <option value=""></option>
+          {% for f in drive_forms %}<option value="{{ f }}"{{ ' selected' if f == d.get('form_factor') else '' }}>{{ f }}</option>{% endfor %}
+        </select></td>
+        <td><input class="input" name="drive{{ loop.index0 }}_size" list="dl_drive_sizes" value="{{ d.get('size', '') }}"
+                   aria-label="drive {{ loop.index }}, size"></td>
+        {# A capacity is what a floppy takes and a medium is what an optical drive
+           takes, so a row fills one or the other. Offered rather than closed, like
+           the capacity beside them: the lists name what was sold, not everything
+           that exists. #}
+        <td><input class="input" name="drive{{ loop.index0 }}_media" list="dl_drive_media" value="{{ d.get('media', '') }}"
+                   aria-label="drive {{ loop.index }}, media"></td>
+        <td><input class="input" name="drive{{ loop.index0 }}_speed" list="dl_drive_speeds" value="{{ d.get('speed', '') }}"
+                   aria-label="drive {{ loop.index }}, speed"></td>
+        <td><input class="input" name="drive{{ loop.index0 }}_model" value="{{ d.get('model', '') }}"
+                   aria-label="drive {{ loop.index }}, make and model"></td>
+        {# Two menus and the ladder: the shade as made, and how far it has yellowed.
+           The ladder shows the pair together, so the choice can be checked against
+           the chart below without reading back up the page. #}
+        <td>{{ C.pair('drive%d_' % loop.index0, d.get('colour', ''),
+                      d.get('yellowing', ''), bezel_colours, yellowing,
+                      bezel_colour_labels, yellowing_labels,
+                      'drive %d' % loop.index) }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    </div>
+    {{ C.chart(bezel_colours, yellowing) }}
+    <datalist id="dl_drive_sizes">{% for x in drive_sizes %}<option value="{{ x }}">{% endfor %}</datalist>
+    <datalist id="dl_drive_media">{% for x in drive_media %}<option value="{{ x }}">{% endfor %}</datalist>
+    <datalist id="dl_drive_speeds">{% for x in drive_speeds %}<option value="{{ x }}">{% endfor %}</datalist>
+    {{ U.field('drives_note', 'Drives — anything the rows cannot say',
+               value=(c.drives_note if c else '') or '') }}
+  </fieldset>
+
+  <fieldset class="fieldset">
+    <legend>Tracking</legend>
+    <div class="formgrid">
+      {# Blank by default, not "Working" -- see the same menu on the part form. #}
+      {% set cur = (c.condition if c else '') or '' %}
+      {{ U.field('condition', 'Condition', kind='choice', value=cur,
+                 choices=[('', 'Not recorded')] + ([cur] if cur and cur not in conditions else []) + conditions) }}
+      {{ fld('source', 'Source', "where / how acquired", dl='source') }}
+      {{ fld('acquired_date', 'Acquired date', type='date') }}
+      {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
+    </div>
+  </fieldset>
+
+  <fieldset class="fieldset">
+    <legend>Description</legend>
+    {{ U.field('summary', 'Summary', kind='area', value=(c.summary if c else '') or '',
+               hint='the description shown at the top of the page', rows=5) }}
+    {{ U.field('notes', 'Notes', kind='area', value=(c.notes if c else '') or '', rows=4) }}
+  </fieldset>
+
+  {% include "_workneeded.html" %}
+
   {% if not c %}
   {# On an item that exists, photos upload the moment they are picked, from the
      photo column on its own page. Here there is no asset tag to file them under
      yet, so they wait and go with the rest of the form. #}
-  <label>Photographs</label>
-  <div class="newphotos">
-    <label class="btn sm filebtn">choose files
-      <input type="file" name="photos" accept="image/*" multiple>
-    </label>
-    <span class="hint" data-photo-count></span>
-  </div>
+  <fieldset class="fieldset">
+    <legend>Photographs</legend>
+    {% include "_newphotos.html" %}
+  </fieldset>
   {% endif %}
-  <p class="mt-16"><button class="btn primary" type="submit">save</button></p>
+
+  {% set cancel = ('/computers/' ~ c.asset_id) if c else '/' %}
+  {% include "_actbar.html" %}
 </form>
 {# Only for the machine whose own page has dropped these: a catalogue machine with
    nothing fitted. Outside the form above, because they post to endpoints of their
    own and a form cannot be nested in another. #}
 {% if boardparts %}
-<div class="detail-main">{% include "_boardparts.html" %}</div>
+<div class="mt-6">{% include "_boardparts.html" %}</div>
 {% endif %}
-{{ C.script(bezel_swatches) }}
+{{ C.script(bezel_swatches, yellowing) }}
 {{ M.script(machine_catalogue, machine_saved, machine_widths) }}
 {% endblock %}

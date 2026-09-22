@@ -26,8 +26,9 @@
    because a form that could not draw them must not be able to erase them either. #}
 
 {% macro picker(groups, saved, catalogue, board=false) %}
-<label for="mach_model" title="{{ "Which machine this board is out of — a Spectrum, a C64, an Amiga 500. Picking one offers its documented board revisions and chip sockets. Leave it at not a catalogue model for a PC board." if board else "A Spectrum, a C64, a CPC, a Mega Drive. Picking one offers its documented variations and fills in the manufacturer, year, CPU and chassis where still empty. Leave it at not a catalogue model for a PC or a custom build." }}">{{ 'Board from a known machine' if board else 'Known machine' }}</label>
-<select id="mach_model" name="mach_model" data-machine-pick>
+<div class="field">
+<label for="mach_model">{{ 'Board from a known machine' if board else 'Known machine' }}</label>
+<select class="select" id="mach_model" name="mach_model" data-machine-pick aria-describedby="mach_model-hint">
   <option value="">— not a catalogue model —</option>
   {% for family, models in groups %}
   <optgroup label="{{ family }}">
@@ -42,6 +43,18 @@
   <option value="{{ saved.model_key }}" selected>{{ saved.model_key }} — no longer in the catalogue</option>
   {% endif %}
 </select>
+{% if board %}
+<p class="hint" id="mach_model-hint">which machine this board is out of — a Spectrum, a C64, an Amiga 500.
+  Picking one offers that model's documented board revisions and chip sockets. Leave it
+  at <em>not a catalogue model</em> for a PC board, described by its chipset and slots
+  instead.</p>
+{% else %}
+<p class="hint" id="mach_model-hint">a Spectrum, a C64, a CPC, a Mega Drive. Picking one offers that
+  model's documented variations, and fills the manufacturer, year, CPU and chassis into
+  any of those boxes still empty. Leave it at <em>not a catalogue model</em> for a PC or
+  a custom build.</p>
+{% endif %}
+</div>
 <div data-machine-vars></div>
 <noscript><p class="hint">The variation pickers need JavaScript. Choosing a model
   still works without it, and whatever is already recorded here is left alone.</p></noscript>

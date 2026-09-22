@@ -25,8 +25,8 @@ if (pt) {
   // boxes -- so it is worth saying so before it goes. Compared against what the
   // page was rendered with rather than against being empty: a field that arrived
   // filled in is not something you typed.
-  const edited = () => [...document.querySelectorAll('form.edit input, ' +
-                              'form.edit select, form.edit textarea')]
+  const edited = () => [...document.querySelectorAll('form.editform input, ' +
+                              'form.editform select, form.editform textarea')]
     .some(el => {
       if (el === pt || el.disabled) return false;
       if (el.type === 'file') return el.files && el.files.length;
