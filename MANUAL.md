@@ -2257,8 +2257,9 @@ than in a corner of an item's form.
 Everything on it is kept in the database, so it survives a restart and
 everybody who opens the site gets it. It comes in two groups:
 
-**Appearance** — the site's name, the look it is dressed in, whether photographs
-are watermarked, and which theme it opens in.
+**Appearance** — the site's name, the look it is dressed in, the faces it is set
+in, where its sections sit, how its buttons are written, whether photographs are
+watermarked, and which theme it opens in.
 
 **Server options** — what this installation shows the outside world and what
 it remembers for itself: whether it asks to be kept out of search engines,
@@ -2401,6 +2402,91 @@ pressed in — the phone by the shelf and the machine in the workshop can each r
 differently — and that choice is kept in the browser and travels nowhere. Once a
 browser has made one it keeps it, and the setting here is what everybody who has
 not made one gets.
+
+### The type
+
+The register sets its words in three faces, and which face a word gets is decided
+by what kind of word it is rather than by where it sits on the page. What somebody
+**wrote** — an item's name, its summary, the one big number at the head of the
+figures — is in the display face. What the register **says** — a label, a button,
+a heading, a hint, the words in a menu — is in the interface face. What somebody
+**recorded** — an asset tag, a serial, a date, a size, a filename, every value in
+a table — is in the data face, which is monospaced, so a column of serials reads
+down as well as across.
+
+**Type** is a menu of four, and it repoints those three faces:
+
+- *As the preset* leaves them as the chosen look names them, which is what a fresh
+  install gets. Phosphor and Amber are monospaced throughout, because the screens
+  they are drawn from were; Breadbin, Rubber Key, Big Box Beige and Ninety-five
+  set their titles in the interface face rather than the serif.
+- *Catalogue* is a serif for what was written, a sans for the interface, a
+  monospace for what was recorded — the three roles at their most distinct.
+- *Plain* drops the serif: the interface face does the writing too, and recorded
+  values stay monospaced.
+- *Ledger* is monospaced throughout, prose included.
+
+Only the face changes. Every size, weight and line height stays where it was, so
+choosing one of these never moves anything: a long name may break a line
+differently, and that is the whole of it.
+
+The three faces ship with the register and are served from it, like everything
+else on the page — nothing is fetched from anywhere else while somebody is
+reading, and choosing a type sends no request to a third party.
+
+### Where the sections sit
+
+**Navigation** is *Side* or *Top*, and decides where the five sections live on a
+wide screen. *Side* is what a new installation gets.
+
+At 1100px and wider, *Side* puts a rail down the left of the page, in what is
+otherwise empty margin — the column of the page itself is not narrowed by it. The
+rail carries the name and mark, then the five sections, each with the number of
+things in it beside its name. For somebody signed in it also carries **Computer**
+and **Part** as one press each, and **Recent**: the last three things you edited,
+tag first, which is the rail's best argument at a bench where you go back to the
+same two machines all afternoon. At its foot are the theme button, which everybody
+gets, then **Settings** and **Log out** — or **Log in** for a visitor — and
+**Collapse**.
+
+The banner above the page keeps the search box and **Scan** in both layouts, so
+the two things wanted from every page are in the same place whichever is chosen.
+With the rail showing, the banner holds those two and nothing else: the sections,
+the **+ New** menu and the ⋯ menu are in the rail, and nothing is in both.
+
+**Collapse** narrows the rail to a strip of icons, each still carrying its name
+for a screen reader and in a tooltip. The choice is the browser's rather than the
+installation's — the wide screen in the workshop can keep the rail open while the
+laptop folds it away — and is kept on the device that made it, as the theme is. It
+is a plain link and works with the scripting turned off.
+
+Below 1100px there is no rail whichever way this is set: the banner carries the
+sections as it always has, and a phone gets the tab bar. There is no phone form of
+a rail, so *Side* and *Top* are the same thing on a phone.
+
+A visitor sees the rail without the things that are not theirs: no **+ Computer**
+or **+ Part**, no **Recent**, no **Settings** and no **Log out**. The counts they
+do see, because the size of a collection is part of what a catalogue is for.
+
+### Button text
+
+**Button text** is *Capitalised* or *Lower case*, and decides how the first word
+of a button, a menu item, a tab or a status chip is written: **Save** and **Add
+note**, or **save** and **add note**.
+
+It reaches the controls and nothing else. A field label, a legend and a heading
+are capitalised whichever is chosen — `Manufacturer`, `Acquired date`,
+`Appearance` — because those name a thing rather than ask for an action, and a
+page that lower-cased them would read as a page with a fault.
+
+An acronym keeps its capitals either way: `OK`, `API docs`, `CPU family`. That is
+why this is done as the page is built rather than left to the browser's own
+lower-casing, which cannot tell an acronym from an ordinary word and would hand
+back `ok` and `api docs`.
+
+*Capitalised* is what a new installation gets. *Lower case* is 0.1's voice, kept
+because it is a voice and not a mistake: an installation that liked the quieter
+controls can have them back with one answer.
 
 ### Set in the environment
 
