@@ -4,6 +4,34 @@
 {% import "_ui.html" as U with context %}
 {# Doubles as /browse: same grid, a subset of the rows, and a line saying which
    subset. Without a heading it is the whole gallery. #}
+
+{% if first_run | default(false) %}
+{# Nothing in the register at all, and somebody who can do something about it.
+   The gallery has nothing to be until the first item exists, so the front page is
+   the three steps to a labelled machine -- numbered, because they are an order
+   and not a menu. It goes the moment there is one item and does not come back:
+   not a tour, and nothing to dismiss. A visitor gets the line below instead, since
+   a list of steps only the owner can take is a list of what has not been done.
+
+   Step one is the only one the page can see the answer to. Ticked as well as
+   struck through: a line through a word is a colour and a shape, and the mark is
+   what a screen reader has to go on. #}
+{% if request.state.authed %}
+<div class="firstrun">
+  <h1 class="heading">Nothing in the register yet</h1>
+  <p class="prose">Every machine, card and drive you add gets an asset tag, a page
+    of its own and a QR label.</p>
+  <ol class="steps">
+    <li{% if named %} class="done"{% endif %}><span class="t"><b>Name the collection</b><span>In the banner, the browser's tab, the foot of every page and on every label.</span></span>{{ U.button('Settings', size='sm', href='/settings') }}</li>
+    <li><span class="t"><b>Add the first machine</b><span>A computer, or a part on its own.</span></span>{{ U.button('+ Computer', kind='primary', size='sm', href='/computers/new') }}</li>
+    <li><span class="t"><b>Print its label</b><span>Stick it on and scan it: you are at its page.</span></span>{{ U.button('Print labels', size='sm', disabled=true) }}</li>
+  </ol>
+</div>
+{% else %}
+<p id="empty" class="muted">Nothing here yet.</p>
+{% endif %}
+
+{% else %}
 <div class="pagehead">
   <h1 class="heading">{{ heading | default('Inventory') }}</h1>
   <span class="count">{{ n_computers }} computers · {{ n_parts }} parts</span>
@@ -78,4 +106,5 @@
 
 <script type="application/json" id="index-data">{{ {'sortCookie': sort_cookie, 'order': handoff} | tojson }}</script>
 <script defer src="/static/index.js?v={{ js_ver['index.js'] }}"></script>
+{% endif %}
 {% endblock %}

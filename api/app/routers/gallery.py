@@ -347,6 +347,13 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> H
         q=q,
         searched=bool(q.strip()),
         total=total,
+        # A register with nothing in it at all, which is not the same state as a
+        # search that matched nothing: the front page has nothing to be until the
+        # first item exists, so it is the three steps instead. Asked here and not
+        # in `_grid_page`, because /browse and /for-sale draw the same grid from a
+        # narrowed list and an empty one of those is a filter, not a new install.
+        first_run=total == 0 and not q.strip(),
+        named=settings.site_name() != settings.DEFAULT_SITE_NAME,
         hit_projects=hit_projects,
         og=_og(
             request,
