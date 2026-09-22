@@ -602,6 +602,14 @@
   .suggest .sg .th { flex: none; width: 44px; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken);
     border-radius: var(--radius-xs); }
   .suggest .sg .t { min-width: 0; flex: 1; }
+  /* The thumbnail app.js draws in each row: a photograph, or the category's
+     placeholder drawing, sized as the card's thumbnail is. */
+  .suggest .sg img { flex: none; width: 44px; aspect-ratio: var(--thumb-ratio); object-fit: cover;
+    background: var(--surface-sunken); border-radius: var(--radius-xs); }
+  .suggest .sg img.ph { object-fit: contain; padding: var(--space-1); }
+  .combo { position: relative; }
+  .itemlist { margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+  .itemlist > li + li { margin-top: var(--space-2); }
   .suggest .sg .nm { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .suggest .sg .tag { color: var(--text-muted); margin-right: var(--space-2); }
   .suggest .sg .sub { display: block; font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

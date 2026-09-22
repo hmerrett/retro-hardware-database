@@ -33,6 +33,7 @@ from datetime import date, datetime
 # --- the jobs, and the things on order ---------------------------------------
 
 from collections.abc import Iterable, Mapping, Sequence
+from typing import NamedTuple, TypedDict
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -65,6 +66,7 @@ from ..web import _og, _safe_next, png_label, templates
 from ..work import (
     PROJECT_FIELDS,
     _api_task,
+    _asset_display,
     _asset_named,
     _member_log,
     _publish_log,
@@ -300,10 +302,100 @@ def _projects_card(
 router = APIRouter()
 
 
+class _ItemRow(TypedDict):
+    asset_id: str
+    name: str
+    moves_from: Project | None
+
+
+class _FormItems(NamedTuple):
+    """The Items fieldset as posted: the tags it now lists, and what was typed into
+    the box if it could not be added, with why."""
+
+    ids: list[str]
+    typed: str
+    error: str
+
+
+NO_NAME = "Give it a name — it is the only thing it can be found by."
+
+
+def _form_items(db: Session, form: Posted) -> _FormItems:
+    """The list the form carries, with its Remove and its box applied.
+
+    The list rides in hidden inputs, so it is checked as it comes back: a tag that
+    is not a computer or part is dropped rather than trusted, as the add route drops
+    one. What is typed in the box is added whichever button was pressed -- a tag left
+    there when Save is pressed was meant, and losing it would be the form deciding
+    it was not."""
+    ids: list[str] = []
+    for raw in form.getlist("items"):
+        aid = raw.strip().upper()
+        if aid and aid not in ids and any(db.get(cls, aid) for cls in (Computer, Part)):
+            ids.append(aid)
+    drop = (form.get("drop") or "").strip().upper()
+    if drop in ids:
+        ids.remove(drop)
+    typed = (form.get("add_item") or "").strip()
+    if not typed:
+        return _FormItems(ids, "", "")
+    found, error = projects.find_item(db, typed)
+    if found is None:
+        return _FormItems(ids, typed, error)
+    if found not in ids:
+        ids.append(found)
+    return _FormItems(ids, "", "")
+
+
+def _item_rows(db: Session, ids: Iterable[str], project_id: str | None) -> list[_ItemRow]:
+    """Each listed thing as the form shows it: its name, and the project it is on now
+    if that is another one -- saving moves it, and the form says so first."""
+    rows: list[_ItemRow] = []
+    for aid in ids:
+        held = projects.holder(db, aid)
+        rows.append(
+            {
+                "asset_id": aid,
+                "name": _asset_display(db, aid) or aid,
+                "moves_from": held if held is not None and held.asset_id != project_id else None,
+            }
+        )
+    return rows
+
+
 def _project_form_ctx(
-    p: Project | Mapping[str, object] | None, title: str, error: str = ""
+    p: Project | Mapping[str, object] | None,
+    title: str,
+    error: str = "",
+    items: Sequence[_ItemRow] = (),
+    add_item: str = "",
+    item_error: str = "",
 ) -> dict[str, object]:
-    return {"p": p, "title": title, "statuses": projects.STATUSES, "error": error}
+    return {
+        "p": p,
+        "title": title,
+        "statuses": projects.STATUSES,
+        "error": error,
+        "items": items,
+        "add_item": add_item,
+        "item_error": item_error,
+    }
+
+
+def _take_on(db: Session, p: Project, asset_id: str, note: str = "") -> None:
+    """Put a thing on a project and say so in both histories. The one way in, for
+    the project page's add box and the form's Save alike."""
+    if projects.add_asset(db, p.asset_id, asset_id, note):
+        what = _asset_named(db, asset_id)
+        add_log(db, p.asset_id, f"took on {what}" + (f" — {note}" if note else ""))
+        _member_log(db, p, asset_id)
+
+
+def _let_go(db: Session, p: Project, asset_id: str) -> None:
+    """Take a thing off a project, and say so in both histories."""
+    if projects.drop_asset(db, p.asset_id, asset_id):
+        add_log(db, p.asset_id, f"let go of {_asset_named(db, asset_id)}")
+        _member_log(db, p, asset_id, joining=False)
 
 
 def _project_of_the_day(db: Session, authed: bool) -> Project | None:
@@ -449,17 +541,28 @@ async def gui_create_project(request: Request, db: Session = Depends(get_db)) ->
     again. Everything else can be filled in later or never."""
     form = await posted(request)
     data = _project_from_form(form)
-    if not data["name"]:
+    chosen = _form_items(db, form)
+    # Add item and Remove change the list on the page and save nothing, so the form
+    # comes back with everything as typed; so does a box that could not be added.
+    listing = "add" in form or "drop" in form
+    if listing or chosen.error or not data["name"]:
         return templates.TemplateResponse(
             request,
             "project_form.html",
             _project_form_ctx(
-                data, "New project", "Give it a name — it is the only thing it can be found by."
+                data,
+                "New project",
+                "" if listing or chosen.error else NO_NAME,
+                _item_rows(db, chosen.ids, None),
+                chosen.typed,
+                chosen.error,
             ),
         )
     obj = Project(asset_id=next_asset_id(db), **data)
     db.add(obj)
     add_log(db, obj.asset_id, "created", "created")
+    for aid in chosen.ids:
+        _take_on(db, obj, aid)
     db.commit()
     return RedirectResponse(f"/projects/{obj.asset_id}", status_code=303)
 
@@ -545,8 +648,11 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)) -> HT
 @router.get("/projects/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
 def gui_edit_project(aid: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     p = get_or_404(db, Project, aid)
+    here = [obj.asset_id for _kind, obj, _row in projects.members(db, p.asset_id)]
     return templates.TemplateResponse(
-        request, "project_form.html", _project_form_ctx(p, "Edit project")
+        request,
+        "project_form.html",
+        _project_form_ctx(p, "Edit project", items=_item_rows(db, here, p.asset_id)),
     )
 
 
@@ -555,12 +661,21 @@ async def gui_update_project(aid: str, request: Request, db: Session = Depends(g
     p = get_or_404(db, Project, aid)
     form = await posted(request)
     data = _project_from_form(form)
-    if not data["name"]:
+    chosen = _form_items(db, form)
+    listing = "add" in form or "drop" in form
+    if listing or chosen.error or not data["name"]:
+        # What was typed rather than what is on file, so a refusal or a change to
+        # the list costs nothing already written.
         return templates.TemplateResponse(
             request,
             "project_form.html",
             _project_form_ctx(
-                p, "Edit project", "Give it a name — it is the only thing it can be found by."
+                {**data, "asset_id": p.asset_id},
+                "Edit project",
+                "" if listing or chosen.error else NO_NAME,
+                _item_rows(db, chosen.ids, p.asset_id),
+                chosen.typed,
+                chosen.error,
             ),
         )
     before = to_dict(p)
@@ -569,6 +684,16 @@ async def gui_update_project(aid: str, request: Request, db: Session = Depends(g
     add_log(db, p.asset_id, _field_diffs(before, to_dict(p), PROJECT_FIELDS))
     if bool(before["private"]) != bool(p.private):
         _publish_log(db, p)
+    # After the publishing, so a thing added in the same save as the project goes
+    # public is written into its history once, by _take_on, rather than twice. Only
+    # when the form drew its list: a post that never carried one says nothing about
+    # what the project is about, and must not be read as "about nothing".
+    if "items_listed" in form:
+        here = [obj.asset_id for _kind, obj, _row in projects.members(db, p.asset_id)]
+        for gone in (a for a in here if a not in chosen.ids):
+            _let_go(db, p, gone)
+        for new in (a for a in chosen.ids if a not in here):
+            _take_on(db, p, new)
     db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
@@ -673,11 +798,8 @@ async def gui_project_add_item(
     form = await posted(request)
     asset_id = (form.get("asset_id", "") or "").strip().upper()
     note = (form.get("note", "") or "").strip()
-    if projects.add_asset(db, p.asset_id, asset_id, note):
-        what = _asset_named(db, asset_id)
-        add_log(db, p.asset_id, f"took on {what}" + (f" — {note}" if note else ""))
-        _member_log(db, p, asset_id)
-        db.commit()
+    _take_on(db, p, asset_id, note)
+    db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 
@@ -688,10 +810,8 @@ async def gui_project_remove_item(
     p = get_or_404(db, Project, aid)
     form = await posted(request)
     asset_id = (form.get("asset_id", "") or "").strip().upper()
-    if projects.drop_asset(db, p.asset_id, asset_id):
-        add_log(db, p.asset_id, f"let go of {_asset_named(db, asset_id)}")
-        _member_log(db, p, asset_id, joining=False)
-        db.commit()
+    _let_go(db, p, asset_id)
+    db.commit()
     return RedirectResponse(f"/projects/{p.asset_id}", status_code=303)
 
 

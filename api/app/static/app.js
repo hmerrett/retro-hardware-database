@@ -884,10 +884,12 @@
 // matching -- the same match Enter performs, over every field and the history --
 // because no page but the gallery has the catalogue to search, and the gallery's
 // own copy carries none of the prose or history that the search reads.
-(function () {
-  const box = document.getElementById('q');
-  const list = document.getElementById('suggest');
-  if (!box || !list) return;
+//
+// Two boxes use it. The banner's search opens what is chosen. A box marked
+// data-suggest="pick" -- the project form's Items -- is choosing a thing rather than
+// going to it: it is offered computers and parts only, choosing one puts its tag in
+// the box, and Enter with nothing lit presses the form's Add item rather than Save.
+function combobox(box, list, pick) {
 
   const MIN = 2;          // one letter matches most of the register: not a list
   const WAIT = 140;       // long enough that a typed word is one request, not six
@@ -921,16 +923,30 @@
     }
   }
 
+  // A pick box puts the tag in and stays where it is, so the next thing can be
+  // typed or Add item pressed.
+  function choose(row) {
+    box.value = row.dataset.aid;
+    close();
+    box.focus();
+  }
+
   function draw(data) {
     list.innerHTML = '';
     rows = []; at = -1;
-    if (!data.items.length) {
-      list.appendChild(el('div', 'sg-none', 'Nothing matches that.'));
+    // The server's matches are every kind of record; a project is about things,
+    // so a pick box shows only those.
+    const items = pick
+      ? data.items.filter(function (it) { return /^\/(computers|parts)\//.test(it.url); })
+      : data.items;
+    if (!items.length) {
+      list.appendChild(el('div', 'sg-none none', 'Nothing matches that.'));
     }
-    data.items.forEach(function (it, i) {
+    items.forEach(function (it, i) {
       const a = el('a', 'sg');
       a.href = it.url;
-      a.id = 'sg-' + i;
+      // Named for their own list: two of these can share a page.
+      a.id = list.id + '-' + i;
       a.setAttribute('role', 'option');
       a.setAttribute('aria-selected', 'false');
       const img = el('img');
@@ -951,10 +967,14 @@
       // Choosing with the pointer moves the same marker the keys move, so what is
       // lit is always what opens.
       a.addEventListener('mousemove', function () { highlight(i); });
+      if (pick) {
+        a.dataset.aid = it.aid;
+        a.addEventListener('click', function (e) { e.preventDefault(); choose(a); });
+      }
       list.appendChild(a);
       rows.push(a);
     });
-    if (data.total > data.items.length) {
+    if (!pick && data.total > data.items.length) {
       const more = el('a', 'sg-more',
         'and ' + (data.total - data.items.length) + ' more — press Enter for all '
         + data.total);
@@ -1014,18 +1034,32 @@
     // has. Nothing else here interferes with typing.
     if (e.key === 'Enter' && at >= 0 && rows[at]) {
       e.preventDefault();
-      location.href = rows[at].href;
+      if (pick) choose(rows[at]); else location.href = rows[at].href;
+      return;
+    }
+    if (e.key === 'Enter' && pick) {
+      const add = box.form && box.form.querySelector('[data-suggest-add]');
+      if (add) { e.preventDefault(); close(); add.click(); }
     }
   });
 
   // A click lands before the blur that would otherwise pull the row out from
   // under it, so the list closes on mousedown anywhere that is not the list.
   document.addEventListener('mousedown', function (e) {
-    if (!list.hidden && !e.target.closest('#suggest') && e.target !== box) close();
+    if (!list.hidden && !list.contains(e.target) && e.target !== box) close();
   });
   box.addEventListener('blur', function () {
     // A tap on a row is a blur first on a touch screen, so let the tap through.
     setTimeout(function () { if (!list.contains(document.activeElement)) close(); }, 160);
+  });
+}
+(function () {
+  const q = document.getElementById('q');
+  const sg = document.getElementById('suggest');
+  if (q && sg) combobox(q, sg, false);
+  document.querySelectorAll('input[data-suggest="pick"]').forEach(function (box) {
+    const list = document.getElementById(box.getAttribute('aria-controls'));
+    if (list) combobox(box, list, true);
   });
 })();
 

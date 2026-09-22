@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1590 behaviours, from 43 files.*
+*1611 behaviours, from 44 files.*
 
 
 ## A file where text was expected
@@ -2223,6 +2223,45 @@ Regenerate with:
   A token a preset leaves out is inherited from the default preset underneath, which is a colour chosen for a different page -- a black band's text left white-on-white, say.
 - every pair holds in every preset and mode  
   518 pairs: the 37 the design uses, in fourteen themes.
+
+
+## Project form items
+
+*test_project_form_items.py — 21 behaviours*
+
+
+**The list**
+
+- a new project has an empty list and the box
+- editing lists what it is about with remove
+- save is the forms default button  
+  Enter in any box submits with the first submit button in the form.
+- the box offers suggestions as a combobox
+
+**Adding before saving**
+
+- add item by tag lists it and saves nothing
+- add item by the whole name of one thing
+- a name nothing has is refused under the box
+- a name two things share asks for the tag
+- a project is not something to add
+- adding what is already listed lists it once
+- remove takes it off the list and saves nothing
+- a thing on another project says which
+
+**Saving**
+
+- a new project is made with its items
+- a tag left in the box is added on save
+- a name left in the box that is nothing stops the save
+- saving an edit adds and removes the difference
+- saving untouched changes no membership
+- saving moves a thing from another project
+- an edit posted without the list leaves the membership alone  
+  A post that never carried the list -- an older page, a script -- says nothing about what the project is about, and is not read as "about nothing".
+- the form says it carries the list
+- cancel leaves the list as it was  
+  Cancel is a link: nothing is posted, so the membership is what it was.
 
 
 ## Project of the day

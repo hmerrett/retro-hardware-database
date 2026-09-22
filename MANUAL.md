@@ -1392,6 +1392,20 @@ than about either end of it, and so has nowhere else to live.
 A thing is on one project at a time: putting it on another takes it off this one,
 jobs and all (see [the quick box](#noting-something-down) below).
 
+The project's own form has them too, under **Items**: each thing it is about, with
+**Remove** beside it, and a box to add another by its **tag or its name**. As you
+type, the same suggestions the search box offers come up, computers and parts only;
+choosing one puts its tag in the box. **Add item** puts it on the list and saves
+nothing — the list, like every other field, changes the project only when **Save**
+is pressed, and **Cancel** leaves it as it was. A tag still in the box when **Save**
+is pressed is added too, rather than lost. So a new project can be written down with
+the things it is about in one go.
+
+A name has to be the whole name of one thing. If nothing has it, or two things do,
+the box says so under it and asks for the tag instead, and everything else typed
+on the form is kept. Something already on another project says which one beside
+it: saving moves it here.
+
 It reads both ways. The project lists what it is about, and **each item's own page
 gains a Projects panel** saying what it is spoken for — so you find out a board is
 already promised while looking at the board, rather than having to find the project

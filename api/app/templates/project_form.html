@@ -9,6 +9,11 @@
 {% set editing = p and p.asset_id %}
 <form class="editform" method="post"
       action="{{ ('/projects/' + p.asset_id + '/edit') if editing else '/projects/new' }}">
+  {# The form's default button. Enter in a box submits with the first submit button
+     in the form, and the Items below have buttons of their own -- without this, Enter
+     in the name would press the first Remove. Out of sight and out of the tab order;
+     Save at the foot is the one a person presses. #}
+  <button type="submit" class="sr-only" tabindex="-1" aria-hidden="true">Save</button>
   <div class="pagehead"><h1 class="heading">
     {%- if editing %}Edit {{ p['name'] or p.asset_id }} <span class="tag muted">{{ p.asset_id }}</span>
     {%- else %}{{ title }}{% endif %}</h1></div>
@@ -37,6 +42,44 @@
        is deliberately cleared, which is the act of publishing. #}
     {{ U.field('private', 'Private', kind='switch', value=(p['private'] if p else False),
                hint='kept off the public list, out of the search and the sitemap, off the pages of the machines it is about, and its own page answers a visitor as though it were not there. The register is a public catalogue; what is wrong with a thing, in your own words, does not have to be part of it.') }}
+  </fieldset>
+  {# What it is about, changed with the rest of the form: Add item and Remove post the
+     form back to be drawn again and save nothing, so this works with no script, and
+     Save makes the membership what the list says. The list rides in hidden inputs;
+     items_listed says it did, so an edit posted without one leaves the membership
+     alone. With script the box is a combobox over the same suggestions as the
+     search, and picking one fills in its tag (app.js). #}
+  <fieldset class="fieldset">
+    <legend>Items</legend>
+    <input type="hidden" name="items_listed" value="1">
+    {% if items %}
+    <ul class="itemlist">
+      {% for it in items %}
+      <li class="row"><input type="hidden" name="items" value="{{ it.asset_id }}">
+        <span class="chip">{{ it.name }} · {{ it.asset_id }}</span>
+        {%- if it.moves_from %} <span class="hint">moves from <a href="/projects/{{ it.moves_from.asset_id }}">{{ it.moves_from.name or it.moves_from.asset_id }}</a></span>{% endif %}
+        <button class="btn sm" type="submit" name="drop" value="{{ it.asset_id }}" formnovalidate
+                aria-label="{{ 'Remove' | ui }} {{ it.name }}">{{ 'Remove' | ui }}</button></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="hint">Nothing yet. A project can be about nothing at the start.</p>
+    {% endif %}
+    <div class="field{{ ' is-invalid' if item_error }}">
+      <label for="add_item">Add a computer or part</label>
+      <div class="row">
+        <div class="combo grow">
+          <input class="input" id="add_item" name="add_item" value="{{ add_item }}"
+                 placeholder="A tag or a name: RH-" autocomplete="off"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false"
+                 aria-controls="add_item-list" data-suggest="pick"
+                 {%- if item_error %} aria-invalid="true" aria-describedby="add_item-err"{% endif %}>
+          <div class="suggest" id="add_item-list" role="listbox" aria-label="Computers and parts" hidden></div>
+        </div>
+        <button class="btn" type="submit" name="add" value="1" formnovalidate data-suggest-add>{{ 'Add item' | ui }}</button>
+      </div>
+      {% if item_error %}<p class="err" id="add_item-err">{{ item_error }}</p>{% endif %}
+    </div>
   </fieldset>
   <fieldset class="fieldset">
     <legend>Description</legend>
