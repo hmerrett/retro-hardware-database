@@ -2157,6 +2157,15 @@ The login boxes say what they are for, so a password manager — the browser's o
 or one you keep elsewhere — offers the right entry and fills both. Nothing has to
 be typed from memory or copied between windows.
 
+The page also says what it is not for. Under the button it tells you that
+browsing needs no login and that signing in keeps one cookie, so somebody who
+followed a link here without meaning to can read that and go back to what they
+were reading. An attempt that fails says only that the pair was not recognised,
+never which half of it was wrong — which would tell a stranger whether the name
+they guessed exists. Enough wrong attempts in a row and the page stops taking
+them for a few minutes and says that instead, rather than going on answering as
+though the next one might be read.
+
 There is one account, set with `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`. Leave
 both blank and the site runs with no authentication at all, which is only
 sensible for local development or a read-only install on a network you trust.
