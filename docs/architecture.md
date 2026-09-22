@@ -144,8 +144,8 @@ and re-render; never edit the string and hope.
 |---|---|
 | `asset_variant`, `asset_chip` | which issue/style/region an asset is, and the notable chips on it |
 | `log_entry`, `log_photo` | the dated history of an asset, and photographs attached to a line of it |
-| `files` | files kept beside the register — drivers, manuals, ROM dumps, receipts — each with a one-line note and whether a visitor may see it |
-| `file_asset` | what a file is for: every machine, part or project it is linked to, by asset id, and nothing else (ADR-0028) |
+| `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the tags that say what each one is |
+| `file_asset`, `file_model` | what a file is for: one unit by asset id, or every item of a model by catalogue key or by maker and model |
 | `location` | every place something has been kept, so an emptied crate is still offered by name — the register's one stored vocabulary, and deleted outright when the preference behind it is turned off (ADR-0027) |
 | `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the things it is about (one project to a thing), its job list — each job optionally naming one of those things — and what is on order for it |
 
@@ -162,11 +162,12 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 |---|---|
 | `main.py` | create_app(): the middlewares (including the content policy), the static mount and every router — the wiring, and nothing else |
 | `auth.py` | the login, the logout, and the gate every request passes through |
+| `errors.py` | what a browser is shown when a request cannot be answered: the 403, 404 and 500 pages, and the JSON everything else keeps |
 | `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion |
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
 | `work.py` | the jobs on a project and the things it is about, read from the project, the item and the API alike |
 | `routers/items.py` | /items/<id>: the address a label carries, and the history written under it |
-| `routers/files.py` | the files kept beside the register: the list, a file's own page, what each is linked to, and who may see it |
+| `routers/files.py` | the files kept beside the register, what each is for, and who may see it |
 | `routers/computers.py` | the pages of a machine |
 | `routers/parts.py` | the pages of a part, including the spec pickers |
 | `routers/api_assets.py` | the JSON API for computers and parts |
@@ -206,8 +207,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `search.py` | the term parser, the "any field" haystack, the suggestion list, the `/browse` views |
 | `stats.py` | the figures and the pool of facts behind the public `/stats` page |
 | `projects.py` | projects: the work, as against the things it is done to |
-| `filesdb.py` | files kept beside the register, what each is linked to, the same-model suggestions, and the bytes on disk |
-| `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, and the size it is given as |
+| `filesdb.py` | files kept beside the register, what each is attached to, and the bytes on disk |
 | `photos.py` | watermarking, upload verification, reference photos, kept originals, crop/rotate |
 | `thumbs.py` | smaller copies of the photographs, made once and kept |
 | `enhance.py` | the one-touch tuneup: the automatic levels-and-colour fix a phone does |
@@ -219,7 +219,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 
 Outside `api/`:
 
-- `api/app/templates/` — 30 Jinja2 templates. `api/app/static/` — the stylesheet
+- `api/app/templates/` — 36 Jinja2 templates. `api/app/static/` — the stylesheet
   and scripts, moved out of `base.html` so they can be cached — and that move is
   what made the content policy in `main.py` possible, there being nothing inline
   left to have to allow.
@@ -249,19 +249,14 @@ breaking one turns CI red rather than merely being wrong.
 - **A migration must not assume specific data exists.** A one-off correction to a
   named row belongs in a `tools/` script, not in the shared history, or it breaks
   every fresh install. *(ADR-0002, enforced: CI migrates an empty database)*
-- **A file is linked by asset id, and only by hand.** `file_asset` is the one
-  link, to a machine, a part or a project, and each shows the files linked to it
-  and nothing else. A visitor is never told a file is linked to a private
-  project. The model
-  suggests and never decides: an upload offers the same model's other units, and a
-  unit is offered its siblings' files, but neither links anything on its own. So
-  renaming an item or correcting its model moves nothing, and nothing is read
-  from a filename. *(ADR-0028, enforced: `test_files.py`)*
-- **A file is not public until it is ticked.** An unpublished file answers 404,
-  not 401, at its page and at its download alike — there is no account a reader
-  could hold, so a prompt would only confirm the file exists. The owner may have
-  the upload's tick start ticked; nothing is published by a default the form did
-  not show. *(ADR-0009, ADR-0029)*
+- **What a file is for is stated, never inferred.** A link to an asset id or to a
+  model, made by hand; a tag says what a file *is* and decides nothing about where
+  it appears. Matching is equality on the stored key, so renaming an item cannot
+  move its files and a short tag cannot reach across the register.
+  *(ADR-0006, ADR-0020, enforced: `test_files.py`)*
+- **A file is not public until it is ticked.** Unpublished files answer 404, not
+  401 — there is no account a reader could hold, so a prompt would only confirm
+  the file exists. *(ADR-0009)*
 - **A share card is made of photographs that are already public.** The montage a
   grid page previews as is built from what an anonymous reader is shown, so a
   private project puts nothing on one, and `/og/{name}` opens a file by hash
@@ -399,8 +394,6 @@ it was weighed against, and what it costs.
 | 0019 | Running open is supported, but never silent |
 | 0020 | A model link names a maker and a model, not only a catalogue key |
 | 0027 | A remembered vocabulary is deleted when it is turned off |
-| 0028 | A file is linked to the things it is for, by their asset ids |
-| 0029 | An upload starts public where the owner says so |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

@@ -22,6 +22,7 @@ from starlette.types import Scope
 from . import __version__
 from .common import (  # shared foundations; re-exported here so existing call-sites resolve
     BRANDING_DIR,
+    CONTENT_SECURITY_POLICY,
     IMAGES_DIR,
     STATIC_DIR,
 )
@@ -78,39 +79,10 @@ from .photos import (  # noqa: F401 -- re-exported for the tests, unused here
     _original_of,
 )
 from .search import search_terms  # noqa: F401 -- re-exported for the tests, unused here
+from . import errors
 
 # Schema is owned by Alembic now (entrypoint.sh runs `alembic upgrade head` on
 # start); no create_all here.
-
-
-# What the app will load, which is only ever itself. `img_url` yields `/images/...`,
-# a reference photograph is fetched into that volume server-side rather than hot-
-# linked, and the QR decoder is vendored under /static/vendor -- so `'self'`
-# throughout is a description of the code and not an aspiration for it.
-#
-# `form-action`, `frame-ancestors` and `base-uri` are stated because they do not
-# fall back to `default-src`: left out they are simply absent, which reads like a
-# tight policy and is not one.
-#
-# `style-src` is now `'self'` as well: the 69 style attributes and the two <style>
-# blocks the token was there for have gone into app.css as classes, and the two
-# whose values were data into the generated stylesheet at /style/data.css
-# (ADR-0022). A test walks the rendered pages for a style attribute rather than
-# trusting this comment.
-CONTENT_SECURITY_POLICY = "; ".join(
-    (
-        "default-src 'self'",
-        "script-src 'self'",
-        "style-src 'self'",
-        "img-src 'self'",
-        "font-src 'self'",
-        "connect-src 'self'",
-        "form-action 'self'",
-        "frame-ancestors 'self'",
-        "base-uri 'none'",
-        "object-src 'none'",
-    )
-)
 
 
 async def content_security_policy(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -223,6 +195,9 @@ def create_app() -> FastAPI:
     app.middleware("http")(auth.auth_gate)
     app.middleware("http")(content_security_policy)
     app.mount("/static", _static_files(), name="static")
+    # A browser gets a page when a request cannot be answered; the API and anything
+    # else that did not ask for HTML keeps the JSON it always had (errors.py).
+    errors.install(app)
     for router in (
         auth.router,
         seo.router,

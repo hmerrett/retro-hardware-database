@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{# The answer to an address that led nowhere. A page rather than a line of JSON,
+   because the likeliest reader scanned a label and is holding the machine: the
+   banner above carries the search box, which is the way on from here. #}
+{% block title %}{{ heading }} — Retro Hardware Database{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
+{% block content %}
+<div class="errorpage">
+  {# The number is what a search of the log or a note to whoever runs this site
+     will be about, so it is said plainly and not hidden behind the words. #}
+  <p class="figure">{{ status }}</p>
+  <h1 class="heading">{{ heading }}</h1>
+  <p>{{ line }}</p>
+  <p class="mt-5">{{ U.button('Go to the gallery', kind='primary', href='/') }}</p>
+</div>
+{% endblock %}

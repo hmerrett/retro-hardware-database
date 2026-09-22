@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1684 behaviours, from 48 files.*
+*1696 behaviours, from 49 files.*
 
 
 ## A file where text was expected
@@ -1476,6 +1476,29 @@ Regenerate with:
 - a url cannot break out of its own href
 - what is not a string at all  
   The details tables hand this whole rows at a time -- a year, a date, the None of a column nobody filled in.
+
+
+## Error pages
+
+*test_error_pages.py — 12 behaviours*
+
+- a missing page is a page
+- a missing page arrives in the site chrome  
+  The search box above it is the way on from a dead end, so the page is the site's and not a bare sheet of its own.
+- a missing page says what happened and offers the gallery
+- an asset tag nothing is filed under gets the same page  
+  The label way in: RH-9999 is somebody else's tag, or a typo of yours.
+- a page that is not open says so
+- a fault at this end says so
+- a fault says nothing about itself  
+  What went wrong goes to the log.
+- a fault page carries the content policy  
+  The 500 is answered outside the middleware that sends the policy -- the exception has passed it by the time it is caught -- so the page sends its own.
+- an error page is not offered to a search engine
+- the json api answers an error as it always has  
+  Asked for in a browser or by a script alike: /api is a program's surface.
+- a client that did not ask for html keeps the json
+- a fault outside a page is the plain answer it was
 
 
 ## Files
