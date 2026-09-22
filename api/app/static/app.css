@@ -28,7 +28,7 @@
      `hidden` means hidden everywhere. */
   [hidden] { display: none !important; }
   /* Form controls don't inherit font-family by default, so they'd fall back to
-     the browser's sans-serif; keep everything on the site's monospace.
+     the browser's own face rather than the site's.
 
      Nor do they inherit line-height: a button is laid out at the browser's own
      `normal`, which is about 1.15, while everything else on the page is at 1.5.
@@ -41,7 +41,6 @@
      is the height of the words in it like everything else. */
   button, input, select, textarea { font-family: inherit; line-height: inherit; }
   ::file-selector-button { font-family: inherit; line-height: inherit; }
-  body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; margin: 0; line-height: 1.5; background: var(--bg); color: var(--fg); }
   /* The first few matches, offered while you are still typing. It hangs off the
      input rather than pushing the page down, and is wider than the box it hangs
      from because a machine's name is longer than the room to type it. Right-
