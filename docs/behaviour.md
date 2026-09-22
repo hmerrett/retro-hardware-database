@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1977 behaviours, from 59 files.*
+*2007 behaviours, from 61 files.*
 
 
 ## A file where text was expected
@@ -122,6 +122,57 @@ Regenerate with:
   Rather than printing the wrong size on a printer somebody is not watching.
 - a key is not a password and a password is not a key  
   The two doors do not open each other: the owner's credentials are not an agent's key, and an agent's key is not the owner's credentials.
+
+
+## Accent
+
+*test_accent.py — 21 behaviours*
+
+- the accent setting offers the preset and eight by name  
+  The preset's own accent and eight named colours, and the first is what a fresh install gets: the accent a preset brings is part of the look it is.
+- every offered accent is a colour the register can derive from  
+  A name in the picker with no colour behind it is a face that paints nothing.
+- your own takes a hex colour and nothing else  
+  The box takes any colour written as `#rrggbb`.
+- your own wins over the eight and giving it back is emptying it  
+  Two settings, one answer: the box wins while it has something in it, and the named choice is still there underneath when it is emptied.
+- a stored accent the register does not know falls back to the preset  
+  The value is spent on a colour written into a stylesheet.
+- every offered accent holds every pair in every preset and mode  
+  The eight, in the fourteen: 112 derivations, nine pairs each.
+- the button keeps the chosen colour exactly wherever it can  
+  The manual's promise, and the one that matters: the button is where an accent is recognised.
+- the hue is never changed  
+  Lighter or darker, and only that.
+- the writing on the button is white or near black  
+  Two answers, and the better of the two.
+- the track is the fill at a sixth over the page  
+  A bar's track is the fill, faint.
+- the sweep is the whole colour space  
+  A sweep that had quietly become 40 colours would pass every day and mean nothing, so its own shape is asserted before it is trusted.
+- any colour at all derives a set that passes  
+  Why the box may take a free-for-all: the derivation is a pure function and every colour in the space comes out of it holding all nine pairs.
+- as the preset writes no colours of its own  
+  The default answer leaves the preset's own accent where it is.
+- the chosen accent is stated for the preset and for both ways of asking for dark  
+  The same three blocks every preset file is written in: the light one, the one for a reader who has chosen dark, and the one for a reader whose device chose it for them.
+- the accent stylesheet declares nothing but the five tokens  
+  An accent is a colour, not a look.
+- every face in the accent picker is drawn in its own colour  
+  Nine faces, each a real button and a real link in the accent it is offering, derived for the preset in force -- so the owner is choosing the thing rather than a word for it.
+- the preset face shows the preset and not the chosen accent  
+  The first face has to go on meaning "as the preset" once an accent has been chosen.
+
+**The accent on the page**
+
+- the picker offers nine faces each drawn in what it offers  
+  The thing rather than a word for it: a face carries its own value, and `accent.css` is what paints that face in that colour.
+- the stylesheet is linked by a stamp of what it serves  
+  A colour that can change while the site is up, cached for a year: the two are only compatible if changing it changes the URL.
+- choosing one changes what is served and what is asked for  
+  The whole of the feature, end to end: an answer on the form, a different stylesheet, and a page that asks for the new one rather than the old.
+- a visitor is served the accent but is offered no say in it  
+  It is the installation's look, like the preset: a reader chooses light or dark and that is all.
 
 
 ## Api
@@ -1707,6 +1758,34 @@ Regenerate with:
 - a size is said the way it would be said
 
 
+## First run
+
+*test_first_run.py — 8 behaviours*
+
+
+**An empty register**
+
+- the owner is given the three steps  
+  Numbered, because they are an order and not a menu: name the collection, add the first machine, print its label.
+- naming the collection ticks its own step  
+  The one step the screen can see the answer to.
+- there is nothing to print yet  
+  The third step waits on the second.
+- the way to the first machine is on the screen  
+  A step somebody has to go and find the control for is an instruction rather than a step.
+- a visitor is told it is empty and no more  
+  The steps are things only the owner can do, and a list of them is a list of what has not been done yet -- which is nobody else's business.
+
+**Once there is something in it**
+
+- the gallery comes back the moment there is an item  
+  It goes as soon as there is one item and does not come back: not a tour, and nothing to dismiss.
+- a search that finds nothing is not an empty register  
+  Two different states that both draw no cards.
+- the steps are the front page and not every empty grid  
+  /for-sale draws the same grid from a narrowed list, and an empty one of those is a filter that matched nothing rather than a new installation.
+
+
 ## For sale
 
 *test_for_sale.py — 21 behaviours*
@@ -3118,7 +3197,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 62 behaviours*
+*test_settings.py — 63 behaviours*
 
 
 **Reaching the page**
@@ -3253,6 +3332,8 @@ Regenerate with:
   A flat list of four is a list; a flat list of fifteen is a search.
 - a setting written out of place joins its own section  
   Rather than opening a second fieldset with the same legend, which is what filtering per section would do and nothing would have caught.
+- the short menus stand two abreast  
+  Four menus of four words each, stacked, push the switch under them and the save button off a laptop screen.
 - every row carries its reason  
   One tooltip per setting, so none of them is the one that was forgotten and left a control with nothing behind it.
 

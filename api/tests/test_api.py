@@ -3493,7 +3493,11 @@ class TestSortingTheGallery:
         c = computer(model="ZZZ")["asset_id"]
         assert self._order(client.get("/?sort=cat").text) == [c, p]
 
-    def test_the_menu_offers_each_of_them(self, client):
+    def test_the_menu_offers_each_of_them(self, client, part):
+        # With something in the register: an empty one opens on the three first-run
+        # steps instead of the gallery, and a toolbar for sorting nothing is not a
+        # thing this test is about.
+        part()
         page = client.get("/").text
         for mode in (
             "updated",
