@@ -1260,11 +1260,13 @@ function combobox(box, list, pick) {
 // A tick is an answer, not a draft. Marked data-ticksend, a form with a checkbox
 // in it sends the moment the box changes, for the reason the picker above does:
 // the gesture was made, and hunting for a save button afterwards is the second
-// half of one intention. The button stays in the markup and hides itself here,
-// so a browser running none of this still has the two-gesture version.
+// half of one intention. A menu that is the form's only question -- what a job is
+// about -- is the same kind of answer and sends the same way. The button stays in
+// the markup and hides itself here, so a browser running none of this still has
+// the two-gesture version.
 (function () {
   for (const form of document.querySelectorAll('form[data-ticksend]')) {
-    const box = form.querySelector('input[type=checkbox]');
+    const box = form.querySelector('input[type=checkbox], select');
     const go = form.querySelector('[data-send-go]');
     if (!box) continue;
     if (go) go.hidden = true;

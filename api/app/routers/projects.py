@@ -876,14 +876,21 @@ async def gui_project_toggle_task(
     is shown in two places -- its project's list and the page of the thing it is
     about -- and always returning to the project meant ticking one off at the bench,
     where you are looking at the machine, threw you onto a different page. Through
-    _safe_next, so the field cannot send anybody off this site."""
+    _safe_next, so the field cannot send anybody off this site.
+
+    A tick on a page sends `set` with the box, and then the job becomes what the box
+    shows rather than the opposite of what it is: a tab left open since the job was
+    ticked, or a double press, would otherwise untick it. Nothing changes, and
+    nothing is logged, when it is already that."""
     p = get_or_404(db, Project, aid)
     row = _task_or_404(db, p, tid)
-    row.done = not row.done
-    row.done_at = date.today() if row.done else None
-    add_log(db, p.asset_id, ("done: " if row.done else "back on the list: ") + _short(row.text))
-    db.commit()
     form = await posted(request)
+    done = form.get("done") == "1" if form.get("set") else not row.done
+    if done != row.done:
+        row.done = done
+        row.done_at = date.today() if done else None
+        add_log(db, p.asset_id, ("done: " if done else "back on the list: ") + _short(row.text))
+        db.commit()
     return RedirectResponse(
         _safe_next(form.get("next", "") or f"/projects/{p.asset_id}"), status_code=303
     )

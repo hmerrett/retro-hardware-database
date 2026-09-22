@@ -172,6 +172,9 @@
     border-top: 1px solid var(--line); overflow-wrap: break-word; }
   .table th { font-size: 13px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
   .table td.tight, .table th.tight { white-space: nowrap; }
+  /* The one column that is a sentence takes the slack, so the short ones sit at the
+     edge rather than each being handed a share of the spare width. */
+  .table td.wide { width: 100%; }
   .table tr:first-child > * { border-top: 0; }
   /* More than three columns: either it stacks... */
   @media (max-width: 560px) {
@@ -181,6 +184,10 @@
     .table.stack td { padding: 1px 0; border: 0; }
     .table.stack td:empty { display: none; }
     .table.stack td[data-label]::before { content: attr(data-label) " "; font-size: 12px; color: var(--text-muted); }
+    /* A row whose values are short -- a status, a count, a date -- runs them on one
+       line under the first cell rather than giving each a line of its own. */
+    .table.stack.runon td + td:not(:empty) { display: inline-block; margin-right: var(--space-4); }
+    .table.stack td[data-label]::before { font-family: var(--font-ui); }
   }
   /* ...or it scrolls inside its own box. */
   .hscroll { overflow-x: auto; }
@@ -454,11 +461,31 @@
   .confirm { max-width: 520px; margin: var(--space-7) auto; }
   .errorpage { max-width: 520px; margin: var(--space-7) auto; text-align: center; }
   .errorpage .figure { color: var(--text-muted); }
+  /* A job: the tick, its words, then what it is about, when it was done and the drop.
+     The words take the room, so the rest sits at the right and wraps under them on a
+     phone rather than squeezing them to a word a line. */
   .tasks { list-style: none; margin: 0; padding: 0; }
-  .tasks li { display: flex; gap: var(--space-3); align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); }
+  .tasks li { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
   .tasks li:first-child { border-top: 0; }
-  .tasks li .tag { margin-left: auto; color: var(--text-muted); }
-  .tasks li.done > span:first-of-type { text-decoration: line-through; color: var(--text-muted); }
+  .tasks li > span:first-of-type { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; }
+  .tasks li .tag { color: var(--text-muted); }
+  /* What the job is about, when it was done and the drop wrap as one group, so a phone
+     puts them on a line of their own under the words rather than stranding the drop. */
+  .tasks li > .acts { display: flex; align-items: center; gap: var(--space-3); margin-left: auto; }
+  .tasks li.done > span:first-of-type, .tasks.quiet li > span:first-of-type { color: var(--text-muted); }
+  .tasks li.done > span:first-of-type { text-decoration: line-through; }
+  .tasks form { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+  .tasks input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-fill); }
+  @media (pointer: coarse) { .tasks input[type=checkbox] { width: 22px; height: 22px; } }
+  .tasks .about .select { width: auto; max-width: 16em; }
+  /* A row of boxes and the button that sends them: the add forms under a panel's list.
+     Each box asks for a share of the row and wraps to the next line before it is too
+     narrow to type in. */
+  .addrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-4); }
+  .addrow > .input, .addrow > .select { flex: 1 1 160px; width: auto; min-width: 0; }
+  .addrow > .input.wide { flex: 3 1 240px; }
+  .addrow > .input.short { flex: 0 1 130px; }
+  .addrow > textarea.input { flex: 1 1 100%; }
   .models { columns: 2 320px; column-gap: var(--space-6); }
   .models section { break-inside: avoid; margin-bottom: var(--space-5); }
   .models h2 { font-size: 14px; font-weight: 600; margin-bottom: var(--space-2); }
@@ -564,8 +591,18 @@
   .figure { font-size: 54px; line-height: 1.1; font-weight: 600; }
   .statgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
   .twocol { display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr)); }
+  /* The one project drawn for today: its things' photographs, then what it is and what
+     is left on it, beside them where there is room and under them where there is not. */
+  .today > .pbody { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); }
   .today .shots { display: flex; gap: var(--space-3); }
-  .today .shots > span { width: 120px; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken); border-radius: var(--radius-md); }
+  .today .shots > .cardthumb { width: 120px; }
+  .today .what { flex: 1 1 260px; min-width: 0; }
+  .today h4 { font-size: 16px; }
+  .today h4 a { font-family: var(--font-display); }
+  .today .todo { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .today .todo li::before { content: "\25CB  "; color: var(--text-muted); }
+  .today .todo li.more::before { content: none; }
+  @media (max-width: 560px) { .today .shots > .cardthumb { width: 96px; } }
   .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--line);
     font-size: 13px; color: var(--text-muted); }
 

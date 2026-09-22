@@ -2,231 +2,205 @@
 {% import "_labelsend.html" as LS %}
 {% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
+{% import "_ui.html" as U with context %}
+{% import "_tasks.html" as T with context %}
 {% block title %}{{ p.name or p.asset_id }} — {{ site_name() }}{% endblock %}
+{# The name is set in the display face, as an item's is: somebody chose it. #}
+{% block preload %}<link rel="preload" href="/static/fonts/source-serif-4/source-serif-4-latin-600.woff2" as="font" type="font/woff2" crossorigin>{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<div class="crumbnav"><a href="/projects">&larr; all projects</a></div>
-<div class="flex">
-  <h2 class="flush">{{ p.name or p.asset_id }}</h2>
-  <span class="chip st-{{ p.status }}">{{ status_label(p.status) }}</span>
-  {% if p.private %}<span class="chip">private</span>{% endif %}
-  <span class="muted">{{ p.asset_id }}</span>
-  <span class="grow"></span>
-  {% if request.state.authed %}
-  <span class="hdr-actions">
-    {# The whole of finishing a project, in one click: the status, and today as the
-       finish date where none is written down yet. Drawn only while there is
-       something left to finish -- a project already done or abandoned is reopened
-       on the edit form, which is also where a finish date that is not today goes. #}
-    {% if p.status not in closed_states %}
-    <form class="inline-form" method="post" action="/projects/{{ p.asset_id }}/complete">
-      <button class="btn sm" type="submit"
-              title="Sets the status to done, and records today as the finish date unless one is already recorded.">mark done</button>
-    </form>
-    {% endif %}
-    <a class="iconbtn" href="/projects/{{ p.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
-    {# The same two the machines and the parts carry, in the same place and the same
-       order. What a project's label is for is different, though: a machine's goes on
-       the machine, and this one goes on the things bought for the project -- stick it
-       on the jiffy bag and the code opens the project it was bought for, orders and
-       all. Small first, because that is the one that fits a parcel. #}
-    <a class="iconbtn lbl-s" href="/projects/{{ p.asset_id }}/label.pdf?small=1" data-kind="project" data-asset="{{ p.asset_id }}" target="_blank" title="Small label (PDF) — for a parcel or a part bought for this" aria-label="Small label">{{ I.ico('printer') }}</a>
-    <a class="iconbtn lbl-l" href="/projects/{{ p.asset_id }}/label.pdf?small=0" target="_blank" title="Full label (PDF)" aria-label="Full label">{{ I.ico('printer') }}</a>
-    {# No disposal step in front of it, unlike a machine: abandoning a project is
-       already a status it can be left in, so the only thing left for delete to mean
-       is that the project was written by mistake. #}
-    <form class="inline-form" method="post" action="/projects/{{ p.asset_id }}/delete"
-          {# The name is not put in the sentence. A single-quoted JS string inside
-             a double-quoted attribute is what the history's deletes use, and Jinja's
-             escaping leaves an apostrophe alone -- so a project called "Henry's
-             Amiga" would end the string early. The heading above says which project
-             this is. #}
-          data-confirm="Delete this project and its whole history? This cannot be undone.">
-      <button class="iconbtn danger" type="submit" title="Delete this project" aria-label="Delete">{{ I.ico('trash') }}</button>
-    </form>
-  </span>
-  {% endif %}
+{% set authed = request.state.authed %}
+{% call U.itemnav('/projects', 'All projects') %}
+{%- if authed -%}
+{#- The whole of finishing a project, in one click: the status, and today as the
+    finish date where none is written down yet. Drawn only while there is something
+    left to finish -- a project already done or abandoned is reopened on the edit
+    form, which is also where a finish date that is not today goes. -#}
+{%- if p.status not in closed_states %}
+<form class="inline-form" method="post" action="/projects/{{ p.asset_id }}/complete">
+{{- U.button('Mark done', size='sm', type='submit',
+             title='Sets the status to done, and records today as the finish date unless one is already recorded.') -}}
+</form>
+{%- endif %}
+{{ U.button('Edit', size='sm', icon='edit', href='/projects/' ~ p.asset_id ~ '/edit') }}
+{#- No disposal step in front of it, unlike a machine: abandoning a project is
+    already a status it can be left in, so the only thing left for delete to mean is
+    that the project was written by mistake.
+
+    The name is not put in the sentence. A single-quoted JS string inside a
+    double-quoted attribute is what the history's deletes use, and Jinja's escaping
+    leaves an apostrophe alone -- so a project called "Henry's Amiga" would end the
+    string early. The heading says which project this is. -#}
+<form class="inline-form" method="post" action="/projects/{{ p.asset_id }}/delete"
+      data-confirm="Delete this project and its whole history? This cannot be undone.">
+{{- U.button('Delete…', kind='danger', size='sm', icon='trash', type='submit') -}}
+</form>
+{%- endif -%}
+{% endcall %}
+
+<div class="row baseline">
+  <h1 class="title">{{ p.name or p.asset_id }}</h1>
+  {{ U.status_chip(p.status) }}
+  <span class="tag muted">{{ p.asset_id }}</span>
+  {% if p.private %}{{ U.chip('Private', 'quiet') }}{% endif %}
 </div>
+{% if p.summary %}<p class="prose">{{ p.summary | linked }}</p>{% endif %}
 
-<div class="detail-main">
-  {% if p.summary %}<p class="summary">{{ p.summary | linked }}</p>{% endif %}
+{% call PN.panel('Details') %}
+<dl class="kv">
+  <div><dt>Status</dt><dd>{{ status_label(p.status) | capitalize }}</dd></div>
+  {% for k, v in [('Started', p.started_at), ('Wanted by', p.target_date),
+                  ('Finished', p.finished_at)] %}
+    {% if v %}<div><dt>{{ k }}</dt><dd>{{ v }}</dd></div>{% endif %}
+  {% endfor %}
+  {% if p.notes %}<div><dt>Notes</dt><dd class="lines">{{ p.notes | linked }}</dd></div>{% endif %}
+</dl>
+{% endcall %}
 
-  {% call PN.panel('Details') %}
-  <table class="kv">
-    <tr><th scope="row">Status</th><td>{{ status_label(p.status) }}</td></tr>
-    {% for k, v in [('Started', p.started_at), ('Wanted by', p.target_date),
-                    ('Finished', p.finished_at)] %}
-      {% if v %}<tr><th scope="row">{{ k }}</th><td>{{ v }}</td></tr>{% endif %}
-    {% endfor %}
-    {% if p.notes %}<tr><th scope="row">Notes</th><td class="lines">{{ p.notes | linked }}</td></tr>{% endif %}
-  </table>
-  {% endcall %}
-
-  {# What the project is about. Never required: a project with nothing attached is
-     the ordinary case at the start, and this panel says so rather than sitting
-     empty and looking broken. #}
-  {% call PN.panel('Items', members | length if members else '') %}
-    {% if members %}
-    <table>
-      {% for kind, obj, row in members %}
-      <tr>
-        <td><a href="/{{ kind }}/{{ obj.asset_id }}">{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</a>
-          <span class="muted">{{ obj.asset_id }}</span>
-          {% if row.note %}<br><span class="hint">{{ row.note | linked }}</span>{% endif %}</td>
-        {% if request.state.authed %}
-        <td class="tight"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/remove-item">
-          <input type="hidden" name="asset_id" value="{{ obj.asset_id }}">
-          <button class="iconbtn danger" type="submit" title="Take out of this project"
-                  aria-label="Take out of this project">{{ I.ico('trash') }}</button>
-        </form></td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}
-    <p class="muted flush">Nothing attached.</p>
-    {% endif %}
-    {% if request.state.authed %}
-    <form class="addbar" method="post" action="/projects/{{ p.asset_id }}/add-item">
-      <select name="asset_id" aria-label="the computer or part to add" required>
-        <option value="">choose a computer or part…</option>
-        {% for aid, name in choices %}<option value="{{ aid }}">{{ name }} — {{ aid }}</option>{% endfor %}
-      </select>
-      <input name="note" placeholder="why it is here — optional"
-             aria-label="why this is on the project">
-      <button class="btn sm" type="submit">add</button>
-    </form>
-    {% endif %}
-  {% endcall %}
-
-  {% call PN.panel('Tasks', (tasks_done ~ '/' ~ tasks|length) if tasks else '') %}
-    {% if tasks %}
-    <table>
-      {% for t in tasks %}
-      <tr class="{{ 'done' if t.done else '' }}">
-        {% if request.state.authed %}
-        <td class="tight"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/toggle">
-          <button class="btn sm" type="submit" title="{{ 'Put it back on the list' if t.done else 'Tick it off' }}">{{ '✓' if t.done else '○' }}</button>
-        </form></td>
-        {% else %}
-        <td class="tight muted">{{ '✓' if t.done else '○' }}</td>
-        {% endif %}
-        <td class="tasktext">{{ t.text | linked }}</td>
-        {% if members %}
-        {# Which thing this job is about, where it is about one. A select and a
-           button rather than a menu that submits itself: an onchange handler is
-           inline script, and the Content-Security-Policy on the roadmap does not
-           take one. #}
-        <td class="tight">
-          {%- if request.state.authed %}
-          <form class="btn-row" method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/about">
-            <select name="asset" aria-label="what {{ t.text[:40] }} is about">
-              <option value="">the project</option>
-              {% for kind, obj, row in members %}
-              <option value="{{ obj.asset_id }}" {{ 'selected' if t.asset_id == obj.asset_id }}>{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</option>
-              {% endfor %}
-            </select>
-            <button class="btn sm" type="submit" title="Say what this job is about">set</button>
-          </form>
-          {%- elif t.asset_id %}<span class="muted">{{ t.asset_id }}</span>{% endif %}
-        </td>
-        {% endif %}
-        <td class="tight muted">{{ t.done_at or '' }}</td>
-        {% if request.state.authed %}
-        <td class="tight"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/task/{{ t.id }}/delete"
-              data-confirm="Drop this task?">
-          <button class="iconbtn danger" type="submit" title="Drop this task" aria-label="Drop this task">{{ I.ico('trash') }}</button>
-        </form></td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </table>
-    {% else %}<p class="muted flush">Nothing on the list.</p>{% endif %}
-    {% if request.state.authed %}
-    <form class="addbar" method="post" action="/projects/{{ p.asset_id }}/task">
-      <input name="text" placeholder="something to do" required>
-      {% if members %}
-      <select name="asset" aria-label="what this job is about">
-        <option value="">the project</option>
-        {% for kind, obj, row in members %}<option value="{{ obj.asset_id }}">{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</option>{% endfor %}
-      </select>
+{# What the project is about. Never required: a project with nothing attached is
+   the ordinary case at the start, and this panel says so rather than sitting
+   empty and looking broken. #}
+{% call PN.panel('Items', members | length if members else '') %}
+  {% if members %}
+  <table class="table">
+    {% for kind, obj, row in members %}
+    <tr>
+      <td class="wide"><a href="/{{ kind }}/{{ obj.asset_id }}">{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</a>
+        <span class="tag muted">{{ obj.asset_id }}</span>
+        {% if row.note %}<br><span class="hint">{{ row.note | linked }}</span>{% endif %}</td>
+      {% if authed %}
+      <td class="tight"><form method="post" action="/projects/{{ p.asset_id }}/remove-item">
+        <input type="hidden" name="asset_id" value="{{ obj.asset_id }}">
+        {{- U.button('Take out of this project', kind='danger', size='sm', icon='trash', icon_only=true, type='submit') -}}
+      </form></td>
       {% endif %}
-      <button class="btn sm" type="submit">add task</button>
-    </form>
-    {% endif %}
-  {% endcall %}
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">Nothing attached yet — which is fine. A project is allowed to be an
+    idea before it is a pile of hardware.</p>
+  {% endif %}
+  {% if authed %}
+  <form class="addrow" method="post" action="/projects/{{ p.asset_id }}/add-item">
+    <select class="select" name="asset_id" aria-label="The computer or part to add" required>
+      <option value="">choose a computer or part…</option>
+      {% for aid, name in choices %}<option value="{{ aid }}">{{ name }} — {{ aid }}</option>{% endfor %}
+    </select>
+    <input class="input" name="note" placeholder="why it is here — optional"
+           aria-label="Why this is on the project">
+    <button class="btn" type="submit">{{ 'Add item' | ui }}</button>
+  </form>
+  {% endif %}
+{% endcall %}
 
-  {# What has been bought for it, and what is still in the post. The cost column is
-     shown only to whoever keeps the register: the projects are public because what
-     is being built is worth reading about, and what it cost is between the owner and
-     the receipt. The rest of the row -- what it is, who from, when it is due -- is
-     as public as the machine it is destined for. #}
-  {% call PN.panel('On order', (orders_out ~ ' still coming') if orders_out else ('all in' if orders else '')) %}
-    {% if orders %}
-    <div class="hscroll">
-    <table class="ordertable">
-      <tr>
-        <th scope="col">What</th><th scope="col" class="tight">From</th><th scope="col" class="tight">Ordered</th>
-        {# One column for two dates, because they are the same fact at two moments:
-           when it is due, and -- once it is here -- when it came. A row can only
-           ever be in one of those states, so a second column would be a permanently
-           empty one. #}
-        <th scope="col" class="tight">Due / in</th>{% if request.state.authed %}<th scope="col" class="tight">Cost</th>{% endif %}<th scope="col" class="tight"></th>{% if request.state.authed %}<th scope="col"></th>{% endif %}
-      </tr>
-      {% for o in orders %}
-      <tr class="{{ 'done' if o.delivered else '' }}">
-        <td class="orderwhat">{% if o.qty > 1 %}<span class="muted">{{ o.qty }}×</span> {% endif %}
-          {% if o.url %}<a href="{{ o.url }}" target="_blank" rel="noopener">{{ o.description }}</a>{% else %}{{ o.description }}{% endif %}
-          {% if o.note %}<br><span class="hint">{{ o.note | linked }}</span>{% endif %}</td>
-        <td class="tight" data-label="from">{{ o.supplier }}</td>
-        <td class="tight muted" data-label="ordered">{{ o.ordered_at or '' }}</td>
-        <td class="tight muted" data-label="{{ 'came' if o.delivered else 'due' }}">{{ o.delivered_at or o.expected_at or '' }}</td>
-        {% if request.state.authed %}<td class="tight money" data-label="cost">{{ money(o.cost_p) }}</td>{% endif %}
-        <td class="tight act">
-          {% if request.state.authed %}
-          <form class="flush" method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delivered">
-            <button class="btn sm" type="submit"
-                    title="{{ 'Put it back to still coming' if o.delivered else 'It has arrived' }}">{{ 'came' if o.delivered else 'mark in' }}</button>
-          </form>
-          {% else %}<span class="muted">{{ 'arrived' if o.delivered else 'on order' }}</span>{% endif %}
-        </td>
-        {% if request.state.authed %}
-        <td class="tight act"><form class="flush" method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delete"
+{% call PN.panel('Tasks', (tasks_done ~ '/' ~ tasks|length) if tasks else '') %}
+  {% if tasks %}
+  {{ T.tasklist(tasks, members=members, drop=true) }}
+  {% else %}<p class="muted">Nothing on the list.</p>{% endif %}
+  {% if authed %}
+  <form class="addrow" method="post" action="/projects/{{ p.asset_id }}/task">
+    <input class="input wide" name="text" placeholder="something to do" required
+           aria-label="Something to do">
+    {% if members %}
+    <select class="select" name="asset" aria-label="What this job is about">
+      <option value="">the project</option>
+      {% for kind, obj, row in members %}<option value="{{ obj.asset_id }}">{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <button class="btn" type="submit">{{ 'Add task' | ui }}</button>
+  </form>
+  {% endif %}
+{% endcall %}
+
+{# What has been bought for it, and what is still in the post. The cost column is
+   shown only to whoever keeps the register: the projects are public because what
+   is being built is worth reading about, and what it cost is between the owner and
+   the receipt. The rest of the row -- what it is, who from, when it is due -- is
+   as public as the machine it is destined for. #}
+{% call PN.panel('On order', (orders_out ~ ' still coming') if orders_out else ('all in' if orders else '')) %}
+  {% if orders %}
+  {# Stacked on a phone, each value under the heading it has lost. #}
+  <table class="table stack runon">
+    <tr>
+      <th scope="col">What</th><th scope="col" class="tight">From</th><th scope="col" class="tight">Ordered</th>
+      {# One column for two dates, because they are the same fact at two moments:
+         when it is due, and -- once it is here -- when it came. A row can only
+         ever be in one of those states, so a second column would be a permanently
+         empty one. #}
+      <th scope="col" class="tight">Due / in</th>{% if authed %}<th scope="col" class="tight">Cost</th>{% endif %}
+      <th scope="col" class="tight"><span class="sr-only">Arrived</span></th>
+    </tr>
+    {% for o in orders %}
+    <tr>
+      <td class="wide">{% if o.qty > 1 %}<span class="muted">{{ o.qty }}×</span> {% endif %}
+        {% if o.url %}<a href="{{ o.url }}" target="_blank" rel="noopener">{{ o.description }}</a>{% else %}{{ o.description }}{% endif %}
+        {% if o.note %}<br><span class="hint">{{ o.note | linked }}</span>{% endif %}</td>
+      <td class="tight" data-label="From">{{ o.supplier }}</td>
+      <td class="tight muted" data-label="Ordered">{{ o.ordered_at or '' }}</td>
+      <td class="tight muted" data-label="{{ 'Came' if o.delivered else 'Due' }}">{{ o.delivered_at or o.expected_at or '' }}</td>
+      {% if authed %}<td class="tight num" data-label="Cost">{{ money(o.cost_p) }}</td>{% endif %}
+      <td class="tight">
+        {% if authed %}
+        <div class="row">
+        <form method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delivered">
+          {{- U.button('Came' if o.delivered else 'Mark in', size='sm', type='submit') -}}
+        </form>
+        <form method="post" action="/projects/{{ p.asset_id }}/order/{{ o.id }}/delete"
               data-confirm="Remove this order?">
-          <button class="iconbtn danger" type="submit" title="Remove this order" aria-label="Remove this order">{{ I.ico('trash') }}</button>
-        </form></td>
-        {% endif %}
-      </tr>
-      {% endfor %}
-    </table>
-    </div>
-    {# A total is a claim, so it says what it is a total of. Lines with no price are
-       counted rather than treated as free -- a figure quietly missing three of them
-       would look exactly as authoritative as one that was not. #}
-    {% if request.state.authed and (spent or unpriced) %}
-    <p class="hint">{% if spent %}{{ money(spent) }} so far{% else %}Nothing priced yet{% endif %}{% if unpriced %},
-      {{ unpriced }} unpriced{% endif %}.</p>
-    {% endif %}
-    {% else %}<p class="muted flush">Nothing on order.</p>{% endif %}
-    {% if request.state.authed %}
-    <form class="addbar orderbar" method="post" action="/projects/{{ p.asset_id }}/order"
-          title="The cost is for the whole line as paid — four SIMMs for twelve pounds is 4 and £12. Blank means unknown rather than free.">
-      <input name="description" placeholder="what you have ordered" required>
-      <input name="supplier" placeholder="who from" list="dl_suppliers"
-             autocomplete="off">
-      <datalist id="dl_suppliers">{% for o in dl_suppliers | default([]) %}<option value="{{ o }}">{% endfor %}</datalist>
-      <input name="qty" type="number" min="1" value="1" aria-label="how many" title="how many">
-      <input name="cost" placeholder="£ paid" aria-label="what the line cost" title="what the whole line cost, as paid">
-      <input name="expected_at" type="date" aria-label="expected" title="when it is due">
-      <input name="url" placeholder="listing URL">
-      <input name="note" placeholder="note" aria-label="a note about this order">
-      <button class="btn sm" type="submit">add order</button>
-    </form>
-    {% endif %}
-  {% endcall %}
+          {{- U.button('Remove this order', kind='danger', size='sm', icon='trash', icon_only=true, type='submit') -}}
+        </form>
+        </div>
+        {% else %}{{ U.chip('Arrived', 'ok') if o.delivered else U.chip('On order') }}{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {# A total is a claim, so it says what it is a total of. Lines with no price are
+     counted rather than treated as free -- a figure quietly missing three of them
+     would look exactly as authoritative as one that was not. #}
+  {% if authed and (spent or unpriced) %}
+  <p class="hint">{% if spent %}{{ money(spent) }} so far{% else %}Nothing priced yet{% endif %}{% if unpriced %},
+    with {{ unpriced }} line{{ '' if unpriced == 1 else 's' }} whose cost was not written down{% endif %}.</p>
+  {% endif %}
+  {% else %}<p class="muted">Nothing on order.</p>{% endif %}
+  {% if authed %}
+  <form class="addrow" method="post" action="/projects/{{ p.asset_id }}/order">
+    <input class="input wide" name="description" placeholder="what you have ordered" required
+           aria-label="What you have ordered">
+    <input class="input" name="supplier" placeholder="who from" list="dl_suppliers"
+           autocomplete="off" aria-label="Who from">
+    <datalist id="dl_suppliers">{% for o in dl_suppliers | default([]) %}<option value="{{ o }}">{% endfor %}</datalist>
+    <input class="input short" name="qty" type="number" min="1" value="1" aria-label="How many">
+    <input class="input short" name="cost" placeholder="£ paid" aria-label="What the whole line cost, as paid">
+    <input class="input short" name="expected_at" type="date" aria-label="When it is due">
+    <input class="input" name="url" placeholder="listing URL — optional" aria-label="Listing URL">
+    <input class="input" name="note" placeholder="note — optional" aria-label="A note about this order">
+    <button class="btn" type="submit">{{ 'Add order' | ui }}</button>
+  </form>
+  <p class="hint mt-3">The cost is for the whole line as paid — four SIMMs for twelve
+    pounds is 4 and £12. Leave it blank if it is not worth recording; blank means
+    unknown rather than free, and the total above says how many are blank.</p>
+  {% endif %}
+{% endcall %}
 
-  {% include "_files.html" %}
+{% include "_files.html" %}
 
-  {% include "_history.html" %}
-</div>
+{% include "_history.html" %}
+
+{% if authed %}
+{# The same two a machine's page carries. What a project's label is for is
+   different, though: a machine's goes on the machine, and this one goes on the
+   things bought for the project -- stick it on the jiffy bag and the code opens the
+   project it was bought for, orders and all. Small first, because that is the one
+   that fits a parcel. #}
+{% call PN.panel('Label') %}
+  <div class="row">
+    <a class="btn sm lbl-s" href="/projects/{{ p.asset_id }}/label.pdf?small=1"
+       data-kind="project" data-asset="{{ p.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
+    <a class="btn sm" href="/projects/{{ p.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
+  </div>
+{% endcall %}
+{% endif %}
 {{ LS.script() }}
 {% endblock %}

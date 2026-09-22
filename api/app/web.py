@@ -47,8 +47,9 @@ templates.env.globals.update(
     # shown and the money is written the same way on the list page and the item.
     money=projects.money,
     status_label=projects.status_label,
-    # The statuses that mean a project is over, so the pages that dim a finished
-    # one do not each keep their own idea of which those are.
+    # The statuses that mean a project is over. Nothing dims a finished one any
+    # more -- its chip says so -- but the page still has to know, because Mark done
+    # is drawn only while there is something left to finish.
     closed_states=projects.CLOSED,
     # The settings a page is rendered through (ADR-0023). Callables rather than
     # values: these are registered once at import and read on every render, so a

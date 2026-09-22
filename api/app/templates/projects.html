@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% import "_panel.html" as PN %}
+{% import "_ui.html" as U with context %}
 {% block title %}Projects — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
 
 {# One list, where there were two.
@@ -16,11 +18,10 @@
    have not decided to publish. See _visible in main.py for the five places a
    private project is kept out of, and why it is only private with all five. #}
 
-<div class="flex">
-  <h2 class="flush">Projects</h2>
-  <span class="muted">{% if live %}{{ live }} in hand{% else %}none in hand{% endif %}{% if rows|length != live %} · {{ rows|length }} altogether{% endif %}</span>
-  <span class="grow"></span>
-  {% if request.state.authed %}<a class="btn sm" href="/projects/new">+ project</a>{% endif %}
+<div class="pagehead">
+  <h1 class="heading">Projects</h1>
+  <span class="count">{% if live %}{{ live }} in hand{% else %}None in hand{% endif %}{% if rows|length != live %} · {{ rows|length }} altogether{% endif %}</span>
+  {% if request.state.authed %}<span class="push"></span>{{ U.button('Project', size='sm', icon='plus', href='/projects/new') }}{% endif %}
 </div>
 
 {% if suggestion %}
@@ -37,58 +38,55 @@
 
    A visitor sees the same suggestion, drawn from the public ones only -- which is
    the same rule the list below follows. #}
-{% call PN.panel('Something to do today') %}
-  <div class="today">
-    {% if suggestion.photos %}
-    <div class="todayshots">
-      {% for shot in suggestion.photos %}
-      <a class="cardthumb" href="{{ shot.url }}">
-        <img src="{{ img_url(shot.rel, THUMB_CARD) }}"
-             srcset="{{ img_srcset(shot.rel, [300, 500]) }}" sizes="130px"
-             alt="{{ shot.alt }}" loading="lazy">
-      </a>
-      {% endfor %}
+{% call PN.panel('Something to do today', cls='today') %}
+  {% if suggestion.photos %}
+  <div class="shots">
+    {% for shot in suggestion.photos %}
+    <a class="cardthumb" href="{{ shot.url }}">
+      <img src="{{ img_url(shot.rel, THUMB_CARD) }}"
+           srcset="{{ img_srcset(shot.rel, [300, 500]) }}" sizes="120px"
+           alt="{{ shot.alt }}" loading="lazy">
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="what stack-2">
+    <h4><a href="/projects/{{ suggestion.p.asset_id }}">{{ suggestion.p.name or suggestion.p.asset_id }}</a></h4>
+    <div class="row">
+      {{ U.status_chip(suggestion.p.status) }}
+      {% if suggestion.p.private %}{{ U.chip('Private', 'quiet') }}{% endif %}
+      {# A dot between the tag and the sentence after it. Without one they read as
+         a single string -- "RH-PQS0 nothing written for 37 days" -- which is a
+         thing the tag appears to be saying rather than two facts side by side.
+
+         How long it has been ignored, said plainly, because it is the reason this
+         one was drawn and not another. #}
+      <span class="tag muted">{{ suggestion.p.asset_id }}{% if suggestion.quiet_days is not none %}
+        <span aria-hidden="true">·</span>
+        {% if suggestion.quiet_days < 1 %}written about today
+        {%- elif suggestion.quiet_days == 1 %}nothing written for a day
+        {%- else %}nothing written for {{ suggestion.quiet_days }} days{% endif %}{% endif %}</span>
     </div>
+    {% if suggestion.p.summary %}<p class="hint">{{ suggestion.p.summary | linked }}</p>{% endif %}
+    {% if suggestion.members %}
+    <div class="row">{% for m in suggestion.members %}{{ U.chip(m.name, href=m.url) }}
+    {% endfor %}</div>
     {% endif %}
-    <div class="todaytext">
-      <h3><a href="/projects/{{ suggestion.p.asset_id }}">{{ suggestion.p.name or suggestion.p.asset_id }}</a></h3>
-      <p class="todaymeta">
-        <span class="chip st-{{ suggestion.p.status }}">{{ status_label(suggestion.p.status) }}</span>
-        <span class="muted">{{ suggestion.p.asset_id }}</span>
-        {% if suggestion.p.private %}<span class="chip">private</span>{% endif %}
-        {# A dot between the tag and the sentence after it. Without one they read as
-           a single string -- "RH-PQS0 nothing written for 37 days" -- which is a
-           thing the tag appears to be saying rather than two facts side by side. #}
-        {# How long it has been ignored, said plainly, because it is the reason this
-           one was drawn and not another. #}
-        {% if suggestion.quiet_days is not none %}
-        <span class="muted" aria-hidden="true">·</span>
-        <span class="muted">{% if suggestion.quiet_days < 1 %}written about today
-          {% elif suggestion.quiet_days == 1 %}nothing written for a day
-          {% else %}nothing written for {{ suggestion.quiet_days }} days{% endif %}</span>
-        {% endif %}
-      </p>
-      {% if suggestion.p.summary %}<p class="hint">{{ suggestion.p.summary | linked }}</p>{% endif %}
-      {% if suggestion.members %}
-      <p class="todaymeta">{% for m in suggestion.members %}<a class="chip"
-         href="{{ m.url }}">{{ m.name }}</a>
-      {% endfor %}</p>
+    {% if suggestion.tasks %}
+    {# What is actually left, rather than a count of it: "recap the PSU" is a thing
+       somebody can decide to do this evening, and "3 tasks" is not. #}
+    <ul class="todo">
+      {% for t in suggestion.tasks %}<li>{{ t.text }}</li>{% endfor %}
+      {% if suggestion.tasks_left > suggestion.tasks | length %}
+      <li class="more muted">and {{ suggestion.tasks_left - (suggestion.tasks | length) }} more</li>
       {% endif %}
-      {% if suggestion.tasks %}
-      {# What is actually left, rather than a count of it: "recap the PSU" is a thing
-         somebody can decide to do this evening, and "3 tasks" is not. #}
-      <ul class="todaytasks">
-        {% for t in suggestion.tasks %}<li>{{ t.text }}</li>{% endfor %}
-        {% if suggestion.tasks_left > suggestion.tasks | length %}
-        <li class="muted">and {{ suggestion.tasks_left - (suggestion.tasks | length) }} more</li>
-        {% endif %}
-      </ul>
-      {% elif suggestion.orders_out %}
-      <p class="hint">{{ suggestion.orders_out }} on order.</p>
-      {% else %}
-      <p class="hint">No jobs yet.</p>
-      {% endif %}
-    </div>
+    </ul>
+    {% elif suggestion.orders_out %}
+    <p class="hint">Nothing to do on it yet — {{ suggestion.orders_out }}
+      {{ 'thing' if suggestion.orders_out == 1 else 'things' }} still on order.</p>
+    {% else %}
+    <p class="hint">No jobs written down on it yet.</p>
+    {% endif %}
   </div>
 {% endcall %}
 {% endif %}
@@ -102,21 +100,25 @@
    What it makes is public, like everything else here. The tick on a project's own
    form is what keeps one back, and it is a decision rather than a starting point
    (ADR-0004). #}
-{% call PN.panel('Quick note') %}
-  <form method="post" action="/projects/quick" class="addbar quickbar"
-        title="Named after the item if you leave the name blank. Public until you tick private on its own form. The tag is optional — a project need own nothing.">
-    <input name="aid" list="dl_assets" placeholder="asset tag"
-           value="{{ error }}" aria-label="the computer or part this is about">
-    <input name="name" placeholder="name"
-           aria-label="what to call the project">
-    <input name="job" required placeholder="what needs doing"
-           aria-label="the first job">
-    <button class="btn sm" type="submit">add</button>
+{% call PN.panel('Note something down') %}
+  <form method="post" action="/projects/quick" class="addrow">
+    <input class="input short" name="aid" list="dl_assets" placeholder="asset tag — optional"
+           value="{{ error }}" aria-label="The computer or part this is about">
+    <input class="input" name="name" placeholder="what to call it — optional"
+           aria-label="What to call the project">
+    <input class="input wide" name="job" required placeholder="what needs doing — recap, belt, needs a PSU…"
+           aria-label="The first job">
+    <button class="btn" type="submit">{{ 'Note it' | ui }}</button>
   </form>
-  {% if error %}<p class="hint">No item tagged <strong>{{ error }}</strong> — nothing created.</p>{% endif %}
+  {% if error %}<div class="mt-3">{{ U.banner('danger', 'Nothing was created.',
+    'There is no computer or part with the tag ' ~ error ~ '.') }}</div>{% endif %}
   <datalist id="dl_assets">
     {% for aid, kind, name in register %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}
   </datalist>
+  <p class="hint mt-3">Named after the item if you do not name it, and readable by
+    anybody — tick <em>private</em> on its own form for one that should not be.
+    A project need own nothing, so the tag is optional — but at a bench it is
+    usually both: this drive, this fault.</p>
 {% endcall %}
 {% endif %}
 
@@ -125,54 +127,49 @@
    and the things on order as well as the project's own words — so "Gotek" finds
    the project with one in the post. #}
 <form class="toolbar" method="get" action="/projects">
-  <input name="q" value="{{ q | default('') }}" class="fill"
-         placeholder="search projects"
-         title="Names, jobs, orders and history"
-         aria-label="search projects">
-  <button class="btn" type="submit">search</button>
-  {% if searched %}<a class="btn" href="/projects">clear</a>{% endif %}
+  <input class="input grow" type="search" name="q" value="{{ q | default('') }}"
+         placeholder="search projects — a name, a job, something on order"
+         aria-label="Search projects">
+  {{ U.button('Search', type='submit') }}
+  {% if searched %}{{ U.button('Clear', href='/projects') }}{% endif %}
 </form>
 {% if searched %}
 <p class="hint">{{ rows | length }} of {{ total }} match <strong>{{ q }}</strong>.</p>
 {% endif %}
 
 {% if rows %}
-{# Five columns on a desktop, and on a phone the same rows stacked -- see the
-   `projtable` rules in base.html. A name given a fifth of a 390px screen wraps to
-   one word a line, and three of the four columns doing that to it are usually
-   saying nothing at all.
+{# Five columns on a desktop, and on a phone the same rows stacked, each value under
+   the heading it has lost. A name given a fifth of a 390px screen wraps to one word
+   a line, and three of the four columns doing that to it are usually saying nothing
+   at all -- which is why a count of nothing is an empty cell: the phone drops it.
 
-   Which is why a count of nothing is written as an empty cell here and the dash is
-   drawn by the stylesheet: an empty cell is something a phone can drop, and "—"
-   is not. #}
-<table class="projtable">
+   The finished and the given-up-on sort below the rest and are not faded. They are
+   the answer to "what have I actually built", which is worth being able to read;
+   the chip says they are over. #}
+<table class="table stack runon">
   <tr>
     <th scope="col">Project</th><th scope="col" class="tight">Status</th>
     <th scope="col" class="tight">Items</th><th scope="col" class="tight">Tasks</th><th scope="col" class="tight">On order</th>
   </tr>
   {% for r in rows %}
-  {# The finished and the given-up-on are dimmed rather than hidden. They are the
-     answer to "what have I actually built", which is worth being able to read
-     without going looking for it — but not at the cost of the list's top being
-     about them. #}
-  <tr class="{{ 'closed' if r.p.status in closed_states else '' }}">
-    <td class="name">
+  <tr>
+    <td class="wide">
       <a href="/projects/{{ r.p.asset_id }}">{{ r.p.name or r.p.asset_id }}</a>
-      <span class="muted">{{ r.p.asset_id }}</span>
+      <span class="tag muted">{{ r.p.asset_id }}</span>
       {# Said on the row rather than only on the project's own page: the whole list
          is a mix now, and which of them a visitor can see is worth being able to
          read down at a glance. #}
-      {% if r.p.private %}<span class="chip">private</span>{% endif %}
+      {% if r.p.private %}{{ U.chip('Private', 'quiet') }}{% endif %}
       {% if r.p.summary %}<br><span class="hint">{{ r.p.summary | linked }}</span>{% endif %}
     </td>
-    <td class="tight meta"><span class="chip st-{{ r.p.status }}">{{ status_label(r.p.status) }}</span></td>
-    <td class="tight muted meta count" data-label="items">{{ r.assets or '' }}</td>
+    <td class="tight" data-label="Status">{{ U.status_chip(r.p.status) }}</td>
+    <td class="tight num" data-label="Items">{{ r.assets or '' }}</td>
     {# Done over total, not a percentage: eleven of twelve is a different thing to
        know than 92%, and it is the one that says how much is left. #}
-    <td class="tight muted meta count" data-label="tasks">{% if r.tasks %}{{ r.tasks_done }}/{{ r.tasks }}{% endif %}</td>
+    <td class="tight num" data-label="Tasks">{% if r.tasks %}{{ r.tasks_done }}/{{ r.tasks }}{% endif %}</td>
     {# What is still coming, which is the only number a pile of orders is ever
        asked for. The total is on the project's own page. #}
-    <td class="tight muted meta count" data-label="on order">{% if r.orders_out %}{{ r.orders_out }}{% elif r.orders %}all in{% endif %}</td>
+    <td class="tight" data-label="On order">{% if r.orders_out %}{{ r.orders_out }}{% elif r.orders %}all in{% endif %}</td>
   </tr>
   {% endfor %}
 </table>

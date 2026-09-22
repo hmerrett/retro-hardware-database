@@ -80,52 +80,6 @@
   @media (max-width: 480px) {
     main { padding: 14px 12px; }
   }
-  /* The projects list, stacked. Five columns across a 390px screen gave the name a
-     fifth of it, so "Megadrive translucent case" came down the page one word at a
-     time -- and three of the four columns taking that width off it were, on most
-     rows, saying nothing at all. Stacked, the name and the summary get the whole
-     width and what is left goes underneath on one line: the status always, and each
-     count only where there is one. */
-  @media (max-width: 560px) {
-    .projtable, .projtable tbody, .projtable tr, .projtable td { display: block; width: auto; }
-    /* The headings row. There is no thead -- the table writes its headings as its
-       first row, as every other table here does -- and stacked they would be five
-       lines of the wrong thing before the first project. */
-    .projtable tr:first-child { display: none; }
-    .projtable tr { border-top: 1px solid var(--line); padding: 9px 0; }
-    .projtable td { border: 0; padding: 0; white-space: normal; }
-    /* Nothing to say, so nothing said. This is what the empty cells are for. */
-    .projtable td.count:empty { display: none; }
-    .projtable td.count:empty::after { content: none; }
-    /* The status and the counts on one line under the name rather than a line each,
-       because together they are one short sentence about the project. */
-    .projtable td.meta { display: inline-block; margin: 6px 12px 0 0; vertical-align: middle; }
-    .projtable td.meta[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; }
-  }
-  /* An order has seven things to say and a phone has room for about three across.
-     Sideways scrolling was the first answer and the wrong one: what fell off the
-     right-hand edge was the "mark in" button, which is the entire reason to open
-     this panel on a phone -- you are stood at the door with the parcel. So each
-     order becomes a block instead, its description on its own line and the rest
-     read underneath it, each labelled by the column heading it has lost. */
-  @media (max-width: 560px) {
-    .ordertable, .ordertable tbody, .ordertable tr, .ordertable td { display: block; width: auto; }
-    /* The heading row. There is no thead to hide -- the table writes its headings
-       as the first row, the way every other table here does. */
-    .ordertable tr:first-child { display: none; }
-    .ordertable tr { border-top: 1px solid var(--line); padding: 7px 0; }
-    .ordertable td { border: 0; padding: 1px 0; white-space: normal; }
-    .ordertable td.money { text-align: left; }
-    /* A value with nothing in it says nothing, and a stack of blank labelled lines
-       under every order would say it four times. */
-    .ordertable td:empty { display: none; }
-    .ordertable td[data-label]::before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; }
-    /* The two buttons side by side rather than one under the other: they are a pair
-       of actions on the order above them, not two more of its facts. Marked on the
-       cells, since the two forms are in cells of their own and it is the cells that
-       have just been told to be blocks. */
-    .ordertable td.act { display: inline-block; margin: 4px 6px 0 0; vertical-align: middle; }
-  }
   /* A list of files: a row each, and never a table (ADR-0028). The row is a grid of
      four -- the drawing of what it is, its name and what it is linked to, how big
      and how old, and the download -- and on a phone the third drops under the
@@ -250,7 +204,6 @@
   /* Short columns never wrap: their content is a word or two, and wrapping them
      buys no room while making the table look broken. */
   td.tight, th.tight { white-space: nowrap; }
-  .detail-main table th { white-space: nowrap; }
   th:not(.table *) { color: var(--muted); font-weight: 500; font-size: 13px; }
   /* `main:not(.v2)` below: a page moved onto the v0.2 components says so with
      `class="v2"` on its <main>, and these 0.1 rules, unlayered and so outranking
@@ -478,77 +431,6 @@
   /* The bare class is 0.1's. A banner with a tone, or floating as a toast, is v0.2's
      (components.css), and base.html's are those; this goes with the last bare one. */
   .banner:not(.warning):not(.toast) { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; display: block; }
-  /* A project's state, as a chip. Tinted rather than coloured in: these sit in a
-     table beside names and summaries, and a solid block of colour on every row
-     would make a list of ordinary projects read as a page of warnings. The text
-     stays the page's own colour, which is what lets one rule serve both themes --
-     a tint this faint is a background in either, and a fixed foreground would have
-     needed a dark-mode twin for each. */
-  .chip.st-active { background: #2563eb2e; }
-  .chip.st-stalled { background: #b453002e; }
-  .chip.st-done { background: #1a7f372e; }
-  .chip.st-abandoned { color: var(--muted); }
-  /* Finished and given-up-on projects, and jobs already ticked: still there to be
-     read, just not competing with what is still in hand. */
-  tr.closed td, tr.done td { opacity: .62; }
-  tr.done .tasktext { text-decoration: line-through; }
-  /* The bar at the foot of a panel that adds a row to it -- an item, a task, an
-     order. The same shape as the note bar under the history, because it is the same
-     gesture: type the thing, press the button, it is in the list above. */
-  .addbar { display: flex; gap: 6px; margin: 10px 0 0; flex-wrap: wrap; align-items: center; }
-  .addbar input, .addbar select { flex: 1; min-width: 160px; padding: 6px 8px;
-    border: 1px solid var(--line); border-radius: 6px; background: transparent;
-    color: inherit; font: inherit; }
-  /* The suggestion at the top of the projects page: photographs on the left, what
-     the project is and what is left to do on the right. It wraps to one column on a
-     phone rather than squeezing both, because a 92px thumbnail beside a wrapped
-     line of chips is neither a picture nor a sentence. */
-  .today { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
-  .todayshots { display: flex; gap: 6px; flex: none; }
-  /* Bigger than the ones in a list of parts: this is one project being shown off
-     rather than a column to be scanned down. */
-  .todayshots .cardthumb { width: 130px; }
-  .todaytext { flex: 1 1 260px; min-width: 0; }
-  .todaytext > h3 { margin: 0 0 6px; font-size: 17px; }
-  .todaymeta { margin: 0 0 8px; display: flex; flex-wrap: wrap; gap: 5px 8px;
-    align-items: center; font-size: 13px; }
-  /* The jobs, as jobs. Marked with a hollow box rather than a bullet, the same
-     shape a task wears on a project's own page, so the list reads as things to be
-     ticked rather than as prose. */
-  .todaytasks { margin: 6px 0 0; padding: 0; list-style: none; font-size: 14px; }
-  .todaytasks li { padding-left: 20px; position: relative; margin: 3px 0; }
-  .todaytasks li::before { content: "○"; position: absolute; left: 2px;
-    color: var(--muted); }
-  .todaytasks li.muted::before { content: ""; }
-  @media (max-width: 520px) { .todayshots .cardthumb { width: 104px; } }
-  /* The work box notes several jobs at once -- faults arrive as a list, not as a
-     sentence -- so it is a textarea, and it takes the whole row rather than being
-     squeezed to a sixth of one beside the menu and the button. */
-  .addbar textarea { flex: 1 1 100%; min-height: 52px; resize: vertical;
-    padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
-    background: transparent; color: inherit; font: inherit; }
-  /* An order has seven fields and most of them are short. Left to the rule above
-     they would each claim a sixth of the row and the description -- the one field
-     that is a sentence -- would be the same width as the quantity. */
-  .orderbar input[name=description] { flex: 3 1 220px; }
-  .orderbar input[name=qty] { flex: 0 0 68px; min-width: 0; }
-  .orderbar input[name=cost] { flex: 0 0 96px; min-width: 0; }
-  .orderbar input[name=expected_at] { flex: 0 0 150px; min-width: 0; }
-  /* Money reads down a column, so it is set right and in figures of one width --
-     otherwise £9.99 and £110.00 cannot be compared at a glance, which is the only
-     reason to put them one above the other. */
-  td.money { text-align: right; font-variant-numeric: tabular-nums; }
-  /* The one column in each of these tables that is a sentence, told to take the
-     slack. A table at width:100% shares its spare room out among every column, so
-     without this a 20px tick button sat in a 120px column and the words it belonged
-     to were pushed a third of the way across the page. */
-  td.tasktext, td.orderwhat { width: 100%; }
-  /* The name and its summary take the slack, as the task and order text do. */
-  .projtable td.name { width: 100%; }
-  /* A count of nothing, drawn rather than written into the cell. The cell is left
-     genuinely empty so that a phone can drop it: an em dash is content, and content
-     is not something :empty can see past. */
-  .projtable td.count:empty::after { content: "\2014"; }
   /* What is going to be done to a thing, as against what became of it. Its own
      colour rather than the disposal banner's, because the two are opposite tenses
      and somebody who has learnt that the orange band means "gone" should not have
@@ -590,10 +472,6 @@
   .iconbtn svg { width: 16px; height: 16px; display: block; }
   .iconbtn.on { border-color: var(--accent); color: var(--accent); }
   .iconbtn.danger:hover { background: var(--danger-hover); border-color: var(--danger-line); }
-  .iconbtn.lbl-s svg { width: 13px; height: 13px; }
-  .iconbtn.lbl-l svg { width: 19px; height: 19px; }
-  .hdr-actions { display: inline-flex; align-items: center; gap: 6px; align-self: center; }
-  .hdr-actions form { margin: 0; }
   /* A destructive button says so at rest, not only under the pointer: the whole
      value of the colour is being read before the click, not during it. (The
      icon-button variant above stays plain until hover on purpose -- a row of
@@ -745,45 +623,6 @@
      far end so they fall under the thumb on a phone. */
   .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
     margin: 16px 0; }
-  /* A summary is typed into a textarea, in paragraphs, exactly as a note is -- and
-     until now it was read back as one run-on line for exactly the reason the notes
-     cell was: a paragraph collapses the newlines somebody typed into it. The same
-     pre-line the notes cell has. It honours a CRLF as readily as a bare newline,
-     because a browser turns both into one line break while it is parsing, long
-     before the CSS is asked what to do with them -- which is why nothing on the way
-     in has to strip the carriage returns a textarea sends. */
-  .summary { margin: 4px 0 14px; white-space: pre-line; }
-  .detail { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; margin-top: 6px; }
-  .detail-main { min-width: 0; }
-  /* Both columns start at the same line, whatever happens to be first in them. A
-     panel carries a top margin to separate it from the section above, and at the
-     top of a column there is nothing above it -- so the photographs sat fourteen
-     pixels below a model's paragraph, and on an item with no paragraph both
-     columns sat fourteen pixels below the heading instead. */
-  .detail > .detail-main > .panel:first-child,
-  .detail > .detail-main > p.summary:first-child { margin-top: 0; }
-  /* Notes are typed into a textarea, in paragraphs, and were read back as one run-on
-     line: the newlines were stored all along, and a table cell simply does not show
-     them. The same rendering a history entry's message has always had. */
-  .detail-main td.lines { white-space: pre-line; }
-  .detail-main table td:first-child { white-space: nowrap; }
-  /* An item page is a stack of key/value tables -- the record, the catalogue
-     machine, the chips fitted, the history -- and an auto-laid table sizes its
-     label column to its own longest word, so each one found a different edge and
-     the values stepped in and out down the page. One declared width, one column,
-     read as one list. The parts grid is a real grid and keeps its own widths. */
-  .detail-main table.kv { table-layout: fixed; }
-  .detail-main table.kv tr > *:first-child { width: 176px; }
-  /* A yes/no column: the answer is one character, so the column is only as wide as
-     the word that heads it. */
-  .detail-main table.kv .tick { width: 92px; text-align: center; }
-  /* A section folded away because it has nothing in it. It reads as the heading it
-     replaces, so the page still says what is missing rather than going quiet. */
-  .detail-main details.fold > summary { cursor: pointer; font-weight: 500; }
-  .detail-main details.fold > .section:first-of-type { margin-top: 14px; }
-  @media (max-width: 720px) {
-    .detail { grid-template-columns: 1fr; }
-  }
   /* The side column leads an item page once it is one column, and a code that opens
      the page you are already reading is not worth a screenful of it. */
   @media (max-width: 860px) { .photo-qr { display: none; } }
@@ -865,7 +704,6 @@
     .edit input, .edit select, .edit textarea,
     .toolbar input[type=text], .toolbar input[list],
     .toolbar input:not([type]), .toolbar select:not(.select),
-    .addbar input, .addbar select, .addbar textarea,
     .photo-actions input[name=note], .notebar input,
     .fileform input[type=text], .fileform input:not([type]),
     .filesearch input[type=search], .linkform input, .notebox input,

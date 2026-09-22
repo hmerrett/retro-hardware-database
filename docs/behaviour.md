@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1611 behaviours, from 44 files.*
+*1629 behaviours, from 45 files.*
 
 
 ## A file where text was expected
@@ -2304,6 +2304,47 @@ Regenerate with:
 - one waiting on a part says that instead
 
 
+## Project pages
+
+*test_project_pages.py — 18 behaviours*
+
+
+**The list**
+
+- what is over is said by its status not faded
+- what is still coming keeps its column
+- on a phone each value says what it is  
+  Stacked, the row has lost its headings.
+- it opens on a heading and the count
+
+**The page head**
+
+- the way back and the owners edit and delete come first
+- a visitor gets the way back and nothing else
+- then the name its status and its tag
+
+**The panels**
+
+- a panel each in the order the manual gives
+- the label panel has the two print buttons
+- a visitor gets no label panel
+- the details are the status the dates and the notes
+
+**A tick**
+
+- each job is a tick that sends itself
+- a done job is ticked and struck through
+- a tick sets what the box shows rather than flipping  
+  Sent twice -- a second tab, a double press -- it is still ticked.
+- a visitor sees the tick and cannot send it
+- the item pages work panel ticks the same way
+
+**What A job is about**
+
+- the owner chooses it from a menu that sends itself
+- a visitor reads the tag of the thing
+
+
 ## Projects
 
 *test_projects.py — 121 behaviours*
@@ -2390,7 +2431,7 @@ Regenerate with:
 **The list on A phone**
 
 - a count of nothing is an empty cell not a dash  
-  The dash is drawn by the stylesheet.
+  A dash written into the cell would be content, and content is not something `:empty` can see past -- so the phone rule that drops the cell would never match and the row would carry three columns of nothing across the narrowest screen.
 - a count that exists is written in
 - the columns are labelled for the stacked view  
   Stacked, a bare "0/1" under a name says nothing.

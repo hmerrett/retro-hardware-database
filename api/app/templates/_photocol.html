@@ -123,7 +123,11 @@
      happens next is the browser's print dialog. #}
   {% call PN.panel('Label') %}
     <div class="row">
-      <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=1" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
+      {# The small label is what labelsend.js hooks: without lbl-s and the two data
+         attributes it can only ever hand over the PDF (ADR-0025, ADR-0026). `one`
+         is the kind in the singular, which is what a print job is keyed by. #}
+      <a class="btn sm lbl-s" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=1"
+         data-kind="{{ one }}" data-asset="{{ obj.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
       <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
     </div>
   {% endcall %}

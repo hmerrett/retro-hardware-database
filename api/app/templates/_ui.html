@@ -22,10 +22,10 @@
    makes it a toggle: true draws it on, and either value tells a screen reader it
    is one, which the drawing alone does not. A disabled link keeps its place and
    loses its href, since a link cannot be disabled any other way. #}
-{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none) -%}
+{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none, title='') -%}
 {%- set cls = ['btn', kind, size, 'icon' if icon_only else '', 'on' if pressed else ''] | select | join(' ') -%}
 {%- set text = label | ui -%}
-{%- set named %}{% if icon_only %} aria-label="{{ text }}"{% endif %}{% endset -%}
+{%- set named %}{% if icon_only %} aria-label="{{ text }}"{% endif %}{% if title %} title="{{ title }}"{% endif %}{% endset -%}
 {%- set inner %}{% if icon %}{{ I.ico(icon) }}{% if not icon_only %} {% endif %}{% endif %}{% if not icon_only %}{{ text }}{% endif %}{% endset -%}
 {%- if href and not disabled -%}
 <a class="{{ cls }}" href="{{ href }}"{{ named }}>{{ inner }}</a>
@@ -101,6 +101,13 @@
 {%- else -%}
 <span class="{{ ['chip', tone] | select | join(' ') }}">{{ text | ui }}</span>
 {%- endif -%}
+{%- endmacro %}
+
+{# A project's status. The tone follows what the status says about the work: done is
+   the good news, stalled wants looking at, abandoned is over without being a fault.
+   The word is always there, so the tone is never the only telling. #}
+{% macro status_chip(status) -%}
+{{ chip(status_label(status) | capitalize, {'done': 'ok', 'stalled': 'warn', 'abandoned': 'quiet'}.get(status, '')) }}
 {%- endmacro %}
 
 {# Rows of things. `cols` is a list of (heading, class); the class reaches the
