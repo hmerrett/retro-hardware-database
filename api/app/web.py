@@ -74,6 +74,8 @@ SITE_CARD = ("/static/og-image.png", 1200, 630)
 
 templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
 templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
+# The design tokens every page's colours come from (ADR-0024), stamped the same way.
+templates.env.globals["tokens_ver"] = _file_ver(STATIC_DIR / "css" / "tokens.css")
 # The generated stylesheet has no file to hash, so its stamp comes from the text
 # itself -- built at import, like the rules in it (datacss).
 templates.env.globals["data_css_ver"] = DATA_CSS_VER

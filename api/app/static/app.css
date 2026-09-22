@@ -1,29 +1,19 @@
+  /* The colours are no longer stated here. They are tokens in css/tokens.css,
+     generated from the design data with every pair tested in every preset and
+     mode (ADR-0024), and these are the 0.1 names for them -- kept only while the
+     templates move over to the new components, and deleted with this file.
+     --line, --accent, --band, --danger, --danger-line and --danger-wash keep
+     their names in 0.2 and so need no line here. Each alias resolves against the
+     token on the same element, so it follows the theme and the preset as they do. */
   :root {
     color-scheme: light dark;
-    --bg: #ffffff; --fg: #1a1c20; --line: #e3e6eb; --muted: #6b7280; --accent: #2563eb;
-    --btn: #00000010; --btn-hover: #00000020; --chip: #00000010;
-    /* The band a panel's title sits on: a shade stronger than the strip on a
-       card, so a section's own heading is not read as the first thing in it. */
-    --band: #0000001c;
-    --fill: #2563eb; --track: #2563eb1f; --primary-fg: #fff;
-    --danger: #b45300; --danger-line: #b45300aa; --danger-hover: #b4530033; --danger-wash: #b4530022;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) {
-      --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
-      --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
-      --fill: #1b81ff; --track: #1b81ff2b; --primary-fg: #15171c;
-      --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066; --danger-wash: #b4530040;
-    }
+    --bg: var(--surface); --fg: var(--text); --muted: var(--text-muted);
+    --btn: var(--surface-sunken); --btn-hover: var(--surface-hover); --chip: var(--surface-sunken);
+    --fill: var(--accent-fill); --track: var(--accent-track); --primary-fg: var(--on-accent);
+    --danger-hover: var(--danger-wash);
   }
   :root[data-theme="light"] { color-scheme: light; }
-  :root[data-theme="dark"] {
-    color-scheme: dark;
-    --bg: #15171c; --fg: #e6e8ec; --line: #2b303b; --muted: #9aa4b2; --accent: #6ea8fe;
-    --btn: #ffffff16; --btn-hover: #ffffff2a; --chip: #ffffff16; --band: #ffffff26;
-    --fill: #1b81ff; --track: #1b81ff2b; --primary-fg: #15171c;
-    --danger: #ffb37a; --danger-line: #ffb37aaa; --danger-hover: #b4530066; --danger-wash: #b4530040;
-  }
+  :root[data-theme="dark"] { color-scheme: dark; }
   * { box-sizing: border-box; }
   /* `[hidden] { display: none }` is a browser rule, so any author rule that sets
      display -- .btn, .lb-tools form, .photo-actions form -- outranks it and leaves
