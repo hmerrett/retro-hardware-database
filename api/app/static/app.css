@@ -349,51 +349,6 @@
   .edit label.socketed input { width: auto; }
   .edit .checks input { width: auto; }
   .hint:not(main.v2 *) { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
-  /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
-     text wears an ink token. */
-  .hero { margin: 18px 0 6px; }
-  .hero .n { font-size: 54px; line-height: 1; font-weight: 600; letter-spacing: -1px; }
-  .hero .of { color: var(--muted); font-size: 14px; margin-top: 6px; }
-  .hero a { color: inherit; text-decoration: none; }
-  .hero a:hover { color: var(--accent); text-decoration: underline; }
-  /* The catalogue read as a list. Two columns where there is room, because the
-     families are short and a single column of them is a very long page; each one
-     stays whole rather than breaking across the columns mid-family. */
-  .cat { columns: 2; column-gap: 34px; margin: 18px 0 24px; }
-  .cat section { break-inside: avoid; display: inline-block; width: 100%;
-    margin-bottom: 14px; }
-  .cat h2 { font-size: 14px; margin: 0 0 3px; }
-  /* One line per model, and every one of them the same grid: fixed tracks, so
-     the years line up down the whole page and across the gap between the two
-     columns of it. This was a table with `table-layout: fixed` doing that job,
-     and it had to stop being one: a model's paragraph needs the whole width and
-     its name has only the first track, so the paragraph could not live in the
-     row. A grid line inside the fold's own summary lines up identically and
-     lets the paragraph be an ordinary block underneath it. */
-  .cat .models { font-size: 13px; columns: auto; column-gap: normal; }
-  .cat .mrow { border-top: 1px solid var(--line); padding: 1px 0;
-    break-inside: avoid; }
-  .cat .line { display: grid; grid-template-columns: minmax(0, 1fr) 3.4em 14em;
-    align-items: baseline; }
-  .cat .nm { padding-right: 8px; overflow-wrap: anywhere; }
-  .cat .yr, .cat .cpu { color: var(--muted); }
-  /* Sized to the strings that are actually in there: one model name reaches 28
-     characters and a couple of dozen CPUs pass 19, so the CPU column gets the
-     room and the odd long one wraps rather than every year being nudged out of
-     line to spare it. */
-  .cat .cpu { font-size: 12px; overflow-wrap: anywhere; }
-  /* How many of the model are held, in brackets after its name: a count is worth
-     nothing without the thing it counts, and against the name it needs no word to
-     say what it is of. Quiet ink until hovered, like the rest of the site's
-     figures, so the page reads as a catalogue and not as a tally. */
-  .cat .nm a.got { color: var(--muted); text-decoration: none;
-    font-size: 12px; white-space: nowrap; }
-  .cat .nm a.got:hover { color: var(--accent); text-decoration: underline; }
-  /* A model the register actually holds one of. The mark is the ink, not a
-     colour: this page is read in both themes and by people who cannot tell the
-     two apart. */
-  .cat .mrow.have .nm { font-weight: 600; }
-  @media (max-width: 720px) { .cat { columns: 1; } }
   .muted { color: var(--muted); }
   .chip:not(main.v2 *) { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: inherit; }
   /* Disposal notices, a rejected form, a refused login: every banner is a warning,
@@ -506,44 +461,6 @@
   .nophoto .hint { margin: 0; }
 
 
-  /* The same paragraph on the catalogue page, folded away: four hundred rows are
-     read by eye and by ctrl-F, and a paragraph under every one of them would be a
-     different page for a different job. The marker is a triangle after the name
-     rather than a word, because the name is the thing being scanned.
-
-     The paragraph is inside the details element, so the browser's own disclosure
-     does the hiding and nothing here depends on :has(). It did, briefly: the fold
-     and the paragraph were in two rows of a table, joined by :has() on the row
-     group, and it worked in Chrome and in current WebKit and not in the Safari
-     somebody actually had -- :has() has to re-evaluate upwards when the `open`
-     attribute changes, and older WebKit did not. A marker that flips and reveals
-     nothing is a worse failure than not having the feature, and it is not a
-     failure any amount of testing in one engine would have found. Native
-     disclosure has worked everywhere for a decade; the marker below is a plain
-     descendant selector, which is the thing that did keep working. */
-  .cat details.mrow > summary { list-style: none; cursor: pointer; }
-  .cat details.mrow > summary::-webkit-details-marker { display: none; }
-  .cat details.mrow > summary::marker { content: ""; }
-  /* The marker rides after the name inside the grid's first track, so it cannot
-     push the years out of line. Joined to the name by a non-breaking space, not an
-     ordinary one: the longest name in the catalogue -- "PS/2 Model 30 286
-     (8530-286)" -- fills its track exactly, and on a plain space the triangle
-     wrapped to a line of its own underneath, reading as a row with no name in it. */
-  .cat details.mrow > summary .nm::after { content: "\00A0\25B8"; color: var(--muted);
-    font-size: 11px; font-weight: 400;
-    /* The marker rides in the 8px gutter the name already keeps from the year,
-       rather than claiming width of its own: at its own width it pushed the one
-       name that fills its track exactly -- "PS/2 Model 30 286 (8530-286)" -- onto
-       a second line, which the same page without a marker does not do. */
-    margin-right: -8px; }
-  .cat details.mrow[open] > summary .nm::after { content: "\00A0\25BE"; }
-  .cat details.mrow > summary:hover .nm { color: var(--accent); }
-  .cat details.mrow > summary:focus-visible { outline: 2px solid var(--accent);
-    outline-offset: 2px; border-radius: 3px; }
-  /* Not bold, whatever the line above is doing: .have sets the name in weight and
-     a paragraph of it would be shouting. */
-  .cat details.mrow > p { margin: 2px 0 8px; font-size: 12px; font-weight: 400;
-    color: var(--muted); line-height: 1.45; }
 
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }

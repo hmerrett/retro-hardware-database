@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1637 behaviours, from 46 files.*
+*1658 behaviours, from 47 files.*
 
 
 ## A file where text was expected
@@ -2146,6 +2146,45 @@ Regenerate with:
   0039 stops a file being matched to an item by name and starts it being attached to one, and runs the old matcher once to write down what it found.
 - a file the matcher reached nothing with is left unfiled  
   Unfiled is a state and not a loss: the bytes are untouched and the files page says so.
+
+
+## Model pages
+
+*test_model_pages.py — 21 behaviours*
+
+
+**The list**
+
+- every name leads to its own page
+- a model held is set heavier with its count
+- a model nothing is filed as carries no count
+- the paragraph is no longer folded into the list
+
+**A models page**
+
+- it is public
+- a key the catalogue does not have is not found
+- it is named in the sitemap
+- the way back is to every model
+- the name heads it with its family and year under
+- the paragraph is printed in ordinary ink
+- as catalogued says what the catalogue records
+- what the catalogue does not say is left out
+- a model without a paragraph prints none
+- each socket is a cell with the chips seen in it
+- a model with no sockets has no chips panel
+
+**In this collection**
+
+- nothing filed says so
+- machines and boards filed as it are listed
+- a disposed one is listed and says so
+
+**Its files**
+
+- a file attached to the model is listed
+- a visitor sees the published ones alone
+- there is nothing to attach or detach here
 
 
 ## Models match migrations

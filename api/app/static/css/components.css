@@ -451,7 +451,10 @@
     color: var(--text); text-decoration: none; }
   .result:first-child { border-top: 0; }
   .result .th { width: 72px; flex: none; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken); border-radius: var(--radius-sm); }
+  .result .tag, .result .nm, .result .sub { display: block; }
   .result .nm { font-size: 14px; }
+  .result .th > img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  .result .th > img.ph { object-fit: contain; padding: var(--space-2); }
   .result .sub { font-size: 12px; color: var(--text-muted); }
   .result mark { color: var(--text); background: var(--warning-wash); }
   .scanbox { position: relative; aspect-ratio: 1; background: var(--scrim); color: var(--on-scrim);
@@ -493,6 +496,11 @@
   .models .m > :first-child { flex: 1; min-width: 0; }
   .models .m .y, .models .m .c { font-family: var(--font-data); color: var(--text-muted); }
   .models .m .c { flex: 0 0 150px; }
+  /* A model the register holds one of: the name set heavier and the count after
+     it. Weight, not colour, because the page is read in both themes and by people
+     who cannot tell two inks apart. */
+  .models .m.have > :first-child { font-weight: 600; }
+  .models .m .n { font-family: var(--font-data); font-weight: 400; color: var(--text-muted); }
 
   /* ---- 14. Empty state, toolbar, pager ------------------------------------ */
   .empty { padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-muted); }

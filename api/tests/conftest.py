@@ -189,6 +189,7 @@ def a_page_of_everything(client, computer, part):
     return [
         "/",
         "/machines",
+        "/machines/vic-20",
         "/projects",
         "/projects/new",
         "/files",

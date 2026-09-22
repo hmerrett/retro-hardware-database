@@ -271,8 +271,10 @@ def _public_page(path: str) -> bool:
     # register in it: /api/machines answers with what was made rather than with what
     # is here, the same list that is in the repository as machines.yaml and
     # catalogue.txt. Putting the page behind the login and not the data behind it
-    # would be a lock on a door in a field.
-    if path in ("/machines", "/api/machines"):
+    # would be a lock on a door in a field. A model's own page is the same list
+    # read one entry at a time, beside the units of it here, whose pages are
+    # public already.
+    if path in ("/machines", "/api/machines") or path.startswith("/machines/"):
         return True
     if path.startswith(("/images/", "/static/", "/style/")):
         return True

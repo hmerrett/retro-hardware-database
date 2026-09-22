@@ -184,7 +184,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/gallery.py` | the wall of cards, the /browse slice of it, the owner's /for-sale shortlist, and the suggestions under the search bar |
 | `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
 | `routers/settings.py` | /settings: the two routes behind the page of preferences |
-| `routers/catalogue.py` | the catalogue as a page and as JSON: /machines and /api/machines |
+| `routers/catalogue.py` | the catalogue as a page and as JSON: /machines, a model's own page at /machines/<key>, and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
 | `routers/styles.py` | /style/data.css: the generated stylesheet, served the way a static one is |
 | `datacss.py` | the rules whose values are data — a bezel's swatch, a bar's length — built at import |

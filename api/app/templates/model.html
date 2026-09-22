@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% block title %}{{ m.full_name }} — Retro Hardware Database{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
+{% block content %}
+
+{#
+  One catalogue model: the machine in general, then the ones of it here. It reads
+  like an item's page -- the way back, the name, the panels -- because it is about
+  one machine, but none of it can be edited here: the catalogue is a file in the
+  repository, the units are edited on their own pages, and a file is attached from
+  a unit's page or /files, which know which unit is meant.
+#}
+
+{% call U.itemnav('/machines', 'All models') %}{% endcall %}
+<h1 class="title">{{ m.full_name }}</h1>
+<div class="tag muted">{{ m.family }} · {{ m.year }}</div>
+{% if m.summary %}<p class="prose">{{ m.summary | linked }}</p>{% endif %}
+
+<section class="panel"><header><h3>As catalogued</h3></header>
+<div class="pbody"><dl class="kv">
+{%- for k, v in facts %}<div><dt>{{ k }}</dt><dd>{{ v }}</dd></div>{% endfor -%}
+</dl></div></section>
+
+{% if m.chips %}
+<section class="panel"><header><h3>Chips</h3><span class="meta">{{ m.chips | length }}</span></header>
+<div class="pbody"><div class="cardgrid">
+{%- for c in m.chips %}<div class="cell"><div class="k">{{ c.label }}</div><div class="v">{{ c.variants | join(', ') }}</div></div>{% endfor -%}
+</div></div></section>
+{% endif %}
+
+<section class="panel"><header><h3>In this collection</h3><span class="meta">{{ units | length }}</span></header>
+<div class="pbody">
+{% if units %}
+<div class="results">
+{%- for u in units %}
+<a class="result" href="{{ u.href }}"><span class="th">
+{%- if u.image %}<img src="{{ img_url(u.image, THUMB_CARD) }}" alt="" loading="lazy" decoding="async">
+{%- else %}<img class="ph" src="/static/{{ u.placeholder }}" alt="" loading="lazy">{% endif -%}
+</span><span><span class="tag muted">{{ u.tag }}</span><span class="nm">{{ u.name }}</span>
+<span class="sub">{{ u.sub }}{% if u.disposed %} · Disposed{% endif %}</span></span></a>
+{%- endfor %}
+</div>
+{% else %}
+<p class="muted">None here yet.</p>
+{% endif %}
+</div></section>
+
+<section class="panel"><header><h3>Files</h3><span class="meta">{{ files | length }}</span></header>
+<div class="pbody">
+{% if files %}
+<table class="table stack">
+  <tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Added</th></tr>
+  {% for f in files %}
+  <tr><td><a class="break" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
+    {%- if f.note %}<div class="hint">{{ f.note | linked }}</div>{% endif %}
+    {%- if f.tags %}<div>{% for t in f.tags %}{{ U.chip(t, href='/files?tag=' ~ (t | urlencode)) }} {% endfor %}</div>{% endif %}</td>
+    <td class="num tight" data-label="Size">{{ human_size(f.size) }}</td>
+    <td class="num tight" data-label="Added">{{ log_stamp(f.created_at, request.state.authed) if f.created_at else '' }}</td></tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">No files for this model yet.</p>
+{% endif %}
+</div></section>
+{% endblock %}
