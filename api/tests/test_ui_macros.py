@@ -1,5 +1,5 @@
 """The v0.2 component macros in `_ui.html`, and the `ui` filter their words pass
-through (ADR-0024).
+through (ADR-0028).
 
 Rendered through the app's own environment, so a test sees the globals and filters
 a page would. Nothing calls these macros yet -- the templates move onto them group

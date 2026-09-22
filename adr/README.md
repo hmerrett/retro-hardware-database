@@ -69,6 +69,12 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   *Accepted*
 - [0023](0023-a-preference-is-not-configuration.md) — A preference is not
   configuration, and the environment still wins — *Accepted*
+- [0024](0024-a-label-is-laid-out-once-and-drawn-twice.md) — A label is laid out
+  once and drawn twice — *Accepted*
+- [0025](0025-a-print-agent-asks-and-is-never-called.md) — A print agent asks, and
+  is never called — *Accepted*
+- [0026](0026-the-print-button-is-a-link-until-a-device-says-otherwise.md) — The
+  print button is a link until a device says otherwise — *Accepted*
 - [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md) — A
   remembered vocabulary is deleted when it is turned off — *Accepted*
 - [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md) — A file is
@@ -78,3 +84,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0029](0029-an-upload-starts-public-where-the-owner-says.md) — An upload starts
   public where the owner says so — *Accepted* (amends
   [0009](0009-a-file-is-published-by-hand.md)'s default)
+- [0028](0028-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
+  a design system, and its values are data — *Accepted*

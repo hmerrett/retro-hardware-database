@@ -2578,7 +2578,7 @@ Regenerate with:
 - every pair holds in every preset and mode  
   518 pairs: the 37 the design uses, in fourteen themes.
 - a preset names no component  
-  A preset is token values and nothing else (ADR-0024).
+  A preset is token values and nothing else (ADR-0028).
 - every face in the picker is drawn in its own colours  
   The settings page shows each preset as a miniature, and a miniature painted in the colours of the preset already in force would show seven of the same thing.
 
