@@ -189,6 +189,21 @@
     .table.stack.runon td + td:not(:empty) { display: inline-block; margin-right: var(--space-4); }
     .table.stack td[data-label]::before { font-family: var(--font-ui); }
   }
+  /* A table too wide for a tablet stacks from 820px instead: the owner's files list,
+     six columns with a box to type in, which scrolled the page sideways at any width
+     a phone or a small tablet has. The same rules as above, from the wider point. */
+  @media (max-width: 820px) {
+    .table.stack.early, .table.stack.early tbody, .table.stack.early tr, .table.stack.early td { display: block; width: auto; }
+    .table.stack.early tr:first-child { display: none; }
+    .table.stack.early tr { padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+    .table.stack.early td { padding: 1px 0; border: 0; }
+    .table.stack.early td:empty { display: none; }
+    .table.stack.early td[data-label]::before { content: attr(data-label) " "; font-family: var(--font-ui); font-size: 12px; color: var(--text-muted); }
+    /* Size, added, the tick and delete are one short line about the file rather
+       than four lines under it; each control is in a form, and a form is a block. */
+    .table.stack.early td.tight, .table.stack.early td.act { display: inline-block; margin: var(--space-2) var(--space-4) 0 0; vertical-align: middle; }
+    .table.stack.early td.tight form, .table.stack.early td.act form { display: inline-flex; align-items: center; gap: var(--space-2); }
+  }
   /* ...or it scrolls inside its own box. */
   .hscroll { overflow-x: auto; }
   .hscroll > .table { min-width: 760px; }
@@ -488,6 +503,13 @@
   .addrow > .input, .addrow > .select { flex: 1 1 160px; width: auto; min-width: 0; }
   .addrow > .input.wide { flex: 3 1 240px; }
   .addrow > .input.short { flex: 0 1 130px; }
+  /* In a table cell the row sits under what it edits, closer than under a list. */
+  .table .addrow { margin-top: var(--space-2); }
+  .table .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+  /* One thing a file is attached to and the button that takes it off again: one
+     item, wrapping together, so the button is never left under a chip it no longer
+     looks like it belongs to. */
+  .attached { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-3) var(--space-1) 0; }
   .addrow > textarea.input { flex: 1 1 100%; }
   .models { columns: 2 320px; column-gap: var(--space-6); }
   .models section { break-inside: avoid; margin-bottom: var(--space-5); }
