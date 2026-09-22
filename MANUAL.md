@@ -2092,7 +2092,9 @@ part still in the collection is kept whatever the box says.
   say, so a young register offers fewer rather than offering blanks, and no two
   tiles in one draw show the same number. Reload to shuffle.
 - **Ranked charts** — makers by parts held, what the parts are, expansion buses,
-  ports, condition, and makers by how much of their hardware still works.
+  ports, condition, and makers by how much of their hardware still works. A chart
+  with nothing to count yet is left out, for the same reason as the figures, rather
+  than drawn as a heading over nothing.
 
 **Almost every number is a link** to the items it counted, shown in the same grid
 as the gallery. That is the point of the page: a figure you cannot get behind is a
