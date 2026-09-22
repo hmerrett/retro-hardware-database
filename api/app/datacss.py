@@ -31,7 +31,7 @@ def _bezel_rules() -> Iterator[str]:
 
 def _bar_rules() -> Iterator[str]:
     for tenths in range(0, 1000 + BAR_STEP, BAR_STEP):
-        yield f".rank .fill.w-{tenths}, .bars .fill.w-{tenths} {{ width: {tenths / 10:g}%; }}"
+        yield f".bars .fill.w-{tenths} {{ width: {tenths / 10:g}%; }}"
 
 
 def _build() -> str:

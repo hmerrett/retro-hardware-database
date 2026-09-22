@@ -302,6 +302,20 @@ class TestStats:
             '<div class="v">222</div><div class="n">on 63 boards</div></div>'
         )
 
+    def test_a_stat_tile_with_somewhere_to_go_is_the_link(self):
+        html = render("{{ U.stattile('Ports counted', 222, 'on 63 boards', href='/browse?f=x') }}")
+        assert html.startswith('<a class="stattile" href="/browse?f=x"><div class="k">')
+        assert html.endswith("</a>")
+
+    def test_a_bar_names_what_it_counted_when_given_a_field(self):
+        html = render("{{ U.bars([('Tseng Labs', 4, 'Tseng Labs')], f='maker') }}")
+        assert '<a href="/browse?f=maker&v=Tseng%20Labs">Tseng Labs</a>' in html
+
+    def test_bars_against_a_ceiling_are_drawn_against_it_not_the_largest(self):
+        html = render("{{ U.bars([('Halfco', 50), ('Nearlyco', 83)], full=100, suffix='%') }}")
+        assert '<i class="fill w-500"></i>' in html and '<i class="fill w-830"></i>' in html
+        assert '<span class="n">83%</span>' in html
+
     def test_bars_are_sized_by_class_against_the_largest(self):
         html = render("{{ U.bars([('Storage', 124), ('Motherboard', 62), ('Power', 0)]) }}")
         assert '<i class="fill w-1000"></i>' in html

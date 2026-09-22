@@ -354,23 +354,8 @@
   .hero { margin: 18px 0 6px; }
   .hero .n { font-size: 54px; line-height: 1; font-weight: 600; letter-spacing: -1px; }
   .hero .of { color: var(--muted); font-size: 14px; margin-top: 6px; }
-  /* The standing figure under the headline: the one number here that is a job
-     rather than a curiosity, so it is set in the page's own ink while the small
-     print beside it stays muted. */
-  .cover { font-size: 14px; margin: 10px 0 0; }
-  .cover .n { font-weight: 600; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(196px, 100%), 1fr));
-    gap: 10px; margin: 16px 0 26px; }
-  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; }
-  /* Every figure leads to the items behind it, quietly: a page of numbers should
-     read as numbers, so the links wear the ink around them until hovered. */
-  a.tile, .hero a, .cover a, .rank td.lbl a { color: inherit; text-decoration: none; }
-  a.tile { display: block; }
-  a.tile:hover { border-color: var(--accent); }
-  .hero a:hover, .cover a:hover, .rank td.lbl a:hover { color: var(--accent); text-decoration: underline; }
-  .tile .k { color: var(--muted); font-size: 12px; }
-  .tile .v { font-size: 21px; font-weight: 600; margin-top: 3px; }
-  .tile .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .hero a { color: inherit; text-decoration: none; }
+  .hero a:hover { color: var(--accent); text-decoration: underline; }
   /* The catalogue read as a list. Two columns where there is room, because the
      families are short and a single column of them is a very long page; each one
      stays whole rather than breaking across the columns mid-family. */
@@ -409,19 +394,6 @@
      two apart. */
   .cat .mrow.have .nm { font-weight: 600; }
   @media (max-width: 720px) { .cat { columns: 1; } }
-  .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(310px, 100%), 1fr));
-    gap: 22px 34px; margin-bottom: 24px; }
-  .rank h3 { font-size: 14px; margin: 0 0 2px; }
-  .rank .cap { color: var(--muted); font-size: 12px; margin: 0 0 9px; }
-  .rank table { border-collapse: separate; border-spacing: 0 2px; }
-  .rank td { border: 0; padding: 0 8px 0 0; vertical-align: middle; font-size: 13px; }
-  .rank td.lbl { white-space: nowrap; color: var(--fg); }
-  .rank td.bar { width: 100%; }
-  .rank td.num { text-align: right; color: var(--muted);
-    font-variant-numeric: tabular-nums; font-family: inherit; }
-  .rank .track { background: var(--track); border-radius: 0 3px 3px 0; height: 14px; }
-  .rank .fill { background: var(--fill); height: 14px; border-radius: 0 4px 4px 0;
-    min-width: 3px; }
   .muted { color: var(--muted); }
   .chip:not(main.v2 *) { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: inherit; }
   /* Disposal notices, a rejected form, a refused login: every banner is a warning,
@@ -762,7 +734,6 @@
   .tuck { margin: 5px 0 0; }
   .mt-5 { margin-top: 5px; }
   .mt-14 { margin-top: 14px; }
-  .mt-26 { margin-top: 26px; }
   .ml-22 { margin-left: 22px; }
   .top-12 { margin: 12px 0 0; }
   .lede { margin: 0 0 2px; }
@@ -783,5 +754,3 @@
      margins. */
   .srow + .srow { margin-top: 16px; }
   .srow > .checks { margin: 0; }
-  .stat-h { margin: 0; font-size: 17px; }
-  .stat-sub { font-size: 13px; }

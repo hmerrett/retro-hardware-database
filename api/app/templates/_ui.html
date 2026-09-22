@@ -146,21 +146,32 @@
 {%- endmacro %}
 
 {# One figure on the numbers page, with what it is and what it is out of. #}
-{% macro stattile(label, value, note='') -%}
-<div class="stattile"><div class="k">{{ label }}</div><div class="v">{{ value }}</div>
-{%- if note %}<div class="n">{{ note }}</div>{% endif %}</div>
+{# A tile with somewhere to go is the link, whole: the figure is what is being
+   followed, and a tile with a link somewhere inside it is a smaller target. #}
+{% macro stattile(label, value, note='', href='') -%}
+{%- set tag = 'a' if href else 'div' -%}
+<{{ tag }} class="stattile"{% if href %} href="{{ href }}"{% endif %}><div class="k">{{ label }}</div><div class="v">{{ value }}</div>
+{%- if note %}<div class="n">{{ note }}</div>{% endif %}</{{ tag }}>
 {%- endmacro %}
 
 {# Ranked bars: `rows` is a list of (label, count), each bar measured against the
    largest. The length is a class whose rule datacss generates, in the half-percent
    steps it generates them in, because the content policy allows no style attribute
    (ADR-0022). The number is printed beside every bar, so the bar is never the only
-   carrier and the track can be hidden from a screen reader. #}
-{% macro bars(rows) -%}
-{%- set top = (rows | map(attribute=1) | max) if rows else 0 -%}
+   carrier and the track can be hidden from a screen reader.
+
+   `f` makes each label a link to the items it counted, /browse?f=<f>&v=<value>, the
+   value being a row's third element (what the column holds, which is not always
+   the label shown). `full` draws against a fixed ceiling instead of the largest
+   row, which is what a percentage needs: scaled to itself, a list topped by 92%
+   would draw a full bar and read as "all of them". `suffix` goes on the number, for
+   the one measure that needs it beside a neighbouring chart of counts. #}
+{% macro bars(rows, f='', full=0, suffix='') -%}
+{%- set top = full or ((rows | map(attribute=1) | max) if rows else 0) -%}
 <div class="bars">
-{%- for label, n in rows -%}
-<span>{{ label }}</span><span class="track" aria-hidden="true"><i class="fill w-{{ ((1000 * n / top / 5) | round | int) * 5 if top else 0 }}"></i></span><span class="n">{{ n }}</span>
+{%- for row in rows -%}
+{%- set label, n = row[0], row[1] -%}
+<span>{% if f %}<a href="/browse?f={{ f }}&v={{ (row[2] if row | length > 2 else label) | urlencode }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</span><span class="track" aria-hidden="true"><i class="fill w-{{ ((1000 * n / top / 5) | round | int) * 5 if top else 0 }}"></i></span><span class="n">{{ n }}{{ suffix }}</span>
 {%- endfor -%}
 </div>
 {%- endmacro %}

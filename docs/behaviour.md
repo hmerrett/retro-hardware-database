@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1629 behaviours, from 45 files.*
+*1637 behaviours, from 46 files.*
 
 
 ## A file where text was expected
@@ -2876,6 +2876,20 @@ Regenerate with:
   Only a display has a screen size, so the key stays an attribute on anything else rather than being read as inches.
 
 
+## Stats page
+
+*test_stats_page.py — 5 behaviours*
+
+
+**The numbers page**
+
+- it is on the v2 layout with a heading of its own
+- the headline figure leads to everything it counted
+- the tiles are stat tiles and one with a page is its link
+- each ranked chart is headed and its names lead to what they count
+- no 0 1 markup is left
+
+
 ## Stylesheet
 
 *test_stylesheet.py — 8 behaviours*
@@ -2928,7 +2942,7 @@ Regenerate with:
 
 ## Ui macros
 
-*test_ui_macros.py — 72 behaviours*
+*test_ui_macros.py — 75 behaviours*
 
 
 **The ui filter**
@@ -3004,6 +3018,9 @@ Regenerate with:
 **Stats**
 
 - a stat tile has its label value and note
+- a stat tile with somewhere to go is the link
+- a bar names what it counted when given a field
+- bars against a ceiling are drawn against it not the largest
 - bars are sized by class against the largest
 - bars of nothing do not divide by zero
 - every bar width has a rule to paint it

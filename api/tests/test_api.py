@@ -2295,8 +2295,8 @@ class TestTheShuffledFigures:
         # without it the assertions below pass on the real draw as readily as on this
         # one, and a patch that had stopped taking effect would go unnoticed.
         assert "no page to show" in page
-        assert '<div class="tile">' in page
-        assert 'class="tile" href=""' not in page
+        assert '<div class="stattile">' in page
+        assert 'class="stattile" href=""' not in page
 
     def test_every_condition_beyond_the_two_above_gets_a_figure(self, client, db, part):
         """Four of the six values in entry.CONDITIONS have a figure naming them, and
@@ -4417,14 +4417,14 @@ class TestTheNumbersPage:
         page must not divide by zero on day one."""
         r = client.get("/stats")
         assert r.status_code == 200
-        assert '<div class="n"><a href="/browse?f=all">0</a></div>' in r.text
+        assert '<div class="figure"><a href="/browse?f=all">0</a></div>' in r.text
 
     def test_the_headline_counts_everything(self, client, computer, part):
         computer()
         computer()
         part()
         page = client.get("/stats").text
-        assert '<div class="n"><a href="/browse?f=all">3</a></div>' in page
+        assert '<div class="figure"><a href="/browse?f=all">3</a></div>' in page
         assert "2 machines</a> and" in page and "1 parts</a>" in page
 
     def test_the_top_maker_is_the_one_with_most_parts(self, client, part):
@@ -4625,7 +4625,7 @@ class TestEveryObjectHasItsPortrait:
     def standing(page):
         """The coverage line under the headline, whitespace flattened the way a
         browser reads it."""
-        m = re.search(r'<p class="cover">(.*?)</p>', page, re.S)
+        m = re.search(r'<p class="[^"]*\bcover\b[^"]*">(.*?)</p>', page, re.S)
         return " ".join(m.group(1).split()) if m else ""
 
     def counted(self, page):
