@@ -296,6 +296,36 @@ that, including the site fetching the card, gets the copy already made. Change a
 photograph and the cards it appears on are made again, so a preview never shows a
 picture that has since been cropped or replaced.
 
+### When a page is not there
+
+Not every address leads somewhere, and the likeliest way to one that does not is a
+label: a QR code from somebody else's collection scans to an asset tag this
+register has never issued, and an address typed by hand is a character away from
+being nobody's.
+
+**A missing page is still a page.** It arrives in the same chrome as the rest of
+the site — the banner above it, with the search box in it — so the way on from a
+dead end is to search for the thing from where you are. Under the number that was
+answered it says what happened in a line, and offers the gallery.
+
+Three things can be said there.
+
+- **Nothing here.** Nothing is filed at that address. Check the tag against the
+  label, or search for the thing by name.
+- **Not for you.** The page is there and is not open to you. The register hands
+  out very little this way: what a visitor may not see, it mostly does not
+  mention.
+- **Something went wrong.** The fault is at this end rather than in what you
+  asked for. It is written to the server's log, where it says far more than a page
+  shown to a stranger should.
+
+None of the three is offered to a search engine.
+
+**Programs get what programs want.** The JSON API answers an error as it always
+has — the status and a `detail` — and so does anything else that did not ask for
+a web page. The page is sent only to a client that asked for HTML, so a browser
+gets the page and `curl`, the tool server and the command-line tools get the JSON.
+
 ---
 
 ## 3. Searching
