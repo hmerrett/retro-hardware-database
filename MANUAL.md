@@ -1389,8 +1389,8 @@ Add any computer or part in the register. A note beside each says why it is ther
 *the patient*, *donor for the keyboard* — which is a fact about the pairing rather
 than about either end of it, and so has nowhere else to live.
 
-The same thing can be in two projects: a PSU can be wanted by both, and a machine
-being restored can also be the machine a spare board is destined for.
+A thing is on one project at a time: putting it on another takes it off this one,
+jobs and all (see [the quick box](#noting-something-down) below).
 
 It reads both ways. The project lists what it is about, and **each item's own page
 gains a Projects panel** saying what it is spoken for — so you find out a board is
