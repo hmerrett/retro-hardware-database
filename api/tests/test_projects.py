@@ -446,7 +446,7 @@ class TestMarkingOneDone:
         aid = make(client, status="active")
         html = page(client, aid)
         assert f'action="/projects/{aid}/complete"' in html
-        assert "mark done" in html
+        assert "Mark done" in html
 
     def test_there_is_no_button_once_it_is_over(self, client):
         """Done and abandoned both. Either is reopened on the edit form, and a

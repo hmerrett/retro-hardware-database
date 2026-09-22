@@ -127,10 +127,10 @@ class TestRecordingWhereSomethingIs:
         cid = computer(location="Loft")["asset_id"]
         pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
         page = client.get(f"/parts/{pid}").text
-        assert '<th scope="row">Location</th>' in page
+        assert "<dt>Location</dt>" in page
         assert "Spares drawer" in page
         assert "Loft" not in page, "its own answer wins over the one it is offered"
-        assert "Installed in" in page and cid in page
+        assert "Fitted in" in page and cid in page
 
 
 class TestARowOlderThanTheFeature:
@@ -263,7 +263,7 @@ class TestAPartIsWhereWhatItIsFittedInIs:
         cid = computer(location=CRATE)["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         page = client.get(f"/parts/{pid}").text
-        assert '<th scope="row">Location</th>' in page
+        assert "<dt>Location</dt>" in page
         assert CRATE in page
 
     def test_the_page_says_whose_answer_it_is_showing(self, client, computer, part):
@@ -312,7 +312,7 @@ class TestAPartIsWhereWhatItIsFittedInIs:
 
     def test_a_standalone_part_is_shown_nothing(self, client, part):
         page = client.get(f"/parts/{part()['asset_id']}").text
-        assert '<th scope="row">Location</th>' not in page
+        assert "<dt>Location</dt>" not in page
 
     def test_a_part_in_a_machine_nobody_has_placed_is_shown_nothing(self, client, computer, part):
         """A chain that runs out yields nothing rather than an empty row. A part in
@@ -320,7 +320,7 @@ class TestAPartIsWhereWhatItIsFittedInIs:
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         page = client.get(f"/parts/{pid}").text
-        assert '<th scope="row">Location</th>' not in page
+        assert "<dt>Location</dt>" not in page
 
     def test_moving_the_machine_moves_everything_in_it(self, client, computer, part):
         """One edit, because nothing was written against the parts to go stale."""
@@ -405,11 +405,11 @@ class TestBeingOfferedWhereThingsGo:
         """A box called `location` is one every other site on the web has too, and
         the browser's memory of those would be offered over the register's answers."""
         page = client.get("/computers/new").text
-        assert 'id="location" name="location" type="text" value=""' in page
-        assert 'list="dl_location" autocomplete="off"' in page
-        assert 'id="location" name="location" list="dl_locations" autocomplete="off"' in (
-            client.get("/parts/new").text
-        )
+        assert 'id="location" name="location" value=""' in page
+        assert 'autocomplete="off" list="dl_location"' in page
+        assert (
+            'id="location" name="location" value="" autocomplete="off" list="dl_locations"'
+        ) in client.get("/parts/new").text
 
 
 class TestRememberingWhereNothingIsKeptNow:
@@ -518,7 +518,7 @@ class TestWhoIsToldWhereThingsAre:
         visitor(monkeypatch)
         page = client.get(f"/{kind}/{aid}").text
         assert CRATE not in page
-        assert '<th scope="row">Location</th>' not in page
+        assert "<dt>Location</dt>" not in page
 
     def test_a_visitors_search_does_not_match_on_it(self, client, computer, monkeypatch):
         """The half that is easy to miss. _haystack reads every column off the
@@ -536,16 +536,16 @@ class TestWhoIsToldWhereThingsAre:
         aid = computer(location=CRATE)["asset_id"]
         assert aid in client.get("/?q=loft").text
 
-    def test_the_gallery_card_does_not_carry_it_to_a_visitor(self, client, computer, monkeypatch):
-        """The cards hold a condensed blob the browser filters on. It is markup, so
-        a card that answered to "loft" would be the same leak with a step in it."""
+    @pytest.mark.parametrize("who", ["owner", "visitor"])
+    def test_the_gallery_carries_it_to_nobody(self, client, computer, monkeypatch, who):
+        """The cards used to hold a condensed blob the browser filtered on, and the
+        question was who it was written for. Paging and searching moved to the
+        server (spec 15), the blob went with the filter, and a card says where
+        nothing is kept -- so the answer is now nobody, owner included."""
         computer(location=CRATE)
-        visitor(monkeypatch)
+        if who == "visitor":
+            visitor(monkeypatch)
         assert "blue crate 3" not in client.get("/").text
-
-    def test_the_gallery_card_carries_it_for_the_owner(self, client, computer):
-        computer(location=CRATE)
-        assert "blue crate 3" in client.get("/").text
 
     @pytest.mark.parametrize("kind", ["computers", "parts"])
     def test_turning_it_on_shows_a_visitor_the_row(self, client, computer, part, monkeypatch, kind):
@@ -561,7 +561,6 @@ class TestWhoIsToldWhereThingsAre:
         save(client, public_locations="1")
         visitor(monkeypatch)
         assert aid in client.get("/?q=loft").text
-        assert "blue crate 3" in client.get("/").text
 
     def test_a_visitor_is_shown_no_inherited_location_either(
         self, client, computer, part, monkeypatch
@@ -574,7 +573,7 @@ class TestWhoIsToldWhereThingsAre:
         visitor(monkeypatch)
         page = client.get(f"/parts/{pid}").text
         assert CRATE not in page
-        assert '<th scope="row">Location</th>' not in page
+        assert "<dt>Location</dt>" not in page
 
     def test_a_visitors_search_does_not_match_on_an_inherited_one(
         self, client, computer, part, monkeypatch
@@ -643,19 +642,16 @@ class TestFindingWhatIsInThere:
         pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
         assert pid not in client.get("/?q=loft").text
 
-    def test_the_gallery_card_carries_the_inherited_answer(self, client, computer, part):
-        """The cards hold a blob the browser filters on without asking the server,
-        so a card that did not carry it would vanish from a type-ahead the full
-        search still answers."""
+    @pytest.mark.parametrize("who", ["owner", "visitor"])
+    def test_no_card_carries_the_inherited_answer_either(
+        self, client, computer, part, monkeypatch, who
+    ):
+        """The inherited answer is findable by searching for it, which the tests
+        above hold; what it is not is written into the gallery's markup."""
         cid = computer(location=CRATE)["asset_id"]
         part(computer_id=cid)
-        page = client.get("/").text
-        assert page.count("blue crate 3") >= 2
-
-    def test_a_visitors_card_does_not(self, client, computer, part, monkeypatch):
-        cid = computer(location=CRATE)["asset_id"]
-        part(computer_id=cid)
-        visitor(monkeypatch)
+        if who == "visitor":
+            visitor(monkeypatch)
         assert "blue crate 3" not in client.get("/").text
 
 

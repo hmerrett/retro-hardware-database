@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1696 behaviours, from 49 files.*
+*1915 behaviours, from 57 files.*
 
 
 ## A file where text was expected
@@ -28,11 +28,100 @@ Regenerate with:
   The one form a stranger can post to.
 
 
+## A label drawn in the printers dots
+
+*test_a_label_drawn_in_the_printers_dots.py — 15 behaviours*
+
+- every kind of item has a label as a picture
+- the picture is one dot deep  
+  Not greyscale, and not a palette.
+- the stock decides the shape and the printer decides the dots  
+  Two questions that used to be one.
+- a head narrower than its tape is the registers fact and not the callers  
+  A B1 takes a 50mm label on a 48mm head.
+- the dots can be asked for  
+  A stock has the resolution of the printer it belongs to, and a printer that is not that one says so.
+- a stock the register does not know is refused rather than guessed  
+  Guessing prints a label of the wrong size, which is discovered by peeling it off something.
+- the code is drawn a whole number of dots to the square  
+  A code fitted to the space left over has squares a dot wider than their neighbours.
+- the picture is behind the login like the pdf  
+  A label is an editing action: it is printed by whoever owns the collection.
+- every stock the register knows can be drawn  
+  Including the 6x4in sheet: a raster is not only for the small labels, and a stock in the list that cannot be rendered is a menu entry that fails when it is chosen.
+- both surfaces lay out the same label  
+  The point of writing the layout once: a label proofed as a PDF is the label that comes out of the thermal printer, saying the same things in the same order.
+- a taller label does not give the code more than its share  
+  The code is as big as it can be, because one that will not scan is worth nothing -- but a sticker is read by a person too, and a label saying only "Seaga…" has failed at the half of the job the code cannot do.
+- the type grows with the label  
+  The sizes on a small label are the tape's, because they are what fits on a tape.
+- growing the type does not outgrow the column  
+  A 40x30mm label is as tall as a 50x30mm one and a third narrower.
+- the words survive the code being made larger  
+  The code's share of a small label was settled by printing it, and the number that settled it is the point where the words are still whole.
+- the tape is not moved by what a taller label needed  
+  Every change made for the Niimbot stock has been one the 51x19mm tape cannot feel: on it the height runs out before any of these shares or proportions do.
+
+
 ## A label for a part of no type
 
 *test_a_label_for_a_part_of_no_type.py — 1 behaviours*
 
 - a part with no type does not stop the label printing
+
+
+## A label printed somewhere else
+
+*test_a_label_printed_somewhere_else.py — 29 behaviours*
+
+- with no agent named there is no queue  
+  Not an empty queue: the feature does not exist until a key has been written down.
+- an agent the register does not know is refused
+- an item that is not there is refused at the door  
+  Rather than queued and discovered to be missing by a Pi in another room.
+- a wrong key opens nothing
+- an agents key does not open the rest of the api  
+  The whole point of a key per agent.
+- an agent claims its own jobs and not another agents
+- a job another agent holds is not readable or reportable
+- a job is claimed once  
+  Two agents under one name, or one agent asking twice before it has finished, must not both print it.
+- nothing waiting is not an error  
+  An agent asks every few seconds forever; an empty queue is its ordinary answer and must not read as a fault in the log.
+- the oldest job goes first
+- a claim says what to print and how  
+  Everything the agent needs in one answer, so it never has to ask the register a second question to know what it is doing.
+- the agents own settings are the default  
+  What stock is loaded and what the printer would rather be handed are facts about the printer, so they are answered once on the server rather than configured again on the machine in the workshop.
+- a job may say otherwise
+- a stock the register does not know is refused
+- the label is rendered when it is fetched  
+  A job is a request to print an item, not a copy of one -- so a label printed two minutes after a correction carries the correction, and the queue does not become a second place the register's data lives.
+- the label can be fetched as either a page or dots  
+  The job says which the printer would rather have and the claim passes that on, but the URL is what decides: an agent proving a connection wants to ask for the other one without a second job being made for it.
+- an item deleted before it prints fails the job rather than the agent  
+  The agent must be told that this one is never going to work, not handed a traceback to decide about.
+- an agent says how it went
+- a failure keeps what went wrong  
+  So the answer to "why has nothing come out" is on the screen in the room the label was sent from, rather than in a log on the Pi.
+- a job can be taken off the queue before it is claimed
+- a claimed job that is never finished comes back  
+  An agent takes a lease, not the job.
+- a finished job does not come back
+- what has finished is swept after a week  
+  The queue is a list of what is about to happen, not an archive.
+- what is still waiting is never swept  
+  An agent switched off for a fortnight is an ordinary state, not a reason to throw its work away.
+- every route behind the agent prefix asks for a key  
+  The gate lets this prefix through without a login, because which agent is asking is the route's answer and not the gate's (ADR-0025).
+- the prefix the gate opens is the one the routes are under  
+  Two strings written in two modules that have to agree, and nothing else would notice if they stopped: the gate would send an agent to the login page, or -- the way that matters -- open a door the routes are not behind.
+- an agent named with no key is not an agent  
+  An empty key must never match anything.
+- an entry naming a stock that does not exist is dropped  
+  Rather than printing the wrong size on a printer somebody is not watching.
+- a key is not a password and a password is not a key  
+  The two doors do not open each other: the owner's credentials are not an agent's key, and an agent's key is not the owner's credentials.
 
 
 ## Api
@@ -1194,7 +1283,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 10 behaviours*
+*test_deployment.py — 11 behaviours*
 
 
 **The api trusts its proxy**
@@ -1222,6 +1311,10 @@ Regenerate with:
   So a development run migrates first and reads the proxy headers exactly as production does, rather than carrying its own copy of the uvicorn line that drifts from the real one.
 - it watches the code and not the photographs  
   uvicorn watches its whole working directory unless told otherwise, and the photograph volume is inside it: every upload would restart the server.
+
+**Every setting reaches the container**
+
+- every documented variable is passed to a service
 
 
 ## Drivedb
@@ -1844,6 +1937,153 @@ Regenerate with:
   The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
 
 
+## Locations
+
+*test_locations.py — 67 behaviours*
+
+
+**Recording where something is**
+
+- a machine records one and shows it
+- a part does too
+- an item starts with nowhere recorded  
+  Nothing is inferred.
+- the machine form saves one
+- the part form saves one
+- the form can take it back off  
+  Things move out of a crate as well as into one, and a place that is no longer true is worse than none.
+- a duplicate does not carry it across  
+  A duplicate copies what describes the model, not where this one sits.
+- a parts own answer stands beside where it is installed  
+  The card-in-a-drawer case.
+
+**A row older than the feature**
+
+- a machine older than the column reads as blank
+- a part older than the column reads as blank
+- the lists survive one  
+  The half that made it a 500 rather than an untidiness: the response is validated as a whole list, so one row older than the feature took every caller's `GET /api/computers` with it -- and the MCP tools with that.
+- the pages survive one as well  
+  The gallery and the item pages read the column too, and a search reads it off every row at once.
+- such a row is still placed by what it is fitted in  
+  And the derived answer works over it, which it could not if blank had two spellings -- `inherited` reads the column and strips it.
+- the migrated schema leaves no nulls to find  
+  Read off the database the migrations built (conftest runs the real ones), rather than off the models that describe it.
+- the column cannot hold one  
+  The belt to the server default's braces.
+
+**A part is where what it is fitted in is**
+
+- a part in a machine is shown the machines location
+- the page says whose answer it is showing  
+  Otherwise it reads as something somebody typed on this part, and the first thing anybody would do about a wrong one is edit the part -- which is the one record that cannot fix it.
+- a chip on a board in a machine is in the machine  
+  The chain runs as far as it has to.
+- what it is mounted on answers before what it is installed in  
+  A chip on a board is where the board is, even when the machine the board is in says something else: the nearer answer is the more specific one, and a board out on the bench has its own parts on the bench with it.
+- a part that says for itself is not given an answer
+- clearing the box hands the part back to its machine  
+  The way round the manual promises: type an answer and it wins, take it out and the part follows what it is fitted in again.
+- a standalone part is shown nothing
+- a part in a machine nobody has placed is shown nothing  
+  A chain that runs out yields nothing rather than an empty row.
+- moving the machine moves everything in it  
+  One edit, because nothing was written against the parts to go stale.
+- an inherited answer is not written to the part  
+  Derived, and the column is the evidence: nothing stored means nothing to correct when the machine moves.
+- a part mounted on itself does not hang the page  
+  Nothing in the register can build one -- the forms do not offer it -- but a walk that trusts that is a page that never finishes loading if one ever exists.
+
+**An inherited answer is not remembered**
+
+- it does not join the table
+- it is offered once and not twice  
+  The machine's own answer is on the list because the machine is kept there; the four cards in it do not put it there four more times.
+- emptying the machine does not leave the place in use  
+  What is in use is what somebody has written down.
+
+**Being offered where things go**
+
+- both forms offer a location already used
+- machines and parts share one list  
+  One crate holds both, so one list names it.
+- an edit form offers them as well  
+  An edit is where a spelling turns into a second one.
+- the box does not offer the browsers own memory instead  
+  A box called `location` is one every other site on the web has too, and the browser's memory of those would be offered over the register's answers.
+
+**Remembering where nothing is kept now**
+
+- a location cleared off its last item is still offered
+- a place in use is offered once rather than twice  
+  It is in the register and in the memory of the register, and those are one answer to the question the box asks.
+- what is in use comes before what is only remembered  
+  The crate something is in now is the likelier answer than the one it was in last year.
+- the gui teaches it as well as the api  
+  Both doors, because the forms are where most of these are typed.
+- a part teaches it too
+- nothing is written while the switch is off
+- a cleared location is not offered while the switch is off  
+  Off is not a broken mode: it is the behaviour every other pick list on this site has, which is the register asked a question about itself.
+
+**Turning it off forgets rather than hides**
+
+- switching off deletes what was remembered
+- switching back on does not bring it back  
+  The whole shape of the promise, end to end: used, cleared, forgotten, and still gone when remembering is asked for again.
+- a later save while it is off purges again  
+  The delete runs on every save made while the switch is off rather than on the save that turned it off, so the promise does not turn on a transition nobody can see.
+- it is on to begin with
+
+**Who is told where things are**
+
+- a site keeps locations to itself by default
+- a visitor is shown no location row
+- a visitors search does not match on it  
+  The half that is easy to miss.
+- the owners search does match on it  
+  The other direction, so what is private is a rule about who is asking rather than a column quietly dropped from the search for everybody.
+- the gallery carries it to nobody  
+  The cards used to hold a condensed blob the browser filtered on, and the question was who it was written for.
+- turning it on shows a visitor the row
+- turning it on lets a visitor search on it
+- a visitor is shown no inherited location either  
+  The gate is on the answer and not on the column, or a part would publish what its machine keeps back.
+- a visitors search does not match on an inherited one
+- turning it on shows and finds an inherited one
+- the owner is shown it either way
+- the pick list is never offered to a visitor  
+  Whichever way the switch is set.
+
+**Finding what is in there**
+
+- an installed part is found by its machines location
+- the suggestion list agrees with the search  
+  The two are meant to be one answer seen twice, so a part findable in one and not the other is the pair disagreeing.
+- a chip deep in a machine is found too
+- a part kept somewhere else is not found by its machines location  
+  It is not there, and the page does not say it is.
+- no card carries the inherited answer either  
+  The inherited answer is findable by searching for it, which the tests above hold; what it is not is written into the gallery's markup.
+
+**The hidden columns are asked for rather than assumed**
+
+- a setting gated column joins the owner only ones for a visitor
+- turning the setting on takes it back out
+- an item with nowhere recorded reads identically for both  
+  Hidden columns are blanked and not dropped, so who is asking changes what the haystack says and never how many fields it has -- otherwise the seams a quoted phrase must not match across move depending on the reader.
+
+**The page says what these are**
+
+- both switches are on the settings page with their reasons  
+  A control says what it is and the reason is behind it (interface-text).
+- they are server options
+
+**The decision is written down**
+
+- the adr is there and indexed
+
+
 ## Login and confirm pages
 
 *test_login_and_confirm_pages.py — 23 behaviours*
@@ -2461,7 +2701,7 @@ Regenerate with:
 
 ## Projects
 
-*test_projects.py — 121 behaviours*
+*test_projects.py — 131 behaviours*
 
 
 **A register asset**
@@ -2535,6 +2775,22 @@ Regenerate with:
 - an unknown status falls back rather than being stored
 - the three dates are independent  
   A project can be finished without ever having been started -- the part turned up and it took an evening.
+
+**Marking one done**
+
+- one click finishes it
+- the finish date is today where none was recorded
+- a finish date already recorded is kept  
+  It says when the work actually stopped.
+- it is written into the history
+- the button is there while there is something to finish
+- there is no button once it is over  
+  Done and abandoned both.
+- a visitor is not offered it
+- a visitor cannot finish one
+- a project that is nothing cannot be finished
+- a finished project leaves the menu of projects going  
+  The picker on the entry forms asks what a thing arriving today could be joining, and a finished project is not an answer to that.
 
 **The list**
 
@@ -2787,6 +3043,107 @@ Regenerate with:
 - the suite itself runs open and says so  
   conftest pops both credentials -- that is how the suite gets to be the owner -- and then sets RHDB_OPEN, because it meant to.
 - the decision is written down
+
+
+## Settings
+
+*test_settings.py — 39 behaviours*
+
+
+**Reaching the page**
+
+- the page is behind the login  
+  It changes the site rather than reads it, so it goes where the new and edit forms go: nowhere a visitor can reach.
+- saving is behind the login too  
+  The gate is on the method as much as the path: a page nobody can open is still a page somebody can post to.
+- the menu offers it to the owner
+- the menu does not offer it to a visitor  
+  A link to a page that answers with the login is an invitation to a door that is not yours, and it is how the traffic link and the shortlist are already handled.
+- a phone is offered it as well  
+  A control the desktop menu has and the phone's More sheet does not is a control that does not exist on half the devices the register is used from, and the sheet is where a phone looks for all of this.
+
+**What the site is called**
+
+- it starts as the name the software ships with
+- the name reaches the banner the tab and the foot of the page
+- the name reaches a shared link  
+  What a link unfolds into in a chat window is the site introducing itself to somebody who has never seen it.
+- an empty name goes back to the shipped one  
+  Blank is not a name, and a site with no name in its banner is a site that looks broken rather than one that looks unnamed.
+- the api documentation keeps the software s name  
+  The installation is renamed; the software is not.
+
+**Search engines**
+
+- a site is listed by default  
+  A catalogue meant to be found wants to be found, so the box that would stop it is the one you have to tick.
+- blocking tells every page not to be filed
+- a page that was already private stays that way  
+  The login page has said noindex on its own since long before this setting, and leaving the setting on must not publish it.
+- the crawler is still let in  
+  A crawler refused entry in robots.txt never reads the page, never sees the instruction not to list it, and files the address anyway from whatever links to it -- so asking to be left out means letting the crawler in.
+- the sitemap stops being advertised  
+  Asking not to be listed while handing over a list of everything to list is two answers to one question.
+
+**Photographs**
+
+- photographs are watermarked by default
+- turning it off serves the photograph unmarked  
+  The original on disk was never touched, so there is nothing to undo: the mark stops being composited in and what is served is the file.
+- a reference photograph is never watermarked either way  
+  Marking somebody else's picture would be claiming it.
+- the montage is rebuilt rather than kept as it was  
+  A share card made of four photographs has the mark composited into it too, and it is cached by content -- so the flag has to be part of what names the file, or turning it off leaves every card as it was.
+
+**The theme**
+
+- a site follows the reader s system by default  
+  No attribute on the document element is what lets the stylesheet's prefers-color-scheme block decide, which is the rule it is guarded by.
+- a chosen default is on the page before it is painted  
+  Server-rendered rather than left to the script, because the script that reads the browser's own choice runs before paint for exactly this reason: a theme applied afterwards is a white flash on every page.
+- the default is chosen from a menu  
+  A menu and not a row of buttons, because the list is expected to grow and a fourth choice should cost a line rather than a redesign.
+- the menu button is still there  
+  The device's own choice is made where it always was, on any page, and goes on overruling the default.
+
+**Set in the environment**
+
+- the environment wins  
+  A deployment that set the variable has said something deliberate, and a click that was forgotten at the next restart would be worse than one that never happened.
+- saving cannot overrule it
+- the pinned control shows the value and refuses to be changed  
+  The pinned value is off, so the box is unticked -- and cannot be ticked.
+- the page says once what greyed means  
+  A control that will not take an answer has to say why, or it is a bug report -- the same rule ADR-0019 applies to the open site.
+- nothing pinned says nothing  
+  There is no such thing as a greyed option on this installation, so an explanation of what one would mean is noise.
+- unsetting it hands the setting back  
+  Which is the way out the manual promises: change it where it is set, or unset it and the page has it again.
+- an empty variable is not a pin  
+  Compose passes `${RHDB_WATERMARK:-}`, so an unset variable arrives as an empty string rather than as nothing at all -- which is how a whole stack would otherwise come up pinned to a value nobody chose.
+
+**How the page reads**
+
+- a control says what it is and the reason is behind it  
+  The rule the whole page is built on: the label is a few words and the paragraph that used to sit under it is a tooltip on the row.
+- the settings are grouped into named sections  
+  A flat list of four is a list; a flat list of fifteen is a search.
+- a setting written out of place joins its own section  
+  Rather than opening a second fieldset with the same legend, which is what filtering per section would do and nothing would have caught.
+- every row carries its reason  
+  One tooltip per setting, so none of them is the one that was forgotten and left a control with nothing behind it.
+
+**Saving**
+
+- a saved setting survives the page  
+  It is in the database and not in the process, which is the difference between a preference and a mood.
+- saving says so
+- a setting is written once rather than row upon row  
+  A key and a value, not a log.
+- an unknown field in the form is ignored  
+  The form is read through the definitions rather than written from, so a posted name that is not one of them cannot make a row.
+- a choice outside its list is refused  
+  Every choice on the page comes back as one of the words it was offered, and anything else is a form that did not come from the page.
 
 
 ## Share cards
@@ -3049,6 +3406,104 @@ Regenerate with:
   The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
 - a bare 0 1 rule lets every tone past it  
   0.1's `.banner` is kept for the one template still writing the class bare, and is written as a `:not()` list so a migrated page's toned banner falls through to components.css.
+
+
+## The agent on the other machine
+
+*test_the_agent_on_the_other_machine.py — 26 behaviours*
+
+- it claims prints and reports in one pass  
+  The whole of what it does, done once.
+- it prints everything waiting not just the first
+- it asks for as many copies as the job says
+- one copy does not ask for a number  
+  `lp -n 1` is the same as `lp`, and a command line that says only what it means is one somebody can read in a log.
+- it tells cups what roll is loaded  
+  The label is rendered at exactly the size of the stock, so the page has to be that size too.
+- saying nothing about the roll leaves the printer to it  
+  Somebody who has set the default on the printer itself, which is the other right answer, should not have it overruled by a blank.
+- it fetches the format the job asked for
+- nothing waiting is a quiet no  
+  An agent asks for ever; an empty queue must not print, must not report and must not read as a fault.
+- a printer that refuses is reported back in its own words  
+  So the answer to "why has nothing come out" is on the screen in the room the label was sent from, rather than in a log on a Pi under a bench.
+- a wrong key stops rather than retrying for ever  
+  A key the register does not know will not start working.
+- the unit does not restart a wrongly set up agent  
+  The other half of it, and the half that actually stops the storm: the agent can exit as deliberately as it likes if systemd starts it straight back up.
+- being rate limited is reported rather than raised  
+  What a restart loop earns itself.
+- the right key is never rate limited  
+  Only a wrong secret is counted, so an agent whose key is put right works at once rather than serving out somebody else's five minutes.
+- an item deleted before it prints is let go  
+  The register has already failed the job by the time it answers, so there is nothing for the agent to print and nothing for it to report.
+- a dry run prints nothing and leaves the label to look at  
+  For proving the connection on a machine that has no printer attached yet, which is the state this was written in.
+- check says the key works and puts back what it took  
+  A claim is a state change, so a check that finds a job has taken somebody's label off the queue.
+- check shows enough of the key to compare but not the key  
+  The fault it was written for is a key that differs from the server's in a way neither machine can see.
+- check says when a key is too short to be one  
+  Rather than printing most of a short key while claiming to hide it.
+- check on a wrong key says what to look at  
+  Including the one that had cost the most: an edited unit file is not read until daemon-reload, so a key somebody has just fixed can sit unused.
+- check notices whitespace round a key  
+  A key pasted with a trailing space is a key that looks right in every place somebody would look at it.
+- it needs to be told where the register is  
+  Rather than defaulting to something and failing somewhere less obvious -- and as the same "I am set up wrongly" exit the unit refuses to restart on, because an address nobody gave it will not arrive by trying again.
+- the label is not left lying about after it prints  
+  A register behind a login does not leave its labels in /tmp on a machine other people use.
+- the service file matches the script it starts  
+  The unit file is what actually gets installed, and a wrong path in it is a fault discovered over ssh on a machine in another room.
+- the unit sets nothing the script does not read  
+  A variable in the unit that the script ignores is worse than no variable at all: somebody sets it, nothing happens, and there is nothing to say why.
+- the script reads nothing the unit leaves out  
+  And the other direction: a variable the agent needs and the unit does not mention is a service that starts and immediately gives up.
+- it says what it did  
+  The journal on the Pi is the only place anybody can look when the register says a job failed but not why.
+
+
+## The database url is required
+
+*test_the_database_url_is_required.py — 4 behaviours*
+
+- uses the configured url when present
+- refuses to start without one
+- says how to set it rather than only that it is missing
+- the message carries no password anybody could paste
+
+
+## The niimbot packets
+
+*test_the_niimbot_packets.py — 15 behaviours*
+
+- the checksum rule matches what a real printer sends  
+  Command, length and every byte of the data, exclusive-ored together.
+- every packet is wrapped the way the driver wraps one
+- the driver sends the commands it means to  
+  The numbers are the protocol's, and a keystroke's difference between 0x83 and 0x85 is a printer that does nothing and says nothing about why.
+- the driver waits for the answers those commands have  
+  Every one of them is the command plus one, except the four that are not -- which is exactly why they are written down rather than worked out.
+- it says which printers it is for  
+  Other models differ in the print sequence rather than in the framing, so a driver that quietly claimed to be general would fail on a D11 in a way nobody could read.
+- it says where it came from  
+  It is a reimplementation of somebody else's reverse engineering, and the licence it was read under asks for the notice that honesty would ask for anyway.
+- the chooser looks for the name as well as the service  
+  A NIIMBOT serves that service and does not necessarily advertise it -- an advertisement has 31 bytes and these printers spend them on their name.
+- there is a way past a chooser that shows nothing  
+  Filters behave differently in Bluefy, which is the only browser that reaches Bluetooth on iOS, and differently enough that the Web Bluetooth group has an open report about it with no answer in it.
+- picking the wrong thing from the wide chooser says so  
+  In a list of every radio in the room it is entirely possible to pick a pair of headphones, and "no suitable characteristic" is not a sentence about that.
+- a refused connection says what to do about it  
+  A BLE printer talks to one thing at a time, and the thing holding it is almost always the vendor's own app.
+- a row of a few dots is a list of where they are  
+  Not an optimisation, and not optional.
+- the driver sends that packet for a row of a few dots
+- the driver uses the numbers the protocol uses  
+  `SINGLE_COLOUR = 1` cost a day of looking at labels.
+- a status reply is read for what it says not that it came  
+  page is two bytes, then how far through printing and feeding, then -- in the long form only -- the error.
+- the driver waits for the page rather than for an answer
 
 
 ## Type checking
@@ -3427,3 +3882,32 @@ Regenerate with:
 - an items photograph becomes the card
 - a placeholder is skipped for a real photograph behind it  
   The first thing with a real photo, not the first thing.
+
+
+## Where a small label goes
+
+*test_where_a_small_label_goes.py — 13 behaviours*
+
+- the destinations are a pdf bluetooth and every printer configured  
+  The list is worked out rather than written down: the printers come from the environment, so a list in the template could only ever be out of date.
+- a printer that is not configured is not offered
+- a printer says what stock is in it  
+  So a menu of printers is a menu of what will actually come out, rather than a list of names somebody has to remember the tape sizes for.
+- the bluetooth stock is offered from the stocks that exist  
+  And only the Niimbot ones: a Bluetooth printer is not going to be handed a 6x4 inch sheet.
+- the default can be set to a configured printer
+- a destination that is not on offer is refused  
+  The same reading `clean` takes of every other menu: an answer that was not offered did not come from this page.
+- a fresh install hands out a pdf  
+  Which is what the button did before there was anywhere else for it to go, so an installation that upgrades and changes nothing notices nothing.
+- every item page says what its button is for  
+  The button is a link to a PDF in the markup.
+- the page is told where labels go
+- the settings page and an item page are told the same thing  
+  One answer, read twice.
+- the button still links to a pdf  
+  With no script, or on a device that has chosen nothing, pressing it gets the file it has always got.
+- the device menu is hidden until the script fills it  
+  A menu that is nothing but script says nothing useful before the script has run, and a menu that forgets what you tell it is worse than no menu.
+- nothing about the destination is written inline  
+  The content policy is `self` throughout and the suite holds the markup to it (ADR-0021).

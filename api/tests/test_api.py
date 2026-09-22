@@ -1982,7 +1982,7 @@ class TestTheCookieNotice:
         page = served(client, client.get("/").text)
         note = page[page.index('id="cookienote"') :]
         assert "position: fixed" in page and 'class="card"' in page
-        assert "got it" in note[:600]
+        assert "Got it" in note[:600]
 
 
 class TestTheGalleryOpensShuffled:

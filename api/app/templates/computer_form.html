@@ -142,6 +142,7 @@
                  choices=[('', 'Not recorded')] + ([cur] if cur and cur not in conditions else []) + conditions) }}
       {{ fld('source', 'Source', "where / how acquired", dl='source') }}
       {{ fld('acquired_date', 'Acquired date', type='date') }}
+      {{ fld('location', 'Location', "where it is kept — Loft, blue crate 3", dl='location') }}
       {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
     </div>
   </fieldset>

@@ -357,6 +357,13 @@
                  list='dl_sources', autocomplete='off') }}
       {{ U.field('acquired_date', 'Acquired date', value=(p.acquired_date if p else '') or '',
                  type='date') }}
+      {# Where the part itself is kept, and mostly left empty: a part fitted in
+         something is shown that thing's location instead, so this box is for the
+         card in a drawer rather than the card in a machine. Offered the places
+         already used, machines and parts together, because one crate holds both.
+         autocomplete="off" for the reason the source box has it. #}
+      {{ U.field('location', 'Location', value=(p.location if p else '') or '',
+                 list='dl_locations', autocomplete='off') }}
       {{ U.field('url', 'Reference URL', value=(p.url if p else '') or '') }}
     </div>
   </fieldset>
