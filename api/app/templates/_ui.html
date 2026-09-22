@@ -1,0 +1,182 @@
+{# The v0.2 components as macros (ADR-0024): one macro to a design-system card of the
+   same name, so a page says what a thing is and the markup that draws it is written
+   once. Import with {% import "_ui.html" as U %} and call {{ U.button('Save') }}.
+
+   These are the ones that need nothing from the page but their arguments. A
+   component that reads a page's own data -- the gallery card, the item card, the
+   banner, the tab bar and menu, the rail, the upload rows -- is written beside the
+   first template that feeds it, so its signature is shaped by a real caller rather
+   than a guessed one. The panel stays in _panel.html.
+
+   The words on anything a person presses or reads as a status go through `ui`,
+   which follows the installation's Button text setting (web.button_text). Labels,
+   legends and headings never do.
+
+   Each macro is written with its whitespace trimmed: they are inline markup, and a
+   stray newline inside a button or a table cell is a stray space on the page. #}
+{% import "_icons.html" as I %}
+
+{# A button, or a link drawn as one when it has an `href`. `kind` is primary or
+   danger; `size` is sm. An icon beside a word is decoration; with `icon_only` the
+   label becomes the button's name instead of words beside the drawing. `pressed`
+   makes it a toggle: true draws it on, and either value tells a screen reader it
+   is one, which the drawing alone does not. A disabled link keeps its place and
+   loses its href, since a link cannot be disabled any other way. #}
+{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none) -%}
+{%- set cls = ['btn', kind, size, 'icon' if icon_only else '', 'on' if pressed else ''] | select | join(' ') -%}
+{%- set text = label | ui -%}
+{%- set named %}{% if icon_only %} aria-label="{{ text }}"{% endif %}{% endset -%}
+{%- set inner %}{% if icon %}{{ I.ico(icon) }}{% if not icon_only %} {% endif %}{% endif %}{% if not icon_only %}{{ text }}{% endif %}{% endset -%}
+{%- if href and not disabled -%}
+<a class="{{ cls }}" href="{{ href }}"{{ named }}>{{ inner }}</a>
+{%- elif href -%}
+<a class="{{ cls }}" aria-disabled="true"{{ named }}>{{ inner }}</a>
+{%- else -%}
+<button class="{{ cls }}" type="{{ type }}"
+{%- if name %} name="{{ name }}"{% endif %}
+{%- if value != '' %} value="{{ value }}"{% endif %}{{ named }}
+{%- if pressed is not none %} aria-pressed="{{ 'true' if pressed else 'false' }}"{% endif %}
+{%- if disabled %} disabled{% endif %}>{{ inner }}</button>
+{%- endif -%}
+{%- endmacro %}
+
+{# A labelled control. `kind` is text, area (a textarea), choice (a select, from
+   `choices`: values, or (value, words) pairs) or switch (a tick with its label
+   beside it). The `key` is the control's name and id, so an error summary can link
+   to it. `note` is the explanation, and goes in a title on the row so hovering the
+   label reaches it too. `pinned` is a value set by the environment: shown, and not
+   editable. `error` is the one explanation printed rather than hovered -- under the
+   control, tied to it for a screen reader, and marked invalid. #}
+{% macro field(key, label, kind='text', value='', choices=[], note='', pinned=false, error=none) -%}
+{%- set cls = ['field', 'is-pinned' if pinned else '', 'is-invalid' if error else ''] | select | join(' ') -%}
+{%- set attrs %}{% if error %} aria-invalid="true" aria-describedby="{{ key }}-err"{% endif %}{% if pinned %} disabled{% endif %}{% endset -%}
+<div class="{{ cls }}"{% if note %} title="{{ note }}"{% endif %}>
+{%- if kind == 'switch' -%}
+<label class="check"><input type="checkbox" id="{{ key }}" name="{{ key }}" value="1"{% if value %} checked{% endif %}{{ attrs }}> {{ label }}</label>
+{%- else -%}
+<label for="{{ key }}">{{ label }}</label>
+{%- if kind == 'area' -%}
+<textarea class="input" id="{{ key }}" name="{{ key }}"{{ attrs }}>{{ value }}</textarea>
+{%- elif kind == 'choice' -%}
+<select class="select" id="{{ key }}" name="{{ key }}"{{ attrs }}>
+{%- for c in choices %}{% set v, words = c if c is sequence and c is not string else (c, c) -%}
+<option value="{{ v }}"{% if v | string == value | string %} selected{% endif %}>{{ words | ui }}</option>
+{%- endfor -%}
+</select>
+{%- else -%}
+<input class="input" id="{{ key }}" name="{{ key }}" value="{{ value }}"{{ attrs }}>
+{%- endif -%}
+{%- endif -%}
+{%- if error %}<p class="err" id="{{ key }}-err">{{ error }}</p>{% endif -%}
+</div>
+{%- endmacro %}
+
+{# What stopped a save, at the top of the form: how many things, each a link to its
+   field. `errors` is a list of (key, label, message). role="alert" so a screen
+   reader hears it, and tabindex="-1" so the page can move focus to it and a
+   keyboard user starts from there. Nothing at all when there is nothing to fix. #}
+{% macro error_summary(errors) -%}
+{%- if errors -%}
+<div class="errsum" role="alert" tabindex="-1"><h2>{{ errors | length }} thing{{ '' if errors | length == 1 else 's' }} to fix before this can be saved</h2><ul>
+{%- for key, label, message in errors %}<li><a href="#{{ key }}">{{ label }}</a> — {{ message }}</li>{% endfor -%}
+</ul></div>
+{%- endif -%}
+{%- endmacro %}
+
+{# A short fact about a thing. `tone` is ok, warn, bad or quiet. A chip that links
+   names a thing, so its words are left as written; any other chip reads as one
+   vocabulary with the buttons beside it and follows the same setting. #}
+{% macro chip(text, tone='', href='') -%}
+{%- if href -%}
+<a class="chip" href="{{ href }}">{{ text }}</a>
+{%- else -%}
+<span class="{{ ['chip', tone] | select | join(' ') }}">{{ text | ui }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{# Rows of things. `cols` is a list of (heading, class); the class reaches the
+   heading and every cell under it (num, tight). `rows` is a list of cell lists --
+   pass Markup for a cell that holds a link or a chip. A table of more than three
+   columns has to choose what it does on a phone: `stack` turns each row into a
+   block under 560px, and every cell after the first carries its heading in
+   data-label, written here so a new column cannot forget it; `scroll` keeps rows
+   as rows in a box of their own. `plain` is for three columns or fewer.
+
+   The headings are the table's first row, not a <thead>: the stacking rule hides
+   tr:first-child, and under a <thead> that would be the first row of data too. #}
+{% macro table(cols, rows, mode='stack') -%}
+{%- set t -%}
+<table class="table{{ ' stack' if mode == 'stack' else '' }}"><tr>
+{%- for heading, c in cols %}<th scope="col"{% if c %} class="{{ c }}"{% endif %}>{{ heading }}</th>{% endfor -%}
+</tr>
+{%- for row in rows %}<tr>
+{%- for cell in row %}{% set heading, c = cols[loop.index0] -%}
+<td{% if c %} class="{{ c }}"{% endif %}{% if mode == 'stack' and not loop.first %} data-label="{{ heading }}"{% endif %}>{{ '' if cell is none else cell }}</td>
+{%- endfor -%}
+</tr>{% endfor -%}
+</table>
+{%- endset -%}
+{%- if mode == 'scroll' %}<div class="hscroll">{{ t }}</div>{% else %}{{ t }}{% endif -%}
+{%- endmacro %}
+
+{# A message about the page rather than in it. `tone` is warning, danger, success or
+   nothing; add toast for the notice that floats. The lead word says what kind of
+   message it is, so the colour is never the only telling. Danger interrupts a
+   screen reader; the rest wait their turn. #}
+{% macro banner(tone, lead, text='') -%}
+<div class="{{ ['banner', tone] | select | join(' ') }}"
+{%- if tone %} role="{{ 'alert' if 'danger' in tone.split() else 'status' }}"{% endif %}><b>{{ lead }}</b>
+{%- if text %}<span>{{ text }}</span>{% endif %}</div>
+{%- endmacro %}
+
+{# One figure on the numbers page, with what it is and what it is out of. #}
+{% macro stattile(label, value, note='') -%}
+<div class="stattile"><div class="k">{{ label }}</div><div class="v">{{ value }}</div>
+{%- if note %}<div class="n">{{ note }}</div>{% endif %}</div>
+{%- endmacro %}
+
+{# Ranked bars: `rows` is a list of (label, count), each bar measured against the
+   largest. The length is a class whose rule datacss generates, in the half-percent
+   steps it generates them in, because the content policy allows no style attribute
+   (ADR-0022). The number is printed beside every bar, so the bar is never the only
+   carrier and the track can be hidden from a screen reader. #}
+{% macro bars(rows) -%}
+{%- set top = (rows | map(attribute=1) | max) if rows else 0 -%}
+<div class="bars">
+{%- for label, n in rows -%}
+<span>{{ label }}</span><span class="track" aria-hidden="true"><i class="fill w-{{ ((1000 * n / top / 5) | round | int) * 5 if top else 0 }}"></i></span><span class="n">{{ n }}</span>
+{%- endfor -%}
+</div>
+{%- endmacro %}
+
+{# Above an item: back to the list, where this is in it, and its neighbours. A
+   missing neighbour is left out rather than disabled -- there is nothing to say
+   about a button that cannot be pressed. rel so a crawler can walk the list; the
+   arrows are drawing, and not read out. #}
+{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='') -%}
+<nav class="itemnav" aria-label="Item"><a href="{{ back_href }}"><span aria-hidden="true">←</span> {{ back_label }}</a>
+{%- if position %}<span class="where">{{ position }}</span>{% endif %}<span class="push"></span>
+{%- if prev_href %}<a class="btn sm" href="{{ prev_href }}" rel="prev"><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif %}
+{%- if next_href %}<a class="btn sm" href="{{ next_href }}" rel="next">{{ 'Next' | ui }} <span aria-hidden="true">›</span></a>{% endif -%}
+</nav>
+{%- endmacro %}
+
+{# Under a list that runs to more than one page. `href` is the URL up to the page
+   number (`/?sort=new&page=`). One page needs no pager. #}
+{% macro pager(page, pages, href) -%}
+{%- if pages > 1 -%}
+<nav class="pager" aria-label="Pages">
+{%- if page > 1 %}<a class="btn sm" href="{{ href }}{{ page - 1 }}" rel="prev"><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif -%}
+<span class="where">Page {{ page }} of {{ pages }}</span>
+{%- if page < pages %}<a class="btn sm" href="{{ href }}{{ page + 1 }}" rel="next">{{ 'Next' | ui }} <span aria-hidden="true">›</span></a>{% endif -%}
+</nav>
+{%- endif -%}
+{%- endmacro %}
+
+{# A drive bezel's shade as made and how far it has yellowed. The colour is a class
+   whose rule datacss generates from the vocabulary in entry.py, so this swatch and
+   the chart cannot disagree; no shade is hatched. The words are always written
+   beside it, so the swatch itself is decoration. `size` is sm for inline use. #}
+{% macro bezel(shade, yellowing, size='') -%}
+<span class="{{ ['bezel', bezel_class(shade, yellowing) or 'none', size] | select | join(' ') }}" aria-hidden="true"></span>
+{%- endmacro %}

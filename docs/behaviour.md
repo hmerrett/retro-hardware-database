@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1422 behaviours, from 38 files.*
+*1482 behaviours, from 39 files.*
 
 
 ## A file where text was expected
@@ -2659,6 +2659,105 @@ Regenerate with:
 - a typed module may not call into an untyped one  
   ``untyped_calls_exclude`` was how a typed module was allowed to call one that was not there yet.
 - a type ignore says why on the line above it
+
+
+## Ui macros
+
+*test_ui_macros.py — 60 behaviours*
+
+
+**The ui filter**
+
+- lower case takes the capital off the first word
+- an acronym keeps its capitals
+- a first word in mixed case is a name and is left alone
+- only the first word changes
+- capitalised leaves the words as written
+- the filter follows the installation default of capitalised
+- markup stays markup
+
+**Button**
+
+- a button is a button of type button by default
+- kind and size become classes
+- an href makes it a link drawn the same
+- an icon beside a word is hidden from a screen reader
+- an icon only button names itself from its label
+- a name and value are posted with the form
+- disabled is said to the browser
+- a disabled link goes nowhere and says so
+- a pressed toggle says it is pressed and is drawn on
+- an unpressed toggle says so too
+- the label is escaped
+
+**Field**
+
+- a text field labels its control
+- a note goes in a title on the row
+- an area is a textarea holding its value
+- a choice marks the current value selected
+- a choice can show words other than the value
+- a switch is a tick with its label beside it
+- a pinned field is disabled and says it is
+- an error marks the field and prints the message under it
+- no error leaves no trace
+- an error on a choice is tied to the select
+
+**Error summary**
+
+- nothing when there is nothing to fix
+- it counts the errors and links each to its field
+- one is one thing
+
+**Chip**
+
+- a plain chip
+- a tone is a class
+- a chip with an href is a link
+
+**Table**
+
+- every heading carries scope
+- stacked every cell after the first says what it is
+- a column class reaches its heading and its cells
+- the heading row is the tables first row
+- scroll wraps the table in its own box
+- plain is just a table
+- a cell of markup is kept and a cell of text is escaped
+
+**Banner**
+
+- a warning is a status with its lead word first
+- danger interrupts
+- a toast is the same banner with a class
+- no text leaves no empty span
+
+**Stats**
+
+- a stat tile has its label value and note
+- bars are sized by class against the largest
+- bars of nothing do not divide by zero
+- every bar width has a rule to paint it
+
+**Navigation**
+
+- itemnav has back position and neighbours
+- a missing neighbour is left out not disabled
+- the arrows are not read out
+- pager links the pages either side
+- pager leaves out what is not there
+- one page needs no pager
+
+**Bezel**
+
+- a recorded bezel takes its generated class
+- no shade is hatched
+- small is a class
+
+**Icons**
+
+- the nine new icons are drawn
+- every icon is hidden from a screen reader
 
 
 ## Wanting work

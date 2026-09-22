@@ -13,6 +13,7 @@ and the history stamp. main registers those on this same object, and they will
 follow their own helpers out when those move.
 """
 
+import re
 from collections.abc import Mapping, Sequence
 from datetime import date
 from pathlib import Path
@@ -65,6 +66,34 @@ templates.env.globals.update(
 # prose, notes, spec values, history entries -- and never for an attribute, which
 # cannot hold an anchor and would only get the escaping.
 templates.env.filters["linked"] = entry.linked
+
+# The first word of a button, a menu item, a tab or a status chip, as the Button
+# text setting wants it. The setting arrives with the preferences page (ADR-0023);
+# until then every installation has the default.
+BUTTON_CASE = "cap"
+_FIRST_WORD = re.compile(r"[^\W\d_]+")
+
+
+def button_text(text: str, case: str) -> str:
+    """`text` with its first word lower-cased when `case` is "lower".
+
+    On the server rather than by `text-transform`, because CSS cannot spare an
+    acronym: `API docs` and `OK` keep their capitals. Only a word written Like This
+    is touched -- that is the shape sentence case gives a first word, so anything
+    else (`MacBook`, `CPU`) was spelt that way on purpose. Markup stays Markup:
+    changing the case of letters cannot make or break a tag."""
+    m = _FIRST_WORD.search(text)
+    if case != "lower" or m is None or m.group() != m.group().capitalize():
+        return text
+    lowered = text[: m.start()] + m.group().lower() + text[m.end() :]
+    return Markup(lowered) if isinstance(text, Markup) else lowered
+
+
+def _ui(text: object) -> str:
+    return button_text(text if isinstance(text, str) else str(text), BUTTON_CASE)
+
+
+templates.env.filters["ui"] = _ui
 
 # The share card for a page with no photograph of its own: the logo on its own
 # cream, opaque and at the 1.91:1 those slots want (tools/make_icons.py makes it).
