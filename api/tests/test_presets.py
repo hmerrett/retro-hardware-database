@@ -14,6 +14,7 @@ as painted over the page.
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -90,6 +91,22 @@ def test_the_stylesheets_are_the_ones_the_design_data_writes():
         if not path.exists() or path.read_text(encoding="utf-8") != text
     ]
     assert stale == [], "run `python tools/build_presets.py`; these differ from the design data"
+
+
+def test_every_font_is_served_from_the_site_with_its_licence():
+    """The faces are ours to serve, not a font service's: the CSP allows no other
+    origin, and a face that is named but missing falls back without a word, so the
+    page looks right to whoever has the font installed and wrong to everyone else.
+    The OFL asks for the licence to travel with the files."""
+    static = APP / "static"
+    tokens = (static / "css" / "tokens.css").read_text(encoding="utf-8")
+    sources = re.findall(r'src:\s*url\("([^"]+)"\)', tokens)
+    assert len(sources) == 7, "two weights of the serif and the mono, three of the sans"
+    for src in sources:
+        assert src.startswith("/static/fonts/"), f"{src} is not served from this site"
+        assert (static / src.removeprefix("/static/")).is_file(), f"{src} is not on disk"
+    for folder in {Path(src).parent.name for src in sources}:
+        assert (static / "fonts" / folder / "OFL.txt").is_file(), f"{folder} has no licence"
 
 
 def test_every_preset_states_every_colour_in_both_modes():

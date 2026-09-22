@@ -2,7 +2,11 @@
  "name": "Retro Hardware Database",
  "version": 2,
  "type": {
-  "fonts": [],
+  "fonts": [
+   {"family": "Source Serif 4", "folder": "source-serif-4", "weights": [400, 600]},
+   {"family": "IBM Plex Sans", "folder": "ibm-plex-sans", "weights": [400, 500, 600]},
+   {"family": "IBM Plex Mono", "folder": "ibm-plex-mono", "weights": [400, 600]}
+  ],
   "families": {
    "display": "\"Source Serif 4\", Georgia, serif",
    "ui": "\"IBM Plex Sans\", system-ui, sans-serif",

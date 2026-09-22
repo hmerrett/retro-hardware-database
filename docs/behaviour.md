@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1416 behaviours, from 37 files.*
+*1417 behaviours, from 37 files.*
 
 
 ## A file where text was expected
@@ -2063,10 +2063,12 @@ Regenerate with:
 
 ## Presets
 
-*test_presets.py — 3 behaviours*
+*test_presets.py — 4 behaviours*
 
 - the stylesheets are the ones the design data writes  
   tokens.css and the preset files are generated.
+- every font is served from the site with its licence  
+  The faces are ours to serve, not a font service's: the CSP allows no other origin, and a face that is named but missing falls back without a word, so the page looks right to whoever has the font installed and wrong to everyone else.
 - every preset states every colour in both modes  
   A token a preset leaves out is inherited from the default preset underneath, which is a colour chosen for a different page -- a black band's text left white-on-white, say.
 - every pair holds in every preset and mode  

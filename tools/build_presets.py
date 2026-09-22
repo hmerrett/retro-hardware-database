@@ -63,10 +63,32 @@ def _scales(scales: dict) -> dict[str, str]:
     return values
 
 
+def font_faces(scales: dict) -> str:
+    """One `@font-face` per family and weight, served from the site itself.
+
+    Latin only, and `swap`: the fallbacks in the family stacks are the system's own
+    serif, sans and mono, so text is readable at once and the face arrives over it.
+    The files come from this origin because the CSP allows nothing else (ADR-0021).
+    """
+    return "".join(
+        "@font-face {\n"
+        f'  font-family: "{font["family"]}";\n'
+        "  font-style: normal;\n"
+        f"  font-weight: {weight};\n"
+        "  font-display: swap;\n"
+        f'  src: url("/static/fonts/{font["folder"]}/{font["folder"]}-latin-{weight}.woff2")'
+        ' format("woff2");\n'
+        "}\n"
+        for font in scales["type"]["fonts"]
+        for weight in font["weights"]
+    )
+
+
 def tokens_css(palettes: dict, scales: dict) -> str:
-    """The scales and the default preset: the whole page's tokens when no preset is chosen."""
+    """The faces, the scales and the default preset: the page's tokens when no preset is chosen."""
     return (
         HEADER
+        + font_faces(scales)
         + ":root {\n"
         + _decls(_scales(scales))
         + _decls(_colours(palettes, "light"))
