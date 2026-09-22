@@ -140,6 +140,32 @@ def face_css(palettes: dict, scales: dict) -> str:
     return "".join(out)
 
 
+def type_css(scales: dict) -> str:
+    """The pairings the Type setting offers: each one repointing the three families.
+
+    One file rather than one per pairing, because there are three of them and each
+    is three declarations. It is linked after the chosen preset and not before: a
+    preset names its own faces (Phosphor is monospaced throughout), and an owner who
+    has asked for Ledger has asked to overrule that. The selectors are as specific
+    as a preset's, so the order of the two links is what decides, and base.html says
+    so where it writes them.
+
+    Nothing but the families is declared here. A size or a weight in this file would
+    make choosing a type a change of layout, which is the one thing every look in
+    the register is held to not being -- `test_typefaces.py` reads the file back and
+    fails anything that is not a `--font-` token.
+    """
+    families = scales["type"]["families"]
+    out = ["/* The Type setting: the three families, repointed. Nothing else. */\n"]
+    for name, pairing in scales["type"]["pairings"].items():
+        roles = pairing.get("roles")
+        if not roles:
+            continue
+        values = {f"font-{role}": families[family] for role, family in roles.items()}
+        out.append(f':root[data-type="{name}"] {{\n' + _decls(values) + "}\n")
+    return HEADER + "".join(out)
+
+
 def preset_css(palettes: dict, preset: str) -> str:
     """One preset: what it changes besides colour and its light colours, then its dark ones.
 
@@ -167,7 +193,7 @@ def preset_css(palettes: dict, preset: str) -> str:
 def outputs() -> dict[Path, str]:
     palettes = json.loads((DESIGN / "palettes.json").read_text(encoding="utf-8"))
     scales = json.loads((DESIGN / "scales.json").read_text(encoding="utf-8"))
-    files = {OUT / "tokens.css": tokens_css(palettes, scales)}
+    files = {OUT / "tokens.css": tokens_css(palettes, scales), OUT / "type.css": type_css(scales)}
     for preset in palettes["presets"]:
         if preset != "default":
             files[OUT / "presets" / f"{preset}.css"] = preset_css(palettes, preset)

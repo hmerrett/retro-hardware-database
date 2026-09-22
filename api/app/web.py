@@ -59,6 +59,10 @@ templates.env.globals.update(
     # The look it wears, which is the owner's and never the reader's: the theme
     # above says light or dark within it (ADR-0028).
     site_preset=settings.preset,
+    # Which family does the writing, the interface and the recorded values. Like the
+    # preset it is the installation's and not the reader's, and like the preset the
+    # common answer -- the preset's own three -- is no attribute and no second file.
+    site_type=settings.typeface,
     site_indexed=lambda: not settings.on("block_search_engines"),
     # Whether a reader who is not signed in is told where a thing is kept. The item
     # pages ask it beside `request.state.authed`, which is the other half of the
@@ -72,9 +76,7 @@ templates.env.globals.update(
 templates.env.filters["linked"] = entry.linked
 
 # The first word of a button, a menu item, a tab or a status chip, as the Button
-# text setting wants it. The setting arrives with the preferences page (ADR-0023);
-# until then every installation has the default.
-BUTTON_CASE = "cap"
+# text setting wants it.
 _FIRST_WORD = re.compile(r"[^\W\d_]+")
 
 
@@ -94,7 +96,12 @@ def button_text(text: str, case: str) -> str:
 
 
 def _ui(text: object) -> str:
-    return button_text(text if isinstance(text, str) else str(text), BUTTON_CASE)
+    """The setting is asked on every use rather than read once at import.
+
+    Cheap -- `settings.value` reads a dictionary the module already holds -- and it
+    is what makes the save on the settings page show in the page the save returns,
+    the way the site's name beside it already does."""
+    return button_text(text if isinstance(text, str) else str(text), settings.value("button_case"))
 
 
 templates.env.filters["ui"] = _ui
@@ -118,6 +125,10 @@ templates.env.globals["utilities_ver"] = _file_ver(STATIC_DIR / "css" / "utiliti
 templates.env.globals["preset_ver"] = {
     path.stem: _file_ver(path) for path in sorted((STATIC_DIR / "css" / "presets").glob("*.css"))
 }
+# The three pairings the Type setting offers, all in one file: there are three of
+# them and each is three declarations, so a file apiece would be three requests to
+# save nine lines. Linked only when one of them is chosen.
+templates.env.globals["type_ver"] = _file_ver(STATIC_DIR / "css" / "type.css")
 # The generated stylesheet has no file to hash, so its stamp comes from the text
 # itself -- built at import, like the rules in it (datacss).
 templates.env.globals["data_css_ver"] = DATA_CSS_VER

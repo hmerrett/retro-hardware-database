@@ -8,7 +8,8 @@
    guarded on (ADR-0023). The default preset is no attribute either, because its
    values are the ones tokens.css states on :root (ADR-0028). #}
 {% set _preset = site_preset() %}
-<html lang="en"{% if _preset != 'default' %} data-preset="{{ _preset }}"{% endif %}{% if site_theme() != 'system' %} data-theme="{{ site_theme() }}"{% endif %}>
+{% set _type = site_type() %}
+<html lang="en"{% if _preset != 'default' %} data-preset="{{ _preset }}"{% endif %}{% if _type != 'preset' %} data-type="{{ _type }}"{% endif %}{% if site_theme() != 'system' %} data-theme="{{ site_theme() }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -52,6 +53,10 @@
 {# The chosen look, which restates the tokens above it. Its selectors all carry
    the attribute, so it outranks them whatever order the browser gets them in. #}
 {% if _preset != 'default' %}<link rel="stylesheet" href="/static/css/presets/{{ _preset }}.css?v={{ preset_ver[_preset] }}">
+{% endif %}{# And after it, because a pairing overrules the faces a preset names: both
+   selectors are a root and an attribute, so which file is linked second is what
+   decides. Nothing when the answer is the preset's own three. #}
+{% if _type != 'preset' %}<link rel="stylesheet" href="/static/css/type.css?v={{ type_ver }}">
 {% endif %}<link rel="stylesheet" href="/static/app.css?v={{ css_ver }}">
 <link rel="stylesheet" href="/static/css/components.css?v={{ components_ver }}">
 <link rel="stylesheet" href="/static/css/utilities.css?v={{ utilities_ver }}">

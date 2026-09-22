@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from app import cards, main, photos, presets, settings
+from app import cards, main, photos, presets, settings, typefaces
 
 STATIC = Path(__file__).parents[1] / "app" / "static"
 
@@ -383,6 +383,98 @@ class TestSetInTheEnvironment:
         monkeypatch.setenv("RHDB_WATERMARK", "")
         settings.forget()
         assert settings.pinned(settings.BY_KEY["watermark"]) is None
+
+
+class TestTheType:
+    """Which of the three faces does which of the three jobs.
+
+    The pairings themselves are `test_typefaces.py`; these are the promises the
+    page makes about them."""
+
+    def test_the_pairings_offered_are_the_ones_there_are_rules_for(self, client):
+        page = client.get("/settings").text
+        menu = page.split('id="type" name="type">', 1)[1].split("</select>", 1)[0]
+        offered = re.findall(r'<option value="([^"]*)"', menu)
+        assert offered == list(typefaces.IDS)
+
+    def test_a_fresh_install_wears_the_preset_s_own_faces(self, client):
+        """No attribute, and no stylesheet fetched to say what the preset already
+        says."""
+        page = client.get("/").text
+        assert "data-type=" not in page
+        assert "/static/css/type.css" not in page
+
+    @pytest.mark.parametrize("chosen", ["catalogue", "plain", "ledger"])
+    def test_a_chosen_pairing_is_on_the_page_before_it_is_painted(self, client, chosen):
+        """Server-rendered like the preset and the theme beside it: faces swapped
+        after paint are a page that reflows while it is being read."""
+        save(client, type=chosen)
+        page = client.get("/").text
+        assert f'data-type="{chosen}"' in page
+        assert "/static/css/type.css?v=" in page
+
+    def test_the_pairing_is_linked_after_the_preset_that_named_the_faces(self, client):
+        """Both selectors are a root and an attribute, so the order of the links is
+        what decides -- and an owner who asked for Ledger has asked to overrule
+        Phosphor's own monospace, not to be overruled by it."""
+        save(client, preset="phosphor", type="catalogue")
+        page = client.get("/").text
+        assert page.index("/static/css/presets/phosphor.css") < page.index("/static/css/type.css")
+
+    def test_a_pairing_nobody_offered_leaves_the_preset_s_faces_standing(self, client):
+        """Saved through the form it cannot happen; in a row somebody edited by hand
+        it can, and the page is what has to answer for it."""
+        save(client, type="blackletter")
+        assert settings.typeface() == "preset"
+
+
+class TestTheButtonText:
+    """Capitalised or lower case, and on the controls alone (interface-text).
+
+    0.1 wrote its buttons in lower case and its labels capitalised, on a
+    distinction no reader was ever told about; v0.2 capitalises both and keeps the
+    quieter voice as an answer rather than as a fork of the templates."""
+
+    def test_a_new_installation_capitalises_its_controls(self, client):
+        assert ">Save</button>" in client.get("/settings").text
+
+    def test_lower_case_lowers_the_first_word_of_a_control(self, client):
+        """The same button, the other voice. Done as the page is built rather than
+        by text-transform, which is what lets the acronyms below survive it."""
+        save(client, button_case="lower")
+        assert ">save</button>" in client.get("/settings").text
+
+    def test_a_label_a_legend_and_a_heading_keep_their_capitals(self, client):
+        """They name a thing rather than ask for an action, and a page that
+        lower-cased them would read as a page with a fault."""
+        save(client, button_case="lower")
+        page = client.get("/settings").text
+        assert "<legend>Appearance</legend>" in page
+        assert '<label for="site_name">Name</label>' in page
+        assert ">Settings</h1>" in page
+
+    def test_an_acronym_keeps_its_capitals_either_way(self, client):
+        """`API docs` and `OK` are spelt that way on purpose. A browser's own
+        lower-casing cannot tell one from an ordinary word; this can."""
+        save(client, button_case="lower")
+        page = client.get("/").text
+        assert "API docs" in page
+        assert "api docs" not in page
+
+    def test_the_case_is_chosen_from_a_menu_of_two(self, client):
+        page = client.get("/settings").text
+        assert '<select class="select" id="button_case" name="button_case">' in page
+        menu = page.split('id="button_case" name="button_case">', 1)[1].split("</select>", 1)[0]
+        assert menu.count("<option value=") == 2
+        assert '<option value="cap" selected>' in menu
+
+    def test_the_filter_asks_the_setting_on_every_page(self, client):
+        """Not read once at import: the page saved a moment ago is the page the next
+        render is written in, the way the site's name already is."""
+        save(client, button_case="lower")
+        assert ">save</button>" in client.get("/settings").text
+        save(client, button_case="cap")
+        assert ">Save</button>" in client.get("/settings").text
 
 
 class TestHowThePageReads:

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1929 behaviours, from 57 files.*
+*1949 behaviours, from 58 files.*
 
 
 ## A file where text was expected
@@ -3051,7 +3051,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 51 behaviours*
+*test_settings.py — 62 behaviours*
 
 
 **Reaching the page**
@@ -3152,6 +3152,31 @@ Regenerate with:
   Which is the way out the manual promises: change it where it is set, or unset it and the page has it again.
 - an empty variable is not a pin  
   Compose passes `${RHDB_WATERMARK:-}`, so an unset variable arrives as an empty string rather than as nothing at all -- which is how a whole stack would otherwise come up pinned to a value nobody chose.
+
+**The type**
+
+- the pairings offered are the ones there are rules for
+- a fresh install wears the preset s own faces  
+  No attribute, and no stylesheet fetched to say what the preset already says.
+- a chosen pairing is on the page before it is painted  
+  Server-rendered like the preset and the theme beside it: faces swapped after paint are a page that reflows while it is being read.
+- the pairing is linked after the preset that named the faces  
+  Both selectors are a root and an attribute, so the order of the links is what decides -- and an owner who asked for Ledger has asked to overrule Phosphor's own monospace, not to be overruled by it.
+- a pairing nobody offered leaves the preset s faces standing  
+  Saved through the form it cannot happen; in a row somebody edited by hand it can, and the page is what has to answer for it.
+
+**The button text**
+
+- a new installation capitalises its controls
+- lower case lowers the first word of a control  
+  The same button, the other voice.
+- a label a legend and a heading keep their capitals  
+  They name a thing rather than ask for an action, and a page that lower-cased them would read as a page with a fault.
+- an acronym keeps its capitals either way  
+  `API docs` and `OK` are spelt that way on purpose.
+- the case is chosen from a menu of two
+- the filter asks the setting on every page  
+  Not read once at import: the page saved a moment ago is the page the next render is written in, the way the site's name already is.
 
 **How the page reads**
 
@@ -3547,6 +3572,33 @@ Regenerate with:
 - a typed module may not call into an untyped one  
   ``untyped_calls_exclude`` was how a typed module was allowed to call one that was not there yet.
 - a type ignore says why on the line above it
+
+
+## Typefaces
+
+*test_typefaces.py — 9 behaviours*
+
+
+**What is offered**
+
+- four answers beginning with the preset s own  
+  The list is the data's and in the data's order, so the menu cannot come to offer a pairing nothing was generated for.
+- the preset s own is the default  
+  A fresh install wears the look it was given, faces included.
+- an answer nobody offered falls back to the preset s own  
+  The value can arrive from a row this page never wrote.
+
+**What A pairing changes**
+
+- a pairing declares nothing but the three families  
+  A size or a weight here would make the Type setting move the page, which is the one thing no look in the register is allowed to do.
+- catalogue is the three roles at their most distinct
+- plain drops the serif and keeps the monospace
+- ledger is monospaced throughout
+- the preset s own has no block at all  
+  It is the answer that changes nothing: no rules, and no attribute on the page for rules to hang from.
+- every family named is one the site serves  
+  The three faces ship with the register and are served from it: a pairing that named a fourth would be asking for a file that is not there, or worse, for one from somewhere else (ADR-0021).
 
 
 ## Ui macros

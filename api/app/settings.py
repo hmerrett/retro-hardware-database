@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from . import presets
+from . import presets, typefaces
 from .db import SessionLocal
 from .models import Setting
 
@@ -141,6 +141,27 @@ DEFINITIONS: tuple[Definition, ...] = (
             ("light", "light"),
             ("dark", "dark"),
         ),
+    ),
+    Definition(
+        key="type",
+        section=APPEARANCE,
+        label="Type",
+        note=(
+            "Which face does the writing, the interface and the recorded values. "
+            "Catalogue: serif, sans and mono. Plain: sans and mono. Ledger: mono throughout."
+        ),
+        kind=CHOICE,
+        default=typefaces.DEFAULT,
+        choices=typefaces.CHOICES,
+    ),
+    Definition(
+        key="button_case",
+        section=APPEARANCE,
+        label="Button text",
+        note="Save and Add note, or save and add note. Labels and headings keep their capitals.",
+        kind=CHOICE,
+        default="cap",
+        choices=(("cap", "Capitalised"), ("lower", "Lower case")),
     ),
     Definition(
         key="label_destination",
@@ -322,6 +343,16 @@ def preset() -> str:
     is where that check lives; this is the only way in to it.
     """
     return presets.known(value("preset"))
+
+
+def typeface() -> str:
+    """The pairing in force, and always one the stylesheet has a block for.
+
+    Checked on the way out like `preset` above it, for the milder version of the
+    same reason: this one is spent on an attribute rather than on a path, so an
+    unknown value would not fetch the wrong file -- it would leave the page saying
+    it wears a face that nothing paints."""
+    return typefaces.known(value("type"))
 
 
 def clean(d: Definition, raw: str | None) -> str | None:

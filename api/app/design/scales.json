@@ -12,6 +12,12 @@
    "ui": "\"IBM Plex Sans\", system-ui, sans-serif",
    "data": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
   },
+  "pairings": {
+   "preset": {"name": "As the preset"},
+   "catalogue": {"name": "Catalogue", "roles": {"display": "display", "ui": "ui", "data": "data"}},
+   "plain": {"name": "Plain", "roles": {"display": "ui", "ui": "ui", "data": "data"}},
+   "ledger": {"name": "Ledger", "roles": {"display": "data", "ui": "data", "data": "data"}}
+  },
   "groups": [
    {
     "name": "Display",

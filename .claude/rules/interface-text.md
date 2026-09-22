@@ -48,9 +48,10 @@ Case On Every Word.
 capitalised at the source and passed through the `ui` filter —
 `{{ 'Mark done' | ui }}` — which lower-cases the first word only when the case is
 `lower`, and only where that word is written Like This, so `API docs` and `OK` keep
-their capitals either way (`web.button_text`). `web.BUTTON_CASE` is `cap`, which is
-what the list above describes; Phase 2 makes it the owner's, as a `button_case`
-setting, and 0.1's voice is what they get by choosing `lower`. So a new control
+their capitals either way (`web.button_text`). The filter asks the **Button text**
+setting on every use, so a save shows in the page the save returns; `cap` is the
+default and is what the list above describes, and 0.1's voice is what an
+installation gets by answering `lower`. So a new control
 writes its words capitalised and leaves the choice to the filter: `{{ 'mark done' }}`
 pins it to one answer and cannot be switched back.
 
