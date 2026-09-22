@@ -577,32 +577,48 @@ nothing of the register on it, since it is a list of what was made rather than o
 what is here — and it has no search box, because a list you can search with your
 browser's own find is worth more than a list with a filter on it.
 
-Where the register holds something filed as a model, the row says so and the
-count leads to it. Machines and bare boards both, since a motherboard files
-against a model the same way a whole machine does.
+Where the register holds something filed as a model, the row says so: the name
+is set heavier and the count follows it. Machines and bare boards both, since a
+motherboard files against a model the same way a whole machine does.
 
-A **▸** after a model's name opens a paragraph on what it is: what the machine
-did that its neighbours did not, and what a collector would look for. Folded
-away rather than laid out, because four hundred paragraphs at once would be a
-different page for a different job — but the browser's own find still reaches
-into the folds and opens the one it lands in. The same paragraph is printed in
-full at the top of an item's own page, in muted ink, because it is reference
-about the model rather than a fact about the object in front of you.
+Every model's name leads to **its own page**.
+
+Two other shapes of the same list: `catalogue.txt` in the repository, and
+[`/api/machines`](#19-the-rest-api) for anything that would rather read JSON —
+public for the same reason the page is.
+
+### A model's own page
+
+`/machines/<key>` — `/machines/vic20`, say — is what the register knows about one
+model in general, and which of it is here. Public, like the list, for the same
+reason, and named in the sitemap with it. From the top:
+
+- **the name**, with its family and year under it, and the paragraph on what it
+  is: what the machine did that its neighbours did not, and what a collector would
+  look for. It is the subject of this page, so it is printed in ordinary ink;
+- **As catalogued** — the maker, the CPU, and the memory sizes, board issues,
+  case styles, regions, chassis and operating system the catalogue knows it in.
+  Whatever the catalogue does not say is left out rather than shown blank;
+- **Chips** — one cell to a socket, with the chips that have been seen in it. A
+  model with no sockets to ask about has no such panel;
+- **In this collection** — every machine and board filed as this model, by tag
+  and name, each leading to its page. A disposed one is listed and says so, so the
+  count on the list and the rows here agree;
+- **Files** — the files attached to the model, which every one of them is
+  offered. A visitor sees the published ones alone, as everywhere
+  ([Files](#11-files)). Files are attached and detached from an item's
+  page or `/files`, not here.
+
+A key the catalogue does not have is a page that is not found.
+
+The model's paragraph is also printed in full at the top of an item's own page,
+in muted ink, because there it is reference about the model rather than a fact
+about the object in front of you.
 
 **Only where the item has no summary of its own.** The two are different kinds of
 statement and a page never shows both: whatever you have written about this
 particular object wins, and the model's paragraph is what fills the gap until you
 write one. Machines and catalogue-filed boards behave identically.
-
-The folds are plain `<details>` elements and need no JavaScript. They briefly
-did need a CSS `:has()` rule, which worked in Chrome and in current Safari and
-not in older Safari, where the marker flipped and revealed nothing — so the
-paragraph now lives inside the element that hides it, which has worked
-everywhere for a decade.
-
-Two other shapes of the same list: `catalogue.txt` in the repository, and
-[`/api/machines`](#19-the-rest-api) for anything that would rather read JSON —
-public for the same reason the page is.
 
 ### Why they are boxes and not menus
 
