@@ -1350,9 +1350,11 @@ the whole status useless. **abandoned** is kept apart from **done** for the same
 reason: a project given up on is not a project finished, and folding the two
 together would mean never being able to ask what was actually built.
 
-The list page leads with what is in hand and dims what is over — which is not the
-order the status menu offers, because a menu is read in the order a project lives
-and a list is read to find out what to do next.
+The list page leads with what is in hand and puts what is over below it — which is
+not the order the status menu offers, because a menu is read in the order a project
+lives and a list is read to find out what to do next. What is over is said by its
+status and not by fading the row: what has actually been built is worth reading,
+and a faded line is a hard one to read.
 
 ### Three dates
 
@@ -1363,9 +1365,18 @@ None of the three is worked out from another, and any can be blank while the
 others are not — a project can be finished without ever having been recorded as
 started, because the part turned up and it took an evening.
 
+### Its page
+
+A project's page reads like an item's. At the top is a link back to all the
+projects and, when logged in, **Edit**, **Delete…** and — while there is still
+something left to finish — **Mark done** beside it; then the name, its status and
+its tag. Below that, a panel each: **Details** (the status, the three dates and
+the notes), **Items**, **Tasks**, **On order** and **History**, and last, when
+logged in, the **Label** panel with its two print buttons.
+
 ### Marking one done
 
-A project still in hand carries a **mark done** button at the top of its page,
+A project still in hand carries a **Mark done** button at the top of its page,
 beside the edit and label buttons, for whoever is signed in. One click finishes
 it: the status becomes **done** and a dated line saying so is written into its
 history. There is no form in the way and nothing to confirm — it is one fact,
@@ -1413,7 +1424,8 @@ that promised it. Nothing is drawn on an item that is in no project, which is mo
 of them.
 
 Taking an item out, or deleting the project altogether, leaves the hardware alone.
-Deleting the plan is not disposing of the machine.
+Deleting the plan is not disposing of the machine. **Delete…** asks before it does
+anything, since it takes the project's tasks, orders and history with it.
 
 ### Tasks
 
@@ -1424,6 +1436,16 @@ Outstanding jobs sort above finished ones, because the list is read to find out
 what to do next and a long tail of ticked lines between you and it is the thing
 that stops task lists being read at all. Ticking one dates it with today; putting
 it back clears that date, since a job that is not done has no day it was done on.
+
+A tick is sent the moment it is made. Without JavaScript there is a **Save**
+button beside it instead. A tick says what the box shows, rather than "flip it":
+a page left open in another tab since the job was ticked cannot untick it by
+mistake.
+
+A job can be about one of the things on the project rather than the project as a
+whole — *recap the PSU* is about the PSU. The tag of that thing is beside the job,
+and when logged in it is a menu: choose the thing, or *the project*. A job about a
+thing is also listed on that thing's own page, under **Work**.
 
 ### On order
 
@@ -1668,8 +1690,8 @@ scanned code, labels printed against an older URL still resolve.
 
 ### A project has one too
 
-A project's page carries the same two buttons, and its label is made by the same
-code and carries the same kind of code.
+A project's page carries the same **Label** panel with the same two buttons, and
+its label is made by the same code and carries the same kind of code.
 
 What it is *for* is different, though. A machine's label goes on the machine; a
 project's goes on **the things you have bought for it**. Stick the small one on
