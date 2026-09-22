@@ -131,12 +131,12 @@ class TestTheBannerOnThePage:
         assert "No login" in client.get(f"/parts/{aid}").text
 
     def test_the_banner_is_the_one_the_stylesheet_already_warns_with(self, client, monkeypatch):
-        """Reusing .banner rather than inventing a class: it is already the site's
-        warning colour, and the stylesheet's contrast tests already cover it in both
-        themes, so this adds no rule for them to have missed
-        (accessibility-standards)."""
+        """Reusing .banner rather than inventing a class: its warning tone is already
+        in the contrast tests in every preset and both themes, so this adds no rule
+        for them to have missed (accessibility-standards). Warning, not danger, since
+        v0.2 (spec 15): running open may well be what was meant."""
         monkeypatch.setitem(main.templates.env.globals, "auth_open_warning", True)
-        assert '<div class="banner" id="openwarn">' in client.get("/").text
+        assert '<div class="banner warning" id="openwarn"' in client.get("/").text
 
 
 class TestTheAppCanStillSpeak:

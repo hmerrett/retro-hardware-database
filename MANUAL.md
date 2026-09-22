@@ -124,19 +124,23 @@ the page does not open on a screenful of placeholder icons.
 On a desktop the banner reads in three bands: where you can go on the left, the
 search box in the middle, and what you can do on the right.
 
-- **browse**, **projects**, **numbers**, **models**, **files** — the sections.
-  The one you are in is shown in bold. **models** is the catalogue of machines the
-  register knows as models; **browse** is the machines it actually holds;
-  **projects** is what is being done to them — see
-  [section 12](#12-projects). **projects** sits next to **browse** because the two
+- **Browse**, **Projects**, **Numbers**, **Models**, **Files** — the sections.
+  The one you are in is shown in bold. **Models** is the catalogue of machines the
+  register knows as models; **Browse** is the machines it actually holds;
+  **Projects** is what is being done to them — see
+  [section 12](#12-projects). **Projects** sits next to **Browse** because the two
   are a pair: what is owned, and the work in hand.
-- **Search anything…** and **scan** — see [Finding things](#3-searching).
-  The scan button appears only where there is a camera to use.
+- **Search anything…** and **Scan** — see [Finding things](#3-searching).
+  The Scan button appears only where there is a camera to use.
 - **+ New** — offers Computer, Part or Project. Logged in only.
-- **⋯** — the theme, **traffic** and **log out**, and (in the installed app,
-  where the browser provides neither) share and reload.
+- **☰** — the theme, **Might sell**, **Traffic** and **Log out**, and (in the
+  installed app, where the browser provides neither) share and reload.
 - **API docs** — the interactive API console (login required), at the foot of
   the page.
+
+On a tablet, or a desktop window narrower than about 900px, the five sections
+move into the **☰** menu, at its top, so the banner stays on one line rather than
+wrapping the search box onto a second.
 
 ### The header on a phone
 
@@ -146,9 +150,9 @@ across the bottom of the screen, where your thumb already is.
 - **Browse** — the gallery.
 - **Find** — scrolls back up and puts the cursor in the search box.
 - **Scan** — reads a label's code. Appears only where there is a camera.
-- **More** — one list holding the sections (**projects**, **numbers**,
-  **models**, **files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
-  **traffic** and **log out**.
+- **More** — one list holding the sections (**Projects**, **Numbers**,
+  **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
+  **Might sell**, **Traffic** and **Log out**.
 
 ### On a narrow screen
 
@@ -2058,7 +2062,7 @@ sensible for local development or a read-only install on a network you trust.
 
 **Blank credentials mean every visitor is you.** Not "can read everything" —
 *is you*: able to add, edit, delete and dispose of anything, because there is no
-account for the code to tell apart from yours. The log out button and the traffic
+account for the code to tell apart from yours. **Log out** and the **Traffic**
 link disappear too, since there is nothing to log out of.
 
 That is a supported way to run. What is not supported is arriving there by

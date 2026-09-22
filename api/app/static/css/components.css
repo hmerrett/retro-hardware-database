@@ -36,6 +36,17 @@
 
   /* One ring for everything that takes focus. Never removed, only restyled. */
   :focus-visible { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-w); }
+  /* Off the page until it has focus, rather than display: none, which would take it
+     out of the tab order and leave the keyboard where it started. It sits above the
+     banner once it appears, because that is what it is skipping. */
+  .skip { position: absolute; left: -9999px; top: 0; z-index: 60; }
+  .skip:focus { left: var(--space-3); top: var(--space-3); padding: var(--space-3) var(--space-4);
+    color: var(--text); background: var(--surface-raised); border: 2px solid var(--accent);
+    border-radius: var(--radius-sm); }
+  /* The jump gives <main> focus, and a ring drawn round the whole page says nothing
+     useful. The skip link itself is what the eye should follow. The one suppression
+     the suite allows (test_keyboard_and_motion). */
+  main:focus { outline: none; }
 
   /* ---- 3. Button ---------------------------------------------------------- */
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
@@ -173,14 +184,34 @@
   .banner { display: flex; gap: var(--space-3); align-items: baseline; margin: var(--space-4) 0;
     padding: var(--space-3) var(--space-4); color: var(--text); background: var(--surface-sunken);
     border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-md); }
-  .banner > b { font-weight: 600; }
+  .banner > b { flex: none; font-weight: 600; }
   .banner.warning { background: var(--warning-wash); border-color: var(--warning); }
   .banner.warning > b { color: var(--warning); }
   .banner.danger { background: var(--danger-wash); border-color: var(--danger-line); }
   .banner.danger > b { color: var(--danger); }
   .banner.success { background: var(--success-wash); border-color: var(--success); }
   .banner.success > b { color: var(--success); }
-  .toast { position: static; box-shadow: var(--shadow-pop); }
+  /* A notice that floats over the page rather than sitting in it, at the foot of the
+     window. The one saying the record has changed is a pill in the middle; the
+     cookie notice is a bar the width of the page, which is a notice and not a gate:
+     nothing is stored until the reader chooses something, so there is nothing to
+     hold them up for. The pill stands above the bar for the one page that shows both. */
+  .toast { position: fixed; z-index: 70; bottom: var(--space-4); left: 50%; transform: translateX(-50%);
+    align-items: center; margin: 0; padding: 6px var(--space-3) 6px var(--space-4); font-size: 13px;
+    background: var(--surface-raised); border-radius: var(--radius-pill); box-shadow: var(--shadow-pop); }
+  .toast > .btn { flex: none; }
+  #cookienote { z-index: 60; left: 0; right: 0; bottom: 0; transform: none; flex-wrap: wrap;
+    justify-content: center; border-width: 1px 0 0; border-radius: 0; box-shadow: none; }
+  #cookienote p { max-width: 70ch; margin: 0; font-size: 12px; color: var(--text-muted); }
+  #cookienote p b { color: var(--text); }
+  /* On a wide screen the notice is the only thing fixed over the page, and a control
+     tabbed to below the fold must not be scrolled to where it is covering. */
+  /* How much of the foot of the window the fixed chrome covers: the notice alone on a
+     wide screen, the tab bar on a phone, and the notice standing on the bar there --
+     five lines on a 320px screen. Dimensions of those things, not steps of spacing. */
+  :root { --notice-clear: 88px; --tabbar-clear: 60px; --notice-clear-phone: 240px; }
+  html:has(#cookienote) { scroll-padding-bottom: var(--notice-clear); }
+  html:has(#cookienote) body { padding-bottom: var(--notice-clear); }
 
   /* ---- 11. Menu / popover ------------------------------------------------- */
   .menupop { min-width: 180px; padding: var(--space-2); background: var(--surface-raised);
@@ -190,6 +221,18 @@
     text-decoration: none; cursor: pointer; }
   .menupop a:hover, .menupop button:hover { background: var(--surface-hover); }
   .menupop hr { margin: var(--space-2) 0; border: 0; border-top: 1px solid var(--line); }
+  .menupop form { margin: 0; }
+  .menupop a, .menupop button { white-space: nowrap; }
+  /* A menu that opens without a script, because <details> already does; app.js only
+     closes it, on Escape and on a click landing anywhere else. */
+  .menu { position: relative; }
+  .menu > summary { list-style: none; }
+  .menu > summary::-webkit-details-marker { display: none; }
+  .menu > summary::marker { content: ""; }
+  .menu > .menupop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 950; }
+  /* The banner's sections, held in its menu for the widths where the banner has put
+     its own away (13, below). */
+  .menupop .fold { display: none; }
 
   /* ---- 12. Stat tile and ranked bar --------------------------------------- */
   .stattile { padding: var(--space-4); background: var(--surface-raised);
@@ -215,6 +258,35 @@
   .site-header nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
   .site-header .grow { flex: 1; }
   .site-header .search { width: 230px; }
+  /* Sized by height: the logo is not square, and height is what the banner's other
+     items are measured against. An installation's own logo keeps its proportions. */
+  .site-header .brand img { display: block; width: auto; height: 34px; }
+  .site-header .searchwrap { display: flex; min-width: 0; }
+  .site-header .menu > summary { min-height: var(--control-h); }
+  /* The no-login notice stands under the banner, inside its gutters. */
+  #openwarn { margin: var(--space-4) var(--space-6); }
+  @media (max-width: 620px) { #openwarn { margin: var(--space-3) var(--space-4); } }
+  /* A tablet, or a narrow window: the five sections leave the banner for the top of
+     its menu, so the banner stays one row rather than wrapping the search box onto a
+     second. */
+  @media (max-width: 900px) {
+    .site-header nav { display: none; }
+    .menupop .fold { display: block; }
+    .menupop hr.fold { display: block; }
+  }
+  /* A phone: the banner is the mark and the search box, and everything else moves to
+     the tab bar, Scan with it -- into the thumb's reach. The name goes too: the logo
+     is still the way home, and the name is in the title bar and at the foot of the
+     page. Dropping it is what keeps the banner to one row. */
+  @media (max-width: 620px) {
+    .site-header { flex-wrap: nowrap; padding: var(--space-3) var(--space-4); }
+    .site-header .brand span, .site-header .grow { display: none; }
+    .site-header .hdr-new { display: none; }
+    .site-header .hdr-more { display: none; }
+    .site-header .hdr-scan { display: none; }
+    .site-header .searchwrap { flex: 1 1 auto; }
+    .site-header .search { width: 100%; }
+  }
   .stripe { --gutter: var(--space-6); position: relative; height: var(--stripe-h); background: var(--stripe-image); }
   /* The banner's flash stands directly above the panels' flashes: the column's right edge is
      half of whatever the page is wider than content-max, plus the page gutter and a panel's
@@ -224,13 +296,36 @@
   .stripe::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--flash-w); background: var(--flash);
     right: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter) + var(--border-w) + var(--flash-inset) - 8px); }
   @media (max-width: 560px) { .stripe { --gutter: var(--space-4); } }
-  .tabbar { display: flex; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
-  .tabbar a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1);
-    min-height: 52px; font-size: 11px; font-weight: 500; color: var(--text-muted); text-decoration: none; }
-  .tabbar a[aria-current="page"] { color: var(--accent); font-weight: 600; }
+  .tabbar { display: none; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
+  .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--space-1); min-height: 52px; padding: 0; font-size: 11px; font-weight: 500; color: var(--text-muted);
+    background: none; border: 0; text-decoration: none; cursor: pointer; }
+  /* Where you are, and the sheet while it is open: colour and weight together. */
+  .tabbar [aria-current="page"], .tabbar .on { color: var(--accent); font-weight: 600; }
   .tabbar svg { width: 21px; height: 21px; display: block; }
-  .tabbar a.scan span.puck { display: flex; align-items: center; justify-content: center; width: 44px; height: 32px;
+  .tabbar .scan span.puck { display: flex; align-items: center; justify-content: center; width: 44px; height: 32px;
     background: var(--accent-fill); color: var(--on-accent); border-radius: var(--radius-sm); }
+  /* Only on a phone, and there across the bottom, where the thumb is. Before it the
+     banner on a 390px screen wrapped to four rows, and Scan -- the one control a
+     phone is really here for, used while holding the thing -- was the last of them. */
+  @media (max-width: 620px) {
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; display: flex;
+      padding-bottom: env(safe-area-inset-bottom, 0px); }
+    /* Room under the last card for the bar that would otherwise sit on it. */
+    body { padding-bottom: calc(var(--tabbar-clear) + env(safe-area-inset-bottom, 0px)); }
+    /* That holds the last card off the bar and says nothing about where a scroll
+       stops: tabbing to a control below the fold scrolls it to the viewport's edge,
+       which is where the bar is, so the control arrived behind it -- twenty stops on
+       an item page. The scroll container has to be told separately. */
+    html { scroll-padding-bottom: calc(var(--tabbar-clear) + var(--space-4) + env(safe-area-inset-bottom, 0px)); }
+    /* The cookie notice stands on the bar and is taller than it: five lines on a
+       320px screen. It is in the markup only while showing, so the room comes back
+       when it goes, and room under the page too, since at the foot of a short page
+       there is nothing left to scroll. */
+    #cookienote { bottom: calc(var(--tabbar-clear) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote) { scroll-padding-bottom: calc(var(--notice-clear-phone) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote) body { padding-bottom: calc(var(--notice-clear-phone) + env(safe-area-inset-bottom, 0px)); }
+  }
 
   /* ---- 13a. Side rail -----------------------------------------------------
      An installation preference: <html data-nav="side">. Applies at 1100px and wider
@@ -299,8 +394,9 @@
   .cell .k { font-size: 12px; color: var(--text-muted); }
   .cell .v { font-family: var(--font-data); font-size: 16px; font-weight: 600; }
   .cardgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
-  .veil { position: absolute; inset: 0; display: flex; align-items: flex-end; background: var(--scrim); }
-  .veil > .sheet { width: 100%; }
+  .veil { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; background: var(--scrim); }
+  .veil > .sheet { width: 100%; max-height: 82vh; overflow-y: auto;
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); }
 
   /* ---- 13c. Item cards: a list of things inside a panel ------------------- */
   .itemcards { display: flex; flex-direction: column; gap: var(--space-4); }
@@ -369,7 +465,13 @@
   .sheet { background: var(--surface-raised); border: var(--border-w) solid var(--line-strong); border-bottom: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: var(--space-3) var(--space-3) var(--space-4);
     box-shadow: var(--shadow-pop); }
-  .sheet .grip { width: 36px; height: 4px; margin: 0 auto var(--space-3); background: var(--line-strong); border-radius: var(--radius-pill); }
+  /* Sized as a target and drawn as a grip: the bar is the middle of a box a thumb can
+     hit, which is what it is actually aiming at. */
+  .sheet .grip { display: block; min-height: 22px; margin-bottom: var(--space-2); cursor: pointer; }
+  .sheet .grip::before { content: ""; display: block; width: 36px; height: 4px; margin: 0 auto;
+    background: var(--line-strong); border-radius: var(--radius-pill); }
+  .sheet form { margin: 0; }
+  .sheet [aria-current="page"] { font-weight: 600; }
   .sheet a, .sheet button { display: flex; align-items: center; gap: var(--space-4); width: 100%; min-height: var(--tap);
     padding: 0 var(--space-4); font-size: 16px; text-align: left; color: var(--text); background: none; border: 0;
     border-radius: var(--radius-sm); text-decoration: none; }
@@ -378,8 +480,39 @@
   .sheet hr { margin: var(--space-3) 0; border: 0; border-top: 1px solid var(--line); }
 
   /* ---- 14d. Lightbox chrome ----------------------------------------------- */
-  .lb { position: relative; display: flex; flex-direction: column; background: var(--scrim); color: var(--on-scrim); }
-  .lb .lb-stage { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--space-6); }
+  /* touch-action: none across the whole overlay, not only the photo: a flick that
+     starts on the dark above or below the photo is still a flick, and left to itself
+     the phone would scroll the page underneath with it. Shown by app.js with .open. */
+  .lb { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center;
+    background: var(--scrim); color: var(--on-scrim); touch-action: none; }
+  .lb.open { display: flex; }
+  /* The stage is the whole of the window the photo may use, not the photo's own box,
+     so the zoom is free to spend the bands either side of a tall photo. The overlay
+     does its own pinch: left to itself the browser would zoom the whole page. */
+  .lb .lb-stage { position: relative; width: 92vw; height: 84vh; touch-action: none; }
+  /* Zoom and pan ride on this wrapper's transform from the stage's top-left corner,
+     so the pan bounds and the crop maths measure against one untransformed box. Its
+     background is the thumbnail's own copy, stretched to the size the photo is about
+     to be, so the photo grows out of the thumbnail on the way in. */
+  .lb .lb-fit { position: absolute; left: 0; top: 0; line-height: 0; transform-origin: 0 0; will-change: transform;
+    border-radius: var(--radius-md); background-size: 100% 100%; background-repeat: no-repeat; }
+  .lb img { display: block; width: auto; height: auto; max-width: 92vw; max-height: 84vh;
+    border-radius: var(--radius-md); cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
+  .lb .lb-stage.zoomed { overflow: hidden; cursor: grab; }
+  .lb .lb-stage.zoomed img { cursor: grab; }
+  .lb .lb-stage.zoomed.panning, .lb .lb-stage.zoomed.panning img { cursor: grabbing; }
+  .lb .lb-stage.cropping, .lb .lb-stage.cropping img { cursor: crosshair; }
+  /* Close and the arrows stand over the stage, which spans nearly the whole window
+     and would otherwise swallow their clicks. They fade with the backdrop: a photo on
+     its way home to its thumbnail is uncovering the page it belongs to, and controls
+     standing over that page belong to nothing. --chrome is written by the script. */
+  .lb .lb-close, .lb .lb-nav { position: absolute; z-index: 2; padding: 0 var(--space-4); font-size: 30px;
+    line-height: 1.3; color: var(--on-scrim); background: none; border: 1px solid var(--on-scrim-muted);
+    border-radius: var(--radius-md); cursor: pointer; user-select: none; opacity: var(--chrome, 1); }
+  .lb .lb-close:hover, .lb .lb-nav:hover { box-shadow: inset 0 0 0 1px var(--on-scrim); }
+  .lb .lb-nav { top: 50%; transform: translateY(-50%); padding: var(--space-2) var(--space-5); font-size: 38px; }
+  .lb .lb-close { top: 3vh; right: 3vw; }
+  .lb .lb-prev { left: 3vw; } .lb .lb-next { right: 3vw; }
   .lb .lb-hint { font-size: 12px; color: var(--on-scrim-muted); }
   .lb .lb-count { font-family: var(--font-data); font-size: 12px; color: var(--on-scrim-muted); }
   .lb .lb-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); }
@@ -390,9 +523,6 @@
   .lb .btn.danger { background: none; color: var(--on-scrim-danger); border-color: var(--on-scrim-danger); }
   .lb .btn.on { color: var(--on-scrim); border-color: var(--on-scrim); box-shadow: inset 0 0 0 1px var(--on-scrim); }
   .lb :focus-visible { outline-color: var(--on-scrim); }
-  .lb .lb-close { position: absolute; top: var(--space-4); right: var(--space-4); }
-  .lb .lb-prev, .lb .lb-next { position: absolute; top: 45%; }
-  .lb .lb-prev { left: var(--space-4); } .lb .lb-next { right: var(--space-4); }
 
   /* ---- 14e. Bezel swatch and the yellowing ladder -------------------------
      The colours are data, not theme: real plastic. In the product each is a class

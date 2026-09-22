@@ -5090,7 +5090,7 @@ class TestTheBigPhotoView:
         try:
             page = served(client, client.get(f"/parts/{aid}").text)
             assert '<div class="lb-fit" id="lb-fit">' in page
-            assert "#lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
+            assert ".lb .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
             assert "fit.style.transform = " in page
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
@@ -5205,7 +5205,7 @@ class TestTheBigPhotoView:
             page = served(client, client.get(f"/parts/{aid}").text)
             assert "box.addEventListener('pointerdown'" in page
             assert "box.addEventListener('pointermove'" in page
-            assert re.search(r"#lightbox \{[^}]*touch-action: none", page, re.S)
+            assert re.search(r"\.lb \{[^}]*touch-action: none", page, re.S)
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 

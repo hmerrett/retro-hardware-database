@@ -42,57 +42,11 @@
   button, input, select, textarea { font-family: inherit; line-height: inherit; }
   ::file-selector-button { font-family: inherit; line-height: inherit; }
   body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; margin: 0; line-height: 1.5; background: var(--bg); color: var(--fg); }
-  /* Centred, not baseline-aligned: a flex box takes its baseline from its first
-     item and an image's baseline is its bottom edge, so on `baseline` the logo
-     hangs the whole brand half its own height above the rest of the bar. Centres
-     line up the logo, the links and the buttons whatever heights they happen to
-     be. */
-  /* Off the page until it has focus, rather than display:none, which would take
-     it out of the tab order and leave the keyboard where it started. It sits
-     above the header once it appears, because that is what it is skipping. */
-  .skip { position: absolute; left: -9999px; top: 0; z-index: 60; }
-  .skip:focus { left: 8px; top: 8px; padding: 8px 12px; background: var(--bg);
-    color: var(--fg); border: 2px solid var(--accent); border-radius: 4px; }
-  /* The jump gives <main> focus, and a focus ring drawn round the whole page
-     says nothing useful. The skip link itself is what the eye should follow. */
-  main:focus { outline: none; }
-  header { padding: 12px 18px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
-  header a { text-decoration: none; }
-  header .brand { font-weight: 600; display: inline-flex; align-items: center; gap: 9px; }
-  /* Sized by height, width auto: the logo is not square and must keep its own
-     proportions whatever it is put next to. Height is the dimension pinned
-     because it is the one the banner's other items are measured against. */
-  header .brand img { height: 34px; width: auto; display: block; }
-  /* A phone spends its width on the search box, not on the name: the logo is
-     still the way home, the page's own heading says where you are, and the name
-     is in the title bar and at the foot of the page. Dropping it is what lets
-     the banner be one row on a phone instead of two -- and the second row was
-     costing more than the words on it were worth. */
-  @media (max-width: 620px) { header .brand span { display: none; } }
-  /* Everything after this spans the gap to the right edge. A flexible span rather
-     than `margin-left: auto`, because the search bar carries an auto margin of its
-     own for the line it wraps onto -- and a grown span leaves no free space for
-     that margin to claim, so on the banner's first line the buttons still sit hard
-     against the right edge as they always did. */
-  header .hdr-gap { flex: 1 1 0; }
-  /* The search bar rides in the banner so a search can start from any page: what
-     you want next is rarely what you are looking at. Last of all, hard right --
-     and, on the line it wraps onto, right by its own margin. */
-  header .hdr-search { display: flex; align-items: center; gap: 6px; margin: 0 0 0 auto; }
-  header .hdr-search input[type=search] { width: 230px; min-width: 0; padding: 5px 9px;
-    border: 1px solid var(--line); border-radius: 7px; font: inherit; font-size: 13px;
-    background: transparent; color: inherit; }
-  /* On a phone the bar shares the banner's one row with the logo and takes
-     whatever is left of it. */
-  @media (max-width: 620px) {
-    header .hdr-search { flex: 1 1 auto; }
-    header .hdr-search input[type=search] { flex: 1; width: auto; min-width: 0; }
-  }
   /* The first few matches, offered while you are still typing. It hangs off the
      input rather than pushing the page down, and is wider than the box it hangs
      from because a machine's name is longer than the room to type it. Right-
-     aligned to the input's right edge, which is the one that does not move. */
-  header .hdr-search { position: relative; }
+     aligned to the input's right edge, which is the one that does not move. The
+     box it hangs from is .searchwrap's, in components.css. */
   #suggest { position: absolute; top: calc(100% + 6px); right: 0; z-index: 900;
     min-width: 100%; width: 380px; max-width: calc(100vw - 24px);
     background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
@@ -125,7 +79,6 @@
   main { max-width: 1000px; margin: 0 auto; padding: 18px; }
   /* A phone spends its width on content, not on margins. */
   @media (max-width: 480px) {
-    header { padding: 10px 12px; }
     main { padding: 14px 12px; }
   }
   /* The projects list, stacked. Five columns across a 390px screen gave the name a
@@ -269,7 +222,8 @@
   .offerrows li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 3px 0;
     overflow-wrap: anywhere; }
   .offerrows form { margin: 0; }
-  a { color: var(--accent); }
+  /* Links take the accent from components.css's base, which says the same: stated
+     here too, unlayered, it outranked every v0.2 rule giving a link its own colour. */
   /* Back, where a link used to be: it sits in the prose and should read as one,
      but it performs an action rather than going to an address, so it is a button.
      Given no size of its own -- `font: inherit` -- so it needs no restating in the
@@ -287,7 +241,6 @@
      browser, and a heading is a flex item that will not shrink below it. */
   h1, h2, h3 { overflow-wrap: anywhere; }
   h1, h2, h3, h4 { margin: revert; }
-  :focus-visible { outline: revert; outline-offset: revert; }
   table { border-collapse: collapse; width: 100%; }
   /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
      sets the column's minimum width, and a table refuses to shrink below it. On a
@@ -311,6 +264,10 @@
     flex-wrap: wrap; align-items: baseline; gap: 2px 9px; }
   .panel > header h3 { margin: 0; font-size: 14px; font-weight: bold; }
   .panel > header .muted { font-size: 13px; }
+  /* Said here since the bare `header` rule that gave these a rule underneath and
+     undecorated links went with the site banner's move to components.css. */
+  .panel > header, .itemcard > header { border-bottom: 1px solid var(--line); }
+  .panel > header a, .itemcard > header a { text-decoration: none; }
   .panel .pbody { padding: 9px 11px; }
   /* Under a band of its own, a table's first rule is a second line saying the same
      thing. */
@@ -415,6 +372,9 @@
   .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap;
     min-height: 0; gap: normal; align-items: normal; justify-content: normal; box-shadow: none; transform: none; }
   .btn:hover { background: var(--btn-hover); }
+  /* components.css hides the banner's Scan on a phone, where the tab bar has it; this
+     .btn's display outranks the layer, so the hiding is said here too until it goes. */
+  @media (max-width: 620px) { .site-header .hdr-scan { display: none; } }
   .btn.primary { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }
@@ -488,28 +448,6 @@
   .edit label.socketed input { width: auto; }
   .edit .checks input { width: auto; }
   .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
-  /* The cookie notice. A slim bar rather than a panel over the page: nothing is
-     stored until the reader chooses something, so there is nothing to hold them up
-     for -- it is a notice, not a gate. */
-  #cookienote { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
-    background: var(--bg); border-top: 1px solid var(--line);
-    padding: 9px 14px; display: flex; gap: 12px; align-items: center;
-    justify-content: center; flex-wrap: wrap; }
-  #cookienote p { margin: 0; color: var(--muted); font-size: 12px; max-width: 70ch; }
-  /* On a wide screen the notice is the only thing fixed over the page, and the
-     same rule applies to it: a control tabbed to below the fold must not be
-     scrolled to a position the notice is covering. */
-  html:has(#cookienote) { scroll-padding-bottom: 88px; }
-  html:has(#cookienote) body { padding-bottom: 88px; }
-  #cookienote .btn { flex: none; }
-  /* Said quietly, at the bottom, and only when reloading on its own would take
-     something away from you -- see the script. It sits above the cookie notice's
-     z-index for the one page that could show both. */
-  #changed { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px;
-    z-index: 70; background: var(--bg); border: 1px solid var(--line);
-    border-radius: 999px; box-shadow: 0 4px 20px #0003; padding: 7px 8px 7px 14px;
-    display: flex; gap: 10px; align-items: center; font-size: 13px; }
-  #changed .btn { flex: none; }
   /* Figures. The data is the only loud thing: marks wear --fill, every scrap of
      text wears an ink token. */
   .hero { margin: 18px 0 6px; }
@@ -589,7 +527,9 @@
      so it takes the warning colours rather than a pair of its own. The wash is
      stronger in the dark theme than the light one: the same brown at a thirteenth
      of its strength is a tint on white and nothing at all on black. */
-  .banner { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; display: block; }
+  /* The bare class is 0.1's. A banner with a tone, or floating as a toast, is v0.2's
+     (components.css), and base.html's are those; this goes with the last bare one. */
+  .banner:not(.warning):not(.toast) { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; display: block; }
   /* A project's state, as a chip. Tinted rather than coloured in: these sit in a
      table beside names and summaries, and a solid block of colour on every row
      would make a list of ordinary projects read as a page of warnings. The text
@@ -834,42 +774,6 @@
   .photo-main { width: 100%; max-height: 340px; object-fit: contain; border-radius: 10px; border: 1px solid var(--line); }
   img.zoomable { cursor: zoom-in; }
   img.zoomable:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-  /* touch-action: none across the whole overlay, not only the photo in the middle
-     of it: a flick that starts on the black above or below the photo is still a
-     flick, and left to itself the phone would scroll the page underneath with it. */
-  #lightbox { position: fixed; inset: 0; background: #000000d8; display: none;
-    align-items: center; justify-content: center; z-index: 1000; touch-action: none; }
-  #lightbox.open { display: flex; }
-  /* The stage is the whole of the window the photo may use, not the photo's own
-     box: a tall photo on a wide screen sits in the middle of it with a black band
-     either side, and the zoom is free to spend those bands rather than staying
-     shut inside the shape the photo arrived in. touch-action: none because the
-     overlay does its own pinch: left to itself the browser would zoom the whole
-     page, scrollbars, header and all. */
-  #lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;
-    touch-action: none; }
-  /* Zoom and pan ride on this wrapper's transform from the stage's top-left
-     corner, so the pan bounds and the crop maths always measure against one
-     untransformed box. The centring is the transform's doing too -- laying the
-     photo out in the middle and then scaling from a corner would fight it.
-
-     Its background is the thumbnail's own copy, stretched to the size the photo
-     is about to be and showing through until the original has arrived: the photo
-     grows out of the thumbnail on the way in, and a box with nothing in it yet has
-     nothing to grow. The radius is the photo's own, so the corners of the stand-in
-     do not show past it. */
-  #lightbox .lb-fit { position: absolute; left: 0; top: 0; line-height: 0;
-    transform-origin: 0 0; will-change: transform;
-    border-radius: 8px; background-size: 100% 100%; background-repeat: no-repeat; }
-  #lightbox img { max-width: 92vw; max-height: 84vh; border-radius: 8px; box-shadow: 0 6px 40px #000;
-    display: block; width: auto; height: auto;
-    cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
-  #lightbox .lb-stage.zoomed { overflow: hidden; cursor: grab; }
-  #lightbox .lb-stage.zoomed.panning { cursor: grabbing; }
-  #lightbox .lb-stage.zoomed img { cursor: grab; }
-  #lightbox .lb-stage.zoomed.panning img { cursor: grabbing; }
-  #lightbox .lb-stage.cropping { cursor: crosshair; touch-action: none; }
-  #lightbox .lb-stage.cropping img { cursor: crosshair; }
   #lb-crop { position: absolute; border: 2px solid #fff; box-sizing: border-box;
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, .5); cursor: move; }
   #lb-crop .handle { position: absolute; right: 1px; bottom: 1px; width: 18px; height: 18px;
@@ -913,17 +817,6 @@
      rules above would outrank the browser's own `[hidden] { display: none }`, which
      is why there is one of our own at the top of this stylesheet. */
   #lightbox .lb-hint { color: #ffffffb0; font-size: 12px; }
-  /* The buttons fade with the backdrop. A photo on its way home to its thumbnail is
-     uncovering the page it belongs to, and a close button and a toolbar standing
-     over that page belong to nothing -- besides which they are in the way of
-     watching it go. --chrome is written by the script, a frame at a time. */
-  #lightbox .lb-close, #lightbox .lb-nav, #lightbox .lb-tools { opacity: var(--chrome, 1); }
-  /* Above the stage, which spans nearly the whole window and would otherwise
-     swallow the clicks meant for an arrow standing over it. */
-  #lightbox button { position: absolute; z-index: 2; background: #ffffff1a; color: #fff; border: none; cursor: pointer; user-select: none; border-radius: 8px; }
-  #lightbox .lb-nav { top: 50%; transform: translateY(-50%); font-size: 38px; padding: 6px 16px; }
-  #lightbox .lb-prev { left: 3vw; } #lightbox .lb-next { right: 3vw; }
-  #lightbox .lb-close { top: 3vh; right: 3vw; font-size: 30px; padding: 2px 12px; }
   /* The way back, and the way on to the next item: one row, the pair pushed to the
      far end so they fall under the thumb on a phone. */
   .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
@@ -1038,120 +931,6 @@
      the rule above says about inputs in here. */
   .notebar .filebtn input[type=file] { flex: none; min-width: 0; padding: 0; border: 0; }
 
-  /* --- The banner, in three bands -----------------------------------------
-     Places on the left, finding in the middle, doing on the right. It grew
-     instead to fourteen controls in one flat row, all wearing .btn sm, so
-     nothing in it was ranked and the eye had to read the lot to find the one
-     it wanted. What is neither a place nor a job -- the theme, the traffic
-     log, the way out -- now sits behind one button: a permanent seat in the
-     banner has to be worth reading past on every page, and those were not. */
-  header .hdr-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-  /* Where you are. Said in weight rather than colour, because the banner is
-     read in both themes and by people who cannot tell the two apart. */
-  header .hdr-nav a[aria-current="page"] { font-weight: 700; color: var(--fg); }
-  header .hdr-desk { display: inline-flex; align-items: center; gap: 6px; }
-  /* No line-height of its own any more. It had 1.15, which is the browser's
-     `normal` -- the height every <button> beside it used to be, and matching them
-     was the point. They are the page's 1.5 now, and holding the tighter figure here
-     would leave the one control in the banner that is a <summary> standing five
-     pixels shorter than the two it sits between. */
-  header .hdr-desk .dots { min-width: 34px; text-align: center; }
-  /* Clear of the name: the section you are in is set in bold, and against the
-     brand -- which is bold too -- it read as the last word of it. */
-  header .hdr-nav { margin-left: 6px; }
-  header .hdr-desk form { margin: 0; }
-
-  /* A menu that opens without a script, because <details> already does that.
-     The script below only closes it -- on Escape, and on a click landing
-     anywhere else -- which is the part the element does not do for itself. */
-  .menu { position: relative; }
-  .menu > summary { list-style: none; cursor: pointer; }
-  .menu > summary::-webkit-details-marker { display: none; }
-  .menu > summary::marker { content: ""; }
-  .menupop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 950;
-    min-width: 178px; background: var(--bg); border: 1px solid var(--line);
-    border-radius: 10px; box-shadow: 0 10px 30px #00000026; padding: 4px; }
-  :root[data-theme="dark"] .menupop { box-shadow: 0 10px 30px #00000080; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) .menupop { box-shadow: 0 10px 30px #00000080; }
-  }
-  .menupop a, .menupop button { display: block; width: 100%; text-align: left;
-    padding: 7px 9px; border: 0; border-radius: 7px; background: transparent;
-    color: inherit; font: inherit; font-size: 13px; text-decoration: none;
-    white-space: nowrap; cursor: pointer; }
-  .menupop a:hover, .menupop button:hover { background: var(--btn-hover); }
-  .menupop hr { border: 0; border-top: 1px solid var(--line); margin: 4px 3px; }
-  .menupop form { margin: 0; }
-
-  /* The quiet end of the page: the one link here is for whoever is writing
-     against the register rather than reading it, which is not a thing to spend
-     a seat in the banner on. */
-  footer.site { border-top: 1px solid var(--line); margin-top: 34px;
-    padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 4px 14px;
-    align-items: baseline; font-size: 13px; color: var(--muted); }
-
-  /* --- The phone's own row of controls ------------------------------------
-     At the bottom, where the thumb is. Measured before this existed, the
-     banner on a 390px screen wrapped to four rows and 165px, and the first
-     card began 340px down -- two fifths of the screen spent on chrome. Worse,
-     the one control a phone is really here for was the last thing on the last
-     row: scanning a label is what you do while holding the thing, and it was
-     further from your thumb than anything else on the page. */
-  .tabbar, #sheet { display: none; }
-  @media (max-width: 620px) {
-    header .hdr-nav, header .hdr-desk { display: none; }
-    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
-      display: flex; background: var(--bg); border-top: 1px solid var(--line);
-      padding: 3px 2px calc(3px + env(safe-area-inset-bottom, 0px)); }
-    .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column;
-      align-items: center; gap: 3px; padding: 6px 2px; border: 0;
-      background: none; color: var(--muted); font: inherit; font-size: 11px;
-      text-decoration: none; cursor: pointer;
-      min-height: 0; font-weight: normal; justify-content: normal; }
-    .tabbar svg { width: 21px; height: 21px; display: block; }
-    .tabbar [aria-current="page"], .tabbar .on { color: var(--accent); }
-    /* Room under the last card for the bar that would otherwise sit on it, and
-       the cookie notice lifted clear of the same bar. */
-    body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
-    #cookienote { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
-    /* That padding holds the last card off the bar. It says nothing about where a
-       scroll stops, and a browser reaching a control below the fold with the Tab
-       key scrolls it to the edge of the viewport -- which is where the bar is
-       fixed, so the control arrives behind it. Twenty stops on an item page and
-       twenty-one on a machine's form landed there, the year field and "mark
-       disposed" hidden outright. The scroll container has to be told separately. */
-    html { scroll-padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
-    /* The notice stands on the bar and is taller than it -- five lines of text on
-       a 320px screen. It is in the markup only while it is showing, so the room
-       comes back when it goes without a line of script. */
-    html:has(#cookienote) { scroll-padding-bottom: calc(240px + env(safe-area-inset-bottom, 0px)); }
-    /* And room under the page for it, for the same reason the bar has some: at the
-       very bottom of a short page there is nothing left to scroll, so the last
-       control stays behind the notice however the scroll is padded. */
-    html:has(#cookienote) body { padding-bottom: calc(240px + env(safe-area-inset-bottom, 0px)); }
-    /* Everything else, in one list rather than a menu inside a menu: a sheet
-       you have to go two taps into is not simpler than the row it replaced. */
-    #sheet { position: fixed; inset: 0; z-index: 80; display: flex;
-      flex-direction: column; justify-content: flex-end; background: #00000066; }
-    #sheet[hidden] { display: none !important; }
-    #sheet .sheet-body { background: var(--bg); border-top: 1px solid var(--line);
-      border-radius: 14px 14px 0 0; padding: 8px 8px calc(10px + env(safe-area-inset-bottom, 0px));
-      max-height: 82vh; overflow-y: auto; }
-    #sheet a, #sheet button { display: block; width: 100%; text-align: left;
-      padding: 11px 12px; border: 0; border-radius: 9px; background: transparent;
-      color: inherit; font: inherit; font-size: 15px; text-decoration: none;
-      cursor: pointer; }
-    #sheet a:active, #sheet button:active { background: var(--btn-hover); }
-    #sheet a[aria-current="page"] { font-weight: 700; }
-    #sheet hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
-    #sheet form { margin: 0; }
-    /* Sized as a target and drawn as a grip: the bar is 38px of the 44 tall box
-       around it, which is what a thumb is actually aiming at. */
-    #sheet .sheet-grip { display: block; width: 100%; height: 22px; padding: 0;
-      border: 0; background: none; cursor: pointer; }
-    #sheet .sheet-grip::before { content: ""; display: block; width: 38px; height: 4px;
-      border-radius: 999px; background: var(--line); margin: 9px auto; }
-  }
 
   /* Last, so it outranks the sizes set above. iOS zooms the page in when it
      focuses a control whose text is under 16px, and does not zoom back out when
@@ -1177,7 +956,6 @@
     .edit input, .edit select, .edit textarea,
     .edit .countgrid input, .edit .chipgrid input,
     table.drives input, table.drives select,
-    header .hdr-search input[type=search],
     .toolbar input[type=text], .toolbar input[list],
     .toolbar input:not([type]), .toolbar select,
     .addbar input, .addbar select, .addbar textarea,

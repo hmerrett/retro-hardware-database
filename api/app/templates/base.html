@@ -55,190 +55,49 @@
    box and two menus, on every page. `tabindex="-1"` on the target is what makes
    the jump move focus and not only the scroll position. #}
 <a class="skip" href="#main">Skip to content</a>
-{% import "_icons.html" as I %}
-{# Which of the site's sections this page belongs to, so the banner and the
-   phone's bar can both say where you are. Prefix rather than exact match, so an
-   item's own page still lights the section it was reached through -- except the
-   gallery, which is only itself. #}
-{% set _p = request.url.path %}
+{# With the page's context, not only the globals: an import without it is built once
+   and kept, so the chrome would go on reading whatever auth_enabled was on the first
+   page ever rendered. #}
+{% import "_ui.html" as U with context %}
 {# Where you are, for the way in and the way out both: logging in comes back to it,
    and logging out stays on it rather than dropping you at the front door. The query
    counts as part of where you are -- the gallery with a search in the address is not
    the gallery -- and the server decides what to do with it, since a page that only
    the login let you see is not somewhere to be left standing. #}
+{% set _p = request.url.path %}
 {% set _back = _p ~ ('?' ~ request.url.query if request.url.query else '') %}
-{% macro here(seg) -%}
-{%- if (seg == '/' and _p == '/') or (seg != '/' and _p.startswith(seg)) %} aria-current="page"{% endif -%}
-{%- endmacro %}
-<header>
-  {# The mark and the name together, and both belong to the installation rather
-     than to the software: the logo is whatever was dropped into the branding
-     directory (see main.branded and INSTALL.md), and the name is what the settings
-     page says this collection is called. The alt text is that name because the
-     picture is the site's mark -- a logo whose alt text describes the artwork
-     tells a screen reader about a drawing nobody asked about. #}
-  <a class="brand" href="/">
-    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
-         width="248" height="256">
-    <span>{{ site_name() }}</span>
-  </a>
-  {# The places, one of them lit. API docs is not among them: it is for whoever is
-     writing against the register rather than reading it, and it lives at the foot
-     of the page. #}
-  <nav class="hdr-nav" aria-label="Sections">
-    <a href="/"{{ here('/') }}>browse</a>
-    {# Next to browse rather than out at the end, because the two are the pair: what
-       is owned, and what is being done to it. #}
-    <a href="/projects"{{ here('/projects') }}>projects</a>
-    <a href="/stats"{{ here('/stats') }}>numbers</a>
-    {# "models" rather than "machines": the page is the list of machine models the
-       catalogue knows, and beside "browse" -- which is the machines actually held --
-       "machines" read as a second way into the same shelf. #}
-    <a href="/machines"{{ here('/machines') }}>models</a>
-    <a href="/files"{{ here('/files') }}>files</a>
-  </nav>
-  <span class="hdr-gap"></span>
-  {# Enter searches the register from wherever you are: the server reads every field
-     of every item plus its history, including the prose summaries. On the gallery
-     the same box also filters what is already on the page as you type, which is
-     what the id is for -- see the script at the foot of index.html. #}
-  <form class="hdr-search" method="get" action="/" role="search">
-    <input id="q" name="q" type="search" value="{{ q | default('', true) }}"
-           placeholder="Search anything…"
-           title="Search every field of every item — maker, chip, port, a note, an asset no."
-           autocomplete="off" role="combobox" aria-expanded="false"
-           aria-controls="suggest" aria-autocomplete="list">
-    {# Reading a label instead of typing its number. Hidden until the script has
-       found a camera to open, so it never offers what it cannot do. #}
-    <button type="button" class="btn sm scan-open" hidden
-            title="Scan a label's QR code">scan</button>
-    {# The first few matches, filled in by the script below. #}
-    <div id="suggest" role="listbox" aria-label="Search suggestions" hidden></div>
-  </form>
-  {# The jobs, on a desktop. Adding a thing is one button offering the two kinds
-     rather than two buttons: they are one intention, and as a pair they were
-     also what broke across the line when the banner wrapped -- the primary
-     action orphaned at the end of one row with its twin beginning the next. #}
-  <div class="hdr-desk">
-    {% if request.state.authed %}
-    <details class="menu">
-      <summary class="btn sm primary" role="button">+ new</summary>
-      <div class="menupop">
-        <a href="/computers/new">+ computer</a>
-        <a href="/parts/new">+ part</a>
-        <a href="/projects/new">+ project</a>
-      </div>
-    </details>
-    {% endif %}
-    <details class="menu">
-      <summary class="btn sm dots" role="button" title="More" aria-label="More">⋯</summary>
-      <div class="menupop">
-        <button type="button" class="js-theme">dark theme</button>
-        {# Two jobs the browser normally does and the installed app cannot: the
-           manifest asks for display:standalone, so on a phone's home screen
-           there is no address bar to reload from and no browser menu to share
-           out of. Shown only in that mode now -- in a tab they duplicate
-           controls the browser is already drawing, and the argument for keeping
-           the redundant pair on screen stopped paying once there were a dozen
-           other things to read past first. #}
-        <button type="button" class="js-share" hidden>share this page</button>
-        <button type="button" class="js-reload" hidden>reload</button>
-        <hr>
-        {% if request.state.authed %}
-        {% if auth_enabled %}
-        {# The owner's own shortlist, beside the other things only they can reach.
-           Not in the sections nav: it is a note to yourself, not a part of the
-           catalogue (ADR-0018). #}
-        <a href="/for-sale">might sell</a>
-        <a href="/traffic">traffic</a>
-        {% endif %}
-        {# Gated on being the owner rather than on there being a login, which is the
-           one of the two questions this actually turns on: with no credentials set
-           every visitor is the owner (ADR-0019), and the page is reachable, so a
-           menu that left it out would be hiding a page it cannot refuse. #}
-        <a href="/settings"{{ here('/settings') }}>settings</a>
-        {% if auth_enabled %}
-        <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
-        {% endif %}
-        {% else %}
-        {# Carrying where you are, so logging in puts you back on it. That matters
-           most to a phone that has arrived by scanning an item's code and would
-           otherwise be handed the gallery and left to find the thing in its
-           hands again. #}
-        <a href="/login?next={{ _back | urlencode }}">log in</a>
-        {% endif %}
-      </div>
-    </details>
-  </div>
-</header>
+{{ U.site_header(_p, request.state.authed, _back, q | default('', true)) }}
 {# Running with no login, and nothing says it was meant to (ADR-0019). Above the
    content and on every page, because the pages somebody edits from are the item
    pages -- a notice only on the front door is one most visits never see.
 
    Shown to everybody, which is not a disclosure: when the site is open, everybody
    looking at it is the owner as far as the code is concerned, and the edit buttons
-   are already on the page for anyone to find. Reusing .banner rather than inventing
-   a class, so the contrast the stylesheet tests already cover is the contrast this
-   gets. #}
+   are already on the page for anyone to find. A warning rather than an alarm: open
+   is a supported way to run, and may well be what was meant. #}
 {% if auth_open_warning %}
-<div class="banner" id="openwarn">
-  <p><strong>No login.</strong> This site has no credentials set, so anybody
-    reading it can add, edit and delete anything in the register. If that is not
-    what was intended, set <code>RHDB_AUTH_USER</code> and
-    <code>RHDB_AUTH_PASSWORD</code>; if it is, set <code>RHDB_OPEN=1</code> to put
-    this notice away.</p>
-</div>
+<div class="banner warning" id="openwarn" role="status"><b>No login.</b>
+  <span>This site has no credentials set, so anybody reading it can add, edit and
+    delete anything in the register. If that is not what was intended, set
+    <code>RHDB_AUTH_USER</code> and <code>RHDB_AUTH_PASSWORD</code>; if it is, set
+    <code>RHDB_OPEN=1</code> to put this notice away.</span></div>
 {% endif %}
 <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
 
-<footer class="site">
+<footer class="site-footer">
   <span>{{ site_name() }}</span>
   <a href="/docs">API docs</a>
 </footer>
 
-{# The phone's row of controls. Four things: the shelf, the search box up in the
-   banner, the camera, and one list holding everything else. "Find" scrolls the
-   banner back into view and puts the cursor in the box rather than duplicating
-   the box down here -- two search fields on one page is two places for a query
-   to be, and only one of them would have the suggestion list attached. #}
-<nav class="tabbar" aria-label="Main">
-  <a href="/"{{ here('/') }}>{{ I.ico('grid') }}<span>browse</span></a>
-  <button type="button" id="tab-find">{{ I.ico('search') }}<span>find</span></button>
-  <button type="button" class="scan-open" hidden>{{ I.ico('scan') }}<span>scan</span></button>
-  <button type="button" id="tab-more" aria-expanded="false" aria-controls="sheet">{{ I.ico('more') }}<span>more</span></button>
-</nav>
+{{ U.tabbar(_p) }}
 
-<div id="sheet" hidden>
-  <div class="sheet-body" role="dialog" aria-modal="true" aria-label="More">
-    <button type="button" class="sheet-grip" id="sheet-shut" aria-label="Close"></button>
-    {% if request.state.authed %}
-    <a href="/computers/new">+ computer</a>
-    <a href="/parts/new">+ part</a>
-    <a href="/projects/new">+ project</a>
-    <hr>
-    {% endif %}
-    <a href="/projects"{{ here('/projects') }}>projects</a>
-    <a href="/stats"{{ here('/stats') }}>numbers</a>
-    <a href="/machines"{{ here('/machines') }}>models</a>
-    <a href="/files"{{ here('/files') }}>files</a>
-    <a href="/docs">API docs</a>
-    <hr>
-    <button type="button" class="js-theme">dark theme</button>
-    <button type="button" class="js-share" hidden>share this page</button>
-    <button type="button" class="js-reload" hidden>reload</button>
-    <hr>
-    {% if request.state.authed %}
-    {% if auth_enabled %}
-    <a href="/for-sale">might sell</a>
-    <a href="/traffic">traffic</a>
-    {% endif %}
-    <a href="/settings"{{ here('/settings') }}>settings</a>
-    {% if auth_enabled %}
-    <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
-    {% endif %}
-    {% else %}
-    <a href="/login?next={{ _back | urlencode }}">log in</a>
-    {% endif %}
+{# Everything else on a phone, in one list rather than a menu inside a menu: a sheet
+   you have to go two taps into is not simpler than the row it replaced. The veil is
+   the backdrop, and a tap on it closes the sheet (app.js). #}
+<div id="sheet" class="veil" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-label="More">
+    <button type="button" class="grip" id="sheet-shut" aria-label="Close"></button>
+    {{ U.menu(_p, request.state.authed, _back, sheet=true) }}
   </div>
 </div>
 
@@ -257,9 +116,9 @@
    itself would be worse than a page that was out of date -- so it says so instead
    and waits to be asked. #}
 {% if live_aid %}
-<div id="changed" hidden data-aid="{{ live_aid }}" data-built="{{ live_v }}">
+<div class="banner toast" id="changed" hidden data-aid="{{ live_aid }}" data-built="{{ live_v }}">
   <span>This record has changed.</span>
-  <button class="btn sm primary" type="button" id="changed-go">reload</button>
+  <button class="btn sm primary" type="button" id="changed-go">{{ 'Reload' | ui }}</button>
 </div>
 <script defer src="/static/live.js?v={{ js_ver['live.js'] }}"></script>
 {% endif %}
@@ -272,12 +131,12 @@
    the choice. A banner demanding consent before anything has been stored would be
    asking about a thing that has not happened. #}
 {% if not request.state.noticed %}
-<div id="cookienote" data-cookie="{{ notice_cookie }}">
-  <p><strong>Cookies.</strong> Nothing is stored until you choose something — a sort
+<div class="banner toast" id="cookienote" data-cookie="{{ notice_cookie }}">
+  <p><b>Cookies.</b> Nothing is stored until you choose something — a sort
     order, the dark theme. First party only: no analytics, no advertising, nothing
     shared with anyone{% if auth_enabled %}. Signing in to edit adds a session
     cookie{% endif %}.</p>
-  <button class="btn sm" id="cookieok" type="button">got it</button>
+  <button class="btn sm" id="cookieok" type="button">{{ 'Got it' | ui }}</button>
 </div>
 {% endif %}
 {# The big view: the photo as large as the window allows, and zoomable from there by
@@ -286,16 +145,16 @@
    same photo still open, so a run of corrections does not mean a round trip through
    the item page for each one. The crop maths works in fractions of the image, which
    is why it can live at whatever size the overlay happens to be showing. #}
-<div id="lightbox">
-  <button class="lb-close" title="Close (Esc)">×</button>
-  <button class="lb-nav lb-prev" title="Previous (←)">‹</button>
+<div class="lb" id="lightbox">
+  <button class="lb-close" title="Close (Esc)" aria-label="Close">×</button>
+  <button class="lb-nav lb-prev" title="Previous (←)" aria-label="Previous">‹</button>
   <div class="lb-stage" id="lb-stage">
     <div class="lb-fit" id="lb-fit">
       <img alt="">
       <div id="lb-crop" hidden><div class="handle"></div></div>
     </div>
   </div>
-  <button class="lb-nav lb-next" title="Next (→)">›</button>
+  <button class="lb-nav lb-next" title="Next (→)" aria-label="Next">›</button>
   {% if request.state.authed %}
   <div class="lb-tools" id="lb-tools">
     <form method="post" class="lb-act" data-act="photo-rotate">

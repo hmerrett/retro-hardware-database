@@ -180,3 +180,151 @@
 {% macro bezel(shade, yellowing, size='') -%}
 <span class="{{ ['bezel', bezel_class(shade, yellowing) or 'none', size] | select | join(' ') }}" aria-hidden="true"></span>
 {%- endmacro %}
+
+{# ---- The site's chrome ------------------------------------------------------
+   These read the page they are on, so each takes what it needs of it: `current`
+   is the path, `authed` whether this visitor may edit, `back` where logging in or
+   out returns to. Whether the site has a login at all is the global auth_enabled. #}
+
+{# aria-current on the section a path belongs to. Prefix rather than exact match, so
+   an item's own page still lights the section it was reached through -- except the
+   gallery, which is only itself. #}
+{% macro here(seg, current) -%}
+{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg)) %} aria-current="page"{% endif -%}
+{%- endmacro %}
+
+{# The five sections, in the order both the banner and the menu give them. "Models"
+   rather than "machines": the page is the catalogue's list of machine models, and
+   beside Browse -- the machines actually held -- "machines" read as a second way
+   into the same shelf. Projects sits next to Browse because the two are a pair:
+   what is owned, and the work in hand. #}
+{% set SECTIONS = [('/', 'Browse', 'grid'), ('/projects', 'Projects', 'projects'),
+                   ('/stats', 'Numbers', 'numbers'), ('/machines', 'Models', 'models'),
+                   ('/files', 'Files', 'files')] %}
+
+{# Everything that is neither a place in the banner nor its search: one list, drawn
+   as the banner's popover or as the phone's sheet, so a row added for one cannot be
+   missing from the other.
+
+   The sheet leads with the things to add, since on a phone there is no + New
+   beside it (the plus is its icon, so not its words as well), and carries the four sections the tab bar has no room for, and the
+   API docs from the foot of the page. The popover carries all five sections
+   classed `fold`: the stylesheet shows them only at the widths where the banner has
+   put its own away. Theme, share and reload are buttons the script words and
+   reveals (app.js), so they carry no icon for it to overwrite. #}
+{% macro menu(current, authed, back, sheet=false) -%}
+{%- if sheet and authed -%}
+<a href="/computers/new">{{ I.ico('plus') }}{{ 'Computer' | ui }}</a>
+<a href="/parts/new">{{ I.ico('plus') }}{{ 'Part' | ui }}</a>
+<a href="/projects/new">{{ I.ico('plus') }}{{ 'Project' | ui }}</a>
+<hr>
+{%- endif -%}
+{%- for href, words, icon in SECTIONS if not (sheet and href == '/') -%}
+<a href="{{ href }}"{% if not sheet %} class="fold"{% endif %}{{ here(href, current) }}>{% if sheet %}{{ I.ico(icon) }}{% endif %}{{ words | ui }}</a>
+{%- endfor -%}
+{%- if sheet %}<a href="/docs">{{ I.ico('files') }}{{ 'API docs' | ui }}</a><hr>{% else %}<hr class="fold">{% endif -%}
+<button type="button" class="js-theme">{{ 'Dark theme' | ui }}</button>
+{#- Two jobs the browser normally does and the installed app cannot: the manifest
+    asks for display:standalone, so on a phone's home screen there is no address
+    bar to reload from and no browser menu to share out of. The script shows them
+    only in that mode. -#}
+<button type="button" class="js-share" hidden>{{ 'Share this page' | ui }}</button>
+<button type="button" class="js-reload" hidden>{{ 'Reload' | ui }}</button>
+<hr>
+{%- if authed -%}
+{%- if auth_enabled -%}
+{#- The owner's own shortlist, beside the other things only they can reach. Not a
+    section: it is a note to yourself, not a part of the catalogue (ADR-0018). -#}
+<a href="/for-sale">{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
+<a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
+{%- endif -%}
+{#- Gated on being the owner rather than on there being a login, which is the one of
+    the two questions this actually turns on: with no credentials set every visitor
+    is the owner (ADR-0019), and the page is reachable, so a menu that left it out
+    would be hiding a page it cannot refuse. -#}
+<a href="/settings"{{ here('/settings', current) }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
+{%- if auth_enabled -%}
+<form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}"><button type="submit">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log out' | ui }}</button></form>
+{%- endif -%}
+{%- else -%}
+{#- Carrying where you are, so logging in puts you back on it. That matters most to
+    a phone that has arrived by scanning an item's code and would otherwise be
+    handed the gallery and left to find the thing in its hands again. -#}
+<a href="/login?next={{ back | urlencode }}">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log in' | ui }}</a>
+{%- endif -%}
+{%- endmacro %}
+
+{# The top banner: where you can go, the search, what you can do. Under 900px the
+   sections fold into the menu so it stays one row; under 620px everything but the
+   mark and the search moves to the tab bar. `q` is the search already made, kept in
+   the box.
+
+   The mark and the name together, and both belong to the installation rather than
+   to the software: the logo is whatever was dropped into the branding directory
+   (see common.branded and INSTALL.md), and the name is what the settings page says
+   this collection is called. The alt text is that name because the picture is the
+   site's mark -- a logo whose alt text describes the artwork tells a screen reader
+   about a drawing nobody asked about. #}
+{% macro site_header(current, authed, back, q='') -%}
+<header class="site-header">
+  <a class="brand" href="/">
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
+         width="248" height="256">
+    <span>{{ site_name() }}</span>
+  </a>
+  {#- API docs is not among the sections: it is for whoever is writing against the
+      register rather than reading it, and it lives at the foot of the page. #}
+  <nav aria-label="Sections">
+    {%- for href, words, _ in SECTIONS %}<a href="{{ href }}"{{ here(href, current) }}>{{ words | ui }}</a>{% endfor -%}
+  </nav>
+  <span class="grow"></span>
+  {#- Enter searches the register from wherever you are: the server reads every
+      field of every item plus its history. On the gallery the same box also filters
+      what is already on the page as you type, which is what the id is for (index.js).
+      The suggestion list is filled in by app.js. #}
+  <form class="searchwrap" method="get" action="/" role="search">
+    <input class="input search" id="q" name="q" type="search" value="{{ q }}"
+           placeholder="Search anything…" aria-label="Search"
+           title="Search every field of every item — maker, chip, port, a note, an asset no."
+           autocomplete="off" role="combobox" aria-expanded="false"
+           aria-controls="suggest" aria-autocomplete="list">
+    <div id="suggest" role="listbox" aria-label="Search suggestions" hidden></div>
+  </form>
+  {#- Reading a label instead of typing its number. Hidden until the script has found
+      a camera to open, so it never offers what it cannot do. #}
+  <button type="button" class="btn hdr-scan scan-open" hidden title="Scan a label's QR code">{{ 'Scan' | ui }}</button>
+  {#- Adding a thing is one button offering the three kinds rather than three: they
+      are one intention, and as a row they were what broke across the line when the
+      banner wrapped. #}
+  {%- if authed %}
+  <details class="menu hdr-new">
+    <summary class="btn primary" role="button">{{ '+ New' | ui }}</summary>
+    <div class="menupop">
+      <a href="/computers/new">{{ '+ Computer' | ui }}</a>
+      <a href="/parts/new">{{ '+ Part' | ui }}</a>
+      <a href="/projects/new">{{ '+ Project' | ui }}</a>
+    </div>
+  </details>
+  {%- endif %}
+  <details class="menu hdr-more">
+    <summary class="btn icon" role="button" title="More" aria-label="More">{{ I.ico('more') }}</summary>
+    <div class="menupop">{{ menu(current, authed, back) }}</div>
+  </details>
+</header>
+<div class="stripe"></div>
+{%- endmacro %}
+
+{# The phone's row of controls: the shelf, the search box up in the banner, the
+   camera, and one list holding everything else. Find scrolls the banner back into
+   view and puts the cursor in the box rather than drawing a second one -- two
+   search fields is two places for a query to be, and only one of them would have
+   the suggestions attached. Buttons rather than links for the three that do
+   something here: none of them goes anywhere without a script. #}
+{% macro tabbar(current) -%}
+<nav class="tabbar" aria-label="Main">
+  <a href="/"{{ here('/', current) }}>{{ I.ico('grid') }}<span>{{ 'Browse' | ui }}</span></a>
+  <button type="button" id="tab-find">{{ I.ico('search') }}<span>{{ 'Find' | ui }}</span></button>
+  <button type="button" class="scan scan-open" hidden><span class="puck">{{ I.ico('scan') }}</span><span>{{ 'Scan' | ui }}</span></button>
+  <button type="button" id="tab-more" aria-expanded="false" aria-controls="sheet">{{ I.ico('more') }}<span>{{ 'More' | ui }}</span></button>
+</nav>
+{%- endmacro %}

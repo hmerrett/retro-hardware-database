@@ -18,6 +18,8 @@ import pytest
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 BASE = TEMPLATES / "base.html"
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
+# Where the phone's bar and the chrome around it now live (ADR-0024).
+COMPONENTS = STYLESHEET.parent / "css" / "components.css"
 
 FOCUSABLE = re.compile(r"<(?:a\s[^>]*href=|button\b|input\b|select\b|textarea\b|summary\b)", re.I)
 HEADING_CELL = re.compile(r"<th(\s[^>]*)?>")
@@ -102,6 +104,13 @@ def media_block_holding(css: str, needle: str) -> str:
     return css[opened : css.index("\n  }", at) + 4]
 
 
+def resolved(css: str) -> str:
+    """The stylesheet with each `var(--name)` it defines itself written out, so a
+    clearance named once as a custom property reads as the figure it is."""
+    defined = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", css))
+    return re.sub(r"var\((--[\w-]+)\)", lambda m: defined.get(m.group(1), m.group(0)), css)
+
+
 def px(text: str, declaration: str) -> int:
     """The first pixel figure in a declaration, whether or not it is inside a
     `calc()` with a safe-area inset added to it."""
@@ -120,7 +129,7 @@ def test_a_bar_fixed_across_the_bottom_does_not_swallow_the_focus_ring():
     `body`'s padding holds the last card clear of the bar and says nothing about
     where a scroll stops; the scroll container has to be told separately. WCAG 2.2
     calls this 2.4.11, and the minimum is that focus is not *entirely* hidden."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    css = resolved(COMPONENTS.read_text(encoding="utf-8"))
     phone = media_block_holding(css, ".tabbar { position: fixed")
     reserved = px(phone, "padding-bottom")
     assert "scroll-padding-bottom" in phone, (
@@ -136,7 +145,7 @@ def test_the_cookie_notice_does_not_swallow_it_either():
     screen, where the text wraps to five lines. It is in the markup only while it
     is showing, so `:has` is the whole of the condition and no script is needed to
     put the room back when it goes."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    css = resolved(COMPONENTS.read_text(encoding="utf-8"))
     while_showing = [
         rule
         for rule in re.finditer(r"html:has\(#cookienote\)[^{]*\{[^}]*\}", css)

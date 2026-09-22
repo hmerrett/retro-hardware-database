@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1482 behaviours, from 39 files.*
+*1497 behaviours, from 40 files.*
 
 
 ## A file where text was expected
@@ -2428,7 +2428,7 @@ Regenerate with:
 - it is on an item page too and not only the gallery  
   Every page, because the pages somebody edits from are the item pages and a warning only on the front door is a warning most visits never see.
 - the banner is the one the stylesheet already warns with  
-  Reusing .banner rather than inventing a class: it is already the site's warning colour, and the stylesheet's contrast tests already cover it in both themes, so this adds no rule for them to have missed (accessibility-standards).
+  Reusing .banner rather than inventing a class: its warning tone is already in the contrast tests in every preset and both themes, so this adds no rule for them to have missed (accessibility-standards).
 
 **The app can still speak**
 
@@ -2510,6 +2510,41 @@ Regenerate with:
 **The map and the manual say so**
 
 - the decision is written down
+
+
+## Site chrome
+
+*test_site_chrome.py — 15 behaviours*
+
+
+**The banner**
+
+- the sections are written in sentence case
+- the section you are in is the one marked
+- the section you are in is said in weight not colour alone
+- the menu is named for a screen reader
+- new is offered only to the owner
+
+**The menu**
+
+- it offers the owner might sell traffic and log out
+- it offers a visitor log in
+- it holds the five sections folded away at its top
+- the phone sheet offers everything the menu does  
+  One list, two renderings: a row added to one and not the other is a thing a phone or a desktop cannot reach.
+
+**How it folds with the width**
+
+- on a tablet the sections leave the banner
+- and are found in the menu instead
+- on a phone the bar takes over and scan goes with it
+- the bar is nowhere but a phone
+- the bar sits above the home indicator
+
+**Notices**
+
+- running open is a warning not an alarm  
+  Spec 15: the no-login banner is `warning`, not `danger`.
 
 
 ## Specstruct

@@ -1444,7 +1444,7 @@
   if (shut) shut.addEventListener('click', function () { open(false); });
   // The backdrop is the sheet itself; the panel inside it stops the tap.
   sheet.addEventListener('click', function (e) {
-    if (!e.target.closest('.sheet-body')) open(false);
+    if (!e.target.closest('.sheet')) open(false);
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !sheet.hidden) { e.stopPropagation(); open(false); }
