@@ -198,6 +198,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
 | `presets.py` | the looks the register ships with, read from the design data — so the page cannot offer one no stylesheet was written for |
 | `typefaces.py` | the ways the three faces can be pointed, read from the same design data — a pairing repoints them and changes nothing else |
+| `accent.py` | the installation's accent: one colour in, the five tokens the page is painted with out, derived for the preset and the mode and served as a stylesheet of its own |
 | `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
 | `locations.py` | where things are kept: the remembered vocabulary of places, what a form's pick list offers, and where a part is when it does not say for itself |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |

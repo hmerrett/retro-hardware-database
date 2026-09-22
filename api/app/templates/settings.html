@@ -26,7 +26,21 @@
     {% for d in rows %}
     {% set fixed = pinned(d) is not none %}
 
-    {% if d.kind == 'swatch' %}
+    {% if d.key == 'accent' %}
+    {# The same row of faces, smaller, and each one showing the thing rather than a
+       word for it: a real primary button and a real link in that accent, derived
+       for the preset in force and for the mode this reader is in. The colours are
+       in accent.css against the value on the face, so nothing here states one. #}
+    {% call(name) U.swatch(d.key, d.label, choices_for(d), value(d.key), note=d.note, pinned=fixed, extra='accents') %}
+    <span class="demo" data-accent="{{ name }}"><span class="dot"></span><span class="lnk">Link</span></span>
+    {% endcall %}
+
+    {% elif d.kind == 'colour' %}
+    {# Under the eight, and winning over them while it has something in it. Seven
+       characters is the whole of what it can hold: #rrggbb and no more. #}
+    {{ U.field(d.key, d.label, value=value(d.key), note=d.note, pinned=fixed, maxlength=7, placeholder='#rrggbb', spellcheck='false', autocapitalize='off', autocomplete='off') }}
+
+    {% elif d.kind == 'swatch' %}
     {# Chosen by looking. Each face is a page cut in half -- the light of that
        preset on the left, its dark on the right -- because a preset is two sets of
        colours and which of them a reader gets is the answer below this one. The

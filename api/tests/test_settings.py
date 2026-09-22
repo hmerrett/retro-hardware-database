@@ -163,7 +163,10 @@ class TestTheLook:
         page = client.get("/settings").text
         chosen = page.split('value="amber" checked', 1)[1].split("</label>", 1)[0]
         assert "Chosen" in chosen
-        assert page.count("Chosen") == len(presets.IDS)
+        # Counted inside the preset's own fieldset: there is a second row of faces
+        # under it now, and every face on the page carries the word.
+        faces = page.split('<fieldset class="swatches" title="', 1)[1].split("</fieldset>", 1)[0]
+        assert faces.count("Chosen") == len(presets.IDS)
 
     def test_the_faces_are_one_group_of_radios(self, client):
         """Radios and not buttons: it posts with no script, it is one stop for the
@@ -510,7 +513,9 @@ class TestHowThePageReads:
         # which is a row on this page without being a setting -- it is kept in the
         # browser and never posted (ADR-0023). The look's is on the group of faces
         # rather than on a row, since the row is the group.
-        rows = page.count('class="field" title="') + page.count('class="swatches" title="')
+        rows = page.count('class="field" title="') + len(
+            re.findall(r'class="swatches[^"]*" title="', page)
+        )
         assert rows == len(settings.DEFINITIONS) + 1
 
 

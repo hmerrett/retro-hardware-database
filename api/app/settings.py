@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from . import accent as accents
 from . import presets, typefaces
 from .db import SessionLocal
 from .models import Setting
@@ -36,6 +37,11 @@ if TYPE_CHECKING:
     from .forms import Posted
 
 SWITCH, TEXT, CHOICE, SWATCH = "switch", "text", "choice", "swatch"
+# A colour of the owner's own, written as `#rrggbb`. Its own kind rather than a
+# text box, because what it will take is a narrower question than "some words":
+# the value is spent on a colour in a stylesheet, and `clean` is where that is
+# settled once rather than at every place the setting is read.
+COLOUR = "colour"
 
 # The fieldsets, in the order they are shown. Named here so a definition names one
 # rather than repeating the words.
@@ -113,6 +119,29 @@ DEFINITIONS: tuple[Definition, ...] = (
         default=presets.DEFAULT,
         choices=presets.CHOICES,
         env="RHDB_PRESET",
+    ),
+    Definition(
+        key="accent",
+        section=APPEARANCE,
+        label="Accent",
+        note=(
+            "The colour that means press this, this is a link, this is where you are. "
+            "It is adjusted for the preset and the mode so that it always reads."
+        ),
+        kind=SWATCH,
+        default=accents.AS_PRESET,
+        choices=accents.CHOICES,
+    ),
+    Definition(
+        key="accent_custom",
+        section=APPEARANCE,
+        label="Custom accent",
+        note=(
+            "A colour written as #rrggbb, which wins over the eight while it has "
+            "something in it. Emptying it hands the answer back to them."
+        ),
+        kind=COLOUR,
+        default="",
     ),
     Definition(
         key="theme",
@@ -379,6 +408,30 @@ def navigation() -> str:
     return chosen if chosen in dict(d.choices) else d.default
 
 
+def accent_brand() -> str:
+    """The colour the page is accented with, or empty for the preset's own.
+
+    Two settings and one answer. The box wins while it has something in it and the
+    named choice is still underneath when it is emptied, so changing your mind
+    about a colour of your own does not cost you the one you had chosen before it.
+    Both are checked here rather than trusted: either can have been written by a
+    row this page did not put there, and the value is spent on a colour in a
+    stylesheet (`accent.known`, `accent.custom`).
+    """
+    own = accents.custom(value("accent_custom"))
+    if own:
+        return own
+    chosen = accents.known(value("accent"))
+    return "" if chosen == accents.AS_PRESET else accents.BRANDS[chosen]
+
+
+def accent_css() -> str:
+    """The accent's stylesheet for the look in force, and the stamp it is asked for
+    by. Both come from the same call so a page can never link one and serve the
+    other."""
+    return accents.stylesheet(preset(), accent_brand())
+
+
 def clean(d: Definition, raw: str | None) -> str | None:
     """What was posted, as the definition's own kind, or None if it is not an answer
     this setting has.
@@ -392,6 +445,11 @@ def clean(d: Definition, raw: str | None) -> str | None:
     if d.kind == SWITCH:
         return "0" if raw is None else "1"
     text = (raw or "").strip()
+    if d.kind == COLOUR:
+        # Blank is an answer -- it is how the box is given back to the eight above
+        # it. Anything that is not a colour is not, and `None` here is what leaves
+        # the stored value alone rather than overwriting it with a typo.
+        return "" if not text else (accents.custom(text) or None)
     if d.kind in (CHOICE, SWATCH):
         return text if text in dict(choices_for(d)) else None
     return text[:200]

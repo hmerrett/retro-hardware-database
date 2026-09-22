@@ -23,7 +23,7 @@ from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
 from . import entry, filekinds, filesdb, labels, projects, rail, settings
-from .common import PUBLIC_BASE_URL, STATIC_DIR, _file_ver, branded
+from .common import PUBLIC_BASE_URL, STATIC_DIR, _file_ver, _text_ver, branded
 from .datacss import DATA_CSS_VER
 from .photos import _image_size, img_srcset, img_url
 
@@ -63,6 +63,11 @@ templates.env.globals.update(
     # preset it is the installation's and not the reader's, and like the preset the
     # common answer -- the preset's own three -- is no attribute and no second file.
     site_type=settings.typeface,
+    # The accent, as a stamp of the stylesheet it is served as rather than as the
+    # colour itself: nothing in the markup carries a colour (ADR-0022), and asking
+    # the same call for the stamp that the route asks for the rules is what stops a
+    # page linking one answer and being served another.
+    accent_ver=lambda: _text_ver(settings.accent_css()),
     # Where the sections sit on a wide screen, and what the rail beside them holds.
     # The counts and the recent list are queried as the page is drawn, so they are
     # asked for only on the pages that draw a rail -- `counts` is not called at all

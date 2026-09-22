@@ -89,8 +89,8 @@
    rather than taken off the page, so the focus still lands on it and draws its own
    ring. The chosen one is outlined and also says so in words, because an outline is
    a colour and somebody may not be able to see it. #}
-{% macro swatch(key, label, faces, chosen, note='', pinned=false) -%}
-<fieldset class="swatches{{ ' is-pinned' if pinned else '' }}"{% if note %} title="{{ note }}"{% endif %}>
+{% macro swatch(key, label, faces, chosen, note='', pinned=false, extra='') -%}
+<fieldset class="swatches{{ ' ' ~ extra if extra }}{{ ' is-pinned' if pinned else '' }}"{% if note %} title="{{ note }}"{% endif %}>
 <legend>{{ label }}</legend>
 {%- for value, name in faces %}
 <label class="swatch-opt">

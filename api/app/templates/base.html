@@ -57,7 +57,12 @@
    selectors are a root and an attribute, so which file is linked second is what
    decides. Nothing when the answer is the preset's own three. #}
 {% if _type != 'preset' %}<link rel="stylesheet" href="/static/css/type.css?v={{ type_ver }}">
-{% endif %}<link rel="stylesheet" href="/static/app.css?v={{ css_ver }}">
+{% endif %}{# And after both, because an accent restates what the preset says about
+   one colour: the two selectors weigh the same, so the second link is what decides.
+   Always linked -- it also carries the faces the accent picker is drawn with, which
+   are wanted whether or not an accent has been chosen. #}
+<link rel="stylesheet" href="/style/accent.css?v={{ accent_ver() }}">
+<link rel="stylesheet" href="/static/app.css?v={{ css_ver }}">
 <link rel="stylesheet" href="/static/css/components.css?v={{ components_ver }}">
 <link rel="stylesheet" href="/static/css/utilities.css?v={{ utilities_ver }}">
 <link rel="stylesheet" href="/style/data.css?v={{ data_css_ver }}">
