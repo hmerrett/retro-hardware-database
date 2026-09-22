@@ -22,7 +22,7 @@ from fastapi import HTTPException, Request, Response
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
-from . import entry, filekinds, filesdb, labels, projects, settings
+from . import entry, filekinds, filesdb, labels, projects, rail, settings
 from .common import PUBLIC_BASE_URL, STATIC_DIR, _file_ver, branded
 from .datacss import DATA_CSS_VER
 from .photos import _image_size, img_srcset, img_url
@@ -63,6 +63,14 @@ templates.env.globals.update(
     # preset it is the installation's and not the reader's, and like the preset the
     # common answer -- the preset's own three -- is no attribute and no second file.
     site_type=settings.typeface,
+    # Where the sections sit on a wide screen, and what the rail beside them holds.
+    # The counts and the recent list are queried as the page is drawn, so they are
+    # asked for only on the pages that draw a rail -- `counts` is not called at all
+    # when the answer is the top banner.
+    site_nav=settings.navigation,
+    rail_counts=rail.counts,
+    rail_recent=rail.recent,
+    rail_collapsed=rail.collapsed,
     site_indexed=lambda: not settings.on("block_search_engines"),
     # Whether a reader who is not signed in is told where a thing is kept. The item
     # pages ask it beside `request.state.authed`, which is the other half of the

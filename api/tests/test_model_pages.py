@@ -12,6 +12,7 @@ import re
 import pytest
 
 from app import machines, main
+from conftest import content
 from test_files import publish, upload
 
 
@@ -67,7 +68,7 @@ class TestTheList:
         assert '<span class="n">1<span class="sr-only"> here</span></span>' in row
 
     def test_a_model_nothing_is_filed_as_carries_no_count(self, client):
-        page = client.get("/machines").text
+        page = content(client.get("/machines").text)
         assert 'class="m have"' not in page
         assert 'class="n"' not in page
 

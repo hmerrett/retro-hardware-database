@@ -115,18 +115,6 @@ DEFINITIONS: tuple[Definition, ...] = (
         env="RHDB_PRESET",
     ),
     Definition(
-        key="watermark",
-        section=APPEARANCE,
-        label="Watermark photographs",
-        note=(
-            "Composited into the copy that is served, so a photograph saved elsewhere "
-            "still says where it came from. The original on disk is never touched."
-        ),
-        kind=SWITCH,
-        default="1",
-        env="RHDB_WATERMARK",
-    ),
-    Definition(
         key="theme",
         section=APPEARANCE,
         label="Theme",
@@ -155,6 +143,18 @@ DEFINITIONS: tuple[Definition, ...] = (
         choices=typefaces.CHOICES,
     ),
     Definition(
+        key="nav",
+        section=APPEARANCE,
+        label="Navigation",
+        note=(
+            "Where the sections sit on a wide screen: down a rail beside the page, or "
+            "across the banner above it. Below 1100px and on a phone, the banner either way."
+        ),
+        kind=CHOICE,
+        default="side",
+        choices=(("side", "Side"), ("top", "Top")),
+    ),
+    Definition(
         key="button_case",
         section=APPEARANCE,
         label="Button text",
@@ -162,6 +162,18 @@ DEFINITIONS: tuple[Definition, ...] = (
         kind=CHOICE,
         default="cap",
         choices=(("cap", "Capitalised"), ("lower", "Lower case")),
+    ),
+    Definition(
+        key="watermark",
+        section=APPEARANCE,
+        label="Watermark photographs",
+        note=(
+            "Composited into the copy that is served, so a photograph saved elsewhere "
+            "still says where it came from. The original on disk is never touched."
+        ),
+        kind=SWITCH,
+        default="1",
+        env="RHDB_WATERMARK",
     ),
     Definition(
         key="label_destination",
@@ -353,6 +365,18 @@ def typeface() -> str:
     unknown value would not fetch the wrong file -- it would leave the page saying
     it wears a face that nothing paints."""
     return typefaces.known(value("type"))
+
+
+def navigation() -> str:
+    """Where the sections sit: side or top, and never anything else.
+
+    Read against the definition's own answers rather than a second list, and
+    checked because this one is written into a class name on every page: a value
+    from a row nobody on this page wrote would otherwise arrive in the markup.
+    """
+    d = BY_KEY["nav"]
+    chosen = value("nav")
+    return chosen if chosen in dict(d.choices) else d.default
 
 
 def clean(d: Definition, raw: str | None) -> str | None:

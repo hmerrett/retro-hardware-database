@@ -331,7 +331,7 @@
 <a href="{{ href }}"{% if not sheet %} class="fold"{% endif %}{{ here(href, current) }}>{% if sheet %}{{ I.ico(icon) }}{% endif %}{{ words | ui }}</a>
 {%- endfor -%}
 {%- if sheet %}<a href="/docs">{{ I.ico('files') }}{{ 'API docs' | ui }}</a><hr>{% else %}<hr class="fold">{% endif -%}
-<button type="button" class="js-theme">{{ 'Dark theme' | ui }}</button>
+<button type="button" class="js-theme" data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ 'Dark theme' | ui }}</button>
 {#- Two jobs the browser normally does and the installed app cannot: the manifest
     asks for display:standalone, so on a phone's home screen there is no address
     bar to reload from and no browser menu to share out of. The script shows them
@@ -420,6 +420,78 @@
   </details>
 </header>
 <div class="stripe"></div>
+{%- endmacro %}
+
+{# The side rail: where the sections sit when Navigation is Side, at 1100px and
+   wider. The same five places the banner holds, laid down instead of across, with
+   what the banner's two menus hold at its foot -- so nothing is in both and the
+   banner beside it keeps only the search and Scan (components.css, 13a).
+
+   Always in the markup when the setting says side. Which of the two a reader gets
+   is the stylesheet's answer to the width of their screen, and exactly one is in
+   the page at a time: the other is `display: none`, which takes it out of the
+   reading order as well as off the screen.
+
+   Every item carries its name in words, in `title` and in `aria-label`, because
+   collapsed the words are hidden and an icon on its own names nothing. `counts` is
+   worked out once by the page and handed in rather than asked for per row. #}
+{% macro rail(current, authed, back, counts, shut=false) -%}
+<aside class="rail{{ ' collapsed' if shut else '' }}">
+  <a class="brand" href="/">
+    <img class="mark" src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
+         width="248" height="256">
+    <span>{{ site_name() }}</span>
+  </a>
+  <nav aria-label="Sections">
+    {%- for href, words, icon in SECTIONS %}{% set w = words | ui %}
+    <a class="item" href="{{ href }}" title="{{ w }}" aria-label="{{ w }}"{{ here(href, current) }}>
+      {{- I.ico(icon) }}<span>{{ w }}</span>
+      {%- if counts.get(href) is not none %}<i class="n">{{ counts[href] }}</i>{% endif -%}
+    </a>
+    {%- endfor %}
+  </nav>
+  {%- if authed %}
+  {#- The + New menu, unfolded: in a rail there is room to make the two things
+      most often added one press each, and a menu costs the same press twice. #}
+  <div class="sep"></div>
+  <nav aria-label="Add">
+    {%- for href, thing in (('/computers/new', 'Computer'), ('/parts/new', 'Part')) %}
+    {%- set w = ('Add ' ~ thing.lower()) | ui %}
+    <a class="item" href="{{ href }}" title="{{ w }}" aria-label="{{ w }}">{{ I.ico('plus') }}<span>{{ thing | ui }}</span></a>
+    {%- endfor %}
+  </nav>
+  {#- The rail's own argument: at a bench you go back to the same two machines all
+      afternoon. Read from the history, so it costs no column and no script. #}
+  {%- set mine = rail_recent() %}
+  {%- if mine %}
+  <p class="cap">{{ 'Recent' | ui }}</p>
+  {%- for item in mine %}
+  <a class="item recent" href="{{ item.href }}"><span class="tag">{{ item.tag }}</span><span class="nm">{{ item.name }}</span></a>
+  {%- endfor %}
+  {%- endif %}
+  {%- endif %}
+  <div class="foot">
+    {#- Worded and kept in step by the script (app.js), which is why the two words
+        are handed to it here: it cannot know which case the site is written in. -#}
+    <button class="item js-theme" type="button" title="{{ 'Dark theme' | ui }}" aria-label="{{ 'Dark theme' | ui }}"
+            data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ I.ico('theme') }}<span>{{ 'Dark theme' | ui }}</span></button>
+    {%- if authed %}
+    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current) }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
+    {%- if auth_enabled %}
+    <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}">
+      <button class="item" type="submit" title="{{ 'Log out' | ui }}" aria-label="{{ 'Log out' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log out' | ui }}</span></button></form>
+    {%- endif %}
+    {%- else %}
+    <a class="item" href="/login?next={{ back | urlencode }}" title="{{ 'Log in' | ui }}" aria-label="{{ 'Log in' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log in' | ui }}</span></a>
+    {%- endif %}
+    {#- A link and not a script: it asks the server to remember, and the server sends
+        the page back the other way round. So the rail folds on a browser running
+        nothing at all, and stays folded on the next page. -#}
+    {%- set fold = 'Expand' if shut else 'Collapse' %}
+    <a class="item" href="/rail/{{ 'open' if shut else 'collapsed' }}?next={{ back | urlencode }}"
+       title="{{ fold | ui }}" aria-label="{{ fold | ui }}">{{ I.ico('collapse') }}<span>{{ fold | ui }}</span></a>
+  </div>
+</aside>
 {%- endmacro %}
 
 {# The phone's row of controls: the shelf, the search box up in the banner, the

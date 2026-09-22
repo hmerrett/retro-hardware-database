@@ -80,6 +80,19 @@
    the login let you see is not somewhere to be left standing. #}
 {% set _p = request.url.path %}
 {% set _back = _p ~ ('?' ~ request.url.query if request.url.query else '') %}
+{#- Where the sections sit. Side puts them in a rail down the left at 1100px and
+    wider and leaves the banner its search and Scan; the stylesheet decides which
+    of the two a screen gets, and below that width the rail is not drawn at all.
+    The shell is what the rail and the page stand in as two columns, so it wraps
+    the banner as well: in side mode the banner is beside the rail, not above it.
+    The overlays after the footer -- the tab bar, the sheet, the big view -- stay
+    outside it, since they are fixed to the window rather than to a column. #}
+{% set _nav = site_nav() %}
+{% if _nav == 'side' %}{% set _shut = rail_collapsed(request) %}
+<div class="shell side{{ ' collapsed' if _shut else '' }}">
+{{ U.rail(_p, request.state.authed, _back, rail_counts(request.state.authed), shut=_shut) }}
+<div>
+{% endif %}
 {{ U.site_header(_p, request.state.authed, _back, q | default('', true)) }}
 {# Running with no login, and nothing says it was meant to (ADR-0019). Above the
    content and on every page, because the pages somebody edits from are the item
@@ -105,6 +118,7 @@
   <span>{{ site_name() }}</span>
   <a href="/docs">API docs</a>
 </footer>
+{% if _nav == 'side' %}</div></div>{% endif %}
 
 {{ U.tabbar(_p) }}
 

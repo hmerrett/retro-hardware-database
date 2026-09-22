@@ -278,6 +278,10 @@ def _public_page(path: str) -> bool:
         return True
     if path.startswith(("/images/", "/static/", "/style/")):
         return True
+    # Folding the side rail away. A visitor has a rail too, and a link that answered
+    # with the login page would fold nothing and lose them the page they were on.
+    if path.startswith("/rail/"):
+        return True
     # The share card a grid page's link previews as (ADR-0017), and it has to be
     # public or the feature does not exist: a preview is fetched *anonymously* --
     # the chat service reads the page as a stranger and then fetches the og:image it

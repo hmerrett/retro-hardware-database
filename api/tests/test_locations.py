@@ -16,6 +16,7 @@ import re
 import pytest
 
 from app import main, settings
+from conftest import content
 from app.models import Computer, Location, Part
 
 CRATE = "Loft, blue crate 3"
@@ -581,7 +582,7 @@ class TestWhoIsToldWhereThingsAre:
         cid = computer(location=CRATE)["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         visitor(monkeypatch)
-        assert pid not in client.get("/?q=loft").text
+        assert pid not in content(client.get("/?q=loft").text)
         assert pid not in client.get("/suggest?q=loft").text
 
     def test_turning_it_on_shows_and_finds_an_inherited_one(
@@ -640,7 +641,7 @@ class TestFindingWhatIsInThere:
         """It is not there, and the page does not say it is."""
         cid = computer(location=CRATE)["asset_id"]
         pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
-        assert pid not in client.get("/?q=loft").text
+        assert pid not in content(client.get("/?q=loft").text)
 
     @pytest.mark.parametrize("who", ["owner", "visitor"])
     def test_no_card_carries_the_inherited_answer_either(

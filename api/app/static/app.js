@@ -1307,8 +1307,8 @@ function combobox(box, list, pick) {
 
 (function () {
   // In a menu now rather than on the banner, so it says which theme it would
-  // switch to in words. Two of them -- the desktop menu and the phone's sheet --
-  // and both have to relabel when either is used.
+  // switch to in words. Three of them -- the desktop menu, the phone's sheet and
+  // the side rail -- and all of them have to relabel when any one is used.
   var btns = [].slice.call(document.querySelectorAll('.js-theme'));
   if (!btns.length) return;
   function effective() {
@@ -1317,8 +1317,23 @@ function combobox(box, list, pick) {
     return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   function refresh() {
-    var word = effective() === 'dark' ? 'light theme' : 'dark theme';
-    btns.forEach(function (b) { b.textContent = word; });
+    var dark = effective() === 'dark';
+    btns.forEach(function (b) {
+      // The words come from the button rather than from here: which case a control
+      // is written in is the site's answer and not the script's (interface-text),
+      // and the server has already applied it to both of them.
+      var word = dark ? (b.dataset.light || 'Light theme') : (b.dataset.dark || 'Dark theme');
+      // A button with an icon keeps it: the words are a span beside the drawing,
+      // and collapsed in the rail they are hidden, so the name is on the button.
+      var span = b.querySelector('span');
+      if (span) {
+        span.textContent = word;
+        b.setAttribute('aria-label', word);
+        b.title = word;
+      } else {
+        b.textContent = word;
+      }
+    });
   }
   btns.forEach(function (b) {
     b.addEventListener('click', function () {

@@ -13,6 +13,7 @@ import re
 import pytest
 
 from app import main
+from conftest import content
 
 
 def visitor(monkeypatch):
@@ -102,7 +103,7 @@ class TestTheSideColumn:
     def test_the_photographs_come_before_the_details(self, client, computer, part, kind):
         """In the source, so that one column on a phone reads summary, photograph,
         details: a visitor from a label wants to see they have the right thing."""
-        page = client.get(f"/{kind}/{item(kind, computer, part)}").text
+        page = content(client.get(f"/{kind}/{item(kind, computer, part)}").text)
         order = [
             page.index(s)
             for s in (

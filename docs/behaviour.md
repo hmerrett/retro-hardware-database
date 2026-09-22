@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1949 behaviours, from 58 files.*
+*1977 behaviours, from 59 files.*
 
 
 ## A file where text was expected
@@ -2509,6 +2509,73 @@ Regenerate with:
 - autogenerate against the migrated schema finds nothing to do
 - a column that changes nullability is caught  
   The check above is only worth having if it can fail.
+
+
+## Navigation
+
+*test_navigation.py — 28 behaviours*
+
+
+**Which layout**
+
+- a new installation gets the rail  
+  Decided when the design was signed off: the rail spends the margin beside the column rather than the column, and the section you are in stays in sight while you work.
+- the top banner is the other answer  
+  Chosen, the page is what 0.1 was: no rail in the markup at all, rather than one hidden by a stylesheet.
+- an answer nobody offered falls back to the rail  
+  The value is written into a class on every page, so it is checked on the way out rather than trusted.
+- the rail is on every page and not only the front one  
+  Navigation that is on some pages is a page you get lost on.
+- the search and the scan stay in the banner  
+  The two things wanted from every page are in the same place whichever layout is chosen; the stylesheet puts the rest of the banner away.
+
+**What the rail holds**
+
+- the five sections are the banner s five  
+  The same places, laid down instead of across -- not a second list to fall out of step with the first.
+- a section says how much is in it
+- the numbers page carries no count  
+  It is figures about the collection; a count of those is a fact about the software rather than about what is on the shelf.
+- the current section is marked
+- the owner can add in one press  
+  In a rail there is room to unfold the + New menu, and a menu costs the same press twice.
+- the owner sees what they last worked on  
+  The rail's own argument: at a bench you go back to the same machine all afternoon.
+- the foot holds the theme settings and the way out
+- every item is named in words as well as drawn  
+  Collapsed the words are hidden and the icon is all that is left, and an icon names nothing (accessibility-standards).
+
+**What A visitor sees**
+
+- a visitor is offered nothing that is not theirs
+- a visitor still sees the counts  
+  The size of a collection is part of what a catalogue is for.
+- a private project is not counted for a visitor  
+  Hiding the row and publishing its number is half a decision (ADR-0004).
+- an unpublished file is not counted for a visitor  
+  A file is published by hand (ADR-0009), and a count that included the rest would announce exactly what the tick keeps back.
+
+**When the database cannot answer**
+
+- the counts come back empty rather than raising
+- the recent list comes back empty rather than raising
+- the page is still drawn  
+  A rail with no figures beside its sections is still a rail; a rail that raises is a second error on top of the first.
+
+**Folding it away**
+
+- it folds with a link and no script  
+  A plain link, so it works on a browser running nothing at all.
+- following it folds the rail and comes back
+- a folded rail offers to open again
+- opening it again stores nothing  
+  Open is the state a browser that has never been asked is already in, so there is nothing to keep.
+- the choice is the device s and not the installation s  
+  A cookie and not a row: the workshop screen holds it open while the laptop folds it away.
+- it will not be sent anywhere off this site  
+  A redirect that follows whatever it is handed is an open redirect, whatever it was built for.
+- a state it does not know is a 404
+- a visitor may fold it too
 
 
 ## Openapi contract

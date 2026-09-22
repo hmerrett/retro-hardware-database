@@ -15,7 +15,7 @@ from typing import ClassVar
 import pytest
 
 from app import main, schemas
-from conftest import served
+from conftest import content, served
 
 
 class TestTypedColumns:
@@ -864,7 +864,7 @@ class TestDrives:
         machines have a yellowed floppy" is a question the box can answer."""
         aid = computer(drives='3.5" 1.44MB floppy (beige, yellowed)')["asset_id"]
         computer(drives='3.5" 1.44MB floppy (beige)')
-        found = re.findall(r'/computers/(RH-[A-Z0-9]+)"', client.get("/?q=yellowed").text)
+        found = re.findall(r'/computers/(RH-[A-Z0-9]+)"', content(client.get("/?q=yellowed").text))
         assert set(found) == {aid}
 
     def test_routing_a_drive_reads_its_bezel(self, client, computer):
@@ -4772,7 +4772,7 @@ class TestTheCataloguePage:
     def test_a_model_nothing_is_filed_as_says_nothing(self, client):
         """Most of the catalogue is machines this collection has not got, which is
         the ordinary state and reads as a catalogue rather than as a gap."""
-        page = client.get("/machines").text
+        page = content(client.get("/machines").text)
         assert 'class="n"' not in page
 
     def test_the_count_leads_to_the_machines_behind_it(self, client, computer, part):

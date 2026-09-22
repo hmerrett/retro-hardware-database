@@ -1,4 +1,4 @@
-/* The v0.2 components (ADR-0024): one block per component, on the tokens in
+/* The v0.2 components (ADR-0028): one block per component, on the tokens in
    tokens.css and presets/*.css and nothing else. No colour is stated here, so the
    contrast tests read the token files alone; test_stylesheet_lint.py holds this
    file to that, to the spacing and type scales, and holds utilities.css to layout.
@@ -359,9 +359,11 @@
   }
 
   /* ---- 13a. Side rail -----------------------------------------------------
-     An installation preference: <html data-nav="side">. Applies at 1100px and wider
-     only - below that the same markup is the top banner. The rail spends the empty
-     margin beside the column, never the column. Same <nav>, laid down not across. */
+     An installation preference: the Navigation setting puts `side` on the shell the
+     rail and the page stand in. Applies at 1100px and wider only - below that the
+     rail is not drawn and the banner carries the sections, as it does for an
+     installation that chose Top. The rail spends the empty margin beside the
+     column, never the column. Same <nav>, laid down not across. */
   .shell { display: block; }
   .rail { display: none; }
   @media (min-width: 1100px) {
@@ -381,6 +383,10 @@
     color: var(--text); text-decoration: none; }
   .rail .brand .mark { width: 34px; height: 28px; flex: none; background: var(--surface-sunken);
     border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-xs); }
+  /* The installation's own logo, which is an image rather than the design's
+     placeholder box: sized by height as the banner's is, so a mark of any
+     proportion keeps it. */
+  .rail .brand img.mark { display: block; width: auto; background: none; border: 0; }
   .rail a.item, .rail button.item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-h);
     padding: 0 var(--space-3); font-size: 14px; color: var(--text); background: none; border: 0;
     border-radius: var(--radius-sm); text-decoration: none; text-align: left; cursor: pointer; }
@@ -397,8 +403,9 @@
   .rail .item.recent { min-height: 28px; font-size: 13px; }
   .rail .item.recent .tag { flex: none; color: var(--text-muted); }
   .rail .item.recent .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* Collapsed: <html data-rail="collapsed">, set by a plain link that stores the choice,
-     so it works with no script. Icons only; every item keeps its name in aria-label and title. */
+  /* Collapsed: a class on the same shell, set by a plain link that stores the choice
+     in a cookie, so it works with no script. Icons only; every item keeps its name in
+     aria-label and title. */
   @media (min-width: 1100px) { .shell.side.collapsed { grid-template-columns: 60px minmax(0, 1fr); } }
   .rail.collapsed { padding-left: var(--space-3); padding-right: var(--space-3); align-items: center; }
   .rail.collapsed .brand span:not(.mark), .rail.collapsed .item span, .rail.collapsed .cap,

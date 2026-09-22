@@ -188,6 +188,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/catalogue.py` | the catalogue as a page and as JSON: /machines, a model's own page at /machines/<key>, and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
 | `routers/styles.py` | /style/data.css: the generated stylesheet, served the way a static one is |
+| `routers/chrome.py` | /rail/<state>: folding the side rail away and opening it again, with no script |
 | `datacss.py` | the rules whose values are data — a bezel's swatch, a bar's length — built at import |
 | `models.py` | the ORM tables and their relationships |
 | `db.py` | the engine and the per-request session — the only place either is made |
@@ -197,6 +198,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
 | `presets.py` | the looks the register ships with, read from the design data — so the page cannot offer one no stylesheet was written for |
 | `typefaces.py` | the ways the three faces can be pointed, read from the same design data — a pairing repoints them and changes nothing else |
+| `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
 | `locations.py` | where things are kept: the remembered vocabulary of places, what a form's pick list offers, and where a part is when it does not say for itself |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
