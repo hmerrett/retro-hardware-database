@@ -136,6 +136,34 @@ page 1 rather than being a fresh shuffle with repeats. Choosing Random from
 another sort deals a new hand. The hand is part of the link, so somebody you send
 it to sees the same shuffle.
 
+### The first screen of a new installation
+
+Until the first thing is in it, the gallery has nothing to be, so the front page
+is three steps instead:
+
+1. **Name the collection**, which puts your name in the banner, in the browser's
+   tab, at the foot of every page and on every label. Ticked and struck through
+   once the name is no longer the one the software ships with.
+2. **Add the first machine** — a computer, or a part on its own.
+3. **Print its label.** Stick it on the case and scan it, and you are at the
+   item's page, which is the whole idea in one gesture.
+
+They are numbered because they are an order and not a menu, and a step that is
+done is ticked as well as struck through — a colour on its own is not an answer
+for somebody who cannot see it. The third stays greyed until there is something
+to print.
+
+The screen goes as soon as there is one item, and does not come back. It is not
+a tour and there is nothing to dismiss.
+
+**A visitor to an empty collection sees none of this** — only *Nothing here yet*.
+The steps are things only the owner can do, and a list of them is a list of what
+has not been done yet, which is nobody else's business.
+
+If the installation is running with no login set, that warning is on this page
+too. A fresh install is exactly when it applies, and it is the one moment the
+person reading it is certain to be the person who can fix it.
+
 ### The header
 
 On a desktop the banner reads in three bands: where you can go on the left, the
