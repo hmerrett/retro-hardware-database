@@ -4513,7 +4513,10 @@ class TestFollowingAFigureToItsItems:
     @staticmethod
     def _cards(page):
         """The asset ids of the cards in the grid."""
-        return [href.rsplit("/", 1)[1] for href in re.findall(r'class="card" href="([^"]+)"', page)]
+        return [
+            href.rsplit("/", 1)[1]
+            for href in re.findall(r'class="card(?: is-disposed)?" href="([^"]+)"', page)
+        ]
 
     def _a_bit_of_everything(self, client, computer, part):
         """One machine with memory, chips and drives, and parts with the child rows
@@ -4665,7 +4668,8 @@ class TestEveryObjectHasItsPortrait:
     def queued(page):
         """The asset ids the queue behind the figure lists."""
         return sorted(
-            href.rsplit("/", 1)[1] for href in re.findall(r'class="card" href="([^"]+)"', page)
+            href.rsplit("/", 1)[1]
+            for href in re.findall(r'class="card(?: is-disposed)?" href="([^"]+)"', page)
         )
 
     def test_the_figure_is_on_the_page_every_visit(self, client, computer):
@@ -4813,7 +4817,9 @@ class TestTheCataloguePage:
         client.patch(f"/api/computers/{c}", json={"machine": {"model_key": "amiga-500"}})
         client.patch(f"/api/parts/{p}", json={"machine": {"model_key": "amiga-500"}})
         page = client.get("/browse?f=model&v=amiga-500").text
-        assert sorted(re.findall(r'class="card" href="[^"]*/([A-Z0-9-]+)"', page)) == sorted([c, p])
+        assert sorted(
+            re.findall(r'class="card(?: is-disposed)?" href="[^"]*/([A-Z0-9-]+)"', page)
+        ) == sorted([c, p])
 
     def test_a_model_the_catalogue_never_had_is_a_404(self, client):
         assert client.get("/browse?f=model&v=zx-spectrum-1024k").status_code == 404

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1497 behaviours, from 40 files.*
+*1505 behaviours, from 40 files.*
 
 
 ## A file where text was expected
@@ -2698,7 +2698,7 @@ Regenerate with:
 
 ## Ui macros
 
-*test_ui_macros.py — 60 behaviours*
+*test_ui_macros.py — 68 behaviours*
 
 
 **The ui filter**
@@ -2782,6 +2782,17 @@ Regenerate with:
 - pager links the pages either side
 - pager leaves out what is not there
 - one page needs no pager
+
+**Card**
+
+- the whole card is one link to the item
+- a part links to the parts page
+- it reads tag name and chips
+- a part in a machine says which
+- disposed fades the photograph and says so in a chip
+- a photograph is described by the item name
+- no photograph draws the placeholder named for its kind
+- a reference photograph is marked
 
 **Bezel**
 

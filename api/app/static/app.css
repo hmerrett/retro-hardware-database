@@ -610,8 +610,10 @@
   .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0; }
   /* input[list] was every text box a toolbar had until the projects page put a
      plain search field in one; a search box is not a picker and has no datalist. */
+  /* :not(.select) while it lasts: a select already on v0.2's component would lose
+     it to this, since an unlayered rule outranks the layer whatever the class. */
   .toolbar input[type=text], .toolbar input[list], .toolbar input:not([type]),
-  .toolbar select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
+  .toolbar select:not(.select) { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; font: inherit; background: transparent; color: inherit; }
   /* The one thing in the row that should take the leftover width -- the query, not
      the buttons beside it. */
   .toolbar input.fill { flex: 1 1 240px; }
@@ -627,9 +629,6 @@
      already legible. */
   option, optgroup { background: var(--bg); color: var(--fg); }
   .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
-  /* Two menus, one row, on a phone: which category and in what order are one
-     sentence, and a row each spent two lines of the screen saying it. */
-  @media (max-width: 620px) { .toolbar select.fill { flex: 1 1 140px; } }
   .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
   .thumbs img { width: 150px; height: 110px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
   .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
@@ -871,16 +870,6 @@
   /* Wraps because the title row carries the heading, its chips and -- when logged
      in -- the edit/print buttons, which is more than a phone's width. */
   .flex { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); gap: 14px; margin-top: 14px; }
-  .card { display: block; background: transparent; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; }
-  .card:hover { border-color: var(--accent); }
-  .card .thumb { aspect-ratio: 4 / 3; background: var(--chip); display: flex; align-items: center; justify-content: center; position: relative; }
-  .card .thumb > img { width: 100%; height: 100%; object-fit: cover; }
-  .card .thumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
-  .card .body { padding: 9px 11px; }
-  .card .aid { font-size: 12px; color: var(--muted); font-family: inherit; }
-  .card .nm { font-size: 14px; margin: 2px 0 7px; line-height: 1.3; }
-  .card[data-disposed="1"] { opacity: .5; }
   .count { color: var(--muted); font-size: 13px; }
   fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 14px 0; padding: 8px 14px 14px; }
   legend { color: var(--muted); font-size: 13px; padding: 0 6px; }
@@ -956,7 +945,7 @@
     .edit .countgrid input, .edit .chipgrid input,
     table.drives input, table.drives select,
     .toolbar input[type=text], .toolbar input[list],
-    .toolbar input:not([type]), .toolbar select,
+    .toolbar input:not([type]), .toolbar select:not(.select),
     .addbar input, .addbar select, .addbar textarea,
     .photo-actions input[name=note], .notebar input,
     .fileform input[type=text], .fileform input:not([type]),

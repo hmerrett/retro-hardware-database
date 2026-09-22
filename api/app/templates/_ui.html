@@ -173,6 +173,38 @@
 {%- endif -%}
 {%- endmacro %}
 
+{# A gallery tile, from a row as gallery._catalogue_rows builds it. The whole card is
+   the link, so everything inside it is a span. Disposed fades the photograph and
+   says so in a chip: dimming the whole card, as 0.1 did, took the muted text under
+   4.5:1. The data- attributes are what index.js sorts and filters on. #}
+{% macro card(item) -%}
+{%- set o = item.obj -%}
+<a class="card{{ ' is-disposed' if o.disposed }}" href="/{{ 'computers' if item.kind == 'computer' else 'parts' }}/{{ o.asset_id }}"
+   data-cat="{{ item.cat }}" data-search="{{ item.search }}"
+   data-disposed="{{ '1' if o.disposed else '0' }}"
+   data-updated="{{ item.updated }}" data-added="{{ item.added }}"
+   data-acquired="{{ item.acquired }}" data-year="{{ item.year }}"
+   data-maker="{{ item.maker }}" data-catsort="{{ item.catsort }}"
+   data-aid="{{ o.asset_id }}"
+   data-img="{{ '1' if item.image else '0' }}" data-name="{{ item.name | lower }}">
+<span class="thumb">
+{#- A card measures 229px on every desktop width -- the page is capped at 1000px --
+    and the width of the screen on a phone. sizes says so, because a browser
+    believes it: overstating it by seventy pixels was enough to make a retina
+    screen fetch the 800px copy for a card that can show 458. #}
+{%- if item.image %}<img src="{{ img_url(item.image, THUMB_CARD) }}" srcset="{{ img_srcset(item.image, [300, 500, 800]) }}" sizes="(max-width: 460px) 100vw, 229px" alt="{{ item.name }}" loading="lazy" decoding="async">
+{%- else %}<img class="ph" src="/static/{{ item.placeholder }}" alt="{{ item.cat_label }}" loading="lazy">{% endif %}
+{%- if item.ref_photo %}<span class="ref-badge{{ ' icon' if item.ref_icon }}" title="Illustrative image, not this exact unit">{% if item.ref_icon %}<img src="/images/{{ item.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
+</span>
+<span class="body"><span class="aid">{{ o.asset_id }}</span><span class="nm">{{ item.name }}</span>
+<span class="chips"><span class="chip">{{ item.cat_label }}</span>
+{%- if item.year %}<span class="chip">{{ item.year }}</span>{% endif %}
+{%- if item.parent %}<span class="chip">in {{ item.parent }}</span>{% endif %}
+{%- if o.disposed %}<span class="chip">Disposed</span>{% endif -%}
+</span></span>
+</a>
+{%- endmacro %}
+
 {# A drive bezel's shade as made and how far it has yellowed. The colour is a class
    whose rule datacss generates from the vocabulary in entry.py, so this swatch and
    the chart cannot disagree; no shade is hatched. The words are always written

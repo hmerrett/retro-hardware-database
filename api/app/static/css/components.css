@@ -145,7 +145,12 @@
     background: var(--surface-raised); border: var(--border-w) solid var(--line); border-radius: var(--radius-lg); }
   .card:hover { border-color: var(--accent); }
   .card .thumb { aspect-ratio: var(--thumb-ratio); display: flex; align-items: center; justify-content: center;
-    background: var(--surface-sunken); }
+    position: relative; background: var(--surface-sunken); }
+  .card .thumb > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* The stand-in drawings are files with their own grey stroke, not the inline
+     drawing the card was designed with, so they keep 0.1's fade rather than
+     taking a colour from the tokens. */
+  .card .thumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
   .card .thumb svg { width: 46%; opacity: .7; fill: none; stroke: var(--text-muted); stroke-width: 2; }
   /* Blocks, said out loud: the card is a link, so its parts are spans, and a span's
      padding does not reach a block inside it - the name hung out to the card's edge. */
@@ -453,6 +458,9 @@
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; }
   .toolbar > * { min-width: 0; max-width: 100%; }
   .toolbar .select { width: auto; }
+  /* Two menus, one row, on a phone: which category and in what order are one
+     sentence, and a row each spent two lines of the screen saying it. */
+  @media (max-width: 620px) { .toolbar .select { flex: 1 1 140px; } }
   .pager { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-5); }
   .pager .where { font-family: var(--font-data); font-size: 13px; color: var(--text-muted); }
 

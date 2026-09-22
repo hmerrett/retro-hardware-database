@@ -334,6 +334,76 @@ class TestNavigation:
         assert render("{{ U.pager(1, 1, '/?page=') }}") == ""
 
 
+class TestCard:
+    """The gallery tile. `card(item)` takes a row as the gallery builds it."""
+
+    @staticmethod
+    def row(**over: object) -> dict[str, object]:
+        class Obj:
+            asset_id = "RH-0042"
+            disposed = False
+
+        row: dict[str, object] = {
+            "obj": Obj(),
+            "kind": "computer",
+            "cat": "computer",
+            "cat_label": "Computer",
+            "name": "Acorn A3000",
+            "year": 1989,
+            "parent": "",
+            "image": "",
+            "placeholder": "placeholders/computer.svg",
+            "ref_photo": False,
+            "ref_icon": "",
+        }
+        row.update(over)
+        return row
+
+    def test_the_whole_card_is_one_link_to_the_item(self):
+        html = render("{{ U.card(r) }}", r=self.row())
+        assert html.startswith('<a class="card" href="/computers/RH-0042"')
+        assert html.count("<a ") == 1 and html.endswith("</a>")
+
+    def test_a_part_links_to_the_parts_page(self):
+        html = render("{{ U.card(r) }}", r=self.row(kind="part"))
+        assert 'href="/parts/RH-0042"' in html
+
+    def test_it_reads_tag_name_and_chips(self):
+        html = render("{{ U.card(r) }}", r=self.row())
+        assert '<span class="aid">RH-0042</span>' in html
+        assert '<span class="nm">Acorn A3000</span>' in html
+        assert (
+            '<span class="chips"><span class="chip">Computer</span>'
+            '<span class="chip">1989</span></span>' in html
+        )
+
+    def test_a_part_in_a_machine_says_which(self):
+        html = render("{{ U.card(r) }}", r=self.row(kind="part", parent="RH-0001"))
+        assert '<span class="chip">in RH-0001</span>' in html
+
+    def test_disposed_fades_the_photograph_and_says_so_in_a_chip(self):
+        r = self.row()
+        r["obj"].disposed = True
+        html = render("{{ U.card(r) }}", r=r)
+        assert html.startswith('<a class="card is-disposed"')
+        assert '<span class="chip">Disposed</span>' in html
+
+    def test_a_photograph_is_described_by_the_item_name(self):
+        html = render("{{ U.card(r) }}", r=self.row(image="computers/RH-0042/a.jpg"))
+        assert 'alt="Acorn A3000"' in html and 'loading="lazy"' in html
+        assert "srcset=" in html
+
+    def test_no_photograph_draws_the_placeholder_named_for_its_kind(self):
+        html = render("{{ U.card(r) }}", r=self.row())
+        assert '<img class="ph" src="/static/placeholders/computer.svg" alt="Computer"' in html
+
+    def test_a_reference_photograph_is_marked(self):
+        html = render(
+            "{{ U.card(r) }}", r=self.row(image="computers/RH-0042/ref-a.jpg", ref_photo=True)
+        )
+        assert 'class="ref-badge"' in html and "Illustrative image" in html
+
+
 class TestBezel:
     def test_a_recorded_bezel_takes_its_generated_class(self):
         from app.entry import bezel_class
