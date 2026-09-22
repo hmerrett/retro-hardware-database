@@ -2390,6 +2390,60 @@ the faces are greyed and will not take an answer, like any other pinned setting.
 If it is ever set to a name the register does not know, the site comes up in
 *Default* rather than in no look at all.
 
+### The accent
+
+**Accent** is the one colour the register uses to mean *press this*, *this is a
+link*, and *this is where you are*: the primary button, the links in a panel, the
+bar on the figures page, the ring round whatever the Tab key has reached.
+
+Every preset brings its own — Breadbin's is a deep blue, Phosphor's the green of
+the screen it is drawn from — and *As the preset* leaves it there, which is what a
+new installation gets. Beside it are eight the register offers by name: *Blue*,
+*Teal*, *Green*, *Amber*, *Red*, *Magenta*, *Violet* and *Slate*. Under them,
+**Custom accent** takes any colour written as `#rrggbb`, which is how an
+installation whose collection already has a colour gets that colour and not the
+nearest of eight.
+
+Like the preset, they are shown as faces rather than as a menu: each one a real
+primary button and a real link in the colour it is offering, drawn for the preset
+in force. So what is being chosen is the thing itself rather than a name for it,
+and an accent is seen before it is lived with.
+
+**The colour you give it is not always the colour on the page, and this is on
+purpose.** One colour has four jobs to do: fill a button with white or black
+writing across it, be read as a link on three different shades of page, show as a
+bar against its own track, and draw a focus ring that can be seen. No single
+colour does all four on every preset — a yellow that looks right on a button is
+invisible as a link on white — so the register works the four out from the one:
+
+- **The button keeps your colour exactly**, wherever it can hold its own against
+  the page and carry white or near-black writing. That is most colours, and it is
+  the one that matters: the button is where an accent is recognised.
+- **Whatever has to move, moves lighter or darker and no other way** — the hue is
+  never changed, so what comes back is your colour and not a colour near it.
+- **The writing on the button** is white or near-black, whichever reads better on
+  the fill.
+
+A yellow shows what that means. On a dark page it is used exactly as given:
+yellow button, yellow links, black writing on the button. On a white page the
+same yellow is a button with no edge to it — a pale shape on a pale page — so
+there the button is a dark yellow and the links darker still, and the ring in
+between. Two pages, one colour, and a reader can see it on both.
+
+It is worked out for the preset *and* for the mode, so a reader on the dark theme
+gets a set adjusted for a dark page rather than the light one's set on a dark
+page. The register will not use a set that fails: every colour it derives is held
+to 4.5:1 for anything written and 3:1 for anything drawn, on all three shades of
+page, and that is tested across the whole colour space rather than on the eight —
+which is why the box will take any colour at all without asking you to check it.
+
+**Custom accent** wins over the eight when it is filled in: the named choice
+stays as it was, so emptying the box hands the answer back to it. Anything that is not six
+hexadecimal digits behind a `#` is not an answer, and the page keeps what it had.
+
+This is the installation's, like the preset: a visitor chooses light or dark and
+nothing else.
+
 ### The theme
 
 **Theme** is a menu, and holds the theme a visitor gets who has never chosen
