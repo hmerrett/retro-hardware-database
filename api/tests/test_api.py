@@ -1838,12 +1838,12 @@ class TestTheMakerLeagueTable:
 class TestAPickerOpensOnNothing:
     """ "Install in computer" opened on the first machine in the register, which reads
     as a statement that the part is in it -- next to a table whose "Installed in" row
-    is absent precisely because it is not. Every one of these menus now opens on
+    is absent precisely because it is not. (The row is the Fitted in panel now.) Every one of these menus now opens on
     nothing and refuses to submit until something is chosen."""
 
     @staticmethod
     def _select(page, name):
-        cut = page[page.index(f'<select name="{name}"') :]
+        cut = page[re.search(rf'<select [^>]*name="{name}"', page).start() :]
         return cut[: cut.index("</select>")]
 
     def test_the_install_menu_opens_on_nothing(self, client, computer, part):
@@ -1860,8 +1860,8 @@ class TestAPickerOpensOnNothing:
         p = part(model="a card")
         page = client.get(f"/parts/{p['asset_id']}").text
         assert "selected" not in self._select(page, "computer_id")
-        # ...and the table above says nothing either, the part being installed nowhere.
-        assert "Installed in" not in page
+        # ...and the panel says it is in nothing, the part being installed nowhere.
+        assert "Not fitted in anything." in page
 
     def test_choosing_one_still_installs_it(self, client, computer, part):
         c = computer(model="PS/1")
@@ -1871,7 +1871,7 @@ class TestAPickerOpensOnNothing:
             data={"computer_id": c["asset_id"]},
             follow_redirects=False,
         )
-        assert "Installed in" in client.get(f"/parts/{p['asset_id']}").text
+        assert f'href="/computers/{c["asset_id"]}"' in client.get(f"/parts/{p['asset_id']}").text
         assert client.get(f"/api/parts/{p['asset_id']}").json()["computer_id"] == c["asset_id"]
 
     @pytest.mark.parametrize(
@@ -2633,16 +2633,16 @@ class TestNotesKeepTheirLines:
     def test_a_parts_notes_are_shown_in_the_lines_they_were_typed_in(self, client, part):
         aid = part(type="cpu", notes="recapped 2026-08\nsocket cleaned\nstill untested")["asset_id"]
         page = client.get(f"/parts/{aid}").text
-        cell = page[page.index('<th scope="row">Notes</th>') :]
-        cell = cell[: cell.index("</td>")]
+        cell = page[page.index("<dt>Notes</dt>") :]
+        cell = cell[: cell.index("</dd>")]
         assert 'class="lines"' in cell
         assert "recapped 2026-08\nsocket cleaned\nstill untested" in cell
 
     def test_a_machines_notes_are_too(self, client, computer):
         aid = computer(manufacturer="Acorn", model="A5000", notes="two lines\nnot one")["asset_id"]
         page = client.get(f"/computers/{aid}").text
-        cell = page[page.index('<th scope="row">Notes</th>') :]
-        cell = cell[: cell.index("</td>")]
+        cell = page[page.index("<dt>Notes</dt>") :]
+        cell = cell[: cell.index("</dd>")]
         assert 'class="lines"' in cell
         assert "two lines\nnot one" in cell
 
@@ -2654,8 +2654,8 @@ class TestALinkInWhatWasTypedIsALink:
     the text around it is still text."""
 
     def _cell(self, page, th):
-        cell = page[page.index(f'<th scope="row">{th}</th>') :]
-        return cell[: cell.index("</td>")]
+        cell = page[page.index(f"<dt>{th}</dt>") :]
+        return cell[: cell.index("</dd>")]
 
     def test_a_url_in_a_parts_notes(self, client, part):
         aid = part(type="cpu", notes="datasheet at http://x.test/74ls00.pdf")["asset_id"]
@@ -3818,9 +3818,9 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
     def in_the_photo_column(page):
         """Whether the QR block is nested inside the item page's right-hand column,
         rather than sitting under the two columns as it once did."""
-        # div and section alike: the column is a div and the blocks inside it are
-        # panels, which are sections.
-        boxes = ("div", "section")
+        # The column is an aside and the blocks inside it are panels, which are
+        # sections.
+        boxes = ("div", "section", "aside")
 
         class Nesting(HTMLParser):
             def __init__(self):
@@ -3831,9 +3831,9 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
                 if tag not in boxes:
                     return
                 cls = dict(attrs).get("class", "").split()
-                self.open.append(cls)
+                self.open.append(tag)
                 if "photo-qr" in cls:
-                    self.found = any("photo-col" in c for c in self.open)
+                    self.found = "aside" in self.open
 
             def handle_endtag(self, tag):
                 if tag in boxes and self.open:
@@ -5930,7 +5930,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         part(type="video", computer_id=aid, name="Stealth 24", specs="Chip: S3")
         page = client.get(f"/computers/{aid}").text
         assert page.count('<article class="itemcard">') == 1
-        assert "Stealth 24</h4>" in page
+        assert "Stealth 24</a></h4>" in page
 
     def test_they_are_shown_as_labelled_pairs_below_the_part(self, client, computer, part):
         aid = computer()["asset_id"]
@@ -6265,8 +6265,8 @@ class TestPhotographsOnTheHistory:
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
         page = client.get(f"/computers/{aid}").text
-        stamp = page[page.index('<td class="logwhen">') :]
-        assert f"/images/{rel}" not in stamp[: stamp.index("</td>")]
+        stamp = page[page.index('<dt class="logwhen">') :]
+        assert f"/images/{rel}" not in stamp[: stamp.index("</dt>")]
         assert page.index('class="logmsg"') < page.index(f"/images/{rel}")
 
     def test_a_photograph_has_no_delete_of_its_own(self, client, computer, db):
@@ -6497,7 +6497,7 @@ class TestEverySectionIsAPanel:
     def test_the_specs_of_a_part_are_their_own_panel(self, client, part):
         aid = part(type="video", specs="Chip: S3 Trio64")["asset_id"]
         page = client.get(f"/parts/{aid}").text
-        assert "<h3>Specs</h3>" in page
+        assert "<h3>Specification</h3>" in page
 
 
 class TestFilesReadLikeThePartsDo:

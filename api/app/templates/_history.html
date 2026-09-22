@@ -31,15 +31,15 @@
       </label>
       <span class="hint" data-photo-count></span>
     </span>
-    <button class="btn sm" type="submit">add note</button>
+    <button class="btn sm" type="submit">{{ 'Add note' | ui }}</button>
   </form>
   {% endif %}
   {% if log %}
-  <table class="kv log{{ ' timed' if request.state.authed else '' }}">
+  <dl class="kv">
     {% for e in log %}
-    <tr>
-      <td class="logwhen"><span class="muted">{{ log_stamp(e.created_at, request.state.authed) }}</span></td>
-      <td>
+    <div>
+      <dt class="logwhen">{{ log_stamp(e.created_at, request.state.authed) }}</dt>
+      <dd>
         <div class="logline">
           {# A photograph entry has no words in it: the chip is the whole of the
              sentence, and the pictures below are what it says. #}
@@ -95,9 +95,9 @@
           {% endfor %}
         </div>
         {% endif %}
-      </td>
-    </tr>
+      </dd>
+    </div>
     {% endfor %}
-  </table>
+  </dl>
   {% else %}<p class="muted flush">No history yet.</p>{% endif %}
 {% endcall %}

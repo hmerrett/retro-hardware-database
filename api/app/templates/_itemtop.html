@@ -1,0 +1,75 @@
+{# The top of an item page, shared by computer.html and part.html: the way back and
+   through the register, the owner's Edit and Duplicate, what state the thing is in,
+   and the head of the page. Expects: obj, kind ("computers"/"parts"), nav, machine.
+
+   The head opens .itemcols and is the first of its three parts; the page closes the
+   grid after its body. #}
+{% import "_ui.html" as U with context %}
+{% set authed = request.state.authed %}
+{% set name = display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) %}
+{% call U.itemnav('/', 'All', '', nav.prev.url if nav.prev else '', nav.next.url if nav.next else '',
+                  nav.prev.name if nav.prev else '', nav.next.name if nav.next else '', keep=true) %}
+{#- Beside Prev and Next, where a thumb that has learnt them finds them, and small:
+    the page is read far more often than it is changed. -#}
+{%- if authed -%}
+{{ U.button('Edit', size='sm', icon='edit', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/edit') }}
+{#- A machine is duplicated without its parts: a second machine of the model, not a
+    second copy of what is in this one. -#}
+<form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/duplicate">
+{{- U.button('Duplicate', size='sm', icon='copy', type='submit') -}}
+</form>
+{%- endif -%}
+{% endcall %}
+
+{% if obj.disposed %}
+<div class="banner" role="status"><b>Disposed</b>
+  <span>{% if obj.disposed_at %}{{ obj.disposed_at }}{% endif %}{% if obj.disposed_note %} — {{ obj.disposed_note | linked }}{% endif %}</span>
+  {% if authed %}
+  <span class="push"></span>
+  <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/restore">
+    {{- U.button('Restore', size='sm', type='submit') -}}</form>
+  {# Deleting the record for good, once it is already marked as gone. Behind a
+     confirmation page, so this is a link rather than a button. #}
+  {{ U.button('Delete…', kind='danger', size='sm', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/delete') }}
+  {% endif %}
+</div>
+{% endif %}
+
+{# Not on a machine the catalogue names. The walk's next step is a motherboard and
+   then expansion cards, which is a PC's shape -- and a catalogue machine is a sealed
+   thing described by what it was built as, whose board and parts sections are not
+   even on this page while nothing is fitted. Telling somebody who has just filed a
+   Spectrum to give it a motherboard points them at the wrong machine, and at two
+   sections they cannot see. #}
+{% if kind == 'computers' and build and authed and not machine %}
+{{ U.banner('', 'Build walk.', 'Next: give it a motherboard below, then add its storage and expansion cards by category.') }}
+{% endif %}
+
+<div class="itemcols">
+<div class="itemhead">
+  <h1 class="title">{{ name }}</h1>
+  <div class="tag muted">{{ obj.asset_id }}</div>
+  {# What the model is -- but only where the object has nothing said about it of
+     its own. The two are different kinds of statement, and printing both left an
+     item with a paragraph about the model followed by a paragraph about the thing
+     in front of you, which reads as the page saying everything twice. The specific
+     one wins; this fills the gap where there is no specific one yet. Read from the
+     catalogue rather than the record, so correcting it corrects every item filed as
+     the model. #}
+  {% if obj.summary %}<p class="prose">{{ obj.summary | linked }}</p>
+  {% elif machine and machine.summary %}<p class="prose">{{ machine.summary | linked }}</p>{% endif %}
+  {% if authed %}
+  {# Might sell (ADR-0018). Rendered for nobody else: not the tick, not the state it
+     is in, and not the search that would find it -- an intention to sell is the
+     owner's, on a page anybody may read. The tick sends the moment it changes, the
+     same bargain files.public makes, with the button kept in the markup for a
+     browser running no script, which is what a keyboard user without JavaScript
+     presses. #}
+  <form class="row mt-3" method="post" action="/{{ kind }}/{{ obj.asset_id }}/for-sale" data-ticksend>
+    <label class="check"><input type="checkbox" name="for_sale" value="1"
+      {{ 'checked' if obj.for_sale else '' }}
+      aria-label="Might sell {{ obj.asset_id }}"> Might sell</label>
+    <button class="btn sm" type="submit" data-send-go>{{ 'Save' | ui }}</button>
+  </form>
+  {% endif %}
+</div>

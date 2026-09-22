@@ -1,7 +1,13 @@
-{# Photo column shared by computer.html and part.html.
-   Expects: obj, kind ("computers"/"parts"), images, ref_marks, tuned, imgerr. #}
+{# The side column of an item page, shared by computer.html and part.html: the
+   photographs, and the owner's label, disposal box and QR code. Expects: obj, kind
+   ("computers"/"parts"), images, ref_marks, tuned, imgerr.
+
+   After the head and before the body in the source, so a single column -- a
+   phone -- reads summary, photograph, details: somebody who has just scanned a
+   label wants to see first that they have the right thing. #}
 {% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
+{% import "_ui.html" as U with context %}
 {% macro badge(img) %}
   {% if img in ref_marks %}
   <span class="ref-badge{{ ' icon' if ref_marks[img].icon else '' }}" title="{{ ref_marks[img].note }}">
@@ -31,7 +37,34 @@
   </div>
   {% endif %}
 {% endmacro %}
-<div class="photo-col">
+{% macro upload() %}
+  {% if request.state.authed %}
+  {# In the panel it adds to. Choosing the photos is the whole gesture: the upload
+     goes as soon as they are picked, so the button below is only there for a
+     browser with no JavaScript. The native file input is behind its own label,
+     which is how the button says "choose files" rather than whatever the browser
+     calls it. #}
+  <div class="pbody">
+  <div class="photo-actions">
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
+          enctype="multipart/form-data" id="photo-upload" data-autosend>
+      <label class="btn sm filebtn">choose files
+        <input type="file" name="photos" accept="image/*" multiple required>
+      </label>
+      <button class="btn sm" type="submit" data-send-go>upload</button>
+      <span class="hint" data-send-busy hidden>uploading…</span>
+    </form>
+    {% if obj.url %}
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image">
+      <button class="btn sm" type="submit">fetch photo from reference</button>
+    </form>
+    {% endif %}
+    {% if imgerr %}<p class="hint">No image found at the reference URL.</p>{% endif %}
+  </div>
+  </div>
+  {% endif %}
+{% endmacro %}
+<aside>
   {# Panels, as the column beside this one is: the photographs are a section of the
      page like the parts or the files, and disposal is a thing you do to the item
      rather than a thing about it, so it says so with a title of its own instead of
@@ -69,6 +102,7 @@
       {% endfor %}
     </div>
     {% endif %}
+    {{ upload() }}
   {% endcall %}
   {% else %}
   {# Nothing photographed yet. The panel used to be left out altogether, which
@@ -76,38 +110,22 @@
      picture read as a page still loading rather than as a thing nobody has
      photographed. The drawing is the one on the item's own gallery card, so
      arriving here from the card lands on the same picture it was clicked on. #}
-  {% call PN.panel('Photographs') %}
-    <div class="nophoto">
+  {% call PN.panel('Photographs', flush=true) %}
+    <div class="pbody"><div class="nophoto">
       <img class="ph" src="/static/{{ placeholder }}" alt="" aria-hidden="true">
       <p class="hint">No photograph yet.</p>
-    </div>
+    </div></div>
+    {{ upload() }}
   {% endcall %}
   {% endif %}
   {% if request.state.authed %}
-  {# Always 'Add photographs' now: it used to take the plain title when there was
-     nothing above it to be the second panel of, and there always is one since the
-     placeholder started standing in for a photograph nobody has taken. #}
-  {% call PN.panel('Add photographs') %}
-  <div class="photo-actions">
-    {# Choosing the photos is the whole gesture: the upload goes as soon as they are
-       picked, so the button below is only there for a browser with no JavaScript.
-       The native file input is behind its own label, which is how the button says
-       "choose files" rather than whatever the browser calls it. #}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
-          enctype="multipart/form-data" id="photo-upload" data-autosend>
-      <label class="btn sm filebtn">choose files
-        <input type="file" name="photos" accept="image/*" multiple required>
-      </label>
-      <button class="btn sm" type="submit" data-send-go>upload</button>
-      <span class="hint" data-send-busy hidden>uploading…</span>
-    </form>
-    {% if obj.url %}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image">
-      <button class="btn sm" type="submit" title="Fetch a photograph from the reference URL">fetch from reference</button>
-    </form>
-    {% endif %}
-    {% if imgerr %}<p class="hint">Nothing found at the reference.</p>{% endif %}
-  </div>
+  {# The label for the shelf. Two sizes, each a PDF in a tab of its own, since what
+     happens next is the browser's print dialog. #}
+  {% call PN.panel('Label') %}
+    <div class="row">
+      <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=1" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
+      <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
+    </div>
   {% endcall %}
   {% if not obj.disposed %}
   {% call PN.panel('Disposal') %}
@@ -126,4 +144,4 @@
   {% endif %}
   {% endif %}
   {% include "_photoqr.html" %}
-</div>
+</aside>

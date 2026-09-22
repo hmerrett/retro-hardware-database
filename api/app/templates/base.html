@@ -42,6 +42,7 @@
 <meta name="twitter:card" content="summary_large_image">
 {% else %}<meta name="twitter:card" content="summary">{% endif %}
 {% else %}<meta name="twitter:card" content="summary">{% endif %}
+{% block preload %}{% endblock %}
 <link rel="stylesheet" href="/static/css/tokens.css?v={{ tokens_ver }}">
 <link rel="stylesheet" href="/static/app.css?v={{ css_ver }}">
 <link rel="stylesheet" href="/static/css/components.css?v={{ components_ver }}">
@@ -82,7 +83,10 @@
     <code>RHDB_AUTH_USER</code> and <code>RHDB_AUTH_PASSWORD</code>; if it is, set
     <code>RHDB_OPEN=1</code> to put this notice away.</span></div>
 {% endif %}
-<main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
+{#- A page on the v0.2 components sets main_class to v2, which the 0.1 rules in
+    app.css that share its class names stand back from. Transitional: goes with
+    app.css. #}
+<main id="main" tabindex="-1"{% block main_class %}{% endblock %}>{% block content %}{% endblock %}</main>
 
 <footer class="site-footer">
   <span>{{ site_name() }}</span>

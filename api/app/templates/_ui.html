@@ -152,12 +152,20 @@
 {# Above an item: back to the list, where this is in it, and its neighbours. A
    missing neighbour is left out rather than disabled -- there is nothing to say
    about a button that cannot be pressed. rel so a crawler can walk the list; the
-   arrows are drawing, and not read out. #}
-{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='') -%}
-<nav class="itemnav" aria-label="Item"><a href="{{ back_href }}"><span aria-hidden="true">←</span> {{ back_label }}</a>
+   arrows are drawing, and not read out. The names are the neighbours' own, in a
+   title, so a walk is not blind.
+
+   `keep` is for the item pages, whose script may know a neighbour the server does
+   not (the gallery's own order, see app.js): both buttons are drawn, with the ids
+   the script finds them by, and a missing one is hidden rather than absent. What
+   the caller puts in the block -- the owner's Edit and Duplicate -- sits between
+   the position and the neighbours. #}
+{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='', prev_name='', next_name='', keep=false) -%}
+<nav class="itemnav" aria-label="Item"{% if keep %} id="itemnav"{% endif %}><a href="{{ back_href }}"><span aria-hidden="true">←</span> {{ back_label }}</a>
 {%- if position %}<span class="where">{{ position }}</span>{% endif %}<span class="push"></span>
-{%- if prev_href %}<a class="btn sm" href="{{ prev_href }}" rel="prev"><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif %}
-{%- if next_href %}<a class="btn sm" href="{{ next_href }}" rel="next">{{ 'Next' | ui }} <span aria-hidden="true">›</span></a>{% endif -%}
+{%- if caller is defined %}{{ caller() }}{% endif %}
+{%- if prev_href or keep %}<a class="btn sm"{% if keep %} id="nav-prev"{% endif %} href="{{ prev_href }}" rel="prev"{% if prev_name %} title="{{ prev_name }}"{% endif %}{% if not prev_href %} hidden{% endif %}><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif %}
+{%- if next_href or keep %}<a class="btn sm"{% if keep %} id="nav-next"{% endif %} href="{{ next_href }}" rel="next"{% if next_name %} title="{{ next_name }}"{% endif %}{% if not next_href %} hidden{% endif %}>{{ 'Next' | ui }} <span aria-hidden="true">›</span></a>{% endif -%}
 </nav>
 {%- endmacro %}
 
@@ -196,6 +204,33 @@
 {%- if o.disposed %}<span class="chip">Disposed</span>{% endif -%}
 </span></span>
 </a>
+{%- endmacro %}
+
+{# A part in a list of them -- fitted in a machine, mounted on a card. The strip is
+   what the eye lands on looking for a tag: the tag, what kind of thing it is, and
+   at the far end whatever the caller puts in the block (Take out). Under it the
+   name, which is the way to its page, and its spec pairs. `thumb` is its picture
+   (see part_thumbs): four near-identical drives are told apart by eye, not by
+   model number, and the drawing stands in where nobody has photographed one. #}
+{% macro itemcard(p, thumb=none) -%}
+{%- set name = display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) -%}
+<article class="itemcard"><header><a class="tag" href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ chip(type_label(p.type)) }}
+{%- if p.disposed %}{{ chip('Disposed', 'quiet') }}{% endif %}<span class="grow"></span>
+{%- if caller is defined %}{{ caller() }}{% endif %}</header>
+<div class="cardmain">
+{%- if thumb -%}
+<a class="cardthumb" href="/parts/{{ p.asset_id }}" aria-label="{{ p.asset_id }} — its own page and its photographs">
+{%- if thumb.img %}<img src="{{ img_url(thumb.img, THUMB_CARD) }}" alt="" loading="lazy" decoding="async">
+{%- else %}<img class="ph" src="/static/{{ thumb.ph }}" alt="" loading="lazy">{% endif %}
+{%- if thumb.ref %}<span class="ref-badge{{ ' icon' if thumb.icon }}" title="Illustrative image, not this exact unit">{% if thumb.icon %}<img src="/images/{{ thumb.icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
+</a>
+{%- endif -%}
+<div class="grow"><h4><a href="/parts/{{ p.asset_id }}">{{ name }}</a></h4>
+{%- set pairs = parse_specs(p.specs) -%}
+{%- if pairs %}<dl class="specs">
+{%- for k, v in pairs %}<div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{{ v | linked }}</dd></div>{% endfor -%}
+</dl>{% endif -%}
+</div></div></article>
 {%- endmacro %}
 
 {# A drive bezel's shade as made and how far it has yellowed. The colour is a class

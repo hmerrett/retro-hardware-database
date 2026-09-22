@@ -26,7 +26,9 @@
   .heading, .label, .hint, .micro { font-family: var(--font-ui); }
   .stat, .data, .tag { font-family: var(--font-data); }
   .title { font-size: 26px; line-height: 1.2; font-weight: 600; }
-  .prose { font-size: 16px; line-height: 1.6; }
+  /* Typed into a textarea in paragraphs, and read back in them: pre-line keeps the
+     newlines somebody typed, as .lines does for a note. */
+  .prose { font-size: 16px; line-height: 1.6; white-space: pre-line; }
   .heading { font-size: 18px; line-height: 1.4; font-weight: 600; }
   .tag { font-size: 12px; }
   .hint { font-size: 12px; }
@@ -134,6 +136,8 @@
   .kv dt { flex: 0 0 132px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
   .kv dd { margin: 0; min-width: 0; font-family: var(--font-data); overflow-wrap: anywhere; }
   @media (max-width: 400px) { .kv dt { flex-basis: 104px; } }
+  /* A note is written in lines, and a table cell or a list value does not show them. */
+  .kv dd.lines { white-space: pre-line; }
 
   /* ---- 8. Card (gallery tile) --------------------------------------------- */
   .grid { display: grid; gap: var(--space-5);
@@ -393,7 +397,17 @@
   .itemcols > aside { grid-area: aside; }
   .itemcols > .itembody { grid-area: body; }
   @media (min-width: 861px) { .itemcols > aside > .panel:first-child { margin-top: 0; } }
-  @media (max-width: 860px) { .itemcols { display: block; } }
+  /* One column: head, photographs, body, then the rest of the side column -- the
+     owner's label, disposal and QR code, which a phone at the shelf wants after the
+     details rather than before them. The aside stands aside so its panels can be
+     ordered among the page's own. */
+  @media (max-width: 860px) {
+    .itemcols { display: flex; flex-direction: column; align-items: stretch; }
+    .itemcols > aside { display: contents; }
+    .itemcols > aside > .panel { order: 2; }
+    .itemcols > aside > .panel:first-child { order: 0; }
+    .itemcols > .itembody { order: 1; }
+  }
   .cell { padding: var(--space-3) var(--space-4); background: var(--surface-raised);
     border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
   .cell .k { font-size: 12px; color: var(--text-muted); }
@@ -412,7 +426,7 @@
   .itemcard > header .tag { color: var(--text-muted); }
   .itemcard .cardmain { display: flex; align-items: flex-start; gap: var(--space-4); margin: 0 var(--space-4); }
   .itemcard h4 { font-size: 14px; font-weight: 600; }
-  .cardthumb { flex: none; width: 92px; aspect-ratio: var(--thumb-ratio); display: flex; align-items: center; justify-content: center;
+  .cardthumb { position: relative; overflow: hidden; flex: none; width: 92px; aspect-ratio: var(--thumb-ratio); display: flex; align-items: center; justify-content: center;
     background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-md); }
   .cardthumb svg { width: 50%; fill: none; stroke: var(--text-muted); stroke-width: 2; }
   dl.specs { display: grid; gap: var(--space-1) var(--space-5); margin: var(--space-3) 0 0;

@@ -53,8 +53,9 @@ computer it is installed in, and optionally which other part it is mounted on �
 so a hard disk can be mounted on a controller card which is fitted in a machine.
 Both are NULL for a spare sitting on a shelf.
 
-Pull a card out of a machine and unlink it, and its record stays exactly as it
-was; it is now a spare. Put it in another machine and link it there. The card's
+Pull a card out of a machine and **Take out** on its page, and its record stays
+exactly as it was; it is now a spare. Put it in another machine and **Fit in** it
+there. The card's
 history records both moves.
 
 ### Two ways of describing a machine
@@ -335,28 +336,37 @@ older URL still work, because only the asset tag is taken from the code.
 
 ## 4. An item page
 
-The page is a stack of panels — each section in a box with its title on a band
+At the top is the item's name, its asset tag under it, and the summary — the
+prose description, if one is written. Above that, a link back to the whole
+register and the **Prev** and **Next** buttons; when logged in, **Edit** and
+**Duplicate** sit beside them.
+
+The rest is a stack of panels — each section in a box with its title on a band
 across the top.
 
 Down the main column:
 
-- **Summary** — the prose description, if one is written.
 - **Details** — the record's own fields.
 - **Machine** — for a machine filed against the catalogue: its model, its board
   issue, style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
+- **Specification** — on a part's page: its spec pairs, a label and a value each.
+- **Fitted in** — on a part's page: the machine it is installed in, or the card
+  it is mounted on, with **Take out** to make it a spare again. A spare says it is
+  not fitted in anything and, when logged in, offers **Fit in** with a list of
+  machines.
 - **Motherboard** and **Parts** — what is fitted in this machine, each as a card
-  showing its tag, kind, name and specs. A part with nothing recorded gets no
-  spec pairs at all, so the list also shows at a glance which parts have been
-  written up.
+  showing its tag, kind, name and specs, with **Take out** on each when logged in.
+  A part with nothing recorded gets no spec pairs at all, so the list also shows at
+  a glance which parts have been written up.
 - **Mounted parts** — on a part's page: what is mounted on this card.
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
 - **History** — [everything that has happened to it](#14-history).
 
-Down the side column: the photographs, the disposal box, and the item's own QR
-code.
-
-Above it all, when logged in: **edit**, **duplicate**, **small label** and **full
-label**.
+Down the side column: the photographs and, when logged in, the **Label** panel
+with its two print buttons, the disposal box and the item's own QR code. On a
+narrow screen there is one column, and the photographs come straight after the
+summary, before the details: somebody who has just scanned a label wants to see
+first that they have the right thing.
 
 A URL written into any of that — a summary, a note, a spec value, where the item
 came from, a history entry — is a link you can follow. Anything with a scheme in
@@ -1579,8 +1589,8 @@ own for sifting without leaving it.
 
 ## 13. Labels and QR codes
 
-Every item page has two printer buttons: **small label** and **full label**, each
-a PDF.
+Every item page, when logged in, has a **Label** panel with two print buttons:
+**Small label** and **Full label**, each a PDF.
 
 - **The full label** (6×4 inches by default) carries the asset tag, the name, the
   specifications and a QR code.

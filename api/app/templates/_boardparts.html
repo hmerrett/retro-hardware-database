@@ -22,7 +22,7 @@
      cache size and a BIOS -- and a section that said them a second way would be two
      designs for one thing. #}
   {% if motherboard %}
-    {{ P.cards([motherboard], 'unlink', 'unlink', '/computers/' + c.asset_id,
+    {{ P.cards([motherboard], 'unlink', '/computers/' + c.asset_id,
                request.state.authed, thumbs | default({}, true)) }}
   {% else %}
     <div class="pbody">
@@ -68,7 +68,7 @@
   </div>
   {% endif %}
   {% if parts %}
-  {{ P.cards(parts, 'unlink', 'unlink', '/computers/' + c.asset_id, request.state.authed,
+  {{ P.cards(parts, 'unlink', '/computers/' + c.asset_id, request.state.authed,
              thumbs | default({}, true)) }}
   {% else %}
   <div class="pbody"><p class="muted flush">Nothing fitted.</p></div>

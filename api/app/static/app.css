@@ -239,7 +239,7 @@
   /* Names like "TMC/MyComp/MyNix/Megastar AI5TV" are one unbreakable word to a
      browser, and a heading is a flex item that will not shrink below it. */
   h1, h2, h3 { overflow-wrap: anywhere; }
-  h1, h2, h3, h4 { margin: revert; }
+  :is(h1, h2, h3, h4):not(main.v2 *) { margin: revert; }
   table { border-collapse: collapse; width: 100%; }
   /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
      sets the column's minimum width, and a table refuses to shrink below it. On a
@@ -254,42 +254,46 @@
   td.tight, th.tight { white-space: nowrap; }
   .detail-main table th { white-space: nowrap; }
   th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  /* `main:not(.v2)` below: a page moved onto the v0.2 components says so with
+     `class="v2"` on its <main>, and these 0.1 rules, unlayered and so outranking
+     the v2 layer, stand back from it. They are still what draws the pages not yet
+     moved, and go with app.css (Task 6.1). */
   /* A section of an item page. The title sits on a band across the top and what
      belongs to the section is inside the border, so a page of them says which level
      anything is at -- which a column of headings and gaps could not. */
-  .panel { border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  main:not(.v2) .panel { border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
     margin-top: 14px; background: none; }
-  .panel > header { background: var(--band); padding: 6px 11px; display: flex;
+  main:not(.v2) .panel > header { background: var(--band); padding: 6px 11px; display: flex;
     flex-wrap: wrap; align-items: baseline; gap: 2px 9px; }
-  .panel > header h3 { margin: 0; font-size: 14px; font-weight: bold; }
-  .panel > header .muted { font-size: 13px; }
+  main:not(.v2) .panel > header h3 { margin: 0; font-size: 14px; font-weight: bold; }
+  main:not(.v2) .panel > header .muted { font-size: 13px; }
   /* Said here since the bare `header` rule that gave these a rule underneath and
      undecorated links went with the site banner's move to components.css. */
-  .panel > header, .itemcard > header { border-bottom: 1px solid var(--line); }
-  .panel > header a, .itemcard > header a { text-decoration: none; }
-  .panel .pbody { padding: 9px 11px; }
+  main:not(.v2) .panel > header, main:not(.v2) .itemcard > header { border-bottom: 1px solid var(--line); }
+  main:not(.v2) .panel > header a, main:not(.v2) .itemcard > header a { text-decoration: none; }
+  main:not(.v2) .panel .pbody { padding: 9px 11px; }
   /* Under a band of its own, a table's first rule is a second line saying the same
      thing. */
-  .panel .pbody > table tr:first-child > * { border-top: 0; }
-  .panel .pbody > p:first-child, .panel .pbody > .toolbar:first-child { margin-top: 0; }
-  .panel .pbody > p:last-child { margin-bottom: 0; }
+  main:not(.v2) .panel .pbody > table tr:first-child > * { border-top: 0; }
+  main:not(.v2) .panel .pbody > p:first-child, main:not(.v2) .panel .pbody > .toolbar:first-child { margin-top: 0; }
+  main:not(.v2) .panel .pbody > p:last-child { margin-bottom: 0; }
 
   /* One thing in a list of them -- a part fitted in a machine, a file kept beside
      the register, a chip in one of a machine's sockets. Everything about it is
      inside one border, which is the thing a table could not say: laid out as rows,
      a part was five loose cells with a rule somewhere in the middle of it, and
      nothing on the page told you which rule ended one and began the next. */
-  .itemcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
-  .itemcard { border: 1px solid var(--line); border-radius: 12px; padding-bottom: 9px;
+  main:not(.v2) .itemcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+  main:not(.v2) .itemcard { border: 1px solid var(--line); border-radius: 12px; padding-bottom: 9px;
     overflow: hidden; background: none; }
   /* The strip the eye lands on when it is looking for a tag: what this thing is
      called in the register and what kind of thing it is, with the way of taking it
      out at the far end. */
-  .itemcard > header { display: flex; flex-wrap: wrap; align-items: center;
+  main:not(.v2) .itemcard > header { display: flex; flex-wrap: wrap; align-items: center;
     gap: 3px 8px; background: var(--chip); padding: 5px 10px; font-size: 13px;
     margin-bottom: 8px; }
-  .itemcard > header form { margin: 0 0 0 auto; }
-  .itemcard > header .grow { flex: 1; }
+  main:not(.v2) .itemcard > header form { margin: 0 0 0 auto; }
+  main:not(.v2) .itemcard > header .grow { flex: 1; }
   /* The name is the thing itself and carries the weight; the strip above it is
      labelling. anywhere, because a name like "TMC/MyComp/MyNix/Megastar AI5TV" is
      one unbreakable word to a browser and would otherwise widen the card. */
@@ -302,16 +306,16 @@
      cannot do at all with a model number. Small -- this is a list to be scanned,
      not a gallery -- and 4:3 like the gallery card, so the same photograph is
      cropped the same way in both places. */
-  .itemcard > .cardmain { display: flex; align-items: flex-start; gap: 11px;
+  main:not(.v2) .itemcard > .cardmain { display: flex; align-items: flex-start; gap: 11px;
     margin: 0 10px; }
-  .cardmain > .cardtext { flex: 1 1 auto; min-width: 0; }
-  .cardtext > h4 { margin: 0; font-size: 14px; font-weight: 600;
+  main:not(.v2) .cardmain > .cardtext { flex: 1 1 auto; min-width: 0; }
+  main:not(.v2) .cardtext > h4 { margin: 0; font-size: 14px; font-weight: 600;
     overflow-wrap: anywhere; }
-  .cardtext > dl.specs { margin: 7px 0 0; }
-  .cardthumb { flex: none; width: 92px; aspect-ratio: 4 / 3; position: relative;
+  main:not(.v2) .cardtext > dl.specs { margin: 7px 0 0; }
+  main:not(.v2) .cardthumb { flex: none; width: 92px; aspect-ratio: 4 / 3; position: relative;
     display: flex; align-items: center; justify-content: center; overflow: hidden;
     background: var(--chip); border: 1px solid var(--line); border-radius: 8px; }
-  .cardthumb:hover { border-color: var(--accent); }
+  main:not(.v2) .cardthumb:hover { border-color: var(--accent); }
   .cardthumb > img { width: 100%; height: 100%; object-fit: cover; display: block; }
   /* The stand-in drawing is a symbol rather than a picture, so it sits small and
      quiet in the middle of the space instead of filling it -- the same treatment,
@@ -345,37 +349,37 @@
      the next, the way a table's rows sit under its heading. A list nested deeper
      than that (the chips inside the machine panel) keeps its cards whole, which is
      what tells the two apart. */
-  .panel > .itemcards { gap: 0; margin: 0; }
-  .panel > .itemcards > .itemcard { border: 0; border-radius: 0; }
-  .panel > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
+  main:not(.v2) .panel > .itemcards { gap: 0; margin: 0; }
+  main:not(.v2) .panel > .itemcards > .itemcard { border: 0; border-radius: 0; }
+  main:not(.v2) .panel > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
   /* What follows such a list in the same panel -- the upload form under the files --
      is a different thing and says so. */
-  .panel > .itemcards + .pbody { border-top: 1px solid var(--line); }
+  main:not(.v2) .panel > .itemcards + .pbody { border-top: 1px solid var(--line); }
   /* Where the things in a list are small enough to sit side by side -- a machine's
      chip sockets, where what is written in one is a part number. */
-  .cardgrid { display: grid; gap: 10px; margin-top: 8px;
+  main:not(.v2) .cardgrid { display: grid; gap: 10px; margin-top: 8px;
     grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
-  .panel > .cardgrid { margin: 0; padding: 11px; }
+  main:not(.v2) .panel > .cardgrid { margin: 0; padding: 11px; }
   /* The specs themselves: label and value paired, as many pairs across as the width
      allows, in tracks so the pairs line up down the page instead of landing wherever
      the previous value happened to end. min(Npx, 100%) for the same reason the count
      grids use it -- a narrower screen than one track drops to one column rather than
      hanging off the side. */
-  dl.specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  main:not(.v2) dl.specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
     gap: 2px 18px; margin: 7px 10px 0; }
-  dl.specs > div { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+  main:not(.v2) dl.specs > div { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
   /* The label is the quiet half: it is the same six words down every part in the
      list, and what is being read is the values beside them. */
-  dl.specs dt { color: var(--muted); font-size: 12px; white-space: nowrap; }
-  dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
-  .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap;
+  main:not(.v2) dl.specs dt { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  main:not(.v2) dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
+  .btn:not(main.v2 *) { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap;
     min-height: 0; gap: normal; align-items: normal; justify-content: normal; box-shadow: none; transform: none; }
-  .btn:hover { background: var(--btn-hover); }
+  .btn:hover:not(main.v2 *) { background: var(--btn-hover); }
   /* components.css hides the banner's Scan on a phone, where the tab bar has it; this
      .btn's display outranks the layer, so the hiding is said here too until it goes. */
   @media (max-width: 620px) { .site-header .hdr-scan { display: none; } }
-  .btn.primary { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
-  .btn.sm { padding: 3px 8px; font-size: 13px; }
+  .btn.primary:not(main.v2 *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
+  .btn.sm:not(main.v2 *) { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }
   /* `.edit` and not `.edit`: the settings page has a box that is a fieldset
      rather than a form -- what the browser remembers for itself is not something
@@ -521,7 +525,7 @@
   .rank .fill { background: var(--fill); height: 14px; border-radius: 0 4px 4px 0;
     min-width: 3px; }
   .muted { color: var(--muted); }
-  .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: inherit; }
+  .chip:not(main.v2 *) { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: inherit; }
   /* Disposal notices, a rejected form, a refused login: every banner is a warning,
      so it takes the warning colours rather than a pair of its own. The wash is
      stronger in the dark theme than the light one: the same brown at a thirteenth
@@ -600,7 +604,6 @@
      genuinely empty so that a phone can drop it: an em dash is content, and content
      is not something :empty can see past. */
   .projtable td.count:empty::after { content: "\2014"; }
-  .build-banner { background: #3b82f622; border: 1px solid #3b82f6aa; border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
   /* What is going to be done to a thing, as against what became of it. Its own
      colour rather than the disposal banner's, because the two are opposite tenses
      and somebody who has learnt that the orange band means "gone" should not have
@@ -650,8 +653,8 @@
      value of the colour is being read before the click, not during it. (The
      icon-button variant above stays plain until hover on purpose -- a row of
      photo tools would be all warning and no hierarchy otherwise.) */
-  .btn.danger { color: var(--danger); border-color: var(--danger-line); }
-  .btn.danger:hover { background: var(--danger-hover); border-color: var(--danger-line); }
+  .btn.danger:not(main.v2 *) { color: var(--danger); border-color: var(--danger-line); }
+  .btn.danger:hover:not(main.v2 *) { background: var(--danger-hover); border-color: var(--danger-line); }
   .ref-badge { position: absolute; top: 6px; left: 6px; background: #000000c0; color: #fff;
     font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; pointer-events: none; }
   /* Icon variant: a fixed-size source-site favicon, same size at any thumbnail scale. */
@@ -707,28 +710,6 @@
   .nophoto img.ph { width: 76px; height: 76px; object-fit: contain; opacity: .5; }
   .nophoto .hint { margin: 0; }
 
-  /* The paragraph about a model, at the top of the main column on the page of an
-     item that is one -- so the photographs sit level with it rather than being
-     pushed below, and so a phone (where the photo column leads) shows the picture
-     first, as it does on every other item page.
-
-     Its own class, not .summary: that one is the prose about this particular
-     object, and `p.summary` outranked it -- so styling the model's paragraph had
-     quietly restyled every item's own.
-
-     Muted, like the same paragraph on the catalogue page, and for the reason the
-     rest of the site mutes things: it is reference about the model, not a fact
-     about the object in front of you. It stands in for the item's own summary
-     where there is not one -- the two are never both on a page, an item having
-     either something said about it or the model's paragraph in the meantime -- and
-     the muted ink is what says which of the two you are reading.
-
-     No top margin, because the photo column beside it starts at the top of its
-     own and a margin here would drop the text half a line below the picture it is
-     meant to be level with. No width limit either: the column is about 74
-     characters of this typeface already, and a narrower paragraph would stop short
-     of the right edge every panel under it reaches. */
-  p.model-summary { margin: 0 0 12px; color: var(--muted); white-space: pre-line; }
 
   /* The same paragraph on the catalogue page, folded away: four hundred rows are
      read by eye and by ctrl-F, and a paragraph under every one of them would be a
@@ -819,7 +800,6 @@
      far end so they fall under the thumb on a phone. */
   .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
     margin: 16px 0; }
-  .itemnav { margin-left: auto; display: flex; gap: 6px; align-items: normal; margin-bottom: 0; }
   /* A summary is typed into a textarea, in paragraphs, exactly as a note is -- and
      until now it was read back as one run-on line for exactly the reason the notes
      cell was: a paragraph collapses the newlines somebody typed into it. The same
@@ -836,10 +816,7 @@
      pixels below a model's paragraph, and on an item with no paragraph both
      columns sat fourteen pixels below the heading instead. */
   .detail > .detail-main > .panel:first-child,
-  .detail > .photo-col > .panel:first-child,
   .detail > .detail-main > p.summary:first-child { margin-top: 0; }
-  .photo-col { min-width: 0; }
-  .detail-main td.wrap { overflow-wrap: anywhere; }
   /* Notes are typed into a textarea, in paragraphs, and were read back as one run-on
      line: the newlines were stored all along, and a table cell simply does not show
      them. The same rendering a history entry's message has always had. */
@@ -861,11 +838,10 @@
   .detail-main details.fold > .section:first-of-type { margin-top: 14px; }
   @media (max-width: 720px) {
     .detail { grid-template-columns: 1fr; }
-    .detail .photo-col { order: -1; }
-    /* The column leads the page at this width, and a code that opens the page you
-       are already reading is not worth the first screenful of it. */
-    .photo-qr { display: none; }
   }
+  /* The side column leads an item page once it is one column, and a code that opens
+     the page you are already reading is not worth a screenful of it. */
+  @media (max-width: 860px) { .photo-qr { display: none; } }
   .section { margin-top: 24px; }
   /* Wraps because the title row carries the heading, its chips and -- when logged
      in -- the edit/print buttons, which is more than a phone's width. */
@@ -1000,7 +976,6 @@
      is what an inline style used to do by outranking everything. */
   .flush { margin: 0; }
   .flush-top { margin-top: 0; }
-  .flush-bottom { margin-bottom: 0; }
   .grow { flex: 1; min-width: auto; }
   .is-hidden { display: none; }
   .tuck { margin: 5px 0 0; }

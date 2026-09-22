@@ -1,91 +1,27 @@
 {% extends "base.html" %}
 {% import "_labelsend.html" as LS %}
-{% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
 {% import "_partlist.html" as P %}
 {% block title %}{{ og.title }}{% if og.title != c.asset_id %} · {{ c.asset_id }}{% endif %} — {{ site_name() }}{% endblock %}
+{# The display face is the name at the top of the page, so it is asked for before
+   the stylesheet that names it is read. Only here: a preload nothing uses makes the
+   browser warn on every page that does not use it. #}
+{% block preload %}<link rel="preload" href="/static/fonts/source-serif-4/source-serif-4-latin-600.woff2" as="font" type="font/woff2" crossorigin>{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<div class="crumbnav">
-  <a href="/">&larr; all</a>
-  {% include "_itemnav.html" %}
-</div>
-<div class="flex">
-  <h2 class="flush">{{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</h2>
-  <span class="muted">{{ c.asset_id }}</span>
-  <span class="grow"></span>
-  {% if request.state.authed %}
-  <span class="hdr-actions">
-    <a class="iconbtn" href="/computers/{{ c.asset_id }}/edit" title="Edit" aria-label="Edit">{{ I.ico('edit') }}</a>
-    <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/duplicate">
-      <button class="iconbtn" type="submit" title="Duplicate (a second machine of this model, without its parts)" aria-label="Duplicate">{{ I.ico('copy') }}</button>
-    </form>
-    <a class="iconbtn lbl-s" href="/computers/{{ c.asset_id }}/label.pdf?small=1" data-kind="computer" data-asset="{{ c.asset_id }}" target="_blank" title="Small label (PDF)" aria-label="Small label">{{ I.ico('printer') }}</a>
-    <a class="iconbtn lbl-l" href="/computers/{{ c.asset_id }}/label.pdf" target="_blank" title="Full label (PDF)" aria-label="Full label">{{ I.ico('printer') }}</a>
-  </span>
-  {% endif %}
-</div>
-
-{% if c.disposed %}
-<div class="banner">Disposed{% if c.disposed_at %} {{ c.disposed_at }}{% endif %}{% if c.disposed_note %} — {{ c.disposed_note | linked }}{% endif %}
-  {% if request.state.authed %}
-  <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/restore">
-    <button class="btn sm" type="submit">restore</button></form>
-  {# Deleting the record for good, once it is already marked as gone. Behind a
-     confirmation page, so this is a link rather than a button. #}
-  <a class="btn sm danger" href="/computers/{{ c.asset_id }}/delete">delete…</a>
-  {% endif %}
-</div>
-{% endif %}
-
-{% if request.state.authed %}
-{# Might sell (ADR-0018) -- see part.html, where the same tick carries the reasoning.
-   Owner-only in every direction, including the search. #}
-<form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/for-sale"
-      data-ticksend>
-  <label class="tickbox"><input type="checkbox" name="for_sale" value="1"
-    {{ 'checked' if c.for_sale else '' }}
-    aria-label="Might sell {{ c.asset_id }}"> might sell</label>
-  <button class="btn sm" type="submit" data-send-go>save</button>
-</form>
-{% endif %}
-
-{# Not on a machine the catalogue names. The walk's next step is a motherboard and
-   then expansion cards, which is a PC's shape -- and a catalogue machine is a sealed
-   thing described by what it was built as, whose board and parts sections are not
-   even on this page while nothing is fitted (see below). Telling somebody who has
-   just filed a Spectrum to give it a motherboard points them at the wrong machine,
-   and at two sections they cannot see. #}
-{% if build and request.state.authed and not machine %}
-<div class="build-banner">
-  <strong>Build walk.</strong> Next: a motherboard, then its parts.
-</div>
-{% endif %}
-
-<div class="detail">
-  <div class="detail-main">
-    {# What the model is -- but only where the object has nothing said about it of
-       its own. The two are different kinds of statement, and printing both left an
-       item with a paragraph about the model followed by a paragraph about the thing
-       in front of you, which reads as the page saying everything twice. The
-       specific one wins; this is what fills the gap where there is no specific one
-       yet. Read from the catalogue rather than the record, so correcting it
-       corrects every item filed as the model.
-
-       At the top of the main column rather than above the whole grid, so the
-       photographs sit level with it on a desktop instead of being pushed below,
-       and so a phone -- where the photo column leads -- shows the picture first,
-       exactly as it does on every other item page. #}
-    {% if machine and machine.summary and not c.summary %}<p class="model-summary">{{ machine.summary | linked }}</p>{% endif %}
-    {% if c.summary %}<p class="summary">{{ c.summary | linked }}</p>{% endif %}
+{% set obj = c %}{% set kind = "computers" %}
+{% include "_itemtop.html" %}
+{% include "_photocol.html" %}
+<div class="itembody">
+    {# The machine's own facts. A panel like every other section of the page, so what
+       the register knows about it and what is fitted in it are read the same way. #}
+    {% call PN.panel('Details') %}
     {# Where it is kept is the owner's by default and everybody's by setting
        (ADR-0027). Folded into the pair list as a blank rather than tested on a row
        of its own, so the one list stays the one description of this panel -- the
        loop below already drops a pair with nothing in it. #}
     {% set show_location = request.state.authed or public_locations() %}
-    {# The machine's own facts. A panel like every other section of the page, so what
-       the register knows about it and what is fitted in it are read the same way. #}
-    {% call PN.panel('Details') %}
-    <table class="kv">
+    <dl class="kv">
     {% for k, v in [('Manufacturer', c.manufacturer), ('Model', c.model), ('Year', c.year),
                     ('Serial', c.serial), ('Form factor', form_factor),
                     ('Chassis', c.chassis), ('CPU', c.cpu), ('TopBench', c.topbench),
@@ -93,13 +29,13 @@
                     ('Drives', c.drives), ('OS', c.os), ('Condition', c.condition),
                     ('Source', c.source), ('Acquired', c.acquired_date),
                     ('Location', c.location if show_location else '')] %}
-      {% if v %}<tr><th scope="row">{{ k }}</th><td>{{ v | linked }}</td></tr>{% endif %}
+      {% if v %}<div><dt>{{ k }}</dt><dd>{{ v | linked }}</dd></div>{% endif %}
     {% endfor %}
     {# Out of the list above, and last in it as it was, because this is the one value
        that is written in more than one line and has to be shown in them. #}
-    {% if c.notes %}<tr><th scope="row">Notes</th><td class="lines">{{ c.notes | linked }}</td></tr>{% endif %}
-    {% if c.url %}<tr><th scope="row">Reference</th><td class="wrap"><a href="{{ c.url }}" target="_blank">{{ c.url }}</a></td></tr>{% endif %}
-    </table>
+    {% if c.notes %}<div><dt>Notes</dt><dd class="lines">{{ c.notes | linked }}</dd></div>{% endif %}
+    {% if c.url %}<div><dt>Reference</dt><dd><a href="{{ c.url }}" target="_blank">{{ c.url }}</a></dd></div>{% endif %}
+    </dl>
     {% endcall %}
 
     {# What a sealed machine has instead of a parts list: which catalogue model it is,
@@ -108,12 +44,12 @@
        Spectrum's board issue or a C64's SID is written down. #}
     {% if machine %}
     {% call PN.panel('Machine') %}
-      <table class="kv">
-        <tr><th scope="row">Catalogue model</th><td>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</td></tr>
+      <dl class="kv">
+        <div><dt>Catalogue model</dt><dd>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</dd></div>
         {% for label, value in machine.rows %}
-        <tr><th scope="row">{{ label }}</th><td>{{ value | linked }}</td></tr>
+        <div><dt>{{ label }}</dt><dd>{{ value | linked }}</dd></div>
         {% endfor %}
-      </table>
+      </dl>
       {# Kept apart from the rows above, because the CPU row there says which
          processor this model has and these say what is marked on the chip in the
          socket -- two different facts that would read as a contradiction side by
@@ -128,8 +64,8 @@
          facts, written on the machine only while the board is not a thing of its own.
          Behind a page, which says what will move and takes the board's photograph. #}
       {% if detachable %}
-      <p class="hint top-12"><a href="/computers/{{ c.asset_id }}/detach-board"
-        title="Give the board an asset tag of its own">detach the board…</a></p>
+      <p class="hint mt-3"><a href="/computers/{{ c.asset_id }}/detach-board">detach the board…</a>
+        — give it an asset tag of its own</p>
       {% endif %}
     {% endcall %}
     {% endif %}
@@ -155,9 +91,7 @@
     {% include "_work.html" %}
     {% include "_files.html" %}
     {% include "_history.html" %}
-  </div>
-  {% set obj = c %}{% set kind = "computers" %}
-  {% include "_photocol.html" %}
+</div>
 </div>
 {{ LS.script() }}
 {% endblock %}

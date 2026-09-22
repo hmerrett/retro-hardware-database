@@ -22,7 +22,7 @@
 <section class="panel{{ ' ' ~ cls if cls else '' }}">
   <header>
     <h3>{{ title }}</h3>
-    {% if meta != '' and meta is not none %}<span class="muted">{{ meta }}</span>{% endif %}
+    {% if meta != '' and meta is not none %}<span class="meta">{{ meta }}</span>{% endif %}
   </header>
   {% if flush %}{{ caller() }}{% else %}<div class="pbody">{{ caller() }}</div>{% endif %}
 </section>

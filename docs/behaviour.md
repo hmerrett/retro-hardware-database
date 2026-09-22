@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1544 behaviours, from 41 files.*
+*1564 behaviours, from 42 files.*
 
 
 ## A file where text was expected
@@ -1704,6 +1704,51 @@ Regenerate with:
   The whole gesture, through the app: a photograph uploaded, then asked for by several requests together the way a reloaded page asks for it.
 - two edits in the same second get different urls  
   A photograph's URL carries a stamp so it can be kept for a year and still never be stale: editing it changes the stamp, so the browser asks again.
+
+
+## Item pages
+
+*test_item_pages.py — 20 behaviours*
+
+
+**The head**
+
+- the page opens on the name the tag and the summary
+- there is one heading at the top
+- the owner has edit and duplicate beside prev and next
+- a visitor has neither
+- the way back is to the whole register
+
+**The display face**
+
+- an item page preloads the face its name is set in
+- the gallery does not
+
+**The side column**
+
+- the photographs come before the details  
+  In the source, so that one column on a phone reads summary, photograph, details: a visitor from a label wants to see they have the right thing.
+- the label panel prints both labels
+- a visitor has no label panel
+
+**A parts specification**
+
+- the specs are a panel of their own
+- a part with no specs has no panel
+
+**Fitted in**
+
+- a part in a machine names it and offers take out
+- a part on a card names the card and offers take out
+- taking it out makes it a spare
+- a spare says so and offers fit in
+- a visitor sees where it is and nothing to press
+
+**Take out on the lists**
+
+- a machines parts each offer take out
+- a cards mounted parts each offer take out
+- a visitor is offered neither
 
 
 ## Keyboard and motion
