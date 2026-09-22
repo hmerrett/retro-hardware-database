@@ -332,22 +332,7 @@
   .btn.primary:not(main.v2 *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm:not(main.v2 *) { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }
-  /* `.edit` and not `form.edit`: the settings page has a box that is a fieldset
-     rather than a form -- what the browser remembers for itself is not something
-     the form saves (ADR-0023) -- and a control in it that took none of these rules
-     sat in the middle of the page looking like a different website. */
-  .edit label { display: block; margin: 10px 0 3px; color: var(--muted); font-size: 13px; }
-  .edit input, .edit textarea, .edit select { width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; background: transparent; color: inherit; }
-  .edit textarea { min-height: 60px; }
   main:not(.v2) .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 10px; }
-  .edit .checks label { display: flex; align-items: center; gap: 5px; margin: 0; color: inherit; font-size: 13px; }
-  /* The tickbox that rides under a chip's answer. Its own width, like the radios
-     above it: everything else in an edit form is a full-width box, which on a
-     checkbox puts the label a column away from the thing it names. */
-  .edit label.socketed { display: flex; align-items: center; gap: 5px;
-    margin: 0 0 10px; color: inherit; font-size: 13px; }
-  .edit label.socketed input { width: auto; }
-  .edit .checks input { width: auto; }
   .hint:not(main.v2 *) { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
   .muted { color: var(--muted); }
   .chip:not(main.v2 *) { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: inherit; }
@@ -434,11 +419,7 @@
     opacity: 0; cursor: pointer; font-size: 0; }
   .filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
   form.sending .filebtn { pointer-events: none; opacity: .55; }
-  /* The choose-files button on a create form. It is a label, and the block styling
-     every other label in .edit gets would otherwise flatten it. */
   .newphotos { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
-  .edit label.filebtn { display: inline-block; width: auto; margin: 0;
-    color: inherit; font-size: 13px; }
   .newphotos .hint { margin: 0; }
   .photo-actions .hint { margin: 0; }
   /* The phone code at the foot of the photo column. Stacked rather than side by
@@ -586,7 +567,6 @@
      field, which is why the check exists rather than another read-through. */
   @media (pointer: coarse) {
     input, select, textarea,
-    .edit input, .edit select, .edit textarea,
     .toolbar input[type=text], .toolbar input[list],
     .toolbar input:not([type]), .toolbar select:not(.select),
     .photo-actions input[name=note], .notebar input,
@@ -629,13 +609,3 @@
   .tuck { margin: 5px 0 0; }
   .subhead { margin: 10px 0 2px; }
   .subhead-loose { margin: 10px 0 4px; }
-  /* Wide enough for a sentence of explanation under each control, narrow enough
-     that a text box is not a field the width of a desktop. */
-  .settings-box { max-width: 560px; }
-  /* A settings row is a control and its label, and its explanation is in the title
-     the row carries rather than under it (interface-text) -- so the rows need the
-     air the explanations used to put between them. The tick rows would otherwise
-     sit closer together than the boxed ones, .checks having its own smaller
-     margins. */
-  .srow + .srow { margin-top: 16px; }
-  .srow > .checks { margin: 0; }

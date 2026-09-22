@@ -100,7 +100,44 @@ def tokens_css(palettes: dict, scales: dict) -> str:
         + "  :root:not([data-theme]) {\n"
         + _decls(_colours(palettes, "dark"), "    ")
         + "  }\n}\n"
+        + face_css(palettes, scales)
     )
+
+
+# What the settings page's miniature of a preset is painted with: the tokens the
+# `.mini` rules in components.css read, and no others. A face has to be drawn in
+# the colours of the preset it offers rather than the one already in force, and
+# the preset files cannot do it -- their selectors carry `:root`, so they reach the
+# document element and nothing inside the page. `test_presets.py` holds this list
+# to what those rules actually read, so a face that gains a stripe fails rather
+# than drawing it in the wrong colour.
+FACE_COLOURS = ("surface", "band", "text", "text-muted", "accent-fill")
+FACE_CONSTRUCTION = ("radius-xs",)
+
+
+def face_css(palettes: dict, scales: dict) -> str:
+    """The halves of every face in the preset picker, light and dark.
+
+    Scoped inside `.mini` so these selectors cannot reach the document element:
+    `[data-preset="amber"][data-theme="dark"]` on its own would also match an
+    installation wearing Amber in the dark, and redeclare its tokens for no
+    reason.
+    """
+    out = ["/* The preset picker's faces: each half in the colours of the preset it offers. */\n"]
+    # A preset states only what it changes, so the shared scales are what a face
+    # falls back to -- which is the whole of the default preset's construction.
+    shared = _scales(scales)
+    for preset in palettes["presets"]:
+        construction = shared | palettes["construction"][preset]
+        for mode in ("light", "dark"):
+            theme = mode if preset == "default" else f"{preset}-{mode}"
+            colours = palettes["themes"][theme]
+            values = {name: colours[name] for name in FACE_COLOURS}
+            values.update({name: construction[name] for name in FACE_CONSTRUCTION})
+            out.append(
+                f'.mini [data-preset="{preset}"][data-theme="{mode}"] {{\n' + _decls(values) + "}\n"
+            )
+    return "".join(out)
 
 
 def preset_css(palettes: dict, preset: str) -> str:

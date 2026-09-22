@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1915 behaviours, from 57 files.*
+*1929 behaviours, from 57 files.*
 
 
 ## A file where text was expected
@@ -2567,7 +2567,7 @@ Regenerate with:
 
 ## Presets
 
-*test_presets.py — 4 behaviours*
+*test_presets.py — 6 behaviours*
 
 - the stylesheets are the ones the design data writes  
   tokens.css and the preset files are generated.
@@ -2577,6 +2577,10 @@ Regenerate with:
   A token a preset leaves out is inherited from the default preset underneath, which is a colour chosen for a different page -- a black band's text left white-on-white, say.
 - every pair holds in every preset and mode  
   518 pairs: the 37 the design uses, in fourteen themes.
+- a preset names no component  
+  A preset is token values and nothing else (ADR-0024).
+- every face in the picker is drawn in its own colours  
+  The settings page shows each preset as a miniature, and a miniature painted in the colours of the preset already in force would show seven of the same thing.
 
 
 ## Project form items
@@ -3047,7 +3051,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 39 behaviours*
+*test_settings.py — 51 behaviours*
 
 
 **Reaching the page**
@@ -3072,6 +3076,33 @@ Regenerate with:
   Blank is not a name, and a site with no name in its banner is a site that looks broken rather than one that looks unnamed.
 - the api documentation keeps the software s name  
   The installation is renamed; the software is not.
+
+**The look**
+
+- the looks offered are the ones there is a stylesheet for  
+  The page reads the design data rather than a list of its own, so it cannot come to offer a look nobody generated a stylesheet for -- which would be a face that paints the site in the default and says nothing.
+- a site wears the default look and says nothing  
+  No attribute, and no second stylesheet fetched to say what the tokens already say: the default preset is what tokens.css declares on :root.
+- a chosen look is on the page before it is painted  
+  Server-rendered like the theme beside it, and for the same reason: a look applied after paint is the wrong colours flashing on every page.
+- the look and the theme are two answers and not one  
+  The preset says which pair of looks; the theme says which of the two.
+- a face shows both a light and a dark half  
+  A preset is two sets of colours and the reader's device picks between them, so a face showing one of them is a promise about half the site.
+- the chosen face says so in words  
+  An outline is a colour, and somebody who cannot see the outline is left guessing which of seven is on -- so the answer is also written down.
+- the faces are one group of radios  
+  Radios and not buttons: it posts with no script, it is one stop for the Tab key, and the arrow keys move the choice, all of which come free from the control the browser already has (accessibility-standards).
+- the input is hidden without being taken off the page  
+  `display: none` would take the radios out of the tab order and leave the picker reachable by the mouse alone.
+- a visitor is not offered the look at all  
+  It is the installation's, not the device's.
+- a query string cannot dress the site  
+  The look comes from the setting and from nowhere a stranger can type.
+- a name the register does not know comes up in the default  
+  The value is spent on a stylesheet's path, so it is checked against what exists rather than trusted: a row edited by hand or a variable with a typo in it leaves the site in the default look, not in none at all.
+- a pinned look is shown and refuses an answer  
+  Like any other pinned setting: the environment is the deployment speaking, and the faces grey rather than take a click that a restart would forget.
 
 **Search engines**
 

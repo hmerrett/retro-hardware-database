@@ -129,3 +129,47 @@ def test_every_pair_holds_in_every_preset_and_mode(theme, fg, bg, floor):
     ground = over(colours[bg], colours["surface"]) if len(colours[bg]) == 9 else colours[bg]
     ratio = contrast(colours[fg][:7], ground)
     assert ratio >= floor, f"{fg} on {bg} is {ratio:.2f}:1 in {theme}; it needs {floor}:1"
+
+
+def test_a_preset_names_no_component():
+    """A preset is token values and nothing else (ADR-0024). The moment one names a
+    component -- a button, a panel, the rail -- a look stops being a palette and
+    becomes a second stylesheet, and the next component added to the design has to
+    be drawn seven times. So every rule in a preset file selects the document
+    element by its attribute, and every declaration in it is a custom property."""
+    for path in sorted((APP / "static" / "css" / "presets").glob("*.css")):
+        for selector, block in re.findall(
+            r"([^{}]+)\{([^{}]*)\}", path.read_text(encoding="utf-8")
+        ):
+            head = selector.strip().splitlines()[-1].strip()
+            if head.startswith("@media"):
+                continue
+            assert head.startswith(':root[data-preset="'), f"{path.name} styles {head}"
+            for declaration in filter(None, (d.strip() for d in block.split(";"))):
+                assert declaration.startswith("--"), f"{path.name} sets {declaration}"
+
+
+def test_every_face_in_the_picker_is_drawn_in_its_own_colours():
+    """The settings page shows each preset as a miniature, and a miniature painted
+    in the colours of the preset already in force would show seven of the same
+    thing. The halves are scoped by attribute inside `.mini`, and the tokens they
+    are scoped with are generated from the same data as the presets themselves --
+    so what the owner is choosing between is what they will get."""
+    components = (APP / "static" / "css" / "components.css").read_text(encoding="utf-8")
+    mini = [line for line in components.splitlines() if line.strip().startswith(".mini")]
+    read = {name for line in mini for name in re.findall(r"var\((--[\w-]+)\)", line)}
+    # Only what a preset may change. The spacing a face is padded with is the same
+    # in all seven -- a preset states colour and construction and nothing else
+    # (section 6) -- so restating it on every half would say nothing.
+    settable = {f"--{key}" for key in PALETTES["keys"]}
+    settable |= {f"--{key}" for c in PALETTES["construction"].values() for key in c}
+    wanted = read & settable
+    assert wanted, "the .mini rules read no token a preset can change; this checks nothing"
+    tokens = (APP / "static" / "css" / "tokens.css").read_text(encoding="utf-8")
+    for preset in PALETTES["presets"]:
+        for mode in ("light", "dark"):
+            head = f'.mini [data-preset="{preset}"][data-theme="{mode}"]'
+            assert head in tokens, f"no face rule for {preset} in {mode}"
+            block = tokens.split(head, 1)[1].split("}", 1)[0]
+            missing = {name for name in wanted if f"{name}:" not in block}
+            assert missing == set(), f"{preset}-{mode}'s face does not state {sorted(missing)}"

@@ -846,10 +846,14 @@
   .swatches > legend { padding: 0; margin-bottom: var(--space-2); font-size: 13px; font-weight: 500; color: var(--text-muted); }
   .swatch-opt { position: relative; display: block; cursor: pointer; }
   .swatch-opt input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
-  .swatch-opt .face { display: block; overflow: hidden; border: var(--border-w) solid var(--line-strong);
+  /* A column filling its grid cell, with the name at the foot: "Big Box Beige" takes
+     two lines where the others take one, and a face that sized to its own name would
+     leave the two beside it short and the row ragged. */
+  .swatch-opt .face { display: flex; flex-direction: column; height: 100%; overflow: hidden;
+    border: var(--border-w) solid var(--line-strong);
     border-radius: var(--radius-md); background: var(--surface-raised); }
   .swatch-opt .name { display: flex; justify-content: space-between; gap: var(--space-3);
-    padding: var(--space-2) var(--space-3); font-size: 13px; color: var(--text); }
+    margin-top: auto; padding: var(--space-2) var(--space-3); font-size: 13px; color: var(--text); }
   .swatch-opt .name i { font-style: normal; color: var(--text-muted); visibility: hidden; }
   .swatch-opt input:checked + .face { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .swatch-opt input:checked + .face .name i { visibility: visible; color: var(--accent); }

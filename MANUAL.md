@@ -2257,8 +2257,8 @@ than in a corner of an item's form.
 Everything on it is kept in the database, so it survives a restart and
 everybody who opens the site gets it. It comes in two groups:
 
-**Appearance** — the site's name, whether photographs are watermarked, and which
-theme it opens in.
+**Appearance** — the site's name, the look it is dressed in, whether photographs
+are watermarked, and which theme it opens in.
 
 **Server options** — what this installation shows the outside world and what
 it remembers for itself: whether it asks to be kept out of search engines,
@@ -2358,6 +2358,37 @@ Reference photographs — the ones fetched from somewhere else because the
 collection has none of its own yet — are never watermarked either way. Marking
 somebody else's picture would be claiming it.
 
+### The look
+
+**Preset** is the look the whole installation wears. Seven of them ship with the
+register: *Default*, *Breadbin*, *Rubber Key*, *Phosphor*, *Amber*, *Big Box
+Beige* and *Ninety-five*. The names are the hardware they are drawn from, and
+each one is a set of colours, corner radii, a shadow and three typefaces — and
+nothing else. **A preset never moves anything.** Every page keeps its layout,
+its columns and its breakpoints whichever one is chosen, so picking one is a
+change of dress and never a change of furniture.
+
+They are shown as a row of faces rather than as a menu, because the thing being
+chosen is a look and a list of words cannot show one. Each face is split down the
+middle: its light half on the left, its dark half on the right. That is not
+decoration — a preset *is* two sets of colours, and which of them a reader gets
+is decided further down the page by **Theme** and by the reader's own device.
+The chosen face is outlined and also says **Chosen** in words, so the answer does
+not rest on a colour somebody may not be able to see.
+
+The faces are reachable by the Tab key and answer the arrow keys, as a row of
+radio buttons does anywhere else.
+
+Unlike the theme, **this one is not a default a device can overrule**. It is the
+installation's own look: everybody who opens the site gets it, and a visitor is
+offered no way to change it — their choice is light or dark, and that is all.
+The preset decides which pair of looks those two words pick between.
+
+A preset can be pinned from the environment with `RHDB_PRESET`, in which case
+the faces are greyed and will not take an answer, like any other pinned setting.
+If it is ever set to a name the register does not know, the site comes up in
+*Default* rather than in no look at all.
+
 ### The theme
 
 **Theme** is a menu, and holds the theme a visitor gets who has never chosen
@@ -2387,6 +2418,7 @@ the page, unset it and restart.
 
 | setting | pinned by |
 |---|---|
+| Preset | `RHDB_PRESET` |
 | Watermark photographs | `RHDB_WATERMARK` |
 
 The rest are the page's alone. This table is the place to look when you want to

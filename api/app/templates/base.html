@@ -1,9 +1,14 @@
 <!doctype html>
-{# The theme this installation opens in, put on the element the server renders
-   rather than left to the script: head.js overrules it from localStorage when this
-   device has chosen one of its own, and "system" is no attribute at all, which is
-   what the stylesheet's prefers-color-scheme block is guarded on (ADR-0023). #}
-<html lang="en"{% if site_theme() != 'system' %} data-theme="{{ site_theme() }}"{% endif %}>
+{# Two attributes and two questions. The preset is the look the installation wears
+   and is the owner's alone; the theme says which half of that look a reader gets,
+   and is the only one of the pair a device may answer for itself. Both are put on
+   the element the server renders rather than left to the script: head.js overrules
+   the theme from localStorage when this device has chosen one, and "system" is no
+   attribute at all, which is what the stylesheet's prefers-color-scheme block is
+   guarded on (ADR-0023). The default preset is no attribute either, because its
+   values are the ones tokens.css states on :root (ADR-0024). #}
+{% set _preset = site_preset() %}
+<html lang="en"{% if _preset != 'default' %} data-preset="{{ _preset }}"{% endif %}{% if site_theme() != 'system' %} data-theme="{{ site_theme() }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -44,7 +49,10 @@
 {% else %}<meta name="twitter:card" content="summary">{% endif %}
 {% block preload %}{% endblock %}
 <link rel="stylesheet" href="/static/css/tokens.css?v={{ tokens_ver }}">
-<link rel="stylesheet" href="/static/app.css?v={{ css_ver }}">
+{# The chosen look, which restates the tokens above it. Its selectors all carry
+   the attribute, so it outranks them whatever order the browser gets them in. #}
+{% if _preset != 'default' %}<link rel="stylesheet" href="/static/css/presets/{{ _preset }}.css?v={{ preset_ver[_preset] }}">
+{% endif %}<link rel="stylesheet" href="/static/app.css?v={{ css_ver }}">
 <link rel="stylesheet" href="/static/css/components.css?v={{ components_ver }}">
 <link rel="stylesheet" href="/static/css/utilities.css?v={{ utilities_ver }}">
 <link rel="stylesheet" href="/style/data.css?v={{ data_css_ver }}">

@@ -690,8 +690,8 @@ class TestThePageSaysWhatTheseAre:
         page = client.get("/settings").text
         assert 'name="public_locations"' in page and "> Show locations</label>" in page
         assert 'name="remember_locations"' in page and "> Remember old locations</label>" in page
-        assert 'class="srow" title="Whether somebody who is not signed in is told' in page
-        assert 'class="srow" title="Keeps a place on the pick list after the last thing' in page
+        assert 'class="field" title="Whether somebody who is not signed in is told' in page
+        assert 'class="field" title="Keeps a place on the pick list after the last thing' in page
 
     def test_they_are_server_options(self, client):
         assert settings.BY_KEY["public_locations"].section == settings.SERVER

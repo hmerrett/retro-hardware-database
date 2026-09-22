@@ -21,8 +21,9 @@
    label becomes the button's name instead of words beside the drawing. `pressed`
    makes it a toggle: true draws it on, and either value tells a screen reader it
    is one, which the drawing alone does not. A disabled link keeps its place and
-   loses its href, since a link cannot be disabled any other way. #}
-{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none, title='') -%}
+   loses its href, since a link cannot be disabled any other way. `form` names the
+   form a submit button belongs to when it does not stand inside it. #}
+{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none, title='', form='') -%}
 {%- set cls = ['btn', kind, size, 'icon' if icon_only else '', 'on' if pressed else ''] | select | join(' ') -%}
 {%- set text = label | ui -%}
 {%- set named %}{% if icon_only %} aria-label="{{ text }}"{% endif %}{% if title %} title="{{ title }}"{% endif %}{% endset -%}
@@ -33,6 +34,7 @@
 <a class="{{ cls }}" aria-disabled="true"{{ named }}>{{ inner }}</a>
 {%- else -%}
 <button class="{{ cls }}" type="{{ type }}"
+{%- if form %} form="{{ form }}"{% endif %}
 {%- if name %} name="{{ name }}"{% endif %}
 {%- if value != '' %} value="{{ value }}"{% endif %}{{ named }}
 {%- if pressed is not none %} aria-pressed="{{ 'true' if pressed else 'false' }}"{% endif %}
@@ -78,6 +80,25 @@
 {%- if hint %}<p class="hint" id="{{ key }}-hint">{{ hint }}</p>{% endif -%}
 {%- if error %}<p class="err" id="{{ key }}-err">{{ error }}</p>{% endif -%}
 </div>
+{%- endmacro %}
+
+{# A choice made by looking rather than by reading: a row of faces, one per answer,
+   each drawn in what it is offering. `faces` is (value, name) pairs and `face` is
+   the caller's drawing of one, given the value. Radios, so it posts with no script,
+   is one stop for the Tab key and answers the arrow keys; the input is painted over
+   rather than taken off the page, so the focus still lands on it and draws its own
+   ring. The chosen one is outlined and also says so in words, because an outline is
+   a colour and somebody may not be able to see it. #}
+{% macro swatch(key, label, faces, chosen, note='', pinned=false) -%}
+<fieldset class="swatches{{ ' is-pinned' if pinned else '' }}"{% if note %} title="{{ note }}"{% endif %}>
+<legend>{{ label }}</legend>
+{%- for value, name in faces %}
+<label class="swatch-opt">
+<input type="radio" name="{{ key }}" value="{{ value }}"{% if value | string == chosen | string %} checked{% endif %}{% if pinned %} disabled{% endif %}>
+<span class="face">{{ caller(value) }}<span class="name">{{ name }}<i>Chosen</i></span></span>
+</label>
+{%- endfor %}
+</fieldset>
 {%- endmacro %}
 
 {# What stopped a save, at the top of the form: how many things, each a link to its

@@ -56,6 +56,9 @@ templates.env.globals.update(
     # name saved a moment ago is the name the next page carries.
     site_name=settings.site_name,
     site_theme=lambda: settings.value("theme"),
+    # The look it wears, which is the owner's and never the reader's: the theme
+    # above says light or dark within it (ADR-0024).
+    site_preset=settings.preset,
     site_indexed=lambda: not settings.on("block_search_engines"),
     # Whether a reader who is not signed in is told where a thing is kept. The item
     # pages ask it beside `request.state.authed`, which is the other half of the
@@ -109,6 +112,12 @@ templates.env.globals["tokens_ver"] = _file_ver(STATIC_DIR / "css" / "tokens.css
 # The components that paint with them, and the layout helpers beside them.
 templates.env.globals["components_ver"] = _file_ver(STATIC_DIR / "css" / "components.css")
 templates.env.globals["utilities_ver"] = _file_ver(STATIC_DIR / "css" / "utilities.css")
+# One stamp per preset, since the page links whichever one is in force. Read here
+# with the rest: the files are generated and change when the design data does, not
+# while the site is running.
+templates.env.globals["preset_ver"] = {
+    path.stem: _file_ver(path) for path in sorted((STATIC_DIR / "css" / "presets").glob("*.css"))
+}
 # The generated stylesheet has no file to hash, so its stamp comes from the text
 # itself -- built at import, like the rules in it (datacss).
 templates.env.globals["data_css_ver"] = DATA_CSS_VER

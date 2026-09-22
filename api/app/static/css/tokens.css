@@ -181,3 +181,116 @@
     --shadow-pop: 0 10px 30px #00000080;
   }
 }
+/* The preset picker's faces: each half in the colours of the preset it offers. */
+.mini [data-preset="default"][data-theme="light"] {
+  --surface: #ffffff;
+  --band: #e6e8eb;
+  --text: #1a1c20;
+  --text-muted: #5b6472;
+  --accent-fill: #3538a8;
+  --radius-xs: 3px;
+}
+.mini [data-preset="default"][data-theme="dark"] {
+  --surface: #15171c;
+  --band: #383a3e;
+  --text: #e6e8ec;
+  --text-muted: #9aa4b2;
+  --accent-fill: #a9b1ff;
+  --radius-xs: 3px;
+}
+.mini [data-preset="breadbin"][data-theme="light"] {
+  --surface: #e9e1cf;
+  --band: #4a3f2f;
+  --text: #2a2418;
+  --text-muted: #5c5340;
+  --accent-fill: #40318d;
+  --radius-xs: 0px;
+}
+.mini [data-preset="breadbin"][data-theme="dark"] {
+  --surface: #1f1a4d;
+  --band: #9d92e3;
+  --text: #dedaff;
+  --text-muted: #b3abf0;
+  --accent-fill: #a5e6ee;
+  --radius-xs: 0px;
+}
+.mini [data-preset="rubberkey"][data-theme="light"] {
+  --surface: #d8d8d8;
+  --band: #000000;
+  --text: #0a0a0a;
+  --text-muted: #505050;
+  --accent-fill: #0000cd;
+  --radius-xs: 1px;
+}
+.mini [data-preset="rubberkey"][data-theme="dark"] {
+  --surface: #0c0c0e;
+  --band: #26272b;
+  --text: #ededf0;
+  --text-muted: #a3a5ad;
+  --accent-fill: #5ad1e6;
+  --radius-xs: 1px;
+}
+.mini [data-preset="phosphor"][data-theme="light"] {
+  --surface: #f7f9f3;
+  --band: #d3e8d2;
+  --text: #14251a;
+  --text-muted: #4a6152;
+  --accent-fill: #0b6b3a;
+  --radius-xs: 0px;
+}
+.mini [data-preset="phosphor"][data-theme="dark"] {
+  --surface: #07110a;
+  --band: #1a3a26;
+  --text: #9df2b1;
+  --text-muted: #6cc485;
+  --accent-fill: #ffc04d;
+  --radius-xs: 0px;
+}
+.mini [data-preset="amber"][data-theme="light"] {
+  --surface: #f6efe0;
+  --band: #3a2410;
+  --text: #2a1a08;
+  --text-muted: #6b5535;
+  --accent-fill: #8a4b00;
+  --radius-xs: 1px;
+}
+.mini [data-preset="amber"][data-theme="dark"] {
+  --surface: #1a0e04;
+  --band: #4a2c10;
+  --text: #ffb84d;
+  --text-muted: #d0913f;
+  --accent-fill: #ffb000;
+  --radius-xs: 1px;
+}
+.mini [data-preset="bigbox"][data-theme="light"] {
+  --surface: #e8e4d6;
+  --band: #cec8b6;
+  --text: #23221e;
+  --text-muted: #57524a;
+  --accent-fill: #0a5f66;
+  --radius-xs: 1px;
+}
+.mini [data-preset="bigbox"][data-theme="dark"] {
+  --surface: #1b1a17;
+  --band: #45423a;
+  --text: #e8e4d8;
+  --text-muted: #a8a393;
+  --accent-fill: #5fd38a;
+  --radius-xs: 1px;
+}
+.mini [data-preset="ninetyfive"][data-theme="light"] {
+  --surface: #c0c0c0;
+  --band: #000080;
+  --text: #0a0a0a;
+  --text-muted: #404040;
+  --accent-fill: #000080;
+  --radius-xs: 0px;
+}
+.mini [data-preset="ninetyfive"][data-theme="dark"] {
+  --surface: #2a2a2a;
+  --band: #15158f;
+  --text: #ececec;
+  --text-muted: #ababab;
+  --accent-fill: #a9b8ff;
+  --radius-xs: 0px;
+}

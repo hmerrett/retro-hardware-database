@@ -195,6 +195,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `ids.py` | allocating an asset id, unique across the whole register |
 | `common.py` | the "still held" filter, small query helpers, the image folder, collection constants |
 | `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
+| `presets.py` | the looks the register ships with, read from the design data — so the page cannot offer one no stylesheet was written for |
 | `locations.py` | where things are kept: the remembered vocabulary of places, what a form's pick list offers, and where a part is when it does not say for itself |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |

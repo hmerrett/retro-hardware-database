@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from . import presets
 from .db import SessionLocal
 from .models import Setting
 
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
     # one.
     from .forms import Posted
 
-SWITCH, TEXT, CHOICE = "switch", "text", "choice"
+SWITCH, TEXT, CHOICE, SWATCH = "switch", "text", "choice", "swatch"
 
 # The fieldsets, in the order they are shown. Named here so a definition names one
 # rather than repeating the words.
@@ -99,6 +100,19 @@ DEFINITIONS: tuple[Definition, ...] = (
         ),
         kind=TEXT,
         default=DEFAULT_SITE_NAME,
+    ),
+    Definition(
+        key="preset",
+        section=APPEARANCE,
+        label="Preset",
+        note=(
+            "The look the whole installation wears: its colours, its corners and its "
+            "typefaces, and never its layout. A visitor chooses only light or dark within it."
+        ),
+        kind=SWATCH,
+        default=presets.DEFAULT,
+        choices=presets.CHOICES,
+        env="RHDB_PRESET",
     ),
     Definition(
         key="watermark",
@@ -300,6 +314,16 @@ def site_name() -> str:
     return value("site_name")
 
 
+def preset() -> str:
+    """The look in force, and always one there is a stylesheet for.
+
+    Checked rather than returned, because this is the one setting whose value
+    becomes part of a URL the page then asks the browser to fetch. `presets.known`
+    is where that check lives; this is the only way in to it.
+    """
+    return presets.known(value("preset"))
+
+
 def clean(d: Definition, raw: str | None) -> str | None:
     """What was posted, as the definition's own kind, or None if it is not an answer
     this setting has.
@@ -313,7 +337,7 @@ def clean(d: Definition, raw: str | None) -> str | None:
     if d.kind == SWITCH:
         return "0" if raw is None else "1"
     text = (raw or "").strip()
-    if d.kind == CHOICE:
+    if d.kind in (CHOICE, SWATCH):
         return text if text in dict(choices_for(d)) else None
     return text[:200]
 
