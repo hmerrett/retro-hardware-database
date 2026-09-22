@@ -154,3 +154,18 @@ def test_while_app_css_is_here_it_outranks_the_new_stylesheets(path):
         pytest.skip("app.css has gone, and the layer with it")
     body = text(path).strip()
     assert body.startswith("@layer v2 {") and body.endswith("}")
+
+
+def test_a_bare_0_1_rule_lets_every_tone_past_it():
+    """0.1's `.banner` is kept for the one template still writing the class bare,
+    and is written as a `:not()` list so a migrated page's toned banner falls
+    through to components.css. Every tone has to be in the list: `:not(.warning)`
+    alone let the rule take `banner danger` as well, and its `display: block` cost
+    the lead and the sentence beside it the gap the flex row puts between them --
+    on the login page, the delete confirmation, /projects and the project form,
+    all at once and in none of their own tests."""
+    if not LEGACY.exists():
+        pytest.skip("app.css has gone, and the transitional rules with it")
+    rule = next(line for line in text(LEGACY).splitlines() if line.lstrip().startswith(".banner"))
+    for tone in ("warning", "danger", "success", "toast"):
+        assert f":not(.{tone})" in rule, tone

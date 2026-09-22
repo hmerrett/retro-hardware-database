@@ -356,8 +356,11 @@
      stronger in the dark theme than the light one: the same brown at a thirteenth
      of its strength is a tint on white and nothing at all on black. */
   /* The bare class is 0.1's. A banner with a tone, or floating as a toast, is v0.2's
-     (components.css), and base.html's are those; this goes with the last bare one. */
-  .banner:not(.warning):not(.toast) { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; display: block; }
+     (components.css), and base.html's are those; this goes with the last bare one.
+     Every tone is named: `:not(.warning)` alone let this rule take the danger ones
+     as well, and its `display: block` cost them the gap the flex row puts between
+     the lead and the words after it. */
+  .banner:not(.warning):not(.danger):not(.success):not(.toast) { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; display: block; }
   /* What is going to be done to a thing, as against what became of it. Its own
      colour rather than the disposal banner's, because the two are opposite tenses
      and somebody who has learnt that the orange band means "gone" should not have
