@@ -260,8 +260,16 @@ def test_nothing_hides_where_the_keyboard_is():
     rule that does suppress it, deliberately: the skip link lands on `<main>`, and
     a ring drawn round the whole page says nothing -- the eye should be following
     the link. Anything else turning an outline off is the thing this asserts
-    against, and has to justify itself here first."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    against, and has to justify itself here first. The v0.2 stylesheets are read
+    with app.css, since a suppression in either reaches every page."""
+    css = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            STYLESHEET,
+            STYLESHEET.parent / "css" / "components.css",
+            STYLESHEET.parent / "css" / "utilities.css",
+        )
+    )
     allowed = "main:focus"
     suppressed = [
         css[max(0, found.start() - 60) : found.start()].strip().splitlines()[-1]

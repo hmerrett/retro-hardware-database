@@ -1,0 +1,20 @@
+/* Layout helpers for one-off arrangements, on the spacing tokens (ADR-0024).
+   A utility carries layout only -- never a colour, a font, a border or a shadow --
+   and test_stylesheet_lint.py fails one that does, so nothing here can add a pair
+   to the contrast matrix. In the layer `v2` with components.css, for the reason
+   given at the top of that file. */
+@layer v2 {
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .row.baseline { align-items: baseline; }
+  .stack-2 > * + * { margin-top: var(--space-2); }
+  .stack-3 > * + * { margin-top: var(--space-3); }
+  .stack-5 > * + * { margin-top: var(--space-5); }
+  .grow { flex: 1 1 0; min-width: 0; }
+  .push { margin-left: auto; }
+  .mt-0 { margin-top: 0; } .mt-3 { margin-top: var(--space-3); } .mt-5 { margin-top: var(--space-5); } .mt-6 { margin-top: var(--space-6); }
+  .flush { margin: 0; padding: 0; }
+  .narrow { max-width: 560px; }
+  .page { max-width: var(--content-max); margin: 0 auto; padding: var(--space-6); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  @media (max-width: 560px) { .page { padding: var(--space-5) var(--space-4); } }
+}

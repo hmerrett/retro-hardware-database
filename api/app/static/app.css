@@ -12,6 +12,12 @@
     --fill: var(--accent-fill); --track: var(--accent-track); --primary-fg: var(--on-accent);
     --danger-hover: var(--danger-wash);
   }
+  /* components.css is loaded after this file, inside a cascade layer so that this
+     file's rules outrank it wherever the two name the same class. A layer only
+     loses on what it states, though, so where it states something 0.1 left to the
+     browser -- a button's min-height, a banner's display, a heading's margin --
+     the 0.1 rule below says the browser's value out loud (`min-height: 0`,
+     `margin: revert`, `font-family: inherit`). Each goes with its rule. */
   :root[data-theme="light"] { color-scheme: light; }
   :root[data-theme="dark"] { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -280,6 +286,8 @@
   /* Names like "TMC/MyComp/MyNix/Megastar AI5TV" are one unbreakable word to a
      browser, and a heading is a flex item that will not shrink below it. */
   h1, h2, h3 { overflow-wrap: anywhere; }
+  h1, h2, h3, h4 { margin: revert; }
+  :focus-visible { outline: revert; outline-offset: revert; }
   table { border-collapse: collapse; width: 100%; }
   /* A cell's longest unbroken run -- a disk-image path, a URL in the history --
      sets the column's minimum width, and a table refuses to shrink below it. On a
@@ -298,10 +306,10 @@
      belongs to the section is inside the border, so a page of them says which level
      anything is at -- which a column of headings and gaps could not. */
   .panel { border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
-    margin-top: 14px; }
+    margin-top: 14px; background: none; }
   .panel > header { background: var(--band); padding: 6px 11px; display: flex;
     flex-wrap: wrap; align-items: baseline; gap: 2px 9px; }
-  .panel > header h3 { margin: 0; font-size: 14px; }
+  .panel > header h3 { margin: 0; font-size: 14px; font-weight: bold; }
   .panel > header .muted { font-size: 13px; }
   .panel .pbody { padding: 9px 11px; }
   /* Under a band of its own, a table's first rule is a second line saying the same
@@ -317,7 +325,7 @@
      nothing on the page told you which rule ended one and began the next. */
   .itemcards { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
   .itemcard { border: 1px solid var(--line); border-radius: 12px; padding-bottom: 9px;
-    overflow: hidden; }
+    overflow: hidden; background: none; }
   /* The strip the eye lands on when it is looking for a tag: what this thing is
      called in the register and what kind of thing it is, with the way of taking it
      out at the far end. */
@@ -404,7 +412,8 @@
      list, and what is being read is the values beside them. */
   dl.specs dt { color: var(--muted); font-size: 12px; white-space: nowrap; }
   dl.specs dd { margin: 0; font-size: 13px; min-width: 0; overflow-wrap: break-word; }
-  .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap; }
+  .btn { display: inline-block; border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; text-decoration: none; font-size: 14px; cursor: pointer; background: var(--btn); color: inherit; white-space: nowrap;
+    min-height: 0; gap: normal; align-items: normal; justify-content: normal; box-shadow: none; transform: none; }
   .btn:hover { background: var(--btn-hover); }
   .btn.primary { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm { padding: 3px 8px; font-size: 13px; }
@@ -478,7 +487,7 @@
     margin: 0 0 10px; color: inherit; font-size: 13px; }
   .edit label.socketed input { width: auto; }
   .edit .checks input { width: auto; }
-  .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; font-family: inherit; }
   /* The cookie notice. A slim bar rather than a panel over the page: nothing is
      stored until the reader chooses something, so there is nothing to hold them up
      for -- it is a notice, not a gate. */
@@ -537,7 +546,7 @@
      its name has only the first track, so the paragraph could not live in the
      row. A grid line inside the fold's own summary lines up identically and
      lets the paragraph be an ordinary block underneath it. */
-  .cat .models { font-size: 13px; }
+  .cat .models { font-size: 13px; columns: auto; column-gap: normal; }
   .cat .mrow { border-top: 1px solid var(--line); padding: 1px 0;
     break-inside: avoid; }
   .cat .line { display: grid; grid-template-columns: minmax(0, 1fr) 3.4em 14em;
@@ -570,17 +579,17 @@
   .rank td.lbl { white-space: nowrap; color: var(--fg); }
   .rank td.bar { width: 100%; }
   .rank td.num { text-align: right; color: var(--muted);
-    font-variant-numeric: tabular-nums; }
+    font-variant-numeric: tabular-nums; font-family: inherit; }
   .rank .track { background: var(--track); border-radius: 0 3px 3px 0; height: 14px; }
   .rank .fill { background: var(--fill); height: 14px; border-radius: 0 4px 4px 0;
     min-width: 3px; }
   .muted { color: var(--muted); }
-  .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+  .chip { display: inline-block; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; white-space: inherit; }
   /* Disposal notices, a rejected form, a refused login: every banner is a warning,
      so it takes the warning colours rather than a pair of its own. The wash is
      stronger in the dark theme than the light one: the same brown at a thirteenth
      of its strength is a tint on white and nothing at all on black. */
-  .banner { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; }
+  .banner { background: var(--danger-wash); border: 1px solid var(--danger-line); border-radius: 8px; padding: 8px 12px; margin: 10px 0; display: block; }
   /* A project's state, as a chip. Tinted rather than coloured in: these sit in a
      table beside names and summaries, and a solid block of colour on every row
      would make a list of ordinary projects read as a page of warnings. The text
@@ -919,7 +928,7 @@
      far end so they fall under the thumb on a phone. */
   .crumbnav { display: flex; align-items: center; gap: 4px 10px; flex-wrap: wrap;
     margin: 16px 0; }
-  .itemnav { margin-left: auto; display: flex; gap: 6px; }
+  .itemnav { margin-left: auto; display: flex; gap: 6px; align-items: normal; margin-bottom: 0; }
   /* A summary is typed into a textarea, in paragraphs, exactly as a note is -- and
      until now it was read back as one run-on line for exactly the reason the notes
      cell was: a paragraph collapses the newlines somebody typed into it. The same
@@ -977,7 +986,7 @@
   .card .thumb > img { width: 100%; height: 100%; object-fit: cover; }
   .card .thumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
   .card .body { padding: 9px 11px; }
-  .card .aid { font-size: 12px; color: var(--muted); }
+  .card .aid { font-size: 12px; color: var(--muted); font-family: inherit; }
   .card .nm { font-size: 14px; margin: 2px 0 7px; line-height: 1.3; }
   .card[data-disposed="1"] { opacity: .5; }
   .count { color: var(--muted); font-size: 13px; }
@@ -1097,7 +1106,8 @@
     .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column;
       align-items: center; gap: 3px; padding: 6px 2px; border: 0;
       background: none; color: var(--muted); font: inherit; font-size: 11px;
-      text-decoration: none; cursor: pointer; }
+      text-decoration: none; cursor: pointer;
+      min-height: 0; font-weight: normal; justify-content: normal; }
     .tabbar svg { width: 21px; height: 21px; display: block; }
     .tabbar [aria-current="page"], .tabbar .on { color: var(--accent); }
     /* Room under the last card for the bar that would otherwise sit on it, and
@@ -1225,7 +1235,7 @@
   .flush { margin: 0; }
   .flush-top { margin-top: 0; }
   .flush-bottom { margin-bottom: 0; }
-  .grow { flex: 1; }
+  .grow { flex: 1; min-width: auto; }
   .is-hidden { display: none; }
   .tuck { margin: 5px 0 0; }
   .mt-5 { margin-top: 5px; }

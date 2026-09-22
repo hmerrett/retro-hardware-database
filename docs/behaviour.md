@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1417 behaviours, from 37 files.*
+*1422 behaviours, from 38 files.*
 
 
 ## A file where text was expected
@@ -2631,6 +2631,22 @@ Regenerate with:
   The three pairs tested before this were the three that had already been reported broken.
 - every surface words are written on holds them  
   A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
+
+
+## Stylesheet lint
+
+*test_stylesheet_lint.py — 5 behaviours*
+
+- no colour is stated outside the token files  
+  A colour written into a component is one no preset can change and no contrast test reads.
+- the spacing is on the scale  
+  Every gap, padding, corner and rule is a token, 0, 1px, or a named exception with its reason.
+- every exception to the scale is still used  
+  An exception nothing needs any more is a hole left open for the next one.
+- a utility carries layout only  
+  utilities.css is for one-off arrangement.
+- while app css is here it outranks the new stylesheets  
+  The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
 
 
 ## Type checking
