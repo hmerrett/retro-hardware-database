@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1658 behaviours, from 47 files.*
+*1660 behaviours, from 47 files.*
 
 
 ## A file where text was expected
@@ -2917,7 +2917,7 @@ Regenerate with:
 
 ## Stats page
 
-*test_stats_page.py — 5 behaviours*
+*test_stats_page.py — 7 behaviours*
 
 
 **The numbers page**
@@ -2927,6 +2927,13 @@ Regenerate with:
 - the tiles are stat tiles and one with a page is its link
 - each ranked chart is headed and its names lead to what they count
 - no 0 1 markup is left
+
+**What the page does not say**
+
+- a chart with nothing to count is left out  
+  MANUAL.md: "A chart with nothing to count yet is left out ...
+- one of a unit is said in the singular  
+  A register started today is one day old, and an average item made last year is one year old: "1 days" and "1 years" are what the page used to say.
 
 
 ## Stylesheet

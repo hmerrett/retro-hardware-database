@@ -71,9 +71,11 @@
   {% for c in st.facts %}{{ U.stattile(c.k, c.v, c.s, c.href or '') }}{% endfor %}
 </div>
 
-{% macro chart(title, caption) %}
+{#- A chart with no rows is left out, like a figure with nothing to say, rather
+    than drawn as a heading over an empty box. -#}
+{% macro chart(title, caption, rows) %}{% if rows %}
 <section><h2 class="heading">{{ title }}</h2><p class="sub">{{ caption }}</p>{{ caller() }}</section>
-{% endmacro %}
+{% endif %}{% endmacro %}
 <div class="twocol mt-6">
   {% if st.reliability_rank | length >= 2 %}
   {# Percentages, so the bars are drawn against 100 rather than against the best
@@ -83,13 +85,13 @@
      hue, like every other chart here -- the job is magnitude. #}
   {% call chart('Makers, by how much of it still works',
                 'Share recorded as Working, makers with ' ~ st.reliability_min ~
-                '+ parts still here') %}{{ U.bars(st.reliability_rank, 'maker', 100, '%') }}{% endcall %}
+                '+ parts still here', st.reliability_rank) %}{{ U.bars(st.reliability_rank, 'maker', 100, '%') }}{% endcall %}
   {% endif %}
-  {% call chart('Makers, by parts held', 'The eight best represented') %}{{ U.bars(st.makers, 'maker') }}{% endcall %}
-  {% call chart('What the parts are', 'Every category in the register') %}{{ U.bars(st.types_labelled, 'type') }}{% endcall %}
-  {% call chart('Expansion buses', 'Slots counted across every board') %}{{ U.bars(st.buses, 'bus') }}{% endcall %}
-  {% call chart('Ports', 'Counted across every card and board') %}{{ U.bars(st.ports, 'port') }}{% endcall %}
-  {% call chart('Condition', 'As recorded, parts only') %}{{ U.bars(st.conditions, 'condition') }}{% endcall %}
+  {% call chart('Makers, by parts held', 'The eight best represented', st.makers) %}{{ U.bars(st.makers, 'maker') }}{% endcall %}
+  {% call chart('What the parts are', 'Every category in the register', st.types_labelled) %}{{ U.bars(st.types_labelled, 'type') }}{% endcall %}
+  {% call chart('Expansion buses', 'Slots counted across every board', st.buses) %}{{ U.bars(st.buses, 'bus') }}{% endcall %}
+  {% call chart('Ports', 'Counted across every card and board', st.ports) %}{{ U.bars(st.ports, 'port') }}{% endcall %}
+  {% call chart('Condition', 'As recorded, parts only', st.conditions) %}{{ U.bars(st.conditions, 'condition') }}{% endcall %}
 </div>
 
 {# What is left out changes how every figure reads, and that the figures are

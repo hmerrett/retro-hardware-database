@@ -6,7 +6,9 @@ The figures themselves are held in test_api.py; this is the page they are set in
 """
 
 import re
+from datetime import date
 
+from app import main
 from app.routers import stats as stats_routes
 
 
@@ -52,3 +54,22 @@ class TestTheNumbersPage:
         body = main_of(client.get("/stats").text)
         for gone in ('class="hero"', 'class="tiles"', 'class="tile"', 'class="rank"', "<table"):
             assert gone not in body, gone
+
+
+class TestWhatThePageDoesNotSay:
+    def test_a_chart_with_nothing_to_count_is_left_out(self, client, part):
+        """MANUAL.md: "A chart with nothing to count yet is left out ... rather than
+        drawn as a heading over nothing." A card with no buses or ports recorded
+        gives those two charts no rows."""
+        part(type="video", manufacturer="Tseng", model="ET4000")
+        charts = main_of(client.get("/stats").text).split('<div class="twocol', 1)[1]
+        assert "Makers, by parts held" in charts
+        assert "Expansion buses" not in charts and ">Ports<" not in charts
+
+    def test_one_of_a_unit_is_said_in_the_singular(self, client, db, part):
+        """A register started today is one day old, and an average item made last
+        year is one year old: "1 days" and "1 years" are what the page used to say."""
+        part(type="video", manufacturer="Tseng", model="ET4000", year=date.today().year - 1)
+        pool = {f["k"]: f for f in main._facts(db, main._collection_stats(db), date.today().year)}
+        assert pool["The register is younger than everything in it"]["v"] == "1 day"
+        assert pool["The average item"]["s"] == "1 year old"
