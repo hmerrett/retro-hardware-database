@@ -25,6 +25,11 @@
     <legend>{{ section }}</legend>
     {% for d in rows %}
     {% set fixed = pinned(d) is not none %}
+    {# A run of rows that asked for the grid opens one and the row after it closes
+       it, so the four menus stand two abreast instead of four deep and the things
+       under them are still on the screen. The run is read off the definitions
+       rather than written out here: the page's shape is the module's to state. #}
+    {%- if d.grid and (loop.first or not loop.previtem.grid) %}<div class="formgrid">{% endif %}
 
     {% if d.key == 'accent' %}
     {# The same row of faces, smaller, and each one showing the thing rather than a
@@ -68,6 +73,7 @@
     {% else %}
     {{ U.field(d.key, d.label, value=value(d.key), note=d.note, pinned=fixed, maxlength=200, autocomplete='off') }}
     {% endif %}
+    {%- if d.grid and (loop.last or not loop.nextitem.grid) %}</div>{% endif %}
 
     {% endfor %}
   </fieldset>

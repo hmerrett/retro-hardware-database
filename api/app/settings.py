@@ -88,6 +88,11 @@ class Definition:
     default: str
     choices: tuple[tuple[str, str], ...] = ()
     env: str = ""
+    # Whether this row sits in the two-column grid with the rows beside it. A menu
+    # of four words does not need the width of the page, and four of them stacked
+    # push the things under them off the bottom of it. Adjacent rows that say yes
+    # share one grid; a row that says no ends it.
+    grid: bool = False
     # Whether the answers to this one are worked out when the page is drawn rather
     # than written here. Only the label destination is: its list holds one entry per
     # print agent, and those are named in the environment (ADR-0025), so a static
@@ -158,6 +163,7 @@ DEFINITIONS: tuple[Definition, ...] = (
             ("light", "light"),
             ("dark", "dark"),
         ),
+        grid=True,
     ),
     Definition(
         key="type",
@@ -170,6 +176,7 @@ DEFINITIONS: tuple[Definition, ...] = (
         kind=CHOICE,
         default=typefaces.DEFAULT,
         choices=typefaces.CHOICES,
+        grid=True,
     ),
     Definition(
         key="nav",
@@ -182,6 +189,7 @@ DEFINITIONS: tuple[Definition, ...] = (
         kind=CHOICE,
         default="side",
         choices=(("side", "Side"), ("top", "Top")),
+        grid=True,
     ),
     Definition(
         key="button_case",
@@ -191,6 +199,7 @@ DEFINITIONS: tuple[Definition, ...] = (
         kind=CHOICE,
         default="cap",
         choices=(("cap", "Capitalised"), ("lower", "Lower case")),
+        grid=True,
     ),
     Definition(
         key="watermark",

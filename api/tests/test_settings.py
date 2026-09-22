@@ -505,6 +505,30 @@ class TestHowThePageReads:
         names = [s for s, _ in settings.grouped()]
         assert len(names) == len(set(names))
 
+    def test_the_short_menus_stand_two_abreast(self, client):
+        """Four menus of four words each, stacked, push the switch under them and
+        the save button off a laptop screen. They share one grid, and which rows
+        do is the module's to say rather than the template's -- a fifth menu is a
+        flag on its definition and not a rewrite of the loop."""
+        page = client.get("/settings").text
+        assert page.count('<div class="formgrid">') == 1
+        # Between the grid opening and the row after it, and counted rather than
+        # matched: every row here is a div, so a slice to the first closing tag
+        # would stop inside the first field rather than at the end of the four.
+        grid = page.split('<div class="formgrid">', 1)[1].split('id="watermark"', 1)[0]
+        for key in ("theme", "type", "nav", "button_case"):
+            assert f'id="{key}"' in grid, f"{key} is not in the grid"
+        # Four rows closing themselves and then the grid closing: a grid left open
+        # would swallow everything under it into two columns, which is the failure
+        # this catches and which no count of the rows inside it would.
+        assert grid.count("</div>") == 5, "the grid does not close before the row under it"
+        assert [d.key for d in settings.DEFINITIONS if d.grid] == [
+            "theme",
+            "type",
+            "nav",
+            "button_case",
+        ]
+
     def test_every_row_carries_its_reason(self, client):
         """One tooltip per setting, so none of them is the one that was forgotten
         and left a control with nothing behind it."""
