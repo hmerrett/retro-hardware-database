@@ -13,10 +13,9 @@
      otherwise be offered instead of the list -- these are answers from the
      register, and they are the ones worth having. #}
   {% macro fld(key, label, hint='', type='text', dl='') %}
-    <label for="{{ key }}">{{ label }}</label>
+    <label for="{{ key }}"{% if hint %} title="{{ hint }}"{% endif %}>{{ label }}</label>
     <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (c[key] if c else '') or '' }}"
-           {%- if dl and dl in DL %} list="dl_{{ dl }}" autocomplete="off"{% endif %}>
-    {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
+           {%- if dl and dl in DL %} list="dl_{{ dl }}" autocomplete="off"{% endif %}{% if hint %} title="{{ hint }}"{% endif %}>
   {% endmacro %}
   {% set DL = dl | default({}) %}
   {% for name, values in DL.items() %}
@@ -43,27 +42,23 @@
      so a score already on file is not quietly erased by someone filing the machine
      against the catalogue: a hidden input still submits what it holds. #}
   <div data-x86-only>
-    {{ fld('topbench', 'TopBench score', "what this machine scores in TopBench, the DOS benchmark — leave it blank until it has actually been run on this machine", type='number') }}
+    {{ fld('topbench', 'TopBench score', "Its TopBench (DOS benchmark) score. Leave blank until it has been run.", type='number') }}
   </div>
-  <label>Memory modules (SIMMs / SIPPs)</label>
-  <p class="hint">how many of each; the total is computed.</p>
+  <label title="How many of each; the total is computed.">Memory modules (SIMMs / SIPPs)</label>
   <div class="countgrid">
     {% for slug, kb, label in ram_modules %}
     <label><span>{{ label }}</span> <input type="number" min="0" name="rammod:{{ slug }}" value="{{ ram_mod_counts.get(slug, '') }}"></label>
     {% endfor %}
   </div>
-  <label>RAM chips (installed directly)</label>
-  <p class="hint">DRAM on the board rather than on SIMMs. A banks-of-9 count is treated as parity.</p>
+  <label title="DRAM soldered or socketed on the board rather than on SIMMs. A banks-of-9 count is treated as parity.">RAM chips on the board</label>
   <div class="countgrid">
     {% for pn, kb, org in ram_chips %}
     <label><span>{{ pn }} <span class="muted">({{ org }})</span></span> <input type="number" min="0" name="ramchip:{{ pn }}" value="{{ ram_counts.get(pn, '') }}"></label>
     {% endfor %}
   </div>
-  <label for="installed_ram">Installed RAM — other / notes</label>
+  <label for="installed_ram" title="Anything the grids above miss — DIMMs, odd sizes, or a plain total like 16MiB. All three are combined.">Other RAM</label>
   <input id="installed_ram" name="installed_ram" value="{{ ram_free }}">
-  <p class="hint">anything the grids above miss — DIMMs, odd sizes, or a plain total like 16MiB. All three are combined.</p>
-  <label>Drives</label>
-  <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove it.</p>
+  <label title="Floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove it.">Drives</label>
   <div class="hscroll">
   <table class="drives">
     <tr><th scope="col">How many</th><th scope="col">Kind</th><th scope="col">Form factor</th><th scope="col">Size</th><th scope="col">Media</th><th scope="col">Speed</th><th scope="col">Make / model</th><th scope="col">Bezel — shade, and yellowing</th></tr>
@@ -120,9 +115,8 @@
   {{ fld('acquired_date', 'Acquired date', type='date') }}
   {{ fld('location', 'Location', "where it is kept — Loft, blue crate 3", dl='location') }}
   {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
-  <label for="summary">Summary</label>
+  <label for="summary" title="The description shown at the top of the page">Summary</label>
   <textarea class="box-110" id="summary" name="summary">{{ (c.summary if c else '') or '' }}</textarea>
-  <p class="hint">the description shown at the top of the page</p>
   <label for="notes">Notes</label>
   <textarea id="notes" name="notes">{{ (c.notes if c else '') or '' }}</textarea>
 {# What it needs doing, written while it is in your hands.
@@ -143,15 +137,12 @@
 #}
   <label for="work_needed">Work needed</label>
   <textarea class="box-70" id="work_needed" name="work_needed"
-            placeholder="recap · new belt · keyboard sticks — one job to a line"></textarea>
-  <label for="work_project">…as part of</label>
+            placeholder="one job per line"></textarea>
+  <label for="work_project" title="New project: one named after this, each line a job on it. Or add the jobs to a project already going — usually the case for a part bought for something. Leave the jobs empty if there is nothing to do.">Project</label>
   <select id="work_project" name="work_project">
-    <option value="">a project of its own</option>
+    <option value="">new project</option>
     {% for pr in work_projects %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
   </select>
-  <p class="hint">Raises a project about this one, each line a job on it —
-    or adds it to a project already going, which is what a part bought for something
-    usually is. Leave it empty if there is nothing to do.</p>
   {% if not c %}
   {# On an item that exists, photos upload the moment they are picked, from the
      photo column on its own page. Here there is no asset tag to file them under

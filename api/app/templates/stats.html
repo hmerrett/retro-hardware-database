@@ -71,8 +71,7 @@
   {% else %}
   <span class="n">Every one of them</span> has had its portrait taken.
   {% endif %}
-  <span class="muted">A photograph on a history entry does not count: it says what
-    happened to a thing, not which thing this is.</span>
+
 </p>
 {% endif %}
 
@@ -86,9 +85,7 @@
    Same quiet links throughout: every figure leads to the things it counted. #}
 <div class="flex mt-26">
   <h2 class="stat-h">Eight things about it</h2>
-  <span class="muted stat-sub">{{ st.facts | length }} of
-    {{ st.n_facts }}, drawn fresh each time you look —
-    <a href="/stats">shuffle</a></span>
+  <span class="muted stat-sub" title="{{ st.facts | length }} of {{ st.n_facts }}, drawn fresh each time you look"><a href="/stats">shuffle</a></span>
 </div>
 <div class="tiles">
   {% for c in st.facts %}
@@ -123,6 +120,5 @@
 {# What is left out changes how every figure reads, and that the figures are
    links is deliberately not visible -- both worth a line. That they are counted
    live, and which columns they are counted from, are not. #}
-<p class="hint">Disposed items are left out of every figure but the count of
-disposals. Every number leads to what it counted.</p>
+<p class="hint" title="Every number leads to what it counted.">Disposed items are left out, except from the count of disposals.</p>
 {% endblock %}

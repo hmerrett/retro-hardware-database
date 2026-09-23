@@ -16,10 +16,10 @@
 {% call PN.panel('History') %}
   {% if request.state.authed %}
   <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note" class="notebar"
-        enctype="multipart/form-data">
+        enctype="multipart/form-data" title="A note, photographs, or both — photographs on their own are an entry too.">
     {# Not required any more: photographs on their own are an entry, so the way
        to file one is to choose it and press the button. #}
-    <input name="message" placeholder="add a note, or just photographs"
+    <input name="message" placeholder="add a note"
            aria-label="a note for the history">
     {# Not sent the moment they are picked, as the gallery's are: there may be a
        caption still to be typed, and the words have to travel with the photographs
@@ -35,7 +35,7 @@
   </form>
   {% endif %}
   {% if log %}
-  <table class="kv">
+  <table class="kv log{{ ' timed' if request.state.authed else '' }}">
     {% for e in log %}
     <tr>
       <td class="logwhen"><span class="muted">{{ log_stamp(e.created_at, request.state.authed) }}</span></td>

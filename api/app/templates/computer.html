@@ -57,8 +57,7 @@
    and at two sections they cannot see. #}
 {% if build and request.state.authed and not machine %}
 <div class="build-banner">
-  <strong>Build walk.</strong> Next: give it a motherboard below, then add its
-  storage and expansion cards by category.
+  <strong>Build walk.</strong> Next: a motherboard, then its parts.
 </div>
 {% endif %}
 
@@ -121,7 +120,7 @@
          side. A card each, small enough to sit two or three across: what is written
          on a chip is a part number, and a tick says how it is held. #}
       {% if machine.chips %}
-      <p class="hint subhead">Chips fitted — what is marked on each</p>
+      <p class="hint subhead" title="What is marked on each chip">Chips fitted</p>
       {{ P.chipcards(machine.chips) }}
       {% endif %}
       {# Here rather than beside the edit button at the top, because this is the panel
@@ -129,8 +128,8 @@
          facts, written on the machine only while the board is not a thing of its own.
          Behind a page, which says what will move and takes the board's photograph. #}
       {% if detachable %}
-      <p class="hint top-12"><a href="/computers/{{ c.asset_id }}/detach-board">detach the board…</a>
-        — give it an asset tag of its own</p>
+      <p class="hint top-12"><a href="/computers/{{ c.asset_id }}/detach-board"
+        title="Give the board an asset tag of its own">detach the board…</a></p>
       {% endif %}
     {% endcall %}
     {% endif %}

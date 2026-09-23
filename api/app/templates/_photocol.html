@@ -103,24 +103,24 @@
     </form>
     {% if obj.url %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image">
-      <button class="btn sm" type="submit">fetch photo from reference</button>
+      <button class="btn sm" type="submit" title="Fetch a photograph from the reference URL">fetch from reference</button>
     </form>
     {% endif %}
-    {% if imgerr %}<p class="hint">No image found at the reference URL.</p>{% endif %}
+    {% if imgerr %}<p class="hint">Nothing found at the reference.</p>{% endif %}
   </div>
   {% endcall %}
   {% if not obj.disposed %}
   {% call PN.panel('Disposal') %}
     <div class="photo-actions flush-top">
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose">
-      <input name="note" placeholder="why — sold, binned, donated…"
+    {# The consequence for the parts in a machine is in the tooltip rather than
+       printed under the box (interface-text): it is the why, not the meaning. #}
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose"
+          title="{{ 'Sold, binned or given away. The parts in it go with it, on the same date and for the same reason; restoring the machine brings them back.' if kind == 'computers' else 'Sold, binned or given away. Restoring it brings it back.' }}">
+      <input name="note" placeholder="why — sold, binned…"
              aria-label="why it went">
       <input name="date" type="date" value="{{ today() }}" aria-label="when it went">
-      <button class="btn sm" type="submit">mark disposed</button>
+      <button class="btn sm" type="submit">dispose</button>
     </form>
-    {% if kind == 'computers' %}<p class="hint">The parts in the machine are
-      disposed with it, on the same date and for the same reason. Restoring the
-      machine brings them back.</p>{% endif %}
     </div>
   {% endcall %}
   {% endif %}

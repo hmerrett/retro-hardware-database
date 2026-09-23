@@ -16,20 +16,20 @@
   {{ P.filecards(files, '/' + kind + '/' + item.asset_id, request.state.authed,
                  item, file_models | default([])) }}
   {% else %}
-  <div class="pbody"><p class="muted flush">No files for this one yet.</p></div>
+  <div class="pbody"><p class="muted flush">No files.</p></div>
   {% endif %}
 
   {% if request.state.authed %}
   <div class="pbody">
-  {% if fileerr %}<p class="hint">Something was too big to keep — nothing over
-    {{ max_file_mb }} MiB.</p>{% endif %}
+  {% if fileerr %}<p class="hint">Too big — the limit is {{ max_file_mb }} MiB.</p>{% endif %}
   {# Choosing the files is the whole gesture, as it is for photographs: the upload
      goes the moment they are picked. Where it lands is decided by the page rather
      than by this form -- see the hint under it -- so what is typed here first is
      only what the file is. The button stays in the markup for a browser running no
      script. #}
   <form class="fileform" method="post" action="/files" enctype="multipart/form-data"
-        id="file-upload" data-autosend>
+        id="file-upload" data-autosend
+        title="{% if file_models %}Attached to every {{ file_models[0][2] }}; the card it lands on can attach it to {{ item.asset_id }} alone instead.{% else %}Attached to {{ item.asset_id }}, which has no maker and model to share it with.{% endif %} Private until you tick public.">
     <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
     <input type="hidden" name="aid" value="{{ item.asset_id }}">
     <input name="tags" placeholder="tags — manual, driver, ROM dump"
@@ -37,7 +37,7 @@
     {# What files have been called before: a manual, a driver disk, a ROM dump.
        Half a dozen answers cover nearly everything, and typing one of them the same
        way twice is what makes them worth reading. #}
-    <input name="note" placeholder="what it is — optional" list="dl_filenotes"
+    <input name="note" placeholder="note" list="dl_filenotes"
            aria-label="what this file is"
            autocomplete="off">
     <label class="btn sm filebtn">choose files
@@ -47,11 +47,6 @@
     <button class="btn sm" type="submit" data-send-go>upload</button>
     <span class="hint" data-send-busy hidden>uploading…</span>
   </form>
-  <p class="hint">{% if file_models %}Attached to <em>every {{ file_models[0][2] }}</em>,
-    so every one of them offers it — the card it lands on has a button to attach it to
-    <em>{{ item.asset_id }}</em> alone instead.{% else %}Attached to
-    <em>{{ item.asset_id }}</em>, since this one has no maker and model to attach it to
-    every one of.{% endif %} Nothing uploaded here is public until you tick it.</p>
   </div>
   {% endif %}
 {% endcall %}

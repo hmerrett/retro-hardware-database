@@ -1119,7 +1119,7 @@ class TestTheProjectsOwnJobsShowOnItsThings:
         """Run together they would attribute to a machine something nobody said
         about it."""
         pt, _ = self.setup(client)
-        assert "On the project as a whole" in client.get(f"/parts/{pt}").text
+        assert "Whole project" in client.get(f"/parts/{pt}").text
 
     def test_a_job_naming_another_thing_does_not_show(self, client):
         """Inheriting the project's own jobs is not inheriting everybody's."""

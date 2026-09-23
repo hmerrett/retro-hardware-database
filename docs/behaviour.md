@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1634 behaviours, from 44 files.*
+*1636 behaviours, from 44 files.*
 
 
 ## A file where text was expected
@@ -1556,7 +1556,7 @@ Regenerate with:
 - an upload on something with no model is attached to that thing  
   "and to the item itself where it has not -- a custom build".
 - the panel says which of the two it did  
-  "The panel says which of the two it did." Both ways round, because the sentence is the only thing telling you where an upload has just gone.
+  "The upload box's tooltip says which of the two it will do." Both ways round, because it is the only thing telling you where an upload will go.
 - the other of the two is one click away  
   "and the other is one click away".
 - one file can be attached to several things  
@@ -1915,7 +1915,7 @@ Regenerate with:
 
 ## Machines
 
-*test_machines.py — 172 behaviours*
+*test_machines.py — 174 behaviours*
 
 
 **Catalogue consistency**
@@ -2034,6 +2034,9 @@ Regenerate with:
 - its edit form carries them instead
 - fitting something brings them back to the page
 - a pc keeps them on its page and off its form
+- parts are added from one button  
+  "add part -- one button for every kind; the form it opens asks the type first." A row of them was the same menu said twice.
+- the form it opens claims no type yet
 - how a chip is held rides on the socket  
   Six sockets each ending in "— soldered to the board" is a paragraph; a tick and a cross are read at a glance.
 - a socket nobody has looked in says nothing  

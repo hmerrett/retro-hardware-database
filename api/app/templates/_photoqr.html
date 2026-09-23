@@ -14,14 +14,9 @@
 {% import "_panel.html" as PN %}
 {% if request.state.authed %}
 {% set here = og.url ~ '#photo-upload' %}
-{% call PN.panel('Add photos with your phone', cls='photo-qr') %}
-  <div class="qr-card">
+{% call PN.panel('From your phone', cls='photo-qr') %}
+  <div class="qr-card" title="Scan to open this page on a phone, then choose files to photograph {{ obj.asset_id }}. It uploads as soon as it is chosen.">
     <div class="qr-code">{{ qr_svg(here) }}</div>
-    <div>
-      <p class="hint">Scan it to open this page on a phone, then <em>choose files</em>
-        to photograph {{ obj.asset_id }}. It uploads as soon as it is chosen.</p>
-      <p class="hint qr-url">{{ here }}</p>
-    </div>
   </div>
 {% endcall %}
 {% endif %}

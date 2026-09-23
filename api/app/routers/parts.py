@@ -590,7 +590,7 @@ router = APIRouter()
 @router.get("/parts/new", response_class=HTMLResponse, include_in_schema=False)
 def gui_new_part(
     request: Request,
-    type: str = "other",
+    type: str = "",
     computer_id: str = "",
     parent_id: str = "",
     db: Session = Depends(get_db),
@@ -603,11 +603,13 @@ def gui_new_part(
     between this and the duplicate button."""
     src = db.get(Part, source.upper()) if source else None
     if src is None:
-        ctx = _part_form_ctx(db, None, type, computer_id, parent_id)
-        ctx["title"] = f"New {entry.type_label(type)}"
+        # No type given is the machine page's one "add part" button: the form opens
+        # on "other" and the heading does not claim a type nobody has chosen yet.
+        ctx = _part_form_ctx(db, None, type or "other", computer_id, parent_id)
+        ctx["title"] = f"New {entry.type_label(type)}" if type else "New part"
         return templates.TemplateResponse(request, "part_form.html", ctx)
 
-    ptype = src.type or type
+    ptype = src.type or type or "other"
     ctx = _part_form_ctx(db, src, ptype, computer_id, parent_id, action="/parts/new")
     # A transient Part, never added to the session: the descriptive fields of the
     # source with everything belonging to that particular object left out.
