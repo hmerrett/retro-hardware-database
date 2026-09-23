@@ -13,6 +13,17 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Quieter pages: shorter labels, explanations in tooltips.** The sentences that
+sat under boxes on the item pages, the forms and the project pages -- what
+disposing a machine does to its parts, where an uploaded file will be attached,
+what the project menu will do -- are now the tooltip on the box they explain,
+following the interface-text rule, and the labels are shorter ("new project"
+for "a project of its own", "dispose" for "mark disposed", "add" for "note
+it"). A machine's **Parts** panel has one **add part** button in place of one
+per kind, since the form it opens asks the type first. The date column of an
+item's history is only as wide as the date, which gives the entries back most
+of a phone's width.
+
 **The off-site backup now includes the uploaded files.** `backup/pull-backup.sh`
 collected the database and the photographs but not the files volume, so the
 drivers, manuals and receipts kept beside the register had no copy anywhere but

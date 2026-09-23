@@ -5,12 +5,7 @@
   <h2 class="flush">Files</h2>
   <span class="muted">{{ files|length }}</span>
 </div>
-<p class="hint">Drivers, manuals, ROM dumps and utility disks, each attached to what
-  it is for: a <em>model</em>, which every card or machine of it is offered, or one unit
-  by its asset tag — a receipt, a repair photograph. Tags say what a file <em>is</em> and
-  decide nothing about where it appears. A file attached to nothing is unfiled, and is
-  filed from here.{% if tag %} Showing what is tagged <em>{{ tag }}</em>.
-  <a href="/files">show everything</a>.{% endif %}</p>
+{% if tag %}<p class="hint">Tagged <em>{{ tag }}</em> · <a href="/files">show all</a></p>{% endif %}
 
 {% set back = '/files' + (('?tag=' + tag|urlencode) if tag else '') %}
 {% if files %}
@@ -95,6 +90,6 @@
 {% endif %}
 {% else %}
 <p class="muted">{% if tag %}Nothing is filed under that name.{% else %}No files
-  yet. Upload one from the page of the machine or part it belongs to.{% endif %}</p>
+  yet — upload from an item's page.{% endif %}</p>
 {% endif %}
 {% endblock %}

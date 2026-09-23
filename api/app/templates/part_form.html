@@ -7,9 +7,8 @@
 <h2>{{ title }}</h2>
 
 {% macro sf(name, key, label, hint='', listid='') %}
-  <label for="{{ name }}">{{ label }}</label>
-  <input id="{{ name }}" name="{{ name }}" value="{{ spec_keys.get(key, '') }}"{% if listid %} list="{{ listid }}"{% endif %}>
-  {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
+  <label for="{{ name }}"{% if hint %} title="{{ hint }}"{% endif %}>{{ label }}</label>
+  <input id="{{ name }}" name="{{ name }}" value="{{ spec_keys.get(key, '') }}"{% if listid %} list="{{ listid }}"{% endif %}{% if hint %} title="{{ hint }}"{% endif %}>
 {% endmacro %}
 
 {# A short closed list, offered rather than typed, with a box for the hardware the
@@ -28,7 +27,7 @@
               active=true) %}
   {% set cur = spec_keys.get(key, '') if active else '' %}
   {% set custom = cur and cur not in options %}
-  <label>{{ label }} <span class="muted">({{ hint }})</span></label>
+  <label title="{{ hint }}">{{ label }}</label>
   <div class="checks">
     {# A required group offers no way to say nothing: every one of these has an
        answer, and "not recorded" would be the easiest thing to leave it on. #}
@@ -60,7 +59,7 @@
   {% set cur = spec_keys.get(key, '') %}
   {% set chosen = cur.split(',') | map('trim') | select | list %}
   {% set extra = chosen | reject('in', options) | list %}
-  <label>{{ label }} <span class="muted">({{ hint }})</span></label>
+  <label title="{{ hint }}">{{ label }}</label>
   <div class="checks">
     {% for o in options %}
     <label><input type="checkbox" name="{{ field }}" value="{{ o }}"
@@ -83,8 +82,7 @@
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
 {% if from_part %}
-<p class="hint">Started from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.
-Photos, source, acquired date and notes are not carried over.</p>
+<p class="hint" title="Photos, source, acquired date and notes are not carried over.">Copied from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.</p>
 {% endif %}
 
 <form class="edit" method="post" enctype="multipart/form-data" action="{{ action }}">
@@ -119,14 +117,14 @@ Photos, source, acquired date and notes are not carried over.</p>
     <input id="model" name="model" list="dl_models" autocomplete="off"
            value="{{ (p.model if p else '') or '' }}">
     <p class="hint is-hidden" id="samemake"></p>
-    <label for="name">Name <span class="muted">(optional; defaults to maker + model)</span></label>
+    <label for="name" title="Optional; defaults to maker + model">Name</label>
     <input id="name" name="name" value="{{ (p.name if p else '') or '' }}">
     <label for="year">Year</label>
     <input id="year" name="year" type="number" value="{{ (p.year if p else '') or '' }}">
     {# Last in the identity, and never carried across by the duplicate button: two
        of the same card are the same card in every field above this one and in none
        of them here. #}
-    <label for="serial">Serial number <span class="muted">(as marked on this one)</span></label>
+    <label for="serial" title="As marked on this one">Serial number</label>
     <input id="serial" name="serial" value="{{ (p.serial if p else '') or '' }}">
   </fieldset>
 
@@ -175,21 +173,17 @@ Photos, source, acquired date and notes are not carried over.</p>
        on a part, so it is still asked of a drive being folded into a machine. #}
     <div class="ask" data-kinds="{{ bezel_kinds|join('|') }}" data-row=1 hidden>
       <div id="drive-bezel" hidden>
-        <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+        <label title="The shade it was made in, and how far it has yellowed. A bezel named in the description is read from there too; a menu wins where both say something.">Bezel</label>
         {# The same menus the machine's own form has -- it goes to the same two
            columns on the drive row. #}
         {{ C.pair('drive_', '', '', bezel_colours, yellowing, bezel_colour_labels,
                   yellowing_labels) }}
-        <p class="hint">a bezel named in the description is read from there too; a menu
-          wins where both say something.</p>
         {{ C.chart(bezel_colours, yellowing) }}
       </div>
       <div id="part-bezel" hidden>
-        <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+        <label title="The shade it was made in, and how far it has yellowed. A full-height drive shows its bezel; a bare 3.5&quot; disk never had one.">Bezel</label>
         {{ C.pair('spec_', spec_keys.get('Colour', ''), spec_keys.get('Yellowing', ''),
                   bezel_colours, yellowing, bezel_colour_labels, yellowing_labels) }}
-        <p class="hint">a full-height drive shows its bezel; a bare 3.5" disk never
-          had one.</p>
         {{ C.chart(bezel_colours, yellowing) }}
       </div>
     </div>
@@ -202,17 +196,15 @@ Photos, source, acquired date and notes are not carried over.</p>
        not somewhere to leave text nobody can see. The make and model go in
        Identity above, and reach a machine's drive row from there. #}
     <div id="drive-desc-row" hidden>
-      <label for="drive_desc">Drive description <span class="muted">(anything the pickers cannot say — it goes on the machine's Drives field)</span></label>
+      <label for="drive_desc" title="Anything the pickers cannot say — it goes on the machine's Drives field. A size named here is read from the text too; a picker above wins where both say something.">Drive description</label>
       <input id="drive_desc" name="drive_desc" value="{{ spec_keys.get('Description', '') }}"
              placeholder="e.g. SS/DD; 3.5in 1.44MB floppy">
       {# Said here, where the box it is about is: a bay or a capacity written into
          the prose is still read out of it, and a picker set above wins over it. #}
-      <p class="hint">a size named here is read from the text too; a picker above
-        wins where both say something.</p>
     </div>
 
     <div class="ask" data-kinds="{{ disk_image_kinds|join('|') }}" hidden>
-      <label for="disk_image">Disk image filename <span class="muted">(image taken on arrival)</span></label>
+      <label for="disk_image" title="Image taken on arrival">Disk image filename</label>
       <input id="disk_image" name="disk_image" value="{{ (p.disk_image if p else '') or '' }}">
     </div>
   </fieldset>
@@ -220,20 +212,20 @@ Photos, source, acquired date and notes are not carried over.</p>
   <fieldset>
     <legend>Motherboard</legend>
     {{ sf('spec_chipset', 'Chipset', 'Chipset', 'e.g. Intel 430FX, OPTi 495') }}
-    <label>CPU family <span class="muted">(tick all that fit)</span></label>
+    <label title="Tick all that fit">CPU family</label>
     <div class="checks">
       {% for fam in vocab.cpu_families %}
       <label><input type="checkbox" name="cpufam" value="{{ fam }}"{{ ' checked' if fam in mb_cpufams else '' }}> {{ fam }}</label>
       {% endfor %}
     </div>
     {{ sf('spec_form_factor', 'Form factor', 'Form factor', "the computer's form factor is taken from here", 'dl_form_factors') }}
-    <label>RAM slots <span class="muted">(how many of each)</span></label>
+    <label title="How many of each">RAM slots</label>
     <div class="countgrid">
       {% for t in vocab.ram_slots %}
       <label>{{ t }} <input type="number" min="0" name="ram:{{ t }}" value="{{ mb_ram.get(t, '') }}"></label>
       {% endfor %}
     </div>
-    <label>Expansion slots <span class="muted">(how many of each)</span></label>
+    <label title="How many of each">Expansion slots</label>
     <div class="countgrid">
       {% for b in slot_names %}
       <label>{{ b }} <input type="number" min="0" name="slot:{{ b }}" value="{{ mb_slots.get(b, '') }}"></label>
@@ -243,7 +235,7 @@ Photos, source, acquired date and notes are not carried over.</p>
     {{ sf('spec_cache', 'Cache', 'Cache', 'e.g. 256 KiB, COAST socket') }}
     {{ sf('spec_bios', 'BIOS', 'BIOS', 'e.g. AMI 1992, Award 4.51') }}
     {{ sf('spec_onboard_video', 'Onboard video', 'Onboard video', 'e.g. VGA, or VGA C&T 65545') }}
-    <label>Onboard I/O ports <span class="muted">(how many of each)</span></label>
+    <label title="How many of each">Onboard I/O ports</label>
     <div class="countgrid">
       {% for pt in port_names %}
       <label>{{ pt }} <input type="number" min="0" name="port:{{ pt }}" value="{{ mb_ports.get(pt, '') }}"></label>
@@ -304,7 +296,7 @@ Photos, source, acquired date and notes are not carried over.</p>
       {% endif %}
     </div>
     {% endfor %}
-    <label>Bezel <span class="muted">(the shade it was made in, and how far it has yellowed)</span></label>
+    <label title="The shade it was made in, and how far it has yellowed">Bezel</label>
     {# The same two menus a drive gets, going to the same two vocabularies: a
        monitor's front is the largest piece of beige plastic most collections own,
        and it goes the same colour as everything else. #}
@@ -355,9 +347,8 @@ Photos, source, acquired date and notes are not carried over.</p>
            value="{{ (p.location if p else '') or '' }}">
     <label for="url">Reference URL</label>
     <input id="url" name="url" value="{{ (p.url if p else '') or '' }}">
-    <label for="summary">Summary</label>
+    <label for="summary" title="The description shown at the top of the page">Summary</label>
     <textarea class="box-90" id="summary" name="summary">{{ (p.summary if p else '') or '' }}</textarea>
-    <p class="hint">the description shown at the top of the page</p>
     <label for="notes">Notes</label>
     <textarea id="notes" name="notes">{{ (p.notes if p else '') or '' }}</textarea>
   {# What it needs doing, written while it is in your hands.
@@ -378,15 +369,12 @@ Photos, source, acquired date and notes are not carried over.</p>
   #}
     <label for="work_needed">Work needed</label>
     <textarea class="box-70" id="work_needed" name="work_needed"
-              placeholder="recap · new belt · keyboard sticks — one job to a line"></textarea>
-    <label for="work_project">…as part of</label>
+              placeholder="one job per line"></textarea>
+    <label for="work_project" title="New project: one named after this, each line a job on it. Or add the jobs to a project already going — usually the case for a part bought for something. Leave the jobs empty if there is nothing to do.">Project</label>
     <select id="work_project" name="work_project">
-      <option value="">a project of its own</option>
+      <option value="">new project</option>
       {% for pr in work_projects %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
     </select>
-    <p class="hint">Raises a project about this one, each line a job on it —
-      or adds it to a project already going, which is what a part bought for something
-      usually is. Leave it empty if there is nothing to do.</p>
     {% if action == '/parts/new' %}
     {# On a part that exists, photos upload as soon as they are picked, from the
        photo column on its own page. Here there is no asset tag to file them under

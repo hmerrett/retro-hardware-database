@@ -83,8 +83,7 @@
       {% endfor %}
     </table>
     {% else %}
-    <p class="muted flush">Nothing attached yet — which is fine. A project
-      is allowed to be an idea before it is a pile of hardware.</p>
+    <p class="muted flush">Nothing attached.</p>
     {% endif %}
     {% if request.state.authed %}
     <form class="addbar" method="post" action="/projects/{{ p.asset_id }}/add-item">
@@ -205,11 +204,12 @@
        would look exactly as authoritative as one that was not. #}
     {% if request.state.authed and (spent or unpriced) %}
     <p class="hint">{% if spent %}{{ money(spent) }} so far{% else %}Nothing priced yet{% endif %}{% if unpriced %},
-      with {{ unpriced }} line{{ '' if unpriced == 1 else 's' }} whose cost was not written down{% endif %}.</p>
+      {{ unpriced }} unpriced{% endif %}.</p>
     {% endif %}
     {% else %}<p class="muted flush">Nothing on order.</p>{% endif %}
     {% if request.state.authed %}
-    <form class="addbar orderbar" method="post" action="/projects/{{ p.asset_id }}/order">
+    <form class="addbar orderbar" method="post" action="/projects/{{ p.asset_id }}/order"
+          title="The cost is for the whole line as paid — four SIMMs for twelve pounds is 4 and £12. Blank means unknown rather than free.">
       <input name="description" placeholder="what you have ordered" required>
       <input name="supplier" placeholder="who from" list="dl_suppliers"
              autocomplete="off">
@@ -217,13 +217,10 @@
       <input name="qty" type="number" min="1" value="1" aria-label="how many" title="how many">
       <input name="cost" placeholder="£ paid" aria-label="what the line cost" title="what the whole line cost, as paid">
       <input name="expected_at" type="date" aria-label="expected" title="when it is due">
-      <input name="url" placeholder="listing URL — optional">
-      <input name="note" placeholder="note — optional" aria-label="a note about this order">
+      <input name="url" placeholder="listing URL">
+      <input name="note" placeholder="note" aria-label="a note about this order">
       <button class="btn sm" type="submit">add order</button>
     </form>
-    <p class="hint">The cost is for the whole line as paid — four SIMMs for twelve
-      pounds is 4 and £12. Leave it blank if it is not worth recording; blank means
-      unknown rather than free, and the total below says how many are blank.</p>
     {% endif %}
   {% endcall %}
 

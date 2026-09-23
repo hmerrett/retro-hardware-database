@@ -169,9 +169,9 @@ class TestWhatItShows:
 
     def test_a_project_with_nothing_written_down_says_so(self, client):
         make(client, "Emptyzzz")
-        assert "No jobs written down" in panel(client.get("/projects").text)
+        assert "No jobs yet" in panel(client.get("/projects").text)
 
     def test_one_waiting_on_a_part_says_that_instead(self, client):
         pid = make(client, "Waitingzzz")
         client.post(f"/api/projects/{pid}/orders", json={"description": "a belt", "qty": 1})
-        assert "still on order" in panel(client.get("/projects").text)
+        assert "1 on order" in panel(client.get("/projects").text)

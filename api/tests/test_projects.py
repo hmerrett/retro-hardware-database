@@ -116,7 +116,7 @@ class TestWhatItIsAbout:
     or a part -- which is why project_asset holds a bare register id."""
 
     def test_a_project_can_be_about_nothing(self, client):
-        assert "Nothing attached yet" in page(client, make(client))
+        assert "Nothing attached." in page(client, make(client))
 
     def test_a_computer_goes_in_and_shows_on_both_pages(self, client, computer):
         aid, c = make(client), computer(model="Spectrum +2A")["asset_id"]
@@ -345,7 +345,7 @@ class TestOrders:
         client.post(f"/projects/{aid}/order", data={"description": "caps"}, follow_redirects=False)
         html = page(client, aid)
         assert "£12.00 so far" in html
-        assert "1 line whose cost was not written down" in html
+        assert "1 unpriced" in html
 
 
 class TestMoney:

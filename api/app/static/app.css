@@ -970,7 +970,12 @@
      entry, reading as though they belonged to different things. */
   /* The date column: nowrap so a stamp is one line, and top-aligned because what
      is beside it -- words, photographs, or both -- runs to as many as it needs. */
-  .logwhen { white-space: nowrap; vertical-align: top; }
+  .logwhen { white-space: nowrap; vertical-align: top; font-variant-numeric: tabular-nums; }
+  /* Only as wide as the stamp in it, not the 176px the other key/value tables share:
+     a visitor's stamp is a bare date, and on a phone the width it gave back is width
+     the entry itself had been wrapping for. */
+  .detail-main table.kv.log tr > *:first-child { width: calc(10.5ch + 16px); }
+  .detail-main table.kv.log.timed tr > *:first-child { width: calc(16.5ch + 16px); }
   .logline { display: flex; gap: 8px; align-items: flex-start; }
   .logmsg { white-space: pre-line; min-width: 0; flex: 1; }
   .logadd { flex: none; }

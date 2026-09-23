@@ -1,5 +1,5 @@
 {# The motherboard a machine has, and the parts fitted in it, with the means to add
-   either. Expects: c, motherboard, parts, free_boards, link_candidates, card_steps.
+   either. Expects: c, motherboard, parts, free_boards, link_candidates.
 
    A partial because it has two homes. Normally it is on the machine's own page,
    where a PC is described by what is in it. A catalogue machine is not that sort of
@@ -26,17 +26,17 @@
                request.state.authed, thumbs | default({}, true)) }}
   {% else %}
     <div class="pbody">
-    <p class="muted">No motherboard linked yet.</p>
+    <p class="muted">None linked.</p>
     {% if request.state.authed %}
     <div class="toolbar">
-      <a class="btn sm" href="/parts/new?type=motherboard&computer_id={{ c.asset_id }}">create motherboard</a>
+      <a class="btn sm" href="/parts/new?type=motherboard&computer_id={{ c.asset_id }}">add motherboard</a>
       {% if free_boards %}
       <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/link-motherboard">
         <select name="part_id" required aria-label="board to link">
-          <option value="">— choose a board —</option>
+          <option value="">existing board…</option>
           {% for b in free_boards %}<option value="{{ b.asset_id }}">{{ b.asset_id }} · {{ display_name({'name': b.name, 'manufacturer': b.manufacturer, 'model': b.model, 'asset_id': b.asset_id}) }}</option>{% endfor %}
         </select>
-        <button class="btn sm" type="submit">link existing board</button>
+        <button class="btn sm" type="submit">link</button>
       </form>
       {% endif %}
     </div>
@@ -45,40 +45,32 @@
   {% endif %}
 {% endcall %}
 
-<!-- Add parts by category, plus storage (which routes hard disk/tape -> part). -->
+<!-- Parts fitted, with one way to add a new one and one to link an existing one. -->
 {% call PN.panel('Parts', parts | length, flush=true) %}
+  {# One button rather than one per type: the form it opens asks the type first
+     anyway, so a row of them was the same menu said twice. #}
   {% if request.state.authed %}
   <div class="pbody">
   <div class="toolbar flush-top">
-    <span class="muted">Add:</span>
-    <a class="btn sm" href="/parts/new?type=storage&computer_id={{ c.asset_id }}">storage / drive</a>
-    {% for ptype, label in card_steps %}
-      <a class="btn sm" href="/parts/new?type={{ ptype }}&computer_id={{ c.asset_id }}">{{ label }}</a>
-    {% endfor %}
-    <a class="btn sm" href="/parts/new?type=cpu&computer_id={{ c.asset_id }}">cpu</a>
-    <a class="btn sm" href="/parts/new?type=ram&computer_id={{ c.asset_id }}">ram</a>
-    <a class="btn sm" href="/parts/new?type=display&computer_id={{ c.asset_id }}">display</a>
-    <a class="btn sm" href="/parts/new?type=peripheral&computer_id={{ c.asset_id }}">peripheral</a>
-  </div>
-  {% endif %}
-  {% if request.state.authed and link_candidates %}
-  <div class="toolbar">
-    <span class="muted">Link existing part:</span>
-    <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/link-part">
-      <input name="part_id" list="linkparts" placeholder="type asset id or name…" autocomplete="off"
+    <a class="btn sm" href="/parts/new?computer_id={{ c.asset_id }}">add part</a>
+    {% if link_candidates %}
+    <form class="inline-form" method="post" action="/computers/{{ c.asset_id }}/link-part"
+          title="Fit a part that is already in the register">
+      <input name="part_id" list="linkparts" placeholder="link existing — tag or name" autocomplete="off"
              required aria-label="part to link">
       <datalist id="linkparts">
         {% for cand in link_candidates %}<option value="{{ cand.asset_id }}">{{ type_label(cand.type) }} · {{ display_name({'name': cand.name, 'manufacturer': cand.manufacturer, 'model': cand.model, 'asset_id': cand.asset_id}) }}</option>{% endfor %}
       </datalist>
       <button class="btn sm" type="submit">link</button>
     </form>
+    {% endif %}
+  </div>
   </div>
   {% endif %}
-  {% if request.state.authed %}</div>{% endif %}
   {% if parts %}
   {{ P.cards(parts, 'unlink', 'unlink', '/computers/' + c.asset_id, request.state.authed,
              thumbs | default({}, true)) }}
   {% else %}
-  <div class="pbody"><p class="muted flush">Nothing fitted in it yet.</p></div>
+  <div class="pbody"><p class="muted flush">Nothing fitted.</p></div>
   {% endif %}
 {% endcall %}

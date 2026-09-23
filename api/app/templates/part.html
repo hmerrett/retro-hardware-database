@@ -105,14 +105,13 @@
 
     {% if request.state.authed and computers %}
     <div class="toolbar flush-bottom">
-      <span class="muted">Install in computer:</span>
       <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/link">
         {# Opens on nothing, and the browser will not submit until something is
            chosen. A menu that opens on the first machine in the register reads as a
            statement about where this part is -- which is what the row above is for,
            and it is only there when the part really is installed somewhere. #}
         <select name="computer_id" required aria-label="machine to attach this to">
-          <option value="">— choose a computer —</option>
+          <option value="">install in…</option>
           {% for comp in computers %}<option value="{{ comp.asset_id }}">{{ comp.asset_id }} · {{ display_name({'name': comp.name, 'manufacturer': comp.manufacturer, 'model': comp.model, 'asset_id': comp.asset_id}) }}</option>{% endfor %}
         </select>
         <button class="btn sm" type="submit">install</button>
@@ -136,7 +135,7 @@
         {% endfor %}
       </table>
       {% if machine.chips %}
-      <p class="hint subhead">Chips fitted — what is marked on each</p>
+      <p class="hint subhead" title="What is marked on each chip">Chips fitted</p>
       {{ P.chipcards(machine.chips) }}
       {% endif %}
     {% endcall %}
@@ -164,7 +163,7 @@
       {% if children %}
       {{ P.cards(children, 'detach', 'unmount', '/parts/' + p.asset_id,
                  request.state.authed, thumbs) }}
-      {% else %}<div class="pbody"><p class="muted flush">Nothing mounted on this card yet.</p></div>{% endif %}
+      {% else %}<div class="pbody"><p class="muted flush">Nothing mounted.</p></div>{% endif %}
       {% if build_host %}
       <div class="pbody">
       <div class="toolbar flush">
@@ -172,10 +171,10 @@
         {% if candidates %}
         <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/attach">
           <select name="part_id" required aria-label="storage to mount">
-            <option value="">— choose a part —</option>
+            <option value="">existing storage…</option>
             {% for c in candidates %}<option value="{{ c.asset_id }}">{{ c.asset_id }} — {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</option>{% endfor %}
           </select>
-          <button class="btn sm" type="submit">mount existing storage</button>
+          <button class="btn sm" type="submit">mount</button>
         </form>
         {% endif %}
       </div>

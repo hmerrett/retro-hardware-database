@@ -10,14 +10,11 @@
 <form class="edit" method="post"
       action="{{ ('/projects/' + p.asset_id + '/edit') if p and p.asset_id else '/projects/new' }}">
   {% macro fld(key, label, hint='', type='text') %}
-    <label for="{{ key }}">{{ label }}</label>
-    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (p[key] if p else '') or '' }}">
-    {% if hint %}<p class="hint">{{ hint }}</p>{% endif %}
+    <label for="{{ key }}"{% if hint %} title="{{ hint }}"{% endif %}>{{ label }}</label>
+    <input id="{{ key }}" name="{{ key }}" type="{{ type }}" value="{{ (p[key] if p else '') or '' }}"{% if hint %} title="{{ hint }}"{% endif %}>
   {% endmacro %}
-  <label for="name">Name</label>
+  <label for="name" title="What you would call it out loud — &quot;recap the +2A&quot;, &quot;486 build&quot;. The one field that is required.">Name</label>
   <input id="name" name="name" value="{{ (p['name'] if p else '') or '' }}" required>
-  <p class="hint">what you would call it out loud — "recap the +2A", "486 build".
-    The only thing a project can be found by, so it is the one field that is asked for.</p>
   <label for="status">Status</label>
   <select id="status" name="status">
     {% set cur = (p['status'] if p else '') or 'planned' %}
@@ -34,19 +31,12 @@
      states a project passes through -- it is who may read it, which is true or false
      at every one of them. The quick box on the list page sets it; this is where it
      is deliberately cleared, which is the act of publishing. #}
-  <label class="socketed"><input type="checkbox" name="private" value="1"
+  <label title="Hidden from visitors: off the public list, the search, the sitemap and the pages of the machines it is about." class="socketed"><input type="checkbox" name="private" value="1"
     {{ 'checked' if (p['private'] if p else False) else '' }}> Private</label>
-  <p class="hint">kept off the public list, out of the search and the sitemap, off
-    the pages of the machines it is about, and its own page answers a visitor as
-    though it were not there. The register is a public catalogue; what is wrong with
-    a thing, in your own words, does not have to be part of it.</p>
-  <label for="summary">Summary</label>
+  <label for="summary" title="The line shown at the top of the page and beside it in the list">Summary</label>
   <textarea class="box-90" id="summary" name="summary">{{ (p['summary'] if p else '') or '' }}</textarea>
-  <p class="hint">the line shown at the top of the page and beside it in the list</p>
-  <label for="notes">Notes</label>
+  <label for="notes" title="The standing description. What happened on a given evening goes in the history on the project's page.">Notes</label>
   <textarea id="notes" name="notes">{{ (p['notes'] if p else '') or '' }}</textarea>
-  <p class="hint">the standing description. What happened on a particular evening is
-    a note on the history instead, at the foot of the project's own page.</p>
   <p class="mt-16"><button class="btn primary" type="submit">save</button></p>
 </form>
 {% endblock %}

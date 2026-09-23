@@ -409,11 +409,11 @@ nothing until you submit it.
 | **Source** | Where or how you got it. |
 | **Acquired date** | |
 | **Location** | Where the machine is physically kept — `Loft, blue crate 3`, `Garage shelf B`, `on the bench`. Free text, and the box offers back what you have written before. See [where it is kept](#where-it-is-kept). |
-| **Reference URL** | Wikipedia, The Retro Web, a forum thread. Also what the "fetch photo from reference" button reads. |
+| **Reference URL** | Wikipedia, The Retro Web, a forum thread. Also what the "fetch from reference" button reads. |
 | **Summary** | The prose shown at the top of the page. |
 | **Notes** | Anything else. |
 | **Work needed** | What it needs doing, one job to a line — `recap`, `new belt`, `keyboard sticks`. Leave it empty if there is nothing to do. See [checking something in](#checking-something-in). |
-| **…as part of** | Which project those jobs go on. Left at *a project of its own*, they raise a new one about this machine; pick a project already going and the machine joins that instead. |
+| **Project** | Which project those jobs go on. Left at *new project*, they raise a new one about this machine; pick a project already going and the machine joins that instead. |
 | **Photographs** | Only on the new-machine form — there is no tag to file them under until it is saved. Afterwards they upload from the machine's own page. |
 
 ### Where it is kept
@@ -468,10 +468,11 @@ whole value of the field.
 
 Save the machine and its page offers, under **Motherboard** and **Parts**:
 
-- **Create motherboard**, or **Link existing board** if you have an unlinked one.
-- **Add:** storage/drive, video card, sound card, network card, I/O card, other
-  expansion card, cpu, ram, display, peripheral.
-- **Link existing part** — type an asset tag or a name.
+- **add motherboard**, or pick an unlinked board from the menu beside it and
+  **link**.
+- **add part** — one button for every kind; the form it opens asks the type
+  first.
+- **link existing** — type an asset tag or a name.
 
 Creating a part from here links it to the machine automatically and returns you
 to the machine, so building out a PC is a straight run down the list.
@@ -853,7 +854,7 @@ Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
 **Name** (optional; defaults to maker + model), **Year**, **Serial number**,
 **Condition**, **Source**, **Acquired date**, **Location**, **Reference URL**,
 **Summary**, **Notes**, **Installed in** and **Mounted on** — and, at the foot of the form,
-**Work needed** and **…as part of** ([checking something in](#checking-something-in)).
+**Work needed** and **Project** ([checking something in](#checking-something-in)).
 
 **Serial number** is the number marked on that particular one — the only field
 that is never true of a second object, which is why the **duplicate** button
@@ -1067,7 +1068,7 @@ another; deleting cannot, so it asks first and puts you back on the item page.
 The delete steps out of the row while you are cropping, where it would otherwise
 be sitting next to **apply crop**.
 
-**Fetch photo from reference** appears when the item has a reference URL. It
+**fetch from reference** appears when the item has a reference URL. It
 takes the lead image from a Wikipedia page, or the preview image any other site
 advertises, downscales it and files it as a reference image. It bypasses nothing,
 so a site behind bot protection simply returns nothing.
@@ -1137,7 +1138,8 @@ offer it, and disposing of two of them takes nothing away from the third.
 The **Files** panel on an item page is where it is done. Upload a file there and
 it is attached to the item's model where the item has one, and to the item itself
 where it has not — a custom build, or a card whose model has been left blank. The
-panel says which of the two it did, and the other is one click away.
+upload box's tooltip says which of the two it will do, and the other is one click
+away.
 
 **attach** on that panel takes a file that is already filed and adds this item, or
 this item's model, to what it is for. **detach** takes it off again. Detaching
@@ -1406,7 +1408,7 @@ what is wrong with a machine is usually seen while it is being unpacked — befo
 it has a tag at all, with the entry form open in front of you.
 
 So the forms for a computer and a part carry the same gesture at the foot:
-**Work needed**, one job to a line, and **…as part of**, a menu of the projects
+**Work needed**, one job to a line, and **Project**, a menu of the projects
 still in hand.
 
 - Leave the box empty and nothing happens, which is most arrivals.

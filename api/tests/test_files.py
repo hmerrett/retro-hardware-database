@@ -109,13 +109,10 @@ def press(client, html, action_contains, says):
 
 
 def upload_hint(html):
-    """The sentence under the upload box that says where a file put there will go,
-    as words rather than as markup."""
-    para = re.search(
-        r"<p class=\"hint\">((?:(?!</p>).)*Nothing uploaded here[^<]*)</p>", html, re.S
-    )
-    assert para, "the panel has no sentence saying where an upload goes"
-    return " ".join(re.sub(r"<[^>]+>", "", para.group(1)).split())
+    """The upload box's tooltip, which says where a file put there will go."""
+    tip = re.search(r'id="file-upload"[^>]*?title="([^"]*)"', html, re.S)
+    assert tip, "the upload box does not say where an upload goes"
+    return " ".join(tip.group(1).split())
 
 
 def attached_to(client, fid):
@@ -210,8 +207,8 @@ class TestAttachingOne:
         assert not ids_on(client, f"/computers/{another['asset_id']}")
 
     def test_the_panel_says_which_of_the_two_it_did(self, client, part, computer):
-        """ "The panel says which of the two it did." Both ways round, because the
-        sentence is the only thing telling you where an upload has just gone."""
+        """ "The upload box's tooltip says which of the two it will do." Both ways
+        round, because it is the only thing telling you where an upload will go."""
         card = part(manufacturer="Trident", model="TVGA8900")
         said = upload_hint(client.get(f"/parts/{card['asset_id']}").text)
         assert said.startswith("Attached to every Trident TVGA8900")

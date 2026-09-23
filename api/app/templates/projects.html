@@ -84,10 +84,9 @@
         {% endif %}
       </ul>
       {% elif suggestion.orders_out %}
-      <p class="hint">Nothing to do on it yet — {{ suggestion.orders_out }}
-        {{ 'thing' if suggestion.orders_out == 1 else 'things' }} still on order.</p>
+      <p class="hint">{{ suggestion.orders_out }} on order.</p>
       {% else %}
-      <p class="hint">No jobs written down on it yet.</p>
+      <p class="hint">No jobs yet.</p>
       {% endif %}
     </div>
   </div>
@@ -103,25 +102,21 @@
    What it makes is public, like everything else here. The tick on a project's own
    form is what keeps one back, and it is a decision rather than a starting point
    (ADR-0004). #}
-{% call PN.panel('Note something down') %}
-  <form method="post" action="/projects/quick" class="addbar quickbar">
-    <input name="aid" list="dl_assets" placeholder="asset tag — optional"
+{% call PN.panel('Quick note') %}
+  <form method="post" action="/projects/quick" class="addbar quickbar"
+        title="Named after the item if you leave the name blank. Public until you tick private on its own form. The tag is optional — a project need own nothing.">
+    <input name="aid" list="dl_assets" placeholder="asset tag"
            value="{{ error }}" aria-label="the computer or part this is about">
-    <input name="name" placeholder="what to call it — optional"
+    <input name="name" placeholder="name"
            aria-label="what to call the project">
-    <input name="job" required placeholder="what needs doing — recap, belt, needs a PSU…"
+    <input name="job" required placeholder="what needs doing"
            aria-label="the first job">
-    <button class="btn sm" type="submit">note it</button>
+    <button class="btn sm" type="submit">add</button>
   </form>
-  {% if error %}<p class="hint">There is no computer or part with the tag
-    <strong>{{ error }}</strong>. Nothing was created.</p>{% endif %}
+  {% if error %}<p class="hint">No item tagged <strong>{{ error }}</strong> — nothing created.</p>{% endif %}
   <datalist id="dl_assets">
     {% for aid, kind, name in register %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}
   </datalist>
-  <p class="hint">Named after the item if you do not name it, and readable by
-    anybody — tick <em>private</em> on its own form for one that should not be.
-    A project need own nothing, so the tag is optional — but at a bench it is
-    usually both: this drive, this fault.</p>
 {% endcall %}
 {% endif %}
 
@@ -131,14 +126,14 @@
    the project with one in the post. #}
 <form class="toolbar" method="get" action="/projects">
   <input name="q" value="{{ q | default('') }}" class="fill"
-         placeholder="search projects — a name, a job, something on order"
+         placeholder="search projects"
+         title="Names, jobs, orders and history"
          aria-label="search projects">
   <button class="btn" type="submit">search</button>
   {% if searched %}<a class="btn" href="/projects">clear</a>{% endif %}
 </form>
 {% if searched %}
-<p class="hint">Searched every field, the history, the jobs and the orders of all
-  {{ total }} projects for <strong>{{ q }}</strong> — {{ rows | length }} matched.</p>
+<p class="hint">{{ rows | length }} of {{ total }} match <strong>{{ q }}</strong>.</p>
 {% endif %}
 
 {% if rows %}

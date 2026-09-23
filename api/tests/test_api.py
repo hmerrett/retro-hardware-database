@@ -4387,7 +4387,7 @@ class TestStartingFromAnExistingPart:
     def test_it_says_where_the_values_came_from(self, client, part):
         src = part(manufacturer="Tseng", model="ET4000")
         page = client.get(f"/parts/new?from={src['asset_id']}").text
-        assert "Started from" in page and src["asset_id"] in page
+        assert "Copied from" in page and src["asset_id"] in page
 
     def test_nothing_of_the_original_object_is_offered(self, client, part):
         """The boxes, specifically, and not the whole page. `source` carries a pick
@@ -4424,7 +4424,7 @@ class TestStartingFromAnExistingPart:
     def test_a_stale_link_gives_a_blank_form_rather_than_an_error(self, client):
         r = client.get("/parts/new?from=RH-NOPE")
         assert r.status_code == 200
-        assert "Started from" not in r.text
+        assert "Copied from" not in r.text
 
     def test_it_keeps_the_machine_the_part_is_being_added_to(self, client, part, computer):
         cid = computer()["asset_id"]
@@ -4927,7 +4927,7 @@ class TestSearchingEveryField:
         part()
         page = client.get("/?q=zzzznotathing").text
         assert page.count('class="card"') == 0
-        assert "Searched every field" in page
+        assert "0 of 1 match" in page
 
     def test_it_reports_what_it_searched(self, client, computer, part):
         computer()
