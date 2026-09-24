@@ -167,6 +167,27 @@ def test_the_policy_is_the_one_recorded(client):
     assert sent == EXPECTED
 
 
+def test_a_pdf_shown_in_the_browser_carries_a_policy_of_its_own(client):
+    """The one response that says its own (ADR-0030). A PDF is drawn by the
+    browser's viewer, which the site's object-src 'none' can blank, so it may load
+    objects from the site -- and nothing else at all: no script, no frame, no form."""
+    r = client.post(
+        "/files",
+        files={"uploads": ("manual.pdf", b"%PDF-1.4\n%%EOF\n")},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303, r.text
+    fid = client.get("/api/files").json()[0]["id"]
+    sent = directives(
+        client.get(f"/files/{fid}/view/manual.pdf").headers["Content-Security-Policy"]
+    )
+    assert sent["default-src"] == ("'none'",)
+    assert sent["object-src"] == ("'self'",)
+    assert "script-src" not in sent and "style-src" not in sent
+    for directive in ("form-action", "frame-ancestors", "base-uri"):
+        assert directive in sent, f"{directive} does not fall back to default-src"
+
+
 def test_the_directives_that_do_not_fall_back_are_stated(client):
     """`form-action`, `frame-ancestors` and `base-uri` ignore `default-src`. Left
     out they are simply absent, which reads as a tight policy and is not one."""
