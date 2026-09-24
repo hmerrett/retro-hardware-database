@@ -40,13 +40,22 @@ from sqlalchemy import func
 
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, labels, projects
+from .. import cards, entry, filesdb, labels, projects
 from ..common import _visible, folder_images, to_dict
 from ..db import get_db
 from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted
 from ..history import _history, _now, _short, add_log
 from ..ids import next_asset_id
-from ..models import Computer, LogEntry, Part, Project, ProjectAsset, ProjectOrder, ProjectTask
+from ..models import (
+    Computer,
+    LogEntry,
+    Part,
+    Project,
+    ProjectAsset,
+    ProjectOrder,
+    ProjectTask,
+    StoredFile,
+)
 from ..pages import _answers_given, _note_with_photos
 from ..photos import _drop_log_photos, _purge_photos
 from ..photos import detect_images, pick_images
@@ -504,8 +513,13 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)) -> HT
         "project.html",
         {
             "p": p,
-            "item": to_dict(p),
+            "item": (pdict := to_dict(p)),
             "kind": "projects",
+            # The same Files panel an item has (ADR-0028): a receipt for what was
+            # ordered, the schematic the job was done from.
+            **filesdb.panel(db, pdict, request.state.authed),
+            "fileerr": bool(request.query_params.get("fileerr")),
+            "dl_filenotes": _answers_given(db, StoredFile.note),
             # Who things have been bought from before: the same kind of field as an
             # item's source, and answered the same few ways.
             "dl_suppliers": _answers_given(db, ProjectOrder.supplier),
@@ -642,6 +656,9 @@ async def gui_delete_project(aid: str, db: Session = Depends(get_db)) -> Redirec
     p = get_or_404(db, Project, aid)
     photos = _drop_log_photos(db, p.asset_id)
     db.query(LogEntry).filter(LogEntry.asset_id == p.asset_id).delete(synchronize_session=False)
+    # The links to its files, and never the files: one uploaded here may be linked
+    # to a machine too, and one that is not is left unlinked rather than binned.
+    filesdb.forget_asset(db, p.asset_id)
     db.delete(p)
     db.commit()  # the rows first: if this raises, the photographs are still there
     _purge_photos(photos)

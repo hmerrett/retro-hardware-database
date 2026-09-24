@@ -100,7 +100,7 @@ def furnished(client, computer, part):
     client.post(
         "/files",
         files={"uploads": ("tvga8900-drivers.zip", b"driver bytes")},
-        data={"tags": "Trident TVGA8900", "note": "DOS and Windows 3.1 drivers"},
+        data={"aid": card["asset_id"], "note": "DOS and Windows 3.1 drivers"},
         follow_redirects=False,
     )
     client.post(
@@ -142,35 +142,27 @@ def test_no_list_is_wider_than_the_phone_it_is_read_on(client, furnished):
     )
 
 
-def test_a_stacked_row_says_what_each_value_is(client, furnished):
-    """Stacked, a row loses its headings, and a bare date under a filename is a
-    date for no stated reason. Every short cell in the files list carries the
-    heading it has lost, the way the orders on a project do."""
+def test_the_files_list_is_rows_and_not_a_table(client, furnished):
+    """The files list was the widest table on the site, six columns when logged in,
+    and it pushed a phone 683px sideways. It is a list of rows now (ADR-0028), each
+    saying its own size and date in words, so there is no table on it to stack and
+    no heading for a stacked cell to have lost."""
     page = client.get("/files").text
-    rows = [found for found in re.findall(r"<tr>.*?</tr>", page, re.S) if "<th" not in found]
-    assert rows, "the files list has no rows to read"
-    unlabelled = [
-        cell.group(0)[:60]
-        for cell in re.finditer(r'<td class="[^"]*\btight\b[^"]*"[^>]*>', rows[0])
-        if "data-label=" not in cell.group(0)
-    ]
-    assert unlabelled == [], (
-        "these cells would stack as values with nothing to say what they are: "
-        + "; ".join(unlabelled)
-    )
+    assert '<ul class="filerows">' in page
+    assert "<table" not in page.split("<main", 1)[1]
 
 
 def test_the_box_you_type_into_asks_for_a_width_rather_than_demanding_one():
-    """A `min-width` on a control is a floor the cell around it cannot go below,
-    and this box is in the widest table on the site. `width` is a size a table may
-    compress; `min-width` is one it may not, and 200px of it was holding the files
-    list open."""
+    """A `min-width` on a control is a floor the row around it cannot go below: 200px
+    of it on the old re-file box held the files list open. The boxes on a file's
+    page ask for a width and accept less -- `width` is a size a row may compress,
+    `min-width` is one it may not."""
     css = STYLESHEET.read_text(encoding="utf-8")
-    rule = re.search(r"\.inline-form input\[name=tags\]\s*\{[^}]*\}", css)
-    assert rule, "the re-file box has lost its rule; this test is looking at nothing"
+    rule = re.search(r"\.linkform input, \.notebox input\s*\{[^}]*\}", css)
+    assert rule, "the boxes on a file's page have lost their rule; this test is looking at nothing"
     demanded = re.search(r"min-width:\s*(\d+)px", rule.group(0))
     assert not demanded or demanded.group(1) == "0", (
-        f"the re-file box demands {demanded.group(0)}, which its column cannot go below"
+        f"the box demands {demanded.group(0)}, which its row cannot go below"
     )
 
 
@@ -180,6 +172,6 @@ def test_a_long_filename_cannot_hold_the_list_open():
     so the longest filename on the page decided how narrow the table could be. It
     is a filename: it may break anywhere, because nobody reads one as a word."""
     css = STYLESHEET.read_text(encoding="utf-8")
-    rule = re.search(r"\.filetable \.filename\s*\{[^}]*\}", css)
-    assert rule, "nothing lets a filename break, so the widest one sets the table's width"
+    rule = re.search(r"\.fname\s*\{[^}]*\}", css)
+    assert rule, "nothing lets a filename break, so the widest one sets the list's width"
     assert "overflow-wrap: anywhere" in rule.group(0)

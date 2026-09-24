@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% import "_fileicons.html" as FI %}
+{% import "_panel.html" as PN %}
+{% block title %}{{ f.filename }} — {{ site_name() }}{% endblock %}
+{% block content %}
+{# One file, and the only page that changes one (ADR-0028): its note, whether a
+   visitor may see it, what it is linked to, and deleting it. A visitor is shown the
+   same page without any of that -- what the file is, what it is for, and the
+   download -- and is only ever shown it for a published file (ADR-0009). #}
+{% set owner = request.state.authed %}
+<p class="back flush"><a href="/files">← files</a></p>
+
+<div class="filehero">
+  {{ FI.icon(f.what, big=true) }}
+  <div class="filehero-text">
+    <h2 class="flush">{{ f.filename }}</h2>
+    <p class="muted flush">{{ f.what.noun }} · {{ f.what.size }}{% if f.what.size != human_size(f.size) %} · {{ human_size(f.size) }}{% endif %}</p>
+    {% if f.created_at %}<p class="muted flush">added {{ log_stamp(f.created_at, owner) }}</p>{% endif %}
+    {% if owner and not f.public %}<p class="flush"><span class="lock">private</span></p>{% endif %}
+  </div>
+</div>
+<p><a class="btn primary" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">download</a></p>
+
+{% if owner %}
+{% call PN.panel('About') %}
+  <form class="srow notebox" method="post" action="/files/{{ f.id }}/note"
+        title="One line saying what the file is: install disk, user's guide.">
+    <label for="note">Note</label>
+    <span class="notebox-row">
+      <input id="note" name="note" value="{{ f.note }}" maxlength="{{ note_max }}" autocomplete="off">
+      <button class="btn sm" type="submit">save</button>
+    </span>
+  </form>
+  {# The tick sends the moment it changes (data-ticksend); the button is for a
+     browser running no script. #}
+  <form class="srow" method="post" action="/files/{{ f.id }}/public" data-ticksend
+        title="Visitors see it on the pages of what it is linked to, in the file list, and here. Unticked, it is not found at all.">
+    <label class="tickbox"><input type="checkbox" name="public" value="1"{{ ' checked' if f.public else '' }}> Public</label>
+    <button class="btn sm" type="submit" data-send-go>save</button>
+  </form>
+{% endcall %}
+{% elif f.note %}
+<p>{{ f.note | linked }}</p>
+{% endif %}
+
+{% if owner or f.linked %}
+{% call PN.panel('Linked to' if owner else 'For', f.linked | length if f.linked else '', flush=true) %}
+  {% if f.linked %}
+  <ul class="linkrows">
+    {% for l in f.linked %}
+    <li><a class="linkchip" href="{{ l.page }}"><b>{{ l.asset_id }}</b> {{ l.name }}</a>
+      {% if owner %}<form method="post" action="/files/{{ f.id }}/unlink">
+        <input type="hidden" name="aid" value="{{ l.asset_id }}">
+        <button class="btn sm" type="submit" aria-label="unlink from {{ l.asset_id }}">unlink</button>
+      </form>{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if owner %}
+  <div class="pbody">
+    {% if not f.linked %}<p class="muted flush">Unlinked: it is on no item's page.</p>{% endif %}
+    {% if linkerr %}<p class="hint" role="alert">{{ linkerr }} is not a machine, a part or a project in the register.</p>{% endif %}
+    <form class="linkform" method="post" action="/files/{{ f.id }}/link"
+          title="By asset tag. The box offers what is in the register as you type.">
+      <input name="aid" list="dl_assets" placeholder="asset tag" autocomplete="off"
+             aria-label="link it to another machine, part or project, by asset tag" required>
+      <button class="btn sm" type="submit">link</button>
+    </form>
+    <datalist id="dl_assets">{% for aid, name in assets %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}</datalist>
+  </div>
+  {% endif %}
+{% endcall %}
+{% endif %}
+
+{% if owner %}
+<form class="filedelete" method="post" action="/files/{{ f.id }}/delete"
+      data-confirm="Delete {{ f.filename }}? It goes from everything it is linked to.">
+  <button class="btn sm danger" type="submit">delete</button>
+</form>
+{% endif %}
+{% endblock %}

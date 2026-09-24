@@ -1,0 +1,35 @@
+{# A list of files, one row a file: what it is, what it is called, what it is linked
+   to, how big and how old, and a button that downloads it. Expects each file to
+   have been through filesdb.with_links.
+
+   Nothing on a row changes anything. That is the whole design of the list: a row
+   used to carry six forms, and on a phone two files filled the screen with boxes
+   while the filename, the thing somebody came for, was the smallest part of it.
+   Everything done to a file is done on its own page, and the row is the way there:
+   its name is the link, stretched over the row, so the whole of it can be tapped.
+   The chips and the download sit above that stretch, and are links of their own.
+
+   `chips` is whether to say what each file is linked to -- yes on /files, no in an
+   item's own panel, where the answer is the page it is on. #}
+{% import "_fileicons.html" as FI %}
+{% import "_icons.html" as I %}
+{% macro rows(files, authed, chips=true) %}
+<ul class="filerows">
+  {% for f in files %}
+  <li class="filerow">
+    {{ FI.icon(f.what) }}
+    <div class="filetext">
+      <a class="fname" href="/files/{{ f.id }}">{{ f.filename }}</a>
+      {%- if authed and not f.public %} <span class="lock" title="Kept back from visitors until it is ticked public on its page.">private</span>{% endif %}
+      {% if f.note %}<div class="fnote">{{ f.note | linked }}</div>{% endif %}
+      {% if chips %}
+      {% if f.chips %}<div class="filechips">{% for c in f.chips %}<a class="linkchip" href="{{ c.page }}" title="{{ c.ids | join(', ') }}"><b>{{ c.label }}</b> {{ c.name }}</a>{% endfor %}</div>
+      {% elif authed %}<div class="filechips"><span class="chip">unlinked</span></div>{% endif %}
+      {% endif %}
+    </div>
+    <span class="fmeta">{{ f.what.size }}{% if f.created_at %}<span class="fwhen"> · {{ log_stamp(f.created_at, authed) }}</span>{% endif %}</span>
+    <a class="fdl" href="/files/{{ f.id }}/{{ f.filename | urlencode }}" aria-label="download {{ f.filename }}" title="download">{{ I.ico('download') }}</a>
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}

@@ -177,12 +177,22 @@ def a_page_of_everything(client, computer, part):
     card = part(
         manufacturer="Trident", model="TVGA8900", type="video", computer_id=made["asset_id"]
     )
+    # A file on the card, so the list has a row and the file has a page of its own:
+    # the one page with every control a file has (ADR-0028).
+    client.post(
+        "/files",
+        files={"uploads": ("tvga8900.img", b"\0" * 1_474_560)},
+        data={"aid": card["asset_id"], "note": "DOS drivers"},
+        follow_redirects=False,
+    )
+    fid = client.get("/api/files").json()[0]["id"]
     return [
         "/",
         "/machines",
         "/projects",
         "/projects/new",
         "/files",
+        f"/files/{fid}",
         "/stats",
         "/for-sale",
         f"/computers/{made['asset_id']}",

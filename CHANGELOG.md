@@ -13,6 +13,22 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**A file is linked to the things it is for by their asset tags, and tags are
+gone.** A file can be linked to as many machines, parts and projects as it needs,
+and each shows the files linked to it. Uploading on a card offers the other cards
+of the same model as one tick, and a card that arrives later is offered the files
+its siblings have, but nothing is linked by a name any more: renaming a thing or
+correcting its model moves no files. Every file has a page of its own, where its
+note, its **Public** tick and its links are changed, and the lists are read-only
+rows with a drawing of what each file is — a 3½″ floppy for a 1.44M disk image, a
+chip for a ROM. The upgrade links each file that was attached to a model to every
+item of that model, and keeps any tag that said more than the model's name in the
+file's note. `/api/files` no longer returns `tags` or `models`, or takes `tag`.
+
+**New files can start public.** **New files are public** in the settings starts
+the upload's **Public** tick ticked, for an installation that mostly files drivers
+and manuals. It is off, and a private project's uploads start unticked either way.
+
 **Quieter pages: shorter labels, explanations in tooltips.** The sentences that
 sat under boxes on the item pages, the forms and the project pages -- what
 disposing a machine does to its parts, where an uploaded file will be attached,

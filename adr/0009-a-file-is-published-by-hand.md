@@ -1,6 +1,7 @@
 # 0009 — A file is published by hand
 
-**Status:** Accepted
+**Status:** Accepted — the default amended by
+[ADR-0029](0029-an-upload-starts-public-where-the-owner-says.md)
 **Date:** 2026-09-10
 **Amends:** [ADR-0006](0006-files-are-linked-to-what-they-are-for.md) (the privacy
 default only; the association work it decides stands and is still to do)

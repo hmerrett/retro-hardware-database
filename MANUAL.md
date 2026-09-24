@@ -1114,82 +1114,143 @@ since they can always be made again from the originals.
 
 ## 11. Files
 
-The **Files** panel on every item page, and the `/files` page in the header,
-hold the things that come with hardware but are not hardware: a driver disk, a
-manual, a ROM dump, the utility disk that shipped with a card.
+The **Files** panel on every item page, and the `/files` page in the header, hold
+the things that come with hardware but are not hardware: a driver disk, a manual,
+a ROM dump, the utility disk that shipped with a card, a receipt.
 
-A file is **attached to what it is for**, by hand, and there are two ways to
-attach one:
+A file is **linked to the things it is for**, by their asset tags, and to as many
+of them as it needs: a driver disk to each of the cards it drives, a manual to
+every machine it covers, a receipt to the one thing it is a receipt for, the
+schematic a restoration was done from to the project. Machines, parts and projects
+all have a Files panel, and it shows the files linked to that one thing and nothing
+else.
 
-- **to a model** — every machine or card of that model: the ones on the shelf now
-  and the one bought next year. A driver, a manual, a utility disk.
-- **to one unit** — that machine, that card, by its asset tag. A receipt, a
-  photograph of a repair, a ROM read off one particular board.
+Nothing is linked by a name. Renaming an item, or correcting its maker or its
+model, moves no files, because a link names an asset tag and a tag never changes.
 
-A file has as many of either as it needs, because one disk often covers a card
-and the machine it shipped in.
+### Uploading one
 
-That a driver belongs to a model rather than to a unit is the whole point. A
-collection holding three Trident TVGA8900s carries the driver once, all three
-offer it, and disposing of two of them takes nothing away from the third.
+A file is uploaded from the **Files** panel of the machine, part or project it is
+for, and is linked to that one. Choosing the files is the whole gesture: they go the moment they
+are picked, so what sits above the picker is asked first.
 
-### Attaching one
+- **the other 4 Polpo PicoGUS** — there when you hold other units of the same
+  model. Tick it and the file is linked to all of them as well; the tooltip says
+  which they are. A unit you have disposed of is not counted.
+- **Public** — tick it to publish the file as it arrives. Left alone, the file is
+  kept back from visitors (see [Who can see a file](#who-can-see-a-file)). It
+  starts ticked when **New files are public** is on in the settings, except on a
+  private project, where it always starts unticked.
+- **Note** — one line saying what the file is: `install disk`, `user's guide`. The
+  notes you have written before are offered back.
 
-The **Files** panel on an item page is where it is done. Upload a file there and
-it is attached to the item's model where the item has one, and to the item itself
-where it has not — a custom build, or a card whose model has been left blank. The
-upload box's tooltip says which of the two it will do, and the other is one click
-away.
+**The same model** is the catalogue's model where the catalogue names the machine,
+and otherwise the same maker and the same model as written. Case and spacing make
+no difference, so `Trident TVGA8900` and `trident  tvga8900` are one model.
 
-**attach** on that panel takes a file that is already filed and adds this item, or
-this item's model, to what it is for. **detach** takes it off again. Detaching
-never deletes anything: a file attached to nothing is **unfiled**, and says so on
-the `/files` page, which is where one is found and filed.
+### A file's page
 
-### What a model means
+Every file has a page of its own, which is where selecting it in any list takes
+you. It says what kind of file it is, how big, when it was added and what it is
+linked to, with a **download** button. Everything you can do to a file is done
+there, and nowhere else:
 
-Where the catalogue names the machine, the model is the catalogue's — so
-identifying a machine is what makes its files follow the model rather than a form
-of words. Everything else — a PC, a clone, every part — is named by its maker and
-its model as they were written: `Trident TVGA8900`. Case and spacing make no
-difference, so `Trident TVGA8900` and `trident  tvga8900` are one model. A machine
-the catalogue names is both, and answers to a file attached either way.
+- **Note** — change it, and **save**.
+- **Public** — the tick that publishes the file. It takes effect the moment you
+  click it.
+- **Linked to** — every item the file is linked to, each with **unlink**. The box
+  under them links it to one more, by asset tag; it offers what is in the
+  register as you type. Machines, parts and projects can have files; an asset tag
+  that is not in the register is refused with a line saying so.
+- **delete** — removes the file, and with it every link.
 
-Two things follow. **Renaming an item does not move its files**, because the link
-names a model and not a name that happens to be on a page. But **correcting a
-part's model does**: a card whose model is fixed from `TVGA8900` to `TVGA8900C` is
-a different model afterwards, and offers that model's files instead. That is what
-saying what a thing is amounts to — and the `/files` page shows what every file is
-attached to, so a link left naming a model nothing answers to can be seen and
-put right.
+Unlinking never deletes anything. A file linked to nothing is **unlinked**, and is
+found under that name on the `/files` page.
 
-### Tags say what a file is
+A visitor is shown the same page for a published file, without the controls: what
+the file is, what it is for, and the download.
 
-A file also carries tags — `manual`, `driver`, `ROM dump`, `boot disk`. They are
-for finding and browsing and nothing else. **A tag does not decide where a file
-appears**; the attachment does. A tag that reads like the name of a machine is
-still only a tag.
+### When another of the same model arrives
+
+When other units of the same model have files that this one has not, this one's
+Files panel lists them, each with **link**. Only you see the list. It is how the
+card bought next year gets its siblings' driver: nothing reaches a unit until you
+link it, so a driver never lands on a card nobody has looked at.
+
+### The files page
+
+`/files` lists every file, newest first: its name, what it is linked to, its size
+and when it was added. Selecting a row opens the file's page; the button at the
+end of the row downloads it. Five links to units of one model are shown as one —
+**5 × Polpo PicoGUS** — and the file's page lists all five.
+
+The row above the list narrows it. **documents**, **disk images** and the other
+kinds are offered as the files on the list call for them. **unlinked** and
+**private** are yours alone, and are the two lists that want attention: the files
+linked to nothing, and the files visitors cannot see. The search box finds a file
+by its name, its note, or the asset tag or name of anything it is linked to.
+
+### What kind of file it is
+
+Each file is drawn by its kind, read from the end of its name: a floppy disk for a
+disk image, a chip for a ROM, a page for a PDF or a text file, and a picture, an
+archive, a program, a sound, a tape, a CD or a hard disk. The extension is printed
+under the drawing, which is what tells a PDF from a text file.
+
+A disk image says which disk it is. An `.img` — or an `.ima`, `.vfd` or `.flp`,
+which are the same thing under other names — the size of a floppy is drawn as that
+floppy, and given its size the way it is printed on the disk rather than in KiB:
+
+| An `.img` of | is shown as |
+|---|---|
+| 160, 180, 320 or 360 KiB | `5¼″ 160K` to `5¼″ 360K` |
+| 1,200 KiB | `5¼″ 1.2M` |
+| 720 KiB | `3½″ 720K` |
+| 1,440 KiB | `3½″ 1.44M` |
+| 1,680 KiB | `3½″ 1.68M` |
+| 2,880 KiB | `3½″ 2.88M` |
+
+An `.img` of any other size under 3 MiB is drawn as a 3½″ floppy with its size in
+KiB, and one of 3 MiB or more as a hard disk. An Amiga `.adf` is a `3½″ 880K`. A
+`.bin` under 4 MiB is drawn as a ROM, and a larger one as a CD image.
+
+The kind is how a file is drawn and which list finds it, and nothing more: it
+decides nothing about what a file is linked to or who can see it.
 
 ### Who can see a file
 
-**Nothing you upload is public until you tick the box beside it.** Every file has
-a **Public** tick — on its card in the Files panel, and in the Public column of
-the `/files` page — and it starts unticked. The tick takes effect the moment you
-click it; there is no save button to find afterwards.
+**Nothing you upload is public until the box is ticked.** Tick **Public** as you
+upload, or on the file's page afterwards. If most of what you upload is meant for
+visitors — drivers and manuals — turn on **New files are public** in the settings
+and the box starts ticked, so a file goes up published unless you untick it
+first. Either way the tick is on the upload box in front of you before the file
+is chosen.
 
-Until it is ticked, a visitor is not shown the file on any item page, does not
-see it in the file list, does not reach it by following a tag, and gets "not
-found" if they are given the link. You see all of your files, ticked or not,
-whenever you are logged in.
+Until it is ticked, a visitor is not shown the file on any item page, does not see
+it in the file list, and gets "not found" at its page and at its download link.
+You see all of your files, ticked or not, whenever you are logged in, and the lists
+mark the ones that are private.
 
-This is because the same box takes a driver disk and a receipt, and a receipt has
-your name and address on it — and attaching one to the single machine it is about
-is exactly the case where forgetting would matter most. Unticking a file takes it back down everywhere, immediately.
+A file linked to a private project is shown to a visitor only if it has been
+ticked, and never with the project: the file's page and the file list say nothing
+about what it is linked to that a visitor may not see. On a private project's own
+page the **Public** box always starts unticked, whatever the setting says.
 
-Files that were already uploaded when this arrived are ticked: they were public
-before, and taking the collection's drivers and manuals off the site overnight
-would have been the wrong way to protect the handful that are receipts. Untick
-anything that should not have been there.
+The default is off because the same box takes a driver disk and a receipt, and a
+receipt has your name and address on it — and linking one to the single machine it is about
+is exactly the case where forgetting would matter most. Unticking a file takes it
+back down everywhere, immediately.
+
+Files that were already uploaded when publishing arrived are ticked: they were
+public before, and taking the collection's drivers and manuals off the site
+overnight would have been the wrong way to protect the handful that are receipts.
+Untick anything that should not have been there.
+
+A register that had files before they were linked by asset tag keeps every one
+where it was. A file that was attached to a model is linked to each item of that
+model the register held on the day of the upgrade. A tag that said something
+other than the model's name is kept, in the file's note; a tag that only repeated
+it has gone, because the links say it.
 
 Uploads are limited to 64 MiB each. The stored filename is generated, never taken
 from the upload; the name you uploaded is kept as data, and used for the download.
@@ -1336,6 +1397,15 @@ be smaller than the truth and would look exactly as authoritative.
 are drawn only for whoever is signed in. A visitor sees what was ordered, who from
 and whether it arrived. The JSON API is behind the login in its entirety, so the
 figures are not readable there either.
+
+### Files
+
+A project has a **Files** panel of its own, the same as a machine's: a receipt for
+what was ordered, the schematic the work was done from, the dump of a ROM before
+it was reflashed. A file uploaded there is linked to the project, and can be linked
+to the machines it concerns as well, from the file's own page (see
+[Files](#11-files)). On a private project the upload's **Public** box always starts
+unticked.
 
 ### Its history
 
@@ -2046,8 +2116,8 @@ theme it opens in.
 
 **Server options** — what this installation shows the outside world and what
 it remembers for itself: whether it asks to be kept out of search engines,
-whether a visitor is shown where things are kept, and whether a place nothing is
-kept in any more is still offered.
+whether a visitor is shown where things are kept, whether a new file starts out
+public, and whether a place nothing is kept in any more is still offered.
 
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
@@ -2122,6 +2192,15 @@ rather than merely ignored, and from that moment the box offers only the places
 something is actually kept now. Turn it back on and it starts again from what is
 in use — what it knew before is gone and does not come back.
 
+### New files
+
+**New files are public** is off, so every file you upload is kept back from
+visitors until you tick it. Turn it on and the **Public** box in every upload box
+starts ticked instead: a driver or a manual goes up published unless you untick
+it before choosing the file. It only moves where the tick starts. Nothing already
+uploaded changes, and a private project's uploads start unticked either way. See
+[Who can see a file](#who-can-see-a-file).
+
 ### Photographs
 
 **Watermark photographs** is on by default. The mark is
@@ -2182,7 +2261,7 @@ schema is at `/openapi.json`.
 | `GET`, `PATCH`, `DELETE` | `/api/computers/{id}`, `/api/parts/{id}` | fetch, partial update, delete |
 | `GET` | `/api/items/{id}/log` | an item's history, with any photographs on each entry |
 | `GET` | `/api/machines` | the catalogue of machines known as models — home computers, consoles, documented branded PCs — and the variations each was built in. Public, like [/machines](#the-list-of-what-it-knows), because none of it is about this register |
-| `GET` | `/api/files` | the files kept beside the register |
+| `GET` | `/api/files` | the files kept beside the register, and the asset tags each is linked to |
 | `GET`, `POST` | `/api/projects` | list, or start one. `?open=true` for the ones neither finished nor abandoned, `?status=stalled` for one state |
 | `GET`, `PATCH`, `DELETE` | `/api/projects/{id}` | fetch (with its items, tasks and orders), partial update, delete |
 | `POST`, `DELETE` | `/api/projects/{id}/items`, `/api/projects/{id}/items/{asset_id}` | put a computer or part in a project, or take it out |

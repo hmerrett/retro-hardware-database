@@ -23,7 +23,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from .. import entry, projects
+from .. import entry, filesdb, projects
 from ..common import to_dict
 from ..db import get_db
 from ..forms import _field_diffs
@@ -152,6 +152,8 @@ def api_delete_project(aid: str, db: Session = Depends(get_db)) -> dict[str, obj
     p = _api_project(db, aid)
     photos = _drop_log_photos(db, aid)
     db.query(LogEntry).filter(LogEntry.asset_id == aid).delete(synchronize_session=False)
+    # Its file links, and never the files (ADR-0028).
+    filesdb.forget_asset(db, aid)
     db.delete(p)
     db.commit()
     _purge_photos(photos)
