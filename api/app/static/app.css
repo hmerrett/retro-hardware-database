@@ -490,6 +490,12 @@
   .edit label.socketed input { width: auto; }
   .edit .checks input { width: auto; }
   .hint { color: var(--muted); font-size: 12px; margin: 2px 0 0; }
+  /* The letters a Ports box takes, printed under it: a pair to a cell so that a
+     letter never wraps away from what it stands for, and the letter in the text
+     colour so the eye finds it first. */
+  .portkey { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  .portkey span { white-space: nowrap; }
+  .portkey b { color: var(--fg); }
   /* The cookie notice. A slim bar rather than a panel over the page: nothing is
      stored until the reader chooses something, so there is nothing to hold them up
      for -- it is a notice, not a gate. */
