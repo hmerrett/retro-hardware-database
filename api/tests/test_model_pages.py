@@ -1,19 +1,18 @@
 """The catalogue list and a model's own page, as MANUAL.md section 3 promises them
 ("The list of what it knows", "A model's own page"): every name on /machines leads
 to /machines/<key>, which says what the catalogue records about the model, its chip
-sockets, the units filed as it and the files attached to it -- in public, with a
-visitor shown the published files alone.
+sockets and the units filed as it -- in public. It has no files of its own: a file is
+linked to items one by one (ADR-0028), so it is on each unit's page instead.
 
 Auth is off in these tests, so the client is the owner; `visitor` turns it on.
 """
 
 import re
 
-import pytest
 
 from app import machines, main
 from conftest import content
-from test_files import publish, upload
+from test_files import upload
 
 
 def visitor(monkeypatch):
@@ -31,14 +30,6 @@ def panel(page: str, title: str) -> str:
     rest = page[m.end() :]
     stop = re.search(r'<section class="panel|</main>', rest)
     return rest[: stop.start()] if stop else rest
-
-
-def file_as(client, aid, filename, key="vic-20"):
-    """A machine filed as a catalogue model, with a file uploaded from its page --
-    which attaches the file to the model, as the Files panel does."""
-    client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": key}})
-    upload(client, filename, aid=aid)
-    return client.get("/api/files").json()[0]["id"]
 
 
 def edited(monkeypatch, key, **changes):
@@ -171,23 +162,15 @@ class TestInThisCollection:
 
 
 class TestItsFiles:
-    def test_a_file_attached_to_the_model_is_listed(self, client, computer):
-        fid = file_as(client, computer()["asset_id"], "vic-manual.pdf")
-        files = panel(client.get("/machines/vic-20").text, "Files")
-        assert f'href="/files/{fid}/vic-manual.pdf"' in files
-
-    @pytest.mark.parametrize("published", [True, False])
-    def test_a_visitor_sees_the_published_ones_alone(
-        self, client, computer, monkeypatch, published
-    ):
-        fid = file_as(client, computer()["asset_id"], "receipt.pdf")
-        if published:
-            publish(client, fid)
-        visitor(monkeypatch)
-        files = panel(client.get("/machines/vic-20").text, "Files")
-        assert (f'href="/files/{fid}/' in files) is published
-
-    def test_there_is_nothing_to_attach_or_detach_here(self, client, computer):
-        file_as(client, computer()["asset_id"], "vic-manual.pdf")
+    def test_a_model_has_no_files_panel_of_its_own(self, client, computer):
+        """A file is linked to items and not to models, so a manual uploaded from a
+        unit's page is on that unit's page -- and the model's page, which would have
+        been a second place to find it, draws no Files panel at all rather than an
+        empty one that implies a model could hold one."""
+        aid = computer()["asset_id"]
+        client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": "vic-20"}})
+        upload(client, "vic-manual.pdf", aid=aid)
         page = client.get("/machines/vic-20").text
-        assert "/attach" not in page and "/detach" not in page
+        assert panel(page, "Files") == ""
+        assert "vic-manual.pdf" not in content(page)
+        assert "vic-manual.pdf" in client.get(f"/computers/{aid}").text

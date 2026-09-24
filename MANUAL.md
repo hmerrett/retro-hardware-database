@@ -661,11 +661,11 @@ reason, and named in the sitemap with it. From the top:
   model with no sockets to ask about has no such panel;
 - **In this collection** — every machine and board filed as this model, by tag
   and name, each leading to its page. A disposed one is listed and says so, so the
-  count on the list and the rows here agree;
-- **Files** — the files attached to the model, which every one of them is
-  offered. A visitor sees the published ones alone, as everywhere
-  ([Files](#11-files)). Files are attached and detached from an item's
-  page or `/files`, not here.
+  count on the list and the rows here agree.
+
+It has no files of its own. A file is linked to the things it is for, one by one
+([Files](#11-files)), so a manual for the model is on each unit's page, and a unit
+you add later is offered what its siblings have.
 
 A key the catalogue does not have is a page that is not found.
 
@@ -1445,8 +1445,8 @@ A project's page reads like an item's. At the top is a link back to all the
 projects and, when logged in, **Edit**, **Delete…** and — while there is still
 something left to finish — **Mark done** beside it; then the name, its status and
 its tag. Below that, a panel each: **Details** (the status, the three dates and
-the notes), **Items**, **Tasks**, **On order** and **History**, and last, when
-logged in, the **Label** panel with its two print buttons.
+the notes), **Items**, **Tasks**, **On order**, **Files** and **History**, and last,
+when logged in, the **Label** panel with its two print buttons.
 
 ### Marking one done
 

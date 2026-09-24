@@ -1,6 +1,6 @@
 """The component stylesheets hold to the tokens, and the utilities to layout.
 
-components.css and utilities.css are the v0.2 stylesheets (ADR-0028). Their promise
+components.css and utilities.css are the v0.2 stylesheets (ADR-0030). Their promise
 is that a preset is only token values: a colour stated here would be a colour no
 preset could change and no contrast test would read, and a spacing figure stated
 here would be one the scale no longer describes. These tests read the files the

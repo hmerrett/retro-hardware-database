@@ -199,6 +199,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `presets.py` | the looks the register ships with, read from the design data — so the page cannot offer one no stylesheet was written for |
 | `typefaces.py` | the ways the three faces can be pointed, read from the same design data — a pairing repoints them and changes nothing else |
 | `accent.py` | the installation's accent: one colour in, the five tokens the page is painted with out, derived for the preset and the mode and served as a stylesheet of its own |
+| `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, and the size it is given as |
 | `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
 | `locations.py` | where things are kept: the remembered vocabulary of places, what a form's pick list offers, and where a part is when it does not say for itself |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
@@ -224,7 +225,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 
 Outside `api/`:
 
-- `api/app/templates/` — 36 Jinja2 templates. `api/app/static/` — the stylesheet
+- `api/app/templates/` — 39 Jinja2 templates. `api/app/static/` — the stylesheet
   and scripts, moved out of `base.html` so they can be cached — and that move is
   what made the content policy in `main.py` possible, there being nothing inline
   left to have to allow.

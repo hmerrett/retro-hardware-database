@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from .. import entry, filesdb, machines
+from .. import entry, machines
 from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import AssetVariant, Computer, Part
@@ -117,9 +117,8 @@ def gui_model(key: str, request: Request, db: Session = Depends(get_db)) -> HTML
     """One model: what the catalogue records about it, and which of it is here.
 
     Public for the list's reason -- the catalogue is what was made, not what is on
-    the shelf -- and everything else on it is public already: the units' own pages,
-    and the files attached to the model, of which a visitor gets the published ones
-    as everywhere else (ADR-0009)."""
+    the shelf -- and everything else on it is public already: the units' own pages.
+    It lists no files: a file is linked to items, not to models (ADR-0028)."""
     m = machines.model(key)
     if m is None:
         raise HTTPException(404, "no such model in the catalogue")
@@ -140,7 +139,6 @@ def gui_model(key: str, request: Request, db: Session = Depends(get_db)) -> HTML
             "m": m,
             "facts": [(k, v) for k, v in facts if v],
             "units": _units(db, key),
-            "files": filesdb.for_model(db, filesdb.CATALOGUE, key, request.state.authed),
             "og": _og(request, m["full_name"], m["summary"]),
         },
     )

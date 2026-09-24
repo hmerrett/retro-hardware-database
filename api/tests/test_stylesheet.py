@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
-# Where the colours now live: generated from the design data (ADR-0028). app.css
+# Where the colours now live: generated from the design data (ADR-0030). app.css
 # keeps the 0.1 names as aliases onto these while the templates move over.
 TOKENS = Path(__file__).parents[1] / "app" / "static" / "css" / "tokens.css"
 

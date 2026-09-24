@@ -84,5 +84,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0029](0029-an-upload-starts-public-where-the-owner-says.md) — An upload starts
   public where the owner says so — *Accepted* (amends
   [0009](0009-a-file-is-published-by-hand.md)'s default)
-- [0028](0028-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
+- [0030](0030-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
   a design system, and its values are data — *Accepted*

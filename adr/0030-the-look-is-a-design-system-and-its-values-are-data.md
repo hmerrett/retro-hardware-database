@@ -1,4 +1,4 @@
-# 0028 — The look is a design system, and its values are data
+# 0030 — The look is a design system, and its values are data
 
 **Status:** Accepted
 **Date:** 2026-09-22

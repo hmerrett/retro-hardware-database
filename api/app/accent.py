@@ -17,7 +17,7 @@ lighter or darker but never a different colour wearing the same name.
 Why it may be a free-for-all rather than a menu of eight: the derivation is a pure
 function of the colour and the preset's own surfaces, and `test_accent.py` sweeps
 1,260 colours across the whole space through all fourteen presets-and-modes and
-asserts the nine pairs on every one of them (ADR-0028). An input nobody has looked
+asserts the nine pairs on every one of them (ADR-0030). An input nobody has looked
 at, an output somebody has.
 
 It is computed here, on the server, and served as one more stylesheet. Nothing is

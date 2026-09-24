@@ -120,6 +120,7 @@ class TestThePanels:
             "Items",
             "Tasks",
             "On order",
+            "Files",
             "History",
             "Label",
         ]

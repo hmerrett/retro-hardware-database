@@ -1,5 +1,5 @@
 """The v0.2 component macros in `_ui.html`, and the `ui` filter their words pass
-through (ADR-0028).
+through (ADR-0030).
 
 Rendered through the app's own environment, so a test sees the globals and filters
 a page would. Nothing calls these macros yet -- the templates move onto them group
@@ -484,5 +484,5 @@ class TestIcons:
         # aria-label. Either way the drawing itself says nothing.
         source = templates.env.loader.get_source(templates.env, "_icons.html")[0]
         svgs = re.findall(r"<svg [^>]*>", source)
-        assert len(svgs) == 20
+        assert len(svgs) == 21
         assert all('aria-hidden="true"' in s for s in svgs)

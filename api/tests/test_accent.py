@@ -229,7 +229,7 @@ def test_the_chosen_accent_is_stated_for_the_preset_and_for_both_ways_of_asking_
 def test_the_accent_stylesheet_declares_nothing_but_the_five_tokens():
     """An accent is a colour, not a look. A size or a border in this file would
     make choosing one a change of layout, which is the one thing nothing in the
-    design system is allowed to be (ADR-0028)."""
+    design system is allowed to be (ADR-0030)."""
     sheet = accent.stylesheet("amber", "#b45309")
     for selector, block in re.findall(r"([^{}]+)\{([^{}]*)\}", sheet):
         head = selector.strip().splitlines()[-1].strip()

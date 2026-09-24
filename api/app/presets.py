@@ -1,4 +1,4 @@
-"""The looks this installation can wear, read from the design data (ADR-0028).
+"""The looks this installation can wear, read from the design data (ADR-0030).
 
 A preset is a block of token values and nothing else -- colours for both modes,
 the radii, the shadow and the three typefaces. It may not name a component and it

@@ -1,4 +1,4 @@
-/* The v0.2 components (ADR-0028): one block per component, on the tokens in
+/* The v0.2 components (ADR-0030): one block per component, on the tokens in
    tokens.css and presets/*.css and nothing else. No colour is stated here, so the
    contrast tests read the token files alone; test_stylesheet_lint.py holds this
    file to that, to the spacing and type scales, and holds utilities.css to layout.

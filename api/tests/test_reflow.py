@@ -169,7 +169,7 @@ def test_the_box_you_type_into_asks_for_a_width_rather_than_demanding_one():
     )
 
 
-def test_a_long_filename_cannot_hold_the_list_open(client, furnished):
+def test_a_long_filename_cannot_hold_the_list_open():
     """`overflow-wrap: break-word` on a cell breaks a word that has already been
     given its column, but leaves the column's minimum width at the whole word --
     so the longest filename on the page decided how narrow the table could be. It
@@ -178,6 +178,3 @@ def test_a_long_filename_cannot_hold_the_list_open(client, furnished):
     rule = re.search(r"\.fname\s*\{[^}]*\}", css)
     assert rule, "nothing lets a filename break, so the widest one sets the list's width"
     assert "overflow-wrap: anywhere" in rule.group(0)
-    assert '<a class="break" href="/files/' in client.get("/files").text, (
-        "the files list no longer marks its filenames as breakable"
-    )

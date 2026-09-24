@@ -2,7 +2,7 @@
 
 The colours of every preset, in both modes, and the scales every preset shares are
 data -- `api/app/design/palettes.json` and `scales.json` -- because the contrast
-tests read them as data (ADR-0028). Writing the same values into CSS by hand would
+tests read them as data (ADR-0030). Writing the same values into CSS by hand would
 give two places to change a colour and a test that checks only one of them, so the
 stylesheets are generated from the data and the suite runs this with `--check` to
 hold the files on disk to what the data says.

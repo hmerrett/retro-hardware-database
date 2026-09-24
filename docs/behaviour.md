@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2009 behaviours, from 61 files.*
+*2032 behaviours, from 61 files.*
 
 
 ## A file where text was expected
@@ -177,7 +177,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 549 behaviours*
+*test_api.py — 548 behaviours*
 
 
 **Typed columns**
@@ -1052,8 +1052,8 @@ Regenerate with:
   The case this is really for: the phone adds a picture, the desktop is still showing the page without it.
 - deleting or cropping a photograph moves it as well  
   Every edit to a photograph is a change to the record, and the phone is not the only place they happen.
-- a file moves it although it belongs to no item  
-  A driver is filed against a model rather than against the card on the shelf, so nothing about it reaches that item's history -- and an item page shows it all the same.
+- linking a file to it moves it  
+  Linking a file writes no history -- a file is not one item's alone -- so the item's links are counted beside its history, and an open page notices a file arriving or leaving.
 - reading the page does not move it  
   Or every page would reload itself for ever.
 - an item that is gone still answers  
@@ -1172,11 +1172,9 @@ Regenerate with:
 
 **Files read like the parts do**
 
-- a file is a card with its name on it
+- a file is a row with its name on it
 - it says how big it is before you click it
-- the names it is filed under are still editable  
-  Re-filing is the thing most often wanted here, so it stays a box rather than becoming a link to somewhere else.
-- a visitor gets the names without the box
+- there is nothing on the row to type into
 
 **Pages are not kept by browsers**
 
@@ -1647,57 +1645,108 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 50 behaviours*
+*test_files.py — 72 behaviours*
 
 
-**Attaching one**
+**Linking one**
 
-- a driver attached to a model reaches every card of it  
-  "to a model -- every machine or card of that model".
-- and a card of another model is not offered it  
-  Both halves, because "not offered" is true of a file that reached nothing at all: the driver has to be on the Trident card to say anything about its being off the Tseng one.
-- a card bought next year is offered it too  
-  "the ones on the shelf now and the one bought next year".
-- disposing of two takes nothing away from the third  
-  "disposing of two of them takes nothing away from the third" -- the disposal case the old docstring was right to worry about.
-- a receipt attached to one unit reaches that unit alone  
-  "to one unit -- that machine, that card, by its asset tag".
-- an upload is attached to the model of the page it started on  
-  "Upload a file there and it is attached to the item's model where the item has one".
-- an upload on something with no model is attached to that thing  
-  "and to the item itself where it has not -- a custom build".
-- the panel says which of the two it did  
-  "The upload box's tooltip says which of the two it will do." Both ways round, because it is the only thing telling you where an upload will go.
-- the other of the two is one click away  
-  "and the other is one click away".
-- one file can be attached to several things  
-  "A file has as many of either as it needs, because one disk often covers a card and the machine it shipped in".
-- detaching takes it off and keeps the file  
-  "detach takes it off again.
-- a file attached to nothing says so  
-  "a file attached to nothing is unfiled, and says so on the /files page".
-- and is filed from that page  
-  "which is where one is found and filed".
-- identifying a machine does not take its files away  
-  "A machine the catalogue names is both, and answers to a file attached either way." The file was attached before the machine was identified.
-- a file on a catalogue model reaches another of it  
-  The other half of "both": attached to the catalogue's model, it reaches a machine identified as that model however its maker and model were typed.
-- the same model written two ways is one model  
-  "Case and spacing make no difference." Nobody agrees where the spaces go in SoundBlaster, and neither spelling is the wrong one to have typed.
-- a model is the whole model and not a piece of it  
-  A model is named or it is not.
-- renaming an item does not move its files  
-  "Renaming an item does not move its files" -- the fault ADR-0006 reports, where an edit silently detached one.
-- correcting a parts model does move it  
-  "But correcting a part's model does" -- and the manual says so plainly rather than leaving it to be discovered.
-- a tag decides nothing  
-  "A tag does not decide where a file appears".
+- an upload is linked to the item it started on
+- and to nothing else  
+  Another card of the same model is not offered it by being one: that is the difference between a link and the model links it replaced.
+- one file can be linked to several things and is on each page
+- renaming an item or correcting its model moves nothing  
+  A link names an asset tag, and a tag never changes.
+
+**The other units of the model**
+
+- the upload box offers them
+- ticking it links the file to them as well
+- left alone it links the file to this one
+- a unit that has been disposed of is not counted
+- case and spacing make no difference
+- a machine the catalogue names is the model however it was typed
+- the tick is the models and nothing else  
+  Which units it means is worked out when the upload arrives, not read from the form: a list of ids posted from a page would be a way to link a file to anything at all.
+- a card with no other units is not offered a tick
+
+**When another of the same model arrives**
+
+- a new unit is offered its siblings files
+- a file it already has is not offered
+- nothing reaches it until it is linked
+- a visitor is not shown the offer
+
+**A files page**
+
+- it says what the file is and what it is for
+- the note is changed there
+- it is linked to one more by asset tag
+- a tag not in the register is refused with a line saying so
+- a project can have it too
+- unlinking takes it off and keeps the file
+- a file linked to nothing is unlinked and found under that name
+- delete removes it and every link
+- a visitor sees a published files page without the controls
+- a visitor is told an unpublished files page is not there
+
+**The files page**
+
+- it lists every file newest first with what it is linked to
+- nothing on a row changes anything  
+  A row used to carry six forms.
+- a row opens the files page and its button downloads it
+- units of one model are one chip and all of them on its page
+- it can be narrowed to one kind
+- a kind is offered only when there is another to tell it from
+- unlinked and private are the owners alone
+- the search finds a file by its name its note or what it is linked to
+- the list marks the private ones for the owner
+
+**What kind of file it is**
+
+- it is read from the end of its name
+- a floppy image says which floppy it is
+- the other names for a raw image are read the same way
+- an image of any other size is a floppy under 3 mib and a hard disk over
+- an amiga disk is 880k
+- a bin is a rom under 4 mib and a cd image over
+- the list draws each file as its kind with its extension
+- the kind decides nothing about who sees it
+- a size is said the way it would be said
+
+**Who can see A file**
+
+- a new upload is not public
+- ticking public as it is uploaded publishes it
+- ticking the box on its page publishes it
+- unticking it takes it back everywhere
+- an unpublished file is missing rather than forbidden  
+  404 and not 401: there is no account a visitor could log in to, so an invitation to authenticate would say only that the file is there.
+- the owner is shown both
+- only the owner may publish
+- an unpublished file is not cached anywhere
+- the wire format says which
+- a visitor is never told a file is linked to a private project
+
+**New files are public**
+
+- it is off so the box starts unticked
+- on the box starts ticked
+- but never on a private projects page
+- the upload sends what the box says
+
+**Projects have files**
+
+- an upload on a project is linked to it
+- a project is offered no other units
+- deleting a project takes its links and not its files
+
+**Deleting an item**
+
 - deleting an item takes the link and not the bytes  
-  Detaching never deletes, and neither does deleting the thing a file was about: unfiled is a state, not a reason to bin something (ADR-0006).
-- attaching to something that is not there is a 404  
-  Rather than a link to nowhere, which would read as unfiled while looking filed.
+  Unlinked is a state, not a reason to bin something (ADR-0006).
 
-**Keeping them**
+**The bytes**
 
 - what was uploaded comes back byte for byte
 - it is handed over as a download and never as a page  
@@ -1707,55 +1756,17 @@ Regenerate with:
 - two files of the same name do not land on each other
 - an empty upload is not a file
 - one over the limit is refused and leaves nothing behind
-- deleting one takes its bytes and its names
-
-**Tagging**
-
-- the box is the whole list  
-  What the box shows is what a save means, so a tag taken out of it is gone rather than added to.
-- relabelling moves nothing  
-  The whole demotion in one test: the tags box used to be how a file was re-filed, and now it is how a file is described.
-- a name written twice is kept once
-- the tags are shown back as they were written
-
-**The files page**
-
-- it lists what is there
-- it can be narrowed to one name
-
-**Over the wire**
-
-- the api lists them with their names
-- it can be asked for one name
-- asking for a tag answers with what carries it  
-  Equality on the fold, not containment on a name: a tag says what a file is, so following one asks for the manuals rather than for whatever a machine of that name would be offered.
+- an upload with nothing to be linked to is kept unlinked  
+  Nothing is lost for want of a page to have started on: the file is kept, and the files page lists it as unlinked.
 
 **Who may do what**
 
-- a visitor may download but not upload  
-  Downloading reads like a photograph does.
+- a visitor may download but not change anything
 - a visitor is not shown the upload box
 
-**Publishing one**
+**The api**
 
-- a new upload is not public
-- ticking the box publishes it
-- unticking it takes it back  
-  The point of a toggle rather than a publish button: something put up by mistake has to come down, and come down everywhere.
-- a file kept back is not reachable by its tag  
-  The tag chips lead from an item page to /files?tag=..., which asks the same question of the same names.
-- an unpublished file is missing rather than forbidden  
-  404 and not 401.
-- the owner is shown both  
-  Whoever can publish has to be able to see what is not published, or there is no page to tick the box on.
-- only the owner may publish
-- an unpublished file is not cached anywhere  
-  The owner is the only person who can fetch one, and unticking the box has to stop the copy being handed out -- which a cache holding it for the hour the published header asks for would carry on doing.
-- the wire format says which
-
-**Sizes read**
-
-- a size is said the way it would be said
+- it lists each file with what it is linked to
 
 
 ## First run
@@ -2524,7 +2535,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 7 behaviours*
+*test_migrations.py — 11 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -2540,11 +2551,18 @@ Regenerate with:
   0039 stops a file being matched to an item by name and starts it being attached to one, and runs the old matcher once to write down what it found.
 - a file the matcher reached nothing with is left unfiled  
   Unfiled is a state and not a loss: the bytes are untouched and the files page says so.
+- 0044 links every item a model link reached  
+  ADR-0028.
+- 0044 keeps in the note a tag that said more than the links  
+  A tag that only repeated what the file was linked to -- inside a model link's label, the way the name matcher read tags, or equal to a linked asset id -- is dropped.
+- 0044 moves nothing on a register with no files
+- 0044 can be downgraded  
+  The two tables come back empty, which is the shape 0043 expects, and the links stay: a downgraded register offers each file on the items it is linked to.
 
 
 ## Model pages
 
-*test_model_pages.py — 21 behaviours*
+*test_model_pages.py — 19 behaviours*
 
 
 **The list**
@@ -2576,9 +2594,8 @@ Regenerate with:
 
 **Its files**
 
-- a file attached to the model is listed
-- a visitor sees the published ones alone
-- there is nothing to attach or detach here
+- a model has no files panel of its own  
+  A file is linked to items and not to models, so a manual uploaded from a unit's page is on that unit's page -- and the model's page, which would have been a second place to find it, draws no Files panel at all rather than an empty one that implies a model could hold one.
 
 
 ## Models match migrations
@@ -2724,7 +2741,7 @@ Regenerate with:
 - every pair holds in every preset and mode  
   518 pairs: the 37 the design uses, in fourteen themes.
 - a preset names no component  
-  A preset is token values and nothing else (ADR-0028).
+  A preset is token values and nothing else (ADR-0030).
 - every face in the picker is drawn in its own colours  
   The settings page shows each preset as a miniature, and a miniature painted in the colours of the preset already in force would show seven of the same thing.
 
@@ -3113,10 +3130,10 @@ Regenerate with:
 
 - no list is wider than the phone it is read on  
   The invariant, stated once over every page that has a table on it: more columns than fit means the table has been given one of the two answers.
-- a stacked row says what each value is  
-  Stacked, a row loses its headings, and a bare date under a filename is a date for no stated reason.
+- the files list is rows and not a table  
+  The files list was the widest table on the site, six columns when logged in, and it pushed a phone 683px sideways.
 - the box you type into asks for a width rather than demanding one  
-  A `min-width` on a control is a floor the cell around it cannot go below, and this box is in the widest table on the site.
+  A `min-width` on a control is a floor the row around it cannot go below: 200px of it on the old re-file box held the files list open.
 - a long filename cannot hold the list open  
   `overflow-wrap: break-word` on a cell breaks a word that has already been given its column, but leaves the column's minimum width at the whole word -- so the longest filename on the page decided how narrow the table could be.
 

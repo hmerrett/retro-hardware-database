@@ -1,6 +1,6 @@
   /* The colours are no longer stated here. They are tokens in css/tokens.css,
      generated from the design data with every pair tested in every preset and
-     mode (ADR-0028), and these are the 0.1 names for them -- kept only while the
+     mode (ADR-0030), and these are the 0.1 names for them -- kept only while the
      templates move over to the new components, and deleted with this file.
      --line, --accent, --band, --danger, --danger-line and --danger-wash keep
      their names in 0.2 and so need no line here. Each alias resolves against the

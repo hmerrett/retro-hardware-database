@@ -20,7 +20,7 @@ from app import main
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 BASE = TEMPLATES / "base.html"
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
-# Where the phone's bar and the chrome around it now live (ADR-0028).
+# Where the phone's bar and the chrome around it now live (ADR-0030).
 COMPONENTS = STYLESHEET.parent / "css" / "components.css"
 
 FOCUSABLE = re.compile(r"<(?:a\s[^>]*href=|button\b|input\b|select\b|textarea\b|summary\b)", re.I)
