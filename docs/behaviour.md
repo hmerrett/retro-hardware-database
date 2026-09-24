@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1661 behaviours, from 44 files.*
+*1664 behaviours, from 45 files.*
 
 
 ## A file where text was expected
@@ -3092,6 +3092,16 @@ Regenerate with:
 - a status reply is read for what it says not that it came  
   page is two bytes, then how far through printing and feeding, then -- in the long form only -- the error.
 - the driver waits for the page rather than for an answer
+
+
+## The port letters are on the form
+
+*test_the_port_letters_are_on_the_form.py — 3 behaviours*
+
+- every letter the box reads is printed under it
+- the box is described by them  
+  For a screen reader too: the key is the box's description, not a paragraph that happens to sit near it.
+- they are there when a card is edited as well
 
 
 ## Type checking
