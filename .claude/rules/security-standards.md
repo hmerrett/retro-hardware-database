@@ -37,7 +37,10 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
   Pillow and check its real format; reject anything else. Do it before the record
   is committed and at the write path.
 - Serve user-supplied files as downloads: `Content-Disposition: attachment` and
-  `X-Content-Type-Options: nosniff`, opened by id, not by the URL's filename.
+  `X-Content-Type-Options: nosniff`, opened by id, not by the URL's filename. The
+  one exception is a PDF, which may be shown inline (ADR-0030): named `.pdf`,
+  beginning `%PDF-`, served as `application/pdf` by the server's say-so with
+  `nosniff` and a policy of its own. Anything failing either check is a download.
 - **A public endpoint that generates and keeps a file is keyed by content, not by
   what was typed.** The share-card montage (ADR-0017) hashes the photographs it is
   made of, so `/og/{name}` opens a file by hash rather than searching on a query a

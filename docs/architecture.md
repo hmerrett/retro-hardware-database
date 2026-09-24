@@ -401,6 +401,7 @@ it was weighed against, and what it costs.
 | 0027 | A remembered vocabulary is deleted when it is turned off |
 | 0028 | A file is linked to the things it is for, by their asset ids |
 | 0029 | An upload starts public where the owner says so |
+| 0030 | A PDF is read in the browser, and everything else is still a download |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

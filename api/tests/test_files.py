@@ -650,6 +650,80 @@ class TestWhoCanSeeAFile:
         assert ids_on(client, f"/files?q={secret}") == set()
 
 
+PDF = b"%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n"
+
+
+class TestReadingAPdf:
+    """Section 11, "Reading a PDF": a PDF is shown by the browser's own viewer, and
+    only a file that really is one (ADR-0030)."""
+
+    def test_a_pdf_is_shown_in_the_browser_rather_than_saved(self, client, part):
+        upload(client, "manual.pdf", body=PDF, aid=card(part))
+        fid = newest(client)
+        r = client.get(f"/files/{fid}/view/manual.pdf")
+        assert r.status_code == 200 and r.content == PDF
+        assert r.headers["content-type"] == "application/pdf"
+        assert r.headers["content-disposition"].startswith("inline")
+        assert r.headers["x-content-type-options"] == "nosniff"
+
+    def test_its_page_offers_view_before_download(self, client, part):
+        upload(client, "manual.pdf", body=PDF, aid=card(part))
+        fid = newest(client)
+        page = client.get(f"/files/{fid}").text
+        view = page.index(f'href="/files/{fid}/view/manual.pdf">view</a>')
+        assert view < page.index(f'href="/files/{fid}/manual.pdf">download</a>')
+
+    def test_and_anything_else_is_only_downloaded(self, client, part):
+        upload(client, "drivers.zip", aid=card(part))
+        fid = newest(client)
+        assert "/view/" not in client.get(f"/files/{fid}").text
+
+    def test_its_row_views_it_and_any_other_row_downloads(self, client, part):
+        aid = card(part)
+        upload(client, "manual.pdf", body=PDF, aid=aid)
+        upload(client, "drivers.zip", aid=aid)
+        zip_id, pdf_id = file_ids(client)
+        page = client.get("/files").text
+        assert f'href="/files/{pdf_id}/view/manual.pdf" aria-label="view manual.pdf"' in page
+        assert f'href="/files/{zip_id}/drivers.zip" aria-label="download drivers.zip"' in page
+
+    def test_a_file_called_a_pdf_that_is_not_one_is_downloaded_instead(self, client, part):
+        """A file is whatever somebody uploaded, and an HTML page shown by the
+        browser would run as this site. The name is not evidence."""
+        upload(client, "invoice.pdf", body=b"<script>alert(1)</script>", aid=card(part))
+        fid = newest(client)
+        r = client.get(f"/files/{fid}/view/invoice.pdf", follow_redirects=False)
+        assert r.status_code == 303
+        assert r.headers["location"] == f"/files/{fid}/invoice.pdf"
+        assert (
+            client.get(r.headers["location"])
+            .headers["content-disposition"]
+            .startswith("attachment")
+        )
+
+    def test_nor_is_a_real_pdf_under_another_name(self, client, part):
+        upload(client, "manual.html", body=PDF, aid=card(part))
+        fid = newest(client)
+        r = client.get(f"/files/{fid}/view/manual.html", follow_redirects=False)
+        assert r.status_code == 303
+
+    def test_a_visitor_is_told_an_unpublished_pdf_is_not_there(self, client, part, monkeypatch):
+        upload(client, "receipt.pdf", body=PDF, aid=card(part))
+        fid = newest(client)
+        visitor(monkeypatch)
+        r = client.get(f"/files/{fid}/view/receipt.pdf", follow_redirects=False)
+        assert r.status_code == 404
+        assert "www-authenticate" not in r.headers
+
+    def test_it_is_kept_as_its_download_is(self, client, part):
+        upload(client, "manual.pdf", body=PDF, aid=card(part))
+        fid = newest(client)
+        view = f"/files/{fid}/view/manual.pdf"
+        assert client.get(view).headers["cache-control"] == "private, no-store"
+        publish(client, fid)
+        assert client.get(view).headers["cache-control"] == "public, max-age=3600"
+
+
 class TestNewFilesArePublic:
     """Section 18, "New files", and section 11: the preference moves where the tick
     starts, and never publishes anything by itself (ADR-0029)."""

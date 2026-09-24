@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1661 behaviours, from 44 files.*
+*1670 behaviours, from 44 files.*
 
 
 ## A file where text was expected
@@ -1260,7 +1260,7 @@ Regenerate with:
 
 ## Content security policy
 
-*test_content_security_policy.py — 9 behaviours*
+*test_content_security_policy.py — 10 behaviours*
 
 - every response carries the policy  
   Including the ones nobody thinks of as pages.
@@ -1268,6 +1268,8 @@ Regenerate with:
   The middleware is registered last, so it wraps the auth gate rather than sitting inside it.
 - the policy is the one recorded  
   ADR-0021 states the directives; this is that statement as an assertion.
+- a pdf shown in the browser carries a policy of its own  
+  The one response that says its own (ADR-0030).
 - the directives that do not fall back are stated  
   `form-action`, `frame-ancestors` and `base-uri` ignore `default-src`.
 - no page carries a script the policy would block  
@@ -1534,7 +1536,7 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 72 behaviours*
+*test_files.py — 80 behaviours*
 
 
 **Linking one**
@@ -1616,6 +1618,18 @@ Regenerate with:
 - an unpublished file is not cached anywhere
 - the wire format says which
 - a visitor is never told a file is linked to a private project
+
+**Reading A pdf**
+
+- a pdf is shown in the browser rather than saved
+- its page offers view before download
+- and anything else is only downloaded
+- its row views it and any other row downloads
+- a file called a pdf that is not one is downloaded instead  
+  A file is whatever somebody uploaded, and an HTML page shown by the browser would run as this site.
+- nor is a real pdf under another name
+- a visitor is told an unpublished pdf is not there
+- it is kept as its download is
 
 **New files are public**
 

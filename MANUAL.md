@@ -1152,7 +1152,8 @@ no difference, so `Trident TVGA8900` and `trident  tvga8900` are one model.
 
 Every file has a page of its own, which is where selecting it in any list takes
 you. It says what kind of file it is, how big, when it was added and what it is
-linked to, with a **download** button. Everything you can do to a file is done
+linked to, with a **download** button — and, for a PDF, a **view** button before
+it, which opens the PDF in your browser to read rather than saving it. Everything you can do to a file is done
 there, and nowhere else:
 
 - **Note** — change it, and **save**.
@@ -1181,7 +1182,7 @@ link it, so a driver never lands on a card nobody has looked at.
 
 `/files` lists every file, newest first: its name, what it is linked to, its size
 and when it was added. Selecting a row opens the file's page; the button at the
-end of the row downloads it. Five links to units of one model are shown as one —
+end of the row downloads the file, or, for a PDF, opens it in your browser. Five links to units of one model are shown as one —
 **5 × Polpo PicoGUS** — and the file's page lists all five.
 
 The row above the list narrows it. **documents**, **disk images** and the other
@@ -1227,7 +1228,8 @@ first. Either way the tick is on the upload box in front of you before the file
 is chosen.
 
 Until it is ticked, a visitor is not shown the file on any item page, does not see
-it in the file list, and gets "not found" at its page and at its download link.
+it in the file list, and gets "not found" at its page, at its download link and,
+for a PDF, at the link that views it.
 You see all of your files, ticked or not, whenever you are logged in, and the lists
 mark the ones that are private.
 
@@ -1251,6 +1253,16 @@ where it was. A file that was attached to a model is linked to each item of that
 model the register held on the day of the upgrade. A tag that said something
 other than the model's name is kept, in the file's note; a tag that only repeated
 it has gone, because the links say it.
+
+### Reading a PDF
+
+A PDF is shown by your browser's own viewer, the same one it uses for a PDF
+anywhere else, so it can be read, searched and zoomed without being saved first.
+Everything else is handed over as a download, because a file is whatever somebody
+uploaded and a browser shown an uploaded page would run it as this site. So only
+a file whose name ends `.pdf` and which really is a PDF is shown: one that is
+called a PDF and is something else is downloaded instead, whatever it is called.
+Some phones' browsers have no viewer of their own and save a PDF all the same.
 
 Uploads are limited to 64 MiB each. The stored filename is generated, never taken
 from the upload; the name you uploaded is kept as data, and used for the download.
