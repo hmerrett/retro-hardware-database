@@ -25,6 +25,12 @@ from sqlalchemy.orm import Mapped, MappedColumn, mapped_column
 
 from .db import Base
 
+if TYPE_CHECKING:
+    # For the attributes filesdb hangs on a row of files, below: named for the type
+    # checker, never imported at run time, since filesdb imports this module.
+    from .filekinds import What
+    from .filesdb import Chip, Linked
+
 
 def _part_fk() -> MappedColumn[str]:
     """part_id column referencing a part, cascading on delete."""
@@ -500,14 +506,13 @@ class AssetChip(Base):
 
 class StoredFile(Base):
     """A file kept beside the register: a driver disk, a manual, a ROM dump, the
-    utility that came with a card.
+    utility that came with a card, a receipt.
 
-    It belongs to no one asset, and is not a column on one. What it is for is
-    stated in `file_asset` and `file_model` -- this one unit, or every item of a
-    model -- and stated by hand (ADR-0006, ADR-0020). Until 0039 it was inferred
-    from the file's tags, by containment on the item's name, which is why the
-    argument for that lived in this docstring; it is in ADR-0006 now, kept rather
-    than lost. filesdb still owns the bytes on disk.
+    It belongs to no one asset and is not a column on one: a driver disk is as much
+    about the fourth card of a model as about the first. What it is for is the list
+    of asset ids in `file_asset`, made by hand, and nothing else (ADR-0028) -- there
+    were tags and model links once, and 0044 folded both into that list. filesdb
+    owns the links and the bytes on disk.
 
     `stored` is the name on disk, which is generated: what was uploaded is kept in
     `filename` for the download to be called by, and never used as a path."""
@@ -529,46 +534,29 @@ class StoredFile(Base):
     # between a scanned invoice and the open web (ADR-0009).
     public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
-    # Not columns. filesdb.with_links and with_tags hang these on the rows of a page
-    # so that a list of files costs three queries and not three per file, and the
-    # templates read them back. Declared for the type checker alone: SQLAlchemy
-    # never sees this block, so nothing here is mapped, stored or migrated, and a
-    # row that has not been through those two functions does not have them.
+    # Not columns. filesdb.with_links hangs these on the rows of a page so that a
+    # list of files costs two queries and not two per file, and the templates read
+    # them back. Declared for the type checker alone: SQLAlchemy never sees this
+    # block, so nothing here is mapped, stored or migrated, and a row that has not
+    # been through with_links does not have them.
     if TYPE_CHECKING:
         assets: list[str]
-        models: list[tuple[str, str, str]]
-        model_pairs: set[tuple[str, str]]
-        unfiled: bool
-        tags: list[str]
-
-
-class FileTag(Base):
-    """One label on a file: `manual`, `driver`, `ROM dump`. `fold` is it normalised
-    (case and spacing are how one word gets typed two ways); `tag` is it as
-    written, for showing back.
-
-    A label since 0039, and not an association: what a file is for is in
-    `file_asset` and `file_model`. A tag that reads like the name of a machine is
-    still only a tag."""
-
-    __tablename__ = "file_tag"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    file_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    tag: Mapped[str] = mapped_column(String(120), nullable=False)
-    fold: Mapped[str] = mapped_column(String(120), nullable=False, index=True)
+        linked: list[Linked]
+        chips: list[Chip]
+        unlinked: bool
+        what: What
 
 
 class FileAsset(Base):
-    """A file about one particular unit: a receipt, a photograph of a repair, a
-    ROM read off one board.
+    """One thing a file is for, by its asset id: the card a driver drives, the
+    machine a manual covers, the unit a receipt is for. A file has as many of these
+    as it needs, and an item's page shows the files that name it (ADR-0028).
 
     `asset_id` is a plain column and not a foreign key, following ProjectAsset and
     for its reason: the register is two tables and what this names may be in
     either. Deleting the item takes the link with it and never the bytes -- a file
-    left with no links is unfiled, which is a state the files page shows rather
-    than a reason to delete anything (ADR-0006)."""
+    left with no links is unlinked, which is a state the files page shows rather
+    than a reason to delete anything."""
 
     __tablename__ = "file_asset"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -577,36 +565,6 @@ class FileAsset(Base):
     )
     asset_id: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     __table_args__ = (UniqueConstraint("file_id", "asset_id", name="uq_file_asset_pair"),)
-
-
-class FileModel(Base):
-    """A file about every item of a model: a driver, a manual, a utility disk.
-
-    `kind` says which sort of handle `model_key` is, because the register holds two
-    sorts of thing (ADR-0020). `catalogue` is machines.yaml's stable key, held by a
-    machine the catalogue names or the board out of one; `named` is the maker and
-    the model as somebody wrote them, folded and joined -- `trident|tvga8900` --
-    which is the only handle a part or a PC clone has. An item answers to both
-    where it has both.
-
-    `label` is that model as typed, since a folded key is not something to show
-    anybody: a cache of what to print, never what to match on.
-
-    Matching is equality on `model_key`. Containment is what let a tag of "16"
-    reach half the register, and the key stored is the one made at the time: a
-    change to how `filesdb.fold` folds must not quietly move a file."""
-
-    __tablename__ = "file_model"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    file_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    kind: Mapped[str] = mapped_column(String(16), nullable=False)
-    model_key: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
-    label: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
-    __table_args__ = (
-        UniqueConstraint("file_id", "kind", "model_key", name="uq_file_model_triple"),
-    )
 
 
 class LogEntry(Base):

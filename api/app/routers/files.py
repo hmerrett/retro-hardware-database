@@ -1,33 +1,28 @@
 """The files kept beside the register: drivers, manuals, ROM dumps, receipts.
 
-What a file is for is a link it carries rather than a guess made from its name
-(ADR-0006, ADR-0020), and whether a visitor may see it is a tick somebody made
-(ADR-0009). Both are asked on the way in and on the way out: the listing and the
+What a file is for is the list of asset ids it is linked to, made by hand
+(ADR-0028), and whether a visitor may see it is a tick somebody made (ADR-0009).
+Both are asked on the way in and on the way out: the list, a file's page and the
 download put the same question to the same column, because a file kept off a page
 and still fetchable at its URL is not private.
+
+Everything done to a file is done on its own page. The lists that show files -- this
+module's /files and the panel on an item page -- are read-only rows, which is what
+keeps a phone's screen for the files rather than for the boxes around them.
 """
 
-from urllib.parse import quote
-
-
-# --- files kept beside the register -----------------------------------------
-# Drivers, manuals, ROM dumps. Not hung off an asset id: a file is attached to what
-# it is for, which is a model as often as it is a unit -- one driver for the three
-# identical cards on the shelf and the fourth bought next year (ADR-0006,
-# ADR-0020). app/filesdb.py owns the links and the bytes; these are the things a
-# person does with one, of which publishing is its own, since a file is kept back
-# from visitors until somebody says otherwise (ADR-0009).
+from urllib.parse import quote, urlencode
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import filesdb
+from .. import filekinds, filesdb
 from ..common import to_dict
 from ..db import get_db
 from ..forms import posted
 from ..history import add_log
-from ..models import Computer, Part, StoredFile
+from ..models import Computer, Part, Project, StoredFile
 from ..register import _register_order
 from ..web import _og, _safe_next, templates
 
@@ -37,6 +32,19 @@ router = APIRouter()
 def _file_or_404(db: Session, fid: int) -> StoredFile:
     row = db.get(StoredFile, fid)
     if row is None:
+        raise HTTPException(404, f"file {fid} not found")
+    return row
+
+
+def _seen_or_404(db: Session, fid: int, request: Request) -> StoredFile:
+    """The file, if this reader may know it exists. An unpublished file is a 404 to
+    a visitor rather than a 401, and the same 404 a missing id gets. There is
+    nothing to log in *for* here -- the login is the owner's, not an account a
+    reader could hold -- so an invitation to authenticate would only confirm that
+    the file exists, which for the receipt this flag was added to cover is most of
+    what was being kept back."""
+    row = _file_or_404(db, fid)
+    if not row.public and not request.state.authed:
         raise HTTPException(404, f"file {fid} not found")
     return row
 
@@ -52,16 +60,8 @@ def serve_file(
     site's cookies. So: one content type for everything, an attachment
     disposition, and nosniff to stop the browser deciding it knows better. `name`
     is in the URL for the sake of the link reading like the file, and is not what
-    is opened -- the id is.
-
-    An unpublished file is a 404 to a visitor rather than a 401, and the same 404
-    a missing id gets. There is nothing to log in *for* here -- the login is the
-    owner's, not an account a reader could hold -- so an invitation to authenticate
-    would only confirm that the file exists, which for the receipt this flag was
-    added to cover is most of what was being kept back."""
-    row = _file_or_404(db, fid)
-    if not row.public and not request.state.authed:
-        raise HTTPException(404, f"file {fid} not found")
+    is opened -- the id is."""
+    row = _seen_or_404(db, fid, request)
     path = filesdb.path_of(row)
     if not path.is_file():
         raise HTTPException(404)
@@ -87,126 +87,151 @@ def _ascii_filename(name: str | None) -> str:
     return cleaned.replace('"', "").replace("\\", "").strip() or "download"
 
 
+def _item_for_link(db: Session, aid: str | None) -> dict[str, object] | None:
+    """The machine, part or project an asset id names, as the dict filesdb reads,
+    or None for an id that names nothing."""
+    aid = (aid or "").strip().upper()
+    if not aid:
+        return None
+    obj = db.get(Computer, aid) or db.get(Part, aid) or db.get(Project, aid)
+    return to_dict(obj) if obj else None
+
+
+def _linkable(db: Session) -> list[tuple[str, str]]:
+    """Everything a file can be linked to, as (asset id, name), for the box on a
+    file's page to offer: the register's machines and parts in its own order, then
+    the projects."""
+    out = [(aid, name) for aid, _kind, name in _register_order(db)]
+    out += [
+        (aid, name or aid)
+        for aid, name in db.query(Project.asset_id, Project.name).order_by(Project.asset_id)
+    ]
+    return out
+
+
 @router.post("/files", include_in_schema=False)
 async def gui_upload_files(
     request: Request, uploads: list[UploadFile] = File(...), db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    """Take one or more files, label them with the tags the form carries, and attach
-    them to whatever the upload started on.
+    """Take one or more files and link them to the item the upload started on --
+    and to its same-model siblings as well, where the tick for them was ticked.
 
-    `aid` is that item. A driver found while looking at the card it is for is about
-    the card as a model, so that is what it is attached to; an item with no model to
-    speak of gets the file attached to itself (ADR-0020). Either way the panel says
-    which it did and offers the other."""
+    The siblings are worked out here again rather than read from the form, so the
+    tick can only ever mean "the others of this model still held": a list of ids
+    posted from a page would be a way to link a file to anything at all."""
     form = await posted(request)
-    tags = filesdb.parse_tags(form.get("tags", ""))
     note = form.get("note", "")
+    public = bool(form.get("public"))
     nxt = _safe_next(form.get("next") or "/files")
-    aid = (form.get("aid") or "").strip().upper()
+    item = _item_for_link(db, form.get("aid"))
+    targets: list[str] = []
+    if item is not None:
+        # str(): the dict is a row read column by column, so every value in it is
+        # typed as wide as a column can be; an asset id is the primary key.
+        targets.append(str(item["asset_id"]))
+        if form.get("siblings"):
+            targets += [link.asset_id for link in filesdb.siblings(db, item, held=True)]
     saved = 0
     errors: list[str] = []
     for up in uploads:
         if not (up.filename or "").strip():
             continue
         try:
-            row = filesdb.save(db, up, tags, note)
-            if row is not None:
-                saved += 1
-                _attach_where_it_belongs(db, row.id, aid)
+            row = filesdb.save(db, up, note, public)
         except ValueError as exc:
             errors.append(str(exc))
-    if saved and aid:
-        add_log(db, aid, f"added {saved} file(s)")
+            continue
+        if row is not None:
+            saved += 1
+            for aid in targets:
+                filesdb.link(db, row.id, aid)
+    if saved and item is not None:
+        add_log(db, str(item["asset_id"]), f"added {saved} file(s)")
     db.commit()
     return RedirectResponse(nxt + ("?fileerr=1" if errors else ""), status_code=303)
 
 
-def _item_for_link(db: Session, aid: str | None) -> dict[str, object] | None:
-    """The computer or part an asset id names, as the dict filesdb reads. None for
-    a project, or an id that names nothing: a file is about hardware."""
-    aid = (aid or "").strip().upper()
-    if not aid:
-        return None
-    obj = db.get(Computer, aid) or db.get(Part, aid)
-    return to_dict(obj) if obj else None
+@router.get("/files/{fid}", response_class=HTMLResponse, include_in_schema=False)
+def gui_file(fid: int, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    """One file: what it is, what it is linked to, and the download -- and, for the
+    owner, everything that can be done to it, since this is the only place any of
+    it is done.
+
+    The register's ids ride along for the link box to offer, owner only: what it is
+    is a list of everything owned, which is not a thing to hand a visitor who cannot
+    link anything anyway."""
+    row = _seen_or_404(db, fid, request)
+    authed = request.state.authed
+    [row] = filesdb.with_links(db, [row], authed)
+    return templates.TemplateResponse(
+        request,
+        "file.html",
+        {
+            "f": row,
+            "assets": _linkable(db) if authed else [],
+            "linkerr": request.query_params.get("linkerr", "")[:40] if authed else "",
+            "note_max": filesdb.NOTE_MAX,
+            "og": _og(
+                request,
+                row.filename,
+                row.note or f"{row.what.size} · a file kept with the hardware it is for",
+            ),
+        },
+    )
 
 
-def _attach_where_it_belongs(db: Session, file_id: int, aid: str) -> None:
-    """What uploading from an item's page means: the model where the item has one,
-    since a driver is a fact about a model, and the item itself where it has none --
-    a custom build, or a card whose model was left blank."""
-    item = _item_for_link(db, aid)
-    if item is None:
-        return
-    models = filesdb.model_ids_for(db, item)
-    if models:
-        kind, key, label = models[0]
-        filesdb.attach_model(db, file_id, kind, key, label)
-    else:
-        # str(): the dict is a row read column by column, so every value in it is
-        # typed as wide as a column can be; an asset id is the primary key.
-        filesdb.attach_asset(db, file_id, str(item["asset_id"]))
-
-
-@router.post("/files/{fid}/attach", include_in_schema=False)
-async def gui_file_attach(
+@router.post("/files/{fid}/link", include_in_schema=False)
+async def gui_file_link(
     fid: int, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    """Attach a file that is already on file to this item, or to its model.
+    """Link a file to one more machine, part or project, by its asset id.
 
-    `what` picks which: `unit` is that one machine or card, anything else is the
-    model. Asking for a model an item does not have attaches the item instead
-    rather than failing, because the answer to "every one of these" where there is
-    only the one is the one."""
+    An id that is not in the register is a typo rather than a broken link, so the
+    answer is the page again with a line saying so, not a 404 to find the way back
+    from."""
     row = _file_or_404(db, fid)
     form = await posted(request)
-    item = _item_for_link(db, form.get("aid"))
+    nxt = _safe_next(form.get("next") or f"/files/{row.id}")
+    typed = (form.get("aid") or "").strip().upper()
+    item = _item_for_link(db, typed)
     if item is None:
-        raise HTTPException(404, "nothing here to attach a file to")
-    models = filesdb.model_ids_for(db, item)
-    if (form.get("what") or "model") == "unit" or not models:
-        filesdb.attach_asset(db, row.id, str(item["asset_id"]))
-    else:
-        kind, key, label = models[0]
-        filesdb.attach_model(db, row.id, kind, key, label)
+        joiner = "&" if "?" in nxt else "?"
+        return RedirectResponse(
+            nxt + joiner + urlencode({"linkerr": typed or "?"}), status_code=303
+        )
+    filesdb.link(db, row.id, str(item["asset_id"]))
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
+    return RedirectResponse(nxt, status_code=303)
 
 
-@router.post("/files/{fid}/detach", include_in_schema=False)
-async def gui_file_detach(
+@router.post("/files/{fid}/unlink", include_in_schema=False)
+async def gui_file_unlink(
     fid: int, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    """Take a file off a unit or off a model.
-
-    It never deletes anything. A file attached to nothing is unfiled, which the
-    files page says out loud -- the disposal case ADR-0006 was right to worry
-    about is a file quietly going in the bin with the last thing that pointed at
-    it."""
+    """Take a file off one thing. It never deletes anything: a file linked to
+    nothing is unlinked, which the files page says out loud -- the disposal case
+    ADR-0006 was right to worry about is a file quietly going in the bin with the
+    last thing that pointed at it."""
     row = _file_or_404(db, fid)
     form = await posted(request)
-    aid = (form.get("aid") or "").strip().upper()
-    kind, key = (form.get("kind") or "").strip(), (form.get("key") or "").strip()
+    aid = (form.get("aid") or "").strip()
     if aid:
-        filesdb.detach_asset(db, row.id, aid)
-    if kind and key:
-        filesdb.detach_model(db, row.id, kind, key)
+        filesdb.unlink(db, row.id, aid)
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/files/{row.id}"), status_code=303)
 
 
-@router.post("/files/{fid}/tags", include_in_schema=False)
-async def gui_file_tags(
+@router.post("/files/{fid}/note", include_in_schema=False)
+async def gui_file_note(
     fid: int, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    """Relabel one: what the box says is the whole list, so a tag taken out of it is
-    gone. A tag is a label now and decides nothing about where the file appears --
-    that is what attach and detach are for."""
+    """Say what a file is, in a line. What the box holds is the whole of the note,
+    so emptying it clears it."""
     row = _file_or_404(db, fid)
     form = await posted(request)
-    filesdb.set_tags(db, row, form.get("tags", ""))
+    row.note = (form.get("note") or "").strip()[: filesdb.NOTE_MAX]
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/files/{row.id}"), status_code=303)
 
 
 @router.post("/files/{fid}/public", include_in_schema=False)
@@ -222,7 +247,7 @@ async def gui_file_public(
     form = await posted(request)
     row.public = bool(form.get("public"))
     db.commit()
-    return RedirectResponse(_safe_next(form.get("next") or "/files"), status_code=303)
+    return RedirectResponse(_safe_next(form.get("next") or f"/files/{row.id}"), status_code=303)
 
 
 @router.post("/files/{fid}/delete", include_in_schema=False)
@@ -237,21 +262,37 @@ async def gui_file_delete(
 
 
 @router.get("/files", response_class=HTMLResponse, include_in_schema=False)
-def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
-    """Everything on file, for finding the driver whose card is not in front of you,
-    for seeing what a tag is spelled as before typing it again, and for filing the
-    one that is attached to nothing.
+def gui_files(
+    request: Request,
+    kind: str = "",
+    q: str = "",
+    show: str = "",
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """Everything on file, for finding the driver whose card is not in front of you
+    -- and, for the owner, the two lists that want attention: what is linked to
+    nothing, and what visitors cannot see.
 
-    The register's ids ride along for the attach box to offer, owner only: what it
-    is is a list of everything owned, which is not a thing to hand a visitor who
-    cannot attach anything anyway."""
+    The kinds are counted over the files this reader can see before any of them is
+    chosen, so a filter says how many it holds rather than how many it is showing."""
+    authed = request.state.authed
+    seen = filesdb.all_files(db, authed)
+    kind = kind if kind in filekinds.GROUPS else ""
+    show = show if authed and show in filesdb.SHOWS else ""
     return templates.TemplateResponse(
         request,
         "files.html",
         {
-            "files": filesdb.all_files(db, tag, request.state.authed),
-            "tag": tag,
-            "assets": _register_order(db) if request.state.authed else [],
+            "files": filesdb.all_files(db, authed, kind, q, show),
+            "groups": filesdb.groups(seen),
+            "counts": {
+                "all": len(seen),
+                "unlinked": sum(1 for f in seen if f.unlinked),
+                "private": sum(1 for f in seen if not f.public),
+            },
+            "kind": kind,
+            "q": q,
+            "show": show,
             "og": _og(
                 request, "Files", "Drivers, manuals and disks kept with the hardware they belong to"
             ),
@@ -263,23 +304,19 @@ def gui_files(request: Request, tag: str = "", db: Session = Depends(get_db)) ->
 # otherwise publish it as the response's shape, which the pinned contract
 # (ADR-0010) leaves open.
 @router.get("/api/files", tags=["files"], response_model=None)
-def api_list_files(tag: str = "", db: Session = Depends(get_db)) -> list[dict[str, object]]:
-    """Files kept beside the register, newest first, each with its tags and what it
-    is attached to: `assets` are the units it is about and `models` the models every
-    item of which it is about. `tag` narrows it to one tag, matched ignoring case
-    and spacing."""
+def api_list_files(db: Session = Depends(get_db)) -> list[dict[str, object]]:
+    """Files kept beside the register, newest first, each with the asset ids of the
+    machines, parts and projects it is linked to."""
     return [
         {
             "id": f.id,
             "filename": f.filename,
             "size": f.size,
             "note": f.note,
-            "tags": f.tags,
             "created_at": f.created_at,
             "public": f.public,
             "assets": f.assets,
-            "models": [{"kind": k, "key": key, "label": label} for k, key, label in f.models],
             "url": f"/files/{f.id}/{quote(f.filename)}",
         }
-        for f in filesdb.all_files(db, tag)
+        for f in filesdb.all_files(db)
     ]

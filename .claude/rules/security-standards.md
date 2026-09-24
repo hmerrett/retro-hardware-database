@@ -119,4 +119,9 @@ four digits on it.
 - Serve it `private, no-store`. Unticking the box has to stop the copy being
   handed out, which a cache holding the published `max-age` would not.
 - The files already on file when 0035 ran were published by it, because they were
-  already public. Anything uploaded since starts private.
+  already public. Anything uploaded since starts private -- unless the owner has
+  turned on **New files are public**, which starts the upload's tick ticked where
+  the form shows it, and never on a private project's page (ADR-0029).
+- A file may be linked to a project. A visitor is never told a file is linked to a
+  private project: the links a visitor is shown, and the list's search, leave it
+  out (ADR-0028).

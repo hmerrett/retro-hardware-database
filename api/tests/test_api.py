@@ -5819,21 +5819,25 @@ class TestAPageNoticesItHasChanged:
         client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
         assert self.token(client, aid) != after_crop
 
-    def test_a_file_moves_it_although_it_belongs_to_no_item(self, client, part):
-        """A driver is filed against a model rather than against the card on the
-        shelf, so nothing about it reaches that item's history -- and an item page
-        shows it all the same."""
+    def test_linking_a_file_to_it_moves_it(self, client, part):
+        """Linking a file writes no history -- a file is not one item's alone -- so
+        the item's links are counted beside its history, and an open page notices a
+        file arriving or leaving."""
         import io
 
         aid = part(manufacturer="Creative", model="SB16")["asset_id"]
-        was = self.token(client, aid)
         client.post(
             "/files",
             files={"uploads": ("sb16.zip", io.BytesIO(b"x"), "application/zip")},
-            data={"tags": "SB16"},
             follow_redirects=False,
         )
-        assert self.token(client, aid) != was
+        fid = client.get("/api/files").json()[0]["id"]
+        was = self.token(client, aid)
+        client.post(f"/files/{fid}/link", data={"aid": aid}, follow_redirects=False)
+        linked = self.token(client, aid)
+        assert linked != was
+        client.post(f"/files/{fid}/unlink", data={"aid": aid}, follow_redirects=False)
+        assert self.token(client, aid) != linked
 
     def test_reading_the_page_does_not_move_it(self, client, part):
         """Or every page would reload itself for ever."""
@@ -6526,26 +6530,26 @@ class TestEverySectionIsAPanel:
 
 
 class TestFilesReadLikeThePartsDo:
-    """A file is a thing in a list, as a part is, so it is drawn as one. The row it
-    used to be had a text box and two buttons squeezed into table cells beside a
-    filename as long as it is."""
+    """A file is a thing in a list, as a part is, so it is drawn as one: a row with
+    what it is, its name, its size, and a way to it -- and nothing on the row to type
+    into, since everything done to a file is done on its own page (ADR-0028)."""
 
     @staticmethod
-    def upload(client, aid, name="sb16.img", tags="", note=""):
+    def upload(client, aid, name="sb16.img", note=""):
         r = client.post(
             "/files",
-            data={"aid": aid, "tags": tags or aid, "note": note, "next": f"/computers/{aid}"},
+            data={"aid": aid, "note": note, "next": f"/computers/{aid}"},
             files={"uploads": (name, b"\0" * 2048, "application/octet-stream")},
             follow_redirects=False,
         )
         assert r.status_code == 303, r.text
 
-    def test_a_file_is_a_card_with_its_name_on_it(self, client, computer):
+    def test_a_file_is_a_row_with_its_name_on_it(self, client, computer):
         aid = computer()["asset_id"]
         self.upload(client, aid, note="the driver disk that came with it")
         page = client.get(f"/computers/{aid}").text
-        assert '<article class="itemcard">' in page
-        assert "sb16.img</a></h4>" in page
+        assert '<li class="filerow">' in page
+        assert re.search(r'<a class="fname" href="/files/\d+">sb16\.img</a>', page)
         assert "the driver disk that came with it" in page
 
     def test_it_says_how_big_it_is_before_you_click_it(self, client, computer):
@@ -6553,25 +6557,13 @@ class TestFilesReadLikeThePartsDo:
         self.upload(client, aid)
         assert "2.0 KiB" in client.get(f"/computers/{aid}").text
 
-    def test_the_names_it_is_filed_under_are_still_editable(self, client, computer):
-        """Re-filing is the thing most often wanted here, so it stays a box rather
-        than becoming a link to somewhere else."""
+    def test_there_is_nothing_on_the_row_to_type_into(self, client, computer):
         aid = computer()["asset_id"]
-        self.upload(client, aid, tags=f"{aid}, Creative Labs Sound Blaster")
-        page = client.get(f"/computers/{aid}").text
-        assert f'name="tags" value="{aid}, Creative Labs Sound Blaster"' in page
-
-    def test_a_visitor_gets_the_names_without_the_box(self, client, computer, monkeypatch):
-        aid = computer()["asset_id"]
-        self.upload(client, aid, tags=f"{aid}, Creative Labs Sound Blaster")
-        # Published first, or there is no card for a visitor to be shown the
-        # chips on: an upload is kept back until it is ticked (ADR-0009).
-        fid = client.get("/api/files").json()[0]["id"]
-        client.post(f"/files/{fid}/public", data={"public": "1"}, follow_redirects=False)
-        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-        page = client.get(f"/computers/{aid}").text
-        assert '<span class="chip">Creative Labs Sound Blaster</span>' in page
-        assert 'name="tags"' not in page
+        self.upload(client, aid)
+        rows = re.search(
+            r'<ul class="filerows">.*?</ul>', client.get(f"/computers/{aid}").text, re.S
+        )
+        assert rows and "<input" not in rows.group(0) and 'name="tags"' not in rows.group(0)
 
 
 class TestPagesAreNotKeptByBrowsers:

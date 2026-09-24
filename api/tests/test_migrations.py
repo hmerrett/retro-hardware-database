@@ -231,6 +231,9 @@ def test_the_public_flag_can_be_downgraded(scratch_db_url):
 
 
 BEFORE_FILE_LINKS = "0038_items_may_be_for_sale"
+# Where 0039 left things. The two tests below read the tables it made, which
+# 0044 retired, so they stop here rather than at head.
+FILE_LINKS = "0039_a_file_says_what_it_is_for"
 
 
 def test_what_the_matcher_found_survives_0039(scratch_db_url):
@@ -290,8 +293,8 @@ def test_what_the_matcher_found_survives_0039(scratch_db_url):
                 {"i": fid, "t": tag, "f": "".join(tag.split()).lower()},
             )
 
-    up = _alembic(scratch_db_url, "upgrade", "head")
-    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    up = _alembic(scratch_db_url, "upgrade", FILE_LINKS)
+    assert up.returncode == 0, f"upgrade to 0039 failed:\n{up.stderr}"
 
     with engine.begin() as conn:
         models = set(conn.execute(text("SELECT file_id, kind, model_key FROM file_model")).all())
@@ -331,8 +334,8 @@ def test_a_file_the_matcher_reached_nothing_with_is_left_unfiled(scratch_db_url)
             text("INSERT INTO file_tag (file_id, tag, fold) VALUES (7, 'Whatever', 'whatever')")
         )
 
-    up = _alembic(scratch_db_url, "upgrade", "head")
-    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    up = _alembic(scratch_db_url, "upgrade", FILE_LINKS)
+    assert up.returncode == 0, f"upgrade to 0039 failed:\n{up.stderr}"
     with engine.begin() as conn:
         assert conn.execute(text("SELECT COUNT(*) FROM file_model")).scalar_one() == 0
         assert conn.execute(text("SELECT COUNT(*) FROM file_asset")).scalar_one() == 0
@@ -340,4 +343,165 @@ def test_a_file_the_matcher_reached_nothing_with_is_left_unfiled(scratch_db_url)
             conn.execute(text("SELECT filename FROM files WHERE id = 7")).scalar_one()
             == "orphan.zip"
         )
+    engine.dispose()
+
+
+BEFORE_ID_LINKS = "0043_where_a_thing_is_kept"
+
+
+def _tables(conn):
+    return {row[0] for row in conn.execute(text("SHOW TABLES")).all()}
+
+
+def _before_id_links(scratch_db_url):
+    """A database as 0043 left it: two Trident cards spelled two ways, one of them
+    disposed of, a Tseng card, and two Spectrums the catalogue names."""
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_ID_LINKS)
+    assert up.returncode == 0, f"upgrade to 0043 failed:\n{up.stderr}"
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        for aid, maker, model, gone in (
+            ("RH-0001", "Trident", "TVGA8900", 0),
+            ("RH-0002", "trident", "TVGA 8900", 1),
+            ("RH-0003", "Tseng", "ET4000", 0),
+        ):
+            conn.execute(
+                text(
+                    "INSERT INTO parts (asset_id, type, manufacturer, model, name, disposed, "
+                    "disposed_note, computer_id, parent_id) "
+                    "VALUES (:a, 'video', :m, :d, '', :g, '', NULL, NULL)"
+                ),
+                {"a": aid, "m": maker, "d": model, "g": gone},
+            )
+        for aid, maker, model in (
+            ("RH-0010", "Sinclair", "ZX Spectrum 48K"),
+            ("RH-0011", "sinclair research", "Spectrum"),
+        ):
+            conn.execute(
+                text("INSERT INTO computers (asset_id, manufacturer, model) VALUES (:a, :m, :d)"),
+                {"a": aid, "m": maker, "d": model},
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO asset_variant (asset_id, model_key, issue, style, region) "
+                    "VALUES (:a, 'zx-spectrum-48k', '', '', '')"
+                ),
+                {"a": aid},
+            )
+    return engine
+
+
+def _file(conn, fid, name, note=""):
+    conn.execute(
+        text("INSERT INTO files (id, stored, filename, size, note) VALUES (:i, :s, :f, 10, :n)"),
+        {"i": fid, "s": f"{fid}.bin", "f": name, "n": note},
+    )
+
+
+def _tag(conn, fid, tag):
+    conn.execute(
+        text("INSERT INTO file_tag (file_id, tag, fold) VALUES (:i, :t, :f)"),
+        {"i": fid, "t": tag, "f": "".join(tag.split()).lower()},
+    )
+
+
+def _model_link(conn, fid, kind, key, label):
+    conn.execute(
+        text("INSERT INTO file_model (file_id, kind, model_key, label) VALUES (:i, :k, :m, :l)"),
+        {"i": fid, "k": kind, "m": key, "l": label},
+    )
+
+
+def test_0044_links_every_item_a_model_link_reached(scratch_db_url):
+    """ADR-0028. A model link becomes a link to each item that answers to the model
+    on the day -- by maker and model folded, or by catalogue key -- held or
+    disposed, since a disposed item's page shows its files too. A unit link stays
+    as it was, and the two tables that are retired are gone."""
+    engine = _before_id_links(scratch_db_url)
+    with engine.begin() as conn:
+        _file(conn, 1, "tvga.zip")
+        _file(conn, 2, "manual.pdf")
+        _file(conn, 3, "receipt.pdf")
+        _model_link(conn, 1, "named", "trident|tvga8900", "Trident TVGA8900")
+        _model_link(conn, 2, "catalogue", "zx-spectrum-48k", "ZX Spectrum 48K")
+        conn.execute(text("INSERT INTO file_asset (file_id, asset_id) VALUES (3, 'RH-0003')"))
+
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    with engine.begin() as conn:
+        links = set(conn.execute(text("SELECT file_id, asset_id FROM file_asset")).all())
+        tables = _tables(conn)
+    assert links == {
+        (1, "RH-0001"),
+        (1, "RH-0002"),
+        (2, "RH-0010"),
+        (2, "RH-0011"),
+        (3, "RH-0003"),
+    }
+    assert "file_model" not in tables and "file_tag" not in tables
+    engine.dispose()
+
+
+def test_0044_keeps_in_the_note_a_tag_that_said_more_than_the_links(scratch_db_url):
+    """A tag that only repeated what the file was linked to -- inside a model link's
+    label, the way the name matcher read tags, or equal to a linked asset id -- is
+    dropped. Any other tag is kept, after whatever the note already said, so a clue
+    on a file linked to nothing survives."""
+    engine = _before_id_links(scratch_db_url)
+    with engine.begin() as conn:
+        _file(conn, 1, "tvga.zip")
+        _model_link(conn, 1, "named", "trident|tvga8900", "Trident TVGA8900")
+        _tag(conn, 1, "Trident TVGA8900")
+        _tag(conn, 1, "driver")
+        _file(conn, 2, "sbbasic.img", note="the basic disk")
+        _model_link(conn, 2, "named", "trident|tvga8900", "Trident TVGA8900 rev B")
+        _tag(conn, 2, "Trident TVGA8900")
+        _file(conn, 3, "ctcmbbs.img")
+        _tag(conn, 3, "Creative Labs Sound Blaster PnP")
+        _file(conn, 4, "receipt.pdf")
+        conn.execute(text("INSERT INTO file_asset (file_id, asset_id) VALUES (4, 'RH-0003')"))
+        _tag(conn, 4, "RH-0003")
+        _file(conn, 5, "guide.pdf", note="user guide")
+        _tag(conn, 5, "manual")
+
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    with engine.begin() as conn:
+        notes = dict(conn.execute(text("SELECT id, note FROM files")).all())
+    assert notes == {
+        1: "driver",
+        2: "the basic disk",
+        3: "Creative Labs Sound Blaster PnP",
+        4: "",
+        5: "user guide — manual",
+    }
+    engine.dispose()
+
+
+def test_0044_moves_nothing_on_a_register_with_no_files(scratch_db_url):
+    engine = _before_id_links(scratch_db_url)
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    with engine.begin() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM file_asset")).scalar_one() == 0
+    engine.dispose()
+
+
+def test_0044_can_be_downgraded(scratch_db_url):
+    """The two tables come back empty, which is the shape 0043 expects, and the links
+    stay: a downgraded register offers each file on the items it is linked to."""
+    engine = _before_id_links(scratch_db_url)
+    with engine.begin() as conn:
+        _file(conn, 1, "tvga.zip")
+        _model_link(conn, 1, "named", "trident|tvga8900", "Trident TVGA8900")
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_ID_LINKS)
+    assert down.returncode == 0, f"downgrade from 0044 failed:\n{down.stderr}"
+    with engine.begin() as conn:
+        tables = _tables(conn)
+        links = set(conn.execute(text("SELECT file_id, asset_id FROM file_asset")).all())
+    assert {"file_model", "file_tag"} <= tables
+    assert links == {(1, "RH-0001"), (1, "RH-0002")}
+    again = _alembic(scratch_db_url, "upgrade", "head")
+    assert again.returncode == 0, f"upgrade after downgrade failed:\n{again.stderr}"
     engine.dispose()

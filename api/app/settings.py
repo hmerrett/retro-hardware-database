@@ -177,6 +177,18 @@ DEFINITIONS: tuple[Definition, ...] = (
         default="0",
     ),
     Definition(
+        key="files_public",
+        section=SERVER,
+        label="New files are public",
+        note=(
+            "Starts the Public tick in the upload box ticked, so a file is published as "
+            "it arrives unless you untick it first. Off, every upload is kept back until "
+            "it is ticked. A private project's uploads always start unticked."
+        ),
+        kind=SWITCH,
+        default="0",
+    ),
+    Definition(
         key="remember_locations",
         section=SERVER,
         label="Remember old locations",

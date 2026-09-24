@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from . import entry
 from .common import REGISTER
 from .db import Base
-from .models import Computer, LogEntry, Part, Project, StoredFile
+from .models import Computer, FileAsset, LogEntry, Part, Project, StoredFile
 
 _Model = TypeVar("_Model", bound=Base)
 
@@ -40,18 +40,24 @@ def _change_token(db: Session, aid: str) -> str:
     Every change to an asset writes a history entry -- a field edited, a photograph
     added, rotated, cropped or deleted -- so the highest id in that item's history
     already answers "has anything happened to this?" without a column being added
-    anywhere. Files are the one thing an item page shows that is not filed against
-    it (a driver belongs to a model, not to the card on the shelf), so the register
-    of files is counted alongside: the newest id, and how many there are, because
-    deleting one that is not the newest leaves the maximum where it was.
+    anywhere. Files are the exception: linking one to an item writes no history,
+    since the file is not the item's alone, so the item's links are counted too --
+    the newest, and how many, because an unlink leaves the newest where it was. And
+    the register of files as a whole, the same two ways, since the owner's panel
+    offers what the item's siblings have, which an upload somewhere else changes.
 
     Cheap on purpose. This is asked every few seconds by every open page, and it is
-    two indexed aggregates over columns that are already there.
+    a handful of indexed aggregates over columns that are already there.
     """
     logged = db.query(func.max(LogEntry.id)).filter(LogEntry.asset_id == aid).scalar()
+    linked, links = (
+        db.query(func.max(FileAsset.id), func.count(FileAsset.id))
+        .filter(FileAsset.asset_id == aid)
+        .one()
+    )
     newest = db.query(func.max(StoredFile.id)).scalar()
     count = db.query(func.count(StoredFile.id)).scalar()
-    return f"{logged or 0}.{newest or 0}.{count or 0}"
+    return f"{logged or 0}.{linked or 0}.{links or 0}.{newest or 0}.{count or 0}"
 
 
 def _register_order(db: Session) -> list[tuple[str, str, str]]:

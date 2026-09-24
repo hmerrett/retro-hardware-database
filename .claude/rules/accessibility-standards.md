@@ -58,9 +58,10 @@ was looking at a desktop.
 - **A table with more columns than a phone holds either stacks or scrolls inside
   its own box.** More than three is the line: 320px less the gutters leaves 74px
   a column, which is five characters and a padding either side. Stacking is the
-  answer for a list of things (`.projtable`, `.ordertable`, `.filetable` — cells
-  become blocks under a `max-width` block, each carrying the heading it has lost
-  in `data-label`); `.hscroll` is the answer where the row has to stay a row, as
+  answer for a list of things (`.projtable`, `.ordertable` — cells become blocks
+  under a `max-width` block, each carrying the heading it has lost in
+  `data-label`), and the files list stopped being a table at all (a row each,
+  ADR-0028); `.hscroll` is the answer where the row has to stay a row, as
   the drives table does. The test walks every list page, so a fourth table gets
   the question asked of it.
 - **A stacked cell says what it is.** Stacked, a row loses its headings, and a

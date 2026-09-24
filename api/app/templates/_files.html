@@ -1,39 +1,51 @@
-{# The files this item is covered by, and how to add one. Expects: item (the
-   record as a dict), kind, files, file_models, fileerr.
+{# The files linked to this item, and how to add one. Expects: item (the record as
+   a dict), kind, files, fileerr, and for the owner file_siblings, file_model and
+   file_offer (filesdb.panel).
 
-   Attached to a model rather than to an asset id wherever there is a model, so the
-   same driver disk shows on every card of that model and on the machine it shipped
-   in (ADR-0006, ADR-0020). That is what an upload started here does by default, and
-   the card it lands on offers the other answer in one click. The box below is for
-   tags, which say what a file is and decide nothing about where it appears. #}
+   A file is linked to the things it is for by their asset ids and nothing else
+   (ADR-0028), so this panel shows what names this item -- and nothing reaches it
+   by being about the same model. The model only suggests, in the two places below
+   that the owner is shown: the tick that links an upload to the other units of the
+   model as well, and the files those units have that this one has not. #}
 {% import "_panel.html" as PN %}
-{% import "_partlist.html" as P %}
+{% import "_filerows.html" as FR %}
 {% call PN.panel('Files', files | length if files else '', flush=true) %}
-  {# A card each rather than a row each, as the parts above are: a filename is as
-     long as it is, and what a file is attached to wants room to be read and changed
-     in -- both of which a table asked to share its width with the other columns. #}
   {% if files %}
-  {{ P.filecards(files, '/' + kind + '/' + item.asset_id, request.state.authed,
-                 item, file_models | default([])) }}
+  {{ FR.rows(files, request.state.authed, chips=false) }}
   {% else %}
   <div class="pbody"><p class="muted flush">No files.</p></div>
   {% endif %}
 
   {% if request.state.authed %}
+  {% if file_offer %}
+  <div class="pbody fileoffer">
+    <p class="flush">Your other {{ file_model or 'units of this model' }} {{ 'have a file' if file_offer | length == 1 else 'have ' ~ (file_offer | length) ~ ' files' }} this one has not:</p>
+    <ul class="offerrows">
+      {% for f in file_offer %}
+      <li><a href="/files/{{ f.id }}">{{ f.filename }}</a>
+        <form method="post" action="/files/{{ f.id }}/link">
+          <input type="hidden" name="aid" value="{{ item.asset_id }}">
+          <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
+          <button class="btn sm" type="submit" aria-label="link {{ f.filename }} to {{ item.asset_id }}">link</button>
+        </form></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
   <div class="pbody">
   {% if fileerr %}<p class="hint">Too big — the limit is {{ max_file_mb }} MiB.</p>{% endif %}
   {# Choosing the files is the whole gesture, as it is for photographs: the upload
-     goes the moment they are picked. Where it lands is decided by the page rather
-     than by this form -- see the hint under it -- so what is typed here first is
-     only what the file is. The button stays in the markup for a browser running no
-     script. #}
+     goes the moment they are picked, so everything it asks is asked above the
+     picker. The button stays in the markup for a browser running no script. #}
   <form class="fileform" method="post" action="/files" enctype="multipart/form-data"
         id="file-upload" data-autosend
-        title="{% if file_models %}Attached to every {{ file_models[0][2] }}; the card it lands on can attach it to {{ item.asset_id }} alone instead.{% else %}Attached to {{ item.asset_id }}, which has no maker and model to share it with.{% endif %} Private until you tick public.">
+        title="Linked to {{ item.asset_id }} as it arrives. Everything else about it is done on its own page.">
     <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
     <input type="hidden" name="aid" value="{{ item.asset_id }}">
-    <input name="tags" placeholder="tags — manual, driver, ROM dump"
-           aria-label="tags for this file">
+    {% if file_siblings %}
+    <label class="tickbox" title="{{ file_siblings | map(attribute='asset_id') | join(', ') }}"><input type="checkbox" name="siblings" value="1"> the other {{ (file_siblings | length ~ ' ') if file_siblings | length > 1 else '' }}{{ file_model }}</label>
+    {% endif %}
+    <label class="tickbox" title="Visitors can download it as soon as it arrives. Unticked, it is kept back until you tick it on its page.{% if item.private %} A private project's files start unticked.{% endif %}"><input type="checkbox" name="public" value="1"{{ ' checked' if file_public_default else '' }}> Public</label>
     {# What files have been called before: a manual, a driver disk, a ROM dump.
        Half a dozen answers cover nearly everything, and typing one of them the same
        way twice is what makes them worth reading. #}

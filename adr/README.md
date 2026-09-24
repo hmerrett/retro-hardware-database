@@ -26,14 +26,16 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0005](0005-the-tuneup-is-conservative-and-takes-one-step-back.md) — The photo
   tuneup is conservative, and takes exactly one step back — *Accepted*
 - [0006](0006-files-are-linked-to-what-they-are-for.md) — Files are linked to what
-  they are for, not named after it — *Accepted* (privacy default amended by
-  [0009](0009-a-file-is-published-by-hand.md))
+  they are for, not named after it — *Superseded in part by
+  [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md)* (privacy
+  default amended by [0009](0009-a-file-is-published-by-hand.md))
 - [0007](0007-the-register-records-what-is-owned.md) — The register records what is
   owned, not what it is made of — *Accepted*
 - [0008](0008-the-suite-runs-on-mariadb.md) — The suite runs on MariaDB, and builds
   its schema from the migrations — *Accepted*
 - [0009](0009-a-file-is-published-by-hand.md) — A file is published by hand —
-  *Accepted*
+  *Accepted* (default amended by
+  [0029](0029-an-upload-starts-public-where-the-owner-says.md))
 - [0010](0010-the-published-api-shape-is-kept-in-the-repository.md) — The published
   API shape is kept in the repository — *Accepted*
 - [0011](0011-the-register-is-a-product-other-people-run.md) — The register is a
@@ -58,7 +60,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0019](0019-running-open-is-supported-but-never-silent.md) — Running open is
   supported, but never silent — *Accepted*
 - [0020](0020-a-model-link-names-a-maker-and-a-model.md) — A model link names a
-  maker and a model, not only a catalogue key — *Accepted*
+  maker and a model, not only a catalogue key — *Superseded by
+  [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md)*
 - [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md) —
   The Content-Security-Policy is the app's, and the suite holds it — *Accepted*
 - [0022](0022-no-style-attribute-and-the-rules-that-are-data-are-generated.md) —
@@ -68,3 +71,10 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   configuration, and the environment still wins — *Accepted*
 - [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md) — A
   remembered vocabulary is deleted when it is turned off — *Accepted*
+- [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md) — A file is
+  linked to the things it is for, by their asset ids — *Accepted* (supersedes
+  [0020](0020-a-model-link-names-a-maker-and-a-model.md) and the model link and
+  tags of [0006](0006-files-are-linked-to-what-they-are-for.md))
+- [0029](0029-an-upload-starts-public-where-the-owner-says.md) — An upload starts
+  public where the owner says so — *Accepted* (amends
+  [0009](0009-a-file-is-published-by-hand.md)'s default)

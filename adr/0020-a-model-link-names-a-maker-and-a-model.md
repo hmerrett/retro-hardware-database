@@ -1,6 +1,6 @@
 # 0020 — A model link names a maker and a model, not only a catalogue key
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md)
 **Date:** 2026-09-17
 
 Amends [ADR-0006](0006-files-are-linked-to-what-they-are-for.md), which invited

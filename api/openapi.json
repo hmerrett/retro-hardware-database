@@ -2035,20 +2035,8 @@
     },
     "/api/files": {
       "get": {
-        "description": "Files kept beside the register, newest first, each with its tags and what it\nis attached to: `assets` are the units it is about and `models` the models every\nitem of which it is about. `tag` narrows it to one tag, matched ignoring case\nand spacing.",
+        "description": "Files kept beside the register, newest first, each with the asset ids of the\nmachines, parts and projects it is linked to.",
         "operationId": "api_list_files_api_files_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "tag",
-            "required": false,
-            "schema": {
-              "default": "",
-              "title": "Tag",
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -2057,16 +2045,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Api List Files",

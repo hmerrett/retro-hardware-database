@@ -1,6 +1,7 @@
 # 0006 — Files are linked to what they are for, not named after it
 
-**Status:** Accepted — privacy default amended by
+**Status:** Superseded in part by [ADR-0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md)
+(the model link and the tags; the unit link stands) — privacy default amended by
 [ADR-0009](0009-a-file-is-published-by-hand.md)
 **Date:** 2026-09-08
 

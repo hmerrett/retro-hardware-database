@@ -1,95 +1,43 @@
 {% extends "base.html" %}
+{% import "_filerows.html" as FR %}
 {% block title %}Files — {{ site_name() }}{% endblock %}
 {% block content %}
-<div class="flex">
+<div class="flex filehead">
   <h2 class="flush">Files</h2>
-  <span class="muted">{{ files|length }}</span>
+  <span class="muted">{{ counts.all }}</span>
+  {# A search of its own rather than the header's: that one reads every field of
+     every item, and this one reads a file's name, its note, and the ids and names
+     of what it is linked to. The narrowing already chosen rides along with it. #}
+  <form class="filesearch" method="get" action="/files" role="search">
+    {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
+    {% if show %}<input type="hidden" name="show" value="{{ show }}">{% endif %}
+    <input type="search" name="q" value="{{ q }}" placeholder="Search files"
+           aria-label="search the files" autocomplete="off">
+    <button class="btn sm" type="submit">search</button>
+  </form>
 </div>
-{% if tag %}<p class="hint">Tagged <em>{{ tag }}</em> · <a href="/files">show all</a></p>{% endif %}
 
-{% set back = '/files' + (('?tag=' + tag|urlencode) if tag else '') %}
-{% if files %}
-<table class="filetable">
-  <tr><th scope="col">File</th><th scope="col">Attached to</th><th scope="col" class="tight">Size</th><th scope="col" class="tight">Added</th>{% if request.state.authed %}<th scope="col" class="tight">Public</th><th scope="col"></th>{% endif %}</tr>
-  {% for f in files %}
-  <tr>
-    <td><a class="filename" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">{{ f.filename }}</a>
-      {% if f.note %}<br><span class="hint">{{ f.note | linked }}</span>{% endif %}
-      {# Tags say what a file is. They lead to the other files of that kind, and the
-         box is how one is corrected -- which has to be possible from here, since a
-         file attached to nothing appears on no item page to correct it on. #}
-      <div>{% for t in f.tags %}<a class="chip" href="/files?tag={{ t | urlencode }}">{{ t }}</a> {% endfor %}</div>
-      {% if request.state.authed %}
-      <form class="inline-form mt-5" method="post" action="/files/{{ f.id }}/tags">
-        <input type="hidden" name="next" value="{{ back }}">
-        <input name="tags" value="{{ f.tags | join(', ') }}" aria-label="tags for this file">
-        <button class="btn sm" type="submit">save tags</button>
-      </form>
-      {% endif %}</td>
-    {# What it is for. This is the page that can say all of it -- an item's own panel
-       shows only its own point of view -- so it is also where an unfiled file is
-       found and filed, and where a link naming a model nothing answers to any more
-       is visible (ADR-0020). #}
-    <td>{% if f.unfiled %}<span class="chip">unfiled</span>{% endif %}
-      {% for aid in f.assets %}
-      <span class="attached"><a class="chip" href="/items/{{ aid }}">{{ aid }}</a>
-        {% if request.state.authed %}<form class="inline-form" method="post"
-              action="/files/{{ f.id }}/detach">
-          <input type="hidden" name="next" value="{{ back }}">
-          <input type="hidden" name="aid" value="{{ aid }}">
-          <button class="btn sm" type="submit" aria-label="detach from {{ aid }}">detach</button>
-        </form>{% endif %}</span>
-      {% endfor %}
-      {% for kind, key, label in f.models %}
-      <span class="attached"><span class="chip">every {{ label }}</span>
-        {% if request.state.authed %}<form class="inline-form" method="post"
-              action="/files/{{ f.id }}/detach">
-          <input type="hidden" name="next" value="{{ back }}">
-          <input type="hidden" name="kind" value="{{ kind }}">
-          <input type="hidden" name="key" value="{{ key }}">
-          <button class="btn sm" type="submit" aria-label="detach from every {{ label }}">detach</button>
-        </form>{% endif %}</span>
-      {% endfor %}
-      {% if request.state.authed %}
-      <form class="inline-form mt-5" method="post" action="/files/{{ f.id }}/attach"
-           >
-        <input type="hidden" name="next" value="{{ back }}">
-        <input name="aid" list="dl_assets" placeholder="asset id"
-               aria-label="attach this file to an item" required>
-        <select name="what" aria-label="attach it to the model or to that one item">
-          <option value="model">its model</option>
-          <option value="unit">that one</option>
-        </select>
-        <button class="btn sm" type="submit">attach</button>
-      </form>
-      {% endif %}</td>
-    <td class="tight muted meta" data-label="size">{{ human_size(f.size) }}</td>
-    <td class="tight muted meta" data-label="added">{{ log_stamp(f.created_at, request.state.authed) if f.created_at else '' }}</td>
-    {% if request.state.authed %}
-    {# The column a visitor never sees, because a visitor is only ever shown the
-       ticked ones. It is the whole of what this page can tell you that the item
-       pages cannot: what is on the open web, in one list, sorted by nothing but
-       when it arrived. #}
-    <td class="tight meta" data-label="public"><form class="flush" method="post" action="/files/{{ f.id }}/public"
-              data-ticksend>
-        <input type="hidden" name="next" value="{{ back }}">
-        <label class="tickbox"><input type="checkbox" name="public" value="1"
-          {{ 'checked' if f.public else '' }}
-          aria-label="{{ f.filename }} is public"></label>
-        <button class="btn sm" type="submit" data-send-go>save</button></form></td>
-    <td class="meta"><form class="flush" method="post" action="/files/{{ f.id }}/delete"
-              data-confirm="Delete {{ f.filename }}?">
-        <input type="hidden" name="next" value="{{ back }}">
-        <button class="btn sm danger" type="submit">delete</button></form></td>
-    {% endif %}
-  </tr>
-  {% endfor %}
-</table>
-{% if request.state.authed %}
-<datalist id="dl_assets">{% for aid, kind, name in assets %}<option value="{{ aid }}">{{ name }}</option>{% endfor %}</datalist>
+{# One row of ways to narrow the list, all of them links, so each is an address
+   that can be bookmarked. A kind is offered when there is more than one kind to
+   tell apart; the owner's two are offered when there is something in them. #}
+{% set owner = request.state.authed %}
+{% set qs = ('&q=' + q | urlencode) if q else '' %}
+{% if groups | length > 1 or (owner and (counts.unlinked or counts.private)) %}
+<nav class="filefilters" aria-label="Narrow the files">
+  <a href="/files{{ ('?q=' + q | urlencode) if q else '' }}"{% if not kind and not show %} aria-current="page"{% endif %}>all <span>{{ counts.all }}</span></a>
+  {% if groups | length > 1 %}{% for key, label, n in groups %}
+  <a href="/files?kind={{ key }}{{ qs }}"{% if kind == key %} aria-current="page"{% endif %}>{{ label }} <span>{{ n }}</span></a>
+  {% endfor %}{% endif %}
+  {% if owner and counts.unlinked %}<a href="/files?show=unlinked{{ qs }}" title="Linked to nothing: give each one a home on its page."{% if show == 'unlinked' %} aria-current="page"{% endif %}>unlinked <span>{{ counts.unlinked }}</span></a>{% endif %}
+  {% if owner and counts.private %}<a href="/files?show=private{{ qs }}" title="Kept back from visitors until ticked public."{% if show == 'private' %} aria-current="page"{% endif %}>private <span>{{ counts.private }}</span></a>{% endif %}
+</nav>
 {% endif %}
+
+{% if files %}
+{{ FR.rows(files, owner) }}
+{% elif counts.all %}
+<p class="muted">Nothing here matches. <a href="/files">show all</a></p>
 {% else %}
-<p class="muted">{% if tag %}Nothing is filed under that name.{% else %}No files
-  yet — upload from an item's page.{% endif %}</p>
+<p class="muted">No files yet — upload from an item's page.</p>
 {% endif %}
 {% endblock %}

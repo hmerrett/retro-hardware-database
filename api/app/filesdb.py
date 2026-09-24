@@ -1,28 +1,18 @@
 """Files kept beside the register -- drivers, manuals, ROM dumps, the utility disk
-that came with a card -- and what each one is for.
+that came with a card, a receipt -- and what each one is for.
 
-The register's other tables hang off one asset id. These do not, on purpose: a
-Trident TVGA8900 driver is a fact about that card as a model, not about the
-particular one on the shelf, and a collection holding three of them would
-otherwise carry the same download three times and lose two of them the day two
-cards were disposed of.
+The register's other tables hang off one asset id. These do not: a driver disk is
+as much about the fourth card of a model as about the first, and a receipt about
+the one thing it is a receipt for. So a file is linked to the things it is for by
+their asset ids, as many as it needs, by hand, and to nothing else (ADR-0028). An
+item offers the files linked to it. There is no rule working out what a file
+reaches, so renaming an item or correcting its model moves nothing.
 
-So a file is attached to what it is for, by hand, in one of two ways. To an
-**asset id** -- this one unit -- for a receipt, a photograph of a repair, a ROM
-read off one board. To a **model** -- every item of it, owned now or acquired
-next year -- for a driver, a manual, a disk. A model is named by machines.yaml's
-key where the catalogue knows the machine and by the maker and model as written
-where it does not, and an item with both answers to both (ADR-0020).
-
-Matching is equality on the stored key. It used to be containment on the item's
-name, which is what let one tag cover a range -- and what let a tag of "16" or
-"Pro" cover far more than a range, moved a file the day somebody corrected a
-maker, and left a privacy gate resting on a recomputation. ADR-0006 has the whole
-of that argument, including what it got right; 0039 is the migration that ran the
-old matcher one last time and wrote down what it found.
-
-Tags stay, demoted: a tag says what a file *is* -- a manual, a driver, a ROM dump
--- and no longer decides what it applies to.
+The model survives in one role only, which is to suggest. The upload box on an
+item offers its same-model siblings as one tick, and an item whose siblings have
+files it lacks is offered them. Neither links anything until somebody says so --
+the difference between this and the model links 0044 retired, which reached a
+card nobody had looked at.
 
 A file is also either published or not, and starts unpublished. The register is a
 public catalogue, but this box takes receipts as readily as driver disks, so who
@@ -40,17 +30,18 @@ from __future__ import annotations
 import os
 import re
 import secrets
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NamedTuple
 
-from sqlalchemy import and_, or_
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
-from . import machines
-from .entry import GIB, KIB, MIB
-from .models import AssetVariant, FileAsset, FileModel, FileTag, StoredFile
+from . import entry, filekinds, machines, settings
+from .entry import MIB
+from .models import AssetVariant, Computer, FileAsset, Part, Project, StoredFile
 
 FILES_DIR = Path(os.getenv("RHDB_FILES_DIR", "/app/files"))
 
@@ -64,6 +55,37 @@ MAX_BYTES = 64 * 1024 * 1024
 # served as an attachment either way.
 _SAFE_SUFFIX = re.compile(r"^\.[A-Za-z0-9]{1,8}$")
 
+# How many links to units of one model a list shows one by one before it folds
+# them into "5 × Polpo PicoGUS". Two identical boards read as two; five cards read
+# as a row of chips nobody reads, and the file's own page lists them all anyway.
+FOLD_AT = 3
+
+NOTE_MAX = 255
+
+_REGISTER: tuple[tuple[str, type[Computer] | type[Part]], ...] = (
+    ("computers", Computer),
+    ("parts", Part),
+)
+
+
+class Linked(NamedTuple):
+    """One thing a file is linked to, as a page names it and links to it."""
+
+    asset_id: str
+    name: str
+    page: str
+
+
+class Chip(NamedTuple):
+    """How a list shows what a file is linked to: one item, or several units of one
+    model folded into one chip that leads to the file's page, where they are listed
+    one by one."""
+
+    label: str
+    name: str
+    page: str
+    ids: tuple[str, ...]
+
 
 def fold(text: str | None) -> str:
     """The form several spellings of one name have in common: no spaces at all, no
@@ -73,89 +95,224 @@ def fold(text: str | None) -> str:
     return "".join((text or "").split()).lower()
 
 
-CATALOGUE, NAMED = "catalogue", "named"
-
-
 def named_key(maker: str | None, model: str | None) -> str:
-    """The handle for a model the catalogue does not know: the maker and the model
-    folded and joined. Joined with a character neither can contain once folded, so
-    a maker of "Sound" and a model of "Blaster" cannot collide with a maker of
+    """A model the catalogue does not know, as a key: the maker and the model folded
+    and joined. Joined with a character neither can contain once folded, so a maker
+    of "Sound" and a model of "Blaster" cannot collide with a maker of
     "SoundBlaster" and no model at all."""
     return f"{fold(maker)}|{fold(model)}"
 
 
-def model_ids_for(db: Session, item: Mapping[str, object]) -> list[tuple[str, str, str]]:
-    """The models an item answers to, as (kind, key, label).
+def _names(
+    db: Session, asset_ids: Iterable[str], authed: bool = True
+) -> dict[str, tuple[str, str]]:
+    """{asset_id: (what it is called, its page)} for the machines, parts and
+    projects among these ids that this reader may be told about.
 
-    Both where it has both: a Spectrum +2 is a catalogue machine *and* a Sinclair
-    ZX Spectrum +2, and identifying a machine in the catalogue after a file was
-    attached to it by name must not take the file away."""
-    out = []
-    # str(): the dict is a row read column by column, so every value in it is typed
-    # as wide as a column can be; these three are text.
-    asset_id = str(item.get("asset_id") or "").strip()
-    if asset_id:
-        key = (
-            db.query(AssetVariant.model_key).filter(AssetVariant.asset_id == asset_id).scalar()
-            or ""
-        ).strip()
-        if key:
-            known = machines.model(key)
-            out.append((CATALOGUE, key, (known["model"] if known else "") or key))
-    maker = str(item.get("manufacturer") or "").strip()
-    model = str(item.get("model") or "").strip()
-    if fold(maker) or fold(model):
-        out.append(
-            (NAMED, named_key(maker, model), " ".join(word for word in (maker, model) if word))
-        )
+    A private project is left out for a visitor, and so is its id: a file may be
+    public while a project it is linked to is not, and the file's page must not be
+    the way a visitor learns the project is there (ADR-0028)."""
+    wanted = sorted(set(asset_ids))
+    out: dict[str, tuple[str, str]] = {}
+    if not wanted:
+        return out
+    projects = db.query(Project.asset_id, Project.name).filter(Project.asset_id.in_(wanted))
+    if not authed:
+        projects = projects.filter(Project.private.is_(False))
+    for aid, name in projects:
+        out[aid] = (name or aid, f"/projects/{aid}")
+    for kind, cls in _REGISTER:
+        for aid, name, maker, model in db.query(
+            cls.asset_id, cls.name, cls.manufacturer, cls.model
+        ).filter(cls.asset_id.in_(wanted)):
+            out[aid] = (
+                entry.display_name(
+                    {"asset_id": aid, "name": name, "manufacturer": maker, "model": model}
+                ),
+                f"/{kind}/{aid}",
+            )
     return out
 
 
-def _file_ids_for(db: Session, item: Mapping[str, object]) -> set[int]:
-    """The ids of the files attached to this item or to a model it answers to."""
-    asset_id = str(item.get("asset_id") or "").strip()
-    ids: set[int] = set()
-    if asset_id:
-        ids |= {
-            row[0]
-            for row in db.query(FileAsset.file_id).filter(FileAsset.asset_id == asset_id).all()
-        }
-    models = model_ids_for(db, item)
-    if models:
-        ids |= {
-            row[0]
-            for row in db.query(FileModel.file_id)
-            .filter(
-                or_(
-                    *[
-                        and_(FileModel.kind == kind, FileModel.model_key == key)
-                        for kind, key, _ in models
-                    ]
-                )
-            )
-            .all()
-        }
-    return ids
+def _chips(file_id: int, linked: list[Linked]) -> list[Chip]:
+    """The links as a list shows them: one chip an item, except where FOLD_AT or
+    more carry the same name, which become one."""
+    by_name: dict[str, list[Linked]] = {}
+    for link in linked:
+        by_name.setdefault(link.name, []).append(link)
+    out: list[Chip] = []
+    for name, links in by_name.items():
+        if len(links) >= FOLD_AT:
+            ids = tuple(link.asset_id for link in links)
+            out.append(Chip(f"{len(links)} ×", name, f"/files/{file_id}", ids))
+        else:
+            out += [Chip(link.asset_id, name, link.page, (link.asset_id,)) for link in links]
+    return out
 
 
-def for_item(db: Session, item: Mapping[str, object], authed: bool = True) -> list[StoredFile]:
-    """Every file attached to this item or to a model it answers to, newest first,
-    each with its tags attached as `.tags`. A visitor is shown the published ones
-    alone."""
-    ids = _file_ids_for(db, item)
-    if not ids:
+def with_links(db: Session, rows: Iterable[StoredFile], authed: bool = True) -> list[StoredFile]:
+    """The same rows, each carrying what it is linked to and what it is: `.assets`
+    the asset ids, `.linked` each with its name and page, `.chips` the way a list
+    shows them, `.unlinked`, and `.what` from filekinds. A handful of queries for
+    the whole page rather than a handful per file.
+
+    For a visitor, `.linked` and `.chips` are what they may be told about -- a
+    private project is not among them -- and `.assets` is the same list's ids."""
+    rows = list(rows)
+    if not rows:
         return []
-    q = db.query(StoredFile).filter(StoredFile.id.in_(ids))
+    links: dict[int, list[str]] = {}
+    for link in (
+        db.query(FileAsset)
+        .filter(FileAsset.file_id.in_([row.id for row in rows]))
+        .order_by(FileAsset.asset_id)
+    ):
+        links.setdefault(link.file_id, []).append(link.asset_id)
+    named = _names(db, (aid for aids in links.values() for aid in aids), authed)
+    for row in rows:
+        every = links.get(row.id, [])
+        # The owner is shown an id with no row behind it, bare, since a link that
+        # names nothing is worth seeing to be put right; a visitor is shown what
+        # can be named and nothing else.
+        row.linked = [
+            Linked(aid, *named.get(aid, (aid, f"/items/{aid}")))
+            for aid in every
+            if authed or aid in named
+        ]
+        row.assets = [link.asset_id for link in row.linked]
+        row.chips = _chips(row.id, row.linked)
+        row.unlinked = not every
+        row.what = filekinds.of(row.filename, row.size)
+    return rows
+
+
+def _newest_first(db: Session, ids: Iterable[int] | None, authed: bool) -> list[StoredFile]:
+    q = db.query(StoredFile)
+    if ids is not None:
+        wanted = sorted(set(ids))
+        if not wanted:
+            return []
+        q = q.filter(StoredFile.id.in_(wanted))
     if not authed:
         q = q.filter(StoredFile.public.is_(True))
     rows = q.order_by(StoredFile.created_at.desc(), StoredFile.id.desc()).all()
-    return with_links(db, with_tags(db, rows))
+    return with_links(db, rows, authed)
 
 
-def attach_asset(db: Session, file_id: int, asset_id: str | None) -> bool:
-    """Attach a file to one unit. True when it was not already, so the caller can
-    say what it did without asking twice."""
-    asset_id = (asset_id or "").strip()
+def for_item(db: Session, asset_id: str, authed: bool = True) -> list[StoredFile]:
+    """The files linked to this item, newest first. A visitor is shown the published
+    ones alone."""
+    ids = [row[0] for row in db.query(FileAsset.file_id).filter(FileAsset.asset_id == asset_id)]
+    return _newest_first(db, ids, authed)
+
+
+def _identity(db: Session, item: Mapping[str, object]) -> tuple[str, str]:
+    """(catalogue key, named key): the two ways an item says what model it is, either
+    of which may be "". Both where it has both, since a Spectrum +2 is a catalogue
+    machine and a Sinclair ZX Spectrum +2 at once."""
+    # str(): the dict is a row read column by column, so every value in it is typed
+    # as wide as a column can be; these three are text.
+    asset_id = str(item.get("asset_id") or "").strip()
+    catalogue = ""
+    if asset_id:
+        catalogue = (
+            db.query(AssetVariant.model_key).filter(AssetVariant.asset_id == asset_id).scalar()
+            or ""
+        ).strip()
+    maker, model = str(item.get("manufacturer") or ""), str(item.get("model") or "")
+    return catalogue, (named_key(maker, model) if fold(maker) or fold(model) else "")
+
+
+def model_name(db: Session, item: Mapping[str, object]) -> str:
+    """What an item's model is called, for "the other 4 Polpo PicoGUS": the maker and
+    model as written, or the catalogue's name for the machine where there are none."""
+    written = " ".join(
+        str(part).strip() for part in (item.get("manufacturer"), item.get("model")) if part
+    ).strip()
+    if written:
+        return written
+    known = machines.model(_identity(db, item)[0])
+    return str(known["model"]) if known else ""
+
+
+def siblings(db: Session, item: Mapping[str, object], held: bool = False) -> list[Linked]:
+    """The other machines and parts of this item's model, by asset id -- the same
+    catalogue key, or the same maker and model folded -- and only those still held
+    when `held` says so. A project has no model, and so no siblings."""
+    own = str(item.get("asset_id") or "").strip().upper()
+    catalogue, named = _identity(db, item)
+    if not catalogue and not named:
+        return []
+    found: set[str] = set()
+    if catalogue:
+        found |= {
+            aid
+            for (aid,) in db.query(AssetVariant.asset_id).filter(
+                AssetVariant.model_key == catalogue
+            )
+        }
+    if named:
+        maker, model = named.split("|", 1)
+        for _kind, cls in _REGISTER:
+            # The database narrows by the folded spelling it can compute, with the
+            # spaces taken out and the case ignored, and the fold decides: it also
+            # takes out the tabs and newlines REPLACE does not know about.
+            for aid, m, d in db.query(cls.asset_id, cls.manufacturer, cls.model).filter(
+                func.lower(func.replace(func.coalesce(cls.manufacturer, ""), " ", "")) == maker,
+                func.lower(func.replace(func.coalesce(cls.model, ""), " ", "")) == model,
+            ):
+                if named_key(m, d) == named:
+                    found.add(aid)
+    found.discard(own)
+    if not found:
+        return []
+    kept: set[str] = set()
+    for _kind, cls in _REGISTER:
+        q = db.query(cls.asset_id).filter(cls.asset_id.in_(sorted(found)))
+        if held:
+            q = q.filter(cls.disposed.is_(False))
+        kept |= {aid for (aid,) in q}
+    named_ids = _names(db, kept)
+    return [Linked(aid, *named_ids[aid]) for aid in sorted(kept) if aid in named_ids]
+
+
+def offered(db: Session, item: Mapping[str, object]) -> list[StoredFile]:
+    """The files linked to this item's same-model siblings, held or not, that are not
+    linked to this item: what a new unit is offered, and only ever offered. For the
+    owner alone, so there is no visitor's version of the question."""
+    others = [link.asset_id for link in siblings(db, item)]
+    if not others:
+        return []
+    own = str(item.get("asset_id") or "").strip().upper()
+    theirs = {row[0] for row in db.query(FileAsset.file_id).filter(FileAsset.asset_id.in_(others))}
+    mine = {row[0] for row in db.query(FileAsset.file_id).filter(FileAsset.asset_id == own)}
+    return _newest_first(db, theirs - mine, authed=True)
+
+
+def panel(db: Session, item: Mapping[str, object], authed: bool) -> dict[str, object]:
+    """What the Files panel on a machine's, a part's or a project's page is drawn
+    from: the files linked to it, and, for the owner, the siblings the upload box
+    offers, what their model is called, the files those siblings have that this one
+    has not, and whether the upload's Public tick starts ticked.
+
+    It starts ticked where the owner has said new files are public (ADR-0029),
+    except on a private project: a file uploaded there is as likely to be the
+    receipt the project is private for, and a default that published it would be
+    the one place the preference could disclose something nobody chose to."""
+    asset_id = str(item.get("asset_id") or "")
+    return {
+        "files": for_item(db, asset_id, authed),
+        "file_siblings": siblings(db, item, held=True) if authed else [],
+        "file_model": model_name(db, item) if authed else "",
+        "file_offer": offered(db, item) if authed else [],
+        "file_public_default": authed and settings.on("files_public") and not item.get("private"),
+    }
+
+
+def link(db: Session, file_id: int, asset_id: str | None) -> bool:
+    """Link a file to one more thing. True when it was not already, so the caller
+    can say what it did without asking twice."""
+    asset_id = (asset_id or "").strip().upper()
     if not asset_id:
         return False
     if (
@@ -169,137 +326,75 @@ def attach_asset(db: Session, file_id: int, asset_id: str | None) -> bool:
     return True
 
 
-def attach_model(db: Session, file_id: int, kind: str, key: str, label: str = "") -> bool:
-    """Attach a file to a model. `label` is what to print; `key` is what matches."""
-    if kind not in (CATALOGUE, NAMED) or not (key or "").strip():
-        return False
-    if (
-        db.query(FileModel)
-        .filter(FileModel.file_id == file_id, FileModel.kind == kind, FileModel.model_key == key)
-        .first()
-    ):
-        return False
-    db.add(FileModel(file_id=file_id, kind=kind, model_key=key, label=label or key))
-    db.flush()
-    return True
-
-
-def detach_asset(db: Session, file_id: int, asset_id: str) -> None:
-    db.query(FileAsset).filter(FileAsset.file_id == file_id, FileAsset.asset_id == asset_id).delete(
-        synchronize_session=False
-    )
-    db.flush()
-
-
-def detach_model(db: Session, file_id: int, kind: str, key: str) -> None:
-    db.query(FileModel).filter(
-        FileModel.file_id == file_id, FileModel.kind == kind, FileModel.model_key == key
+def unlink(db: Session, file_id: int, asset_id: str) -> None:
+    db.query(FileAsset).filter(
+        FileAsset.file_id == file_id, FileAsset.asset_id == asset_id.strip().upper()
     ).delete(synchronize_session=False)
     db.flush()
 
 
 def forget_asset(db: Session, asset_id: str) -> None:
     """Drop the links to an item being deleted. The bytes stay: a file with no
-    links left is unfiled, which the files page says out loud rather than treating
+    links left is unlinked, which the files page says out loud rather than treating
     as rubbish (ADR-0006)."""
     db.query(FileAsset).filter(FileAsset.asset_id == asset_id).delete(synchronize_session=False)
     db.flush()
 
 
-def with_links(db: Session, rows: Iterable[StoredFile]) -> list[StoredFile]:
-    """The same rows, each carrying what it is attached to: `.assets` is a list of
-    asset ids and `.models` a list of (kind, key, label). Two queries for the whole
-    page rather than two per file, the way `with_tags` works."""
-    rows = list(rows)
-    if not rows:
-        return []
-    ids = [row.id for row in rows]
-    assets: dict[int, list[str]] = {}
-    for link in (
-        db.query(FileAsset).filter(FileAsset.file_id.in_(ids)).order_by(FileAsset.asset_id).all()
-    ):
-        assets.setdefault(link.file_id, []).append(link.asset_id)
-    models: dict[int, list[tuple[str, str, str]]] = {}
-    for tie in (
-        db.query(FileModel).filter(FileModel.file_id.in_(ids)).order_by(FileModel.label).all()
-    ):
-        models.setdefault(tie.file_id, []).append((tie.kind, tie.model_key, tie.label))
-    for row in rows:
-        row.assets = assets.get(row.id, [])
-        row.models = models.get(row.id, [])
-        # The pairs on their own, for a page asking "is this one of them?" of each
-        # of an item's models in turn.
-        row.model_pairs = {(kind, key) for kind, key, _ in row.models}
-        row.unfiled = not row.assets and not row.models
+def _matches(row: StoredFile, needle: str) -> bool:
+    """Whether a folded search term is in a file's name, its note, or the asset id
+    or name of anything it is linked to."""
+    return any(
+        needle in fold(text)
+        for text in (
+            row.filename,
+            row.note,
+            *(link.asset_id for link in row.linked),
+            *(link.name for link in row.linked),
+        )
+    )
+
+
+# The two lists that are the owner's alone: the files that want attention.
+SHOWS = ("unlinked", "private")
+
+
+def all_files(
+    db: Session, authed: bool = True, group: str = "", q: str = "", show: str = ""
+) -> list[StoredFile]:
+    """Everything on file, newest first, each with what it is linked to -- narrowed
+    to one kind (`group`, a key of filekinds.GROUPS), to a search, or, for the
+    owner, to the files linked to nothing or kept back from visitors.
+
+    `authed` is asked here too, because an unpublished file left in this list would
+    be one a visitor could read the name of."""
+    rows = _newest_first(db, None, authed)
+    if group in filekinds.GROUPS:
+        rows = [row for row in rows if row.what.group == group]
+    if fold(q):
+        rows = [row for row in rows if _matches(row, fold(q))]
+    if authed and show == "unlinked":
+        rows = [row for row in rows if row.unlinked]
+    if authed and show == "private":
+        rows = [row for row in rows if not row.public]
     return rows
 
 
-def with_tags(db: Session, rows: Iterable[StoredFile]) -> list[StoredFile]:
-    """The same rows, each carrying its tags in one extra query rather than one
-    per file."""
-    rows = list(rows)
-    if not rows:
-        return []
-    tags: dict[int, list[str]] = {}
-    for label in (
-        db.query(FileTag)
-        .filter(FileTag.file_id.in_([r.id for r in rows]))
-        .order_by(FileTag.id)
-        .all()
-    ):
-        tags.setdefault(label.file_id, []).append(label.tag)
+def groups(rows: Iterable[StoredFile]) -> list[tuple[str, str, int]]:
+    """The kinds these files come in, as (key, label, how many), in the order the
+    page offers them -- only the ones there are files of, since a filter that finds
+    nothing is a question the page need not ask."""
+    counts: dict[str, int] = {}
     for row in rows:
-        row.tags = tags.get(row.id, [])
-    return rows
-
-
-def all_files(db: Session, tag: str = "", authed: bool = True) -> list[StoredFile]:
-    """Everything on file, newest first, each with its tags and what it is attached
-    to -- or, given a tag, the files carrying that tag.
-
-    The tag filter is equality on the fold now, not containment on a name: a tag
-    says what a file is, so following one asks for the manuals rather than for
-    whatever a machine of that name would be offered. `authed` is asked here too,
-    because an unpublished file left in this list would be reachable from the chip
-    on the very page it was kept off."""
-    q = db.query(StoredFile)
-    if not authed:
-        q = q.filter(StoredFile.public.is_(True))
-    if fold(tag):
-        ids = {row[0] for row in db.query(FileTag.file_id).filter(FileTag.fold == fold(tag)).all()}
-        if not ids:
-            return []
-        q = q.filter(StoredFile.id.in_(ids))
-    rows = q.order_by(StoredFile.created_at.desc(), StoredFile.id.desc()).all()
-    return with_links(db, with_tags(db, rows))
-
-
-def parse_tags(text: str | None) -> list[str]:
-    """The tags box as a list: one name per line or separated by commas, blanks
-    dropped and each name kept once, in the order they were written."""
-    out, seen = [], set[str]()
-    for raw in re.split(r"[,\n]", text or ""):
-        name = " ".join(raw.split())
-        if name and fold(name) not in seen and len(name) <= 120:
-            seen.add(fold(name))
-            out.append(name)
-    return out
-
-
-def set_tags(db: Session, stored: StoredFile, tags: Sequence[str] | str) -> None:
-    """Replace a file's tags with these. Replace rather than add, because the box
-    on the page shows all of them and what it shows is what a save means."""
-    db.query(FileTag).filter(FileTag.file_id == stored.id).delete(synchronize_session=False)
-    for tag in parse_tags("\n".join(tags) if not isinstance(tags, str) else tags):
-        db.add(FileTag(file_id=stored.id, tag=tag, fold=fold(tag)))
-    db.flush()
+        counts[row.what.group] = counts.get(row.what.group, 0) + 1
+    return [(key, label, counts[key]) for key, label in filekinds.GROUPS.items() if key in counts]
 
 
 def save(
-    db: Session, upload: UploadFile, tags: Sequence[str] | str, note: str = ""
+    db: Session, upload: UploadFile, note: str = "", public: bool = False
 ) -> StoredFile | None:
-    """Store an upload and file it under `tags`. Returns the row, or None for an
-    empty upload; raises ValueError if it is over MAX_BYTES.
+    """Store an upload. Returns the row, or None for an empty upload; raises
+    ValueError if it is over MAX_BYTES.
 
     The name on disk is generated and the uploaded name is only ever data. A
     filename is the one part of an upload chosen entirely by whoever sent it, and
@@ -329,12 +424,12 @@ def save(
         stored=stored,
         filename=name[:255],
         size=size,
-        note=(note or "").strip()[:255],
+        note=(note or "").strip()[:NOTE_MAX],
+        public=bool(public),
         created_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(row)
     db.flush()
-    set_tags(db, row, tags)
     return row
 
 
@@ -343,21 +438,9 @@ def path_of(stored: StoredFile) -> Path:
 
 
 def remove(db: Session, stored: StoredFile) -> None:
-    """Forget a file, bytes and all. The tags go with it (the foreign key
-    cascades), and the row is gone whether or not the file was still on disk --
-    a record pointing at nothing is worse than no record."""
+    """Forget a file, bytes and all. Its links go with it, and the row is gone
+    whether or not the file was still on disk -- a record pointing at nothing is
+    worse than no record."""
     path_of(stored).unlink(missing_ok=True)
-    db.query(FileTag).filter(FileTag.file_id == stored.id).delete(synchronize_session=False)
+    db.query(FileAsset).filter(FileAsset.file_id == stored.id).delete(synchronize_session=False)
     db.delete(stored)
-
-
-def human_size(n: int | None) -> str:
-    """A size as it would be said out loud, which is what a download link wants."""
-    n = int(n or 0)
-    if n < 1024:
-        return f"{n} B"
-    for unit, scale in ((KIB, 1024), (MIB, 1024**2), (GIB, 1024**3)):
-        if n < scale * 1024 or unit == GIB:
-            size = n / scale
-            return f"{size:.0f} {unit}" if size >= 10 else f"{size:.1f} {unit}"
-    return f"{n} B"

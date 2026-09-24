@@ -21,7 +21,7 @@ from fastapi import HTTPException, Request, Response
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 
-from . import entry, filesdb, labels, projects, settings
+from . import entry, filekinds, filesdb, labels, projects, settings
 from .common import PUBLIC_BASE_URL, STATIC_DIR, _file_ver, branded
 from .datacss import DATA_CSS_VER
 from .photos import _image_size, img_srcset, img_url
@@ -229,5 +229,5 @@ templates.env.globals["img_url"] = img_url
 templates.env.globals["img_srcset"] = img_srcset
 templates.env.globals["THUMB_CARD"] = 300
 templates.env.globals["THUMB_MAIN"] = 1200
-templates.env.globals["human_size"] = filesdb.human_size
+templates.env.globals["human_size"] = filekinds.human_size
 templates.env.globals["max_file_mb"] = filesdb.MAX_BYTES // (1024 * 1024)

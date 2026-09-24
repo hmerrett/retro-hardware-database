@@ -1,0 +1,29 @@
+{# What a file is, drawn: one picture a kind, chosen by filekinds from the file's
+   name and size. Drawn in the hand the placeholder pictures are -- a 64-unit grid,
+   a stroke of 3, round joins -- so a floppy image and a floppy drive look related,
+   and in the text colour, so both themes draw them. Inline rather than an <img>,
+   which could only ever be one colour.
+
+   The extension is printed under the drawing, which is what tells a PDF from a
+   text file. Hidden from a screen reader with the drawing: the filename beside it
+   already says both. #}
+{% macro drawing(name) -%}
+<svg class="fileart" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+{%- if name == 'floppy35' -%}<path d="M14 13h28l8 8v30H14z"/><rect x="22" y="13" width="17" height="12"/><path d="M33 16v6"/><rect x="20" y="33" width="24" height="18" rx="1"/>
+{%- elif name == 'floppy525' -%}<path d="M12 12h40v9h-3v6h3v25H12z"/><path d="M18 17h14"/><circle cx="32" cy="29" r="7"/><circle cx="42" cy="31" r="1.2"/><rect x="29" y="39" width="6" height="10" rx="3"/>
+{%- elif name == 'harddisk' -%}<rect x="12" y="16" width="40" height="32" rx="3"/><circle cx="30" cy="32" r="10"/><circle cx="30" cy="32" r="2"/><path d="M37 25l7-5"/>
+{%- elif name == 'cd' -%}<circle cx="32" cy="32" r="21"/><circle cx="32" cy="32" r="5"/><path d="M20 27a13 13 0 0 1 7-7"/>
+{%- elif name == 'tape' -%}<rect x="8" y="16" width="48" height="32" rx="3"/><rect x="16" y="22" width="32" height="12" rx="2"/><circle cx="24" cy="28" r="2.5"/><circle cx="40" cy="28" r="2.5"/><path d="M18 48l4-7h20l4 7"/>
+{%- elif name == 'rom' -%}<rect x="20" y="10" width="24" height="44" rx="2"/><path d="M28 10a4 4 0 0 0 8 0"/><circle cx="32" cy="32" r="6"/><path d="M20 17h-6M20 25h-6M20 33h-6M20 41h-6M20 49h-6M44 17h6M44 25h6M44 33h6M44 41h6M44 49h6"/>
+{%- elif name == 'document' -%}<path d="M18 8h20l10 10v38H18z"/><path d="M38 8v10h10"/><path d="M25 30h16M25 38h16M25 46h10"/>
+{%- elif name == 'picture' -%}<rect x="8" y="14" width="48" height="36" rx="3"/><circle cx="22" cy="26" r="4"/><path d="M8 44l14-11 9 7 9-9 16 13"/>
+{%- elif name == 'archive' -%}<rect x="16" y="8" width="32" height="48" rx="2"/><path d="M28 12h4M32 16h4M28 20h4M32 24h4"/><rect x="27" y="28" width="10" height="12" rx="2"/>
+{%- elif name == 'program' -%}<rect x="8" y="12" width="48" height="40" rx="3"/><path d="M8 22h48"/><path d="M18 31l7 5-7 5"/><path d="M30 42h14"/>
+{%- elif name == 'sound' -%}<path d="M26 44V14l24-5v30"/><circle cx="20" cy="44" r="6"/><circle cx="44" cy="39" r="6"/>
+{%- else -%}<path d="M18 8h20l10 10v38H18z"/><path d="M38 8v10h10"/>
+{%- endif -%}
+</svg>
+{%- endmacro %}
+{% macro icon(what, big=false) -%}
+<span class="fileicon{{ ' big' if big }}" data-drawing="{{ what.drawing }}" aria-hidden="true">{{ drawing(what.drawing) }}<span class="fileext">{{ what.extension | upper }}</span></span>
+{%- endmacro %}
