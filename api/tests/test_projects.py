@@ -13,7 +13,7 @@ about, a list of jobs, and a pile of things on order with what they cost.
 import io
 from datetime import date
 
-from conftest import log_out, served
+from conftest import content, log_out
 from app import ids, main, projects
 from app.models import Project, ProjectAsset, ProjectOrder, ProjectTask
 
@@ -711,8 +711,11 @@ class TestBeingFound:
         assert "Nondescript" in html and "Something else" not in html
 
     def test_a_search_matching_nothing_says_so(self, client):
+        """Read off the page itself. Asked of the page and its scripts together, it
+        was being answered by the search box's suggestion list, which said the same
+        words, and never by this page."""
         make(client)
-        assert "Nothing matches that" in served(client, client.get("/projects?q=zzzz").text)
+        assert "No project matches that." in content(client.get("/projects?q=zzzz").text)
 
     def test_the_gallery_says_when_projects_match_as_well(self, client, computer):
         """A search bar that says 'anything' and quietly means 'the shelf' would be
