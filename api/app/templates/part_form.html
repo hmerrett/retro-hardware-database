@@ -5,6 +5,10 @@
 {% block title %}{{ title }} — {{ site_name() }}{% endblock %}
 {% block main_class %} class="v2"{% endblock %}
 {% block content %}
+{# A refused save (assets.refused): each message by its field, and what was typed
+   into a box whose column could not hold it. #}
+{% set ERR = field_errors | default({}) %}
+{% set TYPED = typed | default({}) %}
 
 {# `codes` is the one hint that is printed rather than tucked into a tooltip: the
    letters a shorthand box takes, which are needed to answer it at all and cannot be
@@ -34,16 +38,19 @@
    actually chosen may claim the recorded answer: left to decide for itself, every
    other group finds that answer missing from its own list, calls it custom, and
    checks its own custom radio, which then beats the real one and posts nothing. #}
+{# `error` is what a refused save said of the group. The first answer carries the
+   group's id, so the summary's link has a control to land on rather than a label. #}
 {% macro pick(field, key, label, hint, options, placeholder, maxlength, req=false,
-              active=true, uid='') %}
+              active=true, uid='', error=none) %}
   {% set cur = spec_keys.get(key, '') if active else '' %}
   {% set custom = cur and cur not in options %}
   {# `uid` tells apart the groups one question has for several kinds, which share
      a field name but each need their own label to be named by. #}
   {% set gid = uid or field %}
-  <div class="field">
+  <div class="field{{ ' is-invalid' if error else '' }}">
   <span class="lbl" id="{{ gid }}-lbl">{{ label }}</span>
-  <div class="checks" role="group" aria-labelledby="{{ gid }}-lbl" aria-describedby="{{ gid }}-hint">
+  <div class="checks" role="group" aria-labelledby="{{ gid }}-lbl"
+       aria-describedby="{{ gid }}-hint{{ ' ' ~ gid ~ '-err' if error else '' }}"{% if error %} aria-invalid="true"{% endif %}>
     {# A required group offers no way to say nothing: every one of these has an
        answer, and "not recorded" would be the easiest thing to leave it on. #}
     {# "not recorded" is an answer like any other, so an inactive group must not be
@@ -54,7 +61,7 @@
                   {{ ' checked' if active and not cur else '' }}> not recorded</label>
     {% endif %}
     {% for o in options %}
-    <label class="check"><input type="radio" name="{{ field }}" value="{{ o }}"
+    <label class="check"><input type="radio"{% if loop.first %} id="{{ gid }}"{% endif %} name="{{ field }}" value="{{ o }}"
                   {{ ' checked' if o == cur else '' }}{{ ' required' if req else '' }}> {{ o }}</label>
     {% endfor %}
     <label class="check"><input type="radio" name="{{ field }}" value="custom"
@@ -64,6 +71,7 @@
          value="{{ cur if custom else '' }}" placeholder="{{ placeholder }}"
          aria-labelledby="{{ gid }}-lbl" hidden>
   <p class="hint" id="{{ gid }}-hint">{{ hint }}</p>
+  {% if error %}<p class="err" id="{{ gid }}-err">{{ error }}</p>{% endif %}
   </div>
 {% endmacro %}
 
@@ -107,6 +115,7 @@
   <div class="pagehead"><h1 class="heading">
     {%- if p and p.asset_id and action != '/parts/new' %}Edit {{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }} <span class="tag muted">{{ p.asset_id }}</span>
     {%- else %}{{ title }}{% endif %}</h1></div>
+  {{ U.error_summary(errors | default([])) }}
   {% if from_part %}
   <p class="hint" title="Photos, source, acquired date and notes are not carried over.">Copied from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.</p>
   {% endif %}
@@ -141,7 +150,8 @@
                  list='dl_models', autocomplete='off') }}
       {{ U.field('name', 'Name', value=(p.name if p else '') or '',
                  hint='optional; defaults to maker + model') }}
-      {{ U.field('year', 'Year', value=(p.year if p else '') or '', type='number') }}
+      {{ U.field('year', 'Year', value=(TYPED.year if 'year' in TYPED else (p.year if p else '')) or '',
+                 type='number', error=ERR.get('year')) }}
       {# Last in the identity, and never carried across by the duplicate button: two
          of the same card are the same card in every field above this one and in
          none of them here. #}
@@ -175,11 +185,11 @@
            the other and only one answer is ever posted. #}
         {% for k, opts in ask.options.items() %}
         <div data-kind="{{ k }}" hidden>
-          {{ pick(ask.field, ask.key, ask.label, ask.hint, opts, ask.placeholder, ask.max, ask.required, k == curkind, ask.field ~ '-' ~ loop.index) }}
+          {{ pick(ask.field, ask.key, ask.label, ask.hint, opts, ask.placeholder, ask.max, ask.required, k == curkind, ask.field ~ '-' ~ loop.index, ERR.get(ask.field) if k == curkind) }}
         </div>
         {% endfor %}
       {% elif ask.options %}
-        {{ pick(ask.field, ask.key, ask.label, ask.hint, ask.options, ask.placeholder, ask.max, ask.required) }}
+        {{ pick(ask.field, ask.key, ask.label, ask.hint, ask.options, ask.placeholder, ask.max, ask.required, error=ERR.get(ask.field)) }}
       {% else %}
         {{ sf(ask.field, ask.key, ask.label, ask.hint) }}
       {% endif %}
@@ -366,8 +376,9 @@
          word "source" out of the way of the register's answers. #}
       {{ U.field('source', 'Source', value=(p.source if p else '') or '',
                  list='dl_sources', autocomplete='off') }}
-      {{ U.field('acquired_date', 'Acquired date', value=(p.acquired_date if p else '') or '',
-                 type='date') }}
+      {{ U.field('acquired_date', 'Acquired date',
+                 value=(TYPED.acquired_date if 'acquired_date' in TYPED else (p.acquired_date if p else '')) or '',
+                 type='date', error=ERR.get('acquired_date')) }}
       {# Where the part itself is kept, and mostly left empty: a part fitted in
          something is shown that thing's location instead, so this box is for the
          card in a drawer rather than the card in a machine. Offered the places

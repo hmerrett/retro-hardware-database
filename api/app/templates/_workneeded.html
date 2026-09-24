@@ -13,11 +13,13 @@
 
    Write-only, and never filled in with what the project already says. A box that
    echoed the jobs back would add every one of them a second time on the next save.
+   A refused save is the exception that is not one: what comes back is what was
+   just typed and not yet taken, so it has to be there to be sent again.
 #}
 {% import "_ui.html" as U with context %}
 <fieldset class="fieldset">
   <legend>Work needed</legend>
-  {{ U.field('work_needed', 'Work needed', kind='area', rows=3,
+  {{ U.field('work_needed', 'Work needed', kind='area', rows=3, value=work_typed | default(''),
              placeholder='one job per line') }}
   {# Written by hand rather than through U.field: the options are the projects'
      own names, which are data, and the Button text setting is not theirs to
@@ -26,7 +28,7 @@
     <label for="work_project">Project</label>
     <select class="select" id="work_project" name="work_project" aria-describedby="work_project-hint">
       <option value="">New project</option>
-      {% for pr in work_projects %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
+      {% for pr in work_projects %}<option value="{{ pr.asset_id }}"{{ ' selected' if pr.asset_id == work_picked | default('') }}>{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
     </select>
     <p class="hint" id="work_project-hint">New project: one named after this, each line a job on it. Or add the jobs to a
       project already going — usually the case for a part bought for something. Leave

@@ -1,6 +1,12 @@
 {# Photographs chosen on a new item's form, sent with it: there is no asset tag to
    file them under until it is saved. The file input sits invisible over its own
    label, so the button is what is pressed; app.js counts what was chosen. #}
+{% import "_ui.html" as U with context %}
+{# A refused save (assets.refused): the one thing typed that cannot come back. #}
+{% set n = photos_dropped | default(0) %}
+{% if n %}{{ U.banner('warning', 'Choose them again',
+    ('The photograph chosen was' if n == 1 else 'The ' ~ n ~ ' photographs chosen were')
+    ~ ' not kept: a browser does not hand files back with a form it returns.') }}{% endif %}
 <div class="newphotos row">
   <label class="btn sm filebtn">Choose files
     <input type="file" name="photos" accept="image/*" multiple>

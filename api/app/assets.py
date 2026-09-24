@@ -38,7 +38,7 @@ from urllib.parse import urlparse
 # box again.
 
 from fastapi import HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -47,7 +47,7 @@ from starlette.datastructures import UploadFile
 from . import entry, filesdb, machinedb, machines, projects, specdb
 from .common import folder_images, to_dict
 from .disposal import _parts_in_computer
-from .forms import Posted, posted
+from .forms import Posted, Refusal, posted
 from .history import add_log
 from .models import (
     AssetChip,
@@ -78,7 +78,7 @@ from .photos import (
     pick_images,
 )
 from .register import get_or_404
-from .web import _abs_url
+from .web import _abs_url, templates
 from .work import _take_on_work, _work_lines
 
 
@@ -559,6 +559,38 @@ def _work_from_form(db: Session, obj: Computer | Part, form: Posted) -> Project 
     if not jobs and project is None:
         return None
     return _take_on_work(db, obj.asset_id, jobs, project)
+
+
+def refused(
+    request: Request,
+    db: Session,
+    template: str,
+    ctx: dict[str, object],
+    form: Posted,
+    errors: list[Refusal],
+) -> HTMLResponse:
+    """The form again, for a save that has been refused, with everything as typed.
+
+    Called with the save already made and not committed: the form is drawn from
+    the rows the save has just written -- memory, drives, specs, the catalogue's
+    answers -- so it comes back as it was sent without a second reading of the form
+    to keep in step with the first. It is rendered before the rollback, which
+    leaves the register as it was, and TemplateResponse renders as it is built.
+
+    Only a refused box is shown from the post rather than the row, because its
+    column could not hold what was typed. The work box is write-only and the
+    photographs a browser will not send back, so those are carried separately."""
+    ctx = ctx | {
+        "errors": errors,
+        "field_errors": {f: message for f, _, message in errors},
+        "typed": {f: form.get(f, "") for f, _, _ in errors},
+        "work_typed": form.get("work_needed", ""),
+        "work_picked": (form.get("work_project", "") or "").strip().upper(),
+        "photos_dropped": sum(1 for u in form.uploads("photos") if (u.filename or "").strip()),
+    }
+    page = templates.TemplateResponse(request, template, ctx, status_code=400)
+    db.rollback()
+    return page
 
 
 def part_thumbs(db: Session, parts: Iterable[Part]) -> dict[str, dict[str, object]]:

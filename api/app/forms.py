@@ -6,6 +6,7 @@ being free text. These turn one into the other, and work out what changed, so th
 the change log says "year: 1986 -> 1987" rather than that something was edited.
 """
 
+import re
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime
 from typing import overload
@@ -75,12 +76,55 @@ def _coerce(field: str, raw: str | None) -> str | int | bool | date | None:
     """A form string as the column's type: blank means not recorded."""
     if field in ("year", "topbench"):
         v = (raw or "").strip()
-        return int(v) if v.isdigit() else None
+        return int(v) if _whole(v) else None
     if field in ("acquired_date", "disposed_at", "started_at", "target_date", "finished_at"):
         return _parse_date(raw)
     if field == "disposed":
         return (raw or "").strip() not in ("", "0", "false")
     return raw or ""
+
+
+def _whole(v: str) -> bool:
+    """A whole number written in the digits int() reads. str.isdigit() alone also
+    says yes to superscripts, which int() then refuses -- a server error for a
+    typed "²"."""
+    return v.isascii() and v.isdigit()
+
+
+# The boxes that take one shape of answer, each with what it says when given
+# another: what is wrong and what would do instead, with an example. Blank is never
+# the wrong shape; it means not recorded.
+SHAPES: dict[str, tuple[str, str]] = {
+    "year": ("Year", "Needs four digits, like 1988."),
+    "topbench": ("TopBench score", "Needs a whole number, like 104."),
+    "acquired_date": ("Acquired date", "Needs a date, like 14/03/1994."),
+}
+
+# What stopped a save: the field, its label and the message, as U.error_summary
+# reads them.
+Refusal = tuple[str, str, str]
+
+
+def _fits(field: str, v: str) -> bool:
+    if field == "year":
+        return re.fullmatch(r"[0-9]{4}", v) is not None
+    if field == "topbench":
+        return _whole(v)
+    return _parse_date(v) is not None
+
+
+def refusals(form: Posted, fields: Iterable[str]) -> list[Refusal]:
+    """Each of `fields` the form carries with an answer in the wrong shape.
+
+    These used to be read as blank, and blank means not recorded -- so a mistyped
+    date on an edit cleared the one already on file, and nobody was told."""
+    out: list[Refusal] = []
+    for f in fields:
+        v = (form.get(f, "") or "").strip()
+        if v and not _fits(f, v):
+            label, message = SHAPES[f]
+            out.append((f, label, message))
+    return out
 
 
 def _field_diffs(

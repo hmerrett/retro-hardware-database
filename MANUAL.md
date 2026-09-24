@@ -520,6 +520,27 @@ Field by field:
 | **Project** | Which project those jobs go on. Left at *new project*, they raise a new one about this machine; pick a project already going and the machine joins that instead. |
 | **Photographs** | Only on the new-machine form — there is no tag to file them under until it is saved. Afterwards they upload from the machine's own page. |
 
+### When a save is refused
+
+A few boxes take only one shape of answer, and a save with anything else in them
+is refused rather than quietly dropping what was typed:
+
+- **Year** — four digits, like `1988`.
+- **TopBench score** — a whole number, like `104`.
+- **Acquired date** — a date, like `14/03/1994`. The date picker offers nothing
+  else; this catches a date typed by hand where a browser shows a plain box.
+
+Blank is always accepted: it means not recorded.
+
+A refused save saves nothing, and comes back as the form with everything as you
+typed it — memory, drives, catalogue picks, the work box. At the top it says how
+many things there are to fix, each a link to its box, and each box says under
+itself what is wrong and what would do instead. Put them right and **Save** again.
+
+Photographs chosen on a new machine are the exception. A browser will not let a
+page choose files on your behalf, so they have to be picked again, and the
+Photographs section says so.
+
 ### Where it is kept
 
 **Location** is where the object actually is, as you would say it to somebody
@@ -1001,7 +1022,10 @@ an answer typed into it. See [where it is kept](#where-it-is-kept).
 The form is laid out like the machine's — sections, a line under a field that
 needs one, **Save** and **Cancel** at the foot of the screen. **Cancel** goes back
 to the part, or from a new one to the machine or part it was being added to, and
-otherwise to the gallery.
+otherwise to the gallery. A save it cannot take comes back the way the machine's
+does ([when a save is refused](#when-a-save-is-refused)): **Year** and **Acquired
+date** are held to the same shapes, and a storage part is refused without its
+**Interface**.
 
 What differs by type is the specification section.
 

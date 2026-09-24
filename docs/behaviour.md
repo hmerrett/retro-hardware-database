@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2176 behaviours, from 64 files.*
+*2196 behaviours, from 65 files.*
 
 
 ## A file where text was expected
@@ -3329,6 +3329,42 @@ Regenerate with:
   A `min-width` on a control is a floor the row around it cannot go below: 200px of it on the old re-file box held the files list open.
 - a long filename cannot hold the list open  
   `overflow-wrap: break-word` on a cell breaks a word that has already been given its column, but leaves the column's minimum width at the whole word -- so the longest filename on the page decided how narrow the table could be.
+
+
+## Refused saves
+
+*test_refused_saves.py — 20 behaviours*
+
+
+**The shapes A computer is held to**
+
+- a year that is not four digits is refused  
+  Superscript digits are among them because Python calls them digits and int() does not: that pair used to be a server error rather than a refusal.
+- a topbench score that is not a whole number is refused
+- an acquired date that is not a date is refused
+- blank is always accepted
+- answers in the right shape are saved
+- a refused edit saves nothing and keeps the date on file
+
+**The computer form comes back as typed**
+
+- the summary counts what to fix and links each to its box
+- the message sits under its box tied to it
+- the refused answer is shown as it was typed
+- everything else typed is kept
+- the project picked for the work is still picked
+- a new machine is still a new machine
+- an edit still posts to its own machine
+- a refused new machine raises no project
+- photographs chosen are asked for again
+- a form nobody got wrong says nothing of it
+
+**A part is held to the same shapes**
+
+- a year or date in the wrong shape is refused
+- a refused edit saves nothing
+- a storage part without an interface comes back as the form
+- the interface link has somewhere to land
 
 
 ## Restore script

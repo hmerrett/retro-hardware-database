@@ -11,18 +11,24 @@
    otherwise be offered instead of the list -- these are answers from the
    register, and they are the ones worth having. #}
 {% set DL = dl | default({}) %}
+{# A refused save (assets.refused): each message by its field, and what was typed
+   into a box whose column could not hold it. #}
+{% set ERR = field_errors | default({}) %}
+{% set TYPED = typed | default({}) %}
 {% macro fld(key, label, hint='', type='', dl='') -%}
-  {{ U.field(key, label, value=(c[key] if c else '') or '', hint=hint, type=type,
+  {{ U.field(key, label, value=(TYPED[key] if key in TYPED else (c[key] if c else '')) or '',
+             hint=hint, type=type, error=ERR.get(key),
              list=('dl_' ~ dl) if dl and dl in DL else '',
              autocomplete='off' if dl and dl in DL else '') }}
 {%- endmacro %}
 <form class="editform" method="post" enctype="multipart/form-data"
-      action="{{ ('/computers/' + c.asset_id + '/edit') if c else '/computers/new' }}">
+      action="{{ '/computers/new' if new else ('/computers/' + c.asset_id + '/edit') }}">
   {# Naming the machine rather than only its tag: two tabs open on two machines are
      told apart by the heading, not by the address bar. #}
   <div class="pagehead"><h1 class="heading">
-    {%- if c %}Edit {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }} <span class="tag muted">{{ c.asset_id }}</span>
+    {%- if not new %}Edit {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }} <span class="tag muted">{{ c.asset_id }}</span>
     {%- else %}{{ title }}{% endif %}</h1></div>
+  {{ U.error_summary(errors | default([])) }}
   {% for name, values in DL.items() %}
   <datalist id="dl_{{ name }}">{% for v in values %}<option value="{{ v }}">{% endfor %}</datalist>
   {% endfor %}
@@ -156,7 +162,7 @@
 
   {% include "_workneeded.html" %}
 
-  {% if not c %}
+  {% if new %}
   {# On an item that exists, photos upload the moment they are picked, from the
      photo column on its own page. Here there is no asset tag to file them under
      yet, so they wait and go with the rest of the form. #}
@@ -166,7 +172,7 @@
   </fieldset>
   {% endif %}
 
-  {% set cancel = ('/computers/' ~ c.asset_id) if c else '/' %}
+  {% set cancel = '/' if new else ('/computers/' ~ c.asset_id) %}
   {% include "_actbar.html" %}
 </form>
 {# Only for the machine whose own page has dropped these: a catalogue machine with

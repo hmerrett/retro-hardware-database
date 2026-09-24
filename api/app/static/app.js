@@ -1317,6 +1317,24 @@ function combobox(box, list, pick) {
 })();
 
 
+// A refused save comes back with what to fix at the top. Focus starts there, so a
+// screen reader reads it out on arrival and the Tab key goes on from it into the
+// form. Each line links to its box; following a fragment scrolls to a control but
+// leaves the focus where it was, so the link puts the focus in the box as well.
+(function () {
+  var sum = document.querySelector('.errsum');
+  if (!sum) return;
+  sum.focus();
+  sum.addEventListener('click', function (ev) {
+    var a = ev.target.closest('a[href^="#"]');
+    var to = a && document.getElementById(a.getAttribute('href').slice(1));
+    if (!to) return;
+    ev.preventDefault();
+    to.focus();
+  });
+})();
+
+
 (function () {
   var note = document.getElementById('cookienote');
   var ok = document.getElementById('cookieok');
