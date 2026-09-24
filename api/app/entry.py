@@ -1096,7 +1096,6 @@ PORT_CODES = [
     ("U", "USB"),
 ]
 
-PORT_LEGEND = " ".join(f"{ltr}={name}" for ltr, name in PORT_CODES)
 PORT_NAMES = [name for _, name in PORT_CODES]
 
 

@@ -13,6 +13,10 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**The Ports letters are back under the box.** An I/O card's and a sound card's
+**Ports** box shows the letters it takes — I IDE, F Floppy, S Serial and the rest —
+which went into a tooltip with the other hints and so vanished on a phone.
+
 **A file is linked to the things it is for by their asset tags, and tags are
 gone.** A file can be linked to as many machines, parts and projects as it needs,
 and each shows the files linked to it. Uploading on a card offers the other cards

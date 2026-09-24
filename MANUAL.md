@@ -1005,7 +1005,9 @@ Two fields take shorthand and expand it for you:
 - **Ports** takes letters: `IFSSP` becomes `IDE, Floppy, 2× Serial, Parallel`.
   The codes are I=IDE, C=SCSI, A=SATA, M=MFM, R=RLL, F=Floppy, S=Serial,
   P=Parallel, G=Game, K=PS/2 keyboard, O=PS/2 mouse, D=DIN keyboard, U=USB. Order
-  does not matter; repeated letters become a count.
+  does not matter; repeated letters become a count. The letters are printed under
+  the box on an I/O card's form and a sound card's, since thirteen of them are not
+  something anybody remembers.
 - **Expansion slots** takes `8I:2 16I:6 VLB` and gives `2× 8-bit ISA, 6× 16-bit
   ISA, VLB`. Tokens are `key`, `key:n`, `key*n` or `keyxn`.
 
