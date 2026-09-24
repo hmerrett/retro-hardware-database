@@ -8,6 +8,7 @@ and the API -- because everything in this register has to arrive by either and l
 the same record behind.
 """
 
+import re
 import sys
 import textwrap
 from datetime import date
@@ -827,8 +828,11 @@ class TestWhereTheBoardAndPartsAreAskedFor:
     def test_the_form_it_opens_claims_no_type_yet(self, client, computer):
         aid = computer()["asset_id"]
         page = client.get(f"/parts/new?computer_id={aid}").text
-        assert "<h2>New part</h2>" in page
-        assert "<h2>New Video</h2>" in client.get("/parts/new?type=video").text
+        # The words of the heading, not its tag: v0.2 draws a form's title as the
+        # page's own heading rather than as a second-level one.
+        heading = re.compile(r"<h1 class=\"heading\">\s*([^<]+?)\s*</h1>")
+        assert heading.search(page).group(1) == "New part"
+        assert heading.search(client.get("/parts/new?type=video").text).group(1) == "New Video"
 
     def test_how_a_chip_is_held_rides_on_the_socket(self, client, db):
         """Six sockets each ending in "— soldered to the board" is a paragraph; a

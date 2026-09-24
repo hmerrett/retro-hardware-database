@@ -136,6 +136,11 @@
   .kv dt { flex: 0 0 132px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
   .kv dd { margin: 0; min-width: 0; font-family: var(--font-data); overflow-wrap: anywhere; }
   @media (max-width: 400px) { .kv dt { flex-basis: 104px; } }
+  /* The history's column is as wide as the stamp in it -- a date for a visitor, a
+     date and a time for the owner -- rather than the label width of the other lists,
+     which on a phone is width the entries were wrapping for. */
+  .kv.log dt { flex-basis: 10.5ch; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .kv.log.timed dt { flex-basis: 16.5ch; }
   /* A note is written in lines, and a table cell or a list value does not show them. */
   .kv dd.lines { white-space: pre-line; }
 

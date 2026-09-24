@@ -52,7 +52,7 @@
          so a score already on file is not quietly erased by someone filing the
          machine against the catalogue: a hidden input still submits what it holds. #}
       <div data-x86-only>
-        {{ fld('topbench', 'TopBench score', "what this machine scores in TopBench, the DOS benchmark — leave it blank until it has actually been run on this machine", type='number') }}
+        {{ fld('topbench', 'TopBench score', "its TopBench (DOS benchmark) score. Leave blank until it has been run.", type='number') }}
       </div>
     </div>
   </fieldset>
@@ -69,15 +69,15 @@
       <p class="hint" id="rammod-hint">how many of each; the total is computed.</p>
     </div>
     <div class="field">
-      <span class="lbl" id="ramchip-lbl">RAM chips (installed directly)</span>
+      <span class="lbl" id="ramchip-lbl">RAM chips on the board</span>
       <div class="countgrid" role="group" aria-labelledby="ramchip-lbl" aria-describedby="ramchip-hint">
         {% for pn, kb, org in ram_chips %}
         <label class="count"><span>{{ pn }} <span class="muted">({{ org }})</span></span> <input class="input" type="number" min="0" name="ramchip:{{ pn }}" value="{{ ram_counts.get(pn, '') }}"></label>
         {% endfor %}
       </div>
-      <p class="hint" id="ramchip-hint">DRAM on the board rather than on SIMMs. A banks-of-9 count is treated as parity.</p>
+      <p class="hint" id="ramchip-hint">DRAM soldered or socketed on the board rather than on SIMMs. A banks-of-9 count is treated as parity.</p>
     </div>
-    {{ U.field('installed_ram', 'Installed RAM — other / notes', value=ram_free,
+    {{ U.field('installed_ram', 'Other RAM', value=ram_free,
                hint="anything the grids above miss — DIMMs, odd sizes, or a plain total like 16MiB. All three are combined.") }}
   </fieldset>
 

@@ -22,7 +22,7 @@
   <fieldset class="fieldset">
     <legend>Project</legend>
     {{ U.field('name', 'Name', value=(p['name'] if p else '') or '', required=true,
-               hint='what you would call it out loud — "recap the +2A", "486 build". The only thing a project can be found by, so it is the one field that is asked for.') }}
+               hint='what you would call it out loud — "recap the +2A", "486 build". The one field that is required.') }}
     {# Three dates rather than one, because they answer three questions and any of
        them can be unknown while the others are not. None is worked out from another:
        a project can be finished without ever having been started -- the part turned
@@ -41,7 +41,7 @@
        at every one of them. The quick box on the list page sets it; this is where it
        is deliberately cleared, which is the act of publishing. #}
     {{ U.field('private', 'Private', kind='switch', value=(p['private'] if p else False),
-               hint='kept off the public list, out of the search and the sitemap, off the pages of the machines it is about, and its own page answers a visitor as though it were not there. The register is a public catalogue; what is wrong with a thing, in your own words, does not have to be part of it.') }}
+               hint='hidden from visitors: off the public list, the search, the sitemap and the pages of the machines it is about.') }}
   </fieldset>
   {# What it is about, changed with the rest of the form: Add item and Remove post the
      form back to be drawn again and save nothing, so this works with no script, and
@@ -86,7 +86,7 @@
     {{ U.field('summary', 'Summary', kind='area', value=(p['summary'] if p else '') or '', rows=3,
                hint='the line shown at the top of the page and beside it in the list') }}
     {{ U.field('notes', 'Notes', kind='area', value=(p['notes'] if p else '') or '', rows=5,
-               hint="the standing description. What happened on a particular evening is a note on the history instead, at the foot of the project's own page.") }}
+               hint="the standing description. What happened on a given evening goes in the history on the project's page.") }}
   </fieldset>
   {% set cancel = ('/projects/' ~ p.asset_id) if editing else '/projects' %}
   {% include "_actbar.html" %}

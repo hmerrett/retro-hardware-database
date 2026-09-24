@@ -47,10 +47,6 @@
   <span class="n">Every one of them</span> has had its portrait taken.
   {% endif %}
 </p>
-{# Small print under the sentence rather than in it: set in the lead's face it
-   outweighed the figure it qualifies. #}
-<p class="hint">A photograph on a history entry does not count: it says what
-  happened to a thing, not which thing this is.</p>
 {% endif %}
 
 {# One pool, shuffled. There used to be a fixed set of tiles here and an odder,
@@ -63,9 +59,7 @@
    Same quiet links throughout: every figure leads to the things it counted. #}
 <div class="pagehead mt-6">
   <h2 class="heading">Eight things about it</h2>
-  <span class="count">{{ st.facts | length }} of
-    {{ st.n_facts }}, drawn fresh each time you look —
-    <a href="/stats">shuffle</a></span>
+  <span class="count" title="{{ st.facts | length }} of {{ st.n_facts }}, drawn fresh each time you look"><a href="/stats">shuffle</a></span>
 </div>
 <div class="statgrid">
   {% for c in st.facts %}{{ U.stattile(c.k, c.v, c.s, c.href or '') }}{% endfor %}
@@ -97,7 +91,6 @@
 {# What is left out changes how every figure reads, and that the figures are
    links is deliberately not visible -- both worth a line. That they are counted
    live, and which columns they are counted from, are not. #}
-<p class="hint mt-6">Disposed items are left out of every figure but the count of
-disposals. Every number leads to what it counted.</p>
+<p class="hint mt-6" title="Every number leads to what it counted.">Disposed items are left out, except from the count of disposals.</p>
 </div>
 {% endblock %}

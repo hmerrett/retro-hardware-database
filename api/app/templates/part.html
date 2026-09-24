@@ -99,7 +99,7 @@
       {% if request.state.authed and computers %}
       <form class="row mt-3" method="post" action="/parts/{{ p.asset_id }}/link">
         <select class="select" name="computer_id" required aria-label="machine to fit this in">
-          <option value="">— choose a machine —</option>
+          <option value="">install in…</option>
           {% for comp in computers %}<option value="{{ comp.asset_id }}">{{ comp.asset_id }} · {{ display_name({'name': comp.name, 'manufacturer': comp.manufacturer, 'model': comp.model, 'asset_id': comp.asset_id}) }}</option>{% endfor %}
         </select>
         {{ U.button('Fit in', size='sm', type='submit') }}

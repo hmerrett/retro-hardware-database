@@ -96,8 +96,7 @@
     {%- if p and p.asset_id and action != '/parts/new' %}Edit {{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }} <span class="tag muted">{{ p.asset_id }}</span>
     {%- else %}{{ title }}{% endif %}</h1></div>
   {% if from_part %}
-  <p class="hint">Started from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.
-  Photos, source, acquired date and notes are not carried over.</p>
+  <p class="hint" title="Photos, source, acquired date and notes are not carried over.">Copied from <a href="/parts/{{ from_part }}">{{ from_part }}</a>.</p>
   {% endif %}
   <input type="hidden" name="computer_id" value="{{ computer_id }}">
   <input type="hidden" name="parent_id" value="{{ parent_id }}">

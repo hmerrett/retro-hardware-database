@@ -85,8 +85,7 @@
 </form>
 
 {% if searched %}
-<p class="hint" id="searchnote">Searched every field and the history of all
-  {{ total }} items for <strong>{{ q }}</strong> — {{ n_all }} matched.
+<p class="hint" id="searchnote" title="Every field and the history of all {{ total }} items">{{ n_all }} of {{ total }} match <strong>{{ q }}</strong>.
   {# The projects are searched by the same words and are not cards here: the grid
      is a wall of photographs of things owned, and a plan is not one of those. So
      they are counted and pointed at instead, which is what stops a search bar that

@@ -18,18 +18,18 @@
 <fieldset class="fieldset">
   <legend>Work needed</legend>
   {{ U.field('work_needed', 'Work needed', kind='area', rows=3,
-             placeholder='recap · new belt · keyboard sticks — one job to a line') }}
+             placeholder='one job per line') }}
   {# Written by hand rather than through U.field: the options are the projects'
      own names, which are data, and the Button text setting is not theirs to
      change. #}
   <div class="field">
-    <label for="work_project">…as part of</label>
+    <label for="work_project">Project</label>
     <select class="select" id="work_project" name="work_project" aria-describedby="work_project-hint">
-      <option value="">A project of its own</option>
+      <option value="">New project</option>
       {% for pr in work_projects %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
     </select>
-    <p class="hint" id="work_project-hint">Raises a project about this one, each line a job on it —
-      or adds it to a project already going, which is what a part bought for something
-      usually is. Leave it empty if there is nothing to do.</p>
+    <p class="hint" id="work_project-hint">New project: one named after this, each line a job on it. Or add the jobs to a
+      project already going — usually the case for a part bought for something. Leave
+      the jobs empty if there is nothing to do.</p>
   </div>
 </fieldset>
