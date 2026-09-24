@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2151 behaviours, from 63 files.*
+*2176 behaviours, from 64 files.*
 
 
 ## A file where text was expected
@@ -3203,7 +3203,8 @@ Regenerate with:
   'active' is what the column holds; 'in progress' is what a person types.
 - the projects page sifts itself
 - sifting reaches the orders too
-- a search matching nothing says so
+- a search matching nothing says so  
+  Read off the page itself.
 - the gallery says when projects match as well  
   A search bar that says 'anything' and quietly means 'the shelf' would be a search bar that lies.
 - the gallery stays a gallery  
@@ -3353,6 +3354,59 @@ Regenerate with:
 - it counts against the dump then migrates then checks the pages  
   In that order.
 - it checks the pages the home page hid a fault behind
+
+
+## Search suggestions
+
+*test_search_suggestions.py — 25 behaviours*
+
+
+**The match is marked**
+
+- what was typed is marked in the name
+- the runs put the name back together  
+  Marking cuts the name up; it must not change a letter of it.
+- the mark keeps the names own capitals
+- every word typed is marked
+- every place a word appears is marked
+- a quoted phrase is marked whole  
+  Quoted, it is one term and matched as one, so it is marked as one: the space inside it is part of what was asked for.
+- words that overlap are marked once
+- the tag is marked when it is what was typed
+- a match somewhere else marks nothing  
+  Found by its year, which the row does not print in the name: the row is offered, and nothing in its name pretends to be what matched.
+- a project is marked the same way
+
+**The way to every result**
+
+- the last row counts every result
+- it is there when every result already fits
+- a single result is not called all
+- it says the query as it was typed  
+  Less the spaces either side, which nobody meant.
+- it goes where enter goes  
+  Enter with nothing lit submits the banner's form: a GET to / with the box as q.
+- it follows the button text setting  
+  It is a control, so it speaks in the installation's voice.
+- nothing matching offers no rows  
+  The script says so in words when it is handed nothing.
+
+**How many rows**
+
+- ten are offered
+- a phone is offered four
+- no more than ten are offered whatever is asked  
+  The whole answer is the results page's to give, not this list's.
+- a nonsense count is refused
+
+**On A phone**
+
+- the banners list is dressed as a suggestion list  
+  It was the one listbox without the class, so it wore 0.1's rules -- anchored to the box's right edge at 380px, which on a phone put its left half off the screen.
+- no rule is left for the old list
+- the list spans the width under the banner  
+  On a phone the list hangs from the banner rather than from the box, and runs from one side of the screen to the other.
+- every row is tall enough for a thumb
 
 
 ## Settings

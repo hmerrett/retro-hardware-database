@@ -374,12 +374,19 @@ of photographs of things owned; the line above the results says how many project
 matched and links to them. See [section 12](#12-projects).
 
 **Type two characters** and a dropdown offers the first ten matches — computers,
-parts and projects alike. Arrow keys and Enter walk them; the last line says how
-many more there are. It runs exactly
-the same search Enter does, so the list is a preview of the real answer rather
-than a second, narrower search that disagrees with it. What it adds is an order:
-what you typed being an asset tag, or the start of a name, comes before a hit
-buried in a spec or a history note.
+parts and projects alike. Each row gives the asset tag and the name, with what you
+typed marked wherever it appears in them, and under that what kind of thing it is
+and its year. The last row is always **All N results for "…"**. Arrow keys and
+Enter walk the rows, that one included, and Enter with no row lit goes to the same
+place it does. It runs exactly the same search Enter does, so the list is a
+preview of the real answer rather than a second, narrower search that disagrees
+with it. What it adds is an order: what you typed being an asset tag, or the start
+of a name, comes before a hit buried in a spec or a history note. When nothing
+matches, the list says so.
+
+On a phone the list offers the first four rather than ten, so the last row is
+still in sight above the keyboard. It spans the width of the screen under the
+banner, and each row is tall enough to take with a thumb.
 
 **Quoting works.** `"sound blaster"` is one term that must appear as a phrase;
 `sound blaster` is two terms that must both appear somewhere. Multiple terms are

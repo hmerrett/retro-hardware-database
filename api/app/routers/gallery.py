@@ -13,7 +13,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -24,8 +24,15 @@ from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import Computer, LogEntry, Part
 from ..photos import _favicon_for_rel, _storage_placeholder, is_reference, pick_images
-from ..search import Card, _browse_view, _projects_matching, _search, _suggest
-from ..web import _og, templates
+from ..search import (
+    SUGGEST_LIMIT,
+    Card,
+    _browse_view,
+    _projects_matching,
+    _search,
+    _suggest,
+)
+from ..web import _og, _ui, templates
 
 if TYPE_CHECKING:
     from _typeshed import SupportsRichComparison
@@ -317,9 +324,27 @@ def _grid_page(
 
 
 @router.get("/suggest", include_in_schema=False)
-def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)) -> dict[str, object]:
-    items, total = _suggest(db, q, authed=request.state.sees_private)
-    return {"q": q, "items": items, "total": total}
+def gui_suggest(
+    request: Request,
+    q: str = "",
+    limit: int = Query(SUGGEST_LIMIT, ge=1),
+    db: Session = Depends(get_db),
+) -> dict[str, object]:
+    # A phone asks for fewer, to keep the last row above its keyboard. Nobody gets
+    # more: the whole answer is the results page's to give.
+    items, total = _suggest(db, q, min(limit, SUGGEST_LIMIT), authed=request.state.sees_private)
+    # The list's last row, worded here rather than by the script: it is a control,
+    # so it follows the Button text setting, which only the server can read. One
+    # result is not "all" of anything.
+    said = q.strip()
+    words = f'All {total} results for "{said}"' if total != 1 else f'1 result for "{said}"'
+    return {
+        "q": q,
+        "items": items,
+        "total": total,
+        # Where Enter goes with nothing lit: the banner's form, a GET to / with q.
+        "all": {"url": "/?" + urlencode({"q": said}), "text": _ui(words)},
+    }
 
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
