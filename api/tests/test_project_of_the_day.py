@@ -13,10 +13,11 @@ from datetime import timedelta
 
 from app import main
 from app.models import LogEntry
+from conftest import log_out
 
 
-def visitor(monkeypatch):
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+def visitor(client):
+    log_out(client)
 
 
 def panel(html):
@@ -79,7 +80,7 @@ class TestWhichOne:
         """The same rule the list below it follows. A suggestion is the loudest
         place on the page to leak one from."""
         make(client, "Hiddenzzz", private=True)
-        visitor(monkeypatch)
+        visitor(client)
         for _ in range(20):
             assert "Hiddenzzz" not in client.get("/projects").text
 

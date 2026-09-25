@@ -17,7 +17,7 @@ import re
 
 import pytest
 
-from app import main
+from conftest import log_out
 
 # Loaded without `src`, a <script> is code, and `script-src 'self'` blocks it --
 # but only if the browser would run it. A `type` the browser does not recognise
@@ -150,7 +150,7 @@ def test_a_response_the_gate_makes_itself_carries_it_too(client, monkeypatch):
     sitting inside it. Were it the other way round, every redirect to the login
     page -- the one response an unauthenticated stranger is most likely to get --
     would go out bare."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
     response = client.get("/computers/new", follow_redirects=False)
     assert response.status_code in (302, 303, 307, 401), (
         f"expected the gate to turn this away, got {response.status_code}"

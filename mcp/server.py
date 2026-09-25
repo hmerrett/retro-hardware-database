@@ -22,10 +22,15 @@ from mcp.server.mcpserver import MCPServer
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 
-# If the API requires HTTP Basic auth, forward the same credentials.
+# An API token, made for this server with `python -m app.accounts token` (ADR-0032).
+# Until it has one it falls back to the old single login over HTTP Basic, which is
+# what an installation upgraded from it has on its first start -- the app made its
+# first administrator from that same pair.
+_TOKEN = os.getenv("RHDB_API_TOKEN", "")
 _AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
 _AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
-API_AUTH = (_AUTH_USER, _AUTH_PASS) if _AUTH_USER and _AUTH_PASS else None
+API_HEADERS = {"Authorization": f"Bearer {_TOKEN}"} if _TOKEN else {}
+API_AUTH = (_AUTH_USER, _AUTH_PASS) if _AUTH_USER and _AUTH_PASS and not _TOKEN else None
 
 mcp = MCPServer("retro-hardware")
 
@@ -37,7 +42,7 @@ MCP_PORT = int(os.getenv("MCP_PORT", "8001"))
 
 
 def _client():
-    return httpx.Client(base_url=API_BASE_URL, timeout=30.0, auth=API_AUTH)
+    return httpx.Client(base_url=API_BASE_URL, timeout=30.0, auth=API_AUTH, headers=API_HEADERS)
 
 
 def _request(method, path, *, params=None, json=None):

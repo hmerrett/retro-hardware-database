@@ -1801,7 +1801,7 @@ agent is named.
 **Sending a label:**
 
 ```sh
-curl -u user:pass -X POST https://db.example.com/api/print/jobs \
+curl -H "Authorization: Bearer rhdb_…" -X POST https://db.example.com/api/print/jobs \
   -H 'content-type: application/json' \
   -d '{"agent": "workshop-pi", "kind": "part", "asset_id": "RH-0117"}'
 ```
@@ -1927,7 +1927,7 @@ It is a flag and nothing more: no price, no note, no date. Write why in the item
 history if you want it written down. A thing you have actually decided to sell is a
 different job, and this is the list you make before that decision.
 
-A viewer's account sees the marker and the list and cannot change either — see
+A viewer's account reads `/for-sale` and cannot change what is on it — see
 [administrators and viewers](#administrators-and-viewers).
 
 ### Disposal
@@ -2066,13 +2066,14 @@ be typed from memory or copied between windows.
 
 ### The first visit
 
-A new installation has no accounts, and until it has one **every page opens on
-Set up**. Nothing is readable and nothing is writable before somebody has said who
-runs the site.
+A new installation has no accounts, and until it has an administrator **every
+page opens on Set up**. Nothing is readable and nothing is writable before somebody
+has said who runs the site.
 
 Set up asks for three things: a **setup code**, the username you want, and a
-password for it, twice. The account it makes is an administrator, and once it
-exists Set up is gone for good — its address answers "not found" from then on.
+password for it, twice. The account it makes is an administrator, and once there
+is one Set up is gone for good — its address answers "not found" from then on. (An
+administrator made with the [accounts command](#adding-people) does the same.)
 
 The setup code is what stops a stranger doing it first. A fresh install is on the
 internet from the moment its certificate arrives, and without the code whoever
@@ -2135,8 +2136,8 @@ docker compose exec api python -m app.accounts disable ada
 docker compose exec api python -m app.accounts enable ada
 ```
 
-A username is letters, digits, dots, dashes and underscores, and is matched
-without regard to case, so `Ada` and `ada` are one account. A password is at
+A username is letters, digits and `.` `_` `-` `@` `+` — an email address will
+do — and is matched without regard to case, so `Ada` and `ada` are one account. A password is at
 least 10 characters; there are no other rules about what goes in it, because a
 long one a password manager made is better than a short one with a digit on the
 end.
@@ -2160,8 +2161,10 @@ them on to the item.
 What stays open is what has to: the login page and what it is drawn with, the
 health check a monitor calls, and the door a print agent collects its labels at,
 which takes the agent's own key ([printing somewhere
-else](#printing-to-a-printer-somewhere-else)). `robots.txt` asks every crawler to
-stay out, since there is nothing for one to read, and the sitemap is gone.
+else](#printing-to-a-printer-somewhere-else)). The sitemap is gone, and a crawler
+that follows a link in reaches only the login page, which asks not to be listed —
+the same reasoning as [search engines](#search-engines): a crawler has to be let in
+to be told to leave.
 
 It is off by default, because a catalogue is usually meant to be found. It is the
 answer to *keep this to the people I have given accounts to* — which **Block search
@@ -2303,8 +2306,8 @@ that must not be read by a stranger belongs behind the login, not behind this.
 ### Visitors must log in
 
 **Visitors must log in** is off. Turn it on and the whole site is behind the
-login: a visitor is shown the login page and nothing else, and the site asks every
-crawler to stay out because there is nothing left for one to read. What stays open,
+login: a visitor is shown the login page and nothing else, and the sitemap is
+withdrawn. What stays open,
 and why, is in [a site only its people can
 read](#a-site-only-its-people-can-read).
 
@@ -2499,8 +2502,12 @@ the one with the floppy reader.
 cd tools
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 export RHDB_API=https://db.example.com
-export RHDB_AUTH_USER=... RHDB_AUTH_PASSWORD=...
+export RHDB_API_TOKEN=rhdb_…
 ```
+
+Give each machine its own [API token](#api-tokens), so one can be withdrawn
+without the others. A username and password (`RHDB_AUTH_USER`,
+`RHDB_AUTH_PASSWORD`) still work in its place.
 
 Shared access and configuration live in `tools/rhdb.py` and `tools/config.yml`
 (base URL, label sizes, printer names — nothing secret). Every script also takes

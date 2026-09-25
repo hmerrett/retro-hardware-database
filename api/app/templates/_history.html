@@ -35,10 +35,10 @@
   </form>
   {% endif %}
   {% if log %}
-  <table class="kv log{{ ' timed' if request.state.authed else '' }}">
+  <table class="kv log{{ ' timed' if request.state.sees_private else '' }}">
     {% for e in log %}
     <tr>
-      <td class="logwhen"><span class="muted">{{ log_stamp(e.created_at, request.state.authed) }}</span></td>
+      <td class="logwhen"><span class="muted">{{ log_stamp(e.created_at, request.state.sees_private) }}</span></td>
       <td>
         <div class="logline">
           {# A photograph entry has no words in it: the chip is the whole of the

@@ -219,7 +219,7 @@ def create_app() -> FastAPI:
     stack inside it, so a policy registered further in would miss the login
     redirect -- the one response an unauthenticated stranger is most likely to get.
     """
-    app = FastAPI(title="Retro Hardware Database API", version=__version__)
+    app = FastAPI(title="Retro Hardware Database API", version=__version__, lifespan=auth.lifespan)
     app.middleware("http")(no_stale_pages)
     app.middleware("http")(auth.auth_gate)
     app.middleware("http")(content_security_policy)

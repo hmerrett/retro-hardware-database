@@ -17,8 +17,8 @@ quick box is: four of those five doors standing shut is a thing that is not priv
 
 import pytest
 
-from app import main
 from app.models import Computer, Project, ProjectAsset, ProjectTask
+from conftest import log_out
 
 
 def quick(client, job="needs a belt", **extra):
@@ -41,10 +41,10 @@ def hidden(client, job="a private job", name="Hidden", aid=None):
     return pid
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Nobody logged in. The fixtures run with the login switched off, so the gate
     lets everything through until a test says otherwise."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 class TestNotingSomethingDown:
@@ -123,7 +123,7 @@ class TestNotingSomethingDown:
         assert "/projects/quick" in client.get("/projects").text
 
     def test_a_visitor_is_not_offered_it(self, client, monkeypatch):
-        visitor(monkeypatch)
+        visitor(client)
         assert "/projects/quick" not in client.get("/projects").text
 
 
@@ -148,7 +148,7 @@ class TestItIsPrivate:
     def test_a_visitor_does_not_see_it_on_the_list(self, client, monkeypatch):
         hidden(client)
         client.post("/projects/new", data={"name": "Shown"}, follow_redirects=False)
-        visitor(monkeypatch)
+        visitor(client)
         html = client.get("/projects").text
         assert "Shown" in html and "Hidden" not in html
 
@@ -156,18 +156,18 @@ class TestItIsPrivate:
         """Not a 403 and not the login: somebody who guessed the tag should not be
         told there is something there to guess at."""
         aid = hidden(client)
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/projects/{aid}").status_code == 404
 
     def test_a_public_project_still_opens(self, client, monkeypatch):
         r = client.post("/projects/new", data={"name": "Shown"}, follow_redirects=False)
         aid = r.headers["location"].rsplit("/", 1)[-1]
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/projects/{aid}").status_code == 200
 
     def test_a_visitors_search_does_not_match_it(self, client, monkeypatch):
         hidden(client, "recapzzz", name="Hiddenzzz")
-        visitor(monkeypatch)
+        visitor(client)
         # The project's name, not the query: the search box echoes the query back
         # into its own value, so looking for that would find it every time.
         assert "Hiddenzzz" not in client.get("/projects?q=recapzzz").text
@@ -182,7 +182,7 @@ class TestItIsPrivate:
         Counting a private one would say there is something there without showing
         it, which is the same leak said as a number."""
         hidden(client, "recapzzz", name="Hiddenzzz")
-        visitor(monkeypatch)
+        visitor(client)
         note = client.get("/?q=recapzzz").text
         assert "/projects?q=recapzzz" not in note
         assert "Hiddenzzz" not in note
@@ -210,7 +210,7 @@ class TestItIsPrivate:
         pt = part(model="Widget")["asset_id"]
         hidden(client, "needs a belt", aid=pt)
         assert "Hidden" in client.get(f"/parts/{pt}").text
-        visitor(monkeypatch)
+        visitor(client)
         # Nowhere on the page: not the panel, and not the history either.
         assert "Hidden" not in client.get(f"/parts/{pt}").text
 
@@ -220,7 +220,7 @@ class TestItIsPrivate:
         aid = hidden(client, "a job")
         client.post(f"/projects/{aid}/edit", data={"name": "Hidden"}, follow_redirects=False)
         assert db.get(Project, aid).private is False
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/projects/{aid}").status_code == 200
         assert "Hidden" in client.get("/projects").text
         assert aid in client.get("/sitemap.xml").text
@@ -301,7 +301,7 @@ class TestTheMigrationDidNotAnnounceThem:
         is the one thing needed to try the door."""
         pt = part(model="Widget")["asset_id"]
         aid = hidden(client, "a job", aid=pt, name="Hiddenzzz")
-        visitor(monkeypatch)
+        visitor(client)
         assert aid not in client.get(f"/parts/{pt}").text
 
 
@@ -349,7 +349,7 @@ class TestTheBoxOnAnItemsOwnPage:
         including the private ones -- on a public page."""
         pt = part(model="Widget")["asset_id"]
         client.post("/api/projects", json={"name": "Privatezzz", "private": True})
-        visitor(monkeypatch)
+        visitor(client)
         assert "Privatezzz" not in client.get(f"/parts/{pt}").text
 
 
@@ -1014,7 +1014,7 @@ class TestAPrivateProjectsJobsAreNotOnTheItemPage:
     def test_a_visitor_sees_neither_the_name_nor_the_jobs(self, client, db, monkeypatch):
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         hidden(client, "the RIFA went bang", aid=pt)
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/parts/{pt}").text
         assert "the RIFA went bang" not in page
         assert "Hidden" not in page
@@ -1028,7 +1028,7 @@ class TestAPrivateProjectsJobsAreNotOnTheItemPage:
         """The filter is about privacy and not about hiding work in general."""
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         quick(client, "needs a belt", aid=pt)
-        visitor(monkeypatch)
+        visitor(client)
         assert "needs a belt" in client.get(f"/parts/{pt}").text
 
 
@@ -1143,7 +1143,7 @@ class TestTheProjectsOwnJobsShowOnItsThings:
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = hidden(client, "the RIFA went bang", aid=pt)
         client.post(f"/api/projects/{pid}/tasks", json={"text": "order the caps"})
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/parts/{pt}").text
         assert "order the caps" not in page and "the RIFA went bang" not in page
 
@@ -1217,7 +1217,7 @@ class TestTickingAJobOffFromTheItemPage:
 
     def test_a_visitor_gets_no_tick(self, client, monkeypatch):
         pt, _pid, _own, _wide = self.setup(client)
-        visitor(monkeypatch)
+        visitor(client)
         assert "/toggle" not in client.get(f"/parts/{pt}").text
 
 

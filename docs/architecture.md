@@ -248,7 +248,7 @@ breaking one turns CI red rather than merely being wrong.
 - **Public read, login to edit.** Anonymous visitors get `GET` on the gallery,
   item pages, images and static files. Everything else — new and edit forms,
   delete confirmations, labels, `/api/*`, `/docs`, and every write — requires a
-  login. The rule lives in `_is_public_read` / `_public_page` in `auth.py`.
+  login. The rule lives in `may` / `_public_page` in `auth.py`.
   **Visitors must log in** takes the public pages away too, leaving the login,
   setup, the health check, the static files and the print agent's door.
 - **Permissions are asked for by name, never by role.** `can(principal,

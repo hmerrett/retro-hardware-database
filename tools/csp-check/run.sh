@@ -31,9 +31,11 @@ DB_ROOT_PASSWORD=csp-check-throwaway
 RHDB_DOMAIN=http://localhost:18080
 RHDB_BASE_URL=http://localhost:18080
 RHDB_ACME_EMAIL=nobody@example.test
-# Open, so the crawl sees the forms and the owner-only pages. This stack is on the
-# loopback for two minutes; there is nothing here to protect (ADR-0019).
-RHDB_OPEN=1
+# The first administrator, made from this pair on the first start (ADR-0032), so
+# the crawl can sign in and see the forms and the owner-only pages. This stack is
+# on the loopback for two minutes; there is nothing here to protect.
+RHDB_AUTH_USER=csp
+RHDB_AUTH_PASSWORD=csp-check-throwaway
 ENV
 
 compose() {
@@ -68,7 +70,7 @@ echo "--- seeding a machine and a part"
 # the only thing that says which field the API did not like.
 post() {
   local path=$1 body=$2 out status
-  out=$(curl -sS -w '\n%{http_code}' -X POST "$BASE$path" \
+  out=$(curl -sS -w '\n%{http_code}' -u csp:csp-check-throwaway -X POST "$BASE$path" \
         -H 'content-type: application/json' -d "$body")
   status=${out##*$'\n'}
   out=${out%$'\n'*}
@@ -104,6 +106,7 @@ docker run --rm \
   -v "$HERE:/crawl:ro" \
   -e CSP_BASE=http://localhost:18080 \
   -e "CSP_ITEM=/computers/$machine" \
+  -e CSP_USER=csp -e CSP_PASS=csp-check-throwaway \
   -e PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
   mcr.microsoft.com/playwright:v1.56.0-noble \
   sh -c 'cp /crawl/crawl.mjs /tmp/ && cd /tmp && npm install --no-save --no-audit --no-fund --loglevel=error playwright@1.56.0 && node /tmp/crawl.mjs'

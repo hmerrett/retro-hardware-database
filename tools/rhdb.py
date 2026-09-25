@@ -96,9 +96,18 @@ def api_base() -> str:
     return url.rstrip("/")
 
 
+def api_headers() -> dict:
+    """An API token, if there is one: RHDB_API_TOKEN (env) or api_token in the
+    config. Preferred over a password -- one per machine, withdrawn on its own."""
+    token = os.getenv("RHDB_API_TOKEN") or load_config().get("api_token") or ""
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def api_auth():
-    """HTTP Basic credentials for the API, if it requires them. From
+    """HTTP Basic credentials for the API, when there is no token. From
     RHDB_AUTH_USER / RHDB_AUTH_PASSWORD (env) or config; None if unset."""
+    if api_headers():
+        return None
     cfg = load_config()
     user = os.getenv("RHDB_AUTH_USER") or cfg.get("auth_user") or ""
     pw = os.getenv("RHDB_AUTH_PASSWORD") or cfg.get("auth_password") or ""
@@ -110,7 +119,12 @@ def api_auth():
 
 def _request(method, path, **kwargs):
     resp = requests.request(
-        method, f"{api_base()}{path}", timeout=TIMEOUT, auth=api_auth(), **kwargs
+        method,
+        f"{api_base()}{path}",
+        timeout=TIMEOUT,
+        auth=api_auth(),
+        headers=api_headers(),
+        **kwargs,
     )
     if resp.status_code >= 400:
         raise RuntimeError(f"API {method} {path} -> {resp.status_code}: {resp.text}")

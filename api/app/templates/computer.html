@@ -81,7 +81,7 @@
        (ADR-0027). Folded into the pair list as a blank rather than tested on a row
        of its own, so the one list stays the one description of this panel -- the
        loop below already drops a pair with nothing in it. #}
-    {% set show_location = request.state.authed or public_locations() %}
+    {% set show_location = request.state.sees_private or public_locations() %}
     {# The machine's own facts. A panel like every other section of the page, so what
        the register knows about it and what is fitted in it are read the same way. #}
     {% call PN.panel('Details') %}

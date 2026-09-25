@@ -48,15 +48,13 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://${DB_USER:-retro}:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:3306/${DB_NAME:-retro}
       RHDB_BASE_URL: ${RHDB_BASE_URL:-https://${RHDB_DOMAIN:?set RHDB_DOMAIN in .env (see .env.example)}}
+      # The old single login, read only to make the first administrator on a start
+      # with no accounts (ADR-0032). `:-` because a new installation has none and is
+      # set up at /setup instead. RHDB_OPEN is passed so the app can say it no
+      # longer does anything, rather than it being ignored where nobody can see.
       RHDB_AUTH_USER: ${RHDB_AUTH_USER:-}
       RHDB_AUTH_PASSWORD: ${RHDB_AUTH_PASSWORD:-}
-      # Deliberately still `:-` and not `:?`: running with no login is a supported
-      # configuration, so a missing value must not stop the stack the way a missing
-      # database password does. What it must not do is pass unremarked -- and
-      # RHDB_OPEN is what lets the app tell "I meant this" from "my .env did not
-      # arrive", which are otherwise the same two empty strings (ADR-0019).
       RHDB_OPEN: ${RHDB_OPEN:-}
-      RHDB_SECRET_KEY: ${RHDB_SECRET_KEY:-}
       RHDB_WATERMARK: ${RHDB_WATERMARK:-1}
       # The label printers that are not on this machine, and the key each one's
       # agent holds (ADR-0025). Empty is a stack with no print queue, which is
@@ -86,6 +84,9 @@ services:
     restart: unless-stopped
     environment:
       API_BASE_URL: http://api:8000
+      # A token made with `python -m app.accounts token`. The old pair is the
+      # fallback until there is one, so an upgraded installation keeps working.
+      RHDB_API_TOKEN: ${RHDB_API_TOKEN:-}
       RHDB_AUTH_USER: ${RHDB_AUTH_USER:-}
       RHDB_AUTH_PASSWORD: ${RHDB_AUTH_PASSWORD:-}
     ports:

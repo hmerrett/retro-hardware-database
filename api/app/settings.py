@@ -153,6 +153,18 @@ DEFINITIONS: tuple[Definition, ...] = (
         live=True,
     ),
     Definition(
+        key="login_to_read",
+        section=SERVER,
+        label="Visitors must log in",
+        note=(
+            "Closes the whole site to anybody not signed in: they are shown the login "
+            "page and nothing else, and the sitemap is withdrawn. Off, the "
+            "catalogue is public and only editing needs a login."
+        ),
+        kind=SWITCH,
+        default="0",
+    ),
+    Definition(
         key="block_search_engines",
         section=SERVER,
         label="Block search engines",

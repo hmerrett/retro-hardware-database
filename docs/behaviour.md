@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1673 behaviours, from 45 files.*
+*1746 behaviours, from 45 files.*
 
 
 ## A file where text was expected
@@ -122,6 +122,104 @@ Regenerate with:
   Rather than printing the wrong size on a printer somebody is not watching.
 - a key is not a password and a password is not a key  
   The two doors do not open each other: the owner's credentials are not an agent's key, and an agent's key is not the owner's credentials.
+
+
+## Accounts
+
+*test_accounts.py — 61 behaviours*
+
+
+**Roles are lists of permissions**
+
+- a visitor may do nothing beyond the public pages
+- a viewer reads what is kept back and changes nothing
+- an administrator may do everything
+- a role on one site grants nothing on another
+
+**What A viewer sees**
+
+- an unpublished file
+- a private project
+- where a thing is kept
+- what an order cost
+- the for sale shortlist
+- no editing controls
+- a way to log out
+
+**What A viewer is refused**
+
+- an administrators page
+- an edit form
+- any write
+- a visitor is still sent to log in
+
+**There is always an administrator**
+
+- the last one cannot be made a viewer
+- the last one cannot be switched off
+- with a second the first can step down
+
+**Usernames and passwords**
+
+- a username is matched without regard to case
+- two accounts cannot differ only by case
+- an email address will do as a username
+- a username with a space is refused
+- a password is at least ten characters
+- a password is kept as an argon2 hash
+- a wrong username and a wrong password look the same
+
+**Signing in and out**
+
+- signing in gives a session cookie for 30 days
+- the database keeps a digest and never the key
+- logging out ends the session on the server
+- an expired session opens nothing
+- switching an account off signs it out everywhere
+- an account switched off cannot sign in
+- switching it back on restores it
+- a new password signs the account out everywhere else
+- http basic does not open a browser page
+
+**Api tokens**
+
+- a token opens the api
+- it starts rhdb
+- only a digest of it is kept
+- a viewers token reads and does not write
+- a revoked token opens nothing
+- a token stops when its account is switched off
+- its last use is recorded
+- wrong tokens count against the login limit
+- http basic with an accounts password still works
+
+**A closed site**
+
+- a visitor is shown the login and nothing else
+- an item page goes to the login and comes back
+- the photographs are behind it too
+- what has to stay open does
+- the print agents door stays open
+- the sitemap is withdrawn
+- a viewer reads it as before
+- it is off by default
+- it is on the settings page
+
+**An agents key is not A wrong guess**
+
+- collecting labels does not count against the limit  
+  The agent's bearer is its own key, checked by its route; read at the gate as an account's token it would be a wrong guess every time a label came.
+
+**The accounts command**
+
+- add and list
+- the password is read from standard input not the command line
+- a refusal is said and is not zero
+- role disable and enable
+- it will not remove the last administrator
+- password resets a lost one
+- a token is printed once and listed without its key
+- revoke
 
 
 ## Api
@@ -1180,15 +1278,6 @@ Regenerate with:
 - only the loose ones are taken from a mixed project
 
 
-## Auth secret
-
-*test_auth_secret.py — 3 behaviours*
-
-- uses the configured secret when present
-- requires a secret when auth is enabled
-- generates a throwaway secret when auth is disabled
-
-
 ## Autocomplete
 
 *test_autocomplete.py — 16 behaviours*
@@ -1670,6 +1759,58 @@ Regenerate with:
 **The api**
 
 - it lists each file with what it is linked to
+
+
+## First run
+
+*test_first_run.py — 30 behaviours*
+
+
+**A new installation**
+
+- every page opens on set up
+- nothing can be written before it
+- the api says the site is not set up
+- the health check answers before it
+- the setup page is drawn with its stylesheet
+- set up asks for the code a username and the password twice
+
+**The setup code**
+
+- it is written to the log at startup
+- it is three groups of four
+- a new one is written every start
+- capitals and dashes do not matter
+- a wrong code is refused
+- wrong codes count against the login limit
+
+**Setting up**
+
+- it makes an administrator and signs them in
+- the two passwords must agree
+- a short password is refused
+- the username is kept when the form comes back
+- it is gone once there is an account
+- it is gone on a site that already has accounts
+- a viewer alone does not set a site up  
+  A viewer made from the command line on a new install is an account, and one that can change nothing: the site is still waiting for somebody to run it.
+- an administrator made from the command line does
+
+**Upgrading from the single login**
+
+- the old pair becomes the first administrator
+- it says so
+- set up is skipped
+- it is read only when there are no accounts
+- a reminder is logged while the pair is still set
+- a username the accounts cannot hold opens on set up instead
+
+**What the log says**
+
+- a site with accounts and nothing left over says nothing
+- no accounts is a warning
+- rhdb open is said to do nothing
+- nothing logged carries a password
 
 
 ## For sale
@@ -2247,7 +2388,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 11 behaviours*
+*test_migrations.py — 13 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -2270,6 +2411,9 @@ Regenerate with:
 - 0044 moves nothing on a register with no files
 - 0044 can be downgraded  
   The two tables come back empty, which is the shape 0043 expects, and the links stay: a downgraded register offers each file on the items it is linked to.
+- 0045 makes the account tables empty  
+  Nothing is seeded by the migration: the old single login is read by the app at startup, because a migration must not assume what the environment holds any more than what the data does (ADR-0002, ADR-0032).
+- 0045 can be downgraded and upgraded again
 
 
 ## Models match migrations
@@ -2670,55 +2814,6 @@ Regenerate with:
 - it counts against the dump then migrates then checks the pages  
   In that order.
 - it checks the pages the home page hid a fault behind
-
-
-## Running open
-
-*test_running_open.py — 17 behaviours*
-
-
-**What it says at startup**
-
-- a site with a login says nothing  
-  The state nearly every installation is in.
-- no credentials and no opt in warns
-- the warning says what is wrong and what to set  
-  It is read by somebody who has just found their site open, so it has to carry the consequence and both ways out without them going to look.
-- opting in is said once and calmly  
-  An operator who has opted in has said what they want.
-- opting in while a login is configured warns it is doing nothing  
-  Silently ignoring a variable somebody deliberately set is the same fault as the one this whole change is about.
-- nothing logged carries a credential  
-  It names the variables; it must never reach for their values.
-
-**How it is read**
-
-- the opt in reads the usual words
-- it is off when unset  
-  Unset means not opted in, which is what makes the loud state the default -- a missing .env is far likelier than a deliberate open install.
-
-**The banner on the page**
-
-- the pages carry it when the site is open by accident
-- the pages do not when it was meant
-- it is on an item page too and not only the gallery  
-  Every page, because the pages somebody edits from are the item pages and a warning only on the front door is a warning most visits never see.
-- the banner is the one the stylesheet already warns with  
-  Reusing .banner rather than inventing a class: it is already the site's warning colour, and the stylesheet's contrast tests already cover it in both themes, so this adds no rule for them to have missed (accessibility-standards).
-
-**The app can still speak**
-
-- the apps logger survives the migrations
-- a line the app logs actually reaches a handler  
-  The property that matters, asserted directly rather than inferred from the flag above: a logger can be re-enabled and still go nowhere.
-
-**The wiring**
-
-- the app decided the banner from the two flags  
-  The global the templates read is what _announce_auth returned, rather than a second reading of the environment that could come to disagree with it.
-- the suite itself runs open and says so  
-  conftest pops both credentials -- that is how the suite gets to be the owner -- and then sets RHDB_OPEN, because it meant to.
-- the decision is written down
 
 
 ## Settings
