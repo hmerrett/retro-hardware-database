@@ -179,3 +179,61 @@ class TestAPartIsHeldToTheSameShapes:
     def test_the_interface_link_has_somewhere_to_land(self, client):
         html = flat(new_part(client, type="storage", kind="Hard disk", spec_interface="").text)
         assert 'id="spec_interface"' in html
+
+
+def new_project(client, **fields):
+    data = {"name": "Recap the +2A", "items_listed": "1"} | fields
+    return client.post("/projects/new", data=data, follow_redirects=False)
+
+
+class TestAProjectIsRefusedTheSameWay:
+    def test_one_with_no_name_is_told_so_under_the_name_box(self, client, db):
+        r = new_project(client, name="  ")
+        assert r.status_code == 400
+        assert db.query(Project).count() == 0
+        html = flat(r.text)
+        assert '<a href="#name">Name</a>' in html
+        assert 'id="name-err"' in html
+        # The banner is for a save that failed for a reason that is not the owner's.
+        assert "Not saved" not in html
+
+    @pytest.mark.parametrize("field", ["started_at", "target_date", "finished_at"])
+    def test_a_date_that_is_not_a_date_is_refused(self, client, db, field):
+        r = new_project(client, **{field: "last spring"})
+        assert r.status_code == 400
+        assert db.query(Project).count() == 0
+        assert f'<a href="#{field}">' in r.text
+
+    def test_the_refused_date_is_shown_as_it_was_typed(self, client):
+        html = flat(new_project(client, started_at="last spring").text)
+        assert 'id="started_at" name="started_at" value="last spring"' in html
+
+    def test_a_refused_edit_saves_nothing_and_keeps_the_date_on_file(self, client):
+        pid = client.post(
+            "/api/projects", json={"name": "Recap the +2A", "started_at": "2026-03-14"}
+        ).json()["asset_id"]
+        r = client.post(
+            f"/projects/{pid}/edit",
+            data={"name": "Changed", "started_at": "last spring"},
+            follow_redirects=False,
+        )
+        assert r.status_code == 400
+        p = client.get(f"/api/projects/{pid}").json()
+        assert (p["name"], p["started_at"]) == ("Recap the +2A", "2026-03-14")
+        assert f'action="/projects/{pid}/edit"' in r.text
+
+    def test_an_item_it_cannot_find_left_in_the_box_on_save_is_a_thing_to_fix(self, client, db):
+        r = new_project(client, add_item="RH-ZZZZ")
+        assert r.status_code == 400
+        assert db.query(Project).count() == 0
+        assert '<a href="#add_item">' in r.text
+
+    def test_add_item_says_so_under_the_box_and_nothing_else(self, client):
+        """Adding to the list saves nothing, so there is nothing yet to refuse --
+        not even a name that has not been typed yet."""
+        r = new_project(client, name="", add="1", add_item="RH-ZZZZ")
+        assert r.status_code == 200
+        html = flat(r.text)
+        assert 'id="add_item-err"' in html
+        assert "errsum" not in html
+        assert 'id="name-err"' not in html

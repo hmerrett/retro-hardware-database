@@ -541,6 +541,13 @@ Photographs chosen on a new machine are the exception. A browser will not let a
 page choose files on your behalf, so they have to be picked again, and the
 Photographs section says so.
 
+A project's form comes back the same way. A project with no name is refused, and
+**Started**, **Wanted by** and **Finished** are held to a date's shape. A tag or a
+name in **Add a computer or part** that the register cannot find is said under the
+box when **Add item** is pressed, and nothing else is: adding to the list saves
+nothing, so there is nothing yet to refuse. Left in the box when **Save** is
+pressed, it is one of the things to fix.
+
 ### Where it is kept
 
 **Location** is where the object actually is, as you would say it to somebody
@@ -1452,7 +1459,8 @@ is the ordinary case at the start, not an unfinished one.
 
 Only the name is asked for. It is the only thing a project can be found by: a
 machine falls back to its manufacturer and model and then to its asset tag, and a
-project has neither.
+project has neither. A save without one is refused ([when a save is
+refused](#when-a-save-is-refused)).
 
 ### The states
 

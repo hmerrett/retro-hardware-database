@@ -98,6 +98,9 @@ SHAPES: dict[str, tuple[str, str]] = {
     "year": ("Year", "Needs four digits, like 1988."),
     "topbench": ("TopBench score", "Needs a whole number, like 104."),
     "acquired_date": ("Acquired date", "Needs a date, like 14/03/1994."),
+    "started_at": ("Started", "Needs a date, like 14/03/2026."),
+    "target_date": ("Wanted by", "Needs a date, like 14/03/2026."),
+    "finished_at": ("Finished", "Needs a date, like 14/03/2026."),
 }
 
 # What stopped a save: the field, its label and the message, as U.error_summary

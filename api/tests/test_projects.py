@@ -383,8 +383,8 @@ class TestTheForm:
         """The only thing it can be found by: a machine falls back to its
         manufacturer and model and then to its id, and a project has neither."""
         r = client.post("/projects/new", data={"name": "  "}, follow_redirects=False)
-        assert r.status_code == 200
-        assert "Give it a name" in r.text
+        assert r.status_code == 400
+        assert "Needs a name, like" in r.text
         assert db.query(Project).count() == 0
 
     def test_what_was_typed_survives_the_refusal(self, client):

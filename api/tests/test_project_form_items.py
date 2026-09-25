@@ -194,7 +194,9 @@ class TestSaving:
         r = client.post(
             "/projects/new", data={"name": "Tidy", "add_item": "Nothing"}, follow_redirects=False
         )
-        assert r.status_code == 200
+        # A refusal like any other: one of the things to fix, at the top.
+        assert r.status_code == 400
+        assert '<a href="#add_item">' in r.text
         assert "Nothing in the register has that tag or name" in r.text
         assert db.query(ProjectAsset).count() == 0
 

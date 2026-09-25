@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2196 behaviours, from 65 files.*
+*2202 behaviours, from 65 files.*
 
 
 ## A file where text was expected
@@ -3333,7 +3333,7 @@ Regenerate with:
 
 ## Refused saves
 
-*test_refused_saves.py — 20 behaviours*
+*test_refused_saves.py — 26 behaviours*
 
 
 **The shapes A computer is held to**
@@ -3365,6 +3365,16 @@ Regenerate with:
 - a refused edit saves nothing
 - a storage part without an interface comes back as the form
 - the interface link has somewhere to land
+
+**A project is refused the same way**
+
+- one with no name is told so under the name box
+- a date that is not a date is refused
+- the refused date is shown as it was typed
+- a refused edit saves nothing and keeps the date on file
+- an item it cannot find left in the box on save is a thing to fix
+- add item says so under the box and nothing else  
+  Adding to the list saves nothing, so there is nothing yet to refuse -- not even a name that has not been typed yet.
 
 
 ## Restore script
