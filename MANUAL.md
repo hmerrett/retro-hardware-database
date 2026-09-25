@@ -1927,9 +1927,8 @@ It is a flag and nothing more: no price, no note, no date. Write why in the item
 history if you want it written down. A thing you have actually decided to sell is a
 different job, and this is the list you make before that decision.
 
-The flag is only as private as your login. An installation running with
-`RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` unset has no login at all, and treats
-every visitor as the owner — see [section 17](#17-logging-in).
+A viewer's account sees the marker and the list and cannot change either — see
+[administrators and viewers](#administrators-and-viewers).
 
 ### Disposal
 
@@ -2054,49 +2053,128 @@ from all of them.
 
 ## 17. Logging in
 
-**Reads are public. Writes need a login.**
+**Reads are public. Writes need a login.** Unless you close the site, which is
+[below](#a-site-only-its-people-can-read).
 
-Anonymous visitors can browse the gallery, item pages, the statistics, the files
-and the photographs. The new and edit forms, the label PDFs, every write, the
-JSON API and the API docs require authentication.
+Anonymous visitors can browse the gallery, item pages, the statistics, the
+published files and the photographs. The new and edit forms, the label PDFs, every
+write, the JSON API and the API docs need somebody signed in.
 
 The login boxes say what they are for, so a password manager — the browser's own,
 or one you keep elsewhere — offers the right entry and fills both. Nothing has to
 be typed from memory or copied between windows.
 
-There is one account, set with `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`. Leave
-both blank and the site runs with no authentication at all, which is only
-sensible for local development or a read-only install on a network you trust.
+### The first visit
 
-### When there is no login
+A new installation has no accounts, and until it has one **every page opens on
+Set up**. Nothing is readable and nothing is writable before somebody has said who
+runs the site.
 
-**Blank credentials mean every visitor is you.** Not "can read everything" —
-*is you*: able to add, edit, delete and dispose of anything, because there is no
-account for the code to tell apart from yours. The log out button and the traffic
-link disappear too, since there is nothing to log out of.
+Set up asks for three things: a **setup code**, the username you want, and a
+password for it, twice. The account it makes is an administrator, and once it
+exists Set up is gone for good — its address answers "not found" from then on.
 
-That is a supported way to run. What is not supported is arriving there by
-accident, which is easy: a `.env` that is missing, unreadable, or left behind in
-the directory the checkout was moved out of gives blank credentials and a stack
-that comes up looking perfectly normal.
-
-So the app assumes the mistake. With no credentials and no `RHDB_OPEN`, it
-**warns in the log at startup and shows a banner on every page**. If you meant it,
-set `RHDB_OPEN=1` in your `.env`; the banner goes and the log says once, calmly,
-that the site is running open.
-
-If a banner has appeared on a site that is supposed to have a login, your
-credentials are not reaching the app. Check them without printing the password:
+The setup code is what stops a stranger doing it first. A fresh install is on the
+internet from the moment its certificate arrives, and without the code whoever
+found the address before you did would be the one choosing the password. The app
+writes the code to its own log when it starts with no accounts, and only somebody
+who can read the log on the server can read it:
 
 ```sh
-docker compose exec -T api sh -c 'echo "user=[$RHDB_AUTH_USER] pass=[${RHDB_AUTH_PASSWORD:+set}]"'
+docker compose logs api | grep -i "setup code"
 ```
 
-- **In a browser**, you sign in through a login page and get a signed session
-  cookie. The log out button is in the header. The cookie is signed with
-  `RHDB_SECRET_KEY`.
-- **The JSON API and the docs** also accept HTTP Basic, which is how the tool
-  server and the command-line tools authenticate.
+It looks like `K7QM-2HXP-9RTA`, capitals or not. A new one is written every time
+the app starts until setup is done, so after a restart use the newest. Wrong codes
+count against the same limit as wrong passwords.
+
+**An installation upgraded from a single login skips Set up.** If
+`RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` are set in `.env` when the app first
+starts with no accounts, it makes an administrator from them and says so in the
+log: you sign in exactly as you did before. From then on the accounts are the
+login and those two variables are not read by the site — change your password
+through the account, not in `.env`. The tool server still reads them until it has
+a token of its own ([section 20](#20-the-tool-server)); once it has, delete them.
+
+### Administrators and viewers
+
+Every account has one of two roles.
+
+| | Visitor (not signed in) | Viewer | Administrator |
+|---|---|---|---|
+| The public pages | ✓ | ✓ | ✓ |
+| What is kept back from visitors | | ✓ | ✓ |
+| The JSON API and its docs | | read | read and write |
+| Adding, editing, deleting anything | | | ✓ |
+| Settings, accounts, the traffic report | | | ✓ |
+
+*What is kept back from visitors* is everything the rest of this manual says a
+visitor is not shown: unpublished files, private projects, where things are kept,
+the for-sale shortlist, what an order cost, and the time of day on the history. A
+viewer reads all of it and changes none of it — the account for somebody you would
+show the whole collection to but would not hand the keys.
+
+A viewer who opens something only an administrator may use — an edit form, the
+settings — is told so, rather than being sent to log in again as the same person.
+
+There is always at least one administrator. The last one cannot be made a viewer
+or switched off; make another first.
+
+### Adding people
+
+Accounts are managed from the server for now, with the `accounts` command inside
+the app's container. Each command that sets a password asks for it, twice, and
+does not echo it:
+
+```sh
+docker compose exec api python -m app.accounts list
+docker compose exec api python -m app.accounts add ada --role viewer
+docker compose exec api python -m app.accounts password ada
+docker compose exec api python -m app.accounts role ada admin
+docker compose exec api python -m app.accounts disable ada
+docker compose exec api python -m app.accounts enable ada
+```
+
+A username is letters, digits, dots, dashes and underscores, and is matched
+without regard to case, so `Ada` and `ada` are one account. A password is at
+least 10 characters; there are no other rules about what goes in it, because a
+long one a password manager made is better than a short one with a digit on the
+end.
+
+**Switching an account off** signs it out everywhere at once and stops its API
+tokens working. It is kept, so switching it back on restores it as it was.
+**Changing a password** signs that account out everywhere else.
+
+The same command is the way back in if every administrator's password is lost:
+anybody who can run commands on the server can already read the database, so it
+asks for nothing more.
+
+### A site only its people can read
+
+**Visitors must log in**, in the settings' Server options, closes the site. With
+it on, somebody who is not signed in is shown the login page and nothing else: no
+gallery, no item pages, no photographs, no files, not the catalogue of models, not
+a link preview. Scanning a label takes them to the login, and signing in takes
+them on to the item.
+
+What stays open is what has to: the login page and what it is drawn with, the
+health check a monitor calls, and the door a print agent collects its labels at,
+which takes the agent's own key ([printing somewhere
+else](#printing-to-a-printer-somewhere-else)). `robots.txt` asks every crawler to
+stay out, since there is nothing for one to read, and the sitemap is gone.
+
+It is off by default, because a catalogue is usually meant to be found. It is the
+answer to *keep this to the people I have given accounts to* — which **Block search
+engines** is not, being a request a crawler may ignore.
+
+### Signing in and out
+
+- **In a browser**, you sign in through the login page and are given a session
+  cookie holding a random key, which the register keeps a record of. Signing in
+  lasts 30 days. The log out button is in the header, and ends that session.
+- **The JSON API and the docs** take an API token (below). They also still take
+  HTTP Basic with an account's username and password, for the tools that were set
+  up before there were tokens.
 
 Both doors keep your place. Logging in returns you to the page you were asking
 for — which matters most to a phone that has arrived by scanning a label and would
@@ -2105,16 +2183,60 @@ logging out leaves you on the page you were reading rather than at the front doo
 A search in the address counts as part of where you were. The exception is a page
 the login was what let you see: logging out of an edit form leaves you on the item
 it was editing, and out of a new form or a delete confirmation, which have no item
-behind them, on the gallery.
+behind them, on the gallery. On a closed site every page is one of those, and
+logging out lands on the login page.
 
-Editing controls simply do not appear when you are not logged in.
+Editing controls simply do not appear for anybody who may not use them.
+
+### API tokens
+
+A token is a password for a program: the tool server, a script, the print agent's
+machine. It acts as the account it was made for, with that account's role, so a
+viewer's token can read the API and not write to it. Make one per program, so a
+leaked one can be withdrawn without breaking the others:
+
+```sh
+docker compose exec api python -m app.accounts token ada "tool server"
+docker compose exec api python -m app.accounts tokens
+docker compose exec api python -m app.accounts revoke 7
+```
+
+The token is printed once, when it is made, and never again; the register keeps
+only a fingerprint of it. It starts `rhdb_`, so it is recognisable in a
+configuration file and to a secret scanner. Send it as a bearer token:
+
+```sh
+curl -H "Authorization: Bearer rhdb_…" https://db.example.com/api/parts
+```
+
+A token stops working when it is revoked or when its account is switched off.
+`tokens` shows when each was last used, which is how to find the one nothing uses
+any more.
+
+### What the log says at startup
+
+The app says which state it came up in, so a misconfiguration is in the log on the
+first start rather than found weeks later:
+
+- **no accounts yet** — a warning, with the setup code;
+- **no accounts, and `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` set** — that it
+  has made an administrator from them;
+- **accounts, and those two still set** — a reminder that the site no longer reads
+  them;
+- **`RHDB_OPEN` set** — that it no longer does anything. It used to let an
+  installation run with no login at all. There is no such state any more: a site
+  that is meant to be read by anybody is simply a site with a login and **Visitors
+  must log in** off, which is the default.
+
+It never writes a password, a token or a session key to the log, only the names
+of the variables.
 
 ---
 
 ## 18. Settings
 
-**⋯ → Settings**, or `/settings` directly. Behind the login, like everything
-else that changes the site rather than reads it, and not linked where a visitor
+**⋯ → Settings**, or `/settings` directly. For administrators, like everything
+else that changes the site rather than reads it, and not linked where anybody else
 would see it.
 
 Everything else the register holds is a fact: this machine has that chip, that
@@ -2129,7 +2251,8 @@ everybody who opens the site gets it. It comes in two groups:
 theme it opens in.
 
 **Server options** — what this installation shows the outside world and what
-it remembers for itself: whether it asks to be kept out of search engines,
+it remembers for itself: whether visitors must log in to read anything, whether it
+asks to be kept out of search engines,
 whether a visitor is shown where things are kept, whether a new file starts out
 public, and whether a place nothing is kept in any more is still offered.
 
@@ -2177,6 +2300,14 @@ leave. That is what this does.
 It is a request rather than a lock, and the honest crawlers honour it. Anything
 that must not be read by a stranger belongs behind the login, not behind this.
 
+### Visitors must log in
+
+**Visitors must log in** is off. Turn it on and the whole site is behind the
+login: a visitor is shown the login page and nothing else, and the site asks every
+crawler to stay out because there is nothing left for one to read. What stays open,
+and why, is in [a site only its people can
+read](#a-site-only-its-people-can-read).
+
 ### Where things are kept
 
 Two switches, both about the **Location** box on a machine or a part ([where it
@@ -2190,10 +2321,6 @@ a stranger nothing. Signed in you always see it, whichever way the switch is set
 Turn it on for a collection kept somewhere public — a museum shelf, a club room,
 a shared workshop — where where a thing lives is half of what a reader wants to
 know.
-
-Off is only as private as your login. An installation running with
-`RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` unset has no login at all and treats
-every visitor as the owner — see [section 17](#17-logging-in).
 
 **Remember old locations** is on. The register keeps a list of every location it
 has been given, so a crate you have emptied is still offered the next time you
@@ -2309,11 +2436,15 @@ take them: the note belongs to checking something in, and an item that already
 exists has the box on its own page. Every computer and part reads back with
 `project`, the tag of the project it is on, or null.
 
-Authenticate with HTTP Basic:
+Authenticate with an [API token](#api-tokens):
 
 ```sh
-curl -u user:pass https://db.example.com/api/parts?type=video
+curl -H "Authorization: Bearer rhdb_…" https://db.example.com/api/parts?type=video
 ```
+
+A viewer's token reads and is refused a write with `403`. HTTP Basic with an
+account's username and password still works, for tools set up before there were
+tokens.
 
 ---
 
@@ -2347,7 +2478,13 @@ observed, never something inferred from the age or the model.
 
 It stores nothing of its own. Every call is an HTTP request to the API, so the
 tool server, the GUI and the command-line tools all work against the same
-database and obey the same rules. `create_*` assigns the next asset tag;
+database and obey the same rules.
+
+It signs in with `RHDB_API_TOKEN` from `.env`: make an [API token](#api-tokens)
+for it — an administrator's, if it is to write — put it there, and restart the
+`mcp` service. Until it has one it falls back to `RHDB_AUTH_USER` and
+`RHDB_AUTH_PASSWORD` over HTTP Basic, which keeps an upgraded installation working
+on its first start. `create_*` assigns the next asset tag;
 `update_*` changes only the fields you pass.
 
 ---
