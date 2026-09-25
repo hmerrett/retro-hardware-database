@@ -178,8 +178,9 @@ search box in the middle, and what you can do on the right.
 - **Search anything…** and **Scan** — see [Finding things](#3-searching).
   The Scan button appears only where there is a camera to use.
 - **+ New** — offers Computer, Part or Project. Logged in only.
-- **☰** — the theme, **Might sell**, **Traffic** and **Log out**, and (in the
-  installed app, where the browser provides neither) share and reload.
+- **☰** — the theme, **Might sell**, **Traffic**, **Settings**, **Account** and
+  **Log out**, each where your account reaches it, and (in the installed app, where
+  the browser provides neither) share and reload.
 - **API docs** — the interactive API console (login required), at the foot of
   the page.
 
@@ -197,7 +198,7 @@ across the bottom of the screen, where your thumb already is.
 - **Scan** — reads a label's code. Appears only where there is a camera.
 - **More** — one list holding the sections (**Projects**, **Numbers**,
   **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
-  **Might sell**, **Traffic** and **Log out**.
+  **Might sell**, **Traffic**, **Settings**, **Account** and **Log out**.
 
 ### On a narrow screen
 
@@ -2233,7 +2234,7 @@ has said who runs the site.
 Set up asks for three things: a **setup code**, the username you want, and a
 password for it, twice. The account it makes is an administrator, and once there
 is one Set up is gone for good — its address answers "not found" from then on. (An
-administrator made with the [accounts command](#adding-people) does the same.)
+administrator made from the [command line](#from-the-command-line) does the same.)
 
 The setup code is what stops a stranger doing it first. A fresh install is on the
 internet from the moment its certificate arrives, and without the code whoever
@@ -2278,14 +2279,51 @@ show the whole collection to but would not hand the keys.
 A viewer who opens something only an administrator may use — an edit form, the
 settings — is told so, rather than being sent to log in again as the same person.
 
-There is always at least one administrator. The last one cannot be made a viewer
-or switched off; make another first.
-
 ### Adding people
 
-Accounts are managed from the server for now, with the `accounts` command inside
-the app's container. Each command that sets a password asks for it, twice, and
-does not echo it:
+**⋯ → Settings → Accounts**, or `/settings/users`, for administrators. It lists
+every account with its role, whether it is switched on, and when it last signed
+in, and has a box at the foot for a new one: a name, a role, and its password
+twice. Give the person their password some other way than the register — it never
+sends anything anywhere.
+
+Each account's name is a link to its own page, where an administrator can:
+
+- **change its role** between administrator and viewer;
+- **switch it off**, or back on;
+- **set a new password** for it, which is how a forgotten one is replaced;
+- **revoke its API tokens**, one at a time.
+
+A username is letters, digits and `.` `_` `-` `@` `+` — an email address will
+do — and is matched without regard to case, so `Ada` and `ada` are one account. A
+password is at least 10 characters; there are no other rules about what goes in
+it, because a long one a password manager made is better than a short one with a
+digit on the end.
+
+**Switching an account off** signs it out everywhere at once and stops its API
+tokens working. It is kept, so switching it back on restores it as it was.
+**Changing a password** signs that account out everywhere else.
+
+There is always at least one administrator, and the page says so rather than
+doing it if you try to make the last one a viewer or switch it off.
+
+### Your account
+
+**⋯ → Account**, or `/settings/account`, for everybody who is signed in — viewers
+included. It is where you:
+
+- **change your password**, which asks for the one you have now first, so a
+  browser left signed in is not enough to take the account over. Every other
+  browser signed in as you is signed out; this one stays in;
+- see **where you are signed in** — each browser, when it signed in and when it
+  was last seen — and **sign out everywhere else**, for the phone you lost or the
+  machine at the club you forgot;
+- make and revoke **your API tokens** ([below](#api-tokens)).
+
+### From the command line
+
+Everything the Accounts page does, the `accounts` command does too, inside the
+app's container. It asks for a password twice and does not echo it:
 
 ```sh
 docker compose exec api python -m app.accounts list
@@ -2296,19 +2334,9 @@ docker compose exec api python -m app.accounts disable ada
 docker compose exec api python -m app.accounts enable ada
 ```
 
-A username is letters, digits and `.` `_` `-` `@` `+` — an email address will
-do — and is matched without regard to case, so `Ada` and `ada` are one account. A password is at
-least 10 characters; there are no other rules about what goes in it, because a
-long one a password manager made is better than a short one with a digit on the
-end.
-
-**Switching an account off** signs it out everywhere at once and stops its API
-tokens working. It is kept, so switching it back on restores it as it was.
-**Changing a password** signs that account out everywhere else.
-
-The same command is the way back in if every administrator's password is lost:
-anybody who can run commands on the server can already read the database, so it
-asks for nothing more.
+It is the way back in if every administrator's password is lost: anybody who can
+run commands on the server can already read the database, so it asks for nothing
+more.
 
 ### A site only its people can read
 
@@ -2356,7 +2384,11 @@ Editing controls simply do not appear for anybody who may not use them.
 A token is a password for a program: the tool server, a script, the print agent's
 machine. It acts as the account it was made for, with that account's role, so a
 viewer's token can read the API and not write to it. Make one per program, so a
-leaked one can be withdrawn without breaking the others:
+leaked one can be withdrawn without breaking the others.
+
+Make yours on **⋯ → Account**: give it a name that says what it is for — *tool
+server*, *print desk* — and press **Make token**. An administrator can revoke
+anybody's from their page under Accounts. The command line does the same:
 
 ```sh
 docker compose exec api python -m app.accounts token ada "tool server"
@@ -2364,7 +2396,7 @@ docker compose exec api python -m app.accounts tokens
 docker compose exec api python -m app.accounts revoke 7
 ```
 
-The token is printed once, when it is made, and never again; the register keeps
+The token is shown once, when it is made, and never again; the register keeps
 only a fingerprint of it. It starts `rhdb_`, so it is recognisable in a
 configuration file and to a secret scanner. Send it as a bearer token:
 
@@ -2373,7 +2405,7 @@ curl -H "Authorization: Bearer rhdb_…" https://db.example.com/api/parts
 ```
 
 A token stops working when it is revoked or when its account is switched off.
-`tokens` shows when each was last used, which is how to find the one nothing uses
+The lists say when each was last used, which is how to find the one nothing uses
 any more.
 
 ### What the log says at startup
@@ -2422,6 +2454,11 @@ public, and whether a place nothing is kept in any more is still offered.
 
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
+
+At the top of the page are the two pages beside it: **Accounts**, the people who
+may sign in ([adding people](#adding-people)), and **Your account**, your own
+password, sessions and tokens ([your account](#your-account)). Your account is the
+one page under Settings a viewer may open.
 
 The page itself is deliberately bare: a control says what it is in as few words
 as will do, and the reason for it is in a tooltip you get by resting the pointer
@@ -2658,8 +2695,8 @@ things in it beside its name. For somebody signed in it also carries **Computer*
 and **Part** as one press each, and **Recent**: the last three things you edited,
 tag first, which is the rail's best argument at a bench where you go back to the
 same two machines all afternoon. At its foot are the theme button, which everybody
-gets, then **Settings** and **Log out** — or **Log in** for a visitor — and
-**Collapse**.
+gets, then **Settings**, **Account** and **Log out** — or **Log in** for a
+visitor — and **Collapse**.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.
@@ -2677,7 +2714,7 @@ sections as it always has, and a phone gets the tab bar. There is no phone form 
 a rail, so *Side* and *Top* are the same thing on a phone.
 
 A visitor sees the rail without the things that are not theirs: no **+ Computer**
-or **+ Part**, no **Recent**, no **Settings** and no **Log out**. The counts they
+or **+ Part**, no **Recent**, no **Settings**, no **Account** and no **Log out**. The counts they
 do see, because the size of a collection is part of what a catalogue is for.
 
 ### Button text
