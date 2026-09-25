@@ -474,6 +474,11 @@ class TestIcons:
         "collapse",
     ]
 
+    def test_an_account_has_an_icon_of_its_own(self):
+        """The menu's Account row, beside Log out (ADR-0032)."""
+        html = render("{% import '_icons.html' as I %}{{ I.ico('user') }}")
+        assert html.startswith("<svg ")
+
     @pytest.mark.parametrize("name", NEW)
     def test_the_nine_new_icons_are_drawn(self, name):
         html = render(f"{{% import '_icons.html' as I %}}{{{{ I.ico('{name}') }}}}")
@@ -484,5 +489,5 @@ class TestIcons:
         # aria-label. Either way the drawing itself says nothing.
         source = templates.env.loader.get_source(templates.env, "_icons.html")[0]
         svgs = re.findall(r"<svg [^>]*>", source)
-        assert len(svgs) == 21
+        assert len(svgs) == 22
         assert all('aria-hidden="true"' in s for s in svgs)

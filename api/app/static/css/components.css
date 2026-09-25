@@ -888,4 +888,13 @@
   .accents .demo .dot { width: 22px; height: 22px; flex: none; background: var(--accent-fill); border-radius: var(--radius-xs); }
   .accents .demo .lnk { font-size: 13px; color: var(--accent); text-decoration: underline; }
   .accents .name { padding: 0; }
+
+  /* ---- The account pages (ADR-0032) --------------------------------------- */
+  /* Where you are signed in: a line to a browser, so a plain list rather than a
+     table of three columns that would only ever be read across. */
+  .signins { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+  .signins .session { padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+  /* A new API token, shown once. Forty-odd characters with nowhere to break would
+     set the width of the page on a phone (accessibility-standards). */
+  code.token { overflow-wrap: anywhere; user-select: all; }
 }

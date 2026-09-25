@@ -31,6 +31,7 @@ from .common import (  # noqa: F401 -- re-exported for the tests, unused here
     to_dict,
 )
 from .routers import (
+    accounts as account_pages,
     api_assets,
     api_projects,
     catalogue,
@@ -208,6 +209,7 @@ def create_app() -> FastAPI:
         catalogue.router,
         stats_routes.router,
         settings_page.router,
+        account_pages.router,
         gallery.router,
         items.router,
         file_pages.router,

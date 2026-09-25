@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2105 behaviours, from 61 files.*
+*2139 behaviours, from 62 files.*
 
 
 ## A file where text was expected
@@ -173,6 +173,66 @@ Regenerate with:
   The whole of the feature, end to end: an answer on the form, a different stylesheet, and a page that asks for the new one rather than the old.
 - a visitor is served the accent but is offered no say in it  
   It is the installation's look, like the preset: a reader chooses light or dark and that is all.
+
+
+## Account pages
+
+*test_account_pages.py — 33 behaviours*
+
+
+**The accounts page**
+
+- it lists every account with its role and state
+- each name links to its own page
+- it is an administrators
+- it is reached from the settings page
+- its table says which way it runs
+
+**Adding somebody**
+
+- the box makes an account
+- the two passwords must agree
+- a refusal is said on the page and keeps the name
+- a name already taken is refused
+- a viewer cannot add anybody
+
+**An accounts own page**
+
+- its role can be changed
+- the last administrator is not made a viewer and the page says why
+- it can be switched off and on
+- the last administrator is not switched off
+- a forgotten password is replaced
+- its tokens are listed and revoked one at a time
+- an account nobody has is not found
+
+**Your account**
+
+- a viewer may open it
+- a visitor is sent to log in
+- it is in the menu for anybody signed in
+
+**Changing your password**
+
+- it asks for the one you have now
+- the two new ones must agree
+- it changes and this browser stays signed in
+- every other browser is signed out
+- a viewer changes their own
+
+**Where you are signed in**
+
+- each session is listed and this one is marked
+- signing out everywhere else leaves this browser in
+
+**Your tokens**
+
+- a new token is shown once
+- it needs a name
+- a viewer makes one of their own
+- your own is revoked
+- somebody elses is not yours to revoke
+- the pages carry the v0 2 components
 
 
 ## Accounts
@@ -3860,7 +3920,7 @@ Regenerate with:
 
 ## Ui macros
 
-*test_ui_macros.py — 75 behaviours*
+*test_ui_macros.py — 76 behaviours*
 
 
 **The ui filter**
@@ -3971,6 +4031,8 @@ Regenerate with:
 
 **Icons**
 
+- an account has an icon of its own  
+  The menu's Account row, beside Log out (ADR-0032).
 - the nine new icons are drawn
 - every icon is hidden from a screen reader
 

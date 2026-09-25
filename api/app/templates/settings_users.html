@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_accounts.html" as A with context %}
+{# Everybody who may sign in, for administrators (ADR-0032). Every rule about what
+   may be done to an account is the store's; this page shows its refusals. #}
+{% block title %}Accounts — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
+{% block content %}
+<div class="pagehead"><h1 class="heading">Accounts</h1></div>
+<p class="hint"><a href="/settings">Settings</a> · <a href="/settings/account">Your account</a></p>
+
+{% if done == 'added' %}{{ U.banner('success', 'Added.', 'Give them their password some other way: the register sends nothing.') }}{% endif %}
+
+<table class="table stack">
+  <tr><th scope="col">Name</th><th scope="col">Role</th><th scope="col">State</th><th scope="col">Last in</th></tr>
+  {% for a in accounts %}
+  <tr>
+    <td data-label="Name"><a href="/settings/users/{{ a.id }}">{{ a.username }}</a></td>
+    <td data-label="Role">{{ roles.get(a.role, 'No role') }}</td>
+    <td data-label="State">{{ U.chip('On', 'ok') if a.active else U.chip('Switched off') }}</td>
+    <td data-label="Last in">{{ A.when(a.last_login_at) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<form class="editform narrow" method="post" action="/settings/users">
+  <fieldset class="fieldset">
+    <legend>Add somebody</legend>
+    <div class="formgrid">
+      {{ U.field('username', 'Name', value=form.username, autocomplete='off',
+                 note='Letters, digits and . _ - @ + -- an email address will do. Matched without regard to case.') }}
+      {{ U.field('role', 'Role', kind='choice', choices=roles.items() | list, value=form.role,
+                 note='A viewer reads everything a visitor is not shown and changes nothing.') }}
+    </div>
+    {{ U.field('password', 'Password', type='password', autocomplete='new-password', minlength=10) }}
+    {{ U.field('password2', 'Password again', type='password', autocomplete='new-password', minlength=10) }}
+    {% if error %}{{ U.banner('danger', 'Not added.', error) }}{% endif %}
+    <p>{{ U.button('Add', kind='primary', type='submit') }}</p>
+  </fieldset>
+</form>
+{% endblock %}

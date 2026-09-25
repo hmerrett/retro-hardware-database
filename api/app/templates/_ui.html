@@ -351,6 +351,8 @@
 <a href="/settings"{{ here('/settings', current) }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
 {%- endif -%}
 {%- if request.state.principal.signed_in -%}
+{#- Everybody's own, viewers included: the one page under Settings a viewer opens. -#}
+<a href="/settings/account"{{ here('/settings/account', current) }}>{% if sheet %}{{ I.ico('user') }}{% endif %}{{ 'Account' | ui }}</a>
 <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}"><button type="submit">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log out' | ui }}</button></form>
 {%- else -%}
 {#- Carrying where you are, so logging in puts you back on it. That matters most to
@@ -477,6 +479,7 @@
     <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current) }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
     {%- endif %}
     {%- if request.state.principal.signed_in %}
+    <a class="item" href="/settings/account" title="{{ 'Account' | ui }}" aria-label="{{ 'Account' | ui }}"{{ here('/settings/account', current) }}>{{ I.ico('user') }}<span>{{ 'Account' | ui }}</span></a>
     <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}">
       <button class="item" type="submit" title="{{ 'Log out' | ui }}" aria-label="{{ 'Log out' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log out' | ui }}</span></button></form>
     {%- else %}

@@ -180,6 +180,11 @@ def _always_open(path: str) -> bool:
 # than shown to one.
 VIEWER_PAGES = frozenset({"/for-sale"})
 
+# A person's own account: their password, their sessions, their tokens. Anybody
+# signed in, whatever their role, and every method -- changing your own password is
+# a write a viewer is allowed.
+OWN_ACCOUNT = "/settings/account"
+
 
 def may(principal: Principal, method: str, path: str, closed: bool) -> bool:
     """Whether this principal may make this request at all.
@@ -188,6 +193,8 @@ def may(principal: Principal, method: str, path: str, closed: bool) -> bool:
     route's, as it always was (ADR-0009): the gate says the door is open and the
     row decides who comes through it."""
     if can(principal, EDIT):
+        return True
+    if principal.signed_in and (path == OWN_ACCOUNT or path.startswith(OWN_ACCOUNT + "/")):
         return True
     if method != "GET":
         return False

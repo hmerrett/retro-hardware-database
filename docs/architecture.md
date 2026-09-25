@@ -182,6 +182,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/parts.py` | the pages of a part, including the spec pickers |
 | `routers/api_assets.py` | the JSON API for computers and parts |
 | `routers/api_projects.py` | the JSON API for projects, their jobs and their orders |
+| `routers/accounts.py` | the account pages: Settings → Accounts for administrators, and Your account for everybody signed in |
 | `routers/health.py` | /healthz: up, and able to reach the database |
 | `routers/print_queue.py` | the print queue: the owner's half, and the half a print agent's key opens |
 | `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
@@ -384,9 +385,9 @@ Things genuinely undecided, recorded here so they are not rediscovered:
 - **Eight of the 26 `/api` operations declare no response model**, so the pinned
   contract is thin exactly at the deletes and at `/api/machines`,
   `/api/items/{aid}/log` and `/api/files`.
-- **Accounts are managed from the command line.** The pages for it wait on the
-  design system; `python -m app.accounts` does it meanwhile, and stays as the way
-  back in (ADR-0032).
+- **`request.state.authed` still says *authed* and means *may edit*.** The rename
+  ADR-0032 wanted waits until the design-system branch has landed, because nearly
+  every use is in a template that branch is rewriting.
 - **One site.** `memberships.site_id` is always 1 and the collection's tables have
   no site at all. Tenancy would add both; ADR-0032 says what it would take.
 - **Accessibility** is a decided standard rather than a courtesy: WCAG 2.2 AA

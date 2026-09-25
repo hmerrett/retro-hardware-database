@@ -261,6 +261,10 @@ def a_page_of_everything(client, computer, part):
         follow_redirects=False,
     )
     fid = client.get("/api/files").json()[0]["id"]
+    with SessionLocal() as db:
+        owner = store.find(db, "owner")
+        store.make_token(db, owner, "tool server")
+        owner_id = owner.id
     return [
         "/",
         "/machines",
@@ -277,4 +281,8 @@ def a_page_of_everything(client, computer, part):
         "/parts/new",
         f"/parts/{card['asset_id']}",
         f"/parts/{card['asset_id']}/edit",
+        # The account pages, with a token on the list so its revoke button is drawn.
+        "/settings/users",
+        f"/settings/users/{owner_id}",
+        "/settings/account",
     ]
