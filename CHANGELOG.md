@@ -29,6 +29,10 @@ chip for a ROM. The upgrade links each file that was attached to a model to ever
 item of that model, and keeps any tag that said more than the model's name in the
 file's note. `/api/files` no longer returns `tags` or `models`, or takes `tag`.
 
+**A PDF opens in the browser.** Its row and its page have a **view** button that
+shows it in the browser's own viewer rather than saving it. Only a file that really
+is a PDF is shown; everything else is still a download.
+
 **New files can start public.** **New files are public** in the settings starts
 the upload's **Public** tick ticked, for an installation that mostly files drivers
 and manuals. It is off, and a private project's uploads start unticked either way.

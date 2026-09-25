@@ -120,14 +120,17 @@ NOUNS: dict[str, str] = {
 
 class What(NamedTuple):
     """What a file is, for drawing it: the picture, the list it is found under, its
-    size as it would be said, the extension to print under the picture, and what
-    to call it in a sentence."""
+    size as it would be said, the extension to print under the picture, what to
+    call it in a sentence, and whether the page offers to show it rather than save
+    it -- which only its name decides here, and its bytes decide when it is asked
+    for (filesdb.is_pdf, ADR-0030)."""
 
     drawing: str
     group: str
     size: str
     extension: str
     noun: str
+    viewable: bool
 
 
 def human_size(n: int | None) -> str:
@@ -163,4 +166,4 @@ def of(filename: str | None, size: int | None) -> What:
         drawing = "rom" if n < _LARGEST_ROM else "cd"
     else:
         drawing = _EXTENSIONS.get(ext, "other")
-    return What(drawing, DRAWINGS[drawing], said, ext, NOUNS[drawing])
+    return What(drawing, DRAWINGS[drawing], said, ext, NOUNS[drawing], ext == "pdf")
