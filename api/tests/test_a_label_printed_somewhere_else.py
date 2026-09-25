@@ -11,6 +11,7 @@ Its key opens that and nothing else.
 import pytest
 
 from app import labels, printing
+from conftest import PASSWORD, account, log_out
 
 AGENTS = "workshop-pi:key-one:dymo-11355:pdf,bench:key-two:niimbot-50x30:png"
 
@@ -91,12 +92,11 @@ def test_an_agents_key_does_not_open_the_rest_of_the_api(client, part, agents, m
     """The whole point of a key per agent. A box in a workshop that anybody can
     unplug and walk off with does not hold the owner's password.
 
-    With the login on, which is the only state in which the claim means anything --
-    the suite otherwise runs open (ADR-0019) and everything would answer."""
-    from app import main
+    Asked by a visitor holding only the agent's key: the suite's client is
+    otherwise signed in as an administrator, and everything would answer."""
 
     card = part()
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
     head = {"Authorization": "Bearer key-one"}
     assert client.get("/api/parts", headers=head).status_code == 401
     assert client.get(f"/api/parts/{card['asset_id']}", headers=head).status_code == 401
@@ -406,11 +406,9 @@ def test_an_entry_naming_a_stock_that_does_not_exist_is_dropped(monkeypatch):
 def test_a_key_is_not_a_password_and_a_password_is_not_a_key(client, agents, monkeypatch):
     """The two doors do not open each other: the owner's credentials are not an
     agent's key, and an agent's key is not the owner's credentials."""
-    from app import main
 
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-    monkeypatch.setattr(main.auth, "AUTH_USER", "henry")
-    monkeypatch.setattr(main.auth, "AUTH_PASS", "hunter2")
-    assert claim(client, "hunter2").status_code == 401
-    assert client.get("/api/print/jobs", auth=("henry", "hunter2")).status_code == 200
+    log_out(client)
+    account("henry")
+    assert claim(client, PASSWORD).status_code == 401
+    assert client.get("/api/print/jobs", auth=("henry", PASSWORD)).status_code == 200
     assert client.get("/api/print/jobs", auth=("henry", "key-one")).status_code == 401

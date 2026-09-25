@@ -1,6 +1,6 @@
 # 0019 — Running open is supported, but never silent
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0032](0032-accounts-roles-and-a-site-to-hold-them.md)
 **Date:** 2026-09-16
 
 > Numbered 0019 because 0017 and 0018 are on a branch in flight. If that branch is

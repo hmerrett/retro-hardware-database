@@ -141,22 +141,19 @@
         <button type="button" class="js-share" hidden>share this page</button>
         <button type="button" class="js-reload" hidden>reload</button>
         <hr>
-        {% if request.state.authed %}
-        {% if auth_enabled %}
-        {# The owner's own shortlist, beside the other things only they can reach.
-           Not in the sections nav: it is a note to yourself, not a part of the
-           catalogue (ADR-0018). #}
+        {# The owner's own shortlist, beside the other things only an account can
+           reach. Not in the sections nav: it is a note to yourself, not a part of
+           the catalogue (ADR-0018). A viewer reads it; the rest are an
+           administrator's (ADR-0032). #}
+        {% if request.state.sees_private %}
         <a href="/for-sale">might sell</a>
+        {% endif %}
+        {% if request.state.authed %}
         <a href="/traffic">traffic</a>
-        {% endif %}
-        {# Gated on being the owner rather than on there being a login, which is the
-           one of the two questions this actually turns on: with no credentials set
-           every visitor is the owner (ADR-0019), and the page is reachable, so a
-           menu that left it out would be hiding a page it cannot refuse. #}
         <a href="/settings"{{ here('/settings') }}>settings</a>
-        {% if auth_enabled %}
-        <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
         {% endif %}
+        {% if request.state.principal.signed_in %}
+        <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
         {% else %}
         {# Carrying where you are, so logging in puts you back on it. That matters
            most to a phone that has arrived by scanning an item's code and would
@@ -168,24 +165,6 @@
     </details>
   </div>
 </header>
-{# Running with no login, and nothing says it was meant to (ADR-0019). Above the
-   content and on every page, because the pages somebody edits from are the item
-   pages -- a notice only on the front door is one most visits never see.
-
-   Shown to everybody, which is not a disclosure: when the site is open, everybody
-   looking at it is the owner as far as the code is concerned, and the edit buttons
-   are already on the page for anyone to find. Reusing .banner rather than inventing
-   a class, so the contrast the stylesheet tests already cover is the contrast this
-   gets. #}
-{% if auth_open_warning %}
-<div class="banner" id="openwarn">
-  <p><strong>No login.</strong> This site has no credentials set, so anybody
-    reading it can add, edit and delete anything in the register. If that is not
-    what was intended, set <code>RHDB_AUTH_USER</code> and
-    <code>RHDB_AUTH_PASSWORD</code>; if it is, set <code>RHDB_OPEN=1</code> to put
-    this notice away.</p>
-</div>
-{% endif %}
 <main id="main" tabindex="-1">{% block content %}{% endblock %}</main>
 
 <footer class="site">
@@ -224,15 +203,15 @@
     <button type="button" class="js-share" hidden>share this page</button>
     <button type="button" class="js-reload" hidden>reload</button>
     <hr>
-    {% if request.state.authed %}
-    {% if auth_enabled %}
+    {% if request.state.sees_private %}
     <a href="/for-sale">might sell</a>
+    {% endif %}
+    {% if request.state.authed %}
     <a href="/traffic">traffic</a>
-    {% endif %}
     <a href="/settings"{{ here('/settings') }}>settings</a>
-    {% if auth_enabled %}
-    <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
     {% endif %}
+    {% if request.state.principal.signed_in %}
+    <form method="post" action="/logout"><input type="hidden" name="next" value="{{ _back }}"><button type="submit">log out</button></form>
     {% else %}
     <a href="/login?next={{ _back | urlencode }}">log in</a>
     {% endif %}
@@ -272,8 +251,7 @@
 <div id="cookienote" data-cookie="{{ notice_cookie }}">
   <p><strong>Cookies.</strong> Nothing is stored until you choose something — a sort
     order, the dark theme. First party only: no analytics, no advertising, nothing
-    shared with anyone{% if auth_enabled %}. Signing in to edit adds a session
-    cookie{% endif %}.</p>
+    shared with anyone. Signing in adds a session cookie.</p>
   <button class="btn sm" id="cookieok" type="button">got it</button>
 </div>
 {% endif %}

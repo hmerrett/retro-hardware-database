@@ -222,17 +222,17 @@ def _grid_page(request: Request, rows: list[Card], **extra: object) -> HTMLRespo
 
 @router.get("/suggest", include_in_schema=False)
 def gui_suggest(request: Request, q: str = "", db: Session = Depends(get_db)) -> dict[str, object]:
-    items, total = _suggest(db, q, authed=request.state.authed)
+    items, total = _suggest(db, q, authed=request.state.sees_private)
     return {"q": q, "items": items, "total": total}
 
 
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
 def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
-    rows = _catalogue_rows(db, request.state.authed)
+    rows = _catalogue_rows(db, request.state.sees_private)
     total = len(rows)
     hit_projects = 0
     if q.strip():
-        rows = _search(db, rows, q, request.state.authed)
+        rows = _search(db, rows, q, request.state.sees_private)
         # Counted, not shown. The grid is a wall of photographs of things owned and
         # a project is not one of those, so it does not become a card here -- but a
         # search that quietly ignored a whole section of the site would be a search
@@ -240,7 +240,10 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> H
         # from this points at /projects with the same query.
         hit_projects = len(
             _projects_matching(
-                db, projects.summaries(db, authed=request.state.authed), q, request.state.authed
+                db,
+                projects.summaries(db, authed=request.state.sees_private),
+                q,
+                request.state.sees_private,
             )
         )
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
@@ -280,7 +283,7 @@ def gui_for_sale(request: Request, db: Session = Depends(get_db)) -> HTMLRespons
     No montage on the share card, and noindex: this is not a page to share, and the
     site's own card is what a page with nothing to advertise shows (ADR-0017).
     """
-    rows = [r for r in _catalogue_rows(db, request.state.authed) if r["obj"].for_sale]
+    rows = [r for r in _catalogue_rows(db, request.state.sees_private) if r["obj"].for_sale]
     return _grid_page(
         request,
         rows,
@@ -305,7 +308,7 @@ def gui_browse(
     if view is None:
         raise HTTPException(404, f"no such view: {f or '(none)'}")
     heading, note, crumb, keep = view
-    rows = [r for r in _catalogue_rows(db, request.state.authed) if keep(r)]
+    rows = [r for r in _catalogue_rows(db, request.state.sees_private) if keep(r)]
     return _grid_page(
         request,
         rows,

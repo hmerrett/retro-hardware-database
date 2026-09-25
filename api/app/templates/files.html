@@ -20,7 +20,8 @@
 {# One row of ways to narrow the list, all of them links, so each is an address
    that can be bookmarked. A kind is offered when there is more than one kind to
    tell apart; the owner's two are offered when there is something in them. #}
-{% set owner = request.state.authed %}
+{# Everything here is read-only, so a viewer is an owner for this page (ADR-0032). #}
+{% set owner = request.state.sees_private %}
 {% set qs = ('&q=' + q | urlencode) if q else '' %}
 {% if groups | length > 1 or (owner and (counts.unlinked or counts.private)) %}
 <nav class="filefilters" aria-label="Narrow the files">

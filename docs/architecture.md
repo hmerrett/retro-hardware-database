@@ -69,13 +69,17 @@ Three kinds of thing live in the register:
        │                         purpose — they are version-stamped and cacheable
        │                         for a year.
        │
-       ├── auth_gate ........... middleware: decides `request.state.authed`.
-       │                         Browsers are trusted by signed session cookie
-       │                         only, so logging out is reliable; `/api/*` and
-       │                         `/docs` also accept HTTP Basic, for the MCP
-       │                         server and the command-line tools. A wrong Basic
-       │                         credential is rate-limited by client IP exactly
-       │                         as the login form is.
+       ├── auth_gate ........... middleware: works out who is asking and what
+       │                         their role lets them do, and sets
+       │                         `request.state.principal`, `.authed` (may edit)
+       │                         and `.sees_private`. Browsers are trusted by
+       │                         session cookie only, so logging out is
+       │                         reliable; `/api/*` and `/docs` also take a
+       │                         bearer token or HTTP Basic, for the MCP server
+       │                         and the command-line tools. A wrong credential
+       │                         is rate-limited by client IP exactly as the
+       │                         login form is. With no accounts yet, everything
+       │                         goes to /setup (ADR-0032).
        │
        ▼
     route handler ............. in routers/, with a per-request DB session from
@@ -147,6 +151,8 @@ and re-render; never edit the string and hope.
 | `files` | files kept beside the register — drivers, manuals, ROM dumps, receipts — each with a one-line note and whether a visitor may see it |
 | `file_asset` | what a file is for: every machine, part or project it is linked to, by asset id, and nothing else (ADR-0028) |
 | `location` | every place something has been kept, so an emptied crate is still offered by name — the register's one stored vocabulary, and deleted outright when the preference behind it is turned off (ADR-0027) |
+| `users`, `memberships` | who may sign in, and the role each has on a site — one site today, and the row a second collection would hang from (ADR-0032) |
+| `sessions`, `api_tokens` | a signed-in browser and a program's token, each kept as a digest of the key it was handed, so either ends the moment its row goes |
 | `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the things it is about (one project to a thing), its job list — each job optionally naming one of those things — and what is on order for it |
 
 ## 5. The modules
@@ -161,7 +167,11 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | module | what it owns |
 |---|---|
 | `main.py` | create_app(): the middlewares (including the content policy), the static mount and every router — the wiring, and nothing else |
-| `auth.py` | the login, the logout, and the gate every request passes through |
+| `auth.py` | the login, the logout, first-run setup, and the gate every request passes through |
+| `accounts/roles.py` | roles as lists of permissions, the principal a request is made by, and `can()`, the one check |
+| `accounts/store.py` | users, memberships, sessions and API tokens: making them, checking them, ending them |
+| `accounts/firstrun.py` | an installation with no accounts: the setup code, seeding from the old login, and what the log says at startup |
+| `accounts/__main__.py` | the accounts command, run inside the container: people, roles, passwords and tokens |
 | `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion |
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
 | `work.py` | the jobs on a project and the things it is about, read from the project, the item and the API alike |
@@ -238,12 +248,23 @@ breaking one turns CI red rather than merely being wrong.
 - **Public read, login to edit.** Anonymous visitors get `GET` on the gallery,
   item pages, images and static files. Everything else — new and edit forms,
   delete confirmations, labels, `/api/*`, `/docs`, and every write — requires a
-  login. The rule lives in `_is_public_read` / `_public_page` in `auth.py`.
-- **…unless there is no login at all, and then the app says so.** With
-  `RHDB_AUTH_USER`/`RHDB_AUTH_PASSWORD` unset, every visitor is the owner. That is
-  a supported configuration, but an unreadable `.env` produces it too, so it is
-  announced: `RHDB_OPEN` says it was meant, and without it there is a startup
-  warning and a banner on every page. *(ADR-0019, enforced: `test_running_open.py`)*
+  login. The rule lives in `may` / `_public_page` in `auth.py`.
+  **Visitors must log in** takes the public pages away too, leaving the login,
+  setup, the health check, the static files and the print agent's door.
+- **Permissions are asked for by name, never by role.** `can(principal,
+  permission)` in `accounts/roles.py` is the only check; a role is a list of
+  permissions. `request.state.authed` means *may edit*, and anything that is
+  about *reading* what a visitor may not see asks `sees_private` — so a viewer
+  sees it, and a place that asks the wrong one hides it from a viewer rather than
+  showing it to a stranger. *(ADR-0032, enforced: `test_accounts.py`)*
+- **A new installation is set up by whoever can read its log.** No accounts means
+  every page goes to `/setup`, which wants the code the app logged at startup;
+  an installation upgraded from the single login is seeded from it instead.
+  *(ADR-0032, enforced: `test_first_run.py`)*
+- **There is always an administrator.** The last one cannot be demoted or switched
+  off. *(enforced: `test_accounts.py`)*
+- **A key handed out is never stored.** Sessions and API tokens keep a SHA-256
+  digest; passwords an argon2 hash. Nothing in the log carries any of them.
 - **An asset id is never reused or reassigned.** Printed labels exist. *(§3)*
 - **The child rows are the truth; the string is a cache.** *(§4)*
 - **A migration must not assume specific data exists.** A one-off correction to a
@@ -362,8 +383,11 @@ Things genuinely undecided, recorded here so they are not rediscovered:
 - **Eight of the 26 `/api` operations declare no response model**, so the pinned
   contract is thin exactly at the deletes and at `/api/machines`,
   `/api/items/{aid}/log` and `/api/files`.
-- **There is no user table.** Authentication is one username and password from the
-  environment. Fine for one person; a question the moment it is two.
+- **Accounts are managed from the command line.** The pages for it wait on the
+  design system; `python -m app.accounts` does it meanwhile, and stays as the way
+  back in (ADR-0032).
+- **One site.** `memberships.site_id` is always 1 and the collection's tables have
+  no site at all. Tenancy would add both; ADR-0032 says what it would take.
 - **Accessibility** is a decided standard rather than a courtesy: WCAG 2.2 AA
   with no exception taken (ADR-0014), narrowed on purpose to the part of it the
   suite can hold — contrast, touch targets, the skip link, header scopes, reduced
@@ -396,12 +420,13 @@ it was weighed against, and what it costs.
 | 0016 | One project to a thing, and a job may name the thing |
 | 0017 | A page of photographs shares a montage of them |
 | 0018 | A sale flag is the owner's alone |
-| 0019 | Running open is supported, but never silent |
+| 0019 | Running open is supported, but never silent *(superseded by 0032)* |
 | 0020 | A model link names a maker and a model, not only a catalogue key |
 | 0027 | A remembered vocabulary is deleted when it is turned off |
 | 0028 | A file is linked to the things it is for, by their asset ids |
 | 0029 | An upload starts public where the owner says so |
 | 0030 | A PDF is read in the browser, and everything else is still a download |
+| 0032 | Accounts, roles, and a site to hold them |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

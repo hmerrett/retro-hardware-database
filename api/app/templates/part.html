@@ -72,7 +72,7 @@
        (ADR-0027). Folded into the pair list as a blank rather than tested on a row
        of its own, so the one list stays the one description of this panel -- the
        loop below already drops a pair with nothing in it. #}
-    {% set show_location = request.state.authed or public_locations() %}
+    {% set show_location = request.state.sees_private or public_locations() %}
     {# The part's own facts, in a panel like every other section: what the register
        knows about it, and where it is installed. #}
     {% call PN.panel('Details') %}

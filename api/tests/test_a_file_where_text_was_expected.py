@@ -7,7 +7,7 @@ AttributeError and a 500 -- found by mypy, which reads ``form.get`` as
 ``UploadFile | str`` and was right to.
 """
 
-from app import main
+from conftest import account, log_out
 
 
 def test_an_order_whose_description_is_a_file_is_an_order_with_no_description(client):
@@ -26,9 +26,8 @@ def test_an_order_whose_description_is_a_file_is_an_order_with_no_description(cl
 def test_a_login_whose_password_is_a_file_is_a_failed_login(client, monkeypatch):
     """The one form a stranger can post to. Comparing a file with the password
     raised inside ``compare_digest`` before it could answer no."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-    monkeypatch.setattr(main.auth, "AUTH_USER", "admin")
-    monkeypatch.setattr(main.auth, "AUTH_PASS", "correct-horse")
+    log_out(client)
+    account("admin")
     r = client.post(
         "/login",
         data={"username": "admin"},

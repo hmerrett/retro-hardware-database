@@ -11,7 +11,7 @@
 {% import "_filerows.html" as FR %}
 {% call PN.panel('Files', files | length if files else '', flush=true) %}
   {% if files %}
-  {{ FR.rows(files, request.state.authed, chips=false) }}
+  {{ FR.rows(files, request.state.sees_private, chips=false) }}
   {% else %}
   <div class="pbody"><p class="muted flush">No files.</p></div>
   {% endif %}

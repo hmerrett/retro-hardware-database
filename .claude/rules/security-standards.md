@@ -7,26 +7,36 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
 
 - Secrets come from the environment; never committed. `.env` gitignored,
   `.env.example` committed.
-- The **session-signing key (`RHDB_SECRET_KEY`) must be independent of the
-  credentials** and high-entropy (`openssl rand -hex 32`). Never derive it from
-  the username/password — the signed cookie's payload is constant, so a
-  credential-derived key turns a leaked cookie into an offline password oracle.
-  The app requires the key when auth is enabled (fails to start without it).
-- Compare credentials with a constant-time compare (`secrets.compare_digest`).
+- **A key handed out is never stored** (ADR-0032). A session cookie and an API
+  token are random (`secrets.token_urlsafe(32)`), shown once, and kept as a
+  SHA-256 digest; a password is an argon2id hash. Nothing that can be used to sign
+  in is written to the log — the setup code is the one exception, because being
+  read out of the log is its whole job.
+- Sessions are rows, so ending one is deleting it: logging out, switching an
+  account off and changing a password all take effect on the next request. Do
+  not go back to a signed cookie; it cannot be withdrawn.
+- A wrong username costs the same as a wrong password (a decoy hash is verified),
+  so the login does not say which usernames exist.
+- Compare secrets with a constant-time compare (`secrets.compare_digest`).
 - Session cookies: `HttpOnly`, `SameSite=Lax`, `Secure` behind HTTPS.
 
 ## Authentication
 
-- **Rate-limit authentication attempts** (login form and HTTP Basic), keyed by
-  the real client IP. Behind Caddy that's the **rightmost** `X-Forwarded-For`
-  entry — the one the proxy adds and a client cannot forge.
-- **Running with no login is allowed; running with no login by accident is not.**
-  Empty `RHDB_AUTH_USER`/`RHDB_AUTH_PASSWORD` make every visitor the owner, and a
-  missing `.env` produces exactly that with no error. `RHDB_OPEN` is the operator
-  saying they meant it; without it the app warns at startup and puts a banner on
-  every page (ADR-0019). Don't make this fail fast instead — open is a supported
-  configuration, and the fault being fixed is that it was indistinguishable from a
-  mistake.
+- **Rate-limit authentication attempts** (login form, setup code, API token and
+  HTTP Basic), keyed by the real client IP. Behind Caddy that's the **rightmost**
+  `X-Forwarded-For` entry — the one the proxy adds and a client cannot forge.
+- **Ask for a permission, never a role.** `can(principal, permission)` in
+  `accounts/roles.py` is the only check. `request.state.authed` means *may edit*;
+  anything about *reading* what a visitor is not shown asks `sees_private`. A
+  page that asks the wrong one hides something from a viewer rather than showing
+  it to a stranger, which is the direction to fail in.
+- **A new page is an administrator's until it is listed.** The gate lets a viewer
+  read public pages, the JSON API's `GET`s and `VIEWER_PAGES`, and nothing else,
+  so a page nobody thought about is kept back rather than shown.
+- **There is no running without a login** (ADR-0032, superseding ADR-0019). A site
+  with no accounts shows only `/setup`, which wants the code from the log, so an
+  install is never claimable by whoever finds its address first. A site anybody
+  may read is a site with accounts and **Visitors must log in** off.
 - **A security-relevant configuration says which state it came up in.** A mode
   that can only be inferred by noticing what is missing from a menu is a mode
   nobody notices for weeks.
