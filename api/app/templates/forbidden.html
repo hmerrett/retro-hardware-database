@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Not for this account — {{ site_name() }}{% endblock %}
+{% block content %}
+<h2>Not for this account</h2>
+{# A signed-in account asking for something its role does not reach (ADR-0032).
+   Said plainly rather than sent to the login, which would ask them to prove again
+   who they are when that is not what is wrong. #}
+<p>You are signed in as <strong>{{ request.state.principal.username }}</strong>, whose
+  account can read this site but not change it. An administrator can change that.</p>
+<p><a href="/">Back to the collection</a></p>
+{% endblock %}

@@ -400,11 +400,11 @@ def gui_computer(
             "detachable": detachable,
             "item": (cdict := to_dict(c)),
             "kind": "computers",
-            **filesdb.panel(db, cdict, request.state.authed),
+            **filesdb.panel(db, cdict, request.state.authed, request.state.sees_private),
             "fileerr": bool(fileerr),
             "dl_filenotes": _answers_given(db, StoredFile.note),
-            "on_project": (found := projects.project_for(db, aid, request.state.authed)),
-            "item_tasks": projects.tasks_for_asset(db, aid, request.state.authed),
+            "on_project": (found := projects.project_for(db, aid, request.state.sees_private)),
+            "item_tasks": projects.tasks_for_asset(db, aid, request.state.sees_private),
             "project_tasks": (
                 projects.project_wide_tasks(db, found.asset_id) if found is not None else []
             ),

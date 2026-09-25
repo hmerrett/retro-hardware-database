@@ -9,13 +9,13 @@ where a boolean shows up when nobody decided it should.
 
 import pytest
 
-from app import main
 from app.models import Computer, Part
+from conftest import log_out
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def flag(client, kind, aid, on=True):
@@ -96,14 +96,14 @@ class TestNobodyElseSeesIt:
 
     def test_the_shortlist_asks_a_visitor_to_log_in(self, client, part, monkeypatch):
         flag(client, "parts", part()["asset_id"])
-        visitor(monkeypatch)
+        visitor(client)
         r = client.get("/for-sale", follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"].startswith("/login?next=")
 
     def test_a_visitor_cannot_tick_one(self, client, part, monkeypatch):
         aid = part()["asset_id"]
-        visitor(monkeypatch)
+        visitor(client)
         r = client.post(f"/parts/{aid}/for-sale", data={"for_sale": "1"}, follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"].startswith("/login?next=")
@@ -112,7 +112,7 @@ class TestNobodyElseSeesIt:
         aid = part()["asset_id"]
         flag(client, "parts", aid)
         assert "for-sale" in client.get(f"/parts/{aid}").text, "the owner sees it"
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/parts/{aid}").text
         assert "for-sale" not in page
         assert "might sell" not in page.lower()
@@ -124,7 +124,7 @@ class TestNobodyElseSeesIt:
         shows no such thing."""
         flagged = part(model="Flagged")["asset_id"]
         flag(client, "parts", flagged)
-        visitor(monkeypatch)
+        visitor(client)
         assert flagged not in client.get("/?q=true").text
         assert flagged not in client.get("/suggest?q=true").text
 
@@ -148,7 +148,7 @@ class TestNobodyElseSeesIt:
         from named fields, and this is not one of them."""
         aid = part(model="Flagged")["asset_id"]
         flag(client, "parts", aid)
-        visitor(monkeypatch)
+        visitor(client)
         assert "for_sale" not in client.get("/").text
 
 

@@ -105,10 +105,10 @@ def _projects_page(
     A visitor is shown the public ones. This is the first of the five places that is
     kept (see _visible); the other four are the project's own page, the search, the
     suggestion list and the sitemap."""
-    rows = projects.summaries(db, authed=request.state.authed)
+    rows = projects.summaries(db, authed=request.state.sees_private)
     total = len(rows)
     if q.strip():
-        rows = _projects_matching(db, rows, q, request.state.authed)
+        rows = _projects_matching(db, rows, q, request.state.sees_private)
     live = [r for r in rows if r["p"].status not in projects.CLOSED]
     # Not while the page is a set of search results, and not while it is telling
     # somebody their asset tag was wrong: both of those are the page answering a
@@ -116,7 +116,7 @@ def _projects_page(
     suggestion = (
         None
         if (q.strip() or error)
-        else _today_panel(db, _project_of_the_day(db, request.state.authed))
+        else _today_panel(db, _project_of_the_day(db, request.state.sees_private))
     )
     return templates.TemplateResponse(
         request,
@@ -470,7 +470,7 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)) -> HT
     # The second of the five. Not a 403 and not a redirect to the login: a visitor
     # who guessed the tag of a private project should not be told there is one to
     # guess at, and 404 is what every id that is nothing else answers.
-    if p.private and not request.state.authed:
+    if p.private and not request.state.sees_private:
         raise HTTPException(404, f"projects {aid} not found")
     order_rows = projects.orders(db, p.asset_id)
     spent, unpriced = projects.spend(order_rows)
@@ -517,7 +517,7 @@ def gui_project(aid: str, request: Request, db: Session = Depends(get_db)) -> HT
             "kind": "projects",
             # The same Files panel an item has (ADR-0028): a receipt for what was
             # ordered, the schematic the job was done from.
-            **filesdb.panel(db, pdict, request.state.authed),
+            **filesdb.panel(db, pdict, request.state.authed, request.state.sees_private),
             "fileerr": bool(request.query_params.get("fileerr")),
             "dl_filenotes": _answers_given(db, StoredFile.note),
             # Who things have been bought from before: the same kind of field as an

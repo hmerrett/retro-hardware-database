@@ -36,13 +36,8 @@ os.environ.pop("RHDB_AUTH_PASSWORD", None)
 # test about what printers exist would pass in CI and fail there -- or, worse, the
 # other way round. The suite starts with none, and the tests that want one say so.
 os.environ.pop("RHDB_PRINT_AGENTS", None)
-# The suite runs with no login on purpose -- most of it is about what the owner can
-# do, and popping the credentials is how it gets to be the owner. So it says so
-# (ADR-0019), which is exactly what RHDB_OPEN is for: without it every page rendered
-# in every test would carry the "no login" banner, and a few hundred assertions
-# about page content would be reading a misconfiguration warning that is not one.
-# The banner's own tests set the flag they are about rather than relying on this.
-os.environ["RHDB_OPEN"] = "1"
+os.environ.pop("RHDB_OPEN", None)
+os.environ.pop("RHDB_API_TOKEN", None)
 
 import pytest
 from alembic import command
@@ -51,7 +46,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import event, text
 
 from app import main, settings
+from app.accounts import firstrun, store
+from app.accounts.roles import ADMIN, SITE, VIEWER
 from app.db import Base, SessionLocal, engine
+from app.models import Membership, User
 
 _ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
 
@@ -130,8 +128,73 @@ def _reset_settings_cache():
     settings.forget()
 
 
+# Every account the suite makes has this password, hashed once for the whole run:
+# argon2 is slow on purpose, and a hash per test would be a minute of the suite
+# spent proving that. The tests about passwords make their own.
+PASSWORD = "a password for the suite"
+_HASH = store.hash_password(PASSWORD)
+
+
+def account(username="owner", role=ADMIN, active=True):
+    """An account, written straight to the tables. Returns its username."""
+    with SessionLocal() as db:
+        user = User(
+            username=username,
+            password_hash=_HASH,
+            active=active,
+            created_at=store._now(),
+        )
+        db.add(user)
+        db.flush()
+        db.add(Membership(user_id=user.id, site_id=SITE, role=role))
+        db.commit()
+    return username
+
+
+def sign_in(client, username="owner"):
+    """Give this client a session for an account that already exists."""
+    with SessionLocal() as db:
+        key = store.open_session(db, store.find(db, username))
+    client.cookies.set(main.auth.COOKIE, key)
+    return key
+
+
+def log_out(client):
+    """Everything after this is asked by somebody who is not signed in."""
+    client.cookies.delete(main.auth.COOKIE)
+
+
+def as_viewer(client, username="viewer"):
+    """Everything after this is asked by a signed-in viewer."""
+    with SessionLocal() as db:
+        exists = store.find(db, username) is not None
+    if not exists:
+        account(username, VIEWER)
+    sign_in(client, username)
+
+
+@pytest.fixture(autouse=True)
+def _reset_accounts():
+    """Whether there are accounts is kept once it is true (firstrun), and the tables
+    are emptied between tests, so each test starts by asking again."""
+    firstrun.forget()
+    yield
+    firstrun.forget()
+
+
 @pytest.fixture
 def client():
+    """The app, signed in as an administrator: most of the suite is about what the
+    owner can do. `log_out` and `as_viewer` are the other two readers."""
+    account("owner", ADMIN)
+    with TestClient(main.app) as c:
+        sign_in(c)
+        yield c
+
+
+@pytest.fixture
+def fresh_client():
+    """The app as a new installation meets it: no accounts at all."""
     with TestClient(main.app) as c:
         yield c
 

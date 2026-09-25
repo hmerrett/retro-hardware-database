@@ -13,7 +13,7 @@ about, a list of jobs, and a pile of things on order with what they cost.
 import io
 from datetime import date
 
-from conftest import served
+from conftest import log_out, served
 from app import ids, main, projects
 from app.models import Project, ProjectAsset, ProjectOrder, ProjectTask
 
@@ -31,10 +31,10 @@ def page(client, aid):
     return r.text
 
 
-def as_visitor(monkeypatch):
+def as_visitor(client):
     """Nobody signed in. The test database has no credentials configured, so the
     gate lets everything through until it is told there are some."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 class TestARegisterAsset:
@@ -457,12 +457,12 @@ class TestMarkingOneDone:
 
     def test_a_visitor_is_not_offered_it(self, client, monkeypatch):
         aid = make(client, status="active")
-        as_visitor(monkeypatch)
+        as_visitor(client)
         assert "/complete" not in client.get(f"/projects/{aid}").text
 
     def test_a_visitor_cannot_finish_one(self, client, db, monkeypatch):
         aid = make(client, status="active")
-        as_visitor(monkeypatch)
+        as_visitor(client)
         r = client.post(f"/projects/{aid}/complete", follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
         db.expire_all()
@@ -610,20 +610,20 @@ class TestWhoSeesWhat:
 
     def test_a_visitor_may_read_the_list(self, client, monkeypatch):
         aid = make(client)
-        as_visitor(monkeypatch)
+        as_visitor(client)
         assert client.get("/projects").status_code == 200
         assert client.get(f"/projects/{aid}").status_code == 200
 
     def test_a_visitor_is_sent_to_the_login_to_edit(self, client, monkeypatch):
         aid = make(client)
-        as_visitor(monkeypatch)
+        as_visitor(client)
         for url in ("/projects/new", f"/projects/{aid}/edit"):
             r = client.get(url, follow_redirects=False)
             assert r.status_code == 303 and "/login" in r.headers["location"]
 
     def test_a_visitor_cannot_write(self, client, monkeypatch):
         aid = make(client)
-        as_visitor(monkeypatch)
+        as_visitor(client)
         for url in (
             f"/projects/{aid}/task",
             f"/projects/{aid}/order",
@@ -643,7 +643,7 @@ class TestWhoSeesWhat:
             data={"description": "Gotek", "cost": "12.99"},
             follow_redirects=False,
         )
-        as_visitor(monkeypatch)
+        as_visitor(client)
         html = client.get(f"/projects/{aid}").text
         assert "Gotek" in html
         assert "12.99" not in html
@@ -652,7 +652,7 @@ class TestWhoSeesWhat:
         """The rest of the row is as public as the machine it is destined for."""
         aid = make(client)
         client.post(f"/projects/{aid}/order", data={"description": "Gotek"}, follow_redirects=False)
-        as_visitor(monkeypatch)
+        as_visitor(client)
         assert "on order" in client.get(f"/projects/{aid}").text
 
 
@@ -743,7 +743,6 @@ class TestBeingFound:
 
 class TestTheFigures:
     def test_the_projects_show_up_among_the_facts(self, client, db):
-        from app import main
 
         aid = make(client, status="active")
         client.post(f"/projects/{aid}/task", data={"text": "a job"}, follow_redirects=False)
@@ -759,7 +758,6 @@ class TestTheFigures:
     def test_an_empty_register_contributes_no_project_figures(self, client, db):
         """A figure is omitted rather than shown as a zero, the rule the whole
         pool follows."""
-        from app import main
 
         assert main._facts_projects(db, {}) == []
 
@@ -767,7 +765,6 @@ class TestTheFigures:
         """/stats is public and the cost column on a project page is not. A total
         spent would put on the most public page of the site the one figure the item
         page takes care to withhold."""
-        from app import main
 
         aid = make(client)
         client.post(
@@ -785,7 +782,6 @@ class TestTheFigures:
         """log_entry is keyed by a register id, so the longest note can perfectly
         well be on a project. Looked for in two tables only, the tile would vanish
         on the day it was."""
-        from app import main
 
         aid = make(client, "Wordy")
         client.post(f"/projects/{aid}/note", data={"message": "x" * 300}, follow_redirects=False)
@@ -1010,7 +1006,7 @@ class TestTheApiLists:
         projects are no exception -- which is also what keeps the costs in it from
         being readable by anyone who guessed the URL."""
         p = self.new(client)
-        as_visitor(monkeypatch)
+        as_visitor(client)
         assert client.get("/api/projects").status_code == 401
         assert client.get(f"/api/projects/{p['asset_id']}").status_code == 401
 
@@ -1067,7 +1063,7 @@ class TestItsLabel:
         """Printing is an owner's action, and the label carries the summary. The
         same rule the machines' labels follow."""
         aid = make(client)
-        as_visitor(monkeypatch)
+        as_visitor(client)
         r = client.get(f"/projects/{aid}/label.pdf", follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
 

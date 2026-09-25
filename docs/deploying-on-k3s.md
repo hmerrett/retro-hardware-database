@@ -24,7 +24,8 @@ the login.
 
 ### Reading the credentials back
 
-They were generated at deploy time and live only in the cluster:
+They were generated at deploy time and live only in the cluster. They are the
+first administrator's username and password, as the app made it from them:
 
 ```bash
 kubectl -n rhdb get secret rhdb-secrets -o jsonpath='{.data.RHDB_AUTH_USER}' | base64 -d; echo
@@ -287,9 +288,11 @@ Worth knowing before you treat it as equivalent:
 - **No backups.** The PVCs are Civo block volumes with reclaim policy
   `Delete` — **deleting the cluster deletes the database**. There is no
   `mysqldump` schedule here.
-- **`RHDB_OPEN` is unset** and credentials are set, which is the intended
-  pairing: the app is not open, so it neither warns at startup nor banners the
-  pages (ADR-0019).
+- **The credentials in `rhdb-secrets` seeded the first administrator** on the
+  first start after accounts arrived (ADR-0032). They are the login only while
+  that account's password is unchanged; after that the site does not read them,
+  and further accounts are made with
+  `kubectl -n rhdb exec deploy/api -- python -m app.accounts`.
 
 ---
 
