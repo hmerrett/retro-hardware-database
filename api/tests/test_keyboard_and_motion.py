@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from app import main
+from conftest import log_out
 
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 BASE = TEMPLATES / "base.html"
@@ -171,7 +171,7 @@ def test_the_login_boxes_say_what_they_are_for(client, monkeypatch):
 
     Read off the rendered page rather than the template, because the boxes are the
     `field` macro's now and what reaches the browser is what a manager reads."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
     html = client.get("/login").text
     assert re.search(r'<input[^>]*name="username"[^>]*autocomplete="username"', html), (
         "the username box does not say what it is for"

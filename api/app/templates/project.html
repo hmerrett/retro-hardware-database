@@ -127,7 +127,7 @@
          when it is due, and -- once it is here -- when it came. A row can only
          ever be in one of those states, so a second column would be a permanently
          empty one. #}
-      <th scope="col" class="tight">Due / in</th>{% if authed %}<th scope="col" class="tight">Cost</th>{% endif %}
+      <th scope="col" class="tight">Due / in</th>{% if request.state.sees_private %}<th scope="col" class="tight">Cost</th>{% endif %}
       <th scope="col" class="tight"><span class="sr-only">Arrived</span></th>
     </tr>
     {% for o in orders %}
@@ -138,7 +138,7 @@
       <td class="tight" data-label="From">{{ o.supplier }}</td>
       <td class="tight muted" data-label="Ordered">{{ o.ordered_at or '' }}</td>
       <td class="tight muted" data-label="{{ 'Came' if o.delivered else 'Due' }}">{{ o.delivered_at or o.expected_at or '' }}</td>
-      {% if authed %}<td class="tight num" data-label="Cost">{{ money(o.cost_p) }}</td>{% endif %}
+      {% if request.state.sees_private %}<td class="tight num" data-label="Cost">{{ money(o.cost_p) }}</td>{% endif %}
       <td class="tight">
         {% if authed %}
         <div class="row">
@@ -158,7 +158,7 @@
   {# A total is a claim, so it says what it is a total of. Lines with no price are
      counted rather than treated as free -- a figure quietly missing three of them
      would look exactly as authoritative as one that was not. #}
-  {% if authed and (spent or unpriced) %}
+  {% if request.state.sees_private and (spent or unpriced) %}
   <p class="hint">{% if spent %}{{ money(spent) }} so far{% else %}Nothing priced yet{% endif %}{% if unpriced %},
     {{ unpriced }} unpriced{% endif %}.</p>
   {% endif %}

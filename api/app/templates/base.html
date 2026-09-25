@@ -75,7 +75,7 @@
    the jump move focus and not only the scroll position. #}
 <a class="skip" href="#main">Skip to content</a>
 {# With the page's context, not only the globals: an import without it is built once
-   and kept, so the chrome would go on reading whatever auth_enabled was on the first
+   and kept, so the chrome would go on reading whoever was signed in on the first
    page ever rendered. #}
 {% import "_ui.html" as U with context %}
 {# Where you are, for the way in and the way out both: logging in comes back to it,
@@ -95,25 +95,10 @@
 {% set _nav = site_nav() %}
 {% if _nav == 'side' %}{% set _shut = rail_collapsed(request) %}
 <div class="shell side{{ ' collapsed' if _shut else '' }}">
-{{ U.rail(_p, request.state.authed, _back, rail_counts(request.state.authed), shut=_shut) }}
+{{ U.rail(_p, request.state.authed, _back, rail_counts(request.state.sees_private), shut=_shut) }}
 <div>
 {% endif %}
 {{ U.site_header(_p, request.state.authed, _back, q | default('', true)) }}
-{# Running with no login, and nothing says it was meant to (ADR-0019). Above the
-   content and on every page, because the pages somebody edits from are the item
-   pages -- a notice only on the front door is one most visits never see.
-
-   Shown to everybody, which is not a disclosure: when the site is open, everybody
-   looking at it is the owner as far as the code is concerned, and the edit buttons
-   are already on the page for anyone to find. A warning rather than an alarm: open
-   is a supported way to run, and may well be what was meant. #}
-{% if auth_open_warning %}
-<div class="banner warning" id="openwarn" role="status"><b>No login.</b>
-  <span>This site has no credentials set, so anybody reading it can add, edit and
-    delete anything in the register. If that is not what was intended, set
-    <code>RHDB_AUTH_USER</code> and <code>RHDB_AUTH_PASSWORD</code>; if it is, set
-    <code>RHDB_OPEN=1</code> to put this notice away.</span></div>
-{% endif %}
 {#- A page on the v0.2 components sets main_class to v2, which the 0.1 rules in
     app.css that share its class names stand back from. Transitional: goes with
     app.css. #}
@@ -170,8 +155,7 @@
 <div class="banner toast" id="cookienote" data-cookie="{{ notice_cookie }}">
   <p><b>Cookies.</b> Nothing is stored until you choose something — a sort
     order, the dark theme. First party only: no analytics, no advertising, nothing
-    shared with anyone{% if auth_enabled %}. Signing in to edit adds a session
-    cookie{% endif %}.</p>
+    shared with anyone. Signing in adds a session cookie.</p>
   <button class="btn sm" id="cookieok" type="button">{{ 'Got it' | ui }}</button>
 </div>
 {% endif %}

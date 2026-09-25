@@ -892,3 +892,78 @@ class Location(Base):
     # half of the pick list is offered in: the crate filled last week is a likelier
     # answer than one nothing has gone into since 2019.
     used_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class User(Base):
+    """Somebody who may sign in (ADR-0032).
+
+    What they may do once signed in is not here: it is their membership's role,
+    because a role is held on a site and this row is the person, whatever sites
+    there may one day be.
+
+    `username` is unique under MariaDB's case-folding collation, the way
+    Location.name is, so `Ada` and `ada` are one account and a lookup by either
+    finds it. `active` is how an account is switched off without being forgotten:
+    its sessions and tokens stop working, and switching it back on restores it."""
+
+    __tablename__ = "users"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    # argon2's own encoded string: the parameters and the salt travel with the hash,
+    # so raising the cost later re-hashes on the next sign-in rather than needing a
+    # migration.
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class Membership(Base):
+    """A user's role on a site.
+
+    There is one site, `accounts.roles.SITE`, and no table of them: the column is
+    the seam a second collection would open, and until there is one it holds the
+    same number in every row (ADR-0032)."""
+
+    __tablename__ = "memberships"
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    site_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+
+
+class UserSession(Base):
+    """A browser that has signed in.
+
+    The cookie holds a random key and this row holds its SHA-256 digest, never the
+    key: a copy of the table is not a copy of anybody's login. Deleting the row is
+    logging out, from the server's side, which a signed cookie could never be."""
+
+    __tablename__ = "sessions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    digest: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class ApiToken(Base):
+    """A program's key to the API, acting as the account it was made for.
+
+    Kept as a digest for the reason a session is, and shown once when it is made.
+    `name` is what it was made for -- "tool server", "print desk" -- so the list
+    says which one to revoke."""
+
+    __tablename__ = "api_tokens"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    digest: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime)

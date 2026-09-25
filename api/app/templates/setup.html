@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{# The first administrator (ADR-0032). Shown until there is one, and a 404 from then
+   on. The code is in the app's log and nowhere else: whoever can read the server's
+   log is the owner, and whoever found the address first is not. #}
+{% block title %}Set up — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
+{% block content %}
+<form class="loginbox" method="post" action="/setup">
+  <h1 class="heading">Set up</h1>
+  <p class="hint">This site has no accounts yet. The setup code is in the app's log:
+    <code>docker compose logs api | grep -i "setup code"</code></p>
+  {{ U.field('code', 'Setup code', autofocus=true, autocomplete='one-time-code',
+             autocapitalize='characters', spellcheck='false') }}
+  {{ U.field('username', 'Name', value=username, autocomplete='username') }}
+  {{ U.field('password', 'Password', type='password', autocomplete='new-password', minlength=10) }}
+  {{ U.field('password2', 'Password again', type='password', autocomplete='new-password', minlength=10) }}
+  {% if error %}{{ U.banner('danger', 'Not set up.', error) }}{% endif %}
+  <p class="mt-5">{{ U.button('Make the administrator', kind='primary', type='submit') }}</p>
+</form>
+{% endblock %}

@@ -18,6 +18,7 @@ from fastapi.exception_handlers import http_exception_handler
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import PlainTextResponse
 
+from .accounts.roles import VISITOR
 from .auth import _is_api_path
 from .common import CONTENT_SECURITY_POLICY
 from .web import templates
@@ -58,15 +59,17 @@ def _wants_page(request: Request) -> bool:
     return "text/html" in request.headers.get("accept", "")
 
 
-def _page(request: Request, status: int) -> Response:
+def page(request: Request, status: int) -> Response:
     """The error page, in the site chrome, at the status that brought it here."""
     heading, line = PAGES[status]
-    # The chrome reads two things off the request that the gate puts there, and a
+    # The chrome reads what it needs off the request that the gate puts there, and a
     # fault raised before the gate ran -- or in the gate itself -- would leave them
     # missing and turn this page into a second error. Stated rather than assumed:
     # a stranger, and no cookie notice on a page that is already an apology.
     if not hasattr(request.state, "authed"):
         request.state.authed = False
+        request.state.sees_private = False
+        request.state.principal = VISITOR
     if not hasattr(request.state, "noticed"):
         request.state.noticed = True
     return templates.TemplateResponse(
@@ -85,7 +88,7 @@ async def http_error(request: Request, exc: Exception) -> Response:
     """
     if isinstance(exc, StarletteHTTPException):
         if exc.status_code in PAGES and _wants_page(request):
-            return _page(request, exc.status_code)
+            return page(request, exc.status_code)
         return await http_exception_handler(request, exc)
     return await unhandled_error(request, exc)
 
@@ -103,7 +106,7 @@ async def unhandled_error(request: Request, exc: Exception) -> Response:
     """
     if not _wants_page(request):
         return PlainTextResponse("Internal Server Error", status_code=500)
-    response = _page(request, 500)
+    response = page(request, 500)
     response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)
     return response
 

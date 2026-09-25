@@ -79,10 +79,8 @@ Now edit `.env`. Every setting, and what it does:
 | `DB_USER` | The database user the app connects as. `retro` is fine. |
 | `DB_PASSWORD` | That user's password. **Change it.** |
 | `DB_ROOT_PASSWORD` | The database's root password, used by the backup script. **Change it.** |
-| `RHDB_AUTH_USER` | The username you log in to the site with. |
-| `RHDB_AUTH_PASSWORD` | Its password. **Set both, or the site is world-editable.** |
-| `RHDB_SECRET_KEY` | Signs your browser login cookie. Generate one with `openssl rand -hex 32`. |
-| `RHDB_OPEN` | `1` only if you *mean* to run with no login. Leave unset otherwise; the app then treats blank credentials as a mistake and says so. |
+| `RHDB_AUTH_USER` / `RHDB_AUTH_PASSWORD` | Leave blank on a new install. On one upgraded from the single login, the first start makes an administrator from them. |
+| `RHDB_API_TOKEN` | The tool server's key to the API. Made after setup — see step 6. |
 | `RHDB_DOMAIN` | The name this site answers to, e.g. `db.example.com`. Caddy serves it and gets its certificate. |
 | `RHDB_ACME_EMAIL` | Where Let's Encrypt writes about those certificates. |
 | `RHDB_BASE_URL` | The public URL of your site. Defaults to `https://$RHDB_DOMAIN`; set it only if they differ. |
@@ -94,15 +92,9 @@ Two of these matter more than they look:
 - **`RHDB_BASE_URL` is what the QR codes on your printed labels encode.** Get it
   right *before* you print any labels, or every label points at the wrong site.
   It is also what link previews and the sitemap use.
-- **`RHDB_AUTH_USER` / `RHDB_AUTH_PASSWORD` are the whole login.** There is one
-  account, not a user table. Leaving both blank runs the site with no
-  authentication at all, which is only sensible on a laptop. Anyone reaching the
-  site could then edit and delete records.
-
-  Because that state is also what a `.env` that never arrived produces, the app
-  will not let it pass quietly: with no credentials and no `RHDB_OPEN`, it warns in
-  the log at startup and shows a banner on every page. Set `RHDB_OPEN=1` if you
-  meant it (ADR-0019).
+- **The login is not in `.env`.** Accounts live in the database, and the first
+  one is made in the browser at step 6, with a code the app writes to its log.
+  Until then the site shows nothing but that setup page, to anyone.
 
 There is no separate database setup step. The database container creates the
 database and the user from these values the first time it starts, and the app
@@ -166,8 +158,28 @@ validations, and Caddy's own backoff exists to stay under that limit.
 
 ## 6. Log in and put something in it
 
-Open your site. You will see an empty gallery. Click **log in** in the header and
-use the `RHDB_AUTH_USER` / `RHDB_AUTH_PASSWORD` you set.
+Open your site. It opens on **Set up**, which asks for a setup code. The app
+wrote it to its log when it started:
+
+```sh
+docker compose logs api | grep -i "setup code"
+```
+
+Type it in with the username and password you want. That makes you the
+administrator and signs you in; the setup page is gone from then on. The code is
+what stops a stranger who found the address first from doing it before you.
+
+Then give the tool server a key of its own, put it in `.env` as
+`RHDB_API_TOKEN`, and restart it:
+
+```sh
+docker compose exec api python -m app.accounts token <your username> "tool server"
+docker compose up -d mcp
+```
+
+Other people's accounts — administrators, or viewers who may read everything but
+change nothing — are made the same way, with `python -m app.accounts add`. The
+[manual](MANUAL.md#17-logging-in) has the whole command.
 
 Two buttons appear in the header once you are logged in: **+ Computer** and
 **+ Part**. The [manual](MANUAL.md) walks through both forms field by field, but
@@ -388,7 +400,7 @@ printer, or the one with the floppy drive.
 cd tools
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 export RHDB_API=https://db.example.com
-export RHDB_AUTH_USER=... RHDB_AUTH_PASSWORD=...
+export RHDB_API_TOKEN=rhdb_...   # docker compose exec api python -m app.accounts token ...
 .venv/bin/python make_labels.py --auto RH-4K7Q
 ```
 
@@ -434,9 +446,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
 The site is at <http://localhost:8000> and the API console at
-<http://localhost:8000/docs>. Leaving `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`
-blank in `.env` runs it with no login at all, which is the quickest way to have a
-look around.
+<http://localhost:8000/docs>. It opens on setup like any new install; the code is
+in `docker compose logs api`. Setting `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD` in
+`.env` before the first start skips that and makes the account from them.
 
 There is no SQLite path. Alembic owns the schema and its migrations are written
 for MariaDB, so the app no longer builds its own tables from the models
@@ -463,8 +475,10 @@ DATABASE_URL=mysql+pymysql://retro:<your DB_PASSWORD>@127.0.0.1:3306/retro \
 | HTTPS fails, HTTP works | `docker compose logs caddy` — almost always DNS, or port 80 blocked. |
 | A 500 from the app | `docker compose logs api` — the traceback is at the end. |
 | The app will not start, database errors | `docker compose logs db`. On a first run the app waits for the database's health check; give it a minute. |
-| Logged in but no edit buttons | The cookie is signed with `RHDB_SECRET_KEY`. If you changed it, log in again. |
-| A "No login" banner, or no **log out** button in the ⋯ menu | Your credentials are not reaching the app — most often a `.env` left behind when the checkout was renamed or moved. `docker compose exec -T api sh -c 'echo "user=[$RHDB_AUTH_USER]"'`. |
+| Logged in but no edit buttons | The account is a viewer. `docker compose exec api python -m app.accounts list` says which role each has. |
+| Locked out, every password lost | `docker compose exec api python -m app.accounts password <username>` sets a new one. |
+| The site shows only **Set up** after an upgrade | It has no accounts, and `RHDB_AUTH_USER` / `RHDB_AUTH_PASSWORD` did not reach it on the first start. Use the setup code, or set them and restart. |
+| The tool server gets `401` | `RHDB_API_TOKEN` is not set, or the token was revoked. Make a new one. |
 | Labels point at the wrong site | `RHDB_BASE_URL` in `.env`, and `base_url` in `tools/config.yml` for the command-line tool. Both, if you use both. |
 | Photographs vanished after a rebuild | They should not have — they are in the `images` volume. Check `docker volume ls` for a stale project name if you renamed the directory. |
 

@@ -137,6 +137,16 @@ const context = await browser.newContext({ ignoreHTTPSErrors: true });
 const page = await context.newPage();
 watch(page);
 
+// Signed in as the throwaway administrator the runner seeds, so the crawl sees the
+// forms and the owner-only pages as well as the public ones (ADR-0032). The login
+// page is crawled on the way in, which is one more page with the policy on it.
+if (process.env.CSP_USER) {
+  await page.goto(BASE + '/login', { waitUntil: 'networkidle' });
+  await page.fill('#username', process.env.CSP_USER);
+  await page.fill('#password', process.env.CSP_PASS || '');
+  await Promise.all([page.waitForNavigation(), page.click('button[type=submit]')]);
+}
+
 // The policy has to actually be on the response, or everything below passes for
 // the wrong reason: no header, no violations, a clean run and nothing proved.
 const first = await page.goto(BASE + '/', { waitUntil: 'networkidle' });

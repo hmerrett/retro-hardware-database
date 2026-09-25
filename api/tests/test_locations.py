@@ -15,16 +15,16 @@ import re
 
 import pytest
 
-from app import main, settings
-from conftest import content
+from app import settings
+from conftest import content, log_out
 from app.models import Computer, Location, Part
 
 CRATE = "Loft, blue crate 3"
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def save(client, **fields):
@@ -516,7 +516,7 @@ class TestWhoIsToldWhereThingsAre:
             "asset_id"
         ]
         assert CRATE in client.get(f"/{kind}/{aid}").text, "the owner sees it"
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/{kind}/{aid}").text
         assert CRATE not in page
         assert "<dt>Location</dt>" not in page
@@ -527,7 +527,7 @@ class TestWhoIsToldWhereThingsAre:
         existing -- and a stranger searching "loft" would be handed the list of what
         is in yours."""
         aid = computer(location=CRATE)["asset_id"]
-        visitor(monkeypatch)
+        visitor(client)
         assert aid not in client.get("/?q=loft").text
         assert aid not in client.get("/suggest?q=loft").text
 
@@ -545,7 +545,7 @@ class TestWhoIsToldWhereThingsAre:
         nothing is kept -- so the answer is now nobody, owner included."""
         computer(location=CRATE)
         if who == "visitor":
-            visitor(monkeypatch)
+            visitor(client)
         assert "blue crate 3" not in client.get("/").text
 
     @pytest.mark.parametrize("kind", ["computers", "parts"])
@@ -554,13 +554,13 @@ class TestWhoIsToldWhereThingsAre:
             "asset_id"
         ]
         save(client, public_locations="1")
-        visitor(monkeypatch)
+        visitor(client)
         assert CRATE in client.get(f"/{kind}/{aid}").text
 
     def test_turning_it_on_lets_a_visitor_search_on_it(self, client, computer, monkeypatch):
         aid = computer(location=CRATE)["asset_id"]
         save(client, public_locations="1")
-        visitor(monkeypatch)
+        visitor(client)
         assert aid in client.get("/?q=loft").text
 
     def test_a_visitor_is_shown_no_inherited_location_either(
@@ -571,7 +571,7 @@ class TestWhoIsToldWhereThingsAre:
         cid = computer(location=CRATE)["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         assert CRATE in client.get(f"/parts/{pid}").text, "the owner sees it"
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/parts/{pid}").text
         assert CRATE not in page
         assert "<dt>Location</dt>" not in page
@@ -581,7 +581,7 @@ class TestWhoIsToldWhereThingsAre:
     ):
         cid = computer(location=CRATE)["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        visitor(monkeypatch)
+        visitor(client)
         assert pid not in content(client.get("/?q=loft").text)
         assert pid not in client.get("/suggest?q=loft").text
 
@@ -591,7 +591,7 @@ class TestWhoIsToldWhereThingsAre:
         cid = computer(location=CRATE)["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         save(client, public_locations="1")
-        visitor(monkeypatch)
+        visitor(client)
         assert CRATE in client.get(f"/parts/{pid}").text
         assert pid in client.get("/?q=loft").text
 
@@ -608,7 +608,7 @@ class TestWhoIsToldWhereThingsAre:
         computer(location=CRATE)
         cid = computer()["asset_id"]
         save(client, public_locations="1")
-        visitor(monkeypatch)
+        visitor(client)
         assert "dl_location" not in client.get(f"/computers/{cid}").text
 
 
@@ -652,7 +652,7 @@ class TestFindingWhatIsInThere:
         cid = computer(location=CRATE)["asset_id"]
         part(computer_id=cid)
         if who == "visitor":
-            visitor(monkeypatch)
+            visitor(client)
         assert "blue crate 3" not in client.get("/").text
 
 

@@ -292,7 +292,8 @@
 {# ---- The site's chrome ------------------------------------------------------
    These read the page they are on, so each takes what it needs of it: `current`
    is the path, `authed` whether this visitor may edit, `back` where logging in or
-   out returns to. Whether the site has a login at all is the global auth_enabled. #}
+   out returns to. Whether they are signed in at all, and whether they may see what
+   a visitor may not, they read off request.state (ADR-0032). #}
 
 {# aria-current on the section a path belongs to. Prefix rather than exact match, so
    an item's own page still lights the section it was reached through -- except the
@@ -339,21 +340,18 @@
 <button type="button" class="js-share" hidden>{{ 'Share this page' | ui }}</button>
 <button type="button" class="js-reload" hidden>{{ 'Reload' | ui }}</button>
 <hr>
-{%- if authed -%}
-{%- if auth_enabled -%}
-{#- The owner's own shortlist, beside the other things only they can reach. Not a
-    section: it is a note to yourself, not a part of the catalogue (ADR-0018). -#}
+{#- The owner's own shortlist, beside the other things only an account can reach.
+    Not a section: it is a note to yourself, not a part of the catalogue (ADR-0018).
+    A viewer reads it; traffic and the settings are an administrator's (ADR-0032). -#}
+{%- if request.state.sees_private -%}
 <a href="/for-sale">{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
+{%- endif -%}
+{%- if authed -%}
 <a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
-{%- endif -%}
-{#- Gated on being the owner rather than on there being a login, which is the one of
-    the two questions this actually turns on: with no credentials set every visitor
-    is the owner (ADR-0019), and the page is reachable, so a menu that left it out
-    would be hiding a page it cannot refuse. -#}
 <a href="/settings"{{ here('/settings', current) }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
-{%- if auth_enabled -%}
-<form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}"><button type="submit">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log out' | ui }}</button></form>
 {%- endif -%}
+{%- if request.state.principal.signed_in -%}
+<form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}"><button type="submit">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log out' | ui }}</button></form>
 {%- else -%}
 {#- Carrying where you are, so logging in puts you back on it. That matters most to
     a phone that has arrived by scanning an item's code and would otherwise be
@@ -477,10 +475,10 @@
             data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ I.ico('theme') }}<span>{{ 'Dark theme' | ui }}</span></button>
     {%- if authed %}
     <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current) }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
-    {%- if auth_enabled %}
+    {%- endif %}
+    {%- if request.state.principal.signed_in %}
     <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}">
       <button class="item" type="submit" title="{{ 'Log out' | ui }}" aria-label="{{ 'Log out' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log out' | ui }}</span></button></form>
-    {%- endif %}
     {%- else %}
     <a class="item" href="/login?next={{ back | urlencode }}" title="{{ 'Log in' | ui }}" aria-label="{{ 'Log in' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log in' | ui }}</span></a>
     {%- endif %}

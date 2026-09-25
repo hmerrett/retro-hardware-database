@@ -5,6 +5,7 @@ client IP, caps failed attempts.
 
 from app import main
 from app.auth import _RateLimiter
+from conftest import PASSWORD, account, log_out
 
 
 def test_allows_up_to_the_limit_then_blocks():
@@ -40,9 +41,8 @@ def test_reset_clears_a_key():
 
 
 def test_login_blocks_after_too_many_failures(client, monkeypatch):
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-    monkeypatch.setattr(main.auth, "AUTH_USER", "admin")
-    monkeypatch.setattr(main.auth, "AUTH_PASS", "correct-horse")
+    log_out(client)
+    account("admin")
     monkeypatch.setattr(main.auth, "_login_limiter", _RateLimiter(3, 300))
 
     for _ in range(3):
@@ -57,15 +57,14 @@ def test_login_blocks_after_too_many_failures(client, monkeypatch):
     assert r.status_code == 429
     # ...and the correct password is refused too while the block stands.
     r = client.post(
-        "/login", data={"username": "admin", "password": "correct-horse"}, follow_redirects=False
+        "/login", data={"username": "admin", "password": PASSWORD}, follow_redirects=False
     )
     assert r.status_code == 429
 
 
 def test_a_good_login_clears_the_count(client, monkeypatch):
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-    monkeypatch.setattr(main.auth, "AUTH_USER", "admin")
-    monkeypatch.setattr(main.auth, "AUTH_PASS", "correct-horse")
+    log_out(client)
+    account("admin")
     monkeypatch.setattr(main.auth, "_login_limiter", _RateLimiter(3, 300))
 
     for _ in range(2):
@@ -73,7 +72,7 @@ def test_a_good_login_clears_the_count(client, monkeypatch):
             "/login", data={"username": "admin", "password": "wrong"}, follow_redirects=False
         )
     ok = client.post(
-        "/login", data={"username": "admin", "password": "correct-horse"}, follow_redirects=False
+        "/login", data={"username": "admin", "password": PASSWORD}, follow_redirects=False
     )
     assert ok.status_code == 303
     # Count reset: a fresh run of failures is allowed again rather than instantly

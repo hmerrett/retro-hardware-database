@@ -15,8 +15,8 @@
   <div class="filehero-text">
     <h2 class="flush">{{ f.filename }}</h2>
     <p class="muted flush">{{ f.what.noun }} · {{ f.what.size }}{% if f.what.size != human_size(f.size) %} · {{ human_size(f.size) }}{% endif %}</p>
-    {% if f.created_at %}<p class="muted flush">added {{ log_stamp(f.created_at, owner) }}</p>{% endif %}
-    {% if owner and not f.public %}<p class="flush"><span class="lock">private</span></p>{% endif %}
+    {% if f.created_at %}<p class="muted flush">added {{ log_stamp(f.created_at, request.state.sees_private) }}</p>{% endif %}
+    {% if request.state.sees_private and not f.public %}<p class="flush"><span class="lock">private</span></p>{% endif %}
   </div>
 </div>
 <p><a class="btn primary" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">download</a></p>

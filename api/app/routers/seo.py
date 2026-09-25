@@ -57,7 +57,10 @@ def robots_txt(request: Request) -> Response:
     # address anyway from whatever links to it. What does go is the sitemap --
     # asking not to be listed while handing over a list of everything to list is
     # two answers to one question (ADR-0023).
-    if not settings.on("block_search_engines"):
+    # A site closed to visitors has no sitemap to offer: the list is behind the login
+    # with everything else. The crawler is still let in, for the reason above -- all
+    # it can reach is the login page, which asks not to be listed (ADR-0032).
+    if not settings.on("block_search_engines") and not settings.on("login_to_read"):
         body += f"Sitemap: {base}/sitemap.xml\n"
     return Response(body, media_type="text/plain")
 

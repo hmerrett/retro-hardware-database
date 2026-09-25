@@ -44,7 +44,7 @@ def _seen_or_404(db: Session, fid: int, request: Request) -> StoredFile:
     the file exists, which for the receipt this flag was added to cover is most of
     what was being kept back."""
     row = _file_or_404(db, fid)
-    if not row.public and not request.state.authed:
+    if not row.public and not request.state.sees_private:
         raise HTTPException(404, f"file {fid} not found")
     return row
 
@@ -162,7 +162,7 @@ def gui_file(fid: int, request: Request, db: Session = Depends(get_db)) -> HTMLR
     link anything anyway."""
     row = _seen_or_404(db, fid, request)
     authed = request.state.authed
-    [row] = filesdb.with_links(db, [row], authed)
+    [row] = filesdb.with_links(db, [row], request.state.sees_private)
     return templates.TemplateResponse(
         request,
         "file.html",
@@ -275,7 +275,7 @@ def gui_files(
 
     The kinds are counted over the files this reader can see before any of them is
     chosen, so a filter says how many it holds rather than how many it is showing."""
-    authed = request.state.authed
+    authed = request.state.sees_private
     seen = filesdb.all_files(db, authed)
     kind = kind if kind in filekinds.GROUPS else ""
     show = show if authed and show in filesdb.SHOWS else ""

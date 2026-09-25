@@ -505,3 +505,31 @@ def test_0044_can_be_downgraded(scratch_db_url):
     again = _alembic(scratch_db_url, "upgrade", "head")
     assert again.returncode == 0, f"upgrade after downgrade failed:\n{again.stderr}"
     engine.dispose()
+
+
+BEFORE_ACCOUNTS = "0044_a_file_is_linked_by_id"
+
+
+def test_0045_makes_the_account_tables_empty(scratch_db_url):
+    """Nothing is seeded by the migration: the old single login is read by the app
+    at startup, because a migration must not assume what the environment holds any
+    more than what the data does (ADR-0002, ADR-0032)."""
+    up = _alembic(scratch_db_url, "upgrade", "head")
+    assert up.returncode == 0, f"upgrade to head failed:\n{up.stderr}"
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        assert {"users", "memberships", "sessions", "api_tokens"} <= _tables(conn)
+        assert conn.execute(text("SELECT COUNT(*) FROM users")).scalar_one() == 0
+    engine.dispose()
+
+
+def test_0045_can_be_downgraded_and_upgraded_again(scratch_db_url):
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_ACCOUNTS)
+    assert down.returncode == 0, f"downgrade from 0045 failed:\n{down.stderr}"
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        assert not {"users", "memberships", "sessions", "api_tokens"} & _tables(conn)
+    engine.dispose()
+    again = _alembic(scratch_db_url, "upgrade", "head")
+    assert again.returncode == 0, f"upgrade after downgrade failed:\n{again.stderr}"

@@ -1,14 +1,11 @@
-"""The login, and the gate every request passes through.
+"""The login, first-run setup, and the gate every request passes through.
 
-One module, on purpose. Whether auth is on, the credentials, the cookie and its
-signer, the rate limiter, the gate that reads all of them, and the two routes that
-let somebody in and out: each of those is only meaningful in terms of the others,
-and splitting them would leave two copies of the question "is this reader logged
-in?" to be kept in step.
-
-It also keeps a test honest. A test that forces AUTH_ENABLED patches it here, and
-here is where the gate and the login route both read it -- one name, one live
-value. main no longer carries a copy for a patch to land on harmlessly.
+One module, on purpose. Who is asking, what their role lets them reach, the rate
+limiter, the gate that reads all of them, and the doors somebody comes in and out
+by: each of those is only meaningful in terms of the others, and splitting them
+would leave two copies of the question "may this reader see this?" to be kept in
+step. What an account *is* -- its password, its sessions, its tokens, its role --
+is `accounts/` (ADR-0032).
 
 main registers the gate as middleware rather than this module doing it, because
 middleware belongs to the app object and the order of the two matters: the gate is
@@ -18,24 +15,25 @@ registered last so that it sits outside the cache-header one.
 import base64
 import logging
 import os
-import secrets
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from urllib.parse import quote, urlparse
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import RequestResponseEndpoint
+
+from . import settings
+from .accounts import firstrun, store
+from .accounts.roles import ADMIN, EDIT, READ_PRIVATE, VISITOR, Principal, can
+from .db import SessionLocal, get_db
 from .forms import posted
 from .web import _safe_next, templates
 
 router = APIRouter()
-
-
-AUTH_USER = os.getenv("RHDB_AUTH_USER", "")
-AUTH_PASS = os.getenv("RHDB_AUTH_PASSWORD", "")
-AUTH_ENABLED = bool(AUTH_USER and AUTH_PASS)
-templates.env.globals["auth_enabled"] = AUTH_ENABLED
 
 # Nothing in the app configures logging: under uvicorn its config is already in
 # place by the time this module is imported, and outside it a WARNING still reaches
@@ -44,86 +42,23 @@ templates.env.globals["auth_enabled"] = AUTH_ENABLED
 log = logging.getLogger(__name__)
 
 
-def _open_on_purpose() -> bool:
-    """Whether the operator has said that running with no login is deliberate.
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """At startup: seed the first account from the old single login if there is
+    one to seed from, and say in the log which state the site came up in.
 
-    The mirror of RHDB_WATERMARK's reading in photos.py -- the same words, the other
-    way up, because this one is off until asked for.
-    """
-    return os.getenv("RHDB_OPEN", "").strip().lower() in ("1", "true", "yes", "on")
-
-
-def _announce_auth(enabled: bool, on_purpose: bool) -> bool:
-    """Say which of the two states the app came up in, and answer whether the pages
-    should carry the warning banner as well (ADR-0019).
-
-    Blank credentials make `auth_gate` treat every visitor as the owner, able to
-    edit and delete anything. That is a supported way to run -- a local copy, a
-    read-only install on a trusted network -- and it is also what a `.env` that is
-    missing or was left behind when the checkout moved produces, with nothing to
-    show for it but the traffic link and the log out button quietly gone from a
-    menu. Which is how the state was actually found, weeks later, by somebody asking
-    where the traffic page had got to.
-
-    So the app assumes the mistake and says so twice over, because a log line only
-    reaches somebody who goes looking and nobody did. RHDB_OPEN is the operator
-    saying they meant it, after which this goes quiet.
-
-    A function of its two arguments rather than a side effect at import: the suite
-    can then ask it what it says for each of the four states, instead of racing an
-    import that has already happened by the time a test is collected.
-
-    Nothing here reads a credential. It names the variables and never their values,
-    which is what keeps a startup line safe to paste into a bug report.
-    """
-    if enabled:
-        if on_purpose:
-            log.warning(
-                "RHDB_OPEN is set, but RHDB_AUTH_USER and RHDB_AUTH_PASSWORD are "
-                "set too, so the login is on and RHDB_OPEN is doing nothing. Unset "
-                "it, or clear the credentials if this site is meant to be open."
-            )
-        return False
-    if on_purpose:
-        log.info(
-            "Running with no login (RHDB_OPEN is set): every visitor may edit "
-            "and delete anything in the register."
-        )
-        return False
-    log.warning(
-        "NO LOGIN: RHDB_AUTH_USER and RHDB_AUTH_PASSWORD are not set, so every "
-        "visitor may edit and delete anything in the register. If that is not what "
-        "you meant, set them and RHDB_SECRET_KEY -- a .env that is missing or was "
-        "left behind when the checkout moved looks exactly like this. If it is what "
-        "you meant, set RHDB_OPEN=1 and this stops."
+    The old pair is read here and nowhere else in the app. The tool server still
+    reads it for itself, until it has a token."""
+    firstrun.startup(
+        os.getenv("RHDB_AUTH_USER", ""),
+        os.getenv("RHDB_AUTH_PASSWORD", ""),
+        os.getenv("RHDB_OPEN", ""),
     )
-    return True
+    yield
 
 
-# Read once at import, beside the flag it is about, so there is no window in which
-# the app is configured open and has not said so.
-templates.env.globals["auth_open_warning"] = _announce_auth(AUTH_ENABLED, _open_on_purpose())
-
-
-# Signed-cookie session for the browser (the API/tools keep using HTTP Basic).
-def _resolve_secret_key(secret: str, auth_enabled: bool) -> str:
-    """The key that signs the session cookie. It must not be derived from the
-    credentials: the cookie's payload is a constant, so a key made from the
-    password would turn any leaked cookie into an offline oracle for it, with no
-    rate limit to slow the guessing. Require it explicitly when auth is on; when
-    the app runs open the cookie gates nothing, so a throwaway per-process key
-    will do."""
-    if secret:
-        return secret
-    if auth_enabled:
-        raise RuntimeError(
-            "RHDB_SECRET_KEY must be set when authentication is enabled. "
-            "Generate one with: openssl rand -hex 32"
-        )
-    return secrets.token_hex(32)
-
-
-SECRET_KEY = _resolve_secret_key(os.getenv("RHDB_SECRET_KEY", ""), AUTH_ENABLED)
+# The session cookie holds a random key the database keeps a digest of, so it signs
+# nothing and needs no secret: RHDB_SECRET_KEY is no longer read.
 COOKIE = "rhdb_session"
 # The two cookies the site sets for a visitor who is only reading, both first party,
 # both holding a choice that visitor made themselves and nothing else. Neither is
@@ -137,8 +72,11 @@ NOTICE_COOKIE = "rhdb_noticed"
 # come to disagree with the code that reads them.
 templates.env.globals["sort_cookie"] = SORT_COOKIE
 templates.env.globals["notice_cookie"] = NOTICE_COOKIE
-SESSION_MAX_AGE = 60 * 60 * 24 * 30
-_signer = URLSafeTimedSerializer(SECRET_KEY, salt="rhdb-session")
+SESSION_MAX_AGE = int(store.SESSION_LIFE.total_seconds())
+
+# The setting that closes the site to visitors. Named once, here, beside the gate
+# that reads it; settings.py holds its label and default.
+CLOSED = "login_to_read"
 
 
 class _RateLimiter:
@@ -187,28 +125,6 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "?"
 
 
-def _check_basic(request: Request) -> bool:
-    header = request.headers.get("authorization", "")
-    if not header.startswith("Basic "):
-        return False
-    try:
-        u, _, p = base64.b64decode(header[6:]).decode("utf-8").partition(":")
-        return secrets.compare_digest(u, AUTH_USER) and secrets.compare_digest(p, AUTH_PASS)
-    except Exception:
-        return False
-
-
-def _check_cookie(request: Request) -> bool:
-    token = request.cookies.get(COOKIE)
-    if not token:
-        return False
-    try:
-        _signer.loads(token, max_age=SESSION_MAX_AGE)
-        return True
-    except (BadSignature, SignatureExpired):
-        return False
-
-
 def _is_api_path(path: str) -> bool:
     return path.startswith(("/api", "/docs")) or path == "/openapi.json"
 
@@ -236,12 +152,50 @@ def note_wrong_secret(request: Request) -> bool:
     return True
 
 
-def _is_public_read(request: Request) -> bool:
-    """Anonymous visitors get read-only GETs: the gallery, item pages, photos and
-    static assets. Editing GETs (new/edit forms, delete confirmations, labels),
-    the JSON API and /docs stay private, and every write (POST/PATCH/DELETE)
-    requires login."""
-    return request.method == "GET" and _public_page(request.url.path)
+def _always_open(path: str) -> bool:
+    """What answers anybody, even on a site closed to visitors or not yet set up:
+    the doors themselves, what they are drawn with, and the health check.
+
+    The icons are here because a browser asks for them on the login page, and the
+    stylesheets because the login page without them is a page nobody trusts with a
+    password. robots.txt because a crawler reads it before anything else, and on a
+    closed site it is where the crawler learns there is no sitemap to follow."""
+    if path in (
+        "/login",
+        "/logout",
+        "/setup",
+        "/healthz",
+        "/robots.txt",
+        "/favicon.ico",
+        "/apple-touch-icon.png",
+        "/apple-touch-icon-precomposed.png",
+    ):
+        return True
+    return path.startswith(("/static/", "/style/", AGENT_PREFIX))
+
+
+# Pages that are not public, and that a viewer may read: they show what a visitor is
+# not shown, and change nothing. Anything not listed here or public is an
+# administrator's, so a new page nobody thought to list is kept from a viewer rather
+# than shown to one.
+VIEWER_PAGES = frozenset({"/for-sale"})
+
+
+def may(principal: Principal, method: str, path: str, closed: bool) -> bool:
+    """Whether this principal may make this request at all.
+
+    The coarse answer, by path. The fine one -- which file, which project -- is the
+    route's, as it always was (ADR-0009): the gate says the door is open and the
+    row decides who comes through it."""
+    if can(principal, EDIT):
+        return True
+    if method != "GET":
+        return False
+    if can(principal, READ_PRIVATE) and (path in VIEWER_PAGES or _is_api_path(path)):
+        return True
+    if closed and not principal.signed_in:
+        return False
+    return _public_page(path)
 
 
 def _public_page(path: str) -> bool:
@@ -317,84 +271,199 @@ def _public_page(path: str) -> bool:
     return False
 
 
+def _basic(db: Session, header: str) -> Principal | None:
+    try:
+        u, _, p = base64.b64decode(header[6:]).decode("utf-8").partition(":")
+    except ValueError:
+        return None
+    user = store.authenticate(db, u, p)
+    return store.principal(db, user, "basic") if user else None
+
+
+def _who(path: str, cookie: str, header: str) -> tuple[Principal, bool]:
+    """Who this request is from, and whether it offered a credential that was wrong.
+
+    Browser paths trust the session cookie only, so logging out is reliable; the
+    API and the docs also take a bearer token or HTTP Basic, for the tool server and
+    the command-line tools. Run in a thread by the gate, because it reads the
+    database and a Basic password is an argon2 verify.
+
+    Not at the print agent's door, whose bearer is the agent's own key and is
+    checked by the route: read here, every label collected would count as a wrong
+    guess at an account's token."""
+    offered = (
+        _is_api_path(path)
+        and not path.startswith(AGENT_PREFIX)
+        and header.startswith(("Bearer ", "Basic "))
+    )
+    if not cookie and not offered:
+        return VISITOR, False
+    with SessionLocal() as db:
+        if cookie and (p := store.from_session(db, cookie)):
+            return p, False
+        if not offered:
+            return VISITOR, False
+        if header.startswith("Bearer "):
+            p = store.from_token(db, header[7:].strip())
+        else:
+            p = _basic(db, header)
+        return (p, False) if p else (VISITOR, True)
+
+
+def _forbidden(request: Request, api_path: bool) -> Response:
+    """Somebody signed in, asking for something their role does not reach.
+
+    403 and not the login: sending a signed-in viewer to log in would ask them to
+    prove again who they are, which is not what is wrong."""
+    if api_path:
+        return Response("Your account may not do that", status_code=403)
+    # Imported here: errors reads _is_api_path from this module, and the page it
+    # draws is the site's one 403, so a second one of this module's own would be two
+    # answers to the same question.
+    from .errors import page
+
+    return page(request, 403)
+
+
 async def auth_gate(request: Request, call_next: RequestResponseEndpoint) -> Response:
-    """Public read-only browsing; login required to edit. Browsers use a session
-    cookie (login page + logout); the API and tools use HTTP Basic."""
+    """Works out who is asking and whether they may, and answers for the route when
+    they may not (ADR-0032).
+
+    Sets `request.state.principal`, and the two questions nearly every page asks of
+    it: `authed`, whether they may edit, and `sees_private`, whether they may see
+    what a visitor is not shown."""
     path = request.url.path
     api_path = _is_api_path(path)
-    # Browser paths trust the session cookie only, so logout is reliable; the API
-    # and docs also accept HTTP Basic for the MCP server and command-line tools.
-    has_basic = request.headers.get("authorization", "").startswith("Basic ")
-    basic_ok = api_path and has_basic and _check_basic(request)
-    request.state.authed = not AUTH_ENABLED or _check_cookie(request) or basic_ok
-    # A wrong Basic credential is a guess at the API's door; rate-limit it as the
-    # login form is. Only counted when a Basic header was actually sent and wrong,
-    # so ordinary anonymous reads are untouched.
-    if AUTH_ENABLED and api_path and has_basic and not basic_ok:
+    principal, wrong = await run_in_threadpool(
+        _who, path, request.cookies.get(COOKIE, ""), request.headers.get("authorization", "")
+    )
+    request.state.principal = principal
+    request.state.authed = can(principal, EDIT)
+    request.state.sees_private = can(principal, READ_PRIVATE)
+    # Read here so the notice can be left out of the markup altogether once it has
+    # been dismissed, rather than shipped on every page and hidden by a script.
+    request.state.noticed = NOTICE_COOKIE in request.cookies
+    # A wrong token or password is a guess at the API's door; rate-limit it as the
+    # login form is. Only counted when one was actually sent and wrong, so ordinary
+    # anonymous reads are untouched.
+    if wrong:
         ip = _client_ip(request)
         if not _login_limiter.check(ip):
             return Response("Too many failed attempts, try again later", status_code=429)
         _login_limiter.record(ip)
-    # Read here so the notice can be left out of the markup altogether once it has
-    # been dismissed, rather than shipped on every page and hidden by a script.
-    request.state.noticed = NOTICE_COOKIE in request.cookies
-    if path in ("/login", "/logout"):
+    if not firstrun.ready():
+        # Nothing but setup, and what it is drawn with, until there is an administrator.
+        if path == "/login" or not _always_open(path):
+            if api_path:
+                return Response(
+                    "This site has no accounts yet: finish setting it up at /setup",
+                    status_code=503,
+                )
+            return RedirectResponse("/setup", status_code=303)
         return await call_next(request)
-    if path.startswith(AGENT_PREFIX):
+    if _always_open(path) or may(principal, request.method, path, settings.on(CLOSED)):
         return await call_next(request)
-    if not request.state.authed and not _is_public_read(request):
-        if api_path:
-            return Response(
-                "Authentication required",
-                status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="Retro Hardware Database"'},
-            )
-        return RedirectResponse(f"/login?next={quote(path)}", status_code=303)
-    return await call_next(request)
-
-
-@router.get("/login", response_class=HTMLResponse, include_in_schema=False)
-def gui_login(request: Request, next: str = "/") -> Response:
-    if request.state.authed:
-        return RedirectResponse(_safe_next(next), status_code=303)
-    return templates.TemplateResponse(
-        request, "login.html", {"next": _safe_next(next), "error": False, "noindex": True}
-    )
-
-
-@router.post("/login", include_in_schema=False)
-async def gui_do_login(request: Request) -> Response:
-    form = await posted(request)
-    nxt = _safe_next(form.get("next", "/") or "/")
-    ip = _client_ip(request)
-    if not _login_limiter.check(ip):
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {"next": nxt, "error": True, "rate_limited": True, "noindex": True},
-            status_code=429,
+    if principal.signed_in:
+        return _forbidden(request, api_path)
+    if api_path:
+        return Response(
+            "Authentication required",
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="Retro Hardware Database"'},
         )
-    ok = (
-        AUTH_ENABLED
-        and secrets.compare_digest(form.get("username", ""), AUTH_USER)
-        and secrets.compare_digest(form.get("password", ""), AUTH_PASS)
-    )
-    if not ok:
-        _login_limiter.record(ip)
-        return templates.TemplateResponse(
-            request, "login.html", {"next": nxt, "error": True, "noindex": True}, status_code=401
-        )
-    _login_limiter.reset(ip)
-    resp = RedirectResponse(nxt, status_code=303)
+    return RedirectResponse(f"/login?next={quote(path)}", status_code=303)
+
+
+def _signed_in(request: Request, resp: Response, key: str) -> Response:
     resp.set_cookie(
         COOKIE,
-        _signer.dumps("ok"),
+        key,
         max_age=SESSION_MAX_AGE,
         httponly=True,
         samesite="lax",
         secure=request.headers.get("x-forwarded-proto") == "https",
     )
     return resp
+
+
+def _login_page(request: Request, status: int = 200, **context: object) -> Response:
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {"error": False, "noindex": True, "closed": settings.on(CLOSED)} | context,
+        status_code=status,
+    )
+
+
+@router.get("/login", response_class=HTMLResponse, include_in_schema=False)
+def gui_login(request: Request, next: str = "/") -> Response:
+    if request.state.principal.signed_in:
+        return RedirectResponse(_safe_next(next), status_code=303)
+    return _login_page(request, next=_safe_next(next))
+
+
+@router.post("/login", include_in_schema=False)
+async def gui_do_login(request: Request, db: Session = Depends(get_db)) -> Response:
+    form = await posted(request)
+    nxt = _safe_next(form.get("next", "/") or "/")
+    ip = _client_ip(request)
+    if not _login_limiter.check(ip):
+        return _login_page(request, next=nxt, error=True, rate_limited=True, status=429)
+    user = await run_in_threadpool(
+        store.authenticate, db, form.get("username", ""), form.get("password", "")
+    )
+    if user is None:
+        _login_limiter.record(ip)
+        return _login_page(request, next=nxt, error=True, status=401)
+    _login_limiter.reset(ip)
+    return _signed_in(request, RedirectResponse(nxt, status_code=303), store.open_session(db, user))
+
+
+def _setup_page(
+    request: Request, error: str = "", username: str = "", status: int = 200
+) -> Response:
+    firstrun.code()
+    return templates.TemplateResponse(
+        request,
+        "setup.html",
+        {"error": error, "username": username, "noindex": True},
+        status_code=status,
+    )
+
+
+@router.get("/setup", response_class=HTMLResponse, include_in_schema=False)
+def gui_setup(request: Request) -> Response:
+    """The first administrator, made by whoever can read the log (ADR-0032). Gone,
+    as a 404, once there is an account: a page that could make an administrator
+    must not exist a moment longer than it is needed."""
+    if firstrun.ready():
+        raise HTTPException(404)
+    return _setup_page(request)
+
+
+@router.post("/setup", include_in_schema=False)
+async def gui_do_setup(request: Request, db: Session = Depends(get_db)) -> Response:
+    if firstrun.ready():
+        raise HTTPException(404)
+    form = await posted(request)
+    username = form.get("username", "").strip()
+    ip = _client_ip(request)
+    if not _login_limiter.check(ip):
+        return _setup_page(request, "Too many wrong codes. Try again later.", username, 429)
+    if not firstrun.code_matches(form.get("code", "")):
+        _login_limiter.record(ip)
+        return _setup_page(request, "That is not the setup code.", username, 400)
+    password = form.get("password", "")
+    if password != form.get("password2", ""):
+        return _setup_page(request, "The two passwords were not the same.", username, 400)
+    try:
+        user = await run_in_threadpool(store.create, db, username, password, ADMIN)
+    except store.AccountError as e:
+        return _setup_page(request, str(e), username, 400)
+    _login_limiter.reset(ip)
+    firstrun.mark_ready()
+    log.warning("Setup finished: %s is the first administrator.", user.username)
+    return _signed_in(request, RedirectResponse("/", status_code=303), store.open_session(db, user))
 
 
 def _way_out(nxt: str) -> str:
@@ -419,8 +488,12 @@ def _way_out(nxt: str) -> str:
 
 
 @router.post("/logout", include_in_schema=False)
-async def gui_logout(request: Request) -> Response:
+async def gui_logout(request: Request, db: Session = Depends(get_db)) -> Response:
+    """Ends the session on the server, not only in the browser: a copy of the cookie
+    taken before now stops working too."""
     form = await posted(request)
+    if key := request.cookies.get(COOKIE):
+        store.end_session(db, key)
     resp = RedirectResponse(_way_out(form.get("next", "") or ""), status_code=303)
     resp.delete_cookie(COOKIE)
     return resp

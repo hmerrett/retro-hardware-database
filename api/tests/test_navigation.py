@@ -11,12 +11,13 @@ import pytest
 
 from sqlalchemy.exc import OperationalError
 
-from app import main, rail, settings
+from app import rail, settings
+from conftest import log_out
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def _broken():
@@ -126,7 +127,7 @@ class TestWhatTheRailHolds:
 class TestWhatAVisitorSees:
     def test_a_visitor_is_offered_nothing_that_is_not_theirs(self, client, computer, monkeypatch):
         computer()
-        visitor(monkeypatch)
+        visitor(client)
         rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
         assert 'href="/computers/new"' not in rail_markup
         assert "Recent" not in rail_markup
@@ -136,7 +137,7 @@ class TestWhatAVisitorSees:
     def test_a_visitor_still_sees_the_counts(self, client, computer, monkeypatch):
         """The size of a collection is part of what a catalogue is for."""
         computer()
-        visitor(monkeypatch)
+        visitor(client)
         rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
         assert '<i class="n">1</i>' in rail_markup
 
@@ -223,7 +224,7 @@ class TestFoldingItAway:
         assert client.get("/rail/sideways", follow_redirects=False).status_code == 404
 
     def test_a_visitor_may_fold_it_too(self, client, monkeypatch):
-        visitor(monkeypatch)
+        visitor(client)
         r = client.get("/rail/collapsed?next=/", follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"] == "/"

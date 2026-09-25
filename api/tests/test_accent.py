@@ -19,9 +19,10 @@ from pathlib import Path
 
 import pytest
 
-from app import accent, main, settings
+from app import accent, settings
 from test_presets import PAIRS, PALETTES
 from test_stylesheet import contrast, over
+from conftest import log_out
 
 APP = Path(__file__).parents[1] / "app"
 
@@ -323,6 +324,6 @@ class TestTheAccentOnThePage:
         """It is the installation's look, like the preset: a reader chooses light or
         dark and that is all. The stylesheet itself is public -- a page a stranger
         may read is a page they may read the styling of."""
-        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+        log_out(client)
         assert client.get("/style/accent.css").status_code == 200
         assert client.get("/settings", follow_redirects=False).status_code == 303

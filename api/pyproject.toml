@@ -23,9 +23,9 @@ dependencies = [
     "reportlab==5.0.1",
     "segno==1.6.6",
     "alembic==1.20.0",
-    "itsdangerous==2.2.0",
     "httpx==0.28.1",
     "Pillow==12.3.0",
+    "argon2-cffi==25.1.0",
 ]
 
 # Test and lint tooling, kept out of the runtime image: `uv sync --no-dev` in the

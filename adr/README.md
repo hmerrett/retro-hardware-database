@@ -58,7 +58,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0018](0018-a-sale-flag-is-the-owners-alone.md) — A sale flag is the owner's
   alone — *Accepted*
 - [0019](0019-running-open-is-supported-but-never-silent.md) — Running open is
-  supported, but never silent — *Accepted*
+  supported, but never silent — *Superseded* by [0032](0032-accounts-roles-and-a-site-to-hold-them.md)
 - [0020](0020-a-model-link-names-a-maker-and-a-model.md) — A model link names a
   maker and a model, not only a catalogue key — *Superseded by
   [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md)*
@@ -86,3 +86,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0009](0009-a-file-is-published-by-hand.md)'s default)
 - [0030](0030-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
   a design system, and its values are data — *Accepted*
+- [0032](0032-accounts-roles-and-a-site-to-hold-them.md) — Accounts, roles, and a
+  site to hold them — *Accepted* (supersedes
+  [0019](0019-running-open-is-supported-but-never-silent.md))

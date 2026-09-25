@@ -289,7 +289,9 @@ def offered(db: Session, item: Mapping[str, object]) -> list[StoredFile]:
     return _newest_first(db, theirs - mine, authed=True)
 
 
-def panel(db: Session, item: Mapping[str, object], authed: bool) -> dict[str, object]:
+def panel(
+    db: Session, item: Mapping[str, object], authed: bool, sees_private: bool
+) -> dict[str, object]:
     """What the Files panel on a machine's, a part's or a project's page is drawn
     from: the files linked to it, and, for the owner, the siblings the upload box
     offers, what their model is called, the files those siblings have that this one
@@ -298,10 +300,13 @@ def panel(db: Session, item: Mapping[str, object], authed: bool) -> dict[str, ob
     It starts ticked where the owner has said new files are public (ADR-0029),
     except on a private project: a file uploaded there is as likely to be the
     receipt the project is private for, and a default that published it would be
-    the one place the preference could disclose something nobody chose to."""
+    the one place the preference could disclose something nobody chose to.
+
+    Two questions of the reader, because a viewer is shown the files a visitor is
+    not and is offered none of the upload box (ADR-0032)."""
     asset_id = str(item.get("asset_id") or "")
     return {
-        "files": for_item(db, asset_id, authed),
+        "files": for_item(db, asset_id, sees_private),
         "file_siblings": siblings(db, item, held=True) if authed else [],
         "file_model": model_name(db, item) if authed else "",
         "file_offer": offered(db, item) if authed else [],

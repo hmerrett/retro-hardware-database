@@ -22,6 +22,8 @@
     {{ U.banner('danger', 'Not recognised.', 'Check the name and password.') }}
   {% endif %}
   <p class="mt-5">{{ U.button('Log in', kind='primary', type='submit') }}</p>
-  <p class="hint">Browsing needs no login. This keeps one cookie.</p>
+  {#- Only where it is true: on a site closed to visitors browsing is exactly what
+      needs the login (ADR-0032). -#}
+  <p class="hint">{% if not closed %}Browsing needs no login. {% endif %}This keeps one cookie.</p>
 </form>
 {% endblock %}

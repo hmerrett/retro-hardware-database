@@ -13,6 +13,29 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Accounts: administrators and viewers.** The login is no longer one username and
+password in `.env`. Accounts live in the database, each an **administrator** or a
+**viewer** — somebody who reads everything a visitor is not shown (unpublished
+files, private projects, locations, the for-sale list, what an order cost) and
+changes nothing. Accounts and API tokens are managed with
+`docker compose exec api python -m app.accounts`. A new installation opens on
+**Set up**, which wants a code the app writes to its log.
+
+**A site can be closed to visitors.** **Visitors must log in**, in the settings,
+shows anybody not signed in the login page and nothing else. It is off.
+
+**API tokens.** The API takes `Authorization: Bearer rhdb_…`, a token per program
+that acts as its account and can be revoked on its own. HTTP Basic with an
+account's password still works.
+
+*Upgrading:* nothing to do on the day. The first start makes an administrator
+from `RHDB_AUTH_USER` and `RHDB_AUTH_PASSWORD`, so you sign in as before. Then make
+the tool server a token (`python -m app.accounts token <you> "tool server"`), put
+it in `.env` as `RHDB_API_TOKEN`, restart `mcp`, and delete the old pair along
+with `RHDB_SECRET_KEY`, which signs nothing now. `RHDB_OPEN` is gone: an
+installation that ran open opens on Set up, and the code is in
+`docker compose logs api`.
+
 **A file is linked to the things it is for by their asset tags, and tags are
 gone.** A file can be linked to as many machines, parts and projects as it needs,
 and each shows the files linked to it. Uploading on a card offers the other cards

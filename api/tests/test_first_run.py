@@ -1,94 +1,210 @@
-"""The first screen of a new installation: an empty register, and three steps.
+"""A new installation, and the way out of having no accounts (ADR-0032).
 
-Until the first thing is in it the gallery has nothing to be, so the front page is
-the three steps to a labelled machine instead. It is the one screen in the register
-that nobody sees twice, which is exactly why it needs a test: the only way to look
-at it by hand is to empty the database.
+MANUAL section 17, "The first visit" and "What the log says at startup". A fresh
+install is on the internet before its owner has visited it, so the first account
+is made only by whoever holds the setup code the app wrote to its own log.
 """
 
-from app import main, settings
-from conftest import content
+import logging
+
+import pytest
+
+from app import main
+from app.accounts import firstrun, store
+from app.accounts.roles import ADMIN, VIEWER
+from app.db import SessionLocal
+from conftest import account
+
+GOOD = "a password long enough"
 
 
-def owner(client):
-    return content(client.get("/").text)
+def set_up(c, code=None, username="ada", password=GOOD, again=None):
+    return c.post(
+        "/setup",
+        data={
+            "code": firstrun.code() if code is None else code,
+            "username": username,
+            "password": password,
+            "password2": password if again is None else again,
+        },
+        follow_redirects=False,
+    )
 
 
-def visitor(client, monkeypatch):
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-    return content(client.get("/").text)
+@pytest.fixture
+def said(caplog):
+    """What the app logs at startup, for a given environment."""
+
+    def start(user="", password="", open_=""):
+        firstrun.forget()
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger=firstrun.log.name):
+            firstrun.startup(user, password, open_)
+        return caplog.records
+
+    return start
 
 
-class TestAnEmptyRegister:
-    def test_the_owner_is_given_the_three_steps(self, client, db):
-        """Numbered, because they are an order and not a menu: name the collection,
-        add the first machine, print its label."""
-        page = owner(client)
-        assert '<ol class="steps">' in page
-        assert "Name the collection" in page
-        assert "Add the first machine" in page
-        assert "Print its label" in page
-        assert page.count("<li") == 3, "three steps, and the numbering is the list's"
+class TestANewInstallation:
+    def test_every_page_opens_on_set_up(self, fresh_client):
+        for path in ("/", "/projects", "/files", "/login", "/computers/new", "/settings"):
+            r = fresh_client.get(path, follow_redirects=False)
+            assert r.status_code == 303, path
+            assert r.headers["location"] == "/setup", path
 
-    def test_naming_the_collection_ticks_its_own_step(self, client, db):
-        """The one step the screen can see the answer to. Ticked and struck through
-        rather than only struck through -- a line through a word is a colour and a
-        shape, and the mark is what a screen reader has to go on."""
-        before = owner(client)
-        assert '<li class="done">' not in before
+    def test_nothing_can_be_written_before_it(self, fresh_client):
+        r = fresh_client.post("/computers/new", data={"model": "X"}, follow_redirects=False)
+        assert r.headers["location"] == "/setup"
 
-        settings.save(db, {"site_name": "The Retro Loft"})
-        settings.forget()
-        after = owner(client)
-        assert '<li class="done">' in after
-        done = after.split('<li class="done">', 1)[1].split("</li>", 1)[0]
-        assert "Name the collection" in done
+    def test_the_api_says_the_site_is_not_set_up(self, fresh_client):
+        r = fresh_client.get("/api/parts")
+        assert r.status_code == 503
+        assert "/setup" in r.text
 
-    def test_there_is_nothing_to_print_yet(self, client, db):
-        """The third step waits on the second. A button that offered to print a
-        label for nothing would be a button that cannot be pressed and does not
-        say so."""
-        page = owner(client)
-        step = page.split("Print its label", 1)[1]
-        assert "disabled" in step.split("</li>", 1)[0]
+    def test_the_health_check_answers_before_it(self, fresh_client):
+        assert fresh_client.get("/healthz").status_code == 200
 
-    def test_the_way_to_the_first_machine_is_on_the_screen(self, client, db):
-        """A step somebody has to go and find the control for is an instruction
-        rather than a step."""
-        page = owner(client)
-        assert 'href="/settings"' in page
-        assert 'href="/computers/new"' in page
+    def test_the_setup_page_is_drawn_with_its_stylesheet(self, fresh_client):
+        assert fresh_client.get("/static/app.css").status_code == 200
 
-    def test_a_visitor_is_told_it_is_empty_and_no_more(self, client, db, monkeypatch):
-        """The steps are things only the owner can do, and a list of them is a list
-        of what has not been done yet -- which is nobody else's business."""
-        page = visitor(client, monkeypatch)
-        assert "Nothing here yet" in page
-        assert '<ol class="steps">' not in page
-        assert "Add the first machine" not in page
+    def test_set_up_asks_for_the_code_a_username_and_the_password_twice(self, fresh_client):
+        page = fresh_client.get("/setup").text
+        for box in ('name="code"', 'name="username"', 'name="password"', 'name="password2"'):
+            assert box in page
 
 
-class TestOnceThereIsSomethingInIt:
-    def test_the_gallery_comes_back_the_moment_there_is_an_item(self, client, db, computer):
-        """It goes as soon as there is one item and does not come back: not a tour,
-        and nothing to dismiss."""
-        computer()
-        page = owner(client)
-        assert '<ol class="steps">' not in page
-        assert '<div class="grid' in page or 'class="card' in page
+class TestTheSetupCode:
+    def test_it_is_written_to_the_log_at_startup(self, said):
+        records = said()
+        assert any(firstrun.code() in r.getMessage() for r in records)
+        assert any("setup code" in r.getMessage() for r in records)
 
-    def test_a_search_that_finds_nothing_is_not_an_empty_register(self, client, db, computer):
-        """Two different states that both draw no cards. A search with no matches
-        says so; the steps belong to a register with nothing in it at all."""
-        computer()
-        page = content(client.get("/?q=nothing-matches-this").text)
-        assert '<ol class="steps">' not in page
-        assert "No matching items." in page
+    def test_it_is_three_groups_of_four(self, said):
+        said()
+        groups = firstrun.code().split("-")
+        assert [len(g) for g in groups] == [4, 4, 4]
+
+    def test_a_new_one_is_written_every_start(self, said):
+        said()
+        first = firstrun.code()
+        said()
+        assert firstrun.code() != first
+
+    def test_capitals_and_dashes_do_not_matter(self, fresh_client):
+        typed = firstrun.code().lower().replace("-", " ")
+        assert set_up(fresh_client, code=typed).status_code == 303
+
+    def test_a_wrong_code_is_refused(self, fresh_client):
+        r = set_up(fresh_client, code="AAAA-AAAA-AAAA")
+        assert r.status_code == 400
+        assert "not the setup code" in r.text
+        with SessionLocal() as db:
+            assert store.count(db) == 0
+
+    def test_wrong_codes_count_against_the_login_limit(self, fresh_client, monkeypatch):
+        monkeypatch.setattr(main.auth, "_login_limiter", main.auth._RateLimiter(2, 300))
+        for _ in range(2):
+            assert set_up(fresh_client, code="AAAA-AAAA-AAAA").status_code == 400
+        # The right one is refused too while the block stands.
+        assert set_up(fresh_client).status_code == 429
 
 
-def test_the_steps_are_the_front_page_and_not_every_empty_grid(client, db):
-    """/for-sale draws the same grid from a narrowed list, and an empty one of
-    those is a filter that matched nothing rather than a new installation. So the
-    question is asked on the way into the gallery and not inside the grid the
-    three of them share."""
-    assert '<ol class="steps">' not in content(client.get("/for-sale").text)
+class TestSettingUp:
+    def test_it_makes_an_administrator_and_signs_them_in(self, fresh_client):
+        r = set_up(fresh_client)
+        assert r.status_code == 303 and r.headers["location"] == "/"
+        with SessionLocal() as db:
+            ada = store.find(db, "ada")
+            assert ada is not None and store.role_of(db, ada) == ADMIN
+        assert fresh_client.get("/settings", follow_redirects=False).status_code == 200
+
+    def test_the_two_passwords_must_agree(self, fresh_client):
+        r = set_up(fresh_client, again="something else entirely")
+        assert r.status_code == 400
+        assert "not the same" in r.text
+
+    def test_a_short_password_is_refused(self, fresh_client):
+        r = set_up(fresh_client, password="short")
+        assert r.status_code == 400
+        assert "10 characters" in r.text
+
+    def test_the_username_is_kept_when_the_form_comes_back(self, fresh_client):
+        assert 'value="grace"' in set_up(fresh_client, username="grace", password="x").text
+
+    def test_it_is_gone_once_there_is_an_account(self, fresh_client):
+        set_up(fresh_client)
+        assert fresh_client.get("/setup").status_code == 404
+        assert set_up(fresh_client, username="mallory").status_code == 404
+
+    def test_it_is_gone_on_a_site_that_already_has_accounts(self, client):
+        assert client.get("/setup").status_code == 404
+
+    def test_a_viewer_alone_does_not_set_a_site_up(self, fresh_client):
+        """A viewer made from the command line on a new install is an account, and
+        one that can change nothing: the site is still waiting for somebody to run
+        it."""
+        account("reader", VIEWER)
+        assert fresh_client.get("/", follow_redirects=False).headers["location"] == "/setup"
+        assert set_up(fresh_client).status_code == 303
+
+    def test_an_administrator_made_from_the_command_line_does(self, fresh_client):
+        account("henry", ADMIN)
+        assert fresh_client.get("/setup").status_code == 404
+
+
+class TestUpgradingFromTheSingleLogin:
+    def test_the_old_pair_becomes_the_first_administrator(self, said, fresh_client):
+        said(user="henry", password="hunter2")
+        with SessionLocal() as db:
+            henry = store.find(db, "henry")
+            assert henry is not None and store.role_of(db, henry) == ADMIN
+        r = fresh_client.post(
+            "/login", data={"username": "henry", "password": "hunter2"}, follow_redirects=False
+        )
+        assert r.status_code == 303
+
+    def test_it_says_so(self, said):
+        messages = [r.getMessage() for r in said(user="henry", password="hunter2")]
+        assert any("Made an administrator" in m for m in messages)
+
+    def test_set_up_is_skipped(self, said, fresh_client):
+        said(user="henry", password="hunter2")
+        assert fresh_client.get("/setup").status_code == 404
+
+    def test_it_is_read_only_when_there_are_no_accounts(self, said):
+        account("owner")
+        said(user="henry", password="hunter2")
+        with SessionLocal() as db:
+            assert store.find(db, "henry") is None
+
+    def test_a_reminder_is_logged_while_the_pair_is_still_set(self, said):
+        account("owner")
+        messages = [r.getMessage() for r in said(user="henry", password="hunter2")]
+        assert any("no longer reads them" in m for m in messages)
+
+    def test_a_username_the_accounts_cannot_hold_opens_on_set_up_instead(self, said):
+        records = said(user="has a space", password="hunter2")
+        assert any(r.levelno == logging.ERROR for r in records)
+        with SessionLocal() as db:
+            assert store.count(db) == 0
+
+
+class TestWhatTheLogSays:
+    def test_a_site_with_accounts_and_nothing_left_over_says_nothing(self, said):
+        account("owner")
+        assert said() == []
+
+    def test_no_accounts_is_a_warning(self, said):
+        assert [r.levelno for r in said()] == [logging.WARNING]
+
+    def test_rhdb_open_is_said_to_do_nothing(self, said):
+        account("owner")
+        messages = [r.getMessage() for r in said(open_="1")]
+        assert any("RHDB_OPEN" in m and "does nothing" in m for m in messages)
+
+    def test_nothing_logged_carries_a_password(self, said):
+        for accounts in (False, True):
+            if accounts:
+                account("owner")
+            for r in said(user="henry", password="sentinel-pass-2b71", open_="1"):
+                assert "sentinel-pass-2b71" not in r.getMessage()

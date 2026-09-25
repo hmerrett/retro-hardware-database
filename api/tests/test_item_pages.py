@@ -12,13 +12,12 @@ import re
 
 import pytest
 
-from app import main
-from conftest import content
+from conftest import content, log_out
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def panel(page: str, title: str) -> str:
@@ -74,7 +73,7 @@ class TestTheHead:
     @KINDS
     def test_a_visitor_has_neither(self, client, computer, part, kind, monkeypatch):
         aid = item(kind, computer, part)
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/{kind}/{aid}").text
         assert f"/{kind}/{aid}/edit" not in page
         assert f"/{kind}/{aid}/duplicate" not in page
@@ -127,7 +126,7 @@ class TestTheSideColumn:
     @KINDS
     def test_a_visitor_has_no_label_panel(self, client, computer, part, kind, monkeypatch):
         aid = item(kind, computer, part)
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/{kind}/{aid}").text
         assert not panel(page, "Label")
         assert "label.pdf" not in page
@@ -182,7 +181,7 @@ class TestFittedIn:
     ):
         cid = computer()["asset_id"]
         aid = part(computer_id=cid)["asset_id"]
-        visitor(monkeypatch)
+        visitor(client)
         fitted = panel(client.get(f"/parts/{aid}").text, "Fitted in")
         assert f'href="/computers/{cid}"' in fitted
         assert "<form" not in fitted
@@ -206,5 +205,5 @@ class TestTakeOutOnTheLists:
     def test_a_visitor_is_offered_neither(self, client, computer, part, monkeypatch):
         cid = computer()["asset_id"]
         part(computer_id=cid)
-        visitor(monkeypatch)
+        visitor(client)
         assert "Take out" not in client.get(f"/computers/{cid}").text

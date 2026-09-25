@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from app import main
+from conftest import log_out
 
 CSS = Path(__file__).parents[1] / "app" / "static" / "css"
 COMPONENTS = CSS / "components.css"
@@ -107,7 +107,6 @@ def stylesheet() -> str:
 @pytest.fixture
 def owner(monkeypatch):
     """A site with a login, seen by its owner: every row the menus can hold."""
-    monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
 
 
 class TestTheBanner:
@@ -136,8 +135,7 @@ class TestTheBanner:
 
     def test_new_is_offered_only_to_the_owner(self, client, monkeypatch):
         assert "hdr-new" in client.get("/").text
-        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-        monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
+        log_out(client)
         assert "hdr-new" not in client.get("/").text
 
 
@@ -147,8 +145,7 @@ class TestTheMenu:
         assert {"Might sell", "Traffic", "Log out"} <= set(menu.words)
 
     def test_it_offers_a_visitor_log_in(self, client, monkeypatch):
-        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-        monkeypatch.setitem(main.templates.env.globals, "auth_enabled", True)
+        log_out(client)
         menu = region(client.get("/").text, cls="hdr-more")
         assert "Log in" in menu.words and "Log out" not in menu.words
 
@@ -189,13 +186,3 @@ class TestHowItFoldsWithTheWidth:
     def test_the_bar_sits_above_the_home_indicator(self):
         phone = media("(max-width: 620px)", stylesheet())
         assert "safe-area-inset-bottom" in rule(".tabbar", phone)
-
-
-class TestNotices:
-    def test_running_open_is_a_warning_not_an_alarm(self, client, monkeypatch):
-        """Spec 15: the no-login banner is `warning`, not `danger`. It is a state
-        the operator may well have meant, and a notice that shouts on every page
-        is one that stops being read."""
-        monkeypatch.setitem(main.templates.env.globals, "auth_open_warning", True)
-        page = client.get("/").text
-        assert re.search(r'<div class="banner warning"[^>]*id="openwarn"[^>]*role="status"', page)

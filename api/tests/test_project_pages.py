@@ -10,13 +10,13 @@ Auth is off in these tests, so the client is the owner; `visitor` turns it on.
 
 import re
 
-from app import main
 from app.models import ProjectTask
+from conftest import log_out
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def make(client, name="Recap the +2A", **fields):
@@ -96,7 +96,7 @@ class TestThePageHead:
 
     def test_a_visitor_gets_the_way_back_and_nothing_else(self, client, monkeypatch):
         pid = make(client)
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/projects/{pid}").text
         nav = page[page.index('<nav class="itemnav"') :].split("</nav>")[0]
         assert "/edit" not in nav and "/delete" not in nav
@@ -133,7 +133,7 @@ class TestThePanels:
 
     def test_a_visitor_gets_no_label_panel(self, client, monkeypatch):
         pid = make(client)
-        visitor(monkeypatch)
+        visitor(client)
         assert "Label" not in panel_titles(client.get(f"/projects/{pid}").text)
 
     def test_the_details_are_the_status_the_dates_and_the_notes(self, client):
@@ -193,7 +193,7 @@ class TestATick:
     def test_a_visitor_sees_the_tick_and_cannot_send_it(self, client, db, monkeypatch):
         pid = make(client)
         task(client, pid, "desolder the caps")
-        visitor(monkeypatch)
+        visitor(client)
         tasks = panel(client.get(f"/projects/{pid}").text, "Tasks")
         assert '<ul class="tasks">' in tasks and "/toggle" not in tasks
         assert re.search(r'<input type="checkbox"[^>]*disabled', tasks)
@@ -231,7 +231,7 @@ class TestWhatAJobIsAbout:
 
     def test_a_visitor_reads_the_tag_of_the_thing(self, client, monkeypatch):
         pid, pt = self.setup(client)
-        visitor(monkeypatch)
+        visitor(client)
         tasks = panel(client.get(f"/projects/{pid}").text, "Tasks")
         assert f'<a class="tag" href="/items/{pt}">{pt}</a>' in tasks
         assert "<select" not in tasks

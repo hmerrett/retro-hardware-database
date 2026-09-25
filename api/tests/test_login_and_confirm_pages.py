@@ -19,15 +19,15 @@ import pytest
 from app import machinedb, machines, main
 from app.auth import _RateLimiter
 from app.models import Computer
+from conftest import PASSWORD, account, log_out
 
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
 
 
-def signed_out(monkeypatch, user="admin", password="correct-horse"):
-    """A site with a login, and nobody logged in."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
-    monkeypatch.setattr(main.auth, "AUTH_USER", user)
-    monkeypatch.setattr(main.auth, "AUTH_PASS", password)
+def signed_out(client, monkeypatch, user="admin"):
+    """An account called admin, and nobody logged in."""
+    account(user)
+    log_out(client)
     monkeypatch.setattr(main.auth, "_login_limiter", _RateLimiter(3, 300))
 
 
@@ -78,51 +78,68 @@ class TestTheLoginPage:
     def test_it_says_that_browsing_needs_no_login(self, client, monkeypatch):
         """The page is where somebody lands who followed a link they did not mean
         to, and the useful thing to tell them is that they never needed it."""
-        signed_out(monkeypatch)
+        signed_out(client, monkeypatch)
         assert "Browsing needs no login" in body(client.get("/login").text)
 
+    def test_on_a_closed_site_it_does_not_say_browsing_needs_no_login(self, client, monkeypatch):
+        """On a site closed to visitors, browsing is what the login is for."""
+        client.post(
+            "/settings",
+            data={
+                "site_name": "",
+                "theme": "system",
+                "watermark": "1",
+                "remember_locations": "1",
+                "login_to_read": "1",
+            },
+            follow_redirects=False,
+        )
+        signed_out(client, monkeypatch)
+        page = body(client.get("/login").text)
+        assert "Browsing needs no login" not in page and "one cookie" in page
+
     def test_it_says_that_signing_in_keeps_one_cookie(self, client, monkeypatch):
-        signed_out(monkeypatch)
+        signed_out(client, monkeypatch)
         assert "one cookie" in body(client.get("/login").text)
 
     def test_a_wrong_name_and_a_wrong_password_are_answered_the_same(self, client, monkeypatch):
         """Which half was wrong would tell a stranger whether a guessed name exists."""
-        signed_out(monkeypatch)
-        wrong_name = client.post("/login", data={"username": "nobody", "password": "correct-horse"})
+        signed_out(client, monkeypatch)
+        wrong_name = client.post("/login", data={"username": "nobody", "password": PASSWORD})
         wrong_pass = client.post("/login", data={"username": "admin", "password": "nope"})
         assert wrong_name.status_code == wrong_pass.status_code == 401
         assert banner(wrong_name.text) == banner(wrong_pass.text) != ""
 
     def test_the_refusal_is_a_danger_banner_a_screen_reader_announces(self, client, monkeypatch):
-        signed_out(monkeypatch)
+        signed_out(client, monkeypatch)
         b = banner(client.post("/login", data={"username": "admin", "password": "nope"}).text)
         assert 'class="banner danger"' in b and 'role="alert"' in b
 
     def test_being_turned_away_for_trying_too_often_says_so(self, client, monkeypatch):
         """Not "incorrect": nothing was read. Saying the pair was wrong reads as
         though the next attempt would be looked at, and it would not."""
-        signed_out(monkeypatch)
+        signed_out(client, monkeypatch)
         for _ in range(3):
             client.post("/login", data={"username": "admin", "password": "nope"})
-        r = client.post("/login", data={"username": "admin", "password": "correct-horse"})
+        r = client.post("/login", data={"username": "admin", "password": PASSWORD})
         assert r.status_code == 429
         assert "Too many attempts" in banner(r.text)
         assert "not recognised" not in banner(r.text).lower()
 
     def test_the_password_manager_is_told_which_box_is_which(self, client, monkeypatch):
-        signed_out(monkeypatch)
+        signed_out(client, monkeypatch)
         page = client.get("/login").text
         assert 'autocomplete="username"' in page and 'autocomplete="current-password"' in page
 
     def test_the_refusal_stands_between_the_boxes_and_the_button(self, client, monkeypatch):
         """Read in the order it is met: what went wrong, then the thing to press."""
-        signed_out(monkeypatch)
+        signed_out(client, monkeypatch)
         page = client.post("/login", data={"username": "admin", "password": "nope"}).text
         assert page.index('autocomplete="current-password"') < page.index('class="banner danger"')
         assert page.index('class="banner danger"') < page.index('type="submit"')
 
     def test_it_is_the_v0_2_login_box(self, client, monkeypatch):
-        signed_out(monkeypatch)
+        signed_out(client, monkeypatch)
         page = body(client.get("/login").text)
         assert 'class="loginbox"' in page and '<h1 class="heading">' in page
         assert 'class="input"' in page and "login-box" not in page

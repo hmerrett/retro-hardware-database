@@ -12,14 +12,15 @@ from pathlib import Path
 
 import pytest
 
-from app import cards, main, photos, presets, settings, typefaces
+from app import cards, photos, presets, settings, typefaces
+from conftest import log_out
 
 STATIC = Path(__file__).parents[1] / "app" / "static"
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def save(client, **fields):
@@ -45,7 +46,7 @@ class TestReachingThePage:
     def test_the_page_is_behind_the_login(self, client, monkeypatch):
         """It changes the site rather than reads it, so it goes where the new and
         edit forms go: nowhere a visitor can reach."""
-        visitor(monkeypatch)
+        visitor(client)
         r = client.get("/settings", follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"].startswith("/login")
@@ -53,7 +54,7 @@ class TestReachingThePage:
     def test_saving_is_behind_the_login_too(self, client, monkeypatch):
         """The gate is on the method as much as the path: a page nobody can open is
         still a page somebody can post to."""
-        visitor(monkeypatch)
+        visitor(client)
         r = client.post("/settings", data={"site_name": "Taken over"}, follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"].startswith("/login")
@@ -66,7 +67,7 @@ class TestReachingThePage:
         """A link to a page that answers with the login is an invitation to a door
         that is not yours, and it is how the traffic link and the shortlist are
         already handled."""
-        visitor(monkeypatch)
+        visitor(client)
         assert '<a href="/settings"' not in client.get("/").text
 
     def test_a_phone_is_offered_it_as_well(self, client):
@@ -190,14 +191,14 @@ class TestTheLook:
         """It is the installation's, not the device's. A visitor's own choice is
         light or dark, which is the theme button and nothing else."""
         save(client, preset="breadbin")
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get("/").text
         assert 'data-preset="breadbin"' in page
         assert 'name="preset"' not in page
 
     def test_a_query_string_cannot_dress_the_site(self, client, monkeypatch):
         """The look comes from the setting and from nowhere a stranger can type."""
-        visitor(monkeypatch)
+        visitor(client)
         assert "data-preset" not in client.get("/?preset=phosphor").text
 
     def test_a_name_the_register_does_not_know_comes_up_in_the_default(
@@ -243,7 +244,7 @@ class TestSearchEngines:
     def test_a_page_that_was_already_private_stays_that_way(self, client, monkeypatch):
         """The login page has said noindex on its own since long before this
         setting, and leaving the setting on must not publish it."""
-        visitor(monkeypatch)
+        visitor(client)
         assert 'name="robots" content="noindex' in client.get("/login").text
 
     def test_the_crawler_is_still_let_in(self, client):

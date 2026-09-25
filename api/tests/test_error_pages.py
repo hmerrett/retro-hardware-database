@@ -18,6 +18,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app import main
+from conftest import account, sign_in
 
 
 # What a browser sends. The suite's ordinary client sends `*/*`, which is a
@@ -30,10 +31,9 @@ HTML = {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0
 def faulty():
     """A copy of the app with two routes that fail on purpose.
 
-    Nothing in the register answers 403 today -- a page a visitor may not see
-    redirects to the login instead -- and nothing raises on purpose at all. Both
-    handlers still have to be right on the day one does, so the pair is made here
-    rather than waited for.
+    The gate answers a viewer's 403 itself (test_accounts), and nothing raises one
+    or a 500 on purpose from a route. Both handlers still have to be right on the
+    day one does, so the pair is made here rather than waited for.
     """
     app = main.create_app()
 
@@ -47,7 +47,9 @@ def faulty():
 
     # raise_server_exceptions=False: the middleware sends the page and re-raises
     # so the server logs it, and the test wants the response rather than the raise.
+    account("owner")
     with TestClient(app, raise_server_exceptions=False) as c:
+        sign_in(c)
         yield c
 
 

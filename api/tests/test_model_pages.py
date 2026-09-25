@@ -10,14 +10,14 @@ Auth is off in these tests, so the client is the owner; `visitor` turns it on.
 import re
 
 
-from app import machines, main
-from conftest import content
+from app import machines
+from conftest import content, log_out
 from test_files import upload
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def panel(page: str, title: str) -> str:
@@ -71,7 +71,7 @@ class TestTheList:
 
 class TestAModelsPage:
     def test_it_is_public(self, client, monkeypatch):
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get("/machines/vic-20", follow_redirects=False).status_code == 200
 
     def test_a_key_the_catalogue_does_not_have_is_not_found(self, client):

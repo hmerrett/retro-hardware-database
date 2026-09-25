@@ -150,10 +150,11 @@ Leave that last step a few days. It is the only irreversible part.
 `.env` holds the DB and login credentials and is **git-ignored** — it lives only
 on the server and is never committed. If you add a new setting, update `.env` on
 the box by hand; a fresh clone needs its own `.env`. `.env.example` is the list,
-with what each key is for written beside it: `DB_*`, `RHDB_AUTH_USER`,
-`RHDB_AUTH_PASSWORD`, `RHDB_SECRET_KEY` (the app refuses to start without it once
-the credentials are set), `RHDB_OPEN`, `RHDB_DOMAIN`, `RHDB_ACME_EMAIL`,
-`RHDB_BASE_URL`, `RHDB_WATERMARK` and `RHDB_PRINT_AGENTS`.
+with what each key is for written beside it: `DB_*`, `RHDB_AUTH_USER` and
+`RHDB_AUTH_PASSWORD` (read only to make the first administrator on an upgraded
+install), `RHDB_API_TOKEN` (the tool server's), `RHDB_DOMAIN`, `RHDB_ACME_EMAIL`,
+`RHDB_BASE_URL`, `RHDB_WATERMARK` and `RHDB_PRINT_AGENTS`. The login itself is not
+in `.env`: accounts live in the database (ADR-0032).
 
 ## Special case: changing the site icon
 

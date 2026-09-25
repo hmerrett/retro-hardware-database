@@ -13,6 +13,7 @@ answer already given the easier one to give again.
 
 from app import main
 from app.models import Computer, Part, StoredFile
+from conftest import log_out
 
 
 def sources(db):
@@ -134,5 +135,5 @@ class TestElsewhere:
         bought from."""
         computer(source="Stephen Usher")
         aid = computer()["asset_id"]
-        monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+        log_out(client)
         assert "Stephen Usher" not in client.get(f"/computers/{aid}").text

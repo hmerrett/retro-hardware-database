@@ -18,8 +18,9 @@ from html.parser import HTMLParser
 
 import pytest
 
-from app import filekinds, main
+from app import filekinds
 from app.models import StoredFile
+from conftest import log_out, sign_in
 
 
 def upload(client, name, body=b"driver bytes", note="", **extra):
@@ -62,9 +63,9 @@ def linked_to(client, fid):
     return set(next(f for f in client.get("/api/files").json() if f["id"] == fid)["assets"])
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Everything after this is asked by somebody who is not logged in."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def project(client, name="Recap the PC1512", private=False):
@@ -280,7 +281,7 @@ class TestWhenAnotherOfTheSameModelArrives:
         upload(client, "tvga.zip", aid=card(part))
         publish(client, newest(client))
         later = card(part)
-        visitor(monkeypatch)
+        visitor(client)
         assert "this one has not" not in client.get(f"/parts/{later}").text
 
 
@@ -366,7 +367,7 @@ class TestAFilesPage:
         upload(client, "tvga.zip", note="DOS drivers", aid=aid)
         fid = newest(client)
         publish(client, fid)
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/files/{fid}").text
         assert "DOS drivers" in page and f'href="/parts/{aid}"' in page
         assert forms_on(page, f"/files/{fid}/") == []
@@ -376,7 +377,7 @@ class TestAFilesPage:
     ):
         upload(client, "receipt.pdf", aid=card(part))
         fid = newest(client)
-        visitor(monkeypatch)
+        visitor(client)
         r = client.get(f"/files/{fid}", follow_redirects=False)
         assert r.status_code == 404
         assert "www-authenticate" not in r.headers
@@ -441,7 +442,7 @@ class TestTheFilesPage:
         page = client.get("/files").text
         assert "private <span>1</span>" in page
         assert ids_on(client, "/files?show=private") == {kept}
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get("/files").text
         assert "private <span>" not in page and "unlinked <span>" not in page
         # Asked for anyway, it is not a list a visitor has: they get what they may see.
@@ -535,7 +536,7 @@ class TestWhatKindOfFileItIs:
         aid = card(part)
         upload(client, "manual.pdf", aid=aid)
         upload(client, "drivers.img", body=b"\0" * 1_474_560, aid=aid)
-        visitor(monkeypatch)
+        visitor(client)
         assert ids_on(client, "/files") == set()
 
     def test_a_size_is_said_the_way_it_would_be_said(self):
@@ -555,7 +556,7 @@ class TestWhoCanSeeAFile:
         aid = card(part)
         upload(client, "tvga.zip", aid=aid)
         fid = newest(client)
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/files/{fid}/tvga.zip").status_code == 404
         assert ids_on(client, f"/parts/{aid}") == set()
         assert "tvga.zip" not in client.get("/files").text
@@ -564,7 +565,7 @@ class TestWhoCanSeeAFile:
         aid = card(part)
         upload(client, "tvga.zip", body=b"driver", aid=aid, public="1")
         fid = newest(client)
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/files/{fid}/tvga.zip").content == b"driver"
 
     def test_ticking_the_box_on_its_page_publishes_it(self, client, part, monkeypatch):
@@ -572,7 +573,7 @@ class TestWhoCanSeeAFile:
         upload(client, "tvga.zip", body=b"driver", aid=aid)
         fid = newest(client)
         press(client, client.get(f"/files/{fid}").text, "/public", "save", public="1")
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/files/{fid}/tvga.zip").content == b"driver"
         assert ids_on(client, f"/parts/{aid}") == {fid}
 
@@ -582,7 +583,7 @@ class TestWhoCanSeeAFile:
         fid = newest(client)
         publish(client, fid)
         publish(client, fid, public=False)
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/files/{fid}/tvga.zip").status_code == 404
         assert client.get(f"/files/{fid}").status_code == 404
         assert ids_on(client, f"/parts/{aid}") == set()
@@ -593,7 +594,7 @@ class TestWhoCanSeeAFile:
         invitation to authenticate would say only that the file is there."""
         upload(client, "invoice.pdf", aid=card(part))
         fid = newest(client)
-        visitor(monkeypatch)
+        visitor(client)
         for path in (f"/files/{fid}/invoice.pdf", f"/files/{fid}"):
             r = client.get(path, follow_redirects=False)
             assert r.status_code == 404, path
@@ -611,10 +612,10 @@ class TestWhoCanSeeAFile:
     def test_only_the_owner_may_publish(self, client, part, monkeypatch):
         upload(client, "tvga.zip", aid=card(part))
         fid = newest(client)
-        visitor(monkeypatch)
+        visitor(client)
         r = client.post(f"/files/{fid}/public", data={"public": "1"}, follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
-        monkeypatch.setattr(main.auth, "AUTH_ENABLED", False)
+        sign_in(client)
         assert client.get("/api/files").json()[0]["public"] is False
 
     def test_an_unpublished_file_is_not_cached_anywhere(self, client, part):
@@ -641,7 +642,7 @@ class TestWhoCanSeeAFile:
         upload(client, "valuation.pdf", aid=aid, public="1")
         fid = newest(client)
         client.post(f"/files/{fid}/link", data={"aid": secret})
-        visitor(monkeypatch)
+        visitor(client)
         for path in (f"/files/{fid}", "/files"):
             page = client.get(path).text
             assert secret not in page and "Selling the loft" not in page, path
@@ -782,7 +783,7 @@ class TestWhoMayDoWhat:
         upload(client, "tvga.zip", aid=aid)
         fid = newest(client)
         publish(client, fid)
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/files/{fid}/tvga.zip").status_code == 200
         assert client.get(f"/files/{fid}").status_code == 200
         for path in (
@@ -798,7 +799,7 @@ class TestWhoMayDoWhat:
 
     def test_a_visitor_is_not_shown_the_upload_box(self, client, part, monkeypatch):
         aid = card(part)
-        visitor(monkeypatch)
+        visitor(client)
         page = client.get(f"/parts/{aid}").text
         assert "Files" in page and 'action="/files"' not in page
 

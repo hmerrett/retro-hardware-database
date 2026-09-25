@@ -15,7 +15,7 @@ def _resolve_database_url(url: str) -> str:
     Secret holds, and a missing key is simply an unset variable -- so there the
     default was not a convenience but a silent fallback onto retro:retro, on a host
     called db, with nothing said. Required explicitly, in the same spirit as the
-    compose file (docker-environments) and RHDB_SECRET_KEY beside it."""
+    compose file (docker-environments)."""
     if url:
         return url
     raise RuntimeError(

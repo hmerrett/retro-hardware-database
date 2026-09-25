@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2032 behaviours, from 61 files.*
+*2105 behaviours, from 61 files.*
 
 
 ## A file where text was expected
@@ -173,6 +173,104 @@ Regenerate with:
   The whole of the feature, end to end: an answer on the form, a different stylesheet, and a page that asks for the new one rather than the old.
 - a visitor is served the accent but is offered no say in it  
   It is the installation's look, like the preset: a reader chooses light or dark and that is all.
+
+
+## Accounts
+
+*test_accounts.py — 61 behaviours*
+
+
+**Roles are lists of permissions**
+
+- a visitor may do nothing beyond the public pages
+- a viewer reads what is kept back and changes nothing
+- an administrator may do everything
+- a role on one site grants nothing on another
+
+**What A viewer sees**
+
+- an unpublished file
+- a private project
+- where a thing is kept
+- what an order cost
+- the for sale shortlist
+- no editing controls
+- a way to log out
+
+**What A viewer is refused**
+
+- an administrators page
+- an edit form
+- any write
+- a visitor is still sent to log in
+
+**There is always an administrator**
+
+- the last one cannot be made a viewer
+- the last one cannot be switched off
+- with a second the first can step down
+
+**Usernames and passwords**
+
+- a username is matched without regard to case
+- two accounts cannot differ only by case
+- an email address will do as a username
+- a username with a space is refused
+- a password is at least ten characters
+- a password is kept as an argon2 hash
+- a wrong username and a wrong password look the same
+
+**Signing in and out**
+
+- signing in gives a session cookie for 30 days
+- the database keeps a digest and never the key
+- logging out ends the session on the server
+- an expired session opens nothing
+- switching an account off signs it out everywhere
+- an account switched off cannot sign in
+- switching it back on restores it
+- a new password signs the account out everywhere else
+- http basic does not open a browser page
+
+**Api tokens**
+
+- a token opens the api
+- it starts rhdb
+- only a digest of it is kept
+- a viewers token reads and does not write
+- a revoked token opens nothing
+- a token stops when its account is switched off
+- its last use is recorded
+- wrong tokens count against the login limit
+- http basic with an accounts password still works
+
+**A closed site**
+
+- a visitor is shown the login and nothing else
+- an item page goes to the login and comes back
+- the photographs are behind it too
+- what has to stay open does
+- the print agents door stays open
+- the sitemap is withdrawn
+- a viewer reads it as before
+- it is off by default
+- it is on the settings page
+
+**An agents key is not A wrong guess**
+
+- collecting labels does not count against the limit  
+  The agent's bearer is its own key, checked by its route; read at the gate as an account's token it would be a wrong guess every time a label came.
+
+**The accounts command**
+
+- add and list
+- the password is read from standard input not the command line
+- a refusal is said and is not zero
+- role disable and enable
+- it will not remove the last administrator
+- password resets a lost one
+- a token is printed once and listed without its key
+- revoke
 
 
 ## Api
@@ -1228,15 +1326,6 @@ Regenerate with:
 - only the loose ones are taken from a mixed project
 
 
-## Auth secret
-
-*test_auth_secret.py — 3 behaviours*
-
-- uses the configured secret when present
-- requires a secret when auth is enabled
-- generates a throwaway secret when auth is disabled
-
-
 ## Autocomplete
 
 *test_autocomplete.py — 16 behaviours*
@@ -1771,30 +1860,54 @@ Regenerate with:
 
 ## First run
 
-*test_first_run.py — 8 behaviours*
+*test_first_run.py — 30 behaviours*
 
 
-**An empty register**
+**A new installation**
 
-- the owner is given the three steps  
-  Numbered, because they are an order and not a menu: name the collection, add the first machine, print its label.
-- naming the collection ticks its own step  
-  The one step the screen can see the answer to.
-- there is nothing to print yet  
-  The third step waits on the second.
-- the way to the first machine is on the screen  
-  A step somebody has to go and find the control for is an instruction rather than a step.
-- a visitor is told it is empty and no more  
-  The steps are things only the owner can do, and a list of them is a list of what has not been done yet -- which is nobody else's business.
+- every page opens on set up
+- nothing can be written before it
+- the api says the site is not set up
+- the health check answers before it
+- the setup page is drawn with its stylesheet
+- set up asks for the code a username and the password twice
 
-**Once there is something in it**
+**The setup code**
 
-- the gallery comes back the moment there is an item  
-  It goes as soon as there is one item and does not come back: not a tour, and nothing to dismiss.
-- a search that finds nothing is not an empty register  
-  Two different states that both draw no cards.
-- the steps are the front page and not every empty grid  
-  /for-sale draws the same grid from a narrowed list, and an empty one of those is a filter that matched nothing rather than a new installation.
+- it is written to the log at startup
+- it is three groups of four
+- a new one is written every start
+- capitals and dashes do not matter
+- a wrong code is refused
+- wrong codes count against the login limit
+
+**Setting up**
+
+- it makes an administrator and signs them in
+- the two passwords must agree
+- a short password is refused
+- the username is kept when the form comes back
+- it is gone once there is an account
+- it is gone on a site that already has accounts
+- a viewer alone does not set a site up  
+  A viewer made from the command line on a new install is an account, and one that can change nothing: the site is still waiting for somebody to run it.
+- an administrator made from the command line does
+
+**Upgrading from the single login**
+
+- the old pair becomes the first administrator
+- it says so
+- set up is skipped
+- it is read only when there are no accounts
+- a reminder is logged while the pair is still set
+- a username the accounts cannot hold opens on set up instead
+
+**What the log says**
+
+- a site with accounts and nothing left over says nothing
+- no accounts is a warning
+- rhdb open is said to do nothing
+- nothing logged carries a password
 
 
 ## For sale
@@ -2176,13 +2289,15 @@ Regenerate with:
 
 ## Login and confirm pages
 
-*test_login_and_confirm_pages.py — 23 behaviours*
+*test_login_and_confirm_pages.py — 24 behaviours*
 
 
 **The login page**
 
 - it says that browsing needs no login  
   The page is where somebody lands who followed a link they did not mean to, and the useful thing to tell them is that they never needed it.
+- on a closed site it does not say browsing needs no login  
+  On a site closed to visitors, browsing is what the login is for.
 - it says that signing in keeps one cookie
 - a wrong name and a wrong password are answered the same  
   Which half was wrong would tell a stranger whether a guessed name exists.
@@ -2535,7 +2650,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 11 behaviours*
+*test_migrations.py — 13 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -2558,6 +2673,9 @@ Regenerate with:
 - 0044 moves nothing on a register with no files
 - 0044 can be downgraded  
   The two tables come back empty, which is the shape 0043 expects, and the links stay: a downgraded register offers each file on the items it is linked to.
+- 0045 makes the account tables empty  
+  Nothing is seeded by the migration: the old single login is read by the app at startup, because a migration must not assume what the environment holds any more than what the data does (ADR-0002, ADR-0032).
+- 0045 can be downgraded and upgraded again
 
 
 ## Model pages
@@ -3163,55 +3281,6 @@ Regenerate with:
 - it checks the pages the home page hid a fault behind
 
 
-## Running open
-
-*test_running_open.py — 17 behaviours*
-
-
-**What it says at startup**
-
-- a site with a login says nothing  
-  The state nearly every installation is in.
-- no credentials and no opt in warns
-- the warning says what is wrong and what to set  
-  It is read by somebody who has just found their site open, so it has to carry the consequence and both ways out without them going to look.
-- opting in is said once and calmly  
-  An operator who has opted in has said what they want.
-- opting in while a login is configured warns it is doing nothing  
-  Silently ignoring a variable somebody deliberately set is the same fault as the one this whole change is about.
-- nothing logged carries a credential  
-  It names the variables; it must never reach for their values.
-
-**How it is read**
-
-- the opt in reads the usual words
-- it is off when unset  
-  Unset means not opted in, which is what makes the loud state the default -- a missing .env is far likelier than a deliberate open install.
-
-**The banner on the page**
-
-- the pages carry it when the site is open by accident
-- the pages do not when it was meant
-- it is on an item page too and not only the gallery  
-  Every page, because the pages somebody edits from are the item pages and a warning only on the front door is a warning most visits never see.
-- the banner is the one the stylesheet already warns with  
-  Reusing .banner rather than inventing a class: its warning tone is already in the contrast tests in every preset and both themes, so this adds no rule for them to have missed (accessibility-standards).
-
-**The app can still speak**
-
-- the apps logger survives the migrations
-- a line the app logs actually reaches a handler  
-  The property that matters, asserted directly rather than inferred from the flag above: a logger can be re-enabled and still go nowhere.
-
-**The wiring**
-
-- the app decided the banner from the two flags  
-  The global the templates read is what _announce_auth returned, rather than a second reading of the environment that could come to disagree with it.
-- the suite itself runs open and says so  
-  conftest pops both credentials -- that is how the suite gets to be the owner -- and then sets RHDB_OPEN, because it meant to.
-- the decision is written down
-
-
 ## Settings
 
 *test_settings.py — 63 behaviours*
@@ -3436,7 +3505,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 15 behaviours*
+*test_site_chrome.py — 14 behaviours*
 
 
 **The banner**
@@ -3462,11 +3531,6 @@ Regenerate with:
 - on a phone the bar takes over and scan goes with it
 - the bar is nowhere but a phone
 - the bar sits above the home indicator
-
-**Notices**
-
-- running open is a warning not an alarm  
-  Spec 15: the no-login banner is `warning`, not `danger`.
 
 
 ## Specstruct
@@ -3725,6 +3789,34 @@ Regenerate with:
 - a status reply is read for what it says not that it came  
   page is two bytes, then how far through printing and feeding, then -- in the long form only -- the error.
 - the driver waits for the page rather than for an answer
+
+
+## The three steps
+
+*test_the_three_steps.py — 8 behaviours*
+
+
+**An empty register**
+
+- the owner is given the three steps  
+  Numbered, because they are an order and not a menu: name the collection, add the first machine, print its label.
+- naming the collection ticks its own step  
+  The one step the screen can see the answer to.
+- there is nothing to print yet  
+  The third step waits on the second.
+- the way to the first machine is on the screen  
+  A step somebody has to go and find the control for is an instruction rather than a step.
+- a visitor is told it is empty and no more  
+  The steps are things only the owner can do, and a list of them is a list of what has not been done yet -- which is nobody else's business.
+
+**Once there is something in it**
+
+- the gallery comes back the moment there is an item  
+  It goes as soon as there is one item and does not come back: not a tour, and nothing to dismiss.
+- a search that finds nothing is not an empty register  
+  Two different states that both draw no cards.
+- the steps are the front page and not every empty grid  
+  /for-sale draws the same grid from a narrowed list, and an empty one of those is a filter that matched nothing rather than a new installation.
 
 
 ## Type checking

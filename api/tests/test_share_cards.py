@@ -18,6 +18,7 @@ from PIL import Image
 
 from app import cards, main
 from app.models import Project
+from conftest import log_out
 
 # Four flat colours, far enough apart that JPEG cannot confuse one for another and
 # none of them near the card's cream.
@@ -89,10 +90,10 @@ def near(pixel, colour, tol=30):
     return all(abs(a - b) <= tol for a, b in zip(pixel, colour, strict=True))
 
 
-def visitor(monkeypatch):
+def visitor(client):
     """Turn the site into what an anonymous reader sees. A crawler fetching a card
     is anonymous, so this is the reader every card is made for."""
-    monkeypatch.setattr(main.auth, "AUTH_ENABLED", True)
+    log_out(client)
 
 
 def project_with(client, name, *asset_ids, private=False):
@@ -311,7 +312,7 @@ class TestTheCardIsMadeOnceAndKept:
         because there is no login there to be behind."""
         photo("parts", part()["asset_id"], RED)
         src = og_image(client, "/").replace("https://example.test", "")
-        visitor(monkeypatch)
+        visitor(client)
         r = client.get(src, follow_redirects=False)
         assert r.status_code == 200, f"{src} answered {r.status_code} to a visitor"
         assert r.headers["content-type"] == "image/jpeg"
@@ -355,7 +356,7 @@ class TestOnlyPublicPhotographsGoOnACard:
         photo("parts", aid, RED)
         pid = project_with(client, "hush", aid, private=True)
         assert db.get(Project, pid).private is True
-        visitor(monkeypatch)
+        visitor(client)
         assert "/static/og-image.png" in og_image(client, "/projects")
 
     @staticmethod
@@ -376,7 +377,7 @@ class TestOnlyPublicPhotographsGoOnACard:
         og:image it names -- so this is the card a recipient sees whoever pasted the
         link. One photograph survives for a visitor, so it fills the frame."""
         self.two_projects(client, part, photo)
-        visitor(monkeypatch)
+        visitor(client)
         assert near(card_of(client, "/projects").getpixel((600, 315)), GREEN)
 
     def test_the_owners_own_card_may_show_more_and_that_is_not_a_leak(
@@ -394,7 +395,7 @@ class TestOnlyPublicPhotographsGoOnACard:
         different cards."""
         self.two_projects(client, part, photo)
         owner = og_image(client, "/projects")
-        visitor(monkeypatch)
+        visitor(client)
         assert og_image(client, "/projects") != owner
 
     def test_the_photographs_on_a_card_are_ones_the_site_already_serves(
@@ -403,7 +404,7 @@ class TestOnlyPublicPhotographsGoOnACard:
         """Stated as a test because it is the reason the montage needs no gate of
         its own: it is made of pictures anybody may already fetch one at a time."""
         rel = photo("parts", part()["asset_id"], RED)
-        visitor(monkeypatch)
+        visitor(client)
         assert client.get(f"/images/{rel}").status_code == 200
         assert cards.montage([rel]) is not None
 
