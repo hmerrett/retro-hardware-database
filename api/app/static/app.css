@@ -41,40 +41,6 @@
      is the height of the words in it like everything else. */
   button, input, select, textarea { font-family: inherit; line-height: inherit; }
   ::file-selector-button { font-family: inherit; line-height: inherit; }
-  /* The first few matches, offered while you are still typing. It hangs off the
-     input rather than pushing the page down, and is wider than the box it hangs
-     from because a machine's name is longer than the room to type it. Right-
-     aligned to the input's right edge, which is the one that does not move. The
-     box it hangs from is .searchwrap's, in components.css. */
-  #suggest { position: absolute; top: calc(100% + 6px); right: 0; z-index: 900;
-    min-width: 100%; width: 380px; max-width: calc(100vw - 24px);
-    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
-    box-shadow: 0 10px 30px #00000026; overflow: hidden; padding: 4px; }
-  :root[data-theme="dark"] #suggest { box-shadow: 0 10px 30px #00000080; }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme]) #suggest { box-shadow: 0 10px 30px #00000080; }
-  }
-  #suggest .sg { display: flex; align-items: center; gap: 9px; padding: 6px 7px;
-    border-radius: 7px; text-decoration: none; color: inherit; }
-  /* One highlight for both ways of choosing: the mouse sets the same marker the
-     arrow keys do, so the row under the pointer and the row Enter would open can
-     never be two different rows. */
-  #suggest .sg[aria-selected="true"] { background: var(--btn-hover); }
-  #suggest .sg img { width: 38px; height: 28px; flex: none; border-radius: 4px;
-    object-fit: cover; background: var(--chip); }
-  #suggest .sg img.ph { object-fit: contain; padding: 4px; opacity: .55; }
-  #suggest .sg .t { min-width: 0; flex: 1; }
-  /* One line each, clipped: a wrapped name would make the rows different heights
-     and the list a different length for every query. */
-  #suggest .sg .nm, #suggest .sg .sub { overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; }
-  #suggest .sg .nm { font-size: 13px; }
-  #suggest .sg .sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
-  #suggest .sg-more { display: block; padding: 6px 8px 5px; font-size: 12px;
-    color: var(--muted); border-top: 1px solid var(--line); margin: 4px 3px 0;
-    text-decoration: none; }
-  #suggest .sg-more:hover { color: var(--accent); }
-  #suggest .sg-none { padding: 8px; font-size: 13px; color: var(--muted); }
   main { max-width: 1000px; margin: 0 auto; padding: 18px; }
   /* A phone spends its width on content, not on margins. */
   @media (max-width: 480px) {

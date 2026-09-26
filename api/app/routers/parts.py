@@ -37,11 +37,12 @@ from ..assets import (
     _work_from_form,
     delete_part,
     part_thumbs,
+    refused,
 )
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import _disposal_log
-from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted
+from ..forms import Posted, Refusal, _coerce, _field_diffs, _parse_date, posted, refusals
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import ComputerDrive, Computer, Part, StorageSpec, StoredFile
@@ -247,26 +248,29 @@ def _part_placeholder(db: Session, part: Part) -> str:
     return _storage_placeholder(kind if isinstance(kind, str) else None)
 
 
-def _require_storage_interface(ptype: str, form: Posted) -> None:
-    """A storage part has to say how it attaches, so that "every SCSI drive" stays a
-    question the collection can answer. The radios are marked required, so this is
-    the backstop for anything posting straight to the endpoint. A drive folded into a
-    machine's drive row never reaches here: it is a field on that machine rather than
-    a part, and has no interface column of its own to fill."""
+# The boxes on every part's form that take one shape of answer (forms.SHAPES).
+SHAPED = ("year", "acquired_date")
+
+
+def _refusals(ptype: str, form: Posted) -> list[Refusal]:
+    """What stops a part being saved: a box in the wrong shape, or a storage part
+    that does not say how it attaches.
+
+    The interface is asked so that "every SCSI drive" stays a question the collection
+    can answer. Its radios are marked required, so the browser usually asks first and
+    this is the backstop -- for a browser that did not, and for anything posting
+    straight to the endpoint. A drive folded into a machine's drive row never reaches
+    here: it is a field on that machine rather than a part, and has no interface
+    column of its own to fill."""
+    errors = refusals(form, SHAPED)
     if ptype != "storage":
-        return
+        return errors
     # Read exactly as the value that gets saved is read, or the two could disagree and
     # let a part through with an interface that is then dropped for not being one.
-    picked = _picked_ask(form, "Interface")
-    if picked is None:
-        return
-    if not picked:
-        raise HTTPException(
-            400,
-            "a storage part needs an interface: one of "
-            + ", ".join(entry.STORAGE_INTERFACES)
-            + ", or custom",
-        )
+    if _picked_ask(form, "Interface") == "":
+        field = PICK_FIELDS["Interface"]
+        errors.append((field, "Interface", "Pick how it connects, or choose custom and type it."))
+    return errors
 
 
 # The pick-or-type groups, and the drive row column each becomes where the drive is
@@ -634,7 +638,7 @@ def gui_new_part(
 
 
 @router.post("/parts/new", include_in_schema=False)
-async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
+async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Response:
     form = await posted(request)
     photos = _chosen_photos(form)
     ptype = form.get("type", "other") or "other"
@@ -671,7 +675,7 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
                 _work_from_form(db, c, form)
                 db.commit()
                 return RedirectResponse(f"/computers/{computer_id}?build=1", status_code=303)
-    _require_storage_interface(ptype, form)
+    errors = _refusals(ptype, form)
     data = await _part_from_form(form, ptype)
     if ptype == "storage":
         data["specs"] = entry.merge_spec(str(data["specs"]), "Kind", form.get("kind", "") or "")
@@ -697,6 +701,10 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
     add_log(db, obj.asset_id, "created", "created")
     locations.remember(db, obj.location)
     _work_from_form(db, obj, form)
+    if errors:
+        ctx = _part_form_ctx(db, obj, ptype, computer_id, obj.parent_id or "", action="/parts/new")
+        ctx["title"] = f"New {entry.type_label(ptype)}"
+        return refused(request, db, "part_form.html", ctx, form, errors)
     db.commit()
     if photos:
         _attach_photos(db, obj, "parts", photos)
@@ -816,13 +824,11 @@ def gui_edit_part(
 
 
 @router.post("/parts/{aid}/edit", include_in_schema=False)
-async def gui_save_part(
-    aid: str, request: Request, db: Session = Depends(get_db)
-) -> RedirectResponse:
+async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db)) -> Response:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     ptype = form.get("type", p.type or "") or "other"
-    _require_storage_interface(ptype, form)
+    errors = _refusals(ptype, form)
     # Unmanaged keys live in part_attribute; carry them across the edit.
     #
     # Retyping is the case that needs more than those. A part's structured specs are
@@ -858,6 +864,10 @@ async def gui_save_part(
         add_log(db, aid, diff)
     locations.remember(db, p.location)
     _work_from_form(db, p, form)
+    if errors:
+        ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")
+        ctx["title"] = f"Edit {aid}"
+        return refused(request, db, "part_form.html", ctx, form, errors)
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 

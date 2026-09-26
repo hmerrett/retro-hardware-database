@@ -374,12 +374,19 @@ of photographs of things owned; the line above the results says how many project
 matched and links to them. See [section 12](#12-projects).
 
 **Type two characters** and a dropdown offers the first ten matches — computers,
-parts and projects alike. Arrow keys and Enter walk them; the last line says how
-many more there are. It runs exactly
-the same search Enter does, so the list is a preview of the real answer rather
-than a second, narrower search that disagrees with it. What it adds is an order:
-what you typed being an asset tag, or the start of a name, comes before a hit
-buried in a spec or a history note.
+parts and projects alike. Each row gives the asset tag and the name, with what you
+typed marked wherever it appears in them, and under that what kind of thing it is
+and its year. The last row is always **All N results for "…"**. Arrow keys and
+Enter walk the rows, that one included, and Enter with no row lit goes to the same
+place it does. It runs exactly the same search Enter does, so the list is a
+preview of the real answer rather than a second, narrower search that disagrees
+with it. What it adds is an order: what you typed being an asset tag, or the start
+of a name, comes before a hit buried in a spec or a history note. When nothing
+matches, the list says so.
+
+On a phone the list offers the first four rather than ten, so the last row is
+still in sight above the keyboard. It spans the width of the screen under the
+banner, and each row is tall enough to take with a thumb.
 
 **Quoting works.** `"sound blaster"` is one term that must appear as a phrase;
 `sound blaster` is two terms that must both appear somewhere. Multiple terms are
@@ -512,6 +519,34 @@ Field by field:
 | **Work needed** | What it needs doing, one job to a line — `recap`, `new belt`, `keyboard sticks`. Leave it empty if there is nothing to do. See [checking something in](#checking-something-in). |
 | **Project** | Which project those jobs go on. Left at *new project*, they raise a new one about this machine; pick a project already going and the machine joins that instead. |
 | **Photographs** | Only on the new-machine form — there is no tag to file them under until it is saved. Afterwards they upload from the machine's own page. |
+
+### When a save is refused
+
+A few boxes take only one shape of answer, and a save with anything else in them
+is refused rather than quietly dropping what was typed:
+
+- **Year** — four digits, like `1988`.
+- **TopBench score** — a whole number, like `104`.
+- **Acquired date** — a date, like `14/03/1994`. The date picker offers nothing
+  else; this catches a date typed by hand where a browser shows a plain box.
+
+Blank is always accepted: it means not recorded.
+
+A refused save saves nothing, and comes back as the form with everything as you
+typed it — memory, drives, catalogue picks, the work box. At the top it says how
+many things there are to fix, each a link to its box, and each box says under
+itself what is wrong and what would do instead. Put them right and **Save** again.
+
+Photographs chosen on a new machine are the exception. A browser will not let a
+page choose files on your behalf, so they have to be picked again, and the
+Photographs section says so.
+
+A project's form comes back the same way. A project with no name is refused, and
+**Started**, **Wanted by** and **Finished** are held to a date's shape. A tag or a
+name in **Add a computer or part** that the register cannot find is said under the
+box when **Add item** is pressed, and nothing else is: adding to the list saves
+nothing, so there is nothing yet to refuse. Left in the box when **Save** is
+pressed, it is one of the things to fix.
 
 ### Where it is kept
 
@@ -994,7 +1029,10 @@ an answer typed into it. See [where it is kept](#where-it-is-kept).
 The form is laid out like the machine's — sections, a line under a field that
 needs one, **Save** and **Cancel** at the foot of the screen. **Cancel** goes back
 to the part, or from a new one to the machine or part it was being added to, and
-otherwise to the gallery.
+otherwise to the gallery. A save it cannot take comes back the way the machine's
+does ([when a save is refused](#when-a-save-is-refused)): **Year** and **Acquired
+date** are held to the same shapes, and a storage part is refused without its
+**Interface**.
 
 What differs by type is the specification section.
 
@@ -1421,7 +1459,8 @@ is the ordinary case at the start, not an unfinished one.
 
 Only the name is asked for. It is the only thing a project can be found by: a
 machine falls back to its manufacturer and model and then to its asset tag, and a
-project has neither.
+project has neither. A save without one is refused ([when a save is
+refused](#when-a-save-is-refused)).
 
 ### The states
 

@@ -7,6 +7,7 @@
    both read the same way, which is why the create path hands back a dict shaped
    like the row. #}
 {% set editing = p and p.asset_id %}
+{% set ERR = field_errors | default({}) %}
 <form class="editform" method="post"
       action="{{ ('/projects/' + p.asset_id + '/edit') if editing else '/projects/new' }}">
   {# The form's default button. Enter in a box submits with the first submit button
@@ -17,11 +18,11 @@
   <div class="pagehead"><h1 class="heading">
     {%- if editing %}Edit {{ p['name'] or p.asset_id }} <span class="tag muted">{{ p.asset_id }}</span>
     {%- else %}{{ title }}{% endif %}</h1></div>
-  {# What was typed, kept, when the form comes back refused. #}
-  {% if error %}{{ U.banner('danger', 'Not saved', error) }}{% endif %}
+  {# What stopped a save; the form below is everything as typed. #}
+  {{ U.error_summary(errors | default([])) }}
   <fieldset class="fieldset">
     <legend>Project</legend>
-    {{ U.field('name', 'Name', value=(p['name'] if p else '') or '', required=true,
+    {{ U.field('name', 'Name', value=(p['name'] if p else '') or '', required=true, error=ERR.get('name'),
                hint='what you would call it out loud — "recap the +2A", "486 build". The one field that is required.') }}
     {# Three dates rather than one, because they answer three questions and any of
        them can be unknown while the others are not. None is worked out from another:
@@ -31,10 +32,11 @@
       {{ U.field('status', 'Status', kind='choice', value=(p['status'] if p else '') or 'planned',
                  choices=statuses) }}
       {{ U.field('started_at', 'Started', value=(p['started_at'] if p else '') or '', type='date',
-                 hint='when work actually began — not when you thought of it') }}
+                 error=ERR.get('started_at'), hint='when work actually began — not when you thought of it') }}
       {{ U.field('target_date', 'Wanted by', value=(p['target_date'] if p else '') or '', type='date',
-                 hint='a hope rather than a record; leave it blank if there is no date on it') }}
-      {{ U.field('finished_at', 'Finished', value=(p['finished_at'] if p else '') or '', type='date') }}
+                 error=ERR.get('target_date'), hint='a hope rather than a record; leave it blank if there is no date on it') }}
+      {{ U.field('finished_at', 'Finished', value=(p['finished_at'] if p else '') or '', type='date',
+                 error=ERR.get('finished_at')) }}
     </div>
     {# A tickbox rather than a menu beside the status, because it is not one of the
        states a project passes through -- it is who may read it, which is true or false

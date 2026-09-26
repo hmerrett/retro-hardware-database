@@ -44,7 +44,7 @@ from sqlalchemy.orm import Session
 from .. import cards, entry, filesdb, labels, projects
 from ..common import _visible, folder_images, to_dict
 from ..db import get_db
-from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted
+from ..forms import Posted, Refusal, _coerce, _field_diffs, _parse_date, posted, refusals
 from ..history import _history, _now, _short, add_log
 from ..ids import next_asset_id
 from ..models import (
@@ -317,7 +317,10 @@ class _FormItems(NamedTuple):
     error: str
 
 
-NO_NAME = "Give it a name — it is the only thing it can be found by."
+NO_NAME = 'Needs a name, like "recap the +2A".'
+
+# The project form's boxes that take one shape of answer (forms.SHAPES).
+DATES = ("started_at", "target_date", "finished_at")
 
 
 def _form_items(db: Session, form: Posted) -> _FormItems:
@@ -366,20 +369,40 @@ def _item_rows(db: Session, ids: Iterable[str], project_id: str | None) -> list[
 def _project_form_ctx(
     p: Project | Mapping[str, object] | None,
     title: str,
-    error: str = "",
     items: Sequence[_ItemRow] = (),
     add_item: str = "",
     item_error: str = "",
+    errors: Sequence[Refusal] = (),
 ) -> dict[str, object]:
     return {
         "p": p,
         "title": title,
         "statuses": projects.STATUSES,
-        "error": error,
         "items": items,
         "add_item": add_item,
         "item_error": item_error,
+        "errors": errors,
+        "field_errors": {f: message for f, _, message in errors},
     }
+
+
+def _form_back(
+    form: Posted, data: Mapping[str, object], chosen: _FormItems
+) -> tuple[dict[str, object], list[Refusal]] | None:
+    """What the form comes back with, or None when the save can go ahead.
+
+    It comes back for Add item and Remove, which change the list on the page and
+    save nothing, and for a save it refuses. Only a save is refused: adding to the
+    list is not the moment to be told the name is missing. Either way a date that
+    could not be read is shown as typed, since its column could not hold it."""
+    shaped = refusals(form, DATES)
+    typed = {f: form.get(f, "") for f, _, _ in shaped}
+    if "add" in form or "drop" in form:
+        return {**data, **typed}, []
+    errors = ([] if data["name"] else [("name", "Name", NO_NAME)]) + shaped
+    if chosen.error:
+        errors.append(("add_item", "Add a computer or part", chosen.error))
+    return ({**data, **typed}, errors) if errors else None
 
 
 def _take_on(db: Session, p: Project, asset_id: str, note: str = "") -> None:
@@ -542,21 +565,20 @@ async def gui_create_project(request: Request, db: Session = Depends(get_db)) ->
     form = await posted(request)
     data = _project_from_form(form)
     chosen = _form_items(db, form)
-    # Add item and Remove change the list on the page and save nothing, so the form
-    # comes back with everything as typed; so does a box that could not be added.
-    listing = "add" in form or "drop" in form
-    if listing or chosen.error or not data["name"]:
+    if (back := _form_back(form, data, chosen)) is not None:
+        shown, errors = back
         return templates.TemplateResponse(
             request,
             "project_form.html",
             _project_form_ctx(
-                data,
+                shown,
                 "New project",
-                "" if listing or chosen.error else NO_NAME,
                 _item_rows(db, chosen.ids, None),
                 chosen.typed,
                 chosen.error,
+                errors,
             ),
+            status_code=400 if errors else 200,
         )
     obj = Project(asset_id=next_asset_id(db), **data)
     db.add(obj)
@@ -662,21 +684,22 @@ async def gui_update_project(aid: str, request: Request, db: Session = Depends(g
     form = await posted(request)
     data = _project_from_form(form)
     chosen = _form_items(db, form)
-    listing = "add" in form or "drop" in form
-    if listing or chosen.error or not data["name"]:
+    if (back := _form_back(form, data, chosen)) is not None:
         # What was typed rather than what is on file, so a refusal or a change to
         # the list costs nothing already written.
+        shown, errors = back
         return templates.TemplateResponse(
             request,
             "project_form.html",
             _project_form_ctx(
-                {**data, "asset_id": p.asset_id},
+                {**shown, "asset_id": p.asset_id},
                 "Edit project",
-                "" if listing or chosen.error else NO_NAME,
                 _item_rows(db, chosen.ids, p.asset_id),
                 chosen.typed,
                 chosen.error,
+                errors,
             ),
+            status_code=400 if errors else 200,
         )
     before = to_dict(p)
     for k, v in data.items():
