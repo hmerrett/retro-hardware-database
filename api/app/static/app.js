@@ -884,10 +884,12 @@
 // matching -- the same match Enter performs, over every field and the history --
 // because no page but the gallery has the catalogue to search, and the gallery's
 // own copy carries none of the prose or history that the search reads.
-(function () {
-  const box = document.getElementById('q');
-  const list = document.getElementById('suggest');
-  if (!box || !list) return;
+//
+// Two boxes use it. The banner's search opens what is chosen. A box marked
+// data-suggest="pick" -- the project form's Items -- is choosing a thing rather than
+// going to it: it is offered computers and parts only, choosing one puts its tag in
+// the box, and Enter with nothing lit presses the form's Add item rather than Save.
+function combobox(box, list, pick) {
 
   const MIN = 2;          // one letter matches most of the register: not a list
   const WAIT = 140;       // long enough that a typed word is one request, not six
@@ -921,16 +923,30 @@
     }
   }
 
+  // A pick box puts the tag in and stays where it is, so the next thing can be
+  // typed or Add item pressed.
+  function choose(row) {
+    box.value = row.dataset.aid;
+    close();
+    box.focus();
+  }
+
   function draw(data) {
     list.innerHTML = '';
     rows = []; at = -1;
-    if (!data.items.length) {
-      list.appendChild(el('div', 'sg-none', 'Nothing matches that.'));
+    // The server's matches are every kind of record; a project is about things,
+    // so a pick box shows only those.
+    const items = pick
+      ? data.items.filter(function (it) { return /^\/(computers|parts)\//.test(it.url); })
+      : data.items;
+    if (!items.length) {
+      list.appendChild(el('div', 'sg-none none', 'Nothing matches that.'));
     }
-    data.items.forEach(function (it, i) {
+    items.forEach(function (it, i) {
       const a = el('a', 'sg');
       a.href = it.url;
-      a.id = 'sg-' + i;
+      // Named for their own list: two of these can share a page.
+      a.id = list.id + '-' + i;
       a.setAttribute('role', 'option');
       a.setAttribute('aria-selected', 'false');
       const img = el('img');
@@ -951,10 +967,14 @@
       // Choosing with the pointer moves the same marker the keys move, so what is
       // lit is always what opens.
       a.addEventListener('mousemove', function () { highlight(i); });
+      if (pick) {
+        a.dataset.aid = it.aid;
+        a.addEventListener('click', function (e) { e.preventDefault(); choose(a); });
+      }
       list.appendChild(a);
       rows.push(a);
     });
-    if (data.total > data.items.length) {
+    if (!pick && data.total > data.items.length) {
       const more = el('a', 'sg-more',
         'and ' + (data.total - data.items.length) + ' more — press Enter for all '
         + data.total);
@@ -1014,18 +1034,32 @@
     // has. Nothing else here interferes with typing.
     if (e.key === 'Enter' && at >= 0 && rows[at]) {
       e.preventDefault();
-      location.href = rows[at].href;
+      if (pick) choose(rows[at]); else location.href = rows[at].href;
+      return;
+    }
+    if (e.key === 'Enter' && pick) {
+      const add = box.form && box.form.querySelector('[data-suggest-add]');
+      if (add) { e.preventDefault(); close(); add.click(); }
     }
   });
 
   // A click lands before the blur that would otherwise pull the row out from
   // under it, so the list closes on mousedown anywhere that is not the list.
   document.addEventListener('mousedown', function (e) {
-    if (!list.hidden && !e.target.closest('#suggest') && e.target !== box) close();
+    if (!list.hidden && !list.contains(e.target) && e.target !== box) close();
   });
   box.addEventListener('blur', function () {
     // A tap on a row is a blur first on a touch screen, so let the tap through.
     setTimeout(function () { if (!list.contains(document.activeElement)) close(); }, 160);
+  });
+}
+(function () {
+  const q = document.getElementById('q');
+  const sg = document.getElementById('suggest');
+  if (q && sg) combobox(q, sg, false);
+  document.querySelectorAll('input[data-suggest="pick"]').forEach(function (box) {
+    const list = document.getElementById(box.getAttribute('aria-controls'));
+    if (list) combobox(box, list, true);
   });
 })();
 
@@ -1226,11 +1260,13 @@
 // A tick is an answer, not a draft. Marked data-ticksend, a form with a checkbox
 // in it sends the moment the box changes, for the reason the picker above does:
 // the gesture was made, and hunting for a save button afterwards is the second
-// half of one intention. The button stays in the markup and hides itself here,
-// so a browser running none of this still has the two-gesture version.
+// half of one intention. A menu that is the form's only question -- what a job is
+// about -- is the same kind of answer and sends the same way. The button stays in
+// the markup and hides itself here, so a browser running none of this still has
+// the two-gesture version.
 (function () {
   for (const form of document.querySelectorAll('form[data-ticksend]')) {
-    const box = form.querySelector('input[type=checkbox]');
+    const box = form.querySelector('input[type=checkbox], select');
     const go = form.querySelector('[data-send-go]');
     if (!box) continue;
     if (go) go.hidden = true;
@@ -1271,8 +1307,8 @@
 
 (function () {
   // In a menu now rather than on the banner, so it says which theme it would
-  // switch to in words. Two of them -- the desktop menu and the phone's sheet --
-  // and both have to relabel when either is used.
+  // switch to in words. Three of them -- the desktop menu, the phone's sheet and
+  // the side rail -- and all of them have to relabel when any one is used.
   var btns = [].slice.call(document.querySelectorAll('.js-theme'));
   if (!btns.length) return;
   function effective() {
@@ -1281,8 +1317,23 @@
     return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   function refresh() {
-    var word = effective() === 'dark' ? 'light theme' : 'dark theme';
-    btns.forEach(function (b) { b.textContent = word; });
+    var dark = effective() === 'dark';
+    btns.forEach(function (b) {
+      // The words come from the button rather than from here: which case a control
+      // is written in is the site's answer and not the script's (interface-text),
+      // and the server has already applied it to both of them.
+      var word = dark ? (b.dataset.light || 'Light theme') : (b.dataset.dark || 'Dark theme');
+      // A button with an icon keeps it: the words are a span beside the drawing,
+      // and collapsed in the rail they are hidden, so the name is on the button.
+      var span = b.querySelector('span');
+      if (span) {
+        span.textContent = word;
+        b.setAttribute('aria-label', word);
+        b.title = word;
+      } else {
+        b.textContent = word;
+      }
+    });
   }
   btns.forEach(function (b) {
     b.addEventListener('click', function () {
@@ -1444,7 +1495,7 @@
   if (shut) shut.addEventListener('click', function () { open(false); });
   // The backdrop is the sheet itself; the panel inside it stops the tap.
   sheet.addEventListener('click', function (e) {
-    if (!e.target.closest('.sheet-body')) open(false);
+    if (!e.target.closest('.sheet')) open(false);
   });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !sheet.hidden) { e.stopPropagation(); open(false); }
@@ -1468,18 +1519,3 @@ document.addEventListener('submit', function (ev) {
     ev.stopPropagation();
   }
 }, true);
-
-// Back, on the three form pages. It was `href="javascript:history.back()"`, which
-// the content policy blocks outright (ADR-0021) -- and a link was the wrong element
-// anyway: going back is an action with no destination to put in an href, which is
-// why the no-script fallback was never anything but a dead link either way.
-//
-// Not capturing: nothing else handles these, and a normal-phase listener lets a
-// page override one if it ever needs to.
-document.addEventListener('click', function (ev) {
-  var back = ev.target.closest ? ev.target.closest('[data-back]') : null;
-  if (back) {
-    ev.preventDefault();
-    window.history.back();
-  }
-});

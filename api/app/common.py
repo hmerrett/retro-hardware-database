@@ -228,3 +228,37 @@ def _text_ver(content: str | bytes) -> str:
     if isinstance(content, str):
         content = content.encode()
     return hashlib.md5(content).hexdigest()[:8]
+
+
+# What the app will load, which is only ever itself. Here rather than beside the
+# middleware that sends it because the error page sends it too: a 500 is caught
+# outside every middleware, so that one page has to state the policy itself.
+#
+# What the app will load, which is only ever itself. `img_url` yields `/images/...`,
+# a reference photograph is fetched into that volume server-side rather than hot-
+# linked, and the QR decoder is vendored under /static/vendor -- so `'self'`
+# throughout is a description of the code and not an aspiration for it.
+#
+# `form-action`, `frame-ancestors` and `base-uri` are stated because they do not
+# fall back to `default-src`: left out they are simply absent, which reads like a
+# tight policy and is not one.
+#
+# `style-src` is now `'self'` as well: the 69 style attributes and the two <style>
+# blocks the token was there for have gone into app.css as classes, and the two
+# whose values were data into the generated stylesheet at /style/data.css
+# (ADR-0022). A test walks the rendered pages for a style attribute rather than
+# trusting this comment.
+CONTENT_SECURITY_POLICY = "; ".join(
+    (
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self'",
+        "img-src 'self'",
+        "font-src 'self'",
+        "connect-src 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'self'",
+        "base-uri 'none'",
+        "object-src 'none'",
+    )
+)

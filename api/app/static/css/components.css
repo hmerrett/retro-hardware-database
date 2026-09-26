@@ -1,0 +1,907 @@
+/* The v0.2 components (ADR-0031): one block per component, on the tokens in
+   tokens.css and presets/*.css and nothing else. No colour is stated here, so the
+   contrast tests read the token files alone; test_stylesheet_lint.py holds this
+   file to that, to the spacing and type scales, and holds utilities.css to layout.
+
+   Everything is inside the layer `v2` while app.css is still here. Unlayered
+   rules outrank layered ones whatever their specificity, so where a class name
+   is shared with 0.1 -- .btn, .panel, .card and fifty more -- app.css's rule
+   wins until the templates that use it move over and it is deleted. The layer
+   comes off with app.css.
+
+   The sections are numbered as in the design system's reference stylesheet. Its
+   first, what a preset may change besides colour, is in the token files. */
+@layer v2 {
+  /* ---- 2. Base ------------------------------------------------------------ */
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--surface); color: var(--text);
+    font-family: var(--font-ui); font-size: 14px; line-height: 1.5; }
+  button, input, select, textarea { font-family: inherit; line-height: inherit; }
+  a { color: var(--accent); }
+  h1, h2, h3, h4 { overflow-wrap: anywhere; margin: 0; }
+  .muted { color: var(--text-muted); }
+  /* The three type roles, by family token so a preset's pairing reaches them. */
+  .figure, .title, .prose { font-family: var(--font-display); }
+  .heading, .label, .hint, .micro { font-family: var(--font-ui); }
+  .stat, .data, .tag { font-family: var(--font-data); }
+  .title { font-size: 26px; line-height: 1.2; font-weight: 600; }
+  /* Typed into a textarea in paragraphs, and read back in them: pre-line keeps the
+     newlines somebody typed, as .lines does for a note. */
+  .prose { font-size: 16px; line-height: 1.6; white-space: pre-line; }
+  .heading { font-size: 18px; line-height: 1.4; font-weight: 600; }
+  .tag { font-size: 12px; }
+  .hint { font-size: 12px; color: var(--text-muted); }
+  @media (max-width: 560px) { .title { font-size: 22px; } }
+  .num, td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+  .break { overflow-wrap: anywhere; }
+
+  /* One ring for everything that takes focus. Never removed, only restyled. */
+  :focus-visible { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-w); }
+  /* Off the page until it has focus, rather than display: none, which would take it
+     out of the tab order and leave the keyboard where it started. It sits above the
+     banner once it appears, because that is what it is skipping. */
+  .skip { position: absolute; left: -9999px; top: 0; z-index: 60; }
+  .skip:focus { left: var(--space-3); top: var(--space-3); padding: var(--space-3) var(--space-4);
+    color: var(--text); background: var(--surface-raised); border: 2px solid var(--accent);
+    border-radius: var(--radius-sm); }
+  /* The jump gives <main> focus, and a ring drawn round the whole page says nothing
+     useful. The skip link itself is what the eye should follow. The one suppression
+     the suite allows (test_keyboard_and_motion). */
+  main:focus { outline: none; }
+
+  /* ---- 3. Button ---------------------------------------------------------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+    min-height: var(--control-h); padding: 0 var(--space-4); white-space: nowrap; cursor: pointer;
+    font-size: 14px; text-decoration: none; color: var(--text); background: var(--surface-sunken);
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-sm); }
+  .btn:hover { background: var(--surface-hover); }
+  .btn:active { background: var(--surface-hover); transform: translateY(1px); }
+  .btn.primary { background: var(--accent-fill); color: var(--on-accent); border-color: var(--accent-fill); }
+  .btn.primary:hover { background: var(--accent-fill); color: var(--on-accent);
+    box-shadow: inset 0 0 0 2px var(--on-accent); }
+  .btn.danger { color: var(--danger); border-color: var(--danger-line); background: var(--surface-raised); }
+  .btn.danger:hover { background: var(--danger-wash); color: var(--danger); }
+  .btn.sm { min-height: 28px; padding: 0 var(--space-3); font-size: 13px; }
+  .btn.icon { width: var(--control-h); padding: 0; }
+  .btn.icon.sm { width: 28px; }
+  .btn svg { width: 16px; height: 16px; display: block; flex: none; }
+  .btn.on { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled, .btn[aria-disabled="true"] { cursor: not-allowed; color: var(--text-muted);
+    background: var(--surface); border-style: dashed; }
+  @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
+
+  /* ---- 4. Form controls --------------------------------------------------- */
+  .field { display: block; margin-top: var(--space-5); }
+  .field > label, .field > .lbl { display: block; margin-bottom: var(--space-2); font-size: 13px;
+    font-weight: 500; color: var(--text-muted); }
+  .input, .select { width: 100%; min-height: var(--control-h); padding: 0 var(--space-3);
+    font-family: var(--font-data); font-size: 14px; color: var(--text); background: var(--surface-raised);
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-sm); }
+  /* What is typed is data and stays monospaced; what is chosen from a list is the
+     interface's own vocabulary ("All categories", "Faulty"), and so is a search box. */
+  .select, .input.search { font-family: var(--font-ui); }
+  textarea.input { min-height: 72px; padding: var(--space-3); }
+  .input::placeholder { color: var(--text-muted); opacity: 1; }
+  .input:hover, .select:hover { border-color: var(--text-muted); }
+  .check { display: inline-flex; align-items: center; gap: var(--space-3); font-size: 14px; }
+  .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent-fill); }
+  /* min-width: 0, because a fieldset's default minimum is its widest child: the drives table
+     inside one would widen the fieldset - and on a phone the page - instead of scrolling. */
+  .fieldset { min-width: 0; margin: var(--space-5) 0 0; padding: var(--space-3) var(--space-5) var(--space-5);
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+  .fieldset > legend { padding: 0 var(--space-3); font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  .formgrid { display: grid; gap: 0 var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+  /* Pinned by the environment: readable, plainly not editable, and says why once
+     at the foot of the form rather than on every row. */
+  .input:disabled, .select:disabled, .is-pinned .input, .is-pinned .select {
+    background: var(--surface-sunken); color: var(--text-muted); border-style: dashed; cursor: not-allowed; }
+  @media (pointer: coarse) {
+    .btn, .input, .select { font-size: 16px; min-height: var(--tap); }
+    .btn.sm { font-size: 16px; min-height: 36px; }
+    .check input { width: 22px; height: 22px; }
+  }
+
+  /* ---- 5. Chip ------------------------------------------------------------ */
+  .chip { display: inline-block; padding: 1px var(--space-3); font-size: 12px; white-space: nowrap;
+    color: var(--text); background: var(--surface-sunken); border-radius: var(--radius-pill); }
+  .chip.ok { background: var(--success-wash); }
+  .chip.warn { background: var(--warning-wash); }
+  .chip.bad { background: var(--danger-wash); }
+  .chip.quiet { background: none; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--line); }
+  a.chip { text-decoration: underline; color: var(--accent); }
+
+  /* ---- 6. Panel ----------------------------------------------------------- */
+  .panel { margin-top: var(--space-5); overflow: hidden; background: var(--surface-raised);
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-lg); }
+  .panel > header { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-3);
+    padding: 6px var(--space-4); background: var(--band); color: var(--band-text);
+    /* Room kept for the flash, so a long title wraps before it and never runs underneath. */
+    padding-right: calc(var(--space-4) + var(--flash-w) + var(--flash-inset)); }
+  .panel > header::after { content: ""; position: absolute; top: 0; bottom: 0; right: var(--flash-inset);
+    width: var(--flash-w); background: var(--flash); transform: skewX(-25deg); pointer-events: none; }
+  .panel > header h3 { font-size: 14px; font-weight: 600; }
+  .panel > header .meta { font-family: var(--font-data); font-size: 12px; color: var(--band-muted); }
+  .panel > header .grow { flex: 1; }
+  .panel > .pbody { padding: var(--space-4); }
+  .panel > .pbody > :first-child { margin-top: 0; }
+  .panel > .pbody > :last-child { margin-bottom: 0; }
+
+  /* ---- 7. Key-value list -------------------------------------------------- */
+  .kv { margin: 0; }
+  .kv > div { display: flex; gap: var(--space-4); padding: 6px 0; border-top: 1px solid var(--line); }
+  .kv > div:first-child { border-top: 0; padding-top: 0; }
+  .kv > div:last-child { padding-bottom: 0; }
+  .kv dt { flex: 0 0 132px; font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  .kv dd { margin: 0; min-width: 0; font-family: var(--font-data); overflow-wrap: anywhere; }
+  @media (max-width: 400px) { .kv dt { flex-basis: 104px; } }
+  /* The history's column is as wide as the stamp in it -- a date for a visitor, a
+     date and a time for the owner -- rather than the label width of the other lists,
+     which on a phone is width the entries were wrapping for. */
+  .kv.log dt { flex-basis: 10.5ch; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .kv.log.timed dt { flex-basis: 16.5ch; }
+  /* A note is written in lines, and a table cell or a list value does not show them. */
+  .kv dd.lines { white-space: pre-line; }
+
+  /* ---- 8. Card (gallery tile) --------------------------------------------- */
+  .grid { display: grid; gap: var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+  /* Two across on a phone rather than one: a gallery is for scanning. */
+  @media (max-width: 560px) { .grid { gap: var(--space-4);
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); } }
+  .card { display: block; overflow: hidden; text-decoration: none; color: var(--text);
+    background: var(--surface-raised); border: var(--border-w) solid var(--line); border-radius: var(--radius-lg); }
+  .card:hover { border-color: var(--accent); }
+  .card .thumb { aspect-ratio: var(--thumb-ratio); display: flex; align-items: center; justify-content: center;
+    position: relative; background: var(--surface-sunken); }
+  .card .thumb > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* The stand-in drawings are files with their own grey stroke, not the inline
+     drawing the card was designed with, so they keep 0.1's fade rather than
+     taking a colour from the tokens. */
+  .card .thumb > img.ph { width: 46%; height: 46%; object-fit: contain; opacity: .55; }
+  .card .thumb svg { width: 46%; opacity: .7; fill: none; stroke: var(--text-muted); stroke-width: 2; }
+  /* Blocks, said out loud: the card is a link, so its parts are spans, and a span's
+     padding does not reach a block inside it - the name hung out to the card's edge. */
+  .card .body { display: block; padding: var(--space-3) var(--space-4) var(--space-4); }
+  .card .aid { display: block; font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
+  .card .nm { display: block; margin: var(--space-1) 0 var(--space-3); font-size: 14px; line-height: 1.3; }
+  .card .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  /* Disposed: the photograph fades, the words do not - dimming the whole card, as
+     v0.1 does, takes text-muted under 4.5:1. The chip says it in a word. */
+  .card.is-disposed .thumb > * { opacity: .35; }
+
+  /* ---- 9. Table ----------------------------------------------------------- */
+  .table { width: 100%; border-collapse: collapse; }
+  .table th, .table td { padding: 6px var(--space-3); text-align: left; vertical-align: top;
+    border-top: 1px solid var(--line); overflow-wrap: break-word; }
+  .table th { font-size: 13px; font-weight: 500; color: var(--text-muted); white-space: nowrap; }
+  .table td.tight, .table th.tight { white-space: nowrap; }
+  /* The one column that is a sentence takes the slack, so the short ones sit at the
+     edge rather than each being handed a share of the spare width. */
+  .table td.wide { width: 100%; }
+  .table tr:first-child > * { border-top: 0; }
+  /* More than three columns: either it stacks... */
+  @media (max-width: 560px) {
+    .table.stack, .table.stack tbody, .table.stack tr, .table.stack td { display: block; width: auto; }
+    .table.stack tr:first-child { display: none; }
+    .table.stack tr { padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+    .table.stack td { padding: 1px 0; border: 0; }
+    .table.stack td:empty { display: none; }
+    .table.stack td[data-label]::before { content: attr(data-label) " "; font-size: 12px; color: var(--text-muted); }
+    /* A row whose values are short -- a status, a count, a date -- runs them on one
+       line under the first cell rather than giving each a line of its own. */
+    .table.stack.runon td + td:not(:empty) { display: inline-block; margin-right: var(--space-4); }
+    .table.stack td[data-label]::before { font-family: var(--font-ui); }
+  }
+  /* A table too wide for a tablet stacks from 820px instead: the owner's files list,
+     six columns with a box to type in, which scrolled the page sideways at any width
+     a phone or a small tablet has. The same rules as above, from the wider point. */
+  @media (max-width: 820px) {
+    .table.stack.early, .table.stack.early tbody, .table.stack.early tr, .table.stack.early td { display: block; width: auto; }
+    .table.stack.early tr:first-child { display: none; }
+    .table.stack.early tr { padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+    .table.stack.early td { padding: 1px 0; border: 0; }
+    .table.stack.early td:empty { display: none; }
+    .table.stack.early td[data-label]::before { content: attr(data-label) " "; font-family: var(--font-ui); font-size: 12px; color: var(--text-muted); }
+    /* Size, added, the tick and delete are one short line about the file rather
+       than four lines under it; each control is in a form, and a form is a block. */
+    .table.stack.early td.tight, .table.stack.early td.act { display: inline-block; margin: var(--space-2) var(--space-4) 0 0; vertical-align: middle; }
+    .table.stack.early td.tight form, .table.stack.early td.act form { display: inline-flex; align-items: center; gap: var(--space-2); }
+  }
+  /* ...or it scrolls inside its own box. */
+  .hscroll { overflow-x: auto; }
+  .hscroll > .table { min-width: 760px; }
+  .hscroll > .table td { padding-left: 0; }
+  .hscroll > .table th:first-child, .hscroll > .table td:first-child { width: 64px; }
+  .hscroll > .table td + td { padding-left: var(--space-3); }
+
+  /* ---- 10. Banner --------------------------------------------------------- */
+  .banner { display: flex; gap: var(--space-3); align-items: baseline; margin: var(--space-4) 0;
+    padding: var(--space-3) var(--space-4); color: var(--text); background: var(--surface-sunken);
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-md); }
+  .banner > b { flex: none; font-weight: 600; }
+  .banner.warning { background: var(--warning-wash); border-color: var(--warning); }
+  .banner.warning > b { color: var(--warning); }
+  .banner.danger { background: var(--danger-wash); border-color: var(--danger-line); }
+  .banner.danger > b { color: var(--danger); }
+  .banner.success { background: var(--success-wash); border-color: var(--success); }
+  .banner.success > b { color: var(--success); }
+  /* A notice that floats over the page rather than sitting in it, at the foot of the
+     window. The one saying the record has changed is a pill in the middle; the
+     cookie notice is a bar the width of the page, which is a notice and not a gate:
+     nothing is stored until the reader chooses something, so there is nothing to
+     hold them up for. The pill stands above the bar for the one page that shows both. */
+  .toast { position: fixed; z-index: 70; bottom: var(--space-4); left: 50%; transform: translateX(-50%);
+    align-items: center; margin: 0; padding: 6px var(--space-3) 6px var(--space-4); font-size: 13px;
+    background: var(--surface-raised); border-radius: var(--radius-pill); box-shadow: var(--shadow-pop); }
+  .toast > .btn { flex: none; }
+  #cookienote { z-index: 60; left: 0; right: 0; bottom: 0; transform: none; flex-wrap: wrap;
+    justify-content: center; border-width: 1px 0 0; border-radius: 0; box-shadow: none; }
+  #cookienote p { max-width: 70ch; margin: 0; font-size: 12px; color: var(--text-muted); }
+  #cookienote p b { color: var(--text); }
+  /* On a wide screen the notice is the only thing fixed over the page, and a control
+     tabbed to below the fold must not be scrolled to where it is covering. */
+  /* How much of the foot of the window the fixed chrome covers: the notice alone on a
+     wide screen, the tab bar on a phone, and the notice standing on the bar there --
+     five lines on a 320px screen. Dimensions of those things, not steps of spacing. */
+  :root { --notice-clear: 88px; --tabbar-clear: 60px; --notice-clear-phone: 240px; }
+  html:has(#cookienote) { scroll-padding-bottom: var(--notice-clear); }
+  html:has(#cookienote) body { padding-bottom: var(--notice-clear); }
+
+  /* ---- 11. Menu / popover ------------------------------------------------- */
+  .menupop { min-width: 180px; padding: var(--space-2); background: var(--surface-raised);
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); }
+  .menupop a, .menupop button { display: block; width: 100%; padding: 6px var(--space-3); text-align: left;
+    font-size: 14px; color: var(--text); background: none; border: 0; border-radius: var(--radius-sm);
+    text-decoration: none; cursor: pointer; }
+  .menupop a:hover, .menupop button:hover { background: var(--surface-hover); }
+  .menupop hr { margin: var(--space-2) 0; border: 0; border-top: 1px solid var(--line); }
+  .menupop form { margin: 0; }
+  .menupop a, .menupop button { white-space: nowrap; }
+  /* A menu that opens without a script, because <details> already does; app.js only
+     closes it, on Escape and on a click landing anywhere else. */
+  .menu { position: relative; }
+  .menu > summary { list-style: none; }
+  .menu > summary::-webkit-details-marker { display: none; }
+  .menu > summary::marker { content: ""; }
+  .menu > .menupop { position: absolute; top: calc(100% + 6px); right: 0; z-index: 950; }
+  /* The banner's sections, held in its menu for the widths where the banner has put
+     its own away (13, below). */
+  .menupop .fold { display: none; }
+
+  /* ---- 12. Stat tile and ranked bar --------------------------------------- */
+  .stattile { padding: var(--space-4); background: var(--surface-raised);
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+  .stattile .k { font-size: 13px; color: var(--text-muted); }
+  .stattile .v { font-family: var(--font-data); font-size: 22px; font-weight: 600; line-height: 1.3; }
+  .stattile .n { font-size: 12px; color: var(--text-muted); }
+  .bars { display: grid; grid-template-columns: max-content 1fr max-content; gap: 6px var(--space-4); align-items: center;
+    font-size: 13px; }
+  .bars .track { height: 12px; background: var(--accent-track); border-radius: var(--radius-xs); overflow: hidden; }
+  .bars .fill { display: block; height: 100%; background: var(--accent-fill); border-radius: var(--radius-xs); }
+  .bars .n { font-family: var(--font-data); text-align: right; color: var(--text-muted); }
+
+  /* ---- 13. Site header, stripe, tab bar ----------------------------------- */
+  .site-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
+    padding: var(--space-4) var(--space-6); border-bottom: var(--border-w) solid var(--line); }
+  .site-header .brand { display: inline-flex; align-items: center; gap: var(--space-3); font-weight: 600;
+    color: var(--text); text-decoration: none; }
+  .site-header .mark { width: 34px; height: 28px; background: var(--surface-sunken);
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-xs); }
+  .site-header nav { display: flex; gap: var(--space-5); }
+  .site-header nav a { text-decoration: none; }
+  .site-header nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
+  .site-header .grow { flex: 1; }
+  .site-header .search { width: 230px; }
+  /* Sized by height: the logo is not square, and height is what the banner's other
+     items are measured against. An installation's own logo keeps its proportions. */
+  .site-header .brand img { display: block; width: auto; height: 34px; }
+  .site-header .searchwrap { display: flex; min-width: 0; }
+  .site-header .menu > summary { min-height: var(--control-h); }
+  /* The no-login notice stands under the banner, inside its gutters. */
+  #openwarn { margin: var(--space-4) var(--space-6); }
+  @media (max-width: 620px) { #openwarn { margin: var(--space-3) var(--space-4); } }
+  /* A tablet, or a narrow window: the five sections leave the banner for the top of
+     its menu, so the banner stays one row rather than wrapping the search box onto a
+     second. */
+  @media (max-width: 900px) {
+    .site-header nav { display: none; }
+    .menupop .fold { display: block; }
+    .menupop hr.fold { display: block; }
+  }
+  /* A phone: the banner is the mark and the search box, and everything else moves to
+     the tab bar, Scan with it -- into the thumb's reach. The name goes too: the logo
+     is still the way home, and the name is in the title bar and at the foot of the
+     page. Dropping it is what keeps the banner to one row. */
+  @media (max-width: 620px) {
+    .site-header { flex-wrap: nowrap; padding: var(--space-3) var(--space-4); }
+    .site-header .brand span, .site-header .grow { display: none; }
+    .site-header .hdr-new { display: none; }
+    .site-header .hdr-more { display: none; }
+    .site-header .hdr-scan { display: none; }
+    .site-header .searchwrap { flex: 1 1 auto; }
+    .site-header .search { width: 100%; }
+  }
+  .stripe { --gutter: var(--space-6); position: relative; height: var(--stripe-h); background: var(--stripe-image); }
+  /* The banner's flash stands directly above the panels' flashes: the column's right edge is
+     half of whatever the page is wider than content-max, plus the page gutter and a panel's
+     border, and the flash sits --flash-inset in from there, as it does in each panel - less
+     the 8px a 25-degree slant moves the top of a panel's flash, so the diagonal reads as
+     carrying on upward into the banner. */
+  .stripe::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--flash-w); background: var(--flash);
+    right: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter) + var(--border-w) + var(--flash-inset) - 8px); }
+  @media (max-width: 560px) { .stripe { --gutter: var(--space-4); } }
+  .tabbar { display: none; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
+  .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: var(--space-1); min-height: 52px; padding: 0; font-size: 11px; font-weight: 500; color: var(--text-muted);
+    background: none; border: 0; text-decoration: none; cursor: pointer; }
+  /* Where you are, and the sheet while it is open: colour and weight together. */
+  .tabbar [aria-current="page"], .tabbar .on { color: var(--accent); font-weight: 600; }
+  .tabbar svg { width: 21px; height: 21px; display: block; }
+  .tabbar .scan span.puck { display: flex; align-items: center; justify-content: center; width: 44px; height: 32px;
+    background: var(--accent-fill); color: var(--on-accent); border-radius: var(--radius-sm); }
+  /* Only on a phone, and there across the bottom, where the thumb is. Before it the
+     banner on a 390px screen wrapped to four rows, and Scan -- the one control a
+     phone is really here for, used while holding the thing -- was the last of them. */
+  @media (max-width: 620px) {
+    .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 70; display: flex;
+      padding-bottom: env(safe-area-inset-bottom, 0px); }
+    /* Room under the last card for the bar that would otherwise sit on it. */
+    body { padding-bottom: calc(var(--tabbar-clear) + env(safe-area-inset-bottom, 0px)); }
+    /* That holds the last card off the bar and says nothing about where a scroll
+       stops: tabbing to a control below the fold scrolls it to the viewport's edge,
+       which is where the bar is, so the control arrived behind it -- twenty stops on
+       an item page. The scroll container has to be told separately. */
+    html { scroll-padding-bottom: calc(var(--tabbar-clear) + var(--space-4) + env(safe-area-inset-bottom, 0px)); }
+    /* The cookie notice stands on the bar and is taller than it: five lines on a
+       320px screen. It is in the markup only while showing, so the room comes back
+       when it goes, and room under the page too, since at the foot of a short page
+       there is nothing left to scroll. */
+    #cookienote { bottom: calc(var(--tabbar-clear) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote) { scroll-padding-bottom: calc(var(--notice-clear-phone) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote) body { padding-bottom: calc(var(--notice-clear-phone) + env(safe-area-inset-bottom, 0px)); }
+  }
+
+  /* ---- 13a. Side rail -----------------------------------------------------
+     An installation preference: the Navigation setting puts `side` on the shell the
+     rail and the page stand in. Applies at 1100px and wider only - below that the
+     rail is not drawn and the banner carries the sections, as it does for an
+     installation that chose Top. The rail spends the empty margin beside the
+     column, never the column. Same <nav>, laid down not across. */
+  .shell { display: block; }
+  .rail { display: none; }
+  @media (min-width: 1100px) {
+    .shell.side { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 100vh; }
+    .shell.side > .rail { display: flex; flex-direction: column; gap: var(--space-2); position: sticky; top: 0;
+      height: 100vh; padding: var(--space-5) var(--space-4); background: var(--surface-raised);
+      border-right: var(--border-w) solid var(--line); }
+    /* With the rail beside it the banner holds only what is one gesture away on every page:
+       search, leading, and Scan. Brand, sections, + New and the menu live in the rail. */
+    .shell.side .site-header nav, .shell.side .site-header .brand, .shell.side .site-header .grow,
+    .shell.side .site-header .hdr-new, .shell.side .site-header .hdr-more { display: none; }
+    .shell.side .site-header .searchwrap { flex: 0 1 520px; }
+    .shell.side .site-header .search { width: 100%; }
+    .shell.side .site-header .hdr-scan { margin-left: auto; }
+  }
+  .rail .brand { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); font-weight: 600;
+    color: var(--text); text-decoration: none; }
+  .rail .brand .mark { width: 34px; height: 28px; flex: none; background: var(--surface-sunken);
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-xs); }
+  /* The installation's own logo, which is an image rather than the design's
+     placeholder box: sized by height as the banner's is, so a mark of any
+     proportion keeps it. */
+  .rail .brand img.mark { display: block; width: auto; background: none; border: 0; }
+  .rail a.item, .rail button.item { display: flex; align-items: center; gap: var(--space-3); min-height: var(--control-h);
+    padding: 0 var(--space-3); font-size: 14px; color: var(--text); background: none; border: 0;
+    border-radius: var(--radius-sm); text-decoration: none; text-align: left; cursor: pointer; }
+  .rail .item:hover { background: var(--surface-hover); }
+  /* Current: a bar, a weight and a ground - three tellings, none of them hue alone. */
+  .rail .item[aria-current="page"] { font-weight: 600; background: var(--surface-sunken);
+    box-shadow: inset 3px 0 0 var(--accent); }
+  .rail .item svg { width: 16px; height: 16px; flex: none; color: var(--text-muted); }
+  .rail nav { display: flex; flex-direction: column; gap: var(--space-1); }
+  .rail .sep { height: 1px; margin: var(--space-3) 0; background: var(--line); }
+  .rail .foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
+  .rail .item .n { margin-left: auto; font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
+  .rail .cap { margin: var(--space-4) var(--space-3) var(--space-1); font-size: 12px; color: var(--text-muted); }
+  .rail .item.recent { min-height: 28px; font-size: 13px; }
+  .rail .item.recent .tag { flex: none; color: var(--text-muted); }
+  .rail .item.recent .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Collapsed: a class on the same shell, set by a plain link that stores the choice
+     in a cookie, so it works with no script. Icons only; every item keeps its name in
+     aria-label and title. */
+  @media (min-width: 1100px) { .shell.side.collapsed { grid-template-columns: 60px minmax(0, 1fr); } }
+  .rail.collapsed { padding-left: var(--space-3); padding-right: var(--space-3); align-items: center; }
+  .rail.collapsed .brand span:not(.mark), .rail.collapsed .item span, .rail.collapsed .cap,
+  .rail.collapsed .recent, .rail.collapsed .item .n { display: none; }
+  .rail.collapsed .item { width: var(--control-h); padding: 0; justify-content: center; }
+  .rail.collapsed .item svg { width: 18px; height: 18px; color: inherit; }
+  .rail.collapsed .item[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--accent); color: var(--accent); }
+
+  /* ---- 13d. The item page's two columns ------------------------------------
+     Content and photographs side by side above 860px, one column below. */
+  /* Three parts: the head (name, tag, summary), the photographs, the panels. Side by side,
+     the photographs run down the right beside both; in one column they come straight after
+     the head, because someone who has just scanned a label wants to see it is the right
+     machine before reading its specification. */
+  .itemcols { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+    grid-template-areas: "head aside" "body aside"; gap: 0 var(--space-6); align-items: start; }
+  .itemcols > .itemhead { grid-area: head; }
+  .itemcols > aside { grid-area: aside; }
+  .itemcols > .itembody { grid-area: body; }
+  @media (min-width: 861px) { .itemcols > aside > .panel:first-child { margin-top: 0; } }
+  /* One column: head, photographs, body, then the rest of the side column -- the
+     owner's label, disposal and QR code, which a phone at the shelf wants after the
+     details rather than before them. The aside stands aside so its panels can be
+     ordered among the page's own. */
+  @media (max-width: 860px) {
+    .itemcols { display: flex; flex-direction: column; align-items: stretch; }
+    .itemcols > aside { display: contents; }
+    .itemcols > aside > .panel { order: 2; }
+    .itemcols > aside > .panel:first-child { order: 0; }
+    .itemcols > .itembody { order: 1; }
+  }
+  .cell { padding: var(--space-3) var(--space-4); background: var(--surface-raised);
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
+  .cell .k { font-size: 12px; color: var(--text-muted); }
+  .cell .v { font-family: var(--font-data); font-size: 16px; font-weight: 600; }
+  .cardgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
+  .veil { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; background: var(--scrim); }
+  .veil > .sheet { width: 100%; max-height: 82vh; overflow-y: auto;
+    padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); }
+
+  /* ---- 13c. Item cards: a list of things inside a panel ------------------- */
+  .itemcards { display: flex; flex-direction: column; gap: var(--space-4); }
+  .itemcard { overflow: hidden; padding-bottom: var(--space-4); background: var(--surface-raised);
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-lg); }
+  .itemcard > header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-4); margin-bottom: var(--space-3); background: var(--surface-sunken); }
+  .itemcard > header .tag { color: var(--text-muted); }
+  .itemcard .cardmain { display: flex; align-items: flex-start; gap: var(--space-4); margin: 0 var(--space-4); }
+  .itemcard h4 { font-size: 14px; font-weight: 600; }
+  .cardthumb { position: relative; overflow: hidden; flex: none; width: 92px; aspect-ratio: var(--thumb-ratio); display: flex; align-items: center; justify-content: center;
+    background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-md); }
+  .cardthumb svg { width: 50%; fill: none; stroke: var(--text-muted); stroke-width: 2; }
+  dl.specs { display: grid; gap: var(--space-1) var(--space-5); margin: var(--space-3) 0 0;
+    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+  dl.specs > div { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; }
+  dl.specs dt { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  dl.specs dd { margin: 0; min-width: 0; font-family: var(--font-data); font-size: 13px; overflow-wrap: break-word; }
+  .panel > .itemcards { gap: 0; }
+  .panel > .itemcards > .itemcard { border: 0; border-radius: 0; box-shadow: none; }
+  .panel > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
+
+  /* ---- 13b. Search results, scan, confirm -------------------------------- */
+  .results { display: flex; flex-direction: column; }
+  .result { display: flex; gap: var(--space-4); align-items: center; padding: var(--space-3) 0; border-top: 1px solid var(--line);
+    color: var(--text); text-decoration: none; }
+  .result:first-child { border-top: 0; }
+  .result .th { width: 72px; flex: none; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken); border-radius: var(--radius-sm); }
+  .result .tag, .result .nm, .result .sub { display: block; }
+  .result .nm { font-size: 14px; }
+  .result .th > img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  .result .th > img.ph { object-fit: contain; padding: var(--space-2); }
+  .result .sub { font-size: 12px; color: var(--text-muted); }
+  .result mark { color: var(--text); background: var(--warning-wash); }
+  .scanbox { position: relative; aspect-ratio: 1; background: var(--scrim); color: var(--on-scrim);
+    display: flex; align-items: flex-end; justify-content: center; padding: var(--space-5); border-radius: var(--radius-lg); overflow: hidden; }
+  .scanbox .reticle { position: absolute; inset: 18%; border: 2px solid var(--on-scrim); border-radius: var(--radius-md); }
+  .scanbox .lb-hint { position: relative; color: var(--on-scrim-muted); font-size: 13px; }
+  /* A page that asks one question: the delete confirmation and the board detach.
+     Narrow, because the decision is the whole page and a long measure invites
+     skimming what has to be read; the banner carries the tone, and the two buttons
+     stand together at the foot, where the answer is given. */
+  .confirm { max-width: 520px; margin: var(--space-7) auto; }
+  .confirm > .tag { margin: var(--space-2) 0 0; color: var(--text-muted); }
+  .confirm > p { margin: var(--space-4) 0 0; }
+  /* What will go, counted. A list and not a sentence: each count is read on its
+     own, and a phone has to break them somewhere. */
+  .confirm .going { margin: var(--space-4) 0 0; padding-left: var(--space-6); }
+  .confirm .going li { margin: var(--space-2) 0; }
+  /* The URL that has to be pasted back. On a line of its own and selectable whole,
+     which is the difference between a double-click taking the URL and taking a
+     word, and breakable anywhere, because nobody reads one as a word. */
+  .confirm .url { margin: 0 0 var(--space-2); }
+  .confirm .url code { user-select: all; overflow-wrap: anywhere; }
+  .errorpage { max-width: 520px; margin: var(--space-7) auto; text-align: center; }
+  .errorpage .figure { color: var(--text-muted); }
+  /* A job: the tick, its words, then what it is about, when it was done and the drop.
+     The words take the room, so the rest sits at the right and wraps under them on a
+     phone rather than squeezing them to a word a line. */
+  .tasks { list-style: none; margin: 0; padding: 0; }
+  .tasks li { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+  .tasks li:first-child { border-top: 0; }
+  .tasks li > span:first-of-type { flex: 1 1 12em; min-width: 0; overflow-wrap: anywhere; }
+  .tasks li .tag { color: var(--text-muted); }
+  /* What the job is about, when it was done and the drop wrap as one group, so a phone
+     puts them on a line of their own under the words rather than stranding the drop. */
+  .tasks li > .acts { display: flex; align-items: center; gap: var(--space-3); margin-left: auto; }
+  .tasks li.done > span:first-of-type, .tasks.quiet li > span:first-of-type { color: var(--text-muted); }
+  .tasks li.done > span:first-of-type { text-decoration: line-through; }
+  .tasks form { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+  .tasks input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent-fill); }
+  @media (pointer: coarse) { .tasks input[type=checkbox] { width: 22px; height: 22px; } }
+  .tasks .about .select { width: auto; max-width: 16em; }
+  /* A row of boxes and the button that sends them: the add forms under a panel's list.
+     Each box asks for a share of the row and wraps to the next line before it is too
+     narrow to type in. */
+  .addrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-4); }
+  .addrow > .input, .addrow > .select { flex: 1 1 160px; width: auto; min-width: 0; }
+  .addrow > .input.wide { flex: 3 1 240px; }
+  .addrow > .input.short { flex: 0 1 130px; }
+  /* In a table cell the row sits under what it edits, closer than under a list. */
+  .table .addrow { margin-top: var(--space-2); }
+  .table .chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+  /* One thing a file is attached to and the button that takes it off again: one
+     item, wrapping together, so the button is never left under a chip it no longer
+     looks like it belongs to. */
+  .attached { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-3) var(--space-1) 0; }
+  .addrow > textarea.input { flex: 1 1 100%; }
+  .models { columns: 2 320px; column-gap: var(--space-6); }
+  .models section { break-inside: avoid; margin-bottom: var(--space-5); }
+  .models h2 { font-size: 14px; font-weight: 600; margin-bottom: var(--space-2); }
+  .models .m { display: flex; gap: var(--space-4); padding: 3px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .models .m > :first-child { flex: 1; min-width: 0; }
+  .models .m .y, .models .m .c { font-family: var(--font-data); color: var(--text-muted); }
+  .models .m .c { flex: 0 0 150px; }
+  /* A model the register holds one of: the name set heavier and the count after
+     it. Weight, not colour, because the page is read in both themes and by people
+     who cannot tell two inks apart. */
+  .models .m.have > :first-child { font-weight: 600; }
+  .models .m .n { font-family: var(--font-data); font-weight: 400; color: var(--text-muted); }
+
+  /* ---- 14. Empty state, toolbar, pager ------------------------------------ */
+  .empty { padding: var(--space-7) var(--space-4); text-align: center; color: var(--text-muted); }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: var(--space-4) 0; }
+  .toolbar > * { min-width: 0; max-width: 100%; }
+  .toolbar .select { width: auto; }
+  /* Two menus, one row, on a phone: which category and in what order are one
+     sentence, and a row each spent two lines of the screen saying it. */
+  @media (max-width: 620px) { .toolbar .select { flex: 1 1 140px; } }
+  .pager { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-5); }
+  .pager .where { font-family: var(--font-data); font-size: 13px; color: var(--text-muted); }
+
+
+  /* ---- 14b. Item nav (breadcrumb + previous / next) ----------------------- */
+  .itemnav { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+  .itemnav .where { font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
+
+  /* ---- 14c. Bottom sheet -------------------------------------------------- */
+  .sheet { background: var(--surface-raised); border: var(--border-w) solid var(--line-strong); border-bottom: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: var(--space-3) var(--space-3) var(--space-4);
+    box-shadow: var(--shadow-pop); }
+  /* Sized as a target and drawn as a grip: the bar is the middle of a box a thumb can
+     hit, which is what it is actually aiming at. */
+  .sheet .grip { display: block; min-height: 22px; margin-bottom: var(--space-2); cursor: pointer; }
+  .sheet .grip::before { content: ""; display: block; width: 36px; height: 4px; margin: 0 auto;
+    background: var(--line-strong); border-radius: var(--radius-pill); }
+  .sheet form { margin: 0; }
+  .sheet [aria-current="page"] { font-weight: 600; }
+  .sheet a, .sheet button { display: flex; align-items: center; gap: var(--space-4); width: 100%; min-height: var(--tap);
+    padding: 0 var(--space-4); font-size: 16px; text-align: left; color: var(--text); background: none; border: 0;
+    border-radius: var(--radius-sm); text-decoration: none; }
+  .sheet a:hover, .sheet button:hover { background: var(--surface-hover); }
+  .sheet svg { width: 20px; height: 20px; flex: none; color: var(--text-muted); }
+  .sheet hr { margin: var(--space-3) 0; border: 0; border-top: 1px solid var(--line); }
+
+  /* ---- 14d. Lightbox chrome ----------------------------------------------- */
+  /* touch-action: none across the whole overlay, not only the photo: a flick that
+     starts on the dark above or below the photo is still a flick, and left to itself
+     the phone would scroll the page underneath with it. Shown by app.js with .open. */
+  .lb { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center;
+    background: var(--scrim); color: var(--on-scrim); touch-action: none; }
+  .lb.open { display: flex; }
+  /* The stage is the whole of the window the photo may use, not the photo's own box,
+     so the zoom is free to spend the bands either side of a tall photo. The overlay
+     does its own pinch: left to itself the browser would zoom the whole page. */
+  .lb .lb-stage { position: relative; width: 92vw; height: 84vh; touch-action: none; }
+  /* Zoom and pan ride on this wrapper's transform from the stage's top-left corner,
+     so the pan bounds and the crop maths measure against one untransformed box. Its
+     background is the thumbnail's own copy, stretched to the size the photo is about
+     to be, so the photo grows out of the thumbnail on the way in. */
+  .lb .lb-fit { position: absolute; left: 0; top: 0; line-height: 0; transform-origin: 0 0; will-change: transform;
+    border-radius: var(--radius-md); background-size: 100% 100%; background-repeat: no-repeat; }
+  .lb img { display: block; width: auto; height: auto; max-width: 92vw; max-height: 84vh;
+    border-radius: var(--radius-md); cursor: zoom-in; user-select: none; -webkit-user-drag: none; }
+  .lb .lb-stage.zoomed { overflow: hidden; cursor: grab; }
+  .lb .lb-stage.zoomed img { cursor: grab; }
+  .lb .lb-stage.zoomed.panning, .lb .lb-stage.zoomed.panning img { cursor: grabbing; }
+  .lb .lb-stage.cropping, .lb .lb-stage.cropping img { cursor: crosshair; }
+  /* Close and the arrows stand over the stage, which spans nearly the whole window
+     and would otherwise swallow their clicks. They fade with the backdrop: a photo on
+     its way home to its thumbnail is uncovering the page it belongs to, and controls
+     standing over that page belong to nothing. --chrome is written by the script. */
+  .lb .lb-close, .lb .lb-nav { position: absolute; z-index: 2; padding: 0 var(--space-4); font-size: 30px;
+    line-height: 1.3; color: var(--on-scrim); background: none; border: 1px solid var(--on-scrim-muted);
+    border-radius: var(--radius-md); cursor: pointer; user-select: none; opacity: var(--chrome, 1); }
+  .lb .lb-close:hover, .lb .lb-nav:hover { box-shadow: inset 0 0 0 1px var(--on-scrim); }
+  .lb .lb-nav { top: 50%; transform: translateY(-50%); padding: var(--space-2) var(--space-5); font-size: 38px; }
+  .lb .lb-close { top: 3vh; right: 3vw; }
+  .lb .lb-prev { left: 3vw; } .lb .lb-next { right: 3vw; }
+  .lb .lb-hint { font-size: 12px; color: var(--on-scrim-muted); }
+  .lb .lb-count { font-family: var(--font-data); font-size: 12px; color: var(--on-scrim-muted); }
+  .lb .lb-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-4); }
+  /* On the scrim a button is drawn in the scrim's own colours, whatever the page's
+     mode: the lightbox is dark in both. Fill and text in one rule. */
+  .lb .btn { background: none; color: var(--on-scrim); border-color: var(--on-scrim-muted); }
+  .lb .btn:hover { background: none; box-shadow: inset 0 0 0 1px var(--on-scrim); }
+  .lb .btn.danger { background: none; color: var(--on-scrim-danger); border-color: var(--on-scrim-danger); }
+  .lb .btn.on { color: var(--on-scrim); border-color: var(--on-scrim); box-shadow: inset 0 0 0 1px var(--on-scrim); }
+  .lb :focus-visible { outline-color: var(--on-scrim); }
+
+  /* ---- 14e. Bezel swatch and the yellowing ladder -------------------------
+     The colours are data, not theme: real plastic. In the product each is a class
+     written into the server-built stylesheet; here the preview states them. The
+     edge is line-strong so white on white and black on black are still swatches. */
+  .bezel { display: inline-block; width: 32px; height: 21px; flex: none; vertical-align: middle;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-xs); }
+  .bezel.sm { width: 22px; height: 15px; }
+  .bezel.none { background: repeating-linear-gradient(45deg, var(--surface-raised) 0 3px, var(--line-strong) 3px 4px); }
+  .ladder { display: inline-flex; gap: 3px; }
+  .ladder .bezel.is-chosen { outline: var(--focus-w) solid var(--accent); outline-offset: 1px; }
+
+  /* ---- 14f. Login, settings, page headings -------------------------------- */
+  .loginbox { max-width: 360px; margin: var(--space-7) auto; }
+  .pagehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); margin-bottom: var(--space-4); }
+  .pagehead .count { font-size: 13px; color: var(--text-muted); }
+  .figure { font-size: 54px; line-height: 1.1; font-weight: 600; }
+  .statgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+  .twocol { display: grid; gap: var(--space-6); grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr)); }
+  /* The numbers page. The sentence under the figure is in the prose face, but not
+     `.prose`: that keeps the line breaks it was written with, and this one is written
+     across the lines of a template. Every figure is a link, and the links are quiet --
+     the ink around them until hovered -- so the page reads as numbers rather than as
+     a page of links. */
+  .lead { font-family: var(--font-display); font-size: 16px; line-height: 1.6; max-width: 70ch; }
+  .lead .n { font-weight: 600; }
+  .numbers .sub { margin: 0 0 var(--space-3); font-size: 13px; color: var(--text-muted); }
+  .numbers .figure a, .numbers .muted a, .numbers .lead a, .bars a { color: inherit; text-decoration: none; }
+  .numbers .figure a:hover, .numbers .muted a:hover, .numbers .lead a:hover, .bars a:hover {
+    color: var(--accent); text-decoration: underline; }
+  a.stattile { display: block; color: var(--text); text-decoration: none; }
+  a.stattile:hover { border-color: var(--accent); }
+  /* The one project drawn for today: its things' photographs, then what it is and what
+     is left on it, beside them where there is room and under them where there is not. */
+  .today > .pbody { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-4); }
+  .today .shots { display: flex; gap: var(--space-3); }
+  .today .shots > .cardthumb { width: 120px; }
+  .today .what { flex: 1 1 260px; min-width: 0; }
+  .today h4 { font-size: 16px; }
+  .today h4 a { font-family: var(--font-display); }
+  .today .todo { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .today .todo li::before { content: "\25CB  "; color: var(--text-muted); }
+  .today .todo li.more::before { content: none; }
+  @media (max-width: 560px) { .today .shots > .cardthumb { width: 96px; } }
+  .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--line);
+    font-size: 13px; color: var(--text-muted); }
+
+  /* ---- 14g. Form errors ----------------------------------------------------
+     The one place explanation is printed under a control rather than put in a title:
+     a person cannot act on an error they can only find by hovering. Every pair here is
+     already in the matrix - danger on the surfaces, text and danger on danger-wash. */
+  .field.is-invalid > label, .field.is-invalid > .lbl { color: var(--danger); }
+  .field.is-invalid .input, .field.is-invalid .select {
+    border-color: var(--danger-line); box-shadow: inset 0 0 0 1px var(--danger-line); }
+  .field .err { display: flex; align-items: flex-start; gap: var(--space-2); margin-top: var(--space-2);
+    font-size: 13px; line-height: 1.4; color: var(--danger); }
+  .field .err::before { content: "!"; flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px;
+    margin-top: 1px; font-size: 11px; font-weight: 700; color: var(--danger); border: 1.5px solid currentColor; border-radius: 50%; }
+  .errsum { margin: var(--space-4) 0 var(--space-5); padding: var(--space-4) var(--space-5); color: var(--text);
+    background: var(--danger-wash); border: var(--border-w) solid var(--danger-line); border-radius: var(--radius-md); }
+  .errsum h2 { font-size: 14px; font-weight: 600; color: var(--danger); }
+  .errsum ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); }
+  .errsum li + li { margin-top: var(--space-1); }
+  .errsum a { color: var(--text); }
+
+  /* ---- 14h. Search suggestions ---------------------------------------------
+     The combobox under the banner's search: a listbox of the first few matches, then the
+     way to all of them. One highlight for pointer and arrow keys. On the highlighted row
+     everything is `text`, because only text on surface-hover is in the matrix. */
+  .searchwrap { position: relative; }
+  .suggest { position: absolute; top: calc(100% + var(--space-2)); left: 0; z-index: 20; width: max(100%, 380px);
+    max-width: calc(100vw - 2 * var(--space-4)); padding: var(--space-2); background: var(--surface-raised);
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-md); box-shadow: var(--shadow-pop); }
+  .suggest .sg { display: flex; align-items: center; gap: var(--space-3); padding: 6px var(--space-3);
+    border-radius: var(--radius-sm); color: var(--text); text-decoration: none; }
+  .suggest .sg[aria-selected="true"] { background: var(--surface-hover); }
+  .suggest .sg[aria-selected="true"] .tag, .suggest .sg[aria-selected="true"] .sub { color: var(--text); }
+  .suggest .sg .th { flex: none; width: 44px; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken);
+    border-radius: var(--radius-xs); }
+  .suggest .sg .t { min-width: 0; flex: 1; }
+  /* The thumbnail app.js draws in each row: a photograph, or the category's
+     placeholder drawing, sized as the card's thumbnail is. */
+  .suggest .sg img { flex: none; width: 44px; aspect-ratio: var(--thumb-ratio); object-fit: cover;
+    background: var(--surface-sunken); border-radius: var(--radius-xs); }
+  .suggest .sg img.ph { object-fit: contain; padding: var(--space-1); }
+  .combo { position: relative; }
+  .itemlist { margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+  .itemlist > li + li { margin-top: var(--space-2); }
+  .suggest .sg .nm { display: block; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .suggest .sg .tag { color: var(--text-muted); margin-right: var(--space-2); }
+  .suggest .sg .sub { display: block; font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .suggest mark { color: var(--text); background: var(--warning-wash); border-radius: 2px; }
+  .suggest .all { display: block; margin: var(--space-2) var(--space-1) 0; padding: var(--space-2) var(--space-3) var(--space-1);
+    border-top: 1px solid var(--line); font-size: 13px; color: var(--accent); }
+  .suggest .none { padding: var(--space-3); font-size: 13px; color: var(--text-muted); }
+  @media (pointer: coarse) { .suggest .sg { min-height: var(--tap); } }
+
+  /* ---- 14i. Photo upload ---------------------------------------------------
+     Picking is the whole gesture: the upload starts at once. A row per photograph while it
+     goes, each saying where it is in a word as well as a bar. */
+  .dropzone { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); padding: var(--space-5) var(--space-4);
+    text-align: center; color: var(--text); background: var(--surface-sunken);
+    border: 2px dashed var(--line-strong); border-radius: var(--radius-md); }
+  .dropzone .hint { color: var(--text-muted); }
+  .dropzone.is-over { border-color: var(--accent); background: var(--surface-hover); }
+  .dropzone .row { justify-content: center; }
+  .uploads { list-style: none; margin: var(--space-4) 0 0; padding: 0; }
+  .up { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center;
+    padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+  .up:first-child { border-top: 0; }
+  .up .th { width: 56px; aspect-ratio: var(--thumb-ratio); background: var(--surface-sunken); border-radius: var(--radius-xs); }
+  .up .nm { display: block; font-family: var(--font-data); font-size: 13px; overflow-wrap: anywhere; }
+  .up .st { display: block; margin-top: var(--space-1); font-size: 12px; color: var(--text-muted); }
+  .up .meter { display: block; height: 6px; margin-top: var(--space-2); overflow: hidden;
+    background: var(--accent-track); border-radius: var(--radius-pill); }
+  .up .meter > i { display: block; height: 100%; background: var(--accent-fill); }
+  .up.is-done .st { color: var(--success); }
+  .up.is-failed .st { color: var(--danger); }
+
+  /* ---- 14j. The lightbox as editor ----------------------------------------
+     Crop: a box dragged over the photograph, everything outside it under the scrim, a
+     handle at each corner with a 24px target, and a third-lines grid to square things up.
+     Tuned: the one-press fix is marked, and undoing it is offered in its place. */
+  .lb .ph { position: relative; overflow: hidden; }
+  .cropbox { position: absolute; border: 2px solid var(--on-scrim); box-shadow: 0 0 0 100vmax var(--scrim);
+    background-image: linear-gradient(90deg, transparent calc(33.333% - 0.5px), var(--on-scrim-muted) calc(33.333% - 0.5px) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px) calc(66.666% - 0.5px), var(--on-scrim-muted) calc(66.666% - 0.5px) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)),
+      linear-gradient(180deg, transparent calc(33.333% - 0.5px), var(--on-scrim-muted) calc(33.333% - 0.5px) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px) calc(66.666% - 0.5px), var(--on-scrim-muted) calc(66.666% - 0.5px) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)); }
+  .cropbox .h { position: absolute; width: 24px; height: 24px; display: grid; place-items: center; transform: translate(-50%, -50%); cursor: nwse-resize; }
+  .cropbox .h::after { content: ""; width: 12px; height: 12px; background: var(--on-scrim); border: 1px solid var(--scrim); }
+  .cropbox .h.nw { left: 0; top: 0; } .cropbox .h.ne { left: 100%; top: 0; cursor: nesw-resize; }
+  .cropbox .h.sw { left: 0; top: 100%; cursor: nesw-resize; } .cropbox .h.se { left: 100%; top: 100%; }
+  .cropbox:focus-visible { outline: var(--focus-w) solid var(--on-scrim); outline-offset: var(--space-2); }
+  .lb .tuned { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 12px; color: var(--on-scrim);
+    padding: var(--space-1) var(--space-3); border: 1px solid var(--on-scrim-muted); border-radius: var(--radius-pill); }
+  .lb .lb-sep { width: 1px; align-self: stretch; background: var(--on-scrim-muted); opacity: .5; }
+
+  /* ---- 14k. First run ------------------------------------------------------ */
+  .firstrun { max-width: 640px; }
+  .firstrun .steps { list-style: none; margin: var(--space-5) 0 0; padding: 0; counter-reset: step; }
+  .firstrun .steps li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; gap: var(--space-4); align-items: center;
+    padding: var(--space-4) 0; border-top: 1px solid var(--line); counter-increment: step; }
+  .firstrun .steps li::before { content: counter(step); display: grid; place-items: center; width: 32px; height: 32px;
+    font-family: var(--font-data); font-weight: 600; color: var(--text); background: var(--surface-sunken);
+    border: 1px solid var(--line-strong); border-radius: 50%; }
+  .firstrun .steps li.done::before { content: "\2713"; color: var(--success); border-color: var(--success); background: var(--success-wash); }
+  .firstrun .steps li.done .t b { text-decoration: line-through; color: var(--text-muted); }
+  .firstrun .steps .t b { display: block; font-weight: 600; }
+  .firstrun .steps .t span { font-size: 13px; color: var(--text-muted); }
+  @media (max-width: 560px) { .firstrun .steps li { grid-template-columns: 32px minmax(0, 1fr); }
+    .firstrun .steps li > .btn { grid-column: 2; justify-self: start; } }
+
+  /* ---- 14i. The edit forms -------------------------------------------------
+     Long, dense and filled in with one hand at the bench (EditForm, PartForm,
+     ProjectForm). A line under a field says what goes in it and is printed rather
+     than put in a title, because a phone has nothing to hover. */
+  .field > .hint { margin-top: var(--space-2); }
+  .fieldset > .hint { margin-top: var(--space-3); }
+  /* A question with a few short answers: the answers side by side, wrapping. The
+     box beside "custom" and the socket tick sit under them. */
+  .checks { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
+  .checks + .input, .field > .check.socketed { margin-top: var(--space-3); }
+  /* How many of each: the name, and a box sized for a count rather than a column. */
+  .countgrid { display: grid; gap: var(--space-3) var(--space-5);
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+  .countgrid .count { display: flex; align-items: center; justify-content: space-between;
+    gap: var(--space-3); font-size: 13px; }
+  .countgrid .count > .input { width: 72px; flex: none; }
+  /* The drives table stays a table and scrolls in its own box (the reflow rule): a
+     drive is read across its row, and squeezed to the page each box would show two
+     characters of a model and none of the bezel. */
+  .hscroll > .table.drives { min-width: 900px; }
+  .table.drives td { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+  /* Widths by what a column holds -- a menu of kinds, a capacity, a make and model --
+     sized so the table fits a desktop's form (918px inside the fieldset) and only
+     scrolls on a narrower screen. */
+  .table.drives th:nth-child(2), .table.drives th:nth-child(3) { width: 104px; }
+  .table.drives th:nth-child(4), .table.drives th:nth-child(5) { width: 80px; }
+  .table.drives th:nth-child(6) { width: 64px; }
+  .table.drives th:nth-child(7) { width: 130px; }
+  /* In a drive row the bezel stacks -- ladder, shade, yellowing -- because side by
+     side they want more width than the row has left. */
+  .table.drives .bezel-cell { flex-direction: column; align-items: stretch; gap: var(--space-2); }
+  .table.drives .bezel-cell > .select { flex: none; width: 100%; }
+  /* A bezel's two menus and the ladder that shows them. They wrap rather than shrink,
+     because two half-width menus name nothing useful; "Heavily yellowed" is the
+     widest word either holds, and a menu that clips its own longest option is a
+     menu you have to open to read. */
+  .bezel-cell { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  .bezel-cell > .select { width: auto; min-width: 0; flex: 1 1 112px; }
+  .bezel-cell > .select[data-bezel="yellowing"] { flex-basis: 160px; }
+  /* The chart: shades down, stages across, each head with its line on what it
+     looks like. */
+  .colourchart { margin-top: var(--space-4); }
+  .colourchart > summary { cursor: pointer; font-size: 13px; color: var(--text-muted); }
+  .colourchart > .hint { margin: var(--space-3) 0; }
+  .hscroll > .table.bezelchart { min-width: 880px; }
+  .hscroll > .table.bezelchart th:first-child { width: 190px; }
+  .table.bezelchart th { white-space: normal; }
+  .table.bezelchart th > .hint { display: block; font-weight: 400; }
+  .table.bezelchart td { vertical-align: middle; }
+  /* Save and Cancel, stuck to the foot of the viewport so the primary action is
+     under the thumb however long the form is; on a phone, on top of the tab bar.
+     A control tabbed to near the foot would otherwise scroll to the viewport's edge
+     and arrive behind the bar, so the scroll stops short of it (as for the tab bar). */
+  :root { --actbar-clear: 64px; }
+  .actbar { position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: var(--space-3);
+    margin-top: var(--space-5); padding: var(--space-4) 0; background: var(--surface);
+    border-top: 1px solid var(--line); }
+  html:has(.actbar) { scroll-padding-bottom: calc(var(--actbar-clear) + var(--space-4)); }
+  /* While the cookie notice is up it holds the foot of the screen, and the bar stands
+     on it rather than behind it; the notice's own clearance already counts the tab
+     bar on a phone. */
+  html:has(#cookienote) .actbar { bottom: var(--notice-clear); }
+  html:has(#cookienote):has(.actbar) { scroll-padding-bottom: calc(var(--notice-clear) + var(--actbar-clear)); }
+  @media (max-width: 620px) {
+    .actbar { bottom: calc(var(--tabbar-clear) + env(safe-area-inset-bottom, 0px)); }
+    html:has(.actbar) { scroll-padding-bottom: calc(var(--tabbar-clear) + var(--actbar-clear) + var(--space-4) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote) .actbar { bottom: calc(var(--notice-clear-phone) + env(safe-area-inset-bottom, 0px)); }
+    html:has(#cookienote):has(.actbar) { scroll-padding-bottom: calc(var(--notice-clear-phone) + var(--actbar-clear) + env(safe-area-inset-bottom, 0px)); }
+  }
+
+  /* ---- 15. Preset picker (settings > Appearance) -------------------------- */
+  /* Radios, so it posts with no script, is one tab stop, and arrow keys move the
+     choice. The input is visually hidden, not display:none, so it keeps focus. */
+  .swatches { display: grid; gap: var(--space-4); margin: var(--space-5) 0 0; padding: 0; border: 0;
+    grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); }
+  .swatches > legend { padding: 0; margin-bottom: var(--space-2); font-size: 13px; font-weight: 500; color: var(--text-muted); }
+  .swatch-opt { position: relative; display: block; cursor: pointer; }
+  .swatch-opt input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+  /* A column filling its grid cell, with the name at the foot: "Big Box Beige" takes
+     two lines where the others take one, and a face that sized to its own name would
+     leave the two beside it short and the row ragged. */
+  .swatch-opt .face { display: flex; flex-direction: column; height: 100%; overflow: hidden;
+    border: var(--border-w) solid var(--line-strong);
+    border-radius: var(--radius-md); background: var(--surface-raised); }
+  .swatch-opt .name { display: flex; justify-content: space-between; gap: var(--space-3);
+    margin-top: auto; padding: var(--space-2) var(--space-3); font-size: 13px; color: var(--text); }
+  .swatch-opt .name i { font-style: normal; color: var(--text-muted); visibility: hidden; }
+  .swatch-opt input:checked + .face { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .swatch-opt input:checked + .face .name i { visibility: visible; color: var(--accent); }
+  .swatch-opt input:focus-visible + .face { outline: var(--focus-w) solid var(--focus); outline-offset: var(--focus-w); }
+  .swatch-opt input:disabled + .face { opacity: .55; border-style: dashed; }
+  /* The miniature: a page cut in half, light on the left and dark on the right,
+     each half drawn with that preset's own tokens by scoping data-theme to it. */
+  .mini { display: grid; grid-template-columns: 1fr 1fr; height: 72px; }
+  .mini > span { display: flex; flex-direction: column; gap: 5px; padding: var(--space-3); background: var(--surface); }
+  .mini .b { height: 9px; background: var(--band); }
+  .mini .t { height: 3px; width: 80%; background: var(--text); }
+  .mini .m { height: 3px; width: 55%; background: var(--text-muted); }
+  .mini .a { height: 11px; width: 26px; margin-top: auto; background: var(--accent-fill); border-radius: var(--radius-xs); }
+  /* The accent picker: the same radio pattern, smaller faces. Each face is a real
+     primary button and a real link drawn in that accent, for the preset in force,
+     so what the owner sees is what they will get, already adjusted to pass. */
+  .swatches.accents { grid-template-columns: repeat(auto-fill, minmax(min(104px, 100%), 1fr)); gap: var(--space-3); }
+  .accents .face { padding: var(--space-3); }
+  .accents .demo { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); }
+  .accents .demo .dot { width: 22px; height: 22px; flex: none; background: var(--accent-fill); border-radius: var(--radius-xs); }
+  .accents .demo .lnk { font-size: 13px; color: var(--accent); text-decoration: underline; }
+  .accents .name { padding: 0; }
+
+  /* The letters a Ports box takes, printed under it (#98): a pair to a cell so a
+     letter never wraps away from what it stands for, and the letter in the text
+     colour so the eye finds it first. */
+  .portkey { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
+  .portkey span { white-space: nowrap; }
+  .portkey b { color: var(--text); }
+
+  /* ---- The account pages (ADR-0032) --------------------------------------- */
+  /* Where you are signed in: a line to a browser, so a plain list rather than a
+     table of three columns that would only ever be read across. */
+  .signins { list-style: none; margin: 0 0 var(--space-3); padding: 0; }
+  .signins .session { padding: var(--space-2) 0; border-bottom: 1px solid var(--line); }
+  /* A new API token, shown once. Forty-odd characters with nowhere to break would
+     set the width of the page on a phone (accessibility-standards). */
+  code.token { overflow-wrap: anywhere; user-select: all; }
+}

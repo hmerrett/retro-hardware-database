@@ -9,8 +9,8 @@ where a boolean shows up when nobody decided it should.
 
 import pytest
 
+from conftest import content, log_out
 from app.models import Computer, Part
-from conftest import log_out
 
 
 def visitor(client):
@@ -67,7 +67,7 @@ class TestTheShortlist:
         kept = part(model="Keeping")["asset_id"]
         going = part(model="Going")["asset_id"]
         flag(client, "parts", going)
-        page = client.get("/for-sale").text
+        page = content(client.get("/for-sale").text)
         assert going in page
         assert kept not in page
 

@@ -69,6 +69,12 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   *Accepted*
 - [0023](0023-a-preference-is-not-configuration.md) — A preference is not
   configuration, and the environment still wins — *Accepted*
+- [0024](0024-a-label-is-laid-out-once-and-drawn-twice.md) — A label is laid out
+  once and drawn twice — *Accepted*
+- [0025](0025-a-print-agent-asks-and-is-never-called.md) — A print agent asks, and
+  is never called — *Accepted*
+- [0026](0026-the-print-button-is-a-link-until-a-device-says-otherwise.md) — The
+  print button is a link until a device says otherwise — *Accepted*
 - [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md) — A
   remembered vocabulary is deleted when it is turned off — *Accepted*
 - [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md) — A file is
@@ -81,6 +87,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0030](0030-a-pdf-is-read-in-the-browser.md) — A PDF is read in the browser, and
   everything else is still a download — *Accepted* (amends
   [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md))
+- [0031](0031-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
+  a design system, and its values are data — *Accepted*
 - [0032](0032-accounts-roles-and-a-site-to-hold-them.md) — Accounts, roles, and a
   site to hold them — *Accepted* (supersedes
   [0019](0019-running-open-is-supported-but-never-silent.md))

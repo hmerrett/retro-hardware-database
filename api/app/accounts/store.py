@@ -307,11 +307,86 @@ class TokenLine:
     last_used_at: datetime | None
 
 
-def tokens(db: Session) -> list[TokenLine]:
+def tokens(db: Session, user_id: int | None = None) -> list[TokenLine]:
+    """Every token, or one account's."""
+    q = db.query(ApiToken, User.username).join(User, User.id == ApiToken.user_id)
+    if user_id is not None:
+        q = q.filter(ApiToken.user_id == user_id)
+    rows = q.order_by(ApiToken.id).all()
+    return [TokenLine(t.id, name, t.name, t.created_at, t.last_used_at) for t, name in rows]
+
+
+# --- what the account pages read ----------------------------------------------
+
+
+@dataclass(frozen=True)
+class AccountLine:
+    """An account as the Accounts page lists it."""
+
+    id: int
+    username: str
+    role: str
+    active: bool
+    last_login_at: datetime | None
+
+
+def accounts(db: Session) -> list[AccountLine]:
     rows = (
-        db.query(ApiToken, User.username)
-        .join(User, User.id == ApiToken.user_id)
-        .order_by(ApiToken.id)
+        db.query(User, Membership.role)
+        .outerjoin(Membership, (Membership.user_id == User.id) & (Membership.site_id == SITE))
+        .order_by(User.username)
         .all()
     )
-    return [TokenLine(t.id, name, t.name, t.created_at, t.last_used_at) for t, name in rows]
+    return [
+        AccountLine(u.id, u.username, role or "", u.active, u.last_login_at) for u, role in rows
+    ]
+
+
+def password_is(user: User, password: str) -> bool:
+    """Whether this is the account's password: asked again before it is changed, so
+    a browser left signed in is not enough to take the account over."""
+    try:
+        return bool(_hasher.verify(user.password_hash, password))
+    except (VerificationError, InvalidHashError):
+        return False
+
+
+@dataclass(frozen=True)
+class SessionLine:
+    """A signed-in browser, as the account page lists it. `here` is the one the
+    list is being read in."""
+
+    id: int
+    created_at: datetime
+    last_seen_at: datetime | None
+    here: bool
+
+
+def sessions_of(db: Session, user_id: int, key: str = "") -> list[SessionLine]:
+    mine = digest(key) if key else ""
+    rows = (
+        db.query(UserSession)
+        .filter(UserSession.user_id == user_id, UserSession.expires_at >= _now())
+        .order_by(UserSession.created_at.desc())
+        .all()
+    )
+    return [SessionLine(s.id, s.created_at, s.last_seen_at, s.digest == mine) for s in rows]
+
+
+def end_other_sessions(db: Session, user_id: int, keep: str) -> int:
+    """Sign this account out of every browser but the one holding `keep`."""
+    gone = (
+        db.query(UserSession)
+        .filter(UserSession.user_id == user_id, UserSession.digest != digest(keep))
+        .delete()
+    )
+    db.commit()
+    return gone
+
+
+def revoke_token_of(db: Session, user_id: int, token_id: int) -> bool:
+    """Withdraw a token, only if it is this account's: the account page offers a
+    person their own, and an id typed into its form must not reach anybody else's."""
+    gone = db.query(ApiToken).filter(ApiToken.id == token_id, ApiToken.user_id == user_id).delete()
+    db.commit()
+    return bool(gone)

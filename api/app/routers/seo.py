@@ -14,7 +14,7 @@ from fastapi.responses import FileResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import settings
+from .. import machines, settings
 from ..common import PUBLIC_BASE_URL, branded
 from ..db import get_db
 from ..models import Computer, LogEntry, Part, Project
@@ -80,6 +80,9 @@ def sitemap_xml(request: Request, db: Session = Depends(get_db)) -> Response:
         (f"{base}/machines", None),
         (f"{base}/projects", None),
     ]
+    # Every catalogue model's page, beside the list: public for the same reason,
+    # and the page somebody searching for a machine by name would want to land on.
+    urls.extend((f"{base}/machines/{m['key']}", None) for m in machines.models())
     for c in db.query(Computer.asset_id).order_by(Computer.asset_id):
         urls.append((f"{base}/computers/{c.asset_id}", last.get(c.asset_id)))
     for p in db.query(Part.asset_id).order_by(Part.asset_id):

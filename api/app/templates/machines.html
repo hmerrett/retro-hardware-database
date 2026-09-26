@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Machine models — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
 
 {#
@@ -9,48 +10,29 @@
   paging and no filter but the browser's own find, because a list you can search
   with ctrl-F is worth more than a list with a search box on it.
 
-  A model that something in the register is filed as says so and links to them.
-  The rest are simply what was made and is not here, which is most of it, and
-  reads as the catalogue rather than as a gap.
+  Each name leads to the model's own page, which is where its paragraph, its
+  sockets and the ones of it here are. A model something in the register is filed
+  as is set heavier with the count after it; the rest are simply what was made and
+  is not here, which is most of it, and reads as the catalogue rather than as a gap.
+
+  The figure is the page's headline but not its heading, as on /stats.
 #}
+<h1 class="sr-only">Machine models</h1>
+<div class="figure">{{ n_models }}</div>
+<p class="muted flush">machine models, in {{ n_families }} families</p>
 
-<div class="hero">
-  <div class="n">{{ n_models }}</div>
-  <div class="of">machine models, in {{ n_families }} families</div>
-</div>
-
-<div class="cat">
+<div class="models mt-5">
   {% for family in families %}
   <section>
     <h2>{{ family.name }}</h2>
-    <div class="models">
-      {% for m in family.models %}
-      {#- The name, year and CPU on one grid line, and where there is a paragraph
-          about the model the whole line is the summary of a details element, so
-          the browser's own disclosure hides and reveals it. A model with nothing
-          written about it is the same line without the fold, so the two sit level
-          with each other and the years stay in one column either way. -#}
-      {% set line %}
-        <span class="line"><span class="nm">{{ m.model }}{% if held[m.key] %} <a
-          class="got" href="/browse?f=model&amp;v={{ m.key | urlencode }}"
-          title="{{ held[m.key] }} in the register"
-          aria-label="{{ m.model }}: {{ held[m.key] }} in the register"
-          >({{ held[m.key] }})</a>{% endif %}</span><span
-          class="yr">{{ m.year }}</span><span class="cpu">{{ m.cpu }}</span></span>
-      {% endset %}
-      {% if m.summary %}
-      <details class="mrow{{ ' have' if held[m.key] }}">
-        <summary>{{ line }}</summary>
-        <p>{{ m.summary | linked }}</p>
-      </details>
-      {% else %}
-      <div class="mrow{{ ' have' if held[m.key] }}">{{ line }}</div>
-      {% endif %}
-      {% endfor %}
-    </div>
+    {% for m in family.models %}
+    {#- Name, year and CPU in fixed tracks, so the years and CPUs align down the
+        page whatever length the names are. -#}
+    <div class="m{{ ' have' if held[m.key] }}"><span><a href="/machines/{{ m.key }}">{{ m.model }}</a>
+      {%- if held[m.key] %} <span class="n">{{ held[m.key] }}<span class="sr-only"> here</span></span>{% endif %}</span><span
+      class="y">{{ m.year }}</span><span class="c">{{ m.cpu }}</span></div>
+    {% endfor %}
   </section>
   {% endfor %}
 </div>
-
-<script defer src="/static/machines.js?v={{ js_ver['machines.js'] }}"></script>
 {% endblock %}

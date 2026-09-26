@@ -1,0 +1,9 @@
+{# The foot of an edit form: Save, and the way out without saving. Sticky, so the
+   primary action is under the thumb however long the form is; last in the form,
+   so that is what it sticks to the foot of. `cancel` is where leaving goes -- the
+   thing being edited, or the list a new one would have joined. #}
+{% import "_ui.html" as U with context %}
+<div class="actbar">
+  {{- U.button('Save', kind='primary', type='submit') -}}
+  {{- U.button('Cancel', href=cancel) -}}
+</div>

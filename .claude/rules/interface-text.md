@@ -28,21 +28,32 @@ too.
 
 ## Capitals
 
-Two conventions, and they were already in the code before they were written down
-here — this says which is which so that the next control does not have to guess.
+One convention, not two. 0.1 wrote a button in lower case and a field label
+capitalised, on the reasoning that one asks for an action and the other names a
+thing; v0.2 capitalises both, because that distinction was never one a reader had
+to be told about in the shape of the letters, and a page mixing the two reads as a
+page that has not decided.
 
-- **A button, a menu item or a tab is lower case.** `save`, `add note`, `delete`,
-  `browse`, `settings`, `log out`, `+ computer`. It is the register's voice:
-  quiet, and not shouting an instruction at you.
+- **A button, a menu item or a tab is capitalised.** `Save`, `Add note`, `Delete`,
+  `Browse`, `Settings`, `Log out`, `+ Computer`.
 - **A field label, a legend and a heading are capitalised.** `Manufacturer`,
-  `Acquired date`, `Serial number`; `Identity`, `Tracking`, `Appearance`. These
-  name a thing rather than ask for an action, and they read as the column of a
-  form.
+  `Acquired date`, `Serial number`; `Identity`, `Tracking`, `Appearance`.
 - **An acronym keeps its capitals wherever it falls** — `API docs`, `CPU family`,
   `RAM slots`. The rule is about case, not about spelling.
 
-Sentence case throughout either way: only the first word and the proper nouns,
-never Title Case On Every Word.
+Sentence case throughout: only the first word and the proper nouns, never Title
+Case On Every Word.
+
+**The case is not the template's to state.** A control's words are written
+capitalised at the source and passed through the `ui` filter —
+`{{ 'Mark done' | ui }}` — which lower-cases the first word only when the case is
+`lower`, and only where that word is written Like This, so `API docs` and `OK` keep
+their capitals either way (`web.button_text`). The filter asks the **Button text**
+setting on every use, so a save shows in the page the save returns; `cap` is the
+default and is what the list above describes, and 0.1's voice is what an
+installation gets by answering `lower`. So a new control
+writes its words capitalised and leaves the choice to the filter: `{{ 'mark done' }}`
+pins it to one answer and cannot be switched back.
 
 ## Why
 

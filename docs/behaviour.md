@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*1746 behaviours, from 45 files.*
+*2151 behaviours, from 63 files.*
 
 
 ## A file where text was expected
@@ -124,6 +124,117 @@ Regenerate with:
   The two doors do not open each other: the owner's credentials are not an agent's key, and an agent's key is not the owner's credentials.
 
 
+## Accent
+
+*test_accent.py — 21 behaviours*
+
+- the accent setting offers the preset and eight by name  
+  The preset's own accent and eight named colours, and the first is what a fresh install gets: the accent a preset brings is part of the look it is.
+- every offered accent is a colour the register can derive from  
+  A name in the picker with no colour behind it is a face that paints nothing.
+- your own takes a hex colour and nothing else  
+  The box takes any colour written as `#rrggbb`.
+- your own wins over the eight and giving it back is emptying it  
+  Two settings, one answer: the box wins while it has something in it, and the named choice is still there underneath when it is emptied.
+- a stored accent the register does not know falls back to the preset  
+  The value is spent on a colour written into a stylesheet.
+- every offered accent holds every pair in every preset and mode  
+  The eight, in the fourteen: 112 derivations, nine pairs each.
+- the button keeps the chosen colour exactly wherever it can  
+  The manual's promise, and the one that matters: the button is where an accent is recognised.
+- the hue is never changed  
+  Lighter or darker, and only that.
+- the writing on the button is white or near black  
+  Two answers, and the better of the two.
+- the track is the fill at a sixth over the page  
+  A bar's track is the fill, faint.
+- the sweep is the whole colour space  
+  A sweep that had quietly become 40 colours would pass every day and mean nothing, so its own shape is asserted before it is trusted.
+- any colour at all derives a set that passes  
+  Why the box may take a free-for-all: the derivation is a pure function and every colour in the space comes out of it holding all nine pairs.
+- as the preset writes no colours of its own  
+  The default answer leaves the preset's own accent where it is.
+- the chosen accent is stated for the preset and for both ways of asking for dark  
+  The same three blocks every preset file is written in: the light one, the one for a reader who has chosen dark, and the one for a reader whose device chose it for them.
+- the accent stylesheet declares nothing but the five tokens  
+  An accent is a colour, not a look.
+- every face in the accent picker is drawn in its own colour  
+  Nine faces, each a real button and a real link in the accent it is offering, derived for the preset in force -- so the owner is choosing the thing rather than a word for it.
+- the preset face shows the preset and not the chosen accent  
+  The first face has to go on meaning "as the preset" once an accent has been chosen.
+
+**The accent on the page**
+
+- the picker offers nine faces each drawn in what it offers  
+  The thing rather than a word for it: a face carries its own value, and `accent.css` is what paints that face in that colour.
+- the stylesheet is linked by a stamp of what it serves  
+  A colour that can change while the site is up, cached for a year: the two are only compatible if changing it changes the URL.
+- choosing one changes what is served and what is asked for  
+  The whole of the feature, end to end: an answer on the form, a different stylesheet, and a page that asks for the new one rather than the old.
+- a visitor is served the accent but is offered no say in it  
+  It is the installation's look, like the preset: a reader chooses light or dark and that is all.
+
+
+## Account pages
+
+*test_account_pages.py — 33 behaviours*
+
+
+**The accounts page**
+
+- it lists every account with its role and state
+- each name links to its own page
+- it is an administrators
+- it is reached from the settings page
+- its table says which way it runs
+
+**Adding somebody**
+
+- the box makes an account
+- the two passwords must agree
+- a refusal is said on the page and keeps the name
+- a name already taken is refused
+- a viewer cannot add anybody
+
+**An accounts own page**
+
+- its role can be changed
+- the last administrator is not made a viewer and the page says why
+- it can be switched off and on
+- the last administrator is not switched off
+- a forgotten password is replaced
+- its tokens are listed and revoked one at a time
+- an account nobody has is not found
+
+**Your account**
+
+- a viewer may open it
+- a visitor is sent to log in
+- it is in the menu for anybody signed in
+
+**Changing your password**
+
+- it asks for the one you have now
+- the two new ones must agree
+- it changes and this browser stays signed in
+- every other browser is signed out
+- a viewer changes their own
+
+**Where you are signed in**
+
+- each session is listed and this one is marked
+- signing out everywhere else leaves this browser in
+
+**Your tokens**
+
+- a new token is shown once
+- it needs a name
+- a viewer makes one of their own
+- your own is revoked
+- somebody elses is not yours to revoke
+- the pages carry the v0 2 components
+
+
 ## Accounts
 
 *test_accounts.py — 61 behaviours*
@@ -224,7 +335,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 550 behaviours*
+*test_api.py — 548 behaviours*
 
 
 **Typed columns**
@@ -521,7 +632,8 @@ Regenerate with:
   The name is a template global rather than a string in two places, because a cookie written under one name and read under another is not remembered.
 - a sort that no longer exists is not trusted  
   A stale or hand-edited cookie naming a sort the page dropped would otherwise leave the grid sorted by nothing.
-- it is written on the sorts own change and not on every keystroke
+- it is written when the sort is chosen and not when a link names one  
+  Opening a link somebody sent, with a sort in it, is not choosing one.
 - the helpers are defined before the page uses them  
   The gallery's script lives in the content block, so anything it calls has to be defined above it in the document.
 
@@ -538,9 +650,7 @@ Regenerate with:
 
 - random is the first option and so the default
 - the shuffle is dealt once and held  
-  Filtering and searching re-sort on every keystroke, so a shuffle that re-dealt each time would throw the cards up in the air while you typed.
-- a photoless item still sorts last  
-  The same rule the recency sorts follow: a shuffle that opens on a screenful of unphotographed things looks like a broken page, not a random one.
+  The hand is in the link, so reloading, turning the page or sending it to somebody shows the same shuffle rather than a fresh one.
 
 **What is gone is not counted**
 
@@ -759,10 +869,8 @@ Regenerate with:
 
 **Sorting the gallery**
 
-- a machine carries every key the menu sorts on
-- a part carries them too
-- what is not recorded is blank rather than absent  
-  A missing attribute reads as undefined in the sort; an empty one is what the blanks-last rule looks for.
+- year reads machines and parts alike
+- what is not recorded goes last
 - machines lead the category order  
   Category sorts by the vocabulary's own order, not the label's spelling, and a computer is not one of the part types.
 - the menu offers each of them
@@ -778,10 +886,10 @@ Regenerate with:
 - the history gives the minute to whoever can edit it
 - a visitor gets the day alone
 - a machine history is the same
-- the gallery sort keys lose the time too  
-  They are not on show, but a timestamp in the page source is a timestamp published all the same.
-- the cards arrive newest change first  
-  Dates alone are all the sort keys a visitor gets, and the browser's sort is stable, so the order the cards arrive in is what still settles a run of edits made on the same day.
+- the gallery page publishes no timestamp  
+  The recency sorts are done on the server now, so their keys are not in the page source at all -- where a timestamp would be published all the same, on show or not.
+- recently updated is newest change first  
+  Dates alone are all the sort keys a visitor gets, and the sort is stable, so the order the rows arrive in is what still settles a run of edits made on the same day.
 
 **Photo lookup**
 
@@ -988,8 +1096,8 @@ Regenerate with:
 - a quoted phrase must be contiguous
 - nothing matching says so
 - it reports what it searched
-- the browser is told what the server matched  
-  Otherwise the instant filter would hide rows that matched on a field the browser's own copy does not carry.
+- a match on a field the card does not show is still shown  
+  The card says nothing about the notes, and the search found it there.
 - searching is public
 
 **The first few matches while you type**
@@ -1494,6 +1602,46 @@ Regenerate with:
 - a segment of punctuation yields no drive
 
 
+## Edit forms
+
+*test_edit_forms.py — 22 behaviours*
+
+
+**The layout**
+
+- every form is on the v2 components
+- the machine form is in its sections
+- photographs are only a section on a new machine
+- there is one heading
+- editing a machine the heading names it and its tag
+- editing a part the heading names it and its tag
+- a new form says what it makes
+
+**Hints**
+
+- a line under a field is tied to it
+- a field with nothing to explain carries no description
+- the project forms explanations are tied too
+
+**The action bar**
+
+- save and cancel close the form
+- cancel on a new form goes back to the list
+- cancel when editing goes back to the thing
+- cancel on a part being added to a machine goes back to the machine
+- cancel on a part being added to a card goes back to the card
+
+**Drives and bezels**
+
+- the drives table scrolls in its own box
+- nothing recorded is one hatched swatch
+- a yellowing with no shade is one swatch of pale plastic
+- a chosen shade is a ladder with its stage outlined
+- the ladder is decoration beside the words
+- the colour chart is shades down and stages across
+- the chart keeps what each shade and stage looks like
+
+
 ## Enrich ssrf
 
 *test_enrich_ssrf.py — 2 behaviours*
@@ -1621,6 +1769,29 @@ Regenerate with:
 - a url cannot break out of its own href
 - what is not a string at all  
   The details tables hand this whole rows at a time -- a year, a date, the None of a column nobody filled in.
+
+
+## Error pages
+
+*test_error_pages.py — 12 behaviours*
+
+- a missing page is a page
+- a missing page arrives in the site chrome  
+  The search box above it is the way on from a dead end, so the page is the site's and not a bare sheet of its own.
+- a missing page says what happened and offers the gallery
+- an asset tag nothing is filed under gets the same page  
+  The label way in: RH-9999 is somebody else's tag, or a typo of yours.
+- a page that is not open says so
+- a fault at this end says so
+- a fault says nothing about itself  
+  What went wrong goes to the log.
+- a fault page carries the content policy  
+  The 500 is answered outside the middleware that sends the policy -- the exception has passed it by the time it is caught -- so the page sends its own.
+- an error page is not offered to a search engine
+- the json api answers an error as it always has  
+  Asked for in a browser or by a script alike: /api is a program's surface.
+- a client that did not ask for html keeps the json
+- a fault outside a page is the plain answer it was
 
 
 ## Files
@@ -1864,6 +2035,74 @@ Regenerate with:
 - the decision is written down
 
 
+## Gallery pages
+
+*test_gallery_pages.py — 41 behaviours*
+
+
+**Pages**
+
+- a page holds 48 cards
+- more than a page draws the pager
+- one page draws no pager
+- the pages together hold every item once
+- a page past the end shows the last
+- a page that is not a number is the first
+- the figures count everything not just the page
+- the pager carries the whole view
+- a browse page keeps its own view through the pager
+
+**The toolbar**
+
+- it is a form that submits with get
+- apply is there for a browser running no script
+- the view in the link is the view the menus show
+- a search is kept when the menus change
+- a browse view keeps its figure when the menus change
+- the shortlist submits to itself
+
+**Filters**
+
+- a category keeps to its kind
+- a category the page does not offer is ignored
+- disposed items are hidden on the gallery by default
+- the box shows them
+- a submitted form without the box hides them on a browse page
+- held back items are counted as a fraction
+- nothing held back says nothing
+- no match says so
+
+**Sorts**
+
+- name is a to z ignoring case
+- recently updated puts photographs first
+- recently updated is newest first and keeps the order of a tie
+- undated items go last both ways round
+- maker is a to z with the name settling a tie
+- category follows the catalogue order
+- asset number
+- random puts photographs first
+- the same deal is the same shuffle
+- a different deal is a different shuffle
+- filtering keeps each item where the hand put it
+
+**The deal**
+
+- arriving on random deals a hand and the pager carries it
+- the hand is kept when the menus change
+- another sort carries no hand
+
+**The sort cookie**
+
+- a link with no sort opens in the one last chosen
+- the link outranks the cookie
+
+**The hand off**
+
+- prev and next are handed every page of the list
+- each is handed over under the name on its card
+
+
 ## Healthz
 
 *test_healthz.py — 3 behaviours*
@@ -1900,6 +2139,51 @@ Regenerate with:
   A photograph's URL carries a stamp so it can be kept for a year and still never be stale: editing it changes the stamp, so the browser asks again.
 
 
+## Item pages
+
+*test_item_pages.py — 20 behaviours*
+
+
+**The head**
+
+- the page opens on the name the tag and the summary
+- there is one heading at the top
+- the owner has edit and duplicate beside prev and next
+- a visitor has neither
+- the way back is to the whole register
+
+**The display face**
+
+- an item page preloads the face its name is set in
+- the gallery does not
+
+**The side column**
+
+- the photographs come before the details  
+  In the source, so that one column on a phone reads summary, photograph, details: a visitor from a label wants to see they have the right thing.
+- the label panel prints both labels
+- a visitor has no label panel
+
+**A parts specification**
+
+- the specs are a panel of their own
+- a part with no specs has no panel
+
+**Fitted in**
+
+- a part in a machine names it and offers take out
+- a part on a card names the card and offers take out
+- taking it out makes it a spare
+- a spare says so and offers fit in
+- a visitor sees where it is and nothing to press
+
+**Take out on the lists**
+
+- a machines parts each offer take out
+- a cards mounted parts each offer take out
+- a visitor is offered neither
+
+
 ## Keyboard and motion
 
 *test_keyboard_and_motion.py — 12 behaviours*
@@ -1932,7 +2216,7 @@ Regenerate with:
 
 ## Locations
 
-*test_locations.py — 69 behaviours*
+*test_locations.py — 67 behaviours*
 
 
 **Recording where something is**
@@ -2036,9 +2320,8 @@ Regenerate with:
   The half that is easy to miss.
 - the owners search does match on it  
   The other direction, so what is private is a rule about who is asking rather than a column quietly dropped from the search for everybody.
-- the gallery card does not carry it to a visitor  
-  The cards hold a condensed blob the browser filters on.
-- the gallery card carries it for the owner
+- the gallery carries it to nobody  
+  The cards used to hold a condensed blob the browser filtered on, and the question was who it was written for.
 - turning it on shows a visitor the row
 - turning it on lets a visitor search on it
 - a visitor is shown no inherited location either  
@@ -2057,9 +2340,8 @@ Regenerate with:
 - a chip deep in a machine is found too
 - a part kept somewhere else is not found by its machines location  
   It is not there, and the page does not say it is.
-- the gallery card carries the inherited answer  
-  The cards hold a blob the browser filters on without asking the server, so a card that did not carry it would vanish from a type-ahead the full search still answers.
-- a visitors card does not
+- no card carries the inherited answer either  
+  The inherited answer is findable by searching for it, which the tests above hold; what it is not is written into the gallery's markup.
 
 **The hidden columns are asked for rather than assumed**
 
@@ -2077,6 +2359,60 @@ Regenerate with:
 **The decision is written down**
 
 - the adr is there and indexed
+
+
+## Login and confirm pages
+
+*test_login_and_confirm_pages.py — 24 behaviours*
+
+
+**The login page**
+
+- it says that browsing needs no login  
+  The page is where somebody lands who followed a link they did not mean to, and the useful thing to tell them is that they never needed it.
+- on a closed site it does not say browsing needs no login  
+  On a site closed to visitors, browsing is what the login is for.
+- it says that signing in keeps one cookie
+- a wrong name and a wrong password are answered the same  
+  Which half was wrong would tell a stranger whether a guessed name exists.
+- the refusal is a danger banner a screen reader announces
+- being turned away for trying too often says so  
+  Not "incorrect": nothing was read.
+- the password manager is told which box is which
+- the refusal stands between the boxes and the button  
+  Read in the order it is met: what went wrong, then the thing to press.
+- it is the v0 2 login box
+
+**Confirming A delete**
+
+- it counts what will go
+- the destructive button is the danger one  
+  Never `primary`.
+- cancel stands beside it at the same size  
+  The same size, because an escape made small is an escape made hard.
+- it asks for the item s own url
+- a paste that went wrong comes back as a danger banner
+- there is one way back and it is the cancel button  
+  A crumb above the heading and a Cancel below it are two ways to the same place; the way out belongs with the decision.
+- it is the v0 2 confirm page
+- a part s page asks the same way
+
+**Confirming A detach**
+
+- it is the same page with a warning banner  
+  Nothing is destroyed: the machine keeps its tag, its history and its photographs, and one more thing gets a tag of its own.
+- its button is primary because nothing is lost
+- it still says what moves and what stays
+- the portrait can still be taken here  
+  The board is out and on the bench, which is the one moment it can be photographed.
+- there is one way back and it is the cancel button
+
+**What the stylesheet no longer carries**
+
+- the rule these pages were the last users of is gone  
+  0.1's app.css shrinks by what each migrated group stops using; a rule left behind is a rule that has to be reasoned about at the end of the phase.
+- the catalogue still names the spectrum  
+  The detach page reads the catalogue, so these tests assume it is there.
 
 
 ## Machines
@@ -2416,6 +2752,44 @@ Regenerate with:
 - 0045 can be downgraded and upgraded again
 
 
+## Model pages
+
+*test_model_pages.py — 19 behaviours*
+
+
+**The list**
+
+- every name leads to its own page
+- a model held is set heavier with its count
+- a model nothing is filed as carries no count
+- the paragraph is no longer folded into the list
+
+**A models page**
+
+- it is public
+- a key the catalogue does not have is not found
+- it is named in the sitemap
+- the way back is to every model
+- the name heads it with its family and year under
+- the paragraph is printed in ordinary ink
+- as catalogued says what the catalogue records
+- what the catalogue does not say is left out
+- a model without a paragraph prints none
+- each socket is a cell with the chips seen in it
+- a model with no sockets has no chips panel
+
+**In this collection**
+
+- nothing filed says so
+- machines and boards filed as it are listed
+- a disposed one is listed and says so
+
+**Its files**
+
+- a model has no files panel of its own  
+  A file is linked to items and not to models, so a manual uploaded from a unit's page is on that unit's page -- and the model's page, which would have been a second place to find it, draws no Files panel at all rather than an empty one that implies a model could hold one.
+
+
 ## Models match migrations
 
 *test_models_match_migrations.py — 2 behaviours*
@@ -2423,6 +2797,73 @@ Regenerate with:
 - autogenerate against the migrated schema finds nothing to do
 - a column that changes nullability is caught  
   The check above is only worth having if it can fail.
+
+
+## Navigation
+
+*test_navigation.py — 28 behaviours*
+
+
+**Which layout**
+
+- a new installation gets the rail  
+  Decided when the design was signed off: the rail spends the margin beside the column rather than the column, and the section you are in stays in sight while you work.
+- the top banner is the other answer  
+  Chosen, the page is what 0.1 was: no rail in the markup at all, rather than one hidden by a stylesheet.
+- an answer nobody offered falls back to the rail  
+  The value is written into a class on every page, so it is checked on the way out rather than trusted.
+- the rail is on every page and not only the front one  
+  Navigation that is on some pages is a page you get lost on.
+- the search and the scan stay in the banner  
+  The two things wanted from every page are in the same place whichever layout is chosen; the stylesheet puts the rest of the banner away.
+
+**What the rail holds**
+
+- the five sections are the banner s five  
+  The same places, laid down instead of across -- not a second list to fall out of step with the first.
+- a section says how much is in it
+- the numbers page carries no count  
+  It is figures about the collection; a count of those is a fact about the software rather than about what is on the shelf.
+- the current section is marked
+- the owner can add in one press  
+  In a rail there is room to unfold the + New menu, and a menu costs the same press twice.
+- the owner sees what they last worked on  
+  The rail's own argument: at a bench you go back to the same machine all afternoon.
+- the foot holds the theme settings and the way out
+- every item is named in words as well as drawn  
+  Collapsed the words are hidden and the icon is all that is left, and an icon names nothing (accessibility-standards).
+
+**What A visitor sees**
+
+- a visitor is offered nothing that is not theirs
+- a visitor still sees the counts  
+  The size of a collection is part of what a catalogue is for.
+- a private project is not counted for a visitor  
+  Hiding the row and publishing its number is half a decision (ADR-0004).
+- an unpublished file is not counted for a visitor  
+  A file is published by hand (ADR-0009), and a count that included the rest would announce exactly what the tick keeps back.
+
+**When the database cannot answer**
+
+- the counts come back empty rather than raising
+- the recent list comes back empty rather than raising
+- the page is still drawn  
+  A rail with no figures beside its sections is still a rail; a rail that raises is a second error on top of the first.
+
+**Folding it away**
+
+- it folds with a link and no script  
+  A plain link, so it works on a browser running nothing at all.
+- following it folds the rail and comes back
+- a folded rail offers to open again
+- opening it again stores nothing  
+  Open is the state a browser that has never been asked is already in, so there is nothing to keep.
+- the choice is the device s and not the installation s  
+  A cookie and not a row: the workshop screen holds it open while the laptop folds it away.
+- it will not be sent anywhere off this site  
+  A redirect that follows whatever it is handed is an open redirect, whatever it was built for.
+- a state it does not know is a 404
+- a visitor may fold it too
 
 
 ## Openapi contract
@@ -2479,6 +2920,63 @@ Regenerate with:
 - a part can be tuned too
 
 
+## Presets
+
+*test_presets.py — 6 behaviours*
+
+- the stylesheets are the ones the design data writes  
+  tokens.css and the preset files are generated.
+- every font is served from the site with its licence  
+  The faces are ours to serve, not a font service's: the CSP allows no other origin, and a face that is named but missing falls back without a word, so the page looks right to whoever has the font installed and wrong to everyone else.
+- every preset states every colour in both modes  
+  A token a preset leaves out is inherited from the default preset underneath, which is a colour chosen for a different page -- a black band's text left white-on-white, say.
+- every pair holds in every preset and mode  
+  518 pairs: the 37 the design uses, in fourteen themes.
+- a preset names no component  
+  A preset is token values and nothing else (ADR-0031).
+- every face in the picker is drawn in its own colours  
+  The settings page shows each preset as a miniature, and a miniature painted in the colours of the preset already in force would show seven of the same thing.
+
+
+## Project form items
+
+*test_project_form_items.py — 21 behaviours*
+
+
+**The list**
+
+- a new project has an empty list and the box
+- editing lists what it is about with remove
+- save is the forms default button  
+  Enter in any box submits with the first submit button in the form.
+- the box offers suggestions as a combobox
+
+**Adding before saving**
+
+- add item by tag lists it and saves nothing
+- add item by the whole name of one thing
+- a name nothing has is refused under the box
+- a name two things share asks for the tag
+- a project is not something to add
+- adding what is already listed lists it once
+- remove takes it off the list and saves nothing
+- a thing on another project says which
+
+**Saving**
+
+- a new project is made with its items
+- a tag left in the box is added on save
+- a name left in the box that is nothing stops the save
+- saving an edit adds and removes the difference
+- saving untouched changes no membership
+- saving moves a thing from another project
+- an edit posted without the list leaves the membership alone  
+  A post that never carried the list -- an older page, a script -- says nothing about what the project is about, and is not read as "about nothing".
+- the form says it carries the list
+- cancel leaves the list as it was  
+  Cancel is a link: nothing is posted, so the membership is what it was.
+
+
 ## Project of the day
 
 *test_project_of_the_day.py — 17 behaviours*
@@ -2517,6 +3015,47 @@ Regenerate with:
   The reason this one was drawn and not another, said plainly.
 - a project with nothing written down says so
 - one waiting on a part says that instead
+
+
+## Project pages
+
+*test_project_pages.py — 18 behaviours*
+
+
+**The list**
+
+- what is over is said by its status not faded
+- what is still coming keeps its column
+- on a phone each value says what it is  
+  Stacked, the row has lost its headings.
+- it opens on a heading and the count
+
+**The page head**
+
+- the way back and the owners edit and delete come first
+- a visitor gets the way back and nothing else
+- then the name its status and its tag
+
+**The panels**
+
+- a panel each in the order the manual gives
+- the label panel has the two print buttons
+- a visitor gets no label panel
+- the details are the status the dates and the notes
+
+**A tick**
+
+- each job is a tick that sends itself
+- a done job is ticked and struck through
+- a tick sets what the box shows rather than flipping  
+  Sent twice -- a second tab, a double press -- it is still ticked.
+- a visitor sees the tick and cannot send it
+- the item pages work panel ticks the same way
+
+**What A job is about**
+
+- the owner chooses it from a menu that sends itself
+- a visitor reads the tag of the thing
 
 
 ## Projects
@@ -2621,7 +3160,7 @@ Regenerate with:
 **The list on A phone**
 
 - a count of nothing is an empty cell not a dash  
-  The dash is drawn by the stylesheet.
+  A dash written into the cell would be content, and content is not something `:empty` can see past -- so the phone rule that drops the cell would never match and the row would carry three columns of nothing across the narrowest screen.
 - a count that exists is written in
 - the columns are labelled for the stacked view  
   Stacked, a bare "0/1" under a name says nothing.
@@ -2818,7 +3357,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 39 behaviours*
+*test_settings.py — 63 behaviours*
 
 
 **Reaching the page**
@@ -2843,6 +3382,33 @@ Regenerate with:
   Blank is not a name, and a site with no name in its banner is a site that looks broken rather than one that looks unnamed.
 - the api documentation keeps the software s name  
   The installation is renamed; the software is not.
+
+**The look**
+
+- the looks offered are the ones there is a stylesheet for  
+  The page reads the design data rather than a list of its own, so it cannot come to offer a look nobody generated a stylesheet for -- which would be a face that paints the site in the default and says nothing.
+- a site wears the default look and says nothing  
+  No attribute, and no second stylesheet fetched to say what the tokens already say: the default preset is what tokens.css declares on :root.
+- a chosen look is on the page before it is painted  
+  Server-rendered like the theme beside it, and for the same reason: a look applied after paint is the wrong colours flashing on every page.
+- the look and the theme are two answers and not one  
+  The preset says which pair of looks; the theme says which of the two.
+- a face shows both a light and a dark half  
+  A preset is two sets of colours and the reader's device picks between them, so a face showing one of them is a promise about half the site.
+- the chosen face says so in words  
+  An outline is a colour, and somebody who cannot see the outline is left guessing which of seven is on -- so the answer is also written down.
+- the faces are one group of radios  
+  Radios and not buttons: it posts with no script, it is one stop for the Tab key, and the arrow keys move the choice, all of which come free from the control the browser already has (accessibility-standards).
+- the input is hidden without being taken off the page  
+  `display: none` would take the radios out of the tab order and leave the picker reachable by the mouse alone.
+- a visitor is not offered the look at all  
+  It is the installation's, not the device's.
+- a query string cannot dress the site  
+  The look comes from the setting and from nowhere a stranger can type.
+- a name the register does not know comes up in the default  
+  The value is spent on a stylesheet's path, so it is checked against what exists rather than trusted: a row edited by hand or a variable with a typo in it leaves the site in the default look, not in none at all.
+- a pinned look is shown and refuses an answer  
+  Like any other pinned setting: the environment is the deployment speaking, and the faces grey rather than take a click that a restart would forget.
 
 **Search engines**
 
@@ -2893,6 +3459,31 @@ Regenerate with:
 - an empty variable is not a pin  
   Compose passes `${RHDB_WATERMARK:-}`, so an unset variable arrives as an empty string rather than as nothing at all -- which is how a whole stack would otherwise come up pinned to a value nobody chose.
 
+**The type**
+
+- the pairings offered are the ones there are rules for
+- a fresh install wears the preset s own faces  
+  No attribute, and no stylesheet fetched to say what the preset already says.
+- a chosen pairing is on the page before it is painted  
+  Server-rendered like the preset and the theme beside it: faces swapped after paint are a page that reflows while it is being read.
+- the pairing is linked after the preset that named the faces  
+  Both selectors are a root and an attribute, so the order of the links is what decides -- and an owner who asked for Ledger has asked to overrule Phosphor's own monospace, not to be overruled by it.
+- a pairing nobody offered leaves the preset s faces standing  
+  Saved through the form it cannot happen; in a row somebody edited by hand it can, and the page is what has to answer for it.
+
+**The button text**
+
+- a new installation capitalises its controls
+- lower case lowers the first word of a control  
+  The same button, the other voice.
+- a label a legend and a heading keep their capitals  
+  They name a thing rather than ask for an action, and a page that lower-cased them would read as a page with a fault.
+- an acronym keeps its capitals either way  
+  `API docs` and `OK` are spelt that way on purpose.
+- the case is chosen from a menu of two
+- the filter asks the setting on every page  
+  Not read once at import: the page saved a moment ago is the page the next render is written in, the way the site's name already is.
+
 **How the page reads**
 
 - a control says what it is and the reason is behind it  
@@ -2901,6 +3492,8 @@ Regenerate with:
   A flat list of four is a list; a flat list of fifteen is a search.
 - a setting written out of place joins its own section  
   Rather than opening a second fieldset with the same legend, which is what filtering per section would do and nothing would have caught.
+- the short menus stand two abreast  
+  Four menus of four words each, stacked, push the switch under them and the save button off a laptop screen.
 - every row carries its reason  
   One tooltip per setting, so none of them is the one that was forgotten and left a control with nothing behind it.
 
@@ -2982,6 +3575,36 @@ Regenerate with:
 **The map and the manual say so**
 
 - the decision is written down
+
+
+## Site chrome
+
+*test_site_chrome.py — 14 behaviours*
+
+
+**The banner**
+
+- the sections are written in sentence case
+- the section you are in is the one marked
+- the section you are in is said in weight not colour alone
+- the menu is named for a screen reader
+- new is offered only to the owner
+
+**The menu**
+
+- it offers the owner might sell traffic and log out
+- it offers a visitor log in
+- it holds the five sections folded away at its top
+- the phone sheet offers everything the menu does  
+  One list, two renderings: a row added to one and not the other is a thing a phone or a desktop cannot reach.
+
+**How it folds with the width**
+
+- on a tablet the sections leave the banner
+- and are found in the menu instead
+- on a phone the bar takes over and scan goes with it
+- the bar is nowhere but a phone
+- the bar sits above the home indicator
 
 
 ## Specstruct
@@ -3083,6 +3706,27 @@ Regenerate with:
   Only a display has a screen size, so the key stays an attribute on anything else rather than being read as inches.
 
 
+## Stats page
+
+*test_stats_page.py — 7 behaviours*
+
+
+**The numbers page**
+
+- it is on the v2 layout with a heading of its own
+- the headline figure leads to everything it counted
+- the tiles are stat tiles and one with a page is its link
+- each ranked chart is headed and its names lead to what they count
+- no 0 1 markup is left
+
+**What the page does not say**
+
+- a chart with nothing to count is left out  
+  MANUAL.md: "A chart with nothing to count yet is left out ...
+- one of a unit is said in the singular  
+  A register started today is one day old, and an average item made last year is one year old: "1 days" and "1 years" are what the page used to say.
+
+
 ## Stylesheet
 
 *test_stylesheet.py — 8 behaviours*
@@ -3103,6 +3747,24 @@ Regenerate with:
   The three pairs tested before this were the three that had already been reported broken.
 - every surface words are written on holds them  
   A chip, a button, a panel's title band: each is a translucent black or white over the page, and the text on every one of them is the inherited `--fg`.
+
+
+## Stylesheet lint
+
+*test_stylesheet_lint.py — 6 behaviours*
+
+- no colour is stated outside the token files  
+  A colour written into a component is one no preset can change and no contrast test reads.
+- the spacing is on the scale  
+  Every gap, padding, corner and rule is a token, 0, 1px, or a named exception with its reason.
+- every exception to the scale is still used  
+  An exception nothing needs any more is a hole left open for the next one.
+- a utility carries layout only  
+  utilities.css is for one-off arrangement.
+- while app css is here it outranks the new stylesheets  
+  The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
+- a bare 0 1 rule lets every tone past it  
+  0.1's `.banner` is kept for the one template still writing the class bare, and is written as a `:not()` list so a migrated page's toned banner falls through to components.css.
 
 
 ## The agent on the other machine
@@ -3213,6 +3875,34 @@ Regenerate with:
 - they are there when a card is edited as well
 
 
+## The three steps
+
+*test_the_three_steps.py — 8 behaviours*
+
+
+**An empty register**
+
+- the owner is given the three steps  
+  Numbered, because they are an order and not a menu: name the collection, add the first machine, print its label.
+- naming the collection ticks its own step  
+  The one step the screen can see the answer to.
+- there is nothing to print yet  
+  The third step waits on the second.
+- the way to the first machine is on the screen  
+  A step somebody has to go and find the control for is an instruction rather than a step.
+- a visitor is told it is empty and no more  
+  The steps are things only the owner can do, and a list of them is a list of what has not been done yet -- which is nobody else's business.
+
+**Once there is something in it**
+
+- the gallery comes back the moment there is an item  
+  It goes as soon as there is one item and does not come back: not a tour, and nothing to dismiss.
+- a search that finds nothing is not an empty register  
+  Two different states that both draw no cards.
+- the steps are the front page and not every empty grid  
+  /for-sale draws the same grid from a narrowed list, and an empty one of those is a filter that matched nothing rather than a new installation.
+
+
 ## Type checking
 
 *test_type_checking.py — 4 behaviours*
@@ -3223,6 +3913,152 @@ Regenerate with:
 - a typed module may not call into an untyped one  
   ``untyped_calls_exclude`` was how a typed module was allowed to call one that was not there yet.
 - a type ignore says why on the line above it
+
+
+## Typefaces
+
+*test_typefaces.py — 9 behaviours*
+
+
+**What is offered**
+
+- four answers beginning with the preset s own  
+  The list is the data's and in the data's order, so the menu cannot come to offer a pairing nothing was generated for.
+- the preset s own is the default  
+  A fresh install wears the look it was given, faces included.
+- an answer nobody offered falls back to the preset s own  
+  The value can arrive from a row this page never wrote.
+
+**What A pairing changes**
+
+- a pairing declares nothing but the three families  
+  A size or a weight here would make the Type setting move the page, which is the one thing no look in the register is allowed to do.
+- catalogue is the three roles at their most distinct
+- plain drops the serif and keeps the monospace
+- ledger is monospaced throughout
+- the preset s own has no block at all  
+  It is the answer that changes nothing: no rules, and no attribute on the page for rules to hang from.
+- every family named is one the site serves  
+  The three faces ship with the register and are served from it: a pairing that named a fourth would be asking for a file that is not there, or worse, for one from somewhere else (ADR-0021).
+
+
+## Ui macros
+
+*test_ui_macros.py — 76 behaviours*
+
+
+**The ui filter**
+
+- lower case takes the capital off the first word
+- an acronym keeps its capitals
+- a first word in mixed case is a name and is left alone
+- only the first word changes
+- capitalised leaves the words as written
+- the filter follows the installation default of capitalised
+- markup stays markup
+
+**Button**
+
+- a button is a button of type button by default
+- kind and size become classes
+- an href makes it a link drawn the same
+- an icon beside a word is hidden from a screen reader
+- an icon only button names itself from its label
+- a name and value are posted with the form
+- disabled is said to the browser
+- a disabled link goes nowhere and says so
+- a pressed toggle says it is pressed and is drawn on
+- an unpressed toggle says so too
+- the label is escaped
+
+**Field**
+
+- a text field labels its control
+- a note goes in a title on the row
+- an area is a textarea holding its value
+- a choice marks the current value selected
+- a choice can show words other than the value
+- a switch is a tick with its label beside it
+- a pinned field is disabled and says it is
+- an error marks the field and prints the message under it
+- a hint is printed under the control and tied to it
+- a hint and an error both describe the control
+- a switch ties its hint to the tick
+- any other attribute reaches the control
+- no error leaves no trace
+- an error on a choice is tied to the select
+
+**Error summary**
+
+- nothing when there is nothing to fix
+- it counts the errors and links each to its field
+- one is one thing
+
+**Chip**
+
+- a plain chip
+- a tone is a class
+- a chip with an href is a link
+
+**Table**
+
+- every heading carries scope
+- stacked every cell after the first says what it is
+- a column class reaches its heading and its cells
+- the heading row is the tables first row
+- scroll wraps the table in its own box
+- plain is just a table
+- a cell of markup is kept and a cell of text is escaped
+
+**Banner**
+
+- a warning is a status with its lead word first
+- danger interrupts
+- a toast is the same banner with a class
+- no text leaves no empty span
+
+**Stats**
+
+- a stat tile has its label value and note
+- a stat tile with somewhere to go is the link
+- a bar names what it counted when given a field
+- bars against a ceiling are drawn against it not the largest
+- bars are sized by class against the largest
+- bars of nothing do not divide by zero
+- every bar width has a rule to paint it
+
+**Navigation**
+
+- itemnav has back position and neighbours
+- a missing neighbour is left out not disabled
+- the arrows are not read out
+- pager links the pages either side
+- pager leaves out what is not there
+- one page needs no pager
+
+**Card**
+
+- the whole card is one link to the item
+- a part links to the parts page
+- it reads tag name and chips
+- a part in a machine says which
+- disposed fades the photograph and says so in a chip
+- a photograph is described by the item name
+- no photograph draws the placeholder named for its kind
+- a reference photograph is marked
+
+**Bezel**
+
+- a recorded bezel takes its generated class
+- no shade is hatched
+- small is a class
+
+**Icons**
+
+- an account has an icon of its own  
+  The menu's Account row, beside Log out (ADR-0032).
+- the nine new icons are drawn
+- every icon is hidden from a screen reader
 
 
 ## Wanting work

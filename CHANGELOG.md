@@ -21,6 +21,12 @@ changes nothing. Accounts and API tokens are managed with
 `docker compose exec api python -m app.accounts`. A new installation opens on
 **Set up**, which wants a code the app writes to its log.
 
+**Accounts are managed in the browser.** **Settings → Accounts** lists everybody
+who may sign in, adds people, and changes a role, a password or whether an account
+is switched on. **Account**, in the menu, is where anybody signed in — a viewer
+too — changes their own password, signs out their other browsers and makes their
+own API tokens. The command line still does all of it.
+
 **A site can be closed to visitors.** **Visitors must log in**, in the settings,
 shows anybody not signed in the login page and nothing else. It is off.
 

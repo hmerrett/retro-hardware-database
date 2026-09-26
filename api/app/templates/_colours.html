@@ -10,13 +10,28 @@
    that draws one cannot disagree, and no style attribute is needed to say it
    (ADR-0022). #}
 
-{% macro dot(cls, title='') %}<span class="swatch{{ (' ' ~ cls) if cls else ' none' }}"
-  {%- if title %} title="{{ title }}"{% endif %}></span>{% endmacro %}
+{# What the menus have chosen, drawn: with a shade, the ladder -- that shade at every
+   stage from as made to unevenly yellowed, the stage chosen outlined -- so a pick can
+   be held against the plastic without opening the chart. Without one, a single
+   swatch: hatched for nothing recorded, and a yellowing alone drawn on the pale
+   plastic entry assumes. Decoration beside the menus, which say it in words.
+   colours.js redraws the same markup as the menus change. #}
+{% macro swatches(colour, level, colours, yellowing) -%}
+{%- if colour in colours | map(attribute='label') -%}
+<span class="ladder" aria-hidden="true">
+{%- for lvl in [''] + yellowing | map(attribute='label') | list -%}
+<span class="bezel sm {{ bezel_class(colour, lvl) }}{{ ' is-chosen' if lvl == level }}"></span>
+{%- endfor -%}
+</span>
+{%- else -%}
+<span class="bezel sm {{ bezel_class('', level) or 'none' }}" aria-hidden="true"></span>
+{%- endif -%}
+{%- endmacro %}
 
 {# One menu. `cur` is kept as an option of its own when it is from outside the
    vocabulary, so saving the form cannot quietly drop what someone else wrote. #}
 {% macro menu(name, part, vocab, labels, cur, blank, about='') %}
-<select class="bezel-pick" name="{{ name }}" data-bezel="{{ part }}"
+<select class="select" name="{{ name }}" data-bezel="{{ part }}"
         aria-label="{{ (about ~ ', ') if about else '' }}{{ 'bezel shade' if part == 'colour' else 'yellowing' }}">
   <option value="">{{ blank }}</option>
   {% if cur and cur not in labels %}<option value="{{ cur }}" selected>{{ cur }}</option>{% endif %}
@@ -24,51 +39,48 @@
 </select>
 {% endmacro %}
 
-{# Both menus and the swatch that combines them. `prefix` namespaces the fields:
+{# Both menus and the swatches that show them. `prefix` namespaces the fields:
    'drive0_' for a machine's first drive row, 'spec_' for a storage part. #}
 {% macro pair(prefix, colour, level, colours, yellowing, colour_labels,
               yellowing_labels, about='') %}
 <div class="bezel-cell">
-  {{ dot(bezel_class(colour, level)) }}
-  {{ menu(prefix + 'colour', 'colour', colours, colour_labels, colour, 'shade —', about) }}
+  {{ swatches(colour, level, colours, yellowing) }}
+  {{ menu(prefix + 'colour', 'colour', colours, colour_labels, colour, 'Shade —', about) }}
   {{ menu(prefix + 'yellowing', 'yellowing', yellowing, yellowing_labels, level,
-          'not yellowed', about) }}
+          'Not yellowed', about) }}
 </div>
 {% endmacro %}
 
-{# Repaint the swatch as the menus change. The mixing is done once, in Python, and
+{# Repaint the swatches as the menus change. The mixing is done once, in Python, and
    shipped as a lookup: JavaScript that mixed its own colours could drift from the
-   chart drawn beside it. #}
-{% macro script(swatches) %}
-<script type="application/json" id="colours-data">{{ {'swatches': swatches} | tojson }}</script>
+   chart drawn beside it. `levels` is the ladder's order, as made first. #}
+{% macro script(swatches, yellowing) %}
+<script type="application/json" id="colours-data">{{ {'swatches': swatches, 'levels': [''] + yellowing | map(attribute='label') | list} | tojson }}</script>
 <script defer src="/static/colours.js?v={{ js_ver['colours.js'] }}"></script>
 {% endmacro %}
 
+{# Every shade at every stage: shades down the side, stages across, each named with
+   a line on what it looks like. Seven columns do not fit a phone, so the table
+   scrolls inside its own box rather than squeezing (test_reflow). A cell's swatch
+   is the whole of its content, so it is an image named for what it shows. #}
 {% macro chart(colours, yellowing) %}
 <details class="colourchart">
-  <summary>colour chart — the shades, and what yellowing does to them</summary>
+  <summary>Colour chart — the shades, and what yellowing does to them</summary>
   <p class="hint">Hold the bezel next to the screen and take the nearest shade, then
     say how far it has gone. Colour and yellowing are recorded separately — a beige
     drive that has yellowed is still a beige drive.</p>
-  <p class="cc-grp">The shade it was made in</p>
-  <div class="cc-grid">
+  <div class="hscroll">
+  <table class="table bezelchart">
+    <tr><th scope="col">Shade</th><th scope="col">As made</th>
+      {%- for lvl in yellowing %}<th scope="col">{{ lvl.label }}<span class="hint">{{ lvl.note }}</span></th>{% endfor %}</tr>
     {% for col in colours %}
-    <div class="cc-item">{{ dot(bezel_class(col.label, ''), col.label) }}<span class="cc-lbl">{{ col.label }}<span class="hint">{{ col.note }}</span></span></div>
+    <tr><th scope="row">{{ col.label }}<span class="hint">{{ col.note }}</span></th>
+      {%- for lvl in [''] + yellowing | map(attribute='label') | list %}
+      <td><span class="bezel {{ bezel_class(col.label, lvl) }}" role="img"
+                aria-label="{{ col.label }}{{ (', ' ~ lvl | lower) if lvl else ', as made' }}"></span></td>
+      {%- endfor %}</tr>
     {% endfor %}
-  </div>
-  <p class="cc-grp">How far it has yellowed — on white, off-white and beige, because
-    the same level reads differently on each</p>
-  <div class="cc-grid">
-    {% for lvl in yellowing %}
-    <div class="cc-item">
-      <span class="cc-ladder">
-        {%- for base in ('White', 'Off-white', 'Beige') -%}
-        {{ dot(bezel_class(base, lvl.label), base + ' — ' + lvl.label | lower) }}
-        {%- endfor -%}
-      </span>
-      <span class="cc-lbl">{{ lvl.label }}<span class="hint">{{ lvl.note }}</span></span>
-    </div>
-    {% endfor %}
+  </table>
   </div>
 </details>
 {% endmacro %}

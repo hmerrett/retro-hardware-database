@@ -1,5 +1,7 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
 {% block title %}The collection by numbers — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
 
 {#
@@ -12,45 +14,18 @@
   Every figure is a link to /browse, which shows the items it counted. The links are
   deliberately quiet -- inheriting the ink around them, revealing themselves on
   hover -- because a page of numbers should read as numbers, not as a page of links.
+
+  The figure is the page's headline but not its heading: a reader moving by
+  headings is told what the page is, and a sighted one is not told twice.
 #}
+<h1 class="sr-only">The collection by numbers</h1>
 
-{% macro rank(title, caption, rows, unit='', f='', full=0, suffix='') %}
-  {# `full` scales the bars against a fixed ceiling instead of the biggest row --
-     which is what a percentage needs. Scaled to its own maximum, a table topped by
-     92% would draw that as a full bar and read as "all of them".
-
-     `suffix` goes on the figure itself, for the one measure that needs it: these
-     charts sit side by side, and a bare 100 beside a neighbouring bare 20 does not
-     say which of them is a percentage. A count needs no such help -- "20 parts"
-     against every row is the noise the caption exists to avoid. #}
-  {% set top = full or ((rows | map(attribute=1) | max) if rows else 1) %}
-  <div class="rank">
-    <h3>{{ title }}</h3>
-    <p class="cap">{{ caption }}</p>
-    <table>
-      {% for label, n, value in rows %}
-      <tr title="{{ label }}: {{ n }}{{ ' ' ~ unit if unit }}">
-        <td class="lbl">{% if f %}<a href="/browse?f={{ f }}&v={{ value | urlencode }}"
-          >{{ label }}</a>{% else %}{{ label }}{% endif %}</td>
-        {# The bar's length is a class rather than a width, because the policy
-           allows no style attribute: /style/data.css holds one rule per half
-           percent, and this rounds to the nearest of them. #}
-        <td class="bar"><div class="track"><div
-            class="fill w-{{ (((1000 * n / top) / 5) | round | int) * 5 }}"></div></div></td>
-        <td class="num">{{ n }}{{ suffix }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-{% endmacro %}
-
-<div class="hero">
-  <div class="n"><a href="/browse?f=all">{{ st.n_total }}</a></div>
-  <div class="of">things in the register —
-    <a href="/browse?f=computers">{{ st.n_computers }} machines</a> and
-    <a href="/browse?f=parts">{{ st.n_parts }} parts</a>,
-    <a href="/browse?f=photos">{{ st.photos }} photographs</a> between them</div>
-</div>
+<div class="numbers">
+<div class="figure"><a href="/browse?f=all">{{ st.n_total }}</a></div>
+<p class="muted flush">things in the register —
+  <a href="/browse?f=computers">{{ st.n_computers }} machines</a> and
+  <a href="/browse?f=parts">{{ st.n_parts }} parts</a>,
+  <a href="/browse?f=photos">{{ st.photos }} photographs</a> between them</p>
 
 {# Portrait coverage stands outside the shuffle, and it is the only figure here
    that does. Everything below is a curiosity; this is a job -- a register where
@@ -63,7 +38,7 @@
    Nothing at all on an empty register: "every one of them has had its portrait
    taken" is true of nothing, and reads like a boast on a fresh install. #}
 {% if st.n_total %}
-<p class="cover">
+<p class="lead cover mt-3">
   {% if st.unphotographed %}
   <a href="/browse?f=nophotos"><span class="n">{{ st.unphotographed }}</span> of them
     have no portrait yet</a> — {{ st.unphotographed_pct }}% of the register, waiting
@@ -71,7 +46,6 @@
   {% else %}
   <span class="n">Every one of them</span> has had its portrait taken.
   {% endif %}
-
 </p>
 {% endif %}
 
@@ -83,42 +57,40 @@
    by being a job rather than a fact.
 
    Same quiet links throughout: every figure leads to the things it counted. #}
-<div class="flex mt-26">
-  <h2 class="stat-h">Eight things about it</h2>
-  <span class="muted stat-sub" title="{{ st.facts | length }} of {{ st.n_facts }}, drawn fresh each time you look"><a href="/stats">shuffle</a></span>
+<div class="pagehead mt-6">
+  <h2 class="heading">Eight things about it</h2>
+  <span class="count" title="{{ st.facts | length }} of {{ st.n_facts }}, drawn fresh each time you look"><a href="/stats">shuffle</a></span>
 </div>
-<div class="tiles">
-  {% for c in st.facts %}
-  {% if c.href %}<a class="tile" href="{{ c.href }}">{% else %}<div class="tile">{% endif %}
-    <div class="k">{{ c.k }}</div>
-    <div class="v">{{ c.v }}</div>
-    <div class="s">{{ c.s }}</div>
-  {% if c.href %}</a>{% else %}</div>{% endif %}
-  {% endfor %}
+<div class="statgrid">
+  {% for c in st.facts %}{{ U.stattile(c.k, c.v, c.s, c.href or '') }}{% endfor %}
 </div>
 
-<div class="ranks">
+{#- A chart with no rows is left out, like a figure with nothing to say, rather
+    than drawn as a heading over an empty box. -#}
+{% macro chart(title, caption, rows) %}{% if rows %}
+<section><h2 class="heading">{{ title }}</h2><p class="sub">{{ caption }}</p>{{ caller() }}</section>
+{% endif %}{% endmacro %}
+<div class="twocol mt-6">
   {% if st.reliability_rank | length >= 2 %}
   {# Percentages, so the bars are drawn against 100 rather than against the best
      row: the question is how close to all of them, not how each compares to the
-     leader. One hue, like every other chart here -- the job is magnitude. #}
-  {{ rank('Makers, by how much of it still works',
-          'share recorded as Working, makers with ' ~ st.reliability_min ~
-          '+ parts still here',
-          st.reliability_rank, '%', 'maker', 100, '%') }}
+     leader. The % goes on the figure: these charts sit side by side, and a bare 100
+     beside a neighbouring bare 20 does not say which of them is a percentage. One
+     hue, like every other chart here -- the job is magnitude. #}
+  {% call chart('Makers, by how much of it still works',
+                'Share recorded as Working, makers with ' ~ st.reliability_min ~
+                '+ parts still here', st.reliability_rank) %}{{ U.bars(st.reliability_rank, 'maker', 100, '%') }}{% endcall %}
   {% endif %}
-  {{ rank('Makers, by parts held', 'the eight best represented', st.makers, 'parts',
-          'maker') }}
-  {{ rank('What the parts are', 'every category in the register', st.types_labelled,
-          'parts', 'type') }}
-  {{ rank('Expansion buses', 'slots counted across every board', st.buses, 'slots',
-          'bus') }}
-  {{ rank('Ports', 'counted across every card and board', st.ports, 'ports', 'port') }}
-  {{ rank('Condition', 'as recorded, parts only', st.conditions, 'parts', 'condition') }}
+  {% call chart('Makers, by parts held', 'The eight best represented', st.makers) %}{{ U.bars(st.makers, 'maker') }}{% endcall %}
+  {% call chart('What the parts are', 'Every category in the register', st.types_labelled) %}{{ U.bars(st.types_labelled, 'type') }}{% endcall %}
+  {% call chart('Expansion buses', 'Slots counted across every board', st.buses) %}{{ U.bars(st.buses, 'bus') }}{% endcall %}
+  {% call chart('Ports', 'Counted across every card and board', st.ports) %}{{ U.bars(st.ports, 'port') }}{% endcall %}
+  {% call chart('Condition', 'As recorded, parts only', st.conditions) %}{{ U.bars(st.conditions, 'condition') }}{% endcall %}
 </div>
 
 {# What is left out changes how every figure reads, and that the figures are
    links is deliberately not visible -- both worth a line. That they are counted
    live, and which columns they are counted from, are not. #}
-<p class="hint" title="Every number leads to what it counted.">Disposed items are left out, except from the count of disposals.</p>
+<p class="hint mt-6" title="Every number leads to what it counted.">Disposed items are left out, except from the count of disposals.</p>
+</div>
 {% endblock %}

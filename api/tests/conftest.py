@@ -93,6 +93,18 @@ def served(client, page):
     return "\n".join(out)
 
 
+def content(page):
+    """The page itself, without the chrome around it.
+
+    An assertion that something is *not* shown has to say where it is not shown:
+    the side rail carries the owner's recent items on every page, so a bare "this
+    asset id is not in the response" now asks a question about the whole window
+    rather than about the page in it. This is the page in it -- `<main>` -- which
+    is what those assertions always meant.
+    """
+    return page.split("<main", 1)[1].split("</main>", 1)[0]
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _schema():
     _reset_and_migrate()
@@ -249,9 +261,14 @@ def a_page_of_everything(client, computer, part):
         follow_redirects=False,
     )
     fid = client.get("/api/files").json()[0]["id"]
+    with SessionLocal() as db:
+        owner = store.find(db, "owner")
+        store.make_token(db, owner, "tool server")
+        owner_id = owner.id
     return [
         "/",
         "/machines",
+        "/machines/vic-20",
         "/projects",
         "/projects/new",
         "/files",
@@ -264,4 +281,8 @@ def a_page_of_everything(client, computer, part):
         "/parts/new",
         f"/parts/{card['asset_id']}",
         f"/parts/{card['asset_id']}/edit",
+        # The account pages, with a token on the list so its revoke button is drawn.
+        "/settings/users",
+        f"/settings/users/{owner_id}",
+        "/settings/account",
     ]

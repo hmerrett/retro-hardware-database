@@ -22,6 +22,7 @@ from sqlalchemy import func
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.orm import Session
 
+from .entry import display_name
 from .models import Computer, Part, Project, ProjectAsset, ProjectOrder, ProjectTask
 
 # The states a project can be in, as (slug, label). Stored as the slug so the
@@ -296,6 +297,49 @@ def add_asset(
         db.flush()
     db.add(ProjectAsset(project_id=project_id, asset_id=asset_id, note=(note or "").strip()[:255]))
     return "moved" if held is not None else "added"
+
+
+# How many things share a name, in the sentence that asks for a tag instead.
+_HOW_MANY = {2: "Two", 3: "Three", 4: "Four", 5: "Five"}
+
+
+def find_item(db: Session, typed: str) -> tuple[str | None, str]:
+    """The computer or part a person means by what they typed into a project's form:
+    (its asset id, ""), or (None, what to tell them).
+
+    A tag is taken as typed, in either case. Failing that, a name has to be the whole
+    name of one thing, as the register shows it -- the name, or maker and model where
+    there is none. A part of a name is not guessed at: "Lounge" matching the one
+    machine with Lounge in it today would match the wrong one the day a second
+    arrives, and the form is where the tag can be asked for instead. A project's own
+    tag is refused by name, since a project is not a thing another is about."""
+    text = " ".join(typed.split())
+    tag = text.upper()
+    if any(db.get(cls, tag) for cls in (Computer, Part)):
+        return tag, ""
+    if db.get(Project, tag) is not None:
+        return None, f"{tag} is a project; a project is about computers and parts."
+    want = text.lower()
+    hits = [
+        row.asset_id
+        for cls in (Computer, Part)
+        for row in db.query(cls.asset_id, cls.name, cls.manufacturer, cls.model)
+        if " ".join(display_name(row._asdict()).split()).lower() == want
+    ]
+    if len(hits) == 1:
+        return hits[0], ""
+    if hits:
+        many = _HOW_MANY.get(len(hits), str(len(hits)))
+        return None, f"{many} things are called that — add it by its tag."
+    return None, (
+        "Nothing in the register has that tag or name — try the tag, as it is on the label."
+    )
+
+
+def holder(db: Session, asset_id: str) -> Project | None:
+    """The project a thing is on, if any. A thing is on one project (ADR-0016)."""
+    held = db.query(ProjectAsset).filter(ProjectAsset.asset_id == asset_id).first()
+    return db.get(Project, held.project_id) if held is not None else None
 
 
 def holds(db: Session, project_id: str, asset_id: str | None) -> bool:

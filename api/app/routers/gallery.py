@@ -6,20 +6,29 @@ survive and what the page says it is showing. The matching itself is search.py's
 this is the page around it.
 """
 
+import hashlib
+import random
+from collections.abc import Callable, Iterable
 from datetime import datetime
+from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, locations, projects, settings, specdb
+from .. import cards, entry, projects, settings, specdb
+from ..auth import SORT_COOKIE
 from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import Computer, LogEntry, Part
 from ..photos import _favicon_for_rel, _storage_placeholder, is_reference, pick_images
 from ..search import Card, _browse_view, _projects_matching, _search, _suggest
 from ..web import _og, templates
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsRichComparison
 
 router = APIRouter()
 
@@ -31,14 +40,10 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
     """Every computer and part as one list of card rows. The gallery and /browse
     render the same grid from this; they differ only in which rows survive.
 
-    The recency sort keys ride on the cards as data attributes, so anonymously they
-    carry the date alone, like the history does. The rows come back
-    newest-change-first regardless, which is what keeps a day's worth of edits in
-    order once the browser sorts on dates that are all equal.
-
-    One argument and not two, though it decides two things: the reader whose sort
-    keys are rounded is the same reader a card may not carry a location for, and
-    passing that fact twice is how the two would one day be passed differently."""
+    Anonymously the recency sort keys carry the date alone, like the history does
+    (`precise_times=False`). The rows come back newest-change-first regardless,
+    which is what keeps a day's worth of edits in order once `order` sorts on dates
+    that are all equal."""
     computers = db.query(Computer).order_by(Computer.asset_id).all()
     parts = db.query(Part).order_by(Part.asset_id).all()
     counts: dict[str, int] = {}
@@ -75,19 +80,6 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
     # string (or a lookup per row) just to choose an icon.
     kinds = specdb.storage_kinds(db)
 
-    # Whether a card may carry where its item is kept. The blob below is markup the
-    # browser filters on, so a card that matched "loft" for a reader whose page does
-    # not show a location would be the leak with one more step in it -- the same
-    # answer the haystack gives (search._hidden_columns, ADR-0027). The card's `sub`
-    # is untouched either way: what is written on a card is a design decision and
-    # not a privacy one, and this is only what it answers to.
-    show_location = authed or settings.on("public_locations")
-    # Where a part is because of what it is fitted in, for the ones that do not say
-    # for themselves. Read once for the whole wall, like the photo folders and the
-    # timestamps above -- a card is built per row, and a walk up the chain per row
-    # would be a query apiece for the answer the register already holds.
-    placed = locations.inherited(db) if show_location else {}
-
     rows: list[Card] = []
     for c in computers:
         rows.append(
@@ -109,25 +101,6 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                 "acquired": str(c.acquired_date or ""),
                 "catsort": 0,
                 "sub": f"{counts.get(c.asset_id, 0)} part(s)",
-                "search": " ".join(
-                    [
-                        c.asset_id,
-                        c.name or "",
-                        c.manufacturer or "",
-                        c.model or "",
-                        c.os or "",
-                        c.cpu or "",
-                        c.chassis or "",
-                        c.installed_ram or "",
-                        c.drives or "",
-                        str(c.year or ""),
-                        c.condition or "",
-                        c.source or "",
-                        str(c.acquired_date or ""),
-                        c.location if show_location else "",
-                        c.disposed_note or "",
-                    ]
-                ).lower(),
             }
         )
     for p in parts:
@@ -155,38 +128,15 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                 "acquired": str(p.acquired_date or ""),
                 "catsort": entry.type_sort_key(ptype) + 1,
                 "sub": (p.computer_id if p.computer_id else "standalone"),
-                "search": " ".join(
-                    [
-                        p.asset_id,
-                        p.name or "",
-                        p.manufacturer or "",
-                        p.model or "",
-                        p.specs or "",
-                        p.type or "",
-                        entry.type_label(ptype),
-                        str(p.year or ""),
-                        p.condition or "",
-                        p.source or "",
-                        str(p.acquired_date or ""),
-                        p.location if show_location else "",
-                        # A part shown its machine's location answers to it here as
-                        # well, or the card and the page it opens would disagree
-                        # about the word written on both of them.
-                        (placed[p.asset_id].where if p.asset_id in placed else ""),
-                        p.disk_image or "",
-                        p.computer_id or "",
-                        p.disposed_note or "",
-                    ]
-                ).lower(),
             }
         )
 
     def changed(row: Card) -> datetime:
         return ts.get(row["obj"].asset_id, (None, None))[0] or datetime.min
 
-    # Newest change first. The browser re-sorts on load anyway, but its sort is
-    # stable, so this is the order items updated on the same day keep -- the whole
-    # of what the dropped clock time used to settle.
+    # Newest change first. `order` re-sorts anyway, but its sort is stable, so this
+    # is the order items updated on the same day keep -- the whole of what the
+    # dropped clock time used to settle.
     rows.sort(key=changed, reverse=True)
     return rows
 
@@ -203,18 +153,164 @@ def _cats_for(rows: list[Card]) -> list[tuple[str, str]]:
     return cats
 
 
-def _grid_page(request: Request, rows: list[Card], **extra: object) -> HTMLResponse:
-    """Render the card grid. Counts come from the rows on the page rather than from
-    the register, so a filtered view describes itself honestly."""
+# Two, three and four across all fill their last row.
+PAGE_SIZE = 48
+
+
+def _photo_first(r: Card) -> int:
+    return 0 if r["image"] else 1
+
+
+def _blank_last(value: object) -> int:
+    return 0 if value else 1
+
+
+def _name(r: Card) -> str:
+    return r["name"].casefold()
+
+
+def _shuffle_key(deal: int) -> Callable[[Card], bytes]:
+    """Where the hand dealt as `deal` puts each item. A hash of the deal and the tag
+    rather than a shuffle of the list, so an item keeps its place relative to every
+    other whatever is filtered out around it: picking a category mid-shuffle narrows
+    the hand instead of dealing a new one. blake2b rather than hash(), which is
+    salted per process and would give each worker a different hand."""
+
+    def key(r: Card) -> bytes:
+        return hashlib.blake2b(f"{deal}:{r['obj'].asset_id}".encode(), digest_size=8).digest()
+
+    return key
+
+
+# Each sort as the keys it applies, least significant first: Python's sort is
+# stable, so sorting on the tie-breaker and then on the main key leaves ties in the
+# tie-breaker's order -- and ties in both in the order the rows came, which is
+# newest change first. That last is the whole of what orders a day's edits for an
+# anonymous visitor, whose recency keys are the date alone.
+_Key = tuple[Callable[[Card], "SupportsRichComparison"], bool]
+_SORTS: dict[str, list[_Key]] = {
+    "updated": [(lambda r: r["updated"], True), (_photo_first, False)],
+    "added": [
+        (lambda r: r["updated"], True),
+        (lambda r: r["added"], True),
+        (_photo_first, False),
+    ],
+    "acquired": [
+        (_name, False),
+        (lambda r: r["acquired"], True),
+        (lambda r: _blank_last(r["acquired"]), False),
+    ],
+    "yearnew": [
+        (_name, False),
+        (lambda r: str(r["year"]), True),
+        (lambda r: _blank_last(r["year"]), False),
+    ],
+    "yearold": [
+        (_name, False),
+        (lambda r: str(r["year"]), False),
+        (lambda r: _blank_last(r["year"]), False),
+    ],
+    "name": [(_name, False)],
+    "maker": [
+        (_name, False),
+        (lambda r: r["maker"], False),
+        (lambda r: _blank_last(r["maker"]), False),
+    ],
+    "cat": [(_name, False), (lambda r: r["catsort"], False)],
+    "aid": [(lambda r: r["obj"].asset_id, False)],
+}
+SORTS = ("random", *_SORTS)
+
+
+def order(rows: Iterable[Card], sort: str, deal: int) -> list[Card]:
+    """The rows in the order the toolbar's sort names. Recency and random both put
+    photographed items first, so neither opens on a screenful of placeholders; an
+    undated item goes last whichever way round the dated ones are."""
+    out = list(rows)
+    if sort not in _SORTS:
+        out.sort(key=lambda r: (_photo_first(r), _shuffle_key(deal)(r)))
+        return out
+    for key, reverse in _SORTS[sort]:
+        out.sort(key=key, reverse=reverse)
+    return out
+
+
+def _grid_page(
+    request: Request,
+    rows: list[Card],
+    show_disposed: bool = False,
+    keep: dict[str, str] | None = None,
+    **extra: object,
+) -> HTMLResponse:
+    """Render one page of the card grid, in the view the query string names.
+
+    Counts come from the rows handed in rather than from the register, so a
+    filtered view describes itself honestly, and from all of them rather than the
+    page on screen. `keep` is what the route itself was asked for -- a search, a
+    /browse figure -- which every link out of the toolbar and the pager has to
+    carry, or changing the sort would drop the figure being looked at."""
+    qp = request.query_params
+    keep = keep or {}
+    cats = _cats_for(rows)
+    cat = qp.get("cat", "")
+    if cat not in {k for k, _ in cats}:
+        cat = ""
+    sort = qp.get("sort") or request.cookies.get(SORT_COOKIE, "")
+    if sort not in SORTS:
+        sort = "random"
+    try:
+        deal = int(qp.get("deal", ""))
+    except ValueError:
+        # Arriving on Random, or choosing it from another sort: a new hand. Small,
+        # because it is going to sit in an address bar.
+        deal = random.randrange(1, 1_000_000)
+    # An unticked box sends nothing, so an absent `disposed` means "unticked" only
+    # when the form was used -- which the sort, sent by every submission and every
+    # pager link, says. Arriving at the bare page takes the page's own default.
+    if "disposed" in qp or "sort" in qp:
+        show_disposed = qp.get("disposed") == "1"
+
+    shown = [
+        r for r in rows if (not cat or r["cat"] == cat) and (show_disposed or not r["obj"].disposed)
+    ]
+    shown = order(shown, sort, deal)
+    pages = max(1, -(-len(shown) // PAGE_SIZE))
+    try:
+        page = min(max(1, int(qp.get("page", "1"))), pages)
+    except ValueError:
+        page = 1
+
+    view = {**keep, "cat": cat, "sort": sort, "disposed": "1" if show_disposed else "0"}
+    if sort == "random":
+        view["deal"] = str(deal)
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
     return templates.TemplateResponse(
         request,
         "index.html",
         {
-            "rows": rows,
-            "cats": _cats_for(rows),
+            "rows": shown[(page - 1) * PAGE_SIZE : page * PAGE_SIZE],
+            "cats": cats,
             "n_computers": n_computers,
             "n_parts": len(rows) - n_computers,
+            "n_shown": len(shown),
+            "n_all": len(rows),
+            "cat": cat,
+            "sort": sort,
+            "deal": deal if sort == "random" else None,
+            "keep": keep,
+            "show_disposed": show_disposed,
+            "page": page,
+            "pages": pages,
+            "pager_href": f"{request.url.path}?{urlencode(view)}&page=",
+            # Every page of the list, not the one on screen, so an item page's next
+            # walks off the end of this page into the first card of the next.
+            "handoff": [
+                [
+                    f"/{'computers' if r['kind'] == 'computer' else 'parts'}/{r['obj'].asset_id}",
+                    r["name"],
+                ]
+                for r in shown
+            ],
             **extra,
         },
     )
@@ -250,9 +346,17 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> H
     return _grid_page(
         request,
         rows,
+        keep={"q": q} if q.strip() else None,
         q=q,
         searched=bool(q.strip()),
         total=total,
+        # A register with nothing in it at all, which is not the same state as a
+        # search that matched nothing: the front page has nothing to be until the
+        # first item exists, so it is the three steps instead. Asked here and not
+        # in `_grid_page`, because /browse and /for-sale draw the same grid from a
+        # narrowed list and an empty one of those is a filter, not a new install.
+        first_run=total == 0 and not q.strip(),
+        named=settings.site_name() != settings.DEFAULT_SITE_NAME,
         hit_projects=hit_projects,
         og=_og(
             request,
@@ -312,6 +416,7 @@ def gui_browse(
     return _grid_page(
         request,
         rows,
+        keep={"f": f, "v": v},
         heading=heading,
         note=note,
         crumb=crumb,

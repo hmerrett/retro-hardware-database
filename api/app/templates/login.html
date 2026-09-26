@@ -1,14 +1,29 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{# The one door in. It sits under the ordinary banner rather than on a page of its
+   own, so somebody who arrived by following a link they did not mean to can search
+   from here instead of going back — and the hint under the button tells them they
+   never needed to be here at all. #}
 {% block title %}Log in — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<h2>Log in</h2>
-{% if error %}<p class="banner">Incorrect username or password.</p>{% endif %}
-<form class="edit login-box" method="post" action="/login">
+<form class="loginbox" method="post" action="/login">
+  <h1 class="heading">Log in</h1>
   <input type="hidden" name="next" value="{{ next }}">
-  <label for="username">Username</label>
-  <input id="username" name="username" autofocus autocomplete="username">
-  <label for="password">Password</label>
-  <input id="password" name="password" type="password" autocomplete="current-password">
-  <p class="mt-14"><button class="btn primary" type="submit">log in</button></p>
+  {{ U.field('username', 'Name', autofocus=true, autocomplete='username') }}
+  {{ U.field('password', 'Password', type='password', autocomplete='current-password') }}
+  {# Which half was wrong is the one thing this must not say: it would answer, for
+     free and at any speed, whether a guessed name exists. The limiter's refusal is
+     a different fact and says so, because "not recognised" on an attempt nothing
+     read reads as though the next one might be. #}
+  {% if rate_limited %}
+    {{ U.banner('danger', 'Too many attempts.', 'Wait a few minutes and try again.') }}
+  {% elif error %}
+    {{ U.banner('danger', 'Not recognised.', 'Check the name and password.') }}
+  {% endif %}
+  <p class="mt-5">{{ U.button('Log in', kind='primary', type='submit') }}</p>
+  {#- Only where it is true: on a site closed to visitors browsing is exactly what
+      needs the login (ADR-0032). -#}
+  <p class="hint">{% if not closed %}Browsing needs no login. {% endif %}This keeps one cookie.</p>
 </form>
 {% endblock %}

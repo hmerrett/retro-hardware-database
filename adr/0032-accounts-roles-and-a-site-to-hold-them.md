@@ -4,9 +4,9 @@
 **Date:** 2026-09-25
 **Supersedes:** [ADR-0019](0019-running-open-is-supported-but-never-silent.md)
 
-> Numbered 0032 because `feat/design-system-foundation` also carries a 0030, which
-> collides with main's and will become 0031 when it lands. If it lands as
-> something else, close the gap.
+> Numbered 0032 because the design-system branch carried a 0030 of its own, which
+> became [0031](0031-the-look-is-a-design-system-and-its-values-are-data.md) when
+> it landed beside main's.
 
 ## Context
 

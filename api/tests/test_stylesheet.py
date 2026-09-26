@@ -12,6 +12,9 @@ from pathlib import Path
 import pytest
 
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
+# Where the colours now live: generated from the design data (ADR-0031). app.css
+# keeps the 0.1 names as aliases onto these while the templates move over.
+TOKENS = Path(__file__).parents[1] / "app" / "static" / "css" / "tokens.css"
 
 # A file picker shows a button, not text you type into, so its deliberate
 # `font-size: 0` is not a control that can zoom the page.
@@ -60,20 +63,42 @@ def test_every_control_given_its_own_size_is_listed_for_touch():
     )
 
 
-def theme_variables(name: str) -> dict[str, str]:
-    """One theme's custom properties: `light`, or `dark` as the toggle sets it.
-
-    The dark values are stated twice -- once for `prefers-color-scheme` and once
-    for `[data-theme="dark"]` -- and a reader can land on either, so read the
-    explicit block and let the media query be checked against it below.
-    """
-    text = css()
-    if name == "light":
-        block = re.search(r":root\s*\{(.*?)\}", text, re.S)
-    else:
-        block = re.search(r':root\[data-theme="dark"\]\s*\{(.*?)\}', text, re.S)
-    assert block, f"the {name} theme's variable block has gone"
+def declarations(text: str, head: str) -> dict[str, str]:
+    """The custom properties in the first block whose selector is exactly `head`."""
+    block = re.search(re.escape(head) + r"\s*\{(.*?)\}", text, re.S)
+    assert block, f"the {head} variable block has gone"
     return dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+?)\s*;", block.group(1)))
+
+
+def tokens_css() -> str:
+    return re.sub(r"/\*.*?\*/", "", TOKENS.read_text(encoding="utf-8"), flags=re.S)
+
+
+def theme_variables(name: str) -> dict[str, str]:
+    """One theme's custom properties, as values: `light`, or `dark` as the toggle sets it.
+
+    The colours are the default preset's, from tokens.css; the dark ones replace
+    the light where the toggle says so. app.css's 0.1 names are aliases onto them
+    (`--bg: var(--surface)`), and an alias says nothing about contrast until it is
+    followed to the colour it names -- so every `var()` is resolved here, the way
+    the browser resolves it on the same element.
+
+    Dark is stated twice, for the toggle and for `prefers-color-scheme`; this reads
+    the toggle's block and the test below holds the other to it.
+    """
+    values = declarations(tokens_css(), ":root")
+    if name == "dark":
+        values.update(declarations(tokens_css(), ':root[data-theme="dark"]'))
+    values.update(declarations(css(), ":root"))
+
+    def resolve(value: str, depth: int = 0) -> str:
+        found = re.fullmatch(r"var\((--[\w-]+)\)", value.strip())
+        if not found:
+            return value
+        assert depth < 16 and found.group(1) in values, f"{value} names no token"
+        return resolve(values[found.group(1)], depth + 1)
+
+    return {key: resolve(value) for key, value in values.items()}
 
 
 def luminance(colour: str) -> float:
@@ -118,16 +143,18 @@ def test_a_danger_control_reads_against_the_page(theme):
 def test_the_two_dark_theme_blocks_agree():
     """Dark is declared twice: for the system preference and for the explicit
     toggle. A colour fixed in one and forgotten in the other gives a reader whose
-    Mac is set to light and site to dark a different page from everyone else."""
+    Mac is set to light and site to dark a different page from everyone else.
+    Both are generated from one dictionary now (tools/build_presets.py), and this
+    still reads the file, because the file is what the browser gets."""
     preferred = re.search(
         r"@media\s*\(prefers-color-scheme:\s*dark\)\s*\{\s*"
         r":root:not\(\[data-theme\]\)\s*\{(.*?)\}",
-        css(),
+        tokens_css(),
         re.S,
     )
     assert preferred, "the prefers-color-scheme dark block has gone"
     by_preference = dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+?)\s*;", preferred.group(1)))
-    assert by_preference == theme_variables("dark")
+    assert by_preference == declarations(tokens_css(), ':root[data-theme="dark"]')
 
 
 def test_an_accent_fill_states_the_text_colour_on_it():

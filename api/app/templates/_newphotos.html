@@ -1,0 +1,9 @@
+{# Photographs chosen on a new item's form, sent with it: there is no asset tag to
+   file them under until it is saved. The file input sits invisible over its own
+   label, so the button is what is pressed; app.js counts what was chosen. #}
+<div class="newphotos row">
+  <label class="btn sm filebtn">Choose files
+    <input type="file" name="photos" accept="image/*" multiple>
+  </label>
+  <span class="hint" data-photo-count></span>
+</div>

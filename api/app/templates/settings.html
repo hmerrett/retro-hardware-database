@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
 {% import "_labelsend.html" as LS %}
 {% block title %}Settings — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
-<h2>Settings</h2>
 
 {# The one page in the register that is not about the collection. Everything else
    it holds is a fact about a machine or a part; these are here because somebody
@@ -14,47 +15,72 @@
    the full version of every one of them -- a tooltip is a reminder, not the
    specification. #}
 
+<div class="pagehead"><h1 class="heading">Settings</h1></div>
+{# The two pages beside this one (ADR-0032). Here rather than in the menu: they are
+   about who uses the site, and this is where somebody who runs it comes. #}
+<p class="hint"><a href="/settings/users">Accounts</a> · <a href="/settings/account">Your account</a></p>
+
 {% if saved %}<p class="hint" id="saved">Saved.</p>{% endif %}
 
-<form class="edit settings-box" id="settings-form" method="post" action="/settings">
+<form class="editform narrow" id="settings-form" method="post" action="/settings">
   {% for section, rows in sections %}
-  <fieldset>
+  <fieldset class="fieldset">
     <legend>{{ section }}</legend>
     {% for d in rows %}
     {% set fixed = pinned(d) is not none %}
-    <div class="srow" title="{{ d.note }}">
+    {# A run of rows that asked for the grid opens one and the row after it closes
+       it, so the four menus stand two abreast instead of four deep and the things
+       under them are still on the screen. The run is read off the definitions
+       rather than written out here: the page's shape is the module's to state. #}
+    {%- if d.grid and (loop.first or not loop.previtem.grid) %}<div class="formgrid">{% endif %}
 
-      {% if d.kind == 'text' %}
-      <label for="{{ d.key }}">{{ d.label }}</label>
-      <input id="{{ d.key }}" name="{{ d.key }}" maxlength="200" autocomplete="off"
-             value="{{ value(d.key) }}"{{ ' disabled' if fixed else '' }}>
+    {% if d.key == 'accent' %}
+    {# The same row of faces, smaller, and each one showing the thing rather than a
+       word for it: a real primary button and a real link in that accent, derived
+       for the preset in force and for the mode this reader is in. The colours are
+       in accent.css against the value on the face, so nothing here states one. #}
+    {% call(name) U.swatch(d.key, d.label, choices_for(d), value(d.key), note=d.note, pinned=fixed, extra='accents') %}
+    <span class="demo" data-accent="{{ name }}"><span class="dot"></span><span class="lnk">Link</span></span>
+    {% endcall %}
 
-      {% elif d.kind == 'choice' %}
-      {# A menu and not a row of radios: the lists here are expected to grow, and a
-         fourth choice should cost a line rather than a rethink of the layout. #}
-      <label for="{{ d.key }}">{{ d.label }}</label>
-      <select id="{{ d.key }}" name="{{ d.key }}"{{ ' disabled' if fixed else '' }}>
-        {% for word, said in choices_for(d) %}
-        <option value="{{ word }}"{{ ' selected' if value(d.key) == word else '' }}>{{ said }}</option>
-        {% endfor %}
-      </select>
+    {% elif d.kind == 'colour' %}
+    {# Under the eight, and winning over them while it has something in it. Seven
+       characters is the whole of what it can hold: #rrggbb and no more. #}
+    {{ U.field(d.key, d.label, value=value(d.key), note=d.note, pinned=fixed, maxlength=7, placeholder='#rrggbb', spellcheck='false', autocapitalize='off', autocomplete='off') }}
 
-      {% else %}
-      <div class="checks">
-        {# A tick posts nothing when it is off, which is the reading settings.clean
-           takes of its silence -- the same one the for-sale flag and a file's public
-           tick already take of the same gesture. #}
-        <label><input type="checkbox" name="{{ d.key }}"
-                      {{- ' checked' if on(d.key) else '' }}
-                      {{- ' disabled' if fixed else '' }}> {{ d.label }}</label>
-      </div>
-      {% endif %}
+    {% elif d.kind == 'swatch' %}
+    {# Chosen by looking. Each face is a page cut in half -- the light of that
+       preset on the left, its dark on the right -- because a preset is two sets of
+       colours and which of them a reader gets is the answer below this one. The
+       halves name the preset and the mode, and tokens.css paints them
+       (build_presets.face_css); nothing here states a colour. #}
+    {% call(name) U.swatch(d.key, d.label, choices_for(d), value(d.key), note=d.note, pinned=fixed) %}
+    <span class="mini">
+      <span data-preset="{{ name }}" data-theme="light"><span class="b"></span><span class="t"></span><span class="m"></span><span class="a"></span></span>
+      <span data-preset="{{ name }}" data-theme="dark"><span class="b"></span><span class="t"></span><span class="m"></span><span class="a"></span></span>
+    </span>
+    {% endcall %}
 
-    </div>
+    {% elif d.kind == 'choice' %}
+    {# A menu and not a row of radios: the lists here are expected to grow, and a
+       fourth choice should cost a line rather than a rethink of the layout. The
+       look above is the exception, and is the reason the exception exists. #}
+    {{ U.field(d.key, d.label, kind='choice', choices=choices_for(d), value=value(d.key), note=d.note, pinned=fixed) }}
+
+    {% elif d.kind == 'switch' %}
+    {# A tick posts nothing when it is off, which is the reading settings.clean
+       takes of its silence -- the same one the for-sale flag and a file's public
+       tick already take of the same gesture. #}
+    {{ U.field(d.key, d.label, kind='switch', value=on(d.key), note=d.note, pinned=fixed) }}
+
+    {% else %}
+    {{ U.field(d.key, d.label, value=value(d.key), note=d.note, pinned=fixed, maxlength=200, autocomplete='off') }}
+    {% endif %}
+    {%- if d.grid and (loop.last or not loop.nextitem.grid) %}</div>{% endif %}
+
     {% endfor %}
   </fieldset>
   {% endfor %}
-
 </form>
 
 {# The browser's own answer, which never reaches the server (ADR-0023). It is on
@@ -65,11 +91,11 @@
    The script fills the menu in and remembers what is chosen. Hidden until it has,
    which is the honest state for a control that is nothing but script: an empty
    menu that forgets what you tell it is worse than no menu. #}
-<fieldset class="edit settings-box" id="device-box" hidden>
+<fieldset class="fieldset narrow" id="device-box" hidden>
   <legend>This browser</legend>
-  <div class="srow" title="Where this browser sends a small label, whatever the site default says. It is remembered here and goes nowhere else: the phone by the shelf and the machine in the workshop answer differently.">
+  <div class="field" title="Where this browser sends a small label, whatever the site default says. It is remembered here and goes nowhere else: the phone by the shelf and the machine in the workshop answer differently.">
     <label for="device_destination">Small label goes to</label>
-    <select id="device_destination">
+    <select class="select" id="device_destination">
       <option value="">whatever the site says</option>
     </select>
   </div>
@@ -80,7 +106,7 @@
    middle of it, and what it saves is above. A form attribute is how a control
    outside a form still belongs to it, which is what lets the browser's own
    settings sit between the two without being swept up in the save. #}
-<p class="mt-14"><button class="btn primary" type="submit" form="settings-form">save</button></p>
+<div class="actbar">{{ U.button('Save', kind='primary', type='submit', form='settings-form') }}</div>
 
 {# Said once, right at the bottom, and only when there is something greyed to
    explain. Which variable holds which setting is in the manual: naming it on every

@@ -23,7 +23,7 @@ def visitor(client):
 def panel(html):
     """The suggestion, or None if the page is not making one."""
     m = re.search(
-        r'<section class="panel">\s*<header[^>]*>\s*<h3[^>]*>Something to '
+        r'<section class="panel today">\s*<header[^>]*>\s*<h3[^>]*>Something to '
         r"do today.*?</section>",
         html,
         re.S,

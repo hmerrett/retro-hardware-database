@@ -1,11 +1,40 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title | default(site_name(), true) }}{% endblock %}
 {% block content %}
+{% import "_ui.html" as U with context %}
 {# Doubles as /browse: same grid, a subset of the rows, and a line saying which
    subset. Without a heading it is the whole gallery. #}
-<div class="flex">
-  <h2 class="flush">{{ heading | default('Inventory') }}</h2>
-  <span class="muted">{{ n_computers }} computers · {{ n_parts }} parts</span>
+
+{% if first_run | default(false) %}
+{# Nothing in the register at all, and somebody who can do something about it.
+   The gallery has nothing to be until the first item exists, so the front page is
+   the three steps to a labelled machine -- numbered, because they are an order
+   and not a menu. It goes the moment there is one item and does not come back:
+   not a tour, and nothing to dismiss. A visitor gets the line below instead, since
+   a list of steps only the owner can take is a list of what has not been done.
+
+   Step one is the only one the page can see the answer to. Ticked as well as
+   struck through: a line through a word is a colour and a shape, and the mark is
+   what a screen reader has to go on. #}
+{% if request.state.authed %}
+<div class="firstrun">
+  <h1 class="heading">Nothing in the register yet</h1>
+  <p class="prose">Every machine, card and drive you add gets an asset tag, a page
+    of its own and a QR label.</p>
+  <ol class="steps">
+    <li{% if named %} class="done"{% endif %}><span class="t"><b>Name the collection</b><span>In the banner, the browser's tab, the foot of every page and on every label.</span></span>{{ U.button('Settings', size='sm', href='/settings') }}</li>
+    <li><span class="t"><b>Add the first machine</b><span>A computer, or a part on its own.</span></span>{{ U.button('+ Computer', kind='primary', size='sm', href='/computers/new') }}</li>
+    <li><span class="t"><b>Print its label</b><span>Stick it on and scan it: you are at its page.</span></span>{{ U.button('Print labels', size='sm', disabled=true) }}</li>
+  </ol>
+</div>
+{% else %}
+<p id="empty" class="muted">Nothing here yet.</p>
+{% endif %}
+
+{% else %}
+<div class="pagehead">
+  <h1 class="heading">{{ heading | default('Inventory') }}</h1>
+  <span class="count">{{ n_computers }} computers · {{ n_parts }} parts</span>
   {# How many of them the filters are letting through, said as a fraction so it
      reconciles with the pair of figures beside it. On its own it did not: the
      line read "23 computers · 387 parts" and then, further down, "383 items",
@@ -13,7 +42,7 @@
      difference -- the disposed ones, hidden by default. Worse, it sat directly
      after the "show disposed" tickbox and read as part of its label, so the
      page appeared to say there were 383 disposed items. #}
-  <span class="count" id="count"></span>
+  {% if n_shown != n_all %}<span class="count">(showing {{ n_shown }} of {{ n_all }})</span>{% endif %}
 </div>
 {% if note %}
 <p class="hint tuck">{{ note }}{% if crumb %} —
@@ -22,36 +51,41 @@
 {% endif %}
 
 {# The search box itself lives in the banner, so that one search bar serves every
-   page; what is left here is what only the gallery can do. Typing in it filters
-   what is on the page instantly, and Enter hands the query to the server, which
-   searches every field of every item plus its history -- including the prose
-   summaries, which are too bulky to ship to the browser for filtering. #}
-<div class="toolbar">
-  <select id="cat" class="fill" aria-label="category">
+   page; what is left here is what only the gallery can do. A GET form, so the view
+   is the address: the server sorts, filters and pages, and a link opens the page
+   as it was left. index.js submits it when a menu changes; Apply is for a browser
+   running no script, and for a keyboard user who would rather not be moved on by
+   an arrow key. What the route itself was asked for -- a search, a /browse figure
+   -- rides along in hidden fields, and so does a shuffle's hand, so that picking a
+   category narrows the hand rather than dealing a new one. #}
+<form class="toolbar" method="get" action="{{ request.url.path }}" id="toolbar">
+  {% for k, v in (keep or {}).items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">
+  {% endfor %}
+  {%- if deal is not none %}<input type="hidden" name="deal" value="{{ deal }}">
+  {% endif -%}
+  <select id="cat" name="cat" class="select" aria-label="Category">
     <option value="">All categories</option>
-    {% for key, label in cats %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+    {% for key, label in cats %}<option value="{{ key }}"{{ ' selected' if key == cat }}>{{ label }}</option>{% endfor %}
   </select>
-  <select id="sort" class="fill" aria-label="sort order">
+  <select id="sort" name="sort" class="select" aria-label="Sort order">
     {# First, and so the default: a shelf is more interesting shuffled than in the
        order things were last touched, and the collection has more in it than the
-       dozen items a recency sort ever shows. Picking it again deals a new hand. #}
-    <option value="random">Random</option>
-    <option value="updated">Recently updated</option>
-    <option value="added">Recently added</option>
-    <option value="acquired">Recently acquired</option>
-    <option value="yearnew">Year — newest first</option>
-    <option value="yearold">Year — oldest first</option>
-    <option value="name">Name A–Z</option>
-    <option value="maker">Maker A–Z</option>
-    <option value="cat">Category</option>
-    <option value="aid">Asset number</option>
+       dozen items a recency sort ever shows. #}
+    {% for key, label in [('random', 'Random'), ('updated', 'Recently updated'),
+        ('added', 'Recently added'), ('acquired', 'Recently acquired'),
+        ('yearnew', 'Year — newest first'), ('yearold', 'Year — oldest first'),
+        ('name', 'Name A–Z'), ('maker', 'Maker A–Z'), ('cat', 'Category'),
+        ('aid', 'Asset number')] %}<option value="{{ key }}"{{ ' selected' if key == sort }}>{{ label }}</option>
+    {% endfor %}
   </select>
-  <label class="muted"><input type="checkbox" id="showdisposed"{{ ' checked' if show_disposed }}>
-    show disposed</label>
-</div>
+  <label class="check"><input type="checkbox" id="showdisposed" name="disposed" value="1"{{ ' checked' if show_disposed }}>
+    Show disposed</label>
+  <span class="push"></span>
+  {{ U.button('Apply', size='sm', type='submit') }}
+</form>
 
 {% if searched %}
-<p class="hint" id="searchnote" title="Every field and the history of all {{ total }} items">{{ rows | length }} of {{ total }} match <strong>{{ q }}</strong>.
+<p class="hint" id="searchnote" title="Every field and the history of all {{ total }} items">{{ n_all }} of {{ total }} match <strong>{{ q }}</strong>.
   {# The projects are searched by the same words and are not cards here: the grid
      is a wall of photographs of things owned, and a plan is not one of those. So
      they are counted and pointed at instead, which is what stops a search bar that
@@ -63,40 +97,13 @@
 {% endif %}
 
 <div class="grid" id="grid">
-  {% for r in rows %}
-  <a class="card" href="/{{ 'computers' if r.kind == 'computer' else 'parts' }}/{{ r.obj.asset_id }}"
-     data-cat="{{ r.cat }}" data-search="{{ r.search }}"
-     data-disposed="{{ '1' if r.obj.disposed else '0' }}"
-     data-updated="{{ r.updated }}" data-added="{{ r.added }}"
-     data-acquired="{{ r.acquired }}" data-year="{{ r.year }}"
-     data-maker="{{ r.maker }}" data-catsort="{{ r.catsort }}"
-     data-aid="{{ r.obj.asset_id }}"
-     data-img="{{ '1' if r.image else '0' }}" data-name="{{ r.name|lower }}">
-    <div class="thumb">
-      {# A card measures 229px on every desktop width -- the page is capped at
-         1000px -- and the width of the screen on a phone. sizes says so, because a
-         browser believes it: overstating it by seventy pixels was enough to make a
-         retina screen fetch the 800px copy for a card that can show 458. #}
-      {% if r.image %}<img src="{{ img_url(r.image, THUMB_CARD) }}"
-           srcset="{{ img_srcset(r.image, [300, 500, 800]) }}"
-           sizes="(max-width: 460px) 100vw, 229px"
-           alt="{{ r.name }}" loading="lazy" decoding="async">
-      {% else %}<img class="ph" src="/static/{{ r.placeholder }}" alt="{{ r.cat_label }}" loading="lazy">{% endif %}
-      {% if r.ref_photo %}<span class="ref-badge{{ ' icon' if r.ref_icon else '' }}" title="Illustrative image, not this exact unit">{% if r.ref_icon %}<img src="/images/{{ r.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
-    </div>
-    <div class="body">
-      <div class="aid">{{ r.obj.asset_id }}</div>
-      <div class="nm">{{ r.name }}</div>
-      <span class="chip">{{ r.cat_label }}</span>
-      {% if r.year %}<span class="chip">{{ r.year }}</span>{% endif %}
-      {% if r.parent %}<span class="chip">in {{ r.parent }}</span>{% endif %}
-      {% if r.obj.disposed %}<span class="chip">disposed</span>{% endif %}
-    </div>
-  </a>
+  {% for r in rows %}{{ U.card(r) }}
   {% endfor %}
 </div>
-<p id="empty" class="muted is-hidden">No matching items.</p>
+{% if not rows %}<p id="empty" class="muted">No matching items.</p>{% endif %}
+{{ U.pager(page, pages, pager_href) }}
 
-<script type="application/json" id="index-data">{{ {'sortCookie': sort_cookie, 'query': q | default('', true)} | tojson }}</script>
+<script type="application/json" id="index-data">{{ {'sortCookie': sort_cookie, 'order': handoff} | tojson }}</script>
 <script defer src="/static/index.js?v={{ js_ver['index.js'] }}"></script>
+{% endif %}
 {% endblock %}

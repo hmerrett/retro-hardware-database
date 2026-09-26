@@ -7,10 +7,15 @@ browser -- which is what most of what follows is about: which of the three wins,
 and what the page says when it is not the one being edited.
 """
 
+import re
+from pathlib import Path
+
 import pytest
 
-from app import cards, photos, settings
+from app import cards, photos, presets, settings, typefaces
 from conftest import log_out
+
+STATIC = Path(__file__).parents[1] / "app" / "static"
 
 
 def visitor(client):
@@ -105,6 +110,125 @@ class TestWhatTheSiteIsCalled:
         assert client.get("/openapi.json").json()["info"]["title"] == "Retro Hardware Database API"
 
 
+class TestTheLook:
+    """The preset: the one setting that dresses the whole installation rather than
+    telling it a fact about itself (ADR-0031)."""
+
+    def test_the_looks_offered_are_the_ones_there_is_a_stylesheet_for(self, client):
+        """The page reads the design data rather than a list of its own, so it
+        cannot come to offer a look nobody generated a stylesheet for -- which
+        would be a face that paints the site in the default and says nothing."""
+        page = client.get("/settings").text
+        offered = re.findall(r'<input type="radio" name="preset" value="([^"]+)"', page)
+        assert offered == list(presets.IDS)
+        assert len(offered) == 7
+        for name in offered:
+            assert presets.NAMES[name] in page
+            if name != presets.DEFAULT:
+                assert (STATIC / "css" / "presets" / f"{name}.css").is_file()
+
+    def test_a_site_wears_the_default_look_and_says_nothing(self, client):
+        """No attribute, and no second stylesheet fetched to say what the tokens
+        already say: the default preset is what tokens.css declares on :root."""
+        page = client.get("/").text
+        assert '<html lang="en">' in page
+        assert "/static/css/presets/" not in page
+
+    @pytest.mark.parametrize("chosen", [p for p in presets.IDS if p != presets.DEFAULT])
+    def test_a_chosen_look_is_on_the_page_before_it_is_painted(self, client, chosen):
+        """Server-rendered like the theme beside it, and for the same reason: a look
+        applied after paint is the wrong colours flashing on every page."""
+        save(client, preset=chosen)
+        page = client.get("/").text
+        assert f'<html lang="en" data-preset="{chosen}">' in page
+        assert f"/static/css/presets/{chosen}.css" in page
+
+    def test_the_look_and_the_theme_are_two_answers_and_not_one(self, client):
+        """The preset says which pair of looks; the theme says which of the two. A
+        page carries both, and neither displaces the other."""
+        save(client, preset="phosphor", theme="dark")
+        assert '<html lang="en" data-preset="phosphor" data-theme="dark">' in client.get("/").text
+
+    def test_a_face_shows_both_a_light_and_a_dark_half(self, client):
+        """A preset is two sets of colours and the reader's device picks between
+        them, so a face showing one of them is a promise about half the site."""
+        page = client.get("/settings").text
+        for name in presets.IDS:
+            for mode in ("light", "dark"):
+                assert f'data-preset="{name}" data-theme="{mode}"' in page
+
+    def test_the_chosen_face_says_so_in_words(self, client):
+        """An outline is a colour, and somebody who cannot see the outline is left
+        guessing which of seven is on -- so the answer is also written down."""
+        save(client, preset="amber")
+        page = client.get("/settings").text
+        chosen = page.split('value="amber" checked', 1)[1].split("</label>", 1)[0]
+        assert "Chosen" in chosen
+        # Counted inside the preset's own fieldset: there is a second row of faces
+        # under it now, and every face on the page carries the word.
+        faces = page.split('<fieldset class="swatches" title="', 1)[1].split("</fieldset>", 1)[0]
+        assert faces.count("Chosen") == len(presets.IDS)
+
+    def test_the_faces_are_one_group_of_radios(self, client):
+        """Radios and not buttons: it posts with no script, it is one stop for the
+        Tab key, and the arrow keys move the choice, all of which come free from
+        the control the browser already has (accessibility-standards)."""
+        page = client.get("/settings").text
+        assert page.count('<input type="radio" name="preset"') == len(presets.IDS)
+        assert page.count('name="preset"') == len(presets.IDS)
+
+    def test_the_input_is_hidden_without_being_taken_off_the_page(self, client):
+        """`display: none` would take the radios out of the tab order and leave the
+        picker reachable by the mouse alone. They are painted over instead, and
+        draw their own ring when the focus arrives (accessibility-standards)."""
+        css = (STATIC / "css" / "components.css").read_text(encoding="utf-8")
+        rule = css.split(".swatch-opt input {", 1)[1].split("}", 1)[0]
+        assert "opacity: 0" in rule
+        assert "display: none" not in rule
+        assert ".swatch-opt input:focus-visible + .face { outline:" in css
+
+    def test_a_visitor_is_not_offered_the_look_at_all(self, client, monkeypatch):
+        """It is the installation's, not the device's. A visitor's own choice is
+        light or dark, which is the theme button and nothing else."""
+        save(client, preset="breadbin")
+        visitor(client)
+        page = client.get("/").text
+        assert 'data-preset="breadbin"' in page
+        assert 'name="preset"' not in page
+
+    def test_a_query_string_cannot_dress_the_site(self, client, monkeypatch):
+        """The look comes from the setting and from nowhere a stranger can type."""
+        visitor(client)
+        assert "data-preset" not in client.get("/?preset=phosphor").text
+
+    def test_a_name_the_register_does_not_know_comes_up_in_the_default(
+        self, client, db, monkeypatch
+    ):
+        """The value is spent on a stylesheet's path, so it is checked against what
+        exists rather than trusted: a row edited by hand or a variable with a
+        typo in it leaves the site in the default look, not in none at all."""
+        monkeypatch.setenv("RHDB_PRESET", "../../etc/passwd")
+        settings.forget()
+        assert settings.preset() == presets.DEFAULT
+        page = client.get("/").text
+        assert '<html lang="en">' in page
+        assert "/static/css/presets/" not in page
+
+    def test_a_pinned_look_is_shown_and_refuses_an_answer(self, client, monkeypatch):
+        """Like any other pinned setting: the environment is the deployment
+        speaking, and the faces grey rather than take a click that a restart would
+        forget."""
+        monkeypatch.setenv("RHDB_PRESET", "ninetyfive")
+        settings.forget()
+        page = client.get("/settings").text
+        faces = re.findall(r'<input type="radio" name="preset"[^>]*>', page)
+        assert len(faces) == len(presets.IDS)
+        assert 'value="ninetyfive" checked' in page
+        assert [f for f in faces if "disabled" not in f] == []
+        save(client, preset="amber")
+        assert settings.preset() == "ninetyfive"
+
+
 class TestSearchEngines:
     def test_a_site_is_listed_by_default(self, client):
         """A catalogue meant to be found wants to be found, so the box that would
@@ -191,11 +315,11 @@ class TestTheTheme:
         """A menu and not a row of buttons, because the list is expected to grow
         and a fourth choice should cost a line rather than a redesign."""
         page = client.get("/settings").text
-        assert '<select id="theme" name="theme">' in page
+        assert '<select class="select" id="theme" name="theme">' in page
         # The theme's own three. Counted on that menu rather than on the page, which
         # now holds other menus: the label destination's, whose length is a fact
         # about how many printers are configured rather than about this setting.
-        menu = page.split('<select id="theme" name="theme">', 1)[1].split("</select>", 1)[0]
+        menu = page.split('id="theme" name="theme">', 1)[1].split("</select>", 1)[0]
         assert menu.count("<option value=") == 3
         assert '<option value="system" selected>' in menu
 
@@ -229,7 +353,7 @@ class TestSetInTheEnvironment:
         monkeypatch.setenv("RHDB_WATERMARK", "0")
         settings.forget()
         page = client.get("/settings").text
-        assert 'name="watermark" disabled' in page.replace('type="checkbox" ', "")
+        assert 'name="watermark" value="1" disabled' in page.replace('type="checkbox" ', "")
 
     def test_the_page_says_once_what_greyed_means(self, client, monkeypatch):
         """A control that will not take an answer has to say why, or it is a bug
@@ -265,6 +389,98 @@ class TestSetInTheEnvironment:
         assert settings.pinned(settings.BY_KEY["watermark"]) is None
 
 
+class TestTheType:
+    """Which of the three faces does which of the three jobs.
+
+    The pairings themselves are `test_typefaces.py`; these are the promises the
+    page makes about them."""
+
+    def test_the_pairings_offered_are_the_ones_there_are_rules_for(self, client):
+        page = client.get("/settings").text
+        menu = page.split('id="type" name="type">', 1)[1].split("</select>", 1)[0]
+        offered = re.findall(r'<option value="([^"]*)"', menu)
+        assert offered == list(typefaces.IDS)
+
+    def test_a_fresh_install_wears_the_preset_s_own_faces(self, client):
+        """No attribute, and no stylesheet fetched to say what the preset already
+        says."""
+        page = client.get("/").text
+        assert "data-type=" not in page
+        assert "/static/css/type.css" not in page
+
+    @pytest.mark.parametrize("chosen", ["catalogue", "plain", "ledger"])
+    def test_a_chosen_pairing_is_on_the_page_before_it_is_painted(self, client, chosen):
+        """Server-rendered like the preset and the theme beside it: faces swapped
+        after paint are a page that reflows while it is being read."""
+        save(client, type=chosen)
+        page = client.get("/").text
+        assert f'data-type="{chosen}"' in page
+        assert "/static/css/type.css?v=" in page
+
+    def test_the_pairing_is_linked_after_the_preset_that_named_the_faces(self, client):
+        """Both selectors are a root and an attribute, so the order of the links is
+        what decides -- and an owner who asked for Ledger has asked to overrule
+        Phosphor's own monospace, not to be overruled by it."""
+        save(client, preset="phosphor", type="catalogue")
+        page = client.get("/").text
+        assert page.index("/static/css/presets/phosphor.css") < page.index("/static/css/type.css")
+
+    def test_a_pairing_nobody_offered_leaves_the_preset_s_faces_standing(self, client):
+        """Saved through the form it cannot happen; in a row somebody edited by hand
+        it can, and the page is what has to answer for it."""
+        save(client, type="blackletter")
+        assert settings.typeface() == "preset"
+
+
+class TestTheButtonText:
+    """Capitalised or lower case, and on the controls alone (interface-text).
+
+    0.1 wrote its buttons in lower case and its labels capitalised, on a
+    distinction no reader was ever told about; v0.2 capitalises both and keeps the
+    quieter voice as an answer rather than as a fork of the templates."""
+
+    def test_a_new_installation_capitalises_its_controls(self, client):
+        assert ">Save</button>" in client.get("/settings").text
+
+    def test_lower_case_lowers_the_first_word_of_a_control(self, client):
+        """The same button, the other voice. Done as the page is built rather than
+        by text-transform, which is what lets the acronyms below survive it."""
+        save(client, button_case="lower")
+        assert ">save</button>" in client.get("/settings").text
+
+    def test_a_label_a_legend_and_a_heading_keep_their_capitals(self, client):
+        """They name a thing rather than ask for an action, and a page that
+        lower-cased them would read as a page with a fault."""
+        save(client, button_case="lower")
+        page = client.get("/settings").text
+        assert "<legend>Appearance</legend>" in page
+        assert '<label for="site_name">Name</label>' in page
+        assert ">Settings</h1>" in page
+
+    def test_an_acronym_keeps_its_capitals_either_way(self, client):
+        """`API docs` and `OK` are spelt that way on purpose. A browser's own
+        lower-casing cannot tell one from an ordinary word; this can."""
+        save(client, button_case="lower")
+        page = client.get("/").text
+        assert "API docs" in page
+        assert "api docs" not in page
+
+    def test_the_case_is_chosen_from_a_menu_of_two(self, client):
+        page = client.get("/settings").text
+        assert '<select class="select" id="button_case" name="button_case">' in page
+        menu = page.split('id="button_case" name="button_case">', 1)[1].split("</select>", 1)[0]
+        assert menu.count("<option value=") == 2
+        assert '<option value="cap" selected>' in menu
+
+    def test_the_filter_asks_the_setting_on_every_page(self, client):
+        """Not read once at import: the page saved a moment ago is the page the next
+        render is written in, the way the site's name already is."""
+        save(client, button_case="lower")
+        assert ">save</button>" in client.get("/settings").text
+        save(client, button_case="cap")
+        assert ">Save</button>" in client.get("/settings").text
+
+
 class TestHowThePageReads:
     def test_a_control_says_what_it_is_and_the_reason_is_behind_it(self, client):
         """The rule the whole page is built on: the label is a few words and the
@@ -273,7 +489,7 @@ class TestHowThePageReads:
         (interface-text)."""
         page = client.get("/settings").text
         assert '<label for="site_name">Name</label>' in page
-        assert 'class="srow" title="In the banner, the browser&#39;s tab' in page
+        assert 'class="field" title="In the banner, the browser&#39;s tab' in page
 
     def test_the_settings_are_grouped_into_named_sections(self, client):
         """A flat list of four is a list; a flat list of fifteen is a search. The
@@ -290,14 +506,42 @@ class TestHowThePageReads:
         names = [s for s, _ in settings.grouped()]
         assert len(names) == len(set(names))
 
+    def test_the_short_menus_stand_two_abreast(self, client):
+        """Four menus of four words each, stacked, push the switch under them and
+        the save button off a laptop screen. They share one grid, and which rows
+        do is the module's to say rather than the template's -- a fifth menu is a
+        flag on its definition and not a rewrite of the loop."""
+        page = client.get("/settings").text
+        assert page.count('<div class="formgrid">') == 1
+        # Between the grid opening and the row after it, and counted rather than
+        # matched: every row here is a div, so a slice to the first closing tag
+        # would stop inside the first field rather than at the end of the four.
+        grid = page.split('<div class="formgrid">', 1)[1].split('id="watermark"', 1)[0]
+        for key in ("theme", "type", "nav", "button_case"):
+            assert f'id="{key}"' in grid, f"{key} is not in the grid"
+        # Four rows closing themselves and then the grid closing: a grid left open
+        # would swallow everything under it into two columns, which is the failure
+        # this catches and which no count of the rows inside it would.
+        assert grid.count("</div>") == 5, "the grid does not close before the row under it"
+        assert [d.key for d in settings.DEFINITIONS if d.grid] == [
+            "theme",
+            "type",
+            "nav",
+            "button_case",
+        ]
+
     def test_every_row_carries_its_reason(self, client):
         """One tooltip per setting, so none of them is the one that was forgotten
         and left a control with nothing behind it."""
         page = client.get("/settings").text
         # One per setting, and one more: what the browser remembers for itself,
         # which is a row on this page without being a setting -- it is kept in the
-        # browser and never posted (ADR-0023).
-        assert page.count('class="srow" title="') == len(settings.DEFINITIONS) + 1
+        # browser and never posted (ADR-0023). The look's is on the group of faces
+        # rather than on a row, since the row is the group.
+        rows = page.count('class="field" title="') + len(
+            re.findall(r'class="swatches[^"]*" title="', page)
+        )
+        assert rows == len(settings.DEFINITIONS) + 1
 
 
 class TestSaving:

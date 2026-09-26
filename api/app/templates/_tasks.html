@@ -1,0 +1,61 @@
+{# A list of jobs, as the project's page and the Work panel on an item's page both
+   show them: a tick, the words, and -- where the job is about one thing rather than
+   the project -- that thing's tag. Done is struck through and still ticked, so the
+   line is never the only telling.
+
+   The tick is a form of its own marked data-ticksend: it sends the moment it
+   changes, and its Save button is what a browser running no script presses. It
+   sends `set` with the box, so the job becomes what the box shows (see
+   gui_project_toggle_task) rather than flipping on a page that is out of date. A
+   visitor gets the same tick, disabled, because the state is worth reading and the
+   gesture is not theirs.
+
+   `next` brings a tick made on an item's page back there. `members` are the
+   project's things, as (kind, obj, row): given, the owner gets a menu saying which
+   one a job is about, which sends itself the same way. `about` off leaves the tag
+   out where every job is about the page's own thing. `drop` offers to delete a job,
+   which only the project's own page does. `quiet` mutes the words, for the
+   project-wide jobs a Work panel lists under the thing's own. #}
+{% import "_ui.html" as U with context %}
+{% macro tasklist(tasks, next='', members=none, about=true, drop=false, quiet=false) -%}
+{%- set authed = request.state.authed -%}
+<ul class="tasks{{ ' quiet' if quiet else '' }}">
+{%- for t in tasks %}
+<li{% if t.done %} class="done"{% endif %}>
+  {%- if authed %}
+  <form class="tick" method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/toggle" data-ticksend>
+    <input type="hidden" name="set" value="1">
+    {%- if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <input type="checkbox" name="done" value="1"{{ ' checked' if t.done else '' }} aria-label="Done: {{ t.text }}">
+    <button class="btn sm" type="submit" data-send-go>{{ 'Save' | ui }}</button>
+  </form>
+  {%- else %}
+  <input type="checkbox" disabled{{ ' checked' if t.done else '' }} aria-label="Done: {{ t.text }}">
+  {%- endif %}
+  <span>{{ t.text | linked }}</span>
+  {%- set acts %}
+  {%- if about and members and authed %}
+  <form class="about" method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/about" data-ticksend>
+    <select class="select" name="asset" aria-label="What “{{ t.text[:40] }}” is about">
+      <option value="">the project</option>
+      {%- for kind, obj, row in members %}
+      <option value="{{ obj.asset_id }}"{{ ' selected' if t.asset_id == obj.asset_id else '' }}>{{ display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) }}</option>
+      {%- endfor %}
+    </select>
+    <button class="btn sm" type="submit" data-send-go>{{ 'Set' | ui }}</button>
+  </form>
+  {%- elif about and t.asset_id %}
+  <a class="tag" href="/items/{{ t.asset_id }}">{{ t.asset_id }}</a>
+  {%- endif %}
+  {%- if t.done_at %}<span class="tag muted">{{ t.done_at }}</span>{% endif %}
+  {%- if drop and authed %}
+  <form method="post" action="/projects/{{ t.project_id }}/task/{{ t.id }}/delete" data-confirm="Drop this task?">
+    {{- U.button('Drop this task', kind='danger', size='sm', icon='trash', icon_only=true, type='submit') -}}
+  </form>
+  {%- endif %}
+  {%- endset %}
+  {%- if acts | trim %}<span class="acts">{{ acts }}</span>{% endif %}
+</li>
+{%- endfor %}
+</ul>
+{%- endmacro %}

@@ -446,7 +446,7 @@ class TestMarkingOneDone:
         aid = make(client, status="active")
         html = page(client, aid)
         assert f'action="/projects/{aid}/complete"' in html
-        assert "mark done" in html
+        assert "Mark done" in html
 
     def test_there_is_no_button_once_it_is_over(self, client):
         """Done and abandoned both. Either is reopened on the edit form, and a
@@ -500,7 +500,7 @@ class TestTheList:
 
 def table_row(html, name):
     """One project's row out of the list, by the name in it."""
-    table = html.split('<table class="projtable">')[1]
+    table = html.split('<table class="table stack runon">')[1]
     return table.split(name)[1].split("</tr>")[0]
 
 
@@ -510,10 +510,10 @@ class TestTheListOnAPhone:
     on a phone instead -- which turns on the count cells being genuinely empty."""
 
     def test_a_count_of_nothing_is_an_empty_cell_not_a_dash(self, client):
-        """The dash is drawn by the stylesheet. Written into the cell it would be
-        content, and content is not something `:empty` can see past -- so the phone
-        rule that drops the cell would never match and the row would carry three
-        columns of nothing across the narrowest screen."""
+        """A dash written into the cell would be content, and content is not
+        something `:empty` can see past -- so the phone rule that drops the cell
+        would never match and the row would carry three columns of nothing across
+        the narrowest screen."""
         make(client, "Bare")
         html = client.get("/projects").text
         # From the table, not the page: the suggestion above it names a project too
@@ -522,7 +522,7 @@ class TestTheListOnAPhone:
         row = table_row(html, "Bare")
         # Nothing at all between the tags, not even a space: a whitespace text node
         # is a child, and a cell with a child is not :empty.
-        for label in ("items", "tasks", "on order"):
+        for label in ("Items", "Tasks", "On order"):
             assert f'data-label="{label}"></td>' in row
         assert "—" not in row
 
@@ -530,7 +530,7 @@ class TestTheListOnAPhone:
         aid = make(client, "Busy")
         client.post(f"/projects/{aid}/task", data={"text": "a job"}, follow_redirects=False)
         row = table_row(client.get("/projects").text, "Busy")
-        assert 'data-label="tasks">0/1</td>' in row
+        assert 'data-label="Tasks">0/1</td>' in row
 
     def test_the_columns_are_labelled_for_the_stacked_view(self, client):
         """Stacked, a bare "0/1" under a name says nothing. The label the column
@@ -538,7 +538,7 @@ class TestTheListOnAPhone:
         at the width where the heading row is hidden."""
         make(client, "Labelled")
         html = client.get("/projects").text
-        for label in ("items", "tasks", "on order"):
+        for label in ("Status", "Items", "Tasks", "On order"):
             assert f'data-label="{label}"' in html
 
 
@@ -653,7 +653,7 @@ class TestWhoSeesWhat:
         aid = make(client)
         client.post(f"/projects/{aid}/order", data={"description": "Gotek"}, follow_redirects=False)
         as_visitor(client)
-        assert "on order" in client.get(f"/projects/{aid}").text
+        assert '<span class="chip">On order</span>' in client.get(f"/projects/{aid}").text
 
 
 class TestBeingFound:

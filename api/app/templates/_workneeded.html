@@ -1,0 +1,35 @@
+{# What it needs doing, written while it is in your hands.
+
+   The register says what a thing is; this says what is wrong with it, and the
+   moment that is known is this one -- the machine is on the bench, unpacked, and
+   the form that files it is already open. Sending somebody to /projects afterwards
+   is how the second fault they noticed gets forgotten, which is the same reason the
+   quick box exists on the projects page and on every item page.
+
+   What it makes is a project with this item on it and each line as a job, through
+   the one path everything else notes work down (work._take_on_work). It is public,
+   like the rest of the register; the tick on its own form keeps one back. Empty is
+   the ordinary case and makes nothing: most things arrive with nothing wrong.
+
+   Write-only, and never filled in with what the project already says. A box that
+   echoed the jobs back would add every one of them a second time on the next save.
+#}
+{% import "_ui.html" as U with context %}
+<fieldset class="fieldset">
+  <legend>Work needed</legend>
+  {{ U.field('work_needed', 'Work needed', kind='area', rows=3,
+             placeholder='one job per line') }}
+  {# Written by hand rather than through U.field: the options are the projects'
+     own names, which are data, and the Button text setting is not theirs to
+     change. #}
+  <div class="field">
+    <label for="work_project">Project</label>
+    <select class="select" id="work_project" name="work_project" aria-describedby="work_project-hint">
+      <option value="">New project</option>
+      {% for pr in work_projects %}<option value="{{ pr.asset_id }}">{{ pr.name or pr.asset_id }} ({{ pr.asset_id }})</option>{% endfor %}
+    </select>
+    <p class="hint" id="work_project-hint">New project: one named after this, each line a job on it. Or add the jobs to a
+      project already going — usually the case for a part bought for something. Leave
+      the jobs empty if there is nothing to do.</p>
+  </div>
+</fieldset>

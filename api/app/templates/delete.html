@@ -1,20 +1,24 @@
 {% extends "base.html" %}
+{% import "_ui.html" as U with context %}
 {# The confirmation standing between a disposed item and its record being gone.
    It lists what will go before asking, and asks for the item's own URL rather
-   than a yes: a delete should cost a deliberate act, not a click. #}
+   than a yes: a delete should cost a deliberate act, not a click.
+
+   A page and not a dialog, so it has an address, works with no script, and can be
+   left by pressing Cancel — the one way back, at the foot with the decision. #}
 {% block title %}Delete {{ aid }} — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
 {% block content %}
 {% set noun = 'computer' if kind == 'computers' else 'part' %}
-<div class="crumbnav"><a href="/{{ kind }}/{{ aid }}">&larr; back to {{ aid }}</a></div>
+<form method="post" action="/{{ kind }}/{{ aid }}/delete" class="confirm">
+  <h1 class="heading">Delete {{ name }}?</h1>
+  <p class="tag muted">{{ aid }} · disposed{% if obj.disposed_at %} {{ obj.disposed_at }}{% endif %}</p>
 
-<h2 class="lede">Delete {{ name }}</h2>
-<p class="muted lede-tail">{{ aid }} · disposed{% if obj.disposed_at %} {{ obj.disposed_at }}{% endif %}</p>
-
-{% if error %}<div class="banner">{{ error }}</div>{% endif %}
-
-<div class="danger-box">
-  <p class="stack-8"><strong>This cannot be undone.</strong> Disposing an item
-  can be reversed; deleting the record cannot.</p>
+  {# What just happened comes before what is about to: a paste that went wrong is
+     the news, and the standing warning is the page. #}
+  {% if error %}{{ U.banner('danger', error, 'Nothing was deleted.') }}{% endif %}
+  {{ U.banner('danger', 'This cannot be undone.',
+              'Disposing an item can be reversed; deleting the record cannot.') }}
 
   <ul class="going">
     <li>the {{ noun }}'s own record, and everything filed under it</li>
@@ -39,38 +43,37 @@
     {% endif %}
   </ul>
 
-  <form method="post" action="/{{ kind }}/{{ aid }}/delete" class="edit">
-    {% if deletable %}
-    <div class="checks top-12">
-      <label><input type="checkbox" name="with_parts" value="1"{{ ' checked' if with_parts else '' }}>
-        <span>also delete the {{ deletable | length }} disposed
-          part{{ '' if deletable | length == 1 else 's' }} that went with it</span></label>
-    </div>
-    <p class="hint ml-22">
-      {% for p in deletable %}<a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}
-      — a further {{ parts_photos }} photo{{ '' if parts_photos == 1 else 's' }}
-      and {{ parts_logs }} history entr{{ 'y' if parts_logs == 1 else 'ies' }}.
-    </p>
-    {% endif %}
-    {% if kept %}
-    <p class="hint">{{ kept | length }} part{{ ' is' if kept | length == 1 else 's are' }}
-      still in the collection and will be kept whatever you tick
-      ({% for p in kept %}<a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}) —
-      dispose {{ 'it' if kept | length == 1 else 'them' }} first if {{ 'it' if kept | length == 1 else 'they' }} should go too.</p>
-    {% endif %}
+  {% if deletable %}
+  {{ U.field('with_parts', 'Also delete the ' ~ deletable | length ~ ' disposed part'
+             ~ ('' if deletable | length == 1 else 's') ~ ' that went with it',
+             kind='switch', value=with_parts) }}
+  <p class="hint">
+    {% for p in deletable %}<a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}
+    — a further {{ parts_photos }} photo{{ '' if parts_photos == 1 else 's' }}
+    and {{ parts_logs }} history entr{{ 'y' if parts_logs == 1 else 'ies' }}.
+  </p>
+  {% endif %}
+  {% if kept %}
+  <p class="hint">{{ kept | length }} part{{ ' is' if kept | length == 1 else 's are' }}
+    still in the collection and will be kept whatever you tick
+    ({% for p in kept %}<a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ '' if loop.last else ', ' }}{% endfor %}) —
+    dispose {{ 'it' if kept | length == 1 else 'them' }} first if {{ 'it' if kept | length == 1 else 'they' }} should go too.</p>
+  {% endif %}
 
-    <label class="mt-14" for="confirm">Paste this {{ noun }}'s URL to confirm</label>
-    <p class="confirm-url"><code>{{ url }}</code></p>
+  <div class="field">
+    <label for="confirm">Paste this {{ noun }}'s URL to confirm</label>
+    <p class="url"><code>{{ url }}</code></p>
     {# No placeholder holding the answer: a greyed-out copy of the URL in the box
        reads as one already typed, which is the opposite of what this asks for. #}
-    <input id="confirm" name="confirm" autocomplete="off" autocapitalize="off"
+    <input class="input" id="confirm" name="confirm" autocomplete="off" autocapitalize="off"
            spellcheck="false" placeholder="paste it here" required>
+  </div>
 
-    <div class="flex actions-row">
-      <a class="btn" href="/{{ kind }}/{{ aid }}">cancel</a>
-      <button class="btn danger" type="submit">delete this {{ noun }}</button>
-    </div>
-  </form>
-</div>
-
+  {# The destructive one first, because it is what the page is for, and Cancel
+     beside it at the same size: an escape made small is an escape made hard. #}
+  <p class="row mt-5">
+    {{ U.button('Delete this ' ~ noun, kind='danger', icon='trash', type='submit') }}
+    {{ U.button('Cancel', href='/' ~ kind ~ '/' ~ aid) }}
+  </p>
+</form>
 {% endblock %}

@@ -15,9 +15,13 @@ from pathlib import Path
 
 import pytest
 
+from conftest import log_out
+
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 BASE = TEMPLATES / "base.html"
 STYLESHEET = Path(__file__).parents[1] / "app" / "static" / "app.css"
+# Where the phone's bar and the chrome around it now live (ADR-0031).
+COMPONENTS = STYLESHEET.parent / "css" / "components.css"
 
 FOCUSABLE = re.compile(r"<(?:a\s[^>]*href=|button\b|input\b|select\b|textarea\b|summary\b)", re.I)
 HEADING_CELL = re.compile(r"<th(\s[^>]*)?>")
@@ -102,6 +106,13 @@ def media_block_holding(css: str, needle: str) -> str:
     return css[opened : css.index("\n  }", at) + 4]
 
 
+def resolved(css: str) -> str:
+    """The stylesheet with each `var(--name)` it defines itself written out, so a
+    clearance named once as a custom property reads as the figure it is."""
+    defined = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", css))
+    return re.sub(r"var\((--[\w-]+)\)", lambda m: defined.get(m.group(1), m.group(0)), css)
+
+
 def px(text: str, declaration: str) -> int:
     """The first pixel figure in a declaration, whether or not it is inside a
     `calc()` with a safe-area inset added to it."""
@@ -120,7 +131,7 @@ def test_a_bar_fixed_across_the_bottom_does_not_swallow_the_focus_ring():
     `body`'s padding holds the last card clear of the bar and says nothing about
     where a scroll stops; the scroll container has to be told separately. WCAG 2.2
     calls this 2.4.11, and the minimum is that focus is not *entirely* hidden."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    css = resolved(COMPONENTS.read_text(encoding="utf-8"))
     phone = media_block_holding(css, ".tabbar { position: fixed")
     reserved = px(phone, "padding-bottom")
     assert "scroll-padding-bottom" in phone, (
@@ -136,7 +147,7 @@ def test_the_cookie_notice_does_not_swallow_it_either():
     screen, where the text wraps to five lines. It is in the markup only while it
     is showing, so `:has` is the whole of the condition and no script is needed to
     put the room back when it goes."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    css = resolved(COMPONENTS.read_text(encoding="utf-8"))
     while_showing = [
         rule
         for rule in re.finditer(r"html:has\(#cookienote\)[^{]*\{[^}]*\}", css)
@@ -151,13 +162,17 @@ def test_the_cookie_notice_does_not_swallow_it_either():
     )
 
 
-def test_the_login_boxes_say_what_they_are_for():
+def test_the_login_boxes_say_what_they_are_for(client, monkeypatch):
     """A password manager fills a form it can read: `autocomplete="username"` and
     `current-password` are what tell it which entry this is and which box the
     password goes in. Without them the one credential this register has must be
     typed from memory or carried between windows, which is what WCAG 2.2's 3.3.8
-    is about."""
-    html = (TEMPLATES / "login.html").read_text(encoding="utf-8")
+    is about.
+
+    Read off the rendered page rather than the template, because the boxes are the
+    `field` macro's now and what reaches the browser is what a manager reads."""
+    log_out(client)
+    html = client.get("/login").text
     assert re.search(r'<input[^>]*name="username"[^>]*autocomplete="username"', html), (
         "the username box does not say what it is for"
     )
@@ -260,8 +275,16 @@ def test_nothing_hides_where_the_keyboard_is():
     rule that does suppress it, deliberately: the skip link lands on `<main>`, and
     a ring drawn round the whole page says nothing -- the eye should be following
     the link. Anything else turning an outline off is the thing this asserts
-    against, and has to justify itself here first."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    against, and has to justify itself here first. The v0.2 stylesheets are read
+    with app.css, since a suppression in either reaches every page."""
+    css = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            STYLESHEET,
+            STYLESHEET.parent / "css" / "components.css",
+            STYLESHEET.parent / "css" / "utilities.css",
+        )
+    )
     allowed = "main:focus"
     suppressed = [
         css[max(0, found.start() - 60) : found.start()].strip().splitlines()[-1]

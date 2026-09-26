@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
+from . import accent as accents
+from . import presets, typefaces
 from .db import SessionLocal
 from .models import Setting
 
@@ -34,7 +36,12 @@ if TYPE_CHECKING:
     # one.
     from .forms import Posted
 
-SWITCH, TEXT, CHOICE = "switch", "text", "choice"
+SWITCH, TEXT, CHOICE, SWATCH = "switch", "text", "choice", "swatch"
+# A colour of the owner's own, written as `#rrggbb`. Its own kind rather than a
+# text box, because what it will take is a narrower question than "some words":
+# the value is spent on a colour in a stylesheet, and `clean` is where that is
+# settled once rather than at every place the setting is read.
+COLOUR = "colour"
 
 # The fieldsets, in the order they are shown. Named here so a definition names one
 # rather than repeating the words.
@@ -81,6 +88,11 @@ class Definition:
     default: str
     choices: tuple[tuple[str, str], ...] = ()
     env: str = ""
+    # Whether this row sits in the two-column grid with the rows beside it. A menu
+    # of four words does not need the width of the page, and four of them stacked
+    # push the things under them off the bottom of it. Adjacent rows that say yes
+    # share one grid; a row that says no ends it.
+    grid: bool = False
     # Whether the answers to this one are worked out when the page is drawn rather
     # than written here. Only the label destination is: its list holds one entry per
     # print agent, and those are named in the environment (ADR-0025), so a static
@@ -101,16 +113,40 @@ DEFINITIONS: tuple[Definition, ...] = (
         default=DEFAULT_SITE_NAME,
     ),
     Definition(
-        key="watermark",
+        key="preset",
         section=APPEARANCE,
-        label="Watermark photographs",
+        label="Preset",
         note=(
-            "Composited into the copy that is served, so a photograph saved elsewhere "
-            "still says where it came from. The original on disk is never touched."
+            "The look the whole installation wears: its colours, its corners and its "
+            "typefaces, and never its layout. A visitor chooses only light or dark within it."
         ),
-        kind=SWITCH,
-        default="1",
-        env="RHDB_WATERMARK",
+        kind=SWATCH,
+        default=presets.DEFAULT,
+        choices=presets.CHOICES,
+        env="RHDB_PRESET",
+    ),
+    Definition(
+        key="accent",
+        section=APPEARANCE,
+        label="Accent",
+        note=(
+            "The colour that means press this, this is a link, this is where you are. "
+            "It is adjusted for the preset and the mode so that it always reads."
+        ),
+        kind=SWATCH,
+        default=accents.AS_PRESET,
+        choices=accents.CHOICES,
+    ),
+    Definition(
+        key="accent_custom",
+        section=APPEARANCE,
+        label="Custom accent",
+        note=(
+            "A colour written as #rrggbb, which wins over the eight while it has "
+            "something in it. Emptying it hands the answer back to them."
+        ),
+        kind=COLOUR,
+        default="",
     ),
     Definition(
         key="theme",
@@ -127,6 +163,55 @@ DEFINITIONS: tuple[Definition, ...] = (
             ("light", "light"),
             ("dark", "dark"),
         ),
+        grid=True,
+    ),
+    Definition(
+        key="type",
+        section=APPEARANCE,
+        label="Type",
+        note=(
+            "Which face does the writing, the interface and the recorded values. "
+            "Catalogue: serif, sans and mono. Plain: sans and mono. Ledger: mono throughout."
+        ),
+        kind=CHOICE,
+        default=typefaces.DEFAULT,
+        choices=typefaces.CHOICES,
+        grid=True,
+    ),
+    Definition(
+        key="nav",
+        section=APPEARANCE,
+        label="Navigation",
+        note=(
+            "Where the sections sit on a wide screen: down a rail beside the page, or "
+            "across the banner above it. Below 1100px and on a phone, the banner either way."
+        ),
+        kind=CHOICE,
+        default="side",
+        choices=(("side", "Side"), ("top", "Top")),
+        grid=True,
+    ),
+    Definition(
+        key="button_case",
+        section=APPEARANCE,
+        label="Button text",
+        note="Save and Add note, or save and add note. Labels and headings keep their capitals.",
+        kind=CHOICE,
+        default="cap",
+        choices=(("cap", "Capitalised"), ("lower", "Lower case")),
+        grid=True,
+    ),
+    Definition(
+        key="watermark",
+        section=APPEARANCE,
+        label="Watermark photographs",
+        note=(
+            "Composited into the copy that is served, so a photograph saved elsewhere "
+            "still says where it came from. The original on disk is never touched."
+        ),
+        kind=SWITCH,
+        default="1",
+        env="RHDB_WATERMARK",
     ),
     Definition(
         key="label_destination",
@@ -312,6 +397,62 @@ def site_name() -> str:
     return value("site_name")
 
 
+def preset() -> str:
+    """The look in force, and always one there is a stylesheet for.
+
+    Checked rather than returned, because this is the one setting whose value
+    becomes part of a URL the page then asks the browser to fetch. `presets.known`
+    is where that check lives; this is the only way in to it.
+    """
+    return presets.known(value("preset"))
+
+
+def typeface() -> str:
+    """The pairing in force, and always one the stylesheet has a block for.
+
+    Checked on the way out like `preset` above it, for the milder version of the
+    same reason: this one is spent on an attribute rather than on a path, so an
+    unknown value would not fetch the wrong file -- it would leave the page saying
+    it wears a face that nothing paints."""
+    return typefaces.known(value("type"))
+
+
+def navigation() -> str:
+    """Where the sections sit: side or top, and never anything else.
+
+    Read against the definition's own answers rather than a second list, and
+    checked because this one is written into a class name on every page: a value
+    from a row nobody on this page wrote would otherwise arrive in the markup.
+    """
+    d = BY_KEY["nav"]
+    chosen = value("nav")
+    return chosen if chosen in dict(d.choices) else d.default
+
+
+def accent_brand() -> str:
+    """The colour the page is accented with, or empty for the preset's own.
+
+    Two settings and one answer. The box wins while it has something in it and the
+    named choice is still underneath when it is emptied, so changing your mind
+    about a colour of your own does not cost you the one you had chosen before it.
+    Both are checked here rather than trusted: either can have been written by a
+    row this page did not put there, and the value is spent on a colour in a
+    stylesheet (`accent.known`, `accent.custom`).
+    """
+    own = accents.custom(value("accent_custom"))
+    if own:
+        return own
+    chosen = accents.known(value("accent"))
+    return "" if chosen == accents.AS_PRESET else accents.BRANDS[chosen]
+
+
+def accent_css() -> str:
+    """The accent's stylesheet for the look in force, and the stamp it is asked for
+    by. Both come from the same call so a page can never link one and serve the
+    other."""
+    return accents.stylesheet(preset(), accent_brand())
+
+
 def clean(d: Definition, raw: str | None) -> str | None:
     """What was posted, as the definition's own kind, or None if it is not an answer
     this setting has.
@@ -325,7 +466,12 @@ def clean(d: Definition, raw: str | None) -> str | None:
     if d.kind == SWITCH:
         return "0" if raw is None else "1"
     text = (raw or "").strip()
-    if d.kind == CHOICE:
+    if d.kind == COLOUR:
+        # Blank is an answer -- it is how the box is given back to the eight above
+        # it. Anything that is not a colour is not, and `None` here is what leaves
+        # the stored value alone rather than overwriting it with a typo.
+        return "" if not text else (accents.custom(text) or None)
+    if d.kind in (CHOICE, SWATCH):
         return text if text in dict(choices_for(d)) else None
     return text[:200]
 

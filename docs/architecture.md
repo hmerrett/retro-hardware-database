@@ -148,8 +148,8 @@ and re-render; never edit the string and hope.
 |---|---|
 | `asset_variant`, `asset_chip` | which issue/style/region an asset is, and the notable chips on it |
 | `log_entry`, `log_photo` | the dated history of an asset, and photographs attached to a line of it |
-| `files` | files kept beside the register — drivers, manuals, ROM dumps, receipts — each with a one-line note and whether a visitor may see it |
-| `file_asset` | what a file is for: every machine, part or project it is linked to, by asset id, and nothing else (ADR-0028) |
+| `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the tags that say what each one is |
+| `file_asset`, `file_model` | what a file is for: one unit by asset id, or every item of a model by catalogue key or by maker and model |
 | `location` | every place something has been kept, so an emptied crate is still offered by name — the register's one stored vocabulary, and deleted outright when the preference behind it is turned off (ADR-0027) |
 | `users`, `memberships` | who may sign in, and the role each has on a site — one site today, and the row a second collection would hang from (ADR-0032) |
 | `sessions`, `api_tokens` | a signed-in browser and a program's token, each kept as a digest of the key it was handed, so either ends the moment its row goes |
@@ -168,6 +168,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 |---|---|
 | `main.py` | create_app(): the middlewares (including the content policy), the static mount and every router — the wiring, and nothing else |
 | `auth.py` | the login, the logout, first-run setup, and the gate every request passes through |
+| `errors.py` | what a browser is shown when a request cannot be answered: the 403, 404 and 500 pages, and the JSON everything else keeps |
 | `accounts/roles.py` | roles as lists of permissions, the principal a request is made by, and `can()`, the one check |
 | `accounts/store.py` | users, memberships, sessions and API tokens: making them, checking them, ending them |
 | `accounts/firstrun.py` | an installation with no accounts: the setup code, seeding from the old login, and what the log says at startup |
@@ -176,11 +177,12 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
 | `work.py` | the jobs on a project and the things it is about, read from the project, the item and the API alike |
 | `routers/items.py` | /items/<id>: the address a label carries, and the history written under it |
-| `routers/files.py` | the files kept beside the register: the list, a file's own page, what each is linked to, and who may see it |
+| `routers/files.py` | the files kept beside the register, what each is for, and who may see it |
 | `routers/computers.py` | the pages of a machine |
 | `routers/parts.py` | the pages of a part, including the spec pickers |
 | `routers/api_assets.py` | the JSON API for computers and parts |
 | `routers/api_projects.py` | the JSON API for projects, their jobs and their orders |
+| `routers/accounts.py` | the account pages: Settings → Accounts for administrators, and Your account for everybody signed in |
 | `routers/health.py` | /healthz: up, and able to reach the database |
 | `routers/print_queue.py` | the print queue: the owner's half, and the half a print agent's key opens |
 | `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
@@ -194,9 +196,10 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/gallery.py` | the wall of cards, the /browse slice of it, the owner's /for-sale shortlist, and the suggestions under the search bar |
 | `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
 | `routers/settings.py` | /settings: the two routes behind the page of preferences |
-| `routers/catalogue.py` | the catalogue as a page and as JSON: /machines and /api/machines |
+| `routers/catalogue.py` | the catalogue as a page and as JSON: /machines, a model's own page at /machines/<key>, and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
 | `routers/styles.py` | /style/data.css: the generated stylesheet, served the way a static one is |
+| `routers/chrome.py` | /rail/<state>: folding the side rail away and opening it again, with no script |
 | `datacss.py` | the rules whose values are data — a bezel's swatch, a bar's length — built at import |
 | `models.py` | the ORM tables and their relationships |
 | `db.py` | the engine and the per-request session — the only place either is made |
@@ -204,6 +207,11 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `ids.py` | allocating an asset id, unique across the whole register |
 | `common.py` | the "still held" filter, small query helpers, the image folder, collection constants |
 | `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
+| `presets.py` | the looks the register ships with, read from the design data — so the page cannot offer one no stylesheet was written for |
+| `typefaces.py` | the ways the three faces can be pointed, read from the same design data — a pairing repoints them and changes nothing else |
+| `accent.py` | the installation's accent: one colour in, the five tokens the page is painted with out, derived for the preset and the mode and served as a stylesheet of its own |
+| `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, and the size it is given as |
+| `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
 | `locations.py` | where things are kept: the remembered vocabulary of places, what a form's pick list offers, and where a part is when it does not say for itself |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
@@ -216,8 +224,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `search.py` | the term parser, the "any field" haystack, the suggestion list, the `/browse` views |
 | `stats.py` | the figures and the pool of facts behind the public `/stats` page |
 | `projects.py` | projects: the work, as against the things it is done to |
-| `filesdb.py` | files kept beside the register, what each is linked to, the same-model suggestions, and the bytes on disk |
-| `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, and the size it is given as |
+| `filesdb.py` | files kept beside the register, what each is attached to, and the bytes on disk |
 | `photos.py` | watermarking, upload verification, reference photos, kept originals, crop/rotate |
 | `thumbs.py` | smaller copies of the photographs, made once and kept |
 | `enhance.py` | the one-touch tuneup: the automatic levels-and-colour fix a phone does |
@@ -229,7 +236,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 
 Outside `api/`:
 
-- `api/app/templates/` — 30 Jinja2 templates. `api/app/static/` — the stylesheet
+- `api/app/templates/` — 39 Jinja2 templates. `api/app/static/` — the stylesheet
   and scripts, moved out of `base.html` so they can be cached — and that move is
   what made the content policy in `main.py` possible, there being nothing inline
   left to have to allow.
@@ -270,19 +277,14 @@ breaking one turns CI red rather than merely being wrong.
 - **A migration must not assume specific data exists.** A one-off correction to a
   named row belongs in a `tools/` script, not in the shared history, or it breaks
   every fresh install. *(ADR-0002, enforced: CI migrates an empty database)*
-- **A file is linked by asset id, and only by hand.** `file_asset` is the one
-  link, to a machine, a part or a project, and each shows the files linked to it
-  and nothing else. A visitor is never told a file is linked to a private
-  project. The model
-  suggests and never decides: an upload offers the same model's other units, and a
-  unit is offered its siblings' files, but neither links anything on its own. So
-  renaming an item or correcting its model moves nothing, and nothing is read
-  from a filename. *(ADR-0028, enforced: `test_files.py`)*
-- **A file is not public until it is ticked.** An unpublished file answers 404,
-  not 401, at its page and at its download alike — there is no account a reader
-  could hold, so a prompt would only confirm the file exists. The owner may have
-  the upload's tick start ticked; nothing is published by a default the form did
-  not show. *(ADR-0009, ADR-0029)*
+- **What a file is for is stated, never inferred.** A link to an asset id or to a
+  model, made by hand; a tag says what a file *is* and decides nothing about where
+  it appears. Matching is equality on the stored key, so renaming an item cannot
+  move its files and a short tag cannot reach across the register.
+  *(ADR-0006, ADR-0020, enforced: `test_files.py`)*
+- **A file is not public until it is ticked.** Unpublished files answer 404, not
+  401 — there is no account a reader could hold, so a prompt would only confirm
+  the file exists. *(ADR-0009)*
 - **A share card is made of photographs that are already public.** The montage a
   grid page previews as is built from what an anonymous reader is shown, so a
   private project puts nothing on one, and `/og/{name}` opens a file by hash
@@ -383,9 +385,9 @@ Things genuinely undecided, recorded here so they are not rediscovered:
 - **Eight of the 26 `/api` operations declare no response model**, so the pinned
   contract is thin exactly at the deletes and at `/api/machines`,
   `/api/items/{aid}/log` and `/api/files`.
-- **Accounts are managed from the command line.** The pages for it wait on the
-  design system; `python -m app.accounts` does it meanwhile, and stays as the way
-  back in (ADR-0032).
+- **`request.state.authed` still says *authed* and means *may edit*.** The rename
+  ADR-0032 wanted waits until the design-system branch has landed, because nearly
+  every use is in a template that branch is rewriting.
 - **One site.** `memberships.site_id` is always 1 and the collection's tables have
   no site at all. Tenancy would add both; ADR-0032 says what it would take.
 - **Accessibility** is a decided standard rather than a courtesy: WCAG 2.2 AA
@@ -426,6 +428,7 @@ it was weighed against, and what it costs.
 | 0028 | A file is linked to the things it is for, by their asset ids |
 | 0029 | An upload starts public where the owner says so |
 | 0030 | A PDF is read in the browser, and everything else is still a download |
+| 0031 | The look is a design system, and its values are data |
 | 0032 | Accounts, roles, and a site to hold them |
 
 A significant decision becomes an ADR rather than a commit message. A finding is

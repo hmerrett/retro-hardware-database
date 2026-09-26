@@ -180,6 +180,11 @@ def _always_open(path: str) -> bool:
 # than shown to one.
 VIEWER_PAGES = frozenset({"/for-sale"})
 
+# A person's own account: their password, their sessions, their tokens. Anybody
+# signed in, whatever their role, and every method -- changing your own password is
+# a write a viewer is allowed.
+OWN_ACCOUNT = "/settings/account"
+
 
 def may(principal: Principal, method: str, path: str, closed: bool) -> bool:
     """Whether this principal may make this request at all.
@@ -188,6 +193,8 @@ def may(principal: Principal, method: str, path: str, closed: bool) -> bool:
     route's, as it always was (ADR-0009): the gate says the door is open and the
     row decides who comes through it."""
     if can(principal, EDIT):
+        return True
+    if principal.signed_in and (path == OWN_ACCOUNT or path.startswith(OWN_ACCOUNT + "/")):
         return True
     if method != "GET":
         return False
@@ -225,10 +232,16 @@ def _public_page(path: str) -> bool:
     # register in it: /api/machines answers with what was made rather than with what
     # is here, the same list that is in the repository as machines.yaml and
     # catalogue.txt. Putting the page behind the login and not the data behind it
-    # would be a lock on a door in a field.
-    if path in ("/machines", "/api/machines"):
+    # would be a lock on a door in a field. A model's own page is the same list
+    # read one entry at a time, beside the units of it here, whose pages are
+    # public already.
+    if path in ("/machines", "/api/machines") or path.startswith("/machines/"):
         return True
     if path.startswith(("/images/", "/static/", "/style/")):
+        return True
+    # Folding the side rail away. A visitor has a rail too, and a link that answered
+    # with the login page would fold nothing and lose them the page they were on.
+    if path.startswith("/rail/"):
         return True
     # The share card a grid page's link previews as (ADR-0017), and it has to be
     # public or the feature does not exist: a preview is fetched *anonymously* --
@@ -311,7 +324,12 @@ def _forbidden(request: Request, api_path: bool) -> Response:
     prove again who they are, which is not what is wrong."""
     if api_path:
         return Response("Your account may not do that", status_code=403)
-    return templates.TemplateResponse(request, "forbidden.html", {"noindex": True}, status_code=403)
+    # Imported here: errors reads _is_api_path from this module, and the page it
+    # draws is the site's one 403, so a second one of this module's own would be two
+    # answers to the same question.
+    from .errors import page
+
+    return page(request, 403)
 
 
 async def auth_gate(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -375,13 +393,20 @@ def _signed_in(request: Request, resp: Response, key: str) -> Response:
     return resp
 
 
+def _login_page(request: Request, status: int = 200, **context: object) -> Response:
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {"error": False, "noindex": True, "closed": settings.on(CLOSED)} | context,
+        status_code=status,
+    )
+
+
 @router.get("/login", response_class=HTMLResponse, include_in_schema=False)
 def gui_login(request: Request, next: str = "/") -> Response:
     if request.state.principal.signed_in:
         return RedirectResponse(_safe_next(next), status_code=303)
-    return templates.TemplateResponse(
-        request, "login.html", {"next": _safe_next(next), "error": False, "noindex": True}
-    )
+    return _login_page(request, next=_safe_next(next))
 
 
 @router.post("/login", include_in_schema=False)
@@ -390,20 +415,13 @@ async def gui_do_login(request: Request, db: Session = Depends(get_db)) -> Respo
     nxt = _safe_next(form.get("next", "/") or "/")
     ip = _client_ip(request)
     if not _login_limiter.check(ip):
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {"next": nxt, "error": True, "rate_limited": True, "noindex": True},
-            status_code=429,
-        )
+        return _login_page(request, next=nxt, error=True, rate_limited=True, status=429)
     user = await run_in_threadpool(
         store.authenticate, db, form.get("username", ""), form.get("password", "")
     )
     if user is None:
         _login_limiter.record(ip)
-        return templates.TemplateResponse(
-            request, "login.html", {"next": nxt, "error": True, "noindex": True}, status_code=401
-        )
+        return _login_page(request, next=nxt, error=True, status=401)
     _login_limiter.reset(ip)
     return _signed_in(request, RedirectResponse(nxt, status_code=303), store.open_session(db, user))
 

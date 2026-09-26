@@ -34,7 +34,8 @@ def test_the_box_is_described_by_them(client, kind):
     that happens to sit near it."""
     page = client.get(f"/parts/new?type={kind}").text
     assert re.search(
-        r'<input id="spec_ports" name="spec_ports"[^>]*aria-describedby="spec_ports-legend"', page
+        r'<input class="input" id="spec_ports" name="spec_ports"[^>]*aria-describedby="spec_ports-legend"',
+        page,
     )
 
 

@@ -15,7 +15,7 @@ from typing import ClassVar
 import pytest
 
 from app import main, schemas
-from conftest import log_out, sign_in, served
+from conftest import content, log_out, served, sign_in
 
 
 class TestTypedColumns:
@@ -80,7 +80,7 @@ class TestCondition:
         was recorded as working when nobody had checked."""
         page = client.get(path).text
         assert '<option value="Working" selected>' not in page
-        assert '<option value="">not recorded</option>' in page
+        assert re.search(r'<option value=""(?: selected)?>Not recorded</option>', page)
 
     def test_a_condition_can_be_taken_back_off(self, client, computer):
         aid = computer(condition="Working")["asset_id"]
@@ -844,25 +844,25 @@ class TestDrives:
         """The chart is next to the menus because that is where the choice is made:
         a bezel is held up to the screen and the nearest one taken."""
         page = client.get(f"/computers/{computer()['asset_id']}/edit").text
-        assert "colour chart" in page
+        assert "Colour chart" in page
         for label in ("Black", "Grey", "White", "Beige", "Lightly yellowed"):
             assert f'<option value="{label}">' in page
         # The chart draws each level on three shades, from the same function the
         # menus' live swatch reads. The mixing shows up in the generated stylesheet
         # now rather than in the markup, because the policy allows no style
         # attribute -- so the page carries the classes and the sheet the colours.
-        assert page.count('class="swatch bz-') >= 3
+        assert page.count('class="bezel bz-') >= 3
         assert client.get("/style/data.css").text.count("linear-gradient(115deg") >= 3
         # The drive rows do not fit a phone; squeezed to fit, the row showed two
         # characters of a model and none of the bezel.
-        assert re.search(r'<div class="hscroll">\s*<table class="drives">', page)
+        assert re.search(r'<div class="hscroll">\s*<table class="table drives">', page)
 
     def test_a_bezel_is_searchable(self, client, computer):
         """It rides on the drives string, which the search index reads, so "which
         machines have a yellowed floppy" is a question the box can answer."""
         aid = computer(drives='3.5" 1.44MB floppy (beige, yellowed)')["asset_id"]
         computer(drives='3.5" 1.44MB floppy (beige)')
-        found = re.findall(r'/computers/(RH-[A-Z0-9]+)"', client.get("/?q=yellowed").text)
+        found = re.findall(r'/computers/(RH-[A-Z0-9]+)"', content(client.get("/?q=yellowed").text))
         assert set(found) == {aid}
 
     def test_routing_a_drive_reads_its_bezel(self, client, computer):
@@ -957,7 +957,7 @@ class TestDrives:
     def test_the_routed_form_offers_the_menus_and_the_chart(self, client, computer):
         page = client.get(f"/parts/new?type=storage&computer_id={computer()['asset_id']}").text
         assert 'name="drive_colour"' in page and 'name="drive_yellowing"' in page
-        assert "colour chart" in page
+        assert "Colour chart" in page
 
     def test_a_routed_drive_with_no_machine_keeps_its_bezel(self, client):
         """No machine to route to, so it becomes a storage part after all -- and the
@@ -1727,7 +1727,9 @@ class TestReopeningADriveOnWhatItSaved:
         out = {}
         for m in re.finditer(r'name="(\w+)" value="([^"]*)"[^>]*?\schecked', flat):
             out[m.group(1)] = html.unescape(m.group(2))
-        for m in re.finditer(r'<input id="\w+" name="(\w+)"[^>]*?value="([^"]*)"', flat):
+        for m in re.finditer(
+            r'<input (?:class="input" )?id="\w+" name="(\w+)"[^>]*?value="([^"]*)"', flat
+        ):
             out.setdefault(m.group(1), html.unescape(m.group(2)))
         return out
 
@@ -1836,12 +1838,12 @@ class TestTheMakerLeagueTable:
 class TestAPickerOpensOnNothing:
     """ "Install in computer" opened on the first machine in the register, which reads
     as a statement that the part is in it -- next to a table whose "Installed in" row
-    is absent precisely because it is not. Every one of these menus now opens on
+    is absent precisely because it is not. (The row is the Fitted in panel now.) Every one of these menus now opens on
     nothing and refuses to submit until something is chosen."""
 
     @staticmethod
     def _select(page, name):
-        cut = page[page.index(f'<select name="{name}"') :]
+        cut = page[re.search(rf'<select [^>]*name="{name}"', page).start() :]
         return cut[: cut.index("</select>")]
 
     def test_the_install_menu_opens_on_nothing(self, client, computer, part):
@@ -1858,8 +1860,8 @@ class TestAPickerOpensOnNothing:
         p = part(model="a card")
         page = client.get(f"/parts/{p['asset_id']}").text
         assert "selected" not in self._select(page, "computer_id")
-        # ...and the table above says nothing either, the part being installed nowhere.
-        assert "Installed in" not in page
+        # ...and the panel says it is in nothing, the part being installed nowhere.
+        assert "Not fitted in anything." in page
 
     def test_choosing_one_still_installs_it(self, client, computer, part):
         c = computer(model="PS/1")
@@ -1869,7 +1871,7 @@ class TestAPickerOpensOnNothing:
             data={"computer_id": c["asset_id"]},
             follow_redirects=False,
         )
-        assert "Installed in" in client.get(f"/parts/{p['asset_id']}").text
+        assert f'href="/computers/{c["asset_id"]}"' in client.get(f"/parts/{p['asset_id']}").text
         assert client.get(f"/api/parts/{p['asset_id']}").json()["computer_id"] == c["asset_id"]
 
     @pytest.mark.parametrize(
@@ -1922,16 +1924,16 @@ class TestRememberingHowYouLeftIt:
         """A stale or hand-edited cookie naming a sort the page dropped would
         otherwise leave the grid sorted by nothing."""
         computer(model="A")
-        assert "if (saved && SORTS[saved]) sortSel.value = saved;" in served(
-            client, client.get("/").text
-        )
+        client.cookies.set("rhdb_sort", "colour")
+        assert '<option value="random" selected>' in client.get("/").text
 
-    def test_it_is_written_on_the_sorts_own_change_and_not_on_every_keystroke(
+    def test_it_is_written_when_the_sort_is_chosen_and_not_when_a_link_names_one(
         self, client, computer
     ):
+        """Opening a link somebody sent, with a sort in it, is not choosing one."""
         computer(model="A")
         page = served(client, client.get("/").text)
-        assert "sortSel.addEventListener('change', function () {" in page
+        assert "if (e.target === sortSel) window.rhdbCookie.write(PAGE.sortCookie" in page
 
     def test_the_helpers_are_defined_before_the_page_uses_them(self, client, computer):
         """The gallery's script lives in the content block, so anything it calls has
@@ -1978,7 +1980,7 @@ class TestTheCookieNotice:
         page = served(client, client.get("/").text)
         note = page[page.index('id="cookienote"') :]
         assert "position: fixed" in page and 'class="card"' in page
-        assert "got it" in note[:600]
+        assert "Got it" in note[:600]
 
 
 class TestTheGalleryOpensShuffled:
@@ -1995,26 +1997,17 @@ class TestTheGalleryOpensShuffled:
         ]
         values = re.findall(r'<option value="([^"]*)"', select)
         assert values[0] == "random", values
-        # No `selected` anywhere in the group, so the first option is what opens --
-        # asserted because adding one elsewhere would silently take the default away.
-        assert "selected" not in select
+        # With no cookie and no sort in the link, Random is the one chosen.
+        assert re.findall(r'<option value="([^"]*)" selected>', select) == ["random"]
 
     def test_the_shuffle_is_dealt_once_and_held(self, client, computer):
-        """Filtering and searching re-sort on every keystroke, so a shuffle that
-        re-dealt each time would throw the cards up in the air while you typed."""
-        computer(model="A")
-        page = served(client, client.get("/").text)
-        assert "function deal()" in page and "el._shuffle = Math.random()" in page
-        # Dealt again only when Random is chosen afresh, which is what makes the
-        # option useful once you are already on it.
-        assert "if (mode === 'random' && mode !== lastMode) deal();" in page
-
-    def test_a_photoless_item_still_sorts_last(self, client, computer):
-        """The same rule the recency sorts follow: a shuffle that opens on a screenful
-        of unphotographed things looks like a broken page, not a random one."""
-        computer(model="A")
-        page = served(client, client.get("/").text)
-        assert "random: (a, b) => hasImg(b) - hasImg(a) || a._shuffle - b._shuffle" in page
+        """The hand is in the link, so reloading, turning the page or sending it to
+        somebody shows the same shuffle rather than a fresh one."""
+        for m in "ABCDEF":
+            computer(model=m)
+        one = client.get("/?sort=random&deal=5").text
+        again = client.get("/?sort=random&deal=5").text
+        assert TestSortingTheGallery._order(one) == TestSortingTheGallery._order(again)
 
 
 class TestWhatIsGoneIsNotCounted:
@@ -2300,8 +2293,8 @@ class TestTheShuffledFigures:
         # without it the assertions below pass on the real draw as readily as on this
         # one, and a patch that had stopped taking effect would go unnoticed.
         assert "no page to show" in page
-        assert '<div class="tile">' in page
-        assert 'class="tile" href=""' not in page
+        assert '<div class="stattile">' in page
+        assert 'class="stattile" href=""' not in page
 
     def test_every_condition_beyond_the_two_above_gets_a_figure(self, client, db, part):
         """Four of the six values in entry.CONDITIONS have a figure naming them, and
@@ -2506,7 +2499,7 @@ class TestAStoragePartsBezel:
         aid = part(type="storage", specs="Kind: Tape | Colour: Black")["asset_id"]
         page = client.get(f"/parts/{aid}/edit").text
         assert '<option value="Black" selected>' in page
-        assert "colour chart" in page
+        assert "Colour chart" in page
 
     def test_editing_keeps_them(self, client, part):
         aid = part(type="storage", specs="Kind: Hard disk | Colour: Beige | Yellowing: Browned")[
@@ -2537,7 +2530,7 @@ class TestAStoragePartsBezel:
         )["asset_id"]
         page = client.get(f"/parts/{aid}").text
         cls = entry.bezel_class("Beige", "Heavily yellowed")
-        assert page.count(f'class="swatch {cls}"') == 2
+        assert page.count(f'class="bezel {cls} sm"') == 2
         css = entry.bezel_css("Beige", "Heavily yellowed")
         assert f".{cls} {{ background: {css}; }}" in client.get("/style/data.css").text
 
@@ -2640,16 +2633,16 @@ class TestNotesKeepTheirLines:
     def test_a_parts_notes_are_shown_in_the_lines_they_were_typed_in(self, client, part):
         aid = part(type="cpu", notes="recapped 2026-08\nsocket cleaned\nstill untested")["asset_id"]
         page = client.get(f"/parts/{aid}").text
-        cell = page[page.index('<th scope="row">Notes</th>') :]
-        cell = cell[: cell.index("</td>")]
+        cell = page[page.index("<dt>Notes</dt>") :]
+        cell = cell[: cell.index("</dd>")]
         assert 'class="lines"' in cell
         assert "recapped 2026-08\nsocket cleaned\nstill untested" in cell
 
     def test_a_machines_notes_are_too(self, client, computer):
         aid = computer(manufacturer="Acorn", model="A5000", notes="two lines\nnot one")["asset_id"]
         page = client.get(f"/computers/{aid}").text
-        cell = page[page.index('<th scope="row">Notes</th>') :]
-        cell = cell[: cell.index("</td>")]
+        cell = page[page.index("<dt>Notes</dt>") :]
+        cell = cell[: cell.index("</dd>")]
         assert 'class="lines"' in cell
         assert "two lines\nnot one" in cell
 
@@ -2661,8 +2654,8 @@ class TestALinkInWhatWasTypedIsALink:
     the text around it is still text."""
 
     def _cell(self, page, th):
-        cell = page[page.index(f'<th scope="row">{th}</th>') :]
-        return cell[: cell.index("</td>")]
+        cell = page[page.index(f"<dt>{th}</dt>") :]
+        return cell[: cell.index("</dd>")]
 
     def test_a_url_in_a_parts_notes(self, client, part):
         aid = part(type="cpu", notes="datasheet at http://x.test/74ls00.pdf")["asset_id"]
@@ -2991,7 +2984,7 @@ class TestADisplayPart:
 
         aid = part(type="display", specs="Colour: Beige | Yellowing: Yellowed")["asset_id"]
         cls = entry.bezel_class("Beige", "Yellowed")
-        assert client.get(f"/parts/{aid}").text.count(f'class="swatch {cls}"') == 2
+        assert client.get(f"/parts/{aid}").text.count(f'class="bezel {cls} sm"') == 2
 
     def test_a_screen_with_no_photograph_gets_a_monitor(self, client, part):
         """Rather than the box every unrecognised type falls back to."""
@@ -3454,8 +3447,7 @@ class TestWalkingFromItemToItem:
         prev/next should follow -- not the register's."""
         computer()
         page = served(client, client.get("/").text)
-        assert "sessionStorage.setItem('rhdb-order'" in page
-        assert "el.style.display !== 'none'" in page
+        assert "sessionStorage.setItem('rhdb-order', JSON.stringify(PAGE.order))" in page
 
     def test_the_item_page_prefers_that_order(self, client, part):
         page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
@@ -3471,56 +3463,39 @@ class TestWalkingFromItemToItem:
 
 
 class TestSortingTheGallery:
-    """The toolbar's sort menu reorders the cards in the browser, so the ordering
-    itself is not reachable from here. What is reachable, and what silently breaks
-    a sort if it goes missing, is the key each card carries."""
+    """The toolbar's sort menu, applied by the server to what each item records.
+    The rules themselves are pinned against plain rows in test_gallery_pages; these
+    are the same rules reading real items."""
 
     @staticmethod
-    def _card(page, aid):
-        match = re.search(rf'<a class="card"[^>]*/{aid}"(.*?)>', page, re.S)
-        assert match, f"no card for {aid}"
-        return match.group(1)
-
-    def test_a_machine_carries_every_key_the_menu_sorts_on(self, client, computer):
-        c = computer(manufacturer="Amstrad", model="PC1512", year=1986, acquired_date="2026-05-01")
-        card = self._card(client.get("/").text, c["asset_id"])
-        assert 'data-year="1986"' in card
-        assert 'data-maker="amstrad"' in card
-        assert 'data-acquired="2026-05-01"' in card
-        assert f'data-aid="{c["asset_id"]}"' in card
-
-    def test_a_part_carries_them_too(self, client, part):
-        p = part(
-            type="video",
-            manufacturer="Tseng",
-            model="ET4000",
-            year=1990,
-            acquired_date="2026-05-02",
+    def _order(page):
+        return re.findall(
+            r'class="card(?: is-disposed)?" href="/(?:computers|parts)/([A-Z0-9-]+)"', page
         )
-        card = self._card(client.get("/").text, p["asset_id"])
-        assert 'data-year="1990"' in card
-        assert 'data-maker="tseng"' in card
-        assert 'data-acquired="2026-05-02"' in card
 
-    def test_what_is_not_recorded_is_blank_rather_than_absent(self, client, part):
-        """A missing attribute reads as undefined in the sort; an empty one is
-        what the blanks-last rule looks for."""
-        p = part(manufacturer="", year=None, acquired_date=None)
-        card = self._card(client.get("/").text, p["asset_id"])
-        assert 'data-year=""' in card
-        assert 'data-maker=""' in card
-        assert 'data-acquired=""' in card
+    def test_year_reads_machines_and_parts_alike(self, client, computer, part):
+        c = computer(year=1986)["asset_id"]
+        p = part(type="video", year=1990)["asset_id"]
+        assert self._order(client.get("/?sort=yearnew").text) == [p, c]
+
+    def test_what_is_not_recorded_goes_last(self, client, part):
+        blank = part(manufacturer="", year=None, acquired_date=None)["asset_id"]
+        known = part(manufacturer="Tseng", year=1990, acquired_date="2026-05-02")["asset_id"]
+        for sort in ("maker", "yearnew", "yearold", "acquired"):
+            assert self._order(client.get(f"/?sort={sort}").text) == [known, blank], sort
 
     def test_machines_lead_the_category_order(self, client, computer, part):
         """Category sorts by the vocabulary's own order, not the label's spelling,
         and a computer is not one of the part types."""
-        c = computer()
-        p = part(type="video")
-        page = client.get("/").text
-        assert 'data-catsort="0"' in self._card(page, c["asset_id"])
-        assert 'data-catsort="0"' not in self._card(page, p["asset_id"])
+        p = part(type="video", model="AAA")["asset_id"]
+        c = computer(model="ZZZ")["asset_id"]
+        assert self._order(client.get("/?sort=cat").text) == [c, p]
 
-    def test_the_menu_offers_each_of_them(self, client):
+    def test_the_menu_offers_each_of_them(self, client, part):
+        # With something in the register: an empty one opens on the three first-run
+        # steps instead of the gallery, and a toolbar for sorting nothing is not a
+        # thing this test is about.
+        part()
         page = client.get("/").text
         for mode in (
             "updated",
@@ -3583,22 +3558,19 @@ class TestTheClockShowsOnlyWhenSignedIn:
         assert re.search(self.DATE, page)
         assert not re.search(self.DATE_TIME, page)
 
-    def test_the_gallery_sort_keys_lose_the_time_too(self, client, part, monkeypatch):
-        """They are not on show, but a timestamp in the page source is a timestamp
-        published all the same."""
+    def test_the_gallery_page_publishes_no_timestamp(self, client, part, monkeypatch):
+        """The recency sorts are done on the server now, so their keys are not in
+        the page source at all -- where a timestamp would be published all the same,
+        on show or not."""
 
-        p = part()
-        card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
-        assert re.search(rf'data-updated="{self.DATE}T', card)
+        part()
         log_out(client)
-        card = TestSortingTheGallery._card(client.get("/").text, p["asset_id"])
-        assert re.search(rf'data-updated="{self.DATE}"', card)
-        assert re.search(rf'data-added="{self.DATE}"', card)
+        assert not re.search(rf"{self.DATE}T\d", client.get("/").text)
 
-    def test_the_cards_arrive_newest_change_first(self, client, part, db):
-        """Dates alone are all the sort keys a visitor gets, and the browser's sort
-        is stable, so the order the cards arrive in is what still settles a run of
-        edits made on the same day."""
+    def test_recently_updated_is_newest_change_first(self, client, part, db):
+        """Dates alone are all the sort keys a visitor gets, and the sort is stable,
+        so the order the rows arrive in is what still settles a run of edits made
+        on the same day."""
         from app.models import LogEntry
 
         old = part(model="Older")["asset_id"]
@@ -3607,7 +3579,7 @@ class TestTheClockShowsOnlyWhenSignedIn:
             {"created_at": datetime(2020, 1, 1)}
         )
         db.commit()
-        page = client.get("/").text
+        page = client.get("/?sort=updated").text
         assert page.index(f'/parts/{new}"') < page.index(f'/parts/{old}"')
 
 
@@ -3847,9 +3819,9 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
     def in_the_photo_column(page):
         """Whether the QR block is nested inside the item page's right-hand column,
         rather than sitting under the two columns as it once did."""
-        # div and section alike: the column is a div and the blocks inside it are
-        # panels, which are sections.
-        boxes = ("div", "section")
+        # The column is an aside and the blocks inside it are panels, which are
+        # sections.
+        boxes = ("div", "section", "aside")
 
         class Nesting(HTMLParser):
             def __init__(self):
@@ -3860,9 +3832,9 @@ class TestTheCodeThatPutsAPhoneOnTheItem:
                 if tag not in boxes:
                     return
                 cls = dict(attrs).get("class", "").split()
-                self.open.append(cls)
+                self.open.append(tag)
                 if "photo-qr" in cls:
-                    self.found = any("photo-col" in c for c in self.open)
+                    self.found = "aside" in self.open
 
             def handle_endtag(self, tag):
                 if tag in boxes and self.open:
@@ -4362,7 +4334,7 @@ class TestStartingFromAnExistingPart:
         """The source must not be overwritten: the form posts to /parts/new."""
         src = part(type="video", manufacturer="Tseng", model="ET4000")
         page = client.get(f"/parts/new?from={src['asset_id']}").text
-        form = page[page.index('<form class="edit"') :]
+        form = page[page.index('<form class="editform"') :]
         assert 'action="/parts/new"' in form[:200]
         assert f"/parts/{src['asset_id']}/edit" not in form[:200]
 
@@ -4431,14 +4403,14 @@ class TestTheNumbersPage:
         page must not divide by zero on day one."""
         r = client.get("/stats")
         assert r.status_code == 200
-        assert '<div class="n"><a href="/browse?f=all">0</a></div>' in r.text
+        assert '<div class="figure"><a href="/browse?f=all">0</a></div>' in r.text
 
     def test_the_headline_counts_everything(self, client, computer, part):
         computer()
         computer()
         part()
         page = client.get("/stats").text
-        assert '<div class="n"><a href="/browse?f=all">3</a></div>' in page
+        assert '<div class="figure"><a href="/browse?f=all">3</a></div>' in page
         assert "2 machines</a> and" in page and "1 parts</a>" in page
 
     def test_the_top_maker_is_the_one_with_most_parts(self, client, part):
@@ -4494,7 +4466,10 @@ class TestFollowingAFigureToItsItems:
     @staticmethod
     def _cards(page):
         """The asset ids of the cards in the grid."""
-        return [href.rsplit("/", 1)[1] for href in re.findall(r'class="card" href="([^"]+)"', page)]
+        return [
+            href.rsplit("/", 1)[1]
+            for href in re.findall(r'class="card(?: is-disposed)?" href="([^"]+)"', page)
+        ]
 
     def _a_bit_of_everything(self, client, computer, part):
         """One machine with memory, chips and drives, and parts with the child rows
@@ -4571,11 +4546,11 @@ class TestFollowingAFigureToItsItems:
         client.patch(f"/api/parts/{aid}", json={"disposed": True})
         page = client.get("/browse?f=disposed").text
         assert self._cards(page) == [aid]
-        assert 'id="showdisposed" checked>' in page
+        assert 'id="showdisposed" name="disposed" value="1" checked>' in page
 
     def test_the_gallery_itself_still_hides_them(self, client, part):
         client.patch(f"/api/parts/{part(model='gone')['asset_id']}", json={"disposed": True})
-        assert 'id="showdisposed">' in client.get("/").text
+        assert 'id="showdisposed" name="disposed" value="1">' in client.get("/").text
 
     def test_an_unknown_view_is_a_404(self, client):
         assert client.get("/browse?f=nonsense").status_code == 404
@@ -4634,7 +4609,7 @@ class TestEveryObjectHasItsPortrait:
     def standing(page):
         """The coverage line under the headline, whitespace flattened the way a
         browser reads it."""
-        m = re.search(r'<p class="cover">(.*?)</p>', page, re.S)
+        m = re.search(r'<p class="[^"]*\bcover\b[^"]*">(.*?)</p>', page, re.S)
         return " ".join(m.group(1).split()) if m else ""
 
     def counted(self, page):
@@ -4645,7 +4620,8 @@ class TestEveryObjectHasItsPortrait:
     def queued(page):
         """The asset ids the queue behind the figure lists."""
         return sorted(
-            href.rsplit("/", 1)[1] for href in re.findall(r'class="card" href="([^"]+)"', page)
+            href.rsplit("/", 1)[1]
+            for href in re.findall(r'class="card(?: is-disposed)?" href="([^"]+)"', page)
         )
 
     def test_the_figure_is_on_the_page_every_visit(self, client, computer):
@@ -4774,16 +4750,14 @@ class TestTheCataloguePage:
         aid = computer()["asset_id"]
         client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": "c64"}})
         page = client.get("/machines").text
-        assert 'title="1 in the register"' in page
-        assert ">(1)</a>" in page
-        assert "/browse?f=model&amp;v=c64" in page
+        assert '<span class="n">1<span class="sr-only"> here</span></span>' in page
         assert db.get(Computer, aid) is not None
 
     def test_a_model_nothing_is_filed_as_says_nothing(self, client):
         """Most of the catalogue is machines this collection has not got, which is
         the ordinary state and reads as a catalogue rather than as a gap."""
-        page = client.get("/machines").text
-        assert 'class="got"' not in page
+        page = content(client.get("/machines").text)
+        assert 'class="n"' not in page
 
     def test_the_count_leads_to_the_machines_behind_it(self, client, computer, part):
         """A board files as a model the same way a whole machine does, so both turn
@@ -4793,7 +4767,9 @@ class TestTheCataloguePage:
         client.patch(f"/api/computers/{c}", json={"machine": {"model_key": "amiga-500"}})
         client.patch(f"/api/parts/{p}", json={"machine": {"model_key": "amiga-500"}})
         page = client.get("/browse?f=model&v=amiga-500").text
-        assert sorted(re.findall(r'class="card" href="[^"]*/([A-Z0-9-]+)"', page)) == sorted([c, p])
+        assert sorted(
+            re.findall(r'class="card(?: is-disposed)?" href="[^"]*/([A-Z0-9-]+)"', page)
+        ) == sorted([c, p])
 
     def test_a_model_the_catalogue_never_had_is_a_404(self, client):
         assert client.get("/browse?f=model&v=zx-spectrum-1024k").status_code == 404
@@ -4913,14 +4889,13 @@ class TestSearchingEveryField:
         page = client.get("/?q=nothinghere").text
         assert "all\n  2 items" in page or "2 items" in page
 
-    def test_the_browser_is_told_what_the_server_matched(self, client, part):
-        """Otherwise the instant filter would hide rows that matched on a field the
-        browser's own copy does not carry."""
-        part(notes="battery damage")
-        page = served(client, client.get("/?q=battery").text)
-        assert '"query": "battery"' in page
+    def test_a_match_on_a_field_the_card_does_not_show_is_still_shown(self, client, part):
+        """The card says nothing about the notes, and the search found it there."""
+        aid = part(notes="battery damage")["asset_id"]
+        page = client.get("/?q=battery").text
         card = page[page.index('<a class="card"') :]
-        assert "battery" not in card[: card.index("</a>")]
+        card = card[: card.index("</a>")]
+        assert f"/parts/{aid}" in card and "battery" not in card
 
     def test_searching_is_public(self, client, part, monkeypatch):
 
@@ -5066,7 +5041,7 @@ class TestTheBigPhotoView:
         try:
             page = served(client, client.get(f"/parts/{aid}").text)
             assert '<div class="lb-fit" id="lb-fit">' in page
-            assert "#lightbox .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
+            assert ".lb .lb-stage { position: relative; width: 92vw; height: 84vh;" in page
             assert "fit.style.transform = " in page
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
@@ -5181,7 +5156,7 @@ class TestTheBigPhotoView:
             page = served(client, client.get(f"/parts/{aid}").text)
             assert "box.addEventListener('pointerdown'" in page
             assert "box.addEventListener('pointermove'" in page
-            assert re.search(r"#lightbox \{[^}]*touch-action: none", page, re.S)
+            assert re.search(r"\.lb \{[^}]*touch-action: none", page, re.S)
         finally:
             client.post(f"/parts/{aid}/photo-delete", data={"image": rel}, follow_redirects=False)
 
@@ -5932,7 +5907,7 @@ class TestThePartsAndWhatTheyAreMadeOf:
         part(type="video", computer_id=aid, name="Stealth 24", specs="Chip: S3")
         page = client.get(f"/computers/{aid}").text
         assert page.count('<article class="itemcard">') == 1
-        assert "Stealth 24</h4>" in page
+        assert "Stealth 24</a></h4>" in page
 
     def test_they_are_shown_as_labelled_pairs_below_the_part(self, client, computer, part):
         aid = computer()["asset_id"]
@@ -6267,8 +6242,8 @@ class TestPhotographsOnTheHistory:
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
         page = client.get(f"/computers/{aid}").text
-        stamp = page[page.index('<td class="logwhen">') :]
-        assert f"/images/{rel}" not in stamp[: stamp.index("</td>")]
+        stamp = page[page.index('<dt class="logwhen">') :]
+        assert f"/images/{rel}" not in stamp[: stamp.index("</dt>")]
         assert page.index('class="logmsg"') < page.index(f"/images/{rel}")
 
     def test_a_photograph_has_no_delete_of_its_own(self, client, computer, db):
@@ -6499,7 +6474,7 @@ class TestEverySectionIsAPanel:
     def test_the_specs_of_a_part_are_their_own_panel(self, client, part):
         aid = part(type="video", specs="Chip: S3 Trio64")["asset_id"]
         page = client.get(f"/parts/{aid}").text
-        assert "<h3>Specs</h3>" in page
+        assert "<h3>Specification</h3>" in page
 
 
 class TestFilesReadLikeThePartsDo:

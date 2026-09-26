@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_accounts.html" as A with context %}
+{# Your own account, for anybody signed in, viewers included (ADR-0032): the one
+   page under /settings the gate lets a viewer open. #}
+{% block title %}Your account — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
+{% block content %}
+<div class="pagehead"><h1 class="heading">Your account</h1></div>
+<p class="hint">Signed in as <b>{{ me.username }}</b>, {{ role_name | lower }}.</p>
+
+{% if done == 'password' %}{{ U.banner('success', 'Password changed.', 'Every other browser signed in as you is signed out.') }}
+{% elif done == 'sessions' %}{{ U.banner('success', 'Signed out everywhere else.') }}
+{% elif done == 'revoked' %}{{ U.banner('success', 'Token revoked.') }}{% endif %}
+
+<form class="editform narrow" method="post" action="/settings/account/password">
+  <fieldset class="fieldset">
+    <legend>Password</legend>
+    {{ U.field('current', 'Password now', type='password', autocomplete='current-password',
+               note='Asked first, so a browser left signed in is not enough to take the account over.') }}
+    {{ U.field('password', 'New password', type='password', autocomplete='new-password', minlength=10) }}
+    {{ U.field('password2', 'New password again', type='password', autocomplete='new-password', minlength=10) }}
+    {% if password_error %}{{ U.banner('danger', 'Not changed.', password_error) }}{% endif %}
+    <p>{{ U.button('Change password', kind='primary', type='submit') }}</p>
+  </fieldset>
+</form>
+
+<fieldset class="fieldset narrow">
+  <legend>Where you are signed in</legend>
+  <ul class="signins">
+    {% for s in sessions %}
+    <li class="session">Signed in {{ A.when(s.created_at) }}, last seen {{ A.when(s.last_seen_at) }}
+      {%- if s.here %} {{ U.chip('This browser', 'ok') }}{% endif %}</li>
+    {% endfor %}
+  </ul>
+  {% if sessions | length > 1 %}
+  <form method="post" action="/settings/account/sessions"
+        title="For the phone you lost, or the machine at the club you forgot. This browser stays signed in.">
+    {{ U.button('Sign out everywhere else', type='submit') }}
+  </form>
+  {% endif %}
+</fieldset>
+
+<fieldset class="fieldset narrow">
+  <legend>API tokens</legend>
+  {% if new_token %}
+  {{ U.banner('success', 'Copy it now: it is not shown again.', new_token_name) }}
+  <p><code class="token">{{ new_token }}</code></p>
+  {% endif %}
+  {{ A.tokens(tokens, '/settings/account/tokens') }}
+  <form class="editform" method="post" action="/settings/account/tokens">
+    {{ U.field('name', 'What it is for', maxlength=100, autocomplete='off', placeholder='tool server',
+               note='A token acts as you, with your role. One per program, so a leaked one can be revoked without breaking the others.') }}
+    {% if token_error %}{{ U.banner('danger', 'Not made.', token_error) }}{% endif %}
+    <p>{{ U.button('Make token', type='submit') }}</p>
+  </form>
+</fieldset>
+{% endblock %}

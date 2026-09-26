@@ -1,0 +1,238 @@
+{
+ "name": "Retro Hardware Database",
+ "version": 2,
+ "type": {
+  "fonts": [
+   {"family": "Source Serif 4", "folder": "source-serif-4", "weights": [400, 600]},
+   {"family": "IBM Plex Sans", "folder": "ibm-plex-sans", "weights": [400, 500, 600]},
+   {"family": "IBM Plex Mono", "folder": "ibm-plex-mono", "weights": [400, 600]}
+  ],
+  "families": {
+   "display": "\"Source Serif 4\", Georgia, serif",
+   "ui": "\"IBM Plex Sans\", system-ui, sans-serif",
+   "data": "\"IBM Plex Mono\", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
+  },
+  "pairings": {
+   "preset": {"name": "As the preset"},
+   "catalogue": {"name": "Catalogue", "roles": {"display": "display", "ui": "ui", "data": "data"}},
+   "plain": {"name": "Plain", "roles": {"display": "ui", "ui": "ui", "data": "data"}},
+   "ledger": {"name": "Ledger", "roles": {"display": "data", "ui": "data", "data": "data"}}
+  },
+  "groups": [
+   {
+    "name": "Display",
+    "family": "display",
+    "styles": [
+     {
+      "name": "figure",
+      "fontSize": "54px",
+      "lineHeight": 1.1,
+      "fontWeight": 600,
+      "sample": "439",
+      "usage": "The one number at the head of the numbers and models pages."
+     },
+     {
+      "name": "title",
+      "fontSize": "26px",
+      "lineHeight": 1.2,
+      "fontWeight": 600,
+      "sample": "Grid GRiDCASE 2 (Philips PC200)",
+      "usage": "An item's or project's name: the h1 of its page. 22px under 560px."
+     },
+     {
+      "name": "prose",
+      "fontSize": "16px",
+      "lineHeight": 1.6,
+      "fontWeight": 400,
+      "sample": "GRiD invented the clamshell laptop: the 1982 Compass was the first, and it flew on the Space Shuttle.",
+      "usage": "An item's summary and notes - what somebody wrote, as against what somebody recorded."
+     }
+    ]
+   },
+   {
+    "name": "Interface",
+    "family": "ui",
+    "styles": [
+     {
+      "name": "heading",
+      "fontSize": "18px",
+      "lineHeight": 1.4,
+      "fontWeight": 600,
+      "sample": "Eight things about it",
+      "usage": "A list page's h1 and a page's own section headings."
+     },
+     {
+      "name": "body",
+      "fontSize": "14px",
+      "lineHeight": 1.5,
+      "fontWeight": 400,
+      "sample": "Nothing fitted in it yet.",
+      "usage": "Default. Buttons, menu items, panel titles (at 600), empty states. 16px on a coarse pointer for anything that takes focus."
+     },
+     {
+      "name": "label",
+      "fontSize": "13px",
+      "lineHeight": 1.4,
+      "fontWeight": 500,
+      "sample": "Acquired date",
+      "usage": "Field labels, legends, table headings, the key of a key-value row, small buttons."
+     },
+     {
+      "name": "hint",
+      "fontSize": "12px",
+      "lineHeight": 1.4,
+      "fontWeight": 400,
+      "sample": "Computer",
+      "usage": "Chips, hints, a stacked cell's data-label."
+     },
+     {
+      "name": "micro",
+      "fontSize": "11px",
+      "lineHeight": 1.3,
+      "fontWeight": 500,
+      "sample": "browse",
+      "usage": "Tab bar captions only."
+     }
+    ]
+   },
+   {
+    "name": "Data",
+    "family": "data",
+    "styles": [
+     {
+      "name": "stat",
+      "fontSize": "22px",
+      "lineHeight": 1.3,
+      "fontWeight": 600,
+      "sample": "45 years",
+      "usage": "The value in a stat tile."
+     },
+     {
+      "name": "data",
+      "fontSize": "14px",
+      "lineHeight": 1.5,
+      "fontWeight": 400,
+      "sample": "MOS 6502A-1.02",
+      "usage": "Every recorded value: the value of a key-value row, table cells, serials, chip markings, sizes, dates, filenames, and what is typed into a form. Tabular by nature."
+     },
+     {
+      "name": "tag",
+      "fontSize": "12px",
+      "lineHeight": 1.4,
+      "fontWeight": 400,
+      "sample": "RH-FB3S",
+      "usage": "Asset tags wherever they appear, counts beside a panel title."
+     }
+    ]
+   }
+  ]
+ },
+ "spacing": {
+  "tokens": [
+   {
+    "name": "space-1",
+    "value": "2px",
+    "usage": "Between a label and its control's hint; chip vertical padding."
+   },
+   {
+    "name": "space-2",
+    "value": "4px",
+    "usage": "Inside chips and small buttons; between a label and its control."
+   },
+   {
+    "name": "space-3",
+    "value": "8px",
+    "usage": "Gaps between buttons in a bar, table cell padding, chip horizontal padding."
+   },
+   {
+    "name": "space-4",
+    "value": "12px",
+    "usage": "Panel and card body padding, header padding, the page gutter on a phone."
+   },
+   {
+    "name": "space-5",
+    "value": "16px",
+    "usage": "Between panels, between gallery cards, between form rows."
+   },
+   {
+    "name": "space-6",
+    "value": "24px",
+    "usage": "The page gutter at desktop widths; between a page's heading and its content."
+   },
+   {
+    "name": "space-7",
+    "value": "40px",
+    "usage": "Above the footer; around an empty state."
+   }
+  ]
+ },
+ "radius": {
+  "tokens": [
+   {
+    "name": "radius-xs",
+    "value": "3px",
+    "usage": "Bezel swatches, the ends of a ranked bar, checkboxes."
+   },
+   {
+    "name": "radius-sm",
+    "value": "6px",
+    "usage": "Buttons, inputs, selects, menu rows."
+   },
+   {
+    "name": "radius-md",
+    "value": "8px",
+    "usage": "Thumbnails, fieldsets, banners, popovers, stat tiles."
+   },
+   {
+    "name": "radius-lg",
+    "value": "12px",
+    "usage": "Panels, gallery cards, item cards, the bottom sheet's top corners."
+   },
+   {
+    "name": "radius-pill",
+    "value": "999px",
+    "usage": "Chips."
+   }
+  ]
+ },
+ "border": {
+  "note": "Presets may change these two and nothing else about a box's construction.",
+  "tokens": [
+   {
+    "name": "border-w",
+    "value": "1px",
+    "usage": "Every rule and box edge. Breadbin sets 2px."
+   },
+   {
+    "name": "focus-w",
+    "value": "2px",
+    "usage": "Focus ring width; offset is the same value. Never 0."
+   }
+  ]
+ },
+ "size": {
+  "tokens": [
+   {
+    "name": "content-max",
+    "value": "1000px",
+    "usage": "The centred column, on every page and in both navigation layouts; with the side rail it sits in the space to the rail's right."
+   },
+   {
+    "name": "tap",
+    "value": "44px",
+    "usage": "Minimum height of anything pressed with a thumb under pointer: coarse - tab bar items, sheet rows, scan."
+   },
+   {
+    "name": "control-h",
+    "value": "32px",
+    "usage": "Default button and input height at body size; 28px for .sm."
+   },
+   {
+    "name": "thumb-ratio",
+    "value": "4 / 3",
+    "usage": "Gallery cards, item-card thumbnails, suggestion thumbnails."
+   }
+  ]
+ },
+ "note": "Scales, type roles and sizes: the same in every preset, except where a preset overrides the radii, border-w and the font families (see the spec, section 6)."
+}

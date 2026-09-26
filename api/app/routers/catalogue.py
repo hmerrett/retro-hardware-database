@@ -7,14 +7,17 @@ how many of each model is held.
 """
 
 from collections import Counter
+from typing import TypedDict
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from .. import machines
+from .. import entry, machines
+from ..common import folder_images, to_dict
 from ..db import get_db
-from ..models import AssetVariant
+from ..models import AssetVariant, Computer, Part
+from ..photos import pick_images
 from ..web import _og, templates
 
 router = APIRouter()
@@ -51,6 +54,92 @@ def gui_machines(request: Request, db: Session = Depends(get_db)) -> HTMLRespons
                 f"{len(machines.keys())} machines the register knows as models, "
                 "with the board issues, styles and chips each was built in.",
             ),
+        },
+    )
+
+
+class Unit(TypedDict):
+    """One thing in the register filed as a model, as its row on the model's page."""
+
+    href: str
+    tag: str
+    name: str
+    sub: str
+    image: str
+    placeholder: str
+    disposed: bool
+
+
+def _units(db: Session, key: str) -> list[Unit]:
+    """Everything filed as this model, machines and bare boards alike, by tag.
+
+    The same rows the count on /machines is made of -- asset_variant, whichever
+    table the asset is in -- so the list and the count cannot disagree, disposed
+    ones included."""
+    filed = {v.asset_id: v for v in db.query(AssetVariant).filter(AssetVariant.model_key == key)}
+    if not filed:
+        return []
+    held: list[tuple[str, Computer | Part]] = [
+        *(("computers", c) for c in db.query(Computer).filter(Computer.asset_id.in_(filed))),
+        *(("parts", p) for p in db.query(Part).filter(Part.asset_id.in_(filed))),
+    ]
+    listings = {kind: folder_images(kind) for kind, _ in held}
+    units: list[Unit] = []
+    for kind, obj in sorted(held, key=lambda h: h[1].asset_id):
+        v = filed[obj.asset_id]
+        ptype = "computer" if kind == "computers" else (getattr(obj, "type", None) or "other")
+        imgs = pick_images(kind, obj.asset_id, listings[kind])
+        units.append(
+            {
+                "href": f"/{kind}/{obj.asset_id}",
+                "tag": obj.asset_id,
+                "name": entry.display_name(to_dict(obj)),
+                "sub": " · ".join(
+                    x
+                    for x in (
+                        "Computer" if kind == "computers" else entry.type_label(ptype),
+                        v.issue,
+                        v.region,
+                        str(obj.year or ""),
+                    )
+                    if x
+                ),
+                "image": imgs[0] if imgs else "",
+                "placeholder": entry.placeholder_for(ptype),
+                "disposed": bool(obj.disposed),
+            }
+        )
+    return units
+
+
+@router.get("/machines/{key}", response_class=HTMLResponse, include_in_schema=False)
+def gui_model(key: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    """One model: what the catalogue records about it, and which of it is here.
+
+    Public for the list's reason -- the catalogue is what was made, not what is on
+    the shelf -- and everything else on it is public already: the units' own pages.
+    It lists no files: a file is linked to items, not to models (ADR-0028)."""
+    m = machines.model(key)
+    if m is None:
+        raise HTTPException(404, "no such model in the catalogue")
+    facts = [
+        ("Maker", m["manufacturer"]),
+        ("CPU", m["cpu"]),
+        ("Memory", ", ".join(label for label, _kb in m["ram"])),
+        ("Board issues", ", ".join(m["issues"])),
+        ("Styles", ", ".join(m["styles"])),
+        ("Regions", ", ".join(m["regions"])),
+        ("Chassis", m["chassis"]),
+        ("OS", m["os"]),
+    ]
+    return templates.TemplateResponse(
+        request,
+        "model.html",
+        {
+            "m": m,
+            "facts": [(k, v) for k, v in facts if v],
+            "units": _units(db, key),
+            "og": _og(request, m["full_name"], m["summary"]),
         },
     )
 

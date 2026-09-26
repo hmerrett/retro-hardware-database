@@ -172,7 +172,7 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
         add(
             "The average item",
             str(st["mean_year"]),
-            f"{this_year - st['mean_year']} years old",
+            f"{_span(this_year - st['mean_year'], 'year')} old",
             "/browse?f=year",
         )
     if st["top_ram"]:
@@ -236,7 +236,7 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
         add(
             "Oldest and newest",
             f"{st['oldest_year']}–{st['newest_year']}",
-            f"{st['newest_year'] - st['oldest_year']} years apart",
+            f"{_span(st['newest_year'] - st['oldest_year'], 'year')} apart",
             "/browse?f=extremes",
         )
     if st["fullest"]:
@@ -307,7 +307,7 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
         kind = "computers" if isinstance(obj, Computer) else "parts"
         add(
             "Longest wait",
-            f"{gap} years",
+            _span(gap, "year"),
             f"{named(obj)}, made {obj.year}, arrived {arrived}",
             f"/{kind}/{obj.asset_id}",
         )
@@ -696,6 +696,12 @@ def _facts(db: Session, st: Stats, this_year: int) -> list[Fact]:
 # passes no href. The tiles have always been links; a handful of them now are not,
 # because "1327 entries in the register" leads nowhere the gallery can show, and a
 # link to everything would be a link that lied about what it counted.
+
+
+def _span(n: int, unit: str) -> str:
+    """A number of years or days, in the singular where there is one of them: a
+    register started today is "1 day" old, not "1 days"."""
+    return f"{n} {unit}" if n == 1 else f"{n} {unit}s"
 
 
 def _fact(k: str, v: str, s: str, href: str | None = None) -> Fact:
@@ -1589,7 +1595,7 @@ def _facts_ages(db: Session, st: Stats, this_year: int) -> list[Fact]:
             out.append(
                 _fact(
                     "The biggest anachronism",
-                    f"{gap} years",
+                    _span(gap, "year"),
                     f"{_named(p)} of {p.year}, fitted to a machine from {c.year}",
                     f"/computers/{c.asset_id}",
                 )
@@ -1741,7 +1747,7 @@ def _facts_register(db: Session, st: Stats) -> list[Fact]:
         out.append(
             _fact(
                 "The register is younger than everything in it",
-                f"{days} days",
+                _span(days, "day"),
                 f"{entries:,} entries written since {started.date()}",
             )
         )
@@ -2010,7 +2016,7 @@ def _facts_projects(db: Session, st: Stats) -> list[Fact]:
             out.append(
                 _fact(
                     "The project that has been going longest",
-                    f"{days} days",
+                    _span(days, "day"),
                     oldest.name,
                     f"/projects/{oldest.asset_id}",
                 )

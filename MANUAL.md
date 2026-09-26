@@ -53,8 +53,9 @@ computer it is installed in, and optionally which other part it is mounted on �
 so a hard disk can be mounted on a controller card which is fitted in a machine.
 Both are NULL for a spare sitting on a shelf.
 
-Pull a card out of a machine and unlink it, and its record stays exactly as it
-was; it is now a spare. Put it in another machine and link it there. The card's
+Pull a card out of a machine and **Take out** on its page, and its record stays
+exactly as it was; it is now a spare. Put it in another machine and **Fit in** it
+there. The card's
 history records both moves.
 
 ### Two ways of describing a machine
@@ -110,33 +111,82 @@ The toolbar above the grid gives you:
 - **Category** — computers, or one kind of part.
 - **Sort** — Random (the default), Recently updated, Recently added, Recently
   acquired, Year newest/oldest first, Name A–Z, Maker A–Z, Category, Asset
-  number. Your choice is remembered in a cookie. Choosing Random again deals a
-  new hand.
+  number. Your choice is remembered in a cookie.
 - **Show disposed** — items that have left the collection are hidden by default.
+
+Changing any of them redraws the page. With JavaScript switched off nothing
+happens until you press **Apply**, which is also the button a keyboard user can
+rely on. Either way the address bar ends up holding the whole view — category,
+sort, search, page — so a view is a link: bookmark it, or send it to somebody,
+and it opens as you left it.
+
+The grid shows **48 cards a page**, with **Prev** and **Next** beneath it and the
+page you are on between them. The figures beside the heading count everything,
+not just this page, and when the category or the disposed box is holding
+something back they say so as a fraction: *(showing 13 of 14)*.
 
 The default is Random on purpose: a shelf is more interesting shuffled than in
 the order things were last touched, and a recency sort only ever shows you the
 same dozen items. Recency and random sorts both put photographed items first, so
 the page does not open on a screenful of placeholder icons.
 
+A shuffle is **dealt once and then held**: turning the page, picking a category
+or searching keeps each item where the hand put it, so page 2 carries on from
+page 1 rather than being a fresh shuffle with repeats. Choosing Random from
+another sort deals a new hand. The hand is part of the link, so somebody you send
+it to sees the same shuffle.
+
+### The first screen of a new installation
+
+Until the first thing is in it, the gallery has nothing to be, so the front page
+is three steps instead:
+
+1. **Name the collection**, which puts your name in the banner, in the browser's
+   tab, at the foot of every page and on every label. Ticked and struck through
+   once the name is no longer the one the software ships with.
+2. **Add the first machine** — a computer, or a part on its own.
+3. **Print its label.** Stick it on the case and scan it, and you are at the
+   item's page, which is the whole idea in one gesture.
+
+They are numbered because they are an order and not a menu, and a step that is
+done is ticked as well as struck through — a colour on its own is not an answer
+for somebody who cannot see it. The third stays greyed until there is something
+to print.
+
+The screen goes as soon as there is one item, and does not come back. It is not
+a tour and there is nothing to dismiss.
+
+**A visitor to an empty collection sees none of this** — only *Nothing here yet*.
+The steps are things only the owner can do, and a list of them is a list of what
+has not been done yet, which is nobody else's business.
+
+If the installation is running with no login set, that warning is on this page
+too. A fresh install is exactly when it applies, and it is the one moment the
+person reading it is certain to be the person who can fix it.
+
 ### The header
 
 On a desktop the banner reads in three bands: where you can go on the left, the
 search box in the middle, and what you can do on the right.
 
-- **browse**, **projects**, **numbers**, **models**, **files** — the sections.
-  The one you are in is shown in bold. **models** is the catalogue of machines the
-  register knows as models; **browse** is the machines it actually holds;
-  **projects** is what is being done to them — see
-  [section 12](#12-projects). **projects** sits next to **browse** because the two
+- **Browse**, **Projects**, **Numbers**, **Models**, **Files** — the sections.
+  The one you are in is shown in bold. **Models** is the catalogue of machines the
+  register knows as models; **Browse** is the machines it actually holds;
+  **Projects** is what is being done to them — see
+  [section 12](#12-projects). **Projects** sits next to **Browse** because the two
   are a pair: what is owned, and the work in hand.
-- **Search anything…** and **scan** — see [Finding things](#3-searching).
-  The scan button appears only where there is a camera to use.
+- **Search anything…** and **Scan** — see [Finding things](#3-searching).
+  The Scan button appears only where there is a camera to use.
 - **+ New** — offers Computer, Part or Project. Logged in only.
-- **⋯** — the theme, **traffic** and **log out**, and (in the installed app,
-  where the browser provides neither) share and reload.
+- **☰** — the theme, **Might sell**, **Traffic**, **Settings**, **Account** and
+  **Log out**, each where your account reaches it, and (in the installed app, where
+  the browser provides neither) share and reload.
 - **API docs** — the interactive API console (login required), at the foot of
   the page.
+
+On a tablet, or a desktop window narrower than about 900px, the five sections
+move into the **☰** menu, at its top, so the banner stays on one line rather than
+wrapping the search box onto a second.
 
 ### The header on a phone
 
@@ -146,9 +196,9 @@ across the bottom of the screen, where your thumb already is.
 - **Browse** — the gallery.
 - **Find** — scrolls back up and puts the cursor in the search box.
 - **Scan** — reads a label's code. Appears only where there is a camera.
-- **More** — one list holding the sections (**projects**, **numbers**,
-  **models**, **files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
-  **traffic** and **log out**.
+- **More** — one list holding the sections (**Projects**, **Numbers**,
+  **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
+  **Might sell**, **Traffic**, **Settings**, **Account** and **Log out**.
 
 ### On a narrow screen
 
@@ -193,8 +243,9 @@ box; with the setting on it arrives there without the travel.
 ### Moving between items
 
 An item page has **prev** and **next** buttons. They walk the list the gallery
-was last showing — that sort, that search, that category — which the browser
-hands over as you leave the gallery. Arrive from a printed label instead, with no
+was last showing — that sort, that search, that category, and every page of it,
+so *next* on the last card of page 1 is the first card of page 2 — which the
+browser hands over as you leave the gallery. Arrive from a printed label instead, with no
 gallery visit behind you, and they walk the register in asset order.
 
 The buttons are the whole gesture. A sideways swipe used to do this as well, but
@@ -274,6 +325,36 @@ that, including the site fetching the card, gets the copy already made. Change a
 photograph and the cards it appears on are made again, so a preview never shows a
 picture that has since been cropped or replaced.
 
+### When a page is not there
+
+Not every address leads somewhere, and the likeliest way to one that does not is a
+label: a QR code from somebody else's collection scans to an asset tag this
+register has never issued, and an address typed by hand is a character away from
+being nobody's.
+
+**A missing page is still a page.** It arrives in the same chrome as the rest of
+the site — the banner above it, with the search box in it — so the way on from a
+dead end is to search for the thing from where you are. Under the number that was
+answered it says what happened in a line, and offers the gallery.
+
+Three things can be said there.
+
+- **Nothing here.** Nothing is filed at that address. Check the tag against the
+  label, or search for the thing by name.
+- **Not for you.** The page is there and is not open to you. The register hands
+  out very little this way: what a visitor may not see, it mostly does not
+  mention.
+- **Something went wrong.** The fault is at this end rather than in what you
+  asked for. It is written to the server's log, where it says far more than a page
+  shown to a stranger should.
+
+None of the three is offered to a search engine.
+
+**Programs get what programs want.** The JSON API answers an error as it always
+has — the status and a `detail` — and so does anything else that did not ask for
+a web page. The page is sent only to a client that asked for HTML, so a browser
+gets the page and `curl`, the tool server and the command-line tools get the JSON.
+
 ---
 
 ## 3. Searching
@@ -291,10 +372,6 @@ things they have on order as well as their own text — so `Gotek` finds the pro
 with one in the post. They do not become cards in the gallery, which stays a wall
 of photographs of things owned; the line above the results says how many projects
 matched and links to them. See [section 12](#12-projects).
-
-**On the gallery, typing filters the cards as you type**, without a round trip.
-That filter reads a condensed blob on each card rather than the full text, so it
-is the faster, narrower answer; press Enter for the real one.
 
 **Type two characters** and a dropdown offers the first ten matches — computers,
 parts and projects alike. Arrow keys and Enter walk them; the last line says how
@@ -318,28 +395,37 @@ older URL still work, because only the asset tag is taken from the code.
 
 ## 4. An item page
 
-The page is a stack of panels — each section in a box with its title on a band
+At the top is the item's name, its asset tag under it, and the summary — the
+prose description, if one is written. Above that, a link back to the whole
+register and the **Prev** and **Next** buttons; when logged in, **Edit** and
+**Duplicate** sit beside them.
+
+The rest is a stack of panels — each section in a box with its title on a band
 across the top.
 
 Down the main column:
 
-- **Summary** — the prose description, if one is written.
 - **Details** — the record's own fields.
 - **Machine** — for a machine filed against the catalogue: its model, its board
   issue, style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
+- **Specification** — on a part's page: its spec pairs, a label and a value each.
+- **Fitted in** — on a part's page: the machine it is installed in, or the card
+  it is mounted on, with **Take out** to make it a spare again. A spare says it is
+  not fitted in anything and, when logged in, offers **Fit in** with a list of
+  machines.
 - **Motherboard** and **Parts** — what is fitted in this machine, each as a card
-  showing its tag, kind, name and specs. A part with nothing recorded gets no
-  spec pairs at all, so the list also shows at a glance which parts have been
-  written up.
+  showing its tag, kind, name and specs, with **Take out** on each when logged in.
+  A part with nothing recorded gets no spec pairs at all, so the list also shows at
+  a glance which parts have been written up.
 - **Mounted parts** — on a part's page: what is mounted on this card.
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
 - **History** — [everything that has happened to it](#14-history).
 
-Down the side column: the photographs, the disposal box, and the item's own QR
-code.
-
-Above it all, when logged in: **edit**, **duplicate**, **small label** and **full
-label**.
+Down the side column: the photographs and, when logged in, the **Label** panel
+with its two print buttons, the disposal box and the item's own QR code. On a
+narrow screen there is one column, and the photographs come straight after the
+summary, before the details: somebody who has just scanned a label wants to see
+first that they have the right thing.
 
 A URL written into any of that — a summary, a note, a spec value, where the item
 came from, a history entry — is a link you can follow. Anything with a scheme in
@@ -389,7 +475,18 @@ nothing until you submit it.
 
 ## 5. Adding a computer
 
-**+ Computer** in the header. Field by field:
+**+ Computer** in the header.
+
+The form is in sections — **Identity**, **Memory**, **Drives**, **Tracking**,
+**Description**, **Work needed** and, on a new machine, **Photographs** — and a line under a field says what goes in
+it wherever that is not obvious. Editing, the heading names the machine and its
+tag, so two tabs open on two machines cannot be confused. **Save** and **Cancel**
+stay at the foot of the screen however far down the form you are, so the way out
+is always under the thumb. **Cancel** leaves without saving: back to the machine,
+or from a new one back to the gallery. The part and project forms work the same
+way.
+
+Field by field:
 
 | Field | What goes in it |
 |---|---|
@@ -539,32 +636,48 @@ nothing of the register on it, since it is a list of what was made rather than o
 what is here — and it has no search box, because a list you can search with your
 browser's own find is worth more than a list with a filter on it.
 
-Where the register holds something filed as a model, the row says so and the
-count leads to it. Machines and bare boards both, since a motherboard files
-against a model the same way a whole machine does.
+Where the register holds something filed as a model, the row says so: the name
+is set heavier and the count follows it. Machines and bare boards both, since a
+motherboard files against a model the same way a whole machine does.
 
-A **▸** after a model's name opens a paragraph on what it is: what the machine
-did that its neighbours did not, and what a collector would look for. Folded
-away rather than laid out, because four hundred paragraphs at once would be a
-different page for a different job — but the browser's own find still reaches
-into the folds and opens the one it lands in. The same paragraph is printed in
-full at the top of an item's own page, in muted ink, because it is reference
-about the model rather than a fact about the object in front of you.
+Every model's name leads to **its own page**.
+
+Two other shapes of the same list: `catalogue.txt` in the repository, and
+[`/api/machines`](#19-the-rest-api) for anything that would rather read JSON —
+public for the same reason the page is.
+
+### A model's own page
+
+`/machines/<key>` — `/machines/vic20`, say — is what the register knows about one
+model in general, and which of it is here. Public, like the list, for the same
+reason, and named in the sitemap with it. From the top:
+
+- **the name**, with its family and year under it, and the paragraph on what it
+  is: what the machine did that its neighbours did not, and what a collector would
+  look for. It is the subject of this page, so it is printed in ordinary ink;
+- **As catalogued** — the maker, the CPU, and the memory sizes, board issues,
+  case styles, regions, chassis and operating system the catalogue knows it in.
+  Whatever the catalogue does not say is left out rather than shown blank;
+- **Chips** — one cell to a socket, with the chips that have been seen in it. A
+  model with no sockets to ask about has no such panel;
+- **In this collection** — every machine and board filed as this model, by tag
+  and name, each leading to its page. A disposed one is listed and says so, so the
+  count on the list and the rows here agree.
+
+It has no files of its own. A file is linked to the things it is for, one by one
+([Files](#11-files)), so a manual for the model is on each unit's page, and a unit
+you add later is offered what its siblings have.
+
+A key the catalogue does not have is a page that is not found.
+
+The model's paragraph is also printed in full at the top of an item's own page,
+in muted ink, because there it is reference about the model rather than a fact
+about the object in front of you.
 
 **Only where the item has no summary of its own.** The two are different kinds of
 statement and a page never shows both: whatever you have written about this
 particular object wins, and the model's paragraph is what fills the gap until you
 write one. Machines and catalogue-filed boards behave identically.
-
-The folds are plain `<details>` elements and need no JavaScript. They briefly
-did need a CSS `:has()` rule, which worked in Chrome and in current Safari and
-not in older Safari, where the marker flipped and revealed nothing — so the
-paragraph now lives inside the element that hides it, which has worked
-everywhere for a decade.
-
-Two other shapes of the same list: `catalogue.txt` in the repository, and
-[`/api/machines`](#19-the-rest-api) for anything that would rather read JSON —
-public for the same reason the page is.
 
 ### Why they are boxes and not menus
 
@@ -841,6 +954,16 @@ choose by, and the same arithmetic draws the chart on the form, the swatch besid
 a menu and the swatch on the item page, so none of them can disagree about what
 "heavily yellowed beige" looks like.
 
+Beside the two menus is the chosen shade at every stage of yellowing, from as
+made to unevenly yellowed, with the stage chosen outlined: the pick can be held
+against the plastic without opening anything. Until a shade is chosen there is
+a single swatch: hatched while nothing is recorded, which is what "not recorded"
+looks like everywhere, and a pale plastic at that stage if only the yellowing
+is. The
+**colour chart** under the menus is the same thing for every shade at once —
+shades down the side, stages across, each with a line on what it looks like —
+and on a phone it scrolls sideways inside its own box rather than squeezing.
+
 Storage parts record the same two things as their `Colour` and `Yellowing` specs,
 so a drive on the shelf and one fitted in a machine are described alike.
 
@@ -867,6 +990,11 @@ that went. It is searchable like every other field.
 something, it shows where that thing is kept — the board it is mounted on, or the
 machine it is installed in — so only a part that lives somewhere of its own needs
 an answer typed into it. See [where it is kept](#where-it-is-kept).
+
+The form is laid out like the machine's — sections, a line under a field that
+needs one, **Save** and **Cancel** at the foot of the screen. **Cancel** goes back
+to the part, or from a new one to the machine or part it was being added to, and
+otherwise to the gallery.
 
 What differs by type is the specification section.
 
@@ -1311,9 +1439,11 @@ the whole status useless. **abandoned** is kept apart from **done** for the same
 reason: a project given up on is not a project finished, and folding the two
 together would mean never being able to ask what was actually built.
 
-The list page leads with what is in hand and dims what is over — which is not the
-order the status menu offers, because a menu is read in the order a project lives
-and a list is read to find out what to do next.
+The list page leads with what is in hand and puts what is over below it — which is
+not the order the status menu offers, because a menu is read in the order a project
+lives and a list is read to find out what to do next. What is over is said by its
+status and not by fading the row: what has actually been built is worth reading,
+and a faded line is a hard one to read.
 
 ### Three dates
 
@@ -1324,9 +1454,18 @@ None of the three is worked out from another, and any can be blank while the
 others are not — a project can be finished without ever having been recorded as
 started, because the part turned up and it took an evening.
 
+### Its page
+
+A project's page reads like an item's. At the top is a link back to all the
+projects and, when logged in, **Edit**, **Delete…** and — while there is still
+something left to finish — **Mark done** beside it; then the name, its status and
+its tag. Below that, a panel each: **Details** (the status, the three dates and
+the notes), **Items**, **Tasks**, **On order**, **Files** and **History**, and last,
+when logged in, the **Label** panel with its two print buttons.
+
 ### Marking one done
 
-A project still in hand carries a **mark done** button at the top of its page,
+A project still in hand carries a **Mark done** button at the top of its page,
 beside the edit and label buttons, for whoever is signed in. One click finishes
 it: the status becomes **done** and a dated line saying so is written into its
 history. There is no form in the way and nothing to confirm — it is one fact,
@@ -1350,8 +1489,22 @@ Add any computer or part in the register. A note beside each says why it is ther
 *the patient*, *donor for the keyboard* — which is a fact about the pairing rather
 than about either end of it, and so has nowhere else to live.
 
-The same thing can be in two projects: a PSU can be wanted by both, and a machine
-being restored can also be the machine a spare board is destined for.
+A thing is on one project at a time: putting it on another takes it off this one,
+jobs and all (see [the quick box](#noting-something-down) below).
+
+The project's own form has them too, under **Items**: each thing it is about, with
+**Remove** beside it, and a box to add another by its **tag or its name**. As you
+type, the same suggestions the search box offers come up, computers and parts only;
+choosing one puts its tag in the box. **Add item** puts it on the list and saves
+nothing — the list, like every other field, changes the project only when **Save**
+is pressed, and **Cancel** leaves it as it was. A tag still in the box when **Save**
+is pressed is added too, rather than lost. So a new project can be written down with
+the things it is about in one go.
+
+A name has to be the whole name of one thing. If nothing has it, or two things do,
+the box says so under it and asks for the tag instead, and everything else typed
+on the form is kept. Something already on another project says which one beside
+it: saving moves it here.
 
 It reads both ways. The project lists what it is about, and **each item's own page
 gains a Projects panel** saying what it is spoken for — so you find out a board is
@@ -1360,7 +1513,8 @@ that promised it. Nothing is drawn on an item that is in no project, which is mo
 of them.
 
 Taking an item out, or deleting the project altogether, leaves the hardware alone.
-Deleting the plan is not disposing of the machine.
+Deleting the plan is not disposing of the machine. **Delete…** asks before it does
+anything, since it takes the project's tasks, orders and history with it.
 
 ### Tasks
 
@@ -1371,6 +1525,16 @@ Outstanding jobs sort above finished ones, because the list is read to find out
 what to do next and a long tail of ticked lines between you and it is the thing
 that stops task lists being read at all. Ticking one dates it with today; putting
 it back clears that date, since a job that is not done has no day it was done on.
+
+A tick is sent the moment it is made. Without JavaScript there is a **Save**
+button beside it instead. A tick says what the box shows, rather than "flip it":
+a page left open in another tab since the job was ticked cannot untick it by
+mistake.
+
+A job can be about one of the things on the project rather than the project as a
+whole — *recap the PSU* is about the PSU. The tag of that thing is beside the job,
+and when logged in it is a menu: choose the thing, or *the project*. A job about a
+thing is also listed on that thing's own page, under **Work**.
 
 ### On order
 
@@ -1576,8 +1740,8 @@ own for sifting without leaving it.
 
 ## 13. Labels and QR codes
 
-Every item page has two printer buttons: **small label** and **full label**, each
-a PDF.
+Every item page, when logged in, has a **Label** panel with two print buttons:
+**Small label** and **Full label**, each a PDF.
 
 - **The full label** (6×4 inches by default) carries the asset tag, the name, the
   specifications and a QR code.
@@ -1615,8 +1779,8 @@ scanned code, labels printed against an older URL still resolve.
 
 ### A project has one too
 
-A project's page carries the same two buttons, and its label is made by the same
-code and carries the same kind of code.
+A project's page carries the same **Label** panel with the same two buttons, and
+its label is made by the same code and carries the same kind of code.
 
 What it is *for* is different, though. A machine's label goes on the machine; a
 project's goes on **the things you have bought for it**. Stick the small one on
@@ -2000,7 +2164,9 @@ part still in the collection is kept whatever the box says.
   say, so a young register offers fewer rather than offering blanks, and no two
   tiles in one draw show the same number. Reload to shuffle.
 - **Ranked charts** — makers by parts held, what the parts are, expansion buses,
-  ports, condition, and makers by how much of their hardware still works.
+  ports, condition, and makers by how much of their hardware still works. A chart
+  with nothing to count yet is left out, for the same reason as the figures, rather
+  than drawn as a heading over nothing.
 
 **Almost every number is a link** to the items it counted, shown in the same grid
 as the gallery. That is the point of the page: a figure you cannot get behind is a
@@ -2064,6 +2230,15 @@ The login boxes say what they are for, so a password manager — the browser's o
 or one you keep elsewhere — offers the right entry and fills both. Nothing has to
 be typed from memory or copied between windows.
 
+The page also says what it is not for. Under the button it tells you that
+browsing needs no login — on a site that is not [closed](#a-site-only-its-people-can-read) — and that signing in keeps one cookie, so somebody who
+followed a link here without meaning to can read that and go back to what they
+were reading. An attempt that fails says only that the pair was not recognised,
+never which half of it was wrong — which would tell a stranger whether the name
+they guessed exists. Enough wrong attempts in a row and the page stops taking
+them for a few minutes and says that instead, rather than going on answering as
+though the next one might be read.
+
 ### The first visit
 
 A new installation has no accounts, and until it has an administrator **every
@@ -2073,7 +2248,7 @@ has said who runs the site.
 Set up asks for three things: a **setup code**, the username you want, and a
 password for it, twice. The account it makes is an administrator, and once there
 is one Set up is gone for good — its address answers "not found" from then on. (An
-administrator made with the [accounts command](#adding-people) does the same.)
+administrator made from the [command line](#from-the-command-line) does the same.)
 
 The setup code is what stops a stranger doing it first. A fresh install is on the
 internet from the moment its certificate arrives, and without the code whoever
@@ -2118,14 +2293,51 @@ show the whole collection to but would not hand the keys.
 A viewer who opens something only an administrator may use — an edit form, the
 settings — is told so, rather than being sent to log in again as the same person.
 
-There is always at least one administrator. The last one cannot be made a viewer
-or switched off; make another first.
-
 ### Adding people
 
-Accounts are managed from the server for now, with the `accounts` command inside
-the app's container. Each command that sets a password asks for it, twice, and
-does not echo it:
+**⋯ → Settings → Accounts**, or `/settings/users`, for administrators. It lists
+every account with its role, whether it is switched on, and when it last signed
+in, and has a box at the foot for a new one: a name, a role, and its password
+twice. Give the person their password some other way than the register — it never
+sends anything anywhere.
+
+Each account's name is a link to its own page, where an administrator can:
+
+- **change its role** between administrator and viewer;
+- **switch it off**, or back on;
+- **set a new password** for it, which is how a forgotten one is replaced;
+- **revoke its API tokens**, one at a time.
+
+A username is letters, digits and `.` `_` `-` `@` `+` — an email address will
+do — and is matched without regard to case, so `Ada` and `ada` are one account. A
+password is at least 10 characters; there are no other rules about what goes in
+it, because a long one a password manager made is better than a short one with a
+digit on the end.
+
+**Switching an account off** signs it out everywhere at once and stops its API
+tokens working. It is kept, so switching it back on restores it as it was.
+**Changing a password** signs that account out everywhere else.
+
+There is always at least one administrator, and the page says so rather than
+doing it if you try to make the last one a viewer or switch it off.
+
+### Your account
+
+**⋯ → Account**, or `/settings/account`, for everybody who is signed in — viewers
+included. It is where you:
+
+- **change your password**, which asks for the one you have now first, so a
+  browser left signed in is not enough to take the account over. Every other
+  browser signed in as you is signed out; this one stays in;
+- see **where you are signed in** — each browser, when it signed in and when it
+  was last seen — and **sign out everywhere else**, for the phone you lost or the
+  machine at the club you forgot;
+- make and revoke **your API tokens** ([below](#api-tokens)).
+
+### From the command line
+
+Everything the Accounts page does, the `accounts` command does too, inside the
+app's container. It asks for a password twice and does not echo it:
 
 ```sh
 docker compose exec api python -m app.accounts list
@@ -2136,19 +2348,9 @@ docker compose exec api python -m app.accounts disable ada
 docker compose exec api python -m app.accounts enable ada
 ```
 
-A username is letters, digits and `.` `_` `-` `@` `+` — an email address will
-do — and is matched without regard to case, so `Ada` and `ada` are one account. A password is at
-least 10 characters; there are no other rules about what goes in it, because a
-long one a password manager made is better than a short one with a digit on the
-end.
-
-**Switching an account off** signs it out everywhere at once and stops its API
-tokens working. It is kept, so switching it back on restores it as it was.
-**Changing a password** signs that account out everywhere else.
-
-The same command is the way back in if every administrator's password is lost:
-anybody who can run commands on the server can already read the database, so it
-asks for nothing more.
+It is the way back in if every administrator's password is lost: anybody who can
+run commands on the server can already read the database, so it asks for nothing
+more.
 
 ### A site only its people can read
 
@@ -2196,7 +2398,11 @@ Editing controls simply do not appear for anybody who may not use them.
 A token is a password for a program: the tool server, a script, the print agent's
 machine. It acts as the account it was made for, with that account's role, so a
 viewer's token can read the API and not write to it. Make one per program, so a
-leaked one can be withdrawn without breaking the others:
+leaked one can be withdrawn without breaking the others.
+
+Make yours on **⋯ → Account**: give it a name that says what it is for — *tool
+server*, *print desk* — and press **Make token**. An administrator can revoke
+anybody's from their page under Accounts. The command line does the same:
 
 ```sh
 docker compose exec api python -m app.accounts token ada "tool server"
@@ -2204,7 +2410,7 @@ docker compose exec api python -m app.accounts tokens
 docker compose exec api python -m app.accounts revoke 7
 ```
 
-The token is printed once, when it is made, and never again; the register keeps
+The token is shown once, when it is made, and never again; the register keeps
 only a fingerprint of it. It starts `rhdb_`, so it is recognisable in a
 configuration file and to a secret scanner. Send it as a bearer token:
 
@@ -2213,7 +2419,7 @@ curl -H "Authorization: Bearer rhdb_…" https://db.example.com/api/parts
 ```
 
 A token stops working when it is revoked or when its account is switched off.
-`tokens` shows when each was last used, which is how to find the one nothing uses
+The lists say when each was last used, which is how to find the one nothing uses
 any more.
 
 ### What the log says at startup
@@ -2250,8 +2456,9 @@ than in a corner of an item's form.
 Everything on it is kept in the database, so it survives a restart and
 everybody who opens the site gets it. It comes in two groups:
 
-**Appearance** — the site's name, whether photographs are watermarked, and which
-theme it opens in.
+**Appearance** — the site's name, the look it is dressed in, the faces it is set
+in, where its sections sit, how its buttons are written, whether photographs are
+watermarked, and which theme it opens in.
 
 **Server options** — what this installation shows the outside world and what
 it remembers for itself: whether visitors must log in to read anything, whether it
@@ -2261,6 +2468,11 @@ public, and whether a place nothing is kept in any more is still offered.
 
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
+
+At the top of the page are the two pages beside it: **Accounts**, the people who
+may sign in ([adding people](#adding-people)), and **Your account**, your own
+password, sessions and tokens ([your account](#your-account)). Your account is the
+one page under Settings a viewer may open.
 
 The page itself is deliberately bare: a control says what it is in as few words
 as will do, and the reason for it is in a tooltip you get by resting the pointer
@@ -2356,6 +2568,91 @@ Reference photographs — the ones fetched from somewhere else because the
 collection has none of its own yet — are never watermarked either way. Marking
 somebody else's picture would be claiming it.
 
+### The look
+
+**Preset** is the look the whole installation wears. Seven of them ship with the
+register: *Default*, *Breadbin*, *Rubber Key*, *Phosphor*, *Amber*, *Big Box
+Beige* and *Ninety-five*. The names are the hardware they are drawn from, and
+each one is a set of colours, corner radii, a shadow and three typefaces — and
+nothing else. **A preset never moves anything.** Every page keeps its layout,
+its columns and its breakpoints whichever one is chosen, so picking one is a
+change of dress and never a change of furniture.
+
+They are shown as a row of faces rather than as a menu, because the thing being
+chosen is a look and a list of words cannot show one. Each face is split down the
+middle: its light half on the left, its dark half on the right. That is not
+decoration — a preset *is* two sets of colours, and which of them a reader gets
+is decided further down the page by **Theme** and by the reader's own device.
+The chosen face is outlined and also says **Chosen** in words, so the answer does
+not rest on a colour somebody may not be able to see.
+
+The faces are reachable by the Tab key and answer the arrow keys, as a row of
+radio buttons does anywhere else.
+
+Unlike the theme, **this one is not a default a device can overrule**. It is the
+installation's own look: everybody who opens the site gets it, and a visitor is
+offered no way to change it — their choice is light or dark, and that is all.
+The preset decides which pair of looks those two words pick between.
+
+A preset can be pinned from the environment with `RHDB_PRESET`, in which case
+the faces are greyed and will not take an answer, like any other pinned setting.
+If it is ever set to a name the register does not know, the site comes up in
+*Default* rather than in no look at all.
+
+### The accent
+
+**Accent** is the one colour the register uses to mean *press this*, *this is a
+link*, and *this is where you are*: the primary button, the links in a panel, the
+bar on the figures page, the ring round whatever the Tab key has reached.
+
+Every preset brings its own — Breadbin's is a deep blue, Phosphor's the green of
+the screen it is drawn from — and *As the preset* leaves it there, which is what a
+new installation gets. Beside it are eight the register offers by name: *Blue*,
+*Teal*, *Green*, *Amber*, *Red*, *Magenta*, *Violet* and *Slate*. Under them,
+**Custom accent** takes any colour written as `#rrggbb`, which is how an
+installation whose collection already has a colour gets that colour and not the
+nearest of eight.
+
+Like the preset, they are shown as faces rather than as a menu: each one a real
+primary button and a real link in the colour it is offering, drawn for the preset
+in force. So what is being chosen is the thing itself rather than a name for it,
+and an accent is seen before it is lived with.
+
+**The colour you give it is not always the colour on the page, and this is on
+purpose.** One colour has four jobs to do: fill a button with white or black
+writing across it, be read as a link on three different shades of page, show as a
+bar against its own track, and draw a focus ring that can be seen. No single
+colour does all four on every preset — a yellow that looks right on a button is
+invisible as a link on white — so the register works the four out from the one:
+
+- **The button keeps your colour exactly**, wherever it can hold its own against
+  the page and carry white or near-black writing. That is most colours, and it is
+  the one that matters: the button is where an accent is recognised.
+- **Whatever has to move, moves lighter or darker and no other way** — the hue is
+  never changed, so what comes back is your colour and not a colour near it.
+- **The writing on the button** is white or near-black, whichever reads better on
+  the fill.
+
+A yellow shows what that means. On a dark page it is used exactly as given:
+yellow button, yellow links, black writing on the button. On a white page the
+same yellow is a button with no edge to it — a pale shape on a pale page — so
+there the button is a dark yellow and the links darker still, and the ring in
+between. Two pages, one colour, and a reader can see it on both.
+
+It is worked out for the preset *and* for the mode, so a reader on the dark theme
+gets a set adjusted for a dark page rather than the light one's set on a dark
+page. The register will not use a set that fails: every colour it derives is held
+to 4.5:1 for anything written and 3:1 for anything drawn, on all three shades of
+page, and that is tested across the whole colour space rather than on the eight —
+which is why the box will take any colour at all without asking you to check it.
+
+**Custom accent** wins over the eight when it is filled in: the named choice
+stays as it was, so emptying the box hands the answer back to it. Anything that is not six
+hexadecimal digits behind a `#` is not an answer, and the page keeps what it had.
+
+This is the installation's, like the preset: a visitor chooses light or dark and
+nothing else.
+
 ### The theme
 
 **Theme** is a menu, and holds the theme a visitor gets who has never chosen
@@ -2368,6 +2665,91 @@ pressed in — the phone by the shelf and the machine in the workshop can each r
 differently — and that choice is kept in the browser and travels nowhere. Once a
 browser has made one it keeps it, and the setting here is what everybody who has
 not made one gets.
+
+### The type
+
+The register sets its words in three faces, and which face a word gets is decided
+by what kind of word it is rather than by where it sits on the page. What somebody
+**wrote** — an item's name, its summary, the one big number at the head of the
+figures — is in the display face. What the register **says** — a label, a button,
+a heading, a hint, the words in a menu — is in the interface face. What somebody
+**recorded** — an asset tag, a serial, a date, a size, a filename, every value in
+a table — is in the data face, which is monospaced, so a column of serials reads
+down as well as across.
+
+**Type** is a menu of four, and it repoints those three faces:
+
+- *As the preset* leaves them as the chosen look names them, which is what a fresh
+  install gets. Phosphor and Amber are monospaced throughout, because the screens
+  they are drawn from were; Breadbin, Rubber Key, Big Box Beige and Ninety-five
+  set their titles in the interface face rather than the serif.
+- *Catalogue* is a serif for what was written, a sans for the interface, a
+  monospace for what was recorded — the three roles at their most distinct.
+- *Plain* drops the serif: the interface face does the writing too, and recorded
+  values stay monospaced.
+- *Ledger* is monospaced throughout, prose included.
+
+Only the face changes. Every size, weight and line height stays where it was, so
+choosing one of these never moves anything: a long name may break a line
+differently, and that is the whole of it.
+
+The three faces ship with the register and are served from it, like everything
+else on the page — nothing is fetched from anywhere else while somebody is
+reading, and choosing a type sends no request to a third party.
+
+### Where the sections sit
+
+**Navigation** is *Side* or *Top*, and decides where the five sections live on a
+wide screen. *Side* is what a new installation gets.
+
+At 1100px and wider, *Side* puts a rail down the left of the page, in what is
+otherwise empty margin — the column of the page itself is not narrowed by it. The
+rail carries the name and mark, then the five sections, each with the number of
+things in it beside its name. For somebody signed in it also carries **Computer**
+and **Part** as one press each, and **Recent**: the last three things you edited,
+tag first, which is the rail's best argument at a bench where you go back to the
+same two machines all afternoon. At its foot are the theme button, which everybody
+gets, then **Settings**, **Account** and **Log out** — or **Log in** for a
+visitor — and **Collapse**.
+
+The banner above the page keeps the search box and **Scan** in both layouts, so
+the two things wanted from every page are in the same place whichever is chosen.
+With the rail showing, the banner holds those two and nothing else: the sections,
+the **+ New** menu and the ⋯ menu are in the rail, and nothing is in both.
+
+**Collapse** narrows the rail to a strip of icons, each still carrying its name
+for a screen reader and in a tooltip. The choice is the browser's rather than the
+installation's — the wide screen in the workshop can keep the rail open while the
+laptop folds it away — and is kept on the device that made it, as the theme is. It
+is a plain link and works with the scripting turned off.
+
+Below 1100px there is no rail whichever way this is set: the banner carries the
+sections as it always has, and a phone gets the tab bar. There is no phone form of
+a rail, so *Side* and *Top* are the same thing on a phone.
+
+A visitor sees the rail without the things that are not theirs: no **+ Computer**
+or **+ Part**, no **Recent**, no **Settings**, no **Account** and no **Log out**. The counts they
+do see, because the size of a collection is part of what a catalogue is for.
+
+### Button text
+
+**Button text** is *Capitalised* or *Lower case*, and decides how the first word
+of a button, a menu item, a tab or a status chip is written: **Save** and **Add
+note**, or **save** and **add note**.
+
+It reaches the controls and nothing else. A field label, a legend and a heading
+are capitalised whichever is chosen — `Manufacturer`, `Acquired date`,
+`Appearance` — because those name a thing rather than ask for an action, and a
+page that lower-cased them would read as a page with a fault.
+
+An acronym keeps its capitals either way: `OK`, `API docs`, `CPU family`. That is
+why this is done as the page is built rather than left to the browser's own
+lower-casing, which cannot tell an acronym from an ordinary word and would hand
+back `ok` and `api docs`.
+
+*Capitalised* is what a new installation gets. *Lower case* is 0.1's voice, kept
+because it is a voice and not a mistake: an installation that liked the quieter
+controls can have them back with one answer.
 
 ### Set in the environment
 
@@ -2385,6 +2767,7 @@ the page, unset it and restart.
 
 | setting | pinned by |
 |---|---|
+| Preset | `RHDB_PRESET` |
 | Watermark photographs | `RHDB_WATERMARK` |
 
 The rest are the page's alone. This table is the place to look when you want to

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_accounts.html" as A with context %}
+{# One account, for an administrator (ADR-0032). Each fieldset is its own form, so a
+   refusal from one -- the last administrator -- leaves the others as they were. #}
+{% block title %}{{ u.username }} — {{ site_name() }}{% endblock %}
+{% block main_class %} class="v2"{% endblock %}
+{% block content %}
+<div class="pagehead"><h1 class="heading">{{ u.username }}</h1></div>
+<p class="hint"><a href="/settings/users">Accounts</a> · last signed in {{ A.when(u.last_login_at) }}</p>
+
+{% if done == 'role' %}{{ U.banner('success', 'Role changed.') }}
+{% elif done == 'active' %}{{ U.banner('success', 'Switched on.' if u.active else 'Switched off.', '' if u.active else 'Signed out everywhere, and its tokens stop working.') }}
+{% elif done == 'password' %}{{ U.banner('success', 'Password set.', 'Signed out everywhere.') }}
+{% elif done == 'revoked' %}{{ U.banner('success', 'Token revoked.') }}{% endif %}
+{% if error %}{{ U.banner('danger', 'Not changed.', error) }}{% endif %}
+
+<form class="editform narrow" method="post" action="/settings/users/{{ u.id }}/role">
+  <fieldset class="fieldset">
+    <legend>Role</legend>
+    {{ U.field('role', 'Role', kind='choice', choices=roles.items() | list, value=role,
+               note='There is always at least one administrator.') }}
+    <p>{{ U.button('Save role', type='submit') }}</p>
+  </fieldset>
+</form>
+
+<form class="editform narrow" method="post" action="/settings/users/{{ u.id }}/active">
+  <fieldset class="fieldset">
+    <legend>Switched on</legend>
+    {{ U.field('active', 'May sign in', kind='switch', value=u.active,
+               note='Off signs the account out everywhere and stops its tokens. It is kept, so turning it back on restores it.') }}
+    <p>{{ U.button('Save', type='submit') }}</p>
+  </fieldset>
+</form>
+
+<form class="editform narrow" method="post" action="/settings/users/{{ u.id }}/password">
+  <fieldset class="fieldset">
+    <legend>Password</legend>
+    {{ U.field('password', 'New password', type='password', autocomplete='new-password', minlength=10) }}
+    {{ U.field('password2', 'New password again', type='password', autocomplete='new-password', minlength=10) }}
+    {% if password_error %}{{ U.banner('danger', 'Not set.', password_error) }}{% endif %}
+    <p>{{ U.button('Set password', type='submit') }}</p>
+  </fieldset>
+</form>
+
+<fieldset class="fieldset narrow">
+  <legend>API tokens</legend>
+  {{ A.tokens(tokens, '/settings/users/' ~ u.id ~ '/tokens') }}
+</fieldset>
+{% endblock %}

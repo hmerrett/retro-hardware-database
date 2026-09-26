@@ -146,7 +146,7 @@ class TestWhatAViewerIsRefused:
         as_viewer(client)
         r = client.get(path, follow_redirects=False)
         assert r.status_code == 403
-        assert "Not for this account" in r.text
+        assert "Not for you" in r.text
 
     def test_an_edit_form(self, client, part):
         aid = part()["asset_id"]

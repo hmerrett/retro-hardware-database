@@ -17,9 +17,9 @@
    different things. Inside a panel the cards give up their own border and keep their
    bands, since the panel has already drawn the box (see _panel.html). #}
 
-{# Parts. `endpoint`/`label` are what taking one out is called -- unlinked from a
-   machine, unmounted from the card it sits on -- and `authed` is passed in because
-   an imported macro does not see the request.
+{# Parts, each drawn by U.itemcard. `endpoint` is what taking one out does --
+   unlink it from a machine, detach it from the card it sits on -- and `authed` is
+   passed in because an imported macro does not see the request.
 
    `thumbs` is a picture for each of them by asset id (see part_thumbs), and the way
    through to that part's own page, where its photographs are. A list of parts is
@@ -31,40 +31,14 @@
    loading rather than as a thing nobody has photographed.
 
    Left out (the edit form, which carries these sections only while there is nothing
-   in them to draw) and the cards are the plain text they always were. #}
-{% macro cards(parts, endpoint, label, back, authed, thumbs={}) %}
+   in them to draw) and the cards have no picture. #}
+{% import "_ui.html" as U %}
+{% macro cards(parts, endpoint, back, authed, thumbs={}) %}
 <div class="itemcards">
   {% for p in parts %}
-  <article class="itemcard">
-    <header>
-      <a href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>
-      <span class="muted">· {{ type_label(p.type) }}</span>
-      {% if p.disposed %}<span class="chip">disposed</span>{% endif %}
-      {% if authed %}
-      <form method="post" action="/parts/{{ p.asset_id }}/{{ endpoint }}"><input type="hidden" name="next" value="{{ back }}"><button class="btn sm" type="submit">{{ label }}</button></form>
-      {% endif %}
-    </header>
-    <div class="cardmain">
-      {% set t = thumbs.get(p.asset_id) if thumbs else none %}
-      {% if t %}
-      <a class="cardthumb" href="/parts/{{ p.asset_id }}"
-         aria-label="{{ p.asset_id }} — its own page and its photographs">
-        {% if t.img %}<img src="{{ img_url(t.img, THUMB_CARD) }}" alt=""
-             loading="lazy" decoding="async">
-        {% else %}<img class="ph" src="/static/{{ t.ph }}" alt="" aria-hidden="true"
-             loading="lazy">{% endif %}
-        {% if t.ref %}<span class="ref-badge{{ ' icon' if t.icon else '' }}"
-          title="Illustrative image, not this exact unit">{% if t.icon %}<img
-          src="/images/{{ t.icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif %}
-      </a>
-      {% endif %}
-      <div class="cardtext">
-        <h4>{{ display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) }}</h4>
-        {% set pairs = parse_specs(p.specs) %}
-        {% if pairs %}{{ speclist(pairs) }}{% endif %}
-      </div>
-    </div>
-  </article>
+  {% call U.itemcard(p, thumbs.get(p.asset_id) if thumbs else none) %}
+    {%- if authed %}<form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/{{ endpoint }}"><input type="hidden" name="next" value="{{ back }}">{{ U.button('Take out', size='sm', type='submit') }}</form>{% endif -%}
+  {% endcall %}
   {% endfor %}
 </div>
 {% endmacro %}

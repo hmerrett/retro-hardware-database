@@ -1,0 +1,511 @@
+{# The v0.2 components as macros (ADR-0031): one macro to a design-system card of the
+   same name, so a page says what a thing is and the markup that draws it is written
+   once. Import with {% import "_ui.html" as U %} and call {{ U.button('Save') }}.
+
+   These are the ones that need nothing from the page but their arguments. A
+   component that reads a page's own data -- the gallery card, the item card, the
+   banner, the tab bar and menu, the rail, the upload rows -- is written beside the
+   first template that feeds it, so its signature is shaped by a real caller rather
+   than a guessed one. The panel stays in _panel.html.
+
+   The words on anything a person presses or reads as a status go through `ui`,
+   which follows the installation's Button text setting (web.button_text). Labels,
+   legends and headings never do.
+
+   Each macro is written with its whitespace trimmed: they are inline markup, and a
+   stray newline inside a button or a table cell is a stray space on the page. #}
+{% import "_icons.html" as I %}
+
+{# A button, or a link drawn as one when it has an `href`. `kind` is primary or
+   danger; `size` is sm. An icon beside a word is decoration; with `icon_only` the
+   label becomes the button's name instead of words beside the drawing. `pressed`
+   makes it a toggle: true draws it on, and either value tells a screen reader it
+   is one, which the drawing alone does not. A disabled link keeps its place and
+   loses its href, since a link cannot be disabled any other way. `form` names the
+   form a submit button belongs to when it does not stand inside it. #}
+{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none, title='', form='') -%}
+{%- set cls = ['btn', kind, size, 'icon' if icon_only else '', 'on' if pressed else ''] | select | join(' ') -%}
+{%- set text = label | ui -%}
+{%- set named %}{% if icon_only %} aria-label="{{ text }}"{% endif %}{% if title %} title="{{ title }}"{% endif %}{% endset -%}
+{%- set inner %}{% if icon %}{{ I.ico(icon) }}{% if not icon_only %} {% endif %}{% endif %}{% if not icon_only %}{{ text }}{% endif %}{% endset -%}
+{%- if href and not disabled -%}
+<a class="{{ cls }}" href="{{ href }}"{{ named }}>{{ inner }}</a>
+{%- elif href -%}
+<a class="{{ cls }}" aria-disabled="true"{{ named }}>{{ inner }}</a>
+{%- else -%}
+<button class="{{ cls }}" type="{{ type }}"
+{%- if form %} form="{{ form }}"{% endif %}
+{%- if name %} name="{{ name }}"{% endif %}
+{%- if value != '' %} value="{{ value }}"{% endif %}{{ named }}
+{%- if pressed is not none %} aria-pressed="{{ 'true' if pressed else 'false' }}"{% endif %}
+{%- if disabled %} disabled{% endif %}>{{ inner }}</button>
+{%- endif -%}
+{%- endmacro %}
+
+{# A labelled control. `kind` is text, area (a textarea), choice (a select, from
+   `choices`: values, or (value, words) pairs) or switch (a tick with its label
+   beside it). The `key` is the control's name and id, so an error summary can link
+   to it. `note` is the explanation, and goes in a title on the row so hovering the
+   label reaches it too. `pinned` is a value set by the environment: shown, and not
+   editable. `error` is the one explanation printed rather than hovered -- under the
+   control, tied to it for a screen reader, and marked invalid.
+
+   `hint` is for the edit forms, whose lines under a field say what goes in it and
+   are read at the bench on a phone, where nothing can be hovered: printed under
+   the control and tied to it like an error. Any other keyword becomes an attribute
+   of the control (type, list, min, placeholder ...): true writes it bare, and
+   false, none and '' leave it off. #}
+{% macro field(key, label, kind='text', value='', choices=[], note='', pinned=false, error=none, hint='') -%}
+{%- set cls = ['field', 'is-pinned' if pinned else '', 'is-invalid' if error else ''] | select | join(' ') -%}
+{%- set described = ([key ~ '-hint'] if hint else []) + ([key ~ '-err'] if error else []) -%}
+{%- set attrs %}{% if error %} aria-invalid="true"{% endif %}{% if described %} aria-describedby="{{ described | join(' ') }}"{% endif %}{% if pinned %} disabled{% endif %}
+{%- for k, v in kwargs | dictsort %}{% if v is sameas true %} {{ k }}{% elif v is not none and v is not sameas false and v != '' %} {{ k }}="{{ v }}"{% endif %}{% endfor %}{% endset -%}
+<div class="{{ cls }}"{% if note %} title="{{ note }}"{% endif %}>
+{%- if kind == 'switch' -%}
+<label class="check"><input type="checkbox" id="{{ key }}" name="{{ key }}" value="1"{% if value %} checked{% endif %}{{ attrs }}> {{ label }}</label>
+{%- else -%}
+<label for="{{ key }}">{{ label }}</label>
+{%- if kind == 'area' -%}
+<textarea class="input" id="{{ key }}" name="{{ key }}"{{ attrs }}>{{ value }}</textarea>
+{%- elif kind == 'choice' -%}
+<select class="select" id="{{ key }}" name="{{ key }}"{{ attrs }}>
+{%- for c in choices %}{% set v, words = c if c is sequence and c is not string else (c, c) -%}
+<option value="{{ v }}"{% if v | string == value | string %} selected{% endif %}>{{ words | ui }}</option>
+{%- endfor -%}
+</select>
+{%- else -%}
+<input class="input" id="{{ key }}" name="{{ key }}" value="{{ value }}"{{ attrs }}>
+{%- endif -%}
+{%- endif -%}
+{%- if hint %}<p class="hint" id="{{ key }}-hint">{{ hint }}</p>{% endif -%}
+{%- if error %}<p class="err" id="{{ key }}-err">{{ error }}</p>{% endif -%}
+</div>
+{%- endmacro %}
+
+{# A choice made by looking rather than by reading: a row of faces, one per answer,
+   each drawn in what it is offering. `faces` is (value, name) pairs and `face` is
+   the caller's drawing of one, given the value. Radios, so it posts with no script,
+   is one stop for the Tab key and answers the arrow keys; the input is painted over
+   rather than taken off the page, so the focus still lands on it and draws its own
+   ring. The chosen one is outlined and also says so in words, because an outline is
+   a colour and somebody may not be able to see it. #}
+{% macro swatch(key, label, faces, chosen, note='', pinned=false, extra='') -%}
+<fieldset class="swatches{{ ' ' ~ extra if extra }}{{ ' is-pinned' if pinned else '' }}"{% if note %} title="{{ note }}"{% endif %}>
+<legend>{{ label }}</legend>
+{%- for value, name in faces %}
+<label class="swatch-opt">
+<input type="radio" name="{{ key }}" value="{{ value }}"{% if value | string == chosen | string %} checked{% endif %}{% if pinned %} disabled{% endif %}>
+<span class="face">{{ caller(value) }}<span class="name">{{ name }}<i>Chosen</i></span></span>
+</label>
+{%- endfor %}
+</fieldset>
+{%- endmacro %}
+
+{# What stopped a save, at the top of the form: how many things, each a link to its
+   field. `errors` is a list of (key, label, message). role="alert" so a screen
+   reader hears it, and tabindex="-1" so the page can move focus to it and a
+   keyboard user starts from there. Nothing at all when there is nothing to fix. #}
+{% macro error_summary(errors) -%}
+{%- if errors -%}
+<div class="errsum" role="alert" tabindex="-1"><h2>{{ errors | length }} thing{{ '' if errors | length == 1 else 's' }} to fix before this can be saved</h2><ul>
+{%- for key, label, message in errors %}<li><a href="#{{ key }}">{{ label }}</a> — {{ message }}</li>{% endfor -%}
+</ul></div>
+{%- endif -%}
+{%- endmacro %}
+
+{# A short fact about a thing. `tone` is ok, warn, bad or quiet. A chip that links
+   names a thing, so its words are left as written; any other chip reads as one
+   vocabulary with the buttons beside it and follows the same setting. #}
+{% macro chip(text, tone='', href='') -%}
+{%- if href -%}
+<a class="chip" href="{{ href }}">{{ text }}</a>
+{%- else -%}
+<span class="{{ ['chip', tone] | select | join(' ') }}">{{ text | ui }}</span>
+{%- endif -%}
+{%- endmacro %}
+
+{# A project's status. The tone follows what the status says about the work: done is
+   the good news, stalled wants looking at, abandoned is over without being a fault.
+   The word is always there, so the tone is never the only telling. #}
+{% macro status_chip(status) -%}
+{{ chip(status_label(status) | capitalize, {'done': 'ok', 'stalled': 'warn', 'abandoned': 'quiet'}.get(status, '')) }}
+{%- endmacro %}
+
+{# Rows of things. `cols` is a list of (heading, class); the class reaches the
+   heading and every cell under it (num, tight). `rows` is a list of cell lists --
+   pass Markup for a cell that holds a link or a chip. A table of more than three
+   columns has to choose what it does on a phone: `stack` turns each row into a
+   block under 560px, and every cell after the first carries its heading in
+   data-label, written here so a new column cannot forget it; `scroll` keeps rows
+   as rows in a box of their own. `plain` is for three columns or fewer.
+
+   The headings are the table's first row, not a <thead>: the stacking rule hides
+   tr:first-child, and under a <thead> that would be the first row of data too. #}
+{% macro table(cols, rows, mode='stack') -%}
+{%- set t -%}
+<table class="table{{ ' stack' if mode == 'stack' else '' }}"><tr>
+{%- for heading, c in cols %}<th scope="col"{% if c %} class="{{ c }}"{% endif %}>{{ heading }}</th>{% endfor -%}
+</tr>
+{%- for row in rows %}<tr>
+{%- for cell in row %}{% set heading, c = cols[loop.index0] -%}
+<td{% if c %} class="{{ c }}"{% endif %}{% if mode == 'stack' and not loop.first %} data-label="{{ heading }}"{% endif %}>{{ '' if cell is none else cell }}</td>
+{%- endfor -%}
+</tr>{% endfor -%}
+</table>
+{%- endset -%}
+{%- if mode == 'scroll' %}<div class="hscroll">{{ t }}</div>{% else %}{{ t }}{% endif -%}
+{%- endmacro %}
+
+{# A message about the page rather than in it. `tone` is warning, danger, success or
+   nothing; add toast for the notice that floats. The lead word says what kind of
+   message it is, so the colour is never the only telling. Danger interrupts a
+   screen reader; the rest wait their turn. #}
+{% macro banner(tone, lead, text='') -%}
+<div class="{{ ['banner', tone] | select | join(' ') }}"
+{%- if tone %} role="{{ 'alert' if 'danger' in tone.split() else 'status' }}"{% endif %}><b>{{ lead }}</b>
+{%- if text %}<span>{{ text }}</span>{% endif %}</div>
+{%- endmacro %}
+
+{# One figure on the numbers page, with what it is and what it is out of. #}
+{# A tile with somewhere to go is the link, whole: the figure is what is being
+   followed, and a tile with a link somewhere inside it is a smaller target. #}
+{% macro stattile(label, value, note='', href='') -%}
+{%- set tag = 'a' if href else 'div' -%}
+<{{ tag }} class="stattile"{% if href %} href="{{ href }}"{% endif %}><div class="k">{{ label }}</div><div class="v">{{ value }}</div>
+{%- if note %}<div class="n">{{ note }}</div>{% endif %}</{{ tag }}>
+{%- endmacro %}
+
+{# Ranked bars: `rows` is a list of (label, count), each bar measured against the
+   largest. The length is a class whose rule datacss generates, in the half-percent
+   steps it generates them in, because the content policy allows no style attribute
+   (ADR-0022). The number is printed beside every bar, so the bar is never the only
+   carrier and the track can be hidden from a screen reader.
+
+   `f` makes each label a link to the items it counted, /browse?f=<f>&v=<value>, the
+   value being a row's third element (what the column holds, which is not always
+   the label shown). `full` draws against a fixed ceiling instead of the largest
+   row, which is what a percentage needs: scaled to itself, a list topped by 92%
+   would draw a full bar and read as "all of them". `suffix` goes on the number, for
+   the one measure that needs it beside a neighbouring chart of counts. #}
+{% macro bars(rows, f='', full=0, suffix='') -%}
+{%- set top = full or ((rows | map(attribute=1) | max) if rows else 0) -%}
+<div class="bars">
+{%- for row in rows -%}
+{%- set label, n = row[0], row[1] -%}
+<span>{% if f %}<a href="/browse?f={{ f }}&v={{ (row[2] if row | length > 2 else label) | urlencode }}">{{ label }}</a>{% else %}{{ label }}{% endif %}</span><span class="track" aria-hidden="true"><i class="fill w-{{ ((1000 * n / top / 5) | round | int) * 5 if top else 0 }}"></i></span><span class="n">{{ n }}{{ suffix }}</span>
+{%- endfor -%}
+</div>
+{%- endmacro %}
+
+{# Above an item: back to the list, where this is in it, and its neighbours. A
+   missing neighbour is left out rather than disabled -- there is nothing to say
+   about a button that cannot be pressed. rel so a crawler can walk the list; the
+   arrows are drawing, and not read out. The names are the neighbours' own, in a
+   title, so a walk is not blind.
+
+   `keep` is for the item pages, whose script may know a neighbour the server does
+   not (the gallery's own order, see app.js): both buttons are drawn, with the ids
+   the script finds them by, and a missing one is hidden rather than absent. What
+   the caller puts in the block -- the owner's Edit and Duplicate -- sits between
+   the position and the neighbours. #}
+{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='', prev_name='', next_name='', keep=false) -%}
+<nav class="itemnav" aria-label="Item"{% if keep %} id="itemnav"{% endif %}><a href="{{ back_href }}"><span aria-hidden="true">←</span> {{ back_label }}</a>
+{%- if position %}<span class="where">{{ position }}</span>{% endif %}<span class="push"></span>
+{%- if caller is defined %}{{ caller() }}{% endif %}
+{%- if prev_href or keep %}<a class="btn sm"{% if keep %} id="nav-prev"{% endif %} href="{{ prev_href }}" rel="prev"{% if prev_name %} title="{{ prev_name }}"{% endif %}{% if not prev_href %} hidden{% endif %}><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif %}
+{%- if next_href or keep %}<a class="btn sm"{% if keep %} id="nav-next"{% endif %} href="{{ next_href }}" rel="next"{% if next_name %} title="{{ next_name }}"{% endif %}{% if not next_href %} hidden{% endif %}>{{ 'Next' | ui }} <span aria-hidden="true">›</span></a>{% endif -%}
+</nav>
+{%- endmacro %}
+
+{# Under a list that runs to more than one page. `href` is the URL up to the page
+   number (`/?sort=new&page=`). One page needs no pager. #}
+{% macro pager(page, pages, href) -%}
+{%- if pages > 1 -%}
+<nav class="pager" aria-label="Pages">
+{%- if page > 1 %}<a class="btn sm" href="{{ href }}{{ page - 1 }}" rel="prev"><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif -%}
+<span class="where">Page {{ page }} of {{ pages }}</span>
+{%- if page < pages %}<a class="btn sm" href="{{ href }}{{ page + 1 }}" rel="next">{{ 'Next' | ui }} <span aria-hidden="true">›</span></a>{% endif -%}
+</nav>
+{%- endif -%}
+{%- endmacro %}
+
+{# A gallery tile, from a row as gallery._catalogue_rows builds it. The whole card is
+   the link, so everything inside it is a span. Disposed fades the photograph and
+   says so in a chip: dimming the whole card, as 0.1 did, took the muted text under
+   4.5:1. #}
+{% macro card(item) -%}
+{%- set o = item.obj -%}
+<a class="card{{ ' is-disposed' if o.disposed }}" href="/{{ 'computers' if item.kind == 'computer' else 'parts' }}/{{ o.asset_id }}">
+<span class="thumb">
+{#- A card measures 229px on every desktop width -- the page is capped at 1000px --
+    and the width of the screen on a phone. sizes says so, because a browser
+    believes it: overstating it by seventy pixels was enough to make a retina
+    screen fetch the 800px copy for a card that can show 458. #}
+{%- if item.image %}<img src="{{ img_url(item.image, THUMB_CARD) }}" srcset="{{ img_srcset(item.image, [300, 500, 800]) }}" sizes="(max-width: 460px) 100vw, 229px" alt="{{ item.name }}" loading="lazy" decoding="async">
+{%- else %}<img class="ph" src="/static/{{ item.placeholder }}" alt="{{ item.cat_label }}" loading="lazy">{% endif %}
+{%- if item.ref_photo %}<span class="ref-badge{{ ' icon' if item.ref_icon }}" title="Illustrative image, not this exact unit">{% if item.ref_icon %}<img src="/images/{{ item.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
+</span>
+<span class="body"><span class="aid">{{ o.asset_id }}</span><span class="nm">{{ item.name }}</span>
+<span class="chips"><span class="chip">{{ item.cat_label }}</span>
+{%- if item.year %}<span class="chip">{{ item.year }}</span>{% endif %}
+{%- if item.parent %}<span class="chip">in {{ item.parent }}</span>{% endif %}
+{%- if o.disposed %}<span class="chip">Disposed</span>{% endif -%}
+</span></span>
+</a>
+{%- endmacro %}
+
+{# A part in a list of them -- fitted in a machine, mounted on a card. The strip is
+   what the eye lands on looking for a tag: the tag, what kind of thing it is, and
+   at the far end whatever the caller puts in the block (Take out). Under it the
+   name, which is the way to its page, and its spec pairs. `thumb` is its picture
+   (see part_thumbs): four near-identical drives are told apart by eye, not by
+   model number, and the drawing stands in where nobody has photographed one. #}
+{% macro itemcard(p, thumb=none) -%}
+{%- set name = display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) -%}
+<article class="itemcard"><header><a class="tag" href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ chip(type_label(p.type)) }}
+{%- if p.disposed %}{{ chip('Disposed', 'quiet') }}{% endif %}<span class="grow"></span>
+{%- if caller is defined %}{{ caller() }}{% endif %}</header>
+<div class="cardmain">
+{%- if thumb -%}
+<a class="cardthumb" href="/parts/{{ p.asset_id }}" aria-label="{{ p.asset_id }} — its own page and its photographs">
+{%- if thumb.img %}<img src="{{ img_url(thumb.img, THUMB_CARD) }}" alt="" loading="lazy" decoding="async">
+{%- else %}<img class="ph" src="/static/{{ thumb.ph }}" alt="" loading="lazy">{% endif %}
+{%- if thumb.ref %}<span class="ref-badge{{ ' icon' if thumb.icon }}" title="Illustrative image, not this exact unit">{% if thumb.icon %}<img src="/images/{{ thumb.icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
+</a>
+{%- endif -%}
+<div class="grow"><h4><a href="/parts/{{ p.asset_id }}">{{ name }}</a></h4>
+{%- set pairs = parse_specs(p.specs) -%}
+{%- if pairs %}<dl class="specs">
+{%- for k, v in pairs %}<div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{{ v | linked }}</dd></div>{% endfor -%}
+</dl>{% endif -%}
+</div></div></article>
+{%- endmacro %}
+
+{# A drive bezel's shade as made and how far it has yellowed. The colour is a class
+   whose rule datacss generates from the vocabulary in entry.py, so this swatch and
+   the chart cannot disagree; no shade is hatched. The words are always written
+   beside it, so the swatch itself is decoration. `size` is sm for inline use. #}
+{% macro bezel(shade, yellowing, size='') -%}
+<span class="{{ ['bezel', bezel_class(shade, yellowing) or 'none', size] | select | join(' ') }}" aria-hidden="true"></span>
+{%- endmacro %}
+
+{# ---- The site's chrome ------------------------------------------------------
+   These read the page they are on, so each takes what it needs of it: `current`
+   is the path, `authed` whether this visitor may edit, `back` where logging in or
+   out returns to. Whether they are signed in at all, and whether they may see what
+   a visitor may not, they read off request.state (ADR-0032). #}
+
+{# aria-current on the section a path belongs to. Prefix rather than exact match, so
+   an item's own page still lights the section it was reached through -- except the
+   gallery, which is only itself. #}
+{% macro here(seg, current) -%}
+{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg)) %} aria-current="page"{% endif -%}
+{%- endmacro %}
+
+{# The five sections, in the order both the banner and the menu give them. "Models"
+   rather than "machines": the page is the catalogue's list of machine models, and
+   beside Browse -- the machines actually held -- "machines" read as a second way
+   into the same shelf. Projects sits next to Browse because the two are a pair:
+   what is owned, and the work in hand. #}
+{% set SECTIONS = [('/', 'Browse', 'grid'), ('/projects', 'Projects', 'projects'),
+                   ('/stats', 'Numbers', 'numbers'), ('/machines', 'Models', 'models'),
+                   ('/files', 'Files', 'files')] %}
+
+{# Everything that is neither a place in the banner nor its search: one list, drawn
+   as the banner's popover or as the phone's sheet, so a row added for one cannot be
+   missing from the other.
+
+   The sheet leads with the things to add, since on a phone there is no + New
+   beside it (the plus is its icon, so not its words as well), and carries the four sections the tab bar has no room for, and the
+   API docs from the foot of the page. The popover carries all five sections
+   classed `fold`: the stylesheet shows them only at the widths where the banner has
+   put its own away. Theme, share and reload are buttons the script words and
+   reveals (app.js), so they carry no icon for it to overwrite. #}
+{% macro menu(current, authed, back, sheet=false) -%}
+{%- if sheet and authed -%}
+<a href="/computers/new">{{ I.ico('plus') }}{{ 'Computer' | ui }}</a>
+<a href="/parts/new">{{ I.ico('plus') }}{{ 'Part' | ui }}</a>
+<a href="/projects/new">{{ I.ico('plus') }}{{ 'Project' | ui }}</a>
+<hr>
+{%- endif -%}
+{%- for href, words, icon in SECTIONS if not (sheet and href == '/') -%}
+<a href="{{ href }}"{% if not sheet %} class="fold"{% endif %}{{ here(href, current) }}>{% if sheet %}{{ I.ico(icon) }}{% endif %}{{ words | ui }}</a>
+{%- endfor -%}
+{%- if sheet %}<a href="/docs">{{ I.ico('files') }}{{ 'API docs' | ui }}</a><hr>{% else %}<hr class="fold">{% endif -%}
+<button type="button" class="js-theme" data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ 'Dark theme' | ui }}</button>
+{#- Two jobs the browser normally does and the installed app cannot: the manifest
+    asks for display:standalone, so on a phone's home screen there is no address
+    bar to reload from and no browser menu to share out of. The script shows them
+    only in that mode. -#}
+<button type="button" class="js-share" hidden>{{ 'Share this page' | ui }}</button>
+<button type="button" class="js-reload" hidden>{{ 'Reload' | ui }}</button>
+<hr>
+{#- The owner's own shortlist, beside the other things only an account can reach.
+    Not a section: it is a note to yourself, not a part of the catalogue (ADR-0018).
+    A viewer reads it; traffic and the settings are an administrator's (ADR-0032). -#}
+{%- if request.state.sees_private -%}
+<a href="/for-sale">{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
+{%- endif -%}
+{%- if authed -%}
+<a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
+<a href="/settings"{{ here('/settings', current) }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
+{%- endif -%}
+{%- if request.state.principal.signed_in -%}
+{#- Everybody's own, viewers included: the one page under Settings a viewer opens. -#}
+<a href="/settings/account"{{ here('/settings/account', current) }}>{% if sheet %}{{ I.ico('user') }}{% endif %}{{ 'Account' | ui }}</a>
+<form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}"><button type="submit">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log out' | ui }}</button></form>
+{%- else -%}
+{#- Carrying where you are, so logging in puts you back on it. That matters most to
+    a phone that has arrived by scanning an item's code and would otherwise be
+    handed the gallery and left to find the thing in its hands again. -#}
+<a href="/login?next={{ back | urlencode }}">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log in' | ui }}</a>
+{%- endif -%}
+{%- endmacro %}
+
+{# The top banner: where you can go, the search, what you can do. Under 900px the
+   sections fold into the menu so it stays one row; under 620px everything but the
+   mark and the search moves to the tab bar. `q` is the search already made, kept in
+   the box.
+
+   The mark and the name together, and both belong to the installation rather than
+   to the software: the logo is whatever was dropped into the branding directory
+   (see common.branded and INSTALL.md), and the name is what the settings page says
+   this collection is called. The alt text is that name because the picture is the
+   site's mark -- a logo whose alt text describes the artwork tells a screen reader
+   about a drawing nobody asked about. #}
+{% macro site_header(current, authed, back, q='') -%}
+<header class="site-header">
+  <a class="brand" href="/">
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
+         width="248" height="256">
+    <span>{{ site_name() }}</span>
+  </a>
+  {#- API docs is not among the sections: it is for whoever is writing against the
+      register rather than reading it, and it lives at the foot of the page. #}
+  <nav aria-label="Sections">
+    {%- for href, words, _ in SECTIONS %}<a href="{{ href }}"{{ here(href, current) }}>{{ words | ui }}</a>{% endfor -%}
+  </nav>
+  <span class="grow"></span>
+  {#- Enter searches the register from wherever you are: the server reads every
+      field of every item plus its history. On the gallery the same box also filters
+      what is already on the page as you type, which is what the id is for (index.js).
+      The suggestion list is filled in by app.js. #}
+  <form class="searchwrap" method="get" action="/" role="search">
+    <input class="input search" id="q" name="q" type="search" value="{{ q }}"
+           placeholder="Search anything…" aria-label="Search"
+           title="Search every field of every item — maker, chip, port, a note, an asset no."
+           autocomplete="off" role="combobox" aria-expanded="false"
+           aria-controls="suggest" aria-autocomplete="list">
+    <div id="suggest" role="listbox" aria-label="Search suggestions" hidden></div>
+  </form>
+  {#- Reading a label instead of typing its number. Hidden until the script has found
+      a camera to open, so it never offers what it cannot do. #}
+  <button type="button" class="btn hdr-scan scan-open" hidden title="Scan a label's QR code">{{ 'Scan' | ui }}</button>
+  {#- Adding a thing is one button offering the three kinds rather than three: they
+      are one intention, and as a row they were what broke across the line when the
+      banner wrapped. #}
+  {%- if authed %}
+  <details class="menu hdr-new">
+    <summary class="btn primary" role="button">{{ '+ New' | ui }}</summary>
+    <div class="menupop">
+      <a href="/computers/new">{{ '+ Computer' | ui }}</a>
+      <a href="/parts/new">{{ '+ Part' | ui }}</a>
+      <a href="/projects/new">{{ '+ Project' | ui }}</a>
+    </div>
+  </details>
+  {%- endif %}
+  <details class="menu hdr-more">
+    <summary class="btn icon" role="button" title="More" aria-label="More">{{ I.ico('more') }}</summary>
+    <div class="menupop">{{ menu(current, authed, back) }}</div>
+  </details>
+</header>
+<div class="stripe"></div>
+{%- endmacro %}
+
+{# The side rail: where the sections sit when Navigation is Side, at 1100px and
+   wider. The same five places the banner holds, laid down instead of across, with
+   what the banner's two menus hold at its foot -- so nothing is in both and the
+   banner beside it keeps only the search and Scan (components.css, 13a).
+
+   Always in the markup when the setting says side. Which of the two a reader gets
+   is the stylesheet's answer to the width of their screen, and exactly one is in
+   the page at a time: the other is `display: none`, which takes it out of the
+   reading order as well as off the screen.
+
+   Every item carries its name in words, in `title` and in `aria-label`, because
+   collapsed the words are hidden and an icon on its own names nothing. `counts` is
+   worked out once by the page and handed in rather than asked for per row. #}
+{% macro rail(current, authed, back, counts, shut=false) -%}
+<aside class="rail{{ ' collapsed' if shut else '' }}">
+  <a class="brand" href="/">
+    <img class="mark" src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
+         width="248" height="256">
+    <span>{{ site_name() }}</span>
+  </a>
+  <nav aria-label="Sections">
+    {%- for href, words, icon in SECTIONS %}{% set w = words | ui %}
+    <a class="item" href="{{ href }}" title="{{ w }}" aria-label="{{ w }}"{{ here(href, current) }}>
+      {{- I.ico(icon) }}<span>{{ w }}</span>
+      {%- if counts.get(href) is not none %}<i class="n">{{ counts[href] }}</i>{% endif -%}
+    </a>
+    {%- endfor %}
+  </nav>
+  {%- if authed %}
+  {#- The + New menu, unfolded: in a rail there is room to make the two things
+      most often added one press each, and a menu costs the same press twice. #}
+  <div class="sep"></div>
+  <nav aria-label="Add">
+    {%- for href, thing in (('/computers/new', 'Computer'), ('/parts/new', 'Part')) %}
+    {%- set w = ('Add ' ~ thing.lower()) | ui %}
+    <a class="item" href="{{ href }}" title="{{ w }}" aria-label="{{ w }}">{{ I.ico('plus') }}<span>{{ thing | ui }}</span></a>
+    {%- endfor %}
+  </nav>
+  {#- The rail's own argument: at a bench you go back to the same two machines all
+      afternoon. Read from the history, so it costs no column and no script. #}
+  {%- set mine = rail_recent() %}
+  {%- if mine %}
+  <p class="cap">{{ 'Recent' | ui }}</p>
+  {%- for item in mine %}
+  <a class="item recent" href="{{ item.href }}"><span class="tag">{{ item.tag }}</span><span class="nm">{{ item.name }}</span></a>
+  {%- endfor %}
+  {%- endif %}
+  {%- endif %}
+  <div class="foot">
+    {#- Worded and kept in step by the script (app.js), which is why the two words
+        are handed to it here: it cannot know which case the site is written in. -#}
+    <button class="item js-theme" type="button" title="{{ 'Dark theme' | ui }}" aria-label="{{ 'Dark theme' | ui }}"
+            data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ I.ico('theme') }}<span>{{ 'Dark theme' | ui }}</span></button>
+    {%- if authed %}
+    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current) }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
+    {%- endif %}
+    {%- if request.state.principal.signed_in %}
+    <a class="item" href="/settings/account" title="{{ 'Account' | ui }}" aria-label="{{ 'Account' | ui }}"{{ here('/settings/account', current) }}>{{ I.ico('user') }}<span>{{ 'Account' | ui }}</span></a>
+    <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}">
+      <button class="item" type="submit" title="{{ 'Log out' | ui }}" aria-label="{{ 'Log out' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log out' | ui }}</span></button></form>
+    {%- else %}
+    <a class="item" href="/login?next={{ back | urlencode }}" title="{{ 'Log in' | ui }}" aria-label="{{ 'Log in' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log in' | ui }}</span></a>
+    {%- endif %}
+    {#- A link and not a script: it asks the server to remember, and the server sends
+        the page back the other way round. So the rail folds on a browser running
+        nothing at all, and stays folded on the next page. -#}
+    {%- set fold = 'Expand' if shut else 'Collapse' %}
+    <a class="item" href="/rail/{{ 'open' if shut else 'collapsed' }}?next={{ back | urlencode }}"
+       title="{{ fold | ui }}" aria-label="{{ fold | ui }}">{{ I.ico('collapse') }}<span>{{ fold | ui }}</span></a>
+  </div>
+</aside>
+{%- endmacro %}
+
+{# The phone's row of controls: the shelf, the search box up in the banner, the
+   camera, and one list holding everything else. Find scrolls the banner back into
+   view and puts the cursor in the box rather than drawing a second one -- two
+   search fields is two places for a query to be, and only one of them would have
+   the suggestions attached. Buttons rather than links for the three that do
+   something here: none of them goes anywhere without a script. #}
+{% macro tabbar(current) -%}
+<nav class="tabbar" aria-label="Main">
+  <a href="/"{{ here('/', current) }}>{{ I.ico('grid') }}<span>{{ 'Browse' | ui }}</span></a>
+  <button type="button" id="tab-find">{{ I.ico('search') }}<span>{{ 'Find' | ui }}</span></button>
+  <button type="button" class="scan scan-open" hidden><span class="puck">{{ I.ico('scan') }}</span><span>{{ 'Scan' | ui }}</span></button>
+  <button type="button" id="tab-more" aria-expanded="false" aria-controls="sheet">{{ I.ico('more') }}<span>{{ 'More' | ui }}</span></button>
+</nav>
+{%- endmacro %}

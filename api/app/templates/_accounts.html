@@ -1,0 +1,26 @@
+{# What the account pages share: a time as the lists say it, and a table of API
+   tokens with a way to revoke each (ADR-0032). #}
+{% import "_ui.html" as U with context %}
+
+{% macro when(d) -%}{{ d.strftime('%Y-%m-%d %H:%M') if d else 'never' }}{%- endmacro %}
+
+{# `revoke` is the address a token's id is appended to. Stacked on a phone, each
+   value under the heading it has lost (accessibility-standards). #}
+{% macro tokens(rows, revoke) %}
+{% if rows %}
+<table class="table stack">
+  <tr><th scope="col">Name</th><th scope="col">Made</th><th scope="col">Last used</th><th scope="col"><span class="sr-only">Revoke</span></th></tr>
+  {% for t in rows %}
+  <tr>
+    <td data-label="Name">{{ t.name }}</td>
+    <td data-label="Made">{{ when(t.created_at) }}</td>
+    <td data-label="Last used">{{ when(t.last_used_at) }}</td>
+    <td class="tight"><form method="post" action="{{ revoke }}/{{ t.id }}/revoke"
+          data-confirm="Revoke {{ t.name }}? Whatever uses it stops working.">
+      {{- U.button('Revoke ' ~ t.name, kind='danger', size='sm', icon='trash', icon_only=true, type='submit') -}}
+    </form></td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}<p class="muted">No tokens.</p>{% endif %}
+{% endmacro %}
