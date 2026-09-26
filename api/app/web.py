@@ -57,7 +57,7 @@ templates.env.globals.update(
     site_name=settings.site_name,
     site_theme=lambda: settings.value("theme"),
     # The look it wears, which is the owner's and never the reader's: the theme
-    # above says light or dark within it (ADR-0030).
+    # above says light or dark within it (ADR-0031).
     site_preset=settings.preset,
     # Which family does the writing, the interface and the recorded values. Like the
     # preset it is the installation's and not the reader's, and like the preset the
@@ -127,7 +127,7 @@ SITE_CARD = ("/static/og-image.png", 1200, 630)
 
 templates.env.globals["icon_ver"] = _file_ver(branded("favicon.ico"))
 templates.env.globals["css_ver"] = _file_ver(STATIC_DIR / "app.css")
-# The design tokens every page's colours come from (ADR-0030), stamped the same way.
+# The design tokens every page's colours come from (ADR-0031), stamped the same way.
 templates.env.globals["tokens_ver"] = _file_ver(STATIC_DIR / "css" / "tokens.css")
 # The components that paint with them, and the layout helpers beside them.
 templates.env.globals["components_ver"] = _file_ver(STATIC_DIR / "css" / "components.css")

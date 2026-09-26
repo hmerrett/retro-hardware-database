@@ -1,6 +1,6 @@
   /* The colours are no longer stated here. They are tokens in css/tokens.css,
      generated from the design data with every pair tested in every preset and
-     mode (ADR-0030), and these are the 0.1 names for them -- kept only while the
+     mode (ADR-0031), and these are the 0.1 names for them -- kept only while the
      templates move over to the new components, and deleted with this file.
      --line, --accent, --band, --danger, --danger-line and --danger-wash keep
      their names in 0.2 and so need no line here. Each alias resolves against the
@@ -155,6 +155,7 @@
   .filehero { display: flex; gap: 16px; align-items: flex-start; margin: 12px 0 14px; }
   .filehero-text { min-width: 0; }
   .filehero h2 { font-size: 18px; overflow-wrap: anywhere; }
+  .fileacts { display: flex; flex-wrap: wrap; gap: 8px; }
   .linkrows { list-style: none; margin: 0; padding: 0; }
   .linkrows li { display: flex; align-items: center; gap: 8px; padding: 7px 11px;
     border-top: 1px solid var(--line); }

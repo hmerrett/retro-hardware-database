@@ -1,6 +1,6 @@
 """The Type setting: which family does the writing, the interface and the values.
 
-A pairing is three declarations and nothing else (ADR-0030), which is what keeps
+A pairing is three declarations and nothing else (ADR-0031), which is what keeps
 choosing one a change of face rather than a change of layout. The three that are
 not "as the preset" are generated into `type.css` from `design/scales.json`, so
 what follows reads the file the browser is served rather than a second copy of the

@@ -6,7 +6,7 @@
    the theme from localStorage when this device has chosen one, and "system" is no
    attribute at all, which is what the stylesheet's prefers-color-scheme block is
    guarded on (ADR-0023). The default preset is no attribute either, because its
-   values are the ones tokens.css states on :root (ADR-0030). #}
+   values are the ones tokens.css states on :root (ADR-0031). #}
 {% set _preset = site_preset() %}
 {% set _type = site_type() %}
 <html lang="en"{% if _preset != 'default' %} data-preset="{{ _preset }}"{% endif %}{% if _type != 'preset' %} data-type="{{ _type }}"{% endif %}{% if site_theme() != 'system' %} data-theme="{{ site_theme() }}"{% endif %}>

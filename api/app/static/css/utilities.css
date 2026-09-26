@@ -1,4 +1,4 @@
-/* Layout helpers for one-off arrangements, on the spacing tokens (ADR-0030).
+/* Layout helpers for one-off arrangements, on the spacing tokens (ADR-0031).
    A utility carries layout only -- never a colour, a font, a border or a shadow --
    and test_stylesheet_lint.py fails one that does, so nothing here can add a pair
    to the contrast matrix. In the layer `v2` with components.css, for the reason

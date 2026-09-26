@@ -112,7 +112,7 @@ class TestWhatTheSiteIsCalled:
 
 class TestTheLook:
     """The preset: the one setting that dresses the whole installation rather than
-    telling it a fact about itself (ADR-0030)."""
+    telling it a fact about itself (ADR-0031)."""
 
     def test_the_looks_offered_are_the_ones_there_is_a_stylesheet_for(self, client):
         """The page reads the design data rather than a list of its own, so it

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2139 behaviours, from 62 files.*
+*2151 behaviours, from 63 files.*
 
 
 ## A file where text was expected
@@ -1457,7 +1457,7 @@ Regenerate with:
 
 ## Content security policy
 
-*test_content_security_policy.py — 9 behaviours*
+*test_content_security_policy.py — 10 behaviours*
 
 - every response carries the policy  
   Including the ones nobody thinks of as pages.
@@ -1465,6 +1465,8 @@ Regenerate with:
   The middleware is registered last, so it wraps the auth gate rather than sitting inside it.
 - the policy is the one recorded  
   ADR-0021 states the directives; this is that statement as an assertion.
+- a pdf shown in the browser carries a policy of its own  
+  The one response that says its own (ADR-0030).
 - the directives that do not fall back are stated  
   `form-action`, `frame-ancestors` and `base-uri` ignore `default-src`.
 - no page carries a script the policy would block  
@@ -1794,7 +1796,7 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 72 behaviours*
+*test_files.py — 80 behaviours*
 
 
 **Linking one**
@@ -1876,6 +1878,18 @@ Regenerate with:
 - an unpublished file is not cached anywhere
 - the wire format says which
 - a visitor is never told a file is linked to a private project
+
+**Reading A pdf**
+
+- a pdf is shown in the browser rather than saved
+- its page offers view before download
+- and anything else is only downloaded
+- its row views it and any other row downloads
+- a file called a pdf that is not one is downloaded instead  
+  A file is whatever somebody uploaded, and an HTML page shown by the browser would run as this site.
+- nor is a real pdf under another name
+- a visitor is told an unpublished pdf is not there
+- it is kept as its download is
 
 **New files are public**
 
@@ -2919,7 +2933,7 @@ Regenerate with:
 - every pair holds in every preset and mode  
   518 pairs: the 37 the design uses, in fourteen themes.
 - a preset names no component  
-  A preset is token values and nothing else (ADR-0030).
+  A preset is token values and nothing else (ADR-0031).
 - every face in the picker is drawn in its own colours  
   The settings page shows each preset as a miniature, and a miniature painted in the colours of the preset already in force would show seven of the same thing.
 
@@ -3849,6 +3863,16 @@ Regenerate with:
 - a status reply is read for what it says not that it came  
   page is two bytes, then how far through printing and feeding, then -- in the long form only -- the error.
 - the driver waits for the page rather than for an answer
+
+
+## The port letters are on the form
+
+*test_the_port_letters_are_on_the_form.py — 3 behaviours*
+
+- every letter the box reads is printed under it
+- the box is described by them  
+  For a screen reader too: the key is the box's description, not a paragraph that happens to sit near it.
+- they are there when a card is edited as well
 
 
 ## The three steps

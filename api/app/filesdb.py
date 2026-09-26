@@ -442,6 +442,25 @@ def path_of(stored: StoredFile) -> Path:
     return FILES_DIR / stored.stored
 
 
+# Where a PDF's header must be found. The format lets a little come before it, and
+# the readers everyone uses look this far in, so this does too.
+_PDF_HEADER_WITHIN = 1024
+
+
+def is_pdf(stored: StoredFile) -> bool:
+    """Whether this file may be shown by the browser as a PDF: named one, and one by
+    its own first bytes. The name alone is what an uploader chose; the bytes are
+    what the browser will be handed (ADR-0030)."""
+    if filekinds.extension(stored.filename) != "pdf":
+        return False
+    try:
+        with path_of(stored).open("rb") as fh:
+            head = fh.read(_PDF_HEADER_WITHIN)
+    except OSError:
+        return False
+    return b"%PDF-" in head
+
+
 def remove(db: Session, stored: StoredFile) -> None:
     """Forget a file, bytes and all. Its links go with it, and the row is gone
     whether or not the file was still on disk -- a record pointing at nothing is

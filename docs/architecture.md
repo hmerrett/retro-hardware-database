@@ -425,6 +425,10 @@ it was weighed against, and what it costs.
 | 0019 | Running open is supported, but never silent *(superseded by 0032)* |
 | 0020 | A model link names a maker and a model, not only a catalogue key |
 | 0027 | A remembered vocabulary is deleted when it is turned off |
+| 0028 | A file is linked to the things it is for, by their asset ids |
+| 0029 | An upload starts public where the owner says so |
+| 0030 | A PDF is read in the browser, and everything else is still a download |
+| 0031 | The look is a design system, and its values are data |
 | 0032 | Accounts, roles, and a site to hold them |
 
 A significant decision becomes an ADR rather than a commit message. A finding is

@@ -1,6 +1,6 @@
 """Every preset's colours, in both modes, hold the contrast the register promises.
 
-A preset is only token values (ADR-0030), and those values are data in
+A preset is only token values (ADR-0031), and those values are data in
 `app/design/palettes.json`: seven presets, each with a light and a dark mode. The
 stylesheets that carry them are generated from that data, so the data is where the
 contrast is checked, and the first test here holds the generated files to it.
@@ -132,7 +132,7 @@ def test_every_pair_holds_in_every_preset_and_mode(theme, fg, bg, floor):
 
 
 def test_a_preset_names_no_component():
-    """A preset is token values and nothing else (ADR-0030). The moment one names a
+    """A preset is token values and nothing else (ADR-0031). The moment one names a
     component -- a button, a panel, the rail -- a look stops being a palette and
     becomes a second stylesheet, and the next component added to the design has to
     be drawn seven times. So every rule in a preset file selects the document

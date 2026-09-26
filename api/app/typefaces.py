@@ -1,4 +1,4 @@
-"""The ways the three faces can be pointed, read from the design data (ADR-0030).
+"""The ways the three faces can be pointed, read from the design data (ADR-0031).
 
 The register sets its words in three faces by what kind of word each is: what
 somebody wrote, what the interface says, and what somebody recorded. A pairing

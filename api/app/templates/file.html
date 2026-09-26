@@ -19,7 +19,11 @@
     {% if request.state.sees_private and not f.public %}<p class="flush"><span class="lock">private</span></p>{% endif %}
   </div>
 </div>
-<p><a class="btn primary" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">download</a></p>
+<p class="fileacts">
+  {% if f.what.viewable %}<a class="btn primary" href="/files/{{ f.id }}/view/{{ f.filename | urlencode }}">view</a>
+  <a class="btn" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">download</a>
+  {% else %}<a class="btn primary" href="/files/{{ f.id }}/{{ f.filename | urlencode }}">download</a>{% endif %}
+</p>
 
 {% if owner %}
 {% call PN.panel('About') %}

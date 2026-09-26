@@ -1,7 +1,10 @@
-# 0030 — The look is a design system, and its values are data
+# 0031 — The look is a design system, and its values are data
 
 **Status:** Accepted
 **Date:** 2026-09-22
+
+> Written as 0030 on its branch, and renumbered 0031 when it met main, where
+> [0030](0030-a-pdf-is-read-in-the-browser.md) had landed first.
 
 ## Context
 

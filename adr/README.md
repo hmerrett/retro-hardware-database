@@ -84,7 +84,10 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0029](0029-an-upload-starts-public-where-the-owner-says.md) — An upload starts
   public where the owner says so — *Accepted* (amends
   [0009](0009-a-file-is-published-by-hand.md)'s default)
-- [0030](0030-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
+- [0030](0030-a-pdf-is-read-in-the-browser.md) — A PDF is read in the browser, and
+  everything else is still a download — *Accepted* (amends
+  [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md))
+- [0031](0031-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
   a design system, and its values are data — *Accepted*
 - [0032](0032-accounts-roles-and-a-site-to-hold-them.md) — Accounts, roles, and a
   site to hold them — *Accepted* (supersedes

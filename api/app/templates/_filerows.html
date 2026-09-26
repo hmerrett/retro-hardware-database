@@ -28,7 +28,12 @@
       {% endif %}
     </div>
     <span class="fmeta">{{ f.what.size }}{% if f.created_at %}<span class="fwhen"> · {{ log_stamp(f.created_at, authed) }}</span>{% endif %}</span>
+    {# A PDF is read where it is tapped (ADR-0030); anything else is saved. #}
+    {% if f.what.viewable %}
+    <a class="fdl" href="/files/{{ f.id }}/view/{{ f.filename | urlencode }}" aria-label="view {{ f.filename }}" title="view">{{ I.ico('view') }}</a>
+    {% else %}
     <a class="fdl" href="/files/{{ f.id }}/{{ f.filename | urlencode }}" aria-label="download {{ f.filename }}" title="download">{{ I.ico('download') }}</a>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

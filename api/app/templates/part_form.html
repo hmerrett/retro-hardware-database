@@ -6,8 +6,20 @@
 {% block main_class %} class="v2"{% endblock %}
 {% block content %}
 
-{% macro sf(name, key, label, hint='', listid='') -%}
+{# `codes` is the one hint that is printed rather than tucked into a tooltip: the
+   letters a shorthand box takes, which are needed to answer it at all and cannot be
+   remembered (interface-text). It is the box's description for a screen reader too,
+   which U.field has no way to say, so that one field is drawn here in its markup. #}
+{% macro sf(name, key, label, hint='', listid='', codes=none) -%}
+{%- if codes -%}
+<div class="field"{% if hint %} title="{{ hint }}"{% endif %}>
+<label for="{{ name }}">{{ label }}</label>
+<input class="input" id="{{ name }}" name="{{ name }}" value="{{ spec_keys.get(key, '') }}" aria-describedby="{{ name }}-legend">
+<p class="hint portkey" id="{{ name }}-legend">{% for letter, what in codes %}<span><b>{{ letter }}</b> {{ what }}</span>{% endfor %}</p>
+</div>
+{%- else -%}
   {{ U.field(name, label, value=spec_keys.get(key, ''), hint=hint, list=listid) }}
+{%- endif -%}
 {%- endmacro %}
 
 {# A short closed list, offered rather than typed, with a box for the hardware the
@@ -295,9 +307,9 @@
       {{ sf('spec_memory', 'Memory', 'Memory', 'e.g. 1MiB — normalised to KiB') }}
       {{ sf('spec_type', 'Type', 'Type') }}{% endif %}
     {% if ptype == 'sound' %}{{ sf('spec_fm', 'FM', 'FM synthesis') }}
-      {{ sf('spec_ports', 'Ports', 'Ports', 'letters — ' + port_legend) }}{% endif %}
+      {{ sf('spec_ports', 'Ports', 'Ports', 'One letter to a port; a letter twice is two of them.', codes=port_codes) }}{% endif %}
     {% if ptype == 'network' %}{{ sf('spec_connector', 'Connector', 'Connector', 'e.g. 10BASE-T, BNC, AUI') }}{% endif %}
-    {% if ptype == 'io' %}{{ sf('spec_ports', 'Ports', 'Ports', 'letters — ' + port_legend + ' (e.g. IFSSP)') }}{% endif %}
+    {% if ptype == 'io' %}{{ sf('spec_ports', 'Ports', 'Ports', 'One letter to a port: IFSSP is IDE, floppy, two serial and a parallel.', codes=port_codes) }}{% endif %}
   </fieldset>
 
   {% elif ptype == 'display' %}

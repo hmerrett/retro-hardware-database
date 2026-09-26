@@ -1,4 +1,4 @@
-/* The v0.2 components (ADR-0030): one block per component, on the tokens in
+/* The v0.2 components (ADR-0031): one block per component, on the tokens in
    tokens.css and presets/*.css and nothing else. No colour is stated here, so the
    contrast tests read the token files alone; test_stylesheet_lint.py holds this
    file to that, to the spacing and type scales, and holds utilities.css to layout.
@@ -888,6 +888,13 @@
   .accents .demo .dot { width: 22px; height: 22px; flex: none; background: var(--accent-fill); border-radius: var(--radius-xs); }
   .accents .demo .lnk { font-size: 13px; color: var(--accent); text-decoration: underline; }
   .accents .name { padding: 0; }
+
+  /* The letters a Ports box takes, printed under it (#98): a pair to a cell so a
+     letter never wraps away from what it stands for, and the letter in the text
+     colour so the eye finds it first. */
+  .portkey { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
+  .portkey span { white-space: nowrap; }
+  .portkey b { color: var(--text); }
 
   /* ---- The account pages (ADR-0032) --------------------------------------- */
   /* Where you are signed in: a line to a browser, so a plain list rather than a

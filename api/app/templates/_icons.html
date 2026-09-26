@@ -4,7 +4,7 @@
    currentColor so they follow the theme, and all aria-hidden: beside a word the
    word names the control, and on its own the control carries an aria-label.
 
-   The last nine are v0.2's (ADR-0030): numbers, models, files, settings, theme,
+   The last nine are v0.2's (ADR-0031): numbers, models, files, settings, theme,
    logout and plus are Feather's own shapes (bar-chart-2, cpu, file-text, sliders,
    moon, log-out, plus; MIT), so the set stays one hand; projects and collapse have
    no Feather original and are drawn to match it. #}
@@ -30,6 +30,7 @@
 {%- elif name == 'logout' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
 {%- elif name == 'plus' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
 {%- elif name == 'collapse' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><polyline points="16 9.5 13.5 12 16 14.5"/></svg>
+{%- elif name == 'view' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
 {%- elif name == 'download' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><polyline points="7 10 12 15 17 10"/><line x1="5" y1="19" x2="19" y2="19"/></svg>
 {%- endif -%}
 {%- endmacro %}

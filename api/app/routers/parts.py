@@ -195,7 +195,9 @@ def _part_form_ctx(
         "mb_ram": mb_ram,
         "mb_ports": mb_ports,
         "mb_cpufams": mb_cpufams,
-        "port_legend": entry.PORT_LEGEND,
+        # The letters the Ports box takes, a pair at a time, for the key printed
+        # under it -- the one hint on the form that is not a tooltip.
+        "port_codes": entry.PORT_CODES,
         "type_labels": entry.TYPE_LABELS,
         "type_order": entry.TYPE_ORDER,
     }

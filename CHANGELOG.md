@@ -21,6 +21,12 @@ changes nothing. Accounts and API tokens are managed with
 `docker compose exec api python -m app.accounts`. A new installation opens on
 **Set up**, which wants a code the app writes to its log.
 
+**Accounts are managed in the browser.** **Settings → Accounts** lists everybody
+who may sign in, adds people, and changes a role, a password or whether an account
+is switched on. **Account**, in the menu, is where anybody signed in — a viewer
+too — changes their own password, signs out their other browsers and makes their
+own API tokens. The command line still does all of it.
+
 **A site can be closed to visitors.** **Visitors must log in**, in the settings,
 shows anybody not signed in the login page and nothing else. It is off.
 
@@ -36,6 +42,10 @@ with `RHDB_SECRET_KEY`, which signs nothing now. `RHDB_OPEN` is gone: an
 installation that ran open opens on Set up, and the code is in
 `docker compose logs api`.
 
+**The Ports letters are back under the box.** An I/O card's and a sound card's
+**Ports** box shows the letters it takes — I IDE, F Floppy, S Serial and the rest —
+which went into a tooltip with the other hints and so vanished on a phone.
+
 **A file is linked to the things it is for by their asset tags, and tags are
 gone.** A file can be linked to as many machines, parts and projects as it needs,
 and each shows the files linked to it. Uploading on a card offers the other cards
@@ -47,6 +57,10 @@ rows with a drawing of what each file is — a 3½″ floppy for a 1.44M disk im
 chip for a ROM. The upgrade links each file that was attached to a model to every
 item of that model, and keeps any tag that said more than the model's name in the
 file's note. `/api/files` no longer returns `tags` or `models`, or takes `tag`.
+
+**A PDF opens in the browser.** Its row and its page have a **view** button that
+shows it in the browser's own viewer rather than saving it. Only a file that really
+is a PDF is shown; everything else is still a download.
 
 **New files can start public.** **New files are public** in the settings starts
 the upload's **Public** tick ticked, for an installation that mostly files drivers

@@ -109,6 +109,53 @@ def _linkable(db: Session) -> list[tuple[str, str]]:
     return out
 
 
+# What a PDF shown in the browser may load (ADR-0030). The viewer is the browser's
+# own and draws the document with its own resources, so nothing of the site's is
+# wanted: no script, no style, no frame, no form. Objects are allowed from here and
+# only here, because the site's `object-src 'none'` is right for its pages and
+# blanks the viewer in the browsers that show a PDF as a plugin in a page they make
+# themselves. The middleware sets the site's policy only where a response has none,
+# which is what lets this one say its own.
+PDF_POLICY = "; ".join(
+    (
+        "default-src 'none'",
+        "object-src 'self'",
+        "frame-ancestors 'self'",
+        "base-uri 'none'",
+        "form-action 'none'",
+    )
+)
+
+
+@router.get("/files/{fid}/view/{name}", include_in_schema=False, response_model=None)
+def view_file(
+    fid: int, name: str, request: Request, db: Session = Depends(get_db)
+) -> FileResponse | RedirectResponse:
+    """Show a PDF in the browser rather than hand it over to be saved.
+
+    Only a file that is a PDF by its name and by its bytes, and served as one by
+    the server's say-so -- the type is never the upload's, and `nosniff` stops the
+    browser second-guessing it. Anything else is sent to its download, so a page
+    called invoice.pdf is saved rather than shown whatever is in it. Who may see
+    it, and how long it may be kept, are the download's rules exactly."""
+    row = _seen_or_404(db, fid, request)
+    path = filesdb.path_of(row)
+    if not path.is_file():
+        raise HTTPException(404)
+    if not filesdb.is_pdf(row):
+        return RedirectResponse(f"/files/{row.id}/{quote(row.filename)}", status_code=303)
+    return FileResponse(
+        path,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{_ascii_filename(row.filename)}"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": ("public, max-age=3600" if row.public else "private, no-store"),
+            "Content-Security-Policy": PDF_POLICY,
+        },
+    )
+
+
 @router.post("/files", include_in_schema=False)
 async def gui_upload_files(
     request: Request, uploads: list[UploadFile] = File(...), db: Session = Depends(get_db)
