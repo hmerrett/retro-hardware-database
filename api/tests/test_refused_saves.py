@@ -6,11 +6,16 @@ value already on file -- and the form comes back with everything as typed, what
 there is to fix at the top, and each message under its own box."""
 
 import io
+import json
+import re
+from pathlib import Path
 
 import pytest
 from PIL import Image
 
 from app.models import Computer, Part, Project
+
+STATIC = Path(__file__).resolve().parents[1] / "app" / "static"
 
 
 def flat(html):
@@ -192,6 +197,50 @@ class TestAPartIsHeldToTheSameShapes:
     def test_the_interface_link_has_somewhere_to_land(self, client):
         html = flat(new_part(client, type="storage", kind="Hard disk", spec_interface="").text)
         assert 'id="spec_interface"' in html
+
+
+def island(html):
+    """What the part form's script is told: the data island beside the form."""
+    found = re.search(
+        r'<script type="application/json" id="part-form-data">(.*?)</script>', html, re.S
+    )
+    assert found, "the part form has no data island"
+    return json.loads(found.group(1))
+
+
+class TestARefusedNewPartKeepsItsPlace:
+    """A refused form is drawn from the part the save wrote and then rolled back. The
+    form's script took that part for one that exists: a drive for a machine stopped
+    being routed to its drives, and the Type menu saw nothing typed and fetched the
+    form again from an address that no longer said which machine it was for."""
+
+    def test_a_refused_new_drive_for_a_machine_still_goes_to_its_drives(self, client, computer):
+        cid = computer()["asset_id"]
+        r = new_part(client, type="storage", kind="Hard disk", computer_id=cid, year="88")
+        assert r.status_code == 400
+        assert island(r.text)["routes"] is True
+
+    def test_so_does_a_part_started_from_another_for_a_machine(self, client, computer, part):
+        cid, source = computer()["asset_id"], part(type="storage")["asset_id"]
+        html = client.get(f"/parts/new?from={source}&computer_id={cid}").text
+        assert island(html)["routes"] is True
+
+    def test_an_edit_is_never_routed(self, client, computer, part):
+        cid = computer()["asset_id"]
+        aid = part(type="storage", computer_id=cid)["asset_id"]
+        assert island(client.get(f"/parts/{aid}/edit").text)["routes"] is False
+
+    def test_the_type_menu_is_told_the_form_was_refused(self, client):
+        assert island(new_part(client, year="88").text)["refused"] is True
+        assert island(client.get("/parts/new").text)["refused"] is False
+
+    def test_the_type_menu_asks_on_a_refused_form_and_keeps_the_machine(self):
+        """The rest is the script's, read from it as the stylesheet tests read CSS:
+        a refused form counts as typed in, and the form fetched again takes the
+        machine or part from the form's own boxes when the address has none."""
+        script = (STATIC / "part-form.js").read_text(encoding="utf-8")
+        assert "FORM.refused" in script
+        assert re.search(r"\[\s*'computer_id',\s*'parent_id'\s*\]", script)
 
 
 MODEL = {"computers": Computer, "parts": Part}

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2226 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3349,7 +3349,7 @@ Regenerate with:
 
 ## Refused saves
 
-*test_refused_saves.py — 38 behaviours*
+*test_refused_saves.py — 43 behaviours*
 
 
 **The shapes A computer is held to**
@@ -3383,6 +3383,15 @@ Regenerate with:
 - a refused edit saves nothing
 - a storage part without an interface comes back as the form
 - the interface link has somewhere to land
+
+**A refused new part keeps its place**
+
+- a refused new drive for a machine still goes to its drives
+- so does a part started from another for a machine
+- an edit is never routed
+- the type menu is told the form was refused
+- the type menu asks on a refused form and keeps the machine  
+  The rest is the script's, read from it as the stylesheet tests read CSS: a refused form counts as typed in, and the form fetched again takes the machine or part from the form's own boxes when the address has none.
 
 **What is on file is never the reason**
 
