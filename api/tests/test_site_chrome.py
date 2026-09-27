@@ -13,10 +13,15 @@ from pathlib import Path
 
 import pytest
 
+from app import machines, settings
 from conftest import log_out
 
 CSS = Path(__file__).parents[1] / "app" / "static" / "css"
 COMPONENTS = CSS / "components.css"
+TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
+
+# What a browser sends: the error page is drawn only for a reader that asked for HTML.
+HTML = {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
 
 SECTIONS = [
     ("/", "Browse"),
@@ -202,6 +207,23 @@ class TestTheFootOfThePage:
         log_out(client)
         assert "<footer" not in client.get("/login").text
         assert not rules(".site-footer", stylesheet())
+
+
+class TestTheBrowsersTab:
+    def test_every_page_is_titled_with_the_installations_name(self, client, db):
+        """The tab is one of the places the Name setting reaches, so every page ends
+        its title with this collection's name -- a model's page and the page for an
+        address that leads nowhere included, which ended theirs with the software's."""
+        settings.save(db, {"site_name": "The Retro Loft"})
+        settings.forget()
+        for path in (f"/machines/{machines.models()[0]['key']}", "/no-such-address"):
+            found = re.search(r"<title>(.*?)</title>", client.get(path, headers=HTML).text, re.S)
+            assert found, path
+            assert found.group(1).endswith(" — The Retro Loft"), (path, found.group(1))
+        for template in sorted(TEMPLATES.glob("*.html")):
+            text = template.read_text(encoding="utf-8")
+            for title in re.findall(r"{% block title %}(.*?){% endblock %}", text, re.S):
+                assert "Retro Hardware Database" not in title, template.name
 
 
 class TestWhereYouAre:
