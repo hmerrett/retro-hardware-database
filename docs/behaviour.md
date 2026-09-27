@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2277 behaviours, from 69 files.*
+*2280 behaviours, from 69 files.*
 
 
 ## A file where text was expected
@@ -2172,7 +2172,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 34 behaviours*
+*test_item_pages.py — 37 behaviours*
 
 
 **The head**
@@ -2232,6 +2232,12 @@ Regenerate with:
 - on a phone the actions go under the name
 - a disposed item says so under its name
 - a project s actions are on its name s line too
+
+**The photographs sit inside the panel**
+
+- the photographs and the buttons share the panel s margin
+- so does the drawing of an item nobody has photographed
+- a visitor sees them inside it too
 
 **The history lines up its buttons**
 

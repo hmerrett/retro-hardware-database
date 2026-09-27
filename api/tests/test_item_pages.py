@@ -315,6 +315,72 @@ class TestTheTopOfThePage:
         assert line and "Mark done" in line[1] and "/edit" in line[1] and "/delete" in line[1]
 
 
+class TestThePhotographsSitInsideThePanel:
+    """The Photographs panel was drawn flush, which is a panel's way with a list whose
+    rows run edge to edge: the photograph ran to the panel's border on three sides
+    and the thumbnails started hard against its left, while the buttons under them
+    had the panel's margin. The photographs now sit inside that margin, on the same
+    edge as the buttons (MANUAL §10)."""
+
+    @pytest.fixture
+    def shoot(self):
+        """Photographs on disk for an item. The register is emptied between tests
+        and the image folders are not, so what is written here is taken away again."""
+        from PIL import Image
+
+        from app import main
+
+        written = []
+
+        def make(kind, aid, n=2):
+            for stem in [aid] + [f"{aid}-{i}" for i in range(2, n + 1)]:
+                path = main.IMAGES_DIR / kind / f"{stem}.jpg"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                Image.new("RGB", (60, 40), (90, 110, 130)).save(path, "JPEG")
+                written.append(path)
+
+        yield make
+        for path in written:
+            path.unlink(missing_ok=True)
+
+    @staticmethod
+    def body(page):
+        """The Photographs panel's one padded body, and everything in it."""
+        box = panel(page, "Photographs")
+        assert box, "no Photographs panel"
+        assert box.count('class="pbody"') == 1, "more than one body, or none"
+        m = re.match(
+            r'\s*(?:<span class="meta">[^<]*</span>\s*)?</header>\s*<div class="pbody">', box
+        )
+        assert m, "the panel's content is not in its padded body"
+        return box[m.end() :]
+
+    @KINDS
+    def test_the_photographs_and_the_buttons_share_the_panel_s_margin(
+        self, client, computer, part, kind, shoot
+    ):
+        aid = item(kind, computer, part)
+        shoot(kind, aid)
+        inside = self.body(client.get(f"/{kind}/{aid}").text)
+        for cls in ("photo-main", "thumbs", "photo-actions"):
+            assert f'class="{cls}' in inside, cls
+
+    @KINDS
+    def test_so_does_the_drawing_of_an_item_nobody_has_photographed(
+        self, client, computer, part, kind
+    ):
+        aid = item(kind, computer, part)
+        inside = self.body(client.get(f"/{kind}/{aid}").text)
+        assert 'class="nophoto"' in inside and 'class="photo-actions"' in inside
+
+    def test_a_visitor_sees_them_inside_it_too(self, client, computer, shoot):
+        aid = computer()["asset_id"]
+        shoot("computers", aid)
+        visitor(client)
+        inside = self.body(client.get(f"/computers/{aid}").text)
+        assert 'class="photo-main' in inside and "photo-actions" not in inside
+
+
 class TestTheHistoryLinesUpItsButtons:
     """An entry's camera and delete buttons stood straight after its words, so a
     column of entries read as a ragged edge of buttons: the log's value cell only
