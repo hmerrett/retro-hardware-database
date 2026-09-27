@@ -113,6 +113,9 @@ The toolbar above the grid gives you:
   acquired, Year newest/oldest first, Name A–Z, Maker A–Z, Category, Asset
   number. Your choice is remembered in a cookie.
 - **Show disposed** — items that have left the collection are hidden by default.
+- **Tiles** or **Table** — the photo cards, or a row to each item: a small
+  picture, its asset tag, its name, what kind of thing it is, its year and where it
+  is kept. Your choice is remembered in a cookie, like the sort.
 
 Changing any of them redraws the page. With JavaScript switched off nothing
 happens until you press **Apply**, which is also the button a keyboard user can
@@ -120,10 +123,22 @@ rely on. Either way the address bar ends up holding the whole view — category,
 sort, search, page — so a view is a link: bookmark it, or send it to somebody,
 and it opens as you left it.
 
-The grid shows **48 cards a page**, with **Prev** and **Next** beneath it and the
-page you are on between them. The figures beside the heading count everything,
+The grid shows **48 cards a page**, and the table **100 rows a page**, with
+**Prev** and **Next** beneath either and the page you are on between them. The figures beside the heading count everything,
 not just this page, and when the category or the disposed box is holding
 something back they say so as a fraction: *(showing 13 of 14)*.
+
+The table is for running an eye down a long list. It holds the same items in the
+same order as the cards, and the category, the sort and the disposed box work the
+same way; the sort stays in the toolbar rather than on the table's headings. The
+tag and the name lead to the item's page, and a disposed item says so in its row.
+**Where it is** is shown to whoever is shown a location on an item's page — you
+always, a visitor only while **Show locations** is on — and a part with no
+location of its own shows where the machine it is fitted in is kept, and says
+whose answer that is. The choice is part of the link like the rest of the view, so
+a table can be bookmarked or sent, and opens as a table. A search's results, the
+lists behind the figures on **Numbers** and **Might sell** are the same page and
+offer the same choice.
 
 The default is Random on purpose: a shelf is more interesting shuffled than in
 the order things were last touched, and a recency sort only ever shows you the
@@ -215,8 +230,8 @@ Every page fits the screen it is on, down to a 320px-wide phone and at 200% zoom
 on a desktop: nothing is cut off at the right-hand edge and no page scrolls
 sideways. A list with more columns than a phone has room for comes down the page
 as blocks instead of a row each, with every value under the name of the column it
-has lost — the projects list, the orders on a project and the files list all do
-this, and the boxes you type into keep the full width rather than being pushed
+has lost — the projects list, the orders on a project, the gallery's table and the files list
+all do this, and the boxes you type into keep the full width rather than being pushed
 off the edge.
 
 One table is left to scroll: the drives on a machine's form, which keeps its
@@ -358,6 +373,16 @@ set of results waits a fraction of a second longer for the page; everybody after
 that, including the site fetching the card, gets the copy already made. Change a
 photograph and the cards it appears on are made again, so a preview never shows a
 picture that has since been cropped or replaced.
+
+### What is kept in your browser
+
+Nothing, until you choose something. The register remembers a choice you make, in
+your browser and for this site alone, and nothing else: the sort order and tiles
+or table on the gallery, that you folded the side rail, and that you have read the
+cookie notice — each a cookie — and the dark or light theme, kept in the browser's
+own storage. Signing in adds a session cookie. All of them are first party: no
+analytics, no advertising, nothing shared with anyone. The notice at the foot of
+the page says so the first time, and goes once you press **Got it**.
 
 ### When a page is not there
 
