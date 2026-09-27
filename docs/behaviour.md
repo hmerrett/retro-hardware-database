@@ -3514,7 +3514,8 @@ Regenerate with:
 **What the site is called**
 
 - it starts as the name the software ships with
-- the name reaches the banner the tab and the foot of the page
+- the name reaches the banner the rail and the tab  
+  The page says whose collection it is in whichever of the two the width draws, so both carry it: a Side installation has the banner and the rail in its markup at once.
 - the name reaches a shared link  
   What a link unfolds into in a chat window is the site introducing itself to somebody who has never seen it.
 - an empty name goes back to the shipped one  

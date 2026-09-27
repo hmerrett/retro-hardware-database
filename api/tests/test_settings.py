@@ -82,11 +82,18 @@ class TestWhatTheSiteIsCalled:
     def test_it_starts_as_the_name_the_software_ships_with(self, client):
         assert settings.value("site_name") == "Retro Hardware Database"
 
-    def test_the_name_reaches_the_banner_the_tab_and_the_foot_of_the_page(self, client):
+    def test_the_name_reaches_the_banner_the_rail_and_the_tab(self, client):
+        """The page says whose collection it is in whichever of the two the width
+        draws, so both carry it: a Side installation has the banner and the rail in
+        its markup at once. Each is asked by its markup, since the tab and a shared
+        link's tags make up a count between them without the page saying the name."""
         save(client, site_name="Henry's shelf")
         page = client.get("/").text
         assert "<title>Henry&#39;s shelf</title>" in page
-        assert page.count("Henry&#39;s shelf") >= 3
+        banner = page.split('<header class="site-header">', 1)[1].split("</header>", 1)[0]
+        rail = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        for where in (banner, rail):
+            assert "<span>Henry&#39;s shelf</span>" in where
         assert "Retro Hardware Database" not in page
 
     def test_the_name_reaches_a_shared_link(self, client, computer):
