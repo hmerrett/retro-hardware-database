@@ -17,6 +17,10 @@ hand is written under the release that needs it.
 included, and at the top of the side rail; the API docs are on **⋯ → Account**,
 beside your tokens.
 
+**The logo is read out once.** A screen reader heard the collection's name twice
+at the logo — once for the picture and once for the words beside it — and hears
+it once now, in the banner and on the rail.
+
 **Accounts: administrators and viewers.** The login is no longer one username and
 password in `.env`. Accounts live in the database, each an **administrator** or a
 **viewer** — somebody who reads everything a visitor is not shown (unpublished

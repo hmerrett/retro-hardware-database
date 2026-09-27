@@ -443,13 +443,14 @@
    worked out once by the page and handed in rather than asked for per row. #}
 {% macro rail(current, authed, back, counts, shut=false) -%}
 <aside class="rail{{ ' collapsed' if shut else '' }}">
-  {#- The logo keeps the collection's name in its title, as every item keeps its
-      own: collapsed, the name beside it is put away with their words, and the
-      tooltip is where a pointer finds it again. #}
+  {#- Collapsed, the name beside the logo is put away with every item's words, so the
+      logo carries it as they carry theirs: in a title, which is where a pointer finds
+      it, and in its alt, which is what a screen reader reads. The words are kept from
+      a screen reader, which heard the name from both while the rail was open. #}
   <a class="brand" href="/" title="{{ site_name() }}">
     <img class="mark" src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
          width="248" height="256">
-    <span>{{ site_name() }}</span>
+    <span aria-hidden="true">{{ site_name() }}</span>
   </a>
   <nav aria-label="Sections">
     {%- for href, words, icon in SECTIONS %}{% set w = words | ui %}

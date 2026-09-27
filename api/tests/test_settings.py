@@ -46,8 +46,9 @@ def save(client, **fields):
 
 def said(link: str) -> str:
     """What a screen reader reads out for a link as plain as the logo's: its words,
-    with each picture's alt standing in for the picture. There is no browser here to
-    ask, and a link this plain needs none."""
+    with each picture's alt standing in for the picture and nothing that is
+    aria-hidden. There is no browser here to ask, and a link this plain needs none."""
+    link = re.sub(r'<(\w+)\b[^>]*\baria-hidden="true"[^>]*>.*?</\1>', " ", link, flags=re.S)
     link = re.sub(r'<img\b[^>]*\balt="([^"]*)"[^>]*>', r" \1 ", link)
     return " ".join(unescape(re.sub(r"<[^>]*>", " ", link)).split())
 
@@ -103,7 +104,7 @@ class TestWhatTheSiteIsCalled:
         banner = page.split('<header class="site-header">', 1)[1].split("</header>", 1)[0]
         rail = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
         for where in (banner, rail):
-            assert "<span>Henry&#39;s shelf</span>" in where
+            assert re.search(r"<span[^>]*>Henry&#39;s shelf</span>", where)
         assert "Retro Hardware Database" not in page
 
     def test_a_collapsed_rail_keeps_the_name_in_the_tooltip_on_its_logo(self, client):
@@ -131,6 +132,18 @@ class TestWhatTheSiteIsCalled:
         # them -- a phone's did, while the foot of the page carried the name.
         words = rules(".site-header .brand span", stylesheet())
         assert not any("display: none" in body for body in words)
+
+    def test_a_screen_reader_hears_the_logo_on_the_rail_as_the_name_once(self, client):
+        """The logo's alt stays the name, because collapsed the rail puts away the
+        words beside it; so the words are the ones kept from a screen reader, which
+        heard the name from the picture and then again from them while the rail was
+        open."""
+        save(client, site_name="Henry's shelf")
+        rail = client.get("/").text.split('<aside class="rail', 1)[1]
+        link = re.search(r'<a class="brand".*?</a>', rail, re.S)
+        assert link, "the rail has no logo"
+        assert re.search(r'<img class="mark"[^>]*\balt="Henry&#39;s shelf"', link.group(0))
+        assert said(link.group(0)) == "Henry's shelf"
 
     def test_the_name_reaches_a_shared_link(self, client, computer):
         """What a link unfolds into in a chat window is the site introducing itself

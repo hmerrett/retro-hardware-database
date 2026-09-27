@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2229 behaviours, from 66 files.*
+*2230 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3496,7 +3496,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 65 behaviours*
+*test_settings.py — 66 behaviours*
 
 
 **Reaching the page**
@@ -3520,6 +3520,8 @@ Regenerate with:
   Collapsed, the rail has room for the logo and not the words beside it, so the logo's link carries the name as its title, the way every other item in the rail keeps its name when its words are put away.
 - a screen reader hears the logo in the banner as the name once  
   The banner writes the name beside its logo wherever it shows the logo, a phone's included, so the words name the link and the picture's alt is empty: with the name in both, the name was read out twice.
+- a screen reader hears the logo on the rail as the name once  
+  The logo's alt stays the name, because collapsed the rail puts away the words beside it; so the words are the ones kept from a screen reader, which heard the name from the picture and then again from them while the rail was open.
 - the name reaches a shared link  
   What a link unfolds into in a chat window is the site introducing itself to somebody who has never seen it.
 - an empty name goes back to the shipped one  
