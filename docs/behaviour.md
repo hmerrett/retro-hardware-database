@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2225 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -335,7 +335,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 548 behaviours*
+*test_api.py — 549 behaviours*
 
 
 **Typed columns**
@@ -1022,6 +1022,8 @@ Regenerate with:
 - bars are scaled to the largest value
 - memory totals come from the typed column
 - the traffic report is still private
+- until the first report is built the traffic page says so  
+  In a page of the site's own, drawn in its chrome like any other.
 - it is offered to search engines
 
 **Following A figure to its items**
@@ -1457,7 +1459,7 @@ Regenerate with:
 
 ## Content security policy
 
-*test_content_security_policy.py — 10 behaviours*
+*test_content_security_policy.py — 13 behaviours*
 
 - every response carries the policy  
   Including the ones nobody thinks of as pages.
@@ -1467,6 +1469,12 @@ Regenerate with:
   ADR-0021 states the directives; this is that statement as an assertion.
 - a pdf shown in the browser carries a policy of its own  
   The one response that says its own (ADR-0030).
+- the traffic report carries a policy of its own  
+  The second response that says its own (ADR-0033).
+- the traffic report runs in a sandbox of its own  
+  Its scripts are GoAccess's and the strings they draw are strangers', on an administrator's page.
+- every page is sent the site policy  
+  Two responses say a policy of their own -- a PDF shown in the browser and GoAccess's report -- and no page does, so the report's `'unsafe-eval'` is on the report and nowhere else.
 - the directives that do not fall back are stated  
   `form-action`, `frame-ancestors` and `base-uri` ignore `default-src`.
 - no page carries a script the policy would block  
