@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2227 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -177,7 +177,7 @@ Regenerate with:
 
 ## Account pages
 
-*test_account_pages.py — 33 behaviours*
+*test_account_pages.py — 34 behaviours*
 
 
 **The accounts page**
@@ -229,6 +229,8 @@ Regenerate with:
 
 - a new token is shown once
 - it needs a name
+- the api docs are linked beside the tokens  
+  The interactive console is what a token is for, and this is the page every account that may open `/docs` reaches -- a viewer's included, who has no Settings page to find it on.
 - a viewer makes one of their own
 - your own is revoked
 - somebody elses is not yours to revoke
@@ -237,7 +239,7 @@ Regenerate with:
 
 ## Accounts
 
-*test_accounts.py — 61 behaviours*
+*test_accounts.py — 62 behaviours*
 
 
 **Roles are lists of permissions**
@@ -253,6 +255,8 @@ Regenerate with:
 - a private project
 - where a thing is kept
 - what an order cost
+- a viewer may read the api docs and a visitor may not  
+  Moving the link changed nobody's access to `/docs`: an account of either role opens it, and a visitor is asked for a password by the browser.
 - the for sale shortlist
 - no editing controls
 - a way to log out
@@ -3714,7 +3718,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 16 behaviours*
+*test_site_chrome.py — 20 behaviours*
 
 
 **The banner**
@@ -3730,8 +3734,20 @@ Regenerate with:
 - it offers the owner might sell traffic and log out
 - it offers a visitor log in
 - it holds the five sections folded away at its top
+- a visitor is not offered the api docs  
+  `/docs` is behind the login, and what it answers a visitor is the browser's own password box rather than the site's login page.
 - the phone sheet offers everything the menu does  
   One list, two renderings: a row added to one and not the other is a thing a phone or a desktop cannot reach.
+
+**The foot of the page**
+
+- no page carries a footer  
+  The name is in the banner or the rail, and the API docs are beside the tokens they are for, so there is nothing left for a footer to hold.
+
+**The browsers tab**
+
+- every page is titled with the installations name  
+  The tab is one of the places the Name setting reaches, so every page ends its title with this collection's name -- a model's page and the page for an address that leads nowhere included, which ended theirs with the software's.
 
 **Where you are**
 
@@ -3744,6 +3760,8 @@ Regenerate with:
 
 - on a tablet the sections leave the banner
 - and are found in the menu instead
+- on a phone the banner keeps the name  
+  With no footer, the banner is the only place on a phone's page that says whose collection a scanned label has opened.
 - on a phone the bar takes over and scan goes with it
 - the bar is nowhere but a phone
 - the bar sits above the home indicator
