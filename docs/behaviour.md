@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2274 behaviours, from 69 files.*
+*2277 behaviours, from 69 files.*
 
 
 ## A file where text was expected
@@ -2172,7 +2172,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 31 behaviours*
+*test_item_pages.py — 34 behaviours*
 
 
 **The head**
@@ -2232,6 +2232,12 @@ Regenerate with:
 - on a phone the actions go under the name
 - a disposed item says so under its name
 - a project s actions are on its name s line too
+
+**The history lines up its buttons**
+
+- the entry takes the rest of its row
+- the buttons sit beside the middle of a wrapped entry
+- the words come first and the buttons last
 
 
 ## Keyboard and motion

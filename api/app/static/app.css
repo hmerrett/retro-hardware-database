@@ -483,7 +483,7 @@
      the entry itself had been wrapping for. */
   .detail-main table.kv.log tr > *:first-child { width: calc(10.5ch + 16px); }
   .detail-main table.kv.log.timed tr > *:first-child { width: calc(16.5ch + 16px); }
-  .logline { display: flex; gap: 8px; align-items: flex-start; }
+  .logline { display: flex; gap: 8px; align-items: center; }
   .logmsg { white-space: pre-line; min-width: 0; flex: 1; }
   .logadd { flex: none; }
   /* Both controls on a history line are the same size, because to the eye they are

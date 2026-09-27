@@ -313,3 +313,31 @@ class TestTheTopOfThePage:
         assert "<form" not in top_row(html)
         line = re.search(r'<div class="titleline">(.*?)</div>\s*</div>', html, re.S)
         assert line and "Mark done" in line[1] and "/edit" in line[1] and "/delete" in line[1]
+
+
+class TestTheHistoryLinesUpItsButtons:
+    """An entry's camera and delete buttons stood straight after its words, so a
+    column of entries read as a ragged edge of buttons: the log's value cell only
+    grew to fit its words, which put the line's own right-hand end there. Every
+    entry's buttons now share one column at the right, and sit
+    beside the middle of an entry that wraps (MANUAL §14)."""
+
+    def test_the_entry_takes_the_rest_of_its_row(self):
+        rule = re.search(r"\.kv\.log dd\s*\{([^}]*)\}", item_css())
+        assert rule and re.search(r"flex:\s*1\b", rule[1])
+
+    def test_the_buttons_sit_beside_the_middle_of_a_wrapped_entry(self):
+        legacy = re.sub(r"/\*.*?\*/", "", (ITEM_CSS.parents[1] / "app.css").read_text(), flags=re.S)
+        rule = re.search(r"\.logline\s*\{([^}]*)\}", legacy)
+        assert rule and "align-items: center" in rule[1]
+
+    def test_the_words_come_first_and_the_buttons_last(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post(f"/computers/{aid}/note", data={"note": "Recapped the board"})
+        line = re.search(
+            r'<div class="logline">(.*?)</div>\s*(?:<div class="logshots|</dd>)',
+            client.get(f"/computers/{aid}").text,
+            re.S,
+        )[1]
+        at = [line.index(m) for m in ('class="logmsg"', 'class="logadd"', "/log/delete")]
+        assert at == sorted(at)

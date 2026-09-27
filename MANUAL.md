@@ -2148,8 +2148,10 @@ the caption — writing one would be writing the sentence twice.
 
 **An entry already written takes one too**, from the small camera button at the
 right of its line — the swap the register logged last week, photographed when the
-lid next came off. That upload goes the moment the photograph is picked, the way
-the gallery's do. Nothing is written into the history about it, because an entry
+lid next came off. An entry's camera and delete buttons stand together at the right
+of its line, in the same column on every entry, and beside the middle of an entry
+that runs to more than one line. That upload goes the moment the photograph is
+picked, the way the gallery's do. Nothing is written into the history about it, because an entry
 gaining or losing a photograph is an edit to the record rather than something that
 happened to the machine.
 
