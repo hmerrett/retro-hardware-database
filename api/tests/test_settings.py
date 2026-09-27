@@ -96,6 +96,18 @@ class TestWhatTheSiteIsCalled:
             assert "<span>Henry&#39;s shelf</span>" in where
         assert "Retro Hardware Database" not in page
 
+    def test_a_collapsed_rail_keeps_the_name_in_the_tooltip_on_its_logo(self, client):
+        """Collapsed, the rail has room for the logo and not the words beside it, so
+        the logo's link carries the name as its title, the way every other item in
+        the rail keeps its name when its words are put away."""
+        save(client, site_name="Henry's shelf")
+        client.get("/rail/collapsed?next=/")
+        page = client.get("/").text
+        rail = page.split('<aside class="rail collapsed"', 1)[1].split("</aside>", 1)[0]
+        link = re.search(r'<a class="brand"[^>]*>', rail)
+        assert link, "the rail has no logo"
+        assert 'title="Henry&#39;s shelf"' in link.group(0)
+
     def test_the_name_reaches_a_shared_link(self, client, computer):
         """What a link unfolds into in a chat window is the site introducing itself
         to somebody who has never seen it."""

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2227 behaviours, from 66 files.*
+*2228 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3496,7 +3496,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 63 behaviours*
+*test_settings.py — 64 behaviours*
 
 
 **Reaching the page**
@@ -3516,6 +3516,8 @@ Regenerate with:
 - it starts as the name the software ships with
 - the name reaches the banner the rail and the tab  
   The page says whose collection it is in whichever of the two the width draws, so both carry it: a Side installation has the banner and the rail in its markup at once.
+- a collapsed rail keeps the name in the tooltip on its logo  
+  Collapsed, the rail has room for the logo and not the words beside it, so the logo's link carries the name as its title, the way every other item in the rail keeps its name when its words are put away.
 - the name reaches a shared link  
   What a link unfolds into in a chat window is the site introducing itself to somebody who has never seen it.
 - an empty name goes back to the shipped one  

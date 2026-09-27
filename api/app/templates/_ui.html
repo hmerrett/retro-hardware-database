@@ -440,7 +440,10 @@
    worked out once by the page and handed in rather than asked for per row. #}
 {% macro rail(current, authed, back, counts, shut=false) -%}
 <aside class="rail{{ ' collapsed' if shut else '' }}">
-  <a class="brand" href="/">
+  {#- The logo keeps the collection's name in its title, as every item keeps its
+      own: collapsed, the name beside it is put away with their words, and the
+      tooltip is where a pointer finds it again. #}
+  <a class="brand" href="/" title="{{ site_name() }}">
     <img class="mark" src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
          width="248" height="256">
     <span>{{ site_name() }}</span>

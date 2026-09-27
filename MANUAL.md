@@ -2538,6 +2538,9 @@ The name goes in the banner beside the logo — or at the top of the side rail,
 where the rail is showing — in the browser's tab, and in the preview a shared link
 unfolds into. Change it and all of them change together.
 
+A rail collapsed to its icons has room for the logo and not the name, so it keeps
+the name in the logo's tooltip.
+
 It names *this collection*, not the software: the register is still the Retro
 Hardware Database wherever it is installed, and the API's own documentation at
 `/docs` still says so. Along with dropping your own `logo-256.png` into the
