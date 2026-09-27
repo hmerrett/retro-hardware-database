@@ -2767,7 +2767,9 @@ tag first, which is the rail's best argument at a bench where you go back to the
 same two machines all afternoon. At its foot are the theme button, which everybody
 gets, then **Might sell**, **Traffic**, **Settings**, **Account** and **Log out**,
 each where your account reaches it — or **Log in** for a visitor — and
-**Collapse**.
+**Collapse**. On a window too short for all of it, the rail scrolls on its own,
+apart from the page beside it, rather than leaving its foot below the bottom of
+the window.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.

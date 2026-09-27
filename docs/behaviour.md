@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2224 behaviours, from 66 files.*
+*2226 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2801,7 +2801,7 @@ Regenerate with:
 
 ## Navigation
 
-*test_navigation.py — 30 behaviours*
+*test_navigation.py — 32 behaviours*
 
 
 **Which layout**
@@ -2830,6 +2830,10 @@ Regenerate with:
 - the owner sees what they last worked on  
   The rail's own argument: at a bench you go back to the same machine all afternoon.
 - the foot holds the theme settings and the way out
+- on a short window the rail scrolls on its own  
+  It is held to the window's height beside a page that scrolls, so whatever does not fit stays under the bottom edge until the page's own end -- and the owner's rail, open, is taller than a 1366 by 768 laptop leaves a page.
+- the rule above add keeps its line when the rail scrolls  
+  An empty box one pixel high is the one thing in a column too short for its contents that the browser can take height from, and it takes all of it.
 - the rail offers every page the menu does  
   With the rail showing, the banner's ⋯ menu is put away (components.css), so a page the menu offers and the rail does not is a page that cannot be reached from this one at all.
 - every item is named in words as well as drawn  

@@ -386,9 +386,13 @@
   .rail { display: none; }
   @media (min-width: 1100px) {
     .shell.side { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 100vh; }
+    /* Held to the window's height, so on a short one it scrolls itself: the owner's,
+       open, is taller than a 1366x768 laptop leaves, and what spilt below the edge
+       would stay there until the page beside it ran out. Down only: a scrollbar that
+       takes room leaves the folded rail's icons wider than what is left. */
     .shell.side > .rail { display: flex; flex-direction: column; gap: var(--space-2); position: sticky; top: 0;
-      height: 100vh; padding: var(--space-5) var(--space-4); background: var(--surface-raised);
-      border-right: var(--border-w) solid var(--line); }
+      height: 100vh; overflow-x: hidden; overflow-y: auto; padding: var(--space-5) var(--space-4);
+      background: var(--surface-raised); border-right: var(--border-w) solid var(--line); }
     /* With the rail beside it the banner holds only what is one gesture away on every page:
        search, leading, and Scan. Brand, sections, + New and the menu live in the rail. */
     .shell.side .site-header nav, .shell.side .site-header .brand, .shell.side .site-header .grow,
@@ -414,7 +418,8 @@
     box-shadow: inset 3px 0 0 var(--accent); }
   .rail .item svg { width: 16px; height: 16px; flex: none; color: var(--text-muted); }
   .rail nav { display: flex; flex-direction: column; gap: var(--space-1); }
-  .rail .sep { height: 1px; margin: var(--space-3) 0; background: var(--line); }
+  /* flex: none, or a rail too short for its contents takes this pixel first. */
+  .rail .sep { flex: none; height: 1px; margin: var(--space-3) 0; background: var(--line); }
   .rail .foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
   .rail .item .n { margin-left: auto; font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
   .rail .cap { margin: var(--space-4) var(--space-3) var(--space-1); font-size: 12px; color: var(--text-muted); }
