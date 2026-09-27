@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from app import cards, photos, presets, settings, typefaces
+from app.web import templates
 from conftest import log_out
 
 STATIC = Path(__file__).parents[1] / "app" / "static"
@@ -479,6 +480,17 @@ class TestTheButtonText:
         assert ">save</button>" in client.get("/settings").text
         save(client, button_case="cap")
         assert ">Save</button>" in client.get("/settings").text
+
+    def test_so_do_the_words_a_template_writes_out_itself(self, client):
+        """`{{ 'Add item' | ui }}` names its words in the template rather than handing
+        them over in a variable, and Jinja works a filter over a constant out once,
+        when it compiles the page. Left to that, a control written this way kept
+        whichever case the site had the first time its page was drawn, for as long
+        as the server ran -- while the buttons drawn by a macro beside it changed."""
+        drawn = templates.env.from_string("{{ 'Add item' | ui }}")
+        assert drawn.render() == "Add item"
+        save(client, button_case="lower")
+        assert drawn.render() == "add item"
 
 
 class TestHowThePageReads:

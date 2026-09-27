@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2222 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3492,7 +3492,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 63 behaviours*
+*test_settings.py — 64 behaviours*
 
 
 **Reaching the page**
@@ -3618,6 +3618,8 @@ Regenerate with:
 - the case is chosen from a menu of two
 - the filter asks the setting on every page  
   Not read once at import: the page saved a moment ago is the page the next render is written in, the way the site's name already is.
+- so do the words a template writes out itself  
+  `{{ 'Add item' | ui }}` names its words in the template rather than handing them over in a variable, and Jinja works a filter over a constant out once, when it compiles the page.
 
 **How the page reads**
 
