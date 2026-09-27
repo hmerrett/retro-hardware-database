@@ -34,16 +34,27 @@ def jpeg():
 
 
 class TestTheShapesAComputerIsHeldTo:
-    @pytest.mark.parametrize("bad", ["85", "1e3", "-1988", "19888", "²⁰⁰⁰"])
+    @pytest.mark.parametrize(
+        "bad",
+        ["85", "1e3", "-1988", "19888", "99999", "²⁰⁰⁰", pytest.param("9" * 5000, id="5000 nines")],
+    )
     def test_a_year_that_is_not_four_digits_is_refused(self, client, db, bad):
         """Superscript digits are among them because Python calls them digits and
-        int() does not: that pair used to be a server error rather than a refusal."""
+        int() does not; 99999 because it is more than the column holds; and five
+        thousand nines because int() will not read that many. Each used to be a
+        server error rather than a refusal."""
         assert new_computer(client, year=bad).status_code == 400
         assert db.query(Computer).count() == 0
 
     @pytest.mark.parametrize("bad", ["12.5", "-3", "lots", "²"])
     def test_a_topbench_score_that_is_not_a_whole_number_is_refused(self, client, db, bad):
         assert new_computer(client, topbench=bad).status_code == 400
+        assert db.query(Computer).count() == 0
+
+    def test_a_topbench_score_too_big_to_keep_is_refused(self, client, db):
+        """A whole number, but past what the column holds, which was a server error
+        rather than a refusal."""
+        assert new_computer(client, topbench="99999999999").status_code == 400
         assert db.query(Computer).count() == 0
 
     @pytest.mark.parametrize("bad", ["31/02/1994", "last spring", "1994-13-01"])
@@ -148,7 +159,9 @@ class TestTheComputerFormComesBackAsTyped:
 
 
 class TestAPartIsHeldToTheSameShapes:
-    @pytest.mark.parametrize("field,bad", [("year", "85"), ("acquired_date", "last spring")])
+    @pytest.mark.parametrize(
+        "field,bad", [("year", "85"), ("year", "99999"), ("acquired_date", "last spring")]
+    )
     def test_a_year_or_date_in_the_wrong_shape_is_refused(self, client, db, field, bad):
         r = new_part(client, **{field: bad})
         assert r.status_code == 400

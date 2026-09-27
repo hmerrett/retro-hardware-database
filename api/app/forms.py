@@ -75,8 +75,7 @@ def _parse_date(raw: str | None) -> date | None:
 def _coerce(field: str, raw: str | None) -> str | int | bool | date | None:
     """A form string as the column's type: blank means not recorded."""
     if field in ("year", "topbench"):
-        v = (raw or "").strip()
-        return int(v) if _whole(v) else None
+        return _number(field, raw)
     if field in ("acquired_date", "disposed_at", "started_at", "target_date", "finished_at"):
         return _parse_date(raw)
     if field == "disposed":
@@ -89,6 +88,22 @@ def _whole(v: str) -> bool:
     says yes to superscripts, which int() then refuses -- a server error for a
     typed "²"."""
     return v.isascii() and v.isdigit()
+
+
+# How far each whole-number column reaches: year is a SMALLINT and topbench an INT.
+# A refused save still writes what was typed to the row, to draw the form back from
+# it, so a number past this was a server error rather than a refusal.
+_REACH = {"year": 2**15, "topbench": 2**31}
+
+
+def _number(field: str, raw: str | None) -> int | None:
+    """A whole number the column can hold, or None. The length is looked at first
+    because int() refuses a string of more than a few thousand digits outright."""
+    v = (raw or "").strip()
+    if not _whole(v) or len(v) > len(str(_REACH[field])):
+        return None
+    n = int(v)
+    return n if n < _REACH[field] else None
 
 
 # The boxes that take one shape of answer, each with what it says when given
@@ -112,7 +127,7 @@ def _fits(field: str, v: str) -> bool:
     if field == "year":
         return re.fullmatch(r"[0-9]{4}", v) is not None
     if field == "topbench":
-        return _whole(v)
+        return _number(field, v) is not None
     return _parse_date(v) is not None
 
 

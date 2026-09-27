@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2202 behaviours, from 65 files.*
+*2203 behaviours, from 65 files.*
 
 
 ## A file where text was expected
@@ -3333,14 +3333,16 @@ Regenerate with:
 
 ## Refused saves
 
-*test_refused_saves.py — 26 behaviours*
+*test_refused_saves.py — 27 behaviours*
 
 
 **The shapes A computer is held to**
 
 - a year that is not four digits is refused  
-  Superscript digits are among them because Python calls them digits and int() does not: that pair used to be a server error rather than a refusal.
+  Superscript digits are among them because Python calls them digits and int() does not; 99999 because it is more than the column holds; and five thousand nines because int() will not read that many.
 - a topbench score that is not a whole number is refused
+- a topbench score too big to keep is refused  
+  A whole number, but past what the column holds, which was a server error rather than a refusal.
 - an acquired date that is not a date is refused
 - blank is always accepted
 - answers in the right shape are saved
