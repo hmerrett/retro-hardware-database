@@ -134,8 +134,14 @@ services:
   # being the one way a reader cannot catch it half-written. It is built under a
   # name ending .html because GoAccess decides what it is writing from the
   # extension and refuses anything but .html, .json or .csv.
+  #
+  # Pinned to a release, and moved on by hand. The report's scripts run in an
+  # administrator's browser over paths and user agents that strangers wrote, and it
+  # is GoAccess's escaping that keeps those inert (ADR-0033) -- so a new release is
+  # read before it runs, and its report opened under the app's policy for it, rather
+  # than arriving with whatever `latest` is on the day of the next pull.
   goaccess:
-    image: allinurl/goaccess:latest
+    image: allinurl/goaccess:1.12
     restart: unless-stopped
     entrypoint: ["/bin/sh", "-c"]
     command:

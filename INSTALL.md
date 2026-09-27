@@ -426,6 +426,11 @@ history `roll_keep` in `caddy/Caddyfile` is holding on to -- raise it for a long
 little more disk and a little more work per rebuild. Remove the service from
 `docker-compose.yml` if you would rather not keep access logs at all.
 
+The image is pinned to one release of GoAccess, because the report's scripts run in
+your browser over whatever visitors sent. A newer release is taken by changing the
+tag in `docker-compose.yml`, once you have read what it changed; `docker compose
+pull` alone will not bring one in.
+
 ---
 
 ## Trying it locally

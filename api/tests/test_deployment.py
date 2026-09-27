@@ -151,3 +151,18 @@ class TestEverySettingReachesTheContainer:
         compose = self.COMPOSE.read_text()
         missing = sorted(v for v in named if v not in compose)
         assert not missing, f"documented but never given to a container: {missing}"
+
+
+class TestTheTrafficReportIsWrittenByOneRelease:
+    """GoAccess's report runs its scripts in an administrator's browser, over paths
+    and user agents that strangers wrote, and what keeps those inert is GoAccess's
+    escaping (ADR-0033). So the GoAccess that writes it is one somebody read before
+    it ran, rather than whatever the registry calls latest on the day of the pull."""
+
+    def test_the_image_is_pinned_to_a_release(self):
+        import re
+
+        image = _compose("docker-compose.yml")["services"]["goaccess"]["image"]
+        name, _, tag = image.partition(":")
+        assert name == "allinurl/goaccess"
+        assert re.fullmatch(r"\d+(?:\.\d+)+", tag), f"{image} is not pinned to a release"

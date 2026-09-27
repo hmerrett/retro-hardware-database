@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2225 behaviours, from 66 files.*
+*2226 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -1491,7 +1491,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 11 behaviours*
+*test_deployment.py — 12 behaviours*
 
 
 **The api trusts its proxy**
@@ -1523,6 +1523,10 @@ Regenerate with:
 **Every setting reaches the container**
 
 - every documented variable is passed to a service
+
+**The traffic report is written by one release**
+
+- the image is pinned to a release
 
 
 ## Drivedb
