@@ -41,11 +41,6 @@
      is the height of the words in it like everything else. */
   button, input, select, textarea { font-family: inherit; line-height: inherit; }
   ::file-selector-button { font-family: inherit; line-height: inherit; }
-  main { max-width: 1000px; margin: 0 auto; padding: 18px; }
-  /* A phone spends its width on content, not on margins. */
-  @media (max-width: 480px) {
-    main { padding: 14px 12px; }
-  }
   /* A list of files: a row each, and never a table (ADR-0028). The row is a grid of
      four -- the drawing of what it is, its name and what it is linked to, how big
      and how old, and the download -- and on a phone the third drops under the

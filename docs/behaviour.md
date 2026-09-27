@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2214 behaviours, from 65 files.*
+*2216 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2872,6 +2872,16 @@ Regenerate with:
 
 - the published api is the one on file  
   Every route and model the API offers, against the copy in the repository.
+
+
+## Page width
+
+*test_page_width.py — 2 behaviours*
+
+- every page is drawn in the page column  
+  Every page's `<main>` is the design's page column -- one class attribute, and it names `page` -- on the pages still drawn with 0.1's components as much as on those moved onto v0.2's.
+- no stylesheet gives the page a width or gutter of its own  
+  The width of a page and its gutters are `.page`'s alone.
 
 
 ## Photo content

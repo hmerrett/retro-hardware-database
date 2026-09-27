@@ -99,10 +99,11 @@
 <div>
 {% endif %}
 {{ U.site_header(_p, request.state.authed, _back, q | default('', true)) }}
-{#- A page on the v0.2 components sets main_class to v2, which the 0.1 rules in
-    app.css that share its class names stand back from. Transitional: goes with
-    app.css. #}
-<main id="main" tabindex="-1"{% block main_class %}{% endblock %}>{% block content %}{% endblock %}</main>
+{#- Every page is drawn in the design's page column, .page, which is where its width
+    and its gutters come from. A page on the v0.2 components adds v2 through
+    main_class, which the 0.1 rules in app.css that share its class names stand back
+    from. That half is transitional: it goes with app.css. #}
+<main id="main" tabindex="-1" class="page{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
 
 <footer class="site-footer">
   <span>{{ site_name() }}</span>

@@ -267,4 +267,4 @@ class TestYourTokens:
 @pytest.mark.parametrize("path", ["/settings/users", "/settings/account"])
 def test_the_pages_carry_the_v0_2_components(client, path):
     page = client.get(path).text
-    assert 'class="v2"' in page and 'class="heading"' in page
+    assert 'class="page v2"' in page and 'class="heading"' in page
