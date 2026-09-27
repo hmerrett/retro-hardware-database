@@ -166,6 +166,11 @@ WIDE = {
     "computer_form.html",
     "part_form.html",
     "project_form.html",
+    # Settings and the account pages, one row of tabs across them.
+    "settings.html",
+    "settings_users.html",
+    "settings_user.html",
+    "settings_account.html",
 }
 READING = {
     "computer.html",
@@ -174,11 +179,6 @@ READING = {
     "file.html",
     "projects.html",
     "files.html",
-    # Settings is drawn .narrow until it is split into tabs.
-    "settings.html",
-    "settings_users.html",
-    "settings_user.html",
-    "settings_account.html",
     "login.html",
     "setup.html",
     "delete.html",
@@ -218,7 +218,7 @@ def test_the_lists_and_forms_use_a_wide_screen(client, a_page_of_everything):
         p
         for p in a_page_of_everything
         if p in ("/", "/machines", "/stats", "/for-sale")
-        or p.startswith("/machines/")
+        or p.startswith(("/machines/", "/settings"))
         or p.endswith(("/edit", "/new"))
     ]
     assert len(wide) >= 9, wide
@@ -230,10 +230,10 @@ def test_the_pages_you_read_keep_the_column(client, a_page_of_everything):
     reading = [
         p
         for p in a_page_of_everything
-        if p.startswith(("/computers/RH", "/parts/RH", "/files", "/projects", "/settings"))
+        if p.startswith(("/computers/RH", "/parts/RH", "/files", "/projects"))
         and not p.endswith(("/edit", "/new"))
     ]
-    assert len(reading) >= 6, reading
+    assert len(reading) >= 5, reading
     for path in reading:
         assert "wide" not in main_classes(client, path), path
 

@@ -52,8 +52,10 @@ def close_the_site(client, closed=True):
     data = {"site_name": "", "theme": "system", "watermark": "1", "remember_locations": "1"}
     if closed:
         data["login_to_read"] = "1"
-    r = client.post("/settings", data=data, follow_redirects=False)
-    assert r.status_code == 303, r.text
+    # Settings is three tabs, each saving its own part (MANUAL §18).
+    for tab in ("/settings", "/settings/labels", "/settings/server"):
+        r = client.post(tab, data=data, follow_redirects=False)
+        assert r.status_code == 303, r.text
 
 
 def login(client, username, password=PASSWORD):
@@ -394,7 +396,7 @@ class TestAClosedSite:
         assert client.get(f"/parts/{aid}").status_code == 200
 
     def test_it_is_on_the_settings_page(self, client):
-        assert "Visitors must log in" in client.get("/settings").text
+        assert "Visitors must log in" in client.get("/settings/server").text
 
 
 class TestAnAgentsKeyIsNotAWrongGuess:

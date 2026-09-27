@@ -80,8 +80,10 @@ def prefer_public(client, on=True):
     data = {"site_name": "", "theme": "system", "watermark": "1", "remember_locations": "1"}
     if on:
         data["files_public"] = "1"
-    r = client.post("/settings", data=data, follow_redirects=False)
-    assert r.status_code == 303, r.text
+    # Settings is three tabs, each saving its own part (MANUAL §18).
+    for tab in ("/settings", "/settings/labels", "/settings/server"):
+        r = client.post(tab, data=data, follow_redirects=False)
+        assert r.status_code == 303, r.text
 
 
 class Forms(HTMLParser):

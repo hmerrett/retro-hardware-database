@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2242 behaviours, from 67 files.*
+*2251 behaviours, from 68 files.*
 
 
 ## A file where text was expected
@@ -3672,6 +3672,21 @@ Regenerate with:
   The form is read through the definitions rather than written from, so a posted name that is not one of them cannot make a row.
 - a choice outside its list is refused  
   Every choice on the page comes back as one of the words it was offered, and anything else is a form that did not come from the page.
+
+
+## Settings tabs
+
+*test_settings_tabs.py — 9 behaviours*
+
+- settings is a row of tabs with the one you are on marked
+- each section is a page of its own
+- each page saves to itself
+- saving one section leaves the others alone
+- a viewer sees no row of tabs
+- an administrator s menus offer settings and mark it on every tab
+- a viewer s menus offer account and mark it
+- the tab you are on is bold and underlined not coloured alone
+- the row wraps and each tab is a thumb s height on a touch screen
 
 
 ## Share cards

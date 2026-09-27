@@ -4,10 +4,11 @@
 {# Everybody who may sign in, for administrators (ADR-0032). Every rule about what
    may be done to an account is the store's; this page shows its refusals. #}
 {% block title %}Accounts — {{ site_name() }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block main_class %} v2{% endblock %}
 {% block content %}
 <div class="pagehead"><h1 class="heading">Accounts</h1></div>
-<p class="hint"><a href="/settings">Settings</a> · <a href="/settings/account">Your account</a></p>
+{{ U.settings_tabs() }}
 
 {% if done == 'added' %}{{ U.banner('success', 'Added.', 'Give them their password some other way: the register sends nothing.') }}{% endif %}
 
@@ -23,7 +24,7 @@
   {% endfor %}
 </table>
 
-<form class="editform narrow" method="post" action="/settings/users">
+<form class="editform" method="post" action="/settings/users">
   <fieldset class="fieldset">
     <legend>Add somebody</legend>
     <div class="formgrid">

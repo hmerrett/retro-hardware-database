@@ -32,8 +32,10 @@ def island(page):
 
 def save(client, **fields):
     posted = {d.key: settings.value(d.key) for d in settings.DEFINITIONS if d.kind != "switch"}
-    r = client.post("/settings", data=posted | fields)
-    assert r.status_code in (200, 303), r.text[:300]
+    # Settings is three tabs, each saving its own part (MANUAL §18).
+    for tab in ("/settings", "/settings/labels", "/settings/server"):
+        r = client.post(tab, data=posted | fields)
+        assert r.status_code in (200, 303), r.text[:300]
     settings.forget()
 
 
@@ -128,7 +130,7 @@ def test_the_settings_page_and_an_item_page_are_told_the_same_thing(client, part
     """One answer, read twice. The menu that chooses a destination and the button
     that acts on the choice cannot disagree about what exists."""
     item = island(client.get(f"/parts/{part()['asset_id']}").text)
-    page = island(client.get("/settings").text)
+    page = island(client.get("/settings/labels").text)
     assert item == page
 
 
@@ -144,13 +146,13 @@ def test_the_button_still_links_to_a_pdf(client, part, agents):
 def test_the_device_menu_is_hidden_until_the_script_fills_it(client):
     """A menu that is nothing but script says nothing useful before the script has
     run, and a menu that forgets what you tell it is worse than no menu."""
-    page = client.get("/settings").text
+    page = client.get("/settings/labels").text
     assert 'id="device-box" hidden>' in page
     # And it is styled as the boxes above it are. The settings rules were once
     # scoped to `form.edit`, and this box is a fieldset rather than a form -- so its
     # control took none of them and sat in the middle of the page looking like a
     # different website.
-    assert 'class="fieldset narrow" id="device-box"' in page
+    assert 'class="fieldset" id="device-box"' in page
 
 
 def test_nothing_about_the_destination_is_written_inline(client, part, agents):

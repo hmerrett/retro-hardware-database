@@ -178,8 +178,10 @@ class TestWhereYouAre:
     @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))
     def test_one_place_is_current_at_a_time(self, client, where):
         """Your account's address begins with Settings', so both entries could
-        claim it; two marked is a screen reader told it is on two pages at once."""
-        assert marked(client.get("/settings/account").text, **where) == ["/settings/account"]
+        claim it; two marked is a screen reader told it is on two pages at once.
+        An administrator reaches Your account as a tab of Settings and is not
+        offered Account as well, so it is Settings that is marked (MANUAL §18)."""
+        assert marked(client.get("/settings/account").text, **where) == ["/settings"]
 
     @pytest.mark.parametrize("path", ["/settings", "/settings/users"])
     @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))

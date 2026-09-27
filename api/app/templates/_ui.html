@@ -312,11 +312,27 @@
 
 {# aria-current on the section a path belongs to. Prefix rather than exact match, so
    an item's own page still lights the section it was reached through -- except the
-   gallery, which is only itself. `but` is a page inside the section with an entry of
-   its own beside it, which lights that entry and not both: Your account's address
-   is under /settings, and two marked is a screen reader told it is on two pages. #}
-{% macro here(seg, current, but='') -%}
-{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg) and not (but and current.startswith(but))) %} aria-current="page"{% endif -%}
+   gallery, which is only itself. Settings and Account are never offered to the same
+   reader (an administrator reaches Your account as one of Settings' tabs), so a
+   page under /settings is never marked twice. #}
+{% macro here(seg, current) -%}
+{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg)) %} aria-current="page"{% endif -%}
+{%- endmacro %}
+
+{#- One row of tabs across Settings and the account pages (MANUAL §18): pages of their
+    own, so a `nav` of links with the current one marked as the page, not a widget,
+    and no script. Only for somebody who may change settings: a viewer's one page
+    under Settings is Your account, and a row of one tab says nothing. -#}
+{% macro settings_tabs() -%}
+{%- if request.state.authed -%}
+{%- set current = request.url.path -%}
+<nav class="tabs" aria-label="{{ 'Settings' }}">
+{%- for href, words in [('/settings', 'Appearance'), ('/settings/labels', 'Labels'), ('/settings/server', 'Server'),
+                        ('/settings/users', 'Accounts'), ('/settings/account', 'Your account')] %}
+<a href="{{ href }}"{% if (href == '/settings' and current == '/settings') or (href != '/settings' and current.startswith(href)) %} aria-current="page"{% endif %}>{{ words | ui }}</a>
+{%- endfor -%}
+</nav>
+{%- endif -%}
 {%- endmacro %}
 
 {# The five sections, in the order both the banner and the menu give them. "Models"
@@ -365,11 +381,14 @@
 {%- endif -%}
 {%- if authed -%}
 <a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
-<a href="/settings"{{ here('/settings', current, but='/settings/account') }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
+<a href="/settings"{{ here('/settings', current) }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
 {%- endif -%}
 {%- if request.state.principal.signed_in -%}
-{#- Everybody's own, viewers included: the one page under Settings a viewer opens. -#}
+{#- A viewer's own: the one page under Settings a viewer opens. An administrator
+    reaches it as a tab of Settings, so is not offered it twice. -#}
+{%- if not authed -%}
 <a href="/settings/account"{{ here('/settings/account', current) }}>{% if sheet %}{{ I.ico('user') }}{% endif %}{{ 'Account' | ui }}</a>
+{%- endif -%}
 <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}"><button type="submit">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log out' | ui }}</button></form>
 {%- else -%}
 {#- Carrying where you are, so logging in puts you back on it. That matters most to
@@ -493,10 +512,12 @@
     <button class="item js-theme" type="button" title="{{ 'Dark theme' | ui }}" aria-label="{{ 'Dark theme' | ui }}"
             data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ I.ico('theme') }}<span>{{ 'Dark theme' | ui }}</span></button>
     {%- if authed %}
-    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current, but='/settings/account') }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
+    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current) }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
     {%- endif %}
     {%- if request.state.principal.signed_in %}
+    {%- if not authed %}
     <a class="item" href="/settings/account" title="{{ 'Account' | ui }}" aria-label="{{ 'Account' | ui }}"{{ here('/settings/account', current) }}>{{ I.ico('user') }}<span>{{ 'Account' | ui }}</span></a>
+    {%- endif %}
     <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}">
       <button class="item" type="submit" title="{{ 'Log out' | ui }}" aria-label="{{ 'Log out' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log out' | ui }}</span></button></form>
     {%- else %}

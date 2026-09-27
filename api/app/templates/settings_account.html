@@ -4,16 +4,18 @@
 {# Your own account, for anybody signed in, viewers included (ADR-0032): the one
    page under /settings the gate lets a viewer open. #}
 {% block title %}Your account — {{ site_name() }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block main_class %} v2{% endblock %}
 {% block content %}
 <div class="pagehead"><h1 class="heading">Your account</h1></div>
+{{ U.settings_tabs() }}
 <p class="hint">Signed in as <b>{{ me.username }}</b>, {{ role_name | lower }}.</p>
 
 {% if done == 'password' %}{{ U.banner('success', 'Password changed.', 'Every other browser signed in as you is signed out.') }}
 {% elif done == 'sessions' %}{{ U.banner('success', 'Signed out everywhere else.') }}
 {% elif done == 'revoked' %}{{ U.banner('success', 'Token revoked.') }}{% endif %}
 
-<form class="editform narrow" method="post" action="/settings/account/password">
+<form class="editform" method="post" action="/settings/account/password">
   <fieldset class="fieldset">
     <legend>Password</legend>
     {{ U.field('current', 'Password now', type='password', autocomplete='current-password',
@@ -25,7 +27,7 @@
   </fieldset>
 </form>
 
-<fieldset class="fieldset narrow">
+<fieldset class="fieldset">
   <legend>Where you are signed in</legend>
   <ul class="signins">
     {% for s in sessions %}
@@ -41,7 +43,7 @@
   {% endif %}
 </fieldset>
 
-<fieldset class="fieldset narrow">
+<fieldset class="fieldset">
   <legend>API tokens</legend>
   {% if new_token %}
   {{ U.banner('success', 'Copy it now: it is not shown again.', new_token_name) }}

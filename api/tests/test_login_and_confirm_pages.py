@@ -84,7 +84,7 @@ class TestTheLoginPage:
     def test_on_a_closed_site_it_does_not_say_browsing_needs_no_login(self, client, monkeypatch):
         """On a site closed to visitors, browsing is what the login is for."""
         client.post(
-            "/settings",
+            "/settings/server",
             data={
                 "site_name": "",
                 "theme": "system",

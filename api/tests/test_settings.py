@@ -37,8 +37,10 @@ def save(client, **fields):
     } | {k: v for k, v in fields.items() if v is not None}
     for blank in [k for k, v in fields.items() if v is None]:
         data.pop(blank)
-    r = client.post("/settings", data=data, follow_redirects=False)
-    assert r.status_code == 303, r.text
+    # Settings is three tabs, each saving its own part (MANUAL §18).
+    for tab in ("/settings", "/settings/labels", "/settings/server"):
+        r = client.post(tab, data=data, follow_redirects=False)
+        assert r.status_code == 303, r.text
     return r
 
 
@@ -495,9 +497,10 @@ class TestHowThePageReads:
         """A flat list of four is a list; a flat list of fifteen is a search. The
         grouping is on the definitions rather than in the template, so a new
         setting names its section and lands in it."""
-        page = client.get("/settings").text
-        assert "<legend>Appearance</legend>" in page
-        assert "<legend>Server options</legend>" in page
+        # Each section a tab of its own (MANUAL §18).
+        assert "<legend>Appearance</legend>" in client.get("/settings").text
+        assert "<legend>Labels</legend>" in client.get("/settings/labels").text
+        assert "<legend>Server options</legend>" in client.get("/settings/server").text
         assert [s for s, _ in settings.grouped()] == ["Appearance", "Labels", "Server options"]
 
     def test_a_setting_written_out_of_place_joins_its_own_section(self, client):
@@ -533,7 +536,10 @@ class TestHowThePageReads:
     def test_every_row_carries_its_reason(self, client):
         """One tooltip per setting, so none of them is the one that was forgotten
         and left a control with nothing behind it."""
-        page = client.get("/settings").text
+        # Across the three tabs (MANUAL §18).
+        page = "".join(
+            client.get(t).text for t in ("/settings", "/settings/labels", "/settings/server")
+        )
         # One per setting, and one more: what the browser remembers for itself,
         # which is a row on this page without being a setting -- it is kept in the
         # browser and never posted (ADR-0023). The look's is on the group of faces
@@ -553,7 +559,7 @@ class TestSaving:
         assert settings.value("site_name") == "Henry's shelf"
 
     def test_saving_says_so(self, client):
-        r = save(client, site_name="Henry's shelf")
+        r = client.post("/settings", data={"site_name": "Henry's shelf"}, follow_redirects=False)
         assert r.headers["location"] == "/settings?saved=1"
         assert "Saved" in client.get("/settings?saved=1").text
 

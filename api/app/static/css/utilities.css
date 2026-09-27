@@ -13,7 +13,6 @@
   .push { margin-left: auto; }
   .mt-0 { margin-top: 0; } .mt-3 { margin-top: var(--space-3); } .mt-5 { margin-top: var(--space-5); } .mt-6 { margin-top: var(--space-6); }
   .flush { margin: 0; padding: 0; }
-  .narrow { max-width: 560px; }
   /* Two widths: a column you read (--content-max) and a wide page for lists and forms
      (--wide-max), which a page asks for with `wide` on <main>. Worked out once, here, so
      the page, the banner's flash, the banner and the footer read the same insets and
