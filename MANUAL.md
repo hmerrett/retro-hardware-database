@@ -192,8 +192,9 @@ wrapping the search box onto a second.
 Wherever the places are listed — the banner, the **☰** menu, the phone's **More**
 and the rail ([Where the sections sit](#where-the-sections-sit)) — no more than one
 is ever marked as where you are: a screen reader announces it as the current page,
-and two would be two pages at once. On **Your account** that is **Account**, not
-**Settings** as well.
+and two would be two pages at once. For an administrator, every page under
+**Settings** marks **Settings**, **Your account** included; for anybody else signed
+in, **Your account** marks **Account**.
 
 ### The header on a phone
 
@@ -205,7 +206,8 @@ across the bottom of the screen, where your thumb already is.
 - **Scan** — reads a label's code. Appears only where there is a camera.
 - **More** — one list holding the sections (**Projects**, **Numbers**,
   **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
-  **Might sell**, **Traffic**, **Settings**, **Account** and **Log out**.
+  **Might sell**, **Traffic**, **Settings** for an administrator or **Account** for
+  anybody else signed in, and **Log out**.
 
 ### On a narrow screen
 
@@ -228,11 +230,11 @@ The pages you look across and the forms you fill in use a wide screen, up to 144
 across. **Browse**, and **Might sell** and a search's results, which are Browse by
 other names, put as many cards across as fit: four on a 1000px page, six at the
 widest. The tiles on **Numbers** and the chips on a model's page do the same, and
-**Models** runs to three columns. The forms for a computer, a part and a project
-stand their short questions side by side, up to five abreast.
+**Models** runs to three columns. The forms for a computer, a part and a project,
+and **Settings**, stand their short questions side by side, up to five abreast.
 
 The pages you read keep to a column 1000px across: a machine, a part, a project, a
-file, **Settings**, and the **Projects** and **Files** lists, which are read a row at
+file, and the **Projects** and **Files** lists, which are read a row at
 a time. The small pages (logging in, confirming a delete, a page that is not there)
 stay small inside it.
 
@@ -2542,13 +2544,21 @@ somebody *prefers* them, which is why they live on a page of their own rather
 than in a corner of an item's form.
 
 Everything on it is kept in the database, so it survives a restart and
-everybody who opens the site gets it. It comes in two groups:
+everybody who opens the site gets it. It is a row of tabs, each a page of its
+own: **Appearance** at `/settings`, **Labels** at `/settings/labels`, **Server**
+at `/settings/server`, then **Accounts** and **Your account**. Each page's **Save**
+saves what is on that page and nothing else, so a switch on another tab is never
+touched by saving this one.
 
 **Appearance** — the site's name, the look it is dressed in, the faces it is set
 in, where its sections sit, how its buttons are written, whether photographs are
 watermarked, and which theme it opens in.
 
-**Server options** — what this installation shows the outside world and what
+**Labels** — where a small label goes when it is printed, and the size a Bluetooth
+printer is loaded with; and, for this browser alone, where it sends a small label
+whatever the site says.
+
+**Server** — what this installation shows the outside world and what
 it remembers for itself: whether visitors must log in to read anything, whether it
 asks to be kept out of search engines,
 whether a visitor is shown where things are kept, whether a new file starts out
@@ -2557,10 +2567,12 @@ public, and whether a place nothing is kept in any more is still offered.
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
 
-At the top of the page are the two pages beside it: **Accounts**, the people who
-may sign in ([adding people](#adding-people)), and **Your account**, your own
-password, sessions and tokens ([your account](#your-account)). Your account is the
-one page under Settings a viewer may open.
+The last two tabs are **Accounts**, the people who may sign in ([adding
+people](#adding-people)), and **Your account**, your own password, sessions and
+tokens ([your account](#your-account)). The tab you are on is in bold with a line
+under it, and on a phone the row wraps onto a second line rather than hiding a tab
+off the edge. Your account is the one page under Settings a viewer may open, and a
+viewer sees it without the row of tabs, which would have only the one.
 
 The page itself is deliberately bare: a control says what it is in as few words
 as will do, and the reason for it is in a tooltip you get by resting the pointer
@@ -2802,8 +2814,8 @@ things in it beside its name. For somebody signed in it also carries **Computer*
 and **Part** as one press each, and **Recent**: the last three things you edited,
 tag first, which is the rail's best argument at a bench where you go back to the
 same two machines all afternoon. At its foot are the theme button, which everybody
-gets, then **Settings**, **Account** and **Log out** — or **Log in** for a
-visitor — and **Collapse**.
+gets, then **Settings** for an administrator or **Account** for anybody else
+signed in, and **Log out** — or **Log in** for a visitor — and **Collapse**.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.
