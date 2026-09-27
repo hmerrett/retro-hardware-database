@@ -13,6 +13,8 @@ from sqlalchemy.exc import OperationalError
 
 from app import rail, settings
 from conftest import log_out
+from test_presets import PALETTES
+from test_stylesheet_lint import COMPONENTS, declarations
 
 
 def visitor(client):
@@ -228,3 +230,29 @@ class TestFoldingItAway:
         r = client.get("/rail/collapsed?next=/", follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"] == "/"
+
+
+def _rules() -> list[tuple[str, str, str]]:
+    """components.css as (selector, property, value) in file order, a selector at a
+    time, so a rule written for three selectors at once is found under each."""
+    return [
+        (selector.strip(), prop, value)
+        for selectors, prop, value in declarations(COMPONENTS)
+        for selector in selectors.split(",")
+    ]
+
+
+class TestHowItIsPainted:
+    def test_the_rail_and_the_tab_bar_stand_on_the_navigation_s_ground(self):
+        """The navigation has a ground of its own, which every look states in light and
+        in dark. Painted as a panel, the rail was a white strip beside a grey page in
+        the three looks whose panels are white on purpose -- the 128K menu's window, a
+        window's client area, the listing paper -- and the phone's bar a white bar
+        under one. A token of its own lets a look set it without repainting a panel."""
+        grounds = {
+            selector: value
+            for selector, prop, value in _rules()
+            if selector in (".shell.side > .rail", ".tabbar") and prop == "background"
+        }
+        assert grounds == dict.fromkeys((".shell.side > .rail", ".tabbar"), "var(--surface-nav)")
+        assert "surface-nav" in PALETTES["keys"], "every look has to state the ground"

@@ -31,15 +31,19 @@ TEXT, EDGE = 4.5, 3.0
 
 # (colour written, ground it is written on, floor). The ground is where the design
 # puts that colour and nowhere else -- `text-muted` never sits on `surface-hover`,
-# for instance, because the hover row turns everything on it to `text`.
+# for instance, because the hover row turns everything on it to `text`. `surface-nav`
+# is what the side rail and the phone's tab bar stand on: the words, the current
+# tab's accent and the focus ring are all written on it.
 PAIRS = [
     ("text", "surface", TEXT),
     ("text", "surface-raised", TEXT),
     ("text", "surface-sunken", TEXT),
     ("text", "surface-hover", TEXT),
+    ("text", "surface-nav", TEXT),
     ("text-muted", "surface", TEXT),
     ("text-muted", "surface-raised", TEXT),
     ("text-muted", "surface-sunken", TEXT),
+    ("text-muted", "surface-nav", TEXT),
     ("band-text", "band", TEXT),
     ("band-muted", "band", TEXT),
     ("danger", "surface", TEXT),
@@ -64,12 +68,14 @@ PAIRS = [
     ("accent", "surface", TEXT),
     ("accent", "surface-raised", TEXT),
     ("accent", "surface-sunken", TEXT),
+    ("accent", "surface-nav", TEXT),
     ("on-accent", "accent-fill", TEXT),
     ("accent-fill", "surface", EDGE),
     ("accent-fill", "accent-track", EDGE),
     ("focus", "surface", EDGE),
     ("focus", "surface-raised", EDGE),
     ("focus", "surface-sunken", EDGE),
+    ("focus", "surface-nav", EDGE),
 ]
 
 
@@ -125,7 +131,7 @@ def test_every_preset_states_every_colour_in_both_modes():
 @pytest.mark.parametrize("theme", THEMES)
 @pytest.mark.parametrize(("fg", "bg", "floor"), PAIRS, ids=[f"{f}-on-{b}" for f, b, _ in PAIRS])
 def test_every_pair_holds_in_every_preset_and_mode(theme, fg, bg, floor):
-    """518 pairs: the 37 the design uses, in fourteen themes. A preset is judged as
+    """574 pairs: the 41 the design uses, in fourteen themes. A preset is judged as
     a whole set of passing pairs, not a palette swapped in by eye."""
     colours = PALETTES["themes"][theme]
     ground = over(colours[bg], colours["surface"]) if len(colours[bg]) == 9 else colours[bg]

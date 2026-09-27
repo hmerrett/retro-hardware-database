@@ -206,6 +206,9 @@ across the bottom of the screen, where your thumb already is.
   **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
   **Might sell**, **Traffic**, **Settings**, **Account** and **Log out**.
 
+The bar across the bottom stands on one of the look's own colours, as the side
+rail does ([where the sections sit](#where-the-sections-sit)).
+
 ### On a narrow screen
 
 Every page fits the screen it is on, down to a 320px-wide phone and at 200% zoom
@@ -2766,6 +2769,10 @@ tag first, which is the rail's best argument at a bench where you go back to the
 same two machines all afternoon. At its foot are the theme button, which everybody
 gets, then **Settings**, **Account** and **Log out** — or **Log in** for a
 visitor — and **Collapse**.
+
+The rail wears the look like the rest of the page. Whichever preset is chosen, in
+light and in dark, it stands on one of that look's own colours, with a rule between
+it and the page.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.

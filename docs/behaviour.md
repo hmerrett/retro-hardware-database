@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2222 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -139,7 +139,7 @@ Regenerate with:
 - a stored accent the register does not know falls back to the preset  
   The value is spent on a colour written into a stylesheet.
 - every offered accent holds every pair in every preset and mode  
-  The eight, in the fourteen: 112 derivations, nine pairs each.
+  The eight, in the fourteen: 112 derivations, eleven pairs each.
 - the button keeps the chosen colour exactly wherever it can  
   The manual's promise, and the one that matters: the button is where an accent is recognised.
 - the hue is never changed  
@@ -151,7 +151,7 @@ Regenerate with:
 - the sweep is the whole colour space  
   A sweep that had quietly become 40 colours would pass every day and mean nothing, so its own shape is asserted before it is trusted.
 - any colour at all derives a set that passes  
-  Why the box may take a free-for-all: the derivation is a pure function and every colour in the space comes out of it holding all nine pairs.
+  Why the box may take a free-for-all: the derivation is a pure function and every colour in the space comes out of it holding all eleven pairs.
 - as the preset writes no colours of its own  
   The default answer leaves the preset's own accent where it is.
 - the chosen accent is stated for the preset and for both ways of asking for dark  
@@ -2801,7 +2801,7 @@ Regenerate with:
 
 ## Navigation
 
-*test_navigation.py — 28 behaviours*
+*test_navigation.py — 29 behaviours*
 
 
 **Which layout**
@@ -2864,6 +2864,11 @@ Regenerate with:
   A redirect that follows whatever it is handed is an open redirect, whatever it was built for.
 - a state it does not know is a 404
 - a visitor may fold it too
+
+**How it is painted**
+
+- the rail and the tab bar stand on the navigation s ground  
+  The navigation has a ground of its own, which every look states in light and in dark.
 
 
 ## Openapi contract
@@ -2943,7 +2948,7 @@ Regenerate with:
 - every preset states every colour in both modes  
   A token a preset leaves out is inherited from the default preset underneath, which is a colour chosen for a different page -- a black band's text left white-on-white, say.
 - every pair holds in every preset and mode  
-  518 pairs: the 37 the design uses, in fourteen themes.
+  574 pairs: the 41 the design uses, in fourteen themes.
 - a preset names no component  
   A preset is token values and nothing else (ADR-0031).
 - every face in the picker is drawn in its own colours  

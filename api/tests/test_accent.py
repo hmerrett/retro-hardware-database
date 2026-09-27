@@ -6,11 +6,14 @@ draw a focus ring that can be seen. No one colour does all four on every preset,
 `app/accent.py` derives five tokens from the one -- and because the setting takes
 any `#rrggbb` at all, the derivation has to be right for colours nobody has looked
 at. That is what the sweep at the foot of this file is: 1,260 colours across the
-whole colour space, through every preset and mode, asserted on all nine pairs.
+whole colour space, through every preset and mode, asserted on all eleven pairs.
 
-The nine pairs are not invented here. They are the nine accent rows of `PAIRS` in
-`test_presets.py`, which is where the presets' own accents are already held to
-them, so a derived accent is held to exactly what a designed one is.
+The eleven pairs are not invented here. They are the eleven accent rows of `PAIRS`
+in `test_presets.py`, which is where the presets' own accents are already held to
+them, so a derived accent is held to exactly what a designed one is. Two of them
+are on `surface-nav`, the ground of the rail and the tab bar, which every look
+states as one of the three grounds the derivation reads -- so they hold without it
+being told about a fourth.
 """
 
 import json
@@ -26,7 +29,7 @@ from conftest import log_out
 
 APP = Path(__file__).parents[1] / "app"
 
-# The nine of the thirty-seven that name a token this module derives. Read off the
+# The eleven of the forty-one that name a token this module derives. Read off the
 # list rather than written out again: an accent pair added to the design is a pair
 # the sweep should start asserting without anybody remembering to come here.
 DERIVED = set(accent.TOKENS)
@@ -108,7 +111,7 @@ def test_a_stored_accent_the_register_does_not_know_falls_back_to_the_preset(mon
 @pytest.mark.parametrize("theme", THEMES)
 @pytest.mark.parametrize("name", [key for key, _ in accent.NAMED])
 def test_every_offered_accent_holds_every_pair_in_every_preset_and_mode(name, theme):
-    """The eight, in the fourteen: 112 derivations, nine pairs each. This is the
+    """The eight, in the fourteen: 112 derivations, eleven pairs each. This is the
     table in the design system's accent-contrast page, asserted."""
     colours = _theme(theme)
     bad = _holds(colours, accent.derive(accent.BRANDS[name], colours))
@@ -188,7 +191,7 @@ def test_the_sweep_is_the_whole_colour_space():
 @pytest.mark.parametrize("theme", THEMES)
 def test_any_colour_at_all_derives_a_set_that_passes(theme):
     """Why the box may take a free-for-all: the derivation is a pure function and
-    every colour in the space comes out of it holding all nine pairs. An input
+    every colour in the space comes out of it holding all eleven pairs. An input
     nobody has looked at, an output somebody has."""
     colours = _theme(theme)
     failed = []

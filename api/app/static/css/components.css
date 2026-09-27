@@ -345,7 +345,9 @@
     right: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter) + var(--border-w) + var(--flash-inset) - 8px);
     transform: skewX(-25deg); }
   @media (max-width: 560px) { .stripe { --gutter: var(--space-4); } }
-  .tabbar { display: none; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
+  /* On the navigation's ground, as the side rail is (13a): on a panel's it was a white
+     bar under a grey page in three looks. Its rule sets it off from a page of its colour. */
+  .tabbar { display: none; background: var(--surface-nav); border-top: var(--border-w) solid var(--line); }
   .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: var(--space-1); min-height: 52px; padding: 0; font-size: 11px; font-weight: 500; color: var(--text-muted);
     background: none; border: 0; text-decoration: none; cursor: pointer; }
@@ -386,8 +388,11 @@
   .rail { display: none; }
   @media (min-width: 1100px) {
     .shell.side { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 100vh; }
+    /* The rail is chrome, not a panel, so it stands on the navigation's ground rather
+       than surface-raised: that is a panel's white in Rubber Key, Ninety-five and
+       Phosphor light, and there the rail takes the page's colour, set off by its rule. */
     .shell.side > .rail { display: flex; flex-direction: column; gap: var(--space-2); position: sticky; top: 0;
-      height: 100vh; padding: var(--space-5) var(--space-4); background: var(--surface-raised);
+      height: 100vh; padding: var(--space-5) var(--space-4); background: var(--surface-nav);
       border-right: var(--border-w) solid var(--line); }
     /* With the rail beside it the banner holds only what is one gesture away on every page:
        search, leading, and Scan. Brand, sections, + New and the menu live in the rail. */
