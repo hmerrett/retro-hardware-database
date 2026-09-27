@@ -8,6 +8,7 @@ the queries a view needs to name its asset ids; the /, /suggest, /browse and
 projects-list routes stay in main and call in here.
 """
 
+import re
 from collections.abc import Callable, Mapping
 from datetime import date, datetime
 from typing import Literal, NamedTuple, TypedDict, cast
@@ -258,6 +259,37 @@ def _suggest_tier(obj: Asset, name: str, raw: str) -> int:
     return 3 if raw in ident else 4
 
 
+def _runs(text: str, terms: list[str]) -> list[tuple[str, bool]]:
+    """`text` cut into runs, each saying whether it is something that was typed.
+
+    Every place every term appears, without regard to case, with runs that touch
+    or overlap made one -- `tand and` marks `Tand`, not `Tand` beside `and`. Runs
+    rather than offsets, because the script counts a string's length in UTF-16
+    and Python in code points, and a name with an emoji in it would put every mark
+    after it one letter out. What matched somewhere else -- a spec, a note -- marks
+    nothing here, which is the truth about the row."""
+    spans: list[list[int]] = []
+    for start, end in sorted(
+        (m.start(), m.end())
+        for term in terms
+        for m in re.finditer(re.escape(term), text, re.IGNORECASE)
+    ):
+        if spans and start <= spans[-1][1]:
+            spans[-1][1] = max(spans[-1][1], end)
+        else:
+            spans.append([start, end])
+    runs: list[tuple[str, bool]] = []
+    at = 0
+    for start, end in spans:
+        if start > at:
+            runs.append((text[at:start], False))
+        runs.append((text[start:end], True))
+        at = end
+    if at < len(text):
+        runs.append((text[at:], False))
+    return runs
+
+
 class _Hit(TypedDict):
     """One thing a half-typed query matched, before the list is cut to ten."""
 
@@ -334,6 +366,7 @@ def _suggest(
                     "disposed": False,
                     "img": "",
                     "icon": "/static/placeholders/project.svg",
+                    "runs": {"aid": _runs(obj.asset_id, terms), "name": _runs(h["name"], terms)},
                 }
             )
             continue
@@ -367,6 +400,7 @@ def _suggest(
                 "disposed": bool(held.disposed),
                 "img": img_url(imgs[0], 300) if imgs else "",
                 "icon": f"/static/{icon}",
+                "runs": {"aid": _runs(obj.asset_id, terms), "name": _runs(h["name"], terms)},
             }
         )
     return out, len(hits)

@@ -74,11 +74,12 @@ from ..assets import (
     _work_from_form,
     delete_computer,
     part_thumbs,
+    refused,
 )
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import _and_parts, _disposal_log, _dispose_contents, _restore_contents
-from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted
+from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted, refusals, year_hint
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import Computer, Part, StoredFile
@@ -144,6 +145,9 @@ def _computer_form_ctx(
     blanks = max(2, MAX_DRIVE_ROWS - len(drives))
     return {
         "c": c,
+        # Whether the form makes a machine or edits one. Not simply "no c": a refused
+        # new machine comes back drawn from the row its save wrote and rolled back.
+        "new": c is None,
         "conditions": entry.CONDITIONS,
         "title": title,
         "ram_modules": entry.RAM_MODULES,
@@ -303,6 +307,9 @@ def _grid_counts(
 
 router = APIRouter()
 
+# The boxes on the machine's form that take one shape of answer (forms.SHAPES).
+SHAPED = ("year", "topbench", "acquired_date")
+
 
 @router.get("/computers/new", response_class=HTMLResponse, include_in_schema=False)
 def gui_new_computer(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
@@ -315,9 +322,10 @@ def gui_new_computer(request: Request, db: Session = Depends(get_db)) -> HTMLRes
 
 
 @router.post("/computers/new", include_in_schema=False)
-async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
+async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -> Response:
     form = await posted(request)
     photos = _chosen_photos(form)
+    errors = refusals(form, SHAPED)
     # Everything the child tables render is left to them, as the edit path does: the
     # form's own installed_ram and drive fields are read by ramdb and drivedb below.
     data = {
@@ -340,6 +348,9 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -
     # After the flush above, because a membership is refused for an asset that is not
     # in the register yet -- and this one is being entered as we speak.
     _work_from_form(db, obj, form)
+    if errors:
+        ctx = _computer_form_ctx(obj, "New computer", db) | {"new": True}
+        return refused(request, db, "computer_form.html", ctx, form, errors)
     db.commit()
     if photos:
         _attach_photos(db, obj, "computers", photos)
@@ -446,18 +457,18 @@ def gui_computer(
 @router.get("/computers/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
 def gui_edit_computer(aid: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     c = get_or_404(db, Computer, aid)
-    return templates.TemplateResponse(
-        request, "computer_form.html", _computer_form_ctx(c, f"Edit {aid}", db)
-    )
+    ctx = _computer_form_ctx(c, f"Edit {aid}", db) | {"year_hint": year_hint(c.year)}
+    return templates.TemplateResponse(request, "computer_form.html", ctx)
 
 
 @router.post("/computers/{aid}/edit", include_in_schema=False)
-async def gui_save_computer(
-    aid: str, request: Request, db: Session = Depends(get_db)
-) -> RedirectResponse:
+async def gui_save_computer(aid: str, request: Request, db: Session = Depends(get_db)) -> Response:
     c = get_or_404(db, Computer, aid)
     form = await posted(request)
+    # Read before the form is written onto the row: what is on file is let off the
+    # shapes, and a refused form names the year on file rather than the one typed.
     old = {k: getattr(c, k) for k in COMPUTER_FIELDS}
+    errors = refusals(form, SHAPED, old)
     for k in COMPUTER_FIELDS:
         if k not in form:
             continue
@@ -477,6 +488,9 @@ async def gui_save_computer(
         add_log(db, aid, diff)
     locations.remember(db, c.location)
     _work_from_form(db, c, form)
+    if errors:
+        ctx = _computer_form_ctx(c, f"Edit {aid}", db) | {"year_hint": year_hint(old["year"])}
+        return refused(request, db, "computer_form.html", ctx, form, errors)
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 

@@ -322,6 +322,13 @@
     .site-header .hdr-scan { display: none; }
     .site-header .searchwrap { flex: 1 1 auto; }
     .site-header .search { width: 100%; }
+    /* The suggestions hang from the banner rather than from the box, and span it:
+       380px from the box's edge was wider than the room either side of it, and a
+       thumb takes a row more surely the wider it is. */
+    .site-header { position: relative; }
+    .site-header .searchwrap { position: static; }
+    .site-header .suggest { top: calc(100% + var(--space-1)); left: var(--space-2); right: var(--space-2);
+      width: auto; max-width: none; }
   }
   .stripe { --gutter: var(--space-6); position: relative; height: var(--stripe-h); background: var(--stripe-image); }
   /* The banner's flash stands directly above the panels' flashes: the column's right edge is
@@ -721,10 +728,14 @@
   .suggest .sg .tag { color: var(--text-muted); margin-right: var(--space-2); }
   .suggest .sg .sub { display: block; font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .suggest mark { color: var(--text); background: var(--warning-wash); border-radius: 2px; }
-  .suggest .all { display: block; margin: var(--space-2) var(--space-1) 0; padding: var(--space-2) var(--space-3) var(--space-1);
-    border-top: 1px solid var(--line); font-size: 13px; color: var(--accent); }
+  /* The way to every result: a row of its own, lit by the same marker as the rest,
+     and in `text` when lit for the same reason they are. */
+  .suggest .all { display: flex; align-items: center; margin: var(--space-2) 0 0; padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--line); border-radius: 0 0 var(--radius-sm) var(--radius-sm); font-size: 13px;
+    color: var(--accent); text-decoration: none; }
+  .suggest .all[aria-selected="true"] { background: var(--surface-hover); color: var(--text); }
   .suggest .none { padding: var(--space-3); font-size: 13px; color: var(--text-muted); }
-  @media (pointer: coarse) { .suggest .sg { min-height: var(--tap); } }
+  @media (pointer: coarse) { .suggest .sg, .suggest .all { min-height: var(--tap); } }
 
   /* ---- 14i. Photo upload ---------------------------------------------------
      Picking is the whole gesture: the upload starts at once. A row per photograph while it

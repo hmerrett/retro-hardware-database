@@ -893,6 +893,9 @@ function combobox(box, list, pick) {
 
   const MIN = 2;          // one letter matches most of the register: not a list
   const WAIT = 140;       // long enough that a typed word is one request, not six
+  // A phone offers four rather than ten, so the last row is still in sight above
+  // the keyboard. The width the banner's stylesheet calls a phone.
+  const PHONE = window.matchMedia('(max-width: 620px)');
   let timer = null, pending = null, rows = [], at = -1, last = null;
 
   function close() {
@@ -931,6 +934,14 @@ function combobox(box, list, pick) {
     box.focus();
   }
 
+  // A name or a tag as the server cut it: runs of text, the ones that are what
+  // was typed marked. Built as text nodes, so a run is never read as markup.
+  function marked(parent, runs) {
+    runs.forEach(function (r) {
+      parent.appendChild(r[1] ? el('mark', '', r[0]) : document.createTextNode(r[0]));
+    });
+  }
+
   function draw(data) {
     list.innerHTML = '';
     rows = []; at = -1;
@@ -940,46 +951,57 @@ function combobox(box, list, pick) {
       ? data.items.filter(function (it) { return /^\/(computers|parts)\//.test(it.url); })
       : data.items;
     if (!items.length) {
-      list.appendChild(el('div', 'sg-none none', 'Nothing matches that.'));
+      list.appendChild(el('div', 'none', 'Nothing matches "' + box.value.trim() + '".'));
+    }
+    // Choosing with the pointer moves the same marker the keys move, so what is
+    // lit is always what opens.
+    function offer(a) {
+      const i = rows.length;
+      a.setAttribute('role', 'option');
+      a.setAttribute('aria-selected', 'false');
+      a.addEventListener('mousemove', function () { highlight(i); });
+      list.appendChild(a);
+      rows.push(a);
     }
     items.forEach(function (it, i) {
       const a = el('a', 'sg');
       a.href = it.url;
       // Named for their own list: two of these can share a page.
       a.id = list.id + '-' + i;
-      a.setAttribute('role', 'option');
-      a.setAttribute('aria-selected', 'false');
       const img = el('img');
       img.src = it.img || it.icon;
       if (!it.img) img.className = 'ph';
       img.alt = '';
       img.loading = 'lazy';
       a.appendChild(img);
-      const t = el('div', 't');
-      t.appendChild(el('div', 'nm', it.name));
-      // What tells two similar boards apart at a glance, in the order you would
-      // read it out: the tag, what kind of thing it is, and when it is from.
-      const bits = [it.aid, it.cat];
+      const t = el('span', 't');
+      // The tag and the name on one line, what was typed marked in either.
+      const nm = el('span', 'nm');
+      const tag = el('span', 'tag');
+      marked(tag, it.runs.aid);
+      nm.appendChild(tag);
+      marked(nm, it.runs.name);
+      t.appendChild(nm);
+      // What tells two similar boards apart at a glance: what kind of thing it
+      // is, and when it is from.
+      const bits = [it.cat];
       if (it.year) bits.push(it.year);
       if (it.disposed) bits.push('disposed');
-      t.appendChild(el('div', 'sub', bits.join(' · ')));
+      t.appendChild(el('span', 'sub', bits.join(' · ')));
       a.appendChild(t);
-      // Choosing with the pointer moves the same marker the keys move, so what is
-      // lit is always what opens.
-      a.addEventListener('mousemove', function () { highlight(i); });
       if (pick) {
         a.dataset.aid = it.aid;
         a.addEventListener('click', function (e) { e.preventDefault(); choose(a); });
       }
-      list.appendChild(a);
-      rows.push(a);
+      offer(a);
     });
-    if (!pick && data.total > data.items.length) {
-      const more = el('a', 'sg-more',
-        'and ' + (data.total - data.items.length) + ' more — press Enter for all '
-        + data.total);
-      more.href = '/?q=' + encodeURIComponent(data.q);
-      list.appendChild(more);
+    // Always the last row, and one the arrows reach: Enter on it and Enter with
+    // nothing lit go to the same place. A pick box is choosing, not searching.
+    if (!pick && items.length) {
+      const all = el('a', 'all', data.all.text);
+      all.href = data.all.url;
+      all.id = list.id + '-all';
+      offer(all);
     }
     list.hidden = false;
     box.setAttribute('aria-expanded', 'true');
@@ -996,7 +1018,8 @@ function combobox(box, list, pick) {
     if (pending) pending.abort();
     const ctl = new AbortController();
     pending = ctl;
-    fetch('/suggest?q=' + encodeURIComponent(query), { signal: ctl.signal })
+    fetch('/suggest?q=' + encodeURIComponent(query) + (PHONE.matches ? '&limit=4' : ''),
+          { signal: ctl.signal })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (ctl !== pending || !data) return;
@@ -1290,6 +1313,24 @@ function combobox(box, list, pick) {
       out.textContent = n === 0 ? '' :
         n === 1 ? input.files[0].name : n + ' files chosen';
     });
+  });
+})();
+
+
+// A refused save comes back with what to fix at the top. Focus starts there, so a
+// screen reader reads it out on arrival and the Tab key goes on from it into the
+// form. Each line links to its box; following a fragment scrolls to a control but
+// leaves the focus where it was, so the link puts the focus in the box as well.
+(function () {
+  var sum = document.querySelector('.errsum');
+  if (!sum) return;
+  sum.focus();
+  sum.addEventListener('click', function (ev) {
+    var a = ev.target.closest('a[href^="#"]');
+    var to = a && document.getElementById(a.getAttribute('href').slice(1));
+    if (!to) return;
+    ev.preventDefault();
+    to.focus();
   });
 })();
 

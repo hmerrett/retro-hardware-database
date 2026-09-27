@@ -6,6 +6,7 @@ being free text. These turn one into the other, and work out what changed, so th
 the change log says "year: 1986 -> 1987" rather than that something was edited.
 """
 
+import re
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime
 from typing import overload
@@ -74,13 +75,107 @@ def _parse_date(raw: str | None) -> date | None:
 def _coerce(field: str, raw: str | None) -> str | int | bool | date | None:
     """A form string as the column's type: blank means not recorded."""
     if field in ("year", "topbench"):
-        v = (raw or "").strip()
-        return int(v) if v.isdigit() else None
+        return _number(field, raw)
     if field in ("acquired_date", "disposed_at", "started_at", "target_date", "finished_at"):
         return _parse_date(raw)
     if field == "disposed":
         return (raw or "").strip() not in ("", "0", "false")
     return raw or ""
+
+
+def _whole(v: str) -> bool:
+    """A whole number written in the digits int() reads. str.isdigit() alone also
+    says yes to superscripts, which int() then refuses -- a server error for a
+    typed "²"."""
+    return v.isascii() and v.isdigit()
+
+
+# How far each whole-number column reaches: year is a SMALLINT and topbench an INT.
+# A refused save still writes what was typed to the row, to draw the form back from
+# it, so a number past this was a server error rather than a refusal.
+_REACH = {"year": 2**15, "topbench": 2**31}
+
+
+def _number(field: str, raw: str | None) -> int | None:
+    """A whole number the column can hold, or None. The length is looked at first
+    because int() refuses a string of more than a few thousand digits outright.
+
+    A minus sign is read, though no box takes one as a new answer (_fits): a
+    negative number can be what is on file, and a box left holding it has to read
+    back as it rather than as blank."""
+    v = (raw or "").strip()
+    digits = v.removeprefix("-")
+    if not _whole(digits) or len(digits) > len(str(_REACH[field])):
+        return None
+    n = int(v)
+    return n if -_REACH[field] <= n < _REACH[field] else None
+
+
+# The boxes that take one shape of answer, each with what it says when given
+# another: what is wrong and what would do instead, with an example. Blank is never
+# the wrong shape; it means not recorded.
+SHAPES: dict[str, tuple[str, str]] = {
+    "year": ("Year", "Needs four digits, like 1988."),
+    "topbench": ("TopBench score", "Needs a whole number, like 104."),
+    "acquired_date": ("Acquired date", "Needs a date, like 14/03/1994."),
+    "started_at": ("Started", "Needs a date, like 14/03/2026."),
+    "target_date": ("Wanted by", "Needs a date, like 14/03/2026."),
+    "finished_at": ("Finished", "Needs a date, like 14/03/2026."),
+}
+
+# What stopped a save: the field, its label and the message, as U.error_summary
+# reads them.
+Refusal = tuple[str, str, str]
+
+
+def _in_full(year: int) -> bool:
+    """A year written out in full: 1988, and not 88 or 0088."""
+    return 1000 <= year <= 9999
+
+
+def _fits(field: str, v: str) -> bool:
+    if field == "year":
+        return re.fullmatch(r"[0-9]{4}", v) is not None and _in_full(int(v))
+    if field == "topbench":
+        return _whole(v) and _number(field, v) is not None
+    return _parse_date(v) is not None
+
+
+def refusals(
+    form: Posted, fields: Iterable[str], on_file: Mapping[str, object] | None = None
+) -> list[Refusal]:
+    """Each of `fields` the form carries with an answer in the wrong shape.
+
+    These used to be read as blank, and blank means not recorded -- so a mistyped
+    date on an edit cleared the one already on file, and nobody was told.
+
+    `on_file` is an edit's row as it stood before the form was written onto it. A
+    box still holding what is on file is let off, whatever its shape: the register
+    did not always ask for four digits, and the form puts an 85 back in the box it
+    came from, so every save of that item was refused until somebody noticed the
+    year. It is compared as the column would hold it, so 85, 085 and " 85" all leave
+    the 85 alone -- and what is written back is then exactly what was there."""
+    kept = on_file or {}
+    out: list[Refusal] = []
+    for f in fields:
+        v = (form.get(f, "") or "").strip()
+        if not v or _fits(f, v):
+            continue
+        if kept.get(f) is not None and _coerce(f, v) == kept[f]:
+            continue
+        label, message = SHAPES[f]
+        out.append((f, label, message))
+    return out
+
+
+def year_hint(year: int | None) -> str:
+    """What an edit form says under its Year box about the year on file: nothing,
+    unless it is not a year in full. Printed rather than put in a title, because it
+    asks for something (interface-text), and said on the form because that is where
+    it can be put right."""
+    if year is None or _in_full(year):
+        return ""
+    return f"On file as {year}. Type the year in full when you know it."
 
 
 def _field_diffs(
