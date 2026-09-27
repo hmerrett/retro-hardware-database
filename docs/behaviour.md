@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2223 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2754,12 +2754,16 @@ Regenerate with:
 
 ## Model pages
 
-*test_model_pages.py — 19 behaviours*
+*test_model_pages.py — 21 behaviours*
 
 
 **The list**
 
 - every name leads to its own page
+- a units page leads to its models page  
+  The other way to reach one: a machine and a bare board filed as the model both name it in their Machine panel, and the name is a link.
+- a model the catalogue has dropped is named and not linked  
+  What was recorded still shows, under the key it was filed as, but a link would lead to a page that is not found.
 - a model held is set heavier with its count
 - a model nothing is filed as carries no count
 - the paragraph is no longer folded into the list

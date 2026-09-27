@@ -480,6 +480,10 @@ def _machine_page(db: Session, obj: Computer | Part) -> dict[str, object] | None
         # name falls back to the key, so it cannot answer that.
         "key": v["model_key"],
         "model": (m["model"] if m else v["model_key"]),
+        # The way to the model's own page, but only while the catalogue has the
+        # model: a key it has since dropped is shown as recorded, and a link from it
+        # would lead to a page that is not found.
+        "href": f"/machines/{v['model_key']}" if m else "",
         "family": m["family"] if m else "",
         "year": m["year"] if m else None,
         # What the model is, where the catalogue has it written. Read from the
