@@ -2620,10 +2620,12 @@ somebody else's picture would be claiming it.
 **Preset** is the look the whole installation wears. Seven of them ship with the
 register: *Default*, *Breadbin*, *Rubber Key*, *Phosphor*, *Amber*, *Big Box
 Beige* and *Ninety-five*. The names are the hardware they are drawn from, and
-each one is a set of colours, corner radii, a shadow and three typefaces — and
-nothing else. **A preset never moves anything.** Every page keeps its layout,
-its columns and its breakpoints whichever one is chosen, so picking one is a
-change of dress and never a change of furniture.
+each one is a set of colours, corner radii, a border width, a shadow, three
+typefaces and at most one ornament — Breadbin's striped rule under the banner,
+Rubber Key's rainbow flash at the end of the banner's rule and of every panel's
+title band — and nothing else. **A preset never moves anything.** Every page
+keeps its layout, its columns and its breakpoints whichever one is chosen, so
+picking one is a change of dress and never a change of furniture.
 
 They are shown as a row of faces rather than as a menu, because the thing being
 chosen is a look and a list of words cannot show one. Each face is split down the
