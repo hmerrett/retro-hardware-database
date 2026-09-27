@@ -179,6 +179,17 @@ class TestAPartIsHeldToTheSameShapes:
         assert client.get(f"/api/parts/{aid}").json()["model"] == "Widget"
         assert f'action="/parts/{aid}/edit"' in r.text
 
+    def test_photographs_chosen_for_a_new_part_are_asked_for_again(self, client, db):
+        r = client.post(
+            "/parts/new",
+            data={"type": "other", "model": "Widget", "year": "85"},
+            files=[("photos", ("front.jpg", jpeg(), "image/jpeg"))],
+            follow_redirects=False,
+        )
+        assert r.status_code == 400
+        assert "Choose them again" in r.text
+        assert db.query(Part).count() == 0
+
     def test_a_storage_part_without_an_interface_comes_back_as_the_form(self, client, db):
         r = new_part(client, type="storage", kind="Hard disk", model="ST-225", spec_interface="")
         assert r.status_code == 400
