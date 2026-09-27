@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2223 behaviours, from 66 files.*
+*2237 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2960,7 +2960,7 @@ Regenerate with:
 
 ## Project form items
 
-*test_project_form_items.py — 21 behaviours*
+*test_project_form_items.py — 22 behaviours*
 
 
 **The list**
@@ -2970,6 +2970,8 @@ Regenerate with:
 - save is the forms default button  
   Enter in any box submits with the first submit button in the form.
 - the box offers suggestions as a combobox
+- the items box offers computers and parts only  
+  It reads the banner's list, which offers projects among what it matched and catalogue models beside them.
 
 **Adding before saving**
 
@@ -3443,7 +3445,7 @@ Regenerate with:
 
 ## Search suggestions
 
-*test_search_suggestions.py — 25 behaviours*
+*test_search_suggestions.py — 38 behaviours*
 
 
 **The match is marked**
@@ -3473,8 +3475,31 @@ Regenerate with:
   Enter with nothing lit submits the banner's form: a GET to / with the box as q.
 - it follows the button text setting  
   It is a control, so it speaks in the installation's voice.
-- nothing matching offers no rows  
-  The script says so in words when it is handed nothing.
+- nothing in either says so  
+  A word neither the collection nor the catalogue holds: no rows, no last row, and the words the list shows instead.
+
+**Models from the catalogue**
+
+- a model nobody owns is offered and opens its page
+- its row says none in this collection
+- a model you own says how many are here  
+  The count its page lists: machines and bare boards, disposed ones too.
+- a model has no asset tag
+- what was typed is marked in a models name
+- a model is found by one of its styles  
+  The name on the badge of the machine in front of you: the M24 was sold in the US as the AT&T 6300.
+- a model is not found by its cpu or its paragraph  
+  Neither is what the model is called, and either would offer the catalogue wholesale: dozens of its models were built round a 6502.
+- a name that starts with what was typed comes first  
+  The Osborne 1 is found by a style, the one in a tan case; the Tandons, the Tandys and the Tano Dragon are found by their names, and come before it.
+- models come after everything in the collection  
+  Into the room the collection leaves, and drawn below it.
+- a model never takes the place of something owned
+- the last row counts the collection alone
+- only the catalogue matching says nothing in the collection does  
+  And offers no last row: it would read "All 0 results", and open a page with nothing on it.
+- a visitor is offered models too  
+  The catalogue is public, and so is how many of each are here.
 
 **How many rows**
 

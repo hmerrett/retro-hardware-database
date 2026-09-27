@@ -343,7 +343,7 @@ class TestAClosedSite:
     """Visitors must log in."""
 
     @pytest.mark.parametrize(
-        "path", ["/", "/projects", "/files", "/machines", "/api/machines", "/stats"]
+        "path", ["/", "/projects", "/files", "/machines", "/api/machines", "/stats", "/suggest"]
     )
     def test_a_visitor_is_shown_the_login_and_nothing_else(self, client, path):
         close_the_site(client)

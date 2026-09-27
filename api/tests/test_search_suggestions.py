@@ -6,12 +6,15 @@ what was typed marked, and the words of the row that goes to every result. Both
 are the server's rather than the script's to work out -- the marking because only
 the server knows how a query splits into terms (a quoted phrase is one), and the
 last row because its words follow the Button text setting, which the script
-cannot read.
+cannot read. The catalogue's models come as a list of their own beside the
+collection's, with the words for when the collection has nothing to offer.
 """
 
 import re
 from pathlib import Path
 
+from app import machines
+from conftest import log_out, served
 from test_projects import make as make_project
 from test_settings import save
 
@@ -137,11 +140,123 @@ class TestTheWayToEveryResult:
         computer()
         assert suggest(client, "acme")["all"]["text"] == 'all 2 results for "acme"'
 
-    def test_nothing_matching_offers_no_rows(self, client, computer):
-        """The script says so in words when it is handed nothing."""
+    def test_nothing_in_either_says_so(self, client, computer):
+        """A word neither the collection nor the catalogue holds: no rows, no last
+        row, and the words the list shows instead."""
+        computer()
+        answer = suggest(client, "qqzzy")
+        assert answer["items"] == [] and answer["models"] == [] and answer["total"] == 0
+        assert answer["all"] is None
+        assert answer["none"] == 'Nothing matches "qqzzy".'
+
+
+def file_as(client, aid, key, kind="computers"):
+    client.patch(f"/api/{kind}/{aid}", json={"machine": {"model_key": key}})
+
+
+def names(models):
+    return [m["name"] for m in models]
+
+
+class TestModelsFromTheCatalogue:
+    """The second search: over the catalogue rather than the register, matched on
+    what a model's own page prints as its name and its styles, and given only the
+    room the collection leaves."""
+
+    def test_a_model_nobody_owns_is_offered_and_opens_its_page(self, client):
+        [zx81] = suggest(client, "zx81")["models"]
+        assert zx81["name"] == "Sinclair ZX81"
+        assert zx81["url"] == "/machines/zx81"
+        assert client.get(zx81["url"]).status_code == 200
+
+    def test_its_row_says_none_in_this_collection(self, client):
+        [zx81] = suggest(client, "zx81")["models"]
+        assert zx81["cat"] == "Model"
+        assert zx81["year"] == 1981
+        assert zx81["here"] == "none in this collection"
+
+    def test_a_model_you_own_says_how_many_are_here(self, client, computer, part):
+        """The count its page lists: machines and bare boards, disposed ones too."""
+        kept, gone = computer()["asset_id"], computer()["asset_id"]
+        board = part(type="motherboard")["asset_id"]
+        for aid in (kept, gone):
+            file_as(client, aid, "vic-20")
+        file_as(client, board, "vic-20", "parts")
+        client.post(f"/computers/{gone}/dispose", data={"note": "", "date": ""})
+        [vic] = [m for m in suggest(client, "vic-20")["models"] if m["url"] == "/machines/vic-20"]
+        assert vic["here"] == "3 in this collection"
+        page = client.get("/machines/vic-20").text
+        assert len(re.findall(r'<a class="result"', page)) == 3
+
+    def test_a_model_has_no_asset_tag(self, client):
+        [zx81] = suggest(client, "zx81")["models"]
+        assert "aid" not in zx81 and "aid" not in zx81["runs"]
+
+    def test_what_was_typed_is_marked_in_a_models_name(self, client):
+        [zx81] = suggest(client, "zx81")["models"]
+        assert zx81["runs"]["name"] == [["Sinclair ", False], ["ZX81", True]]
+
+    def test_a_model_is_found_by_one_of_its_styles(self, client):
+        """The name on the badge of the machine in front of you: the M24 was sold
+        in the US as the AT&T 6300."""
+        assert names(suggest(client, "at&t 6300")["models"]) == ["Olivetti M24"]
+
+    def test_a_model_is_not_found_by_its_cpu_or_its_paragraph(self, client):
+        """Neither is what the model is called, and either would offer the catalogue
+        wholesale: dozens of its models were built round a 6502."""
+        assert sum("6502" in m["cpu"] for m in machines.models()) > 10
+        assert suggest(client, "6502")["models"] == []
+        assert suggest(client, '"first computer of any kind"')["models"] == []
+
+    def test_a_name_that_starts_with_what_was_typed_comes_first(self, client):
+        """The Osborne 1 is found by a style, the one in a tan case; the Tandons, the
+        Tandys and the Tano Dragon are found by their names, and come before it."""
+        offered = names(suggest(client, "tan")["models"])
+        assert len(offered) == 10
+        assert all(n.lower().startswith("tan") for n in offered), offered
+
+    def test_models_come_after_everything_in_the_collection(self, client, computer):
+        """Into the room the collection leaves, and drawn below it."""
+        for _ in range(3):
+            computer(manufacturer="Tandon", model="PCA")
+        answer = client.get("/suggest", params={"q": "tandon", "limit": 4}).json()
+        assert len(answer["items"]) == 3
+        assert names(answer["models"]) == ["Tandon PAC 386SX"]
+        script = served(client, client.get("/").text)
+        assert "items.concat(models).forEach(" in script
+
+    def test_a_model_never_takes_the_place_of_something_owned(self, client, computer):
+        for _ in range(10):
+            computer(manufacturer="Tandon", model="PCA")
+        answer = suggest(client, "tandon")
+        assert len(answer["items"]) == 10 and answer["models"] == []
+        answer = client.get("/suggest", params={"q": "tandon", "limit": 4}).json()
+        assert len(answer["items"]) == 4 and answer["models"] == []
+
+    def test_the_last_row_counts_the_collection_alone(self, client, computer):
+        computer(manufacturer="Tandon", model="PCA")
+        computer(manufacturer="Tandon", model="PCX")
+        answer = suggest(client, "tandon")
+        assert len(answer["models"]) == 4
+        assert answer["total"] == 2
+        assert answer["all"]["text"] == 'All 2 results for "tandon"'
+
+    def test_only_the_catalogue_matching_says_nothing_in_the_collection_does(
+        self, client, computer
+    ):
+        """And offers no last row: it would read "All 0 results", and open a page
+        with nothing on it."""
         computer()
         answer = suggest(client, "zx81")
         assert answer["items"] == [] and answer["total"] == 0
+        assert names(answer["models"]) == ["Sinclair ZX81"]
+        assert answer["all"] is None
+        assert answer["none"] == 'Nothing in the collection matches "zx81".'
+
+    def test_a_visitor_is_offered_models_too(self, client):
+        """The catalogue is public, and so is how many of each are here."""
+        log_out(client)
+        assert names(suggest(client, "zx81")["models"]) == ["Sinclair ZX81"]
 
 
 class TestHowManyRows:

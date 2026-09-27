@@ -221,7 +221,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `ramdb.py` | mapping a computer's fitted memory between its child tables and plain counts |
 | `drivedb.py` | a machine's fitted removable-media drives: rows in, canonical string out |
 | `resync.py` | re-rendering the derived caches when something upstream changes |
-| `search.py` | the term parser, the "any field" haystack, the suggestion list, the `/browse` views |
+| `search.py` | the term parser, the "any field" haystack, the suggestion list and the catalogue models offered beside it, the `/browse` views |
 | `stats.py` | the figures and the pool of facts behind the public `/stats` page |
 | `projects.py` | projects: the work, as against the things it is done to |
 | `filesdb.py` | files kept beside the register, what each is attached to, and the bytes on disk |

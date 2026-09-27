@@ -741,6 +741,10 @@
     color: var(--accent); text-decoration: none; }
   .suggest .all[aria-selected="true"] { background: var(--surface-hover); color: var(--text); }
   .suggest .none { padding: var(--space-3); font-size: 13px; color: var(--text-muted); }
+  /* Under the catalogue's models, where only they matched: the words take the last
+     row's place, ruled off as it is. */
+  .suggest .sg + .none { margin-top: var(--space-2); padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--line); }
   @media (pointer: coarse) { .suggest .sg, .suggest .all { min-height: var(--tap); } }
 
   /* ---- 14i. Photo upload ---------------------------------------------------

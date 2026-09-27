@@ -1,7 +1,7 @@
 """Search over the register: the term parser and the "any field" haystack the
 search bar and the suggestion list both match against, the suggestion list
-itself, and the catalogue of /browse views that sit behind the figures on
-/stats.
+itself with the catalogue models offered in the room it leaves, and the catalogue
+of /browse views that sit behind the figures on /stats.
 
 Lifted out of main.py. Pure logic over rows the caller has already loaded plus
 the queries a view needs to name its asset ids; the /, /suggest, /browse and
@@ -404,6 +404,77 @@ def _suggest(
             }
         )
     return out, len(hits)
+
+
+def _model_tier(name: str, raw: str) -> int:
+    """_suggest_tier's order for a catalogue model: its name starting with what was
+    typed, then its name holding it somewhere, then a model found by a style."""
+    low = name.lower()
+    if low.startswith(raw):
+        return 0
+    return 1 if raw in low else 2
+
+
+def _suggest_models(db: Session, query: str | None, room: int) -> list[dict[str, object]]:
+    """The catalogue models a half-typed query names, as many as fit in the room the
+    collection has left in the list.
+
+    A second search rather than more of the first: over machines.yaml and not the
+    register, so a machine nobody here owns still reaches its page. Matched on what
+    the model's own page prints as what it is called -- its name and its styles,
+    the second being the badge a machine was sold under elsewhere. The CPU and the
+    paragraph are on that page too, but they describe the model rather than name it,
+    and a search on them offers the catalogue wholesale: about a quarter of its
+    models have a Z80.
+
+    Whoever is asking, since the catalogue is public, and so is how many of each
+    are here: /machines counts them from the same table."""
+    terms = search_terms(query)
+    if not terms or room < 1:
+        return []
+    raw = " ".join((query or "").lower().split())
+    # Joined by newline, as _haystack's fields are, so a quoted phrase cannot match
+    # across the seam between the name and a style.
+    found = [
+        m
+        for m in machines.models()
+        if all(t in "\n".join([m["full_name"], *m["styles"]]).lower() for t in terms)
+    ]
+    # Stable, so a band keeps the catalogue's own order: by maker, then as the
+    # family lists its models.
+    found.sort(key=lambda m: _model_tier(m["full_name"], raw))
+    shown = found[:room]
+    if not shown:
+        return []
+    held = dict(
+        db.query(AssetVariant.model_key, func.count())
+        .filter(AssetVariant.model_key.in_([m["key"] for m in shown]))
+        .group_by(AssetVariant.model_key)
+        .tuples()
+        .all()
+    )
+    # Every model in the catalogue is a machine -- a computer, a console, a branded
+    # PC -- so every one is drawn as a computer's placeholder. None has a photograph:
+    # the ones here are photographed on their own pages, as themselves.
+    icon = f"/static/{entry.placeholder_for('computer')}"
+    return [
+        {
+            "url": f"/machines/{m['key']}",
+            "name": m["full_name"],
+            "cat": "Model",
+            "year": m["year"] or "",
+            "here": (
+                f"{held[m['key']]} in this collection"
+                if held.get(m["key"])
+                else "none in this collection"
+            ),
+            "img": "",
+            "icon": icon,
+            # A name and no tag: a model is not something in the collection.
+            "runs": {"name": _runs(m["full_name"], terms)},
+        }
+        for m in shown
+    ]
 
 
 # --- GUI: browse, the items behind a figure on /stats -----------------------
