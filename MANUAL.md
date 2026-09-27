@@ -439,7 +439,9 @@ older URL still work, because only the asset tag is taken from the code.
 At the top is the item's name, its asset tag under it, and the summary — the
 prose description, if one is written. Above that, a link back to the whole
 register and the **Prev** and **Next** buttons; when logged in, **Edit** and
-**Duplicate** sit beside them.
+**Duplicate** sit beside them. A part fitted in a machine has a second link beside
+the first, back to that machine by its tag; a part mounted on another part, a
+drive on its controller card, has one back to that part.
 
 The rest is a stack of panels — each section in a box with its title on a band
 across the top.

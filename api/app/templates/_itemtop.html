@@ -7,8 +7,14 @@
 {% import "_ui.html" as U with context %}
 {% set authed = request.state.authed %}
 {% set name = display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) %}
+{#- A part's way back to what it is in: the machine it is fitted in, or else the part
+    it is mounted on (a drive on its controller). By tag, with the name in a title. -#}
+{% set up = (parent and ('/computers/' ~ parent.asset_id, parent))
+            or (host and ('/parts/' ~ host.asset_id, host)) if kind == 'parts' else none %}
 {% call U.itemnav('/', 'All', '', nav.prev.url if nav.prev else '', nav.next.url if nav.next else '',
-                  nav.prev.name if nav.prev else '', nav.next.name if nav.next else '', keep=true) %}
+                  nav.prev.name if nav.prev else '', nav.next.name if nav.next else '', keep=true,
+                  up_href=up[0] if up else '', up_label=up[1].asset_id if up else '',
+                  up_title=display_name({'name': up[1].name, 'manufacturer': up[1].manufacturer, 'model': up[1].model, 'asset_id': up[1].asset_id}) if up else '') %}
 {#- Beside Prev and Next, where a thumb that has learnt them finds them, and small:
     the page is read far more often than it is changed. -#}
 {%- if authed -%}

@@ -207,3 +207,34 @@ class TestTakeOutOnTheLists:
         part(computer_id=cid)
         visitor(client)
         assert "Take out" not in client.get(f"/computers/{cid}").text
+
+
+def ways_back(html):
+    """The links at the left of an item page's top row, before the spacer that pushes
+    the owner's actions and Prev and Next to the right: the ways back."""
+    nav = re.search(r'<nav class="itemnav".*?</nav>', html, re.S)[0]
+    return re.findall(r'href="([^"]*)"', nav.split('<span class="push">')[0])
+
+
+class TestTheWayBackToWhatAPartIsIn:
+    """v0.1's part page had "← all · ← RH-…" to the machine the part is in; v0.2's
+    shared item top kept only the first, and a part reached from its machine had no
+    way back to it but the browser's."""
+
+    def test_a_part_in_a_machine_leads_back_to_it(self, client, computer, part):
+        cid = computer(model="PC1512")["asset_id"]
+        pid = part(type="sound", computer_id=cid)["asset_id"]
+        assert ways_back(client.get(f"/parts/{pid}").text) == ["/", f"/computers/{cid}"]
+
+    def test_a_part_on_another_part_leads_back_to_that_part(self, client, part):
+        host = part(type="io", model="Controller")["asset_id"]
+        pid = part(type="storage", model="ST-225", parent_id=host)["asset_id"]
+        assert ways_back(client.get(f"/parts/{pid}").text) == ["/", f"/parts/{host}"]
+
+    def test_a_part_on_its_own_and_a_machine_have_only_the_way_back_to_the_register(
+        self, client, computer, part
+    ):
+        pid = part(type="sound")["asset_id"]
+        cid = computer()["asset_id"]
+        assert ways_back(client.get(f"/parts/{pid}").text) == ["/"]
+        assert ways_back(client.get(f"/computers/{cid}").text) == ["/"]

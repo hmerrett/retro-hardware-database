@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2251 behaviours, from 68 files.*
+*2254 behaviours, from 68 files.*
 
 
 ## A file where text was expected
@@ -2154,7 +2154,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 20 behaviours*
+*test_item_pages.py — 23 behaviours*
 
 
 **The head**
@@ -2195,6 +2195,12 @@ Regenerate with:
 - a machines parts each offer take out
 - a cards mounted parts each offer take out
 - a visitor is offered neither
+
+**The way back to what A part is in**
+
+- a part in a machine leads back to it
+- a part on another part leads back to that part
+- a part on its own and a machine have only the way back to the register
 
 
 ## Keyboard and motion
