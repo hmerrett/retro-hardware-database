@@ -155,9 +155,9 @@
 
    The headings are the table's first row, not a <thead>: the stacking rule hides
    tr:first-child, and under a <thead> that would be the first row of data too. #}
-{% macro table(cols, rows, mode='stack') -%}
+{% macro table(cols, rows, mode='stack', cls='') -%}
 {%- set t -%}
-<table class="table{{ ' stack' if mode == 'stack' else '' }}"><tr>
+<table class="table{{ ' stack' if mode == 'stack' else '' }}{{ ' ' ~ cls if cls }}"><tr>
 {%- for heading, c in cols %}<th scope="col"{% if c %} class="{{ c }}"{% endif %}>{{ heading }}</th>{% endfor -%}
 </tr>
 {%- for row in rows %}<tr>

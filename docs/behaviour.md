@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2262 behaviours, from 68 files.*
+*2274 behaviours, from 69 files.*
 
 
 ## A file where text was expected
@@ -2114,6 +2114,24 @@ Regenerate with:
 
 - prev and next are handed every page of the list
 - each is handed over under the name on its card
+
+
+## Gallery table
+
+*test_gallery_table.py — 12 behaviours*
+
+- the switch offers tiles and a table as links carrying the view
+- the table holds the same items in the same order
+- a table page holds a hundred rows
+- a row leads to the item by its tag and its name
+- a row s picture is decoration beside its name
+- a disposed item says so in its row
+- where it is is the owner s and a fitted part says whose
+- a visitor is shown where only while show locations is on
+- the choice is remembered and a link outranks it
+- nothing is stored until the choice is made
+- every page that is browse offers the table
+- the notice names every choice the site keeps
 
 
 ## Healthz

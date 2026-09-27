@@ -65,12 +65,16 @@ COOKIE = "rhdb_session"
 # written until the choice is made, so arriving and reading stores nothing at all --
 # which is what the notice at the foot of the page is able to say.
 SORT_COOKIE = "rhdb_sort"
+# Tiles or a table on the gallery, the same kind of choice as the sort. Written by the
+# server when a link picks one, so it works with no script, and not before.
+LAYOUT_COOKIE = "rhdb_layout"
 # That the notice has been read. Set only by dismissing it, and strictly necessary in
 # the plain sense: without it the notice cannot stay dismissed.
 NOTICE_COOKIE = "rhdb_noticed"
 # The names, so the script that writes them and the notice that describes them cannot
 # come to disagree with the code that reads them.
 templates.env.globals["sort_cookie"] = SORT_COOKIE
+templates.env.globals["layout_cookie"] = LAYOUT_COOKIE
 templates.env.globals["notice_cookie"] = NOTICE_COOKIE
 SESSION_MAX_AGE = int(store.SESSION_LIFE.total_seconds())
 

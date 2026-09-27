@@ -107,6 +107,7 @@
     .btn, .input, .select { font-size: 16px; min-height: var(--tap); }
     .formsections a { display: inline-flex; align-items: center; min-height: var(--tap); }
     nav.tabs a { display: inline-flex; align-items: center; min-height: var(--tap); }
+    .viewswitch a { display: inline-flex; align-items: center; min-height: var(--tap); }
     .btn.sm { font-size: 16px; min-height: 36px; }
     .check input { width: 22px; height: 22px; }
   }
@@ -154,6 +155,19 @@
   .kv.log.timed dt { flex-basis: 16.5ch; }
   /* A note is written in lines, and a table cell or a list value does not show them. */
   .kv dd.lines { white-space: pre-line; }
+
+  /* Tiles or a table on the gallery: two links drawn as one control, the one in force
+     pressed in -- a ground and weight, not colour alone. And the table's rows: a small
+     picture beside the tag and the name, cropped to the card's 4:3. */
+  .viewswitch { display: inline-flex; border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-sm);
+    overflow: hidden; }
+  .viewswitch a { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-3); color: var(--text);
+    text-decoration: none; font-size: 13px; }
+  .viewswitch a + a { border-left: var(--border-w) solid var(--line-strong); }
+  .viewswitch a[aria-current="page"] { background: var(--surface-sunken); font-weight: 600; }
+  .gallerytable .rowthumb { display: block; width: 48px; height: 36px; object-fit: cover; border-radius: var(--radius-xs); }
+  .gallerytable .rowthumb.ph { object-fit: contain; }
+  .gallerytable th.thumbcell, .gallerytable td.thumbcell { width: 48px; }
 
   /* ---- 8. Card (gallery tile) --------------------------------------------- */
   .grid { display: grid; gap: var(--space-5);

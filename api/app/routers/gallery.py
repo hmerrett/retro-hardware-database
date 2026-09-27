@@ -18,8 +18,8 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, projects, settings, specdb
-from ..auth import SORT_COOKIE
+from .. import cards, entry, locations, projects, settings, specdb
+from ..auth import LAYOUT_COOKIE, SORT_COOKIE
 from ..common import folder_images, to_dict
 from ..db import get_db
 from ..models import Computer, LogEntry, Part
@@ -162,6 +162,12 @@ def _cats_for(rows: list[Card]) -> list[tuple[str, str]]:
 
 # Two, three and four across all fill their last row.
 PAGE_SIZE = 48
+# A table's rows are a fifth the height of a card, so its page holds about three
+# screens of them: most of a collection in one go, for running an eye down.
+TABLE_PAGE_SIZE = 100
+LAYOUTS = ("tiles", "table")
+# As long as the rail's fold and the sort are kept.
+LAYOUT_KEEP = 60 * 60 * 24 * 365
 
 
 def _photo_first(r: Card) -> int:
@@ -247,6 +253,7 @@ def _grid_page(
     rows: list[Card],
     show_disposed: bool = False,
     keep: dict[str, str] | None = None,
+    db: Session | None = None,
     **extra: object,
 ) -> HTMLResponse:
     """Render one page of the card grid, in the view the query string names.
@@ -276,12 +283,17 @@ def _grid_page(
     # pager link, says. Arriving at the bare page takes the page's own default.
     if "disposed" in qp or "sort" in qp:
         show_disposed = qp.get("disposed") == "1"
+    # Tiles or a table: the link's word first, then the one kept, then tiles.
+    layout = qp.get("layout") or request.cookies.get(LAYOUT_COOKIE, "")
+    if layout not in LAYOUTS:
+        layout = "tiles"
+    size = TABLE_PAGE_SIZE if layout == "table" else PAGE_SIZE
 
     shown = [
         r for r in rows if (not cat or r["cat"] == cat) and (show_disposed or not r["obj"].disposed)
     ]
     shown = order(shown, sort, deal)
-    pages = max(1, -(-len(shown) // PAGE_SIZE))
+    pages = max(1, -(-len(shown) // size))
     try:
         page = min(max(1, int(qp.get("page", "1"))), pages)
     except ValueError:
@@ -290,12 +302,27 @@ def _grid_page(
     view = {**keep, "cat": cat, "sort": sort, "disposed": "1" if show_disposed else "0"}
     if sort == "random":
         view["deal"] = str(deal)
+    view["layout"] = layout
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
-    return templates.TemplateResponse(
+    on_page = shown[(page - 1) * size : page * size]
+    # Where it is, in the table, under the item pages' rule: the owner always, a
+    # visitor only while Show locations is on; a fitted part with no answer of its own
+    # shows the one it inherits, and whose it is.
+    show_location = layout == "table" and (
+        request.state.sees_private or settings.on("public_locations")
+    )
+    placed = locations.inherited(db) if show_location and db is not None else {}
+    response = templates.TemplateResponse(
         request,
         "index.html",
         {
-            "rows": shown[(page - 1) * PAGE_SIZE : page * PAGE_SIZE],
+            "rows": on_page,
+            "layout": layout,
+            "layout_hrefs": {
+                k: f"{request.url.path}?{urlencode({**view, 'layout': k})}" for k in LAYOUTS
+            },
+            "show_location": show_location,
+            "placed": placed,
             "cats": cats,
             "n_computers": n_computers,
             "n_parts": len(rows) - n_computers,
@@ -321,6 +348,17 @@ def _grid_page(
             **extra,
         },
     )
+    # Kept only when a link has just chosen, so arriving and reading stores nothing.
+    if qp.get("layout") in LAYOUTS:
+        response.set_cookie(
+            LAYOUT_COOKIE,
+            layout,
+            max_age=LAYOUT_KEEP,
+            httponly=True,
+            samesite="lax",
+            secure=request.headers.get("x-forwarded-proto") == "https",
+        )
+    return response
 
 
 @router.get("/suggest", include_in_schema=False)
@@ -372,6 +410,7 @@ def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> H
         request,
         rows,
         keep={"q": q} if q.strip() else None,
+        db=db,
         q=q,
         searched=bool(q.strip()),
         total=total,
@@ -416,6 +455,7 @@ def gui_for_sale(request: Request, db: Session = Depends(get_db)) -> HTMLRespons
     return _grid_page(
         request,
         rows,
+        db=db,
         heading="Might sell",
         note="things flagged as ones that could go — nobody else sees this",
         # Disposed items are shown: something on its way out can be both, and a
@@ -442,6 +482,7 @@ def gui_browse(
         request,
         rows,
         keep={"f": f, "v": v},
+        db=db,
         heading=heading,
         note=note,
         crumb=crumb,

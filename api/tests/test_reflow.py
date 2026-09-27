@@ -115,6 +115,8 @@ def furnished(client, computer, part):
 def pages(ids):
     return [
         "/",
+        # The gallery as a table: six columns, so it has to stack on a phone.
+        "/?layout=table",
         "/files",
         "/projects",
         "/machines",
