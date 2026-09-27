@@ -286,21 +286,28 @@
   .bars .n { font-family: var(--font-data); text-align: right; color: var(--text-muted); }
 
   /* ---- 13. Site header, stripe, tab bar ----------------------------------- */
-  .site-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
+  /* One row at every width, as navigation.md draws it. Wrapping let each item keep its
+     own width, which with the sections showing came to 1041px, so below that the menu
+     dropped to a second row at the left and opened off the edge. Short of room now, the
+     search box narrows first, to a floor it is still usable at; the name's shrink is
+     token-small, so it gives way only once the box is at that floor, and is cut short
+     rather than the logo. */
+  .site-header { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-3) var(--space-5);
     padding: var(--space-4) var(--space-6); border-bottom: var(--border-w) solid var(--line); }
   .site-header .brand { display: inline-flex; align-items: center; gap: var(--space-3); font-weight: 600;
-    color: var(--text); text-decoration: none; }
+    color: var(--text); text-decoration: none; min-width: 0; flex-shrink: 0.001; }
+  .site-header .brand span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .site-header .mark { width: 34px; height: 28px; background: var(--surface-sunken);
     border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-xs); }
   .site-header nav { display: flex; gap: var(--space-5); }
   .site-header nav a { text-decoration: none; }
   .site-header nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
   .site-header .grow { flex: 1; }
-  .site-header .search { width: 230px; }
+  .site-header .search { width: 100%; }
   /* Sized by height: the logo is not square, and height is what the banner's other
      items are measured against. An installation's own logo keeps its proportions. */
-  .site-header .brand img { display: block; width: auto; height: 34px; }
-  .site-header .searchwrap { display: flex; min-width: 0; }
+  .site-header .brand img { display: block; width: auto; height: 34px; flex: none; }
+  .site-header .searchwrap { display: flex; flex: 0 1 230px; min-width: 160px; }
   .site-header .menu > summary { min-height: var(--control-h); }
   /* The no-login notice stands under the banner, inside its gutters. */
   #openwarn { margin: var(--space-4) var(--space-6); }

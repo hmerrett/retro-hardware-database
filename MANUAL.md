@@ -185,8 +185,9 @@ search box in the middle, and what you can do on the right.
   the page.
 
 On a tablet, or a desktop window narrower than about 900px, the five sections
-move into the **☰** menu, at its top, so the banner stays on one line rather than
-wrapping the search box onto a second.
+move into the **☰** menu, at its top. The banner stays on one line at every width:
+where it is short of room the search box narrows first, and then a long name is
+cut short, while the logo stays.
 
 Wherever the places are listed — the banner, the **☰** menu, the phone's **More**
 and the rail ([Where the sections sit](#where-the-sections-sit)) — no more than one

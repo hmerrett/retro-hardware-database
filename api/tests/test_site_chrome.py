@@ -210,3 +210,40 @@ class TestHowItFoldsWithTheWidth:
     def test_the_bar_sits_above_the_home_indicator(self):
         phone = media("(max-width: 620px)", stylesheet())
         assert "safe-area-inset-bottom" in rule(".tabbar", phone)
+
+
+def declared(selector: str) -> dict[str, str]:
+    """What components.css states for `selector` outside any @media block, all of
+    that selector's rules together."""
+    text = re.sub(r"/\*.*?\*/", "", COMPONENTS.read_text(encoding="utf-8"), flags=re.S)
+    bodies = re.findall(rf"^  {re.escape(selector)} \{{([^}}]*)\}}", text, re.M)
+    assert bodies, f"components.css has no rule for {selector}"
+    return dict(re.findall(r"([\w-]+)\s*:\s*([^;]+?)\s*;", " ".join(bodies)))
+
+
+class TestTheBannerStaysOneRow:
+    """The banner wrapped: its items kept their own widths, 1041px of them with the
+    sections showing, so below that the menu dropped to a second row at the left and
+    opened off the window's edge. The design keeps it one row, and so does the
+    manual."""
+
+    def test_the_banner_never_wraps(self):
+        assert declared(".site-header")["flex-wrap"] == "nowrap"
+
+    def test_the_search_box_gives_way_first_down_to_a_floor(self):
+        wrap = declared(".site-header .searchwrap")
+        assert wrap["flex"] == "0 1 230px"
+        assert int(wrap["min-width"].removesuffix("px")) >= 160
+        assert declared(".site-header .search")["width"] == "100%"
+
+    def test_then_a_long_name_is_cut_short_and_the_logo_stays(self):
+        brand = declared(".site-header .brand")
+        assert brand["min-width"] == "0"
+        assert float(brand["flex-shrink"]) < 0.01, "the name would give way with the box"
+        name = declared(".site-header .brand span")
+        assert (name["overflow"], name["text-overflow"], name["white-space"]) == (
+            "hidden",
+            "ellipsis",
+            "nowrap",
+        )
+        assert declared(".site-header .brand img")["flex"] == "none"

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2224 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3714,7 +3714,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 16 behaviours*
+*test_site_chrome.py — 19 behaviours*
 
 
 **The banner**
@@ -3747,6 +3747,12 @@ Regenerate with:
 - on a phone the bar takes over and scan goes with it
 - the bar is nowhere but a phone
 - the bar sits above the home indicator
+
+**The banner stays one row**
+
+- the banner never wraps
+- the search box gives way first down to a floor
+- then a long name is cut short and the logo stays
 
 
 ## Specstruct
