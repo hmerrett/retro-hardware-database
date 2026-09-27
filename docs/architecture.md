@@ -430,6 +430,7 @@ it was weighed against, and what it costs.
 | 0030 | A PDF is read in the browser, and everything else is still a download |
 | 0031 | The look is a design system, and its values are data |
 | 0032 | Accounts, roles, and a site to hold them |
+| 0033 | The traffic report runs in a sandbox of its own |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

@@ -64,6 +64,9 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md)*
 - [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md) —
   The Content-Security-Policy is the app's, and the suite holds it — *Accepted*
+  (amended by [0030](0030-a-pdf-is-read-in-the-browser.md) and
+  [0033](0033-the-traffic-report-runs-in-a-sandbox-of-its-own.md), each for one
+  response with a policy of its own)
 - [0022](0022-no-style-attribute-and-the-rules-that-are-data-are-generated.md) —
   No style attribute, and the rules whose values are data are generated —
   *Accepted*
@@ -92,3 +95,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0032](0032-accounts-roles-and-a-site-to-hold-them.md) — Accounts, roles, and a
   site to hold them — *Accepted* (supersedes
   [0019](0019-running-open-is-supported-but-never-silent.md))
+- [0033](0033-the-traffic-report-runs-in-a-sandbox-of-its-own.md) — The traffic
+  report runs in a sandbox of its own — *Accepted* (amends
+  [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md))
