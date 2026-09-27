@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2223 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2186,7 +2186,7 @@ Regenerate with:
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 12 behaviours*
+*test_keyboard_and_motion.py — 14 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -2206,6 +2206,10 @@ Regenerate with:
   The notice is fixed above the bar and is taller than it -- 167px on a 320px screen, where the text wraps to five lines.
 - the login boxes say what they are for  
   A password manager fills a form it can read: `autocomplete="username"` and `current-password` are what tell it which entry this is and which box the password goes in.
+- a tooltip is not a name  
+  A `title` is not shown on a touchscreen, not reached by the Tab key and not read out by every screen reader, so a control it alone names is unnamed (interface-text).
+- a glyph is not a buttons words  
+  Read out, `⟲` is a character's name or nothing.
 - every control says what it is  
   A control with no name is read out as "edit text, blank" and nothing else, which on the drives grid was eight of them to a row.
 - every image says what it is or says it is decoration  
