@@ -257,6 +257,21 @@ class TestHowItIsPainted:
         assert grounds == dict.fromkeys((".shell.side > .rail", ".tabbar"), "var(--surface-nav)")
         assert "surface-nav" in PALETTES["keys"], "every look has to state the ground"
 
+    def test_a_rule_stands_between_the_navigation_and_the_page(self):
+        """Where a look stands its navigation on the page's own colour -- Default
+        light's white, the 128K screen's grey, the desktop's grey, the paper -- the rule
+        is all that tells the rail from the page beside it and the bar from the page
+        scrolling under it. Elsewhere the ground's lift does some of that work, so a
+        rule taken off would be missed in only a handful of looks, and not by whoever
+        took it off."""
+        sides = ((".shell.side > .rail", "border-right"), (".tabbar", "border-top"))
+        edges = {
+            (selector, prop): value
+            for selector, prop, value in _rules()
+            if (selector, prop) in sides
+        }
+        assert edges == dict.fromkeys(sides, "var(--border-w) solid var(--line)")
+
     @pytest.mark.parametrize("part", ["svg", ".n", ".tag"])
     def test_a_row_under_the_pointer_is_written_in_text(self, part):
         """The hover ground is one only `text` is written on: the design turns

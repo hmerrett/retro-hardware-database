@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2223 behaviours, from 66 files.*
+*2224 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2801,7 +2801,7 @@ Regenerate with:
 
 ## Navigation
 
-*test_navigation.py — 30 behaviours*
+*test_navigation.py — 31 behaviours*
 
 
 **Which layout**
@@ -2869,6 +2869,8 @@ Regenerate with:
 
 - the rail and the tab bar stand on the navigation s ground  
   The navigation has a ground of its own, which every look states in light and in dark.
+- a rule stands between the navigation and the page  
+  Where a look stands its navigation on the page's own colour -- Default light's white, the 128K screen's grey, the desktop's grey, the paper -- the rule is all that tells the rail from the page beside it and the bar from the page scrolling under it.
 - a row under the pointer is written in text  
   The hover ground is one only `text` is written on: the design turns everything on a hovered row to it, as the search suggestions do.
 
