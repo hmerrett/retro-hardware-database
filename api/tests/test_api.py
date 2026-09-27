@@ -15,6 +15,7 @@ from typing import ClassVar
 import pytest
 
 from app import main, schemas
+from app.models import Computer, Part
 from conftest import content, log_out, served, sign_in
 
 
@@ -26,6 +27,66 @@ class TestTypedColumns:
     def test_a_year_that_is_not_a_number_is_refused(self, client):
         r = client.post("/api/computers", json={"model": "X", "year": "notayear"})
         assert r.status_code == 422
+
+    @pytest.mark.parametrize("bad", [85, 0, -1988, 19888, 99999])
+    def test_a_year_that_is_not_a_year_in_full_is_refused(self, client, db, bad):
+        r = client.post("/api/computers", json={"model": "X", "year": bad})
+        assert r.status_code == 422
+        assert db.query(Computer).count() == 0
+
+    def test_a_part_is_held_to_the_same(self, client, db):
+        assert client.post("/api/parts", json={"model": "X", "year": 85}).status_code == 422
+        assert db.query(Part).count() == 0
+
+    def test_a_patch_is_held_to_the_same(self, client, computer):
+        aid = computer(year=1988)["asset_id"]
+        assert client.patch(f"/api/computers/{aid}", json={"year": 86}).status_code == 422
+        assert client.get(f"/api/computers/{aid}").json()["year"] == 1988
+
+    @pytest.mark.parametrize("bad", [-1, 2**31, 99999999999])
+    def test_a_topbench_score_the_column_cannot_hold_is_refused(self, client, db, bad):
+        r = client.post("/api/computers", json={"model": "X", "topbench": bad})
+        assert r.status_code == 422
+        assert db.query(Computer).count() == 0
+
+    def test_null_still_means_not_recorded(self, client, computer):
+        aid = computer(year=1988)["asset_id"]
+        assert client.post("/api/computers", json={"model": "X", "year": None}).status_code == 200
+        assert client.patch(f"/api/computers/{aid}", json={"year": None}).status_code == 200
+        assert client.get(f"/api/computers/{aid}").json()["year"] is None
+
+    def test_an_item_with_a_short_year_on_file_still_reads_back(self, client, db, computer, part):
+        cid, pid = computer()["asset_id"], part()["asset_id"]
+        db.get(Computer, cid).year = 85
+        db.get(Computer, cid).topbench = -3
+        db.get(Part, pid).year = 5
+        db.commit()
+        assert client.get(f"/api/computers/{cid}").json()["year"] == 85
+        assert client.get("/api/computers").status_code == 200
+        assert client.get(f"/api/parts/{pid}").json()["year"] == 5
+        assert client.get("/api/parts").status_code == 200
+
+    def test_a_patch_that_leaves_the_year_out_leaves_a_short_one_alone(self, client, db, computer):
+        aid = computer()["asset_id"]
+        db.get(Computer, aid).year = 85
+        db.commit()
+        assert client.patch(f"/api/computers/{aid}", json={"model": "Y"}).status_code == 200
+        assert client.get(f"/api/computers/{aid}").json()["year"] == 85
+
+    def test_a_patch_can_correct_it(self, client, db, computer):
+        aid = computer()["asset_id"]
+        db.get(Computer, aid).year = 85
+        db.commit()
+        assert client.patch(f"/api/computers/{aid}", json={"year": 1985}).status_code == 200
+        assert client.get(f"/api/computers/{aid}").json()["year"] == 1985
+
+    def test_a_patch_that_re_sends_an_unchanged_short_year_is_refused(self, client, db, computer):
+        """Accepted, not guarded: a PATCH sends only what it names, so a caller leaves
+        the year out to leave it alone. Held here so it stays a decision."""
+        aid = computer()["asset_id"]
+        db.get(Computer, aid).year = 85
+        db.commit()
+        assert client.patch(f"/api/computers/{aid}", json={"year": 85}).status_code == 422
 
     def test_a_date_that_is_not_a_date_is_refused(self, client):
         r = client.post("/api/computers", json={"model": "X", "acquired_date": "soon"})

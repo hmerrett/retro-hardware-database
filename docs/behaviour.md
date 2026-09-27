@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2230 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -335,13 +335,23 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 548 behaviours*
+*test_api.py — 557 behaviours*
 
 
 **Typed columns**
 
 - year and date come back typed
 - a year that is not a number is refused
+- a year that is not a year in full is refused
+- a part is held to the same
+- a patch is held to the same
+- a topbench score the column cannot hold is refused
+- null still means not recorded
+- an item with a short year on file still reads back
+- a patch that leaves the year out leaves a short one alone
+- a patch can correct it
+- a patch that re sends an unchanged short year is refused  
+  Accepted, not guarded: a PATCH sends only what it names, so a caller leaves the year out to leave it alone.
 - a date that is not a date is refused
 - not recorded is null not zero
 - creating from the form with both blank  

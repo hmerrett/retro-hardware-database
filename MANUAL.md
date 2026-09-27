@@ -2856,6 +2856,13 @@ schema is at `/openapi.json`.
 
 `PATCH` changes only the fields you send.
 
+A year is a year in full, `1000` to `9999`, or `null` for not recorded, as on the
+forms ([when a save is refused](#when-a-save-is-refused)), and a TopBench score is
+a whole number. Anything else is refused with `422`, and nothing is written. A
+record saved with a short year before the register asked for four digits still
+reads back as it was: leave `year` out of a `PATCH` to leave it alone, or send the
+year in full to correct it.
+
 A catalogue identity is the one nested shape, because it is not a string. Its
 `machine` object takes `model_key`, `issue`, `style`, `region` and `chips` (a
 `{role: variant}` map). Omitting it leaves the existing identity alone; sending
@@ -2926,7 +2933,8 @@ for it — an administrator's, if it is to write — put it there, and restart t
 `mcp` service. Until it has one it falls back to `RHDB_AUTH_USER` and
 `RHDB_AUTH_PASSWORD` over HTTP Basic, which keeps an upgraded installation working
 on its first start. `create_*` assigns the next asset tag;
-`update_*` changes only the fields you pass.
+`update_*` changes only the fields you pass. A year is a year in full, as the API
+asks.
 
 ---
 

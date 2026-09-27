@@ -233,6 +233,8 @@
           "topbench": {
             "anyOf": [
               {
+                "exclusiveMaximum": 2147483648.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -259,6 +261,8 @@
           "year": {
             "anyOf": [
               {
+                "maximum": 9999.0,
+                "minimum": 1000.0,
                 "type": "integer"
               },
               {
@@ -395,6 +399,8 @@
           "topbench": {
             "anyOf": [
               {
+                "exclusiveMaximum": 2147483648.0,
+                "minimum": 0.0,
                 "type": "integer"
               },
               {
@@ -411,6 +417,8 @@
           "year": {
             "anyOf": [
               {
+                "maximum": 9999.0,
+                "minimum": 1000.0,
                 "type": "integer"
               },
               {
@@ -922,6 +930,8 @@
           "year": {
             "anyOf": [
               {
+                "maximum": 9999.0,
+                "minimum": 1000.0,
                 "type": "integer"
               },
               {
@@ -1075,6 +1085,8 @@
           "year": {
             "anyOf": [
               {
+                "maximum": 9999.0,
+                "minimum": 1000.0,
                 "type": "integer"
               },
               {
