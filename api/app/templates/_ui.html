@@ -208,8 +208,10 @@
    the script finds them by, and a missing one is hidden rather than absent. What
    the caller puts in the block -- the owner's Edit and Duplicate -- sits between
    the position and the neighbours. #}
-{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='', prev_name='', next_name='', keep=false) -%}
+{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='', prev_name='', next_name='', keep=false, up_href='', up_label='', up_title='') -%}
 <nav class="itemnav" aria-label="Item"{% if keep %} id="itemnav"{% endif %}><a href="{{ back_href }}"><span aria-hidden="true">←</span> {{ back_label }}</a>
+{#- The second way back: to what a part is in, as 0.1's page had it. -#}
+{%- if up_href %}<a href="{{ up_href }}"{% if up_title %} title="{{ up_title }}"{% endif %}><span aria-hidden="true">←</span> {{ up_label }}</a>{% endif %}
 {%- if position %}<span class="where">{{ position }}</span>{% endif %}<span class="push"></span>
 {%- if caller is defined %}{{ caller() }}{% endif %}
 {%- if prev_href or keep %}<a class="btn sm"{% if keep %} id="nav-prev"{% endif %} href="{{ prev_href }}" rel="prev"{% if prev_name %} title="{{ prev_name }}"{% endif %}{% if not prev_href %} hidden{% endif %}><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif %}
