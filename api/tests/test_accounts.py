@@ -115,6 +115,16 @@ class TestWhatAViewerSees:
         log_out(client)
         assert "£12.34" not in client.get(f"/projects/{aid}").text
 
+    def test_a_viewer_may_read_the_api_docs_and_a_visitor_may_not(self, client):
+        """Moving the link changed nobody's access to `/docs`: an account of either
+        role opens it, and a visitor is asked for a password by the browser."""
+        as_viewer(client)
+        assert client.get("/docs").status_code == 200
+        log_out(client)
+        r = client.get("/docs", follow_redirects=False)
+        assert r.status_code == 401
+        assert r.headers["www-authenticate"].startswith("Basic")
+
     def test_the_for_sale_shortlist(self, client, part):
         aid = part(model="Spare SIMM")["asset_id"]
         client.post(f"/parts/{aid}/for-sale", data={"for_sale": "1"}, follow_redirects=False)

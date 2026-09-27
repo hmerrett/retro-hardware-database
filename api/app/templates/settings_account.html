@@ -54,5 +54,10 @@
     {% if token_error %}{{ U.banner('danger', 'Not made.', token_error) }}{% endif %}
     <p>{{ U.button('Make token', type='submit') }}</p>
   </form>
+  {#- The console a token is for, beside the tokens. Here rather than in the menus
+      because every account that may open /docs reaches this page, a viewer's
+      included, and a visitor who followed a link to it met only the browser's own
+      password box. #}
+  <p>{{ U.button('API docs', href='/docs', title='Every request the API takes, with a console to try each one.') }}</p>
 </fieldset>
 {% endblock %}

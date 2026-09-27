@@ -697,8 +697,6 @@
   .today .todo li::before { content: "\25CB  "; color: var(--text-muted); }
   .today .todo li.more::before { content: none; }
   @media (max-width: 560px) { .today .shots > .cardthumb { width: 96px; } }
-  .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--line);
-    font-size: 13px; color: var(--text-muted); }
 
   /* ---- 14g. Form errors ----------------------------------------------------
      The one place explanation is printed under a control rather than put in a title:

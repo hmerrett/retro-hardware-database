@@ -243,6 +243,17 @@ class TestYourTokens:
         r = post(client, "/settings/account/tokens", name=" ")
         assert r.status_code == 400 and "name" in r.text
 
+    @pytest.mark.parametrize("reader", ["administrator", "viewer"])
+    def test_the_api_docs_are_linked_beside_the_tokens(self, client, reader):
+        """The interactive console is what a token is for, and this is the page every
+        account that may open `/docs` reaches -- a viewer's included, who has no
+        Settings page to find it on."""
+        if reader == "viewer":
+            as_viewer(client)
+        page = client.get("/settings/account").text
+        tokens = page.split("<legend>API tokens</legend>", 1)[1].split("</fieldset>", 1)[0]
+        assert 'href="/docs"' in tokens
+
     def test_a_viewer_makes_one_of_their_own(self, client):
         as_viewer(client)
         assert post(client, "/settings/account/tokens", name="phone").status_code == 200

@@ -461,7 +461,7 @@ class TestTheButtonText:
         """`API docs` and `OK` are spelt that way on purpose. A browser's own
         lower-casing cannot tell one from an ordinary word; this can."""
         save(client, button_case="lower")
-        page = client.get("/").text
+        page = client.get("/settings/account").text
         assert "API docs" in page
         assert "api docs" not in page
 
@@ -489,7 +489,8 @@ class TestHowThePageReads:
         (interface-text)."""
         page = client.get("/settings").text
         assert '<label for="site_name">Name</label>' in page
-        assert 'class="field" title="In the banner, the browser&#39;s tab' in page
+        assert 'class="field" title="In the banner' in page
+        assert "foot of every page" not in page, "there is no foot of the page any more"
 
     def test_the_settings_are_grouped_into_named_sections(self, client):
         """A flat list of four is a list; a flat list of fifteen is a search. The

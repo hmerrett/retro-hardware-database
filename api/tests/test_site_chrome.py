@@ -173,6 +173,16 @@ class TestTheMenu:
         assert folded == [name for _, name in SECTIONS]
         assert menu.links[0][1].get("class") == "fold", "the sections are not at the top"
 
+    def test_a_visitor_is_not_offered_the_api_docs(self, client, part):
+        """`/docs` is behind the login, and what it answers a visitor is the
+        browser's own password box rather than the site's login page. Its link is on
+        Your account, which a visitor cannot open, so no page offers it to one --
+        the phone's More sheet included."""
+        aid = part()["asset_id"]
+        log_out(client)
+        for path in ("/", f"/parts/{aid}"):
+            assert 'href="/docs' not in client.get(path).text, path
+
     def test_the_phone_sheet_offers_everything_the_menu_does(self, client, owner):
         """One list, two renderings: a row added to one and not the other is a
         thing a phone or a desktop cannot reach."""
@@ -180,6 +190,18 @@ class TestTheMenu:
         menu = {attrs.get("href") for _, attrs in region(page, cls="hdr-more").links}
         sheet = {attrs.get("href") for _, attrs in region(page, id="sheet").links}
         assert menu - {"/"} <= sheet
+
+
+class TestTheFootOfThePage:
+    def test_no_page_carries_a_footer(self, client, part):
+        """The name is in the banner or the rail, and the API docs are beside the
+        tokens they are for, so there is nothing left for a footer to hold."""
+        aid = part()["asset_id"]
+        for path in ("/", f"/parts/{aid}"):
+            assert "<footer" not in client.get(path).text, path
+        log_out(client)
+        assert "<footer" not in client.get("/login").text
+        assert not rules(".site-footer", stylesheet())
 
 
 class TestWhereYouAre:

@@ -13,6 +13,10 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**The footer has gone.** The collection's name is in the banner, a phone's
+included, and at the top of the side rail; the API docs are on **⋯ → Account**,
+beside your tokens.
+
 **Accounts: administrators and viewers.** The login is no longer one username and
 password in `.env`. Accounts live in the database, each an **administrator** or a
 **viewer** — somebody who reads everything a visitor is not shown (unpublished
@@ -122,11 +126,10 @@ there is no queue, and the existing buttons are unchanged.
 
 **A settings page**, at ⋯ → Settings, behind the login. Four things to start
 with, in two groups. *Appearance*: what this collection is called — which reaches
-the banner, the browser's tab, the foot of every page and the preview a shared
-link unfolds into — whether photographs are watermarked, and which theme the site
-opens in. *Local server options*: whether to block search engines. The ⋯ menu's
-theme button is unchanged, and still overrules the default for the browser it is
-pressed in.
+the banner, the browser's tab and the preview a shared link unfolds into — whether
+photographs are watermarked, and which theme the site opens in. *Local server
+options*: whether to block search engines. The ⋯ menu's theme button is
+unchanged, and still overrules the default for the browser it is pressed in.
 
 Nothing has to be done to get it: every setting has the value the software
 already behaved as though it had, so an installation that opens the page and

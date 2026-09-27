@@ -22,7 +22,7 @@
   <p class="prose">Every machine, card and drive you add gets an asset tag, a page
     of its own and a QR label.</p>
   <ol class="steps">
-    <li{% if named %} class="done"{% endif %}><span class="t"><b>Name the collection</b><span>In the banner, the browser's tab, the foot of every page and on every label.</span></span>{{ U.button('Settings', size='sm', href='/settings') }}</li>
+    <li{% if named %} class="done"{% endif %}><span class="t"><b>Name the collection</b><span>In the banner, the browser's tab and on every label.</span></span>{{ U.button('Settings', size='sm', href='/settings') }}</li>
     <li><span class="t"><b>Add the first machine</b><span>A computer, or a part on its own.</span></span>{{ U.button('+ Computer', kind='primary', size='sm', href='/computers/new') }}</li>
     <li><span class="t"><b>Print its label</b><span>Stick it on and scan it: you are at its page.</span></span>{{ U.button('Print labels', size='sm', disabled=true) }}</li>
   </ol>
