@@ -436,12 +436,16 @@ older URL still work, because only the asset tag is taken from the code.
 
 ## 4. An item page
 
-At the top is the item's name, its asset tag under it, and the summary — the
-prose description, if one is written. Above that, a link back to the whole
-register and the **Prev** and **Next** buttons; when logged in, **Edit** and
-**Duplicate** sit beside them. A part fitted in a machine has a second link beside
-the first, back to that machine by its tag; a part mounted on another part, a
-drive on its controller card, has one back to that part.
+At the top is a row with a link back to the whole register on the left and the
+**Prev** and **Next** buttons on the right, in the same place on every item page.
+A part fitted in a machine has a second link beside the first, back to that
+machine by its tag; a part mounted on another part, a drive on its controller
+card, has one back to that part.
+
+Under it is the item's name, and when logged in **Edit** and **Duplicate** on the
+same line, at its end — under the name on a phone. Then its asset tag, a banner if
+it has been disposed of or is being built, and the summary — the prose
+description, if one is written.
 
 The rest is a stack of panels — each section in a box with its title on a band
 across the top.
@@ -464,11 +468,13 @@ Down the main column:
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
 - **History** — [everything that has happened to it](#14-history).
 
-Down the side column: the photographs and, when logged in, the **Label** panel
-with its two print buttons, the disposal box and the item's own QR code. On a
-narrow screen there is one column, and the photographs come straight after the
-summary, before the details: somebody who has just scanned a label wants to see
-first that they have the right thing.
+Down the side column, starting level with **Details**: the photographs and, when
+logged in, the **Label** panel with its two print buttons, the disposal box and
+the item's own QR code. On a narrow screen there is one column, and the
+photographs come straight after the summary, before the details: somebody who has
+just scanned a label wants to see first that they have the right thing. The label
+and disposal come last, after everything else. The Tab key goes through the page
+in the order you see it, at every width.
 
 A URL written into any of that — a summary, a note, a spec value, where the item
 came from, a history entry — is a link you can follow. Anything with a scheme in
@@ -1549,16 +1555,16 @@ started, because the part turned up and it took an evening.
 ### Its page
 
 A project's page reads like an item's. At the top is a link back to all the
-projects and, when logged in, **Edit**, **Delete…** and — while there is still
-something left to finish — **Mark done** beside it; then the name, its status and
-its tag. Below that, a panel each: **Details** (the status, the three dates and
+projects; then the name, its status and its tag, and, when logged in, **Mark
+done** — while there is still something left to finish — **Edit** and
+**Delete…** on the name's line, under it on a phone. Below that, a panel each: **Details** (the status, the three dates and
 the notes), **Items**, **Tasks**, **On order**, **Files** and **History**, and last,
 when logged in, the **Label** panel with its two print buttons.
 
 ### Marking one done
 
-A project still in hand carries a **Mark done** button at the top of its page,
-beside the edit and label buttons, for whoever is signed in. One click finishes
+A project still in hand carries a **Mark done** button on its name's line,
+beside **Edit**, for whoever is signed in. One click finishes
 it: the status becomes **done** and a dated line saying so is written into its
 history. There is no form in the way and nothing to confirm — it is one fact,
 and a status set by mistake is put right on the edit form.
