@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2229 behaviours, from 66 files.*
+*2230 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2942,10 +2942,12 @@ Regenerate with:
 
 ## Presets
 
-*test_presets.py — 9 behaviours*
+*test_presets.py — 10 behaviours*
 
 - the filter you are on is written in a pair every look holds  
   Above the files list, the filter you are on was told by the band a panel's title sits on, with `text` on it -- a pair no look is held to, and 1.06:1 in Rubber Key's light mode.
+- the filter you are on is told by its weight as well as its ground  
+  The ground under the filter you are on is a shade off the page's, and in some looks barely one: enough to see, and not enough to be the only telling for anybody who cannot tell two pale greys apart.
 - the stylesheets are the ones the design data writes  
   tokens.css and the preset files are generated.
 - every font is served from the site with its licence  

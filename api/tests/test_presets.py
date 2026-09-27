@@ -98,6 +98,24 @@ def test_the_filter_you_are_on_is_written_in_a_pair_every_look_holds():
     assert {(fg, ground) for fg in written} <= held, f"{written} on {ground} is not swept"
 
 
+def test_the_filter_you_are_on_is_told_by_its_weight_as_well_as_its_ground():
+    """The ground under the filter you are on is a shade off the page's, and in some
+    looks barely one: enough to see, and not enough to be the only telling for
+    anybody who cannot tell two pale greys apart. So the one you are on is set
+    heavier as well, as the section you are in is in the banner."""
+    faintest = min(
+        contrast(mode["surface"], mode["surface-sunken"]) for mode in PALETTES["themes"].values()
+    )
+    weights = {
+        value
+        for selector, prop, value in declarations(COMPONENTS)
+        if selector == '.filefilters a[aria-current="page"]' and prop == "font-weight"
+    }
+    assert weights & {"600", "700", "bold"}, (
+        f"the filter you are on is told only by a ground {faintest:.2f}:1 off the page's"
+    )
+
+
 def _builder():
     spec = importlib.util.spec_from_file_location(
         "build_presets", APP.parents[1] / "tools" / "build_presets.py"
