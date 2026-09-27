@@ -7,7 +7,7 @@
   --radius-pill: 3px;
   --stripe-h: 4px;
   --stripe-image: linear-gradient(var(--band), var(--band));
-  --flash: linear-gradient(90deg, var(--stripe-1) 0 14px, var(--stripe-2) 14px 28px, var(--stripe-3) 28px 42px, var(--stripe-4) 42px 56px);
+  --flash: linear-gradient(90deg, var(--stripe-1) 0 13.5px, var(--stripe-2) 14.5px 27.5px, var(--stripe-3) 28.5px 41.5px, var(--stripe-4) 42.5px 56px);
   --flash-w: 56px;
   --flash-inset: 24px;
   --font-display: "IBM Plex Sans", system-ui, sans-serif;
