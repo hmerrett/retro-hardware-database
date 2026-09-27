@@ -913,6 +913,99 @@
   .portkey span { white-space: nowrap; }
   .portkey b { color: var(--text); }
 
+  /* ---- The files pages (ADR-0028) ------------------------------------------
+     The list, a file's own page and an item's Files panel. The design system has no
+     card for these yet, so they are the pages ADR-0028 shaped, put onto the
+     components and tokens rather than drawn again. */
+  /* A list of files: a row each, and never a table. The row is a grid of four -- the
+     drawing of what it is, its name and what it is linked to, how big and how old,
+     and the download -- and on a phone the third drops under the second, so nothing
+     is squeezed and nothing scrolls sideways. */
+  .filerows { list-style: none; margin: 0; padding: 0; }
+  .filerow { position: relative; display: grid; align-items: center; column-gap: var(--space-4);
+    grid-template-columns: 44px minmax(0, 1fr) auto auto; grid-template-areas: "icon text meta dl";
+    padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+  .filerow:first-child { border-top: 0; }
+  .panel > .filerows > .filerow { padding: var(--space-3) var(--space-4); }
+  .filerow > .fileicon { grid-area: icon; }
+  .filerow > .filetext { grid-area: text; min-width: 0; }
+  .filerow > .fmeta { grid-area: meta; }
+  .filerow > .btn { grid-area: dl; }
+  @media (max-width: 640px) {
+    .filerow { column-gap: var(--space-3); grid-template-columns: 40px minmax(0, 1fr) auto;
+      grid-template-areas: "icon text dl" "icon meta dl"; }
+    .filerow > .fmeta { text-align: left; white-space: normal; }
+  }
+  /* The name is the way to the file's page, stretched over the whole row so the row
+     can be tapped anywhere; what else on the row is a link or a title of its own
+     sits above the stretch. In the data face, because a filename is recorded rather
+     than written, and it breaks anywhere, because nobody reads one as a word and the
+     longest on the page must not decide how narrow the list can be. */
+  .fname { font-family: var(--font-data); font-weight: 600; color: var(--text); text-decoration: none;
+    overflow-wrap: anywhere; }
+  .fname::after { content: ""; position: absolute; inset: 0; }
+  .fname:hover { text-decoration: underline; }
+  .filerow .chip, .filerow > .btn, .filerow .fnote a { position: relative; z-index: 1; }
+  .fnote { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+  .fmeta { font-family: var(--font-data); font-size: 12px; color: var(--text-muted); white-space: nowrap;
+    text-align: right; font-variant-numeric: tabular-nums; }
+  /* What a file is linked to, a chip each. A long name wraps inside its chip rather
+     than holding the row open, so the corners are a card's and not a pill's. */
+  .filechips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+  .filechips .chip { white-space: normal; overflow-wrap: anywhere; border-radius: var(--radius-sm); }
+  /* What a file is, drawn in the muted text colour so every look draws it, with the
+     extension under it. */
+  .fileicon { display: inline-grid; justify-items: center; align-content: center; gap: var(--space-1);
+    width: 44px; color: var(--text-muted); }
+  .fileicon .fileart { display: block; width: 30px; height: 30px; }
+  .fileext { font-family: var(--font-data); font-size: 9px; font-weight: 600; letter-spacing: .07em; line-height: 1; }
+  .fileicon.big { flex: none; width: 72px; }
+  .fileicon.big .fileart { width: 60px; height: 60px; }
+  .fileicon.big .fileext { font-size: 11px; }
+  /* The list's own search, at the end of the heading's row and on a row of its own on
+     a phone. The box asks for a width rather than demanding one. */
+  .filesearch { display: flex; flex: 0 1 320px; align-items: center; gap: var(--space-3); margin-left: auto; }
+  .filesearch > .input { flex: 1 1 160px; width: auto; min-width: 0; }
+  @media (max-width: 640px) { .filesearch { flex-basis: 100%; margin-left: 0; } }
+  /* The row of ways to narrow the list. The one you are on is told by weight and by
+     ground, and the ground is surface-sunken, which every colour written on it is
+     held to in every look. It was the band a panel's title sits on, with `text` on
+     it: a pair no look is held to, and 1.06:1 in one of them. */
+  .filefilters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-4); }
+  .filefilters a { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-4);
+    font-size: 13px; color: var(--text); text-decoration: none; white-space: nowrap;
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-pill); }
+  .filefilters a span { margin-left: var(--space-2); font-family: var(--font-data); color: var(--text-muted); }
+  .filefilters a[aria-current="page"] { font-weight: 600; color: var(--text); background: var(--surface-sunken); }
+  /* Under the pointer everything on the ground is `text`: only that is tested on
+     surface-hover. */
+  .filefilters a:hover { background: var(--surface-hover); }
+  .filefilters a:hover span { color: var(--text); }
+  @media (pointer: coarse) { .filefilters a { min-height: 36px; } }
+  /* A file's own page: the drawing beside its name, then the panels that change it.
+     The name is the page's heading, set in the data face for the reason the list's
+     is. */
+  .filehero { display: flex; align-items: flex-start; gap: var(--space-5); margin: 0 0 var(--space-4); }
+  .filehero-text { min-width: 0; }
+  .filehero-text p { margin: var(--space-1) 0 0; }
+  .filehero h1 { font-family: var(--font-data); overflow-wrap: anywhere; }
+  /* What a file is linked to, a line each, and the button that takes it off. */
+  .linkrows { list-style: none; margin: 0; padding: 0; }
+  .linkrows li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+    padding: 6px var(--space-4); border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+  .linkrows li:first-child { border-top: 0; }
+  .linkrows form { margin: 0 0 0 auto; }
+  /* What follows a panel's list -- the link box under what a file is linked to; what
+     an item's other units have, and the upload, under its files -- is a different
+     thing and says so with a rule. */
+  .panel > .linkrows + .pbody, .panel > .filerows + .pbody, .panel > .fileoffer {
+    border-top: 1px solid var(--line); }
+  /* What an item's siblings have that it has not: offered, and only offered. */
+  .offerrows { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
+  .offerrows li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+    padding: var(--space-1) 0; overflow-wrap: anywhere; }
+  .offerrows form { margin: 0; }
+
   /* ---- The account pages (ADR-0032) --------------------------------------- */
   /* Where you are signed in: a line to a browser, so a plain list rather than a
      table of three columns that would only ever be read across. */

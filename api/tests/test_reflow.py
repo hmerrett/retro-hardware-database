@@ -155,18 +155,53 @@ def test_the_files_list_is_rows_and_not_a_table(client, furnished):
     assert "<table" not in page.split("<main", 1)[1]
 
 
-def test_the_box_you_type_into_asks_for_a_width_rather_than_demanding_one():
+class Boxes(HTMLParser):
+    """Every box to type in -- an `.input` -- with the classes of what it stands in."""
+
+    VOID = frozenset({"input", "br", "img", "hr", "meta", "link", "source", "wbr"})
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.found = []
+        self._open = []
+
+    def handle_starttag(self, tag, attrs):
+        classes = (dict(attrs).get("class") or "").split()
+        if tag == "input" and "input" in classes:
+            self.found.append(self._open[-1][1] if self._open else [])
+        if tag not in self.VOID:
+            self._open.append((tag, classes))
+
+    def handle_endtag(self, tag):
+        for at in range(len(self._open) - 1, -1, -1):
+            if self._open[at][0] == tag:
+                del self._open[at:]
+                break
+
+
+def test_the_box_you_type_into_asks_for_a_width_rather_than_demanding_one(client, furnished):
     """A `min-width` on a control is a floor the row around it cannot go below: 200px
-    of it on the old re-file box held the files list open. The boxes on a file's
-    page ask for a width and accept less -- `width` is a size a row may compress,
-    `min-width` is one it may not."""
-    css = STYLESHEET.read_text(encoding="utf-8")
-    rule = re.search(r"\.linkform input, \.notebox input\s*\{[^}]*\}", css)
-    assert rule, "the boxes on a file's page have lost their rule; this test is looking at nothing"
-    demanded = re.search(r"min-width:\s*(\d+)px", rule.group(0))
-    assert not demanded or demanded.group(1) == "0", (
-        f"the box demands {demanded.group(0)}, which its row cannot go below"
-    )
+    of it on the old re-file box held the files list open. The boxes on the files
+    pages -- the search, a file's note, the link box -- ask for a width and accept
+    less: each row that holds one gives it a basis to grow from and `min-width: 0`,
+    because a box's own minimum is the browser's idea of a box, wider than a phone's
+    row has left."""
+    css = COMPONENTS.read_text(encoding="utf-8")
+    fid = client.get("/api/files").json()[0]["id"]
+    rows = set()
+    for path in ("/files", f"/files/{fid}"):
+        parser = Boxes()
+        # The page's own boxes: the banner's search is the same on every page.
+        parser.feed(re.search(r"<main\b.*?</main>", client.get(path).text, re.S).group(0))
+        assert parser.found, f"{path} has no box to type in; this test is looking at nothing"
+        for classes in parser.found:
+            named = [c for c in classes if re.search(rf"\.{re.escape(c)} > \.input\b", css)]
+            assert named, f"a box on {path} stands in {classes}, which gives it no width to ask for"
+            rows.update(named)
+    for row in rows:
+        rule = re.search(rf"\.{re.escape(row)} > \.input\b[^{{]*\{{[^}}]*\}}", css).group(0)
+        assert re.search(r"\bflex:\s*\d+ \d+ \S+", rule), f"{row}'s box asks for no basis"
+        assert re.search(r"min-width:\s*0\b", rule), f"{row}'s box keeps its own minimum"
 
 
 def test_a_long_filename_cannot_hold_the_list_open():
@@ -174,7 +209,7 @@ def test_a_long_filename_cannot_hold_the_list_open():
     given its column, but leaves the column's minimum width at the whole word --
     so the longest filename on the page decided how narrow the table could be. It
     is a filename: it may break anywhere, because nobody reads one as a word."""
-    css = STYLESHEET.read_text(encoding="utf-8")
+    css = COMPONENTS.read_text(encoding="utf-8")
     rule = re.search(r"\.fname\s*\{[^}]*\}", css)
     assert rule, "nothing lets a filename break, so the widest one sets the list's width"
     assert "overflow-wrap: anywhere" in rule.group(0)

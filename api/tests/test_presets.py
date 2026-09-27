@@ -73,6 +73,31 @@ PAIRS = [
 ]
 
 
+def test_the_filter_you_are_on_is_written_in_a_pair_every_look_holds():
+    """Above the files list, the filter you are on was told by the band a panel's
+    title sits on, with `text` on it -- a pair no look is held to, and 1.06:1 in
+    Rubber Key's light mode. The current one is told by weight and ground, and the
+    ground is one every colour written on it is tested against, in every look."""
+    rules: dict[str, dict[str, str]] = {}
+    for selector, prop, value in declarations(COMPONENTS):
+        rules.setdefault(selector, {})[prop] = value
+
+    def token(selector, prop, fallback=""):
+        value = rules.get(selector, {}).get(prop) or rules.get(fallback, {}).get(prop, "")
+        found = re.fullmatch(r"var\(--([\w-]+)\)", value)
+        assert found, f"{selector} states no {prop} token for the filter"
+        return found.group(1)
+
+    current = '.filefilters a[aria-current="page"]'
+    ground = token(current, "background")
+    written = {
+        token(current, "color", fallback=".filefilters a"),
+        token(".filefilters a span", "color"),
+    }
+    held = {(fg, bg) for fg, bg, _ in PAIRS}
+    assert {(fg, ground) for fg in written} <= held, f"{written} on {ground} is not swept"
+
+
 def _builder():
     spec = importlib.util.spec_from_file_location(
         "build_presets", APP.parents[1] / "tools" / "build_presets.py"

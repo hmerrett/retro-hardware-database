@@ -12,7 +12,7 @@
    `chips` is whether to say what each file is linked to -- yes on /files, no in an
    item's own panel, where the answer is the page it is on. #}
 {% import "_fileicons.html" as FI %}
-{% import "_icons.html" as I %}
+{% import "_ui.html" as U with context %}
 {% macro rows(files, authed, chips=true) %}
 <ul class="filerows">
   {% for f in files %}
@@ -20,19 +20,23 @@
     {{ FI.icon(f.what) }}
     <div class="filetext">
       <a class="fname" href="/files/{{ f.id }}">{{ f.filename }}</a>
-      {%- if authed and not f.public %} <span class="lock" title="Kept back from visitors until it is ticked public on its page.">private</span>{% endif %}
+      {%- if authed and not f.public %} <span class="chip quiet" title="Kept back from visitors until it is ticked public on its page.">{{ 'Private' | ui }}</span>{% endif %}
       {% if f.note %}<div class="fnote">{{ f.note | linked }}</div>{% endif %}
       {% if chips %}
-      {% if f.chips %}<div class="filechips">{% for c in f.chips %}<a class="linkchip" href="{{ c.page }}" title="{{ c.ids | join(', ') }}"><b>{{ c.label }}</b> {{ c.name }}</a>{% endfor %}</div>
-      {% elif authed %}<div class="filechips"><span class="chip">unlinked</span></div>{% endif %}
+      {% if f.chips %}<div class="filechips">{% for c in f.chips %}<a class="chip" href="{{ c.page }}" title="{{ c.ids | join(', ') }}"><b>{{ c.label }}</b> {{ c.name }}</a>{% endfor %}</div>
+      {% elif authed %}<div class="filechips">{{ U.chip('Unlinked', 'quiet') }}</div>{% endif %}
       {% endif %}
     </div>
-    <span class="fmeta">{{ f.what.size }}{% if f.created_at %}<span class="fwhen"> · {{ log_stamp(f.created_at, authed) }}</span>{% endif %}</span>
-    {# A PDF is read where it is tapped (ADR-0030); anything else is saved. #}
+    <span class="fmeta">{{ f.what.size }}{% if f.created_at %} · {{ log_stamp(f.created_at, authed) }}{% endif %}</span>
+    {# A PDF is read where it is tapped (ADR-0030); anything else is saved. The
+       button's name says which file, since a list of them is a list of buttons
+       all called the same thing otherwise. #}
     {% if f.what.viewable %}
-    <a class="fdl" href="/files/{{ f.id }}/view/{{ f.filename | urlencode }}" aria-label="view {{ f.filename }}" title="view">{{ I.ico('view') }}</a>
+    {{ U.button('View ' ~ f.filename, icon='view', icon_only=true, title='View' | ui,
+                href='/files/' ~ f.id ~ '/view/' ~ (f.filename | urlencode)) }}
     {% else %}
-    <a class="fdl" href="/files/{{ f.id }}/{{ f.filename | urlencode }}" aria-label="download {{ f.filename }}" title="download">{{ I.ico('download') }}</a>
+    {{ U.button('Download ' ~ f.filename, icon='download', icon_only=true, title='Download' | ui,
+                href='/files/' ~ f.id ~ '/' ~ (f.filename | urlencode)) }}
     {% endif %}
   </li>
   {% endfor %}

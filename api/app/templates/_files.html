@@ -9,11 +9,12 @@
    model as well, and the files those units have that this one has not. #}
 {% import "_panel.html" as PN %}
 {% import "_filerows.html" as FR %}
+{% import "_ui.html" as U with context %}
 {% call PN.panel('Files', files | length if files else '', flush=true) %}
   {% if files %}
   {{ FR.rows(files, request.state.sees_private, chips=false) }}
   {% else %}
-  <div class="pbody"><p class="muted flush">No files.</p></div>
+  <div class="pbody"><p class="muted">No files.</p></div>
   {% endif %}
 
   {% if request.state.authed %}
@@ -26,38 +27,38 @@
         <form method="post" action="/files/{{ f.id }}/link">
           <input type="hidden" name="aid" value="{{ item.asset_id }}">
           <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
-          <button class="btn sm" type="submit" aria-label="link {{ f.filename }} to {{ item.asset_id }}">link</button>
+          <button class="btn sm" type="submit" aria-label="{{ ('Link ' ~ f.filename ~ ' to ' ~ item.asset_id) | ui }}">{{ 'Link' | ui }}</button>
         </form></li>
       {% endfor %}
     </ul>
   </div>
   {% endif %}
   <div class="pbody">
-  {% if fileerr %}<p class="hint">Too big — the limit is {{ max_file_mb }} MiB.</p>{% endif %}
+  {% if fileerr %}{{ U.banner('danger', 'Too big.', 'The limit is ' ~ max_file_mb ~ ' MiB.') }}{% endif %}
   {# Choosing the files is the whole gesture, as it is for photographs: the upload
      goes the moment they are picked, so everything it asks is asked above the
-     picker. The button stays in the markup for a browser running no script. #}
-  <form class="fileform" method="post" action="/files" enctype="multipart/form-data"
+     picker. The button stays in the markup for a browser running no script. The
+     picker keeps .filebtn, which it shares with the photo uploads until they move. #}
+  <form class="addrow mt-0" method="post" action="/files" enctype="multipart/form-data"
         id="file-upload" data-autosend
         title="Linked to {{ item.asset_id }} as it arrives. Everything else about it is done on its own page.">
     <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
     <input type="hidden" name="aid" value="{{ item.asset_id }}">
     {% if file_siblings %}
-    <label class="tickbox" title="{{ file_siblings | map(attribute='asset_id') | join(', ') }}"><input type="checkbox" name="siblings" value="1"> the other {{ (file_siblings | length ~ ' ') if file_siblings | length > 1 else '' }}{{ file_model }}</label>
+    <label class="check" title="{{ file_siblings | map(attribute='asset_id') | join(', ') }}"><input type="checkbox" name="siblings" value="1"> The other {{ (file_siblings | length ~ ' ') if file_siblings | length > 1 else '' }}{{ file_model }}</label>
     {% endif %}
-    <label class="tickbox" title="Visitors can download it as soon as it arrives. Unticked, it is kept back until you tick it on its page.{% if item.private %} A private project's files start unticked.{% endif %}"><input type="checkbox" name="public" value="1"{{ ' checked' if file_public_default else '' }}> Public</label>
+    <label class="check" title="Visitors can download it as soon as it arrives. Unticked, it is kept back until you tick it on its page.{% if item.private %} A private project's files start unticked.{% endif %}"><input type="checkbox" name="public" value="1"{{ ' checked' if file_public_default else '' }}> Public</label>
     {# What files have been called before: a manual, a driver disk, a ROM dump.
        Half a dozen answers cover nearly everything, and typing one of them the same
        way twice is what makes them worth reading. #}
-    <input name="note" placeholder="note" list="dl_filenotes"
-           aria-label="what this file is"
-           autocomplete="off">
-    <label class="btn sm filebtn">choose files
+    <input class="input" name="note" placeholder="note" list="dl_filenotes"
+           aria-label="What this file is" autocomplete="off">
+    <label class="btn sm filebtn">{{ 'Choose files' | ui }}
       <input type="file" name="uploads" multiple required>
     </label>
     <datalist id="dl_filenotes">{% for o in dl_filenotes | default([]) %}<option value="{{ o }}">{% endfor %}</datalist>
-    <button class="btn sm" type="submit" data-send-go>upload</button>
-    <span class="hint" data-send-busy hidden>uploading…</span>
+    <button class="btn sm" type="submit" data-send-go>{{ 'Upload' | ui }}</button>
+    <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
   </form>
   </div>
   {% endif %}

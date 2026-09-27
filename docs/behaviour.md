@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2224 behaviours, from 66 files.*
+*2229 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -1796,7 +1796,7 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 80 behaviours*
+*test_files.py — 84 behaviours*
 
 
 **Linking one**
@@ -1838,10 +1838,13 @@ Regenerate with:
 - a file linked to nothing is unlinked and found under that name
 - delete removes it and every link
 - a visitor sees a published files page without the controls
+- its one heading is the filename  
+  Every page leads with one h1, and a file's page with the name the file was uploaded as.
 - a visitor is told an unpublished files page is not there
 
 **The files page**
 
+- it is headed files in its one h1
 - it lists every file newest first with what it is linked to
 - nothing on a row changes anything  
   A row used to carry six forms.
@@ -1897,6 +1900,11 @@ Regenerate with:
 - on the box starts ticked
 - but never on a private projects page
 - the upload sends what the box says
+
+**The button text**
+
+- the file pages follow the button text setting
+- so does the files panel on an item s page
 
 **Projects have files**
 
@@ -2934,8 +2942,10 @@ Regenerate with:
 
 ## Presets
 
-*test_presets.py — 8 behaviours*
+*test_presets.py — 9 behaviours*
 
+- the filter you are on is written in a pair every look holds  
+  Above the files list, the filter you are on was told by the band a panel's title sits on, with `text` on it -- a pair no look is held to, and 1.06:1 in Rubber Key's light mode.
 - the stylesheets are the ones the design data writes  
   tokens.css and the preset files are generated.
 - every font is served from the site with its licence  
