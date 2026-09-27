@@ -167,7 +167,8 @@ person reading it is certain to be the person who can fix it.
 ### The header
 
 On a desktop the banner reads in three bands: where you can go on the left, the
-search box in the middle, and what you can do on the right.
+search box in the middle, and what you can do on the right. Its two ends stand on
+the edges of the wide pages (see [On a wide screen](#on-a-wide-screen)).
 
 - **Browse**, **Projects**, **Numbers**, **Models**, **Files** — the sections.
   The one you are in is shown in bold. **Models** is the catalogue of machines the
@@ -220,6 +221,31 @@ One table is left to scroll: the drives on a machine's form, which keeps its
 widths and slides inside its own box. Squeezed to fit a phone it would show two
 characters of a model and none of the bezel, and it is a table of the kind that
 has to be read in two directions. The page around it stays where it is.
+
+### On a wide screen
+
+The pages you look across and the forms you fill in use a wide screen, up to 1440px
+across. **Browse**, and **Might sell** and a search's results, which are Browse by
+other names, put as many cards across as fit: four on a 1000px page, six at the
+widest. The tiles on **Numbers** and the chips on a model's page do the same, and
+**Models** runs to three columns. The forms for a computer, a part and a project
+stand their short questions side by side, up to five abreast.
+
+The pages you read keep to a column 1000px across: a machine, a part, a project, a
+file, **Settings**, and the **Projects** and **Files** lists, which are read a row at
+a time. The small pages (logging in, confirming a delete, a page that is not there)
+stay small inside it.
+
+However wide the window, what somebody wrote stops at a comfortable line of about
+seventy characters: a summary, a model's paragraph, the sentence on **Numbers**, the
+line of help under a box, the words of a notice. A box you type into is never wider
+than that either, so a summary is written at the width it will be read at.
+
+The search box and **Scan** stand on the edges of the wide pages, on every page, so
+they stay where they were whichever page you go to. A list or a form lines up
+beneath them, and a page you read sits in the middle between them. On a screen
+narrower than a page's width the difference goes: every page is as wide as the
+window, less a margin either side.
 
 ### Using it from the keyboard
 
@@ -492,8 +518,11 @@ nothing until you submit it.
 
 The form is in sections — **Identity**, **Memory**, **Drives**, **Tracking**,
 **Description**, **Work needed** and, on a new machine, **Photographs** — and a line under a field says what goes in
-it wherever that is not obvious. Editing, the heading names the machine and its
-tag, so two tabs open on two machines cannot be confused. **Save** and **Cancel**
+it wherever that is not obvious. On a wide screen the short questions stand side
+by side, up to five abreast, each drive keeps its bezel menus on its own row, and
+the boxes for the summary and notes stay the width of a paragraph. Editing, the
+heading names the machine and its tag, so two tabs open on two machines cannot be
+confused. **Save** and **Cancel**
 stay at the foot of the screen however far down the form you are, so the way out
 is always under the thumb. **Cancel** leaves without saving: back to the machine,
 or from a new one back to the gallery. The part and project forms work the same
@@ -2757,8 +2786,11 @@ reading, and choosing a type sends no request to a third party.
 **Navigation** is *Side* or *Top*, and decides where the five sections live on a
 wide screen. *Side* is what a new installation gets.
 
-At 1100px and wider, *Side* puts a rail down the left of the page, in what is
-otherwise empty margin — the column of the page itself is not narrowed by it. The
+At 1100px and wider, *Side* puts a rail 216px across down the left of the window,
+and the page is laid out in the rest. Where the window is wide enough the rail
+spends only margin: a page you read has its whole 1000px beside it from a 1216px
+window, and a list or a form its whole 1440px from 1656px. In a narrower window the
+page gives the rail the room it needs rather than sliding under it. The
 rail carries the name and mark, then the five sections, each with the number of
 things in it beside its name. For somebody signed in it also carries **Computer**
 and **Part** as one press each, and **Recent**: the last three things you edited,
@@ -2776,7 +2808,9 @@ the **+ New** menu and the ⋯ menu are in the rail, and nothing is in both.
 for a screen reader and in a tooltip. The choice is the browser's rather than the
 installation's — the wide screen in the workshop can keep the rail open while the
 laptop folds it away — and is kept on the device that made it, as the theme is. It
-is a plain link and works with the scripting turned off.
+is a plain link and works with the scripting turned off. A page that had given up
+room to the rail gets it back (at 1440px, a sixth card across on Browse); a page
+already at its whole width keeps it, and moves to the middle of the wider space.
 
 Below 1100px there is no rail whichever way this is set: the banner carries the
 sections as it always has, and a phone gets the tab bar. There is no phone form of
