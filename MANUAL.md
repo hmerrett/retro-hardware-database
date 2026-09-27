@@ -391,10 +391,11 @@ of a name, comes before a hit buried in a spec or a history note. When neither t
 collection nor the catalogue matches, the list says so.
 
 **Models from the catalogue** come after them, where the list has room. Type a
-machine's name, or one of the styles the catalogue lists for it — *AT&T 6300*
-finds the Olivetti M24 — and the model is offered whether or not you own one, and
-opens [its own page](#a-models-own-page). Here too, a name that starts with what
-you typed comes first. Its row says **Model**, the year it came out and how many
+machine's name or its family's, or one of the styles the catalogue lists for it —
+*Amiga CD32* finds the Commodore CD32, and *AT&T 6300* the Olivetti M24 — and the
+model is offered whether or not you own one, and opens
+[its own page](#a-models-own-page). Here too, a name that starts with what you
+typed comes first. Its row says **Model**, the year it came out and how many
 of it are here, or *none in this collection*. A model is not something in the
 collection, so it has no asset tag and is not counted in **All N results**, which
 counts what Enter shows. If the catalogue has an answer and the collection has

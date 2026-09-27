@@ -408,7 +408,8 @@ def _suggest(
 
 def _model_tier(name: str, raw: str) -> int:
     """_suggest_tier's order for a catalogue model: its name starting with what was
-    typed, then its name holding it somewhere, then a model found by a style."""
+    typed, then its name holding it somewhere, then a model found by its family or a
+    style."""
     low = name.lower()
     if low.startswith(raw):
         return 0
@@ -421,8 +422,11 @@ def _suggest_models(db: Session, query: str | None, room: int) -> list[dict[str,
 
     A second search rather than more of the first: over machines.yaml and not the
     register, so a machine nobody here owns still reaches its page. Matched on what
-    the model's own page prints as what it is called -- its name and its styles,
-    the second being the badge a machine was sold under elsewhere. The CPU and the
+    the model's own page prints as what it is called -- its name, the family printed
+    under it, and its styles, the last being the badge a machine was sold under
+    elsewhere. The family is half of what many a machine is known by: the catalogue
+    calls the Amiga CD32 Commodore's CD32 and lists it among the Amigas, and names
+    each MSX machine after its maker, with MSX as its family. The CPU and the
     paragraph are on that page too, but they describe the model rather than name it,
     and a search on them offers the catalogue wholesale: about a quarter of its
     models have a Z80.
@@ -434,11 +438,11 @@ def _suggest_models(db: Session, query: str | None, room: int) -> list[dict[str,
         return []
     raw = " ".join((query or "").lower().split())
     # Joined by newline, as _haystack's fields are, so a quoted phrase cannot match
-    # across the seam between the name and a style.
+    # across the seam between the name, the family and a style.
     found = [
         m
         for m in machines.models()
-        if all(t in "\n".join([m["full_name"], *m["styles"]]).lower() for t in terms)
+        if all(t in "\n".join([m["full_name"], m["family"], *m["styles"]]).lower() for t in terms)
     ]
     # Stable, so a band keeps the catalogue's own order: by maker, then as the
     # family lists its models.

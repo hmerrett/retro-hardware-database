@@ -160,8 +160,8 @@ def names(models):
 
 class TestModelsFromTheCatalogue:
     """The second search: over the catalogue rather than the register, matched on
-    what a model's own page prints as its name and its styles, and given only the
-    room the collection leaves."""
+    what a model's own page prints as its name, its family's and its styles, and
+    given only the room the collection leaves."""
 
     def test_a_model_nobody_owns_is_offered_and_opens_its_page(self, client):
         [zx81] = suggest(client, "zx81")["models"]
@@ -200,6 +200,13 @@ class TestModelsFromTheCatalogue:
         """The name on the badge of the machine in front of you: the M24 was sold
         in the US as the AT&T 6300."""
         assert names(suggest(client, "at&t 6300")["models"]) == ["Olivetti M24"]
+
+    def test_a_model_is_found_by_the_name_of_its_family(self, client):
+        """Printed under its name on its page, and often on the badge as well: the
+        CD32 is catalogued as Commodore's, among the Amigas, and every MSX machine
+        carries the name of the standard whoever made it built it to."""
+        assert names(suggest(client, "amiga cd32")["models"]) == ["Commodore CD32"]
+        assert len(suggest(client, "msx")["models"]) == 10
 
     def test_a_model_is_not_found_by_its_cpu_or_its_paragraph(self, client):
         """Neither is what the model is called, and either would offer the catalogue

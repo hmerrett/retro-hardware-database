@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2237 behaviours, from 66 files.*
+*2238 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3445,7 +3445,7 @@ Regenerate with:
 
 ## Search suggestions
 
-*test_search_suggestions.py — 38 behaviours*
+*test_search_suggestions.py — 39 behaviours*
 
 
 **The match is marked**
@@ -3488,6 +3488,8 @@ Regenerate with:
 - what was typed is marked in a models name
 - a model is found by one of its styles  
   The name on the badge of the machine in front of you: the M24 was sold in the US as the AT&T 6300.
+- a model is found by the name of its family  
+  Printed under its name on its page, and often on the badge as well: the CD32 is catalogued as Commodore's, among the Amigas, and every MSX machine carries the name of the standard whoever made it built it to.
 - a model is not found by its cpu or its paragraph  
   Neither is what the model is called, and either would offer the catalogue wholesale: dozens of its models were built round a 6502.
 - a name that starts with what was typed comes first  
