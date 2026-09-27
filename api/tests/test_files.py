@@ -815,11 +815,16 @@ class TestTheButtonText:
         upload(client, "manual.pdf", body=PDF, aid=aid)
         upload(client, "drivers.img", body=b"\0" * 1_474_560, aid=aid)
         pdf = file_ids(client)[1]
+        # One linked to nothing, so the list offers Unlinked and marks its row: every
+        # name section 11 gives the list is on the page to be asked about. None of
+        # them is public, so the file's page carries its Private chip as well.
+        upload(client, "orphan.zip", aid=aid)
+        client.post(f"/files/{newest(client)}/unlink", data={"aid": aid})
         speak(client, case)
         other = "lower" if case == "cap" else "cap"
         for path, words in (
-            ("/files", ["All", "Documents", "Disk images", "Private", "Search"]),
-            (f"/files/{pdf}", ["View", "Download", "Save", "Link", "Unlink", "Delete"]),
+            ("/files", ["All", "Documents", "Disk images", "Unlinked", "Private", "Search"]),
+            (f"/files/{pdf}", ["View", "Download", "Private", "Save", "Link", "Unlink", "Delete"]),
         ):
             page = main_of(client.get(path).text)
             said = [in_case(w, case) for w in words]
