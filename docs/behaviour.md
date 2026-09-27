@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2224 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2801,7 +2801,7 @@ Regenerate with:
 
 ## Navigation
 
-*test_navigation.py — 28 behaviours*
+*test_navigation.py — 30 behaviours*
 
 
 **Which layout**
@@ -2830,12 +2830,16 @@ Regenerate with:
 - the owner sees what they last worked on  
   The rail's own argument: at a bench you go back to the same machine all afternoon.
 - the foot holds the theme settings and the way out
+- the rail offers every page the menu does  
+  With the rail showing, the banner's ⋯ menu is put away (components.css), so a page the menu offers and the rail does not is a page that cannot be reached from this one at all.
 - every item is named in words as well as drawn  
   Collapsed the words are hidden and the icon is all that is left, and an icon names nothing (accessibility-standards).
 
 **What A visitor sees**
 
 - a visitor is offered nothing that is not theirs
+- a viewer is offered might sell and not traffic  
+  A viewer reads the shortlist and cannot change it; the site's traffic and its settings are an administrator's (ADR-0032).
 - a visitor still sees the counts  
   The size of a collection is part of what a catalogue is for.
 - a private project is not counted for a visitor  
@@ -3714,7 +3718,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 16 behaviours*
+*test_site_chrome.py — 17 behaviours*
 
 
 **The banner**
@@ -3739,6 +3743,8 @@ Regenerate with:
   Your account's address begins with Settings', so both entries could claim it; two marked is a screen reader told it is on two pages at once.
 - the other settings pages still mark settings  
   Account takes the mark on its own page and nowhere else.
+- the shortlist marks might sell  
+  It is drawn in the site's chrome like any other page, so it says where you are like any other.
 
 **How it folds with the width**
 

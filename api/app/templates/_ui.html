@@ -346,7 +346,7 @@
     Not a section: it is a note to yourself, not a part of the catalogue (ADR-0018).
     A viewer reads it; traffic and the settings are an administrator's (ADR-0032). -#}
 {%- if request.state.sees_private -%}
-<a href="/for-sale">{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
+<a href="/for-sale"{{ here('/for-sale', current) }}>{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
 {%- endif -%}
 {%- if authed -%}
 <a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
@@ -477,7 +477,14 @@
         are handed to it here: it cannot know which case the site is written in. -#}
     <button class="item js-theme" type="button" title="{{ 'Dark theme' | ui }}" aria-label="{{ 'Dark theme' | ui }}"
             data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ I.ico('theme') }}<span>{{ 'Dark theme' | ui }}</span></button>
+    {#- Every page the ⋯ menu links to, in its order and for the same readers:
+        beside the rail the banner puts that menu away, so a page missing here is
+        one nobody can reach without typing its address. -#}
+    {%- if request.state.sees_private %}
+    <a class="item" href="/for-sale" title="{{ 'Might sell' | ui }}" aria-label="{{ 'Might sell' | ui }}"{{ here('/for-sale', current) }}>{{ I.ico('tag') }}<span>{{ 'Might sell' | ui }}</span></a>
+    {%- endif %}
     {%- if authed %}
+    <a class="item" href="/traffic" title="{{ 'Traffic' | ui }}" aria-label="{{ 'Traffic' | ui }}">{{ I.ico('numbers') }}<span>{{ 'Traffic' | ui }}</span></a>
     <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current, but='/settings/account') }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
     {%- endif %}
     {%- if request.state.principal.signed_in %}

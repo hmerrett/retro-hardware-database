@@ -192,7 +192,8 @@ Wherever the places are listed — the banner, the **☰** menu, the phone's **M
 and the rail ([Where the sections sit](#where-the-sections-sit)) — no more than one
 is ever marked as where you are: a screen reader announces it as the current page,
 and two would be two pages at once. On **Your account** that is **Account**, not
-**Settings** as well.
+**Settings** as well, and on the [for-sale
+shortlist](#might-go-the-for-sale-shortlist) it is **Might sell**.
 
 ### The header on a phone
 
@@ -2764,8 +2765,9 @@ things in it beside its name. For somebody signed in it also carries **Computer*
 and **Part** as one press each, and **Recent**: the last three things you edited,
 tag first, which is the rail's best argument at a bench where you go back to the
 same two machines all afternoon. At its foot are the theme button, which everybody
-gets, then **Settings**, **Account** and **Log out** — or **Log in** for a
-visitor — and **Collapse**.
+gets, then **Might sell**, **Traffic**, **Settings**, **Account** and **Log out**,
+each where your account reaches it — or **Log in** for a visitor — and
+**Collapse**.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.
@@ -2783,8 +2785,9 @@ sections as it always has, and a phone gets the tab bar. There is no phone form 
 a rail, so *Side* and *Top* are the same thing on a phone.
 
 A visitor sees the rail without the things that are not theirs: no **+ Computer**
-or **+ Part**, no **Recent**, no **Settings**, no **Account** and no **Log out**. The counts they
-do see, because the size of a collection is part of what a catalogue is for.
+or **+ Part**, no **Recent**, no **Might sell**, no **Traffic**, no **Settings**, no
+**Account** and no **Log out**. The counts they do see, because the size of a
+collection is part of what a catalogue is for.
 
 ### Button text
 

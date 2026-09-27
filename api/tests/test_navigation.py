@@ -7,17 +7,29 @@ each of them is asked the same question every listing page is asked: may this
 reader see the thing being counted?
 """
 
+import re
+
 import pytest
 
 from sqlalchemy.exc import OperationalError
 
 from app import rail, settings
-from conftest import log_out
+from conftest import as_viewer, log_out
 
 
 def visitor(client):
     """Turn the site into what an anonymous reader sees."""
     log_out(client)
+
+
+# The three readers the chrome is drawn for, each turned into by doing this to the
+# client, which starts as the owner.
+READERS = {"owner": lambda client: None, "viewer": as_viewer, "visitor": visitor}
+
+
+def hrefs(markup):
+    """Every address a piece of markup links to."""
+    return set(re.findall(r'href="([^"]*)"', markup))
 
 
 def _broken():
@@ -116,6 +128,17 @@ class TestWhatTheRailHolds:
         assert "js-theme" in rail_markup
         assert 'href="/settings"' in rail_markup
 
+    @pytest.mark.parametrize("reader", list(READERS))
+    def test_the_rail_offers_every_page_the_menu_does(self, client, reader):
+        """With the rail showing, the banner's ⋯ menu is put away (components.css),
+        so a page the menu offers and the rail does not is a page that cannot be
+        reached from this one at all."""
+        READERS[reader](client)
+        page = client.get("/").text
+        rail_markup = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        menu = page.split('class="menu hdr-more"', 1)[1].split("</details>", 1)[0]
+        assert hrefs(menu) - hrefs(rail_markup) == set()
+
     def test_every_item_is_named_in_words_as_well_as_drawn(self, client):
         """Collapsed the words are hidden and the icon is all that is left, and an
         icon names nothing (accessibility-standards)."""
@@ -132,7 +155,18 @@ class TestWhatAVisitorSees:
         assert 'href="/computers/new"' not in rail_markup
         assert "Recent" not in rail_markup
         assert 'href="/settings"' not in rail_markup
+        assert 'href="/for-sale"' not in rail_markup
+        assert 'href="/traffic"' not in rail_markup
         assert 'href="/login' in rail_markup
+
+    def test_a_viewer_is_offered_might_sell_and_not_traffic(self, client):
+        """A viewer reads the shortlist and cannot change it; the site's traffic and
+        its settings are an administrator's (ADR-0032)."""
+        as_viewer(client)
+        rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        assert 'href="/for-sale"' in rail_markup
+        assert 'href="/traffic"' not in rail_markup
+        assert 'href="/settings"' not in rail_markup
 
     def test_a_visitor_still_sees_the_counts(self, client, computer, monkeypatch):
         """The size of a collection is part of what a catalogue is for."""
