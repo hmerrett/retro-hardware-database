@@ -297,9 +297,11 @@
 
 {# aria-current on the section a path belongs to. Prefix rather than exact match, so
    an item's own page still lights the section it was reached through -- except the
-   gallery, which is only itself. #}
-{% macro here(seg, current) -%}
-{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg)) %} aria-current="page"{% endif -%}
+   gallery, which is only itself. `but` is a page inside the section with an entry of
+   its own beside it, which lights that entry and not both: Your account's address
+   is under /settings, and two marked is a screen reader told it is on two pages. #}
+{% macro here(seg, current, but='') -%}
+{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg) and not (but and current.startswith(but))) %} aria-current="page"{% endif -%}
 {%- endmacro %}
 
 {# The five sections, in the order both the banner and the menu give them. "Models"
@@ -348,7 +350,7 @@
 {%- endif -%}
 {%- if authed -%}
 <a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
-<a href="/settings"{{ here('/settings', current) }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
+<a href="/settings"{{ here('/settings', current, but='/settings/account') }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
 {%- endif -%}
 {%- if request.state.principal.signed_in -%}
 {#- Everybody's own, viewers included: the one page under Settings a viewer opens. -#}
@@ -476,7 +478,7 @@
     <button class="item js-theme" type="button" title="{{ 'Dark theme' | ui }}" aria-label="{{ 'Dark theme' | ui }}"
             data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ I.ico('theme') }}<span>{{ 'Dark theme' | ui }}</span></button>
     {%- if authed %}
-    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current) }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
+    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current, but='/settings/account') }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
     {%- endif %}
     {%- if request.state.principal.signed_in %}
     <a class="item" href="/settings/account" title="{{ 'Account' | ui }}" aria-label="{{ 'Account' | ui }}"{{ here('/settings/account', current) }}>{{ I.ico('user') }}<span>{{ 'Account' | ui }}</span></a>

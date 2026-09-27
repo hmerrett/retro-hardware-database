@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2219 behaviours, from 66 files.*
+*2221 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3714,7 +3714,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 14 behaviours*
+*test_site_chrome.py — 16 behaviours*
 
 
 **The banner**
@@ -3732,6 +3732,13 @@ Regenerate with:
 - it holds the five sections folded away at its top
 - the phone sheet offers everything the menu does  
   One list, two renderings: a row added to one and not the other is a thing a phone or a desktop cannot reach.
+
+**Where you are**
+
+- one place is current at a time  
+  Your account's address begins with Settings', so both entries could claim it; two marked is a screen reader told it is on two pages at once.
+- the other settings pages still mark settings  
+  Account takes the mark on its own page and nowhere else.
 
 **How it folds with the width**
 

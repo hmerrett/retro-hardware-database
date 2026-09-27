@@ -26,6 +26,10 @@ SECTIONS = [
     ("/files", "Files"),
 ]
 
+# The lists of places beside the banner's own, each of which marks where you are
+# for itself: the rail, the ⋯ menu and the phone's More.
+LISTS = {"rail": {"cls": "rail"}, "menu": {"cls": "hdr-more"}, "more": {"id": "sheet"}}
+
 
 class Region(HTMLParser):
     """The text and links inside the first element carrying `cls` (or `id`)."""
@@ -77,6 +81,12 @@ def region(html: str, **where: str) -> Region:
     found.feed(html)
     assert found.words, f"nothing rendered inside {where}"
     return found
+
+
+def marked(html: str, **where: str) -> list[str | None]:
+    """Where a list of places says you are: the links it marks as the current page."""
+    links = region(html, **where).links
+    return [attrs.get("href") for _, attrs in links if attrs.get("aria-current") == "page"]
 
 
 def rule(selector: str, css: str) -> str:
@@ -162,6 +172,20 @@ class TestTheMenu:
         menu = {attrs.get("href") for _, attrs in region(page, cls="hdr-more").links}
         sheet = {attrs.get("href") for _, attrs in region(page, id="sheet").links}
         assert menu - {"/"} <= sheet
+
+
+class TestWhereYouAre:
+    @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))
+    def test_one_place_is_current_at_a_time(self, client, where):
+        """Your account's address begins with Settings', so both entries could
+        claim it; two marked is a screen reader told it is on two pages at once."""
+        assert marked(client.get("/settings/account").text, **where) == ["/settings/account"]
+
+    @pytest.mark.parametrize("path", ["/settings", "/settings/users"])
+    @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))
+    def test_the_other_settings_pages_still_mark_settings(self, client, where, path):
+        """Account takes the mark on its own page and nowhere else."""
+        assert marked(client.get(path).text, **where) == ["/settings"]
 
 
 class TestHowItFoldsWithTheWidth:

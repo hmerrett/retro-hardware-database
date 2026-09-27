@@ -188,6 +188,12 @@ On a tablet, or a desktop window narrower than about 900px, the five sections
 move into the **☰** menu, at its top, so the banner stays on one line rather than
 wrapping the search box onto a second.
 
+Wherever the places are listed — the banner, the **☰** menu, the phone's **More**
+and the rail ([Where the sections sit](#where-the-sections-sit)) — no more than one
+is ever marked as where you are: a screen reader announces it as the current page,
+and two would be two pages at once. On **Your account** that is **Account**, not
+**Settings** as well.
+
 ### The header on a phone
 
 The banner keeps the name and the search box; everything else moves to a bar
