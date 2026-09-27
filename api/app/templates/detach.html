@@ -15,7 +15,7 @@
    more thing gets a tag -- so the banner is a warning and the button is primary.
    Only destruction gets the danger one. #}
 {% block title %}Detach the board — {{ aid }} — {{ site_name() }}{% endblock %}
-{% block main_class %} class="v2"{% endblock %}
+{% block main_class %} v2{% endblock %}
 {% block content %}
 <form method="post" action="/computers/{{ aid }}/detach-board"
       enctype="multipart/form-data" class="confirm">

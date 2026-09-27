@@ -4,7 +4,7 @@
 {# Your own account, for anybody signed in, viewers included (ADR-0032): the one
    page under /settings the gate lets a viewer open. #}
 {% block title %}Your account — {{ site_name() }}{% endblock %}
-{% block main_class %} class="v2"{% endblock %}
+{% block main_class %} v2{% endblock %}
 {% block content %}
 <div class="pagehead"><h1 class="heading">Your account</h1></div>
 <p class="hint">Signed in as <b>{{ me.username }}</b>, {{ role_name | lower }}.</p>

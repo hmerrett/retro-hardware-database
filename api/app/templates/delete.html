@@ -7,7 +7,7 @@
    A page and not a dialog, so it has an address, works with no script, and can be
    left by pressing Cancel — the one way back, at the foot with the decision. #}
 {% block title %}Delete {{ aid }} — {{ site_name() }}{% endblock %}
-{% block main_class %} class="v2"{% endblock %}
+{% block main_class %} v2{% endblock %}
 {% block content %}
 {% set noun = 'computer' if kind == 'computers' else 'part' %}
 <form method="post" action="/{{ kind }}/{{ aid }}/delete" class="confirm">

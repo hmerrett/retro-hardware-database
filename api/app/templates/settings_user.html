@@ -4,7 +4,7 @@
 {# One account, for an administrator (ADR-0032). Each fieldset is its own form, so a
    refusal from one -- the last administrator -- leaves the others as they were. #}
 {% block title %}{{ u.username }} — {{ site_name() }}{% endblock %}
-{% block main_class %} class="v2"{% endblock %}
+{% block main_class %} v2{% endblock %}
 {% block content %}
 <div class="pagehead"><h1 class="heading">{{ u.username }}</h1></div>
 <p class="hint"><a href="/settings/users">Accounts</a> · last signed in {{ A.when(u.last_login_at) }}</p>

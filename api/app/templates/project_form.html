@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% import "_ui.html" as U with context %}
 {% block title %}{{ title }} — {{ site_name() }}{% endblock %}
-{% block main_class %} class="v2"{% endblock %}
+{% block main_class %} v2{% endblock %}
 {% block content %}
 {# `p` is the record on an edit and the rejected form's own values on a create --
    both read the same way, which is why the create path hands back a dict shaped
