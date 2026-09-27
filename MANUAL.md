@@ -419,8 +419,8 @@ across the top.
 Down the main column:
 
 - **Details** — the record's own fields.
-- **Machine** — for a machine filed against the catalogue: its model, its board
-  issue, style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
+- **Machine** — for a machine or a board filed against the catalogue: its model,
+  its board issue, style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
 - **Specification** — on a part's page: its spec pairs, a label and a value each.
 - **Fitted in** — on a part's page: the machine it is installed in, or the card
   it is mounted on, with **Take out** to make it a spare again. A spare says it is
