@@ -372,13 +372,16 @@
    The mark and the name together, and both belong to the installation rather than
    to the software: the logo is whatever was dropped into the branding directory
    (see common.branded and INSTALL.md), and the name is what the settings page says
-   this collection is called. The alt text is that name because the picture is the
-   site's mark -- a logo whose alt text describes the artwork tells a screen reader
-   about a drawing nobody asked about. #}
+   this collection is called. The name is written beside the logo at every width the
+   banner shows the logo, a phone's included, so the words are what name the link
+   and the logo's alt is empty: an alt of the name as well had a screen reader say
+   it twice, and one describing the artwork tells it about a drawing nobody asked
+   about. The rail's logo keeps the name as its alt, because collapsed it stands
+   without the words (below). #}
 {% macro site_header(current, authed, back, q='') -%}
 <header class="site-header">
   <a class="brand" href="/">
-    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt=""
          width="248" height="256">
     <span>{{ site_name() }}</span>
   </a>

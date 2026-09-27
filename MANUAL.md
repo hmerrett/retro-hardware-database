@@ -2541,6 +2541,9 @@ unfolds into. Change it and all of them change together.
 A rail collapsed to its icons has room for the logo and not the name, so it keeps
 the name in the logo's tooltip.
 
+In the banner the logo and the name beside it are one link to the front page,
+which a screen reader reads out as the name, once.
+
 It names *this collection*, not the software: the register is still the Retro
 Hardware Database wherever it is installed, and the API's own documentation at
 `/docs` still says so. Along with dropping your own `logo-256.png` into the

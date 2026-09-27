@@ -8,12 +8,14 @@ and what the page says when it is not the one being edited.
 """
 
 import re
+from html import unescape
 from pathlib import Path
 
 import pytest
 
 from app import cards, photos, presets, settings, typefaces
 from conftest import log_out
+from test_site_chrome import rules, stylesheet
 
 STATIC = Path(__file__).parents[1] / "app" / "static"
 
@@ -40,6 +42,14 @@ def save(client, **fields):
     r = client.post("/settings", data=data, follow_redirects=False)
     assert r.status_code == 303, r.text
     return r
+
+
+def said(link: str) -> str:
+    """What a screen reader reads out for a link as plain as the logo's: its words,
+    with each picture's alt standing in for the picture. There is no browser here to
+    ask, and a link this plain needs none."""
+    link = re.sub(r'<img\b[^>]*\balt="([^"]*)"[^>]*>', r" \1 ", link)
+    return " ".join(unescape(re.sub(r"<[^>]*>", " ", link)).split())
 
 
 class TestReachingThePage:
@@ -107,6 +117,20 @@ class TestWhatTheSiteIsCalled:
         link = re.search(r'<a class="brand"[^>]*>', rail)
         assert link, "the rail has no logo"
         assert 'title="Henry&#39;s shelf"' in link.group(0)
+
+    def test_a_screen_reader_hears_the_logo_in_the_banner_as_the_name_once(self, client):
+        """The banner writes the name beside its logo wherever it shows the logo, a
+        phone's included, so the words name the link and the picture's alt is empty:
+        with the name in both, the name was read out twice."""
+        save(client, site_name="Henry's shelf")
+        banner = client.get("/").text.split('<header class="site-header">', 1)[1]
+        link = re.search(r'<a class="brand".*?</a>', banner, re.S)
+        assert link, "the banner has no logo"
+        assert said(link.group(0)) == "Henry's shelf"
+        # With the alt empty the words are the link's only name, so no width may hide
+        # them -- a phone's did, while the foot of the page carried the name.
+        words = rules(".site-header .brand span", stylesheet())
+        assert not any("display: none" in body for body in words)
 
     def test_the_name_reaches_a_shared_link(self, client, computer):
         """What a link unfolds into in a chat window is the site introducing itself
