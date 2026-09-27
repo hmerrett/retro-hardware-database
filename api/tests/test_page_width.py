@@ -16,11 +16,12 @@ import re
 from html.parser import HTMLParser
 from pathlib import Path
 
-from test_stylesheet_lint import declarations
+from test_stylesheet_lint import COMPONENTS, UTILITIES, declarations, text
 
 APP = Path(__file__).parents[1] / "app"
 TEMPLATES = APP / "templates"
 STATIC = APP / "static"
+TOKENS = STATIC / "css" / "tokens.css"
 # What a browser asks for, without which an error is answered as the API would.
 HTML = {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
 # What decides how wide a box is and where its content starts.
@@ -97,3 +98,55 @@ def test_no_stylesheet_gives_the_page_a_width_or_gutter_of_its_own():
         and any(re.match(r"main(?![\w-])|.*#main(?![\w-])", s) for s in subjects(selector))
     ]
     assert stated == []
+
+
+def rules_by_media(path: Path) -> list[tuple[tuple[str, ...], str, str]]:
+    """Every rule in a stylesheet as (the `@media` queries around it, its selector, its
+    body), in source order. Which widths a declaration holds at is decided by the
+    blocks it sits in, which `declarations` leaves behind."""
+    css, found, opened, start = text(path), [], [], 0
+    for at, ch in enumerate(css):
+        if ch == "{":
+            opened.append((" ".join(css[start:at].split()), at + 1))
+        elif ch == "}":
+            head, begun = opened.pop()
+            if not head.startswith("@"):
+                queries = tuple(
+                    h.removeprefix("@media ") for h, _ in opened if h.startswith("@media")
+                )
+                found.append((queries, head, css[begun:at]))
+        if ch in "{};":
+            start = at + 1
+    return found
+
+
+def by_media(path: Path, selector: str, side) -> dict[tuple[str, ...], str]:
+    """What `side` reads off `selector`'s rules, in px, keyed by the `@media` queries
+    it is stated under -- `()` for every width."""
+    scale = dict(re.findall(r"(--[\w-]+):\s*([^;]+);", text(TOKENS)))
+    found = {}
+    for queries, head, body in rules_by_media(path):
+        if selector in [s.strip() for s in head.split(",")]:
+            for prop, value in (d.split(":", 1) for d in body.split(";") if ":" in d):
+                if (read := side(prop.strip(), value.split())) is not None:
+                    found[queries] = re.sub(r"var\((--[\w-]+)\)", lambda m: scale[m[1]], read)
+    return found
+
+
+def test_the_banner_s_flash_is_placed_by_the_page_s_own_gutter():
+    """The rule under the banner is not inside the page, so it cannot ask the page
+    where its column ends: `.stripe` puts the banner's flash above the panels' by
+    arithmetic, from a gutter it states itself. At every width that has to be the
+    gutter `.page` is padded by. 0.1's page was padded 18px while the stripe assumed
+    24px, and the banner's flash stood 6px off the line the panels' flashes are on."""
+
+    def right_padding(prop: str, values: list[str]) -> str | None:
+        sides = {"padding": values[1:2] or values, "padding-right": values}
+        return sides[prop][0] if prop in sides else None
+
+    def gutter(prop: str, values: list[str]) -> str | None:
+        return values[0] if prop == "--gutter" else None
+
+    page = by_media(UTILITIES, ".page", right_padding)
+    assert page, "no rule pads .page; this checks nothing"
+    assert by_media(COMPONENTS, ".stripe", gutter) == page

@@ -15,11 +15,13 @@ as painted over the page.
 import importlib.util
 import json
 import re
+from itertools import pairwise
 from pathlib import Path
 
 import pytest
 
 from test_stylesheet import contrast, over
+from test_stylesheet_lint import COMPONENTS, declarations
 
 APP = Path(__file__).parents[1] / "app"
 PALETTES = json.loads((APP / "design" / "palettes.json").read_text(encoding="utf-8"))
@@ -173,3 +175,67 @@ def test_every_face_in_the_picker_is_drawn_in_its_own_colours():
             block = tokens.split(head, 1)[1].split("}", 1)[0]
             missing = {name for name in wanted if f"{name}:" not in block}
             assert missing == set(), f"{preset}-{mode}'s face does not state {sorted(missing)}"
+
+
+def stops(gradient: str) -> list[tuple[str, float, float]]:
+    """A gradient's colour stops as (colour, where it starts, where it ends) in px, so
+    `var(--stripe-2) 14.5px 27.5px` is stripe-2 from 14.5 to 27.5. The first argument
+    is the direction and is left out."""
+    inner = gradient[gradient.index("(") + 1 : gradient.rindex(")")]
+    arguments, depth, current = [], 0, ""
+    for ch in inner + ",":
+        depth += (ch == "(") - (ch == ")")
+        if ch == "," and not depth:
+            arguments.append(current.strip())
+            current = ""
+        else:
+            current += ch
+    found = []
+    for stop in arguments[1:]:
+        colour, *positions = stop.split()
+        assert positions, f"{stop} does not say where it is, so its edges cannot be read"
+        found.append(
+            (
+                colour,
+                float(positions[0].removesuffix("px")),
+                float(positions[-1].removesuffix("px")),
+            )
+        )
+    return found
+
+
+def test_the_flash_has_no_hard_edge_between_its_bands():
+    """The flash is slanted, and the line between two of its bands is not the edge of
+    a shape but a change of colour inside one gradient. A browser smooths a shape's
+    edges and not a gradient's, so on a slant a hard stop is drawn as a staircase: at
+    25 degrees a step every two rows and a longer one every seventh or so, which is
+    what the eye reads as a jiggle. Each band blends into the next over a pixel
+    instead, which is what smoothing the edge would have given it."""
+    flashes = {
+        preset: values["flash"]
+        for preset, values in PALETTES["construction"].items()
+        if values.get("flash", "none") != "none"
+    }
+    assert flashes, "no preset draws a flash; this checks nothing"
+    for preset, flash in flashes.items():
+        bands = stops(flash)
+        hard = [
+            f"{colour} to {after} at {ends:g}px"
+            for (colour, _, ends), (after, starts, _) in pairwise(bands)
+            if starts - ends < 1
+        ]
+        assert hard == [], f"{preset}'s flash changes colour in less than a pixel"
+
+
+def test_the_banner_s_flash_and_a_panel_s_are_slanted_alike():
+    """The design draws one flash -- four bands slanted 25 degrees, at the end of the
+    banner's rule and of every panel's title band, all on one vertical line. The
+    panels' were slanted and the banner's stood upright, which made two of it: four
+    flat blocks under the banner, and bars on the panels below."""
+    flashes = (".stripe::after", ".panel > header::after")
+    slants = {
+        selector: value
+        for selector, prop, value in declarations(COMPONENTS)
+        if selector in flashes and prop == "transform"
+    }
+    assert slants == dict.fromkeys(flashes, "skewX(-25deg)")

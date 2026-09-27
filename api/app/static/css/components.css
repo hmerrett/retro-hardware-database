@@ -119,6 +119,9 @@
     padding: 6px var(--space-4); background: var(--band); color: var(--band-text);
     /* Room kept for the flash, so a long title wraps before it and never runs underneath. */
     padding-right: calc(var(--space-4) + var(--flash-w) + var(--flash-inset)); }
+  /* The flash is the preset's paint on an upright box, slanted. The browser smooths the box's
+     edges but not the gradient's, so the preset blends each band into the next over a pixel:
+     a hard stop on a slant is drawn as a staircase. */
   .panel > header::after { content: ""; position: absolute; top: 0; bottom: 0; right: var(--flash-inset);
     width: var(--flash-w); background: var(--flash); transform: skewX(-25deg); pointer-events: none; }
   .panel > header h3 { font-size: 14px; font-weight: 600; }
@@ -335,9 +338,12 @@
      half of whatever the page is wider than content-max, plus the page gutter and a panel's
      border, and the flash sits --flash-inset in from there, as it does in each panel - less
      the 8px a 25-degree slant moves the top of a panel's flash, so the diagonal reads as
-     carrying on upward into the banner. */
+     carrying on upward into the banner. The gutter is .page's, stated again because this rule
+     is not inside the page. It is slanted as theirs are: one flash, drawn one way, where an
+     upright one read as four flat blocks above a row of bars. */
   .stripe::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--flash-w); background: var(--flash);
-    right: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter) + var(--border-w) + var(--flash-inset) - 8px); }
+    right: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter) + var(--border-w) + var(--flash-inset) - 8px);
+    transform: skewX(-25deg); }
   @media (max-width: 560px) { .stripe { --gutter: var(--space-4); } }
   .tabbar { display: none; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
   .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;

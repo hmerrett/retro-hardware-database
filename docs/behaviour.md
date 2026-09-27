@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2216 behaviours, from 66 files.*
+*2219 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2876,12 +2876,14 @@ Regenerate with:
 
 ## Page width
 
-*test_page_width.py — 2 behaviours*
+*test_page_width.py — 3 behaviours*
 
 - every page is drawn in the page column  
   Every page's `<main>` is the design's page column -- one class attribute, and it names `page` -- on the pages still drawn with 0.1's components as much as on those moved onto v0.2's.
 - no stylesheet gives the page a width or gutter of its own  
   The width of a page and its gutters are `.page`'s alone.
+- the banner s flash is placed by the page s own gutter  
+  The rule under the banner is not inside the page, so it cannot ask the page where its column ends: `.stripe` puts the banner's flash above the panels' by arithmetic, from a gutter it states itself.
 
 
 ## Photo content
@@ -2932,7 +2934,7 @@ Regenerate with:
 
 ## Presets
 
-*test_presets.py — 6 behaviours*
+*test_presets.py — 8 behaviours*
 
 - the stylesheets are the ones the design data writes  
   tokens.css and the preset files are generated.
@@ -2946,6 +2948,10 @@ Regenerate with:
   A preset is token values and nothing else (ADR-0031).
 - every face in the picker is drawn in its own colours  
   The settings page shows each preset as a miniature, and a miniature painted in the colours of the preset already in force would show seven of the same thing.
+- the flash has no hard edge between its bands  
+  The flash is slanted, and the line between two of its bands is not the edge of a shape but a change of colour inside one gradient.
+- the banner s flash and a panel s are slanted alike  
+  The design draws one flash -- four bands slanted 25 degrees, at the end of the banner's rule and of every panel's title band, all on one vertical line.
 
 
 ## Project form items
