@@ -118,6 +118,7 @@ class TestWhatAViewerSees:
     def test_a_viewer_may_read_the_api_docs_and_a_visitor_may_not(self, client):
         """Moving the link changed nobody's access to `/docs`: an account of either
         role opens it, and a visitor is asked for a password by the browser."""
+        assert client.get("/docs").status_code == 200, "the administrator"
         as_viewer(client)
         assert client.get("/docs").status_code == 200
         log_out(client)
