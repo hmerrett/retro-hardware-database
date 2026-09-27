@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2222 behaviours, from 66 files.*
+*2223 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2801,7 +2801,7 @@ Regenerate with:
 
 ## Navigation
 
-*test_navigation.py — 29 behaviours*
+*test_navigation.py — 30 behaviours*
 
 
 **Which layout**
@@ -2869,6 +2869,8 @@ Regenerate with:
 
 - the rail and the tab bar stand on the navigation s ground  
   The navigation has a ground of its own, which every look states in light and in dark.
+- a row under the pointer is written in text  
+  The hover ground is one only `text` is written on: the design turns everything on a hovered row to it, as the search suggestions do.
 
 
 ## Openapi contract

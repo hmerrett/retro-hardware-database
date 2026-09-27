@@ -256,3 +256,17 @@ class TestHowItIsPainted:
         }
         assert grounds == dict.fromkeys((".shell.side > .rail", ".tabbar"), "var(--surface-nav)")
         assert "surface-nav" in PALETTES["keys"], "every look has to state the ground"
+
+    @pytest.mark.parametrize("part", ["svg", ".n", ".tag"])
+    def test_a_row_under_the_pointer_is_written_in_text(self, part):
+        """The hover ground is one only `text` is written on: the design turns
+        everything on a hovered row to it, as the search suggestions do. Left muted,
+        a section's count and a recent item's tag fell under 4.5:1 in five themes.
+        The hover rule has to be the last word on each, because `.rail .item.recent
+        .tag` is as specific as it is and would win by coming later."""
+        colours = [
+            (selector, value)
+            for selector, prop, value in _rules()
+            if selector.startswith(".rail ") and selector.endswith(f" {part}") and prop == "color"
+        ]
+        assert colours and colours[-1] == (f".rail .item:hover {part}", "var(--text)"), colours
