@@ -89,12 +89,20 @@ def marked(html: str, **where: str) -> list[str | None]:
     return [attrs.get("href") for _, attrs in links if attrs.get("aria-current") == "page"]
 
 
+def rules(selector: str, css: str) -> list[str]:
+    """The body of every rule whose selector list names `selector` exactly."""
+    return [
+        body
+        for head, body in re.findall(r"([^{}@]+)\{([^{}]*)\}", css)
+        if selector in [s.strip() for s in head.split(",")]
+    ]
+
+
 def rule(selector: str, css: str) -> str:
     """The body of the first rule whose selector list names `selector` exactly."""
-    for head, body in re.findall(r"([^{}@]+)\{([^{}]*)\}", css):
-        if selector in [s.strip() for s in head.split(",")]:
-            return body
-    raise AssertionError(f"no rule for {selector}")
+    found = rules(selector, css)
+    assert found, f"no rule for {selector}"
+    return found[0]
 
 
 def media(query: str, css: str) -> str:
@@ -197,6 +205,21 @@ class TestHowItFoldsWithTheWidth:
         css = stylesheet()
         assert "display: none" in rule(".menupop .fold", css)
         assert "display: block" in rule(".menupop .fold", media("(max-width: 900px)", css))
+
+    def test_on_a_phone_the_banner_keeps_the_name(self):
+        """With no footer, the banner is the only place on a phone's page that says
+        whose collection a scanned label has opened. On one line and clipped, so a
+        long name costs its own end rather than a second row of banner."""
+        phone = media("(max-width: 620px)", stylesheet())
+        name = rules(".site-header .brand span", phone)
+        assert name, "the phone block says nothing of the name"
+        assert not any("display: none" in body for body in name), "the phone hides the name"
+        said = " ".join(name)
+        for clipped in ("white-space: nowrap", "overflow: hidden", "text-overflow: ellipsis"):
+            assert clipped in said, clipped
+        # A flex item will not shrink below its content unless it is told it may, so
+        # without this the name is never clipped: it pushes the search box instead.
+        assert "min-width: 0" in rule(".site-header .brand", phone)
 
     def test_on_a_phone_the_bar_takes_over_and_scan_goes_with_it(self):
         phone = media("(max-width: 620px)", stylesheet())
