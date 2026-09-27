@@ -517,8 +517,9 @@ nothing until you submit it.
 **+ Computer** in the header.
 
 The form is in sections — **Identity**, **Memory**, **Drives**, **Tracking**,
-**Description**, **Work needed** and, on a new machine, **Photographs** — and a line under a field says what goes in
-it wherever that is not obvious. On a wide screen the short questions stand side
+**Description**, **Work needed** and, on a new machine, **Photographs** — listed at
+the top of the form, where each name takes you to its section, and a line under a
+field says what goes in it wherever that is not obvious. On a wide screen the short questions stand side
 by side, up to five abreast, each drive keeps its bezel menus on its own row, and
 the boxes for the summary and notes stay the width of a paragraph. Editing, the
 heading names the machine and its tag, so two tabs open on two machines cannot be
@@ -578,7 +579,9 @@ guesses it for you. Its form says so under the Year box.
 A refused save saves nothing, and comes back as the form with everything as you
 typed it — memory, drives, catalogue picks, the work box. At the top it says how
 many things there are to fix, each a link to its box, and each box says under
-itself what is wrong and what would do instead. Put them right and **Save** again.
+itself what is wrong and what would do instead. The list of sections at the top
+of a machine's or a part's form says beside each section how many things in it
+there are to fix. Put them right and **Save** again.
 
 Photographs chosen on a new machine are the exception. A browser will not let a
 page choose files on your behalf, so they have to be picked again, and the
@@ -1056,6 +1059,9 @@ Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
 **Condition**, **Source**, **Acquired date**, **Location**, **Reference URL**,
 **Summary**, **Notes**, **Installed in** and **Mounted on** — and, at the foot of the form,
 **Work needed** and **Project** ([checking something in](#checking-something-in)).
+The form's sections are listed at its top, as a machine's are, each name taking you
+to its section; the section of questions for the kind of part is named for it
+(**Storage**, **Motherboard**, **Sound card** and so on).
 
 **Serial number** is the number marked on that particular one — the only field
 that is never true of a second object, which is why the **duplicate** button
