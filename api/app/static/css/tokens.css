@@ -64,6 +64,8 @@
   --border-w: 1px;
   --focus-w: 2px;
   --content-max: 1000px;
+  --wide-max: 1440px;
+  --measure: 34em;
   --tap: 44px;
   --control-h: 32px;
   --thumb-ratio: 4 / 3;

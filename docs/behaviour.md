@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2235 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2876,14 +2876,30 @@ Regenerate with:
 
 ## Page width
 
-*test_page_width.py — 3 behaviours*
+*test_page_width.py — 17 behaviours*
 
 - every page is drawn in the page column  
   Every page's `<main>` is the design's page column -- one class attribute, and it names `page` -- on the pages still drawn with 0.1's components as much as on those moved onto v0.2's.
 - no stylesheet gives the page a width or gutter of its own  
   The width of a page and its gutters are `.page`'s alone.
-- the banner s flash is placed by the page s own gutter  
-  The rule under the banner is not inside the page, so it cannot ask the page where its column ends: `.stripe` puts the banner's flash above the panels' by arithmetic, from a gutter it states itself.
+- the banner s flash is placed by the page under it  
+  The rule under the banner is not inside the page, so it cannot ask the page where its column ends: `.stripe` puts the banner's flash above the panels' by arithmetic.
+- each page s width is decided not defaulted
+- the lists and forms use a wide screen
+- the pages you read keep the column
+- the small pages stay small
+- the page widths are tokens in the design data
+- four cards across at the column and six at the wide width
+- a form row holds five boxes at most
+- what you read keeps a measure
+- no box on a page grows past the measure
+- the banner and the footer stand on the wide page s edges
+- the models list runs to three columns
+- a drive s bezel menus share its row
+- a card asks for the width it is drawn at  
+  The browser picks a card's picture before layout, from `sizes`: too small a figure and a 2x screen gets the 300px copy of a 244px card.
+- a section of short questions lays them across  
+  On a wide page the short questions of a part's own section stand side by side, as Identity's and Tracking's do, rather than one under another down the form.
 
 
 ## Photo content

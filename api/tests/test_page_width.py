@@ -12,11 +12,12 @@ apart: that `<main>` carries the column, and that no stylesheet sizes `<main>` b
 its back.
 """
 
+import json
 import re
 from html.parser import HTMLParser
 from pathlib import Path
 
-from test_stylesheet_lint import COMPONENTS, UTILITIES, declarations, text
+from test_stylesheet_lint import COMPONENTS, LEGACY, UTILITIES, declarations, text
 
 APP = Path(__file__).parents[1] / "app"
 TEMPLATES = APP / "templates"
@@ -133,20 +134,289 @@ def by_media(path: Path, selector: str, side) -> dict[tuple[str, ...], str]:
     return found
 
 
-def test_the_banner_s_flash_is_placed_by_the_page_s_own_gutter():
+def test_the_banner_s_flash_is_placed_by_the_page_under_it():
     """The rule under the banner is not inside the page, so it cannot ask the page
     where its column ends: `.stripe` puts the banner's flash above the panels' by
-    arithmetic, from a gutter it states itself. At every width that has to be the
-    gutter `.page` is padded by. 0.1's page was padded 18px while the stripe assumed
-    24px, and the banner's flash stood 6px off the line the panels' flashes are on."""
+    arithmetic. Both read the one inset worked out on `:root`, so they cannot drift
+    apart again. 0.1's page was padded 18px while the stripe assumed 24px, and the
+    banner's flash stood 6px off the line the panels' flashes are on."""
+    after = [
+        v
+        for sel, prop, v in declarations(COMPONENTS)
+        if sel == ".stripe::after" and prop == "right"
+    ]
+    assert after and after[-1].startswith("calc(var(--page-inset)"), after
+    pads = [
+        value
+        for queries, head, body in rules_by_media(UTILITIES)
+        if ".page" in [h.strip() for h in head.split(",")]
+        for prop, value in (d.split(":", 1) for d in body.split(";") if ":" in d)
+        if prop.strip() == "padding"
+    ]
+    assert pads and all(v.split()[1] == "var(--page-inset)" for v in pads), pads
 
-    def right_padding(prop: str, values: list[str]) -> str | None:
-        sides = {"padding": values[1:2] or values, "padding-right": values}
-        return sides[prop][0] if prop in sides else None
 
-    def gutter(prop: str, values: list[str]) -> str | None:
-        return values[0] if prop == "--gutter" else None
+# Each page that extends base.html, and the width it is drawn at: decided here, not
+# defaulted, so a new page fails until somebody says which it is.
+WIDE = {
+    "index.html",  # Browse, and /browse, /for-sale and a search, which are Browse
+    "machines.html",
+    "model.html",
+    "stats.html",
+    "computer_form.html",
+    "part_form.html",
+    "project_form.html",
+}
+READING = {
+    "computer.html",
+    "part.html",
+    "project.html",
+    "file.html",
+    "projects.html",
+    "files.html",
+    # Settings is drawn .narrow until it is split into tabs.
+    "settings.html",
+    "settings_users.html",
+    "settings_user.html",
+    "settings_account.html",
+    "login.html",
+    "setup.html",
+    "delete.html",
+    "detach.html",
+    "error.html",
+    "forbidden.html",
+}
 
-    page = by_media(UTILITIES, ".page", right_padding)
-    assert page, "no rule pads .page; this checks nothing"
-    assert by_media(COMPONENTS, ".stripe", gutter) == page
+
+def width_block(name: str) -> str | None:
+    found = re.findall(r"{% block width %}(.*?){% endblock %}", (TEMPLATES / name).read_text())
+    return found[0] if found else None
+
+
+def test_each_page_s_width_is_decided_not_defaulted():
+    pages = {
+        t.name
+        for t in TEMPLATES.glob("*.html")
+        if '{% extends "base.html" %}' in t.read_text(encoding="utf-8")
+    }
+    assert pages == WIDE | READING, "a page whose width nobody has decided"
+    assert not WIDE & READING
+    assert {name: width_block(name) for name in WIDE} == dict.fromkeys(WIDE, " wide")
+    assert {name: width_block(name) for name in READING} == dict.fromkeys(READING)
+    assert "{% block width %}{% endblock %}" in (TEMPLATES / "base.html").read_text()
+
+
+def main_classes(client, path: str) -> list[str]:
+    mains = Mains()
+    mains.feed(client.get(path, headers=HTML).text)
+    ((classes,),) = mains.found
+    return classes.split()
+
+
+def test_the_lists_and_forms_use_a_wide_screen(client, a_page_of_everything):
+    wide = [
+        p
+        for p in a_page_of_everything
+        if p in ("/", "/machines", "/stats", "/for-sale")
+        or p.startswith("/machines/")
+        or p.endswith(("/edit", "/new"))
+    ]
+    assert len(wide) >= 9, wide
+    for path in [*wide, "/browse?f=all", "/?q=vic"]:
+        assert "wide" in main_classes(client, path), path
+
+
+def test_the_pages_you_read_keep_the_column(client, a_page_of_everything):
+    reading = [
+        p
+        for p in a_page_of_everything
+        if p.startswith(("/computers/RH", "/parts/RH", "/files", "/projects", "/settings"))
+        and not p.endswith(("/edit", "/new"))
+    ]
+    assert len(reading) >= 6, reading
+    for path in reading:
+        assert "wide" not in main_classes(client, path), path
+
+
+def test_the_small_pages_stay_small(client):
+    for path in ("/computers/RH-9999",):
+        assert "wide" not in main_classes(client, path), path
+    caps = {
+        sel: v
+        for sel, prop, v in declarations(COMPONENTS)
+        if sel in (".loginbox", ".confirm", ".errorpage") and prop == "max-width"
+    }
+    assert set(caps) == {".loginbox", ".confirm", ".errorpage"}
+    assert all(int(v.removesuffix("px")) < 1000 for v in caps.values()), caps
+
+
+def scale(name: str) -> str:
+    sizes = json.loads((APP / "design" / "scales.json").read_text())["size"]["tokens"]
+    return {t["name"]: t["value"] for t in sizes}[name]
+
+
+def test_the_page_widths_are_tokens_in_the_design_data():
+    assert (scale("content-max"), scale("wide-max")) == ("1000px", "1440px")
+    assert scale("measure").endswith("em")
+    page_max = [
+        (sel, v)
+        for path in (UTILITIES, COMPONENTS)
+        for sel, prop, v in declarations(path)
+        if prop == "--page-max"
+    ]
+    assert sorted(page_max) == [
+        (":root", "var(--content-max)"),
+        (":root:has(main.page.wide)", "var(--wide-max)"),
+    ]
+    literal = [
+        (path.name, sel, prop, v)
+        for path in STATIC.rglob("*.css")
+        if path != TOKENS
+        for sel, prop, v in declarations(path)
+        if re.search(r"\b(1000|1440)px", v)
+    ]
+    assert literal == []
+    assert not [p for sel, p, v in declarations(UTILITIES) if sel == ".page" and p == "max-width"]
+
+
+def px(token: str) -> int:
+    return int(re.search(rf"{re.escape(token)}:\s*(\d+)px", text(TOKENS))[1])
+
+
+def test_four_cards_across_at_the_column_and_six_at_the_wide_width():
+    track = int(re.search(r"\.grid \{[^}]*minmax\(min\((\d+)px", text(COMPONENTS))[1])
+    gap, gutter = px("--space-5"), px("--space-6")
+
+    def across(page: int) -> int:
+        return (page - 2 * gutter + gap) // (track + gap)
+
+    assert (across(px("--content-max")), across(px("--wide-max"))) == (4, 6)
+
+
+def test_a_form_row_holds_five_boxes_at_most():
+    grid = re.search(r"\.formgrid \{[^}]*minmax\(min\((\d+)px", text(COMPONENTS)) or re.search(
+        r"\.formgrid \{[^}]*minmax\((\d+)px", text(COMPONENTS)
+    )
+    track, gap, gutter, inner = int(grid[1]), px("--space-5"), px("--space-6"), px("--space-5")
+    row = px("--wide-max") - 2 * gutter - 2 * inner
+    assert (row + gap) // (track + gap) <= 5
+
+
+def test_what_you_read_keeps_a_measure():
+    capped = {
+        one.strip()
+        for sel, prop, v in declarations(COMPONENTS)
+        if prop == "max-width" and v == "var(--measure)"
+        for one in sel.split(",")
+    }
+    assert {".prose", ".lead", ".hint", ".banner > span", "#cookienote p"} <= capped, capped
+    in_ch = [
+        (path.name, sel)
+        for path in STATIC.rglob("*.css")
+        for sel, prop, v in declarations(path)
+        if prop == "max-width" and v.endswith("ch")
+    ]
+    assert in_ch == []
+
+
+def test_no_box_on_a_page_grows_past_the_measure():
+    assert (".page :is(.input, .select)", "max-width", "var(--measure)") in declarations(COMPONENTS)
+    unscoped = [
+        sel
+        for sel, prop, v in declarations(LEGACY)
+        if prop == "max-width" and re.fullmatch(r"(select|input|textarea)", sel.strip())
+    ]
+    assert unscoped == []
+
+
+def test_the_banner_and_the_footer_stand_on_the_wide_page_s_edges():
+    for selector in (".site-header", ".site-footer"):
+        inline = [
+            value
+            for queries, head, body in rules_by_media(COMPONENTS)
+            if selector in [h.strip() for h in head.split(",")]
+            for prop, value in (d.split(":", 1) for d in body.split(";") if ":" in d)
+            if prop.strip() in ("padding", "padding-inline")
+        ]
+        assert inline, selector
+        assert all("var(--frame-inset)" in v for v in inline), (selector, inline)
+    roots = {(sel, v) for sel, prop, v in declarations(UTILITIES) if prop == "--frame-inset"}
+    assert roots and all(
+        sel == ":root" and "--wide-max" in v and "--gutter" in v for sel, v in roots
+    )
+    gutters = {
+        sel
+        for path in STATIC.rglob("*.css")
+        for sel, prop, v in declarations(path)
+        if prop == "--gutter"
+    }
+    assert gutters == {":root"}, gutters
+
+
+def test_the_models_list_runs_to_three_columns():
+    columns = [
+        v for sel, prop, v in declarations(COMPONENTS) if sel == ".models" and prop == "columns"
+    ]
+    assert columns == ["3 320px"]
+
+
+def test_a_drive_s_bezel_menus_share_its_row():
+    column = [
+        sel
+        for sel, prop, v in declarations(COMPONENTS)
+        if "bezel-cell" in sel and prop == "flex-direction" and v == "column"
+    ]
+    assert column == []
+
+
+def test_a_card_asks_for_the_width_it_is_drawn_at():
+    """The browser picks a card's picture before layout, from `sizes`: too small a
+    figure and a 2x screen gets the 300px copy of a 244px card."""
+    track = int(re.search(r"\.grid \{[^}]*minmax\(min\((\d+)px", text(COMPONENTS))[1])
+    gap = px("--space-5")
+    widest = track + (track + gap) / 4
+    figure = int(
+        re.search(
+            r'sizes="\(max-width: 460px\) 100vw, (\d+)px"', (TEMPLATES / "_ui.html").read_text()
+        )[1]
+    )
+    assert widest <= figure <= 250
+
+
+class Boxes(HTMLParser):
+    """How many single-line boxes and menus each fieldset stands one under another:
+    those outside a grid (.formgrid, or .countgrid for a board's counts) and a table."""
+
+    def __init__(self):
+        super().__init__()
+        self.stack: list[str] = []
+        self.loose: list[int] = []
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag in ("fieldset", "div"):
+            self.stack.append(
+                "grid" if {"formgrid", "countgrid"} & set((a.get("class") or "").split()) else tag
+            )
+            if tag == "fieldset":
+                self.loose.append(0)
+        single = (
+            tag == "input" and a.get("type") in (None, "text", "number", "date")
+        ) or tag == "select"
+        if single and self.loose and "grid" not in self.stack and "table" not in self.stack:
+            self.loose[-1] += 1
+        if tag == "table":
+            self.stack.append("table")
+
+    def handle_endtag(self, tag):
+        if tag in ("fieldset", "div", "table") and self.stack:
+            self.stack.pop()
+
+
+def test_a_section_of_short_questions_lays_them_across(client):
+    """On a wide page the short questions of a part's own section stand side by side,
+    as Identity's and Tracking's do, rather than one under another down the form."""
+    for ptype in ("cpu", "ram", "video", "sound", "network", "io", "motherboard"):
+        boxes = Boxes()
+        boxes.feed(client.get(f"/parts/new?type={ptype}", headers=HTML).text)
+        assert max(boxes.loose, default=0) < 3, (ptype, boxes.loose)

@@ -156,7 +156,7 @@
          is a mix now, and which of them a visitor can see is worth being able to
          read down at a glance. #}
       {% if r.p.private %}{{ U.chip('Private', 'quiet') }}{% endif %}
-      {% if r.p.summary %}<br><span class="hint">{{ r.p.summary | linked }}</span>{% endif %}
+      {% if r.p.summary %}<p class="hint flush">{{ r.p.summary | linked }}</p>{% endif %}
     </td>
     <td class="tight" data-label="Status">{{ U.status_chip(r.p.status) }}</td>
     <td class="tight num" data-label="Items">{{ r.assets or '' }}</td>

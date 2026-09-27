@@ -100,10 +100,13 @@
 {% endif %}
 {{ U.site_header(_p, request.state.authed, _back, q | default('', true)) }}
 {#- Every page is drawn in the design's page column, .page, which is where its width
-    and its gutters come from. A page on the v0.2 components adds v2 through
-    main_class, which the 0.1 rules in app.css that share its class names stand back
-    from. That half is transitional: it goes with app.css. #}
-<main id="main" tabindex="-1" class="page{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
+    and its gutters come from. Its width is the page's own decision, stated in the
+    width block: ` wide` for the lists and forms, nothing for a page you read, and
+    test_page_width.py lists every page as one or the other so a new one is decided
+    rather than defaulted. A page on the v0.2 components adds v2 through main_class,
+    which the 0.1 rules in app.css that share its class names stand back from. That
+    half is transitional: it goes with app.css, and the width outlives it. #}
+<main id="main" tabindex="-1" class="page{% block width %}{% endblock %}{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
 
 <footer class="site-footer">
   <span>{{ site_name() }}</span>

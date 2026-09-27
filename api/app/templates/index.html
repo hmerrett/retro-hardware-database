@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title | default(site_name(), true) }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block content %}
 {% import "_ui.html" as U with context %}
 {# Doubles as /browse: same grid, a subset of the rows, and a line saying which

@@ -32,6 +32,12 @@
   .heading { font-size: 18px; line-height: 1.4; font-weight: 600; }
   .tag { font-size: 12px; }
   .hint { font-size: 12px; color: var(--text-muted); }
+  /* However wide the page, what somebody wrote stops at about seventy characters, and so
+     does a box they type into, so a summary is written at the width it is read at. In em,
+     so a 12px hint gets the same count as 16px prose; max-width does nothing to an inline
+     .hint, which is already inside a line of something else. */
+  .prose, .lead, .hint, .banner > span, #cookienote p { max-width: var(--measure); }
+  .page :is(.input, .select) { max-width: var(--measure); }
   @media (max-width: 560px) { .title { font-size: 22px; } }
   .num, td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
   .break { overflow-wrap: anywhere; }
@@ -149,7 +155,7 @@
 
   /* ---- 8. Card (gallery tile) --------------------------------------------- */
   .grid { display: grid; gap: var(--space-5);
-    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+    grid-template-columns: repeat(auto-fill, minmax(min(192px, 100%), 1fr)); }
   /* Two across on a phone rather than one: a gallery is for scanning. */
   @media (max-width: 560px) { .grid { gap: var(--space-4);
     grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); } }
@@ -241,7 +247,7 @@
   .toast > .btn { flex: none; }
   #cookienote { z-index: 60; left: 0; right: 0; bottom: 0; transform: none; flex-wrap: wrap;
     justify-content: center; border-width: 1px 0 0; border-radius: 0; box-shadow: none; }
-  #cookienote p { max-width: 70ch; margin: 0; font-size: 12px; color: var(--text-muted); }
+  #cookienote p { margin: 0; font-size: 12px; color: var(--text-muted); }
   #cookienote p b { color: var(--text); }
   /* On a wide screen the notice is the only thing fixed over the page, and a control
      tabbed to below the fold must not be scrolled to where it is covering. */
@@ -287,7 +293,7 @@
 
   /* ---- 13. Site header, stripe, tab bar ----------------------------------- */
   .site-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
-    padding: var(--space-4) var(--space-6); border-bottom: var(--border-w) solid var(--line); }
+    padding: var(--space-4) var(--frame-inset); border-bottom: var(--border-w) solid var(--line); }
   .site-header .brand { display: inline-flex; align-items: center; gap: var(--space-3); font-weight: 600;
     color: var(--text); text-decoration: none; }
   .site-header .mark { width: 34px; height: 28px; background: var(--surface-sunken);
@@ -303,8 +309,6 @@
   .site-header .searchwrap { display: flex; min-width: 0; }
   .site-header .menu > summary { min-height: var(--control-h); }
   /* The no-login notice stands under the banner, inside its gutters. */
-  #openwarn { margin: var(--space-4) var(--space-6); }
-  @media (max-width: 620px) { #openwarn { margin: var(--space-3) var(--space-4); } }
   /* A tablet, or a narrow window: the five sections leave the banner for the top of
      its menu, so the banner stays one row rather than wrapping the search box onto a
      second. */
@@ -318,7 +322,7 @@
      is still the way home, and the name is in the title bar and at the foot of the
      page. Dropping it is what keeps the banner to one row. */
   @media (max-width: 620px) {
-    .site-header { flex-wrap: nowrap; padding: var(--space-3) var(--space-4); }
+    .site-header { flex-wrap: nowrap; padding: var(--space-3) var(--frame-inset); }
     .site-header .brand span, .site-header .grow { display: none; }
     .site-header .hdr-new { display: none; }
     .site-header .hdr-more { display: none; }
@@ -333,18 +337,17 @@
     .site-header .suggest { top: calc(100% + var(--space-1)); left: var(--space-2); right: var(--space-2);
       width: auto; max-width: none; }
   }
-  .stripe { --gutter: var(--space-6); position: relative; height: var(--stripe-h); background: var(--stripe-image); }
-  /* The banner's flash stands directly above the panels' flashes: the column's right edge is
-     half of whatever the page is wider than content-max, plus the page gutter and a panel's
-     border, and the flash sits --flash-inset in from there, as it does in each panel - less
-     the 8px a 25-degree slant moves the top of a panel's flash, so the diagonal reads as
-     carrying on upward into the banner. The gutter is .page's, stated again because this rule
-     is not inside the page. It is slanted as theirs are: one flash, drawn one way, where an
-     upright one read as four flat blocks above a row of bars. */
+  .stripe { position: relative; height: var(--stripe-h); background: var(--stripe-image); }
+  /* The banner's flash stands directly above the panels' flashes: the page's right edge is
+     the inset the page is padded by (utilities.css, worked out once for the page under it,
+     wide or reading), plus a panel's border, and the flash sits --flash-inset in from there,
+     as it does in each panel - less the 8px a 25-degree slant moves the top of a panel's
+     flash, so the diagonal reads as carrying on upward into the banner. It is slanted as
+     theirs are: one flash, drawn one way, where an upright one read as four flat blocks
+     above a row of bars. */
   .stripe::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--flash-w); background: var(--flash);
-    right: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter) + var(--border-w) + var(--flash-inset) - 8px);
+    right: calc(var(--page-inset) + var(--border-w) + var(--flash-inset) - 8px);
     transform: skewX(-25deg); }
-  @media (max-width: 560px) { .stripe { --gutter: var(--space-4); } }
   .tabbar { display: none; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
   .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: var(--space-1); min-height: 52px; padding: 0; font-size: 11px; font-weight: 500; color: var(--text-muted);
@@ -551,7 +554,7 @@
      looks like it belongs to. */
   .attached { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-3) var(--space-1) 0; }
   .addrow > textarea.input { flex: 1 1 100%; }
-  .models { columns: 2 320px; column-gap: var(--space-6); }
+  .models { columns: 3 320px; column-gap: var(--space-6); }
   .models section { break-inside: avoid; margin-bottom: var(--space-5); }
   .models h2 { font-size: 14px; font-weight: 600; margin-bottom: var(--space-2); }
   .models .m { display: flex; gap: var(--space-4); padding: 3px 0; border-top: 1px solid var(--line); font-size: 13px; }
@@ -666,7 +669,7 @@
      across the lines of a template. Every figure is a link, and the links are quiet --
      the ink around them until hovered -- so the page reads as numbers rather than as
      a page of links. */
-  .lead { font-family: var(--font-display); font-size: 16px; line-height: 1.6; max-width: 70ch; }
+  .lead { font-family: var(--font-display); font-size: 16px; line-height: 1.6; }
   .lead .n { font-weight: 600; }
   .numbers .sub { margin: 0 0 var(--space-3); font-size: 13px; color: var(--text-muted); }
   .numbers .figure a, .numbers .muted a, .numbers .lead a, .bars a { color: inherit; text-decoration: none; }
@@ -686,7 +689,7 @@
   .today .todo li::before { content: "\25CB  "; color: var(--text-muted); }
   .today .todo li.more::before { content: none; }
   @media (max-width: 560px) { .today .shots > .cardthumb { width: 96px; } }
-  .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--line);
+  .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--frame-inset); border-top: 1px solid var(--line);
     font-size: 13px; color: var(--text-muted); }
 
   /* ---- 14g. Form errors ----------------------------------------------------
@@ -827,8 +830,6 @@
   .table.drives th:nth-child(7) { width: 130px; }
   /* In a drive row the bezel stacks -- ladder, shade, yellowing -- because side by
      side they want more width than the row has left. */
-  .table.drives .bezel-cell { flex-direction: column; align-items: stretch; gap: var(--space-2); }
-  .table.drives .bezel-cell > .select { flex: none; width: 100%; }
   /* A bezel's two menus and the ladder that shows them. They wrap rather than shrink,
      because two half-width menus name nothing useful; "Heavily yellowed" is the
      widest word either holds, and a menu that clips its own longest option is a

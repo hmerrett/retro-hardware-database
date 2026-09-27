@@ -326,7 +326,7 @@
   .toolbar input.fill { flex: 1 1 240px; }
   /* A picker is as wide as its widest option, and the options here are whole item
      names -- wider than a phone. Let it shrink; the chosen line still fits. */
-  select { max-width: 100%; }
+  select:not(.select) { max-width: 100%; }
   /* The popup's rows are painted by the browser, and some of them take our dark
      foreground into the list while leaving its background the system light --
      pale text on white, unreadable. `color-scheme` above asks for the right

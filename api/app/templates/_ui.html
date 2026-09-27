@@ -237,11 +237,12 @@
 {%- set o = item.obj -%}
 <a class="card{{ ' is-disposed' if o.disposed }}" href="/{{ 'computers' if item.kind == 'computer' else 'parts' }}/{{ o.asset_id }}">
 <span class="thumb">
-{#- A card measures 229px on every desktop width -- the page is capped at 1000px --
-    and the width of the screen on a phone. sizes says so, because a browser
-    believes it: overstating it by seventy pixels was enough to make a retina
-    screen fetch the 800px copy for a card that can show 458. #}
-{%- if item.image %}<img src="{{ img_url(item.image, THUMB_CARD) }}" srcset="{{ img_srcset(item.image, [300, 500, 800]) }}" sizes="(max-width: 460px) 100vw, 229px" alt="{{ item.name }}" loading="lazy" decoding="async">
+{#- A card is at most 244px on a desktop -- a 192px track shared four or more
+    across -- and the width of the screen on a phone. sizes says 250px, because a
+    browser believes it: overstating it by seventy pixels was enough to make a retina
+    screen fetch the 800px copy for a card that can show 458, and 250px keeps a 2x
+    screen on the 500px copy. #}
+{%- if item.image %}<img src="{{ img_url(item.image, THUMB_CARD) }}" srcset="{{ img_srcset(item.image, [300, 500, 800]) }}" sizes="(max-width: 460px) 100vw, 250px" alt="{{ item.name }}" loading="lazy" decoding="async">
 {%- else %}<img class="ph" src="/static/{{ item.placeholder }}" alt="{{ item.cat_label }}" loading="lazy">{% endif %}
 {%- if item.ref_photo %}<span class="ref-badge{{ ' icon' if item.ref_icon }}" title="Illustrative image, not this exact unit">{% if item.ref_icon %}<img src="/images/{{ item.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
 </span>
