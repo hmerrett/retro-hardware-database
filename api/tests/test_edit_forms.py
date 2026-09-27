@@ -66,7 +66,7 @@ class TestTheLayout:
         # A form is one of the wide pages (MANUAL: "On a wide screen").
         assert '<main id="main" tabindex="-1" class="page wide v2">' in page
         assert '<form class="editform"' in page
-        assert '<fieldset class="fieldset">' in form_of(page)
+        assert re.search(r'<fieldset class="fieldset"[ >]', form_of(page))
 
     def test_the_machine_form_is_in_its_sections(self, client, forms):
         legends = re.findall(r"<legend>([^<]+)</legend>", client.get(forms["computer new"]).text)

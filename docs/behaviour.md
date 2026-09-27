@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2235 behaviours, from 66 files.*
+*2242 behaviours, from 67 files.*
 
 
 ## A file where text was expected
@@ -2033,6 +2033,19 @@ Regenerate with:
 - disposing a flagged item leaves the flag alone  
   Two different facts.
 - the decision is written down
+
+
+## Form sections
+
+*test_form_sections.py — 7 behaviours*
+
+- the form lists its sections at the top
+- each entry is a link to its section
+- without script every section shows
+- a section with something to fix is marked in the list
+- a part s own section is marked too
+- every link in the summary lands on a box that can take the focus
+- an entry is a thumb s height on a touch screen
 
 
 ## Gallery pages

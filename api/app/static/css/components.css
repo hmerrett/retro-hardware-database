@@ -105,6 +105,7 @@
     background: var(--surface-sunken); color: var(--text-muted); border-style: dashed; cursor: not-allowed; }
   @media (pointer: coarse) {
     .btn, .input, .select { font-size: 16px; min-height: var(--tap); }
+    .formsections a { display: inline-flex; align-items: center; min-height: var(--tap); }
     .btn.sm { font-size: 16px; min-height: 36px; }
     .check input { width: 22px; height: 22px; }
   }
@@ -691,6 +692,14 @@
   @media (max-width: 560px) { .today .shots > .cardthumb { width: 96px; } }
   .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--frame-inset); border-top: 1px solid var(--line);
     font-size: 13px; color: var(--text-muted); }
+
+  /* A long form's sections, listed at its top: a wrapping row of links, the words of a
+     section with something to fix in the danger colour beside its name. Scrolled to, a
+     section stops a little below the top of the window rather than hard against it. */
+  .formsections ul { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: var(--space-3) 0 0;
+    padding: 0; list-style: none; font-size: 13px; }
+  .formsections .tofix { color: var(--danger); font-weight: 600; }
+  .editform .fieldset[id] { scroll-margin-top: var(--space-5); }
 
   /* ---- 14g. Form errors ----------------------------------------------------
      The one place explanation is printed under a control rather than put in a title:

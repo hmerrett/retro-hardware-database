@@ -105,6 +105,20 @@
    field. `errors` is a list of (key, label, message). role="alert" so a screen
    reader hears it, and tabindex="-1" so the page can move focus to it and a
    keyboard user starts from there. Nothing at all when there is nothing to fix. #}
+{#- A long form's sections, listed at its top as links to them (MANUAL: "Adding a
+    computer"). Links rather than tabs: a tab hides what is not showing, and an error
+    with it, while a link only moves the page -- and it needs no script. `sections`
+    is (id, name, keys): after a refused save, the keys say which refusals are in
+    that section, and it says how many beside its name, in words, not colour alone. #}
+{% macro form_sections(sections, errors=[]) -%}
+<nav class="formsections" aria-label="Sections of this form"><ul>
+{%- for id, name, keys in sections %}
+{%- set n = errors | selectattr(0, 'in', keys) | list | length %}
+<li><a href="#{{ id }}">{{ name }}{% if n %} <span class="tofix">{{ n }} to fix</span>{% endif %}</a></li>
+{%- endfor %}
+</ul></nav>
+{%- endmacro %}
+
 {% macro error_summary(errors) -%}
 {%- if errors -%}
 <div class="errsum" role="alert" tabindex="-1"><h2>{{ errors | length }} thing{{ '' if errors | length == 1 else 's' }} to fix before this can be saved</h2><ul>

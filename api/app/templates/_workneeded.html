@@ -17,7 +17,7 @@
    just typed and not yet taken, so it has to be there to be sent again.
 #}
 {% import "_ui.html" as U with context %}
-<fieldset class="fieldset">
+<fieldset class="fieldset" id="s-work">
   <legend>Work needed</legend>
   {{ U.field('work_needed', 'Work needed', kind='area', rows=3, value=work_typed | default(''),
              placeholder='one job per line') }}
