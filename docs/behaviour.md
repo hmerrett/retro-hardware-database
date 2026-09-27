@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2223 behaviours, from 66 files.*
+*2224 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2186,7 +2186,7 @@ Regenerate with:
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 14 behaviours*
+*test_keyboard_and_motion.py — 15 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -2210,6 +2210,8 @@ Regenerate with:
   A `title` is not shown on a touchscreen, not reached by the Tab key and not read out by every screen reader, so a control it alone names is unnamed (interface-text).
 - a glyph is not a buttons words  
   Read out, `⟲` is a character's name or nothing.
+- what a button sends is not what it says  
+  A `<button>`'s `value` is what the form sends when it is pressed, and is never read out: the words on it are.
 - every control says what it is  
   A control with no name is read out as "edit text, blank" and nothing else, which on the drives grid was eight of them to a row.
 - every image says what it is or says it is decoration  

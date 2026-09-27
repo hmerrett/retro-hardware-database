@@ -215,7 +215,10 @@ class Controls(HTMLParser):
                 return
             named = bool(got.get("aria-label") or got.get("aria-labelledby"))
             named = named or self._in_label > 0
-            if got.get("type") in ("submit", "button", "reset") and says(got.get("value", "")):
+            # An input button shows its value; a <button> only sends it, and is read
+            # by the words between its tags instead.
+            is_button = got.get("type") in ("submit", "button", "reset")
+            if tag == "input" and is_button and says(got.get("value", "")):
                 named = True
             control = {
                 "tag": tag,
@@ -271,6 +274,17 @@ def test_a_glyph_is_not_a_buttons_words():
         '<button id="add">+ Computer</button>'
         '<input type="submit" id="shut" value="×"><input type="submit" id="go" value="Save">'
     ) == ["<button name=- id=rotate>", "<input name=- id=shut>"]
+
+
+def test_what_a_button_sends_is_not_what_it_says():
+    """A `<button>`'s `value` is what the form sends when it is pressed, and is never
+    read out: the words on it are. So a rotate that sends `dir=ccw` and reads `⟲`
+    is unnamed, where a submit `<input>` shows its value and is named by it."""
+    assert unnamed_in(
+        '<button type="submit" name="dir" value="ccw" id="ccw">⟲</button>'
+        '<button type="submit" name="dir" value="cw" id="cw">Rotate clockwise</button>'
+        '<input type="submit" id="go" value="Save">'
+    ) == ["<button name=dir id=ccw>"]
 
 
 def a_project_with_something_in_every_panel(client) -> str:
