@@ -525,12 +525,20 @@ Field by field:
 A few boxes take only one shape of answer, and a save with anything else in them
 is refused rather than quietly dropping what was typed:
 
-- **Year** — four digits, like `1988`.
+- **Year** — the year in full, like `1988`.
 - **TopBench score** — a whole number, like `104`.
 - **Acquired date** — a date, like `14/03/1994`. The date picker offers nothing
   else; this catches a date typed by hand where a browser shows a plain box.
 
 Blank is always accepted: it means not recorded.
+
+What is already on file is never the reason a save is refused. The register did
+not always ask for four digits, so an older record can hold a year like `85`. Its
+form shows the year as it is, and a save that leaves it alone goes through with
+everything else you changed; it stays `85` until you change it, and a new answer
+is held to four digits like any other. Which century it means is a fact about the
+thing — `85` on an Amstrad is 1985, `05` on a floppy emulator is 2005 — so nothing
+guesses it for you. Its form says so under the Year box.
 
 A refused save saves nothing, and comes back as the form with everything as you
 typed it — memory, drives, catalogue picks, the work box. At the top it says how

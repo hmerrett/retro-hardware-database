@@ -194,6 +194,130 @@ class TestAPartIsHeldToTheSameShapes:
         assert 'id="spec_interface"' in html
 
 
+MODEL = {"computers": Computer, "parts": Part}
+
+
+def made(kind, computer, part):
+    return (computer if kind == "computers" else part)()["asset_id"]
+
+
+def on_file(db, kind, aid, **values):
+    """Put a value on the row the way the register once took it, since the forms
+    now refuse a year like 85 and so cannot be what makes one."""
+    row = db.get(MODEL[kind], aid)
+    for k, v in values.items():
+        setattr(row, k, v)
+    db.commit()
+    return aid
+
+
+def edit(client, kind, aid, **fields):
+    base = {"manufacturer": "Acme", "model": "Test"} if kind == "computers" else {"type": "other"}
+    return client.post(f"/{kind}/{aid}/edit", data=base | fields, follow_redirects=False)
+
+
+class TestWhatIsOnFileIsNeverTheReason:
+    """The register did not always hold Year to four digits, so an older record can
+    say 85 -- and its form puts the 85 back in the box, so every save of it, of
+    anything, was refused until somebody noticed the year."""
+
+    @pytest.mark.parametrize("kind", ["computers", "parts"])
+    @pytest.mark.parametrize("year", [85, 0])
+    def test_its_form_shows_the_year_as_it_is(self, client, db, computer, part, kind, year):
+        aid = on_file(db, kind, made(kind, computer, part), year=year)
+        html = flat(client.get(f"/{kind}/{aid}/edit").text)
+        assert f'id="year" name="year" value="{year}"' in html
+
+    @pytest.mark.parametrize("year", [85, 0])
+    def test_a_machine_with_a_short_year_on_file_saves_a_change_to_something_else(
+        self, client, db, computer, year
+    ):
+        aid = on_file(db, "computers", computer()["asset_id"], year=year)
+        r = edit(client, "computers", aid, model="Changed", year=str(year))
+        assert r.status_code == 303
+        c = client.get(f"/api/computers/{aid}").json()
+        assert (c["model"], c["year"]) == ("Changed", year)
+
+    def test_so_does_a_part(self, client, db, part):
+        aid = on_file(db, "parts", part()["asset_id"], year=85)
+        assert edit(client, "parts", aid, model="Changed", year="85").status_code == 303
+        p = client.get(f"/api/parts/{aid}").json()
+        assert (p["model"], p["year"]) == ("Changed", 85)
+
+    def test_changing_a_short_year_to_another_is_refused(self, client, db, computer):
+        aid = on_file(db, "computers", computer()["asset_id"], year=85)
+        assert edit(client, "computers", aid, year="86").status_code == 400
+        assert client.get(f"/api/computers/{aid}").json()["year"] == 85
+
+    def test_changing_it_to_the_year_in_full_saves_it_and_the_history_says_so(
+        self, client, db, computer
+    ):
+        aid = on_file(db, "computers", computer()["asset_id"], year=85)
+        assert edit(client, "computers", aid, year="1985").status_code == 303
+        assert client.get(f"/api/computers/{aid}").json()["year"] == 1985
+        messages = [e["message"] for e in client.get(f"/api/items/{aid}/log").json()]
+        assert any("year: 85 → 1985" in m for m in messages)
+
+    def test_a_topbench_score_on_file_is_let_off_the_same_way(self, client, db, computer):
+        """The API takes any whole number, a negative one included, and the box is
+        hidden on a catalogue machine but still posts: a score like that on file
+        blocked every save with a message under a box nobody could see."""
+        aid = on_file(db, "computers", computer()["asset_id"], topbench=-1)
+        assert edit(client, "computers", aid, model="Changed", topbench="-1").status_code == 303
+        c = client.get(f"/api/computers/{aid}").json()
+        assert (c["model"], c["topbench"]) == ("Changed", -1)
+
+    def test_a_part_started_from_one_with_a_short_year_is_asked_for_the_year_in_full(
+        self, client, db, part
+    ):
+        """A new part has nothing on file, whatever it was started from."""
+        src = on_file(db, "parts", part()["asset_id"], year=85)
+        assert 'id="year" name="year" value="85"' in flat(client.get(f"/parts/new?from={src}").text)
+        assert new_part(client, year="85").status_code == 400
+        assert db.query(Part).count() == 1
+
+    def test_a_year_padded_to_four_digits_is_refused(self, client, db):
+        assert new_computer(client, year="0085").status_code == 400
+        assert db.query(Computer).count() == 0
+
+    @pytest.mark.parametrize("kind", ["computers", "parts"])
+    def test_the_year_box_says_when_the_year_on_file_is_short(
+        self, client, db, computer, part, kind
+    ):
+        aid = on_file(db, kind, made(kind, computer, part), year=85)
+        html = flat(client.get(f"/{kind}/{aid}/edit").text)
+        assert 'name="year" value="85" aria-describedby="year-hint"' in html
+        assert (
+            '<p class="hint" id="year-hint">'
+            "On file as 85. Type the year in full when you know it.</p>"
+        ) in html
+
+    @pytest.mark.parametrize("kind", ["computers", "parts"])
+    @pytest.mark.parametrize("year", [1985, None])
+    def test_a_year_in_full_says_nothing_under_the_box(
+        self, client, db, computer, part, kind, year
+    ):
+        aid = on_file(db, kind, made(kind, computer, part), year=year)
+        assert 'id="year-hint"' not in client.get(f"/{kind}/{aid}/edit").text
+
+    @pytest.mark.parametrize("kind", ["computers", "parts"])
+    def test_a_refused_form_names_the_year_on_file_not_the_one_typed(
+        self, client, db, computer, part, kind
+    ):
+        """The refused form is drawn from the row the save has just written, which
+        by then holds the 86."""
+        aid = on_file(db, kind, made(kind, computer, part), year=85)
+        html = flat(edit(client, kind, aid, year="86").text)
+        assert "On file as 85." in html
+        assert "On file as 86." not in html
+        new = (
+            new_computer(client, year="85") if kind == "computers" else new_part(client, year="85")
+        )
+        html = flat(new.text)
+        assert 'id="year-err"' in html
+        assert 'id="year-hint"' not in html
+
+
 def new_project(client, **fields):
     data = {"name": "Recap the +2A", "items_listed": "1"} | fields
     return client.post("/projects/new", data=data, follow_redirects=False)

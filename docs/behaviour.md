@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2203 behaviours, from 65 files.*
+*2214 behaviours, from 65 files.*
 
 
 ## A file where text was expected
@@ -3333,7 +3333,7 @@ Regenerate with:
 
 ## Refused saves
 
-*test_refused_saves.py — 27 behaviours*
+*test_refused_saves.py — 38 behaviours*
 
 
 **The shapes A computer is held to**
@@ -3367,6 +3367,23 @@ Regenerate with:
 - a refused edit saves nothing
 - a storage part without an interface comes back as the form
 - the interface link has somewhere to land
+
+**What is on file is never the reason**
+
+- its form shows the year as it is
+- a machine with a short year on file saves a change to something else
+- so does a part
+- changing a short year to another is refused
+- changing it to the year in full saves it and the history says so
+- a topbench score on file is let off the same way  
+  The API takes any whole number, a negative one included, and the box is hidden on a catalogue machine but still posts: a score like that on file blocked every save with a message under a box nobody could see.
+- a part started from one with a short year is asked for the year in full  
+  A new part has nothing on file, whatever it was started from.
+- a year padded to four digits is refused
+- the year box says when the year on file is short
+- a year in full says nothing under the box
+- a refused form names the year on file not the one typed  
+  The refused form is drawn from the row the save has just written, which by then holds the 86.
 
 **A project is refused the same way**
 

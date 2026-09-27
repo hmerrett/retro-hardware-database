@@ -150,8 +150,10 @@
                  list='dl_models', autocomplete='off') }}
       {{ U.field('name', 'Name', value=(p.name if p else '') or '',
                  hint='optional; defaults to maker + model') }}
-      {{ U.field('year', 'Year', value=(TYPED.year if 'year' in TYPED else (p.year if p else '')) or '',
-                 type='number', error=ERR.get('year')) }}
+      {# Only None is blank, as on the machine's form: a year of 0 on file shows as 0. #}
+      {% set year = TYPED.year if 'year' in TYPED else (p.year if p else none) %}
+      {{ U.field('year', 'Year', value='' if year is none else year,
+                 type='number', error=ERR.get('year'), hint=year_hint | default('')) }}
       {# Last in the identity, and never carried across by the duplicate button: two
          of the same card are the same card in every field above this one and in
          none of them here. #}

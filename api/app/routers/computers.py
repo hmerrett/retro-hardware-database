@@ -79,7 +79,7 @@ from ..assets import (
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import _and_parts, _disposal_log, _dispose_contents, _restore_contents
-from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted, refusals
+from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted, refusals, year_hint
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import Computer, Part, StoredFile
@@ -457,17 +457,18 @@ def gui_computer(
 @router.get("/computers/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
 def gui_edit_computer(aid: str, request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     c = get_or_404(db, Computer, aid)
-    return templates.TemplateResponse(
-        request, "computer_form.html", _computer_form_ctx(c, f"Edit {aid}", db)
-    )
+    ctx = _computer_form_ctx(c, f"Edit {aid}", db) | {"year_hint": year_hint(c.year)}
+    return templates.TemplateResponse(request, "computer_form.html", ctx)
 
 
 @router.post("/computers/{aid}/edit", include_in_schema=False)
 async def gui_save_computer(aid: str, request: Request, db: Session = Depends(get_db)) -> Response:
     c = get_or_404(db, Computer, aid)
     form = await posted(request)
-    errors = refusals(form, SHAPED)
+    # Read before the form is written onto the row: what is on file is let off the
+    # shapes, and a refused form names the year on file rather than the one typed.
     old = {k: getattr(c, k) for k in COMPUTER_FIELDS}
+    errors = refusals(form, SHAPED, old)
     for k in COMPUTER_FIELDS:
         if k not in form:
             continue
@@ -488,7 +489,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
     locations.remember(db, c.location)
     _work_from_form(db, c, form)
     if errors:
-        ctx = _computer_form_ctx(c, f"Edit {aid}", db)
+        ctx = _computer_form_ctx(c, f"Edit {aid}", db) | {"year_hint": year_hint(old["year"])}
         return refused(request, db, "computer_form.html", ctx, form, errors)
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)

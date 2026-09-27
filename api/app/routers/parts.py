@@ -1,7 +1,7 @@
 """The pages of a part: its own page, its form, its photographs, and the machine or
 board it is fitted to."""
 
-from collections.abc import Collection, Iterable
+from collections.abc import Collection, Iterable, Mapping
 from typing import Literal
 
 from sqlalchemy import func
@@ -42,7 +42,16 @@ from ..assets import (
 from ..common import to_dict
 from ..db import get_db
 from ..disposal import _disposal_log
-from ..forms import Posted, Refusal, _coerce, _field_diffs, _parse_date, posted, refusals
+from ..forms import (
+    Posted,
+    Refusal,
+    _coerce,
+    _field_diffs,
+    _parse_date,
+    posted,
+    refusals,
+    year_hint,
+)
 from ..history import _history, add_log
 from ..ids import next_asset_id
 from ..models import ComputerDrive, Computer, Part, StorageSpec, StoredFile
@@ -252,7 +261,9 @@ def _part_placeholder(db: Session, part: Part) -> str:
 SHAPED = ("year", "acquired_date")
 
 
-def _refusals(ptype: str, form: Posted) -> list[Refusal]:
+def _refusals(
+    ptype: str, form: Posted, on_file: Mapping[str, object] | None = None
+) -> list[Refusal]:
     """What stops a part being saved: a box in the wrong shape, or a storage part
     that does not say how it attaches.
 
@@ -262,7 +273,7 @@ def _refusals(ptype: str, form: Posted) -> list[Refusal]:
     straight to the endpoint. A drive folded into a machine's drive row never reaches
     here: it is a field on that machine rather than a part, and has no interface
     column of its own to fill."""
-    errors = refusals(form, SHAPED)
+    errors = refusals(form, SHAPED, on_file)
     if ptype != "storage":
         return errors
     # Read exactly as the value that gets saved is read, or the two could disagree and
@@ -820,6 +831,7 @@ def gui_edit_part(
     ptype = type if type in entry.TYPE_ORDER else (p.type or "other")
     ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")
     ctx["title"] = f"Edit {aid}"
+    ctx["year_hint"] = year_hint(p.year)
     return templates.TemplateResponse(request, "part_form.html", ctx)
 
 
@@ -828,7 +840,9 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     ptype = form.get("type", p.type or "") or "other"
-    errors = _refusals(ptype, form)
+    # Read before the form is written onto the row, as the machine's save does.
+    on_file = {f: getattr(p, f) for f in SHAPED}
+    errors = _refusals(ptype, form, on_file)
     # Unmanaged keys live in part_attribute; carry them across the edit.
     #
     # Retyping is the case that needs more than those. A part's structured specs are
@@ -867,6 +881,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     if errors:
         ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")
         ctx["title"] = f"Edit {aid}"
+        ctx["year_hint"] = year_hint(on_file["year"])
         return refused(request, db, "part_form.html", ctx, form, errors)
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
