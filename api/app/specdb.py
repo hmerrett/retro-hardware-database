@@ -104,6 +104,12 @@ def write(db: Session, part: Part) -> None:
             db.add(child(part_id=aid, **{attr: value}, count=n))
     for k, v in st.attributes:
         db.add(PartAttribute(part_id=aid, akey=k or "", avalue=v))
+    # The deletes above have already run and the adds wait for a flush, which the
+    # session does not do by itself (autoflush is off). A refused form is drawn by
+    # read() from these tables before anything is committed, so without this it
+    # found the part's specifications gone -- and saving that form again wrote the
+    # empty boxes back.
+    db.flush()
 
 
 def read(db: Session, part: Part) -> specstruct.Struct:

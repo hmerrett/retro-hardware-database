@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2222 behaviours, from 66 files.*
+*2225 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3349,7 +3349,7 @@ Regenerate with:
 
 ## Refused saves
 
-*test_refused_saves.py — 39 behaviours*
+*test_refused_saves.py — 42 behaviours*
 
 
 **The shapes A computer is held to**
@@ -3384,6 +3384,12 @@ Regenerate with:
 - photographs chosen for a new part are asked for again
 - a storage part without an interface comes back as the form
 - the interface link has somewhere to land
+
+**A part comes back as typed**
+
+- a refused edit comes back with everything as typed
+- so does a refused new part
+- putting the refusal right keeps the specs
 
 **What is on file is never the reason**
 
