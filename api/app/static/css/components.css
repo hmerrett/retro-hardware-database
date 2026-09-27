@@ -439,27 +439,26 @@
 
   /* ---- 13d. The item page's two columns ------------------------------------
      Content and photographs side by side above 860px, one column below. */
-  /* Three parts: the head (name, tag, summary), the photographs, the panels. Side by side,
-     the photographs run down the right beside both; in one column they come straight after
-     the head, because someone who has just scanned a label wants to see it is the right
-     machine before reading its specification. */
-  .itemcols { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
-    grid-template-areas: "head aside" "body aside"; gap: 0 var(--space-6); align-items: start; }
+  /* Four parts, in this order in the source: the head (name, actions, tag, banners,
+     summary), the photographs, the panels, and the rest of the side column (label,
+     disposal, QR). Side by side, the head spans the page and both columns start level,
+     the photographs beside Details; in one column the source order is the page's --
+     summary, photograph, details, then the owner's tools -- so the Tab key and the eye
+     agree at every width, with no `order` to draw a panel where the Tab key does not
+     go. */
+  .itemcols { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    grid-template-areas: "head head" "body photos" "body side"; gap: 0 var(--space-6); align-items: start; }
   .itemcols > .itemhead { grid-area: head; }
-  .itemcols > aside { grid-area: aside; }
+  .itemcols > .itemphotos { grid-area: photos; }
   .itemcols > .itembody { grid-area: body; }
-  @media (min-width: 861px) { .itemcols > aside > .panel:first-child { margin-top: 0; } }
-  /* One column: head, photographs, body, then the rest of the side column -- the
-     owner's label, disposal and QR code, which a phone at the shelf wants after the
-     details rather than before them. The aside stands aside so its panels can be
-     ordered among the page's own. */
-  @media (max-width: 860px) {
-    .itemcols { display: flex; flex-direction: column; align-items: stretch; }
-    .itemcols > aside { display: contents; }
-    .itemcols > aside > .panel { order: 2; }
-    .itemcols > aside > .panel:first-child { order: 0; }
-    .itemcols > .itembody { order: 1; }
-  }
+  .itemcols > .itemside { grid-area: side; }
+  @media (max-width: 860px) { .itemcols { display: block; } }
+  /* The name and, for the owner, its actions: on one line, the actions at its end;
+     under the name on a phone, before the summary, rather than off the edge. */
+  .titleline { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-5); }
+  .titleline > .title { flex: 1 1 auto; min-width: 0; margin: 0; }
+  .itemacts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  @media (max-width: 560px) { .itemacts { flex-basis: 100%; } }
   .cell { padding: var(--space-3) var(--space-4); background: var(--surface-raised);
     border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
   .cell .k { font-size: 12px; color: var(--text-muted); }
@@ -582,7 +581,7 @@
 
 
   /* ---- 14b. Item nav (breadcrumb + previous / next) ----------------------- */
-  .itemnav { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+  .itemnav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
   .itemnav .where { font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
 
   /* ---- 14c. Bottom sheet -------------------------------------------------- */

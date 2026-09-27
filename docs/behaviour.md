@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2254 behaviours, from 68 files.*
+*2262 behaviours, from 68 files.*
 
 
 ## A file where text was expected
@@ -2154,14 +2154,15 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 23 behaviours*
+*test_item_pages.py — 31 behaviours*
 
 
 **The head**
 
 - the page opens on the name the tag and the summary
 - there is one heading at the top
-- the owner has edit and duplicate beside prev and next
+- the owner has edit and duplicate on the name s line  
+  With what they act on, and out of the navigation landmark, since Duplicate is a form that posts (MANUAL §4).
 - a visitor has neither
 - the way back is to the whole register
 
@@ -2201,6 +2202,18 @@ Regenerate with:
 - a part in a machine leads back to it
 - a part on another part leads back to that part
 - a part on its own and a machine have only the way back to the register
+
+**The top of the page**
+
+- the top row holds the ways back and prev and next alone
+- a visitor sees no actions
+- the page reads head photographs details then the rest
+- nothing is moved out of its place in the source  
+  The Tab key follows the source; an `order` would draw a panel somewhere the Tab key does not go.
+- the side column starts level with the details
+- on a phone the actions go under the name
+- a disposed item says so under its name
+- a project s actions are on its name s line too
 
 
 ## Keyboard and motion

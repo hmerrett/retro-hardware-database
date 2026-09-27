@@ -10,8 +10,15 @@
 {% block main_class %} v2{% endblock %}
 {% block content %}
 {% set authed = request.state.authed %}
-{% call U.itemnav('/projects', 'All projects') %}
-{%- if authed -%}
+{{ U.itemnav('/projects', 'All projects') }}
+
+{#- As an item's page has it: the name, then at its end the owner's actions, under
+    the name on a phone -- out of the navigation landmark, since two of them post. -#}
+<div class="titleline">
+  <h1 class="title">{{ p.name or p.asset_id }}</h1>
+  {%- if authed %}
+  <div class="itemacts">
+
 {#- The whole of finishing a project, in one click: the status, and today as the
     finish date where none is written down yet. Drawn only while there is something
     left to finish -- a project already done or abandoned is reopened on the edit
@@ -35,11 +42,10 @@
       data-confirm="Delete this project and its whole history? This cannot be undone.">
 {{- U.button('Delete…', kind='danger', size='sm', icon='trash', type='submit') -}}
 </form>
-{%- endif -%}
-{% endcall %}
-
+  </div>
+  {%- endif %}
+</div>
 <div class="row baseline">
-  <h1 class="title">{{ p.name or p.asset_id }}</h1>
   {{ U.status_chip(p.status) }}
   <span class="tag muted">{{ p.asset_id }}</span>
   {% if p.private %}{{ U.chip('Private', 'quiet') }}{% endif %}

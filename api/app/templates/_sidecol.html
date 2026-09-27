@@ -1,0 +1,39 @@
+{# The rest of an item page's side column, under the photographs: the owner's label,
+   the disposal box and the QR code. After the body in the source, so on a phone,
+   and for the Tab key at every width, they come after the details -- somebody at
+   the shelf wants the facts before the print buttons. Expects: obj, kind, one. #}
+{% import "_icons.html" as I %}
+{% import "_panel.html" as PN %}
+{% import "_ui.html" as U with context %}
+<div class="itemside">
+  {% if request.state.authed %}
+  {# The label for the shelf. Two sizes, each a PDF in a tab of its own, since what
+     happens next is the browser's print dialog. #}
+  {% call PN.panel('Label') %}
+    <div class="row">
+      {# The small label is what labelsend.js hooks: without lbl-s and the two data
+         attributes it can only ever hand over the PDF (ADR-0025, ADR-0026). `one`
+         is the kind in the singular, which is what a print job is keyed by. #}
+      <a class="btn sm lbl-s" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=1"
+         data-kind="{{ one }}" data-asset="{{ obj.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
+      <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
+    </div>
+  {% endcall %}
+  {% if not obj.disposed %}
+  {% call PN.panel('Disposal') %}
+    <div class="photo-actions flush-top">
+    {# The consequence for the parts in a machine is in the tooltip rather than
+       printed under the box (interface-text): it is the why, not the meaning. #}
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose"
+          title="{{ 'Sold, binned or given away. The parts in it go with it, on the same date and for the same reason; restoring the machine brings them back.' if kind == 'computers' else 'Sold, binned or given away. Restoring it brings it back.' }}">
+      <input name="note" placeholder="why — sold, binned…"
+             aria-label="why it went">
+      <input name="date" type="date" value="{{ today() }}" aria-label="when it went">
+      <button class="btn sm" type="submit">dispose</button>
+    </form>
+    </div>
+  {% endcall %}
+  {% endif %}
+  {% endif %}
+  {% include "_photoqr.html" %}
+</div>

@@ -2,8 +2,10 @@
    through the register, the owner's Edit and Duplicate, what state the thing is in,
    and the head of the page. Expects: obj, kind ("computers"/"parts"), nav, machine.
 
-   The head opens .itemcols and is the first of its three parts; the page closes the
-   grid after its body. #}
+   The head opens .itemcols and is the first of its four parts -- the head, the
+   photographs (_photocol.html), the body and the rest of the side column
+   (_sidecol.html), in that order in the source, so the Tab key and a phone read
+   them as the eye does; the page closes the grid after the last. #}
 {% import "_ui.html" as U with context %}
 {% set authed = request.state.authed %}
 {% set name = display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) %}
@@ -11,50 +13,54 @@
     it is mounted on (a drive on its controller). By tag, with the name in a title. -#}
 {% set up = (parent and ('/computers/' ~ parent.asset_id, parent))
             or (host and ('/parts/' ~ host.asset_id, host)) if kind == 'parts' else none %}
-{% call U.itemnav('/', 'All', '', nav.prev.url if nav.prev else '', nav.next.url if nav.next else '',
-                  nav.prev.name if nav.prev else '', nav.next.name if nav.next else '', keep=true,
-                  up_href=up[0] if up else '', up_label=up[1].asset_id if up else '',
-                  up_title=display_name({'name': up[1].name, 'manufacturer': up[1].manufacturer, 'model': up[1].model, 'asset_id': up[1].asset_id}) if up else '') %}
-{#- Beside Prev and Next, where a thumb that has learnt them finds them, and small:
-    the page is read far more often than it is changed. -#}
-{%- if authed -%}
-{{ U.button('Edit', size='sm', icon='edit', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/edit') }}
-{#- A machine is duplicated without its parts: a second machine of the model, not a
-    second copy of what is in this one. -#}
-<form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/duplicate">
-{{- U.button('Duplicate', size='sm', icon='copy', type='submit') -}}
-</form>
-{%- endif -%}
-{% endcall %}
-
-{% if obj.disposed %}
-<div class="banner" role="status"><b>Disposed</b>
-  <span>{% if obj.disposed_at %}{{ obj.disposed_at }}{% endif %}{% if obj.disposed_note %} — {{ obj.disposed_note | linked }}{% endif %}</span>
-  {% if authed %}
-  <span class="push"></span>
-  <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/restore">
-    {{- U.button('Restore', size='sm', type='submit') -}}</form>
-  {# Deleting the record for good, once it is already marked as gone. Behind a
-     confirmation page, so this is a link rather than a button. #}
-  {{ U.button('Delete…', kind='danger', size='sm', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/delete') }}
-  {% endif %}
-</div>
-{% endif %}
-
-{# Not on a machine the catalogue names. The walk's next step is a motherboard and
-   then expansion cards, which is a PC's shape -- and a catalogue machine is a sealed
-   thing described by what it was built as, whose board and parts sections are not
-   even on this page while nothing is fitted. Telling somebody who has just filed a
-   Spectrum to give it a motherboard points them at the wrong machine, and at two
-   sections they cannot see. #}
-{% if kind == 'computers' and build and authed and not machine %}
-{{ U.banner('', 'Build walk.', 'Next: a motherboard, then its parts.') }}
-{% endif %}
+{{ U.itemnav('/', 'All', '', nav.prev.url if nav.prev else '', nav.next.url if nav.next else '',
+              nav.prev.name if nav.prev else '', nav.next.name if nav.next else '', keep=true,
+              up_href=up[0] if up else '', up_label=up[1].asset_id if up else '',
+              up_title=display_name({'name': up[1].name, 'manufacturer': up[1].manufacturer, 'model': up[1].model, 'asset_id': up[1].asset_id}) if up else '') }}
 
 <div class="itemcols">
 <div class="itemhead">
-  <h1 class="title">{{ name }}</h1>
+  {#- The owner's actions on the name's line, at its end -- with what they act on,
+      rather than over the photographs, and out of the navigation landmark, since
+      Duplicate is a form that posts. Small: the page is read far more often than it
+      is changed. On a phone they wrap under the name. -#}
+  <div class="titleline">
+    <h1 class="title">{{ name }}</h1>
+    {%- if authed %}
+    <div class="itemacts">
+      {{ U.button('Edit', size='sm', icon='edit', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/edit') }}
+      {#- A machine is duplicated without its parts: a second machine of the model,
+          not a second copy of what is in this one. -#}
+      <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/duplicate">
+      {{- U.button('Duplicate', size='sm', icon='copy', type='submit') -}}
+      </form>
+    </div>
+    {%- endif %}
+  </div>
   <div class="tag muted">{{ obj.asset_id }}</div>
+  {% if obj.disposed %}
+  <div class="banner" role="status"><b>Disposed</b>
+    <span>{% if obj.disposed_at %}{{ obj.disposed_at }}{% endif %}{% if obj.disposed_note %} — {{ obj.disposed_note | linked }}{% endif %}</span>
+    {% if authed %}
+    <span class="push"></span>
+    <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/restore">
+      {{- U.button('Restore', size='sm', type='submit') -}}</form>
+    {# Deleting the record for good, once it is already marked as gone. Behind a
+       confirmation page, so this is a link rather than a button. #}
+    {{ U.button('Delete…', kind='danger', size='sm', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/delete') }}
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# Not on a machine the catalogue names. The walk's next step is a motherboard and
+     then expansion cards, which is a PC's shape -- and a catalogue machine is a sealed
+     thing described by what it was built as, whose board and parts sections are not
+     even on this page while nothing is fitted. Telling somebody who has just filed a
+     Spectrum to give it a motherboard points them at the wrong machine, and at two
+     sections they cannot see. #}
+  {% if kind == 'computers' and build and authed and not machine %}
+  {{ U.banner('', 'Build walk.', 'Next: a motherboard, then its parts.') }}
+  {% endif %}
   {# What the model is -- but only where the object has nothing said about it of
      its own. The two are different kinds of statement, and printing both left an
      item with a paragraph about the model followed by a paragraph about the thing

@@ -9,6 +9,7 @@ Auth is off in these tests, so the client is the owner; `visitor` turns it on.
 """
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -47,9 +48,10 @@ class TestTheHead:
         page = client.get(f"/{kind}/{aid}").text
         head = page[page.index('<div class="itemhead">') :]
         assert re.match(
-            r'<div class="itemhead">\s*<h1 class="title">Lounge PC</h1>\s*'
-            rf'<div class="tag muted">{aid}</div>',
+            r'<div class="itemhead">\s*<div class="titleline">\s*<h1 class="title">Lounge PC</h1>'
+            rf'.*?</div>\s*<div class="tag muted">{aid}</div>',
             head,
+            re.S,
         ), head[:300]
         assert '<p class="prose">Found in a loft.</p>' in head[: head.index('class="itembody"')]
 
@@ -59,16 +61,19 @@ class TestTheHead:
         assert page.count("<h1") == 1
 
     @KINDS
-    def test_the_owner_has_edit_and_duplicate_beside_prev_and_next(
+    def test_the_owner_has_edit_and_duplicate_on_the_name_s_line(
         self, client, computer, part, kind
     ):
+        """With what they act on, and out of the navigation landmark, since Duplicate
+        is a form that posts (MANUAL §4)."""
         aid = item(kind, computer, part)
         page = client.get(f"/{kind}/{aid}").text
-        nav = page[page.index('<nav class="itemnav"') :]
-        nav = nav[: nav.index("</nav>")]
-        assert f'href="/{kind}/{aid}/edit"' in nav
-        assert f'action="/{kind}/{aid}/duplicate"' in nav
-        assert nav.index("/edit") < nav.index('id="nav-prev"')
+        line = re.search(r'<div class="titleline">(.*?)</div>\s*<div class="tag', page, re.S)[1]
+        assert "<h1" in line
+        assert f'href="/{kind}/{aid}/edit"' in line
+        assert f'action="/{kind}/{aid}/duplicate"' in line
+        nav = top_row(page)
+        assert "/edit" not in nav and "<form" not in nav
 
     @KINDS
     def test_a_visitor_has_neither(self, client, computer, part, kind, monkeypatch):
@@ -238,3 +243,73 @@ class TestTheWayBackToWhatAPartIsIn:
         cid = computer()["asset_id"]
         assert ways_back(client.get(f"/parts/{pid}").text) == ["/"]
         assert ways_back(client.get(f"/computers/{cid}").text) == ["/"]
+
+
+ITEM_CSS = Path(__file__).parents[1] / "app" / "static" / "css" / "components.css"
+
+
+def item_css():
+    return re.sub(r"/\*.*?\*/", "", ITEM_CSS.read_text(encoding="utf-8"), flags=re.S)
+
+
+def top_row(html):
+    return re.search(r'<nav class="itemnav".*?</nav>', html, re.S)[0]
+
+
+class TestTheTopOfThePage:
+    """The review found the actions standing above the photographs rather than with
+    the name, a form that posts inside the navigation landmark, the two columns
+    starting at different heights, and a phone's Tab key reaching the label before
+    the details (MANUAL §4, "An item page")."""
+
+    def test_the_top_row_holds_the_ways_back_and_prev_and_next_alone(self, client, computer):
+        row = top_row(client.get(f"/computers/{computer()['asset_id']}").text)
+        assert 'id="nav-prev"' in row and 'id="nav-next"' in row and 'href="/"' in row
+        assert "/edit" not in row and "<form" not in row
+
+    def test_a_visitor_sees_no_actions(self, client, computer):
+        aid = computer()["asset_id"]
+        log_out(client)
+        html = client.get(f"/computers/{aid}").text
+        assert "/edit" not in html and "/duplicate" not in html
+
+    def test_the_page_reads_head_photographs_details_then_the_rest(self, client, computer):
+        html = client.get(f"/computers/{computer()['asset_id']}").text
+        at = [
+            html.index(f'class="{c}"') for c in ("itemhead", "itemphotos", "itembody", "itemside")
+        ]
+        assert at == sorted(at)
+
+    def test_nothing_is_moved_out_of_its_place_in_the_source(self):
+        """The Tab key follows the source; an `order` would draw a panel somewhere the
+        Tab key does not go."""
+        itemcols = re.findall(r"\.itemcols[^{]*\{([^}]*)\}", item_css())
+        assert itemcols and not any(re.search(r"(?:^|[;\s])order\s*:", body) for body in itemcols)
+
+    def test_the_side_column_starts_level_with_the_details(self):
+        rule = re.search(r"\.itemcols\s*\{([^}]*)\}", item_css())[1]
+        areas = re.findall(r'"([^"]+)"', rule.split("grid-template-areas:")[1].split(";")[0])
+        assert areas == ["head head", "body photos", "body side"]
+
+    def test_on_a_phone_the_actions_go_under_the_name(self):
+        phone = re.search(r"@media \(max-width: 560px\) \{([^@]*?\.itemacts[^}]*\})", item_css())
+        assert phone and "flex-basis: 100%" in phone[1]
+
+    def test_a_disposed_item_says_so_under_its_name(self, client, db, computer):
+        from app.models import Computer
+
+        aid = computer()["asset_id"]
+        db.get(Computer, aid).disposed = True
+        db.commit()
+        html = client.get(f"/computers/{aid}").text
+        head = re.search(
+            r'<div class="itemhead">(.*?)<(?:aside|div) class="itemphotos"', html, re.S
+        )[1]
+        assert "<b>Disposed</b>" in head
+
+    def test_a_project_s_actions_are_on_its_name_s_line_too(self, client):
+        made = client.post("/api/projects", json={"name": "Recap the PC1512"}).json()
+        html = client.get(f"/projects/{made['asset_id']}").text
+        assert "<form" not in top_row(html)
+        line = re.search(r'<div class="titleline">(.*?)</div>\s*</div>', html, re.S)
+        assert line and "Mark done" in line[1] and "/edit" in line[1] and "/delete" in line[1]
