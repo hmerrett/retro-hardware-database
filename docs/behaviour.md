@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2226 behaviours, from 66 files.*
+*2227 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -2186,7 +2186,7 @@ Regenerate with:
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 12 behaviours*
+*test_keyboard_and_motion.py — 13 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -2204,6 +2204,8 @@ Regenerate with:
   Reaching a control below the fold, the browser scrolls it into view and stops it at the edge of the viewport -- which on a phone is exactly where the tab bar is fixed, so the control arrives underneath it.
 - the cookie notice does not swallow it either  
   The notice is fixed above the bar and is taller than it -- 167px on a 320px screen, where the text wraps to five lines.
+- nor does it cover the foot of the rail  
+  With Navigation at Side the rail runs the height of the window and its foot sits at the bottom, which is where the notice is fixed until it is answered: Collapse was entirely under it at every height, and on a long page tabbing to it left it hidden, because the rail is sticky and the page's scroll moves nothing.
 - the login boxes say what they are for  
   A password manager fills a form it can read: `autocomplete="username"` and `current-password` are what tell it which entry this is and which box the password goes in.
 - every control says what it is  

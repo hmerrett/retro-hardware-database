@@ -393,6 +393,12 @@
     .shell.side > .rail { display: flex; flex-direction: column; gap: var(--space-2); position: sticky; top: 0;
       height: 100vh; overflow-x: hidden; overflow-y: auto; padding: var(--space-5) var(--space-4);
       background: var(--surface-raised); border-right: var(--border-w) solid var(--line); }
+    /* The cookie notice is fixed over the foot of the window, which is where the rail's foot
+       sits, until it is answered. Room at the rail's bottom lifts Log out and Collapse above
+       it, and the rail scrolls to reach them; the same :has gives it back when the notice goes. */
+    html:has(#cookienote) .shell.side > .rail {
+      padding-bottom: calc(var(--notice-clear) + var(--space-5));
+      scroll-padding-bottom: var(--notice-clear); }
     /* With the rail beside it the banner holds only what is one gesture away on every page:
        search, leading, and Scan. Brand, sections, + New and the menu live in the rail. */
     .shell.side .site-header nav, .shell.side .site-header .brand, .shell.side .site-header .grow,

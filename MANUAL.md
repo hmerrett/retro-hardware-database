@@ -233,7 +233,9 @@ instead of a dozen.
 On a phone, tabbing to a control below the fold scrolls it into view above the
 bar across the bottom of the screen, never behind it — and the same while the
 cookie notice is still up. A control you cannot see is a control you cannot fill
-in.
+in. On a wide screen with the side rail, the rail's foot keeps clear of the
+notice the same way: while it is up, **Log out** and **Collapse** sit above it,
+and the rail scrolls to reach them if the window is short.
 
 Tables say which of their cells are headings, so a screen reader can announce a
 figure with the heading it sits under. In a table of rows — the files list, the
