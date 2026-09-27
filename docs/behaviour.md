@@ -3096,7 +3096,8 @@ Regenerate with:
 
 **The page head**
 
-- the way back and the owners edit and delete come first
+- the way back first then the owner s actions on the name s line  
+  As an item's page has it (MANUAL §12): the way back in the top row, and Mark done, Edit and Delete at the end of the name's line, out of the navigation landmark since two of them post.
 - a visitor gets the way back and nothing else
 - then the name its status and its tag
 

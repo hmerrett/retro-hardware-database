@@ -1,6 +1,7 @@
 {# The photographs of an item page, shared by computer.html and part.html: the top
-   of the side column, level with Details. The owner's label, disposal box and QR
-   code are the rest of the column, in _sidecol.html, after the body in the source.
+   of the side column, level with Details, with the code a phone adds one by. The
+   owner's label and disposal box are the rest of the column, in _sidecol.html,
+   after the body in the source.
    Expects: obj, kind ("computers"/"parts"), images, ref_marks, tuned, imgerr.
 
    After the head and before the body in the source, so a single column -- a
@@ -119,5 +120,7 @@
     {{ upload() }}
   {% endcall %}
   {% endif %}
+  {#- With the photographs: it is how a phone adds one. -#}
+  {% include "_photoqr.html" %}
 </aside>
 

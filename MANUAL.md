@@ -468,9 +468,9 @@ Down the main column:
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
 - **History** — [everything that has happened to it](#14-history).
 
-Down the side column, starting level with **Details**: the photographs and, when
-logged in, the **Label** panel with its two print buttons, the disposal box and
-the item's own QR code. On a narrow screen there is one column, and the
+Down the side column, starting level with **Details**: the photographs and the
+item's own QR code for adding one from a phone and, when logged in, the **Label**
+panel with its two print buttons and the disposal box. On a narrow screen there is one column, and the
 photographs come straight after the summary, before the details: somebody who has
 just scanned a label wants to see first that they have the right thing. The label
 and disposal come last, after everything else. The Tab key goes through the page
