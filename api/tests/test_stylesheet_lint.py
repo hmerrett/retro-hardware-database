@@ -144,6 +144,38 @@ def test_a_utility_carries_layout_only():
     assert styled == [], "these utilities do more than lay things out"
 
 
+# The one rule that paints the band with nothing written on it: the preset
+# picker's miniature, where a strip of band is a drawing of a panel's title.
+WORDLESS_BAND = {".mini .b"}
+
+
+def test_a_rule_that_fills_with_the_band_says_what_is_written_on_it():
+    """A v0.2 band may be dark -- black in Rubber Key, brown in Breadbin -- and only
+    `band-text` and `band-muted` are held to it. The files list's filter painted the
+    band and left its words to inherit `text`, which came to 1.06:1 in one look and
+    under 2.5:1 in four more, with the one pair anybody had computed being the
+    default look's. The fill and the text on it are one decision, as the accent's
+    are (accessibility-standards), and belong in one rule."""
+    silent = [
+        " ".join(head.split())
+        for head, body in re.findall(r"([^{}@;]+)\{([^{}]*)\}", text(COMPONENTS))
+        if re.search(r"background(?:-color)?\s*:[^;]*var\(--band\)", body)
+        and " ".join(head.split()) not in WORDLESS_BAND
+        and not re.search(r"(?:^|[;\s])color\s*:\s*var\(--band-(?:text|muted)\)", body)
+    ]
+    assert silent == [], "these fill with the band but do not write in band-text or band-muted"
+
+
+def test_the_one_wordless_band_is_still_there():
+    """An exception nothing needs any more is a hole left open for the next one."""
+    painted = {
+        " ".join(head.split())
+        for head, body in re.findall(r"([^{}@;]+)\{([^{}]*)\}", text(COMPONENTS))
+        if re.search(r"background(?:-color)?\s*:[^;]*var\(--band\)", body)
+    }
+    assert WORDLESS_BAND - painted == set()
+
+
 @pytest.mark.parametrize("path", [COMPONENTS, UTILITIES], ids=lambda p: p.name)
 def test_while_app_css_is_here_it_outranks_the_new_stylesheets(path):
     """The templates move over a group at a time, and until a group has moved its

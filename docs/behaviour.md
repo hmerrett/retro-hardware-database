@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2222 behaviours, from 66 files.*
+*2224 behaviours, from 66 files.*
 
 
 ## A file where text was expected
@@ -3895,7 +3895,7 @@ Regenerate with:
 
 ## Stylesheet lint
 
-*test_stylesheet_lint.py — 6 behaviours*
+*test_stylesheet_lint.py — 8 behaviours*
 
 - no colour is stated outside the token files  
   A colour written into a component is one no preset can change and no contrast test reads.
@@ -3905,6 +3905,10 @@ Regenerate with:
   An exception nothing needs any more is a hole left open for the next one.
 - a utility carries layout only  
   utilities.css is for one-off arrangement.
+- a rule that fills with the band says what is written on it  
+  A v0.2 band may be dark -- black in Rubber Key, brown in Breadbin -- and only `band-text` and `band-muted` are held to it.
+- the one wordless band is still there  
+  An exception nothing needs any more is a hole left open for the next one.
 - while app css is here it outranks the new stylesheets  
   The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
 - a bare 0 1 rule lets every tone past it  
