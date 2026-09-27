@@ -82,7 +82,8 @@ was looking at a desktop.
   `aria-label` where the design gives a control only an icon, a tick or a column
   heading. A column heading is not a name: nothing in HTML carries it from the
   `<th>` to the box underneath, which is why the drives grid names each box by
-  its row and its column ("drive 2, form factor").
+  its row and its column ("drive 2, form factor"). A `title` is not a name, and
+  neither is a glyph: a button reading `⟲` or `×` needs an `aria-label`.
 - **Every `<img>` has `alt`.** Describing the item where the image is content,
   `alt=""` where it is decoration — which is an answer, and tells a screen reader
   to pass over a swatch. A missing `alt` is not: the filename is read out instead.
