@@ -336,8 +336,12 @@
      already legible. */
   option, optgroup { background: var(--bg); color: var(--fg); }
   .toolbar > *, .toolbar form { min-width: 0; max-width: 100%; }
-  .thumbs { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
-  .thumbs img { width: 150px; height: 110px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
+  /* Cells sized to the column rather than a fixed 150px: inside the panel's margin two
+     of those needed 310px of a 294px body, so they stood one to a row. 110px keeps
+     two across down to the narrowest two-column width, and more where the panel has
+     the page's width to itself. */
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr)); gap: 10px; margin: 8px 0; }
+  .thumbs img { width: 100%; height: auto; aspect-ratio: var(--thumb-ratio); border-radius: 8px; border: 1px solid var(--line); object-fit: cover; }
   .thumb-item { display: flex; flex-direction: column; align-items: center; gap: 4px; position: relative; }
   .thumb-item .btn.sm { font-size: 11px; padding: 1px 7px; }
   .photo-primary { position: relative; }

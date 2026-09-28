@@ -381,6 +381,43 @@ class TestThePhotographsSitInsideThePanel:
         assert 'class="photo-main' in inside and "photo-actions" not in inside
 
 
+class TestTheThumbnailsSitTwoToARow:
+    """Inside the panel's margin the thumbnails lost the room they had: two at a fixed
+    150px needed 310px and the padded body has 294, so they stood one to a row and
+    the side column ran to three times the height of the details beside it. They are
+    now cells sized to the column, in the card's 4:3 shape (MANUAL §10)."""
+
+    # The Photographs panel's padded body beside the details: the 320px column less
+    # the panel's 12px padding and 1px border either side. At the narrowest
+    # two-column width, 861px, it is about 246px.
+    BODY_AT_1440, BODY_AT_861 = 294, 246
+
+    @staticmethod
+    def legacy():
+        return re.sub(r"/\*.*?\*/", "", (ITEM_CSS.parents[1] / "app.css").read_text(), flags=re.S)
+
+    def rule(self, selector):
+        found = re.search(rf"(?<![\w.-]){re.escape(selector)}\s*\{{([^}}]*)\}}", self.legacy())
+        assert found, selector
+        return found[1]
+
+    def test_the_thumbnails_are_cells_sized_to_the_column(self):
+        rule = self.rule(".thumbs")
+        assert "display: grid" in rule
+        assert re.search(r"grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(", rule)
+
+    def test_each_is_the_card_s_4_3_shape(self):
+        rule = self.rule(".thumbs img")
+        assert "aspect-ratio: var(--thumb-ratio)" in rule
+        assert re.search(r"(?<![-\w])width:\s*100%", rule), "a fixed width cannot follow the column"
+
+    def test_two_fit_across_beside_the_details(self):
+        rule = self.rule(".thumbs")
+        cell = int(re.search(r"minmax\(min\((\d+)px", rule)[1])
+        gap = int(re.search(r"(?<![-\w])gap:\s*(\d+)px", rule)[1])
+        assert 2 * cell + gap <= self.BODY_AT_861 <= self.BODY_AT_1440
+
+
 class TestTheHistoryLinesUpItsButtons:
     """An entry's camera and delete buttons stood straight after its words, so a
     column of entries read as a ragged edge of buttons: the log's value cell only

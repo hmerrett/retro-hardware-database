@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2280 behaviours, from 69 files.*
+*2283 behaviours, from 69 files.*
 
 
 ## A file where text was expected
@@ -2172,7 +2172,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 37 behaviours*
+*test_item_pages.py — 40 behaviours*
 
 
 **The head**
@@ -2238,6 +2238,12 @@ Regenerate with:
 - the photographs and the buttons share the panel s margin
 - so does the drawing of an item nobody has photographed
 - a visitor sees them inside it too
+
+**The thumbnails sit two to A row**
+
+- the thumbnails are cells sized to the column
+- each is the card s 4 3 shape
+- two fit across beside the details
 
 **The history lines up its buttons**
 

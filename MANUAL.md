@@ -1296,9 +1296,11 @@ panel, which answer *which one is this?* A photograph of something that happened
 to it — a recap, a repair, damage found on arrival — belongs on the history entry
 that says what happened, and is described in [section 14](#14-history).
 
-**In the panel**, the default photograph is the large one, with the others in a
-row of small ones under it. They sit inside the panel's margin, so the photographs
-and the buttons under them start from the same edge.
+**In the panel**, the default photograph is the large one, with the others under it
+as small ones in the same 4:3 shape as a gallery card: two to a row beside the
+details, and more across where the panel has the width of the page to itself. They
+sit inside the panel's margin, so the photographs and the buttons under them start
+from the same edge.
 
 **Upload** by choosing the files — that is the whole gesture, the upload goes as
 soon as they are picked. Several at once is fine.
