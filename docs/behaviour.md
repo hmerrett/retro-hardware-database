@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2283 behaviours, from 69 files.*
+*2290 behaviours, from 70 files.*
 
 
 ## A file where text was expected
@@ -2280,6 +2280,25 @@ Regenerate with:
   `alt=""` is an answer -- it tells a screen reader to pass over a swatch or a rule.
 - nothing hides where the keyboard is  
   The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
+
+
+## Level controls
+
+*test_level_controls.py — 7 behaviours*
+
+
+**A row of controls is one height**
+
+- a box and the buttons beside it take the control height
+- on a touch screen both take the tap height
+- the view switch is a small button s height
+- and on a touch screen too
+
+**The small things**
+
+- a card grid shares its width among the cards it has
+- the files public tick is a tap target on a phone
+- a file s date and time stay together
 
 
 ## Locations

@@ -76,6 +76,13 @@
   .btn:disabled, .btn[aria-disabled="true"] { cursor: not-allowed; color: var(--text-muted);
     background: var(--surface); border-style: dashed; }
   @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
+  /* Where a box stands beside buttons, the row is one height. The note bar, the upload
+     row, the toolbars and the photograph actions still carry v0.1 boxes, which padded out
+     to 35px beside 28px buttons; both now take the control height. */
+  :is(.notebar, .fileform, .toolbar, .photo-actions form) .btn { min-height: var(--control-h); }
+  :is(.notebar, .fileform, .toolbar, .photo-actions form) input:not([type=checkbox], [type=radio], [type=file]),
+  :is(.notebar, .fileform, .toolbar, .photo-actions form) select:not(.select) {
+    height: var(--control-h); padding-block: 0; box-sizing: border-box; }
 
   /* ---- 4. Form controls --------------------------------------------------- */
   .field { display: block; margin-top: var(--space-5); }
@@ -107,9 +114,12 @@
     .btn, .input, .select { font-size: 16px; min-height: var(--tap); }
     .formsections a { display: inline-flex; align-items: center; min-height: var(--tap); }
     nav.tabs a { display: inline-flex; align-items: center; min-height: var(--tap); }
-    .viewswitch a { display: inline-flex; align-items: center; min-height: var(--tap); }
     .btn.sm { font-size: 16px; min-height: 36px; }
-    .check input { width: 22px; height: 22px; }
+    .check input, .tickbox input[type=checkbox] { width: 22px; height: 22px; }
+    .viewswitch a { font-size: 16px; min-height: calc(36px - 2 * var(--border-w)); }
+    :is(.notebar, .fileform, .toolbar, .photo-actions form) .btn { min-height: var(--tap); }
+    :is(.notebar, .fileform, .toolbar, .photo-actions form) input:not([type=checkbox], [type=radio], [type=file]),
+    :is(.notebar, .fileform, .toolbar, .photo-actions form) select:not(.select) { height: var(--tap); }
   }
 
   /* ---- 5. Chip ------------------------------------------------------------ */
@@ -165,8 +175,9 @@
      picture beside the tag and the name, cropped to the card's 4:3. */
   .viewswitch { display: inline-flex; border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-sm);
     overflow: hidden; }
-  .viewswitch a { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-3); color: var(--text);
-    text-decoration: none; font-size: 13px; }
+  /* A small button's height, edge included, so it stands level with the buttons it sits among. */
+  .viewswitch a { display: inline-flex; align-items: center; padding: 0 var(--space-3); color: var(--text);
+    text-decoration: none; font-size: 13px; min-height: calc(28px - 2 * var(--border-w)); }
   .viewswitch a + a { border-left: var(--border-w) solid var(--line-strong); }
   .viewswitch a[aria-current="page"] { background: var(--surface-sunken); font-weight: 600; }
   .gallerytable .rowthumb { display: block; width: 48px; height: 36px; object-fit: cover; border-radius: var(--radius-xs); }
@@ -481,7 +492,10 @@
     border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
   .cell .k { font-size: 12px; color: var(--text-muted); }
   .cell .v { font-family: var(--font-data); font-size: 16px; font-weight: 600; }
-  .cardgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
+  /* auto-fit: two chip cards share the panel rather than leave a third of it empty. */
+  .cardgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(215px, 100%), 1fr)); }
+  /* A file's date and time are one fact; they wrap together on a phone or not at all. */
+  .fwhen { white-space: nowrap; }
   .veil { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; background: var(--scrim); }
   .veil > .sheet { width: 100%; max-height: 82vh; overflow-y: auto;
     padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); }
