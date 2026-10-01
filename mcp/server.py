@@ -9,7 +9,8 @@ exactly the same data.
 Runs over the streamable-HTTP transport so it can live as its own always-on
 docker-compose service. Point a client at http://<host>:8001/mcp.
 
-year is an integer, acquired_date and disposed_at are ISO date strings
+year is a year in full (1000 to 9999, as the API asks), acquired_date and
+disposed_at are ISO date strings
 (YYYY-MM-DD), and disposed is a boolean. Since an omitted argument means "leave
 unchanged", the integer and date fields can be set but not cleared from here;
 clear them in the GUI.

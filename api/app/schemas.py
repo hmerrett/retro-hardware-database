@@ -23,8 +23,18 @@ what it is instead of as free text. It answers a little less than a machine does
 """
 
 from datetime import date
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# What comes in is held to what the forms take (forms._fits): a year in full, since
+# a short one is what the register used to take and nothing can say which century
+# it meant, and a score the INT column can keep, since one past it was a server
+# error at the write. The bounds are on what is sent and never on what is read
+# back: a record still holding 85 has to come out as it is, or one such item would
+# take the whole list down, the script that finds them included.
+Year = Annotated[int, Field(ge=1000, le=9999)]
+Score = Annotated[int, Field(ge=0, lt=2**31)]
 
 
 def _null_is_blank(v: object) -> object:
@@ -97,7 +107,7 @@ class ComputerIn(BaseModel):
     name: str = ""
     manufacturer: str = ""
     model: str = ""
-    year: int | None = None
+    year: Year | None = None
     # The number on this particular machine, not a fact about the model.
     serial: str = ""
     chassis: str = ""
@@ -105,7 +115,7 @@ class ComputerIn(BaseModel):
     cpu: str = ""
     # The DOS benchmark's number for this machine, on the machines that have one:
     # null is "not run", and nothing infers a score from the CPU.
-    topbench: int | None = None
+    topbench: Score | None = None
     installed_ram: str = ""
     drives: str = ""
     condition: str = ""
@@ -169,6 +179,9 @@ class MachineOut(BaseModel):
 class ComputerOut(ComputerIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
+    # Unbounded on the way out: what is on file reads back as it is (see Year).
+    year: int | None = None
+    topbench: int | None = None
     # The project this one is on, by tag, or null. One of them (ADR-0016); this was
     # a list while a thing could be on several. A tag rather than a name because a
     # name is edited and a tag is not, and because the project itself is one GET
@@ -207,7 +220,7 @@ class PartIn(BaseModel):
     manufacturer: str = ""
     model: str = ""
     name: str = ""
-    year: int | None = None
+    year: Year | None = None
     serial: str = ""
     specs: str = ""
     condition: str = ""
@@ -241,6 +254,8 @@ class PartCreate(PartIn, WorkIn):
 class PartOut(PartIn):
     model_config = ConfigDict(from_attributes=True)
     asset_id: str
+    # Unbounded on the way out, as ComputerOut's is.
+    year: int | None = None
     # Narrowed on the way out, as ComputerOut's is and for the reason given there.
     machine: BoardOut | None = None  # type: ignore[assignment]
     variant: str = ""
