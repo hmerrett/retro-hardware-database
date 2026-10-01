@@ -8,6 +8,7 @@ there is to fix at the top, and each message under its own box."""
 import io
 import json
 import re
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -184,6 +185,17 @@ class TestAPartIsHeldToTheSameShapes:
         assert client.get(f"/api/parts/{aid}").json()["model"] == "Widget"
         assert f'action="/parts/{aid}/edit"' in r.text
 
+    def test_photographs_chosen_for_a_new_part_are_asked_for_again(self, client, db):
+        r = client.post(
+            "/parts/new",
+            data={"type": "other", "model": "Widget", "year": "85"},
+            files=[("photos", ("front.jpg", jpeg(), "image/jpeg"))],
+            follow_redirects=False,
+        )
+        assert r.status_code == 400
+        assert "Choose them again" in r.text
+        assert db.query(Part).count() == 0
+
     def test_a_storage_part_without_an_interface_comes_back_as_the_form(self, client, db):
         r = new_part(client, type="storage", kind="Hard disk", model="ST-225", spec_interface="")
         assert r.status_code == 400
@@ -241,6 +253,129 @@ class TestARefusedNewPartKeepsItsPlace:
         script = (STATIC / "part-form.js").read_text(encoding="utf-8")
         assert "FORM.refused" in script
         assert re.search(r"\[\s*'computer_id',\s*'parent_id'\s*\]", script)
+class Controls(HTMLParser):
+    """What a browser would send from the form that posts to `action`: each named
+    control not switched off, with the value it shows, in page order."""
+
+    def __init__(self, action):
+        super().__init__(convert_charrefs=True)
+        self.action, self.inside, self.pairs = action, False, []
+        self.select = self.textarea = None
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag == "form":
+            self.inside = a.get("action") == self.action
+        elif not self.inside or "disabled" in a:
+            return
+        elif tag == "input" and a.get("name"):
+            kind = (a.get("type") or "text").lower()
+            ticked = kind in ("checkbox", "radio")
+            if kind in ("submit", "button", "file", "image", "reset") or (
+                ticked and "checked" not in a
+            ):
+                return
+            value = a.get("value")
+            self.pairs.append((a["name"], ("on" if ticked else "") if value is None else value))
+        elif tag == "select" and a.get("name"):
+            self.select = [a["name"], None, None]
+        elif tag == "option" and self.select is not None:
+            if self.select[2] is None:
+                self.select[2] = a.get("value") or ""
+            if "selected" in a:
+                self.select[1] = a.get("value") or ""
+        elif tag == "textarea" and a.get("name"):
+            self.textarea = [a["name"], ""]
+
+    def handle_data(self, data):
+        if self.textarea is not None:
+            self.textarea[1] += data
+
+    def handle_endtag(self, tag):
+        if tag == "form":
+            self.inside = False
+        elif tag == "select" and self.select is not None:
+            name, picked, first = self.select
+            self.pairs.append((name, first if picked is None else picked))
+            self.select = None
+        elif tag == "textarea" and self.textarea is not None:
+            self.pairs.append(tuple(self.textarea))
+            self.textarea = None
+
+
+def controls(html, action):
+    reader = Controls(action)
+    reader.feed(html)
+    return reader.pairs
+
+
+def send(client, url, pairs):
+    data = {}
+    for k, v in pairs:
+        data.setdefault(k, []).append(v)
+    return client.post(url, data=data, follow_redirects=False)
+
+
+def typed(pairs, **answers):
+    return [(k, answers.get(k, v)) for k, v in pairs]
+
+
+# A part of most types with its specifications filled in, as the register writes
+# them. Most ask for them box by box, from a table of their own; a PSU and a
+# peripheral in one box.
+SPECS = {
+    "sound": "Interface: 8-bit ISA",
+    "video": "Chip: TVGA8900 | Interface: 16-bit ISA | Memory: 512 KiB",
+    "io": "Interface: VLB | Ports: 2× Serial, Game, Floppy, 2× IDE",
+    "network": "Chip: Realtek RTL8019AS | Interface: 16-bit ISA",
+    "ram": "Type: Parity | Size: 128 KiB",
+    "cpu": "Socket: Socket 7 | Speed: 133 MHz | FSB: 66 MHz | Cores: 1 | Cache: 16 KiB",
+    "display": 'Type: CRT | Panel: Shadow mask | Screen size: 12" | Aspect: 4:3 | '
+    "Resolution: 720×348 (Hercules) | Refresh: 50 Hz | Sync: 18 KHz | "
+    "Interface: 9-pin TTL (MDA) | Picture: Green | Colour: Off-white",
+    "storage": "Kind: Hard disk | Interface: IDE | Protocol: ATA | Capacity: 515592 KiB | "
+    "CHS: 1023/16/63",
+    "motherboard": "Chipset: Sirius AR810 | Form factor: Baby AT | Cache: 256 KiB",
+    "psu": "Form factor: ATX | Output: 300W",
+    "peripheral": "Type: Mouse | Interface: PS/2",
+}
+
+
+class TestAPartComesBackAsTyped:
+    """A part's specifications are boxes of their own, written to tables of their
+    own, and the refused form is drawn from what the save has just written. A box
+    the refused form read back as empty was lost again when the owner put the
+    refusal right and saved, as the manual tells them to."""
+
+    @pytest.mark.parametrize("ptype", sorted(SPECS))
+    def test_a_refused_edit_comes_back_with_everything_as_typed(self, client, part, ptype):
+        aid = part(type=ptype, model="Test", year=1993, specs=SPECS[ptype])["asset_id"]
+        url = f"/parts/{aid}/edit"
+        sent = typed(controls(client.get(url).text, url), year="88")
+        assert any(k.startswith("spec") and v for k, v in sent)
+        r = send(client, url, sent)
+        assert r.status_code == 400
+        assert controls(r.text, url) == sent
+
+    def test_so_does_a_refused_new_part(self, client):
+        url = "/parts/new"
+        form = controls(client.get("/parts/new?type=sound").text, url)
+        assert {"spec_interface", "spec_chip"} <= {k for k, _ in form}
+        sent = typed(
+            form, model="Sound Blaster", year="88", spec_interface="8-bit ISA", spec_chip="YM3812"
+        )
+        r = send(client, url, sent)
+        assert r.status_code == 400
+        assert controls(r.text, url) == sent
+
+    @pytest.mark.parametrize("ptype", sorted(SPECS))
+    def test_putting_the_refusal_right_keeps_the_specs(self, client, part, ptype):
+        made = part(type=ptype, model="Test", year=1993, specs=SPECS[ptype])
+        url = f"/parts/{made['asset_id']}/edit"
+        refused = send(client, url, typed(controls(client.get(url).text, url), year="88"))
+        r = send(client, url, typed(controls(refused.text, url), year="1993"))
+        assert r.status_code == 303
+        assert client.get(f"/api/parts/{made['asset_id']}").json()["specs"] == made["specs"]
 
 
 MODEL = {"computers": Computer, "parts": Part}

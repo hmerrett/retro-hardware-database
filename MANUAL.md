@@ -629,14 +629,14 @@ thing — `85` on an Amstrad is 1985, `05` on a floppy emulator is 2005 — so n
 guesses it for you. Its form says so under the Year box.
 
 A refused save saves nothing, and comes back as the form with everything as you
-typed it — memory, drives, catalogue picks, the work box. At the top it says how
-many things there are to fix, each a link to its box, and each box says under
-itself what is wrong and what would do instead. The list of sections at the top
-of a machine's or a part's form says beside each section how many things in it
-there are to fix. Put them right and **Save** again.
+typed it — memory, drives, a part's specifications, catalogue picks, the work
+box. At the top it says how many things there are to fix, each a link to its box,
+and each box says under itself what is wrong and what would do instead. The list
+of sections at the top of a machine's or a part's form says beside each section how
+many things in it there are to fix. Put them right and **Save** again.
 
-Photographs chosen on a new machine are the exception. A browser will not let a
-page choose files on your behalf, so they have to be picked again, and the
+Photographs chosen on a new machine or part are the exception. A browser will not
+let a page choose files on your behalf, so they have to be picked again, and the
 Photographs section says so.
 
 A project's form comes back the same way. A project with no name is refused, and
