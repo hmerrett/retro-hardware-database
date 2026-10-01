@@ -351,8 +351,8 @@
    missing from the other.
 
    The sheet leads with the things to add, since on a phone there is no + New
-   beside it (the plus is its icon, so not its words as well), and carries the four sections the tab bar has no room for, and the
-   API docs from the foot of the page. The popover carries all five sections
+   beside it (the plus is its icon, so not its words as well), and carries the four
+   sections the tab bar has no room for. The popover carries all five sections
    classed `fold`: the stylesheet shows them only at the widths where the banner has
    put its own away. Theme, share and reload are buttons the script words and
    reveals (app.js), so they carry no icon for it to overwrite. #}
@@ -366,7 +366,7 @@
 {%- for href, words, icon in SECTIONS if not (sheet and href == '/') -%}
 <a href="{{ href }}"{% if not sheet %} class="fold"{% endif %}{{ here(href, current) }}>{% if sheet %}{{ I.ico(icon) }}{% endif %}{{ words | ui }}</a>
 {%- endfor -%}
-{%- if sheet %}<a href="/docs">{{ I.ico('files') }}{{ 'API docs' | ui }}</a><hr>{% else %}<hr class="fold">{% endif -%}
+{%- if sheet %}<hr>{% else %}<hr class="fold">{% endif -%}
 <button type="button" class="js-theme" data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ 'Dark theme' | ui }}</button>
 {#- Two jobs the browser normally does and the installed app cannot: the manifest
     asks for display:standalone, so on a phone's home screen there is no address
@@ -402,24 +402,28 @@
 
 {# The top banner: where you can go, the search, what you can do. Under 900px the
    sections fold into the menu so it stays one row; under 620px everything but the
-   mark and the search moves to the tab bar. `q` is the search already made, kept in
-   the box.
+   mark, the name and the search moves to the tab bar. `q` is the search already
+   made, kept in the box.
 
    The mark and the name together, and both belong to the installation rather than
    to the software: the logo is whatever was dropped into the branding directory
    (see common.branded and INSTALL.md), and the name is what the settings page says
-   this collection is called. The alt text is that name because the picture is the
-   site's mark -- a logo whose alt text describes the artwork tells a screen reader
-   about a drawing nobody asked about. #}
+   this collection is called. The name is written beside the logo at every width the
+   banner shows the logo, a phone's included, so the words are what name the link
+   and the logo's alt is empty: an alt of the name as well had a screen reader say
+   it twice, and one describing the artwork tells it about a drawing nobody asked
+   about. The rail's logo keeps the name as its alt, because collapsed it stands
+   without the words (below). #}
 {% macro site_header(current, authed, back, q='') -%}
 <header class="site-header">
   <a class="brand" href="/">
-    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt=""
          width="248" height="256">
     <span>{{ site_name() }}</span>
   </a>
   {#- API docs is not among the sections: it is for whoever is writing against the
-      register rather than reading it, and it lives at the foot of the page. #}
+      register rather than reading it, and it lives on Your account, beside the
+      tokens it is for. #}
   <nav aria-label="Sections">
     {%- for href, words, _ in SECTIONS %}<a href="{{ href }}"{{ here(href, current) }}>{{ words | ui }}</a>{% endfor -%}
   </nav>
@@ -475,10 +479,14 @@
    worked out once by the page and handed in rather than asked for per row. #}
 {% macro rail(current, authed, back, counts, shut=false) -%}
 <aside class="rail{{ ' collapsed' if shut else '' }}">
-  <a class="brand" href="/">
+  {#- Collapsed, the name beside the logo is put away with every item's words, so the
+      logo carries it as they carry theirs: in a title, which is where a pointer finds
+      it, and in its alt, which is what a screen reader reads. The words are kept from
+      a screen reader, which heard the name from both while the rail was open. #}
+  <a class="brand" href="/" title="{{ site_name() }}">
     <img class="mark" src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
          width="248" height="256">
-    <span>{{ site_name() }}</span>
+    <span aria-hidden="true">{{ site_name() }}</span>
   </a>
   <nav aria-label="Sections">
     {%- for href, words, icon in SECTIONS %}{% set w = words | ui %}

@@ -3,7 +3,7 @@
 {# The answer to an address that led nowhere. A page rather than a line of JSON,
    because the likeliest reader scanned a label and is holding the machine: the
    banner above carries the search box, which is the way on from here. #}
-{% block title %}{{ heading }} — Retro Hardware Database{% endblock %}
+{% block title %}{{ heading }} — {{ site_name() }}{% endblock %}
 {% block main_class %} v2{% endblock %}
 {% block content %}
 <div class="errorpage">

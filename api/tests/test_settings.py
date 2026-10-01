@@ -8,12 +8,14 @@ and what the page says when it is not the one being edited.
 """
 
 import re
+from html import unescape
 from pathlib import Path
 
 import pytest
 
 from app import cards, photos, presets, settings, typefaces
 from conftest import log_out
+from test_site_chrome import rules, stylesheet
 
 STATIC = Path(__file__).parents[1] / "app" / "static"
 
@@ -42,6 +44,15 @@ def save(client, **fields):
         r = client.post(tab, data=data, follow_redirects=False)
         assert r.status_code == 303, r.text
     return r
+
+
+def said(link: str) -> str:
+    """What a screen reader reads out for a link as plain as the logo's: its words,
+    with each picture's alt standing in for the picture and nothing that is
+    aria-hidden. There is no browser here to ask, and a link this plain needs none."""
+    link = re.sub(r'<(\w+)\b[^>]*\baria-hidden="true"[^>]*>.*?</\1>', " ", link, flags=re.S)
+    link = re.sub(r'<img\b[^>]*\balt="([^"]*)"[^>]*>', r" \1 ", link)
+    return " ".join(unescape(re.sub(r"<[^>]*>", " ", link)).split())
 
 
 class TestReachingThePage:
@@ -84,12 +95,57 @@ class TestWhatTheSiteIsCalled:
     def test_it_starts_as_the_name_the_software_ships_with(self, client):
         assert settings.value("site_name") == "Retro Hardware Database"
 
-    def test_the_name_reaches_the_banner_the_tab_and_the_foot_of_the_page(self, client):
+    def test_the_name_reaches_the_banner_the_rail_and_the_tab(self, client):
+        """The page says whose collection it is in whichever of the two the width
+        draws, so both carry it: a Side installation has the banner and the rail in
+        its markup at once. Each is asked by its markup, since the tab and a shared
+        link's tags make up a count between them without the page saying the name."""
         save(client, site_name="Henry's shelf")
         page = client.get("/").text
         assert "<title>Henry&#39;s shelf</title>" in page
-        assert page.count("Henry&#39;s shelf") >= 3
+        banner = page.split('<header class="site-header">', 1)[1].split("</header>", 1)[0]
+        rail = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        for where in (banner, rail):
+            assert re.search(r"<span[^>]*>Henry&#39;s shelf</span>", where)
         assert "Retro Hardware Database" not in page
+
+    def test_a_collapsed_rail_keeps_the_name_in_the_tooltip_on_its_logo(self, client):
+        """Collapsed, the rail has room for the logo and not the words beside it, so
+        the logo's link carries the name as its title, the way every other item in
+        the rail keeps its name when its words are put away."""
+        save(client, site_name="Henry's shelf")
+        client.get("/rail/collapsed?next=/")
+        page = client.get("/").text
+        rail = page.split('<aside class="rail collapsed"', 1)[1].split("</aside>", 1)[0]
+        link = re.search(r'<a class="brand"[^>]*>', rail)
+        assert link, "the rail has no logo"
+        assert 'title="Henry&#39;s shelf"' in link.group(0)
+
+    def test_a_screen_reader_hears_the_logo_in_the_banner_as_the_name_once(self, client):
+        """The banner writes the name beside its logo wherever it shows the logo, a
+        phone's included, so the words name the link and the picture's alt is empty:
+        with the name in both, the name was read out twice."""
+        save(client, site_name="Henry's shelf")
+        banner = client.get("/").text.split('<header class="site-header">', 1)[1]
+        link = re.search(r'<a class="brand".*?</a>', banner, re.S)
+        assert link, "the banner has no logo"
+        assert said(link.group(0)) == "Henry's shelf"
+        # With the alt empty the words are the link's only name, so no width may hide
+        # them -- a phone's did, while the foot of the page carried the name.
+        words = rules(".site-header .brand span", stylesheet())
+        assert not any("display: none" in body for body in words)
+
+    def test_a_screen_reader_hears_the_logo_on_the_rail_as_the_name_once(self, client):
+        """The logo's alt stays the name, because collapsed the rail puts away the
+        words beside it; so the words are the ones kept from a screen reader, which
+        heard the name from the picture and then again from them while the rail was
+        open."""
+        save(client, site_name="Henry's shelf")
+        rail = client.get("/").text.split('<aside class="rail', 1)[1]
+        link = re.search(r'<a class="brand".*?</a>', rail, re.S)
+        assert link, "the rail has no logo"
+        assert re.search(r'<img class="mark"[^>]*\balt="Henry&#39;s shelf"', link.group(0))
+        assert said(link.group(0)) == "Henry's shelf"
 
     def test_the_name_reaches_a_shared_link(self, client, computer):
         """What a link unfolds into in a chat window is the site introducing itself
@@ -463,7 +519,7 @@ class TestTheButtonText:
         """`API docs` and `OK` are spelt that way on purpose. A browser's own
         lower-casing cannot tell one from an ordinary word; this can."""
         save(client, button_case="lower")
-        page = client.get("/").text
+        page = client.get("/settings/account").text
         assert "API docs" in page
         assert "api docs" not in page
 
@@ -491,7 +547,8 @@ class TestHowThePageReads:
         (interface-text)."""
         page = client.get("/settings").text
         assert '<label for="site_name">Name</label>' in page
-        assert 'class="field" title="In the banner, the browser&#39;s tab' in page
+        assert 'class="field" title="In the banner' in page
+        assert "foot of every page" not in page, "there is no foot of the page any more"
 
     def test_the_settings_are_grouped_into_named_sections(self, client):
         """A flat list of four is a list; a flat list of fifteen is a search. The

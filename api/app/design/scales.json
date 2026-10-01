@@ -162,7 +162,7 @@
    {
     "name": "space-7",
     "value": "40px",
-    "usage": "Above the footer; around an empty state."
+    "usage": "Around an empty state; above and below the login box, a confirmation and the error page."
    }
   ]
  },

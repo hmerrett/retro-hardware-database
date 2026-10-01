@@ -157,8 +157,8 @@ Until the first thing is in it, the gallery has nothing to be, so the front page
 is three steps instead:
 
 1. **Name the collection**, which puts your name in the banner, in the browser's
-   tab, at the foot of every page and on every label. Ticked and struck through
-   once the name is no longer the one the software ships with.
+   tab and on every label. Ticked and struck through once the name is no longer
+   the one the software ships with.
 2. **Add the first machine** — a computer, or a part on its own.
 3. **Print its label.** Stick it on the case and scan it, and you are at the
    item's page, which is the whole idea in one gesture.
@@ -197,8 +197,6 @@ the edges of the wide pages (see [On a wide screen](#on-a-wide-screen)).
 - **☰** — the theme, **Might sell**, **Traffic**, **Settings**, **Account** and
   **Log out**, each where your account reaches it, and (in the installed app, where
   the browser provides neither) share and reload.
-- **API docs** — the interactive API console (login required), at the foot of
-  the page.
 
 On a tablet, or a desktop window narrower than about 900px, the five sections
 move into the **☰** menu, at its top. The banner stays on one line at every width:
@@ -2470,7 +2468,8 @@ included. It is where you:
 - see **where you are signed in** — each browser, when it signed in and when it
   was last seen — and **sign out everywhere else**, for the phone you lost or the
   machine at the club you forgot;
-- make and revoke **your API tokens** ([below](#api-tokens)).
+- make and revoke **your API tokens** ([below](#api-tokens)), and open the
+  **API docs**: the interactive console at `/docs` that a token is for.
 
 ### From the command line
 
@@ -2630,9 +2629,15 @@ what a manual is for.
 
 ### What the site is called
 
-The name goes in the banner beside the logo, in the browser's tab, at the foot
-of every page, and in the preview a shared link unfolds into. Change it and all
-of them change together.
+The name goes in the banner beside the logo — or at the top of the side rail,
+where the rail is showing — in the browser's tab, and in the preview a shared link
+unfolds into. Change it and all of them change together.
+
+A rail collapsed to its icons has room for the logo and not the name, so it keeps
+the name in the logo's tooltip.
+
+In the banner and on the rail, open or collapsed, the logo and the name are one
+link to the front page, which a screen reader reads out as the name, once.
 
 It names *this collection*, not the software: the register is still the Retro
 Hardware Database wherever it is installed, and the API's own documentation at
@@ -2942,8 +2947,9 @@ detail that belongs in a manual rather than on a form.
 
 ## 19. The REST API
 
-Interactive documentation and a console are at `/docs` (login required). The
-schema is at `/openapi.json`.
+Interactive documentation and a console are at `/docs`, linked from
+**⋯ → Account** beside your tokens (login required). The schema is at
+`/openapi.json`.
 
 | Method | Path | |
 |---|---|---|

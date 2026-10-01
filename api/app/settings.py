@@ -106,8 +106,9 @@ DEFINITIONS: tuple[Definition, ...] = (
         section=APPEARANCE,
         label="Name",
         note=(
-            "In the banner, the browser's tab, the foot of every page and the preview a "
-            "shared link unfolds into. Empty goes back to the name the software ships with."
+            "In the banner (or the side rail, where it shows), the browser's tab and the "
+            "preview a shared link unfolds into. Empty goes back to the name the software "
+            "ships with."
         ),
         kind=TEXT,
         default=DEFAULT_SITE_NAME,

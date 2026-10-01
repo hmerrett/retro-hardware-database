@@ -39,7 +39,7 @@ def banner(page: str) -> str:
 
 def body(page: str) -> str:
     """The page's own markup, without the chrome around it -- the header carries a
-    banner of its own when the site is running open, and the footer carries links."""
+    banner of its own when the site is running open, and the menus carry links."""
     return page.split("<main", 1)[-1].split("</main>", 1)[0]
 
 

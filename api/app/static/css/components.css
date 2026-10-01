@@ -355,17 +355,28 @@
     .menupop .fold { display: block; }
     .menupop hr.fold { display: block; }
   }
-  /* A phone: the banner is the mark and the search box, and everything else moves to
-     the tab bar, Scan with it -- into the thumb's reach. The name goes too: the logo
-     is still the way home, and the name is in the title bar and at the foot of the
-     page. Dropping it is what keeps the banner to one row. */
+  /* A phone: the banner is the mark, the name and the search box, and everything else
+     moves to the tab bar, Scan with it -- into the thumb's reach. The name stays
+     because nowhere else on a phone's page says whose collection a scanned label has
+     opened. It stays on one line, clipped with an ellipsis, so a long name costs its
+     own end rather than a second row of banner.
+
+     Room is given up in an order. The search box goes first, from all the row the name
+     leaves it down to what shows "Search anything..." whole at a phone's 16px -- 163px
+     in Chromium and WebKit, which keep room for the clear button -- and only then the
+     name. That floor is never more than half the row: at 320px the two share it
+     evenly, the name getting as much as the box at the cost of the placeholder's last
+     few pixels, and on a screen narrower still it cannot hold the banner open. */
   @media (max-width: 620px) {
     .site-header { flex-wrap: nowrap; padding: var(--space-3) var(--frame-inset); }
-    .site-header .brand span, .site-header .grow { display: none; }
+    .site-header .grow { display: none; }
+    .site-header .brand { min-width: 0; }
+    .site-header .brand img { flex: none; }
+    .site-header .brand span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .site-header .hdr-new { display: none; }
     .site-header .hdr-more { display: none; }
     .site-header .hdr-scan { display: none; }
-    .site-header .searchwrap { flex: 1 1 auto; }
+    .site-header .searchwrap { flex: 1 1 0; min-width: min(168px, 50%); }
     .site-header .search { width: 100%; }
     /* The suggestions hang from the banner rather than from the box, and span it:
        380px from the box's edge was wider than the room either side of it, and a
@@ -750,8 +761,6 @@
   .today .todo li::before { content: "\25CB  "; color: var(--text-muted); }
   .today .todo li.more::before { content: none; }
   @media (max-width: 560px) { .today .shots > .cardthumb { width: 96px; } }
-  .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--frame-inset); border-top: 1px solid var(--line);
-    font-size: 13px; color: var(--text-muted); }
 
   /* One row of tabs across Settings and the account pages: links to pages of their own.
      The one you are on is bold with the accent line the folded rail uses -- weight as

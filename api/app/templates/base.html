@@ -90,7 +90,7 @@
     of the two a screen gets, and below that width the rail is not drawn at all.
     The shell is what the rail and the page stand in as two columns, so it wraps
     the banner as well: in side mode the banner is beside the rail, not above it.
-    The overlays after the footer -- the tab bar, the sheet, the big view -- stay
+    The overlays after the page -- the tab bar, the sheet, the big view -- stay
     outside it, since they are fixed to the window rather than to a column. #}
 {% set _nav = site_nav() %}
 {% if _nav == 'side' %}{% set _shut = rail_collapsed(request) %}
@@ -107,11 +107,6 @@
     which the 0.1 rules in app.css that share its class names stand back from. That
     half is transitional: it goes with app.css, and the width outlives it. #}
 <main id="main" tabindex="-1" class="page{% block width %}{% endblock %}{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
-
-<footer class="site-footer">
-  <span>{{ site_name() }}</span>
-  <a href="/docs">API docs</a>
-</footer>
 {% if _nav == 'side' %}</div></div>{% endif %}
 
 {{ U.tabbar(_p) }}
