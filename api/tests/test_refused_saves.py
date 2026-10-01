@@ -253,6 +253,8 @@ class TestARefusedNewPartKeepsItsPlace:
         script = (STATIC / "part-form.js").read_text(encoding="utf-8")
         assert "FORM.refused" in script
         assert re.search(r"\[\s*'computer_id',\s*'parent_id'\s*\]", script)
+
+
 class Controls(HTMLParser):
     """What a browser would send from the form that posts to `action`: each named
     control not switched off, with the value it shows, in page order."""
