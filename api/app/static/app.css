@@ -41,102 +41,6 @@
      is the height of the words in it like everything else. */
   button, input, select, textarea { font-family: inherit; line-height: inherit; }
   ::file-selector-button { font-family: inherit; line-height: inherit; }
-  /* A list of files: a row each, and never a table (ADR-0028). The row is a grid of
-     four -- the drawing of what it is, its name and what it is linked to, how big
-     and how old, and the download -- and on a phone the third drops under the
-     second, so nothing is squeezed and nothing scrolls sideways. A table was the
-     wrong shape for this all along: a file's facts are short enough to say in a
-     line, and the table had six columns to hold the forms that changed them. */
-  .filerows { list-style: none; margin: 0; padding: 0; }
-  .filerow { position: relative; display: grid; align-items: center; column-gap: 14px;
-    grid-template-columns: 44px minmax(0, 1fr) auto auto;
-    grid-template-areas: "icon text meta dl";
-    padding: 9px 4px; border-top: 1px solid var(--line); }
-  .panel .filerow { padding: 9px 11px; }
-  .panel .filerow:first-child { border-top: 0; }
-  .filerow > .fileicon { grid-area: icon; }
-  .filerow > .filetext { grid-area: text; min-width: 0; }
-  .filerow > .fmeta { grid-area: meta; }
-  .filerow > .fdl { grid-area: dl; }
-  @media (max-width: 640px) {
-    .filerow { column-gap: 10px; grid-template-columns: 40px minmax(0, 1fr) auto;
-      grid-template-areas: "icon text dl" "icon meta dl"; }
-    .filerow > .fmeta { text-align: left; white-space: normal; }
-  }
-  /* The name is the way to the file's page, stretched over the whole row so the row
-     can be tapped anywhere; what else on the row is a link of its own sits above the
-     stretch. A filename breaks anywhere, because nobody reads one as a word and the
-     longest on the page must not decide how narrow the list can be. */
-  .fname { font-weight: 600; color: var(--fg); text-decoration: none; overflow-wrap: anywhere; }
-  .fname::after { content: ""; position: absolute; inset: 0; }
-  .fname:hover { text-decoration: underline; }
-  .filerow .linkchip, .filerow .fdl, .filerow .fnote a, .filerow .lock { position: relative; z-index: 1; }
-  .fnote { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
-  .fmeta { color: var(--muted); font-size: 13px; white-space: nowrap; text-align: right;
-    font-variant-numeric: tabular-nums; }
-  .filechips { display: flex; flex-wrap: wrap; gap: 4px 5px; margin-top: 3px; }
-  /* One thing a file is linked to: its asset tag and its name, as one link. The
-     corners are a card's rather than a pill's because a long name wraps inside it. */
-  .linkchip { display: inline-block; background: var(--chip); border-radius: 6px; padding: 1px 7px;
-    font-size: 12px; color: var(--fg); text-decoration: none; overflow-wrap: anywhere; }
-  .linkchip b { color: var(--accent); font-weight: 600; }
-  .linkchip:hover { background: var(--btn-hover); }
-  .lock { display: inline-block; font-size: 11px; padding: 0 7px; border: 1px solid var(--line);
-    border-radius: 999px; color: var(--muted); vertical-align: 1px; }
-  .fdl { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--line);
-    border-radius: 8px; background: var(--btn); color: var(--fg); }
-  .fdl:hover { background: var(--btn-hover); }
-  .fdl svg { width: 18px; height: 18px; }
-  /* What a file is, drawn, in the muted text colour so both themes draw it, with
-     the extension under it. */
-  .fileicon { display: inline-grid; justify-items: center; align-content: center; gap: 2px;
-    width: 44px; color: var(--muted); }
-  .fileicon .fileart { display: block; width: 30px; height: 30px; }
-  .fileext { font-size: 9px; font-weight: 600; letter-spacing: .07em; line-height: 1; }
-  .fileicon.big { width: 72px; flex: none; }
-  .fileicon.big .fileart { width: 60px; height: 60px; }
-  .fileicon.big .fileext { font-size: 11px; }
-  /* The list's own search, and the row of ways to narrow it. The current one is on
-     the band a panel's title sits on, which is already a surface the contrast tests
-     hold the text colour to. */
-  .filehead .filesearch { display: flex; gap: 6px; align-items: center; margin-left: auto; }
-  .filesearch input[type=search] { width: 220px; min-width: 0; padding: 5px 9px;
-    border: 1px solid var(--line); border-radius: 7px; background: transparent; color: inherit;
-    font: inherit; font-size: 13px; }
-  @media (max-width: 640px) {
-    .filehead .filesearch { margin-left: 0; width: 100%; }
-    .filesearch input[type=search] { flex: 1 1 auto; width: auto; }
-  }
-  .filefilters { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 8px; }
-  .filefilters a { font-size: 13px; padding: 2px 10px; border: 1px solid var(--line);
-    border-radius: 999px; color: var(--fg); text-decoration: none; white-space: nowrap; }
-  .filefilters a span { color: var(--muted); margin-left: 4px; }
-  .filefilters a[aria-current="page"] { background: var(--band); font-weight: 600; }
-  /* A file's own page: the drawing beside its name, then the panels that change it. */
-  .filehero { display: flex; gap: 16px; align-items: flex-start; margin: 12px 0 14px; }
-  .filehero-text { min-width: 0; }
-  .filehero h2 { font-size: 18px; overflow-wrap: anywhere; }
-  .fileacts { display: flex; flex-wrap: wrap; gap: 8px; }
-  .linkrows { list-style: none; margin: 0; padding: 0; }
-  .linkrows li { display: flex; align-items: center; gap: 8px; padding: 7px 11px;
-    border-top: 1px solid var(--line); }
-  .linkrows li:first-child { border-top: 0; }
-  .linkrows form { margin: 0 0 0 auto; }
-  .linkform, .notebox-row { display: flex; gap: 6px; align-items: center; margin: 0; }
-  .notebox label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 3px; }
-  /* Both boxes ask for a width rather than demanding one: a minimum is a floor the
-     row cannot go below, and on a phone the row is narrower than any floor worth
-     having. */
-  .linkform input, .notebox input { flex: 1 1 200px; width: 200px; min-width: 0; padding: 5px 7px;
-    border: 1px solid var(--line); border-radius: 6px; background: transparent; color: inherit;
-    font: inherit; font-size: 13px; }
-  .filedelete { margin-top: 18px; }
-  /* What an item's siblings have that it has not: offered, and only offered. */
-  .panel .fileoffer { border-top: 1px solid var(--line); }
-  .offerrows { list-style: none; margin: 6px 0 0; padding: 0; }
-  .offerrows li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 3px 0;
-    overflow-wrap: anywhere; }
-  .offerrows form { margin: 0; }
   /* Links take the accent from components.css's base, which says the same: stated
      here too, unlayered, it outranked every v0.2 rule giving a link its own colour. */
   /* Back, where a link used to be: it sits in the prose and should read as one,
@@ -248,15 +152,6 @@
   .itemcard > .cardrow input { flex: 1 1 200px; min-width: 0; padding: 4px 7px;
     border: 1px solid var(--line); border-radius: 6px; font: inherit;
     font-size: 13px; background: transparent; color: inherit; }
-  /* A tick is not a text box. The rule above dresses the row's inputs as boxes to
-     type in and lets them take the width, which a checkbox given the same
-     treatment accepts -- a bordered, stretched, empty rectangle with a tick
-     somewhere in it. */
-  .tickbox { display: inline-flex; align-items: center; gap: 6px; margin: 0;
-    font-size: 13px; }
-  .tickbox input[type=checkbox], .itemcard > .cardrow .tickbox input[type=checkbox] {
-    flex: 0 0 auto; width: auto; min-width: 0; padding: 0; border: 0;
-    border-radius: 0; }
   /* A list that is the panel's own content: the box is already drawn, so the cards
      give theirs up and keep their bands -- edge to edge, one rule between one and
      the next, the way a table's rows sit under its heading. A list nested deeper
@@ -370,16 +265,8 @@
   /* The file input sits invisible over its own label, so the button wears the
      site's own wording and styling instead of the browser's ("Choose Files",
      capitals and all) -- and keeps a real input, so it is still focusable, still
-     opens the picker, and still works with no JavaScript. */
-  /* The upload row in a Files section: a line of controls that wraps rather than
-     one input per line, since together they are one sentence -- these files, for
-     this and the others like it, public or not, described like this. */
-  .fileform { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
-    margin: 10px 0 0; }
-  .fileform input[name=note] { flex: 1 1 180px; }
-  .fileform input[type=text], .fileform input:not([type]) { padding: 5px 7px;
-    border: 1px solid var(--line); border-radius: 6px; background: transparent;
-    color: inherit; font: inherit; }
+     opens the picker, and still works with no JavaScript. Shared by the Files
+     panel's upload and the photographs', and goes with the photographs' move. */
   .filebtn { position: relative; overflow: hidden; }
   .filebtn input[type=file] { position: absolute; inset: 0; width: 100%; height: 100%;
     opacity: 0; cursor: pointer; font-size: 0; }
@@ -536,8 +423,6 @@
     .toolbar input[type=text], .toolbar input[list],
     .toolbar input:not([type]), .toolbar select:not(.select),
     .photo-actions input[name=note], .notebar input,
-    .fileform input[type=text], .fileform input:not([type]),
-    .filesearch input[type=search], .linkform input, .notebox input,
     .itemcard > .cardrow input { font-size: 16px; }
   }
 

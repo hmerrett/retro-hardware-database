@@ -86,6 +86,44 @@ def prefer_public(client, on=True):
         assert r.status_code == 303, r.text
 
 
+def speak(client, case):
+    """Save the settings page with Button text answered `case` -- `cap` or `lower` --
+    and the rest as a new installation has it."""
+    data = {"site_name": "", "theme": "system", "watermark": "1", "remember_locations": "1"}
+    r = client.post("/settings", data=data | {"button_case": case}, follow_redirects=False)
+    assert r.status_code == 303, r.text
+
+
+def in_case(words, case):
+    """`words` as a control is written under that answer: the first letter lowered
+    for `lower`, which is all the setting does to a word written Like This."""
+    return words if case == "cap" else words[0].lower() + words[1:]
+
+
+def controls_saying(html, words):
+    """Which of `words` some control on the page is written as, whole: the words on
+    a button, a link drawn as one, a picker or a filter, after the drawing beside
+    them if there is one. So `Save` is found in `<button>Save</button>` and not in
+    `Save this`, and the other answer's `save` can be looked for as well."""
+    return {
+        w
+        for w in words
+        if re.search(r">\s*(?:<svg\b[^>]*>.*?</svg>\s*)?" + re.escape(w) + r"\s*<", html, re.S)
+    }
+
+
+def main_of(html):
+    """The page's own content, without the chrome every page shares."""
+    return re.search(r"<main\b.*?</main>", html, re.S).group(0)
+
+
+def files_panel(html):
+    """The Files panel of an item page, and nothing else on it."""
+    found = re.search(r"<h3>Files</h3>.*?</section>", html, re.S)
+    assert found, "the page has no Files panel"
+    return found.group(0)
+
+
 class Forms(HTMLParser):
     """The forms on a page, each as the fields it would post and the words on its
     button."""
@@ -172,7 +210,7 @@ class TestLinkingOne:
         machine = computer(manufacturer="Amstrad", model="PC1512")["asset_id"]
         upload(client, "tvga.zip", aid=board)
         fid = newest(client)
-        press(client, client.get(f"/files/{fid}").text, "/link", "link", aid=machine)
+        press(client, client.get(f"/files/{fid}").text, "/link", "Link", aid=machine)
         assert linked_to(client, fid) == {board, machine}
         assert fid in ids_on(client, f"/parts/{board}")
         assert fid in ids_on(client, f"/computers/{machine}")
@@ -195,9 +233,9 @@ class TestTheOtherUnitsOfTheModel:
     def test_the_upload_box_offers_them(self, client, part):
         one, two, three = card(part), card(part), card(part)
         page = client.get(f"/parts/{one}").text
-        assert re.search(r'name="siblings"[^>]*>\s*the other 2 Trident TVGA8900', page)
+        assert re.search(r'name="siblings"[^>]*>\s*The other 2 Trident TVGA8900', page)
         tooltip = re.search(
-            r'<label class="tickbox" title="([^"]*)"><input type="checkbox" name="siblings"', page
+            r'<label class="check" title="([^"]*)"><input type="checkbox" name="siblings"', page
         )
         assert tooltip and set(tooltip.group(1).split(", ")) == {two, three}
 
@@ -215,7 +253,7 @@ class TestTheOtherUnitsOfTheModel:
         one, two, gone = card(part), card(part), card(part)
         r = client.patch(f"/api/parts/{gone}", json={"disposed": True})
         assert r.status_code == 200, r.text
-        assert "the other Trident TVGA8900" in client.get(f"/parts/{one}").text
+        assert "The other Trident TVGA8900" in client.get(f"/parts/{one}").text
         upload(client, "tvga.zip", aid=one, siblings="1")
         assert linked_to(client, newest(client)) == {one, two}
 
@@ -266,7 +304,7 @@ class TestWhenAnotherOfTheSameModelArrives:
         later = card(part)
         page = client.get(f"/parts/{later}").text
         assert "Your other Trident TVGA8900 have a file this one has not" in page
-        press(client, page, f"/files/{fid}/link", "link")
+        press(client, page, f"/files/{fid}/link", "Link")
         assert ids_on(client, f"/parts/{later}") == {fid}
 
     def test_a_file_it_already_has_is_not_offered(self, client, part):
@@ -299,12 +337,12 @@ class TestAFilesPage:
         assert "sbbasic.img" in page
         assert "floppy image · 3½″ 1.44M" in page
         assert f'href="/parts/{aid}"' in page
-        assert f'href="/files/{fid}/sbbasic.img">download</a>' in page
+        assert f'href="/files/{fid}/sbbasic.img">Download</a>' in page
 
     def test_the_note_is_changed_there(self, client, part):
         upload(client, "tvga.zip", aid=card(part))
         fid = newest(client)
-        press(client, client.get(f"/files/{fid}").text, "/note", "save", note="DOS drivers")
+        press(client, client.get(f"/files/{fid}").text, "/note", "Save", note="DOS drivers")
         assert "DOS drivers" in client.get(f"/files/{fid}").text
         assert client.get("/api/files").json()[0]["note"] == "DOS drivers"
 
@@ -312,14 +350,14 @@ class TestAFilesPage:
         one, two = card(part), card(part, manufacturer="Tseng", model="ET4000")
         upload(client, "tvga.zip", aid=one)
         fid = newest(client)
-        press(client, client.get(f"/files/{fid}").text, "/link", "link", aid=two.lower())
+        press(client, client.get(f"/files/{fid}").text, "/link", "Link", aid=two.lower())
         assert linked_to(client, fid) == {one, two}
 
     def test_a_tag_not_in_the_register_is_refused_with_a_line_saying_so(self, client, part):
         aid = card(part)
         upload(client, "tvga.zip", aid=aid)
         fid = newest(client)
-        r = press(client, client.get(f"/files/{fid}").text, "/link", "link", aid="RH-ZZZZ")
+        r = press(client, client.get(f"/files/{fid}").text, "/link", "Link", aid="RH-ZZZZ")
         page = client.get(r.headers["location"]).text
         assert "RH-ZZZZ is not a machine, a part or a project in the register." in page
         assert linked_to(client, fid) == {aid}
@@ -329,7 +367,7 @@ class TestAFilesPage:
         upload(client, "tvga.zip", aid=aid)
         fid = newest(client)
         work = project(client)
-        press(client, client.get(f"/files/{fid}").text, "/link", "link", aid=work)
+        press(client, client.get(f"/files/{fid}").text, "/link", "Link", aid=work)
         assert linked_to(client, fid) == {aid, work}
         assert fid in ids_on(client, f"/projects/{work}")
 
@@ -337,7 +375,7 @@ class TestAFilesPage:
         aid = card(part)
         upload(client, "tvga.zip", aid=aid)
         fid = newest(client)
-        press(client, client.get(f"/files/{fid}").text, "/unlink", f"unlink from {aid}")
+        press(client, client.get(f"/files/{fid}").text, "/unlink", f"Unlink from {aid}")
         assert ids_on(client, f"/parts/{aid}") == set()
         assert file_ids(client) == [fid]
 
@@ -357,7 +395,7 @@ class TestAFilesPage:
         from app import filesdb
 
         assert (filesdb.FILES_DIR / stored).exists()
-        press(client, client.get(f"/files/{fid}").text, "/delete", "delete")
+        press(client, client.get(f"/files/{fid}").text, "/delete", "Delete")
         assert file_ids(client) == []
         assert not (filesdb.FILES_DIR / stored).exists()
         assert ids_on(client, f"/parts/{aid}") == set()
@@ -374,6 +412,14 @@ class TestAFilesPage:
         assert "DOS drivers" in page and f'href="/parts/{aid}"' in page
         assert forms_on(page, f"/files/{fid}/") == []
 
+    def test_its_one_heading_is_the_filename(self, client, part):
+        """Every page leads with one h1, and a file's page with the name the file
+        was uploaded as."""
+        upload(client, "sbbasic.img", body=b"\0" * 1_474_560, aid=card(part))
+        page = client.get(f"/files/{newest(client)}").text
+        assert page.count("<h1") == 1
+        assert re.search(r"<h1[^>]*>sbbasic\.img</h1>", page)
+
     def test_a_visitor_is_told_an_unpublished_files_page_is_not_there(
         self, client, part, monkeypatch
     ):
@@ -388,13 +434,19 @@ class TestAFilesPage:
 class TestTheFilesPage:
     """Section 11, "The files page"."""
 
+    def test_it_is_headed_files_in_its_one_h1(self, client, part):
+        upload(client, "tvga.zip", aid=card(part))
+        page = client.get("/files").text
+        assert page.count("<h1") == 1
+        assert '<h1 class="heading">Files</h1>' in page
+
     def test_it_lists_every_file_newest_first_with_what_it_is_linked_to(self, client, part):
         aid = card(part)
         upload(client, "old.zip", aid=aid)
         upload(client, "new.zip", aid=aid)
         page = client.get("/files").text
         assert page.index("new.zip") < page.index("old.zip")
-        assert f'<a class="linkchip" href="/parts/{aid}"' in page
+        assert f'<a class="chip" href="/parts/{aid}"' in page
 
     def test_nothing_on_a_row_changes_anything(self, client, part):
         """A row used to carry six forms. Everything done to a file is on its page."""
@@ -409,7 +461,7 @@ class TestTheFilesPage:
         fid = newest(client)
         page = client.get("/files").text
         assert f'<a class="fname" href="/files/{fid}">tvga.zip</a>' in page
-        assert f'<a class="fdl" href="/files/{fid}/tvga.zip" aria-label="download tvga.zip"' in page
+        assert f'href="/files/{fid}/tvga.zip" aria-label="Download tvga.zip"' in page
 
     def test_units_of_one_model_are_one_chip_and_all_of_them_on_its_page(self, client, part):
         units = [card(part, model="PicoGUS", manufacturer="Polpo", type="sound") for _ in range(5)]
@@ -425,7 +477,7 @@ class TestTheFilesPage:
         upload(client, "manual.pdf", aid=aid)
         upload(client, "drivers.img", body=b"\0" * 1_474_560, aid=aid)
         page = client.get("/files").text
-        assert "documents <span>1</span>" in page and "disk images <span>1</span>" in page
+        assert "Documents <span>1</span>" in page and "Disk images <span>1</span>" in page
         narrowed = client.get("/files?kind=disk").text
         assert "drivers.img" in narrowed and "manual.pdf" not in narrowed
 
@@ -433,7 +485,7 @@ class TestTheFilesPage:
         aid = card(part)
         upload(client, "one.pdf", aid=aid)
         upload(client, "two.pdf", aid=aid)
-        assert "documents <span>" not in client.get("/files").text
+        assert "Documents <span>" not in client.get("/files").text
 
     def test_unlinked_and_private_are_the_owners_alone(self, client, part, monkeypatch):
         aid = card(part)
@@ -442,11 +494,11 @@ class TestTheFilesPage:
         publish(client, newest(client))
         shown, kept = file_ids(client)
         page = client.get("/files").text
-        assert "private <span>1</span>" in page
+        assert "Private <span>1</span>" in page
         assert ids_on(client, "/files?show=private") == {kept}
         visitor(client)
         page = client.get("/files").text
-        assert "private <span>" not in page and "unlinked <span>" not in page
+        assert "Private <span>" not in page and "Unlinked <span>" not in page
         # Asked for anyway, it is not a list a visitor has: they get what they may see.
         assert ids_on(client, "/files?show=private") == {shown}
 
@@ -465,7 +517,8 @@ class TestTheFilesPage:
 
     def test_the_list_marks_the_private_ones_for_the_owner(self, client, part):
         upload(client, "receipt.pdf", aid=card(part))
-        assert '<span class="lock"' in client.get("/files").text
+        rows = re.search(r'<ul class="filerows">.*?</ul>', client.get("/files").text, re.S)
+        assert rows and re.search(r'<span class="chip quiet"[^>]*>Private</span>', rows.group(0))
 
 
 class TestWhatKindOfFileItIs:
@@ -574,7 +627,7 @@ class TestWhoCanSeeAFile:
         aid = card(part)
         upload(client, "tvga.zip", body=b"driver", aid=aid)
         fid = newest(client)
-        press(client, client.get(f"/files/{fid}").text, "/public", "save", public="1")
+        press(client, client.get(f"/files/{fid}").text, "/public", "Save", public="1")
         visitor(client)
         assert client.get(f"/files/{fid}/tvga.zip").content == b"driver"
         assert ids_on(client, f"/parts/{aid}") == {fid}
@@ -673,8 +726,8 @@ class TestReadingAPdf:
         upload(client, "manual.pdf", body=PDF, aid=card(part))
         fid = newest(client)
         page = client.get(f"/files/{fid}").text
-        view = page.index(f'href="/files/{fid}/view/manual.pdf">view</a>')
-        assert view < page.index(f'href="/files/{fid}/manual.pdf">download</a>')
+        view = page.index(f'href="/files/{fid}/view/manual.pdf">View</a>')
+        assert view < page.index(f'href="/files/{fid}/manual.pdf">Download</a>')
 
     def test_and_anything_else_is_only_downloaded(self, client, part):
         upload(client, "drivers.zip", aid=card(part))
@@ -687,8 +740,8 @@ class TestReadingAPdf:
         upload(client, "drivers.zip", aid=aid)
         zip_id, pdf_id = file_ids(client)
         page = client.get("/files").text
-        assert f'href="/files/{pdf_id}/view/manual.pdf" aria-label="view manual.pdf"' in page
-        assert f'href="/files/{zip_id}/drivers.zip" aria-label="download drivers.zip"' in page
+        assert f'href="/files/{pdf_id}/view/manual.pdf" aria-label="View manual.pdf"' in page
+        assert f'href="/files/{zip_id}/drivers.zip" aria-label="Download drivers.zip"' in page
 
     def test_a_file_called_a_pdf_that_is_not_one_is_downloaded_instead(self, client, part):
         """A file is whatever somebody uploaded, and an HTML page shown by the
@@ -752,6 +805,49 @@ class TestNewFilesArePublic:
         prefer_public(client)
         upload(client, "tvga.zip", aid=card(part))
         assert client.get("/api/files").json()[0]["public"] is False
+
+
+class TestTheButtonText:
+    """Section 18, "Button text": every button, menu item, tab and status chip is
+    written as the setting says, and the file pages' controls are among them."""
+
+    @pytest.mark.parametrize("case", ["cap", "lower"])
+    def test_the_file_pages_follow_the_button_text_setting(self, client, part, case):
+        aid = card(part)
+        upload(client, "manual.pdf", body=PDF, aid=aid)
+        upload(client, "drivers.img", body=b"\0" * 1_474_560, aid=aid)
+        pdf = file_ids(client)[1]
+        # One linked to nothing, so the list offers Unlinked and marks its row: every
+        # name section 11 gives the list is on the page to be asked about. None of
+        # them is public, so the file's page carries its Private chip as well.
+        upload(client, "orphan.zip", aid=aid)
+        client.post(f"/files/{newest(client)}/unlink", data={"aid": aid})
+        speak(client, case)
+        other = "lower" if case == "cap" else "cap"
+        for path, words in (
+            ("/files", ["All", "Documents", "Disk images", "Unlinked", "Private", "Search"]),
+            (f"/files/{pdf}", ["View", "Download", "Private", "Save", "Link", "Unlink", "Delete"]),
+        ):
+            page = main_of(client.get(path).text)
+            said = [in_case(w, case) for w in words]
+            assert controls_saying(page, said) == set(said), path
+            assert controls_saying(page, [in_case(w, other) for w in words]) == set(), path
+        rows = client.get("/files").text
+        assert f'aria-label="{in_case("View manual.pdf", case)}"' in rows
+        assert f'aria-label="{in_case("Download drivers.img", case)}"' in rows
+
+    @pytest.mark.parametrize("case", ["cap", "lower"])
+    def test_so_does_the_files_panel_on_an_item_s_page(self, client, part, case):
+        upload(client, "tvga.zip", aid=card(part))
+        later = card(part)
+        speak(client, case)
+        panel = files_panel(client.get(f"/parts/{later}").text)
+        words = ["Link", "Choose files", "Upload", "Uploading…"]
+        other = "lower" if case == "cap" else "cap"
+        assert controls_saying(panel, [in_case(w, case) for w in words]) == {
+            in_case(w, case) for w in words
+        }
+        assert controls_saying(panel, [in_case(w, other) for w in words]) == set()
 
 
 class TestProjectsHaveFiles:

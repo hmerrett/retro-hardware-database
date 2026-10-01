@@ -1409,7 +1409,7 @@ A file is uploaded from the **Files** panel of the machine, part or project it i
 for, and is linked to that one. Choosing the files is the whole gesture: they go the moment they
 are picked, so what sits above the picker is asked first.
 
-- **the other 4 Polpo PicoGUS** — there when you hold other units of the same
+- **The other 4 Polpo PicoGUS** — there when you hold other units of the same
   model. Tick it and the file is linked to all of them as well; the tooltip says
   which they are. A unit you have disposed of is not counted.
 - **Public** — tick it to publish the file as it arrives. Left alone, the file is
@@ -1427,21 +1427,21 @@ no difference, so `Trident TVGA8900` and `trident  tvga8900` are one model.
 
 Every file has a page of its own, which is where selecting it in any list takes
 you. It says what kind of file it is, how big, when it was added and what it is
-linked to, with a **download** button — and, for a PDF, a **view** button before
+linked to, with a **Download** button — and, for a PDF, a **View** button before
 it, which opens the PDF in your browser to read rather than saving it. Everything you can do to a file is done
 there, and nowhere else:
 
-- **Note** — change it, and **save**.
+- **Note** — change it, and **Save**.
 - **Public** — the tick that publishes the file. It takes effect the moment you
   click it.
-- **Linked to** — every item the file is linked to, each with **unlink**. The box
-  under them links it to one more, by asset tag; it offers what is in the
-  register as you type. Machines, parts and projects can have files; an asset tag
-  that is not in the register is refused with a line saying so.
-- **delete** — removes the file, and with it every link.
+- **Linked to** — every item the file is linked to, each with **Unlink**. The box
+  under them, with **Link**, links it to one more, by asset tag; it offers what is
+  in the register as you type. Machines, parts and projects can have files; an
+  asset tag that is not in the register is refused with a line saying so.
+- **Delete** — removes the file, and with it every link.
 
-Unlinking never deletes anything. A file linked to nothing is **unlinked**, and is
-found under that name on the `/files` page.
+Unlinking never deletes anything. A file linked to nothing is unlinked, and is
+found under **Unlinked** on the `/files` page.
 
 A visitor is shown the same page for a published file, without the controls: what
 the file is, what it is for, and the download.
@@ -1449,7 +1449,7 @@ the file is, what it is for, and the download.
 ### When another of the same model arrives
 
 When other units of the same model have files that this one has not, this one's
-Files panel lists them, each with **link**. Only you see the list. It is how the
+Files panel lists them, each with **Link**. Only you see the list. It is how the
 card bought next year gets its siblings' driver: nothing reaches a unit until you
 link it, so a driver never lands on a card nobody has looked at.
 
@@ -1460,11 +1460,12 @@ and when it was added. Selecting a row opens the file's page; the button at the
 end of the row downloads the file, or, for a PDF, opens it in your browser. Five links to units of one model are shown as one —
 **5 × Polpo PicoGUS** — and the file's page lists all five.
 
-The row above the list narrows it. **documents**, **disk images** and the other
-kinds are offered as the files on the list call for them. **unlinked** and
-**private** are yours alone, and are the two lists that want attention: the files
-linked to nothing, and the files visitors cannot see. The search box finds a file
-by its name, its note, or the asset tag or name of anything it is linked to.
+The row above the list narrows it, and **All** puts it back. **Documents**, **Disk
+images** and the other kinds are offered as the files on the list call for them.
+**Unlinked** and **Private** are yours alone, and are the two lists that want
+attention: the files linked to nothing, and the files visitors cannot see. The
+search box finds a file by its name, its note, or the asset tag or name of
+anything it is linked to.
 
 ### What kind of file it is
 

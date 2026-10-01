@@ -22,17 +22,19 @@ from typing import NamedTuple
 from .entry import GIB, KIB, MIB
 
 # The lists a file can be found under, in the order the page offers them, and what
-# each is called there. Lower case because they are tabs (interface-text), apart
-# from the acronym, which keeps its capitals wherever it falls.
+# each is called there. Written capitalised, as every tab is at the source: the page
+# passes them through `ui`, which lowers the first word where the Button text
+# setting asks for it and leaves the acronym its capitals either way
+# (interface-text).
 GROUPS: dict[str, str] = {
-    "document": "documents",
-    "disk": "disk images",
+    "document": "Documents",
+    "disk": "Disk images",
     "rom": "ROMs",
-    "picture": "pictures",
-    "archive": "archives",
-    "program": "programs",
-    "sound": "sounds",
-    "other": "other",
+    "picture": "Pictures",
+    "archive": "Archives",
+    "program": "Programs",
+    "sound": "Sounds",
+    "other": "Other",
 }
 
 # Each drawing, and the list it belongs to. The five disks are one list: somebody

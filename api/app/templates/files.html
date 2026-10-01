@@ -1,43 +1,46 @@
 {% extends "base.html" %}
 {% import "_filerows.html" as FR %}
+{% import "_ui.html" as U with context %}
 {% block title %}Files — {{ site_name() }}{% endblock %}
+{% block main_class %} v2{% endblock %}
 {% block content %}
-<div class="flex filehead">
-  <h2 class="flush">Files</h2>
-  <span class="muted">{{ counts.all }}</span>
+<div class="pagehead">
+  <h1 class="heading">Files</h1>
+  <span class="count">{{ counts.all }}</span>
   {# A search of its own rather than the header's: that one reads every field of
      every item, and this one reads a file's name, its note, and the ids and names
      of what it is linked to. The narrowing already chosen rides along with it. #}
   <form class="filesearch" method="get" action="/files" role="search">
     {% if kind %}<input type="hidden" name="kind" value="{{ kind }}">{% endif %}
     {% if show %}<input type="hidden" name="show" value="{{ show }}">{% endif %}
-    <input type="search" name="q" value="{{ q }}" placeholder="Search files"
-           aria-label="search the files" autocomplete="off">
-    <button class="btn sm" type="submit">search</button>
+    <input class="input search" type="search" name="q" value="{{ q }}" placeholder="Search files"
+           aria-label="Search the files" autocomplete="off">
+    {{ U.button('Search', type='submit') }}
   </form>
 </div>
 
 {# One row of ways to narrow the list, all of them links, so each is an address
    that can be bookmarked. A kind is offered when there is more than one kind to
-   tell apart; the owner's two are offered when there is something in them. #}
+   tell apart; the owner's two are offered when there is something in them. The
+   words are tabs, so they follow Button text; the count beside each is not. #}
 {# Everything here is read-only, so a viewer is an owner for this page (ADR-0032). #}
 {% set owner = request.state.sees_private %}
 {% set qs = ('&q=' + q | urlencode) if q else '' %}
 {% if groups | length > 1 or (owner and (counts.unlinked or counts.private)) %}
 <nav class="filefilters" aria-label="Narrow the files">
-  <a href="/files{{ ('?q=' + q | urlencode) if q else '' }}"{% if not kind and not show %} aria-current="page"{% endif %}>all <span>{{ counts.all }}</span></a>
+  <a href="/files{{ ('?q=' + q | urlencode) if q else '' }}"{% if not kind and not show %} aria-current="page"{% endif %}>{{ 'All' | ui }} <span>{{ counts.all }}</span></a>
   {% if groups | length > 1 %}{% for key, label, n in groups %}
-  <a href="/files?kind={{ key }}{{ qs }}"{% if kind == key %} aria-current="page"{% endif %}>{{ label }} <span>{{ n }}</span></a>
+  <a href="/files?kind={{ key }}{{ qs }}"{% if kind == key %} aria-current="page"{% endif %}>{{ label | ui }} <span>{{ n }}</span></a>
   {% endfor %}{% endif %}
-  {% if owner and counts.unlinked %}<a href="/files?show=unlinked{{ qs }}" title="Linked to nothing: give each one a home on its page."{% if show == 'unlinked' %} aria-current="page"{% endif %}>unlinked <span>{{ counts.unlinked }}</span></a>{% endif %}
-  {% if owner and counts.private %}<a href="/files?show=private{{ qs }}" title="Kept back from visitors until ticked public."{% if show == 'private' %} aria-current="page"{% endif %}>private <span>{{ counts.private }}</span></a>{% endif %}
+  {% if owner and counts.unlinked %}<a href="/files?show=unlinked{{ qs }}" title="Linked to nothing: give each one a home on its page."{% if show == 'unlinked' %} aria-current="page"{% endif %}>{{ 'Unlinked' | ui }} <span>{{ counts.unlinked }}</span></a>{% endif %}
+  {% if owner and counts.private %}<a href="/files?show=private{{ qs }}" title="Kept back from visitors until ticked public."{% if show == 'private' %} aria-current="page"{% endif %}>{{ 'Private' | ui }} <span>{{ counts.private }}</span></a>{% endif %}
 </nav>
 {% endif %}
 
 {% if files %}
 {{ FR.rows(files, owner) }}
 {% elif counts.all %}
-<p class="muted">Nothing here matches. <a href="/files">show all</a></p>
+<p class="muted">Nothing here matches. <a href="/files">Show all</a></p>
 {% else %}
 <p class="muted">No files yet — upload from an item's page.</p>
 {% endif %}

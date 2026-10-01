@@ -20,6 +20,8 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request, Response
 from fastapi.templating import Jinja2Templates
+from jinja2 import pass_context
+from jinja2.runtime import Context
 from markupsafe import Markup
 
 from . import entry, filekinds, filesdb, labels, projects, rail, settings
@@ -117,7 +119,17 @@ def _ui(text: object) -> str:
     return button_text(text if isinstance(text, str) else str(text), settings.value("button_case"))
 
 
-templates.env.filters["ui"] = _ui
+@pass_context
+def _ui_filter(context: Context, text: object) -> str:
+    """`_ui` as the templates call it. Taking the context is what keeps Jinja from
+    working `{{ 'Save' | ui }}` out once, when it compiles the page: a filter over a
+    constant is folded into the compiled template unless it asks for the context,
+    and a folded one keeps the case the site had the first time the page was drawn
+    for as long as the server runs."""
+    return _ui(text)
+
+
+templates.env.filters["ui"] = _ui_filter
 
 # The share card for a page with no photograph of its own: the logo on its own
 # cream, opaque and at the 1.91:1 those slots want (tools/make_icons.py makes it).
