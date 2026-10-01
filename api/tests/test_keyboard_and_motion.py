@@ -198,10 +198,17 @@ def test_the_login_boxes_say_what_they_are_for(client, monkeypatch):
     )
 
 
+def says(words: str) -> bool:
+    """Whether a button's words are words: a letter or a digit among them, so
+    `‹ Prev` and `+ Computer` name themselves and `⟲` does not."""
+    return any(ch.isalnum() for ch in words)
+
+
 class Controls(HTMLParser):
     """Every control on the page and whether anything gives it a name: an
     `aria-label`, a `<label>` wrapped round it or pointed at its id, or, for a
-    button, the words on it."""
+    button, the words on it. A `title` is not a name, and a glyph is not words
+    (accessibility-standards)."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -223,9 +230,12 @@ class Controls(HTMLParser):
         elif tag in ("input", "select", "textarea", "button"):
             if got.get("type") == "hidden":
                 return
-            named = bool(got.get("aria-label") or got.get("aria-labelledby") or got.get("title"))
+            named = bool(got.get("aria-label") or got.get("aria-labelledby"))
             named = named or self._in_label > 0
-            if got.get("type") in ("submit", "button", "reset") and got.get("value"):
+            # An input button shows its value; a <button> only sends it, and is read
+            # by the words between its tags instead.
+            is_button = got.get("type") in ("submit", "button", "reset")
+            if tag == "input" and is_button and says(got.get("value", "")):
                 named = True
             control = {
                 "tag": tag,
@@ -253,18 +263,79 @@ class Controls(HTMLParser):
             f"<{c['tag']} name={c['name'] or '-'} id={c['id'] or '-'}>"
             for c in self.controls
             if not c["named"]
-            and not (c["tag"] == "button" and c["words"].strip())
+            and not (c["tag"] == "button" and says(c["words"]))
             and c["id"] not in self.labelled_ids
         ]
+
+
+def unnamed_in(markup: str) -> list[str]:
+    parser = Controls()
+    parser.feed(markup)
+    return parser.unnamed()
+
+
+def test_a_tooltip_is_not_a_name():
+    """A `title` is not shown on a touchscreen, not reached by the Tab key and not
+    read out by every screen reader, so a control it alone names is unnamed
+    (interface-text)."""
+    assert unnamed_in(
+        '<input id="year" title="Year"><button id="rotate" title="Rotate">⟲</button>'
+    ) == ["<input name=- id=year>", "<button name=- id=rotate>"]
+
+
+def test_a_glyph_is_not_a_buttons_words():
+    """Read out, `⟲` is a character's name or nothing. Words that carry a glyph
+    beside them still name the button."""
+    assert unnamed_in(
+        '<button id="rotate">⟲</button><button id="prev">‹ Prev</button>'
+        '<button id="add">+ Computer</button>'
+        '<input type="submit" id="shut" value="×"><input type="submit" id="go" value="Save">'
+    ) == ["<button name=- id=rotate>", "<input name=- id=shut>"]
+
+
+def test_what_a_button_sends_is_not_what_it_says():
+    """A `<button>`'s `value` is what the form sends when it is pressed, and is never
+    read out: the words on it are. So a rotate that sends `dir=ccw` and reads `⟲`
+    is unnamed, where a submit `<input>` shows its value and is named by it."""
+    assert unnamed_in(
+        '<button type="submit" name="dir" value="ccw" id="ccw">⟲</button>'
+        '<button type="submit" name="dir" value="cw" id="cw">Rotate clockwise</button>'
+        '<input type="submit" id="go" value="Save">'
+    ) == ["<button name=dir id=ccw>"]
+
+
+def a_project_with_something_in_every_panel(client) -> str:
+    """A project's page draws a button to take each item out, a tick for each task,
+    two buttons for each order and a row for each file only when it has them."""
+    made = client.post("/projects/new", data={"name": "Recap the PC1512"}, follow_redirects=False)
+    pid = made.headers["location"].rsplit("/", 1)[-1]
+    machine = client.get("/api/computers").json()[0]["asset_id"]
+    fid = client.get("/api/files").json()[0]["id"]
+    for path, data in [
+        (f"/projects/{pid}/add-item", {"asset_id": machine}),
+        (f"/projects/{pid}/task", {"text": "Recap the power supply", "asset": machine}),
+        (f"/projects/{pid}/order", {"description": "Capacitor kit"}),
+        (f"/files/{fid}/link", {"aid": pid}),
+    ]:
+        assert client.post(path, data=data, follow_redirects=False).status_code == 303, path
+    return f"/projects/{pid}"
 
 
 def test_every_control_says_what_it_is(client, a_page_of_everything):
     """A control with no name is read out as "edit text, blank" and nothing else,
     which on the drives grid was eight of them to a row. A column heading is not a
     name: nothing in HTML carries it from the `<th>` to the box underneath, so
-    each box says which row and which column it is itself."""
+    each box says which row and which column it is itself.
+
+    The settings and a project's own page are the two with the most controls, so
+    they are walked here too, rather than added to the walk the content-policy,
+    robots and alt-text tests share."""
     nameless = []
-    for path in a_page_of_everything:
+    for path in [
+        *a_page_of_everything,
+        "/settings",
+        a_project_with_something_in_every_panel(client),
+    ]:
         page = client.get(path)
         assert page.status_code == 200, f"{path} did not render: {page.status_code}"
         parser = Controls()
