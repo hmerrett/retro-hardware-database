@@ -209,8 +209,9 @@ def test_the_flash_has_no_hard_edge_between_its_bands():
     a shape but a change of colour inside one gradient. A browser smooths a shape's
     edges and not a gradient's, so on a slant a hard stop is drawn as a staircase: at
     25 degrees a step every two rows and a longer one every seventh or so, which is
-    what the eye reads as a jiggle. Each band blends into the next over a pixel
-    instead, which is what smoothing the edge would have given it."""
+    what the eye reads as a jiggle. A pixel of blend smoothed the stair and still
+    read a little jagged on staging, so each band runs into the next over 4px, the
+    way neighbouring colours do on a screen, and keeps a solid middle of its own."""
     flashes = {
         preset: values["flash"]
         for preset, values in PALETTES["construction"].items()
@@ -222,9 +223,9 @@ def test_the_flash_has_no_hard_edge_between_its_bands():
         hard = [
             f"{colour} to {after} at {ends:g}px"
             for (colour, _, ends), (after, starts, _) in pairwise(bands)
-            if starts - ends < 1
+            if starts - ends < 4
         ]
-        assert hard == [], f"{preset}'s flash changes colour in less than a pixel"
+        assert hard == [], f"{preset}'s flash changes colour in less than 4px"
 
 
 def test_the_banner_s_flash_and_a_panel_s_are_slanted_alike():
