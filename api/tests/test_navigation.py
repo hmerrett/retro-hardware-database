@@ -15,6 +15,7 @@ from sqlalchemy.exc import OperationalError
 
 from app import rail, settings
 from conftest import as_viewer, log_out
+from test_presets import PALETTES
 from test_stylesheet_lint import COMPONENTS, declarations
 
 
@@ -288,3 +289,58 @@ class TestFoldingItAway:
         r = client.get("/rail/collapsed?next=/", follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"] == "/"
+
+
+def _rules() -> list[tuple[str, str, str]]:
+    """components.css as (selector, property, value) in file order, a selector at a
+    time, so a rule written for three selectors at once is found under each."""
+    return [
+        (selector.strip(), prop, value)
+        for selectors, prop, value in declarations(COMPONENTS)
+        for selector in selectors.split(",")
+    ]
+
+
+class TestHowItIsPainted:
+    def test_the_rail_and_the_tab_bar_stand_on_the_navigation_s_ground(self):
+        """The navigation has a ground of its own, which every look states in light and
+        in dark. Painted as a panel, the rail was a white strip beside a grey page in
+        the three looks whose panels are white on purpose -- the 128K menu's window, a
+        window's client area, the listing paper -- and the phone's bar a white bar
+        under one. A token of its own lets a look set it without repainting a panel."""
+        grounds = {
+            selector: value
+            for selector, prop, value in _rules()
+            if selector in (".shell.side > .rail", ".tabbar") and prop == "background"
+        }
+        assert grounds == dict.fromkeys((".shell.side > .rail", ".tabbar"), "var(--surface-nav)")
+        assert "surface-nav" in PALETTES["keys"], "every look has to state the ground"
+
+    def test_a_rule_stands_between_the_navigation_and_the_page(self):
+        """Where a look stands its navigation on the page's own colour -- Default
+        light's white, the 128K screen's grey, the desktop's grey, the paper -- the rule
+        is all that tells the rail from the page beside it and the bar from the page
+        scrolling under it. Elsewhere the ground's lift does some of that work, so a
+        rule taken off would be missed in only a handful of looks, and not by whoever
+        took it off."""
+        sides = ((".shell.side > .rail", "border-right"), (".tabbar", "border-top"))
+        edges = {
+            (selector, prop): value
+            for selector, prop, value in _rules()
+            if (selector, prop) in sides
+        }
+        assert edges == dict.fromkeys(sides, "var(--border-w) solid var(--line)")
+
+    @pytest.mark.parametrize("part", ["svg", ".n", ".tag"])
+    def test_a_row_under_the_pointer_is_written_in_text(self, part):
+        """The hover ground is one only `text` is written on: the design turns
+        everything on a hovered row to it, as the search suggestions do. Left muted,
+        a section's count and a recent item's tag fell under 4.5:1 in five themes.
+        The hover rule has to be the last word on each, because `.rail .item.recent
+        .tag` is as specific as it is and would win by coming later."""
+        colours = [
+            (selector, value)
+            for selector, prop, value in _rules()
+            if selector.startswith(".rail ") and selector.endswith(f" {part}") and prop == "color"
+        ]
+        assert colours and colours[-1] == (f".rail .item:hover {part}", "var(--text)"), colours

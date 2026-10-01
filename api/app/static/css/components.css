@@ -379,7 +379,9 @@
   .stripe::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--flash-w); background: var(--flash);
     right: calc(var(--page-inset) + var(--border-w) + var(--flash-inset) - 8px);
     transform: skewX(-25deg); }
-  .tabbar { display: none; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
+  /* On the navigation's ground, as the side rail is (13a): on a panel's it was a white
+     bar under a grey page in three looks. Its rule sets it off from a page of its colour. */
+  .tabbar { display: none; background: var(--surface-nav); border-top: var(--border-w) solid var(--line); }
   .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: var(--space-1); min-height: 52px; padding: 0; font-size: 11px; font-weight: 500; color: var(--text-muted);
     background: none; border: 0; text-decoration: none; cursor: pointer; }
@@ -423,10 +425,13 @@
     /* Held to the window's height, so on a short one it scrolls itself: the owner's,
        open, is taller than a 1366x768 laptop leaves, and what spilt below the edge
        would stay there until the page beside it ran out. Down only: a scrollbar that
-       takes room leaves the folded rail's icons wider than what is left. */
+       takes room leaves the folded rail's icons wider than what is left. The rail is
+       chrome, not a panel, so it stands on the navigation's ground rather than
+       surface-raised: that is a panel's white in Rubber Key, Ninety-five and Phosphor
+       light, and there the rail takes the page's colour, set off by its rule. */
     .shell.side > .rail { display: flex; flex-direction: column; gap: var(--space-2); position: sticky; top: 0;
       height: 100vh; overflow-x: hidden; overflow-y: auto; padding: var(--space-5) var(--space-4);
-      background: var(--surface-raised); border-right: var(--border-w) solid var(--line); }
+      background: var(--surface-nav); border-right: var(--border-w) solid var(--line); }
     /* The cookie notice is fixed over the foot of the window, which is where the rail's foot
        sits, until it is answered. Room at the rail's bottom lifts Log out and Collapse above
        it, and the rail scrolls to reach them; the same :has gives it back when the notice goes. */
@@ -466,6 +471,11 @@
   .rail .item.recent { min-height: 28px; font-size: 13px; }
   .rail .item.recent .tag { flex: none; color: var(--text-muted); }
   .rail .item.recent .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* On a row under the pointer everything is `text`, as in the search suggestions (14h):
+     text-muted on surface-hover is a pair the design never uses, and the count and the
+     tag fell under 4.5:1 on it. After the muted rules, since `.recent .tag` is as
+     specific as this and would otherwise win by coming later. */
+  .rail .item:hover svg, .rail .item:hover .n, .rail .item:hover .tag { color: var(--text); }
   /* Collapsed: a class on the same shell, set by a plain link that stores the choice
      in a cookie, so it works with no script. Icons only; every item keeps its name in
      aria-label and title. */

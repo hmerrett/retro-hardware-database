@@ -225,6 +225,9 @@ across the bottom of the screen, where your thumb already is.
   **Might sell**, **Traffic**, **Settings** for an administrator or **Account** for
   anybody else signed in, and **Log out**.
 
+The bar across the bottom stands on one of the look's own colours, as the side
+rail does ([where the sections sit](#where-the-sections-sit)).
+
 ### On a narrow screen
 
 Every page fits the screen it is on, down to a 320px-wide phone and at 200% zoom
@@ -2863,6 +2866,10 @@ gets, then **Might sell** and **Traffic** where your account reaches them,
 **Log out** — or **Log in** for a visitor — and **Collapse**. On a window too short
 for all of it, the rail scrolls on its own, apart from the page beside it, rather
 than leaving its foot below the bottom of the window.
+
+The rail wears the look like the rest of the page. Whichever preset is chosen, in
+light and in dark, it stands on one of that look's own colours, with a rule between
+it and the page.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.
