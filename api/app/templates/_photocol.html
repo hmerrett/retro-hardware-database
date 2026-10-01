@@ -1,6 +1,8 @@
-{# The side column of an item page, shared by computer.html and part.html: the
-   photographs, and the owner's label, disposal box and QR code. Expects: obj, kind
-   ("computers"/"parts"), images, ref_marks, tuned, imgerr.
+{# The photographs of an item page, shared by computer.html and part.html: the top
+   of the side column, level with Details, with the code a phone adds one by. The
+   owner's label and disposal box are the rest of the column, in _sidecol.html,
+   after the body in the source.
+   Expects: obj, kind ("computers"/"parts"), images, ref_marks, tuned, imgerr.
 
    After the head and before the body in the source, so a single column -- a
    phone -- reads summary, photograph, details: somebody who has just scanned a
@@ -44,7 +46,6 @@
      browser with no JavaScript. The native file input is behind its own label,
      which is how the button says "choose files" rather than whatever the browser
      calls it. #}
-  <div class="pbody">
   <div class="photo-actions">
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
           enctype="multipart/form-data" id="photo-upload" data-autosend>
@@ -61,16 +62,18 @@
     {% endif %}
     {% if imgerr %}<p class="hint">Nothing found at the reference.</p>{% endif %}
   </div>
-  </div>
   {% endif %}
 {% endmacro %}
-<aside>
+<aside class="itemphotos">
   {# Panels, as the column beside this one is: the photographs are a section of the
      page like the parts or the files, and disposal is a thing you do to the item
      rather than a thing about it, so it says so with a title of its own instead of
-     sitting under the pictures unannounced. #}
+     sitting under the pictures unannounced.
+     Not flush: that is for a list whose rows run edge to edge, and a photograph
+     against the border reads as cut off. Inside the panel's margin, the pictures
+     and the buttons under them start from one edge. #}
   {% if images %}
-  {% call PN.panel('Photographs', images | length, flush=true) %}
+  {% call PN.panel('Photographs', images | length) %}
     <div class="photo-primary">
       {# data-full is what the lightbox opens, and it is the original: the point of
          a photograph of a board is being able to read the chips on it. What sits
@@ -110,42 +113,15 @@
      picture read as a page still loading rather than as a thing nobody has
      photographed. The drawing is the one on the item's own gallery card, so
      arriving here from the card lands on the same picture it was clicked on. #}
-  {% call PN.panel('Photographs', flush=true) %}
-    <div class="pbody"><div class="nophoto">
+  {% call PN.panel('Photographs') %}
+    <div class="nophoto">
       <img class="ph" src="/static/{{ placeholder }}" alt="" aria-hidden="true">
       <p class="hint">No photograph yet.</p>
-    </div></div>
+    </div>
     {{ upload() }}
   {% endcall %}
   {% endif %}
-  {% if request.state.authed %}
-  {# The label for the shelf. Two sizes, each a PDF in a tab of its own, since what
-     happens next is the browser's print dialog. #}
-  {% call PN.panel('Label') %}
-    <div class="row">
-      {# The small label is what labelsend.js hooks: without lbl-s and the two data
-         attributes it can only ever hand over the PDF (ADR-0025, ADR-0026). `one`
-         is the kind in the singular, which is what a print job is keyed by. #}
-      <a class="btn sm lbl-s" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=1"
-         data-kind="{{ one }}" data-asset="{{ obj.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
-      <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
-    </div>
-  {% endcall %}
-  {% if not obj.disposed %}
-  {% call PN.panel('Disposal') %}
-    <div class="photo-actions flush-top">
-    {# The consequence for the parts in a machine is in the tooltip rather than
-       printed under the box (interface-text): it is the why, not the meaning. #}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/dispose"
-          title="{{ 'Sold, binned or given away. The parts in it go with it, on the same date and for the same reason; restoring the machine brings them back.' if kind == 'computers' else 'Sold, binned or given away. Restoring it brings it back.' }}">
-      <input name="note" placeholder="why — sold, binned…"
-             aria-label="why it went">
-      <input name="date" type="date" value="{{ today() }}" aria-label="when it went">
-      <button class="btn sm" type="submit">dispose</button>
-    </form>
-    </div>
-  {% endcall %}
-  {% endif %}
-  {% endif %}
+  {#- With the photographs: it is how a phone adds one. -#}
   {% include "_photoqr.html" %}
 </aside>
+

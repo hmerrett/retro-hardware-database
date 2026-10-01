@@ -39,8 +39,10 @@ def save(client, **fields):
     } | {k: v for k, v in fields.items() if v is not None}
     for blank in [k for k, v in fields.items() if v is None]:
         data.pop(blank, None)
-    r = client.post("/settings", data=data, follow_redirects=False)
-    assert r.status_code == 303, r.text
+    # Settings is three tabs, each saving its own part (MANUAL §18).
+    for tab in ("/settings", "/settings/labels", "/settings/server"):
+        r = client.post(tab, data=data, follow_redirects=False)
+        assert r.status_code == 303, r.text
     return r
 
 
@@ -688,7 +690,7 @@ class TestTheHiddenColumnsAreAskedForRatherThanAssumed:
 class TestThePageSaysWhatTheseAre:
     def test_both_switches_are_on_the_settings_page_with_their_reasons(self, client):
         """A control says what it is and the reason is behind it (interface-text)."""
-        page = client.get("/settings").text
+        page = client.get("/settings/server").text
         assert 'name="public_locations"' in page and "> Show locations</label>" in page
         assert 'name="remember_locations"' in page and "> Remember old locations</label>" in page
         assert 'class="field" title="Whether somebody who is not signed in is told' in page

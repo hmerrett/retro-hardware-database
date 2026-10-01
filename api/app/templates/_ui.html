@@ -105,6 +105,20 @@
    field. `errors` is a list of (key, label, message). role="alert" so a screen
    reader hears it, and tabindex="-1" so the page can move focus to it and a
    keyboard user starts from there. Nothing at all when there is nothing to fix. #}
+{#- A long form's sections, listed at its top as links to them (MANUAL: "Adding a
+    computer"). Links rather than tabs: a tab hides what is not showing, and an error
+    with it, while a link only moves the page -- and it needs no script. `sections`
+    is (id, name, keys): after a refused save, the keys say which refusals are in
+    that section, and it says how many beside its name, in words, not colour alone. #}
+{% macro form_sections(sections, errors=[]) -%}
+<nav class="formsections" aria-label="Sections of this form"><ul>
+{%- for id, name, keys in sections %}
+{%- set n = errors | selectattr(0, 'in', keys) | list | length %}
+<li><a href="#{{ id }}">{{ name }}{% if n %} <span class="tofix">{{ n }} to fix</span>{% endif %}</a></li>
+{%- endfor %}
+</ul></nav>
+{%- endmacro %}
+
 {% macro error_summary(errors) -%}
 {%- if errors -%}
 <div class="errsum" role="alert" tabindex="-1"><h2>{{ errors | length }} thing{{ '' if errors | length == 1 else 's' }} to fix before this can be saved</h2><ul>
@@ -141,9 +155,9 @@
 
    The headings are the table's first row, not a <thead>: the stacking rule hides
    tr:first-child, and under a <thead> that would be the first row of data too. #}
-{% macro table(cols, rows, mode='stack') -%}
+{% macro table(cols, rows, mode='stack', cls='') -%}
 {%- set t -%}
-<table class="table{{ ' stack' if mode == 'stack' else '' }}"><tr>
+<table class="table{{ ' stack' if mode == 'stack' else '' }}{{ ' ' ~ cls if cls }}"><tr>
 {%- for heading, c in cols %}<th scope="col"{% if c %} class="{{ c }}"{% endif %}>{{ heading }}</th>{% endfor -%}
 </tr>
 {%- for row in rows %}<tr>
@@ -208,8 +222,10 @@
    the script finds them by, and a missing one is hidden rather than absent. What
    the caller puts in the block -- the owner's Edit and Duplicate -- sits between
    the position and the neighbours. #}
-{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='', prev_name='', next_name='', keep=false) -%}
+{% macro itemnav(back_href, back_label, position='', prev_href='', next_href='', prev_name='', next_name='', keep=false, up_href='', up_label='', up_title='') -%}
 <nav class="itemnav" aria-label="Item"{% if keep %} id="itemnav"{% endif %}><a href="{{ back_href }}"><span aria-hidden="true">←</span> {{ back_label }}</a>
+{#- The second way back: to what a part is in, as 0.1's page had it. -#}
+{%- if up_href %}<a href="{{ up_href }}"{% if up_title %} title="{{ up_title }}"{% endif %}><span aria-hidden="true">←</span> {{ up_label }}</a>{% endif %}
 {%- if position %}<span class="where">{{ position }}</span>{% endif %}<span class="push"></span>
 {%- if caller is defined %}{{ caller() }}{% endif %}
 {%- if prev_href or keep %}<a class="btn sm"{% if keep %} id="nav-prev"{% endif %} href="{{ prev_href }}" rel="prev"{% if prev_name %} title="{{ prev_name }}"{% endif %}{% if not prev_href %} hidden{% endif %}><span aria-hidden="true">‹</span> {{ 'Prev' | ui }}</a>{% endif %}
@@ -237,11 +253,12 @@
 {%- set o = item.obj -%}
 <a class="card{{ ' is-disposed' if o.disposed }}" href="/{{ 'computers' if item.kind == 'computer' else 'parts' }}/{{ o.asset_id }}">
 <span class="thumb">
-{#- A card measures 229px on every desktop width -- the page is capped at 1000px --
-    and the width of the screen on a phone. sizes says so, because a browser
-    believes it: overstating it by seventy pixels was enough to make a retina
-    screen fetch the 800px copy for a card that can show 458. #}
-{%- if item.image %}<img src="{{ img_url(item.image, THUMB_CARD) }}" srcset="{{ img_srcset(item.image, [300, 500, 800]) }}" sizes="(max-width: 460px) 100vw, 229px" alt="{{ item.name }}" loading="lazy" decoding="async">
+{#- A card is at most 244px on a desktop -- a 192px track shared four or more
+    across -- and the width of the screen on a phone. sizes says 250px, because a
+    browser believes it: overstating it by seventy pixels was enough to make a retina
+    screen fetch the 800px copy for a card that can show 458, and 250px keeps a 2x
+    screen on the 500px copy. #}
+{%- if item.image %}<img src="{{ img_url(item.image, THUMB_CARD) }}" srcset="{{ img_srcset(item.image, [300, 500, 800]) }}" sizes="(max-width: 460px) 100vw, 250px" alt="{{ item.name }}" loading="lazy" decoding="async">
 {%- else %}<img class="ph" src="/static/{{ item.placeholder }}" alt="{{ item.cat_label }}" loading="lazy">{% endif %}
 {%- if item.ref_photo %}<span class="ref-badge{{ ' icon' if item.ref_icon }}" title="Illustrative image, not this exact unit">{% if item.ref_icon %}<img src="/images/{{ item.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
 </span>
@@ -297,11 +314,27 @@
 
 {# aria-current on the section a path belongs to. Prefix rather than exact match, so
    an item's own page still lights the section it was reached through -- except the
-   gallery, which is only itself. `but` is a page inside the section with an entry of
-   its own beside it, which lights that entry and not both: Your account's address
-   is under /settings, and two marked is a screen reader told it is on two pages. #}
-{% macro here(seg, current, but='') -%}
-{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg) and not (but and current.startswith(but))) %} aria-current="page"{% endif -%}
+   gallery, which is only itself. Settings and Account are never offered to the same
+   reader (an administrator reaches Your account as one of Settings' tabs), so a
+   page under /settings is never marked twice. #}
+{% macro here(seg, current) -%}
+{%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg)) %} aria-current="page"{% endif -%}
+{%- endmacro %}
+
+{#- One row of tabs across Settings and the account pages (MANUAL §18): pages of their
+    own, so a `nav` of links with the current one marked as the page, not a widget,
+    and no script. Only for somebody who may change settings: a viewer's one page
+    under Settings is Your account, and a row of one tab says nothing. -#}
+{% macro settings_tabs() -%}
+{%- if request.state.authed -%}
+{%- set current = request.url.path -%}
+<nav class="tabs" aria-label="{{ 'Settings' }}">
+{%- for href, words in [('/settings', 'Appearance'), ('/settings/labels', 'Labels'), ('/settings/server', 'Server'),
+                        ('/settings/users', 'Accounts'), ('/settings/account', 'Your account')] %}
+<a href="{{ href }}"{% if (href == '/settings' and current == '/settings') or (href != '/settings' and current.startswith(href)) %} aria-current="page"{% endif %}>{{ words | ui }}</a>
+{%- endfor -%}
+</nav>
+{%- endif -%}
 {%- endmacro %}
 
 {# The five sections, in the order both the banner and the menu give them. "Models"
@@ -318,8 +351,8 @@
    missing from the other.
 
    The sheet leads with the things to add, since on a phone there is no + New
-   beside it (the plus is its icon, so not its words as well), and carries the four sections the tab bar has no room for, and the
-   API docs from the foot of the page. The popover carries all five sections
+   beside it (the plus is its icon, so not its words as well), and carries the four
+   sections the tab bar has no room for. The popover carries all five sections
    classed `fold`: the stylesheet shows them only at the widths where the banner has
    put its own away. Theme, share and reload are buttons the script words and
    reveals (app.js), so they carry no icon for it to overwrite. #}
@@ -333,7 +366,7 @@
 {%- for href, words, icon in SECTIONS if not (sheet and href == '/') -%}
 <a href="{{ href }}"{% if not sheet %} class="fold"{% endif %}{{ here(href, current) }}>{% if sheet %}{{ I.ico(icon) }}{% endif %}{{ words | ui }}</a>
 {%- endfor -%}
-{%- if sheet %}<a href="/docs">{{ I.ico('files') }}{{ 'API docs' | ui }}</a><hr>{% else %}<hr class="fold">{% endif -%}
+{%- if sheet %}<hr>{% else %}<hr class="fold">{% endif -%}
 <button type="button" class="js-theme" data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ 'Dark theme' | ui }}</button>
 {#- Two jobs the browser normally does and the installed app cannot: the manifest
     asks for display:standalone, so on a phone's home screen there is no address
@@ -346,15 +379,18 @@
     Not a section: it is a note to yourself, not a part of the catalogue (ADR-0018).
     A viewer reads it; traffic and the settings are an administrator's (ADR-0032). -#}
 {%- if request.state.sees_private -%}
-<a href="/for-sale">{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
+<a href="/for-sale"{{ here('/for-sale', current) }}>{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
 {%- endif -%}
 {%- if authed -%}
 <a href="/traffic">{% if sheet %}{{ I.ico('numbers') }}{% endif %}{{ 'Traffic' | ui }}</a>
-<a href="/settings"{{ here('/settings', current, but='/settings/account') }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
+<a href="/settings"{{ here('/settings', current) }}>{% if sheet %}{{ I.ico('settings') }}{% endif %}{{ 'Settings' | ui }}</a>
 {%- endif -%}
 {%- if request.state.principal.signed_in -%}
-{#- Everybody's own, viewers included: the one page under Settings a viewer opens. -#}
+{#- A viewer's own: the one page under Settings a viewer opens. An administrator
+    reaches it as a tab of Settings, so is not offered it twice. -#}
+{%- if not authed -%}
 <a href="/settings/account"{{ here('/settings/account', current) }}>{% if sheet %}{{ I.ico('user') }}{% endif %}{{ 'Account' | ui }}</a>
+{%- endif -%}
 <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}"><button type="submit">{% if sheet %}{{ I.ico('logout') }}{% endif %}{{ 'Log out' | ui }}</button></form>
 {%- else -%}
 {#- Carrying where you are, so logging in puts you back on it. That matters most to
@@ -366,24 +402,28 @@
 
 {# The top banner: where you can go, the search, what you can do. Under 900px the
    sections fold into the menu so it stays one row; under 620px everything but the
-   mark and the search moves to the tab bar. `q` is the search already made, kept in
-   the box.
+   mark, the name and the search moves to the tab bar. `q` is the search already
+   made, kept in the box.
 
    The mark and the name together, and both belong to the installation rather than
    to the software: the logo is whatever was dropped into the branding directory
    (see common.branded and INSTALL.md), and the name is what the settings page says
-   this collection is called. The alt text is that name because the picture is the
-   site's mark -- a logo whose alt text describes the artwork tells a screen reader
-   about a drawing nobody asked about. #}
+   this collection is called. The name is written beside the logo at every width the
+   banner shows the logo, a phone's included, so the words are what name the link
+   and the logo's alt is empty: an alt of the name as well had a screen reader say
+   it twice, and one describing the artwork tells it about a drawing nobody asked
+   about. The rail's logo keeps the name as its alt, because collapsed it stands
+   without the words (below). #}
 {% macro site_header(current, authed, back, q='') -%}
 <header class="site-header">
   <a class="brand" href="/">
-    <img src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
+    <img src="/static/logo-256.png?v={{ icon_ver }}" alt=""
          width="248" height="256">
     <span>{{ site_name() }}</span>
   </a>
   {#- API docs is not among the sections: it is for whoever is writing against the
-      register rather than reading it, and it lives at the foot of the page. #}
+      register rather than reading it, and it lives on Your account, beside the
+      tokens it is for. #}
   <nav aria-label="Sections">
     {%- for href, words, _ in SECTIONS %}<a href="{{ href }}"{{ here(href, current) }}>{{ words | ui }}</a>{% endfor -%}
   </nav>
@@ -439,10 +479,14 @@
    worked out once by the page and handed in rather than asked for per row. #}
 {% macro rail(current, authed, back, counts, shut=false) -%}
 <aside class="rail{{ ' collapsed' if shut else '' }}">
-  <a class="brand" href="/">
+  {#- Collapsed, the name beside the logo is put away with every item's words, so the
+      logo carries it as they carry theirs: in a title, which is where a pointer finds
+      it, and in its alt, which is what a screen reader reads. The words are kept from
+      a screen reader, which heard the name from both while the rail was open. #}
+  <a class="brand" href="/" title="{{ site_name() }}">
     <img class="mark" src="/static/logo-256.png?v={{ icon_ver }}" alt="{{ site_name() }}"
          width="248" height="256">
-    <span>{{ site_name() }}</span>
+    <span aria-hidden="true">{{ site_name() }}</span>
   </a>
   <nav aria-label="Sections">
     {%- for href, words, icon in SECTIONS %}{% set w = words | ui %}
@@ -477,11 +521,20 @@
         are handed to it here: it cannot know which case the site is written in. -#}
     <button class="item js-theme" type="button" title="{{ 'Dark theme' | ui }}" aria-label="{{ 'Dark theme' | ui }}"
             data-dark="{{ 'Dark theme' | ui }}" data-light="{{ 'Light theme' | ui }}">{{ I.ico('theme') }}<span>{{ 'Dark theme' | ui }}</span></button>
+    {#- Every page the ⋯ menu links to, in its order and for the same readers:
+        beside the rail the banner puts that menu away, so a page missing here is
+        one nobody can reach without typing its address. -#}
+    {%- if request.state.sees_private %}
+    <a class="item" href="/for-sale" title="{{ 'Might sell' | ui }}" aria-label="{{ 'Might sell' | ui }}"{{ here('/for-sale', current) }}>{{ I.ico('tag') }}<span>{{ 'Might sell' | ui }}</span></a>
+    {%- endif %}
     {%- if authed %}
-    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current, but='/settings/account') }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
+    <a class="item" href="/traffic" title="{{ 'Traffic' | ui }}" aria-label="{{ 'Traffic' | ui }}">{{ I.ico('numbers') }}<span>{{ 'Traffic' | ui }}</span></a>
+    <a class="item" href="/settings" title="{{ 'Settings' | ui }}" aria-label="{{ 'Settings' | ui }}"{{ here('/settings', current) }}>{{ I.ico('settings') }}<span>{{ 'Settings' | ui }}</span></a>
     {%- endif %}
     {%- if request.state.principal.signed_in %}
+    {%- if not authed %}
     <a class="item" href="/settings/account" title="{{ 'Account' | ui }}" aria-label="{{ 'Account' | ui }}"{{ here('/settings/account', current) }}>{{ I.ico('user') }}<span>{{ 'Account' | ui }}</span></a>
+    {%- endif %}
     <form method="post" action="/logout"><input type="hidden" name="next" value="{{ back }}">
       <button class="item" type="submit" title="{{ 'Log out' | ui }}" aria-label="{{ 'Log out' | ui }}">{{ I.ico('logout') }}<span>{{ 'Log out' | ui }}</span></button></form>
     {%- else %}

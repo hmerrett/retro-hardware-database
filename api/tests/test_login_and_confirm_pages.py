@@ -39,7 +39,7 @@ def banner(page: str) -> str:
 
 def body(page: str) -> str:
     """The page's own markup, without the chrome around it -- the header carries a
-    banner of its own when the site is running open, and the footer carries links."""
+    banner of its own when the site is running open, and the menus carry links."""
     return page.split("<main", 1)[-1].split("</main>", 1)[0]
 
 
@@ -84,7 +84,7 @@ class TestTheLoginPage:
     def test_on_a_closed_site_it_does_not_say_browsing_needs_no_login(self, client, monkeypatch):
         """On a site closed to visitors, browsing is what the login is for."""
         client.post(
-            "/settings",
+            "/settings/server",
             data={
                 "site_name": "",
                 "theme": "system",

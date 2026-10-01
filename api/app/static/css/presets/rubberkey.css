@@ -7,7 +7,7 @@
   --radius-pill: 3px;
   --stripe-h: 4px;
   --stripe-image: linear-gradient(var(--band), var(--band));
-  --flash: linear-gradient(90deg, var(--stripe-1) 0 13.5px, var(--stripe-2) 14.5px 27.5px, var(--stripe-3) 28.5px 41.5px, var(--stripe-4) 42.5px 56px);
+  --flash: linear-gradient(90deg, var(--stripe-1) 0 12px, var(--stripe-2) 16px 26px, var(--stripe-3) 30px 40px, var(--stripe-4) 44px 56px);
   --flash-w: 56px;
   --flash-inset: 24px;
   --font-display: "IBM Plex Sans", system-ui, sans-serif;
@@ -15,6 +15,7 @@
   --surface-raised: #ffffff;
   --surface-sunken: #ebebeb;
   --surface-hover: #00d7d7;
+  --surface-nav: #d8d8d8;
   --band: #000000;
   --band-text: #ffffff;
   --band-muted: #d0d0d0;
@@ -50,6 +51,7 @@
   --surface-raised: #17171a;
   --surface-sunken: #303338;
   --surface-hover: #454a52;
+  --surface-nav: #17171a;
   --band: #26272b;
   --band-text: #f2f2f2;
   --band-muted: #b8bac0;
@@ -86,6 +88,7 @@
     --surface-raised: #17171a;
     --surface-sunken: #303338;
     --surface-hover: #454a52;
+    --surface-nav: #17171a;
     --band: #26272b;
     --band-text: #f2f2f2;
     --band-muted: #b8bac0;

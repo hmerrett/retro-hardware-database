@@ -24,8 +24,10 @@ if (pt) {
   // again means asking the server, and the server cannot know what is in the
   // boxes -- so it is worth saying so before it goes. Compared against what the
   // page was rendered with rather than against being empty: a field that arrived
-  // filled in is not something you typed.
-  const edited = () => [...document.querySelectorAll('form.editform input, ' +
+  // filled in is not something you typed. A form that has come back refused is the
+  // exception: it was drawn from what was typed, so every box matches what it
+  // arrived with and all of it is the owner's.
+  const edited = () => FORM.refused || [...document.querySelectorAll('form.editform input, ' +
                               'form.editform select, form.editform textarea')]
     .some(el => {
       if (el === pt || el.disabled) return false;
@@ -54,6 +56,13 @@ if (pt) {
     was = pt.value;
     const u = new URL(window.location.href);
     u.searchParams.set('type', pt.value);
+    // A refused new part arrives by a POST, so the address holds no query: what it
+    // is being added to is only in the form's own boxes.
+    const form = pt.closest('form');
+    ['computer_id', 'parent_id'].forEach(function (name) {
+      const box = form && form.elements.namedItem(name);
+      if (box && box.value && !u.searchParams.has(name)) u.searchParams.set(name, box.value);
+    });
     window.location.href = window.location.pathname + u.search;
   });
 }

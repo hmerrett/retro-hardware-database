@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title | default(site_name(), true) }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block content %}
 {% import "_ui.html" as U with context %}
 {# Doubles as /browse: same grid, a subset of the rows, and a line saying which
@@ -22,7 +23,7 @@
   <p class="prose">Every machine, card and drive you add gets an asset tag, a page
     of its own and a QR label.</p>
   <ol class="steps">
-    <li{% if named %} class="done"{% endif %}><span class="t"><b>Name the collection</b><span>In the banner, the browser's tab, the foot of every page and on every label.</span></span>{{ U.button('Settings', size='sm', href='/settings') }}</li>
+    <li{% if named %} class="done"{% endif %}><span class="t"><b>Name the collection</b><span>In the banner, the browser's tab and on every label.</span></span>{{ U.button('Settings', size='sm', href='/settings') }}</li>
     <li><span class="t"><b>Add the first machine</b><span>A computer, or a part on its own.</span></span>{{ U.button('+ Computer', kind='primary', size='sm', href='/computers/new') }}</li>
     <li><span class="t"><b>Print its label</b><span>Stick it on and scan it: you are at its page.</span></span>{{ U.button('Print labels', size='sm', disabled=true) }}</li>
   </ol>
@@ -63,6 +64,7 @@
   {% endfor %}
   {%- if deal is not none %}<input type="hidden" name="deal" value="{{ deal }}">
   {% endif -%}
+  <input type="hidden" name="layout" value="{{ layout }}">
   <select id="cat" name="cat" class="select" aria-label="Category">
     <option value="">All categories</option>
     {% for key, label in cats %}<option value="{{ key }}"{{ ' selected' if key == cat }}>{{ label }}</option>{% endfor %}
@@ -81,6 +83,13 @@
   <label class="check"><input type="checkbox" id="showdisposed" name="disposed" value="1"{{ ' checked' if show_disposed }}>
     Show disposed</label>
   <span class="push"></span>
+  {#- Tiles or a table: two links drawn as one control, each carrying the whole view,
+      so it works with no script and a table can be bookmarked or sent. -#}
+  <nav class="viewswitch" aria-label="Show as">
+    {%- for key, words in [('tiles', 'Tiles'), ('table', 'Table')] -%}
+    <a href="{{ layout_hrefs[key] }}"{% if key == layout %} aria-current="page"{% endif %}>{{ words | ui }}</a>
+    {%- endfor -%}
+  </nav>
   {{ U.button('Apply', size='sm', type='submit') }}
 </form>
 
@@ -96,10 +105,36 @@
   <a href="/">clear</a></p>
 {% endif %}
 
+{% if layout == 'table' %}
+{#- A row to each item, for running an eye down a long list: the same items in the
+    same order as the cards. The picture is decoration beside the name (alt=""); the
+    tag and the name both lead to the item. Where it is, only for a reader shown a
+    location on the item's page, and a fitted part says whose answer it shows. -#}
+{%- set trows = [] -%}
+{%- for r in rows -%}
+{%- set o = r.obj -%}
+{%- set href = '/' ~ ('computers' if r.kind == 'computer' else 'parts') ~ '/' ~ o.asset_id -%}
+{%- set pic -%}
+{%- if r.image %}<img class="rowthumb" src="{{ img_url(r.image, THUMB_CARD) }}" alt="" width="48" height="36" loading="lazy" decoding="async">
+{%- else %}<img class="rowthumb ph" src="/static/{{ r.placeholder }}" alt="" width="48" height="36" loading="lazy">{% endif -%}
+{%- endset -%}
+{%- set tag %}<a class="aid" href="{{ href }}">{{ o.asset_id }}</a>{% endset -%}
+{%- set name %}<a href="{{ href }}">{{ r.name }}</a>{% if o.disposed %} {{ U.chip('Disposed', 'quiet') }}{% endif %}{% endset -%}
+{%- set where -%}
+{%- if o.location and o.location.strip() %}{{ o.location | linked }}
+{%- elif placed.get(o.asset_id) %}{% set pl = placed[o.asset_id] %}{{ pl.where | linked }} <span class="meta">— where <a href="/{{ pl.kind }}/{{ pl.whose }}">{{ pl.whose }}</a> is</span>
+{%- endif -%}
+{%- endset -%}
+{%- if trows.append([pic, tag, name, r.cat_label, r.year or '', where] if show_location else [pic, tag, name, r.cat_label, r.year or '']) %}{% endif -%}
+{%- endfor -%}
+{%- set cols = [('Picture', 'thumbcell'), ('Tag', 'num'), ('Name', ''), ('Kind', ''), ('Year', 'num')] + ([('Where it is', '')] if show_location else []) -%}
+{{ U.table(cols, trows, cls='gallerytable') }}
+{% else %}
 <div class="grid" id="grid">
   {% for r in rows %}{{ U.card(r) }}
   {% endfor %}
 </div>
+{% endif %}
 {% if not rows %}<p id="empty" class="muted">No matching items.</p>{% endif %}
 {{ U.pager(page, pages, pager_href) }}
 

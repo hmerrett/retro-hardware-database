@@ -106,8 +106,9 @@ DEFINITIONS: tuple[Definition, ...] = (
         section=APPEARANCE,
         label="Name",
         note=(
-            "In the banner, the browser's tab, the foot of every page and the preview a "
-            "shared link unfolds into. Empty goes back to the name the software ships with."
+            "In the banner (or the side rail, where it shows), the browser's tab and the "
+            "preview a shared link unfolds into. Empty goes back to the name the software "
+            "ships with."
         ),
         kind=TEXT,
         default=DEFAULT_SITE_NAME,
@@ -476,16 +477,22 @@ def clean(d: Definition, raw: str | None) -> str | None:
     return text[:200]
 
 
-def save(db: Session, form: Posted) -> None:
+def save(db: Session, form: Posted, section: str | None = None) -> None:
     """Write what the page posted, reading the definitions rather than the form.
 
     The form is never the list of what to store: a posted name that is not a
     setting cannot make a row, and a setting the environment has pinned is stepped
     over rather than written and ignored -- storing a value that could not take
     effect is how a page comes to disagree with the site it is describing.
+
+    `section` is the tab the form was on, and only its settings are written. A tick
+    that is off posts nothing, and silence is read as off, so a tab saving the
+    whole list would switch off every tick on the tabs it does not show.
     """
     now = datetime.now(UTC).replace(tzinfo=None)
     for d in DEFINITIONS:
+        if section is not None and d.section != section:
+            continue
         if pinned(d) is not None:
             continue
         fresh = clean(d, form.get(d.key))

@@ -885,7 +885,8 @@
 // because no page but the gallery has the catalogue to search, and the gallery's
 // own copy carries none of the prose or history that the search reads.
 //
-// Two boxes use it. The banner's search opens what is chosen. A box marked
+// Two boxes use it. The banner's search opens what is chosen, and offers the
+// catalogue's models too, in the room the collection leaves. A box marked
 // data-suggest="pick" -- the project form's Items -- is choosing a thing rather than
 // going to it: it is offered computers and parts only, choosing one puts its tag in
 // the box, and Enter with nothing lit presses the form's Add item rather than Save.
@@ -950,9 +951,10 @@ function combobox(box, list, pick) {
     const items = pick
       ? data.items.filter(function (it) { return /^\/(computers|parts)\//.test(it.url); })
       : data.items;
-    if (!items.length) {
-      list.appendChild(el('div', 'none', 'Nothing matches "' + box.value.trim() + '".'));
-    }
+    // Catalogue models, in whatever room the collection left. A model is what was
+    // made rather than something here, so a box choosing things for a project
+    // takes none.
+    const models = pick ? [] : data.models;
     // Choosing with the pointer moves the same marker the keys move, so what is
     // lit is always what opens.
     function offer(a) {
@@ -963,7 +965,8 @@ function combobox(box, list, pick) {
       list.appendChild(a);
       rows.push(a);
     }
-    items.forEach(function (it, i) {
+    // The collection's rows first, then the models below them.
+    items.concat(models).forEach(function (it, i) {
       const a = el('a', 'sg');
       a.href = it.url;
       // Named for their own list: two of these can share a page.
@@ -975,18 +978,22 @@ function combobox(box, list, pick) {
       img.loading = 'lazy';
       a.appendChild(img);
       const t = el('span', 't');
-      // The tag and the name on one line, what was typed marked in either.
+      // The tag and the name on one line, what was typed marked in either. A
+      // model has no tag: it is not something in the collection.
       const nm = el('span', 'nm');
-      const tag = el('span', 'tag');
-      marked(tag, it.runs.aid);
-      nm.appendChild(tag);
+      if (it.runs.aid) {
+        const tag = el('span', 'tag');
+        marked(tag, it.runs.aid);
+        nm.appendChild(tag);
+      }
       marked(nm, it.runs.name);
       t.appendChild(nm);
       // What tells two similar boards apart at a glance: what kind of thing it
-      // is, and when it is from.
+      // is, and when it is from -- and for a model, how many of it are here.
       const bits = [it.cat];
       if (it.year) bits.push(it.year);
       if (it.disposed) bits.push('disposed');
+      if (it.here) bits.push(it.here);
       t.appendChild(el('span', 'sub', bits.join(' · ')));
       a.appendChild(t);
       if (pick) {
@@ -995,9 +1002,13 @@ function combobox(box, list, pick) {
       }
       offer(a);
     });
-    // Always the last row, and one the arrows reach: Enter on it and Enter with
-    // nothing lit go to the same place. A pick box is choosing, not searching.
-    if (!pick && items.length) {
+    // Nothing from the collection, said in words the server chose: below the
+    // models when the catalogue answered, where the last row would be.
+    if (!items.length) list.appendChild(el('div', 'none', data.none));
+    // The last row, and one the arrows reach: Enter on it and Enter with nothing
+    // lit go to the same place. The server sends none when the collection matched
+    // nothing, whatever the catalogue did. A pick box is choosing, not searching.
+    if (!pick && data.all) {
       const all = el('a', 'all', data.all.text);
       all.href = data.all.url;
       all.id = list.id + '-all';

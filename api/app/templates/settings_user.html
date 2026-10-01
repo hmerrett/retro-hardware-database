@@ -4,9 +4,11 @@
 {# One account, for an administrator (ADR-0032). Each fieldset is its own form, so a
    refusal from one -- the last administrator -- leaves the others as they were. #}
 {% block title %}{{ u.username }} — {{ site_name() }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block main_class %} v2{% endblock %}
 {% block content %}
 <div class="pagehead"><h1 class="heading">{{ u.username }}</h1></div>
+{{ U.settings_tabs() }}
 <p class="hint"><a href="/settings/users">Accounts</a> · last signed in {{ A.when(u.last_login_at) }}</p>
 
 {% if done == 'role' %}{{ U.banner('success', 'Role changed.') }}
@@ -15,7 +17,7 @@
 {% elif done == 'revoked' %}{{ U.banner('success', 'Token revoked.') }}{% endif %}
 {% if error %}{{ U.banner('danger', 'Not changed.', error) }}{% endif %}
 
-<form class="editform narrow" method="post" action="/settings/users/{{ u.id }}/role">
+<form class="editform" method="post" action="/settings/users/{{ u.id }}/role">
   <fieldset class="fieldset">
     <legend>Role</legend>
     {{ U.field('role', 'Role', kind='choice', choices=roles.items() | list, value=role,
@@ -24,7 +26,7 @@
   </fieldset>
 </form>
 
-<form class="editform narrow" method="post" action="/settings/users/{{ u.id }}/active">
+<form class="editform" method="post" action="/settings/users/{{ u.id }}/active">
   <fieldset class="fieldset">
     <legend>Switched on</legend>
     {{ U.field('active', 'May sign in', kind='switch', value=u.active,
@@ -33,7 +35,7 @@
   </fieldset>
 </form>
 
-<form class="editform narrow" method="post" action="/settings/users/{{ u.id }}/password">
+<form class="editform" method="post" action="/settings/users/{{ u.id }}/password">
   <fieldset class="fieldset">
     <legend>Password</legend>
     {{ U.field('password', 'New password', type='password', autocomplete='new-password', minlength=10) }}
@@ -43,7 +45,7 @@
   </fieldset>
 </form>
 
-<fieldset class="fieldset narrow">
+<fieldset class="fieldset">
   <legend>API tokens</legend>
   {{ A.tokens(tokens, '/settings/users/' ~ u.id ~ '/tokens') }}
 </fieldset>

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2221 behaviours, from 66 files.*
+*2363 behaviours, from 70 files.*
 
 
 ## A file where text was expected
@@ -139,7 +139,7 @@ Regenerate with:
 - a stored accent the register does not know falls back to the preset  
   The value is spent on a colour written into a stylesheet.
 - every offered accent holds every pair in every preset and mode  
-  The eight, in the fourteen: 112 derivations, nine pairs each.
+  The eight, in the fourteen: 112 derivations, eleven pairs each.
 - the button keeps the chosen colour exactly wherever it can  
   The manual's promise, and the one that matters: the button is where an accent is recognised.
 - the hue is never changed  
@@ -151,7 +151,7 @@ Regenerate with:
 - the sweep is the whole colour space  
   A sweep that had quietly become 40 colours would pass every day and mean nothing, so its own shape is asserted before it is trusted.
 - any colour at all derives a set that passes  
-  Why the box may take a free-for-all: the derivation is a pure function and every colour in the space comes out of it holding all nine pairs.
+  Why the box may take a free-for-all: the derivation is a pure function and every colour in the space comes out of it holding all eleven pairs.
 - as the preset writes no colours of its own  
   The default answer leaves the preset's own accent where it is.
 - the chosen accent is stated for the preset and for both ways of asking for dark  
@@ -177,7 +177,7 @@ Regenerate with:
 
 ## Account pages
 
-*test_account_pages.py — 33 behaviours*
+*test_account_pages.py — 34 behaviours*
 
 
 **The accounts page**
@@ -229,6 +229,8 @@ Regenerate with:
 
 - a new token is shown once
 - it needs a name
+- the api docs are linked beside the tokens  
+  The interactive console is what a token is for, and this is the page every account that may open `/docs` reaches -- a viewer's included, who has no Settings page to find it on.
 - a viewer makes one of their own
 - your own is revoked
 - somebody elses is not yours to revoke
@@ -237,7 +239,7 @@ Regenerate with:
 
 ## Accounts
 
-*test_accounts.py — 61 behaviours*
+*test_accounts.py — 62 behaviours*
 
 
 **Roles are lists of permissions**
@@ -253,6 +255,8 @@ Regenerate with:
 - a private project
 - where a thing is kept
 - what an order cost
+- a viewer may read the api docs and a visitor may not  
+  Moving the link changed nobody's access to `/docs`: an account of either role opens it, and a visitor is asked for a password by the browser.
 - the for sale shortlist
 - no editing controls
 - a way to log out
@@ -335,13 +339,23 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 548 behaviours*
+*test_api.py — 558 behaviours*
 
 
 **Typed columns**
 
 - year and date come back typed
 - a year that is not a number is refused
+- a year that is not a year in full is refused
+- a part is held to the same
+- a patch is held to the same
+- a topbench score the column cannot hold is refused
+- null still means not recorded
+- an item with a short year on file still reads back
+- a patch that leaves the year out leaves a short one alone
+- a patch can correct it
+- a patch that re sends an unchanged short year is refused  
+  Accepted, not guarded: a PATCH sends only what it names, so a caller leaves the year out to leave it alone.
 - a date that is not a date is refused
 - not recorded is null not zero
 - creating from the form with both blank  
@@ -1022,6 +1036,8 @@ Regenerate with:
 - bars are scaled to the largest value
 - memory totals come from the typed column
 - the traffic report is still private
+- until the first report is built the traffic page says so  
+  In a page of the site's own, drawn in its chrome like any other.
 - it is offered to search engines
 
 **Following A figure to its items**
@@ -1457,7 +1473,7 @@ Regenerate with:
 
 ## Content security policy
 
-*test_content_security_policy.py — 10 behaviours*
+*test_content_security_policy.py — 13 behaviours*
 
 - every response carries the policy  
   Including the ones nobody thinks of as pages.
@@ -1467,6 +1483,12 @@ Regenerate with:
   ADR-0021 states the directives; this is that statement as an assertion.
 - a pdf shown in the browser carries a policy of its own  
   The one response that says its own (ADR-0030).
+- the traffic report carries a policy of its own  
+  The second response that says its own (ADR-0033).
+- the traffic report runs in a sandbox of its own  
+  Its scripts are GoAccess's and the strings they draw are strangers', on an administrator's page.
+- every page is sent the site policy  
+  Two responses say a policy of their own -- a PDF shown in the browser and GoAccess's report -- and no page does, so the report's `'unsafe-eval'` is on the report and nowhere else.
 - the directives that do not fall back are stated  
   `form-action`, `frame-ancestors` and `base-uri` ignore `default-src`.
 - no page carries a script the policy would block  
@@ -1483,7 +1505,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 11 behaviours*
+*test_deployment.py — 12 behaviours*
 
 
 **The api trusts its proxy**
@@ -1515,6 +1537,10 @@ Regenerate with:
 **Every setting reaches the container**
 
 - every documented variable is passed to a service
+
+**The traffic report is written by one release**
+
+- the image is pinned to a release
 
 
 ## Drivedb
@@ -1796,7 +1822,7 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 80 behaviours*
+*test_files.py — 84 behaviours*
 
 
 **Linking one**
@@ -1838,10 +1864,13 @@ Regenerate with:
 - a file linked to nothing is unlinked and found under that name
 - delete removes it and every link
 - a visitor sees a published files page without the controls
+- its one heading is the filename  
+  Every page leads with one h1, and a file's page with the name the file was uploaded as.
 - a visitor is told an unpublished files page is not there
 
 **The files page**
 
+- it is headed files in its one h1
 - it lists every file newest first with what it is linked to
 - nothing on a row changes anything  
   A row used to carry six forms.
@@ -1897,6 +1926,11 @@ Regenerate with:
 - on the box starts ticked
 - but never on a private projects page
 - the upload sends what the box says
+
+**The button text**
+
+- the file pages follow the button text setting
+- so does the files panel on an item s page
 
 **Projects have files**
 
@@ -2035,6 +2069,19 @@ Regenerate with:
 - the decision is written down
 
 
+## Form sections
+
+*test_form_sections.py — 7 behaviours*
+
+- the form lists its sections at the top
+- each entry is a link to its section
+- without script every section shows
+- a section with something to fix is marked in the list
+- a part s own section is marked too
+- every link in the summary lands on a box that can take the focus
+- an entry is a thumb s height on a touch screen
+
+
 ## Gallery pages
 
 *test_gallery_pages.py — 41 behaviours*
@@ -2103,6 +2150,24 @@ Regenerate with:
 - each is handed over under the name on its card
 
 
+## Gallery table
+
+*test_gallery_table.py — 12 behaviours*
+
+- the switch offers tiles and a table as links carrying the view
+- the table holds the same items in the same order
+- a table page holds a hundred rows
+- a row leads to the item by its tag and its name
+- a row s picture is decoration beside its name
+- a disposed item says so in its row
+- where it is is the owner s and a fitted part says whose
+- a visitor is shown where only while show locations is on
+- the choice is remembered and a link outranks it
+- nothing is stored until the choice is made
+- every page that is browse offers the table
+- the notice names every choice the site keeps
+
+
 ## Healthz
 
 *test_healthz.py — 3 behaviours*
@@ -2141,14 +2206,15 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 20 behaviours*
+*test_item_pages.py — 40 behaviours*
 
 
 **The head**
 
 - the page opens on the name the tag and the summary
 - there is one heading at the top
-- the owner has edit and duplicate beside prev and next
+- the owner has edit and duplicate on the name s line  
+  With what they act on, and out of the navigation landmark, since Duplicate is a form that posts (MANUAL §4).
 - a visitor has neither
 - the way back is to the whole register
 
@@ -2183,10 +2249,46 @@ Regenerate with:
 - a cards mounted parts each offer take out
 - a visitor is offered neither
 
+**The way back to what A part is in**
+
+- a part in a machine leads back to it
+- a part on another part leads back to that part
+- a part on its own and a machine have only the way back to the register
+
+**The top of the page**
+
+- the top row holds the ways back and prev and next alone
+- a visitor sees no actions
+- the page reads head photographs details then the rest
+- nothing is moved out of its place in the source  
+  The Tab key follows the source; an `order` would draw a panel somewhere the Tab key does not go.
+- the side column starts level with the details
+- on a phone the actions go under the name
+- a disposed item says so under its name
+- a project s actions are on its name s line too
+
+**The photographs sit inside the panel**
+
+- the photographs and the buttons share the panel s margin
+- so does the drawing of an item nobody has photographed
+- a visitor sees them inside it too
+
+**The thumbnails sit two to A row**
+
+- the thumbnails are cells sized to the column
+- each is the card s 4 3 shape
+- two fit across beside the details
+
+**The history lines up its buttons**
+
+- the entry takes the rest of its row
+- the buttons sit beside the middle of a wrapped entry
+- the words come first and the buttons last
+
 
 ## Keyboard and motion
 
-*test_keyboard_and_motion.py — 12 behaviours*
+*test_keyboard_and_motion.py — 16 behaviours*
 
 - the first thing tab reaches skips to the content  
   A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
@@ -2204,14 +2306,41 @@ Regenerate with:
   Reaching a control below the fold, the browser scrolls it into view and stops it at the edge of the viewport -- which on a phone is exactly where the tab bar is fixed, so the control arrives underneath it.
 - the cookie notice does not swallow it either  
   The notice is fixed above the bar and is taller than it -- 167px on a 320px screen, where the text wraps to five lines.
+- nor does it cover the foot of the rail  
+  With Navigation at Side the rail runs the height of the window and its foot sits at the bottom, which is where the notice is fixed until it is answered: Collapse was entirely under it at every height, and on a long page tabbing to it left it hidden, because the rail is sticky and the page's scroll moves nothing.
 - the login boxes say what they are for  
   A password manager fills a form it can read: `autocomplete="username"` and `current-password` are what tell it which entry this is and which box the password goes in.
+- a tooltip is not a name  
+  A `title` is not shown on a touchscreen, not reached by the Tab key and not read out by every screen reader, so a control it alone names is unnamed (interface-text).
+- a glyph is not a buttons words  
+  Read out, `⟲` is a character's name or nothing.
+- what a button sends is not what it says  
+  A `<button>`'s `value` is what the form sends when it is pressed, and is never read out: the words on it are.
 - every control says what it is  
   A control with no name is read out as "edit text, blank" and nothing else, which on the drives grid was eight of them to a row.
 - every image says what it is or says it is decoration  
   `alt=""` is an answer -- it tells a screen reader to pass over a swatch or a rule.
 - nothing hides where the keyboard is  
   The browser's own focus ring is what most of this site relies on, and one line of CSS anywhere would take it away everywhere it applies.
+
+
+## Level controls
+
+*test_level_controls.py — 7 behaviours*
+
+
+**A row of controls is one height**
+
+- a box and the buttons beside it take the control height
+- on a touch screen both take the tap height
+- the view switch is a small button s height
+- and on a touch screen too
+
+**The small things**
+
+- a card grid shares its width among the cards it has
+- the files public tick is a tap target on a phone
+- a file s date and time stay together
 
 
 ## Locations
@@ -2754,12 +2883,16 @@ Regenerate with:
 
 ## Model pages
 
-*test_model_pages.py — 19 behaviours*
+*test_model_pages.py — 21 behaviours*
 
 
 **The list**
 
 - every name leads to its own page
+- a units page leads to its models page  
+  The other way to reach one: a machine and a bare board filed as the model both name it in their Machine panel, and the name is a link.
+- a model the catalogue has dropped is named and not linked  
+  What was recorded still shows, under the key it was filed as, but a link would lead to a page that is not found.
 - a model held is set heavier with its count
 - a model nothing is filed as carries no count
 - the paragraph is no longer folded into the list
@@ -2801,7 +2934,7 @@ Regenerate with:
 
 ## Navigation
 
-*test_navigation.py — 28 behaviours*
+*test_navigation.py — 35 behaviours*
 
 
 **Which layout**
@@ -2830,12 +2963,20 @@ Regenerate with:
 - the owner sees what they last worked on  
   The rail's own argument: at a bench you go back to the same machine all afternoon.
 - the foot holds the theme settings and the way out
+- on a short window the rail scrolls on its own  
+  It is held to the window's height beside a page that scrolls, so whatever does not fit stays under the bottom edge until the page's own end -- and the owner's rail, open, is taller than a 1366 by 768 laptop leaves a page.
+- the rule above add keeps its line when the rail scrolls  
+  An empty box one pixel high is the one thing in a column too short for its contents that the browser can take height from, and it takes all of it.
+- the rail offers every page the menu does  
+  With the rail showing, the banner's ⋯ menu is put away (components.css), so a page the menu offers and the rail does not is a page that cannot be reached from this one at all.
 - every item is named in words as well as drawn  
   Collapsed the words are hidden and the icon is all that is left, and an icon names nothing (accessibility-standards).
 
 **What A visitor sees**
 
 - a visitor is offered nothing that is not theirs
+- a viewer is offered might sell and not traffic  
+  A viewer reads the shortlist and cannot change it; the site's traffic and its settings are an administrator's (ADR-0032).
 - a visitor still sees the counts  
   The size of a collection is part of what a catalogue is for.
 - a private project is not counted for a visitor  
@@ -2865,6 +3006,15 @@ Regenerate with:
 - a state it does not know is a 404
 - a visitor may fold it too
 
+**How it is painted**
+
+- the rail and the tab bar stand on the navigation s ground  
+  The navigation has a ground of its own, which every look states in light and in dark.
+- a rule stands between the navigation and the page  
+  Where a look stands its navigation on the page's own colour -- Default light's white, the 128K screen's grey, the desktop's grey, the paper -- the rule is all that tells the rail from the page beside it and the bar from the page scrolling under it.
+- a row under the pointer is written in text  
+  The hover ground is one only `text` is written on: the design turns everything on a hovered row to it, as the search suggestions do.
+
 
 ## Openapi contract
 
@@ -2876,14 +3026,30 @@ Regenerate with:
 
 ## Page width
 
-*test_page_width.py — 3 behaviours*
+*test_page_width.py — 17 behaviours*
 
 - every page is drawn in the page column  
   Every page's `<main>` is the design's page column -- one class attribute, and it names `page` -- on the pages still drawn with 0.1's components as much as on those moved onto v0.2's.
 - no stylesheet gives the page a width or gutter of its own  
   The width of a page and its gutters are `.page`'s alone.
-- the banner s flash is placed by the page s own gutter  
-  The rule under the banner is not inside the page, so it cannot ask the page where its column ends: `.stripe` puts the banner's flash above the panels' by arithmetic, from a gutter it states itself.
+- the banner s flash is placed by the page under it  
+  The rule under the banner is not inside the page, so it cannot ask the page where its column ends: `.stripe` puts the banner's flash above the panels' by arithmetic.
+- each page s width is decided not defaulted
+- the lists and forms use a wide screen
+- the pages you read keep the column
+- the small pages stay small
+- the page widths are tokens in the design data
+- four cards across at the column and six at the wide width
+- a form row holds five boxes at most
+- what you read keeps a measure
+- no box on a page grows past the measure
+- the banner stands on the wide page s edges
+- the models list runs to three columns
+- a drive s bezel menus share its row
+- a card asks for the width it is drawn at  
+  The browser picks a card's picture before layout, from `sizes`: too small a figure and a 2x screen gets the 300px copy of a 244px card.
+- a section of short questions lays them across  
+  On a wide page the short questions of a part's own section stand side by side, as Identity's and Tracking's do, rather than one under another down the form.
 
 
 ## Photo content
@@ -2934,8 +3100,12 @@ Regenerate with:
 
 ## Presets
 
-*test_presets.py — 8 behaviours*
+*test_presets.py — 10 behaviours*
 
+- the filter you are on is written in a pair every look holds  
+  Above the files list, the filter you are on was told by the band a panel's title sits on, with `text` on it -- a pair no look is held to, and 1.06:1 in Rubber Key's light mode.
+- the filter you are on is told by its weight as well as its ground  
+  The ground under the filter you are on is a shade off the page's, and in some looks barely one: enough to see, and not enough to be the only telling for anybody who cannot tell two pale greys apart.
 - the stylesheets are the ones the design data writes  
   tokens.css and the preset files are generated.
 - every font is served from the site with its licence  
@@ -2943,7 +3113,7 @@ Regenerate with:
 - every preset states every colour in both modes  
   A token a preset leaves out is inherited from the default preset underneath, which is a colour chosen for a different page -- a black band's text left white-on-white, say.
 - every pair holds in every preset and mode  
-  518 pairs: the 37 the design uses, in fourteen themes.
+  574 pairs: the 41 the design uses, in fourteen themes.
 - a preset names no component  
   A preset is token values and nothing else (ADR-0031).
 - every face in the picker is drawn in its own colours  
@@ -2956,7 +3126,7 @@ Regenerate with:
 
 ## Project form items
 
-*test_project_form_items.py — 21 behaviours*
+*test_project_form_items.py — 22 behaviours*
 
 
 **The list**
@@ -2966,6 +3136,8 @@ Regenerate with:
 - save is the forms default button  
   Enter in any box submits with the first submit button in the form.
 - the box offers suggestions as a combobox
+- the items box offers computers and parts only  
+  It reads the banner's list, which offers projects among what it matched and catalogue models beside them.
 
 **Adding before saving**
 
@@ -3048,7 +3220,8 @@ Regenerate with:
 
 **The page head**
 
-- the way back and the owners edit and delete come first
+- the way back first then the owner s actions on the name s line  
+  As an item's page has it (MANUAL §12): the way back in the top row, and Mark done, Edit and Delete at the end of the name's line, out of the navigation landmark since two of them post.
 - a visitor gets the way back and nothing else
 - then the name its status and its tag
 
@@ -3349,7 +3522,7 @@ Regenerate with:
 
 ## Refused saves
 
-*test_refused_saves.py — 38 behaviours*
+*test_refused_saves.py — 47 behaviours*
 
 
 **The shapes A computer is held to**
@@ -3381,8 +3554,24 @@ Regenerate with:
 
 - a year or date in the wrong shape is refused
 - a refused edit saves nothing
+- photographs chosen for a new part are asked for again
 - a storage part without an interface comes back as the form
 - the interface link has somewhere to land
+
+**A refused new part keeps its place**
+
+- a refused new drive for a machine still goes to its drives
+- so does a part started from another for a machine
+- an edit is never routed
+- the type menu is told the form was refused
+- the type menu asks on a refused form and keeps the machine  
+  The rest is the script's, read from it as the stylesheet tests read CSS: a refused form counts as typed in, and the form fetched again takes the machine or part from the form's own boxes when the address has none.
+
+**A part comes back as typed**
+
+- a refused edit comes back with everything as typed
+- so does a refused new part
+- putting the refusal right keeps the specs
 
 **What is on file is never the reason**
 
@@ -3439,7 +3628,7 @@ Regenerate with:
 
 ## Search suggestions
 
-*test_search_suggestions.py — 25 behaviours*
+*test_search_suggestions.py — 39 behaviours*
 
 
 **The match is marked**
@@ -3469,8 +3658,33 @@ Regenerate with:
   Enter with nothing lit submits the banner's form: a GET to / with the box as q.
 - it follows the button text setting  
   It is a control, so it speaks in the installation's voice.
-- nothing matching offers no rows  
-  The script says so in words when it is handed nothing.
+- nothing in either says so  
+  A word neither the collection nor the catalogue holds: no rows, no last row, and the words the list shows instead.
+
+**Models from the catalogue**
+
+- a model nobody owns is offered and opens its page
+- its row says none in this collection
+- a model you own says how many are here  
+  The count its page lists: machines and bare boards, disposed ones too.
+- a model has no asset tag
+- what was typed is marked in a models name
+- a model is found by one of its styles  
+  The name on the badge of the machine in front of you: the M24 was sold in the US as the AT&T 6300.
+- a model is found by the name of its family  
+  Printed under its name on its page, and often on the badge as well: the CD32 is catalogued as Commodore's, among the Amigas, and every MSX machine carries the name of the standard whoever made it built it to.
+- a model is not found by its cpu or its paragraph  
+  Neither is what the model is called, and either would offer the catalogue wholesale: dozens of its models were built round a 6502.
+- a name that starts with what was typed comes first  
+  The Osborne 1 is found by a style, the one in a tan case; the Tandons, the Tandys and the Tano Dragon are found by their names, and come before it.
+- models come after everything in the collection  
+  Into the room the collection leaves, and drawn below it.
+- a model never takes the place of something owned
+- the last row counts the collection alone
+- only the catalogue matching says nothing in the collection does  
+  And offers no last row: it would read "All 0 results", and open a page with nothing on it.
+- a visitor is offered models too  
+  The catalogue is public, and so is how many of each are here.
 
 **How many rows**
 
@@ -3492,7 +3706,7 @@ Regenerate with:
 
 ## Settings
 
-*test_settings.py — 63 behaviours*
+*test_settings.py — 67 behaviours*
 
 
 **Reaching the page**
@@ -3510,7 +3724,14 @@ Regenerate with:
 **What the site is called**
 
 - it starts as the name the software ships with
-- the name reaches the banner the tab and the foot of the page
+- the name reaches the banner the rail and the tab  
+  The page says whose collection it is in whichever of the two the width draws, so both carry it: a Side installation has the banner and the rail in its markup at once.
+- a collapsed rail keeps the name in the tooltip on its logo  
+  Collapsed, the rail has room for the logo and not the words beside it, so the logo's link carries the name as its title, the way every other item in the rail keeps its name when its words are put away.
+- a screen reader hears the logo in the banner as the name once  
+  The banner writes the name beside its logo wherever it shows the logo, a phone's included, so the words name the link and the picture's alt is empty: with the name in both, the name was read out twice.
+- a screen reader hears the logo on the rail as the name once  
+  The logo's alt stays the name, because collapsed the rail puts away the words beside it; so the words are the ones kept from a screen reader, which heard the name from the picture and then again from them while the rail was open.
 - the name reaches a shared link  
   What a link unfolds into in a chat window is the site introducing itself to somebody who has never seen it.
 - an empty name goes back to the shipped one  
@@ -3618,6 +3839,8 @@ Regenerate with:
 - the case is chosen from a menu of two
 - the filter asks the setting on every page  
   Not read once at import: the page saved a moment ago is the page the next render is written in, the way the site's name already is.
+- so do the words a template writes out itself  
+  `{{ 'Add item' | ui }}` names its words in the template rather than handing them over in a variable, and Jinja works a filter over a constant out once, when it compiles the page.
 
 **How the page reads**
 
@@ -3643,6 +3866,21 @@ Regenerate with:
   The form is read through the definitions rather than written from, so a posted name that is not one of them cannot make a row.
 - a choice outside its list is refused  
   Every choice on the page comes back as one of the words it was offered, and anything else is a form that did not come from the page.
+
+
+## Settings tabs
+
+*test_settings_tabs.py — 9 behaviours*
+
+- settings is a row of tabs with the one you are on marked
+- each section is a page of its own
+- each page saves to itself
+- saving one section leaves the others alone
+- a viewer sees no row of tabs
+- an administrator s menus offer settings and mark it on every tab
+- a viewer s menus offer account and mark it
+- the tab you are on is bold and underlined not coloured alone
+- the row wraps and each tab is a thumb s height on a touch screen
 
 
 ## Share cards
@@ -3714,7 +3952,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 16 behaviours*
+*test_site_chrome.py — 24 behaviours*
 
 
 **The banner**
@@ -3730,8 +3968,20 @@ Regenerate with:
 - it offers the owner might sell traffic and log out
 - it offers a visitor log in
 - it holds the five sections folded away at its top
+- a visitor is not offered the api docs  
+  `/docs` is behind the login, and what it answers a visitor is the browser's own password box rather than the site's login page.
 - the phone sheet offers everything the menu does  
   One list, two renderings: a row added to one and not the other is a thing a phone or a desktop cannot reach.
+
+**The foot of the page**
+
+- no page carries a footer  
+  The name is in the banner or the rail, and the API docs are beside the tokens they are for, so there is nothing left for a footer to hold.
+
+**The browsers tab**
+
+- every page is titled with the installations name  
+  The tab is one of the places the Name setting reaches, so every page ends its title with this collection's name -- a model's page and the page for an address that leads nowhere included, which ended theirs with the software's.
 
 **Where you are**
 
@@ -3739,14 +3989,24 @@ Regenerate with:
   Your account's address begins with Settings', so both entries could claim it; two marked is a screen reader told it is on two pages at once.
 - the other settings pages still mark settings  
   Account takes the mark on its own page and nowhere else.
+- the shortlist marks might sell  
+  It is drawn in the site's chrome like any other page, so it says where you are like any other.
 
 **How it folds with the width**
 
 - on a tablet the sections leave the banner
 - and are found in the menu instead
+- on a phone the banner keeps the name  
+  With no footer, the banner is the only place on a phone's page that says whose collection a scanned label has opened.
 - on a phone the bar takes over and scan goes with it
 - the bar is nowhere but a phone
 - the bar sits above the home indicator
+
+**The banner stays one row**
+
+- the banner never wraps
+- the search box gives way first down to a floor
+- then a long name is cut short and the logo stays
 
 
 ## Specstruct
@@ -3893,7 +4153,7 @@ Regenerate with:
 
 ## Stylesheet lint
 
-*test_stylesheet_lint.py — 6 behaviours*
+*test_stylesheet_lint.py — 8 behaviours*
 
 - no colour is stated outside the token files  
   A colour written into a component is one no preset can change and no contrast test reads.
@@ -3903,6 +4163,10 @@ Regenerate with:
   An exception nothing needs any more is a hole left open for the next one.
 - a utility carries layout only  
   utilities.css is for one-off arrangement.
+- a rule that fills with the band says what is written on it  
+  A v0.2 band may be dark -- black in Rubber Key, brown in Breadbin -- and only `band-text` and `band-muted` are held to it.
+- the one wordless band is still there  
+  An exception nothing needs any more is a hole left open for the next one.
 - while app css is here it outranks the new stylesheets  
   The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
 - a bare 0 1 rule lets every tone past it  

@@ -32,6 +32,12 @@
   .heading { font-size: 18px; line-height: 1.4; font-weight: 600; }
   .tag { font-size: 12px; }
   .hint { font-size: 12px; color: var(--text-muted); }
+  /* However wide the page, what somebody wrote stops at about seventy characters, and so
+     does a box they type into, so a summary is written at the width it is read at. In em,
+     so a 12px hint gets the same count as 16px prose; max-width does nothing to an inline
+     .hint, which is already inside a line of something else. */
+  .prose, .lead, .hint, .banner > span, #cookienote p { max-width: var(--measure); }
+  .page :is(.input, .select) { max-width: var(--measure); }
   @media (max-width: 560px) { .title { font-size: 22px; } }
   .num, td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
   .break { overflow-wrap: anywhere; }
@@ -70,6 +76,13 @@
   .btn:disabled, .btn[aria-disabled="true"] { cursor: not-allowed; color: var(--text-muted);
     background: var(--surface); border-style: dashed; }
   @media (prefers-reduced-motion: reduce) { .btn:active { transform: none; } }
+  /* Where a box stands beside buttons, the row is one height. The note bar, the upload
+     row, the toolbars and the photograph actions still carry v0.1 boxes, which padded out
+     to 35px beside 28px buttons; both now take the control height. */
+  :is(.notebar, .fileform, .toolbar, .photo-actions form) .btn { min-height: var(--control-h); }
+  :is(.notebar, .fileform, .toolbar, .photo-actions form) input:not([type=checkbox], [type=radio], [type=file]),
+  :is(.notebar, .fileform, .toolbar, .photo-actions form) select:not(.select) {
+    height: var(--control-h); padding-block: 0; box-sizing: border-box; }
 
   /* ---- 4. Form controls --------------------------------------------------- */
   .field { display: block; margin-top: var(--space-5); }
@@ -99,8 +112,14 @@
     background: var(--surface-sunken); color: var(--text-muted); border-style: dashed; cursor: not-allowed; }
   @media (pointer: coarse) {
     .btn, .input, .select { font-size: 16px; min-height: var(--tap); }
+    .formsections a { display: inline-flex; align-items: center; min-height: var(--tap); }
+    nav.tabs a { display: inline-flex; align-items: center; min-height: var(--tap); }
     .btn.sm { font-size: 16px; min-height: 36px; }
-    .check input { width: 22px; height: 22px; }
+    .check input, .tickbox input[type=checkbox] { width: 22px; height: 22px; }
+    .viewswitch a { font-size: 16px; min-height: calc(36px - 2 * var(--border-w)); }
+    :is(.notebar, .fileform, .toolbar, .photo-actions form) .btn { min-height: var(--tap); }
+    :is(.notebar, .fileform, .toolbar, .photo-actions form) input:not([type=checkbox], [type=radio], [type=file]),
+    :is(.notebar, .fileform, .toolbar, .photo-actions form) select:not(.select) { height: var(--tap); }
   }
 
   /* ---- 5. Chip ------------------------------------------------------------ */
@@ -143,13 +162,31 @@
      date and a time for the owner -- rather than the label width of the other lists,
      which on a phone is width the entries were wrapping for. */
   .kv.log dt { flex-basis: 10.5ch; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  /* The entry takes the rest of its row, so its line's right-hand end -- where the
+     camera and delete buttons stand -- is the same column on every entry. Left to fit
+     its words, as a flex item is, it put the buttons straight after them. */
+  .kv.log dd { flex: 1 1 0%; }
   .kv.log.timed dt { flex-basis: 16.5ch; }
   /* A note is written in lines, and a table cell or a list value does not show them. */
   .kv dd.lines { white-space: pre-line; }
 
+  /* Tiles or a table on the gallery: two links drawn as one control, the one in force
+     pressed in -- a ground and weight, not colour alone. And the table's rows: a small
+     picture beside the tag and the name, cropped to the card's 4:3. */
+  .viewswitch { display: inline-flex; border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-sm);
+    overflow: hidden; }
+  /* A small button's height, edge included, so it stands level with the buttons it sits among. */
+  .viewswitch a { display: inline-flex; align-items: center; padding: 0 var(--space-3); color: var(--text);
+    text-decoration: none; font-size: 13px; min-height: calc(28px - 2 * var(--border-w)); }
+  .viewswitch a + a { border-left: var(--border-w) solid var(--line-strong); }
+  .viewswitch a[aria-current="page"] { background: var(--surface-sunken); font-weight: 600; }
+  .gallerytable .rowthumb { display: block; width: 48px; height: 36px; object-fit: cover; border-radius: var(--radius-xs); }
+  .gallerytable .rowthumb.ph { object-fit: contain; }
+  .gallerytable th.thumbcell, .gallerytable td.thumbcell { width: 48px; }
+
   /* ---- 8. Card (gallery tile) --------------------------------------------- */
   .grid { display: grid; gap: var(--space-5);
-    grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+    grid-template-columns: repeat(auto-fill, minmax(min(192px, 100%), 1fr)); }
   /* Two across on a phone rather than one: a gallery is for scanning. */
   @media (max-width: 560px) { .grid { gap: var(--space-4);
     grid-template-columns: repeat(auto-fill, minmax(min(150px, 100%), 1fr)); } }
@@ -241,7 +278,7 @@
   .toast > .btn { flex: none; }
   #cookienote { z-index: 60; left: 0; right: 0; bottom: 0; transform: none; flex-wrap: wrap;
     justify-content: center; border-width: 1px 0 0; border-radius: 0; box-shadow: none; }
-  #cookienote p { max-width: 70ch; margin: 0; font-size: 12px; color: var(--text-muted); }
+  #cookienote p { margin: 0; font-size: 12px; color: var(--text-muted); }
   #cookienote p b { color: var(--text); }
   /* On a wide screen the notice is the only thing fixed over the page, and a control
      tabbed to below the fold must not be scrolled to where it is covering. */
@@ -286,25 +323,30 @@
   .bars .n { font-family: var(--font-data); text-align: right; color: var(--text-muted); }
 
   /* ---- 13. Site header, stripe, tab bar ----------------------------------- */
-  .site-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-5);
-    padding: var(--space-4) var(--space-6); border-bottom: var(--border-w) solid var(--line); }
+  /* One row at every width, as navigation.md draws it. Wrapping let each item keep its
+     own width, which with the sections showing came to 1041px, so below that the menu
+     dropped to a second row at the left and opened off the edge. Short of room now, the
+     search box narrows first, to a floor it is still usable at; the name's shrink is
+     token-small, so it gives way only once the box is at that floor, and is cut short
+     rather than the logo. */
+  .site-header { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-3) var(--space-5);
+    padding: var(--space-4) var(--frame-inset); border-bottom: var(--border-w) solid var(--line); }
   .site-header .brand { display: inline-flex; align-items: center; gap: var(--space-3); font-weight: 600;
-    color: var(--text); text-decoration: none; }
+    color: var(--text); text-decoration: none; min-width: 0; flex-shrink: 0.001; }
+  .site-header .brand span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .site-header .mark { width: 34px; height: 28px; background: var(--surface-sunken);
     border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-xs); }
   .site-header nav { display: flex; gap: var(--space-5); }
   .site-header nav a { text-decoration: none; }
   .site-header nav a[aria-current="page"] { color: var(--text); font-weight: 600; }
   .site-header .grow { flex: 1; }
-  .site-header .search { width: 230px; }
+  .site-header .search { width: 100%; }
   /* Sized by height: the logo is not square, and height is what the banner's other
      items are measured against. An installation's own logo keeps its proportions. */
-  .site-header .brand img { display: block; width: auto; height: 34px; }
-  .site-header .searchwrap { display: flex; min-width: 0; }
+  .site-header .brand img { display: block; width: auto; height: 34px; flex: none; }
+  .site-header .searchwrap { display: flex; flex: 0 1 230px; min-width: 160px; }
   .site-header .menu > summary { min-height: var(--control-h); }
   /* The no-login notice stands under the banner, inside its gutters. */
-  #openwarn { margin: var(--space-4) var(--space-6); }
-  @media (max-width: 620px) { #openwarn { margin: var(--space-3) var(--space-4); } }
   /* A tablet, or a narrow window: the five sections leave the banner for the top of
      its menu, so the banner stays one row rather than wrapping the search box onto a
      second. */
@@ -313,17 +355,28 @@
     .menupop .fold { display: block; }
     .menupop hr.fold { display: block; }
   }
-  /* A phone: the banner is the mark and the search box, and everything else moves to
-     the tab bar, Scan with it -- into the thumb's reach. The name goes too: the logo
-     is still the way home, and the name is in the title bar and at the foot of the
-     page. Dropping it is what keeps the banner to one row. */
+  /* A phone: the banner is the mark, the name and the search box, and everything else
+     moves to the tab bar, Scan with it -- into the thumb's reach. The name stays
+     because nowhere else on a phone's page says whose collection a scanned label has
+     opened. It stays on one line, clipped with an ellipsis, so a long name costs its
+     own end rather than a second row of banner.
+
+     Room is given up in an order. The search box goes first, from all the row the name
+     leaves it down to what shows "Search anything..." whole at a phone's 16px -- 163px
+     in Chromium and WebKit, which keep room for the clear button -- and only then the
+     name. That floor is never more than half the row: at 320px the two share it
+     evenly, the name getting as much as the box at the cost of the placeholder's last
+     few pixels, and on a screen narrower still it cannot hold the banner open. */
   @media (max-width: 620px) {
-    .site-header { flex-wrap: nowrap; padding: var(--space-3) var(--space-4); }
-    .site-header .brand span, .site-header .grow { display: none; }
+    .site-header { flex-wrap: nowrap; padding: var(--space-3) var(--frame-inset); }
+    .site-header .grow { display: none; }
+    .site-header .brand { min-width: 0; }
+    .site-header .brand img { flex: none; }
+    .site-header .brand span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .site-header .hdr-new { display: none; }
     .site-header .hdr-more { display: none; }
     .site-header .hdr-scan { display: none; }
-    .site-header .searchwrap { flex: 1 1 auto; }
+    .site-header .searchwrap { flex: 1 1 0; min-width: min(168px, 50%); }
     .site-header .search { width: 100%; }
     /* The suggestions hang from the banner rather than from the box, and span it:
        380px from the box's edge was wider than the room either side of it, and a
@@ -333,19 +386,20 @@
     .site-header .suggest { top: calc(100% + var(--space-1)); left: var(--space-2); right: var(--space-2);
       width: auto; max-width: none; }
   }
-  .stripe { --gutter: var(--space-6); position: relative; height: var(--stripe-h); background: var(--stripe-image); }
-  /* The banner's flash stands directly above the panels' flashes: the column's right edge is
-     half of whatever the page is wider than content-max, plus the page gutter and a panel's
-     border, and the flash sits --flash-inset in from there, as it does in each panel - less
-     the 8px a 25-degree slant moves the top of a panel's flash, so the diagonal reads as
-     carrying on upward into the banner. The gutter is .page's, stated again because this rule
-     is not inside the page. It is slanted as theirs are: one flash, drawn one way, where an
-     upright one read as four flat blocks above a row of bars. */
+  .stripe { position: relative; height: var(--stripe-h); background: var(--stripe-image); }
+  /* The banner's flash stands directly above the panels' flashes: the page's right edge is
+     the inset the page is padded by (utilities.css, worked out once for the page under it,
+     wide or reading), plus a panel's border, and the flash sits --flash-inset in from there,
+     as it does in each panel - less the 8px a 25-degree slant moves the top of a panel's
+     flash, so the diagonal reads as carrying on upward into the banner. It is slanted as
+     theirs are: one flash, drawn one way, where an upright one read as four flat blocks
+     above a row of bars. */
   .stripe::after { content: ""; position: absolute; top: 0; bottom: 0; width: var(--flash-w); background: var(--flash);
-    right: calc(max(0px, (100% - var(--content-max)) / 2) + var(--gutter) + var(--border-w) + var(--flash-inset) - 8px);
+    right: calc(var(--page-inset) + var(--border-w) + var(--flash-inset) - 8px);
     transform: skewX(-25deg); }
-  @media (max-width: 560px) { .stripe { --gutter: var(--space-4); } }
-  .tabbar { display: none; background: var(--surface-raised); border-top: var(--border-w) solid var(--line); }
+  /* On the navigation's ground, as the side rail is (13a): on a panel's it was a white
+     bar under a grey page in three looks. Its rule sets it off from a page of its colour. */
+  .tabbar { display: none; background: var(--surface-nav); border-top: var(--border-w) solid var(--line); }
   .tabbar a, .tabbar button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: var(--space-1); min-height: 52px; padding: 0; font-size: 11px; font-weight: 500; color: var(--text-muted);
     background: none; border: 0; text-decoration: none; cursor: pointer; }
@@ -386,9 +440,22 @@
   .rail { display: none; }
   @media (min-width: 1100px) {
     .shell.side { display: grid; grid-template-columns: 216px minmax(0, 1fr); min-height: 100vh; }
+    /* Held to the window's height, so on a short one it scrolls itself: the owner's,
+       open, is taller than a 1366x768 laptop leaves, and what spilt below the edge
+       would stay there until the page beside it ran out. Down only: a scrollbar that
+       takes room leaves the folded rail's icons wider than what is left. The rail is
+       chrome, not a panel, so it stands on the navigation's ground rather than
+       surface-raised: that is a panel's white in Rubber Key, Ninety-five and Phosphor
+       light, and there the rail takes the page's colour, set off by its rule. */
     .shell.side > .rail { display: flex; flex-direction: column; gap: var(--space-2); position: sticky; top: 0;
-      height: 100vh; padding: var(--space-5) var(--space-4); background: var(--surface-raised);
-      border-right: var(--border-w) solid var(--line); }
+      height: 100vh; overflow-x: hidden; overflow-y: auto; padding: var(--space-5) var(--space-4);
+      background: var(--surface-nav); border-right: var(--border-w) solid var(--line); }
+    /* The cookie notice is fixed over the foot of the window, which is where the rail's foot
+       sits, until it is answered. Room at the rail's bottom lifts Log out and Collapse above
+       it, and the rail scrolls to reach them; the same :has gives it back when the notice goes. */
+    html:has(#cookienote) .shell.side > .rail {
+      padding-bottom: calc(var(--notice-clear) + var(--space-5));
+      scroll-padding-bottom: var(--notice-clear); }
     /* With the rail beside it the banner holds only what is one gesture away on every page:
        search, leading, and Scan. Brand, sections, + New and the menu live in the rail. */
     .shell.side .site-header nav, .shell.side .site-header .brand, .shell.side .site-header .grow,
@@ -414,13 +481,19 @@
     box-shadow: inset 3px 0 0 var(--accent); }
   .rail .item svg { width: 16px; height: 16px; flex: none; color: var(--text-muted); }
   .rail nav { display: flex; flex-direction: column; gap: var(--space-1); }
-  .rail .sep { height: 1px; margin: var(--space-3) 0; background: var(--line); }
+  /* flex: none, or a rail too short for its contents takes this pixel first. */
+  .rail .sep { flex: none; height: 1px; margin: var(--space-3) 0; background: var(--line); }
   .rail .foot { margin-top: auto; display: flex; flex-direction: column; gap: var(--space-2); }
   .rail .item .n { margin-left: auto; font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
   .rail .cap { margin: var(--space-4) var(--space-3) var(--space-1); font-size: 12px; color: var(--text-muted); }
   .rail .item.recent { min-height: 28px; font-size: 13px; }
   .rail .item.recent .tag { flex: none; color: var(--text-muted); }
   .rail .item.recent .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* On a row under the pointer everything is `text`, as in the search suggestions (14h):
+     text-muted on surface-hover is a pair the design never uses, and the count and the
+     tag fell under 4.5:1 on it. After the muted rules, since `.recent .tag` is as
+     specific as this and would otherwise win by coming later. */
+  .rail .item:hover svg, .rail .item:hover .n, .rail .item:hover .tag { color: var(--text); }
   /* Collapsed: a class on the same shell, set by a plain link that stores the choice
      in a cookie, so it works with no script. Icons only; every item keeps its name in
      aria-label and title. */
@@ -434,32 +507,34 @@
 
   /* ---- 13d. The item page's two columns ------------------------------------
      Content and photographs side by side above 860px, one column below. */
-  /* Three parts: the head (name, tag, summary), the photographs, the panels. Side by side,
-     the photographs run down the right beside both; in one column they come straight after
-     the head, because someone who has just scanned a label wants to see it is the right
-     machine before reading its specification. */
-  .itemcols { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
-    grid-template-areas: "head aside" "body aside"; gap: 0 var(--space-6); align-items: start; }
+  /* Four parts, in this order in the source: the head (name, actions, tag, banners,
+     summary), the photographs, the panels, and the rest of the side column (label,
+     disposal, QR). Side by side, the head spans the page and both columns start level,
+     the photographs beside Details; in one column the source order is the page's --
+     summary, photograph, details, then the owner's tools -- so the Tab key and the eye
+     agree at every width, with no `order` to draw a panel where the Tab key does not
+     go. */
+  .itemcols { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr;
+    grid-template-areas: "head head" "body photos" "body side"; gap: 0 var(--space-6); align-items: start; }
   .itemcols > .itemhead { grid-area: head; }
-  .itemcols > aside { grid-area: aside; }
+  .itemcols > .itemphotos { grid-area: photos; }
   .itemcols > .itembody { grid-area: body; }
-  @media (min-width: 861px) { .itemcols > aside > .panel:first-child { margin-top: 0; } }
-  /* One column: head, photographs, body, then the rest of the side column -- the
-     owner's label, disposal and QR code, which a phone at the shelf wants after the
-     details rather than before them. The aside stands aside so its panels can be
-     ordered among the page's own. */
-  @media (max-width: 860px) {
-    .itemcols { display: flex; flex-direction: column; align-items: stretch; }
-    .itemcols > aside { display: contents; }
-    .itemcols > aside > .panel { order: 2; }
-    .itemcols > aside > .panel:first-child { order: 0; }
-    .itemcols > .itembody { order: 1; }
-  }
+  .itemcols > .itemside { grid-area: side; }
+  @media (max-width: 860px) { .itemcols { display: block; } }
+  /* The name and, for the owner, its actions: on one line, the actions at its end;
+     under the name on a phone, before the summary, rather than off the edge. */
+  .titleline { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-5); }
+  .titleline > .title { flex: 1 1 auto; min-width: 0; margin: 0; }
+  .itemacts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+  @media (max-width: 560px) { .itemacts { flex-basis: 100%; } }
   .cell { padding: var(--space-3) var(--space-4); background: var(--surface-raised);
     border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
   .cell .k { font-size: 12px; color: var(--text-muted); }
   .cell .v { font-family: var(--font-data); font-size: 16px; font-weight: 600; }
-  .cardgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fill, minmax(min(215px, 100%), 1fr)); }
+  /* auto-fit: two chip cards share the panel rather than leave a third of it empty. */
+  .cardgrid { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(215px, 100%), 1fr)); }
+  /* A file's date and time are one fact; they wrap together on a phone or not at all. */
+  .fwhen { white-space: nowrap; }
   .veil { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; background: var(--scrim); }
   .veil > .sheet { width: 100%; max-height: 82vh; overflow-y: auto;
     padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); }
@@ -551,7 +626,7 @@
      looks like it belongs to. */
   .attached { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-3) var(--space-1) 0; }
   .addrow > textarea.input { flex: 1 1 100%; }
-  .models { columns: 2 320px; column-gap: var(--space-6); }
+  .models { columns: 3 320px; column-gap: var(--space-6); }
   .models section { break-inside: avoid; margin-bottom: var(--space-5); }
   .models h2 { font-size: 14px; font-weight: 600; margin-bottom: var(--space-2); }
   .models .m { display: flex; gap: var(--space-4); padding: 3px 0; border-top: 1px solid var(--line); font-size: 13px; }
@@ -577,7 +652,7 @@
 
 
   /* ---- 14b. Item nav (breadcrumb + previous / next) ----------------------- */
-  .itemnav { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+  .itemnav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
   .itemnav .where { font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
 
   /* ---- 14c. Bottom sheet -------------------------------------------------- */
@@ -666,7 +741,7 @@
      across the lines of a template. Every figure is a link, and the links are quiet --
      the ink around them until hovered -- so the page reads as numbers rather than as
      a page of links. */
-  .lead { font-family: var(--font-display); font-size: 16px; line-height: 1.6; max-width: 70ch; }
+  .lead { font-family: var(--font-display); font-size: 16px; line-height: 1.6; }
   .lead .n { font-weight: 600; }
   .numbers .sub { margin: 0 0 var(--space-3); font-size: 13px; color: var(--text-muted); }
   .numbers .figure a, .numbers .muted a, .numbers .lead a, .bars a { color: inherit; text-decoration: none; }
@@ -686,8 +761,23 @@
   .today .todo li::before { content: "\25CB  "; color: var(--text-muted); }
   .today .todo li.more::before { content: none; }
   @media (max-width: 560px) { .today .shots > .cardthumb { width: 96px; } }
-  .site-footer { margin-top: var(--space-7); padding: var(--space-5) var(--space-6); border-top: 1px solid var(--line);
-    font-size: 13px; color: var(--text-muted); }
+
+  /* One row of tabs across Settings and the account pages: links to pages of their own.
+     The one you are on is bold with the accent line the folded rail uses -- weight as
+     well as colour, never colour alone -- and the row wraps rather than scrolling, so no
+     tab is ever off the edge of a phone. */
+  nav.tabs { display: flex; flex-wrap: wrap; gap: 0 var(--space-5); margin: var(--space-3) 0 var(--space-5);
+    border-bottom: 1px solid var(--line); }
+  nav.tabs a { padding: var(--space-2) 0; color: var(--text); text-decoration: none; }
+  nav.tabs a[aria-current="page"] { font-weight: 600; box-shadow: inset 0 -3px 0 var(--accent); }
+
+  /* A long form's sections, listed at its top: a wrapping row of links, the words of a
+     section with something to fix in the danger colour beside its name. Scrolled to, a
+     section stops a little below the top of the window rather than hard against it. */
+  .formsections ul { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-5); margin: var(--space-3) 0 0;
+    padding: 0; list-style: none; font-size: 13px; }
+  .formsections .tofix { color: var(--danger); font-weight: 600; }
+  .editform .fieldset[id] { scroll-margin-top: var(--space-5); }
 
   /* ---- 14g. Form errors ----------------------------------------------------
      The one place explanation is printed under a control rather than put in a title:
@@ -741,6 +831,10 @@
     color: var(--accent); text-decoration: none; }
   .suggest .all[aria-selected="true"] { background: var(--surface-hover); color: var(--text); }
   .suggest .none { padding: var(--space-3); font-size: 13px; color: var(--text-muted); }
+  /* Under the catalogue's models, where only they matched: the words take the last
+     row's place, ruled off as it is. */
+  .suggest .sg + .none { margin-top: var(--space-2); padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--line); }
   @media (pointer: coarse) { .suggest .sg, .suggest .all { min-height: var(--tap); } }
 
   /* ---- 14i. Photo upload ---------------------------------------------------
@@ -827,8 +921,6 @@
   .table.drives th:nth-child(7) { width: 130px; }
   /* In a drive row the bezel stacks -- ladder, shade, yellowing -- because side by
      side they want more width than the row has left. */
-  .table.drives .bezel-cell { flex-direction: column; align-items: stretch; gap: var(--space-2); }
-  .table.drives .bezel-cell > .select { flex: none; width: 100%; }
   /* A bezel's two menus and the ladder that shows them. They wrap rather than shrink,
      because two half-width menus name nothing useful; "Heavily yellowed" is the
      widest word either holds, and a menu that clips its own longest option is a
@@ -912,6 +1004,99 @@
   .portkey { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); }
   .portkey span { white-space: nowrap; }
   .portkey b { color: var(--text); }
+
+  /* ---- The files pages (ADR-0028) ------------------------------------------
+     The list, a file's own page and an item's Files panel. The design system has no
+     card for these yet, so they are the pages ADR-0028 shaped, put onto the
+     components and tokens rather than drawn again. */
+  /* A list of files: a row each, and never a table. The row is a grid of four -- the
+     drawing of what it is, its name and what it is linked to, how big and how old,
+     and the download -- and on a phone the third drops under the second, so nothing
+     is squeezed and nothing scrolls sideways. */
+  .filerows { list-style: none; margin: 0; padding: 0; }
+  .filerow { position: relative; display: grid; align-items: center; column-gap: var(--space-4);
+    grid-template-columns: 44px minmax(0, 1fr) auto auto; grid-template-areas: "icon text meta dl";
+    padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+  .filerow:first-child { border-top: 0; }
+  .panel > .filerows > .filerow { padding: var(--space-3) var(--space-4); }
+  .filerow > .fileicon { grid-area: icon; }
+  .filerow > .filetext { grid-area: text; min-width: 0; }
+  .filerow > .fmeta { grid-area: meta; }
+  .filerow > .btn { grid-area: dl; }
+  @media (max-width: 640px) {
+    .filerow { column-gap: var(--space-3); grid-template-columns: 40px minmax(0, 1fr) auto;
+      grid-template-areas: "icon text dl" "icon meta dl"; }
+    .filerow > .fmeta { text-align: left; white-space: normal; }
+  }
+  /* The name is the way to the file's page, stretched over the whole row so the row
+     can be tapped anywhere; what else on the row is a link or a title of its own
+     sits above the stretch. In the data face, because a filename is recorded rather
+     than written, and it breaks anywhere, because nobody reads one as a word and the
+     longest on the page must not decide how narrow the list can be. */
+  .fname { font-family: var(--font-data); font-weight: 600; color: var(--text); text-decoration: none;
+    overflow-wrap: anywhere; }
+  .fname::after { content: ""; position: absolute; inset: 0; }
+  .fname:hover { text-decoration: underline; }
+  .filerow .chip, .filerow > .btn, .filerow .fnote a { position: relative; z-index: 1; }
+  .fnote { font-size: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
+  .fmeta { font-family: var(--font-data); font-size: 12px; color: var(--text-muted); white-space: nowrap;
+    text-align: right; font-variant-numeric: tabular-nums; }
+  /* What a file is linked to, a chip each. A long name wraps inside its chip rather
+     than holding the row open, so the corners are a card's and not a pill's. */
+  .filechips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+  .filechips .chip { white-space: normal; overflow-wrap: anywhere; border-radius: var(--radius-sm); }
+  /* What a file is, drawn in the muted text colour so every look draws it, with the
+     extension under it. */
+  .fileicon { display: inline-grid; justify-items: center; align-content: center; gap: var(--space-1);
+    width: 44px; color: var(--text-muted); }
+  .fileicon .fileart { display: block; width: 30px; height: 30px; }
+  .fileext { font-family: var(--font-data); font-size: 9px; font-weight: 600; letter-spacing: .07em; line-height: 1; }
+  .fileicon.big { flex: none; width: 72px; }
+  .fileicon.big .fileart { width: 60px; height: 60px; }
+  .fileicon.big .fileext { font-size: 11px; }
+  /* The list's own search, at the end of the heading's row and on a row of its own on
+     a phone. The box asks for a width rather than demanding one. */
+  .filesearch { display: flex; flex: 0 1 320px; align-items: center; gap: var(--space-3); margin-left: auto; }
+  .filesearch > .input { flex: 1 1 160px; width: auto; min-width: 0; }
+  @media (max-width: 640px) { .filesearch { flex-basis: 100%; margin-left: 0; } }
+  /* The row of ways to narrow the list. The one you are on is told by weight and by
+     ground, and the ground is surface-sunken, which every colour written on it is
+     held to in every look. It was the band a panel's title sits on, with `text` on
+     it: a pair no look is held to, and 1.06:1 in one of them. */
+  .filefilters { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-4); }
+  .filefilters a { display: inline-flex; align-items: center; padding: var(--space-1) var(--space-4);
+    font-size: 13px; color: var(--text); text-decoration: none; white-space: nowrap;
+    border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-pill); }
+  .filefilters a span { margin-left: var(--space-2); font-family: var(--font-data); color: var(--text-muted); }
+  .filefilters a[aria-current="page"] { font-weight: 600; color: var(--text); background: var(--surface-sunken); }
+  /* Under the pointer everything on the ground is `text`: only that is tested on
+     surface-hover. */
+  .filefilters a:hover { background: var(--surface-hover); }
+  .filefilters a:hover span { color: var(--text); }
+  @media (pointer: coarse) { .filefilters a { min-height: 36px; } }
+  /* A file's own page: the drawing beside its name, then the panels that change it.
+     The name is the page's heading, set in the data face for the reason the list's
+     is. */
+  .filehero { display: flex; align-items: flex-start; gap: var(--space-5); margin: 0 0 var(--space-4); }
+  .filehero-text { min-width: 0; }
+  .filehero-text p { margin: var(--space-1) 0 0; }
+  .filehero h1 { font-family: var(--font-data); overflow-wrap: anywhere; }
+  /* What a file is linked to, a line each, and the button that takes it off. */
+  .linkrows { list-style: none; margin: 0; padding: 0; }
+  .linkrows li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3);
+    padding: 6px var(--space-4); border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+  .linkrows li:first-child { border-top: 0; }
+  .linkrows form { margin: 0 0 0 auto; }
+  /* What follows a panel's list -- the link box under what a file is linked to; what
+     an item's other units have, and the upload, under its files -- is a different
+     thing and says so with a rule. */
+  .panel > .linkrows + .pbody, .panel > .filerows + .pbody, .panel > .fileoffer {
+    border-top: 1px solid var(--line); }
+  /* What an item's siblings have that it has not: offered, and only offered. */
+  .offerrows { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
+  .offerrows li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3);
+    padding: var(--space-1) 0; overflow-wrap: anywhere; }
+  .offerrows form { margin: 0; }
 
   /* ---- The account pages (ADR-0032) --------------------------------------- */
   /* Where you are signed in: a line to a browser, so a plain list rather than a

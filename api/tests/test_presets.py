@@ -31,15 +31,19 @@ TEXT, EDGE = 4.5, 3.0
 
 # (colour written, ground it is written on, floor). The ground is where the design
 # puts that colour and nowhere else -- `text-muted` never sits on `surface-hover`,
-# for instance, because the hover row turns everything on it to `text`.
+# for instance, because the hover row turns everything on it to `text`. `surface-nav`
+# is what the side rail and the phone's tab bar stand on: the words, the current
+# tab's accent and the focus ring are all written on it.
 PAIRS = [
     ("text", "surface", TEXT),
     ("text", "surface-raised", TEXT),
     ("text", "surface-sunken", TEXT),
     ("text", "surface-hover", TEXT),
+    ("text", "surface-nav", TEXT),
     ("text-muted", "surface", TEXT),
     ("text-muted", "surface-raised", TEXT),
     ("text-muted", "surface-sunken", TEXT),
+    ("text-muted", "surface-nav", TEXT),
     ("band-text", "band", TEXT),
     ("band-muted", "band", TEXT),
     ("danger", "surface", TEXT),
@@ -64,13 +68,58 @@ PAIRS = [
     ("accent", "surface", TEXT),
     ("accent", "surface-raised", TEXT),
     ("accent", "surface-sunken", TEXT),
+    ("accent", "surface-nav", TEXT),
     ("on-accent", "accent-fill", TEXT),
     ("accent-fill", "surface", EDGE),
     ("accent-fill", "accent-track", EDGE),
     ("focus", "surface", EDGE),
     ("focus", "surface-raised", EDGE),
     ("focus", "surface-sunken", EDGE),
+    ("focus", "surface-nav", EDGE),
 ]
+
+
+def test_the_filter_you_are_on_is_written_in_a_pair_every_look_holds():
+    """Above the files list, the filter you are on was told by the band a panel's
+    title sits on, with `text` on it -- a pair no look is held to, and 1.06:1 in
+    Rubber Key's light mode. The current one is told by weight and ground, and the
+    ground is one every colour written on it is tested against, in every look."""
+    rules: dict[str, dict[str, str]] = {}
+    for selector, prop, value in declarations(COMPONENTS):
+        rules.setdefault(selector, {})[prop] = value
+
+    def token(selector, prop, fallback=""):
+        value = rules.get(selector, {}).get(prop) or rules.get(fallback, {}).get(prop, "")
+        found = re.fullmatch(r"var\(--([\w-]+)\)", value)
+        assert found, f"{selector} states no {prop} token for the filter"
+        return found.group(1)
+
+    current = '.filefilters a[aria-current="page"]'
+    ground = token(current, "background")
+    written = {
+        token(current, "color", fallback=".filefilters a"),
+        token(".filefilters a span", "color"),
+    }
+    held = {(fg, bg) for fg, bg, _ in PAIRS}
+    assert {(fg, ground) for fg in written} <= held, f"{written} on {ground} is not swept"
+
+
+def test_the_filter_you_are_on_is_told_by_its_weight_as_well_as_its_ground():
+    """The ground under the filter you are on is a shade off the page's, and in some
+    looks barely one: enough to see, and not enough to be the only telling for
+    anybody who cannot tell two pale greys apart. So the one you are on is set
+    heavier as well, as the section you are in is in the banner."""
+    faintest = min(
+        contrast(mode["surface"], mode["surface-sunken"]) for mode in PALETTES["themes"].values()
+    )
+    weights = {
+        value
+        for selector, prop, value in declarations(COMPONENTS)
+        if selector == '.filefilters a[aria-current="page"]' and prop == "font-weight"
+    }
+    assert weights & {"600", "700", "bold"}, (
+        f"the filter you are on is told only by a ground {faintest:.2f}:1 off the page's"
+    )
 
 
 def _builder():
@@ -125,7 +174,7 @@ def test_every_preset_states_every_colour_in_both_modes():
 @pytest.mark.parametrize("theme", THEMES)
 @pytest.mark.parametrize(("fg", "bg", "floor"), PAIRS, ids=[f"{f}-on-{b}" for f, b, _ in PAIRS])
 def test_every_pair_holds_in_every_preset_and_mode(theme, fg, bg, floor):
-    """518 pairs: the 37 the design uses, in fourteen themes. A preset is judged as
+    """574 pairs: the 41 the design uses, in fourteen themes. A preset is judged as
     a whole set of passing pairs, not a palette swapped in by eye."""
     colours = PALETTES["themes"][theme]
     ground = over(colours[bg], colours["surface"]) if len(colours[bg]) == 9 else colours[bg]
@@ -209,8 +258,9 @@ def test_the_flash_has_no_hard_edge_between_its_bands():
     a shape but a change of colour inside one gradient. A browser smooths a shape's
     edges and not a gradient's, so on a slant a hard stop is drawn as a staircase: at
     25 degrees a step every two rows and a longer one every seventh or so, which is
-    what the eye reads as a jiggle. Each band blends into the next over a pixel
-    instead, which is what smoothing the edge would have given it."""
+    what the eye reads as a jiggle. A pixel of blend smoothed the stair and still
+    read a little jagged on staging, so each band runs into the next over 4px, the
+    way neighbouring colours do on a screen, and keeps a solid middle of its own."""
     flashes = {
         preset: values["flash"]
         for preset, values in PALETTES["construction"].items()
@@ -222,9 +272,9 @@ def test_the_flash_has_no_hard_edge_between_its_bands():
         hard = [
             f"{colour} to {after} at {ends:g}px"
             for (colour, _, ends), (after, starts, _) in pairwise(bands)
-            if starts - ends < 1
+            if starts - ends < 4
         ]
-        assert hard == [], f"{preset}'s flash changes colour in less than a pixel"
+        assert hard == [], f"{preset}'s flash changes colour in less than 4px"
 
 
 def test_the_banner_s_flash_and_a_panel_s_are_slanted_alike():

@@ -10,6 +10,7 @@ Auth is off in these tests, so the client is the owner.
 import re
 
 from app.models import ProjectAsset
+from conftest import served
 
 
 def make(client, name="Recap the +2A", **fields):
@@ -75,6 +76,19 @@ class TestTheList:
         assert 'data-suggest="pick"' in control
         listbox = re.search(r'aria-controls="([\w-]+)"', control).group(1)
         assert f'id="{listbox}" role="listbox"' in box
+
+    def test_the_items_box_offers_computers_and_parts_only(self, client):
+        """It reads the banner's list, which offers projects among what it matched
+        and catalogue models beside them. Neither is a thing a project can be about,
+        so the box keeps the rows that lead to a computer or a part and takes no
+        models at all. Read off the script the page is served, as the suite runs
+        none."""
+        script = served(client, client.get("/projects/new").text)
+        assert (
+            "data.items.filter(function (it) { return /^\\/(computers|parts)\\//.test(it.url); })"
+            in script
+        )
+        assert "const models = pick ? [] : data.models;" in script
 
 
 class TestAddingBeforeSaving:

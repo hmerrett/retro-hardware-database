@@ -3,6 +3,7 @@
 {% import "_colours.html" as C %}
 {% import "_machine.html" as M %}
 {% block title %}{{ title }} — {{ site_name() }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block main_class %} v2{% endblock %}
 {% block content %}
 {# `dl` names a pick list of what has already been answered to this box (see
@@ -32,11 +33,16 @@
     {%- if not new %}Edit {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }} <span class="tag muted">{{ c.asset_id }}</span>
     {%- else %}{{ title }}{% endif %}</h1></div>
   {{ U.error_summary(errors | default([])) }}
+  {% set sections = [('s-identity', 'Identity', ['year', 'topbench']), ('s-memory', 'Memory', []),
+                     ('s-drives', 'Drives', []), ('s-tracking', 'Tracking', ['acquired_date']),
+                     ('s-description', 'Description', []), ('s-work', 'Work needed', [])]
+                    + ([('s-photos', 'Photographs', [])] if new else []) %}
+  {{ U.form_sections(sections, errors | default([])) }}
   {% for name, values in DL.items() %}
   <datalist id="dl_{{ name }}">{% for v in values %}<option value="{{ v }}">{% endfor %}</datalist>
   {% endfor %}
 
-  <fieldset class="fieldset">
+  <fieldset class="fieldset" id="s-identity">
     <legend>Identity</legend>
     {# First, because picking a model fills in half of what follows and puts the right
        variations on screen for the rest. #}
@@ -66,7 +72,7 @@
     </div>
   </fieldset>
 
-  <fieldset class="fieldset">
+  <fieldset class="fieldset" id="s-memory">
     <legend>Memory</legend>
     <div class="field">
       <span class="lbl" id="rammod-lbl">Memory modules (SIMMs / SIPPs)</span>
@@ -90,7 +96,7 @@
                hint="anything the grids above miss — DIMMs, odd sizes, or a plain total like 16MiB. All three are combined.") }}
   </fieldset>
 
-  <fieldset class="fieldset">
+  <fieldset class="fieldset" id="s-drives">
     <legend>Drives</legend>
     <p class="hint">floppy, Gotek, optical and the cards that stand in for them. Hard disks and tape are storage parts with their own asset tag. Clear a row to remove it.</p>
     {# A table that has to stay a table: a drive is read across its row. It scrolls
@@ -142,7 +148,7 @@
                value=(c.drives_note if c else '') or '') }}
   </fieldset>
 
-  <fieldset class="fieldset">
+  <fieldset class="fieldset" id="s-tracking">
     <legend>Tracking</legend>
     <div class="formgrid">
       {# Blank by default, not "Working" -- see the same menu on the part form. #}
@@ -156,7 +162,7 @@
     </div>
   </fieldset>
 
-  <fieldset class="fieldset">
+  <fieldset class="fieldset" id="s-description">
     <legend>Description</legend>
     {{ U.field('summary', 'Summary', kind='area', value=(c.summary if c else '') or '',
                hint='the description shown at the top of the page', rows=5) }}
@@ -169,7 +175,7 @@
   {# On an item that exists, photos upload the moment they are picked, from the
      photo column on its own page. Here there is no asset tag to file them under
      yet, so they wait and go with the rest of the form. #}
-  <fieldset class="fieldset">
+  <fieldset class="fieldset" id="s-photos">
     <legend>Photographs</legend>
     {% include "_newphotos.html" %}
   </fieldset>

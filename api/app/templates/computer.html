@@ -45,7 +45,7 @@
     {% if machine %}
     {% call PN.panel('Machine') %}
       <dl class="kv">
-        <div><dt>Catalogue model</dt><dd>{{ machine.model }}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</dd></div>
+        <div><dt>Catalogue model</dt><dd>{% if machine.href %}<a href="{{ machine.href }}">{{ machine.model }}</a>{% else %}{{ machine.model }}{% endif %}{% if machine.family %} <span class="muted">— {{ machine.family }}{% if machine.year %}, {{ machine.year }}{% endif %}</span>{% endif %}</dd></div>
         {% for label, value in machine.rows %}
         <div><dt>{{ label }}</dt><dd>{{ value | linked }}</dd></div>
         {% endfor %}
@@ -92,6 +92,7 @@
     {% include "_files.html" %}
     {% include "_history.html" %}
 </div>
+{% include "_sidecol.html" %}
 </div>
 {{ LS.script() }}
 {% endblock %}

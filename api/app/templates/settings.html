@@ -2,6 +2,7 @@
 {% import "_ui.html" as U with context %}
 {% import "_labelsend.html" as LS %}
 {% block title %}Settings — {{ site_name() }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block main_class %} v2{% endblock %}
 {% block content %}
 
@@ -16,13 +17,11 @@
    specification. #}
 
 <div class="pagehead"><h1 class="heading">Settings</h1></div>
-{# The two pages beside this one (ADR-0032). Here rather than in the menu: they are
-   about who uses the site, and this is where somebody who runs it comes. #}
-<p class="hint"><a href="/settings/users">Accounts</a> · <a href="/settings/account">Your account</a></p>
+{{ U.settings_tabs() }}
 
 {% if saved %}<p class="hint" id="saved">Saved.</p>{% endif %}
 
-<form class="editform narrow" id="settings-form" method="post" action="/settings">
+<form class="editform" id="settings-form" method="post" action="{{ action }}">
   {% for section, rows in sections %}
   <fieldset class="fieldset">
     <legend>{{ section }}</legend>
@@ -91,7 +90,8 @@
    The script fills the menu in and remembers what is chosen. Hidden until it has,
    which is the honest state for a control that is nothing but script: an empty
    menu that forgets what you tell it is worse than no menu. #}
-<fieldset class="fieldset narrow" id="device-box" hidden>
+{% if device_box %}
+<fieldset class="fieldset" id="device-box" hidden>
   <legend>This browser</legend>
   <div class="field" title="Where this browser sends a small label, whatever the site default says. It is remembered here and goes nowhere else: the phone by the shelf and the machine in the workshop answer differently.">
     <label for="device_destination">Small label goes to</label>
@@ -100,6 +100,7 @@
     </select>
   </div>
 </fieldset>
+{% endif %}
 
 {# At the foot, under everything it could be about, and reaching back into the
    form by name: the button belongs at the end of the page rather than in the
@@ -114,5 +115,5 @@
 {% if pinned_any %}
 <p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
 {% endif %}
-{{ LS.script() }}
+{% if device_box %}{{ LS.script() }}{% endif %}
 {% endblock %}

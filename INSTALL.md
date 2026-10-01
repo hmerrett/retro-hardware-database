@@ -309,11 +309,11 @@ The database is not rolled back with it. If a migration was the problem,
 ### The name
 
 Open **⋯ → Settings** and put your own in the first box. It goes in the banner
-beside the logo, in the browser's tab, at the foot of every page and in the
-preview a shared link unfolds into. There is nothing to restart and nothing to
-edit on the server: it is kept in the database, like the other three settings on
-that page, and the manual's [Settings](MANUAL.md#18-settings) section says what
-each of them does.
+beside the logo — or at the top of the side rail, where the rail is showing — in
+the browser's tab, and in the preview a shared link unfolds into. There is
+nothing to restart and nothing to edit on the server: it is kept in the database,
+like the other three settings on that page, and the manual's
+[Settings](MANUAL.md#18-settings) section says what each of them does.
 
 The software is still called the Retro Hardware Database — `/docs` says so, and
 so does this guide. The name you set is the collection's.
@@ -425,6 +425,11 @@ rolled-over logs as well as the live one, so the report covers however much
 history `roll_keep` in `caddy/Caddyfile` is holding on to -- raise it for a longer view, at a
 little more disk and a little more work per rebuild. Remove the service from
 `docker-compose.yml` if you would rather not keep access logs at all.
+
+The image is pinned to one release of GoAccess, because the report's scripts run in
+your browser over whatever visitors sent. A newer release is taken by changing the
+tag in `docker-compose.yml`, once you have read what it changed; `docker compose
+pull` alone will not bring one in.
 
 ---
 

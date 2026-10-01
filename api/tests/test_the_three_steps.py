@@ -29,6 +29,7 @@ class TestAnEmptyRegister:
         assert "Add the first machine" in page
         assert "Print its label" in page
         assert page.count("<li") == 3, "three steps, and the numbering is the list's"
+        assert "foot of every page" not in page, "there is no foot of the page any more"
 
     def test_naming_the_collection_ticks_its_own_step(self, client, db):
         """The one step the screen can see the answer to. Ticked and struck through

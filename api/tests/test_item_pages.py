@@ -9,6 +9,7 @@ Auth is off in these tests, so the client is the owner; `visitor` turns it on.
 """
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -47,9 +48,10 @@ class TestTheHead:
         page = client.get(f"/{kind}/{aid}").text
         head = page[page.index('<div class="itemhead">') :]
         assert re.match(
-            r'<div class="itemhead">\s*<h1 class="title">Lounge PC</h1>\s*'
-            rf'<div class="tag muted">{aid}</div>',
+            r'<div class="itemhead">\s*<div class="titleline">\s*<h1 class="title">Lounge PC</h1>'
+            rf'.*?</div>\s*<div class="tag muted">{aid}</div>',
             head,
+            re.S,
         ), head[:300]
         assert '<p class="prose">Found in a loft.</p>' in head[: head.index('class="itembody"')]
 
@@ -59,16 +61,19 @@ class TestTheHead:
         assert page.count("<h1") == 1
 
     @KINDS
-    def test_the_owner_has_edit_and_duplicate_beside_prev_and_next(
+    def test_the_owner_has_edit_and_duplicate_on_the_name_s_line(
         self, client, computer, part, kind
     ):
+        """With what they act on, and out of the navigation landmark, since Duplicate
+        is a form that posts (MANUAL §4)."""
         aid = item(kind, computer, part)
         page = client.get(f"/{kind}/{aid}").text
-        nav = page[page.index('<nav class="itemnav"') :]
-        nav = nav[: nav.index("</nav>")]
-        assert f'href="/{kind}/{aid}/edit"' in nav
-        assert f'action="/{kind}/{aid}/duplicate"' in nav
-        assert nav.index("/edit") < nav.index('id="nav-prev"')
+        line = re.search(r'<div class="titleline">(.*?)</div>\s*<div class="tag', page, re.S)[1]
+        assert "<h1" in line
+        assert f'href="/{kind}/{aid}/edit"' in line
+        assert f'action="/{kind}/{aid}/duplicate"' in line
+        nav = top_row(page)
+        assert "/edit" not in nav and "<form" not in nav
 
     @KINDS
     def test_a_visitor_has_neither(self, client, computer, part, kind, monkeypatch):
@@ -207,3 +212,235 @@ class TestTakeOutOnTheLists:
         part(computer_id=cid)
         visitor(client)
         assert "Take out" not in client.get(f"/computers/{cid}").text
+
+
+def ways_back(html):
+    """The links at the left of an item page's top row, before the spacer that pushes
+    the owner's actions and Prev and Next to the right: the ways back."""
+    nav = re.search(r'<nav class="itemnav".*?</nav>', html, re.S)[0]
+    return re.findall(r'href="([^"]*)"', nav.split('<span class="push">')[0])
+
+
+class TestTheWayBackToWhatAPartIsIn:
+    """v0.1's part page had "← all · ← RH-…" to the machine the part is in; v0.2's
+    shared item top kept only the first, and a part reached from its machine had no
+    way back to it but the browser's."""
+
+    def test_a_part_in_a_machine_leads_back_to_it(self, client, computer, part):
+        cid = computer(model="PC1512")["asset_id"]
+        pid = part(type="sound", computer_id=cid)["asset_id"]
+        assert ways_back(client.get(f"/parts/{pid}").text) == ["/", f"/computers/{cid}"]
+
+    def test_a_part_on_another_part_leads_back_to_that_part(self, client, part):
+        host = part(type="io", model="Controller")["asset_id"]
+        pid = part(type="storage", model="ST-225", parent_id=host)["asset_id"]
+        assert ways_back(client.get(f"/parts/{pid}").text) == ["/", f"/parts/{host}"]
+
+    def test_a_part_on_its_own_and_a_machine_have_only_the_way_back_to_the_register(
+        self, client, computer, part
+    ):
+        pid = part(type="sound")["asset_id"]
+        cid = computer()["asset_id"]
+        assert ways_back(client.get(f"/parts/{pid}").text) == ["/"]
+        assert ways_back(client.get(f"/computers/{cid}").text) == ["/"]
+
+
+ITEM_CSS = Path(__file__).parents[1] / "app" / "static" / "css" / "components.css"
+
+
+def item_css():
+    return re.sub(r"/\*.*?\*/", "", ITEM_CSS.read_text(encoding="utf-8"), flags=re.S)
+
+
+def top_row(html):
+    return re.search(r'<nav class="itemnav".*?</nav>', html, re.S)[0]
+
+
+class TestTheTopOfThePage:
+    """The review found the actions standing above the photographs rather than with
+    the name, a form that posts inside the navigation landmark, the two columns
+    starting at different heights, and a phone's Tab key reaching the label before
+    the details (MANUAL §4, "An item page")."""
+
+    def test_the_top_row_holds_the_ways_back_and_prev_and_next_alone(self, client, computer):
+        row = top_row(client.get(f"/computers/{computer()['asset_id']}").text)
+        assert 'id="nav-prev"' in row and 'id="nav-next"' in row and 'href="/"' in row
+        assert "/edit" not in row and "<form" not in row
+
+    def test_a_visitor_sees_no_actions(self, client, computer):
+        aid = computer()["asset_id"]
+        log_out(client)
+        html = client.get(f"/computers/{aid}").text
+        assert "/edit" not in html and "/duplicate" not in html
+
+    def test_the_page_reads_head_photographs_details_then_the_rest(self, client, computer):
+        html = client.get(f"/computers/{computer()['asset_id']}").text
+        at = [
+            html.index(f'class="{c}"') for c in ("itemhead", "itemphotos", "itembody", "itemside")
+        ]
+        assert at == sorted(at)
+
+    def test_nothing_is_moved_out_of_its_place_in_the_source(self):
+        """The Tab key follows the source; an `order` would draw a panel somewhere the
+        Tab key does not go."""
+        itemcols = re.findall(r"\.itemcols[^{]*\{([^}]*)\}", item_css())
+        assert itemcols and not any(re.search(r"(?:^|[;\s])order\s*:", body) for body in itemcols)
+
+    def test_the_side_column_starts_level_with_the_details(self):
+        rule = re.search(r"\.itemcols\s*\{([^}]*)\}", item_css())[1]
+        areas = re.findall(r'"([^"]+)"', rule.split("grid-template-areas:")[1].split(";")[0])
+        assert areas == ["head head", "body photos", "body side"]
+
+    def test_on_a_phone_the_actions_go_under_the_name(self):
+        phone = re.search(r"@media \(max-width: 560px\) \{([^@]*?\.itemacts[^}]*\})", item_css())
+        assert phone and "flex-basis: 100%" in phone[1]
+
+    def test_a_disposed_item_says_so_under_its_name(self, client, db, computer):
+        from app.models import Computer
+
+        aid = computer()["asset_id"]
+        db.get(Computer, aid).disposed = True
+        db.commit()
+        html = client.get(f"/computers/{aid}").text
+        head = re.search(
+            r'<div class="itemhead">(.*?)<(?:aside|div) class="itemphotos"', html, re.S
+        )[1]
+        assert "<b>Disposed</b>" in head
+
+    def test_a_project_s_actions_are_on_its_name_s_line_too(self, client):
+        made = client.post("/api/projects", json={"name": "Recap the PC1512"}).json()
+        html = client.get(f"/projects/{made['asset_id']}").text
+        assert "<form" not in top_row(html)
+        line = re.search(r'<div class="titleline">(.*?)</div>\s*</div>', html, re.S)
+        assert line and "Mark done" in line[1] and "/edit" in line[1] and "/delete" in line[1]
+
+
+class TestThePhotographsSitInsideThePanel:
+    """The Photographs panel was drawn flush, which is a panel's way with a list whose
+    rows run edge to edge: the photograph ran to the panel's border on three sides
+    and the thumbnails started hard against its left, while the buttons under them
+    had the panel's margin. The photographs now sit inside that margin, on the same
+    edge as the buttons (MANUAL §10)."""
+
+    @pytest.fixture
+    def shoot(self):
+        """Photographs on disk for an item. The register is emptied between tests
+        and the image folders are not, so what is written here is taken away again."""
+        from PIL import Image
+
+        from app import main
+
+        written = []
+
+        def make(kind, aid, n=2):
+            for stem in [aid] + [f"{aid}-{i}" for i in range(2, n + 1)]:
+                path = main.IMAGES_DIR / kind / f"{stem}.jpg"
+                path.parent.mkdir(parents=True, exist_ok=True)
+                Image.new("RGB", (60, 40), (90, 110, 130)).save(path, "JPEG")
+                written.append(path)
+
+        yield make
+        for path in written:
+            path.unlink(missing_ok=True)
+
+    @staticmethod
+    def body(page):
+        """The Photographs panel's one padded body, and everything in it."""
+        box = panel(page, "Photographs")
+        assert box, "no Photographs panel"
+        assert box.count('class="pbody"') == 1, "more than one body, or none"
+        m = re.match(
+            r'\s*(?:<span class="meta">[^<]*</span>\s*)?</header>\s*<div class="pbody">', box
+        )
+        assert m, "the panel's content is not in its padded body"
+        return box[m.end() :]
+
+    @KINDS
+    def test_the_photographs_and_the_buttons_share_the_panel_s_margin(
+        self, client, computer, part, kind, shoot
+    ):
+        aid = item(kind, computer, part)
+        shoot(kind, aid)
+        inside = self.body(client.get(f"/{kind}/{aid}").text)
+        for cls in ("photo-main", "thumbs", "photo-actions"):
+            assert f'class="{cls}' in inside, cls
+
+    @KINDS
+    def test_so_does_the_drawing_of_an_item_nobody_has_photographed(
+        self, client, computer, part, kind
+    ):
+        aid = item(kind, computer, part)
+        inside = self.body(client.get(f"/{kind}/{aid}").text)
+        assert 'class="nophoto"' in inside and 'class="photo-actions"' in inside
+
+    def test_a_visitor_sees_them_inside_it_too(self, client, computer, shoot):
+        aid = computer()["asset_id"]
+        shoot("computers", aid)
+        visitor(client)
+        inside = self.body(client.get(f"/computers/{aid}").text)
+        assert 'class="photo-main' in inside and "photo-actions" not in inside
+
+
+class TestTheThumbnailsSitTwoToARow:
+    """Inside the panel's margin the thumbnails lost the room they had: two at a fixed
+    150px needed 310px and the padded body has 294, so they stood one to a row and
+    the side column ran to three times the height of the details beside it. They are
+    now cells sized to the column, in the card's 4:3 shape (MANUAL §10)."""
+
+    # The Photographs panel's padded body beside the details: the 320px column less
+    # the panel's 12px padding and 1px border either side. At the narrowest
+    # two-column width, 861px, it is about 246px.
+    BODY_AT_1440, BODY_AT_861 = 294, 246
+
+    @staticmethod
+    def legacy():
+        return re.sub(r"/\*.*?\*/", "", (ITEM_CSS.parents[1] / "app.css").read_text(), flags=re.S)
+
+    def rule(self, selector):
+        found = re.search(rf"(?<![\w.-]){re.escape(selector)}\s*\{{([^}}]*)\}}", self.legacy())
+        assert found, selector
+        return found[1]
+
+    def test_the_thumbnails_are_cells_sized_to_the_column(self):
+        rule = self.rule(".thumbs")
+        assert "display: grid" in rule
+        assert re.search(r"grid-template-columns:\s*repeat\(auto-fill,\s*minmax\(", rule)
+
+    def test_each_is_the_card_s_4_3_shape(self):
+        rule = self.rule(".thumbs img")
+        assert "aspect-ratio: var(--thumb-ratio)" in rule
+        assert re.search(r"(?<![-\w])width:\s*100%", rule), "a fixed width cannot follow the column"
+
+    def test_two_fit_across_beside_the_details(self):
+        rule = self.rule(".thumbs")
+        cell = int(re.search(r"minmax\(min\((\d+)px", rule)[1])
+        gap = int(re.search(r"(?<![-\w])gap:\s*(\d+)px", rule)[1])
+        assert 2 * cell + gap <= self.BODY_AT_861 <= self.BODY_AT_1440
+
+
+class TestTheHistoryLinesUpItsButtons:
+    """An entry's camera and delete buttons stood straight after its words, so a
+    column of entries read as a ragged edge of buttons: the log's value cell only
+    grew to fit its words, which put the line's own right-hand end there. Every
+    entry's buttons now share one column at the right, and sit
+    beside the middle of an entry that wraps (MANUAL §14)."""
+
+    def test_the_entry_takes_the_rest_of_its_row(self):
+        rule = re.search(r"\.kv\.log dd\s*\{([^}]*)\}", item_css())
+        assert rule and re.search(r"flex:\s*1\b", rule[1])
+
+    def test_the_buttons_sit_beside_the_middle_of_a_wrapped_entry(self):
+        legacy = re.sub(r"/\*.*?\*/", "", (ITEM_CSS.parents[1] / "app.css").read_text(), flags=re.S)
+        rule = re.search(r"\.logline\s*\{([^}]*)\}", legacy)
+        assert rule and "align-items: center" in rule[1]
+
+    def test_the_words_come_first_and_the_buttons_last(self, client, computer):
+        aid = computer()["asset_id"]
+        client.post(f"/computers/{aid}/note", data={"note": "Recapped the board"})
+        line = re.search(
+            r'<div class="logline">(.*?)</div>\s*(?:<div class="logshots|</dd>)',
+            client.get(f"/computers/{aid}").text,
+            re.S,
+        )[1]
+        at = [line.index(m) for m in ('class="logmsg"', 'class="logadd"', "/log/delete")]
+        assert at == sorted(at)

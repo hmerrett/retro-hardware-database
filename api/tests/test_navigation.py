@@ -7,17 +7,31 @@ each of them is asked the same question every listing page is asked: may this
 reader see the thing being counted?
 """
 
+import re
+
 import pytest
 
 from sqlalchemy.exc import OperationalError
 
 from app import rail, settings
-from conftest import log_out
+from conftest import as_viewer, log_out
+from test_presets import PALETTES
+from test_stylesheet_lint import COMPONENTS, declarations
 
 
 def visitor(client):
     """Turn the site into what an anonymous reader sees."""
     log_out(client)
+
+
+# The three readers the chrome is drawn for, each turned into by doing this to the
+# client, which starts as the owner.
+READERS = {"owner": lambda client: None, "viewer": as_viewer, "visitor": visitor}
+
+
+def hrefs(markup):
+    """Every address a piece of markup links to."""
+    return set(re.findall(r'href="([^"]*)"', markup))
 
 
 def _broken():
@@ -116,6 +130,42 @@ class TestWhatTheRailHolds:
         assert "js-theme" in rail_markup
         assert 'href="/settings"' in rail_markup
 
+    def test_on_a_short_window_the_rail_scrolls_on_its_own(self):
+        """It is held to the window's height beside a page that scrolls, so whatever
+        does not fit stays under the bottom edge until the page's own end -- and the
+        owner's rail, open, is taller than a 1366 by 768 laptop leaves a page. Down
+        and not across: a scrollbar that takes room leaves the folded rail's icons a
+        few pixels wider than what is left, and a second bar under them."""
+        rail_rule = {
+            prop: value
+            for selector, prop, value in declarations(COMPONENTS)
+            if selector == ".shell.side > .rail"
+        }
+        assert rail_rule["height"] == "100vh"
+        assert rail_rule.get("overflow-y") == "auto"
+        assert rail_rule.get("overflow-x") == "hidden"
+
+    def test_the_rule_above_add_keeps_its_line_when_the_rail_scrolls(self):
+        """An empty box one pixel high is the one thing in a column too short for its
+        contents that the browser can take height from, and it takes all of it."""
+        sep = {
+            prop: value
+            for selector, prop, value in declarations(COMPONENTS)
+            if selector == ".rail .sep"
+        }
+        assert sep.get("flex") == "none"
+
+    @pytest.mark.parametrize("reader", list(READERS))
+    def test_the_rail_offers_every_page_the_menu_does(self, client, reader):
+        """With the rail showing, the banner's ⋯ menu is put away (components.css),
+        so a page the menu offers and the rail does not is a page that cannot be
+        reached from this one at all."""
+        READERS[reader](client)
+        page = client.get("/").text
+        rail_markup = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        menu = page.split('class="menu hdr-more"', 1)[1].split("</details>", 1)[0]
+        assert hrefs(menu) - hrefs(rail_markup) == set()
+
     def test_every_item_is_named_in_words_as_well_as_drawn(self, client):
         """Collapsed the words are hidden and the icon is all that is left, and an
         icon names nothing (accessibility-standards)."""
@@ -132,7 +182,18 @@ class TestWhatAVisitorSees:
         assert 'href="/computers/new"' not in rail_markup
         assert "Recent" not in rail_markup
         assert 'href="/settings"' not in rail_markup
+        assert 'href="/for-sale"' not in rail_markup
+        assert 'href="/traffic"' not in rail_markup
         assert 'href="/login' in rail_markup
+
+    def test_a_viewer_is_offered_might_sell_and_not_traffic(self, client):
+        """A viewer reads the shortlist and cannot change it; the site's traffic and
+        its settings are an administrator's (ADR-0032)."""
+        as_viewer(client)
+        rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        assert 'href="/for-sale"' in rail_markup
+        assert 'href="/traffic"' not in rail_markup
+        assert 'href="/settings"' not in rail_markup
 
     def test_a_visitor_still_sees_the_counts(self, client, computer, monkeypatch):
         """The size of a collection is part of what a catalogue is for."""
@@ -228,3 +289,58 @@ class TestFoldingItAway:
         r = client.get("/rail/collapsed?next=/", follow_redirects=False)
         assert r.status_code == 303
         assert r.headers["location"] == "/"
+
+
+def _rules() -> list[tuple[str, str, str]]:
+    """components.css as (selector, property, value) in file order, a selector at a
+    time, so a rule written for three selectors at once is found under each."""
+    return [
+        (selector.strip(), prop, value)
+        for selectors, prop, value in declarations(COMPONENTS)
+        for selector in selectors.split(",")
+    ]
+
+
+class TestHowItIsPainted:
+    def test_the_rail_and_the_tab_bar_stand_on_the_navigation_s_ground(self):
+        """The navigation has a ground of its own, which every look states in light and
+        in dark. Painted as a panel, the rail was a white strip beside a grey page in
+        the three looks whose panels are white on purpose -- the 128K menu's window, a
+        window's client area, the listing paper -- and the phone's bar a white bar
+        under one. A token of its own lets a look set it without repainting a panel."""
+        grounds = {
+            selector: value
+            for selector, prop, value in _rules()
+            if selector in (".shell.side > .rail", ".tabbar") and prop == "background"
+        }
+        assert grounds == dict.fromkeys((".shell.side > .rail", ".tabbar"), "var(--surface-nav)")
+        assert "surface-nav" in PALETTES["keys"], "every look has to state the ground"
+
+    def test_a_rule_stands_between_the_navigation_and_the_page(self):
+        """Where a look stands its navigation on the page's own colour -- Default
+        light's white, the 128K screen's grey, the desktop's grey, the paper -- the rule
+        is all that tells the rail from the page beside it and the bar from the page
+        scrolling under it. Elsewhere the ground's lift does some of that work, so a
+        rule taken off would be missed in only a handful of looks, and not by whoever
+        took it off."""
+        sides = ((".shell.side > .rail", "border-right"), (".tabbar", "border-top"))
+        edges = {
+            (selector, prop): value
+            for selector, prop, value in _rules()
+            if (selector, prop) in sides
+        }
+        assert edges == dict.fromkeys(sides, "var(--border-w) solid var(--line)")
+
+    @pytest.mark.parametrize("part", ["svg", ".n", ".tag"])
+    def test_a_row_under_the_pointer_is_written_in_text(self, part):
+        """The hover ground is one only `text` is written on: the design turns
+        everything on a hovered row to it, as the search suggestions do. Left muted,
+        a section's count and a recent item's tag fell under 4.5:1 in five themes.
+        The hover rule has to be the last word on each, because `.rail .item.recent
+        .tag` is as specific as it is and would win by coming later."""
+        colours = [
+            (selector, value)
+            for selector, prop, value in _rules()
+            if selector.startswith(".rail ") and selector.endswith(f" {part}") and prop == "color"
+        ]
+        assert colours and colours[-1] == (f".rail .item:hover {part}", "var(--text)"), colours

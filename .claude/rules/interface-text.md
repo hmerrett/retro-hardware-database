@@ -12,8 +12,9 @@ sentence. Everything else that was going to be printed under it goes in a
 `title` attribute, which the browser shows on hover after its own short delay.
 
 ```html
-<div class="srow" title="In the banner, the browser's tab, the foot of every
-     page and the preview a shared link unfolds into.">
+<div class="field" title="In the banner (or the side rail, where it shows), the
+     browser's tab and the preview a shared link unfolds into. Empty goes back to
+     the name the software ships with.">
   <label for="site_name">Name</label>
   <input id="site_name" name="site_name">
 </div>

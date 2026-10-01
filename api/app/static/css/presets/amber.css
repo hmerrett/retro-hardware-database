@@ -11,6 +11,7 @@
   --surface-raised: #fffaf0;
   --surface-sunken: #ebe1cc;
   --surface-hover: #dfd2b6;
+  --surface-nav: #fffaf0;
   --band: #3a2410;
   --band-text: #ffc266;
   --band-muted: #e0a554;
@@ -46,6 +47,7 @@
   --surface-raised: #211307;
   --surface-sunken: #2e1b0a;
   --surface-hover: #3d250e;
+  --surface-nav: #211307;
   --band: #4a2c10;
   --band-text: #ffc266;
   --band-muted: #e0a554;
@@ -82,6 +84,7 @@
     --surface-raised: #211307;
     --surface-sunken: #2e1b0a;
     --surface-hover: #3d250e;
+    --surface-nav: #211307;
     --band: #4a2c10;
     --band-text: #ffc266;
     --band-muted: #e0a554;

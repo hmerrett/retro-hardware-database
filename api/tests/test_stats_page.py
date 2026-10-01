@@ -19,7 +19,8 @@ def main_of(page: str) -> str:
 class TestTheNumbersPage:
     def test_it_is_on_the_v2_layout_with_a_heading_of_its_own(self, client):
         page = client.get("/stats").text
-        assert '<main id="main" tabindex="-1" class="page v2">' in page
+        # Numbers is one of the wide pages (MANUAL: "On a wide screen").
+        assert '<main id="main" tabindex="-1" class="page wide v2">' in page
         # The figure is the page's headline, but a figure is not a heading: the page
         # is still named for a reader who moves by headings.
         assert re.search(r"<h1[^>]*>The collection by numbers</h1>", page)

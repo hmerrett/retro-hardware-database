@@ -113,6 +113,9 @@ The toolbar above the grid gives you:
   acquired, Year newest/oldest first, Name A–Z, Maker A–Z, Category, Asset
   number. Your choice is remembered in a cookie.
 - **Show disposed** — items that have left the collection are hidden by default.
+- **Tiles** or **Table** — the photo cards, or a row to each item: a small
+  picture, its asset tag, its name, what kind of thing it is, its year and where it
+  is kept. Your choice is remembered in a cookie, like the sort.
 
 Changing any of them redraws the page. With JavaScript switched off nothing
 happens until you press **Apply**, which is also the button a keyboard user can
@@ -120,10 +123,22 @@ rely on. Either way the address bar ends up holding the whole view — category,
 sort, search, page — so a view is a link: bookmark it, or send it to somebody,
 and it opens as you left it.
 
-The grid shows **48 cards a page**, with **Prev** and **Next** beneath it and the
-page you are on between them. The figures beside the heading count everything,
+The grid shows **48 cards a page**, and the table **100 rows a page**, with
+**Prev** and **Next** beneath either and the page you are on between them. The figures beside the heading count everything,
 not just this page, and when the category or the disposed box is holding
 something back they say so as a fraction: *(showing 13 of 14)*.
+
+The table is for running an eye down a long list. It holds the same items in the
+same order as the cards, and the category, the sort and the disposed box work the
+same way; the sort stays in the toolbar rather than on the table's headings. The
+tag and the name lead to the item's page, and a disposed item says so in its row.
+**Where it is** is shown to whoever is shown a location on an item's page — you
+always, a visitor only while **Show locations** is on — and a part with no
+location of its own shows where the machine it is fitted in is kept, and says
+whose answer that is. The choice is part of the link like the rest of the view, so
+a table can be bookmarked or sent, and opens as a table. A search's results, the
+lists behind the figures on **Numbers** and **Might sell** are the same page and
+offer the same choice.
 
 The default is Random on purpose: a shelf is more interesting shuffled than in
 the order things were last touched, and a recency sort only ever shows you the
@@ -142,8 +157,8 @@ Until the first thing is in it, the gallery has nothing to be, so the front page
 is three steps instead:
 
 1. **Name the collection**, which puts your name in the banner, in the browser's
-   tab, at the foot of every page and on every label. Ticked and struck through
-   once the name is no longer the one the software ships with.
+   tab and on every label. Ticked and struck through once the name is no longer
+   the one the software ships with.
 2. **Add the first machine** — a computer, or a part on its own.
 3. **Print its label.** Stick it on the case and scan it, and you are at the
    item's page, which is the whole idea in one gesture.
@@ -167,7 +182,8 @@ person reading it is certain to be the person who can fix it.
 ### The header
 
 On a desktop the banner reads in three bands: where you can go on the left, the
-search box in the middle, and what you can do on the right.
+search box in the middle, and what you can do on the right. Its two ends stand on
+the edges of the wide pages (see [On a wide screen](#on-a-wide-screen)).
 
 - **Browse**, **Projects**, **Numbers**, **Models**, **Files** — the sections.
   The one you are in is shown in bold. **Models** is the catalogue of machines the
@@ -181,18 +197,19 @@ search box in the middle, and what you can do on the right.
 - **☰** — the theme, **Might sell**, **Traffic**, **Settings**, **Account** and
   **Log out**, each where your account reaches it, and (in the installed app, where
   the browser provides neither) share and reload.
-- **API docs** — the interactive API console (login required), at the foot of
-  the page.
 
 On a tablet, or a desktop window narrower than about 900px, the five sections
-move into the **☰** menu, at its top, so the banner stays on one line rather than
-wrapping the search box onto a second.
+move into the **☰** menu, at its top. The banner stays on one line at every width:
+where it is short of room the search box narrows first, and then a long name is
+cut short, while the logo stays.
 
 Wherever the places are listed — the banner, the **☰** menu, the phone's **More**
 and the rail ([Where the sections sit](#where-the-sections-sit)) — no more than one
 is ever marked as where you are: a screen reader announces it as the current page,
-and two would be two pages at once. On **Your account** that is **Account**, not
-**Settings** as well.
+and two would be two pages at once. For an administrator, every page under
+**Settings** marks **Settings**, **Your account** included; for anybody else signed
+in, **Your account** marks **Account**. On the [for-sale
+shortlist](#might-go-the-for-sale-shortlist) it is **Might sell**.
 
 ### The header on a phone
 
@@ -204,7 +221,11 @@ across the bottom of the screen, where your thumb already is.
 - **Scan** — reads a label's code. Appears only where there is a camera.
 - **More** — one list holding the sections (**Projects**, **Numbers**,
   **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
-  **Might sell**, **Traffic**, **Settings**, **Account** and **Log out**.
+  **Might sell**, **Traffic**, **Settings** for an administrator or **Account** for
+  anybody else signed in, and **Log out**.
+
+The bar across the bottom stands on one of the look's own colours, as the side
+rail does ([where the sections sit](#where-the-sections-sit)).
 
 ### On a narrow screen
 
@@ -212,14 +233,39 @@ Every page fits the screen it is on, down to a 320px-wide phone and at 200% zoom
 on a desktop: nothing is cut off at the right-hand edge and no page scrolls
 sideways. A list with more columns than a phone has room for comes down the page
 as blocks instead of a row each, with every value under the name of the column it
-has lost — the projects list, the orders on a project and the files list all do
-this, and the boxes you type into keep the full width rather than being pushed
+has lost — the projects list, the orders on a project, the gallery's table and the files list
+all do this, and the boxes you type into keep the full width rather than being pushed
 off the edge.
 
 One table is left to scroll: the drives on a machine's form, which keeps its
 widths and slides inside its own box. Squeezed to fit a phone it would show two
 characters of a model and none of the bezel, and it is a table of the kind that
 has to be read in two directions. The page around it stays where it is.
+
+### On a wide screen
+
+The pages you look across and the forms you fill in use a wide screen, up to 1440px
+across. **Browse**, and **Might sell** and a search's results, which are Browse by
+other names, put as many cards across as fit: four on a 1000px page, six at the
+widest. The tiles on **Numbers** and the chips on a model's page do the same, and
+**Models** runs to three columns. The forms for a computer, a part and a project,
+and **Settings**, stand their short questions side by side, up to five abreast.
+
+The pages you read keep to a column 1000px across: a machine, a part, a project, a
+file, and the **Projects** and **Files** lists, which are read a row at
+a time. The small pages (logging in, confirming a delete, a page that is not there)
+stay small inside it.
+
+However wide the window, what somebody wrote stops at a comfortable line of about
+seventy characters: a summary, a model's paragraph, the sentence on **Numbers**, the
+line of help under a box, the words of a notice. A box you type into is never wider
+than that either, so a summary is written at the width it will be read at.
+
+The search box and **Scan** stand on the edges of the wide pages, on every page, so
+they stay where they were whichever page you go to. A list or a form lines up
+beneath them, and a page you read sits in the middle between them. On a screen
+narrower than a page's width the difference goes: every page is as wide as the
+window, less a margin either side.
 
 ### Using it from the keyboard
 
@@ -232,7 +278,9 @@ instead of a dozen.
 On a phone, tabbing to a control below the fold scrolls it into view above the
 bar across the bottom of the screen, never behind it — and the same while the
 cookie notice is still up. A control you cannot see is a control you cannot fill
-in.
+in. On a wide screen with the side rail, the rail's foot keeps clear of the
+notice the same way: while it is up, **Log out** and **Collapse** sit above it,
+and the rail scrolls to reach them if the window is short.
 
 Tables say which of their cells are headings, so a screen reader can announce a
 figure with the heading it sits under. In a table of rows — the files list, the
@@ -331,6 +379,16 @@ that, including the site fetching the card, gets the copy already made. Change a
 photograph and the cards it appears on are made again, so a preview never shows a
 picture that has since been cropped or replaced.
 
+### What is kept in your browser
+
+Nothing, until you choose something. The register remembers a choice you make, in
+your browser and for this site alone, and nothing else: the sort order and tiles
+or table on the gallery, that you folded the side rail, and that you have read the
+cookie notice — each a cookie — and the dark or light theme, kept in the browser's
+own storage. Signing in adds a session cookie. All of them are first party: no
+analytics, no advertising, nothing shared with anyone. The notice at the foot of
+the page says so the first time, and goes once you press **Got it**.
+
 ### When a page is not there
 
 Not every address leads somewhere, and the likeliest way to one that does not is a
@@ -387,8 +445,19 @@ Enter walk the rows, that one included, and Enter with no row lit goes to the sa
 place it does. It runs exactly the same search Enter does, so the list is a
 preview of the real answer rather than a second, narrower search that disagrees
 with it. What it adds is an order: what you typed being an asset tag, or the start
-of a name, comes before a hit buried in a spec or a history note. When nothing
-matches, the list says so.
+of a name, comes before a hit buried in a spec or a history note. When neither the
+collection nor the catalogue matches, the list says so.
+
+**Models from the catalogue** come after them, where the list has room. Type a
+machine's name or its family's, or one of the styles the catalogue lists for it —
+*Amiga CD32* finds the Commodore CD32, and *AT&T 6300* the Olivetti M24 — and the
+model is offered whether or not you own one, and opens
+[its own page](#a-models-own-page). Here too, a name that starts with what you
+typed comes first. Its row says **Model**, the year it came out and how many
+of it are here, or *none in this collection*. A model is not something in the
+collection, so it has no asset tag and is not counted in **All N results**, which
+counts what Enter shows. If the catalogue has an answer and the collection has
+none, the list offers the models and says that nothing in the collection matches.
 
 On a phone the list offers the first four rather than ten, so the last row is
 still in sight above the keyboard. It spans the width of the screen under the
@@ -408,10 +477,16 @@ older URL still work, because only the asset tag is taken from the code.
 
 ## 4. An item page
 
-At the top is the item's name, its asset tag under it, and the summary — the
-prose description, if one is written. Above that, a link back to the whole
-register and the **Prev** and **Next** buttons; when logged in, **Edit** and
-**Duplicate** sit beside them.
+At the top is a row with a link back to the whole register on the left and the
+**Prev** and **Next** buttons on the right, in the same place on every item page.
+A part fitted in a machine has a second link beside the first, back to that
+machine by its tag; a part mounted on another part, a drive on its controller
+card, has one back to that part.
+
+Under it is the item's name, and when logged in **Edit** and **Duplicate** on the
+same line, at its end — under the name on a phone. Then its asset tag, a banner if
+it has been disposed of or is being built, and the summary — the prose
+description, if one is written.
 
 The rest is a stack of panels — each section in a box with its title on a band
 across the top.
@@ -419,8 +494,9 @@ across the top.
 Down the main column:
 
 - **Details** — the record's own fields.
-- **Machine** — for a machine filed against the catalogue: its model, its board
-  issue, style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
+- **Machine** — for a machine or a board filed against the catalogue: its model,
+  which leads to [the model's own page](#a-models-own-page), then its board issue,
+  style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
 - **Specification** — on a part's page: its spec pairs, a label and a value each.
 - **Fitted in** — on a part's page: the machine it is installed in, or the card
   it is mounted on, with **Take out** to make it a spare again. A spare says it is
@@ -434,11 +510,13 @@ Down the main column:
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
 - **History** — [everything that has happened to it](#14-history).
 
-Down the side column: the photographs and, when logged in, the **Label** panel
-with its two print buttons, the disposal box and the item's own QR code. On a
-narrow screen there is one column, and the photographs come straight after the
-summary, before the details: somebody who has just scanned a label wants to see
-first that they have the right thing.
+Down the side column, starting level with **Details**: the photographs and the
+item's own QR code for adding one from a phone and, when logged in, the **Label**
+panel with its two print buttons and the disposal box. On a narrow screen there is one column, and the
+photographs come straight after the summary, before the details: somebody who has
+just scanned a label wants to see first that they have the right thing. The label
+and disposal come last, after everything else. The Tab key goes through the page
+in the order you see it, at every width.
 
 A URL written into any of that — a summary, a note, a spec value, where the item
 came from, a history entry — is a link you can follow. Anything with a scheme in
@@ -491,9 +569,13 @@ nothing until you submit it.
 **+ Computer** in the header.
 
 The form is in sections — **Identity**, **Memory**, **Drives**, **Tracking**,
-**Description**, **Work needed** and, on a new machine, **Photographs** — and a line under a field says what goes in
-it wherever that is not obvious. Editing, the heading names the machine and its
-tag, so two tabs open on two machines cannot be confused. **Save** and **Cancel**
+**Description**, **Work needed** and, on a new machine, **Photographs** — listed at
+the top of the form, where each name takes you to its section, and a line under a
+field says what goes in it wherever that is not obvious. On a wide screen the short questions stand side
+by side, up to five abreast, each drive keeps its bezel menus on its own row, and
+the boxes for the summary and notes stay the width of a paragraph. Editing, the
+heading names the machine and its tag, so two tabs open on two machines cannot be
+confused. **Save** and **Cancel**
 stay at the foot of the screen however far down the form you are, so the way out
 is always under the thumb. **Cancel** leaves without saving: back to the machine,
 or from a new one back to the gallery. The part and project forms work the same
@@ -547,12 +629,14 @@ thing — `85` on an Amstrad is 1985, `05` on a floppy emulator is 2005 — so n
 guesses it for you. Its form says so under the Year box.
 
 A refused save saves nothing, and comes back as the form with everything as you
-typed it — memory, drives, catalogue picks, the work box. At the top it says how
-many things there are to fix, each a link to its box, and each box says under
-itself what is wrong and what would do instead. Put them right and **Save** again.
+typed it — memory, drives, a part's specifications, catalogue picks, the work
+box. At the top it says how many things there are to fix, each a link to its box,
+and each box says under itself what is wrong and what would do instead. The list
+of sections at the top of a machine's or a part's form says beside each section how
+many things in it there are to fix. Put them right and **Save** again.
 
-Photographs chosen on a new machine are the exception. A browser will not let a
-page choose files on your behalf, so they have to be picked again, and the
+Photographs chosen on a new machine or part are the exception. A browser will not
+let a page choose files on your behalf, so they have to be picked again, and the
 Photographs section says so.
 
 A project's form comes back the same way. A project with no name is refused, and
@@ -1027,6 +1111,9 @@ Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
 **Condition**, **Source**, **Acquired date**, **Location**, **Reference URL**,
 **Summary**, **Notes**, **Installed in** and **Mounted on** — and, at the foot of the form,
 **Work needed** and **Project** ([checking something in](#checking-something-in)).
+The form's sections are listed at its top, as a machine's are, each name taking you
+to its section; the section of questions for the kind of part is named for it
+(**Storage**, **Motherboard**, **Sound card** and so on).
 
 **Serial number** is the number marked on that particular one — the only field
 that is never true of a second object, which is why the **duplicate** button
@@ -1170,7 +1257,9 @@ what a part is asked depends on what it is, so the fields for the new type are n
 on the page until the form is fetched again. Nothing is saved by doing it; the
 record still says what it always did until you press **Save**. If you have typed
 anything since opening the form, it asks first, because fetching the form again
-means asking the server and the server cannot know what is in your boxes.
+means asking the server and the server cannot know what is in your boxes. On a
+form that has come back refused it always asks, since everything in it is what
+you typed, and a new part keeps the machine or part it is being added to.
 
 **What was already recorded comes with it.** A value the new type also asks about
 is offered back through its own control — a monitor filed as *other* with
@@ -1225,6 +1314,12 @@ This section is about an item's own photographs: the ones in the Photographs
 panel, which answer *which one is this?* A photograph of something that happened
 to it — a recap, a repair, damage found on arrival — belongs on the history entry
 that says what happened, and is described in [section 14](#14-history).
+
+**In the panel**, the default photograph is the large one, with the others under it
+as small ones in the same 4:3 shape as a gallery card: two to a row beside the
+details, and more across where the panel has the width of the page to itself. They
+sit inside the panel's margin, so the photographs and the buttons under them start
+from the same edge.
 
 **Upload** by choosing the files — that is the whole gesture, the upload goes as
 soon as they are picked. Several at once is fine.
@@ -1316,7 +1411,7 @@ A file is uploaded from the **Files** panel of the machine, part or project it i
 for, and is linked to that one. Choosing the files is the whole gesture: they go the moment they
 are picked, so what sits above the picker is asked first.
 
-- **the other 4 Polpo PicoGUS** — there when you hold other units of the same
+- **The other 4 Polpo PicoGUS** — there when you hold other units of the same
   model. Tick it and the file is linked to all of them as well; the tooltip says
   which they are. A unit you have disposed of is not counted.
 - **Public** — tick it to publish the file as it arrives. Left alone, the file is
@@ -1334,21 +1429,21 @@ no difference, so `Trident TVGA8900` and `trident  tvga8900` are one model.
 
 Every file has a page of its own, which is where selecting it in any list takes
 you. It says what kind of file it is, how big, when it was added and what it is
-linked to, with a **download** button — and, for a PDF, a **view** button before
+linked to, with a **Download** button — and, for a PDF, a **View** button before
 it, which opens the PDF in your browser to read rather than saving it. Everything you can do to a file is done
 there, and nowhere else:
 
-- **Note** — change it, and **save**.
+- **Note** — change it, and **Save**.
 - **Public** — the tick that publishes the file. It takes effect the moment you
   click it.
-- **Linked to** — every item the file is linked to, each with **unlink**. The box
-  under them links it to one more, by asset tag; it offers what is in the
-  register as you type. Machines, parts and projects can have files; an asset tag
-  that is not in the register is refused with a line saying so.
-- **delete** — removes the file, and with it every link.
+- **Linked to** — every item the file is linked to, each with **Unlink**. The box
+  under them, with **Link**, links it to one more, by asset tag; it offers what is
+  in the register as you type. Machines, parts and projects can have files; an
+  asset tag that is not in the register is refused with a line saying so.
+- **Delete** — removes the file, and with it every link.
 
-Unlinking never deletes anything. A file linked to nothing is **unlinked**, and is
-found under that name on the `/files` page.
+Unlinking never deletes anything. A file linked to nothing is unlinked, and is
+found under **Unlinked** on the `/files` page.
 
 A visitor is shown the same page for a published file, without the controls: what
 the file is, what it is for, and the download.
@@ -1356,7 +1451,7 @@ the file is, what it is for, and the download.
 ### When another of the same model arrives
 
 When other units of the same model have files that this one has not, this one's
-Files panel lists them, each with **link**. Only you see the list. It is how the
+Files panel lists them, each with **Link**. Only you see the list. It is how the
 card bought next year gets its siblings' driver: nothing reaches a unit until you
 link it, so a driver never lands on a card nobody has looked at.
 
@@ -1367,11 +1462,12 @@ and when it was added. Selecting a row opens the file's page; the button at the
 end of the row downloads the file, or, for a PDF, opens it in your browser. Five links to units of one model are shown as one —
 **5 × Polpo PicoGUS** — and the file's page lists all five.
 
-The row above the list narrows it. **documents**, **disk images** and the other
-kinds are offered as the files on the list call for them. **unlinked** and
-**private** are yours alone, and are the two lists that want attention: the files
-linked to nothing, and the files visitors cannot see. The search box finds a file
-by its name, its note, or the asset tag or name of anything it is linked to.
+The row above the list narrows it, and **All** puts it back. **Documents**, **Disk
+images** and the other kinds are offered as the files on the list call for them.
+**Unlinked** and **Private** are yours alone, and are the two lists that want
+attention: the files linked to nothing, and the files visitors cannot see. The
+search box finds a file by its name, its note, or the asset tag or name of
+anything it is linked to.
 
 ### What kind of file it is
 
@@ -1510,16 +1606,16 @@ started, because the part turned up and it took an evening.
 ### Its page
 
 A project's page reads like an item's. At the top is a link back to all the
-projects and, when logged in, **Edit**, **Delete…** and — while there is still
-something left to finish — **Mark done** beside it; then the name, its status and
-its tag. Below that, a panel each: **Details** (the status, the three dates and
+projects; then the name, its status and its tag, and, when logged in, **Mark
+done** — while there is still something left to finish — **Edit** and
+**Delete…** on the name's line, under it on a phone. Below that, a panel each: **Details** (the status, the three dates and
 the notes), **Items**, **Tasks**, **On order**, **Files** and **History**, and last,
 when logged in, the **Label** panel with its two print buttons.
 
 ### Marking one done
 
-A project still in hand carries a **Mark done** button at the top of its page,
-beside the edit and label buttons, for whoever is signed in. One click finishes
+A project still in hand carries a **Mark done** button on its name's line,
+beside **Edit**, for whoever is signed in. One click finishes
 it: the status becomes **done** and a dated line saying so is written into its
 history. There is no form in the way and nothing to confirm — it is one fact,
 and a status set by mistake is put right on the edit form.
@@ -2078,8 +2174,10 @@ the caption — writing one would be writing the sentence twice.
 
 **An entry already written takes one too**, from the small camera button at the
 right of its line — the swap the register logged last week, photographed when the
-lid next came off. That upload goes the moment the photograph is picked, the way
-the gallery's do. Nothing is written into the history about it, because an entry
+lid next came off. An entry's camera and delete buttons stand together at the right
+of its line, in the same column on every entry, and beside the middle of an entry
+that runs to more than one line. That upload goes the moment the photograph is
+picked, the way the gallery's do. Nothing is written into the history about it, because an entry
 gaining or losing a photograph is an edit to the record rather than something that
 happened to the machine.
 
@@ -2266,7 +2364,13 @@ drives), the note under the heading says whose they are.
 `/traffic`, behind the login, is a GoAccess report built from the proxy's access
 logs and rebuilt every five minutes. It covers the last six weeks or so: the
 proxy keeps fifteen rolled-over logs behind the live one, and the report is built
-from all of them.
+from all of them. Until the first report has been built, the page says so.
+
+The report is GoAccess's own page, built from what visitors' browsers sent, so it
+is shown apart from the register: its scripts run in a sandbox of their own, reach
+nothing else of the site's, and cannot act as you. The sandbox gives it nowhere to
+keep anything and no way to hand you a file, so a theme or a layout picked in its
+options lasts until you leave the page, and **Export as JSON** does nothing.
 
 ---
 
@@ -2385,7 +2489,8 @@ included. It is where you:
 - see **where you are signed in** — each browser, when it signed in and when it
   was last seen — and **sign out everywhere else**, for the phone you lost or the
   machine at the club you forgot;
-- make and revoke **your API tokens** ([below](#api-tokens)).
+- make and revoke **your API tokens** ([below](#api-tokens)), and open the
+  **API docs**: the interactive console at `/docs` that a token is for.
 
 ### From the command line
 
@@ -2507,13 +2612,21 @@ somebody *prefers* them, which is why they live on a page of their own rather
 than in a corner of an item's form.
 
 Everything on it is kept in the database, so it survives a restart and
-everybody who opens the site gets it. It comes in two groups:
+everybody who opens the site gets it. It is a row of tabs, each a page of its
+own: **Appearance** at `/settings`, **Labels** at `/settings/labels`, **Server**
+at `/settings/server`, then **Accounts** and **Your account**. Each page's **Save**
+saves what is on that page and nothing else, so a switch on another tab is never
+touched by saving this one.
 
 **Appearance** — the site's name, the look it is dressed in, the faces it is set
 in, where its sections sit, how its buttons are written, whether photographs are
 watermarked, and which theme it opens in.
 
-**Server options** — what this installation shows the outside world and what
+**Labels** — where a small label goes when it is printed, and the size a Bluetooth
+printer is loaded with; and, for this browser alone, where it sends a small label
+whatever the site says.
+
+**Server** — what this installation shows the outside world and what
 it remembers for itself: whether visitors must log in to read anything, whether it
 asks to be kept out of search engines,
 whether a visitor is shown where things are kept, whether a new file starts out
@@ -2522,10 +2635,12 @@ public, and whether a place nothing is kept in any more is still offered.
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
 
-At the top of the page are the two pages beside it: **Accounts**, the people who
-may sign in ([adding people](#adding-people)), and **Your account**, your own
-password, sessions and tokens ([your account](#your-account)). Your account is the
-one page under Settings a viewer may open.
+The last two tabs are **Accounts**, the people who may sign in ([adding
+people](#adding-people)), and **Your account**, your own password, sessions and
+tokens ([your account](#your-account)). The tab you are on is in bold with a line
+under it, and on a phone the row wraps onto a second line rather than hiding a tab
+off the edge. Your account is the one page under Settings a viewer may open, and a
+viewer sees it without the row of tabs, which would have only the one.
 
 The page itself is deliberately bare: a control says what it is in as few words
 as will do, and the reason for it is in a tooltip you get by resting the pointer
@@ -2535,9 +2650,15 @@ what a manual is for.
 
 ### What the site is called
 
-The name goes in the banner beside the logo, in the browser's tab, at the foot
-of every page, and in the preview a shared link unfolds into. Change it and all
-of them change together.
+The name goes in the banner beside the logo — or at the top of the side rail,
+where the rail is showing — in the browser's tab, and in the preview a shared link
+unfolds into. Change it and all of them change together.
+
+A rail collapsed to its icons has room for the logo and not the name, so it keeps
+the name in the logo's tooltip.
+
+In the banner and on the rail, open or collapsed, the logo and the name are one
+link to the front page, which a screen reader reads out as the name, once.
 
 It names *this collection*, not the software: the register is still the Retro
 Hardware Database wherever it is installed, and the API's own documentation at
@@ -2757,15 +2878,25 @@ reading, and choosing a type sends no request to a third party.
 **Navigation** is *Side* or *Top*, and decides where the five sections live on a
 wide screen. *Side* is what a new installation gets.
 
-At 1100px and wider, *Side* puts a rail down the left of the page, in what is
-otherwise empty margin — the column of the page itself is not narrowed by it. The
+At 1100px and wider, *Side* puts a rail 216px across down the left of the window,
+and the page is laid out in the rest. Where the window is wide enough the rail
+spends only margin: a page you read has its whole 1000px beside it from a 1216px
+window, and a list or a form its whole 1440px from 1656px. In a narrower window the
+page gives the rail the room it needs rather than sliding under it. The
 rail carries the name and mark, then the five sections, each with the number of
 things in it beside its name. For somebody signed in it also carries **Computer**
 and **Part** as one press each, and **Recent**: the last three things you edited,
 tag first, which is the rail's best argument at a bench where you go back to the
 same two machines all afternoon. At its foot are the theme button, which everybody
-gets, then **Settings**, **Account** and **Log out** — or **Log in** for a
-visitor — and **Collapse**.
+gets, then **Might sell** and **Traffic** where your account reaches them,
+**Settings** for an administrator or **Account** for anybody else signed in, and
+**Log out** — or **Log in** for a visitor — and **Collapse**. On a window too short
+for all of it, the rail scrolls on its own, apart from the page beside it, rather
+than leaving its foot below the bottom of the window.
+
+The rail wears the look like the rest of the page. Whichever preset is chosen, in
+light and in dark, it stands on one of that look's own colours, with a rule between
+it and the page.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.
@@ -2776,15 +2907,18 @@ the **+ New** menu and the ⋯ menu are in the rail, and nothing is in both.
 for a screen reader and in a tooltip. The choice is the browser's rather than the
 installation's — the wide screen in the workshop can keep the rail open while the
 laptop folds it away — and is kept on the device that made it, as the theme is. It
-is a plain link and works with the scripting turned off.
+is a plain link and works with the scripting turned off. A page that had given up
+room to the rail gets it back (at 1440px, a sixth card across on Browse); a page
+already at its whole width keeps it, and moves to the middle of the wider space.
 
 Below 1100px there is no rail whichever way this is set: the banner carries the
 sections as it always has, and a phone gets the tab bar. There is no phone form of
 a rail, so *Side* and *Top* are the same thing on a phone.
 
 A visitor sees the rail without the things that are not theirs: no **+ Computer**
-or **+ Part**, no **Recent**, no **Settings**, no **Account** and no **Log out**. The counts they
-do see, because the size of a collection is part of what a catalogue is for.
+or **+ Part**, no **Recent**, no **Might sell**, no **Traffic**, no **Settings**, no
+**Account** and no **Log out**. The counts they do see, because the size of a
+collection is part of what a catalogue is for.
 
 ### Button text
 
@@ -2834,8 +2968,9 @@ detail that belongs in a manual rather than on a form.
 
 ## 19. The REST API
 
-Interactive documentation and a console are at `/docs` (login required). The
-schema is at `/openapi.json`.
+Interactive documentation and a console are at `/docs`, linked from
+**⋯ → Account** beside your tokens (login required). The schema is at
+`/openapi.json`.
 
 | Method | Path | |
 |---|---|---|
@@ -2855,6 +2990,13 @@ schema is at `/openapi.json`.
 `GET /api/parts?computer_id=RH-4K7Q` and `?type=sound` filter the list.
 
 `PATCH` changes only the fields you send.
+
+A year is a year in full, `1000` to `9999`, or `null` for not recorded, as on the
+forms ([when a save is refused](#when-a-save-is-refused)), and a TopBench score is
+a whole number. Anything else is refused with `422`, and nothing is written. A
+record saved with a short year before the register asked for four digits still
+reads back as it was: leave `year` out of a `PATCH` to leave it alone, or send the
+year in full to correct it.
 
 A catalogue identity is the one nested shape, because it is not a string. Its
 `machine` object takes `model_key`, `issue`, `style`, `region` and `chips` (a
@@ -2926,7 +3068,8 @@ for it — an administrator's, if it is to write — put it there, and restart t
 `mcp` service. Until it has one it falls back to `RHDB_AUTH_USER` and
 `RHDB_AUTH_PASSWORD` over HTTP Basic, which keeps an upgraded installation working
 on its first start. `create_*` assigns the next asset tag;
-`update_*` changes only the fields you pass.
+`update_*` changes only the fields you pass. A year is a year in full, as the API
+asks.
 
 ---
 

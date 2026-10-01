@@ -162,7 +162,7 @@
    {
     "name": "space-7",
     "value": "40px",
-    "usage": "Above the footer; around an empty state."
+    "usage": "Around an empty state; above and below the login box, a confirmation and the error page."
    }
   ]
  },
@@ -215,7 +215,17 @@
    {
     "name": "content-max",
     "value": "1000px",
-    "usage": "The centred column, on every page and in both navigation layouts; with the side rail it sits in the space to the rail's right."
+    "usage": "The reading page: an item, a project, a file, the Projects and Files lists, Settings and the small pages inside it. Centred in the space beside the rail."
+   },
+   {
+    "name": "wide-max",
+    "value": "1440px",
+    "usage": "The wide page: Browse, a model's page, Numbers, Models and the edit forms. The banner and the footer stand on its edges on every page."
+   },
+   {
+    "name": "measure",
+    "value": "34em",
+    "usage": "The longest line of running text, and the widest a box on a page grows. In em so it follows the text's size; not ch, which is a nought and runs about 91 characters in IBM Plex Sans."
    },
    {
     "name": "tap",

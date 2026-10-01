@@ -85,13 +85,17 @@ class TestTheList:
 
 
 class TestThePageHead:
-    def test_the_way_back_and_the_owners_edit_and_delete_come_first(self, client):
+    def test_the_way_back_first_then_the_owner_s_actions_on_the_name_s_line(self, client):
+        """As an item's page has it (MANUAL §12): the way back in the top row, and
+        Mark done, Edit and Delete at the end of the name's line, out of the navigation
+        landmark since two of them post."""
         pid = make(client)
         page = client.get(f"/projects/{pid}").text
         nav = page[page.index('<nav class="itemnav"') :].split("</nav>")[0]
-        assert 'href="/projects"' in nav
-        assert f'href="/projects/{pid}/edit"' in nav
-        delete = re.search(rf'<form[^>]*action="/projects/{pid}/delete"[^>]*>', nav)
+        assert 'href="/projects"' in nav and "/edit" not in nav and "<form" not in nav
+        line = page[page.index('<div class="titleline">') :].split('<div class="row baseline">')[0]
+        assert f'href="/projects/{pid}/edit"' in line
+        delete = re.search(rf'<form[^>]*action="/projects/{pid}/delete"[^>]*>', line)
         assert delete and "data-confirm=" in delete.group(0)
 
     def test_a_visitor_gets_the_way_back_and_nothing_else(self, client, monkeypatch):
@@ -105,9 +109,10 @@ class TestThePageHead:
         pid = make(client, "Recap the PC1512", status="stalled")
         page = client.get(f"/projects/{pid}").text
         assert re.search(
-            r'<h1 class="title">Recap the PC1512</h1>\s*<span class="chip warn">[^<]+</span>\s*'
-            rf'<span class="tag muted">{pid}</span>',
+            r'<h1 class="title">Recap the PC1512</h1>.*?<div class="row baseline">\s*'
+            rf'<span class="chip warn">[^<]+</span>\s*<span class="tag muted">{pid}</span>',
             page,
+            re.S,
         )
         assert page.count("<h1") == 1
 

@@ -13,10 +13,15 @@ from pathlib import Path
 
 import pytest
 
+from app import machines, settings
 from conftest import log_out
 
 CSS = Path(__file__).parents[1] / "app" / "static" / "css"
 COMPONENTS = CSS / "components.css"
+TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
+
+# What a browser sends: the error page is drawn only for a reader that asked for HTML.
+HTML = {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
 
 SECTIONS = [
     ("/", "Browse"),
@@ -89,12 +94,20 @@ def marked(html: str, **where: str) -> list[str | None]:
     return [attrs.get("href") for _, attrs in links if attrs.get("aria-current") == "page"]
 
 
+def rules(selector: str, css: str) -> list[str]:
+    """The body of every rule whose selector list names `selector` exactly."""
+    return [
+        body
+        for head, body in re.findall(r"([^{}@]+)\{([^{}]*)\}", css)
+        if selector in [s.strip() for s in head.split(",")]
+    ]
+
+
 def rule(selector: str, css: str) -> str:
     """The body of the first rule whose selector list names `selector` exactly."""
-    for head, body in re.findall(r"([^{}@]+)\{([^{}]*)\}", css):
-        if selector in [s.strip() for s in head.split(",")]:
-            return body
-    raise AssertionError(f"no rule for {selector}")
+    found = rules(selector, css)
+    assert found, f"no rule for {selector}"
+    return found[0]
 
 
 def media(query: str, css: str) -> str:
@@ -165,6 +178,16 @@ class TestTheMenu:
         assert folded == [name for _, name in SECTIONS]
         assert menu.links[0][1].get("class") == "fold", "the sections are not at the top"
 
+    def test_a_visitor_is_not_offered_the_api_docs(self, client, part):
+        """`/docs` is behind the login, and what it answers a visitor is the
+        browser's own password box rather than the site's login page. Its link is on
+        Your account, which a visitor cannot open, so no page offers it to one --
+        the phone's More sheet included."""
+        aid = part()["asset_id"]
+        log_out(client)
+        for path in ("/", f"/parts/{aid}"):
+            assert 'href="/docs' not in client.get(path).text, path
+
     def test_the_phone_sheet_offers_everything_the_menu_does(self, client, owner):
         """One list, two renderings: a row added to one and not the other is a
         thing a phone or a desktop cannot reach."""
@@ -174,18 +197,55 @@ class TestTheMenu:
         assert menu - {"/"} <= sheet
 
 
+class TestTheFootOfThePage:
+    def test_no_page_carries_a_footer(self, client, part):
+        """The name is in the banner or the rail, and the API docs are beside the
+        tokens they are for, so there is nothing left for a footer to hold."""
+        aid = part()["asset_id"]
+        for path in ("/", f"/parts/{aid}"):
+            assert "<footer" not in client.get(path).text, path
+        log_out(client)
+        assert "<footer" not in client.get("/login").text
+        assert not rules(".site-footer", stylesheet())
+
+
+class TestTheBrowsersTab:
+    def test_every_page_is_titled_with_the_installations_name(self, client, db):
+        """The tab is one of the places the Name setting reaches, so every page ends
+        its title with this collection's name -- a model's page and the page for an
+        address that leads nowhere included, which ended theirs with the software's."""
+        settings.save(db, {"site_name": "The Retro Loft"})
+        settings.forget()
+        for path in (f"/machines/{machines.models()[0]['key']}", "/no-such-address"):
+            found = re.search(r"<title>(.*?)</title>", client.get(path, headers=HTML).text, re.S)
+            assert found, path
+            assert found.group(1).endswith(" — The Retro Loft"), (path, found.group(1))
+        for template in sorted(TEMPLATES.glob("*.html")):
+            text = template.read_text(encoding="utf-8")
+            for title in re.findall(r"{% block title %}(.*?){% endblock %}", text, re.S):
+                assert "Retro Hardware Database" not in title, template.name
+
+
 class TestWhereYouAre:
     @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))
     def test_one_place_is_current_at_a_time(self, client, where):
         """Your account's address begins with Settings', so both entries could
-        claim it; two marked is a screen reader told it is on two pages at once."""
-        assert marked(client.get("/settings/account").text, **where) == ["/settings/account"]
+        claim it; two marked is a screen reader told it is on two pages at once.
+        An administrator reaches Your account as a tab of Settings and is not
+        offered Account as well, so it is Settings that is marked (MANUAL §18)."""
+        assert marked(client.get("/settings/account").text, **where) == ["/settings"]
 
     @pytest.mark.parametrize("path", ["/settings", "/settings/users"])
     @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))
     def test_the_other_settings_pages_still_mark_settings(self, client, where, path):
         """Account takes the mark on its own page and nowhere else."""
         assert marked(client.get(path).text, **where) == ["/settings"]
+
+    @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))
+    def test_the_shortlist_marks_might_sell(self, client, where):
+        """It is drawn in the site's chrome like any other page, so it says where you
+        are like any other. Traffic cannot: its page is GoAccess's, with no chrome."""
+        assert marked(client.get("/for-sale").text, **where) == ["/for-sale"]
 
 
 class TestHowItFoldsWithTheWidth:
@@ -197,6 +257,21 @@ class TestHowItFoldsWithTheWidth:
         css = stylesheet()
         assert "display: none" in rule(".menupop .fold", css)
         assert "display: block" in rule(".menupop .fold", media("(max-width: 900px)", css))
+
+    def test_on_a_phone_the_banner_keeps_the_name(self):
+        """With no footer, the banner is the only place on a phone's page that says
+        whose collection a scanned label has opened. On one line and clipped, so a
+        long name costs its own end rather than a second row of banner."""
+        phone = media("(max-width: 620px)", stylesheet())
+        name = rules(".site-header .brand span", phone)
+        assert name, "the phone block says nothing of the name"
+        assert not any("display: none" in body for body in name), "the phone hides the name"
+        said = " ".join(name)
+        for clipped in ("white-space: nowrap", "overflow: hidden", "text-overflow: ellipsis"):
+            assert clipped in said, clipped
+        # A flex item will not shrink below its content unless it is told it may, so
+        # without this the name is never clipped: it pushes the search box instead.
+        assert "min-width: 0" in rule(".site-header .brand", phone)
 
     def test_on_a_phone_the_bar_takes_over_and_scan_goes_with_it(self):
         phone = media("(max-width: 620px)", stylesheet())
@@ -210,3 +285,40 @@ class TestHowItFoldsWithTheWidth:
     def test_the_bar_sits_above_the_home_indicator(self):
         phone = media("(max-width: 620px)", stylesheet())
         assert "safe-area-inset-bottom" in rule(".tabbar", phone)
+
+
+def declared(selector: str) -> dict[str, str]:
+    """What components.css states for `selector` outside any @media block, all of
+    that selector's rules together."""
+    text = re.sub(r"/\*.*?\*/", "", COMPONENTS.read_text(encoding="utf-8"), flags=re.S)
+    bodies = re.findall(rf"^  {re.escape(selector)} \{{([^}}]*)\}}", text, re.M)
+    assert bodies, f"components.css has no rule for {selector}"
+    return dict(re.findall(r"([\w-]+)\s*:\s*([^;]+?)\s*;", " ".join(bodies)))
+
+
+class TestTheBannerStaysOneRow:
+    """The banner wrapped: its items kept their own widths, 1041px of them with the
+    sections showing, so below that the menu dropped to a second row at the left and
+    opened off the window's edge. The design keeps it one row, and so does the
+    manual."""
+
+    def test_the_banner_never_wraps(self):
+        assert declared(".site-header")["flex-wrap"] == "nowrap"
+
+    def test_the_search_box_gives_way_first_down_to_a_floor(self):
+        wrap = declared(".site-header .searchwrap")
+        assert wrap["flex"] == "0 1 230px"
+        assert int(wrap["min-width"].removesuffix("px")) >= 160
+        assert declared(".site-header .search")["width"] == "100%"
+
+    def test_then_a_long_name_is_cut_short_and_the_logo_stays(self):
+        brand = declared(".site-header .brand")
+        assert brand["min-width"] == "0"
+        assert float(brand["flex-shrink"]) < 0.01, "the name would give way with the box"
+        name = declared(".site-header .brand span")
+        assert (name["overflow"], name["text-overflow"], name["white-space"]) == (
+            "hidden",
+            "ellipsis",
+            "nowrap",
+        )
+        assert declared(".site-header .brand img")["flex"] == "none"

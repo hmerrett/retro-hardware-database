@@ -90,7 +90,7 @@
     of the two a screen gets, and below that width the rail is not drawn at all.
     The shell is what the rail and the page stand in as two columns, so it wraps
     the banner as well: in side mode the banner is beside the rail, not above it.
-    The overlays after the footer -- the tab bar, the sheet, the big view -- stay
+    The overlays after the page -- the tab bar, the sheet, the big view -- stay
     outside it, since they are fixed to the window rather than to a column. #}
 {% set _nav = site_nav() %}
 {% if _nav == 'side' %}{% set _shut = rail_collapsed(request) %}
@@ -100,15 +100,13 @@
 {% endif %}
 {{ U.site_header(_p, request.state.authed, _back, q | default('', true)) }}
 {#- Every page is drawn in the design's page column, .page, which is where its width
-    and its gutters come from. A page on the v0.2 components adds v2 through
-    main_class, which the 0.1 rules in app.css that share its class names stand back
-    from. That half is transitional: it goes with app.css. #}
-<main id="main" tabindex="-1" class="page{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
-
-<footer class="site-footer">
-  <span>{{ site_name() }}</span>
-  <a href="/docs">API docs</a>
-</footer>
+    and its gutters come from. Its width is the page's own decision, stated in the
+    width block: ` wide` for the lists and forms, nothing for a page you read, and
+    test_page_width.py lists every page as one or the other so a new one is decided
+    rather than defaulted. A page on the v0.2 components adds v2 through main_class,
+    which the 0.1 rules in app.css that share its class names stand back from. That
+    half is transitional: it goes with app.css, and the width outlives it. #}
+<main id="main" tabindex="-1" class="page{% block width %}{% endblock %}{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
 {% if _nav == 'side' %}</div></div>{% endif %}
 
 {{ U.tabbar(_p) }}
@@ -155,8 +153,9 @@
 {% if not request.state.noticed %}
 <div class="banner toast" id="cookienote" data-cookie="{{ notice_cookie }}">
   <p><b>Cookies.</b> Nothing is stored until you choose something — a sort
-    order, the dark theme. First party only: no analytics, no advertising, nothing
-    shared with anyone. Signing in adds a session cookie.</p>
+    order, tiles or a table, the side rail folded, the dark theme. First party only:
+    no analytics, no advertising, nothing shared with anyone. Signing in adds a
+    session cookie.</p>
   <button class="btn sm" id="cookieok" type="button">{{ 'Got it' | ui }}</button>
 </div>
 {% endif %}
@@ -181,12 +180,12 @@
     <form method="post" class="lb-act" data-act="photo-rotate">
       <input type="hidden" name="image"><input type="hidden" name="next">
       <input type="hidden" name="dir" value="ccw">
-      <button class="btn sm" type="submit" title="Rotate anticlockwise">⟲</button>
+      <button class="btn sm" type="submit" title="Rotate anticlockwise" aria-label="Rotate anticlockwise">⟲</button>
     </form>
     <form method="post" class="lb-act" data-act="photo-rotate">
       <input type="hidden" name="image"><input type="hidden" name="next">
       <input type="hidden" name="dir" value="cw">
-      <button class="btn sm" type="submit" title="Rotate clockwise">⟳</button>
+      <button class="btn sm" type="submit" title="Rotate clockwise" aria-label="Rotate clockwise">⟳</button>
     </form>
     {# One press, and the levels-and-colour fix a phone does. Beside the rotates
        because it belongs with the corrections rather than with cropping, and it

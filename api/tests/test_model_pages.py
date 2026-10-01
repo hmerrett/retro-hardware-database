@@ -1,8 +1,9 @@
 """The catalogue list and a model's own page, as MANUAL.md section 3 promises them
 ("The list of what it knows", "A model's own page"): every name on /machines leads
-to /machines/<key>, which says what the catalogue records about the model, its chip
-sockets and the units filed as it -- in public. It has no files of its own: a file is
-linked to items one by one (ADR-0028), so it is on each unit's page instead.
+to /machines/<key>, as does the model a unit's Machine panel names (section 4). The
+page says what the catalogue records about the model, its chip sockets and the
+units filed as it -- in public. It has no files of its own: a file is linked to
+items one by one (ADR-0028), so it is on each unit's page instead.
 
 Auth is off in these tests, so the client is the owner; `visitor` turns it on.
 """
@@ -11,6 +12,7 @@ import re
 
 
 from app import machines
+from app.models import AssetVariant
 from conftest import content, log_out
 from test_files import upload
 
@@ -49,6 +51,30 @@ class TestTheList:
         page = client.get("/machines").text
         for m in machines.models():
             assert f'href="/machines/{m["key"]}"' in page, m["key"]
+
+    def test_a_units_page_leads_to_its_models_page(self, client, computer, part):
+        """The other way to reach one: a machine and a bare board filed as the model
+        both name it in their Machine panel, and the name is a link."""
+        c = computer()["asset_id"]
+        p = part(type="motherboard")["asset_id"]
+        client.patch(f"/api/computers/{c}", json={"machine": {"model_key": "vic-20"}})
+        client.patch(f"/api/parts/{p}", json={"machine": {"model_key": "vic-20"}})
+        for url in (f"/computers/{c}", f"/parts/{p}"):
+            machine = panel(client.get(url).text, "Machine")
+            assert '<a href="/machines/vic-20">VIC-20</a>' in machine, url
+
+    def test_a_model_the_catalogue_has_dropped_is_named_and_not_linked(self, client, db, computer):
+        """What was recorded still shows, under the key it was filed as, but a
+        link would lead to a page that is not found."""
+        c = computer()["asset_id"]
+        client.patch(f"/api/computers/{c}", json={"machine": {"model_key": "vic-20"}})
+        db.query(AssetVariant).filter(AssetVariant.asset_id == c).update(
+            {"model_key": "zx-spectrum-1024k"}
+        )
+        db.commit()
+        machine = panel(client.get(f"/computers/{c}").text, "Machine")
+        assert "zx-spectrum-1024k" in machine
+        assert "/machines/" not in machine
 
     def test_a_model_held_is_set_heavier_with_its_count(self, client, computer):
         aid = computer()["asset_id"]

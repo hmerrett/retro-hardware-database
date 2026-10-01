@@ -98,8 +98,9 @@ async def content_security_policy(request: Request, call_next: RequestResponseEn
     apart, and the stricter of the pair wins in ways nobody predicted.
 
     `setdefault`, not assignment, so a route that needs its own policy can say so
-    and keep it. One does: a PDF shown in the browser carries a policy for a PDF
-    rather than for a page (ADR-0030), and the tests say which.
+    and keep it. Two do: a PDF shown in the browser carries a policy for a PDF
+    rather than for a page (ADR-0030), and GoAccess's traffic report one that runs
+    its scripts in a sandbox (ADR-0033). The tests say which, and that no page does.
     """
     response = await call_next(request)
     response.headers.setdefault("Content-Security-Policy", CONTENT_SECURITY_POLICY)

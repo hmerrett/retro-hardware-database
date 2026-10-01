@@ -52,8 +52,10 @@ def close_the_site(client, closed=True):
     data = {"site_name": "", "theme": "system", "watermark": "1", "remember_locations": "1"}
     if closed:
         data["login_to_read"] = "1"
-    r = client.post("/settings", data=data, follow_redirects=False)
-    assert r.status_code == 303, r.text
+    # Settings is three tabs, each saving its own part (MANUAL §18).
+    for tab in ("/settings", "/settings/labels", "/settings/server"):
+        r = client.post(tab, data=data, follow_redirects=False)
+        assert r.status_code == 303, r.text
 
 
 def login(client, username, password=PASSWORD):
@@ -114,6 +116,17 @@ class TestWhatAViewerSees:
         assert "£12.34" in client.get(f"/projects/{aid}").text
         log_out(client)
         assert "£12.34" not in client.get(f"/projects/{aid}").text
+
+    def test_a_viewer_may_read_the_api_docs_and_a_visitor_may_not(self, client):
+        """Moving the link changed nobody's access to `/docs`: an account of either
+        role opens it, and a visitor is asked for a password by the browser."""
+        assert client.get("/docs").status_code == 200, "the administrator"
+        as_viewer(client)
+        assert client.get("/docs").status_code == 200
+        log_out(client)
+        r = client.get("/docs", follow_redirects=False)
+        assert r.status_code == 401
+        assert r.headers["www-authenticate"].startswith("Basic")
 
     def test_the_for_sale_shortlist(self, client, part):
         aid = part(model="Spare SIMM")["asset_id"]
@@ -343,7 +356,7 @@ class TestAClosedSite:
     """Visitors must log in."""
 
     @pytest.mark.parametrize(
-        "path", ["/", "/projects", "/files", "/machines", "/api/machines", "/stats"]
+        "path", ["/", "/projects", "/files", "/machines", "/api/machines", "/stats", "/suggest"]
     )
     def test_a_visitor_is_shown_the_login_and_nothing_else(self, client, path):
         close_the_site(client)
@@ -394,7 +407,7 @@ class TestAClosedSite:
         assert client.get(f"/parts/{aid}").status_code == 200
 
     def test_it_is_on_the_settings_page(self, client):
-        assert "Visitors must log in" in client.get("/settings").text
+        assert "Visitors must log in" in client.get("/settings/server").text
 
 
 class TestAnAgentsKeyIsNotAWrongGuess:

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_ui.html" as U with context %}
 {% block title %}{{ title }} — {{ site_name() }}{% endblock %}
+{% block width %} wide{% endblock %}
 {% block main_class %} v2{% endblock %}
 {% block content %}
 {# `p` is the record on an edit and the rejected form's own values on a create --
