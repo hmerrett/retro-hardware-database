@@ -1257,7 +1257,9 @@ what a part is asked depends on what it is, so the fields for the new type are n
 on the page until the form is fetched again. Nothing is saved by doing it; the
 record still says what it always did until you press **Save**. If you have typed
 anything since opening the form, it asks first, because fetching the form again
-means asking the server and the server cannot know what is in your boxes.
+means asking the server and the server cannot know what is in your boxes. On a
+form that has come back refused it always asks, since everything in it is what
+you typed, and a new part keeps the machine or part it is being added to.
 
 **What was already recorded comes with it.** A value the new type also asks about
 is offered back through its own control — a monitor filed as *other* with

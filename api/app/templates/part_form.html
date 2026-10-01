@@ -442,7 +442,7 @@
   {% include "_actbar.html" %}
 </form>
 
-<script type="application/json" id="part-form-data">{{ {'rowKinds': row_kinds, 'routes': true if (computer_id and not p) else false, 'floppy': floppy_kind, 'optical': optical_kind, 'known': known} | tojson }}</script>
+<script type="application/json" id="part-form-data">{{ {'rowKinds': row_kinds, 'routes': true if (computer_id and action == '/parts/new') else false, 'refused': true if (errors | default([])) else false, 'floppy': floppy_kind, 'optical': optical_kind, 'known': known} | tojson }}</script>
 <script defer src="/static/part-form.js?v={{ js_ver['part-form.js'] }}"></script>
 {% if ptype in ('storage', 'display') %}{{ C.script(bezel_swatches, yellowing) }}{% endif %}
 {# No memory box on this form for the model's standard sizes to be offered on: what
