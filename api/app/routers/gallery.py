@@ -31,6 +31,7 @@ from ..search import (
     _projects_matching,
     _search,
     _suggest,
+    _suggest_models,
 )
 from ..web import _og, _ui, templates
 
@@ -370,7 +371,15 @@ def gui_suggest(
 ) -> dict[str, object]:
     # A phone asks for fewer, to keep the last row above its keyboard. Nobody gets
     # more: the whole answer is the results page's to give.
-    items, total = _suggest(db, q, min(limit, SUGGEST_LIMIT), authed=request.state.sees_private)
+    limit = min(limit, SUGGEST_LIMIT)
+    items, total = _suggest(db, q, limit, authed=request.state.sees_private)
+    # The catalogue's models, only in the room the collection leaves. Nothing owned
+    # is pushed off the list by a machine that is not here, and a machine you do not
+    # own is just where the collection has least to say, so the room is there when
+    # it is wanted. A list of their own rather than more items, so `total`, the last
+    # row and the project form's box -- which keeps only things a project can be
+    # about -- all go on meaning the collection.
+    models = _suggest_models(db, q, limit - len(items))
     # The list's last row, worded here rather than by the script: it is a control,
     # so it follows the Button text setting, which only the server can read. One
     # result is not "all" of anything.
@@ -379,9 +388,20 @@ def gui_suggest(
     return {
         "q": q,
         "items": items,
+        "models": models,
         "total": total,
         # Where Enter goes with nothing lit: the banner's form, a GET to / with q.
-        "all": {"url": "/?" + urlencode({"q": said}), "text": _ui(words)},
+        # None when the collection matched nothing, since the row would read "All 0
+        # results" and open a page with nothing on it -- the row and the page have
+        # to agree, and a model is not among what Enter shows.
+        "all": {"url": "/?" + urlencode({"q": said}), "text": _ui(words)} if total else None,
+        # What the list says in place of the collection's rows when it has none to
+        # offer: that nothing in it matches, under the models when the catalogue did.
+        "none": (
+            f'Nothing in the collection matches "{said}".'
+            if models
+            else f'Nothing matches "{said}".'
+        ),
     }
 
 

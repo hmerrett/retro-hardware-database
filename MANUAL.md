@@ -445,8 +445,19 @@ Enter walk the rows, that one included, and Enter with no row lit goes to the sa
 place it does. It runs exactly the same search Enter does, so the list is a
 preview of the real answer rather than a second, narrower search that disagrees
 with it. What it adds is an order: what you typed being an asset tag, or the start
-of a name, comes before a hit buried in a spec or a history note. When nothing
-matches, the list says so.
+of a name, comes before a hit buried in a spec or a history note. When neither the
+collection nor the catalogue matches, the list says so.
+
+**Models from the catalogue** come after them, where the list has room. Type a
+machine's name or its family's, or one of the styles the catalogue lists for it —
+*Amiga CD32* finds the Commodore CD32, and *AT&T 6300* the Olivetti M24 — and the
+model is offered whether or not you own one, and opens
+[its own page](#a-models-own-page). Here too, a name that starts with what you
+typed comes first. Its row says **Model**, the year it came out and how many
+of it are here, or *none in this collection*. A model is not something in the
+collection, so it has no asset tag and is not counted in **All N results**, which
+counts what Enter shows. If the catalogue has an answer and the collection has
+none, the list offers the models and says that nothing in the collection matches.
 
 On a phone the list offers the first four rather than ten, so the last row is
 still in sight above the keyboard. It spans the width of the screen under the
@@ -483,8 +494,9 @@ across the top.
 Down the main column:
 
 - **Details** — the record's own fields.
-- **Machine** — for a machine filed against the catalogue: its model, its board
-  issue, style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
+- **Machine** — for a machine or a board filed against the catalogue: its model,
+  which leads to [the model's own page](#a-models-own-page), then its board issue,
+  style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
 - **Specification** — on a part's page: its spec pairs, a label and a value each.
 - **Fitted in** — on a part's page: the machine it is installed in, or the card
   it is mounted on, with **Take out** to make it a spare again. A spare says it is
