@@ -189,6 +189,12 @@ class TestWhereYouAre:
         """Account takes the mark on its own page and nowhere else."""
         assert marked(client.get(path).text, **where) == ["/settings"]
 
+    @pytest.mark.parametrize("where", list(LISTS.values()), ids=list(LISTS))
+    def test_the_shortlist_marks_might_sell(self, client, where):
+        """It is drawn in the site's chrome like any other page, so it says where you
+        are like any other. Traffic cannot: its page is GoAccess's, with no chrome."""
+        assert marked(client.get("/for-sale").text, **where) == ["/for-sale"]
+
 
 class TestHowItFoldsWithTheWidth:
     def test_on_a_tablet_the_sections_leave_the_banner(self):

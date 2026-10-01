@@ -7,17 +7,30 @@ each of them is asked the same question every listing page is asked: may this
 reader see the thing being counted?
 """
 
+import re
+
 import pytest
 
 from sqlalchemy.exc import OperationalError
 
 from app import rail, settings
-from conftest import log_out
+from conftest import as_viewer, log_out
+from test_stylesheet_lint import COMPONENTS, declarations
 
 
 def visitor(client):
     """Turn the site into what an anonymous reader sees."""
     log_out(client)
+
+
+# The three readers the chrome is drawn for, each turned into by doing this to the
+# client, which starts as the owner.
+READERS = {"owner": lambda client: None, "viewer": as_viewer, "visitor": visitor}
+
+
+def hrefs(markup):
+    """Every address a piece of markup links to."""
+    return set(re.findall(r'href="([^"]*)"', markup))
 
 
 def _broken():
@@ -116,6 +129,42 @@ class TestWhatTheRailHolds:
         assert "js-theme" in rail_markup
         assert 'href="/settings"' in rail_markup
 
+    def test_on_a_short_window_the_rail_scrolls_on_its_own(self):
+        """It is held to the window's height beside a page that scrolls, so whatever
+        does not fit stays under the bottom edge until the page's own end -- and the
+        owner's rail, open, is taller than a 1366 by 768 laptop leaves a page. Down
+        and not across: a scrollbar that takes room leaves the folded rail's icons a
+        few pixels wider than what is left, and a second bar under them."""
+        rail_rule = {
+            prop: value
+            for selector, prop, value in declarations(COMPONENTS)
+            if selector == ".shell.side > .rail"
+        }
+        assert rail_rule["height"] == "100vh"
+        assert rail_rule.get("overflow-y") == "auto"
+        assert rail_rule.get("overflow-x") == "hidden"
+
+    def test_the_rule_above_add_keeps_its_line_when_the_rail_scrolls(self):
+        """An empty box one pixel high is the one thing in a column too short for its
+        contents that the browser can take height from, and it takes all of it."""
+        sep = {
+            prop: value
+            for selector, prop, value in declarations(COMPONENTS)
+            if selector == ".rail .sep"
+        }
+        assert sep.get("flex") == "none"
+
+    @pytest.mark.parametrize("reader", list(READERS))
+    def test_the_rail_offers_every_page_the_menu_does(self, client, reader):
+        """With the rail showing, the banner's ⋯ menu is put away (components.css),
+        so a page the menu offers and the rail does not is a page that cannot be
+        reached from this one at all."""
+        READERS[reader](client)
+        page = client.get("/").text
+        rail_markup = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        menu = page.split('class="menu hdr-more"', 1)[1].split("</details>", 1)[0]
+        assert hrefs(menu) - hrefs(rail_markup) == set()
+
     def test_every_item_is_named_in_words_as_well_as_drawn(self, client):
         """Collapsed the words are hidden and the icon is all that is left, and an
         icon names nothing (accessibility-standards)."""
@@ -132,7 +181,18 @@ class TestWhatAVisitorSees:
         assert 'href="/computers/new"' not in rail_markup
         assert "Recent" not in rail_markup
         assert 'href="/settings"' not in rail_markup
+        assert 'href="/for-sale"' not in rail_markup
+        assert 'href="/traffic"' not in rail_markup
         assert 'href="/login' in rail_markup
+
+    def test_a_viewer_is_offered_might_sell_and_not_traffic(self, client):
+        """A viewer reads the shortlist and cannot change it; the site's traffic and
+        its settings are an administrator's (ADR-0032)."""
+        as_viewer(client)
+        rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        assert 'href="/for-sale"' in rail_markup
+        assert 'href="/traffic"' not in rail_markup
+        assert 'href="/settings"' not in rail_markup
 
     def test_a_visitor_still_sees_the_counts(self, client, computer, monkeypatch):
         """The size of a collection is part of what a catalogue is for."""

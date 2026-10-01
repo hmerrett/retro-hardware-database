@@ -209,7 +209,8 @@ and the rail ([Where the sections sit](#where-the-sections-sit)) — no more tha
 is ever marked as where you are: a screen reader announces it as the current page,
 and two would be two pages at once. For an administrator, every page under
 **Settings** marks **Settings**, **Your account** included; for anybody else signed
-in, **Your account** marks **Account**.
+in, **Your account** marks **Account**. On the [for-sale
+shortlist](#might-go-the-for-sale-shortlist) it is **Might sell**.
 
 ### The header on a phone
 
@@ -275,7 +276,9 @@ instead of a dozen.
 On a phone, tabbing to a control below the fold scrolls it into view above the
 bar across the bottom of the screen, never behind it — and the same while the
 cookie notice is still up. A control you cannot see is a control you cannot fill
-in.
+in. On a wide screen with the side rail, the rail's foot keeps clear of the
+notice the same way: while it is up, **Log out** and **Collapse** sit above it,
+and the rail scrolls to reach them if the window is short.
 
 Tables say which of their cells are headings, so a screen reader can announce a
 figure with the heading it sits under. In a table of rows — the files list, the
@@ -2855,8 +2858,11 @@ things in it beside its name. For somebody signed in it also carries **Computer*
 and **Part** as one press each, and **Recent**: the last three things you edited,
 tag first, which is the rail's best argument at a bench where you go back to the
 same two machines all afternoon. At its foot are the theme button, which everybody
-gets, then **Settings** for an administrator or **Account** for anybody else
-signed in, and **Log out** — or **Log in** for a visitor — and **Collapse**.
+gets, then **Might sell** and **Traffic** where your account reaches them,
+**Settings** for an administrator or **Account** for anybody else signed in, and
+**Log out** — or **Log in** for a visitor — and **Collapse**. On a window too short
+for all of it, the rail scrolls on its own, apart from the page beside it, rather
+than leaving its foot below the bottom of the window.
 
 The banner above the page keeps the search box and **Scan** in both layouts, so
 the two things wanted from every page are in the same place whichever is chosen.
@@ -2876,8 +2882,9 @@ sections as it always has, and a phone gets the tab bar. There is no phone form 
 a rail, so *Side* and *Top* are the same thing on a phone.
 
 A visitor sees the rail without the things that are not theirs: no **+ Computer**
-or **+ Part**, no **Recent**, no **Settings**, no **Account** and no **Log out**. The counts they
-do see, because the size of a collection is part of what a catalogue is for.
+or **+ Part**, no **Recent**, no **Might sell**, no **Traffic**, no **Settings**, no
+**Account** and no **Log out**. The counts they do see, because the size of a
+collection is part of what a catalogue is for.
 
 ### Button text
 

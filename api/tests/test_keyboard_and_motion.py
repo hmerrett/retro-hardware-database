@@ -162,6 +162,23 @@ def test_the_cookie_notice_does_not_swallow_it_either():
     )
 
 
+def test_nor_does_it_cover_the_foot_of_the_rail():
+    """With Navigation at Side the rail runs the height of the window and its foot
+    sits at the bottom, which is where the notice is fixed until it is answered:
+    Collapse was entirely under it at every height, and on a long page tabbing to it
+    left it hidden, because the rail is sticky and the page's scroll moves nothing.
+    Room at the rail's bottom lifts the foot clear, and the rail scrolls to reach it."""
+    css = resolved(COMPONENTS.read_text(encoding="utf-8"))
+    side = media_block_holding(css, ".shell.side > .rail {")
+    rule = re.search(r"html:has\(#cookienote\) \.shell\.side > \.rail \{[^}]*\}", side)
+    assert rule, "while the notice shows, nothing gives the rail's foot room above it"
+    notice = px(css, "--notice-clear")
+    assert px(rule.group(0), "padding-bottom") >= notice, "the foot still reaches under the notice"
+    assert px(rule.group(0), "scroll-padding-bottom") >= notice, (
+        "a row tabbed to in the rail can still stop behind the notice"
+    )
+
+
 def test_the_login_boxes_say_what_they_are_for(client, monkeypatch):
     """A password manager fills a form it can read: `autocomplete="username"` and
     `current-password` are what tell it which entry this is and which box the
