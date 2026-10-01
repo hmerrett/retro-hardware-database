@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{# /traffic before GoAccess has written its first report. The report itself is not
+   this template: it is GoAccess's page, handed out as it was written under a policy
+   of its own (ADR-0033). This one is the site's, under the site's. #}
+{% block title %}Traffic — {{ site_name() }}{% endblock %}
+{% block main_class %} v2{% endblock %}
+{% block content %}
+<div class="pagehead"><h1 class="heading">Traffic</h1></div>
+<p>No traffic report yet. It is built from the access logs every five minutes, so
+  check back shortly.</p>
+{% endblock %}

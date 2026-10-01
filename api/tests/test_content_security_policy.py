@@ -17,6 +17,7 @@ import re
 
 import pytest
 
+from app.routers import stats as stats_routes
 from conftest import log_out
 
 # Loaded without `src`, a <script> is code, and `script-src 'self'` blocks it --
@@ -115,6 +116,39 @@ EXPECTED = {
     "object-src": ("'none'",),
 }
 
+# What ADR-0033 records for GoAccess's traffic report, stated here rather than
+# imported for the same reason as the site's. It is the one policy that allows
+# script inline, and `eval` -- the report's scripts are written into it and compile
+# their templates with `new Function` -- so a change to it is a change to the ADR
+# first.
+REPORT_EXPECTED = {
+    "default-src": ("'none'",),
+    "script-src": ("'unsafe-inline'", "'unsafe-eval'"),
+    "style-src": ("'unsafe-inline'",),
+    "img-src": ("data:",),
+    "font-src": ("data:",),
+    "connect-src": ("'none'",),
+    "form-action": ("'none'",),
+    "frame-ancestors": ("'self'",),
+    "base-uri": ("'none'",),
+    "sandbox": ("allow-scripts",),
+}
+
+# What GoAccess writes, as far as a policy can tell: one file, its script and its
+# style inline in it.
+REPORT = (
+    "<!DOCTYPE html><html><head><style>body{margin:0}</style></head>"
+    "<body><script>document.title = 'traffic';</script></body></html>"
+)
+
+
+@pytest.fixture
+def a_report(tmp_path, monkeypatch):
+    """A report on disk where GoAccess writes one, which is all /traffic looks for."""
+    (tmp_path / "index.html").write_text(REPORT, encoding="utf-8")
+    monkeypatch.setattr(stats_routes, "STATS_DIR", tmp_path)
+    return REPORT
+
 
 def directives(header: str) -> dict:
     """The header as {name: (source, ...)}, so an assertion names one directive."""
@@ -186,6 +220,45 @@ def test_a_pdf_shown_in_the_browser_carries_a_policy_of_its_own(client):
     assert "script-src" not in sent and "style-src" not in sent
     for directive in ("form-action", "frame-ancestors", "base-uri"):
         assert directive in sent, f"{directive} does not fall back to default-src"
+
+
+def test_the_traffic_report_carries_a_policy_of_its_own(client, a_report):
+    """The second response that says its own (ADR-0033). GoAccess's report is
+    inline script and style from end to end, all of which the site's policy
+    refuses, so it is handed out as GoAccess wrote it under the policy recorded for
+    it -- and the site's is not sent in its place."""
+    r = client.get("/traffic")
+    assert r.status_code == 200 and r.text == a_report
+    assert directives(r.headers["Content-Security-Policy"]) == REPORT_EXPECTED
+
+
+def test_the_traffic_report_runs_in_a_sandbox_of_its_own(client, a_report):
+    """Its scripts are GoAccess's and the strings they draw are strangers', on an
+    administrator's page. The sandbox allows scripts, which is what the report is,
+    and nothing else: never `allow-same-origin`, which would hand it back the site's
+    storage and the administrator's session, and no forms or downloads. Nor is there
+    anything to reach: no requests, no form posts, and nothing loaded that is not
+    written into the file itself."""
+    sent = directives(client.get("/traffic").headers["Content-Security-Policy"])
+    assert sent["sandbox"] == ("allow-scripts",)
+    assert "allow-same-origin" not in sent["sandbox"]
+    assert sent["connect-src"] == ("'none'",)
+    assert sent["form-action"] == ("'none'",)
+    assert sent["default-src"] == ("'none'",)
+    fetched_from = {
+        source for name, sources in sent.items() if name.endswith("-src") for source in sources
+    }
+    assert fetched_from <= {"'none'", "'unsafe-inline'", "'unsafe-eval'", "data:"}
+
+
+def test_every_page_is_sent_the_site_policy(client, a_page_of_everything):
+    """Two responses say a policy of their own -- a PDF shown in the browser and
+    GoAccess's report -- and no page does, so the report's `'unsafe-eval'` is on
+    the report and nowhere else. /traffic is among these as it is before the first
+    report: the site's own page, under the site's policy."""
+    for path in a_page_of_everything:
+        sent = directives(client.get(path).headers["Content-Security-Policy"])
+        assert sent == EXPECTED, f"{path} was sent {sent}"
 
 
 def test_the_directives_that_do_not_fall_back_are_stated(client):

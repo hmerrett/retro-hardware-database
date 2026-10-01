@@ -4500,6 +4500,16 @@ class TestTheNumbersPage:
         r = client.get("/traffic", follow_redirects=False)
         assert r.status_code == 303 and "/login" in r.headers["location"]
 
+    def test_until_the_first_report_is_built_the_traffic_page_says_so(self, client):
+        """In a page of the site's own, drawn in its chrome like any other. The
+        report is GoAccess's page and is sent as it was written (ADR-0033); this is
+        what stands in for it until there is one."""
+        r = client.get("/traffic")
+        assert r.status_code == 200
+        body = content(r.text)
+        assert re.search(r"<h1[^>]*>Traffic</h1>", body)
+        assert "No traffic report yet" in body
+
     def test_it_is_offered_to_search_engines(self, client):
         assert "/stats</loc>" in client.get("/sitemap.xml").text
         robots = client.get("/robots.txt").text

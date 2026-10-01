@@ -60,7 +60,10 @@ Three kinds of thing live in the register:
        │                         makes itself — a login redirect is a response too.
        │                         The app's, not Caddy's: the policy is a fact about
        │                         these templates and static files, so it lives where
-       │                         a test can read it (ADR-0021).
+       │                         a test can read it (ADR-0021). Two responses state
+       │                         their own and keep it: a PDF shown in the browser
+       │                         (ADR-0030), and GoAccess's traffic report, in a
+       │                         sandbox (ADR-0033).
        │
        ├── no_stale_pages ...... middleware: every HTML response gets
        │                         `Cache-Control: no-cache`, so a deployed change
@@ -194,7 +197,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `cards.py` | the share card for a page that is a wall of photographs: the montage of four, its content-addressed cache, the sweep |
 | `routers/seo.py` | robots.txt, the sitemap, and the icons asked for at the domain root |
 | `routers/gallery.py` | the wall of cards, the /browse slice of it, the owner's /for-sale shortlist, and the suggestions under the search bar |
-| `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic |
+| `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic, with the sandbox it runs in |
 | `routers/settings.py` | /settings: the two routes behind the page of preferences |
 | `routers/catalogue.py` | the catalogue as a page and as JSON: /machines, a model's own page at /machines/<key>, and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
@@ -344,7 +347,9 @@ breaking one turns CI red rather than merely being wrong.
   data — a bezel's swatch, a bar's length — name rules generated into
   `/style/data.css` (ADR-0021, ADR-0022). A new kind of data-valued rule goes in
   `datacss.py`; `test_content_security_policy.py` is what stops it going into the
-  markup instead.
+  markup instead. The one response that allows script inline is GoAccess's report
+  at `/traffic`, which is not the register's markup: its scripts run in a sandbox
+  with an origin of their own, and no page carries its policy (ADR-0033).
 - **Every module is held to `mypy --strict`**, with no list of exceptions: the
   models are typed (`Mapped[...]` on `mapped_column`), mypy runs in CI, and a new
   module is strict by doing nothing (backend-standards). That finishes the
@@ -430,6 +435,7 @@ it was weighed against, and what it costs.
 | 0030 | A PDF is read in the browser, and everything else is still a download |
 | 0031 | The look is a design system, and its values are data |
 | 0032 | Accounts, roles, and a site to hold them |
+| 0033 | The traffic report runs in a sandbox of its own |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

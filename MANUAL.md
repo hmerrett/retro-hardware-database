@@ -2364,7 +2364,13 @@ drives), the note under the heading says whose they are.
 `/traffic`, behind the login, is a GoAccess report built from the proxy's access
 logs and rebuilt every five minutes. It covers the last six weeks or so: the
 proxy keeps fifteen rolled-over logs behind the live one, and the report is built
-from all of them.
+from all of them. Until the first report has been built, the page says so.
+
+The report is GoAccess's own page, built from what visitors' browsers sent, so it
+is shown apart from the register: its scripts run in a sandbox of their own, reach
+nothing else of the site's, and cannot act as you. The sandbox gives it nowhere to
+keep anything and no way to hand you a file, so a theme or a layout picked in its
+options lasts until you leave the page, and **Export as JSON** does nothing.
 
 ---
 

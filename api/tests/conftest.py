@@ -28,6 +28,11 @@ os.environ["RHDB_IMAGES_DIR"] = str(_TMP / "images")
 (_TMP / "branding").mkdir(parents=True, exist_ok=True)
 os.environ["RHDB_BRANDING_DIR"] = str(_TMP / "branding")
 os.environ["RHDB_FILES_DIR"] = str(_TMP / "files")
+# Where GoAccess writes its report, and nothing there: /traffic is walked with the
+# rest of the pages as it is before the first report, which is the site's own page.
+# A report left on the machine running the suite would put GoAccess's markup in the
+# walk instead, and the report has tests of its own (ADR-0033).
+os.environ["RHDB_STATS_DIR"] = str(_TMP / "stats")
 os.environ["RHDB_BASE_URL"] = "https://example.test"
 os.environ.pop("RHDB_AUTH_USER", None)
 os.environ.pop("RHDB_AUTH_PASSWORD", None)
@@ -274,6 +279,8 @@ def a_page_of_everything(client, computer, part):
         "/files",
         f"/files/{fid}",
         "/stats",
+        # Before GoAccess has written a report: the site's own page, saying so.
+        "/traffic",
         "/for-sale",
         f"/computers/{made['asset_id']}",
         f"/computers/{made['asset_id']}/edit",
