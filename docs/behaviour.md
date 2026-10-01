@@ -3043,7 +3043,7 @@ Regenerate with:
 - a form row holds five boxes at most
 - what you read keeps a measure
 - no box on a page grows past the measure
-- the banner and the footer stand on the wide page s edges
+- the banner stands on the wide page s edges
 - the models list runs to three columns
 - a drive s bezel menus share its row
 - a card asks for the width it is drawn at  

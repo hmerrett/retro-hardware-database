@@ -15,10 +15,10 @@
   .flush { margin: 0; padding: 0; }
   /* Two widths: a column you read (--content-max) and a wide page for lists and forms
      (--wide-max), which a page asks for with `wide` on <main>. Worked out once, here, so
-     the page, the banner's flash, the banner and the footer read the same insets and
-     cannot drift apart. Each `100%` is resolved where the variable is used, against the
-     one column the banner, the stripe, the page and the footer all stand in: the page is
-     centred in it, and the banner and footer stand on the wide page's edges. */
+     the page, the banner's flash and the banner read the same insets and cannot drift
+     apart. Each `100%` is resolved where the variable is used, against the one column
+     the banner, the stripe and the page all stand in: the page is centred in it, and the
+     banner stands on the wide page's edges. */
   :root {
     --gutter: var(--space-6);
     --page-max: var(--content-max);

@@ -181,6 +181,7 @@ READING = {
     "files.html",
     "login.html",
     "setup.html",
+    "traffic.html",  # what /traffic says before GoAccess has written its first report
     "delete.html",
     "detach.html",
     "error.html",
@@ -329,8 +330,9 @@ def test_no_box_on_a_page_grows_past_the_measure():
     assert unscoped == []
 
 
-def test_the_banner_and_the_footer_stand_on_the_wide_page_s_edges():
-    for selector in (".site-header", ".site-footer"):
+def test_the_banner_stands_on_the_wide_page_s_edges():
+    # The footer it once shared them with is gone; the banner is what is left.
+    for selector in (".site-header",):
         inline = [
             value
             for queries, head, body in rules_by_media(COMPONENTS)
