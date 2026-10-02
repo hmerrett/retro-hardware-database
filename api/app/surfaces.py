@@ -12,14 +12,16 @@ converts, because the alternative -- a second set of numbers, in dots, kept in s
 with the first by hand -- is how the two labels come to disagree about where the
 name goes.
 
-Two fonts, named by what they are for rather than by what they are called: the
-display face if it is there, and whatever the surface can fall back on if it is
-not.
+Fonts are named by what they are for rather than by what they are called: the
+head and the body, in whichever face the label is set in (FACES), and the tag under
+a barcode, which is always the same face because it is there to be copied by hand.
+Where a file is missing, each surface falls back on what it has.
 """
 
 from __future__ import annotations
 
 import io
+import math
 from pathlib import Path
 from typing import Protocol
 
@@ -30,13 +32,38 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 
-FONT_PATH = Path(__file__).resolve().parent / "label_font.ttf"
+from . import barcode
 
-# The two roles a label's type plays. What answers to them is the surface's to
-# decide: the PDF registers the display face and names it, the raster opens the
-# same file at a size in pixels, and where the file is missing they fall back to
-# different things because they have different things to fall back on.
+FONT_PATH = Path(__file__).resolve().parent / "label_font.ttf"
+FONT_DIR = Path(__file__).resolve().parent / "label_fonts"
+
+# The roles a label's type plays. What answers to them is the surface's to decide:
+# the PDF registers the face and names it, the raster opens the same file at a size
+# in pixels, and where the file is missing they fall back to different things
+# because they have different things to fall back on.
 HEAD, BODY = "head", "body"
+
+# The faces a label can be set in (Settings → Labels → Type): Audiowide, which is
+# what labels have always been, or the look's own interface face (typefaces.py).
+LABEL, SANS, MONO = "label", "sans", "mono"
+FACES: dict[str, dict[str, Path]] = {
+    LABEL: {HEAD: FONT_PATH, BODY: FONT_PATH},
+    SANS: {HEAD: FONT_DIR / "IBMPlexSans-SemiBold.ttf", BODY: FONT_DIR / "IBMPlexSans-Regular.ttf"},
+    MONO: {HEAD: FONT_DIR / "IBMPlexMono-SemiBold.ttf", BODY: FONT_DIR / "IBMPlexMono-Regular.ttf"},
+}
+
+# The narrowest a bar may be (MANUAL §13). Two of the DYMO's dots, a sixth of a
+# millimetre, was what the 51x19mm tape could fit beside a QR code, and it was the
+# label that came back from printing as too fine to scan; a quarter of a millimetre
+# is what a cheap scanner reads without being argued with.
+MIN_BAR_MM = 0.25
+
+
+def fewest_dots(dpi: float) -> int:
+    """The fewest of a printer's dots a bar may be: a quarter of a millimetre, made
+    up to whole dots -- three at 300 dpi, two at 203."""
+    return math.ceil(MIN_BAR_MM / 25.4 * dpi - 1e-9)
+
 
 # What Pillow will draw with. Two classes rather than one: the display face is a
 # TrueType font, and the fallback where that file has gone missing is Pillow's own
@@ -71,6 +98,12 @@ class Surface(Protocol):
 
     def qr_size(self, size: float, data: str, error: str = "M") -> float: ...
 
+    def barcode(self, x: float, y: float, w: float, h: float, data: str) -> None: ...
+
+    def barcode_width(self, w: float, data: str) -> float: ...
+
+    def barcode_min(self, data: str) -> float: ...
+
     def frame(self, x: float, y: float, w: float, h: float, radius: float) -> None: ...
 
 
@@ -99,11 +132,18 @@ def whole_dots(space: int, data: str, error: str = "M") -> int:
 
 
 class PdfSurface:
-    """A label on a reportlab canvas, which is what it has always been."""
+    """A label on a reportlab canvas, which is what it has always been.
 
-    def __init__(self, c: canvas.Canvas) -> None:
+    `dpi` is the printer the label's stock is made for. Only a barcode asks: words
+    and a QR code are as good at whatever size a page is printed at, and bars are
+    not -- a bar is only the width it was drawn if it is a whole number of the dots
+    it is printed in."""
+
+    def __init__(self, c: canvas.Canvas, face: str = LABEL, dpi: float = 300) -> None:
         self._c = c
-        self._fonts = _pdf_fonts()
+        self._fonts = _pdf_fonts(face)
+        self._dpi = dpi
+        self._dot = POINT_DPI / dpi
 
     def _font(self, font: str) -> str:
         return self._fonts[font]
@@ -156,6 +196,28 @@ class PdfSurface:
             ImageReader(buf), x, y, width=size, height=size, preserveAspectRatio=True, mask="auto"
         )
 
+    def barcode(self, x: float, y: float, w: float, h: float, data: str) -> None:
+        """A Code 128 barcode filling the box across, quiet zones and all. Given the
+        width `barcode_width` answered, every bar is a whole number of dots."""
+        unit = w / barcode.width(data)
+        at = x + barcode.QUIET * unit
+        self._c.setFillColorRGB(0, 0, 0)
+        for n, m in enumerate(barcode.modules(data)):
+            if n % 2 == 0:
+                self._c.rect(at, y, m * unit, h, stroke=0, fill=1)
+            at += m * unit
+
+    def barcode_width(self, w: float, data: str) -> float:
+        """The most of the box the bars can take at a whole number of the printer's
+        dots each, as a bitmap's do. Scaled to the box, a bar on the 51x19mm tape
+        was 3.8 of the DYMO's dots, which it prints as three or four depending on
+        where the bar falls -- and a scanner reads widths."""
+        modules = barcode.width(data)
+        return max(1, math.floor(w / (modules * self._dot) + 1e-9)) * modules * self._dot
+
+    def barcode_min(self, data: str) -> float:
+        return fewest_dots(self._dpi) * barcode.width(data) * self._dot
+
     def frame(self, x: float, y: float, w: float, h: float, radius: float) -> None:
         self._c.setLineWidth(1)
         self._c.setStrokeColorRGB(0.65, 0.65, 0.65)
@@ -175,11 +237,12 @@ class RasterSurface:
     PDF, so the layout does not have to know which surface it has.
     """
 
-    def __init__(self, image: Image.Image, dpi: float) -> None:
+    def __init__(self, image: Image.Image, dpi: float, face: str = LABEL) -> None:
         self._image = image
         self._draw = ImageDraw.Draw(image)
         self._dpi = dpi
         self._scale = dpi / POINT_DPI
+        self._face = face if face in FACES else LABEL
         self._cache: dict[tuple[str, int], Face] = {}
 
     def _font(self, font: str, size: float) -> Face:
@@ -189,7 +252,7 @@ class RasterSurface:
         dots = max(1, round(size * self._scale))
         key = (font, dots)
         if key not in self._cache:
-            self._cache[key] = _raster_font(dots)
+            self._cache[key] = _raster_font(dots, FACES[self._face][font])
         return self._cache[key]
 
     def _xy(self, x: float, y: float) -> tuple[float, float]:
@@ -262,6 +325,33 @@ class RasterSurface:
             (round(left + (space - drawn.width) / 2), round(top + (space - drawn.height) / 2)),
         )
 
+    def _module(self, w: float, data: str) -> int:
+        """Dots to a module: the most that fit across `w`, and never fewer than one."""
+        return max(1, round(w * self._scale) // barcode.width(data))
+
+    def barcode(self, x: float, y: float, w: float, h: float, data: str) -> None:
+        """The bars at a whole number of dots each, centred across the box.
+
+        For the reason the QR code's squares are (`whole_dots`): a bar scaled to
+        whatever was left over comes out a dot wider than the bar beside it, and a
+        scanner reads widths, so an uneven bar is a different bar."""
+        k = self._module(w, data)
+        space = round(w * self._scale)
+        left, top = self._xy(x, y + h)
+        at = round(left + (space - k * barcode.width(data)) / 2) + barcode.QUIET * k
+        bottom = round(top + h * self._scale) - 1
+        for n, m in enumerate(barcode.modules(data)):
+            if n % 2 == 0:
+                self._draw.rectangle([at, round(top), at + m * k - 1, bottom], fill=0)
+            at += m * k
+
+    def barcode_width(self, w: float, data: str) -> float:
+        """How much of the box the bars and their quiet zones actually take."""
+        return self._module(w, data) * barcode.width(data) / self._scale
+
+    def barcode_min(self, data: str) -> float:
+        return fewest_dots(self._dpi) * barcode.width(data) / self._scale
+
     def frame(self, x: float, y: float, w: float, h: float, radius: float) -> None:
         """Black, where the PDF draws a grey hairline. There is no grey on a
         thermal head, and the dither it would come out as is worse than a border
@@ -273,26 +363,40 @@ class RasterSurface:
         )
 
 
-_pdf_ready = False
+# The faces registered with reportlab so far, by the name each is registered under.
+_registered: set[str] = set()
 
 
-def _pdf_fonts() -> dict[str, str]:
-    """Register the display TTF with reportlab once; fall back to Helvetica if it
-    is missing."""
-    global _pdf_ready
-    if not _pdf_ready and FONT_PATH.exists():
-        try:
-            pdfmetrics.registerFont(TTFont("LabelFont", str(FONT_PATH)))
-            _pdf_ready = True
-        except Exception:
-            pass
-    if _pdf_ready:
-        return {HEAD: "LabelFont", BODY: "LabelFont"}
-    return {HEAD: "Helvetica-Bold", BODY: "Helvetica"}
+def _register(name: str, path: Path) -> bool:
+    """Register a TrueType file with reportlab once, by name. False if it cannot be:
+    a missing file is a deployment fault, and the label falls back rather than not
+    printing."""
+    if name in _registered:
+        return True
+    if not path.exists():
+        return False
+    try:
+        pdfmetrics.registerFont(TTFont(name, str(path)))
+    except Exception:
+        return False
+    _registered.add(name)
+    return True
 
 
-def _raster_font(dots: int) -> Face:
-    """The display face at a size in dots, or Pillow's own where it is missing.
+def _pdf_fonts(face: str = LABEL) -> dict[str, str]:
+    """The registered name of each role's font in this face, falling back to
+    Helvetica where a file is missing."""
+    chosen = FACES.get(face, FACES[LABEL])
+    out = {HEAD: "Helvetica-Bold", BODY: "Helvetica"}
+    for role, path in chosen.items():
+        name = "LabelFont" if path == FONT_PATH else path.stem.replace("-", "")
+        if _register(name, path):
+            out[role] = name
+    return out
+
+
+def _raster_font(dots: int, path: Path = FONT_PATH) -> Face:
+    """A face at a size in dots, or Pillow's own where its file is missing.
 
     The fallback is a different shape of answer from the PDF's: there is no
     Helvetica to ask for here, only whatever Pillow was built with, and a label
@@ -300,9 +404,9 @@ def _raster_font(dots: int) -> Face:
     which the font file has gone missing from the image, which is a deployment
     fault and not a rendering one.
     """
-    if FONT_PATH.exists():
+    if path.exists():
         try:
-            return ImageFont.truetype(str(FONT_PATH), dots)
+            return ImageFont.truetype(str(path), dots)
         except OSError:
             pass
     return ImageFont.load_default(size=dots)

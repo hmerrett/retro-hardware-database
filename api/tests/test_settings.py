@@ -40,7 +40,7 @@ def save(client, **fields):
     } | {k: v for k, v in fields.items() if v is not None}
     for blank in [k for k, v in fields.items() if v is None]:
         data.pop(blank)
-    # Settings is three tabs, each saving its own part (MANUAL §18).
+    # Settings is three tabs, each saving its own part (MANUAL §19).
     for tab in ("/settings", "/settings/labels", "/settings/server"):
         r = client.post(tab, data=data, follow_redirects=False)
         assert r.status_code == 303, r.text
@@ -566,7 +566,7 @@ class TestHowThePageReads:
         """A flat list of four is a list; a flat list of fifteen is a search. The
         grouping is on the definitions rather than in the template, so a new
         setting names its section and lands in it."""
-        # Each section a tab of its own (MANUAL §18).
+        # Each section a tab of its own (MANUAL §19).
         assert "<legend>Appearance</legend>" in client.get("/settings").text
         assert "<legend>Labels</legend>" in client.get("/settings/labels").text
         assert "<legend>Server options</legend>" in client.get("/settings/server").text
@@ -605,7 +605,7 @@ class TestHowThePageReads:
     def test_every_row_carries_its_reason(self, client):
         """One tooltip per setting, so none of them is the one that was forgotten
         and left a control with nothing behind it."""
-        # Across the three tabs (MANUAL §18).
+        # Across the three tabs (MANUAL §19).
         page = "".join(
             client.get(t).text for t in ("/settings", "/settings/labels", "/settings/server")
         )

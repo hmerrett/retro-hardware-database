@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2363 behaviours, from 70 files.*
+*2537 behaviours, from 75 files.*
 
 
 ## A file where text was expected
@@ -1448,6 +1448,68 @@ Regenerate with:
 - dump and restore roundtrip
 
 
+## Barcode labels
+
+*test_barcode_labels.py — 28 behaviours*
+
+
+**The table**
+
+- it is the standard one  
+  Held to ReportLab's own, which is a second implementation written by somebody else from the same specification.
+- the browsers reader carries the same table
+- a tag is the symbols it should be  
+  Start B, the seven characters, the checksum, the stop.
+
+**The codes setting**
+
+- it is on the labels tab with three answers
+- qr is the default
+- the default label has a qr code and no barcode
+- code 128 puts the tag in bars and no qr code
+- both puts both on the label
+- on the tape both is the barcode alone  
+  The 51x19mm tape is too short for both at sizes worth scanning: with the bars as wide as they need, a QR code would be under 12mm beside them.
+- a label with room for both carries both
+- the full label follows it too
+- every bar is a whole number of dots  
+  For the reason the QR code's squares are: a bar a dot wider than its neighbour is a different bar to a scanner.
+- in the pdf too a bar is a whole number of the printers dots  
+  A PDF bar scaled to whatever the box left is 3.8 of the DYMO's dots, which it prints as three or four depending on where the bar falls.
+- no bar is narrower than a quarter of a millimetre
+- across the tape a bar is four of the dymos dots  
+  The white a scanner needs either side of the bars stands in the margin at the tape's ends, which prints nothing, and the bars get the room it saves.
+- the bars themselves keep out of the tapes end margin
+- nothing is printed under the bars  
+  The tag is already the largest line on an item's label, so under the bars it was the same seven characters again, in room the bars could use.
+
+**A locations label**
+
+- it carries the name large the path over it and the tag  
+  With every code: under the bars was the one place a location's label had its tag in words when there was a barcode, and nothing is printed there now.
+- a path too long for the tape loses its far end first  
+  The near end says where the box is; the far end only which building.
+- the word up the end says location
+- the small one is the default
+
+**Labels for everything inside**
+
+- one to a page for a label printer  
+  The shelf's own, the box's, and the twenty-one things.
+- or on a4 sheets three across and seven down
+
+**The type setting**
+
+- it is on the labels tab with the label face first
+- the label face is audiowide
+- as the look is the looks interface face
+- a monospaced look sets the label monospaced
+
+**The print queue**
+
+- a location can be sent to a printer somewhere else
+
+
 ## Branding
 
 *test_branding.py — 8 behaviours*
@@ -2291,7 +2353,7 @@ Regenerate with:
 *test_keyboard_and_motion.py — 16 behaviours*
 
 - the first thing tab reaches skips to the content  
-  A keyboard user tabs the whole header -- brand, five sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
+  A keyboard user tabs the whole header -- brand, the sections, search box, menus -- before reaching the page, on every page, unless the first stop is a link past it.
 - an item page skips to the content too  
   The page a printed label opens is the one most often reached cold.
 - the skip link has somewhere to land  
@@ -2345,7 +2407,7 @@ Regenerate with:
 
 ## Locations
 
-*test_locations.py — 67 behaviours*
+*test_locations.py — 43 behaviours*
 
 
 **Recording where something is**
@@ -2363,33 +2425,18 @@ Regenerate with:
 - a parts own answer stands beside where it is installed  
   The card-in-a-drawer case.
 
-**A row older than the feature**
-
-- a machine older than the column reads as blank
-- a part older than the column reads as blank
-- the lists survive one  
-  The half that made it a 500 rather than an untidiness: the response is validated as a whole list, so one row older than the feature took every caller's `GET /api/computers` with it -- and the MCP tools with that.
-- the pages survive one as well  
-  The gallery and the item pages read the column too, and a search reads it off every row at once.
-- such a row is still placed by what it is fitted in  
-  And the derived answer works over it, which it could not if blank had two spellings -- `inherited` reads the column and strips it.
-- the migrated schema leaves no nulls to find  
-  Read off the database the migrations built (conftest runs the real ones), rather than off the models that describe it.
-- the column cannot hold one  
-  The belt to the server default's braces.
-
 **A part is where what it is fitted in is**
 
 - a part in a machine is shown the machines location
 - the page says whose answer it is showing  
-  Otherwise it reads as something somebody typed on this part, and the first thing anybody would do about a wrong one is edit the part -- which is the one record that cannot fix it.
+  Otherwise it reads as something somebody chose for this part, and the first thing anybody would do about a wrong one is edit the part -- which is the one record that cannot fix it.
 - a chip on a board in a machine is in the machine  
   The chain runs as far as it has to.
 - what it is mounted on answers before what it is installed in  
   A chip on a board is where the board is, even when the machine the board is in says something else: the nearer answer is the more specific one, and a board out on the bench has its own parts on the bench with it.
 - a part that says for itself is not given an answer
 - clearing the box hands the part back to its machine  
-  The way round the manual promises: type an answer and it wins, take it out and the part follows what it is fitted in again.
+  The way round the manual promises: choose an answer and it wins, take it out and the part follows what it is fitted in again.
 - a standalone part is shown nothing
 - a part in a machine nobody has placed is shown nothing  
   A chain that runs out yields nothing rather than an empty row.
@@ -2400,47 +2447,6 @@ Regenerate with:
 - a part mounted on itself does not hang the page  
   Nothing in the register can build one -- the forms do not offer it -- but a walk that trusts that is a page that never finishes loading if one ever exists.
 
-**An inherited answer is not remembered**
-
-- it does not join the table
-- it is offered once and not twice  
-  The machine's own answer is on the list because the machine is kept there; the four cards in it do not put it there four more times.
-- emptying the machine does not leave the place in use  
-  What is in use is what somebody has written down.
-
-**Being offered where things go**
-
-- both forms offer a location already used
-- machines and parts share one list  
-  One crate holds both, so one list names it.
-- an edit form offers them as well  
-  An edit is where a spelling turns into a second one.
-- the box does not offer the browsers own memory instead  
-  A box called `location` is one every other site on the web has too, and the browser's memory of those would be offered over the register's answers.
-
-**Remembering where nothing is kept now**
-
-- a location cleared off its last item is still offered
-- a place in use is offered once rather than twice  
-  It is in the register and in the memory of the register, and those are one answer to the question the box asks.
-- what is in use comes before what is only remembered  
-  The crate something is in now is the likelier answer than the one it was in last year.
-- the gui teaches it as well as the api  
-  Both doors, because the forms are where most of these are typed.
-- a part teaches it too
-- nothing is written while the switch is off
-- a cleared location is not offered while the switch is off  
-  Off is not a broken mode: it is the behaviour every other pick list on this site has, which is the register asked a question about itself.
-
-**Turning it off forgets rather than hides**
-
-- switching off deletes what was remembered
-- switching back on does not bring it back  
-  The whole shape of the promise, end to end: used, cleared, forgotten, and still gone when remembering is asked for again.
-- a later save while it is off purges again  
-  The delete runs on every save made while the switch is off rather than on the save that turned it off, so the promise does not turn on a transition nobody can see.
-- it is on to begin with
-
 **Who is told where things are**
 
 - a site keeps locations to itself by default
@@ -2450,7 +2456,7 @@ Regenerate with:
 - the owners search does match on it  
   The other direction, so what is private is a rule about who is asking rather than a column quietly dropped from the search for everybody.
 - the gallery carries it to nobody  
-  The cards used to hold a condensed blob the browser filtered on, and the question was who it was written for.
+  A card says where nothing is kept, owner included: the tiles are a wall of photographs, and the table is where the owner looks for that.
 - turning it on shows a visitor the row
 - turning it on lets a visitor search on it
 - a visitor is shown no inherited location either  
@@ -2479,15 +2485,17 @@ Regenerate with:
 - an item with nowhere recorded reads identically for both  
   Hidden columns are blanked and not dropped, so who is asking changes what the haystack says and never how many fields it has -- otherwise the seams a quoted phrase must not match across move depending on the reader.
 
-**The page says what these are**
+**The page says what this is**
 
-- both switches are on the settings page with their reasons  
+- the switch is on the settings page with its reason  
   A control says what it is and the reason is behind it (interface-text).
-- they are server options
+- it is a server option
+- the remembered list and its switch are gone  
+  A location is a record that stays when it is emptied, so there is nothing left to remember (ADR-0034).
 
-**The decision is written down**
+**The decisions are written down**
 
-- the adr is there and indexed
+- the adrs are there and indexed
 
 
 ## Login and confirm pages
@@ -2853,7 +2861,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 13 behaviours*
+*test_migrations.py — 20 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -2879,6 +2887,18 @@ Regenerate with:
 - 0045 makes the account tables empty  
   Nothing is seeded by the migration: the old single login is read by the app at startup, because a migration must not assume what the environment holds any more than what the data does (ADR-0002, ADR-0032).
 - 0045 can be downgraded and upgraded again
+- 0046 makes a location of every spelling typed  
+  Each one named as it was typed, of kind other, at the top level: the upgrade cannot know that one crate is inside another, so it does not guess.
+- 0046 folds spellings that differ only in capitals  
+  `Loft`, `loft` and `Loft ` were one crate to the old suggestion list, which folded case and trimmed, so they are one location here -- under the spelling most things were filed with.
+- 0046 puts each thing in the location it named
+- 0046 draws the new tags from the registers pool  
+  A location is in the register, so its tag is one nothing else holds, in the form every other new tag takes (ADR-0007, ADR-0034).
+- 0046 takes the text and the remembered list away  
+  Nothing is kept twice: the text is now the location, and an emptied crate is a location that stays, so the list that remembered it has nothing left to do.
+- 0046 on a register with no locations makes none
+- 0046 can be downgraded and upgraded again  
+  Down, each thing gets back the words of where it is -- the path, which for a location the upgrade made is the name it was typed as -- and the remembered list gets every location's name.
 
 
 ## Model pages
@@ -2932,9 +2952,34 @@ Regenerate with:
   The check above is only worth having if it can fail.
 
 
+## Moves
+
+*test_moves.py — 10 behaviours*
+
+
+**A move is written down**
+
+- an edit records where it was and where it went
+- it says who and that it was by edit
+- one made through the api says so
+- saving without a change records nothing
+- the history shows it with a link at each end
+
+**A moving box**
+
+- records one move on the box
+- its page shows the move
+
+**The api reads them back**
+
+- newest first
+- a location has them too
+- the log carries the move as words
+
+
 ## Navigation
 
-*test_navigation.py — 35 behaviours*
+*test_navigation.py — 37 behaviours*
 
 
 **Which layout**
@@ -2952,13 +2997,14 @@ Regenerate with:
 
 **What the rail holds**
 
-- the five sections are the banner s five  
+- the sections are the banner s sections  
   The same places, laid down instead of across -- not a second list to fall out of step with the first.
 - a section says how much is in it
+- locations says how many locations there are
 - the numbers page carries no count  
   It is figures about the collection; a count of those is a fact about the software rather than about what is on the shelf.
 - the current section is marked
-- the owner can add in one press  
+- the owner can add any kind of thing in one press  
   In a rail there is room to unfold the + New menu, and a menu costs the same press twice.
 - the owner sees what they last worked on  
   The rail's own argument: at a bench you go back to the same machine all afternoon.
@@ -2969,6 +3015,8 @@ Regenerate with:
   An empty box one pixel high is the one thing in a column too short for its contents that the browser can take height from, and it takes all of it.
 - the rail offers every page the menu does  
   With the rail showing, the banner's ⋯ menu is put away (components.css), so a page the menu offers and the rail does not is a page that cannot be reached from this one at all.
+- the rail offers what new does to whoever new offers it  
+  + New is put away beside the rail as well, so a kind of thing it offers and the rail does not is one that cannot be added from this page at all -- which is where a project and a location were left while the rail named two.
 - every item is named in words as well as drawn  
   Collapsed the words are hidden and the icon is all that is left, and an icon names nothing (accessibility-standards).
 
@@ -3967,7 +4015,7 @@ Regenerate with:
 
 - it offers the owner might sell traffic and log out
 - it offers a visitor log in
-- it holds the five sections folded away at its top
+- it holds the sections folded away at its top
 - a visitor is not offered the api docs  
   `/docs` is behind the login, and what it answers a visitor is the browser's own password box rather than the site's login page.
 - the phone sheet offers everything the menu does  
@@ -3994,7 +4042,8 @@ Regenerate with:
 
 **How it folds with the width**
 
-- on a tablet the sections leave the banner
+- on a tablet the sections leave the banner  
+  At 1000px rather than 900: a sixth section is about 80px more banner, and at 900 the room for it would have come out of the collection's name.
 - and are found in the menu instead
 - on a phone the banner keeps the name  
   With no footer, the banner is the only place on a phone's page that says whose collection a scanned label has opened.
@@ -4127,6 +4176,254 @@ Regenerate with:
   MANUAL.md: "A chart with nothing to count yet is left out ...
 - one of a unit is said in the singular  
   A register started today is one day old, and an average item made last year is one year old: "1 days" and "1 years" are what the page used to say.
+
+
+## Storage locations
+
+*test_storage_locations.py — 75 behaviours*
+
+
+**A location**
+
+- it takes a tag from the registers pool
+- its label address opens its page  
+  /items/<tag> is the address every label carries, whatever the tag is.
+- new location makes one and opens its page
+- the form offers the seven kinds
+- a kind it does not offer is refused
+- a name is required
+- inside says which location it is in
+- inside left blank is the top of a tree
+- a location cannot be put inside itself
+- or inside anything that is inside it
+- an empty box stays on the register  
+  An empty crate keeps its name and its label for the next time it is filled.
+
+**Deleting A location**
+
+- deleting is refused while a thing is in it
+- or while a location is in it
+- an empty one is deleted
+- empty into the location above puts its contents where it was
+- merge into puts one spelling of a crate into the other  
+  What the upgrade leaves behind when a crate was typed two ways: everything in the one moves into the other, which keeps its tag, and the first goes.
+- merging a location into its own contents is refused
+
+**A locations page**
+
+- it shows the path each step a link
+- it shows its name tag kind and notes
+- it lists the locations inside with what each holds all the way down
+- it lists the things kept in it
+- a part fitted in a machine here is not listed again  
+  It goes where the machine goes, and the machine is listed.
+- something disposed of is not kept anywhere
+- an empty location says so
+- its label panel prints its labels
+- its history says when it was made
+- its path starts from the list of locations
+
+**Every location**
+
+- each location is listed under the one it is inside
+- each says its kind its tag and what it holds all the way down
+- the locations in one place are in order of name numbers as numbers
+- each name opens its page
+- an empty location is listed too
+- an administrator can add one from the top of the list
+- a viewer reads the list and is not offered to add to it
+- a register with no locations yet says so
+
+**Where A thing is**
+
+- the row shows the whole path each step a link
+- the locations notes are under it
+- also here leads to the rest of the box
+- nothing else there is no also here
+- a fitted part shows its machines location and says so
+- moving the box moves what is in it  
+  One edit, to the box: the thing inside is somewhere new at that moment.
+
+**The location box**
+
+- it offers every location by its path
+- the part form offers the same
+- choosing a path puts it there
+- a tag will do
+- a name that matches no location makes one at the top
+- a name two locations share is refused rather than guessed
+- the tag of something that is not a location is refused
+- blank is nowhere recorded
+- the form shows the path it holds
+- a new machine can be put away as it is entered
+
+**Searching by where things are**
+
+- a search for the top finds what is at the bottom
+- a search for a locations name finds what is in it
+- a part in a machine in a box is found by the box
+- a thing that has left is not found by where it was  
+  Its history says it was in the loft; the search is for what is there now.
+- the suggestions offer locations with their paths
+
+**A tag in the search box**
+
+- enter on a tag opens the thing
+- and a location
+- a scanned label url does the same
+- a tag nothing has is an ordinary search
+- a visitor is not taken to a private project
+- nor to a location while locations are not shown
+
+**The api**
+
+- a thing reads back its locations tag and path
+- nowhere recorded reads back blank
+- a name matching one location means that one
+- a name matching none makes one at the top
+- a name matching several is refused with the tags
+- location path is ignored if sent
+- the list gives each location with its path
+- one location comes with what is in it
+- a patch renames and refiles
+- a parent inside itself is refused
+- an unknown kind is refused
+- delete is refused while anything is in it
+- delete of an empty one goes through
+
+
+## Storage mode
+
+*test_storage_mode.py — 54 behaviours*
+
+
+**Scanning A location**
+
+- it opens and says what is expected there
+- an empty one says empty
+- a tag in any case will do
+- so will the url a qr code holds
+
+**Scanning A thing**
+
+- one already here is found
+- one recorded elsewhere is moved in there and then
+- one recorded nowhere is moved in too
+- the move is recorded as by scan
+- undo puts it back and says so in the history
+- scanned twice it changes nothing
+
+**Putting one thing away**
+
+- a thing scanned with nothing open is held and shows where it is
+- the next location scanned takes it and opens
+- scanning another thing instead leaves the first where it was
+
+**Moving between locations**
+
+- the next location becomes the open one
+- a location recorded elsewhere is opened and not moved
+- a location inside the open one is found there then opened
+- change location closes the open one without opening another
+- a thing scanned after it is held not moved into the last one
+- without a script change location comes back to the page
+- a location closed is still in the report
+
+**A fitted part**
+
+- scanned into a location it is taken out of its machine
+- undo puts it back in its machine as well
+- scanned where its machine is it is found and stays fitted
+
+**What is refused**
+
+- a code that is not a tag here
+- a tag nothing has
+- a project
+- something disposed of
+
+**Moving boxes**
+
+- with it on a location scanned goes inside the open one
+- undo puts the box back
+- a box into its own contents is refused
+
+**A round is kept**
+
+- storage mode opened again carries on where it was
+- without a script a scan comes back to the page
+
+**The report**
+
+- it says what was found
+- and what moved in from where
+- and what was not scanned
+- and what was not recognised
+- what was not scanned stays where the register has it
+- record as missing writes it on each things history
+- recording twice writes each line once
+- finishing closes the round
+
+**The page**
+
+- a round starts by asking how you are scanning
+- a round already going is not asked again
+- with nothing open it says scan a location
+- with a location open it says what to scan into and where that is
+- each answer carries what the prompt says  
+  The script redraws the prompt from the answer, as a reload would draw it.
+- change location is offered only while one is open
+- the scan box listens without an on screen keyboard
+- without a script it is a box and scan it  
+  The box is put away by the script, so with none running it is there.
+- it says whether it is ready for a scan
+- a whole code is taken without waiting for enter  
+  The script's own pattern, asked what the manual promises: the seven characters a barcode holds, or the whole address a QR code holds -- the one the labels print, slash and all, so a scanner slow between characters has not finished until it has typed the slash.
+- its controls are there
+- its buttons are the sites own size  
+  A size of its own made the audit look like another site, for thumbs that a scanner's trigger had already taken the work from.
+- the camera scan is offered
+- moving boxes is off whenever it opens
+
+
+## Storage visibility
+
+*test_storage_visibility.py — 21 behaviours*
+
+
+**With show locations off**
+
+- it is off by default
+- a visitor gets nothing here for a locations page
+- the same answer as for a tag nothing has  
+  Not a login prompt, which would say there is something to log in for.
+- its label address is not followed for a visitor  
+  /items/<tag> answers 404 itself, rather than redirecting to a path that would say the tag is a location.
+- its labels answer nothing here
+- its photographs are not served to a visitor
+- a visitor is not shown where a thing moved  
+  The history is public, and a move says where something is kept.
+- a visitors search does not match on a location
+- a visitor is not offered a location by the suggestions
+- a signed in viewer sees them all the same
+- a visitor gets nothing here for the list of locations
+- and is not offered the section  
+  Not in the banner, the rail, the ⋯ menu or the phone's More, which are all in the page whatever its width: a section that answers 404 is a section saying there is something being kept back.
+- a signed in viewer is offered the section
+
+**With show locations on**
+
+- a locations page is as public as an item page
+- so are its photographs
+- and the moves on an items history
+- and a visitors search finds by them
+- and the list of locations with its section
+
+**The audit is for administrators**
+
+- a viewer is turned away
+- a visitor is asked to log in
+- a viewer cannot scan
 
 
 ## Stylesheet
@@ -4350,7 +4647,7 @@ Regenerate with:
 
 ## Ui macros
 
-*test_ui_macros.py — 76 behaviours*
+*test_ui_macros.py — 77 behaviours*
 
 
 **The ui filter**
@@ -4463,6 +4760,8 @@ Regenerate with:
 
 - an account has an icon of its own  
   The menu's Account row, beside Log out (ADR-0032).
+- locations has an icon of its own  
+  The section's, in the rail and the phone's More (MANUAL §14, "Every location"): an icon `ico` does not know is drawn as nothing at all.
 - the nine new icons are drawn
 - every icon is hidden from a screen reader
 

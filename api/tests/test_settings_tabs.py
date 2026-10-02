@@ -1,4 +1,4 @@
-"""One row of tabs across Settings and the account pages (MANUAL §18, "Settings").
+"""One row of tabs across Settings and the account pages (MANUAL §19, "Settings").
 
 Settings was one long form, reached beside two account pages by a line of links.
 It is now five tabs, each a page of its own -- Appearance, Labels and Server, then

@@ -157,7 +157,13 @@
                  choices=[('', 'Not recorded')] + ([cur] if cur and cur not in conditions else []) + conditions) }}
       {{ fld('source', 'Source', "where / how acquired", dl='source') }}
       {{ fld('acquired_date', 'Acquired date', type='date') }}
-      {{ fld('location', 'Location', "where it is kept — Loft, blue crate 3", dl='location') }}
+      {# A location, chosen from every one there is by its path, or a new one named
+         here -- saving makes it at the top, to be given its proper place later
+         (MANUAL §5, "Where it is kept"). #}
+      {{ U.field('location', 'Location',
+                 value=TYPED.location if 'location' in TYPED else location_text,
+                 hint="where it is kept — a location, or a new name", error=ERR.get('location'),
+                 list='dl_locations', autocomplete='off') }}
       {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
     </div>
   </fieldset>

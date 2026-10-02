@@ -79,7 +79,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0026](0026-the-print-button-is-a-link-until-a-device-says-otherwise.md) — The
   print button is a link until a device says otherwise — *Accepted*
 - [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md) — A
-  remembered vocabulary is deleted when it is turned off — *Accepted*
+  remembered vocabulary is deleted when it is turned off — *Superseded* by
+  [0034](0034-a-location-is-a-record-in-the-register.md)
 - [0028](0028-a-file-is-linked-to-the-things-it-is-for-by-their-ids.md) — A file is
   linked to the things it is for, by their asset ids — *Accepted* (supersedes
   [0020](0020-a-model-link-names-a-maker-and-a-model.md) and the model link and
@@ -98,3 +99,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0033](0033-the-traffic-report-runs-in-a-sandbox-of-its-own.md) — The traffic
   report runs in a sandbox of its own — *Accepted* (amends
   [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md))
+- [0034](0034-a-location-is-a-record-in-the-register.md) — A location is a record
+  in the register — *Accepted* (supersedes
+  [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md))

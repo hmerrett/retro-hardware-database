@@ -27,7 +27,7 @@ from sqlalchemy.orm import Query, Session
 
 from . import entry
 from .db import Base
-from .models import Computer, Part, Project
+from .models import Computer, Location, Part, Project
 
 # The rows a query hands back, kept as it passes through the filters below.
 _Row = TypeVar("_Row")
@@ -185,9 +185,16 @@ def _big_total(kb: int) -> str:
     return entry.fmt_kb(kb, True)
 
 
-# The three things an id in the register can name. One list, because every route
-# that takes a bare asset id has to agree about this.
-REGISTER = (("computers", Computer), ("parts", Part), ("projects", Project))
+# The four things an id in the register can name. One list, because every route
+# that takes a bare asset id has to agree about this. A location is last, and a
+# route that should not act on one -- flagging work, the figures on /stats -- takes
+# the slice before it (ADR-0034).
+REGISTER = (
+    ("computers", Computer),
+    ("parts", Part),
+    ("projects", Project),
+    ("locations", Location),
+)
 
 
 # --- static files and per-deployment branding ------------------------------

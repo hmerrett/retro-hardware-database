@@ -1,6 +1,6 @@
 """A new installation, and the way out of having no accounts (ADR-0032).
 
-MANUAL section 17, "The first visit" and "What the log says at startup". A fresh
+MANUAL section 18, "The first visit" and "What the log says at startup". A fresh
 install is on the internet before its owner has visited it, so the first account
 is made only by whoever holds the setup code the app wrote to its own log.
 """

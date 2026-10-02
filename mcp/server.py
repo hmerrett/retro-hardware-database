@@ -155,9 +155,13 @@ def create_computer(
     here that is not a fact about the model. Only ever from the object itself: it
     cannot be inferred from anything else, and a wrong one is worse than none.
 
-    location is where the machine is physically kept, in the owner's own words --
-    'Loft, blue crate 3', 'Garage shelf B'. Free text, and only ever what somebody
-    has said: it cannot be worked out from anything else in the record.
+    location is the location the machine is kept in: a location's tag ('RH-9J2X'),
+    or its name ('Box 14') when exactly one location is called that. A name that
+    matches no location makes a new one at the top, as the form does; one that
+    matches several is refused with their tags, so ask list_locations and send the
+    tag. Only ever what somebody has said: where a thing is cannot be worked out
+    from anything else in the record. It reads back as the tag, with location_path
+    beside it in words.
 
     For a home computer or a console -- a Spectrum, a C64, an Apple IIe, an MSX --
     the machine_* arguments file it against the catalogue that list_machine_models
@@ -290,10 +294,11 @@ def create_part(
     computer and parent_id mounts it on another part (a disk on a controller card,
     say); both blank means standalone. specs is free text formatted
     'Key: value | Key: value'. serial is the number marked on this particular one,
-    read off the object and never inferred. location is where the part itself is
-    kept ('Spares drawer'), and is only worth sending for a part that lives
-    somewhere of its own: left empty on a part that is fitted in something, the
-    register shows it wherever that thing is kept. Storage parts are mechanical
+    read off the object and never inferred. location is the location the part
+    itself is kept in, by tag or by name as for a computer, and is only worth sending
+    for a part that lives somewhere of its own: left empty on a part that is fitted
+    in something, the register shows it wherever that thing is kept. Storage parts
+    are mechanical
     hard disks
     and tape (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
     family, Form factor, RAM slots, Slots, Cache, BIOS, Onboard video, Ports; a
@@ -561,3 +566,62 @@ def delete_project_order(project_id: str, order_id: int) -> dict:
 
 if __name__ == "__main__":
     mcp.run(transport="streamable-http", host=MCP_HOST, port=MCP_PORT)
+
+
+# --- where things are kept ------------------------------------------------------
+# A location is a shelf, a box, a bag, a room: a record in the register with a tag
+# from the same pool as the things kept in it, and the location it is inside. The
+# path -- Workshop / Rack 3 / Box 14 -- is worked out from those, so moving a box is
+# one update to the box, and everything in it moves with it.
+
+
+@mcp.tool()
+def list_locations() -> list[dict]:
+    """Every location, each with its tag, name, kind, the tag of the location it is
+    inside (parent) and its path in words. Use it to find the tag to file a thing
+    under, since two locations can share a name."""
+    return _request("GET", "/api/locations")
+
+
+@mcp.tool()
+def get_location(asset_id: str) -> dict:
+    """One location, with the tags of what is kept in it (things) and of the
+    locations directly inside it (locations)."""
+    return _request("GET", f"/api/locations/{asset_id}")
+
+
+@mcp.tool()
+def create_location(
+    name: str,
+    kind: str | None = None,
+    parent: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    """Make a location. kind is one of building, room, rack, shelf, box, bag, other
+    (other if not said). parent is the tag of the location it is inside, or left out
+    for the top of a tree. notes is how to find it -- 'third rack on the left'."""
+    fields = _clean(locals())
+    return _request("POST", "/api/locations", json=fields)
+
+
+@mcp.tool()
+def update_location(
+    asset_id: str,
+    name: str | None = None,
+    kind: str | None = None,
+    parent: str | None = None,
+    notes: str | None = None,
+) -> dict:
+    """Rename a location, change its kind or notes, or move it inside another by
+    giving parent a location's tag -- which moves everything kept in it as well. A
+    parent that would put it inside itself is refused."""
+    fields = _clean(locals())
+    fields.pop("asset_id")
+    return _request("PATCH", f"/api/locations/{asset_id}", json=fields)
+
+
+@mcp.tool()
+def delete_location(asset_id: str) -> dict:
+    """Delete a location, which is refused while anything is still in it -- a thing
+    or another location. Move what is in it first."""
+    return _request("DELETE", f"/api/locations/{asset_id}")

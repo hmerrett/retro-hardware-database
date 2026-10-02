@@ -25,13 +25,35 @@ from reportlab.pdfgen import canvas
 from .entry import display_name, parse_specs, type_label
 from .machines import ISSUE_KEY, REGION_KEY, STYLE_KEY
 from .projects import status_label
-from .surfaces import BODY, HEAD, PdfSurface, RasterSurface, Surface, blank, code
+from . import barcode, settings, typefaces
+from .surfaces import BODY, HEAD, LABEL, PdfSurface, RasterSurface, Surface, blank, code
 
-# The three kinds of thing a label can be for. This was an `is_computer` boolean
+# The four kinds of thing a label can be for. This was an `is_computer` boolean
 # while there were two, and stopped being able to be the day a project wanted a
 # sticker: "not a computer" had quietly meant "a part", and a two-valued flag
-# cannot hold a third answer without one of its two starting to lie.
-COMPUTER, PART, PROJECT = "computer", "part", "project"
+# cannot hold a third answer without one of its two starting to lie. A location is
+# the fourth (ADR-0034): the label on a box, scanned to see what is in it.
+COMPUTER, PART, PROJECT, LOCATION = "computer", "part", "project", "location"
+
+# Which codes a label carries (MANUAL §13, "QR code, barcode or both"): the
+# installation's choice, Settings → Labels → Codes, read when a label is drawn.
+QR, BARCODE, BOTH = "qr", "code128", "both"
+CODES = (QR, BARCODE, BOTH)
+
+
+def house_codes() -> str:
+    """The codes every label carries here, and always one this module draws."""
+    chosen = settings.value("label_codes")
+    return chosen if chosen in CODES else QR
+
+
+def house_face() -> str:
+    """The face a label's words are set in: the label face, or the interface face
+    of the look the site wears (MANUAL §13, "The type on a label")."""
+    if settings.value("label_type") != "look":
+        return LABEL
+    return typefaces.interface_face(settings.preset(), settings.typeface())
+
 
 # The three answers in a catalogue machine's line that are not a chip, and so get a
 # line of their own on a label (see computer_lines).
@@ -507,7 +529,12 @@ def project_lines(project: Row) -> list[str]:
 # category is quieter than a fact -- which is true on a screen and false on a
 # thermal printer, where there is no grey to print: the head is on or off, so grey
 # comes out as a dither, and a dithered word at five and a half point is a smudge.
-KIND_WORDS: dict[str | None, str] = {COMPUTER: "COMPUTER", PART: "PART", PROJECT: "PROJECT"}
+KIND_WORDS: dict[str | None, str] = {
+    COMPUTER: "COMPUTER",
+    PART: "PART",
+    PROJECT: "PROJECT",
+    LOCATION: "LOCATION",
+}
 
 # The most of a small label's width the QR code may take. A code that will not
 # scan is worth nothing, so it gets as much as it can -- but a label is read by a
@@ -574,7 +601,18 @@ def _render_full(
     url: str,
     error: str = "M",
     kind: str | None = None,
+    over: str = "",
+    codes: str = "qr",
+    tag: str = "",
 ) -> None:
+    """A full label. `asset_id` is what is printed largest -- the tag, on everything
+    but a location, whose name is -- and `over` a line of small type above it: the
+    path a location's label carries, which says where the box was when the label
+    was printed. `codes` is which codes it carries and `tag` what a barcode holds.
+
+    A barcode alone stands where the QR code would; with both, it runs under the
+    words, which stop above it."""
+    data = tag or asset_id
     margin = 0.22 * inch
     qr_size = min(H - 2 * margin, 2.1 * inch)
     qr_x = W - margin - qr_size
@@ -586,12 +624,22 @@ def _render_full(
     text_x = margin + strip
     text_w = qr_x - text_x - 0.10 * inch
     bottom = margin + 0.16 * inch
+    if codes == BOTH:
+        # The bars have the band's whole height. The tag that stood under them said
+        # again what the largest line on the label says already (MANUAL §13).
+        band_h = 0.5 * inch + 10
+        used = s.barcode_width(text_w, data)
+        s.barcode(text_x, bottom, used, band_h, data)
+        bottom += band_h + 8
     s.frame(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8)
     if word:
         s.vertical(margin, margin + strip, H / 2, word, HEAD, 13)
     aid_size = _fit(s, asset_id, HEAD, 24, 12, text_w)
     y = H - margin - aid_size + 4
-    s.text(text_x, y, asset_id, HEAD, aid_size)
+    if over:
+        s.text(text_x, H - margin - 6, _tail(s, over, 9, text_w), BODY, 9)
+        y -= 12
+    s.text(text_x, y, _clip(s, asset_id, HEAD, aid_size, text_w), HEAD, aid_size)
     for line in _wrap(s, title, HEAD, 12, text_w)[:2]:
         y -= 16
         s.text(text_x, y, line, HEAD, 12)
@@ -604,9 +652,32 @@ def _render_full(
             s.text(text_x if i == 0 else text_x + 8, y, line if i == 0 else "  " + line, BODY, 9)
         if y - 12 < bottom:
             break
+    if codes == BARCODE:
+        bars_h = 0.9 * inch
+        used = s.barcode_width(qr_size, data)
+        bars_x = qr_x + (qr_size - used) / 2
+        s.barcode(bars_x, (H - bars_h) / 2, used, bars_h, data)
+        return
     qr_y = (H - qr_size) / 2 + 0.10 * inch
     s.qr(qr_x, qr_y, qr_size, url, error)
     s.text_centred(qr_x + qr_size / 2, qr_y - 11, "scan for details", BODY, 7.5)
+
+
+def _tail(s: Surface, path: str, size: float, max_w: float) -> str:
+    """A location's path in the room there is, losing its far end first.
+
+    The near end is the useful one -- "SHELF 2" says where the box is, "WORKSHOP"
+    only which building -- so a path too long for the label drops whole steps off
+    the front, saying so, before a step is cut in the middle."""
+    if s.width_of(path, BODY, size) <= max_w:
+        return path
+    steps = path.split(" / ")
+    while len(steps) > 1:
+        steps = steps[1:]
+        shorter = "… / " + " / ".join(steps)
+        if s.width_of(shorter, BODY, size) <= max_w:
+            return shorter
+    return _clip(s, steps[0], BODY, size, max_w)
 
 
 def _clip(s: Surface, text: str, font: str, size: float, max_w: float) -> str:
@@ -672,6 +743,28 @@ def _small_body_lines(
         size -= 0.5
 
 
+# The barcode's band on a small label: a share of the height, with a floor below
+# which a scanner's line misses the bars. The bars have all of it. Nothing is
+# printed under them (MANUAL §13): the tag is already the largest line on an item's
+# label and the line under the name on a location's, and the seven characters again
+# under the bars were room the bars could use.
+BAR_SHARE, BAR_MIN = 0.36, 4.5 * mm
+
+# A QR code smaller than this is one a phone has to be argued with. With both codes
+# on a small label the barcode goes under the words beside the code while the code
+# can keep this much; where it cannot, the barcode runs the width of the label under
+# everything instead, with the code above it. A label too short even for that -- the
+# 51x19mm tape -- carries the barcode alone, which was the owner's answer to which of
+# the two that tape should keep.
+QR_MIN = 12 * mm
+
+
+def _bars_of(data: str) -> float:
+    """How much of a barcode's width is bars, the white either side being the rest."""
+    whole = barcode.width(data)
+    return (whole - 2 * barcode.QUIET) / whole
+
+
 def _render_small(
     s: Surface,
     W: float,
@@ -683,7 +776,15 @@ def _render_small(
     error: str = "M",
     tags: Sequence[str] = (),
     kind: str | None = None,
+    over: str = "",
+    codes: str = "qr",
+    tag: str = "",
 ) -> None:
+    # `asset_id` is the line printed largest and `over` a line of small type above
+    # it, as on the full label: a location's label is its name, with its path over.
+    # `tag` is what a barcode holds, which is the asset tag however the label is
+    # headed; `codes` which codes the label carries (MANUAL §13).
+    #
     # The code is as tall as the label allows, but never so wide that the words
     # have nowhere to go. On a 51x19mm tape the height is what binds and this
     # changes nothing; on a 50x30mm Niimbot label it is not, and a code as tall as
@@ -693,22 +794,69 @@ def _render_small(
     # The strip the kind word stands in is taken out of the text column, so a long
     # name wraps a word sooner. The alternative was shrinking the code, and one
     # that will not scan is worth less than a name that takes an extra line.
+    data = tag or asset_id
     word = KIND_WORDS.get(kind, "")
     mx, my, qr, tx, tw = small_text_column(W, H, safe, bool(word))
-    # What the code will not use, the words get. A code is drawn at a whole number
-    # of dots to the square, so a box sized to the nearest anything leaves up to a
-    # square's worth per square unused -- which on a 50x30mm label was four
-    # millimetres of white around a code that looked as though it had been given
-    # room and not taken it. Printing that as a margin is the one use for it that
-    # helps nobody.
-    drawn = s.qr_size(qr, url, error)
-    tx -= qr - drawn
-    tw += qr - drawn
-    qr = drawn
-    # Centred in what height there is: on a squarer label a code sitting on the
-    # bottom margin leaves a hole above it that reads as a mistake rather than as a
-    # margin. On a tape there is no spare height and this is exactly that margin.
-    s.qr(mx, my + (H - 2 * my - qr) / 2, qr, url, error)
+    grow = H / TAPE_H
+    bars = max(BAR_MIN, (H - 2 * my) * BAR_SHARE) if codes != QR else 0.0
+    band = bars + 1.0 if bars else 0.0
+    strip_w = (WORD_STRIP + 1.0 * mm) if word else 0.0
+    across = False
+    if codes == BOTH:
+        short = s.barcode_min(data) - tw
+        above = H - 2 * my - band - 1.0 * mm
+        if short > 0 and qr - short >= QR_MIN:
+            # Under the words beside the code, the code giving up what the bars need.
+            qr -= short
+            tx -= short
+            tw += short
+        elif short > 0 and above >= QR_MIN:
+            # Or across the label under everything, with the code above it.
+            across = True
+            qr = min(qr, above)
+            tx = mx + qr + 1.5 * mm
+            tw = W - tx - mx - strip_w
+        elif short > 0:
+            # Or, on a label too short for both, the barcode alone.
+            codes = BARCODE
+    # A barcode on its own runs the width of the label, under the words and the kind
+    # word both, because width is what bars are made of: on a 40mm label at 203 dpi
+    # the text column alone gives each bar one dot, which is a barcode in name only.
+    if codes == BARCODE:
+        across = True
+        tw += tx - mx
+        tx = mx
+        qr = 0.0
+    if qr:
+        # What the code will not use, the words get. A code is drawn at a whole
+        # number of dots to the square, so a box sized to the nearest anything leaves
+        # up to a square's worth per square unused -- which on a 50x30mm label was
+        # four millimetres of white around a code that looked as though it had been
+        # given room and not taken it. Printing that as a margin is the one use for
+        # it that helps nobody.
+        drawn = s.qr_size(qr, url, error)
+        tx -= qr - drawn
+        tw += qr - drawn
+        qr = drawn
+        # Centred in what height there is: on a squarer label a code sitting on the
+        # bottom margin leaves a hole above it that reads as a mistake rather than
+        # as a margin. On a tape there is no spare height and this is exactly that
+        # margin. Above the bars, when they run across under it.
+        low = my + (band if across else 0.0)
+        s.qr(mx, low + (H - my - low - qr) / 2, qr, url, error)
+    if bars:
+        if across:
+            # The white a scanner needs either side of the bars may stand in the
+            # allowance kept at the tape's ends, since it prints nothing, and only the
+            # bars keep inside it: on the 51x19mm tape, a fourth dot to every bar.
+            used = s.barcode_width(W - 2 * my, data)
+            if used * _bars_of(data) > W - 2 * mx:
+                used = s.barcode_width(W - 2 * mx, data)
+            left = (W - used) / 2
+        else:
+            used = s.barcode_width(tw, data)
+            left = tx + (tw - used) / 2
+        s.barcode(left, my, used, bars, data)
     if word:
         strip = WORD_STRIP
         # A millimetre further in than the text stops. `safe_mm` is the allowance
@@ -716,22 +864,32 @@ def _render_small(
         # words that can afford to lose a hair off a descender; a single word set
         # across the tape cannot, since half a letter missing makes the word
         # unreadable rather than merely tight. So this keeps its own margin, wider.
+        # Centred in the height above the bars when they run under it.
         edge = mx + 1.0 * mm
-        s.vertical(W - edge - strip, W - edge, H / 2, word, HEAD, 5.0)
-    grow = H / TAPE_H
+        middle = (H + (band if across else 0.0)) / 2
+        s.vertical(W - edge - strip, W - edge, middle, word, HEAD, 5.0)
+    # The words stand above the bars, wherever the bars are.
+    floor = my + band
     aid_size = _fit(s, asset_id, HEAD, TAG_PT * grow, 5, tw)
     top = H - my
-    bsize, lines = _small_body_lines(s, title, tags, tw, top - aid_size - my, BODY_PT * grow)
+    over_size = BODY_PT * grow * 0.85 if over else 0.0
+    above = over_size + 1.0 if over else 0.0
+    bsize, lines = _small_body_lines(
+        s, title, tags, tw, top - above - aid_size - floor, BODY_PT * grow
+    )
     # Centred down the label rather than hung from the top. What is written is as
     # tall as it is; where the label is taller than that, the difference is a margin
     # and belongs at both ends. Hung from the top it reads as a label somebody
     # started and left, which is what a 50x30mm one looked like.
-    written = aid_size + len(lines) * (bsize + 1.5)
-    top -= max(0.0, (H - 2 * my - written) / 2)
+    written = above + aid_size + len(lines) * (bsize + 1.5)
+    top -= max(0.0, (H - my - floor - written) / 2)
+    if over:
+        s.text(tx, top - over_size, _tail(s, over, over_size, tw), BODY, over_size)
+        top -= above
     y = top - aid_size
-    s.text(tx, y, asset_id, HEAD, aid_size)
+    s.text(tx, y, _clip(s, asset_id, HEAD, aid_size, tw), HEAD, aid_size)
     for line in lines:
-        if y - (bsize + 1.5) < my:
+        if y - (bsize + 1.5) < floor:
             break
         y -= bsize + 1.5
         s.text(tx, y, line, BODY, bsize)
@@ -746,6 +904,7 @@ def _draw(
     small: bool,
     form_factor: str = "",
     spec_pairs: list[tuple[str, str]] | None = None,
+    codes: str | None = None,
 ) -> None:
     """One label, on whichever surface it was given.
 
@@ -753,12 +912,82 @@ def _draw(
     ready -- a page to draw on, or a bitmap of the right number of dots. What goes
     on it is decided once, here."""
     W, H = layout_size(media)
+    _draw_at(
+        surface,
+        W,
+        H,
+        media["safe_mm"],
+        media["qr"],
+        asset,
+        parts,
+        kind,
+        small,
+        form_factor,
+        spec_pairs,
+        codes,
+    )
+
+
+def _draw_at(
+    surface: Surface,
+    W: float,
+    H: float,
+    safe: float,
+    error: str,
+    asset: Row,
+    parts: Sequence[Row],
+    kind: str,
+    small: bool,
+    form_factor: str = "",
+    spec_pairs: list[tuple[str, str]] | None = None,
+    codes: str | None = None,
+) -> None:
+    """One label at a size, rather than on a stock: what a sheet of them draws
+    into each of its cells, and what `_draw` draws onto a stock. `codes` is which
+    codes it carries, the installation's choice when the caller does not say."""
+    codes = codes or house_codes()
     asset_id = _txt(asset, "asset_id")
     url = item_url(asset_id)
+    if kind == LOCATION:
+        # The name largest, the path over it, and the tag under: what is on the
+        # shelf, where the shelf was when this was printed, and what to type.
+        name, path = _txt(asset, "name") or asset_id, _txt(asset, "path").upper()
+        if small:
+            _render_small(
+                surface,
+                W,
+                H,
+                name,
+                asset_id,
+                url,
+                safe,
+                error,
+                kind=kind,
+                over=path,
+                codes=codes,
+                tag=asset_id,
+            )
+            return
+        lines = [x for x in (_txt(asset, "kind"), _txt(asset, "notes")) if x]
+        _render_full(
+            surface,
+            W,
+            H,
+            name,
+            asset_id,
+            lines,
+            url,
+            error,
+            kind=kind,
+            over=path,
+            codes=codes,
+            tag=asset_id,
+        )
+        return
     if small:
         name, tags = small_body(asset, kind, spec_pairs)
         _render_small(
-            surface, W, H, asset_id, name, url, media["safe_mm"], media["qr"], tags=tags, kind=kind
+            surface, W, H, asset_id, name, url, safe, error, tags=tags, kind=kind, codes=codes
         )
         return
     if kind == COMPUTER:
@@ -767,7 +996,9 @@ def _draw(
         lines = project_lines(asset)
     else:
         lines = part_lines(asset, spec_pairs)
-    _render_full(surface, W, H, asset_id, display_name(asset), lines, url, media["qr"], kind=kind)
+    _render_full(
+        surface, W, H, asset_id, display_name(asset), lines, url, error, kind=kind, codes=codes
+    )
 
 
 def render_pdf(
@@ -794,7 +1025,8 @@ def render_pdf(
     c = canvas.Canvas(buf, pagesize=rotated_page(spec))
     c.saveState()
     _apply_rotation(c, *layout_size(spec), spec["rotate"])
-    _draw(PdfSurface(c), spec, asset, parts, kind, small, form_factor, spec_pairs)
+    surface = PdfSurface(c, house_face(), spec["dpi"])
+    _draw(surface, spec, asset, parts, kind, small, form_factor, spec_pairs)
     c.restoreState()
     c.showPage()
     c.save()
@@ -824,8 +1056,54 @@ def render_png(
     than a page.
     """
     image = blank(*size_dots(media, dpi))
-    surface = RasterSurface(image, dpi or media["dpi"])
+    surface = RasterSurface(image, dpi or media["dpi"], house_face())
     _draw(surface, media, asset, parts, kind, small, form_factor, spec_pairs)
     buf = io.BytesIO()
     image.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+# A sheet of labels: A4, three across and seven down, at 63.5 x 38.1 mm -- the size of
+# the commonest stock of sheet labels -- with the margins and the pitch that stock is
+# cut to (MANUAL §13, "A location has one too").
+SHEET_W, SHEET_H = 210 * mm, 297 * mm
+SHEET_COLS, SHEET_ROWS = 3, 7
+CELL_W, CELL_H = 63.5 * mm, 38.1 * mm
+SHEET_LEFT, SHEET_TOP = 7.21 * mm, 15.15 * mm
+PITCH_X, PITCH_Y = 66.04 * mm, 38.1 * mm
+
+
+def render_many(rows: Sequence[tuple[Row, str]], sheet: bool = False) -> bytes:
+    """Many small labels in one PDF: one to a page on the small label stock, for a
+    label printer, or laid out on A4 sheets for a printer with a tray. `rows` are
+    (row, kind) as `render_pdf` takes them one at a time."""
+    buf = io.BytesIO()
+    face = house_face()
+    if sheet:
+        c = canvas.Canvas(buf, pagesize=(SHEET_W, SHEET_H))
+        per = SHEET_COLS * SHEET_ROWS
+        for n, (row, kind) in enumerate(rows):
+            if n and n % per == 0:
+                c.showPage()
+            at = n % per
+            x = SHEET_LEFT + (at % SHEET_COLS) * PITCH_X
+            y = SHEET_H - SHEET_TOP - (at // SHEET_COLS + 1) * PITCH_Y
+            c.saveState()
+            c.translate(x, y)
+            # An office printer's, whatever it is: 600 and 1200 dpi both lay their dots
+            # on a 300 dpi grid, so a bar of whole 300 dpi dots is whole in theirs too.
+            sheet_surface = PdfSurface(c, face, 300)
+            _draw_at(sheet_surface, CELL_W, CELL_H, 1.5, "M", row, [], kind, True)
+            c.restoreState()
+        c.showPage()
+    else:
+        spec = MEDIA[SMALL]
+        c = canvas.Canvas(buf, pagesize=rotated_page(spec))
+        for row, kind in rows:
+            c.saveState()
+            _apply_rotation(c, *layout_size(spec), spec["rotate"])
+            _draw(PdfSurface(c, face, spec["dpi"]), spec, row, [], kind, True)
+            c.restoreState()
+            c.showPage()
+    c.save()
     return buf.getvalue()

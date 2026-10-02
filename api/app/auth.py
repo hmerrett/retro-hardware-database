@@ -279,6 +279,13 @@ def _public_page(path: str) -> bool:
         return True
     if path.startswith(("/computers/", "/parts/", "/projects/")):
         return not (path.endswith(("/new", "/delete")) or "/edit" in path or "/label." in path)
+    # A location's pages, and the list of them all, are let through the gate and
+    # decide for themselves, as a file's do: who may see one is the Show locations
+    # switch, and a visitor kept out is answered with the 404 a tag nothing has gets
+    # rather than with the login, which would say there is something here to log in
+    # for (ADR-0034). The forms stay the owner's, by the rule the item pages follow.
+    if path == "/locations" or path.startswith("/locations/"):
+        return not (path.endswith("/new") or "/edit" in path)
     return False
 
 

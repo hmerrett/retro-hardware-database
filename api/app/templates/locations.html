@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% block title %}Locations — {{ site_name() }}{% endblock %}
+{% block main_class %} v2{% endblock %}
+{% block content %}
+{# Every location, as the tree it is (MANUAL §14, "Every location"). A list inside a
+   list rather than a table with an indent: the nesting is the fact being shown, and
+   a nested list is the shape a screen reader announces as one -- a level down at
+   each step -- where an indent is only a picture of it. #}
+<div class="pagehead">
+  <h1 class="heading">Locations</h1>
+  {% if total %}<span class="count">{{ total }}</span>{% endif %}
+  {% if request.state.authed %}<span class="push"></span>{{ U.button('Location', size='sm', icon='plus', href='/locations/new') }}{% endif %}
+</div>
+{% if outline %}
+<ul class="placelist placetree">
+  {%- for node in outline recursive %}
+  <li><a href="/locations/{{ node.tag }}">{{ node.name }}</a> <span class="meta">{{ kind_names[node.kind] | default(node.kind) }} · {{ node.tag }} · {{ node.held }} thing{{ '' if node.held == 1 else 's' }}</span>
+    {%- if node.inside %}<ul>{{ loop(node.inside) }}</ul>{% endif %}</li>
+  {%- endfor %}
+</ul>
+{% else %}
+<p class="muted">No locations yet.{% if request.state.authed %} Add the first with <b>+ Location</b>, or by naming one in a machine's or a part's <b>Location</b> box.{% endif %}</p>
+{% endif %}
+{% endblock %}

@@ -321,7 +321,7 @@
 {%- if (seg == '/' and current == '/') or (seg != '/' and current.startswith(seg)) %} aria-current="page"{% endif -%}
 {%- endmacro %}
 
-{#- One row of tabs across Settings and the account pages (MANUAL §18): pages of their
+{#- One row of tabs across Settings and the account pages (MANUAL §19): pages of their
     own, so a `nav` of links with the current one marked as the page, not a widget,
     and no script. Only for somebody who may change settings: a viewer's one page
     under Settings is Your account, and a row of one tab says nothing. -#}
@@ -337,30 +337,45 @@
 {%- endif -%}
 {%- endmacro %}
 
-{# The five sections, in the order both the banner and the menu give them. "Models"
+{# The sections, in the order both the banner and the menu give them. "Models"
    rather than "machines": the page is the catalogue's list of machine models, and
    beside Browse -- the machines actually held -- "machines" read as a second way
    into the same shelf. Projects sits next to Browse because the two are a pair:
-   what is owned, and the work in hand. #}
-{% set SECTIONS = [('/', 'Browse', 'grid'), ('/projects', 'Projects', 'projects'),
-                   ('/stats', 'Numbers', 'numbers'), ('/machines', 'Models', 'models'),
-                   ('/files', 'Files', 'files')] %}
+   what is owned, and the work in hand; Locations follows them, as where it is kept.
+
+   Locations is in the list only for a reader who may open it. To a visitor while
+   Show locations is off it would be a section answering 404, which is a section
+   saying that something is being kept back (ADR-0034). The request is there
+   wherever the chrome is drawn; the one import without the page's context draws
+   none of it. #}
+{% set _places = request is defined and locations_shown(request.state.sees_private) %}
+{% set SECTIONS = [('/', 'Browse', 'grid'), ('/projects', 'Projects', 'projects')]
+                  + ([('/locations', 'Locations', 'location')] if _places else [])
+                  + [('/stats', 'Numbers', 'numbers'), ('/machines', 'Models', 'models'),
+                     ('/files', 'Files', 'files')] %}
+
+{# The kinds of thing there are to add, in the order + New offers them. One list for
+   the three places that offer them -- + New, the phone's sheet and the rail -- so a
+   kind added to one cannot be missing from the others, as Project and Location were
+   from the rail while it kept a list of its own. #}
+{% set ADD = [('/computers/new', 'Computer'), ('/parts/new', 'Part'),
+              ('/projects/new', 'Project'), ('/locations/new', 'Location')] %}
 
 {# Everything that is neither a place in the banner nor its search: one list, drawn
    as the banner's popover or as the phone's sheet, so a row added for one cannot be
    missing from the other.
 
    The sheet leads with the things to add, since on a phone there is no + New
-   beside it (the plus is its icon, so not its words as well), and carries the four
-   sections the tab bar has no room for. The popover carries all five sections
-   classed `fold`: the stylesheet shows them only at the widths where the banner has
-   put its own away. Theme, share and reload are buttons the script words and
+   beside it (the plus is its icon, so not its words as well), and carries the
+   sections the tab bar has no room for. The popover carries every section classed
+   `fold`: the stylesheet shows them only at the widths where the banner has put its
+   own away. Theme, share and reload are buttons the script words and
    reveals (app.js), so they carry no icon for it to overwrite. #}
 {% macro menu(current, authed, back, sheet=false) -%}
 {%- if sheet and authed -%}
-<a href="/computers/new">{{ I.ico('plus') }}{{ 'Computer' | ui }}</a>
-<a href="/parts/new">{{ I.ico('plus') }}{{ 'Part' | ui }}</a>
-<a href="/projects/new">{{ I.ico('plus') }}{{ 'Project' | ui }}</a>
+{%- for href, thing in ADD %}
+<a href="{{ href }}">{{ I.ico('plus') }}{{ thing | ui }}</a>
+{%- endfor %}
 <hr>
 {%- endif -%}
 {%- for href, words, icon in SECTIONS if not (sheet and href == '/') -%}
@@ -378,6 +393,10 @@
 {#- The owner's own shortlist, beside the other things only an account can reach.
     Not a section: it is a note to yourself, not a part of the catalogue (ADR-0018).
     A viewer reads it; traffic and the settings are an administrator's (ADR-0032). -#}
+{#- The audit moves things, so it is an administrator's (ADR-0034). -#}
+{%- if authed -%}
+<a href="/audit"{{ here('/audit', current) }}>{% if sheet %}{{ I.ico('storage') }}{% endif %}{{ 'Audit' | ui }}</a>
+{%- endif -%}
 {%- if request.state.sees_private -%}
 <a href="/for-sale"{{ here('/for-sale', current) }}>{% if sheet %}{{ I.ico('tag') }}{% endif %}{{ 'Might sell' | ui }}</a>
 {%- endif -%}
@@ -450,9 +469,9 @@
   <details class="menu hdr-new">
     <summary class="btn primary" role="button">{{ '+ New' | ui }}</summary>
     <div class="menupop">
-      <a href="/computers/new">{{ '+ Computer' | ui }}</a>
-      <a href="/parts/new">{{ '+ Part' | ui }}</a>
-      <a href="/projects/new">{{ '+ Project' | ui }}</a>
+      {%- for href, thing in ADD %}
+      <a href="{{ href }}">{{ ('+ ' ~ thing) | ui }}</a>
+      {%- endfor %}
     </div>
   </details>
   {%- endif %}
@@ -465,7 +484,7 @@
 {%- endmacro %}
 
 {# The side rail: where the sections sit when Navigation is Side, at 1100px and
-   wider. The same five places the banner holds, laid down instead of across, with
+   wider. The same places the banner holds, laid down instead of across, with
    what the banner's two menus hold at its foot -- so nothing is in both and the
    banner beside it keeps only the search and Scan (components.css, 13a).
 
@@ -497,11 +516,11 @@
     {%- endfor %}
   </nav>
   {%- if authed %}
-  {#- The + New menu, unfolded: in a rail there is room to make the two things
-      most often added one press each, and a menu costs the same press twice. #}
+  {#- The + New menu, unfolded: in a rail there is room to make each kind of thing
+      one press, and a menu costs the same press twice. #}
   <div class="sep"></div>
   <nav aria-label="Add">
-    {%- for href, thing in (('/computers/new', 'Computer'), ('/parts/new', 'Part')) %}
+    {%- for href, thing in ADD %}
     {%- set w = ('Add ' ~ thing.lower()) | ui %}
     <a class="item" href="{{ href }}" title="{{ w }}" aria-label="{{ w }}">{{ I.ico('plus') }}<span>{{ thing | ui }}</span></a>
     {%- endfor %}
@@ -524,6 +543,9 @@
     {#- Every page the ⋯ menu links to, in its order and for the same readers:
         beside the rail the banner puts that menu away, so a page missing here is
         one nobody can reach without typing its address. -#}
+    {%- if authed %}
+    <a class="item" href="/audit" title="{{ 'Audit' | ui }}" aria-label="{{ 'Audit' | ui }}"{{ here('/audit', current) }}>{{ I.ico('storage') }}<span>{{ 'Audit' | ui }}</span></a>
+    {%- endif %}
     {%- if request.state.sees_private %}
     <a class="item" href="/for-sale" title="{{ 'Might sell' | ui }}" aria-label="{{ 'Might sell' | ui }}"{{ here('/for-sale', current) }}>{{ I.ico('tag') }}<span>{{ 'Might sell' | ui }}</span></a>
     {%- endif %}

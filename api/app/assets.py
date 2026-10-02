@@ -44,7 +44,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
-from . import entry, filesdb, machinedb, machines, projects, specdb
+from . import entry, filesdb, locations, machinedb, machines, projects, specdb
 from .common import folder_images, to_dict
 from .disposal import _parts_in_computer
 from .forms import Posted, Refusal, posted
@@ -56,6 +56,7 @@ from .models import (
     ComputerDrive,
     ComputerRamChip,
     ComputerRamModule,
+    Location,
     LogEntry,
     Part,
     Project,
@@ -221,7 +222,11 @@ def _log_count(db: Session, asset_ids: Sequence[str]) -> int:
 COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
 
 
-COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
+# The change log need not repeat the derived memory total, nor where the thing is
+# kept: a change of location is a move, written as one with both ends linked
+# (locations.move), and a line saying "location_id: RH-K7Q2 → RH-9J2X" beside it
+# would be the same event told worse.
+COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f not in ("installed_ram_kb", "location_id")]
 
 
 # These are rendered from the memory, drive and catalogue child tables, so the form
@@ -257,10 +262,30 @@ DUP_EXCLUDE = {
     "acquired_date",
     "notes",
     "serial",
-    "location",
+    "location_id",
     "computer_id",
     "parent_id",
 }
+
+
+def place_from_form(db: Session, obj: Computer | Part, form: Posted, who: str) -> Refusal | None:
+    """The Location box, read off a form and acted on: the location it names --
+    made at the top, of kind other, when it names none -- and the move written
+    down as made by edit (MANUAL §5, "Where it is kept").
+
+    A refusal rather than an exception for text that names more than one location
+    or something that is not one, so the form comes back with the message by the
+    box and the rest of what was typed still in it. A form without the box at all
+    -- a route that posts only some fields -- leaves where the thing is alone."""
+    if "location" not in form:
+        return None
+    tree = locations.tree(db)
+    try:
+        found = locations.choose(db, form.get("location", ""), tree)
+        locations.move(db, obj, found.asset_id if found else None, locations.EDIT, who, tree)
+    except locations.Refused as err:
+        return ("location", "Location", str(err))
+    return None
 
 
 def _attach_photos(
@@ -348,7 +373,11 @@ def _delete_ctx(
 
 
 def _do_photo_crop(
-    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+    db: Session,
+    model: type[Computer] | type[Part] | type[Location],
+    kind: str,
+    aid: str,
+    form: Posted,
 ) -> None:
     get_or_404(db, model, aid)
     try:
@@ -361,7 +390,11 @@ def _do_photo_crop(
 
 
 def _do_photo_revert(
-    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+    db: Session,
+    model: type[Computer] | type[Part] | type[Location],
+    kind: str,
+    aid: str,
+    form: Posted,
 ) -> None:
     get_or_404(db, model, aid)
     rel = form.get("image", "")
@@ -373,7 +406,11 @@ def _do_photo_revert(
 
 
 def _do_photo_rotate(
-    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+    db: Session,
+    model: type[Computer] | type[Part] | type[Location],
+    kind: str,
+    aid: str,
+    form: Posted,
 ) -> None:
     get_or_404(db, model, aid)
     _edit_image(kind, aid, form.get("image", ""), _rotate_op(form.get("dir", "cw")))
@@ -382,7 +419,11 @@ def _do_photo_rotate(
 
 
 def _do_photo_tuneup(
-    db: Session, model: type[Computer] | type[Part], kind: str, aid: str, form: Posted
+    db: Session,
+    model: type[Computer] | type[Part] | type[Location],
+    kind: str,
+    aid: str,
+    form: Posted,
 ) -> None:
     get_or_404(db, model, aid)
     rel = form.get("image", "")

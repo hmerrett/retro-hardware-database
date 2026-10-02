@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import drivedb, entry, filesdb, labels, locations, machinedb, projects, settings, specdb
+from .. import drivedb, entry, filesdb, labels, locations, machinedb, projects, specdb
 from ..assets import (
     DUP_EXCLUDE,
     PART_DERIVED_FIELDS,
@@ -37,6 +37,7 @@ from ..assets import (
     _work_from_form,
     delete_part,
     part_thumbs,
+    place_from_form,
     refused,
 )
 from ..common import to_dict
@@ -178,6 +179,9 @@ def _part_form_ctx(
         "conditions": entry.CONDITIONS,
         "work_projects": projects.open_projects(db),
         "dl": _datalists(db),
+        # What the Location box holds: the path to where the part itself is kept, or
+        # nothing for a part that follows what it is fitted in.
+        "location_text": locations.tree(db).text(obj.location_id) if obj is not None else "",
         "vocab": {
             "form_factors": entry.MOBO_FORM_FACTORS,
             "cpu_families": cpu_families,
@@ -230,7 +234,6 @@ async def _part_from_form(
         "condition",
         "source",
         "acquired_date",
-        "location",
         "url",
         "summary",
         "notes",
@@ -710,7 +713,8 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
     if ptype == "motherboard" and (mach := _machine_from_form(form, board=True)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
-    locations.remember(db, obj.location)
+    if (no := place_from_form(db, obj, form, request.state.principal.username)) is not None:
+        errors.append(no)
     _work_from_form(db, obj, form)
     if errors:
         ctx = _part_form_ctx(db, obj, ptype, computer_id, obj.parent_id or "", action="/parts/new")
@@ -750,13 +754,13 @@ def gui_part(
         if not p.computer_id and not p.parent_id:
             computers = db.query(Computer).order_by(Computer.asset_id).all()
     images = detect_images("parts", aid)
-    # Where this part is because of what it is fitted in. Asked only of a part that
-    # holds no answer of its own -- its own always wins -- and only for a reader who
-    # is shown locations, because working one out for a row that cannot be rendered
-    # is two queries spent on nothing.
-    placed = None
-    if not p.location.strip() and (request.state.sees_private or settings.on("public_locations")):
-        placed = locations.inherited(db).get(aid)
+    # Where it is kept: its own location, or the one it is in because of what it is
+    # fitted in. Worked out only for a reader who is shown locations, because a row
+    # that cannot be rendered is queries spent on nothing (ADR-0027, ADR-0034).
+    where = None
+    if locations.shown(request.state.sees_private):
+        placed = {} if p.location_id else locations.inherited(db)
+        where = locations.where_row(db, p, placed, locations.tree(db))
     spec_pairs = specdb.pairs(db, p, display=True)
     # The preview text and the structured data are read rather than parsed, so they
     # say the figures the page says -- not the stored string's exact-to-the-KiB ones.
@@ -789,8 +793,8 @@ def gui_part(
             # visitor's page does not ask the question at all.
             "work_projects": (projects.open_projects(db) if request.state.authed else []),
             "candidates": candidates,
-            # None unless this part is placed by something it is fitted in (above).
-            "placed": placed,
+            # The Location row, or None for no row (above).
+            "where": where,
             "computers": computers,
             "images": images,
             "placeholder": _part_placeholder(db, p),
@@ -798,7 +802,7 @@ def gui_part(
             "tuned": tuned_photos("parts", aid),
             "spec_pairs": spec_pairs,
             "imgerr": bool(imgerr),
-            "log": _history(db, aid),
+            "log": _history(db, aid, kept=locations.shown(request.state.sees_private)),
             "nav": _item_nav(db, aid),
             "live_aid": aid,
             "live_v": _change_token(db, aid),
@@ -876,7 +880,8 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     diff = _field_diffs(old, {k: getattr(p, k) for k in data}, list(data), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
-    locations.remember(db, p.location)
+    if (no := place_from_form(db, p, form, request.state.principal.username)) is not None:
+        errors.append(no)
     _work_from_form(db, p, form)
     if errors:
         ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")

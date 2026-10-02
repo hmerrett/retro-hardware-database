@@ -347,10 +347,11 @@
   .site-header .searchwrap { display: flex; flex: 0 1 230px; min-width: 160px; }
   .site-header .menu > summary { min-height: var(--control-h); }
   /* The no-login notice stands under the banner, inside its gutters. */
-  /* A tablet, or a narrow window: the five sections leave the banner for the top of
-     its menu, so the banner stays one row rather than wrapping the search box onto a
-     second. */
-  @media (max-width: 900px) {
+  /* A tablet, or a narrow window: the sections leave the banner for the top of its
+     menu, so the banner stays one row rather than wrapping the search box onto a
+     second. At 1000px and not 900 since Locations made them six: the sixth is about
+     80px of banner, and at 900 that would have come out of the collection's name. */
+  @media (max-width: 1000px) {
     .site-header nav { display: none; }
     .menupop .fold { display: block; }
     .menupop hr.fold { display: block; }
@@ -1106,4 +1107,72 @@
   /* A new API token, shown once. Forty-odd characters with nowhere to break would
      set the width of the page on a phone (accessibility-standards). */
   code.token { overflow-wrap: anywhere; user-select: all; }
+
+  /* ---- Where things are kept (ADR-0034) ----------------------------------- */
+  /* The path to a location at the top of its page, each step a link. */
+  .pathnav { margin: 0 0 var(--space-4); font-size: 14px; color: var(--text-muted); overflow-wrap: anywhere; }
+  .pathnav .sep { color: var(--text-muted); }
+  /* An item's Location row: the path, then what the location says about finding it
+     -- its photograph, small, beside its notes. */
+  .wherenote { display: flex; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-2); }
+  .wherephoto { flex: 0 0 auto; width: 96px; aspect-ratio: var(--thumb-ratio); object-fit: cover;
+    border-radius: var(--radius-sm); }
+  /* The locations inside one, a line each with what it holds. */
+  .placelist { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
+  .placelist li { padding: 6px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .placelist li:last-child { border-bottom: 0; }
+  /* Every location (MANUAL §14): the same lines, with the locations inside each one
+     stepped in under it behind a rule, so a long branch still reads as one. */
+  .placetree ul { list-style: none; margin: 6px 0 0; padding: 0 0 0 var(--space-5);
+    border-left: 1px solid var(--line); }
+
+  /* ---- The audit -------------------------------------------------------------
+     A phone in one hand and a scanner in the other: the prompt and the answer large
+     enough to be read across a room, and the controls the site's own -- the scans
+     come from a trigger, not from thumbs on the screen. The colours are the ones
+     the chips and banners already wear -- words on the success and danger washes
+     -- so the tones are pairs every look is held to, and the words and the icon say
+     it as well as the colour does. */
+  .storagestart, .storageprompt { margin: 0 0 var(--space-4); }
+  .storagestart .row { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+  .storagestart .prompt, .storageprompt .prompt { margin: 0 0 var(--space-3); font-size: 30px;
+    font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+  .storageprompt .step { margin: 0; color: var(--text-muted); }
+  .storageprompt .prompt { margin: 0; }
+  .storageprompt .hint { margin: var(--space-1) 0 var(--space-3); }
+  .storagepanel { display: flex; align-items: center; gap: var(--space-5); margin: 0 0 var(--space-3);
+    padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg);
+    color: var(--text); background: var(--surface-sunken); border: var(--border-w) solid var(--line); }
+  .storagepanel p { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+  .storagepanel .head { display: block; font-size: 26px; }
+  .storagepanel .ic { flex: 0 0 auto; font-size: 54px; line-height: 1; }
+  .storagepanel.tone-ok, .storagepanel.tone-moved { background: var(--success-wash); border-color: var(--success); }
+  .storagepanel.tone-ok .ic, .storagepanel.tone-moved .ic { color: var(--success); }
+  .storagepanel.tone-refused { background: var(--danger-wash); border-color: var(--danger-line); }
+  .storagepanel.tone-refused .ic { color: var(--danger); }
+  /* Each answer is flashed, for somebody who has not asked for less motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .storagepanel.fresh { animation: storageflash 0.4s ease-out; }
+  }
+  @keyframes storageflash { from { transform: scale(1.02); } to { transform: none; } }
+  .scanform { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3); margin: var(--space-4) 0; }
+  .scanform label { flex: 1 0 100%; font-weight: 600; }
+  .scanform .input { flex: 1 1 200px; font-family: var(--font-data); }
+  .storagecontrols { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: 0 0 var(--space-5); }
+  .storagecontrols form { margin: 0; }
+  .scanlist { list-style: none; margin: 0; padding: 0; }
+  .scanline { display: flex; align-items: center; gap: var(--space-3); padding: 6px 0;
+    border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .scanline .ic { flex: 0 0 auto; width: 1.4em; text-align: center; font-weight: 700; }
+  .scanline.tone-ok .ic, .scanline.tone-moved .ic { color: var(--success); }
+  .scanline.tone-refused .ic { color: var(--danger); }
+  .scanline .say { flex: 1 1 auto; min-width: 0; }
+  .scanline.is-undone .say { color: var(--text-muted); }
+  .scanline form { margin: 0; }
+  /* A round's report: a location to a panel, and what was found in it, what moved
+     in and what was not scanned, each a list under its own heading. */
+  .reportpart h4 { margin: var(--space-4) 0 var(--space-2); }
+  .reportpart:first-child h4 { margin-top: 0; }
+  .reportpart ul { margin: 0; padding-left: var(--space-6); }
+  .reportpart li { padding: var(--space-1) 0; overflow-wrap: anywhere; }
 }

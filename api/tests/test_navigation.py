@@ -84,17 +84,24 @@ class TestWhichLayout:
 
 
 class TestWhatTheRailHolds:
-    def test_the_five_sections_are_the_banner_s_five(self, client):
+    def test_the_sections_are_the_banner_s_sections(self, client):
         """The same places, laid down instead of across -- not a second list to
         fall out of step with the first."""
         rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
-        for href in ("/projects", "/stats", "/machines", "/files"):
+        for href in ("/projects", "/locations", "/stats", "/machines", "/files"):
             assert f'href="{href}"' in rail_markup
 
     def test_a_section_says_how_much_is_in_it(self, client, computer):
         computer()
         rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
         assert '<i class="n">1</i>' in rail_markup
+
+    def test_locations_says_how_many_locations_there_are(self, client):
+        for name in ("Loft", "Garage"):
+            client.post("/api/locations", json={"name": name, "kind": "room"})
+        rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        item = rail_markup.split('href="/locations"', 1)[1].split("</a>", 1)[0]
+        assert '<i class="n">2</i>' in item
 
     def test_the_numbers_page_carries_no_count(self, client):
         """It is figures about the collection; a count of those is a fact about the
@@ -110,12 +117,12 @@ class TestWhatTheRailHolds:
         )
         assert 'aria-current="page"' in rail_markup
 
-    def test_the_owner_can_add_in_one_press(self, client):
+    def test_the_owner_can_add_any_kind_of_thing_in_one_press(self, client):
         """In a rail there is room to unfold the + New menu, and a menu costs the
         same press twice."""
         rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
-        assert 'href="/computers/new"' in rail_markup
-        assert 'href="/parts/new"' in rail_markup
+        for href in ("/computers/new", "/parts/new", "/projects/new", "/locations/new"):
+            assert f'href="{href}"' in rail_markup, href
 
     def test_the_owner_sees_what_they_last_worked_on(self, client, computer):
         """The rail's own argument: at a bench you go back to the same machine all
@@ -165,6 +172,17 @@ class TestWhatTheRailHolds:
         rail_markup = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
         menu = page.split('class="menu hdr-more"', 1)[1].split("</details>", 1)[0]
         assert hrefs(menu) - hrefs(rail_markup) == set()
+
+    @pytest.mark.parametrize("reader", list(READERS))
+    def test_the_rail_offers_what_new_does_to_whoever_new_offers_it(self, client, reader):
+        """+ New is put away beside the rail as well, so a kind of thing it offers and
+        the rail does not is one that cannot be added from this page at all -- which
+        is where a project and a location were left while the rail named two."""
+        READERS[reader](client)
+        page = client.get("/").text
+        rail_markup = page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+        new = page.partition('class="menu hdr-new"')[2].split("</details>", 1)[0]
+        assert {href for href in hrefs(rail_markup) if href.endswith("/new")} == hrefs(new)
 
     def test_every_item_is_named_in_words_as_well_as_drawn(self, client):
         """Collapsed the words are hidden and the icon is all that is left, and an

@@ -30,7 +30,7 @@ from . import machines
 from .common import _held, _visible, to_dict
 from .db import SessionLocal
 from .entry import display_name
-from .models import Computer, LogEntry, Part, Project, StoredFile
+from .models import Computer, Location, LogEntry, Part, Project, StoredFile
 
 if TYPE_CHECKING:
     from fastapi import Request
@@ -68,7 +68,9 @@ def counts(authed: bool) -> dict[str, int]:
     """The figure beside each section, for this reader, keyed by the section's path.
 
     Numbers has none: the page is figures about the collection, and a count of
-    those is a fact about the software.
+    those is a fact about the software. Locations has one only for a reader who is
+    told where things are kept, which is also the only reader its section is drawn
+    for (ADR-0034).
 
     Nothing at all if the database cannot answer. The error page is drawn in this
     same chrome, and the likeliest reason it is being drawn is that the database
@@ -76,12 +78,16 @@ def counts(authed: bool) -> dict[str, int]:
     the first, which is the fault errors.py is already careful about. A rail with
     no figures beside its sections is still a rail.
     """
+    # Imported here: web imports this module before it has made the templates that
+    # locations registers its globals on, so locations cannot be imported first.
+    from . import locations
+
     try:
         with SessionLocal() as db:
             files = db.query(func.count(StoredFile.id))
             if not authed:
                 files = files.filter(StoredFile.public.is_(True))
-            return {
+            out = {
                 "/": sum(
                     _held(db.query(func.count(model.asset_id)), model).scalar() or 0
                     for model in (Computer, Part)
@@ -90,6 +96,9 @@ def counts(authed: bool) -> dict[str, int]:
                 "/machines": len(machines.keys()),
                 "/files": files.scalar() or 0,
             }
+            if locations.shown(authed):
+                out["/locations"] = db.query(func.count(Location.asset_id)).scalar() or 0
+            return out
     except SQLAlchemyError:
         return {}
 

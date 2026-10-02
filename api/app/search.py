@@ -28,12 +28,14 @@ from .common import (
     folder_images,
     to_dict,
 )
+from .history import KEPT_ENTRIES
 from .models import (
     AssetVariant,
     Computer,
     ComputerDrive,
     ComputerRamChip,
     IoSpec,
+    Location,
     LogEntry,
     MotherboardSpec,
     NetworkSpec,
@@ -134,7 +136,7 @@ def _hidden_columns(authed: bool) -> frozenset[str]:
         return frozenset()
     if settings.on("public_locations"):
         return OWNER_ONLY
-    return OWNER_ONLY | {"location"}
+    return OWNER_ONLY | {"location_id"}
 
 
 # What a caller with nothing to place hands in: the projects search, because a
@@ -149,6 +151,7 @@ def _haystack(
     history: Mapping[str, list[str]],
     authed: bool = False,
     placed: Mapping[str, locations.Placed] = NOTHING_PLACED,
+    tree: locations.Tree | None = None,
 ) -> str:
     """Everything written about one item, as one lowercase string: every text
     column, its rendered specs or memory and drives, and its history. This is what
@@ -162,13 +165,15 @@ def _haystack(
     a page that shows no such thing (ADR-0018). The project columns come out the
     same way, via _visible on the queries that reach one.
 
-    `placed` is where each part is because of what it is fitted in
-    (locations.inherited), worked out once by the caller for the whole register
+    Where a thing is kept is searched by the names along its whole path, so a
+    search for the loft finds what is three boxes down in it (MANUAL §3). `placed`
+    is where each part is because of what it is fitted in (locations.inherited), and
+    `tree` the locations, both worked out once by the caller for the whole register
     rather than per row. A part shown its machine's location has to be findable by
     it -- the page says the loft, and a search for the loft that did not hand it
     back would be the page and the search disagreeing about the same word -- and
-    it goes behind the same gate the column does, so a reader who is not shown
-    where things are cannot search on an inherited answer either."""
+    all of it goes behind the same gate the column does, so a reader who is not
+    shown where things are cannot search on it either."""
     # Blanked rather than dropped, so who is asking changes what the haystack says
     # and never how many fields it has: an item nobody has flagged then reads
     # identically for both, and the seams a quoted phrase must not match across stay
@@ -180,11 +185,13 @@ def _haystack(
     fields += history.get(obj.asset_id, [])
     if isinstance(obj, Part):
         fields.append(entry.type_label(obj.type or "other"))
+    if isinstance(obj, Computer | Part):
         # Blank rather than absent when there is nothing to add, for the reason the
         # hidden columns above are blanked: the field count is the same for both
-        # readers and for a part that inherits nothing, so the seams stay put.
-        found = placed.get(obj.asset_id)
-        fields.append("" if found is None or "location" in hidden else found.where)
+        # readers and for a thing kept nowhere, so the seams stay put.
+        where = locations.effective(obj, placed)
+        shown = where is not None and "location_id" not in hidden
+        fields.append(locations.path_words(tree or locations.tree(db), [where]) if shown else "")
     if isinstance(obj, Project):
         # The status as it is written on screen as well as the slug it is stored
         # as: "in progress" is what somebody would type, and 'active' is what the
@@ -200,8 +207,14 @@ def _haystack(
 
 
 def _history_by_asset(db: Session) -> dict[str, list[str]]:
+    """Every history line, by asset, for the haystack -- less the ones that say
+    where something has been kept. The search is for where a thing is now, which
+    the path field holds; a line about the loft it left last year would have a
+    search for the loft hand back things that are not in it (ADR-0034)."""
     out: dict[str, list[str]] = {}
-    for aid, message in db.query(LogEntry.asset_id, LogEntry.message):
+    for aid, message in db.query(LogEntry.asset_id, LogEntry.message).filter(
+        LogEntry.kind.not_in(KEPT_ENTRIES)
+    ):
         out.setdefault(aid, []).append(message or "")
     return out
 
@@ -220,9 +233,10 @@ def _search(db: Session, rows: list[Card], query: str | None, authed: bool = Fal
         return rows
     history = _history_by_asset(db)
     placed = locations.inherited(db)
+    tree = locations.tree(db)
     kept = []
     for r in rows:
-        hay = _haystack(db, r["obj"], history, authed, placed)
+        hay = _haystack(db, r["obj"], history, authed, placed, tree)
         if all(t in hay for t in terms):
             kept.append(r)
     return kept
@@ -233,7 +247,7 @@ def _search(db: Session, rows: list[Card], query: str | None, authed: bool = Fal
 SUGGEST_LIMIT = 10
 
 
-def _suggest_tier(obj: Asset, name: str, raw: str) -> int:
+def _suggest_tier(obj: Asset | Location, name: str, raw: str) -> int:
     """Which band of the list an item belongs in, lowest first: what was typed is
     its asset tag, or the start of one, or the start of its name, or somewhere in
     what identifies it -- or else it matched on a spec or a history entry, which
@@ -315,6 +329,7 @@ def _suggest(
         return [], 0
     history = _history_by_asset(db)
     placed = locations.inherited(db)
+    tree = locations.tree(db)
     latest = dict(
         db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
         .group_by(LogEntry.asset_id)
@@ -334,7 +349,7 @@ def _suggest(
         + [(p, "part") for p in db.query(Part).all()]
         + [(pr, "project") for pr in _visible(db.query(Project), authed).all()]
     ):
-        if not all(t in _haystack(db, obj, history, authed, placed) for t in terms):
+        if not all(t in _haystack(db, obj, history, authed, placed, tree) for t in terms):
             continue
         name = entry.display_name(to_dict(obj))
         hits.append({"obj": obj, "kind": kind, "name": name, "tier": _suggest_tier(obj, name, raw)})
@@ -403,7 +418,48 @@ def _suggest(
                 "runs": {"aid": _runs(obj.asset_id, terms), "name": _runs(h["name"], terms)},
             }
         )
+    # The locations, in the room the things leave, and only for a reader who is told
+    # where things are kept. Not counted in the total, which counts what Enter shows:
+    # the page of results is a wall of the things themselves, and a location is
+    # where they are rather than one of them (MANUAL §3).
+    if locations.shown(authed) and len(out) < limit:
+        out += _suggest_locations(db, terms, raw, tree, limit - len(out))
     return out, len(hits)
+
+
+def _suggest_locations(
+    db: Session, terms: list[str], raw: str, tree: locations.Tree, room: int
+) -> list[dict[str, object]]:
+    """The locations a half-typed query names, by tag, name, path or notes: what
+    somebody looking for a shelf would type. Each is offered with the path to it, so
+    the two `Box 14`s in different rooms are told apart by where they are."""
+    found: list[tuple[int, str, Location]] = []
+    for loc in db.query(Location).all():
+        path = tree.text(loc.asset_id)
+        hay = "\n".join((loc.asset_id, path, loc.notes or "")).lower()
+        if not all(t in hay for t in terms):
+            continue
+        tier = _suggest_tier(loc, loc.name, raw)
+        found.append((tier, path.casefold(), loc))
+    found.sort(key=lambda f: (f[0], f[1]))
+    out: list[dict[str, object]] = []
+    for _tier, _path, loc in found[:room]:
+        above = tree.text(loc.parent_id)
+        out.append(
+            {
+                "url": f"/locations/{loc.asset_id}",
+                "aid": loc.asset_id,
+                "name": loc.name,
+                "cat": "Location",
+                "year": "",
+                "disposed": False,
+                "img": img_url(loc.image, 300) if loc.image else "",
+                "icon": "/static/placeholders/location.svg",
+                "here": f"in {above}" if above else "",
+                "runs": {"aid": _runs(loc.asset_id, terms), "name": _runs(loc.name, terms)},
+            }
+        )
+    return out
 
 
 def _model_tier(name: str, raw: str) -> int:

@@ -11,10 +11,10 @@ import random
 from collections.abc import Callable, Iterable
 from datetime import datetime
 from typing import TYPE_CHECKING
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -22,7 +22,8 @@ from .. import cards, entry, locations, projects, settings, specdb
 from ..auth import LAYOUT_COOKIE, SORT_COOKIE
 from ..common import folder_images, to_dict
 from ..db import get_db
-from ..models import Computer, LogEntry, Part
+from ..ids import exact_tag
+from ..models import Computer, Location, LogEntry, Part, Project
 from ..photos import _favicon_for_rel, _storage_placeholder, is_reference, pick_images
 from ..search import (
     SUGGEST_LIMIT,
@@ -313,6 +314,7 @@ def _grid_page(
         request.state.sees_private or settings.on("public_locations")
     )
     placed = locations.inherited(db) if show_location and db is not None else {}
+    tree = locations.tree(db) if show_location and db is not None else locations.Tree()
     response = templates.TemplateResponse(
         request,
         "index.html",
@@ -324,6 +326,7 @@ def _grid_page(
             },
             "show_location": show_location,
             "placed": placed,
+            "tree": tree,
             "cats": cats,
             "n_computers": n_computers,
             "n_parts": len(rows) - n_computers,
@@ -405,8 +408,38 @@ def gui_suggest(
     }
 
 
+def _tag_page(db: Session, q: str, sees_private: bool) -> str | None:
+    """The page a search that is only an asset tag opens, or None to search.
+
+    What a handheld scanner does when it reads a label into the search box: a
+    barcode types the tag, and a QR code read by a scanner types the URL it holds,
+    `<base_url>/items/<tag>/` -- so either is taken as the tag (MANUAL §3). Only
+    where the reader may go: a private project's tag, or a location's while
+    locations are not shown, is an ordinary search, which finds nothing, rather
+    than a redirect whose address says what the tag is."""
+    typed = q.strip()
+    tag = exact_tag(typed)
+    if tag is None and typed.lower().startswith(("http://", "https://")):
+        bits = [b for b in urlparse(typed).path.split("/") if b]
+        tag = exact_tag(bits[1]) if len(bits) == 2 and bits[0] == "items" else None
+    if tag is None:
+        return None
+    if db.get(Computer, tag) is not None:
+        return f"/computers/{tag}"
+    if db.get(Part, tag) is not None:
+        return f"/parts/{tag}"
+    project = db.get(Project, tag)
+    if project is not None and (sees_private or not project.private):
+        return f"/projects/{tag}"
+    if db.get(Location, tag) is not None and locations.shown(sees_private):
+        return f"/locations/{tag}"
+    return None
+
+
 @router.get("/", response_class=HTMLResponse, include_in_schema=False)
-def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> HTMLResponse:
+def gui_index(request: Request, q: str = "", db: Session = Depends(get_db)) -> Response:
+    if q.strip() and (found := _tag_page(db, q, request.state.sees_private)) is not None:
+        return RedirectResponse(found, status_code=303)
     rows = _catalogue_rows(db, request.state.sees_private)
     total = len(rows)
     hit_projects = 0

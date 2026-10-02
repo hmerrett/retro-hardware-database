@@ -1,5 +1,5 @@
 """The three pages that ask one question and nothing else: the login page
-(MANUAL.md section 17, "Logging in"), the delete confirmation (section 15,
+(MANUAL.md section 18, "Logging in"), the delete confirmation (section 16,
 "Deletion") and the board detach (section 5, "Detaching the board").
 
 They share a shape -- a narrow column, a heading, a banner in the tone of what is

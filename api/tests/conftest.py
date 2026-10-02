@@ -270,6 +270,17 @@ def a_page_of_everything(client, computer, part):
         owner = store.find(db, "owner")
         store.make_token(db, owner, "tool server")
         owner_id = owner.id
+    # Where the machine is kept: a shelf in a room, so the location page has a path
+    # to draw and something in it, and a round of the audit that found the machine
+    # there, for the report (ADR-0034).
+    room = client.post("/api/locations", json={"name": "Workshop", "kind": "room"}).json()
+    shelf = client.post(
+        "/api/locations", json={"name": "Shelf 2", "kind": "shelf", "parent": room["asset_id"]}
+    ).json()
+    client.patch(f"/api/computers/{made['asset_id']}", json={"location": shelf["asset_id"]})
+    for code in (shelf["asset_id"], made["asset_id"], "NOT-A-TAG"):
+        client.post("/audit/scan", data={"code": code}, follow_redirects=False)
+    report = client.post("/audit/finish", follow_redirects=False).headers["location"]
     return [
         "/",
         "/machines",
@@ -288,6 +299,12 @@ def a_page_of_everything(client, computer, part):
         "/parts/new",
         f"/parts/{card['asset_id']}",
         f"/parts/{card['asset_id']}/edit",
+        "/locations",
+        f"/locations/{shelf['asset_id']}",
+        f"/locations/{shelf['asset_id']}/edit",
+        "/locations/new",
+        "/audit",
+        report,
         # The account pages, with a token on the list so its revoke button is drawn.
         "/settings/users",
         f"/settings/users/{owner_id}",

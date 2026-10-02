@@ -166,6 +166,7 @@ WIDE = {
     "computer_form.html",
     "part_form.html",
     "project_form.html",
+    "location_form.html",
     # Settings and the account pages, one row of tabs across them.
     "settings.html",
     "settings_users.html",
@@ -177,6 +178,12 @@ READING = {
     "part.html",
     "project.html",
     "file.html",
+    "location.html",
+    "locations.html",
+    # The audit is used on a phone and read at a glance, and its report is a page
+    # read down a location at a time.
+    "storage.html",
+    "storage_report.html",
     "projects.html",
     "files.html",
     "login.html",
@@ -231,7 +238,7 @@ def test_the_pages_you_read_keep_the_column(client, a_page_of_everything):
     reading = [
         p
         for p in a_page_of_everything
-        if p.startswith(("/computers/RH", "/parts/RH", "/files", "/projects"))
+        if p.startswith(("/computers/RH", "/parts/RH", "/files", "/projects", "/locations"))
         and not p.endswith(("/edit", "/new"))
     ]
     assert len(reading) >= 5, reading

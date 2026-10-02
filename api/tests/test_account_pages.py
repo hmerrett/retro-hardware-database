@@ -1,6 +1,6 @@
 """The account pages (ADR-0032).
 
-MANUAL section 17, "Adding people" and "Your account": Settings -> Accounts for
+MANUAL section 18, "Adding people" and "Your account": Settings -> Accounts for
 administrators, and a page of your own for everybody who is signed in.
 """
 

@@ -1,6 +1,6 @@
 # 0027 — A remembered vocabulary is deleted when it is turned off
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-0034](0034-a-location-is-a-record-in-the-register.md)
 **Date:** 2026-09-21
 
 ## Context

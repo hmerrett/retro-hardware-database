@@ -270,7 +270,7 @@ def _is_own_photo(rel: str) -> bool:
     return (
         watermarking()
         and ext in IMAGE_EXTS
-        and (rel.startswith(("computers/", "parts/", LOG_KIND + "/")))
+        and (rel.startswith(("computers/", "parts/", "locations/", LOG_KIND + "/")))
         and not is_reference(rel)
     )
 

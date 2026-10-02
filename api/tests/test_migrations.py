@@ -533,3 +533,182 @@ def test_0045_can_be_downgraded_and_upgraded_again(scratch_db_url):
     engine.dispose()
     again = _alembic(scratch_db_url, "upgrade", "head")
     assert again.returncode == 0, f"upgrade after downgrade failed:\n{again.stderr}"
+
+
+# --- 0046: a location is a record (ADR-0034) ----------------------------------
+
+BEFORE_LOCATION_RECORDS = "0045_accounts"
+
+
+def _typed_locations(url):
+    """A register at 0045 that keeps its locations as text, the way every
+    installation before the change does: two machines in the loft spelt two ways,
+    a part in a crate, a part with nothing written down, and a crate nothing is in
+    any more that the register was remembering by name."""
+    up = _alembic(url, "upgrade", BEFORE_LOCATION_RECORDS)
+    assert up.returncode == 0, f"upgrade to 0045 failed:\n{up.stderr}"
+    engine = create_engine(url, future=True)
+    with engine.begin() as conn:
+        for aid, where in (("RH-0001", "Loft"), ("RH-0002", "loft"), ("RH-0003", "Loft ")):
+            conn.execute(
+                text("INSERT INTO computers (asset_id, location) VALUES (:a, :w)"),
+                {"a": aid, "w": where},
+            )
+        conn.execute(
+            text(
+                "INSERT INTO parts (asset_id, parent_id, location) VALUES "
+                "('RH-0004', NULL, 'Garage shelf B'), ('RH-0005', NULL, '')"
+            )
+        )
+        conn.execute(
+            text("INSERT INTO location (name, used_at) VALUES ('Old shed', NULL), ('Loft', NULL)")
+        )
+    return engine
+
+
+def _places(conn):
+    """{name: (kind, parent)} for every location the register now holds."""
+    return {
+        name: (kind, parent)
+        for name, kind, parent in conn.execute(
+            text("SELECT name, kind, parent_id FROM locations")
+        ).all()
+    }
+
+
+def test_0046_makes_a_location_of_every_spelling_typed(scratch_db_url):
+    """Each one named as it was typed, of kind other, at the top level: the upgrade
+    cannot know that one crate is inside another, so it does not guess."""
+    engine = _typed_locations(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        places = _places(conn)
+    assert set(places) == {"Loft", "Garage shelf B", "Old shed"}
+    assert set(places.values()) == {("other", None)}
+    engine.dispose()
+
+
+def test_0046_folds_spellings_that_differ_only_in_capitals(scratch_db_url):
+    """`Loft`, `loft` and `Loft ` were one crate to the old suggestion list, which
+    folded case and trimmed, so they are one location here -- under the spelling
+    most things were filed with."""
+    engine = _typed_locations(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        lofts = conn.execute(
+            text("SELECT asset_id, name FROM locations WHERE LOWER(name) = 'loft'")
+        ).all()
+    assert [name for _, name in lofts] == ["Loft"]
+    engine.dispose()
+
+
+def test_0046_puts_each_thing_in_the_location_it_named(scratch_db_url):
+    engine = _typed_locations(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        tag = dict(conn.execute(text("SELECT name, asset_id FROM locations")).all())
+        where = dict(
+            conn.execute(
+                text(
+                    "SELECT asset_id, location_id FROM computers UNION ALL "
+                    "SELECT asset_id, location_id FROM parts"
+                )
+            ).all()
+        )
+    assert where == {
+        "RH-0001": tag["Loft"],
+        "RH-0002": tag["Loft"],
+        "RH-0003": tag["Loft"],
+        "RH-0004": tag["Garage shelf B"],
+        "RH-0005": None,
+    }
+    engine.dispose()
+
+
+def test_0046_draws_the_new_tags_from_the_registers_pool(scratch_db_url):
+    """A location is in the register, so its tag is one nothing else holds, in the
+    form every other new tag takes (ADR-0007, ADR-0034)."""
+    engine = _typed_locations(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        tags = [t for (t,) in conn.execute(text("SELECT asset_id FROM locations")).all()]
+        items = {
+            t
+            for (t,) in conn.execute(
+                text(
+                    "SELECT asset_id FROM computers UNION SELECT asset_id FROM parts "
+                    "UNION SELECT asset_id FROM projects"
+                )
+            ).all()
+        }
+    import re
+
+    assert all(re.fullmatch(r"RH-[0-9A-HJKMNP-Z]{4}", t) for t in tags), tags
+    assert not set(tags) & items
+    assert len(set(tags)) == len(tags)
+    engine.dispose()
+
+
+def test_0046_takes_the_text_and_the_remembered_list_away(scratch_db_url):
+    """Nothing is kept twice: the text is now the location, and an emptied crate is
+    a location that stays, so the list that remembered it has nothing left to do."""
+    engine = _typed_locations(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert "location" not in _tables(conn)
+        assert {"locations", "moves", "stock_checks", "stock_check_scans"} <= _tables(conn)
+        for table in ("computers", "parts"):
+            columns = {
+                c
+                for (c,) in conn.execute(
+                    text(
+                        "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE "
+                        "TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t"
+                    ),
+                    {"t": table},
+                ).all()
+            }
+            assert "location" not in columns and "location_id" in columns, table
+    engine.dispose()
+
+
+def test_0046_on_a_register_with_no_locations_makes_none(scratch_db_url):
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        assert conn.execute(text("SELECT COUNT(*) FROM locations")).scalar_one() == 0
+    engine.dispose()
+
+
+def test_0046_can_be_downgraded_and_upgraded_again(scratch_db_url):
+    """Down, each thing gets back the words of where it is -- the path, which for a
+    location the upgrade made is the name it was typed as -- and the remembered
+    list gets every location's name. Up again, the same locations come back."""
+    engine = _typed_locations(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_LOCATION_RECORDS)
+    assert down.returncode == 0, f"downgrade from 0046 failed:\n{down.stderr}"
+    with engine.begin() as conn:
+        where = dict(
+            conn.execute(
+                text(
+                    "SELECT asset_id, location FROM computers UNION ALL "
+                    "SELECT asset_id, location FROM parts"
+                )
+            ).all()
+        )
+        remembered = {n for (n,) in conn.execute(text("SELECT name FROM location")).all()}
+        assert "locations" not in _tables(conn)
+    assert where == {
+        "RH-0001": "Loft",
+        "RH-0002": "Loft",
+        "RH-0003": "Loft",
+        "RH-0004": "Garage shelf B",
+        "RH-0005": "",
+    }
+    assert remembered == {"Loft", "Garage shelf B", "Old shed"}
+    again = _alembic(scratch_db_url, "upgrade", "head")
+    assert again.returncode == 0, f"upgrade after downgrade failed:\n{again.stderr}"
+    with engine.begin() as conn:
+        assert set(_places(conn)) == {"Loft", "Garage shelf B", "Old shed"}
+    engine.dispose()

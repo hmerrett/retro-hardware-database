@@ -8,10 +8,10 @@ The upload side of the same store is in photos.py; this is only the reading of i
 
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 
-from .. import cards, thumbs
+from .. import cards, locations, settings, thumbs
 from ..common import IMAGES_DIR, IMAGE_EXTS
 from ..photos import _image_cache, _is_own_photo, _watermarked_file
 
@@ -19,10 +19,15 @@ router = APIRouter()
 
 
 @router.get("/images/{path:path}", include_in_schema=False)
-def serve_image(path: str, v: str = "", w: int = 0) -> FileResponse:
+def serve_image(request: Request, path: str, v: str = "", w: int = 0) -> FileResponse:
     # Reject traversal, dotfiles/dotdirs (e.g. the .wm and .sized caches) and
     # non-images.
     if any(seg.startswith(".") for seg in path.split("/")):
+        raise HTTPException(404)
+    # A location's photographs are the room it is in and the rack it is on, which is
+    # the address its page keeps back: the same switch, and the same 404 (ADR-0034).
+    kept = path.startswith("locations/")
+    if kept and not locations.shown(request.state.sees_private):
         raise HTTPException(404)
     full = (IMAGES_DIR / path).resolve()
     if not str(full).startswith(str(IMAGES_DIR.resolve()) + os.sep) or not full.is_file():
@@ -41,6 +46,12 @@ def serve_image(path: str, v: str = "", w: int = 0) -> FileResponse:
     # still here; a slower answer beats a broken one.
     if not served.exists():
         served = full
+    # Not kept by anything in between while locations are the owner's: turning Show
+    # locations off has to stop the photograph being handed out, which a cache
+    # holding a year's `public, immutable` would not -- the rule an unpublished
+    # file is served by.
+    if kept and not settings.on("public_locations"):
+        return FileResponse(served, headers={"Cache-Control": "private, no-store"})
     return FileResponse(served, headers=_image_cache(bool(v)))
 
 

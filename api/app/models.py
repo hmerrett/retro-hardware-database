@@ -93,19 +93,18 @@ class Computer(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
-    # Where the object is kept, in the owner's own words -- a loft, a crate, a shelf.
-    # Free text and not a link to anywhere: a collection's geography is its own, and
-    # the one thing that is certainly not a place is `computer_id`, which says what a
-    # part is fitted in rather than where that machine has been put (ADR-0027).
+    # The location it is kept in, or NULL for nowhere recorded (ADR-0034). A link and
+    # not the words, so a crate is one thing however many machines are in it, and
+    # carrying the crate to the workshop moves all of them. Not `computer_id`'s
+    # business either way: that says what a part is fitted in, which is a different
+    # question from where the machine has been put.
     #
     # Shown to a visitor only while `public_locations` says so, which is why this is
     # the one column search asks a setting about rather than reading off a fixed set.
-    #
-    # Not nullable, for the reason `serial` is not: "" is the one spelling of a place
-    # nobody has written down, and a column that can hold a second one is a column
-    # the API chokes on the first time it meets a row older than the feature (0034).
-    location: Mapped[str] = mapped_column(
-        String(255), nullable=False, default="", server_default=""
+    # SET NULL on delete for the reason a part's links are: a location is refused
+    # deletion while anything is in it, and the key is the belt to that brace.
+    location_id: Mapped[str | None] = mapped_column(
+        String(16), ForeignKey("locations.asset_id", ondelete="SET NULL"), index=True
     )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
@@ -151,14 +150,14 @@ class Part(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
-    # See Computer.location, including why it is not nullable. Blank is not "nowhere"
-    # on a part that is fitted in something: a card in a machine is wherever that
-    # machine is, so an empty column is read off the parent (locations.inherited) at
-    # the moment it is shown. Worked out and never written back, so carrying the
-    # machine upstairs is one edit and not one per card -- which is also why nothing
-    # may treat this column as the whole answer to where a part is.
-    location: Mapped[str] = mapped_column(
-        String(255), nullable=False, default="", server_default=""
+    # See Computer.location_id. NULL is not "nowhere" on a part that is fitted in
+    # something: a card in a machine is wherever that machine is, so an empty link is
+    # read off the parent (locations.inherited) at the moment it is shown. Worked out
+    # and never written back, so carrying the machine upstairs is one edit and not
+    # one per card -- which is also why nothing may treat this column as the whole
+    # answer to where a part is.
+    location_id: Mapped[str | None] = mapped_column(
+        String(16), ForeignKey("locations.asset_id", ondelete="SET NULL"), index=True
     )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
@@ -862,36 +861,119 @@ class Setting(Base):
 
 
 class Location(Base):
-    """A place something has been kept, remembered so it can be offered again
-    (ADR-0027).
+    """Somewhere things are kept: a building, a room, a rack, a shelf, a box, a bag
+    (ADR-0034).
 
-    The register's first stored vocabulary, and it exists because the derived pick
-    lists cannot cover this one field. Every other list is the register asked a
-    question -- `pages._answers_given` counts the spellings in a column and offers
-    the commonest back -- and that works for a source, which is written once and
-    stays true. A location stops being true the moment the thing is moved, so the
-    last item out of a crate takes the crate's spelling with it, and the crate is
-    typed again a month later as something not quite the same.
+    A thing in the register like a machine or a part, with a tag from the same pool
+    (ids.py), because what it is for is the same: a page of its own, a label to
+    stick on it, and a history. The register's fourth table, and the second that is
+    not something owned -- a project was the first.
 
-    So: a row per location ever saved, holding only what the derived list has lost.
-    The suggestions are still the union of the two, in-use first, which is what
-    keeps this table optional -- empty or deleted, the forms go on working.
+    `parent_id` is the location it is inside, and that is all it knows about where it
+    is. The path -- Workshop, Rack 3, Shelf 2, Box 14 -- is read up the parents when
+    it is shown (locations.Tree) and never written down, so moving the box is one
+    write and its contents are somewhere new at that moment. SET NULL rather than
+    a refusal on delete: the app refuses to delete a location with anything in it,
+    and a self-referring key that refused as well would refuse to empty the table
+    in one statement, which is how a test clears it.
 
-    Written only while `remember_locations` is on, and deleted outright when it is
-    turned off. Ignoring rows the owner has asked the register to forget would be
-    answering a different question from the one the switch asks.
+    `kind` is a slug from locations.KINDS and describes the location without ruling
+    on it: a bag may hold a box if that is how somebody's loft is. `image` is the
+    default photograph, as a computer's is."""
 
-    `name` is the primary key, for the reason Setting.name is one: there is nothing
-    else to identify a place by, and a surrogate id would only let the same place in
-    twice. MariaDB's collation folds case here, which is wanted -- one crate, one
-    row, whichever way it was capitalised on the day."""
+    __tablename__ = "locations"
+    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    kind: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="other", server_default="other"
+    )
+    parent_id: Mapped[str | None] = mapped_column(
+        String(16), ForeignKey("locations.asset_id", ondelete="SET NULL"), index=True
+    )
+    notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    image: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
 
-    __tablename__ = "location"
-    name: Mapped[str] = mapped_column(String(255), primary_key=True)
-    # When it was last saved against something, which is the order the remembered
-    # half of the pick list is offered in: the crate filled last week is a likelier
-    # answer than one nothing has gone into since 2019.
-    used_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+class Move(Base):
+    """One change in where a thing or a location is kept.
+
+    A row and not only a line of history, because "where was this before it went to
+    the workshop?" is a question a sentence cannot be asked. Both ends are kept as a
+    tag and as the path as it read at the time: the tag for the link, and the words
+    because a location renamed or deleted since should not rewrite what the history
+    says happened.
+
+    `who` is the username as it was, not a key to the account -- an account can go,
+    and what it did should not go with it. `how` is `edit`, `scan`, `api` or `undo`.
+    `log_id` is the history line the move is drawn as, and the move goes with it if
+    the owner deletes that line."""
+
+    __tablename__ = "moves"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    asset_id: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    from_id: Mapped[str | None] = mapped_column(String(16))
+    from_path: Mapped[str] = mapped_column(
+        String(1024), nullable=False, default="", server_default=""
+    )
+    to_id: Mapped[str | None] = mapped_column(String(16))
+    to_path: Mapped[str] = mapped_column(
+        String(1024), nullable=False, default="", server_default=""
+    )
+    moved_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    who: Mapped[str] = mapped_column(String(64), nullable=False, default="", server_default="")
+    how: Mapped[str] = mapped_column(String(8), nullable=False)
+    log_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("log_entry.id", ondelete="CASCADE"), index=True
+    )
+
+
+class StockCheck(Base):
+    """A round of the audit: from the first scan to `finish` (ADR-0034).
+
+    One person's, and at most one of theirs is open at a time -- the one
+    `finished_at` is still empty on. Kept on the server so that a phone locking, a
+    page reloading or a battery dying in the loft loses nothing: the audit opened
+    again carries on where it was."""
+
+    __tablename__ = "stock_checks"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class StockCheckScan(Base):
+    """One scan in a round, and what it did.
+
+    The round's state is read off these rather than kept beside them: the open
+    location is the one the latest `opened` row names, and a thing waiting for a
+    location is a last row that says `held`. `code` is what the scanner typed, kept
+    as typed so a scan nobody recognised can be read back. `at_id` is the location
+    that was open when it arrived. `said` is what the panel said about it, so a page
+    reloaded -- or drawn by a browser running no script -- says the same.
+
+    `was_computer` and `was_parent` are what a fitted part was taken out of, so that
+    undo can put it back in its machine as well as back where it was kept."""
+
+    __tablename__ = "stock_check_scans"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    check_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("stock_checks.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    scanned_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    code: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    asset_id: Mapped[str | None] = mapped_column(String(16))
+    at_id: Mapped[str | None] = mapped_column(String(16))
+    result: Mapped[str] = mapped_column(String(16), nullable=False)
+    said: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
+    move_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("moves.id", ondelete="SET NULL"), index=True
+    )
+    was_computer: Mapped[str | None] = mapped_column(String(16))
+    was_parent: Mapped[str | None] = mapped_column(String(16))
+    undone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
 
 class User(Base):
@@ -901,9 +983,8 @@ class User(Base):
     because a role is held on a site and this row is the person, whatever sites
     there may one day be.
 
-    `username` is unique under MariaDB's case-folding collation, the way
-    Location.name is, so `Ada` and `ada` are one account and a lookup by either
-    finds it. `active` is how an account is switched off without being forgotten:
+    `username` is unique under MariaDB's case-folding collation, so `Ada` and
+    `ada` are one account and a lookup by either finds it. `active` is how an account is switched off without being forgotten:
     its sessions and tokens stop working, and switching it back on restores it."""
 
     __tablename__ = "users"

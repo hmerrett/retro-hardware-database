@@ -1118,19 +1118,41 @@ function combobox(box, list, pick) {
   const shut = document.getElementById('scan-close');
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const DECODER = '/static/vendor/jsqr-1.4.0.js';
+  // The audit reads a label as one scan among many: the code goes to its form and
+  // the camera stays open for the next one (MANUAL §14). Anywhere else, the label
+  // is opened.
+  const storageForm = document.getElementById('storage-form');
   let stream = null, timer = null, loading = null, found = false;
+  let detector = null, last = '', lastAt = 0;
 
+  // A label carries a QR code, a Code 128 barcode or both (MANUAL §13). A browser
+  // with a barcode detector of its own reads either, and well; for one without,
+  // the QR decoder is fetched, and the small barcode reader beside it.
+  function load(src, ready) {
+    return new Promise(function (resolve, reject) {
+      if (ready()) { resolve(); return; }
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = function () { resolve(); };
+      s.onerror = function () { reject(new Error('load failed')); };
+      document.head.appendChild(s);
+    });
+  }
   function decoder() {
-    if (window.jsQR) return Promise.resolve(window.jsQR);
     if (!loading) {
-      loading = new Promise(function (resolve, reject) {
-        const s = document.createElement('script');
-        s.src = DECODER;
-        s.onload = function () { resolve(window.jsQR); };
-        s.onerror = function () { loading = null; reject(new Error('load failed')); };
-        document.head.appendChild(s);
-      });
+      const native = 'BarcodeDetector' in window
+        ? window.BarcodeDetector.getSupportedFormats().then(function (fs) {
+            const want = ['qr_code', 'code_128'].filter(function (f) { return fs.indexOf(f) >= 0; });
+            if (want.length === 2) detector = new window.BarcodeDetector({ formats: want });
+          }).catch(function () {})
+        : Promise.resolve();
+      loading = native.then(function () {
+        if (detector) return null;
+        return Promise.all([
+          load('/static/vendor/jsqr-1.4.0.js', function () { return !!window.jsQR; }),
+          load(box.dataset.code128, function () { return !!window.rhdbCode128; }),
+        ]);
+      }).catch(function (err) { loading = null; throw err; });
     }
     return loading;
   }
@@ -1162,11 +1184,17 @@ function combobox(box, list, pick) {
     document.body.style.overflow = '';
   }
 
-  function tick() {
-    timer = null;
-    if (found) return;
+  // What one frame says, if anything: the detector's answer, or the two readers'.
+  function read() {
     const w = video.videoWidth, h = video.videoHeight;
-    if (window.jsQR && w && h) {
+    if (!w || !h) return Promise.resolve(null);
+    if (detector) {
+      return detector.detect(video).then(function (codes) {
+        return codes.length ? codes[0].rawValue : null;
+      }).catch(function () { return null; });
+    }
+    let text = null;
+    if (window.jsQR) {
       // The middle square of the frame, at no more than 640px: the full frame at
       // a phone camera's resolution is slow to read, and the middle is what the
       // camera is being pointed with.
@@ -1177,19 +1205,49 @@ function combobox(box, list, pick) {
       const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const hit = window.jsQR(frame.data, frame.width, frame.height,
                              { inversionAttempts: 'dontInvert' });
-      if (hit) {
-        const path = pathFor(hit.data);
-        if (path) {
-          found = true;
-          note.textContent = 'Found it — opening…';
-          stop();
-          location.href = path;
-          return;
-        }
-        note.textContent = 'That code is not one of ours.';
-      }
+      if (hit) text = hit.data;
     }
-    timer = setTimeout(tick, 120);
+    if (!text && window.rhdbCode128) {
+      // A barcode is wide rather than square, so it is read across the whole width
+      // of the frame, at no more than 1280px of it.
+      canvas.width = Math.min(w, 1280);
+      canvas.height = Math.round(h * canvas.width / w);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      text = window.rhdbCode128(ctx.getImageData(0, 0, canvas.width, canvas.height));
+    }
+    return Promise.resolve(text);
+  }
+
+  function heard(text) {
+    if (storageForm) {
+      // The same label held in front of the camera is read many times a second;
+      // it is one scan until a different one is read or a moment has passed.
+      const now = Date.now();
+      if (text === last && now - lastAt < 2500) return;
+      last = text;
+      lastAt = now;
+      document.dispatchEvent(new CustomEvent('rhdb:scanned', { detail: text }));
+      note.textContent = 'Scanned. Point it at the next label, or close.';
+      return;
+    }
+    const path = pathFor(text);
+    if (path) {
+      found = true;
+      note.textContent = 'Found it — opening…';
+      stop();
+      location.href = path;
+      return;
+    }
+    note.textContent = 'That code is not one of ours.';
+  }
+
+  function tick() {
+    timer = null;
+    if (found || box.hidden) return;
+    read().then(function (text) {
+      if (text) heard(text);
+      if (!found && !box.hidden) timer = setTimeout(tick, 120);
+    });
   }
 
   function begin() {

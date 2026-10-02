@@ -33,6 +33,7 @@ from .models import (
     ComputerDrive,
     ComputerRamChip,
     IoSpec,
+    Location,
     LogEntry,
     MotherboardSpec,
     NetworkSpec,
@@ -1767,9 +1768,13 @@ def _facts_register(db: Session, st: Stats) -> list[Fact]:
                 f"of {entries:,} entries; the rest are the database recording its own changes",
             )
         )
+    # Not a location's: this page is public, and where things are kept is not
+    # (ADR-0034). Left out of the query rather than skipped after it, so the tile
+    # names the longest note there is to name instead of vanishing on the day the
+    # longest one was written about a shelf.
     longest_note = (
         db.query(LogEntry.asset_id, func.length(LogEntry.message))
-        .filter(LogEntry.kind == "note")
+        .filter(LogEntry.kind == "note", LogEntry.asset_id.not_in(db.query(Location.asset_id)))
         .order_by(func.length(LogEntry.message).desc())
         .first()
     )
@@ -1783,11 +1788,12 @@ def _facts_register(db: Session, st: Stats) -> list[Fact]:
         obj = cast(
             "Computer | Part | Project | None",
             next(
-                (o for _, cls in REGISTER if (o := db.get(cls, longest_note[0])) is not None), None
+                (o for _, cls in REGISTER[:3] if (o := db.get(cls, longest_note[0])) is not None),
+                None,
             ),
         )
         if obj is not None:
-            kind = next(k for k, cls in REGISTER if isinstance(obj, cls))
+            kind = next(k for k, cls in REGISTER[:3] if isinstance(obj, cls))
             out.append(
                 _fact(
                     "The longest note anyone has written",
