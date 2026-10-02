@@ -423,7 +423,7 @@ class TestTheHistoryLinesUpItsButtons:
     column of entries read as a ragged edge of buttons: the log's value cell only
     grew to fit its words, which put the line's own right-hand end there. Every
     entry's buttons now share one column at the right, and sit
-    beside the middle of an entry that wraps (MANUAL §14)."""
+    beside the middle of an entry that wraps (MANUAL §15)."""
 
     def test_the_entry_takes_the_rest_of_its_row(self):
         rule = re.search(r"\.kv\.log dd\s*\{([^}]*)\}", item_css())

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_labelsend.html" as LS %}
 {% import "_panel.html" as PN %}
+{% import "_where.html" as W with context %}
 {% import "_partlist.html" as P %}
 {% block title %}{{ og.title }}{% if og.title != c.asset_id %} · {{ c.asset_id }}{% endif %} — {{ site_name() }}{% endblock %}
 {# The display face is the name at the top of the page, so it is asked for before
@@ -16,21 +17,18 @@
     {# The machine's own facts. A panel like every other section of the page, so what
        the register knows about it and what is fitted in it are read the same way. #}
     {% call PN.panel('Details') %}
-    {# Where it is kept is the owner's by default and everybody's by setting
-       (ADR-0027). Folded into the pair list as a blank rather than tested on a row
-       of its own, so the one list stays the one description of this panel -- the
-       loop below already drops a pair with nothing in it. #}
-    {% set show_location = request.state.sees_private or public_locations() %}
     <dl class="kv">
     {% for k, v in [('Manufacturer', c.manufacturer), ('Model', c.model), ('Year', c.year),
                     ('Serial', c.serial), ('Form factor', form_factor),
                     ('Chassis', c.chassis), ('CPU', c.cpu), ('TopBench', c.topbench),
                     ('Installed RAM', c.installed_ram),
                     ('Drives', c.drives), ('OS', c.os), ('Condition', c.condition),
-                    ('Source', c.source), ('Acquired', c.acquired_date),
-                    ('Location', c.location if show_location else '')] %}
+                    ('Source', c.source), ('Acquired', c.acquired_date)] %}
       {% if v %}<div><dt>{{ k }}</dt><dd>{{ v | linked }}</dd></div>{% endif %}
     {% endfor %}
+    {# Where it is kept: the owner's by default and everybody's by setting (ADR-0027),
+       and none at all when the route says this reader is not told. #}
+    {{ W.row(where) }}
     {# Out of the list above, and last in it as it was, because this is the one value
        that is written in more than one line and has to be shown in them. #}
     {% if c.notes %}<div><dt>Notes</dt><dd class="lines">{{ c.notes | linked }}</dd></div>{% endif %}

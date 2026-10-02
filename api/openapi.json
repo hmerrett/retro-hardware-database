@@ -527,6 +527,11 @@
             "title": "Location",
             "type": "string"
           },
+          "location_path": {
+            "default": "",
+            "title": "Location Path",
+            "type": "string"
+          },
           "machine": {
             "anyOf": [
               {
@@ -638,6 +643,162 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LocationDetail": {
+        "description": "One location, with what is kept in it and the locations inside it, by tag.\nDirectly in it, as its page lists them: the box's contents, not the bag's in\nthe box -- those are one GET further.",
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "locations": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Locations",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "path": {
+            "default": "",
+            "title": "Path",
+            "type": "string"
+          },
+          "things": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Things",
+            "type": "array"
+          }
+        },
+        "required": [
+          "asset_id",
+          "name",
+          "kind"
+        ],
+        "title": "LocationDetail",
+        "type": "object"
+      },
+      "LocationIn": {
+        "description": "A location as it arrives. Every field optional, so a PATCH can name one; a\ncreate without a name is refused by the route rather than here, because a\nPATCH that leaves the name alone is the ordinary case.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          }
+        },
+        "title": "LocationIn",
+        "type": "object"
+      },
+      "LocationOut": {
+        "properties": {
+          "asset_id": {
+            "title": "Asset Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "path": {
+            "default": "",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asset_id",
+          "name",
+          "kind"
+        ],
+        "title": "LocationOut",
         "type": "object"
       },
       "MachineIn": {
@@ -777,6 +938,62 @@
           }
         },
         "title": "MachineOut",
+        "type": "object"
+      },
+      "MoveOut": {
+        "description": "One change in where something is kept. `from` and `to` are tags, null for\nnowhere recorded; the paths are the words as they read when it happened.",
+        "properties": {
+          "from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          },
+          "from_path": {
+            "default": "",
+            "title": "From Path",
+            "type": "string"
+          },
+          "how": {
+            "title": "How",
+            "type": "string"
+          },
+          "moved_at": {
+            "title": "Moved At",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          },
+          "to_path": {
+            "default": "",
+            "title": "To Path",
+            "type": "string"
+          },
+          "who": {
+            "default": "",
+            "title": "Who",
+            "type": "string"
+          }
+        },
+        "required": [
+          "moved_at",
+          "how"
+        ],
+        "title": "MoveOut",
         "type": "object"
       },
       "PartCreate": {
@@ -1168,6 +1385,11 @@
           "location": {
             "default": "",
             "title": "Location",
+            "type": "string"
+          },
+          "location_path": {
+            "default": "",
+            "title": "Location Path",
             "type": "string"
           },
           "machine": {
@@ -2103,6 +2325,248 @@
         "summary": "Api Item Log",
         "tags": [
           "log"
+        ]
+      }
+    },
+    "/api/items/{aid}/moves": {
+      "get": {
+        "description": "Where a thing or a location has been, newest first.",
+        "operationId": "api_item_moves_api_items__aid__moves_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MoveOut"
+                  },
+                  "title": "Response Api Item Moves Api Items  Aid  Moves Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Item Moves",
+        "tags": [
+          "log"
+        ]
+      }
+    },
+    "/api/locations": {
+      "get": {
+        "operationId": "api_list_locations_api_locations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LocationOut"
+                  },
+                  "title": "Response Api List Locations Api Locations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api List Locations",
+        "tags": [
+          "locations"
+        ]
+      },
+      "post": {
+        "operationId": "api_create_location_api_locations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Create Location",
+        "tags": [
+          "locations"
+        ]
+      }
+    },
+    "/api/locations/{aid}": {
+      "delete": {
+        "description": "Delete a location, which is refused while anything is still in it: a thing,\nor a location inside it. Its history goes with it; the moves of the things\nthat were once in it stay on their own histories.",
+        "operationId": "api_delete_location_api_locations__aid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Delete Location",
+        "tags": [
+          "locations"
+        ]
+      },
+      "get": {
+        "operationId": "api_get_location_api_locations__aid__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Get Location",
+        "tags": [
+          "locations"
+        ]
+      },
+      "patch": {
+        "operationId": "api_update_location_api_locations__aid__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "aid",
+            "required": true,
+            "schema": {
+              "title": "Aid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Update Location",
+        "tags": [
+          "locations"
         ]
       }
     },

@@ -26,6 +26,7 @@ HTML = {"accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0
 SECTIONS = [
     ("/", "Browse"),
     ("/projects", "Projects"),
+    ("/locations", "Locations"),
     ("/stats", "Numbers"),
     ("/machines", "Models"),
     ("/files", "Files"),
@@ -136,7 +137,7 @@ class TestTheBanner:
     def test_the_sections_are_written_in_sentence_case(self, client):
         nav = region(client.get("/machines").text, cls="site-header")
         names = [words for words, attrs in nav.links if not attrs.get("class")]
-        assert names[:5] == [name for _, name in SECTIONS]
+        assert names[: len(SECTIONS)] == [name for _, name in SECTIONS]
 
     @pytest.mark.parametrize("path, name", SECTIONS)
     def test_the_section_you_are_in_is_the_one_marked(self, client, path, name):
@@ -172,7 +173,7 @@ class TestTheMenu:
         menu = region(client.get("/").text, cls="hdr-more")
         assert "Log in" in menu.words and "Log out" not in menu.words
 
-    def test_it_holds_the_five_sections_folded_away_at_its_top(self, client):
+    def test_it_holds_the_sections_folded_away_at_its_top(self, client):
         menu = region(client.get("/").text, cls="hdr-more")
         folded = [words for words, attrs in menu.links if "fold" in (attrs.get("class") or "")]
         assert folded == [name for _, name in SECTIONS]
@@ -232,7 +233,7 @@ class TestWhereYouAre:
         """Your account's address begins with Settings', so both entries could
         claim it; two marked is a screen reader told it is on two pages at once.
         An administrator reaches Your account as a tab of Settings and is not
-        offered Account as well, so it is Settings that is marked (MANUAL §18)."""
+        offered Account as well, so it is Settings that is marked (MANUAL §19)."""
         assert marked(client.get("/settings/account").text, **where) == ["/settings"]
 
     @pytest.mark.parametrize("path", ["/settings", "/settings/users"])
@@ -250,13 +251,15 @@ class TestWhereYouAre:
 
 class TestHowItFoldsWithTheWidth:
     def test_on_a_tablet_the_sections_leave_the_banner(self):
-        tablet = media("(max-width: 900px)", stylesheet())
+        """At 1000px rather than 900: a sixth section is about 80px more banner, and
+        at 900 the room for it would have come out of the collection's name."""
+        tablet = media("(max-width: 1000px)", stylesheet())
         assert "display: none" in rule(".site-header nav", tablet)
 
     def test_and_are_found_in_the_menu_instead(self):
         css = stylesheet()
         assert "display: none" in rule(".menupop .fold", css)
-        assert "display: block" in rule(".menupop .fold", media("(max-width: 900px)", css))
+        assert "display: block" in rule(".menupop .fold", media("(max-width: 1000px)", css))
 
     def test_on_a_phone_the_banner_keeps_the_name(self):
         """With no footer, the banner is the only place on a phone's page that says

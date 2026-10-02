@@ -1,6 +1,6 @@
 """Accounts, roles, sessions and tokens (ADR-0032).
 
-MANUAL section 17: administrators and viewers, adding people, a site only its
+MANUAL section 18: administrators and viewers, adding people, a site only its
 people can read, signing in and out, and API tokens. Each class is one of those
 entries, and each test one thing it promises.
 """
@@ -52,7 +52,7 @@ def close_the_site(client, closed=True):
     data = {"site_name": "", "theme": "system", "watermark": "1", "remember_locations": "1"}
     if closed:
         data["login_to_read"] = "1"
-    # Settings is three tabs, each saving its own part (MANUAL §18).
+    # Settings is three tabs, each saving its own part (MANUAL §19).
     for tab in ("/settings", "/settings/labels", "/settings/server"):
         r = client.post(tab, data=data, follow_redirects=False)
         assert r.status_code == 303, r.text

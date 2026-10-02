@@ -69,10 +69,10 @@ def _datalists(db: Session, computer: bool = False) -> dict[str, list[str]]:
     equivalent of them is its typed spec table, which has its own vocabularies."""
     lists = {
         "source": _answers_given(db, Computer.source, Part.source),
-        # The one list that is not only the register asked a question. Where things
-        # are kept goes out of date by things being moved, so the places nothing is
-        # in at the moment are added back from what was remembered (ADR-0027).
-        "location": locations.suggestions(db, _answers_given(db, Computer.location, Part.location)),
+        # Not an answer given before but every location there is, each as its path,
+        # so the two `Box 14`s in different rooms are told apart by where they are
+        # and an empty crate is still offered by name (ADR-0034).
+        "locations": locations.choices(locations.tree(db)),
     }
     if computer:
         lists |= {

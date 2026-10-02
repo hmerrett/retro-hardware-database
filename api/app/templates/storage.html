@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% block title %}Audit — {{ site_name() }}{% endblock %}
+{% block main_class %} v2{% endblock %}
+{% block content %}
+{# The audit (MANUAL §14, "Audit"): a phone in one hand and a handheld scanner in the
+   other, or the phone's camera on its own. A prompt in large type says what to do
+   next, a panel what the last scan did, then the round's scans and the site's own
+   buttons. Everything works by posting the form, so with no script it is a box and
+   a button; the script puts the box away and listens for the scanner instead, sends
+   a whole tag without waiting for Enter, asks at the start of a round how it is
+   being scanned, keeps the focus, and beeps. #}
+<div class="pagehead"><h1 class="heading">Audit</h1></div>
+<div class="storage" id="storage" data-started="{{ '1' if started else '' }}">
+  {# The question a round starts with, which the script shows: with no script there
+     is the box and nothing to choose. Camera is offered only where there is one to
+     open, which is what scan-open waits to find out (app.js), and opens it. #}
+  <div class="storagestart" id="storage-start" hidden>
+    <p class="prompt">How are you scanning?</p>
+    <div class="row">
+      <button type="button" class="btn primary" data-scan-with="scanner">{{ 'Handheld scanner' | ui }}</button>
+      <button type="button" class="btn primary scan-open" data-scan-with="camera" hidden title="Read the labels with this phone's camera">{{ 'Camera' | ui }}</button>
+    </div>
+  </div>
+  {# What to do next. The script redraws it from each scan's answer, which carries
+     the same three things. #}
+  {% set idle_where, idle_path = 'Scan a location', 'or a thing, to see where it is' %}
+  <div class="storageprompt" id="storage-prompt" data-idle-where="{{ idle_where }}" data-idle-path="{{ idle_path }}">
+    <p class="step" id="storage-step"{% if not opened %} hidden{% endif %}>Scan things into</p>
+    <p class="prompt" id="storage-where">{% if opened %}<a href="/locations/{{ opened }}">{{ open_name }}</a>{% else %}{{ idle_where }}{% endif %}</p>
+    <p class="hint" id="storage-path">{% if opened %}{{ open_path }}{% else %}{{ idle_path }}{% endif %}</p>
+    {# Whether a scan would land anywhere: with the box put away, nothing else on
+       the screen says the focus has gone. Pressed, it gets it back. Both words are
+       handed to the script, which cannot know which case the site is written in. #}
+    <button type="button" class="btn sm" id="storage-ready" hidden
+            data-on="{{ 'Ready to scan' | ui }}" data-off="{{ 'Tap to scan' | ui }}">{{ 'Tap to scan' | ui }}</button>
+  </div>
+  {# role="status": a screen reader hears each scan's answer without being moved. #}
+  <div id="storage-panel" class="storagepanel tone-{{ last.tone if last else 'idle' }}" role="status" aria-live="polite">
+    <span class="ic" aria-hidden="true">{{ last.icon if last else '' }}</span>
+    <p><b class="head">{{ last.head if last else 'Ready' }}</b> <span class="words">{{ last.words if last else 'Nothing scanned yet in this round.' }}</span></p>
+  </div>
+  {# inputmode="none": the box keeps the focus without bringing up the on-screen
+     keyboard, which would cover the panel; "type a tag" brings it up. A handheld
+     scanner types into it either way. Put out of sight by the script, not here, so
+     that with no script it is the whole of the audit. #}
+  <form id="storage-form" class="scanform" method="post" action="/audit/scan" autocomplete="off">
+    <label for="scan-code">Scan a label</label>
+    <input class="input" id="scan-code" name="code" autofocus inputmode="none"
+           autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="go">
+    {{ U.button('Scan it', kind='primary', type='submit') }}
+  </form>
+  <div class="storagecontrols">
+    <form method="post" action="/audit/close" class="inline-form" id="storage-change"{% if not opened %} hidden{% endif %}
+          title="Close this location without opening another. A thing scanned next is held until a location is scanned.">
+      <button class="btn" type="submit">{{ 'Change location' | ui }}</button>
+    </form>
+    <form method="post" action="/audit/finish" class="inline-form">
+      <button class="btn" type="submit" id="storage-finish" title="End the round and see what was found, moved and missed">{{ 'Finish' | ui }}</button>
+    </form>
+    <button type="button" class="btn scan-open" hidden title="Read a label with the camera">{{ 'Camera' | ui }}</button>
+    <button type="button" class="btn" id="storage-type" aria-pressed="false" title="Bring up the keyboard to key a tag in by hand">{{ 'Type a tag' | ui }}</button>
+    <button type="button" class="btn" id="storage-sound" aria-pressed="true" title="Beep for each scan. This browser remembers it.">{{ 'Sound' | ui }}</button>
+    <label class="check" title="With it on, a location scanned while another is open goes inside the open one, with everything in it. Off whenever the audit opens.">
+      <input type="checkbox" id="storage-boxes" name="boxes" value="1" form="storage-form"> {{ 'Moving boxes' | ui }}</label>
+  </div>
+  <ol class="scanlist" id="scan-list" aria-label="This round's scans, newest first">
+    {%- for line in lines %}{% include "_storage_line.html" %}{% endfor -%}
+  </ol>
+</div>
+<script defer src="/static/storage.js?v={{ js_ver['storage.js'] }}"></script>
+{% endblock %}

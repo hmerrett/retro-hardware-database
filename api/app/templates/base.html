@@ -70,7 +70,7 @@
 </head>
 <body>
 {# The first stop for the Tab key, and out of sight until it has one: without it
-   a keyboard reaches the page itself past the brand, five sections, the search
+   a keyboard reaches the page itself past the brand, the sections, the search
    box and two menus, on every page. `tabindex="-1"` on the target is what makes
    the jump move focus and not only the scroll position. #}
 <a class="skip" href="#main">Skip to content</a>
@@ -228,10 +228,12 @@
 </div>
 <script defer src="/static/app.js?v={{ js_ver['app.js'] }}"></script>
 
-{# Reading a label's QR code without leaving the page. The codes hold a full URL to
+{# Reading a label's code without leaving the page. A QR code holds a full URL to
    the item, so a phone's own camera app already opens one -- this exists so that
-   finding a thing you are holding does not mean leaving the page to do it. #}
-<div id="scanner" hidden>
+   finding a thing you are holding does not mean leaving the page to do it, and so
+   that a label carrying only a barcode can be read with a camera at all. The
+   barcode reader is fetched only by a browser that cannot read one itself. #}
+<div id="scanner" hidden data-code128="/static/code128.js?v={{ js_ver['code128.js'] }}">
   <div class="scan-stage">
     <video id="scan-video" playsinline muted></video>
     <div class="scan-frame"></div>

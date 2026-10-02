@@ -79,10 +79,6 @@ templates.env.globals.update(
     rail_recent=rail.recent,
     rail_collapsed=rail.collapsed,
     site_indexed=lambda: not settings.on("block_search_engines"),
-    # Whether a reader who is not signed in is told where a thing is kept. The item
-    # pages ask it beside `request.state.authed`, which is the other half of the
-    # same question (ADR-0027).
-    public_locations=lambda: settings.on("public_locations"),
 )
 # A filter rather than a global, because it reads as one thing done to another at
 # every one of its uses: `{{ c.notes | linked }}`. It is for text shown as text --

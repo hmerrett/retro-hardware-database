@@ -32,7 +32,7 @@ def island(page):
 
 def save(client, **fields):
     posted = {d.key: settings.value(d.key) for d in settings.DEFINITIONS if d.kind != "switch"}
-    # Settings is three tabs, each saving its own part (MANUAL §18).
+    # Settings is three tabs, each saving its own part (MANUAL §19).
     for tab in ("/settings", "/settings/labels", "/settings/server"):
         r = client.post(tab, data=posted | fields)
         assert r.status_code in (200, 303), r.text[:300]

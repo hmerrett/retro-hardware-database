@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 # already the register-wide address the QR codes print and the JSON log is read
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
+from .. import locations
 from ..db import get_db
 from ..forms import posted
 from ..history import PHOTO_ENTRY, item_log, log_photos
@@ -71,16 +72,23 @@ def gui_item_version(aid: str, db: Session = Depends(get_db)) -> dict[str, str]:
 
 
 @router.get("/items/{aid}", include_in_schema=False)
-def gui_item(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
+def gui_item(aid: str, request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
     """The URL printed on labels: resolve an asset id to its page, whichever of the
-    three things in the register it turns out to name. Keeps the same /items/<id>
+    four things in the register it turns out to name. Keeps the same /items/<id>
     scheme the old QR codes used.
 
     A project is in here despite never being printed on a label, because this is the
     register-wide address and a project holds a register id. Its history is written
     through /items/<id> like everything else's, and a route that could not find it
-    would be a page whose note bar posted into nowhere."""
-    return RedirectResponse(_asset_page(db, aid.upper()), status_code=307)
+    would be a page whose note bar posted into nowhere.
+
+    A location is answered here with the 404 its own page would give a reader who
+    is not told where things are kept, rather than redirected to that page first:
+    the address of the redirect would say what the tag is (ADR-0034)."""
+    page = _asset_page(db, aid.upper())
+    if page.startswith("/locations/") and not locations.shown(request.state.sees_private):
+        raise HTTPException(404, f"no asset {aid.upper()}")
+    return RedirectResponse(page, status_code=307)
 
 
 def _log_entry_or_404(db: Session, aid: str, log_id: int) -> tuple[LogEntry, str]:

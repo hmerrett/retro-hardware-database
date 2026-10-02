@@ -3,6 +3,7 @@
 {% import "_ui.html" as U with context %}
 {% import "_partlist.html" as P %}
 {% import "_panel.html" as PN %}
+{% import "_where.html" as W with context %}
 {% block title %}{{ og.title }}{% if og.title != p.asset_id %} · {{ p.asset_id }}{% endif %} — {{ site_name() }}{% endblock %}
 {# The display face is the name at the top of the page, so it is asked for before
    the stylesheet that names it is read. Only here: a preload nothing uses makes the
@@ -17,23 +18,14 @@
     {# The part's own facts, in a panel like every other section. Where it is fitted
        is a panel of its own below: it is the one fact here that changes. #}
     {% call PN.panel('Details') %}
-    {# Where it is kept is the owner's by default and everybody's by setting
-       (ADR-0027). Folded into the pair list as a blank rather than tested on a row
-       of its own, so the one list stays the one description of this panel -- the
-       loop below already drops a pair with nothing in it. #}
-    {% set show_location = request.state.sees_private or public_locations() %}
     <dl class="kv">
-    {# Its own answer, where it has one. A part that does not hold one is placed by
-       whatever it is fitted in, which is the pair after this loop -- the two are one
-       answer between them, and only one of them is ever shown. #}
-    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Kind', type_label(p.type)), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date), ('Location', p.location if show_location else '')] %}
+    {% for k, v in [('Manufacturer', p.manufacturer), ('Model', p.model), ('Kind', type_label(p.type)), ('Year', p.year), ('Serial', p.serial), ('Condition', p.condition), ('Source', p.source), ('Acquired', p.acquired_date)] %}
       {% if v %}<div><dt>{{ k }}</dt><dd>{{ v | linked }}</dd></div>{% endif %}
     {% endfor %}
-    {# Worked out rather than stored, so the page says whose answer it is showing: a
-       location on a part that does not hold one would otherwise read as something
-       somebody typed here, and correcting it means editing the thing named. #}
-    {% if show_location and placed %}<div><dt>Location</dt><dd>{{ placed.where | linked }}
-      <span class="meta">— where <a href="/{{ placed.kind }}/{{ placed.whose }}">{{ placed.whose }}</a> is</span></dd></div>{% endif %}
+    {# Where it is kept: its own location, or the one it is in because of what it is
+       fitted in -- and then the row says whose answer it is showing, since correcting
+       it means editing the thing named (ADR-0027, ADR-0034). #}
+    {{ W.row(where) }}
     {% if p.disk_image %}<div><dt>Disk image</dt><dd>{{ p.disk_image }}</dd></div>{% endif %}
     {% if p.url %}<div><dt>Reference</dt><dd><a href="{{ p.url }}" target="_blank">{{ p.url }}</a></dd></div>{% endif %}
     {% if p.notes %}<div><dt>Notes</dt><dd class="lines">{{ p.notes | linked }}</dd></div>{% endif %}

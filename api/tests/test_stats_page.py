@@ -1,4 +1,4 @@
-"""The numbers page on the v0.2 components, as MANUAL.md section 16 describes it: a
+"""The numbers page on the v0.2 components, as MANUAL.md section 17 describes it: a
 headline, the portrait coverage, eight tiles drawn from the pool, and the ranked
 charts -- and almost every number a link to what it counted.
 

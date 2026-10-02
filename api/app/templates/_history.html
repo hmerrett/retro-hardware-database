@@ -37,13 +37,22 @@
   {% if log %}
   <dl class="kv log{{ ' timed' if request.state.sees_private else '' }}">
     {% for e in log %}
-    <div>
+    <div{% if e.kind == 'move' %} data-kind="move"{% endif %}>
       <dt class="logwhen">{{ log_stamp(e.created_at, request.state.sees_private) }}</dt>
       <dd>
         <div class="logline">
           {# A photograph entry has no words in it: the chip is the whole of the
-             sentence, and the pictures below are what it says. #}
+             sentence, and the pictures below are what it says. A move is drawn from
+             its row, so each end is a link to the location rather than words about
+             it; who made it is for whoever is signed in, as the time of day is. #}
+          {% if e.kind == 'move' and e.move %}{% set m = e.move %}
+          <div class="logmsg"><span class="chip">moved</span> from
+            {%- if m.from_id %} <a href="/locations/{{ m.from_id }}">{{ m.from_path or m.from_id }}</a>{% else %} nowhere recorded{% endif %} to
+            {%- if m.to_id %} <a href="/locations/{{ m.to_id }}">{{ m.to_path or m.to_id }}</a>{% else %} nowhere recorded{% endif -%}
+            , {{ move_how[m.how] | default(m.how) }}{% if request.state.sees_private and m.who %}, by {{ m.who }}{% endif %}</div>
+          {% else %}
           <div class="logmsg">{% if e.kind == 'note' %}<span class="chip">note</span> {% elif e.kind == 'photo' %}<span class="chip">photo</span>{% endif %}{{ e.message | linked }}</div>
+          {% endif %}
           {# Offered on a single entry only. A folded line is several entries read
              out as one sentence, and there is no one of them a photograph would
              belong to. #}

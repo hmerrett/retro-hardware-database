@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% block title %}{{ title }} — {{ site_name() }}{% endblock %}
+{% block width %} wide{% endblock %}
+{% block main_class %} v2{% endblock %}
+{% block content %}
+{# A location's four questions (MANUAL §14, "A location"): what it is called, what
+   sort of place it is, what it is inside, and how to find it. `loc` is the record on
+   an edit and none on a new one; a refused save comes back with what was typed. #}
+{% set ERR = field_errors | default({}) %}
+{% set TYPED = typed | default({}) %}
+{% macro was(key, on_file) -%}{{ TYPED[key] if key in TYPED else on_file }}{%- endmacro %}
+<form class="editform" method="post"
+      action="{{ ('/locations/' ~ loc.asset_id ~ '/edit') if loc else '/locations/new' }}">
+  <div class="pagehead"><h1 class="heading">
+    {%- if loc %}Edit {{ loc.name }} <span class="tag muted">{{ loc.asset_id }}</span>
+    {%- else %}{{ title }}{% endif %}</h1></div>
+  {{ U.error_summary(errors | default([])) }}
+  <datalist id="dl_inside">{% for v in inside_choices %}<option value="{{ v }}">{% endfor %}</datalist>
+  <fieldset class="fieldset">
+    <legend>Location</legend>
+    <div class="formgrid">
+      {{ U.field('name', 'Name', value=was('name', loc.name if loc else ''),
+                 hint="what it is called where it is — Shelf 2, Box 14", error=ERR.get('name'),
+                 required=true, autocomplete='off') }}
+      {{ U.field('kind', 'Kind', kind='choice', value=was('kind', loc.kind if loc else 'box'),
+                 choices=kinds, error=ERR.get('kind'),
+                 note="It describes the location and rules on nothing: a bag may hold a box if that is how your loft is.") }}
+      {# Blank is the top of a tree -- a building, a room. What is offered leaves out
+         the location itself and everything inside it, which it could not go in. #}
+      {{ U.field('parent', 'Inside', value=was('parent', inside_text),
+                 hint="the location it is in — blank for the top", error=ERR.get('parent'),
+                 list='dl_inside', autocomplete='off') }}
+    </div>
+    {{ U.field('notes', 'Notes', kind='area', value=was('notes', loc.notes if loc else ''),
+               hint="how to find it — third rack on the left", rows=3) }}
+  </fieldset>
+  {% set cancel = ('/locations/' ~ loc.asset_id) if loc else '/' %}
+  {% include "_actbar.html" %}
+</form>
+{% endblock %}

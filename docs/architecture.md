@@ -100,7 +100,7 @@ applies it on the way up.
 
 The single most load-bearing rule in the system.
 
-Computers, parts and projects **share one id namespace**, allocated by
+Computers, parts, projects and locations **share one id namespace**, allocated by
 `api/app/ids.py`. Two things sharing an id would put one's history on the other's
 page, because `/items/<id>` resolves to whichever kind of thing holds it and the
 log is keyed by id alone.
@@ -113,6 +113,10 @@ log is keyed by id alone.
 - `GET /items/<id>` is the public redirect every printed QR code points at. It is
   the reason ids may never be reused or reassigned: labels already exist on
   shelves, and some of them point at a GitHub Pages site that predates this app.
+- A label's Code 128 barcode carries the id and nothing else (ADR-0034), so the id
+  is the whole of what a scanner hands the app, in the audit as in the search
+  box. There is no `L:`/`I:` prefix: which table holds the id is the answer to
+  what kind of thing it is.
 
 ## 4. The data model
 
@@ -153,7 +157,9 @@ and re-render; never edit the string and hope.
 | `log_entry`, `log_photo` | the dated history of an asset, and photographs attached to a line of it |
 | `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the tags that say what each one is |
 | `file_asset`, `file_model` | what a file is for: one unit by asset id, or every item of a model by catalogue key or by maker and model |
-| `location` | every place something has been kept, so an emptied crate is still offered by name — the register's one stored vocabulary, and deleted outright when the preference behind it is turned off (ADR-0027) |
+| `locations` | where things are kept: a building, a room, a rack, a box, a bag, each with an id from the pool, a kind, notes and photographs, and the location it is inside. The path is read up `parent_id` when shown, never stored (ADR-0034) |
+| `moves` | each change in where a thing or a location is kept: from, to, when, the user, and whether by edit, scan or API |
+| `stock_checks`, `stock_check_scans` | a storage-mode round: the locations it opened, what each was expected to hold, and every scan with what it did |
 | `users`, `memberships` | who may sign in, and the role each has on a site — one site today, and the row a second collection would hang from (ADR-0032) |
 | `sessions`, `api_tokens` | a signed-in browser and a program's token, each kept as a digest of the key it was handed, so either ends the moment its row goes |
 | `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the things it is about (one project to a thing), its job list — each job optionally naming one of those things — and what is on order for it |
@@ -188,6 +194,9 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/accounts.py` | the account pages: Settings → Accounts for administrators, and Your account for everybody signed in |
 | `routers/health.py` | /healthz: up, and able to reach the database |
 | `routers/print_queue.py` | the print queue: the owner's half, and the half a print agent's key opens |
+| `routers/locations.py` | a location's page, its form, emptying, merging and deleting one, its photographs and its labels -- each route asking Show locations who may see it |
+| `routers/api_locations.py` | /api/locations, and where a thing or a location has been at /api/items/<id>/moves |
+| `routers/storage.py` | the audit (`/audit`; its first name, storage, is still the code's): the screen, a scan, an undo, finishing a round, and the report |
 | `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
 | `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
 | `disposal.py` | disposing of a thing and bringing it back, including what was fitted inside it |
@@ -215,7 +224,8 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `accent.py` | the installation's accent: one colour in, the five tokens the page is painted with out, derived for the preset and the mode and served as a stylesheet of its own |
 | `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, and the size it is given as |
 | `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
-| `locations.py` | where things are kept: the remembered vocabulary of places, what a form's pick list offers, and where a part is when it does not say for itself |
+| `locations.py` | where things are kept: the tree of locations and the path up it, what the Location box offers, moving a thing or a location and writing the move, and where a part is when it does not say for itself |
+| `storage.py` | the audit's rounds: what a scan does -- open, found, moved in, held, refused -- undoing one, and the report a round ends with |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
 | `machinedb.py` | mapping an asset's catalogue identity between its rows and plain values |
@@ -235,6 +245,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `labels.py` | what a label says and where on it that goes, for either surface |
 | `printing.py` | the queue of labels waiting for a printer on somebody else's machine |
 | `surfaces.py` | the two things a label is drawn on: a PDF page, and a printer's own dots |
+| `barcode.py` | Code 128: a tag as the bars a label carries, set B only, and the table the browser's reader in static/code128.js is held to |
 | `audit_storage.py` | checking every storage part against the questions its kind is actually asked |
 
 Outside `api/`:
@@ -301,10 +312,16 @@ breaking one turns CI red rather than merely being wrong.
   `_hidden_columns` asks which columns *this* reader is denied rather than reading
   one fixed set — `OWNER_ONLY` is one answer to that question and not the whole of
   it. *(ADR-0027, enforced: `test_locations.py`)*
-- **A remembered vocabulary is deleted when it is turned off.** The `location`
-  table holds the places nothing is kept in any more, so an emptied crate is still
-  offered; switching the preference off purges it rather than ignoring it.
-  *(ADR-0027, enforced: `test_locations.py`)*
+- **A location's path is worked out and never written down.** A thing points at
+  one location and a location at the one it is inside, so moving a box is one
+  write and its contents follow. Nothing may be inside itself, however far down.
+  *(ADR-0034, enforced: `test_storage_locations.py`)*
+- **Every change of where something is kept writes a move.** By edit, by scan, by
+  API, by undo: each a `moves` row with its user. A box moving writes one row, on
+  the box. *(ADR-0034, enforced: `test_moves.py`)*
+- **`public_locations` gates the location routes, not only the row.** A location's
+  page, photographs, labels and API answer a visitor with the login while the
+  switch is off. *(ADR-0034, enforced: `test_storage_visibility.py`)*
 - **Where a fitted part is, is worked out and never written down.** A part with a
   blank `location` is shown the location of what it is mounted on, else what it is
   installed in, as far up the chain as it takes (`locations.inherited`). Nothing
@@ -429,13 +446,14 @@ it was weighed against, and what it costs.
 | 0018 | A sale flag is the owner's alone |
 | 0019 | Running open is supported, but never silent *(superseded by 0032)* |
 | 0020 | A model link names a maker and a model, not only a catalogue key |
-| 0027 | A remembered vocabulary is deleted when it is turned off |
+| 0027 | A remembered vocabulary is deleted when it is turned off *(superseded by 0034)* |
 | 0028 | A file is linked to the things it is for, by their asset ids |
 | 0029 | An upload starts public where the owner says so |
 | 0030 | A PDF is read in the browser, and everything else is still a download |
 | 0031 | The look is a design system, and its values are data |
 | 0032 | Accounts, roles, and a site to hold them |
 | 0033 | The traffic report runs in a sandbox of its own |
+| 0034 | A location is a record in the register |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

@@ -1,0 +1,24 @@
+{# The Location row on an item's page (MANUAL §14, "Where a thing is"). Expects a
+   locations.Where, or none for no row -- which is what a reader who is not shown
+   where things are kept gets, so the route decides and this only draws.
+
+   The whole path, each step a link, because "Box 14" on its own is a box in which
+   room. A part borrowing its machine's answer says whose it is, so a wrong one is
+   corrected where it can be. Then what the location says about finding it: its
+   notes and its photograph, which are what somebody sent to fetch the thing needs,
+   and a way to the rest of what is in the box. #}
+{% macro row(where) -%}
+{%- if where %}
+<div><dt>Location</dt><dd>
+  <span class="path">{% for tag, name in where.steps %}<a href="/locations/{{ tag }}">{{ name }}</a>{% if not loop.last %}<span class="sep" aria-hidden="true"> → </span>{% endif %}{% endfor %}</span>
+  {%- if where.whose %} <span class="meta">— where <a href="/{{ where.kind }}/{{ where.whose }}">{{ where.whose }}</a> is</span>{% endif %}
+  {%- if where.notes or where.photo %}
+  <span class="wherenote">
+    {%- if where.photo %}<img class="wherephoto" src="{{ img_url(where.photo, 300) }}" alt="Where {{ where.steps[-1][1] }} is" loading="lazy" decoding="async">{% endif %}
+    {%- if where.notes %}<span class="lines">{{ where.notes | linked }}</span>{% endif -%}
+  </span>
+  {%- endif %}
+  {%- if where.others %} <a class="meta" href="/locations/{{ where.tag }}">Also here: {{ where.others }} more</a>{% endif %}
+</dd></div>
+{%- endif %}
+{%- endmacro %}

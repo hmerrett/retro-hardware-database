@@ -108,7 +108,7 @@
 <datalist id="dl_storage_ifaces">{% for o in vocab.storage_interfaces %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_storage_proto">{% for o in vocab.storage_protocols %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_sources">{% for o in dl.source %}<option value="{{ o }}">{% endfor %}</datalist>
-<datalist id="dl_locations">{% for o in dl.location %}<option value="{{ o }}">{% endfor %}</datalist>
+<datalist id="dl_locations">{% for o in dl.locations %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_makes">{% for o in makes %}<option value="{{ o }}">{% endfor %}</datalist>
 <datalist id="dl_models">{% for o in models %}<option value="{{ o }}">{% endfor %}</datalist>
 
@@ -407,11 +407,12 @@
                  type='date', error=ERR.get('acquired_date')) }}
       {# Where the part itself is kept, and mostly left empty: a part fitted in
          something is shown that thing's location instead, so this box is for the
-         card in a drawer rather than the card in a machine. Offered the places
-         already used, machines and parts together, because one crate holds both.
+         card in a drawer rather than the card in a machine. Offered every location
+         by its path, machines' and parts' together, because one crate holds both.
          autocomplete="off" for the reason the source box has it. #}
-      {{ U.field('location', 'Location', value=(p.location if p else '') or '',
-                 list='dl_locations', autocomplete='off') }}
+      {{ U.field('location', 'Location',
+                 value=TYPED.location if 'location' in TYPED else location_text,
+                 error=ERR.get('location'), list='dl_locations', autocomplete='off') }}
       {{ U.field('url', 'Reference URL', value=(p.url if p else '') or '') }}
     </div>
   </fieldset>

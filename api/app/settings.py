@@ -227,6 +227,33 @@ DEFINITIONS: tuple[Definition, ...] = (
         live=True,
     ),
     Definition(
+        key="label_codes",
+        section=LABELS,
+        label="Codes",
+        note=(
+            "What kind of code every label carries. A QR code holds the item's address, "
+            "so a phone's camera opens its page; a Code 128 barcode holds the tag and "
+            "nothing else, which any handheld scanner reads. Labels already printed are "
+            "unaffected."
+        ),
+        kind=CHOICE,
+        default="qr",
+        choices=(("qr", "QR code"), ("code128", "Code 128"), ("both", "Both")),
+    ),
+    Definition(
+        key="label_type",
+        section=LABELS,
+        label="Type",
+        note=(
+            "The face a label's words are set in: Audiowide, which labels have always "
+            "been printed in, or the interface face of the look the site wears. The "
+            "code, and the tag printed under a barcode, are never changed."
+        ),
+        kind=CHOICE,
+        default="label",
+        choices=(("label", "Label face"), ("look", "As the look")),
+    ),
+    Definition(
         key="label_bluetooth_media",
         section=LABELS,
         label="Bluetooth label size",
@@ -285,18 +312,6 @@ DEFINITIONS: tuple[Definition, ...] = (
         ),
         kind=SWITCH,
         default="0",
-    ),
-    Definition(
-        key="remember_locations",
-        section=SERVER,
-        label="Remember old locations",
-        note=(
-            "Keeps a place on the pick list after the last thing in it has moved out, so "
-            "an emptied crate is still offered by name. Turning this off deletes what it "
-            "has remembered rather than hiding it."
-        ),
-        kind=SWITCH,
-        default="1",
     ),
 )
 

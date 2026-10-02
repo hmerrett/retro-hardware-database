@@ -18,13 +18,13 @@ from sqlalchemy.orm import Session
 from . import entry
 from .common import REGISTER
 from .db import Base
-from .models import Computer, FileAsset, LogEntry, Part, Project, StoredFile
+from .models import Computer, FileAsset, LogEntry, Location, Part, Project, StoredFile
 
 _Model = TypeVar("_Model", bound=Base)
 
 # What the register is searched by: the (page, table) pairs of REGISTER, or the
 # narrower slice a caller that can only act on some of them passes in.
-Kinds = Sequence[tuple[str, type[Computer] | type[Part] | type[Project]]]
+Kinds = Sequence[tuple[str, type[Computer] | type[Part] | type[Project] | type[Location]]]
 
 
 def get_or_404(db: Session, model: type[_Model], aid: str | None) -> _Model:

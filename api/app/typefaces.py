@@ -25,15 +25,40 @@ DEFAULT = "preset"
 DESIGN = Path(__file__).parent / "design"
 
 
-def _load() -> tuple[tuple[str, ...], dict[str, str]]:
-    """The pairings in the order the menu shows them, and what each one is called."""
+def _load() -> tuple[tuple[str, ...], dict[str, str], dict[str, str]]:
+    """The pairings in the order the menu shows them, what each one is called, and
+    which of the three faces each sets the interface in."""
     data = json.loads((DESIGN / "scales.json").read_text(encoding="utf-8"))
     pairings = data["type"]["pairings"]
     ids = tuple(str(key) for key in pairings)
-    return ids, {key: str(pairings[key]["name"]) for key in ids}
+    names = {key: str(pairings[key]["name"]) for key in ids}
+    ui = {key: str(pairings[key]["roles"]["ui"]) for key in ids if "roles" in pairings[key]}
+    return ids, names, ui
 
 
-IDS, NAMES = _load()
+IDS, NAMES, _UI_ROLE = _load()
+
+# Which family each preset sets its interface in, when it names one of its own:
+# Phosphor and Amber are monospaced throughout, because the screens they are drawn
+# from were. Read from the design data, like everything else about a preset.
+_PRESET_UI = {
+    str(preset): str(values.get("font-ui", ""))
+    for preset, values in json.loads((DESIGN / "palettes.json").read_text(encoding="utf-8"))[
+        "construction"
+    ].items()
+}
+
+
+def interface_face(preset: str, pairing: str) -> str:
+    """`mono` or `sans`: the family the interface is set in for this look and this
+    pairing -- what a label set *as the look* is set in (MANUAL §13, "The type on a
+    label"). A pairing that names the interface's face wins over the preset's own,
+    as it does on the page; "as the preset" leaves it to the preset."""
+    role = _UI_ROLE.get(pairing)
+    if pairing != DEFAULT and role is not None:
+        return "mono" if role == "data" else "sans"
+    return "mono" if "Mono" in _PRESET_UI.get(preset, "") else "sans"
+
 
 # What the settings page offers, in the shape every other choice on it takes.
 CHOICES: tuple[tuple[str, str], ...] = tuple((key, NAMES[key]) for key in IDS)

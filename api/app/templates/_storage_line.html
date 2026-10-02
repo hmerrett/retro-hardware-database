@@ -1,0 +1,15 @@
+{# One scan in the audit's list, newest at the top. Expects `line` as
+   routers/storage._line makes it. Drawn by the page for the round so far and by the
+   scan route for the line it adds, so the script puts in exactly what a reload
+   would show. The icon is beside the words rather than instead of them: the words
+   are what is read, the icon and the colour are what is seen across a room. #}
+<li class="scanline tone-{{ line.tone }}{{ ' is-undone' if line.undone }}" data-scan="{{ line.id }}">
+  <span class="ic" aria-hidden="true">{{ line.icon }}</span>
+  <span class="say"><b>{{ line.head }}</b> {{ line.words }}{% if line.undone %} <span class="chip quiet">undone</span>{% endif %}</span>
+  {%- if line.undoable %}
+  <form method="post" action="/audit/undo" class="inline-form" data-undo>
+    <input type="hidden" name="scan" value="{{ line.id }}">
+    <button class="btn sm" type="submit" aria-label="Undo this move">undo</button>
+  </form>
+  {%- endif %}
+</li>

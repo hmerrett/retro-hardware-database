@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_panel.html" as PN %}
+{% import "_icons.html" as I %}
+{% import "_labelsend.html" as LS %}
+{% block title %}{{ loc.name }} · {{ loc.asset_id }} — {{ site_name() }}{% endblock %}
+{% block main_class %} v2{% endblock %}
+{% block content %}
+{# A location's own page (MANUAL §14, "A location's page"): where it is, what it
+   is, and what is in it -- which is the body of the page, because "what's here?" is
+   what somebody scanning a shelf's label wants answered. Laid out in the four parts
+   an item page is, so the photographs, the label and the history are where they are
+   on every other page. #}
+{% set authed = request.state.authed %}
+{% set obj = loc %}
+<nav class="pathnav" aria-label="Where it is">
+  <a href="/locations">Locations</a>
+  {%- for tag, name in steps %}<span class="sep" aria-hidden="true"> → </span><a href="/locations/{{ tag }}">{{ name }}</a>{% endfor %}
+</nav>
+{% if refusal %}{{ U.banner('warn', 'Not done.', refusal) }}{% endif %}
+
+<div class="itemcols">
+<div class="itemhead">
+  <div class="titleline">
+    <h1 class="title">{{ loc.name }}</h1>
+    {%- if authed %}
+    <div class="itemacts">
+      {{ U.button('Edit', size='sm', icon='edit', href='/locations/' ~ loc.asset_id ~ '/edit') }}
+      {{ U.button('+ Location inside', size='sm', href='/locations/new?inside=' ~ loc.asset_id) }}
+    </div>
+    {%- endif %}
+  </div>
+  <div class="tag muted">{{ loc.asset_id }} · {{ kind_name }}</div>
+  {% if loc.notes %}<p class="prose lines">{{ loc.notes | linked }}</p>{% endif %}
+</div>
+{% include "_photocol.html" %}
+<div class="itembody">
+  {% call PN.panel("What's here", (things | length + inside | length) or '') %}
+    {% if not things and not inside %}
+    <p class="muted flush"><b>Empty</b> — nothing is kept here.</p>
+    {% endif %}
+    {% if inside %}
+    <h4 class="subhead">Locations inside it</h4>
+    <ul class="placelist">
+      {% for tag, name, kind, n in inside %}
+      <li><a href="/locations/{{ tag }}">{{ name }}</a> <span class="meta">{{ kind_names[kind] | default(kind) }} · {{ n }} thing{{ '' if n == 1 else 's' }}</span></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if things %}
+    <h4 class="subhead">Things kept here</h4>
+    <div class="grid">
+      {% for r in things %}{{ U.card(r) }}
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endcall %}
+  {% include "_history.html" %}
+</div>
+<div class="itemside">
+  {% if request.state.sees_private %}
+  {% call PN.panel('Label') %}
+    <div class="row">
+      <a class="btn sm lbl-s" href="/locations/{{ loc.asset_id }}/label.pdf?small=1"
+         data-kind="{{ one }}" data-asset="{{ loc.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
+      <a class="btn sm" href="/locations/{{ loc.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
+    </div>
+    {# Everything inside, all the way down: the location's own, then each location
+       and each thing in it. One to a page for a label printer, or on an A4 sheet. #}
+    <div class="row" title="This location's label, then one for each location inside it and each thing kept in it, all the way down.">
+      <a class="btn sm" href="/locations/{{ loc.asset_id }}/labels.pdf" target="_blank">{{ 'Labels for everything inside' | ui }}</a>
+      <a class="btn sm" href="/locations/{{ loc.asset_id }}/labels.pdf?sheet=1" target="_blank">{{ 'Sheet' | ui }}</a>
+    </div>
+  {% endcall %}
+  {% endif %}
+  {% if authed %}
+  {% call PN.panel('Tidy') %}
+    <div class="photo-actions flush-top">
+      {% if things or inside %}
+      <form method="post" action="/locations/{{ loc.asset_id }}/empty"
+            title="Puts everything in it where it is itself{% if steps %}: in {{ steps[-1][1] }}{% else %}, at the top{% endif %}.">
+        <button class="btn sm" type="submit">{{ 'Empty into the location above' | ui }}</button>
+      </form>
+      {% endif %}
+      {% if merge_choices %}
+      <form method="post" action="/locations/{{ loc.asset_id }}/merge" class="row"
+            title="Everything in this location moves into the one chosen, which keeps its tag, and this one is deleted.">
+        <datalist id="dl_merge">{% for v in merge_choices %}<option value="{{ v }}">{% endfor %}</datalist>
+        <input class="input" name="into" list="dl_merge" autocomplete="off" aria-label="the location to merge it into">
+        <button class="btn sm" type="submit">{{ 'Merge into' | ui }}</button>
+      </form>
+      {% endif %}
+      <form method="post" action="/locations/{{ loc.asset_id }}/delete"
+            data-confirm="Delete {{ loc.name }}? This cannot be undone.">
+        <button class="btn sm danger" type="submit"{% if things or inside %} disabled title="Move what is in it first."{% endif %}>{{ 'Delete' | ui }}</button>
+      </form>
+    </div>
+  {% endcall %}
+  {% endif %}
+</div>
+</div>
+{{ LS.script() }}
+{% endblock %}

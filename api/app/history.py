@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 from sqlalchemy.orm import Session
 
-from .models import LogEntry, LogPhoto
+from .models import LogEntry, LogPhoto, Move
 from .web import templates
 
 
@@ -33,6 +33,16 @@ def _now() -> datetime:
 # what an entry is gets an answer: the page draws it its own chip, the fold leaves it
 # alone, and add_log knows where the rule about empty messages stops.
 PHOTO_ENTRY = "photo"
+
+# The entries that say where something is kept: a move, drawn from its row with a
+# link at each end, and a stock check's "not found here" (ADR-0034). Kinds of their
+# own because they go behind the same switch the Location row does -- an item's
+# history is public, and a line reading "moved from the loft to the garage" is the
+# address the row was keeping back -- and because they stay out of the search, which
+# is for where a thing is now and not every place it has been.
+MOVE_ENTRY = "move"
+CHECK_ENTRY = "check"
+KEPT_ENTRIES = frozenset({MOVE_ENTRY, CHECK_ENTRY})
 
 
 def add_log(
@@ -164,12 +174,24 @@ def _fold_log(
     return out
 
 
-def _history(db: Session, asset_id: str) -> list[SimpleNamespace]:
+def _history(db: Session, asset_id: str, kept: bool = True) -> list[SimpleNamespace]:
     """One item's history as its page wants it: folded, with each entry's
-    photographs on it. Two queries whatever the history is long -- the entries, and
-    the photographs of all of them at once."""
+    photographs on it, and a move's row on the line it is drawn as. Three queries
+    whatever the history is long.
+
+    `kept` is whether this reader is told where things are kept (locations.shown).
+    Without it the moves and the stock-check lines are left out, rather than drawn
+    with the places blanked: a line saying something moved and not where is a line
+    saying there is somewhere to know about."""
     entries = item_log(db, asset_id)
-    return _fold_log(entries, log_photos(db, [e.id for e in entries]))
+    if not kept:
+        entries = [e for e in entries if e.kind not in KEPT_ENTRIES]
+    lines = _fold_log(entries, log_photos(db, [e.id for e in entries]))
+    ids = [e.id for e in entries if e.kind == MOVE_ENTRY]
+    moves = {m.log_id: m for m in db.query(Move).filter(Move.log_id.in_(ids))} if ids else {}
+    for line in lines:
+        line.move = moves.get(line.id)
+    return lines
 
 
 def log_stamp(created_at: datetime | None, authed: bool) -> str:

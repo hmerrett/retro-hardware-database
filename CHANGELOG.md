@@ -13,6 +13,43 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Locations are records, with labels you can scan.** Where a thing is kept is now a
+location -- a building, a room, a rack, a shelf, a box, a bag -- with an asset tag
+of its own, a page, photographs, notes on how to find it, and a label. Locations sit
+inside other locations, and moving a box moves everything in it. The Location box on
+a machine or a part offers every location by its path, and a new name makes one.
+**Upgrading converts what you typed:** every different spelling becomes a location
+of its own at the top level, so give them their places afterwards -- on each
+location's page, or by scanning -- and put two spellings of one crate together with
+**merge into**. *Remember old locations* has gone: a location stays when it is
+emptied, so there is nothing left to remember. See [section 14](MANUAL.md#14-storage).
+
+**Audit.** **☰ → Audit** is a screen for a phone and a handheld barcode
+scanner, or the phone's camera: it asks which, then says in large type what to do
+next -- *Scan a location*, then *Scan things into Shelf 2* -- and every scan moves
+things there and then: found, moved in, or refused, said in words, colour and a
+beep. There is no box to type into; a scan goes as soon as a whole tag is in, with
+or without Enter. A round ends with a report of what was found, what moved in, what
+was not scanned and what was not recognised. Any USB, Bluetooth or OTG scanner
+works, as a keyboard.
+
+**Barcodes.** **Settings → Labels → Codes** puts a QR code, a Code 128 barcode
+holding the tag alone, or both on every label, and **Type** can set a label's words
+in the site's own face. The bars are a whole number of the printer's dots in the
+PDF as well as the picture, never narrower than a quarter of a millimetre, with
+nothing printed under them; on the 51×19 mm tape they run the label's width, and a
+label set to both carries the barcode alone there. Every move is now in the
+history, with who made it and how.
+
+**The side rail adds what + New does.** **Project** and **Location** are one press
+each there now, under **Computer** and **Part**.
+
+**Locations is a section**, beside Browse and Projects: every location on one page,
+each under the one it is inside, with its kind, its tag and how much it holds. It is
+where the spellings the upgrade made into locations are found, to be put in their
+places. A visitor is offered it only while **Show locations** is on. With six
+sections, the banner folds them into **☰** below 1000px rather than 900px.
+
 **The footer has gone.** The collection's name is in the banner, a phone's
 included, and at the top of the side rail; the API docs are on **⋯ → Account**,
 beside your tokens.

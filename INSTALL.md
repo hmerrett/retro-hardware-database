@@ -179,7 +179,7 @@ docker compose up -d mcp
 
 Other people's accounts — administrators, or viewers who may read everything but
 change nothing — are made the same way, with `python -m app.accounts add`. The
-[manual](MANUAL.md#17-logging-in) has the whole command.
+[manual](MANUAL.md#18-logging-in) has the whole command.
 
 Two buttons appear in the header once you are logged in: **+ Computer** and
 **+ Part**. The [manual](MANUAL.md) walks through both forms field by field, but
@@ -313,7 +313,7 @@ beside the logo — or at the top of the side rail, where the rail is showing �
 the browser's tab, and in the preview a shared link unfolds into. There is
 nothing to restart and nothing to edit on the server: it is kept in the database,
 like the other three settings on that page, and the manual's
-[Settings](MANUAL.md#18-settings) section says what each of them does.
+[Settings](MANUAL.md#19-settings) section says what each of them does.
 
 The software is still called the Retro Hardware Database — `/docs` says so, and
 so does this guide. The name you set is the collection's.

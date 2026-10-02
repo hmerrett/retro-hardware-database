@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from .. import locations, settings
+from .. import settings
 from ..db import get_db
 from ..forms import posted
 from ..web import templates
@@ -24,7 +24,7 @@ router = APIRouter()
 
 
 # The three tabs that are settings, each a page of its own with its own form, beside
-# the two account pages (MANUAL §18). Each saves its own section and nothing else.
+# the two account pages (MANUAL §19). Each saves its own section and nothing else.
 TABS = {
     "/settings": settings.APPEARANCE,
     "/settings/labels": settings.LABELS,
@@ -67,14 +67,6 @@ async def _save(request: Request, path: str, db: Session) -> Response:
     and a browser's back button would keep the offer for as long as the tab lived.
     """
     settings.save(db, await posted(request), TABS[path])
-    # Off means forgotten, not ignored (ADR-0027). Here rather than in settings.save,
-    # which reads its definitions and knows nothing about what any of them is for --
-    # and on every save while the switch is off rather than only on the one that
-    # turned it off, because deleting everything is the same act however often it
-    # happens and needing to know what the switch was a moment ago would make the
-    # promise turn on a transition nobody can see.
-    if not settings.on("remember_locations"):
-        locations.purge(db)
     return RedirectResponse(f"{path}?saved=1", status_code=303)
 
 

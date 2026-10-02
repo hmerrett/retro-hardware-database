@@ -74,6 +74,7 @@ from ..assets import (
     _work_from_form,
     delete_computer,
     part_thumbs,
+    place_from_form,
     refused,
 )
 from ..common import to_dict
@@ -166,6 +167,11 @@ def _computer_form_ctx(
         # The projects in hand, for the work box at the foot of the form.
         "work_projects": projects.open_projects(db) if db is not None else [],
         "dl": _datalists(db, computer=True) if db is not None else {},
+        # What the Location box holds: the path to where the machine is kept, which
+        # is what it offers too, so the box reads as one of its own suggestions.
+        "location_text": (
+            locations.tree(db).text(c.location_id) if c is not None and db is not None else ""
+        ),
         **_boardparts_ctx(db, c),
     }
 
@@ -344,7 +350,8 @@ async def gui_create_computer(request: Request, db: Session = Depends(get_db)) -
     if (mach := _machine_from_form(form)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
-    locations.remember(db, obj.location)
+    if (no := place_from_form(db, obj, form, request.state.principal.username)) is not None:
+        errors.append(no)
     # After the flush above, because a membership is refused for an asset that is not
     # in the register yet -- and this one is being entered as we speak.
     _work_from_form(db, obj, form)
@@ -403,12 +410,20 @@ def gui_computer(
     # at the door, so the button and the route cannot disagree.
     machine = _machine_page(db, c)
     detachable = bool(request.state.authed and machine and machine["key"] and motherboard is None)
+    # Where it is kept, for whoever is told (ADR-0027, ADR-0034): worked out only for
+    # a reader the row will be drawn for.
+    where = (
+        locations.where_row(db, c, {}, locations.tree(db))
+        if locations.shown(request.state.sees_private)
+        else None
+    )
     return templates.TemplateResponse(
         request,
         "computer.html",
         {
             "machine": machine,
             "detachable": detachable,
+            "where": where,
             "item": (cdict := to_dict(c)),
             "kind": "computers",
             **filesdb.panel(db, cdict, request.state.authed, request.state.sees_private),
@@ -440,7 +455,7 @@ def gui_computer(
             "card_steps": entry.CARD_STEPS,
             "build": bool(build),
             "imgerr": bool(imgerr),
-            "log": _history(db, aid),
+            "log": _history(db, aid, kept=locations.shown(request.state.sees_private)),
             "nav": _item_nav(db, aid),
             "live_aid": aid,
             "live_v": _change_token(db, aid),
@@ -486,7 +501,8 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
     diff = _field_diffs(old, {k: getattr(c, k) for k in COMPUTER_FIELDS}, COMPUTER_DIFF_FIELDS)
     if diff:
         add_log(db, aid, diff)
-    locations.remember(db, c.location)
+    if (no := place_from_form(db, c, form, request.state.principal.username)) is not None:
+        errors.append(no)
     _work_from_form(db, c, form)
     if errors:
         ctx = _computer_form_ctx(c, f"Edit {aid}", db) | {"year_hint": year_hint(old["year"])}

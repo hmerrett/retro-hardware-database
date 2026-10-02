@@ -33,6 +33,7 @@ from .common import (  # noqa: F401 -- re-exported for the tests, unused here
 from .routers import (
     accounts as account_pages,
     api_assets,
+    api_locations,
     api_projects,
     catalogue,
     chrome,
@@ -42,11 +43,13 @@ from .routers import (
     health,
     images,
     items,
+    locations as location_pages,
     parts as part_pages,
     print_queue,
     projects as project_pages,
     seo,
     settings as settings_page,
+    storage as storage_pages,
     styles,
 )
 from . import auth
@@ -218,7 +221,10 @@ def create_app() -> FastAPI:
         computer_pages.router,
         part_pages.router,
         project_pages.router,
+        location_pages.router,
+        storage_pages.router,
         api_assets.router,
+        api_locations.router,
         api_projects.router,
         print_queue.router,
         health.router,

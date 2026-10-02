@@ -35,9 +35,9 @@ def first_focusable(html: str) -> str:
     return body[found.start() : found.start() + 160]
 
 
-@pytest.mark.parametrize("path", ["/", "/machines", "/files", "/projects", "/stats"])
+@pytest.mark.parametrize("path", ["/", "/machines", "/files", "/projects", "/locations", "/stats"])
 def test_the_first_thing_tab_reaches_skips_to_the_content(client, path):
-    """A keyboard user tabs the whole header -- brand, five sections, search box,
+    """A keyboard user tabs the whole header -- brand, the sections, search box,
     menus -- before reaching the page, on every page, unless the first stop is a
     link past it."""
     first = first_focusable(client.get(path).text)

@@ -80,7 +80,7 @@ def prefer_public(client, on=True):
     data = {"site_name": "", "theme": "system", "watermark": "1", "remember_locations": "1"}
     if on:
         data["files_public"] = "1"
-    # Settings is three tabs, each saving its own part (MANUAL §18).
+    # Settings is three tabs, each saving its own part (MANUAL §19).
     for tab in ("/settings", "/settings/labels", "/settings/server"):
         r = client.post(tab, data=data, follow_redirects=False)
         assert r.status_code == 303, r.text
@@ -781,7 +781,7 @@ class TestReadingAPdf:
 
 
 class TestNewFilesArePublic:
-    """Section 18, "New files", and section 11: the preference moves where the tick
+    """Section 19, "New files", and section 11: the preference moves where the tick
     starts, and never publishes anything by itself (ADR-0029)."""
 
     def test_it_is_off_so_the_box_starts_unticked(self, client, part):
@@ -808,7 +808,7 @@ class TestNewFilesArePublic:
 
 
 class TestTheButtonText:
-    """Section 18, "Button text": every button, menu item, tab and status chip is
+    """Section 19, "Button text": every button, menu item, tab and status chip is
     written as the setting says, and the file pages' controls are among them."""
 
     @pytest.mark.parametrize("case", ["cap", "lower"])

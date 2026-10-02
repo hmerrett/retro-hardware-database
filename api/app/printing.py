@@ -20,9 +20,9 @@ from typing import NamedTuple
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import labels, specdb
+from . import labels, locations, specdb
 from .common import to_dict
-from .models import Computer, Part, PrintJob, Project
+from .models import Computer, Location, Part, PrintJob, Project
 
 # How long an agent holds a job before it goes back on the queue. Long enough that
 # a label which is simply slow to print is not printed twice, short enough that a
@@ -39,12 +39,13 @@ QUEUED, CLAIMED, DONE, FAILED = "queued", "claimed", "done", "failed"
 PDF, PNG = "pdf", "png"
 FORMATS = (PDF, PNG)
 
-# What a job can be for, and the table each kind is looked up in. The same three
+# What a job can be for, and the table each kind is looked up in. The same four
 # the labels module knows, which is not a coincidence: a label is a label.
-KINDS: dict[str, type[Computer] | type[Part] | type[Project]] = {
+KINDS: dict[str, type[Computer] | type[Part] | type[Project] | type[Location]] = {
     labels.COMPUTER: Computer,
     labels.PART: Part,
     labels.PROJECT: Project,
+    labels.LOCATION: Location,
 }
 
 
@@ -226,7 +227,11 @@ def label_bytes(
     media = labels.MEDIA.get(media_name)
     if media is None:
         return None
-    row = to_dict(item)
+    row = (
+        locations.label_row(item, locations.tree(db))
+        if isinstance(item, Location)
+        else to_dict(item)
+    )
     parts: list[dict[str, object]] = []
     pairs = None
     form_factor = ""

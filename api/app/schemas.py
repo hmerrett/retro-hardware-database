@@ -20,6 +20,12 @@ A part takes one too, and only a motherboard may: a board is the object the boar
 issue and the chip sockets were always about, so a bare one on a shelf files as
 what it is instead of as free text. It answers a little less than a machine does
 (see BoardIn), and asking it of any other kind of part is refused.
+
+`location` is where a thing is kept: a location's tag (ADR-0034). It is sent as a
+tag or as a name -- a name matching exactly one location means that one, a name
+matching none makes a new location at the top, as the form does -- and it reads
+back as the tag, with `location_path` beside it as words. A location has shapes of
+its own below, at /api/locations.
 """
 
 from datetime import date
@@ -121,9 +127,10 @@ class ComputerIn(BaseModel):
     condition: str = ""
     source: str = ""
     acquired_date: date | None = None
-    # Where it is kept, in the owner's words. Over the wire either way, unlike the
-    # for-sale flag: this is a fact about the object that a tool holding a shelf
-    # full of them needs to be able to write (ADR-0027).
+    # Where it is kept: a location's tag on the way out, a tag or a name on the way
+    # in. Over the wire either way, unlike the for-sale flag: this is a fact about
+    # the object that a tool holding a shelf full of them needs to be able to write
+    # (ADR-0027, ADR-0034).
     location: str = ""
     image: str = ""
     url: str = ""
@@ -199,6 +206,10 @@ class ComputerOut(ComputerIn):
     # published schema (ADR-0010) to satisfy a checker.
     machine: MachineOut | None = None  # type: ignore[assignment]
     variant: str = ""
+    # The path to `location`, as words: written from the locations, and ignored if
+    # it is sent, because the path is where the location is and not a fact about
+    # this machine.
+    location_path: str = ""
 
 
 class BoardOut(BaseModel):
@@ -261,6 +272,61 @@ class PartOut(PartIn):
     variant: str = ""
     # By tag, for the reason a computer's is (see ComputerOut).
     project: str | None = None
+    # See ComputerOut.location_path.
+    location_path: str = ""
+
+
+# --- locations -----------------------------------------------------------------
+# Where things are kept (ADR-0034). A location is in the register like a machine is,
+# with a tag from the same pool, but what it is described by is short: a name, a
+# kind, the location it is inside, and how to find it.
+
+
+class LocationIn(BaseModel):
+    """A location as it arrives. Every field optional, so a PATCH can name one; a
+    create without a name is refused by the route rather than here, because a
+    PATCH that leaves the name alone is the ordinary case."""
+
+    name: str | None = None
+    # One of locations.KINDS, by slug. A kind it does not know is refused rather
+    # than kept: the form offers seven, and an eighth spelt by a caller is a typo.
+    kind: str | None = None
+    # The tag of the location it is inside, or null for the top of a tree.
+    parent: str | None = None
+    notes: str | None = None
+
+
+class LocationOut(BaseModel):
+    asset_id: str
+    name: str
+    kind: str
+    parent: str | None = None
+    # The path to it as words, itself included: `Workshop / Rack 3 / Box 14`.
+    path: str = ""
+    notes: str = ""
+
+
+class LocationDetail(LocationOut):
+    """One location, with what is kept in it and the locations inside it, by tag.
+    Directly in it, as its page lists them: the box's contents, not the bag's in
+    the box -- those are one GET further."""
+
+    things: list[str] = []
+    locations: list[str] = []
+
+
+class MoveOut(BaseModel):
+    """One change in where something is kept. `from` and `to` are tags, null for
+    nowhere recorded; the paths are the words as they read when it happened."""
+
+    model_config = ConfigDict(populate_by_name=True)
+    from_: str | None = Field(default=None, alias="from")
+    from_path: str = ""
+    to: str | None = None
+    to_path: str = ""
+    moved_at: str
+    who: str = ""
+    how: str
 
 
 # --- projects ----------------------------------------------------------------

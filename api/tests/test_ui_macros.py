@@ -479,6 +479,12 @@ class TestIcons:
         html = render("{% import '_icons.html' as I %}{{ I.ico('user') }}")
         assert html.startswith("<svg ")
 
+    def test_locations_has_an_icon_of_its_own(self):
+        """The section's, in the rail and the phone's More (MANUAL §14, "Every
+        location"): an icon `ico` does not know is drawn as nothing at all."""
+        html = render("{% import '_icons.html' as I %}{{ I.ico('location') }}")
+        assert html.startswith("<svg ")
+
     @pytest.mark.parametrize("name", NEW)
     def test_the_nine_new_icons_are_drawn(self, name):
         html = render(f"{{% import '_icons.html' as I %}}{{{{ I.ico('{name}') }}}}")
@@ -489,5 +495,5 @@ class TestIcons:
         # aria-label. Either way the drawing itself says nothing.
         source = templates.env.loader.get_source(templates.env, "_icons.html")[0]
         svgs = re.findall(r"<svg [^>]*>", source)
-        assert len(svgs) == 23
+        assert len(svgs) == 25
         assert all('aria-hidden="true"' in s for s in svgs)

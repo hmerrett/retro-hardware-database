@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% import "_panel.html" as PN %}
+{% block title %}Audit round — {{ site_name() }}{% endblock %}
+{% block main_class %} v2{% endblock %}
+{% block content %}
+{# What a round found (MANUAL §14, "The report"): for each location it opened, what
+   was found, what moved in and from where, and what the register says is there and
+   was not scanned; then every scan that was not recognised. Not scanned is not
+   missing: a round that put three things on a shelf has not checked the other forty,
+   so writing it down is a button, pressed when the round was a check. #}
+{% macro thing(tag) -%}<a href="/items/{{ tag }}">{{ names.get(tag, tag) }}</a> <span class="tag muted">{{ tag }}</span>{%- endmacro %}
+<div class="pagehead"><h1 class="heading">Audit round</h1>
+  <p class="hint">Started {{ check.started_at.strftime('%Y-%m-%d %H:%M') }}{% if check.finished_at %}, finished {{ check.finished_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}.</p></div>
+{% if recorded >= 0 %}{{ U.banner('', 'Recorded.', recorded ~ ' line' ~ ('' if recorded == 1 else 's') ~ ' written to the histories of what was not found.') }}{% endif %}
+{% for part in checked %}
+{% call PN.panel(part.path or part.tag) %}
+  <section class="reportpart"><h4>Found</h4>
+    {% if part.found %}<ul>{% for tag in part.found %}<li>{{ thing(tag) }}</li>{% endfor %}</ul>{% else %}<p class="muted">Nothing.</p>{% endif %}
+  </section>
+  <section class="reportpart"><h4>Moved in</h4>
+    {% if part.moved %}<ul>{% for tag, was in part.moved %}<li>{{ thing(tag) }} <span class="meta">from {{ was }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">Nothing.</p>{% endif %}
+  </section>
+  <section class="reportpart"><h4>Not scanned</h4>
+    {% if part.unscanned %}<ul>{% for tag in part.unscanned %}<li>{{ thing(tag) }}</li>{% endfor %}</ul>{% else %}<p class="muted">Nothing: everything the register has here was scanned.</p>{% endif %}
+  </section>
+{% endcall %}
+{% endfor %}
+{% call PN.panel('Not recognised', refused | length or '') %}
+  <section class="reportpart"><h4 class="sr-only">Not recognised</h4>
+  {% if refused %}<ul>{% for r in refused %}<li><code>{{ r.code }}</code> — {{ r.said }}</li>{% endfor %}</ul>{% else %}<p class="muted">Every scan was recognised.</p>{% endif %}
+  </section>
+{% endcall %}
+{% if checked | selectattr('unscanned') | list %}
+<form method="post" action="/audit/rounds/{{ check.id }}/missing"
+      title="Writes on each thing not scanned that it was not found at the check of its location, today. Only for a round that was a check.">
+  {{ U.button('Record as missing', type='submit') }}
+</form>
+{% endif %}
+<p>{{ U.button('Back to audit', href='/audit') }}</p>
+{% endblock %}

@@ -6,7 +6,7 @@ shape rather than a page's: a machine with its memory, its drives and the catalo
 model it answers to, flattened into one document.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 
@@ -135,19 +135,31 @@ def _project_id(
     return found.asset_id if found is not None else None
 
 
+def _where_out(thing: Computer | Part, tree: locations.Tree) -> dict[str, object]:
+    """Where a thing is kept, for the wire: the location's tag, and its path as
+    words. Its own location and not one it inherits -- the API is the record, and
+    a part fitted in a machine has none of its own (ADR-0034)."""
+    return {"location": thing.location_id or "", "location_path": tree.text(thing.location_id)}
+
+
 def _computer_out(
     db: Session,
     computer: Computer,
     identity: machinedb.Identity | None = None,
     in_projects: dict[str, Project] | None = None,
+    tree: locations.Tree | None = None,
 ) -> dict[str, object]:
     """One computer as the API returns it: its own columns, the catalogue identity
-    read from its rows rather than from the line rendered off them, and the project
-    it is on."""
-    return to_dict(computer) | {
-        "machine": _machine_out(db, computer, identity),
-        "project": _project_id(db, computer.asset_id, in_projects),
-    }
+    read from its rows rather than from the line rendered off them, the project it
+    is on, and where it is kept."""
+    return (
+        to_dict(computer)
+        | {
+            "machine": _machine_out(db, computer, identity),
+            "project": _project_id(db, computer.asset_id, in_projects),
+        }
+        | _where_out(computer, tree or locations.tree(db))
+    )
 
 
 def _part_out(
@@ -155,13 +167,33 @@ def _part_out(
     part: Part,
     identity: machinedb.Identity | None = None,
     in_projects: dict[str, Project] | None = None,
+    tree: locations.Tree | None = None,
 ) -> dict[str, object]:
     """One part as the API returns it. The same pieces as a computer's, and for a
     part that is not a board `machine` is simply null."""
-    return to_dict(part) | {
-        "machine": _machine_out(db, part, identity),
-        "project": _project_id(db, part.asset_id, in_projects),
-    }
+    return (
+        to_dict(part)
+        | {
+            "machine": _machine_out(db, part, identity),
+            "project": _project_id(db, part.asset_id, in_projects),
+        }
+        | _where_out(part, tree or locations.tree(db))
+    )
+
+
+def _locate(db: Session, thing: Computer | Part, sent: object, who: str) -> None:
+    """`location` off a body: a tag, or a name -- one location's, or a new one's at
+    the top when it names none -- and the move recorded as made through the API.
+
+    A name that names more than one location is refused with the tags it could have
+    meant, rather than guessed at: a caller that typed `Box 14` meant a box, and
+    the register cannot tell which."""
+    tree = locations.tree(db)
+    try:
+        found = locations.choose(db, sent if isinstance(sent, str) else "", tree)
+        locations.move(db, thing, found.asset_id if found else None, locations.API, who, tree)
+    except locations.Refused as err:
+        raise HTTPException(422, str(err)) from err
 
 
 def _check_links(db: Session, fields: dict[str, object]) -> None:
@@ -206,15 +238,19 @@ def api_list_computers(db: Session = Depends(get_db)) -> list[dict[str, object]]
     # memberships in one more for the same reason.
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [c.asset_id for c in rows])
+    tree = locations.tree(db)
     return [
-        _computer_out(db, c, identities.get(c.asset_id, machinedb.BLANK.copy()), in_projects)
+        _computer_out(db, c, identities.get(c.asset_id, machinedb.BLANK.copy()), in_projects, tree)
         for c in rows
     ]
 
 
 @router.post("/api/computers", response_model=ComputerOut, tags=["computers"])
-def api_create_computer(data: ComputerCreate, db: Session = Depends(get_db)) -> dict[str, object]:
+def api_create_computer(
+    data: ComputerCreate, request: Request, db: Session = Depends(get_db)
+) -> dict[str, object]:
     fields = data.model_dump()
+    where = fields.pop("location", "")
     # Read before anything is written, so a project tag that names nothing is a 404
     # rather than a machine entered and a note dropped.
     jobs, work = _work_from_api(db, fields)
@@ -230,7 +266,7 @@ def api_create_computer(data: ComputerCreate, db: Session = Depends(get_db)) -> 
     if machine is not None:
         _machine_from_api(db, obj, machine)
     add_log(db, obj.asset_id, "created", "created")
-    locations.remember(db, obj.location)
+    _locate(db, obj, where, request.state.principal.username)
     if jobs or work is not None:
         _take_on_work(db, obj.asset_id, jobs, work)
     db.commit()
@@ -246,10 +282,11 @@ def api_get_computer(aid: str, db: Session = Depends(get_db)) -> dict[str, objec
 
 @router.patch("/api/computers/{aid}", response_model=ComputerOut, tags=["computers"])
 def api_update_computer(
-    aid: str, data: ComputerIn, db: Session = Depends(get_db)
+    aid: str, data: ComputerIn, request: Request, db: Session = Depends(get_db)
 ) -> dict[str, object]:
     obj = get_or_404(db, Computer, aid)
     fields = data.model_dump(exclude_unset=True)
+    where = fields.pop("location", None)
     ram = fields.pop("installed_ram", None)
     drives = fields.pop("drives", None)
     # An omitted machine leaves the catalogue rows alone; an explicit null forgets
@@ -291,7 +328,8 @@ def api_update_computer(
             aid,
             (diff + _and_parts(n, "went with it" if obj.disposed else "came back too")).strip(),
         )
-    locations.remember(db, obj.location)
+    if where is not None:
+        _locate(db, obj, where, request.state.principal.username)
     db.commit()
     db.refresh(obj)
     return _computer_out(db, obj)
@@ -324,15 +362,19 @@ def api_list_parts(
     rows = q.order_by(Part.asset_id).all()
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [p.asset_id for p in rows])
+    tree = locations.tree(db)
     return [
-        _part_out(db, p, identities.get(p.asset_id, machinedb.BLANK.copy()), in_projects)
+        _part_out(db, p, identities.get(p.asset_id, machinedb.BLANK.copy()), in_projects, tree)
         for p in rows
     ]
 
 
 @router.post("/api/parts", response_model=PartOut, tags=["parts"])
-def api_create_part(data: PartCreate, db: Session = Depends(get_db)) -> dict[str, object]:
+def api_create_part(
+    data: PartCreate, request: Request, db: Session = Depends(get_db)
+) -> dict[str, object]:
     fields = data.model_dump()
+    where = fields.pop("location", "")
     jobs, work = _work_from_api(db, fields)
     machine = fields.pop("machine")
     _check_links(db, fields)
@@ -343,7 +385,7 @@ def api_create_part(data: PartCreate, db: Session = Depends(get_db)) -> dict[str
     if machine is not None:
         _board_from_api(db, obj, data.machine)
     add_log(db, obj.asset_id, "created", "created")
-    locations.remember(db, obj.location)
+    _locate(db, obj, where, request.state.principal.username)
     if jobs or work is not None:
         _take_on_work(db, obj.asset_id, jobs, work)
     db.commit()
@@ -357,9 +399,12 @@ def api_get_part(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
 
 
 @router.patch("/api/parts/{aid}", response_model=PartOut, tags=["parts"])
-def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)) -> dict[str, object]:
+def api_update_part(
+    aid: str, data: PartIn, request: Request, db: Session = Depends(get_db)
+) -> dict[str, object]:
     obj = get_or_404(db, Part, aid)
     fields = data.model_dump(exclude_unset=True)
+    where = fields.pop("location", None)
     machine = fields.pop("machine", ...)
     _check_links(db, fields)
     old = {k: getattr(obj, k) for k in fields}
@@ -378,7 +423,8 @@ def api_update_part(aid: str, data: PartIn, db: Session = Depends(get_db)) -> di
     diff = _field_diffs(old, new, list(fields), semantic_specs=True)
     if diff:
         add_log(db, aid, diff)
-    locations.remember(db, obj.location)
+    if where is not None:
+        _locate(db, obj, where, request.state.principal.username)
     db.commit()
     db.refresh(obj)
     return _part_out(db, obj)

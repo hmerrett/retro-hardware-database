@@ -20,15 +20,16 @@ own server is [INSTALL.md](INSTALL.md).
 11. [Files](#11-files)
 12. [Projects](#12-projects)
 13. [Labels and QR codes](#13-labels-and-qr-codes)
-14. [History](#14-history)
-15. [Disposing, restoring and deleting](#15-disposing-restoring-and-deleting)
-16. [Statistics](#16-statistics)
-17. [Logging in](#17-logging-in)
-18. [Settings](#18-settings)
-19. [The REST API](#19-the-rest-api)
-20. [The tool server](#20-the-tool-server)
-21. [Command-line tools](#21-command-line-tools)
-22. [Housekeeping](#22-housekeeping)
+14. [Storage](#14-storage)
+15. [History](#15-history)
+16. [Disposing, restoring and deleting](#16-disposing-restoring-and-deleting)
+17. [Statistics](#17-statistics)
+18. [Logging in](#18-logging-in)
+19. [Settings](#19-settings)
+20. [The REST API](#20-the-rest-api)
+21. [The tool server](#21-the-tool-server)
+22. [Command-line tools](#22-command-line-tools)
+23. [Housekeeping](#23-housekeeping)
 
 ---
 
@@ -185,21 +186,23 @@ On a desktop the banner reads in three bands: where you can go on the left, the
 search box in the middle, and what you can do on the right. Its two ends stand on
 the edges of the wide pages (see [On a wide screen](#on-a-wide-screen)).
 
-- **Browse**, **Projects**, **Numbers**, **Models**, **Files** — the sections.
-  The one you are in is shown in bold. **Models** is the catalogue of machines the
-  register knows as models; **Browse** is the machines it actually holds;
-  **Projects** is what is being done to them — see
+- **Browse**, **Projects**, **Locations**, **Numbers**, **Models**, **Files** — the
+  sections. The one you are in is shown in bold. **Models** is the catalogue of
+  machines the register knows as models; **Browse** is the machines it actually
+  holds; **Projects** is what is being done to them — see
   [section 12](#12-projects). **Projects** sits next to **Browse** because the two
-  are a pair: what is owned, and the work in hand.
+  are a pair: what is owned, and the work in hand. **Locations** is where it is all
+  kept ([every location](#every-location)). A visitor is offered it only while
+  [**Show locations**](#where-things-are-kept) is on.
 - **Search anything…** and **Scan** — see [Finding things](#3-searching).
   The Scan button appears only where there is a camera to use.
-- **+ New** — offers Computer, Part or Project. Logged in only.
-- **☰** — the theme, **Might sell**, **Traffic**, **Settings**, **Account** and
+- **+ New** — offers Computer, Part, Project or Location. Logged in only.
+- **☰** — the theme, **Audit**, **Might sell**, **Traffic**, **Settings**, **Account** and
   **Log out**, each where your account reaches it, and (in the installed app, where
   the browser provides neither) share and reload.
 
-On a tablet, or a desktop window narrower than about 900px, the five sections
-move into the **☰** menu, at its top. The banner stays on one line at every width:
+On a tablet, or a desktop window narrower than about 1000px, the sections move
+into the **☰** menu, at its top. The banner stays on one line at every width:
 where it is short of room the search box narrows first, and then a long name is
 cut short, while the logo stays.
 
@@ -219,9 +222,9 @@ across the bottom of the screen, where your thumb already is.
 - **Browse** — the gallery.
 - **Find** — scrolls back up and puts the cursor in the search box.
 - **Scan** — reads a label's code. Appears only where there is a camera.
-- **More** — one list holding the sections (**Projects**, **Numbers**,
-  **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, the theme,
-  **Might sell**, **Traffic**, **Settings** for an administrator or **Account** for
+- **More** — one list holding the sections (**Projects**, **Locations**,
+  **Numbers**, **Models**, **Files**), **+ Computer**, **+ Part**, **+ Project**, **+ Location**,
+  the theme, **Audit**, **Might sell**, **Traffic**, **Settings** for an administrator or **Account** for
   anybody else signed in, and **Log out**.
 
 The bar across the bottom stands on one of the look's own colours, as the side
@@ -384,8 +387,8 @@ picture that has since been cropped or replaced.
 Nothing, until you choose something. The register remembers a choice you make, in
 your browser and for this site alone, and nothing else: the sort order and tiles
 or table on the gallery, that you folded the side rail, and that you have read the
-cookie notice — each a cookie — and the dark or light theme, kept in the browser's
-own storage. Signing in adds a session cookie. All of them are first party: no
+cookie notice — each a cookie — and the dark or light theme and whether storage
+mode beeps, kept in the browser's own storage. Signing in adds a session cookie. All of them are first party: no
 analytics, no advertising, nothing shared with anyone. The notice at the foot of
 the page says so the first time, and goes once you press **Got it**.
 
@@ -431,6 +434,19 @@ history — specs, notes, source, condition, disposal reasons, the lot. Search f
 `8580R5` and you get the C64 that part number is fitted in. Search for `recapped`
 and you get everything whose history says so.
 
+**An asset tag on its own opens what it belongs to.** Enter on `RH-K7Q2`, typed or
+scanned, goes straight to that item or location rather than to a page of one
+result. That is what a handheld scanner does when it reads a label into the box.
+It goes only where the reader may go: a visitor's Enter on the tag of a private
+project or a hidden location is an ordinary search, and finds nothing.
+
+**Where a thing is kept is searched along its whole path.** A search for `loft`
+finds everything in the loft, however many boxes down, and a search for a
+location's name finds what is in it. A visitor's search matches on locations only
+while they are shown to visitors ([where things are kept](#where-things-are-kept)).
+The suggestions under the box offer locations as well, with their path, and only
+to somebody who may see them.
+
 Projects are searched by the same words, and the match reaches their jobs and the
 things they have on order as well as their own text — so `Gotek` finds the project
 with one in the post. They do not become cards in the gallery, which stays a wall
@@ -470,8 +486,13 @@ all-must-match.
 ### Scanning a label
 
 Beside the search box, on a device with a camera, is a **scan** button. It reads
-the QR code on a printed label and opens that item. Labels printed against an
-older URL still work, because only the asset tag is taken from the code.
+the QR code or the Code 128 barcode on a printed label and opens that item or
+location. Labels printed against an older URL still work, because only the asset
+tag is taken from the code.
+
+A handheld barcode scanner needs no button: scan a label into the search box and
+it opens, as above. For putting things away and checking shelves, use [the
+audit](#audit).
 
 ---
 
@@ -508,7 +529,7 @@ Down the main column:
   a glance which parts have been written up.
 - **Mounted parts** — on a part's page: what is mounted on this card.
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
-- **History** — [everything that has happened to it](#14-history).
+- **History** — [everything that has happened to it](#15-history).
 
 Down the side column, starting level with **Details**: the photographs and the
 item's own QR code for adding one from a phone and, when logged in, the **Label**
@@ -600,7 +621,7 @@ Field by field:
 | **Condition** | Working, Untested, Partially working, Faulty, For parts/repair, Restored. Blank by default — "not recorded" is a real answer and should not be guessed as "Working". |
 | **Source** | Where or how you got it. |
 | **Acquired date** | |
-| **Location** | Where the machine is physically kept — `Loft, blue crate 3`, `Garage shelf B`, `on the bench`. Free text, and the box offers back what you have written before. See [where it is kept](#where-it-is-kept). |
+| **Location** | The location the machine is kept in — a shelf, a box, a room. Chosen from your locations, or a new one named here. See [where it is kept](#where-it-is-kept). |
 | **Reference URL** | Wikipedia, The Retro Web, a forum thread. Also what the "fetch from reference" button reads. |
 | **Summary** | The prose shown at the top of the page. |
 | **Notes** | Anything else. |
@@ -648,36 +669,36 @@ pressed, it is one of the things to fix.
 
 ### Where it is kept
 
-**Location** is where the object actually is, as you would say it to somebody
-you were sending to fetch it: `Loft, blue crate 3`, `Garage shelf B`, `on the
-bench`. It is free text because a collection's geography is its own — crates,
-shelves, rooms, somebody else's spare room — and no menu written here would fit
-yours.
+**Location** is the [location](#14-storage) the object is kept in: a shelf, a
+box, a bag, a room. It is chosen rather than typed out. Start typing and the box
+offers locations whose name, path or tag has what you typed in it. Each one is
+shown with its path, so the two `Box 14`s in different rooms cannot be confused.
+Pick one, and the item page shows the whole path to it.
 
-The box offers back what you have written before, commonest first, so the second
-thing into the same crate is picked rather than retyped and the crate ends up
-spelt one way. It is a suggestion and not a menu: type somewhere new and it is
-taken, and it joins the list.
+Type a name that matches no location and the box offers **new location "…"**.
+Saving then makes it, at the top level and of kind *other*, and puts the item in
+it. That keeps putting something away from becoming an errand to another page.
+Give the new location its proper place later, on its own page or by scanning
+([moving boxes](#moving-boxes)).
 
 A part has the same box and usually does not need it filled in. A card fitted in
 a machine is wherever that machine is, so a part left blank is shown the location
-of whatever it is fitted in — the board it is mounted on if it is on one, and the
-machine it is installed in otherwise — and its page says whose answer it is
-showing. The chain runs as far as it has to: a chip on a board in a machine in
-the loft is in the loft. Move the machine and everything in it moves with it, in
-one edit, and a search for the loft finds all of them.
+of whatever it is fitted in: the board it is mounted on if it is on one, and the
+machine it is installed in otherwise. Its page says whose answer it is showing.
+The chain runs as far as it has to: a chip on a board in a machine in Box 14 is
+in Box 14, and in whatever Box 14 is in. Move the machine, or the box, and
+everything in it moves with it, in one edit. A search for the loft finds all of
+them.
 
 Fill the box in when that is not true. A card in a drawer is in the drawer, and a
 part's own answer always wins over the one it would have been given. Clear the
 box again and it goes back to following what it is fitted in.
 
-An inherited location is worked out rather than written down. It is not stored
-against the part, so nothing has to be tidied up when the machine moves, and it
-does not join the list of places the box offers — only somewhere you have
-actually typed does that.
+Changing it is a move, and the history records it: where the item was, where it
+went, who moved it and that it was done by editing ([moves](#moves)).
 
 **Duplicate** does not copy it. A duplicate is a second unit of the same model,
-and a second card is not in the same slot or the same crate — it is wherever you
+and a second card is not in the same slot or the same crate. It is wherever you
 have just put it.
 
 Who else sees it is yours to decide, and out of the box nobody does: a visitor's
@@ -776,7 +797,7 @@ motherboard files against a model the same way a whole machine does.
 Every model's name leads to **its own page**.
 
 Two other shapes of the same list: `catalogue.txt` in the repository, and
-[`/api/machines`](#19-the-rest-api) for anything that would rather read JSON —
+[`/api/machines`](#20-the-rest-api) for anything that would rather read JSON —
 public for the same reason the page is.
 
 ### A model's own page
@@ -955,7 +976,7 @@ A few things worth knowing before you start:
   otherwise double in size for no reader.
 - After correcting wording that machines are already filed under, run
   `python -m app.resync --write` to bring their rendered lines into step
-  (section 21).
+  (section 22).
 
 ---
 
@@ -997,7 +1018,7 @@ A floppy's capacity is the exception, because it is a name rather than a
 measurement — see section 8.
 
 Once the units changed, every string already stored still said `KB`. Bring them
-into line in one pass with `python -m app.resync --write` (section 21).
+into line in one pass with `python -m app.resync --write` (section 22).
 
 ---
 
@@ -1125,7 +1146,7 @@ that went. It is searchable like every other field.
 **Location** is where the part is kept. Left blank on a part that is fitted in
 something, it shows where that thing is kept — the board it is mounted on, or the
 machine it is installed in — so only a part that lives somewhere of its own needs
-an answer typed into it. See [where it is kept](#where-it-is-kept).
+a location chosen for it. See [where it is kept](#where-it-is-kept).
 
 The form is laid out like the machine's — sections, a line under a field that
 needs one, **Save** and **Cancel** at the foot of the screen. **Cancel** goes back
@@ -1292,7 +1313,7 @@ the things that are naturally lists (slots, RAM slots, ports) and key/value rows
 for anything free-form.
 
 That is what makes "every board with a VLB slot" a query rather than a text
-search, and what makes the [statistics page](#16-statistics) count things rather
+search, and what makes the [statistics page](#17-statistics) count things rather
 than guess at them.
 
 The `Key: value | ...` string you see on the page is a rendering of those
@@ -1313,7 +1334,7 @@ left alone.
 This section is about an item's own photographs: the ones in the Photographs
 panel, which answer *which one is this?* A photograph of something that happened
 to it — a recap, a repair, damage found on arrival — belongs on the history entry
-that says what happened, and is described in [section 14](#14-history).
+that says what happened, and is described in [section 15](#15-history).
 
 **In the panel**, the default photograph is the large one, with the others under it
 as small ones in the same 4:3 shape as a gallery card: two to a row beside the
@@ -1356,7 +1377,7 @@ looking at it](#when-it-changes-while-you-are-looking-at-it).
 
 **Photographs and the count of what is photographed.** An item's own photographs
 are its portrait; the ones on history entries are not, and `/stats` counts them
-separately for that reason — see [section 16](#16-statistics).
+separately for that reason — see [section 17](#17-statistics).
 
 **Watermarking.** Your own photographs are watermarked with the site logo as they are
 served, and so are the ones on history entries; reference images are not. Set `RHDB_WATERMARK=0` to serve everything
@@ -1738,7 +1759,7 @@ unticked.
 
 A project keeps a history exactly as a computer or a part does, at the foot of its
 page: the same note bar, the same photographs hung on entries, the same folding of
-a run of identical actions into one line. See [section 14](#14-history) — there is
+a run of identical actions into one line. See [section 15](#15-history) — there is
 nothing different to learn.
 
 That is not a coincidence of design so much as the whole of it. A project is given
@@ -1907,8 +1928,8 @@ Every item page, when logged in, has a **Label** panel with two print buttons:
   through whatever else was in the way, and the part you could not see was lost with
   nothing to indicate it.
 
-Both sizes, and all three kinds, carry **the word `COMPUTER`, `PART` or `PROJECT`
-running up one end**, in black like everything else on the label — a label printer
+Both sizes, and all four kinds, carry **the word `COMPUTER`, `PART`, `PROJECT` or
+`LOCATION` running up one end**, in black like everything else on the label — a label printer
 has no grey to print, only a head that is on or off, so anything grey comes out as
 a dither and a dithered word at five point is a smudge. A tag answers *which one is this*, and the code answers
 *tell me everything*; neither answers *what am I holding*, which is the first
@@ -1923,7 +1944,7 @@ line has gone, the word at the end having made it the label saying the same thin
 twice in its most valuable line.
 
 **The QR code encodes `<base_url>/items/<asset_tag>/`**, which the app resolves
-to the right computer, part or project page. Because only the tag is taken from a
+to the right computer, part, project or location page. Because only the tag is taken from a
 scanned code, labels printed against an older URL still resolve.
 
 ### A project has one too
@@ -1947,6 +1968,67 @@ Nothing counted goes on either: how many jobs are left and how many things are
 still in the post are true this afternoon and false next week, and a label is
 printed once and then lives on a box for a year. The code is there for everything
 that moves.
+
+### A location has one too
+
+A location's page has the same **Label** panel. Its label carries the location's
+name large, the path above it in small type (`WORKSHOP / RACK 3 / SHELF 2`), and
+the tag and the code. The small one is the default, as it is for a part. The path
+is what is true on the day it is printed, which is why the code never holds it:
+move the box and the label still scans to the right page, which shows where it is
+now. Reprint it when the path on the label has gone stale enough to mislead.
+
+**labels for everything inside**, on a location's page, makes one PDF of small
+labels: the location's own, then one for each location inside it and each thing
+kept in it, all the way down. Choose **sheet** to have them laid out on A4, three
+across and seven down on 63.5×38.1 mm sheet labels, rather than one to a page for
+a label printer.
+
+### QR code, barcode or both
+
+**Settings → Labels → Codes** decides what kind of code goes on every label: items,
+projects and locations alike.
+
+- **QR code**, the default and what every label had before. A phone's camera
+  reads it, and it holds the item's URL, so a phone with no app at all opens the
+  page.
+- **Code 128**. A barcode holding the tag and nothing else, the seven characters
+  `RH-K7Q2`. Any handheld barcode scanner reads one, quickly and from a distance,
+  and the cheapest ones read nothing else. Nothing is printed under the bars: the
+  tag is already the largest line on an item's label, and the line under the name
+  on a location's.
+- **Both**. The QR code where it always was, and the barcode under the words. A
+  label too short to hold both at sizes worth scanning carries the barcode alone,
+  as **Code 128** would: that is the 51×19 mm tape, where a QR code would have to
+  shrink below 12 mm to make room for the bars.
+
+A barcode never holds the URL. A URL is forty-odd characters, which makes a
+barcode too long for a small label to hold. It is also the part that changes
+when a site moves to a new address. The tag never changes, so a barcode printed
+today scans in five years whatever the site is called by then. A QR code keeps
+the URL because a phone's camera needs one to open anything. Only the tag is
+taken back out of it either way.
+
+The barcode's bars are drawn at a whole number of the printer's dots each, for
+the reason the QR code's squares are ([the label as a picture](#the-label-as-a-picture)).
+A bar one dot wider than its neighbour is a different bar to a scanner. That holds
+in the PDF as well as in the picture: the PDF is drawn for the printer its label is
+made for — 300 dots an inch for the DYMO's 51×19 mm tape — so print it at its
+actual size rather than scaled to fit the page.
+
+No bar is narrower than a quarter of a millimetre, and a barcode running across a
+label is as wide as the label allows. The white either side of the bars, which a
+scanner needs, may stand in the margin at the ends of the tape, since it prints
+nothing there. On the 51×19 mm tape that is four of the DYMO's dots to a bar, a
+third of a millimetre.
+
+### The type on a label
+
+**Settings → Labels → Type** chooses the face the words on a label are set in.
+*Label face*, the default, is Audiowide, which every label has been printed in so
+far. *As the look* uses the interface face of the look the site wears ([the
+type](#the-type)), IBM Plex Sans or IBM Plex Mono, so the labels match the site. The
+codes are never changed: they are there to be read by a machine.
 
 ### The label as a picture
 
@@ -2137,11 +2219,268 @@ machine.
 See [the print agent](#print_agentpy) for what to install on the Pi.
 
 For bulk printing, or for printing from the machine the label printer is attached
-to, see [command-line tools](#21-command-line-tools).
+to, see [command-line tools](#22-command-line-tools).
 
 ---
 
-## 14. History
+## 14. Storage
+
+A collection lives in rooms, on racks and shelves, and in boxes and bags. Each of
+those is a **location**: a record in the register like a machine or a part, with
+an asset tag from the same series (`RH-K7Q2`), a page of its own and a label to
+stick on it. Things are kept in locations, and locations are kept in other
+locations, as far down as you like:
+
+*Workshop → Rack 3 → Shelf 2 → Box 14 → Bag 6*
+
+That chain is what an item's page shows as its **Location**, and it is worked
+out rather than written down. The bag only knows it is in Box 14, and the box
+only knows it is on Shelf 2. So **moving a box moves everything in it**: carry
+Box 14 up to the loft, tell the register that once, and the thirty things inside
+are in the loft from that moment, without thirty edits.
+
+### A location
+
+**+ New → Location**, or by naming a new one in an item's **Location** box ([where
+it is kept](#where-it-is-kept)). It has:
+
+| Field | |
+|---|---|
+| **Name** | What it is called where it is: `Shelf 2`, `Box 14`, `Blue crate`. It does not need to say where it is, because the path already does. Required. |
+| **Kind** | Building, room, rack, shelf, box, bag or other. It describes the location and gives no rules: a bag may hold a box if that is how your loft is. |
+| **Inside** | The location it is in. Leave it blank for the top of a tree, such as a building or a room. |
+| **Notes** | How to find it, for whoever is sent to fetch something: `third rack on the left`, `under the stairs, behind the hoover`. |
+
+It can have photographs, which are handled like an item's ([section
+10](#10-photographs)). A photograph of where a box sits is often quicker to read
+than any note.
+
+A location cannot be put inside itself, or inside anything that is inside it. The
+save is refused and says why. Anything else is allowed, including an empty box,
+which stays on the register until you delete it. An empty crate keeps its name
+and its label for the next time you fill it.
+
+Deleting a location is refused while anything is still in it. Move its contents
+first, or move them up a level with **empty into the location above**, which
+puts them where the location itself was.
+
+### A location's page
+
+At the top is its path, starting from **Locations** and with each step a link, then
+its name, tag, kind and notes, and its photographs beside them. Below that is
+**What's here**:
+
+- **Locations inside it**, each with how many things it holds, counting all the
+  way down.
+- **Things kept here**: the machines and parts recorded in this location itself,
+  each as a card. A part fitted in one of those machines is not listed again
+  under the machine. It goes where the machine goes.
+
+A location with nothing in it says **Empty** in place of the list, so scanning a
+shelf's label tells you at once whether it should be bare.
+
+The **Label** panel prints its labels, and **labels for everything inside** prints
+a sheet of them (see [section 13](#13-labels-and-qr-codes)). Its **History** lists
+when it was made, when it was moved and where to, and what changed.
+
+### Every location
+
+**Locations**, among the sections ([the header](#the-header)), lists every location
+as a tree: each one under the location it is inside, with its kind, its tag and how
+many things it holds, counting all the way down. The locations in one place are in
+order of name, with numbers counted as numbers, so **Shelf 2** comes before
+**Shelf 10**. Each name opens that location's page.
+
+Empty locations are listed too, since they are the ones to fill, merge or delete.
+An administrator also gets **+ Location** at the top of the list, for a location at
+the top of a tree. A register with no locations yet says so.
+
+### Where a thing is
+
+On an item's page, the **Location** row shows the whole path, each step a link to
+that location. Under it are the notes and the first photograph of the location
+the thing is in, if it has them. That is the one telling you *third rack on the
+left*. **Also here** links to the location's page, for the rest of what is in the
+box.
+
+A part fitted in a machine shows the machine's location unless it has one of its
+own, and says it is the machine's ([where it is kept](#where-it-is-kept)).
+
+### Audit
+
+**☰ → Audit**, or `/audit`: a screen made for a phone in one hand and a
+handheld barcode scanner in the other, or for the phone's camera on its own.
+
+A round starts by asking how you are scanning: **handheld scanner** or
+**camera**, the second only where there is a camera to use, and the one chosen
+last time on that phone picked out. Scanning a label answers it too. **camera**
+opens the camera straight away, with each scan's answer and what to scan next
+written under the picture; **close** comes back to the screen, and **camera** on it
+opens it again.
+
+After that the screen says, in large type, what to do next:
+
+- **Scan a location**, while none is open;
+- **Scan things into Shelf 2**, with the path to Shelf 2 under it, once one is.
+
+Under the prompt are a panel saying what the last scan did and the list of this
+round's scans. The controls are the site's ordinary buttons: **change location**,
+**finish**, **camera**, **type a tag**, the sound switch and **moving boxes**.
+
+There is no box to type into. A scan is taken as it arrives and goes the moment
+it is whole: the seven characters `RH-K7Q2` a barcode holds, or the whole web
+address a QR code holds, which ends `/items/RH-K7Q2/`. So a scanner that reads
+both works the same with either code, and whether or not it presses Enter after
+one. Anything else goes when Enter is pressed. A line under the prompt
+says **ready to scan** while the screen is listening; if it says it is not, tap
+it. **type a tag** opens a box, with the phone's keyboard, for keying a tag in by
+hand. With scripting turned off the box is always there, with **scan it**.
+
+The audit moves things, so it is for administrators. Anybody signed in can
+open a location's page to see what is in it.
+
+**Scan a location, then scan what goes in it.** Every scan is acted on the moment
+it arrives:
+
+1. **Scan a location's label.** It becomes the open location. The panel shows its
+   name and path and how many things the register expects to find there, or
+   **Empty**.
+2. **Scan a thing.** If the register already has it here, the panel says **✓ Found**.
+   If it was recorded somewhere else, or nowhere, it is moved here there and then.
+   The panel says **→ Moved in**, and where it was. Each moved line in the list has
+   **undo**, which puts it back where it was, back in its machine too if it was
+   taken out of one (below).
+3. **Scan the next location** when you get to it. That location becomes the open
+   one, and the one before is kept for the report. Scanning a location already
+   opened in this round goes back to it. **change location** closes the open one
+   without opening another, and the prompt goes back to *Scan a location*: a thing
+   scanned before the next location is held rather than moved into the last one.
+4. **finish** when you are done (below).
+
+That one rule covers putting away, moving and checking:
+
+- **Put one thing away**: scan the thing, then the location. A thing scanned when
+  no location is open is held. The panel shows where it is now and says *scan a
+  location to move it there*. The next location scanned takes it, and opens. Scan
+  another thing instead and the first is left where it was.
+- **Put away a pile**: scan the location once, then each thing in the pile.
+- **Find out what is somewhere**: scan the location and read the panel.
+- **Find where a thing is**: scan it with no location open. Clear the open
+  location with **change location**.
+
+**A location inside the open one is found there too.** Scan Box 14 while Shelf 2
+is open, and if the register has the box on that shelf it is ticked off on the
+shelf's list, then opened for its own contents. A box recorded somewhere else is
+simply opened, and stays where the register has it: moving a box is a [switch
+of its own](#moving-boxes).
+
+**A fitted part scanned into a location is taken out of what it was fitted in.**
+A card in a box is not in the machine any more, whatever the register said. The
+panel says so, and its history and the machine's both record it. A part scanned
+where its machine is kept is found rather than moved: the card is still in the
+machine, and the machine is on the shelf.
+
+**What is refused.** These scans move nothing. They sound the error and are listed
+under *not recognised* in the report:
+
+- a code that is not a tag in this register, with the text that was scanned;
+- a project, which is work and is not kept anywhere;
+- something disposed of, with the date it went.
+
+A thing scanned twice in a round is shown again and changes nothing.
+
+#### Moving boxes
+
+Scanning one location after another normally switches between them. To move a
+location itself, such as a box onto a new shelf, turn on **moving boxes**. It is a
+switch among the controls and is off whenever the audit opens.
+With it on, a location scanned while another is open goes *inside* the open one,
+exactly as a thing would. It moves with all its contents, and the panel says
+**→ Moved in** with how many things came with it. Undo puts it back.
+
+Moving a location into itself, or into something inside it, is refused, as it is
+on the form.
+
+#### Seeing and hearing what happened
+
+Each scan is shown three ways, so it can be read across a room and still be
+understood with the sound off:
+
+| | Panel | Sound |
+|---|---|---|
+| Found, or a location opened | green, **✓** | one short high beep |
+| Moved in | green, **→** | two rising beeps |
+| Refused | red, **✕**, and the reason | one low buzz |
+
+A phone that can vibrate does so on a refusal. The words are always there as
+well as the colour and the icon, so nothing depends on telling green from red.
+The sound has a switch on the screen, which this browser remembers. If your
+system is set to reduce motion, the panel changes without the flash.
+
+#### The report
+
+**finish** ends the round and shows, for each location it opened:
+
+- **Found**: expected and scanned.
+- **Moved in**: scanned here and recorded somewhere else before, with where. Each
+  can still be undone.
+- **Not scanned**: things the register says are here that were not scanned. They
+  stay where the register has them, because a round that put three things on a
+  shelf has not checked the other forty. If this round was a check, press
+  **record as missing**. Each of them then gets a line on its history saying it
+  was not found at the check of that location on that date.
+- **Not recognised**: every refused scan, with what was scanned and why.
+
+A round survives the phone locking, the page being reloaded and the battery
+dying, because each scan is saved as it arrives. Open the audit again and an
+unfinished round is there to carry on with, or to finish.
+
+### Scanners
+
+**A handheld barcode scanner needs no setting up.** USB, Bluetooth, an old PS/2
+one, or one plugged into a phone through an OTG adaptor: they all act as a
+keyboard that types the code, and most press Enter after it. The audit takes a
+code as soon as a whole tag has arrived, so a scanner works whether it is set to
+send Enter or not. Set it to the same keyboard layout as the computer or phone it
+is plugged into.
+
+On a phone, the audit listens for the scanner without bringing up the
+on-screen keyboard, so the keyboard is not in the way of the panel while you scan.
+Press **type a tag** to bring it up and key a tag in by hand. An Android phone with
+a scanner plugged in hides its keyboard anyway.
+
+A tag is taken in any case, and out of a whole URL. A scanner reading a QR code
+types the URL it holds, and that works the same as the barcode beside it.
+
+**The camera works too.** **camera** in the audit reads QR codes and Code 128
+barcodes, and so does **Scan** in the banner ([scanning a
+label](#scanning-a-label)).
+
+**The search box takes a scanned tag as well.** Scan a label into it anywhere on
+the site and Enter opens that item or location, rather than searching for it.
+
+### Locations typed before there were locations
+
+A register that was keeping its locations as typed text has them turned into
+locations by the upgrade. Every different spelling becomes a location of its own,
+named exactly as it was typed, of kind *other*, and at the top level. So does
+every place the register was remembering because something used to be kept
+there. Each machine and part is put in the location it named. Spellings that
+differ only in capitals become one location, which is how the old suggestion list
+already treated them.
+
+Nothing is lost, and nothing is guessed. The upgrade cannot know that `loft
+crate3` is inside `Loft`, so they sit side by side, at the top of
+[**Locations**](#every-location), until you tell it. Do that on
+each location's page with **Inside**, or in the audit by printing the new
+locations' labels and scanning them into each other with [moving
+boxes](#moving-boxes) on. Two spellings of one crate can be put together with
+**merge into** on a location's page. Everything in the one moves into the other,
+which keeps its tag, and the first is deleted.
+
+---
+
+## 15. History
 
 Every item has a dated history, and it fills itself in. Creating, editing,
 photographing, linking, unlinking, disposing and restoring all write a line
@@ -2219,9 +2558,26 @@ is shown.
 History is searchable, which is often the point of writing it. Searching
 `recapped` finds everything you have recapped.
 
+### Moves
+
+Every time a thing or a location changes where it is kept, its history records a
+move. A move says where it was and where it went, each as a link, along with when
+and who moved it. It also says how: **by edit** on a form, **by scan** in storage
+mode, or **through the API**. That is how *where was this before it went to the
+workshop?* gets an answer, and how something that cannot be found leaves a trail
+of the last places it was.
+
+A location that moves records the move on its own history, and only there. The
+thirty things in Box 14 have not been moved by anybody: they are where they were,
+in Box 14. Their pages show the new path at once, and the box's history says
+when it changed.
+
+A move undone in the audit is recorded as a move back, rather than wiped out.
+The history says what happened, and that happened.
+
 ---
 
-## 15. Disposing, restoring and deleting
+## 16. Disposing, restoring and deleting
 
 ### Might go: the for-sale shortlist
 
@@ -2289,7 +2645,7 @@ part still in the collection is kept whatever the box says.
 
 ---
 
-## 16. Statistics
+## 17. Statistics
 
 `/stats` is the collection by numbers, and it is public.
 
@@ -2344,7 +2700,7 @@ history entry is not a portrait.** Those live in a folder of their own, filed un
 the entry rather than under the thing, and they answer a different question: an
 object with six pictures of its recap and nothing else is still an object nobody
 has photographed in the sense this figure means. See [section 10](#10-photographs)
-for the difference and [section 14](#14-history) for the history side of it.
+for the difference and [section 15](#15-history) for the history side of it.
 
 The figure and the list behind it are the same question asked once. Both read the
 files on disk, which is what the item page draws; the "default photo" recorded
@@ -2374,7 +2730,7 @@ options lasts until you leave the page, and **Export as JSON** does nothing.
 
 ---
 
-## 17. Logging in
+## 18. Logging in
 
 **Reads are public. Writes need a login.** Unless you close the site, which is
 [below](#a-site-only-its-people-can-read).
@@ -2427,7 +2783,7 @@ starts with no accounts, it makes an administrator from them and says so in the
 log: you sign in exactly as you did before. From then on the accounts are the
 login and those two variables are not read by the site — change your password
 through the account, not in `.env`. The tool server still reads them until it has
-a token of its own ([section 20](#20-the-tool-server)); once it has, delete them.
+a token of its own ([section 21](#21-the-tool-server)); once it has, delete them.
 
 ### Administrators and viewers
 
@@ -2600,7 +2956,7 @@ of the variables.
 
 ---
 
-## 18. Settings
+## 19. Settings
 
 **⋯ → Settings**, or `/settings` directly. For administrators, like everything
 else that changes the site rather than reads it, and not linked where anybody else
@@ -2622,15 +2978,16 @@ touched by saving this one.
 in, where its sections sit, how its buttons are written, whether photographs are
 watermarked, and which theme it opens in.
 
-**Labels** — where a small label goes when it is printed, and the size a Bluetooth
-printer is loaded with; and, for this browser alone, where it sends a small label
-whatever the site says.
+**Labels** — whether labels carry a QR code, a barcode or both ([QR code, barcode
+or both](#qr-code-barcode-or-both)), the face their words are set in ([the type on
+a label](#the-type-on-a-label)), where a small label goes when it is printed, and
+the size a Bluetooth printer is loaded with; and, for this browser alone, where it
+sends a small label whatever the site says.
 
-**Server** — what this installation shows the outside world and what
-it remembers for itself: whether visitors must log in to read anything, whether it
+**Server** — what this installation shows the outside world: whether visitors must log in to read anything, whether it
 asks to be kept out of search engines,
-whether a visitor is shown where things are kept, whether a new file starts out
-public, and whether a place nothing is kept in any more is still offered.
+whether a visitor is shown where things are kept, and whether a new file starts
+out public.
 
 Press **Save** and the page says so. There is no history on a setting — the
 change log is about the collection, and these are not.
@@ -2699,28 +3056,33 @@ read](#a-site-only-its-people-can-read).
 
 ### Where things are kept
 
-Two switches, both about the **Location** box on a machine or a part ([where it
-is kept](#where-it-is-kept)).
-
 **Show locations** is off. Where a thing is kept is not something a catalogue has
-to publish — a public page saying which loft the rare machine is in is an address
-as much as a description. With it off, a visitor's item page has no Location row
-and a visitor's search does not match on one: searching the site for `loft` hands
-a stranger nothing. Signed in you always see it, whichever way the switch is set.
-Turn it on for a collection kept somewhere public — a museum shelf, a club room,
-a shared workshop — where where a thing lives is half of what a reader wants to
-know.
+to publish. A public page saying which loft the rare machine is in is an address
+as much as a description, and a location's page, with a photograph of the room
+and a note on how to find the rack, is the address with directions.
 
-**Remember old locations** is on. The register keeps a list of every location it
-has been given, so a crate you have emptied is still offered the next time you
-fill it. Without it, the last thing to leave `Loft, blue crate 3` takes the
-spelling of the crate with it, and the crate comes back a month later as
-`loft crate3`.
+With it off, a visitor sees none of it:
 
-Turn it off and it truly forgets: the remembered list is deleted there and then
-rather than merely ignored, and from that moment the box offers only the places
-something is actually kept now. Turn it back on and it starts again from what is
-in use — what it knew before is gone and does not come back.
+- an item's page has no Location row;
+- there is no **Locations** section, and the list's address answers **Nothing
+  here**;
+- a location's page, its photographs and its labels answer **Nothing here**, as a
+  private project's page does, rather than asking for a login. A visitor who scans
+  the label on a box learns nothing about the box, not even that the tag is a
+  location;
+- a visitor's search does not match on a location, and the suggestions do not
+  offer one, so searching the site for `loft` hands a stranger nothing.
+
+Signed in, you always see them, whichever way the switch is set. So sign in the
+phone you scan with: scanning your own box while signed out gets you the same
+**Nothing here** a stranger gets.
+
+Turn it on for a collection kept somewhere public, such as a museum shelf, a club
+room or a shared workshop, where where a thing lives is half of what a reader
+wants to know. Location pages are then as public as item pages.
+
+**Audit** is for administrators, whichever way the switch is set
+([audit](#audit)).
 
 ### New files
 
@@ -2875,20 +3237,22 @@ reading, and choosing a type sends no request to a third party.
 
 ### Where the sections sit
 
-**Navigation** is *Side* or *Top*, and decides where the five sections live on a
-wide screen. *Side* is what a new installation gets.
+**Navigation** is *Side* or *Top*, and decides where the sections live on a wide
+screen. *Side* is what a new installation gets.
 
 At 1100px and wider, *Side* puts a rail 216px across down the left of the window,
 and the page is laid out in the rest. Where the window is wide enough the rail
 spends only margin: a page you read has its whole 1000px beside it from a 1216px
 window, and a list or a form its whole 1440px from 1656px. In a narrower window the
 page gives the rail the room it needs rather than sliding under it. The
-rail carries the name and mark, then the five sections, each with the number of
-things in it beside its name. For somebody signed in it also carries **Computer**
-and **Part** as one press each, and **Recent**: the last three things you edited,
-tag first, which is the rail's best argument at a bench where you go back to the
-same two machines all afternoon. At its foot are the theme button, which everybody
-gets, then **Might sell** and **Traffic** where your account reaches them,
+rail carries the name and mark, then the sections, each with the number of things
+in it beside its name — for **Locations**, the number of locations. For an
+administrator it also carries everything **+ New** offers — **Computer**, **Part**,
+**Project** and **Location** — as one press each, and **Recent**: the last three
+things you edited, tag first, which is the rail's best argument at a bench where
+you go back to the same two machines all afternoon. At its foot are the theme
+button, which everybody gets, then
+**Audit**, **Might sell** and **Traffic** where your account reaches them,
 **Settings** for an administrator or **Account** for anybody else signed in, and
 **Log out** — or **Log in** for a visitor — and **Collapse**. On a window too short
 for all of it, the rail scrolls on its own, apart from the page beside it, rather
@@ -2915,8 +3279,8 @@ Below 1100px there is no rail whichever way this is set: the banner carries the
 sections as it always has, and a phone gets the tab bar. There is no phone form of
 a rail, so *Side* and *Top* are the same thing on a phone.
 
-A visitor sees the rail without the things that are not theirs: no **+ Computer**
-or **+ Part**, no **Recent**, no **Might sell**, no **Traffic**, no **Settings**, no
+A visitor sees the rail without the things that are not theirs: nothing to add, no
+**Recent**, no **Audit**, no **Might sell**, no **Traffic**, no **Settings**, no
 **Account** and no **Log out**. The counts they do see, because the size of a
 collection is part of what a catalogue is for.
 
@@ -2966,7 +3330,7 @@ detail that belongs in a manual rather than on a form.
 
 ---
 
-## 19. The REST API
+## 20. The REST API
 
 Interactive documentation and a console are at `/docs`, linked from
 **⋯ → Account** beside your tokens (login required). The schema is at
@@ -2977,6 +3341,9 @@ Interactive documentation and a console are at `/docs`, linked from
 | `GET`, `POST` | `/api/computers`, `/api/parts` | list, or create — the server assigns the asset tag |
 | `GET`, `PATCH`, `DELETE` | `/api/computers/{id}`, `/api/parts/{id}` | fetch, partial update, delete |
 | `GET` | `/api/items/{id}/log` | an item's history, with any photographs on each entry |
+| `GET`, `POST` | `/api/locations` | list (each with its path), or make one — the server assigns the tag |
+| `GET`, `PATCH`, `DELETE` | `/api/locations/{id}` | fetch (with what is kept in it, and the locations inside it), rename, re-file, move inside another, delete when empty |
+| `GET` | `/api/items/{id}/moves` | where a thing or a location has been, newest first |
 | `GET` | `/api/machines` | the catalogue of machines known as models — home computers, consoles, documented branded PCs — and the variations each was built in. Public, like [/machines](#the-list-of-what-it-knows), because none of it is about this register |
 | `GET` | `/api/files` | the files kept beside the register, and the asset tags each is linked to |
 | `GET`, `POST` | `/api/projects` | list, or start one. `?open=true` for the ones neither finished nor abandoned, `?status=stalled` for one state |
@@ -2988,6 +3355,21 @@ Interactive documentation and a console are at `/docs`, linked from
 | `PATCH`, `DELETE` | `/api/projects/{id}/orders/{order_id}` | mark it in, change it, or cancel it |
 
 `GET /api/parts?computer_id=RH-4K7Q` and `?type=sound` filter the list.
+
+**Where a computer or a part is kept** is `location`. A computer or part reads
+back with `location`, the tag of its location (or `""` for none), and
+`location_path`, the path as words, such as `Workshop / Rack 3 / Box 14`.
+`location_path` is written from the location and ignored if you send it. To move
+something, send `location` as a location's tag, or as a name: a name that matches
+exactly one location means that one, and a name that matches none makes a new
+top-level location, as the form does. A name that matches several is refused with
+`422` and the tags it could have meant, rather than guessed. A move made here is
+recorded as made **through the API**, with the token's account as who made it.
+
+A location takes `name`, `kind` (`building`, `room`, `rack`, `shelf`, `box`,
+`bag`, `other`), `parent` (the tag of the location it is in, or `null` for the
+top) and `notes`. A `parent` that would put it inside itself is refused with
+`422`, and so is a `DELETE` while anything is still in it.
 
 `PATCH` changes only the fields you send.
 
@@ -3031,7 +3413,7 @@ tokens.
 
 ---
 
-## 20. The tool server
+## 21. The tool server
 
 The `mcp` service wraps the REST API and exposes it as a set of tools over the
 Model Context Protocol, on `http://localhost:8001/mcp` (streamable HTTP
@@ -3053,6 +3435,10 @@ The tools are:
 - `add_project_task`, `update_project_task` (tick it), `delete_project_task`
 - `add_project_order`, `mark_project_order_delivered`, `delete_project_order` —
   `cost_p` is pence as a whole number, and is the cost of the whole line as paid
+- `list_locations`, `get_location` (with what is in it), `create_location`,
+  `update_location`, `delete_location` — where things are kept. The `location`
+  argument of `create_computer`, `update_computer`, `create_part` and
+  `update_part` takes a location's tag or its name, as the API does
 
 `create_computer` and `create_part` also take `work_needed` and `work_project`, so
 a machine dictated as it comes out of the box arrives with its faults written down
@@ -3073,7 +3459,7 @@ asks.
 
 ---
 
-## 21. Command-line tools
+## 22. Command-line tools
 
 The scripts in `tools/` talk to the REST API over the network, so they can run on
 whichever machine has the hardware attached — the one with the label printers, or
@@ -3233,7 +3619,7 @@ machine is added. Add one, run this, and commit both; a test fails if you forget
 Unlike the other scripts here it reads the catalogue file directly rather than the
 API, so it needs no network and no login.
 
-## 22. Housekeeping
+## 23. Housekeeping
 
 ### Derived values
 
