@@ -326,13 +326,18 @@
   /* One row at every width, as navigation.md draws it. Wrapping let each item keep its
      own width, which with the sections showing came to 1041px, so below that the menu
      dropped to a second row at the left and opened off the edge. Short of room now, the
-     search box narrows first, to a floor it is still usable at; the name's shrink is
-     token-small, so it gives way only once the box is at that floor, and is cut short
-     rather than the logo. */
+     search box narrows first, to a floor it is still usable at, and then the name is cut
+     short rather than the logo.
+
+     The order is the box's shrink outweighing the name's a thousand to one, not the name's
+     being token-small. It was 0.001 once, and a browser hands out only that fraction of
+     the shortfall when the items still shrinking add up to less than one: with the box at
+     its floor the name was the only one, so it gave up a thousandth of what was needed and
+     the rest ran off the edge, a 390px phone's page drawn 406px wide. */
   .site-header { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-3) var(--space-5);
     padding: var(--space-4) var(--frame-inset); border-bottom: var(--border-w) solid var(--line); }
   .site-header .brand { display: inline-flex; align-items: center; gap: var(--space-3); font-weight: 600;
-    color: var(--text); text-decoration: none; min-width: 0; flex-shrink: 0.001; }
+    color: var(--text); text-decoration: none; min-width: 0; flex-shrink: 1; }
   .site-header .brand span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .site-header .mark { width: 34px; height: 28px; background: var(--surface-sunken);
     border: var(--border-w) solid var(--line-strong); border-radius: var(--radius-xs); }
@@ -344,7 +349,7 @@
   /* Sized by height: the logo is not square, and height is what the banner's other
      items are measured against. An installation's own logo keeps its proportions. */
   .site-header .brand img { display: block; width: auto; height: 34px; flex: none; }
-  .site-header .searchwrap { display: flex; flex: 0 1 230px; min-width: 160px; }
+  .site-header .searchwrap { display: flex; flex: 0 1000 230px; min-width: 160px; }
   .site-header .menu > summary { min-height: var(--control-h); }
   /* The no-login notice stands under the banner, inside its gutters. */
   /* A tablet, or a narrow window: the sections leave the banner for the top of its
@@ -407,8 +412,6 @@
   /* Where you are, and the sheet while it is open: colour and weight together. */
   .tabbar [aria-current="page"], .tabbar .on { color: var(--accent); font-weight: 600; }
   .tabbar svg { width: 21px; height: 21px; display: block; }
-  .tabbar .scan span.puck { display: flex; align-items: center; justify-content: center; width: 44px; height: 32px;
-    background: var(--accent-fill); color: var(--on-accent); border-radius: var(--radius-sm); }
   /* Only on a phone, and there across the bottom, where the thumb is. Before it the
      banner on a 390px screen wrapped to four rows, and Scan -- the one control a
      phone is really here for, used while holding the thing -- was the last of them. */

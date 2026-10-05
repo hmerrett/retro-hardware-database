@@ -18,6 +18,7 @@ from conftest import log_out
 
 CSS = Path(__file__).parents[1] / "app" / "static" / "css"
 COMPONENTS = CSS / "components.css"
+LEGACY = CSS.parent / "app.css"
 TEMPLATES = Path(__file__).parents[1] / "app" / "templates"
 
 # What a browser sends: the error page is drawn only for a reader that asked for HTML.
@@ -126,6 +127,53 @@ def media(query: str, css: str) -> str:
 
 def stylesheet() -> str:
     return re.sub(r"/\*.*?\*/", "", COMPONENTS.read_text(encoding="utf-8"), flags=re.S)
+
+
+# The banner's Scan as base.html draws it: a <button> with these classes, in the
+# banner and outside <main>.
+SCAN = {"btn", "hdr-scan", "scan-open"}
+
+
+def could_be_the_banners_scan(selector: str) -> bool:
+    """Whether a selector's subject could be the banner's Scan: no class, id or
+    attribute it does not carry, and a tag that is a button or none. What stands to
+    the left of the subject is not read, so this errs towards yes."""
+    subject = re.split(r"\s*[ >+~]\s*(?![^(]*\))", selector.strip())[-1]
+    bare = re.sub(r":[\w-]+(\((?:[^()]|\([^()]*\))*\))?", "", subject)
+    if "#" in bare or "[" in bare:
+        return False
+    tag = re.match(r"[\w*-]*", bare)[0]
+    classes = set(re.findall(r"\.([\w-]+)", bare))
+    return tag in ("", "*", "button") and bool(classes) and classes <= SCAN
+
+
+def specificity(selector: str) -> tuple[int, int, int]:
+    """Selectors level 4: ids, then classes, attributes and pseudo-classes, then
+    elements. `:not()`, `:is()` and `:has()` count as their most specific argument
+    and `:where()` as nothing."""
+    total = [0, 0, 0]
+
+    def add(part):
+        total[0] += part[0]
+        total[1] += part[1]
+        total[2] += part[2]
+
+    def strip(m: re.Match[str]) -> str:
+        name, args = m[1], m[2]
+        if name in ("not", "is", "has", "matches"):
+            add(max(specificity(a) for a in args.split(",")))
+        elif name != "where":
+            total[1] += 1
+        return " "
+
+    rest = re.sub(r":([\w-]+)\(((?:[^()]|\([^()]*\))*)\)", strip, selector)
+    total[2] += len(re.findall(r"::[\w-]+", rest))
+    rest = re.sub(r"::[\w-]+", " ", rest)
+    total[0] += rest.count("#")
+    total[1] += len(re.findall(r"\.[\w-]+|\[[^\]]*\]|:[\w-]+", rest))
+    rest = re.sub(r"#[\w-]+|\.[\w-]+|\[[^\]]*\]|:[\w-]+", " ", rest)
+    total[2] += len(re.findall(r"(?:^|[\s>+~])([a-zA-Z][\w-]*)", rest))
+    return (total[0], total[1], total[2])
 
 
 @pytest.fixture
@@ -282,6 +330,48 @@ class TestHowItFoldsWithTheWidth:
             assert "display: none" in rule(gone, phone), gone
         assert "position: fixed" in rule(".tabbar", phone)
 
+    def test_and_nothing_older_puts_the_banners_scan_back(self):
+        """components.css says so in a layer, and app.css is unlayered, so any rule
+        there that gives a `.btn` a display outranks it whatever its specificity: app.css
+        has to hide Scan again itself, and more specifically than everything it says
+        that could show it. It said it at 0,2,0 against `.btn:not(main.v2 *)` at 0,2,1,
+        and the button stayed in a banner that cannot wrap, holding a 390px phone's
+        page 86px wider than the screen."""
+        if not LEGACY.exists():
+            return
+        css = re.sub(r"/\*.*?\*/", "", LEGACY.read_text(encoding="utf-8"), flags=re.S)
+        hiding, showing = [], []
+        for head, body in re.findall(r"([^{}@;]+)\{([^{}]*)\}", css):
+            display = re.search(r"(?:^|;)\s*display\s*:\s*([^;!]+)", body)
+            if not display:
+                continue
+            for sel in (s.strip() for s in head.split(",")):
+                if could_be_the_banners_scan(sel):
+                    side = hiding if display[1].strip() == "none" else showing
+                    side.append((specificity(sel), sel))
+        assert hiding, "app.css no longer hides the banner's Scan on a phone"
+        assert showing, "nothing in app.css shows a .btn: the hiding rule can go"
+        assert max(hiding)[0] > max(showing)[0], (max(hiding), max(showing))
+
+    def test_the_bars_scan_is_drawn_as_the_others_are(self, client):
+        """No puck behind its icon and no rule of its own: the accent on the bar says
+        where you are, and a second button in it said Scan was where you were."""
+        bar = client.get("/").text
+        bar = bar[bar.index('<nav class="tabbar"') :]
+        bar = bar[: bar.index("</nav>")]
+        shapes = {
+            re.sub(r"<svg.*?</svg>", "<svg/>", inner, flags=re.S).replace(">" + word + "<", "><")
+            for inner, word in re.findall(r">(<svg.*?<span>(\w+)</span>)</(?:a|button)>", bar, re.S)
+        }
+        assert len(re.findall(r"<span>\w+</span>", bar)) == 4
+        assert shapes == {"<svg/><span></span>"}, shapes
+        for sheet in (stylesheet(), LEGACY.read_text(encoding="utf-8") if LEGACY.exists() else ""):
+            assert not [
+                head
+                for head in re.findall(r"([^{}@;]+)\{", sheet)
+                if "tabbar" in head and "scan" in head
+            ]
+
     def test_the_bar_is_nowhere_but_a_phone(self):
         assert "display: none" in rule(".tabbar", stylesheet())
 
@@ -310,14 +400,22 @@ class TestTheBannerStaysOneRow:
 
     def test_the_search_box_gives_way_first_down_to_a_floor(self):
         wrap = declared(".site-header .searchwrap")
-        assert wrap["flex"] == "0 1 230px"
+        grow, shrink, basis = wrap["flex"].split()
+        assert (grow, basis) == ("0", "230px")
+        # A shrink is weighed by the basis it applies to, so the box's 230px against a
+        # name of about as much: a thousand to one leaves the name all but still.
+        assert float(shrink) >= 1000 * float(declared(".site-header .brand")["flex-shrink"])
         assert int(wrap["min-width"].removesuffix("px")) >= 160
         assert declared(".site-header .search")["width"] == "100%"
 
     def test_then_a_long_name_is_cut_short_and_the_logo_stays(self):
         brand = declared(".site-header .brand")
         assert brand["min-width"] == "0"
-        assert float(brand["flex-shrink"]) < 0.01, "the name would give way with the box"
+        # Not less than one. Once the box is at its floor the name is the only thing
+        # left to give way, and a browser shares out only that fraction of what is
+        # short when the shrinks still in play come to under one: at 0.001 the name
+        # gave a thousandth and the page was drawn wider than the phone.
+        assert float(brand["flex-shrink"]) >= 1
         name = declared(".site-header .brand span")
         assert (name["overflow"], name["text-overflow"], name["white-space"]) == (
             "hidden",

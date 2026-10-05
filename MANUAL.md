@@ -228,7 +228,9 @@ across the bottom of the screen, where your thumb already is.
   anybody else signed in, and **Log out**.
 
 The bar across the bottom stands on one of the look's own colours, as the side
-rail does ([where the sections sit](#where-the-sections-sit)).
+rail does ([where the sections sit](#where-the-sections-sit)). Its four buttons are
+drawn alike: **Scan** is not picked out from the others, and the only one in the
+accent colour is the one for where you are.
 
 ### On a narrow screen
 
