@@ -228,7 +228,9 @@ across the bottom of the screen, where your thumb already is.
   anybody else signed in, and **Log out**.
 
 The bar across the bottom stands on one of the look's own colours, as the side
-rail does ([where the sections sit](#where-the-sections-sit)).
+rail does ([where the sections sit](#where-the-sections-sit)). Its four buttons are
+drawn alike: **Scan** is not picked out from the others, and the only one in the
+accent colour is the one for where you are.
 
 ### On a narrow screen
 
@@ -1366,7 +1368,8 @@ another; deleting cannot, so it asks first and puts you back on the item page.
 The delete steps out of the row while you are cropping, where it would otherwise
 be sitting next to **apply crop**.
 
-**fetch from reference** appears when the item has a reference URL. It
+**fetch from reference** appears beside **choose files** when the item has a
+reference URL. It
 takes the lead image from a Wikipedia page, or the preview image any other site
 advertises, downscales it and files it as a reference image. It bypasses nothing,
 so a site behind bot protection simply returns nothing.

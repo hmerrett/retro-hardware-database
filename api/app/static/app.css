@@ -184,8 +184,12 @@
     min-height: 0; gap: normal; align-items: normal; justify-content: normal; box-shadow: none; transform: none; }
   .btn:hover:not(main.v2 *) { background: var(--btn-hover); }
   /* components.css hides the banner's Scan on a phone, where the tab bar has it; this
-     .btn's display outranks the layer, so the hiding is said here too until it goes. */
-  @media (max-width: 620px) { .site-header .hdr-scan { display: none; } }
+     .btn's display outranks the layer, so the hiding is said here too until it goes.
+     Saying it is not enough on its own: `:not(main.v2 *)` counts as the class and
+     the element inside it, so `.site-header .hdr-scan` lost to the rule above by one
+     element, and the button it was meant to hide held a 390px phone's page 86px too
+     wide. The `.btn` is what wins it back. */
+  @media (max-width: 620px) { .site-header .btn.hdr-scan { display: none; } }
   .btn.primary:not(main.v2 *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm:not(main.v2 *) { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }
@@ -275,6 +279,11 @@
   .newphotos { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
   .newphotos .hint { margin: 0; }
   .photo-actions .hint { margin: 0; }
+  /* The photographs' two ways in, choose files and fetch from reference, side by side;
+     a message about either takes a line of its own beneath them. Disposal keeps the
+     column, where a note box stands over its button. */
+  .photo-actions.across { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .photo-actions.across > .hint { flex-basis: 100%; }
   /* The phone code at the foot of the photo column. Stacked rather than side by
      side: the column is 320px, which is not enough for a readable line beside a
      code big enough to scan. Its own white card whatever the theme is doing: the

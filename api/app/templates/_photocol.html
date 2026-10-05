@@ -45,8 +45,9 @@
      goes as soon as they are picked, so the button below is only there for a
      browser with no JavaScript. The native file input is behind its own label,
      which is how the button says "choose files" rather than whatever the browser
-     calls it. #}
-  <div class="photo-actions">
+     calls it. Fetching from the reference is the other way a photograph arrives,
+     so it stands beside choose files rather than under it. #}
+  <div class="photo-actions across">
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
           enctype="multipart/form-data" id="photo-upload" data-autosend>
       <label class="btn sm filebtn">choose files

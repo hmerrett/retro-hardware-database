@@ -582,7 +582,7 @@
 <nav class="tabbar" aria-label="Main">
   <a href="/"{{ here('/', current) }}>{{ I.ico('grid') }}<span>{{ 'Browse' | ui }}</span></a>
   <button type="button" id="tab-find">{{ I.ico('search') }}<span>{{ 'Find' | ui }}</span></button>
-  <button type="button" class="scan scan-open" hidden><span class="puck">{{ I.ico('scan') }}</span><span>{{ 'Scan' | ui }}</span></button>
+  <button type="button" class="scan-open" hidden>{{ I.ico('scan') }}<span>{{ 'Scan' | ui }}</span></button>
   <button type="button" id="tab-more" aria-expanded="false" aria-controls="sheet">{{ I.ico('more') }}<span>{{ 'More' | ui }}</span></button>
 </nav>
 {%- endmacro %}

@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2537 behaviours, from 75 files.*
+*2542 behaviours, from 75 files.*
 
 
 ## A file where text was expected
@@ -2268,7 +2268,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 40 behaviours*
+*test_item_pages.py — 43 behaviours*
 
 
 **The head**
@@ -2340,6 +2340,12 @@ Regenerate with:
 - the thumbnails are cells sized to the column
 - each is the card s 4 3 shape
 - two fit across beside the details
+
+**The two ways to add A photo stand side by side**
+
+- fetch from reference is in the row with choose files
+- the row runs across and wraps only when it must
+- a message about either takes a line of its own
 
 **The history lines up its buttons**
 
@@ -4000,7 +4006,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 24 behaviours*
+*test_site_chrome.py — 26 behaviours*
 
 
 **The banner**
@@ -4048,6 +4054,10 @@ Regenerate with:
 - on a phone the banner keeps the name  
   With no footer, the banner is the only place on a phone's page that says whose collection a scanned label has opened.
 - on a phone the bar takes over and scan goes with it
+- and nothing older puts the banners scan back  
+  components.css says so in a layer, and app.css is unlayered, so any rule there that gives a `.btn` a display outranks it whatever its specificity: app.css has to hide Scan again itself, and more specifically than everything it says that could show it.
+- the bars scan is drawn as the others are  
+  No puck behind its icon and no rule of its own: the accent on the bar says where you are, and a second button in it said Scan was where you were.
 - the bar is nowhere but a phone
 - the bar sits above the home indicator
 
