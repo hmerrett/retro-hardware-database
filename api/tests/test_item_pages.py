@@ -371,7 +371,7 @@ class TestThePhotographsSitInsideThePanel:
     ):
         aid = item(kind, computer, part)
         inside = self.body(client.get(f"/{kind}/{aid}").text)
-        assert 'class="nophoto"' in inside and 'class="photo-actions"' in inside
+        assert 'class="nophoto"' in inside and 'class="photo-actions' in inside
 
     def test_a_visitor_sees_them_inside_it_too(self, client, computer, shoot):
         aid = computer()["asset_id"]
@@ -416,6 +416,31 @@ class TestTheThumbnailsSitTwoToARow:
         cell = int(re.search(r"minmax\(min\((\d+)px", rule)[1])
         gap = int(re.search(r"(?<![-\w])gap:\s*(\d+)px", rule)[1])
         assert 2 * cell + gap <= self.BODY_AT_861 <= self.BODY_AT_1440
+
+
+class TestTheTwoWaysToAddAPhotoStandSideBySide:
+    """Choose files and fetch from reference are the two ways a photograph arrives,
+    and they stood one above the other, so the second read as an afterthought of the
+    first (MANUAL §10)."""
+
+    @KINDS
+    def test_fetch_from_reference_is_in_the_row_with_choose_files(
+        self, client, computer, part, kind
+    ):
+        aid = item(kind, computer, part, url="https://example.com/a-machine")
+        page = client.get(f"/{kind}/{aid}").text
+        row = page[page.index('<div class="photo-actions across">') :]
+        row = row[: row.index("</div>")]
+        assert row.index("choose files") < row.index("fetch from reference")
+
+    def test_the_row_runs_across_and_wraps_only_when_it_must(self):
+        rule = TestTheThumbnailsSitTwoToARow().rule(".photo-actions.across")
+        assert "flex-direction: row" in rule
+        assert "flex-wrap: wrap" in rule
+
+    def test_a_message_about_either_takes_a_line_of_its_own(self):
+        rule = TestTheThumbnailsSitTwoToARow().rule(".photo-actions.across > .hint")
+        assert "flex-basis: 100%" in rule
 
 
 class TestTheHistoryLinesUpItsButtons:

@@ -279,6 +279,11 @@
   .newphotos { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
   .newphotos .hint { margin: 0; }
   .photo-actions .hint { margin: 0; }
+  /* The photographs' two ways in, choose files and fetch from reference, side by side;
+     a message about either takes a line of its own beneath them. Disposal keeps the
+     column, where a note box stands over its button. */
+  .photo-actions.across { flex-direction: row; flex-wrap: wrap; align-items: center; }
+  .photo-actions.across > .hint { flex-basis: 100%; }
   /* The phone code at the foot of the photo column. Stacked rather than side by
      side: the column is 320px, which is not enough for a readable line beside a
      code big enough to scan. Its own white card whatever the theme is doing: the

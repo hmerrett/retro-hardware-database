@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2539 behaviours, from 75 files.*
+*2542 behaviours, from 75 files.*
 
 
 ## A file where text was expected
@@ -2268,7 +2268,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 40 behaviours*
+*test_item_pages.py — 43 behaviours*
 
 
 **The head**
@@ -2340,6 +2340,12 @@ Regenerate with:
 - the thumbnails are cells sized to the column
 - each is the card s 4 3 shape
 - two fit across beside the details
+
+**The two ways to add A photo stand side by side**
+
+- fetch from reference is in the row with choose files
+- the row runs across and wraps only when it must
+- a message about either takes a line of its own
 
 **The history lines up its buttons**
 
