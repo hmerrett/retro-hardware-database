@@ -34,6 +34,16 @@ def hrefs(markup):
     return set(re.findall(r'href="([^"]*)"', markup))
 
 
+def banner(page):
+    """The banner's markup: the site header, without the rail beside it."""
+    return page.split('<header class="site-header"', 1)[1].split("</header>", 1)[0]
+
+
+def rail_of(page):
+    """The rail's markup."""
+    return page.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
+
+
 def _broken():
     """A session that cannot be opened, as one on a fallen database is."""
     raise OperationalError("SELECT 1", {}, Exception("the database is not there"))
@@ -75,12 +85,20 @@ class TestWhichLayout:
         for path in ("/", "/projects", "/files", "/computers/" + computer()["asset_id"]):
             assert '<aside class="rail' in client.get(path).text, path
 
-    def test_the_search_and_the_scan_stay_in_the_banner(self, client):
-        """The two things wanted from every page are in the same place whichever
-        layout is chosen; the stylesheet puts the rest of the banner away."""
+    def test_the_search_stays_in_the_banner(self, client):
+        """The one thing wanted from every page is in the same place whichever layout
+        is chosen; the stylesheet puts the rest of the banner away."""
+        assert 'class="input search"' in banner(client.get("/").text)
+
+    def test_the_banner_keeps_its_scan_for_a_window_with_no_rail(self, client):
+        """Below 1100px there is no rail whatever the setting says, so the banner's
+        Scan is still drawn, and the stylesheet decides which of the two a width
+        gets. With Top chosen there is no rail at any width, and the banner's is the
+        only one."""
+        assert "hdr-scan" in banner(client.get("/").text)
+        choose(client, "top")
         page = client.get("/").text
-        assert 'class="input search"' in page
-        assert "hdr-scan" in page
+        assert "hdr-scan" in banner(page) and '<aside class="rail' not in page
 
 
 class TestWhatTheRailHolds:
@@ -131,6 +149,22 @@ class TestWhatTheRailHolds:
         rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]
         assert "Recent" in rail_markup
         assert made["asset_id"] in rail_markup
+
+    @pytest.mark.parametrize("reader", list(READERS))
+    def test_scan_is_under_the_sections(self, client, reader):
+        """Somewhere you go, as it is beside Browse and Find in a phone's bar, rather
+        than alone at the far end of a banner that holds nothing else. Everybody's,
+        since reading a label opens a page a visitor may read; and hidden until the
+        script has found a camera, as every Scan is."""
+        READERS[reader](client)
+        rail_markup = rail_of(client.get("/").text)
+        scan = re.search(r"<button[^>]*\bscan-open\b[^>]*>", rail_markup)
+        assert scan, "the rail has no Scan"
+        assert scan.start() > rail_markup.index("</nav>"), "Scan is not after the sections"
+        added = rail_markup.find('aria-label="Add"')
+        assert added == -1 or scan.start() < added, "Scan is not before what can be added"
+        assert 'aria-label="Scan"' in scan[0] and 'title="Scan"' in scan[0]
+        assert re.search(r"\shidden[\s>]", scan[0]), "Scan is offered before a camera is found"
 
     def test_the_foot_holds_the_theme_settings_and_the_way_out(self, client):
         rail_markup = client.get("/").text.split('<aside class="rail', 1)[1].split("</aside>", 1)[0]

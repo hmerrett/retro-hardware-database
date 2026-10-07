@@ -460,8 +460,9 @@
     <div class="suggest" id="suggest" role="listbox" aria-label="Search suggestions" hidden></div>
   </form>
   {#- Reading a label instead of typing its number. Hidden until the script has found
-      a camera to open, so it never offers what it cannot do. #}
-  <button type="button" class="btn hdr-scan scan-open" hidden title="Scan a label's QR code">{{ 'Scan' | ui }}</button>
+      a camera to open, so it never offers what it cannot do. Beside the rail the
+      stylesheet puts it away, because the rail has one (13a). #}
+  <button type="button" class="btn hdr-scan scan-open" hidden title="Read a label's QR code or barcode with the camera">{{ 'Scan' | ui }}</button>
   {#- Adding a thing is one button offering the three kinds rather than three: they
       are one intention, and as a row they were what broke across the line when the
       banner wrapped. #}
@@ -485,8 +486,8 @@
 
 {# The side rail: where the sections sit when Navigation is Side, at 1100px and
    wider. The same places the banner holds, laid down instead of across, with
-   what the banner's two menus hold at its foot -- so nothing is in both and the
-   banner beside it keeps only the search and Scan (components.css, 13a).
+   Scan under them, and what the banner's two menus hold at its foot -- so nothing
+   is in both and the banner beside it keeps only the search (components.css, 13a).
 
    Always in the markup when the setting says side. Which of the two a reader gets
    is the stylesheet's answer to the width of their screen, and exactly one is in
@@ -515,6 +516,13 @@
     </a>
     {%- endfor %}
   </nav>
+  {#- Reading a label is somewhere you go, as it is beside Browse and Find in the
+      phone's bar, so it stands with the places rather than alone at the far end of
+      a banner that would hold nothing else. A button and not a link, so it is not
+      in the Sections list; hidden until the script has found a camera, as every
+      Scan is. -#}
+  {%- set w = 'Scan' | ui %}
+  <button type="button" class="item scan-open" hidden title="{{ w }}" aria-label="{{ w }}">{{ I.ico('scan') }}<span>{{ w }}</span></button>
   {%- if authed %}
   {#- The + New menu, unfolded: in a rail there is room to make each kind of thing
       one press, and a menu costs the same press twice. #}

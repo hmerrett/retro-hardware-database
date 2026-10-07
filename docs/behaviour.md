@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2542 behaviours, from 75 files.*
+*2548 behaviours, from 75 files.*
 
 
 ## A file where text was expected
@@ -2985,7 +2985,7 @@ Regenerate with:
 
 ## Navigation
 
-*test_navigation.py — 37 behaviours*
+*test_navigation.py — 39 behaviours*
 
 
 **Which layout**
@@ -2998,8 +2998,10 @@ Regenerate with:
   The value is written into a class on every page, so it is checked on the way out rather than trusted.
 - the rail is on every page and not only the front one  
   Navigation that is on some pages is a page you get lost on.
-- the search and the scan stay in the banner  
-  The two things wanted from every page are in the same place whichever layout is chosen; the stylesheet puts the rest of the banner away.
+- the search stays in the banner  
+  The one thing wanted from every page is in the same place whichever layout is chosen; the stylesheet puts the rest of the banner away.
+- the banner keeps its scan for a window with no rail  
+  Below 1100px there is no rail whatever the setting says, so the banner's Scan is still drawn, and the stylesheet decides which of the two a width gets.
 
 **What the rail holds**
 
@@ -3014,6 +3016,8 @@ Regenerate with:
   In a rail there is room to unfold the + New menu, and a menu costs the same press twice.
 - the owner sees what they last worked on  
   The rail's own argument: at a bench you go back to the same machine all afternoon.
+- scan is under the sections  
+  Somewhere you go, as it is beside Browse and Find in a phone's bar, rather than alone at the far end of a banner that holds nothing else.
 - the foot holds the theme settings and the way out
 - on a short window the rail scrolls on its own  
   It is held to the window's height beside a page that scrolls, so whatever does not fit stays under the bottom edge until the page's own end -- and the owner's rail, open, is taller than a 1366 by 768 laptop leaves a page.
@@ -4006,7 +4010,7 @@ Regenerate with:
 
 ## Site chrome
 
-*test_site_chrome.py — 26 behaviours*
+*test_site_chrome.py — 30 behaviours*
 
 
 **The banner**
@@ -4046,6 +4050,12 @@ Regenerate with:
 - the shortlist marks might sell  
   It is drawn in the site's chrome like any other page, so it says where you are like any other.
 
+**Scan is offered only where there is A camera**
+
+- the browser is asked for a camera and not only for the means to open one  
+  getUserMedia is there in every desktop browser on an https page, camera or not, so asking only for that offered Scan to a desk with no camera at all, and pressing it opened a box that could only say so.
+- and asked again when one is plugged in or taken away
+
 **How it folds with the width**
 
 - on a tablet the sections leave the banner  
@@ -4056,6 +4066,10 @@ Regenerate with:
 - on a phone the bar takes over and scan goes with it
 - and nothing older puts the banners scan back  
   components.css says so in a layer, and app.css is unlayered, so any rule there that gives a `.btn` a display outranks it whatever its specificity: app.css has to hide Scan again itself, and more specifically than everything it says that could show it.
+- beside the rail the banner puts its scan away  
+  Scan is in the rail there, under the sections (MANUAL, "Where the sections sit"), and nothing is in both.
+- and nothing older puts it back beside the rail either  
+  The phone's fault again, at the other end: app.css's `.btn` outranks the layer whatever the specificity, so beside the rail app.css has to put Scan away itself, and more specifically than everything it says that could show it -- or the rail and the banner would both offer it.
 - the bars scan is drawn as the others are  
   No puck behind its icon and no rule of its own: the accent on the bar says where you are, and a second button in it said Scan was where you were.
 - the bar is nowhere but a phone

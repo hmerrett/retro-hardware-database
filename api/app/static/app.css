@@ -190,6 +190,9 @@
      element, and the button it was meant to hide held a 390px phone's page 86px too
      wide. The `.btn` is what wins it back. */
   @media (max-width: 620px) { .site-header .btn.hdr-scan { display: none; } }
+  /* And beside the side rail, which has a Scan of its own (components.css, 13a): the
+     same `.btn` would otherwise keep the banner's showing as well. */
+  @media (min-width: 1100px) { .shell.side .site-header .btn.hdr-scan { display: none; } }
   .btn.primary:not(main.v2 *) { background: var(--accent); color: var(--primary-fg); border-color: var(--accent); }
   .btn.sm:not(main.v2 *) { padding: 3px 8px; font-size: 13px; }
   .row-actions a { font-size: 13px; margin-right: 8px; }

@@ -1102,16 +1102,34 @@ function combobox(box, list, pick) {
 // than with the page: it is by far the largest asset on the site, and almost
 // every visit is someone reading rather than holding a drive.
 (function () {
-  // Two buttons open this now -- the one beside the search box and the one in
-  // the phone's bar -- so they are found by class and share every handler.
+  // Several buttons open this -- the one beside the search box, the one in the
+  // side rail, the one in the phone's bar, the audit's -- so they are found by class
+  // and share every handler. The stylesheet decides which of the first three a
+  // width shows.
   const opens = [...document.querySelectorAll('.scan-open')];
   const box = document.getElementById('scanner');
   if (!opens.length || !box) return;
-  // A camera is the whole feature, so without one the buttons never appear. This
-  // also covers plain http, where getUserMedia does not exist at all -- a
-  // capability check rather than a guess about which phone this is.
-  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return;
-  opens.forEach(function (b) { b.hidden = false; });
+  // A camera is the whole feature, so without one the buttons never appear. Plain
+  // http has no getUserMedia at all; an https page has it whether or not there is
+  // a camera behind it, so the browser is asked for one as well. Before anybody has
+  // allowed the camera a browser lists one of each kind it has, unnamed, which is
+  // enough to say yes or no. An empty list says nothing -- a browser keeping its
+  // devices to itself -- and is answered as the means alone used to be, so a phone
+  // that has a camera never loses Scan to a browser being careful. A capability
+  // check rather than a guess about which device this is.
+  const media = navigator.mediaDevices;
+  if (!(media && media.getUserMedia)) return;
+  function offer(yes) { opens.forEach(function (b) { b.hidden = !yes; }); }
+  function look() {
+    if (!media.enumerateDevices) { offer(true); return; }
+    media.enumerateDevices().then(function (devices) {
+      offer(!devices.length || devices.some(function (d) { return d.kind === 'videoinput'; }));
+    }, function () { offer(true); });
+  }
+  look();
+  // A webcam plugged in after the page opened is offered without a reload, and one
+  // taken away stops being offered.
+  if (media.addEventListener) media.addEventListener('devicechange', look);
 
   const video = document.getElementById('scan-video');
   const note = document.getElementById('scan-note');
