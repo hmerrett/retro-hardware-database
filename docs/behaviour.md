@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2572 behaviours, from 75 files.*
+*2578 behaviours, from 75 files.*
 
 
 ## A file where text was expected
