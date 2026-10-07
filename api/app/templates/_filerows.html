@@ -28,9 +28,9 @@
       {% endif %}
     </div>
     <span class="fmeta">{{ f.what.size }}{% if f.created_at %} · {{ log_stamp(f.created_at, authed) }}{% endif %}</span>
-    {# A PDF is read where it is tapped (ADR-0030); anything else is saved. The
-       button's name says which file, since a list of them is a list of buttons
-       all called the same thing otherwise. #}
+    {# A PDF or a text file is read where it is tapped (ADR-0030, ADR-0035);
+       anything else is saved. The button's name says which file, since a list of
+       them is a list of buttons all called the same thing otherwise. #}
     {% if f.what.viewable %}
     {{ U.button('View ' ~ f.filename, icon='view', icon_only=true, title='View' | ui,
                 href='/files/' ~ f.id ~ '/view/' ~ (f.filename | urlencode)) }}

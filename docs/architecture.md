@@ -63,7 +63,9 @@ Three kinds of thing live in the register:
        │                         a test can read it (ADR-0021). Two responses state
        │                         their own and keep it: a PDF shown in the browser
        │                         (ADR-0030), and GoAccess's traffic report, in a
-       │                         sandbox (ADR-0033).
+       │                         sandbox (ADR-0033). A text file shown in the
+       │                         browser is not one of them: it is a page of the
+       │                         site, under the site's policy (ADR-0035).
        │
        ├── no_stale_pages ...... middleware: every HTML response gets
        │                         `Cache-Control: no-cache`, so a deployed change
@@ -222,7 +224,8 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `presets.py` | the looks the register ships with, read from the design data — so the page cannot offer one no stylesheet was written for |
 | `typefaces.py` | the ways the three faces can be pointed, read from the same design data — a pairing repoints them and changes nothing else |
 | `accent.py` | the installation's accent: one colour in, the five tokens the page is painted with out, derived for the preset and the mode and served as a stylesheet of its own |
-| `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, and the size it is given as |
+| `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, the size it is given as, and whether it is read in the browser |
+| `textfiles.py` | a text file read as a page of the register: the words in one, and Markdown set as the site's own markup, with nothing in it that runs or is fetched (ADR-0035) |
 | `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
 | `locations.py` | where things are kept: the tree of locations and the path up it, what the Location box offers, moving a thing or a location and writing the move, and where a part is when it does not say for itself |
 | `storage.py` | the audit's rounds: what a scan does -- open, found, moved in, held, refused -- undoing one, and the report a round ends with |
@@ -299,6 +302,11 @@ breaking one turns CI red rather than merely being wrong.
 - **A file is not public until it is ticked.** Unpublished files answer 404, not
   401 — there is no account a reader could hold, so a prompt would only confirm
   the file exists. *(ADR-0009)*
+- **A file is never shown as itself unless it is a PDF.** Everything else is a
+  download, or -- a text file -- words put into a page of the register, escaped,
+  with Markdown parsed with HTML off and its links and pictures made fit for the
+  site's policy. A name is never evidence: a PDF is checked by its bytes, and a
+  text file by having no zero byte. *(ADR-0030, ADR-0035, enforced: `test_files.py`)*
 - **A share card is made of photographs that are already public.** The montage a
   grid page previews as is built from what an anonymous reader is shown, so a
   private project puts nothing on one, and `/og/{name}` opens a file by hash
@@ -454,6 +462,7 @@ it was weighed against, and what it costs.
 | 0032 | Accounts, roles, and a site to hold them |
 | 0033 | The traffic report runs in a sandbox of its own |
 | 0034 | A location is a record in the register |
+| 0035 | A text file is read as a page of the register |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

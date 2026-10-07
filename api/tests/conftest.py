@@ -266,6 +266,25 @@ def a_page_of_everything(client, computer, part):
         follow_redirects=False,
     )
     fid = client.get("/api/files").json()[0]["id"]
+    # And a Markdown file and a plain one, read as pages of the register (ADR-0035):
+    # a table, a link out, a picture and some HTML, each of which the page has to
+    # draw without a style attribute, a fetch or an unnamed control.
+    for name, body in (
+        (
+            "README.md",
+            b"# Setup\n\n| Jumper | Port |\n|:--|--:|\n| JP1 | 240 |\n\n"
+            b"![The card](card.jpg) [VOGONS](https://www.vogons.org/) <b>bold</b>\n\n"
+            b"```\npgusinit /p240\n```\n",
+        ),
+        ("README.TXT", b"JP1  1-2  Port 240h\nSee www.vogons.org\n"),
+    ):
+        client.post(
+            "/files",
+            files={"uploads": (name, body)},
+            data={"aid": card["asset_id"]},
+            follow_redirects=False,
+        )
+    texts = {f["filename"]: f["id"] for f in client.get("/api/files").json()}
     with SessionLocal() as db:
         owner = store.find(db, "owner")
         store.make_token(db, owner, "tool server")
@@ -289,6 +308,8 @@ def a_page_of_everything(client, computer, part):
         "/projects/new",
         "/files",
         f"/files/{fid}",
+        f"/files/{texts['README.md']}/view/README.md",
+        f"/files/{texts['README.TXT']}/view/README.TXT",
         "/stats",
         # Before GoAccess has written a report: the site's own page, saying so.
         "/traffic",

@@ -26,6 +26,7 @@ dependencies = [
     "httpx==0.28.1",
     "Pillow==12.3.0",
     "argon2-cffi==25.1.0",
+    "markdown-it-py==4.2.0",
 ]
 
 # Test and lint tooling, kept out of the runtime image: `uv sync --no-dev` in the

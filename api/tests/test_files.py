@@ -21,6 +21,7 @@ import pytest
 from app import filekinds
 from app.models import StoredFile
 from conftest import log_out, sign_in
+from test_stylesheet_lint import COMPONENTS, declarations
 
 
 def upload(client, name, body=b"driver bytes", note="", **extra):
@@ -529,6 +530,9 @@ class TestWhatKindOfFileItIs:
         [
             ("manual.pdf", "document"),
             ("readme.txt", "document"),
+            ("README.md", "document"),
+            ("READ.ME", "document"),
+            ("README.1ST", "document"),
             ("drivers.zip", "archive"),
             ("board.jpg", "picture"),
             ("bios.rom", "rom"),
@@ -778,6 +782,266 @@ class TestReadingAPdf:
         assert client.get(view).headers["cache-control"] == "private, no-store"
         publish(client, fid)
         assert client.get(view).headers["cache-control"] == "public, max-age=3600"
+
+
+README = b"""# Polpo PicoGUS
+
+Set the *port* with the jumper. See [Installing](#installing) below.
+
+## Installing
+
+| Setting | Port | IRQ |
+|:--------|:----:|----:|
+| GUS     | 240  | 5   |
+
+```
+pgusinit /p240
+```
+
+> Keep the card in a 16-bit slot.
+
+---
+
+- one
+- two
+"""
+
+
+def viewed(client, part, name, body, **extra):
+    """Upload a file to a card and open its View link: (its id, the response)."""
+    upload(client, name, body=body, aid=card(part), **extra)
+    fid = newest(client)
+    return fid, client.get(f"/files/{fid}/view/{name}", follow_redirects=False)
+
+
+def read(response):
+    """What a view page shows of the file: the inside of <main>."""
+    assert response.status_code == 200, response.status_code
+    return main_of(response.text)
+
+
+class TestReadingATextFile:
+    """Section 11, "Reading a text file": a Markdown or plain text file is read as a
+    page of the register, in the site's own look, and nothing in it runs or is
+    fetched (ADR-0035)."""
+
+    def test_a_markdown_file_is_a_page_of_the_register(self, client, part):
+        """Under the banner, in the site's stylesheet, rather than handed to the
+        browser as a file."""
+        _, r = viewed(client, part, "README.md", README)
+        assert r.headers["content-type"].startswith("text/html")
+        assert "content-disposition" not in r.headers
+        assert 'class="site-header"' in r.text and "/static/css/components.css" in r.text
+        assert '<article class="doc">' in read(r)
+
+    def test_under_the_site_s_own_content_policy(self, client, part):
+        """The page is the site's, so it is sent the site's policy and not the
+        PDF's: a text file is never a document of its own."""
+        _, r = viewed(client, part, "README.md", README)
+        assert r.status_code == 200
+        assert (
+            r.headers["content-security-policy"]
+            == client.get("/").headers["content-security-policy"]
+        )
+
+    def test_its_headings_lists_tables_quotes_code_and_rules_are_set_as_the_site_sets_them(
+        self, client, part
+    ):
+        page = read(viewed(client, part, "README.md", README)[1])
+        for made in ("<em>port</em>", "<ul>", "<li>one</li>", "<blockquote>", "<hr />"):
+            assert made in page, made
+        assert "<pre><code>pgusinit /p240" in page
+        assert re.search(
+            r'<div class="doctable"><table class="table">.*</table>\s*</div>', page, re.S
+        )
+
+    def test_the_file_s_name_heads_the_page_and_its_own_headings_sit_under_it(self, client, part):
+        """One heading for the page, which is the file; the file's sections are in it."""
+        page = read(viewed(client, part, "README.md", README)[1])
+        assert re.findall(r"<h1\b[^>]*>(.*?)</h1>", page) == ["README.md"]
+        assert re.search(r'<h2 id="doc-polpo-picogus">Polpo PicoGUS</h2>', page)
+        assert re.search(r'<h3 id="doc-installing">Installing</h3>', page)
+
+    def test_a_link_to_a_heading_further_down_goes_there(self, client, part):
+        page = read(viewed(client, part, "README.md", README)[1])
+        assert '<a href="#doc-installing">Installing</a>' in page
+
+    def test_a_table_says_which_way_it_runs_and_aligns_without_a_style(self, client, part):
+        """Every `<th>` the register draws carries scope (accessibility-standards),
+        and the content policy refuses a style attribute (ADR-0022), which is how
+        the parser would have aligned a column."""
+        page = read(viewed(client, part, "README.md", README)[1])
+        assert re.findall(r"<th\b[^>]*>", page) == [
+            '<th scope="col">',
+            '<th scope="col" class="al-center">',
+            '<th scope="col" class="al-right">',
+        ]
+        assert "style=" not in page
+
+    def test_view_comes_before_download_on_its_page_and_on_its_row(self, client, part):
+        fid = viewed(client, part, "README.md", README)[0]
+        page = client.get(f"/files/{fid}").text
+        view = page.index(f'href="/files/{fid}/view/README.md">View</a>')
+        assert view < page.index(f'href="/files/{fid}/README.md">Download</a>')
+        rows = client.get("/files").text
+        assert f'href="/files/{fid}/view/README.md" aria-label="View README.md"' in rows
+
+    def test_the_page_offers_the_download_and_the_file_s_own_page(self, client, part):
+        fid, r = viewed(client, part, "README.md", README)
+        page = read(r)
+        assert f'href="/files/{fid}/README.md">Download</a>' in page
+        assert re.search(rf'<nav class="itemnav"[^>]*><a href="/files/{fid}">', page)
+
+    def test_a_plain_text_file_is_shown_as_it_was_typed(self, client, part):
+        """Line for line and space for space, in the fixed-width face, in a box that
+        scrolls rather than wraps: a table of jumpers is laid out by its spaces."""
+        typed = "JP1   JP2   Port\n 1-2   off  220h\n 2-3   on   240h\n"
+        page = read(viewed(client, part, "readme.txt", typed.encode())[1])
+        shown = re.search(r'<pre class="textfile"[^>]*>(.*?)</pre>', page, re.S)
+        assert shown and shown[1] == typed
+        assert "<article" not in page
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "notes.txt",
+            "release.nfo",
+            "file_id.diz",
+            "READ.ME",
+            "README.1ST",
+            "AUTOEXEC.BAT",
+            "SYSTEM.INI",
+            "setup.cfg",
+            "CONFIG.SYS",
+            "notes.markdown",
+        ],
+    )
+    def test_these_are_read_as_text(self, client, part, name):
+        fid = viewed(client, part, name, b"DEVICE=C:\\DOS\\HIMEM.SYS\n")[0]
+        assert f"/files/{fid}/view/" in client.get(f"/files/{fid}").text
+
+    def test_a_driver_ending_sys_is_not(self, client, part):
+        """CONFIG.SYS is text by its whole name; HIMEM.SYS is a driver."""
+        fid = viewed(client, part, "HIMEM.SYS", b"MZ\x90\x00\x03")[0]
+        assert "/view/" not in client.get(f"/files/{fid}").text
+
+    def test_addresses_in_a_plain_text_file_can_be_followed(self, client, part):
+        page = read(viewed(client, part, "readme.txt", b"Updates: www.vogons.org\n")[1])
+        assert '<a class="url" href="http://www.vogons.org" target="_blank"' in page
+
+    def test_a_file_that_is_not_utf8_is_read_as_dos_text(self, client, part):
+        """Code page 437: the box drawing and the accents of a readme off a driver
+        disk come out as they did on its screen."""
+        page = read(viewed(client, part, "readme.txt", b"\xc9\xcd\xbb Caf\x82\n")[1])
+        assert "╔═╗ Café" in page
+
+    def test_a_file_that_draws_boxes_is_set_in_a_face_that_has_them(self, client, part):
+        """The register's fixed-width face has no box drawing, so a box drawn in it
+        would take its lines from whatever face the browser finds and its letters
+        from this one -- Consolas is narrower, and the corners miss."""
+        boxed = read(viewed(client, part, "readme.txt", b"\xc9\xcd\xbb\n\xba \xba\n")[1])
+        assert '<pre class="textfile drawn"' in boxed
+        plain = read(viewed(client, part, "plain.txt", b"Jumper JP1: 1-2\n")[1])
+        assert '<pre class="textfile"' in plain
+        drawn = [
+            body
+            for selector, prop, body in declarations(COMPONENTS)
+            if prop == "font-family" and ".textfile.drawn" in selector
+        ]
+        assert drawn and "--font-data" not in drawn[0] and "Plex" not in drawn[0]
+
+    def test_and_so_is_a_block_of_code_in_markdown_that_draws_them(self, client, part):
+        tree = "```\ndrivers\n├── dos\n└── win31\n```\n\n```\nplain\n```\n".encode()
+        page = read(viewed(client, part, "README.md", tree)[1])
+        assert '<code class="drawn">drivers' in page
+        assert "<code>plain" in page
+
+    def test_utf8_is_read_as_utf8_and_its_mark_is_dropped(self, client, part):
+        page = read(viewed(client, part, "readme.txt", "\ufeff£25 ╔═╗\n".encode())[1])
+        assert ">£25 ╔═╗\n</pre>" in page
+
+    def test_the_end_of_file_mark_and_other_controls_are_not_shown(self, client, part):
+        page = read(viewed(client, part, "readme.txt", b"one\r\ntwo\x0c\r\n\x1a")[1])
+        assert ">one\ntwo\n</pre>" in page
+
+    def test_html_in_markdown_is_shown_and_not_obeyed(self, client, part):
+        written = b'<script>alert(1)</script>\n\nA <b onclick="x()">word</b>.\n'
+        page = read(viewed(client, part, "README.md", written)[1])
+        assert "<script>alert" not in page and "<b " not in page
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in page
+        assert "&lt;b onclick=&quot;x()&quot;&gt;word&lt;/b&gt;" in page
+
+    def test_nor_is_html_in_a_plain_text_file(self, client, part):
+        page = read(viewed(client, part, "readme.txt", b"<script>alert(1)</script>")[1])
+        assert "<script>alert" not in page and "&lt;script&gt;" in page
+
+    def test_a_picture_is_shown_as_its_description(self, client, part):
+        """Nothing is fetched from anywhere else, and a picture in the file's folder
+        is not in the register."""
+        written = b"![The *card* from above](https://example.com/card.jpg)\n"
+        page = read(viewed(client, part, "README.md", written)[1])
+        assert "<img" not in page and "example.com" not in page
+        assert "<p>The card from above</p>" in page
+
+    def test_a_link_to_a_file_beside_it_is_shown_as_its_words(self, client, part):
+        written = b"Read [the setup notes](SETUP.md) first.\n"
+        page = read(viewed(client, part, "README.md", written)[1])
+        assert "SETUP.md" not in page and "<p>Read the setup notes first.</p>" in page
+
+    def test_a_link_to_another_site_opens_in_a_new_tab(self, client, part):
+        written = b"Ask on [VOGONS](https://www.vogons.org/) or <mailto:me@example.com>.\n"
+        page = read(viewed(client, part, "README.md", written)[1])
+        assert (
+            '<a href="https://www.vogons.org/" target="_blank" rel="noopener noreferrer">'
+            "VOGONS</a>" in page
+        )
+        assert '<a href="mailto:me@example.com">' in page
+
+    def test_a_link_that_would_run_script_is_not_a_link(self, client, part):
+        written = b"[a](javascript:alert(1)) [b](data:text/html,x) [c](vbscript:x)\n"
+        page = read(viewed(client, part, "README.md", written)[1])
+        assert not re.search(r'href="(?:javascript|data|vbscript):', page)
+
+    def test_a_heading_cannot_take_an_id_the_page_already_has(self, client, part):
+        """A README with a section called Main: the skip link lands on `main`."""
+        page = read(viewed(client, part, "README.md", b"# Main\n\n# Main\n")[1])
+        assert 'id="doc-main"' in page and 'id="doc-main-1"' in page
+        assert page.count('id="main"') == 1
+
+    def test_a_file_over_1_mib_is_downloaded_rather_than_shown(self, client, part):
+        big = b"x" * (filekinds.TEXT_LIMIT + 1)
+        fid, r = viewed(client, part, "readme.txt", big)
+        assert "/view/" not in client.get(f"/files/{fid}").text
+        assert r.status_code == 303 and r.headers["location"] == f"/files/{fid}/readme.txt"
+
+    def test_but_1_mib_itself_is_shown(self, client, part):
+        _, r = viewed(client, part, "readme.txt", b"x" * filekinds.TEXT_LIMIT)
+        assert r.status_code == 200
+
+    def test_a_file_named_as_text_that_is_not_is_downloaded_instead(self, client, part):
+        """The zero bytes a program has: a name is what the uploader chose."""
+        fid, r = viewed(client, part, "notes.txt", b"MZ\x90\x00\x03\x00\x00\x00")
+        assert r.status_code == 303
+        assert r.headers["location"] == f"/files/{fid}/notes.txt"
+
+    def test_a_visitor_is_told_an_unpublished_text_file_is_not_there(self, client, part):
+        fid = viewed(client, part, "receipt.txt", b"Paid 40 pounds")[0]
+        visitor(client)
+        r = client.get(f"/files/{fid}/view/receipt.txt", follow_redirects=False)
+        assert r.status_code == 404 and "Paid 40" not in r.text
+
+    def test_a_visitor_reads_a_published_one(self, client, part):
+        fid = viewed(client, part, "README.md", README)[0]
+        publish(client, fid)
+        visitor(client)
+        assert "Polpo PicoGUS" in read(client.get(f"/files/{fid}/view/README.md"))
+
+    def test_an_unpublished_one_is_not_kept(self, client, part):
+        """As its download is not. A published one is a page like any other."""
+        fid, r = viewed(client, part, "README.md", README)
+        assert r.headers["cache-control"] == "private, no-store"
+        publish(client, fid)
+        assert client.get(f"/files/{fid}/view/README.md").headers["cache-control"] == "no-cache"
 
 
 class TestNewFilesArePublic:

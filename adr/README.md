@@ -90,7 +90,8 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0009](0009-a-file-is-published-by-hand.md)'s default)
 - [0030](0030-a-pdf-is-read-in-the-browser.md) — A PDF is read in the browser, and
   everything else is still a download — *Accepted* (amends
-  [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md))
+  [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md);
+  amended by [0035](0035-a-text-file-is-read-as-a-page-of-the-register.md))
 - [0031](0031-the-look-is-a-design-system-and-its-values-are-data.md) — The look is
   a design system, and its values are data — *Accepted*
 - [0032](0032-accounts-roles-and-a-site-to-hold-them.md) — Accounts, roles, and a
@@ -102,3 +103,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0034](0034-a-location-is-a-record-in-the-register.md) — A location is a record
   in the register — *Accepted* (supersedes
   [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md))
+- [0035](0035-a-text-file-is-read-as-a-page-of-the-register.md) — A text file is
+  read as a page of the register — *Accepted* (amends
+  [0030](0030-a-pdf-is-read-in-the-browser.md))

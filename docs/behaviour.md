@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2542 behaviours, from 75 files.*
+*2572 behaviours, from 75 files.*
 
 
 ## A file where text was expected
@@ -1884,7 +1884,7 @@ Regenerate with:
 
 ## Files
 
-*test_files.py — 84 behaviours*
+*test_files.py — 114 behaviours*
 
 
 **Linking one**
@@ -1981,6 +1981,51 @@ Regenerate with:
 - nor is a real pdf under another name
 - a visitor is told an unpublished pdf is not there
 - it is kept as its download is
+
+**Reading A text file**
+
+- a markdown file is a page of the register  
+  Under the banner, in the site's stylesheet, rather than handed to the browser as a file.
+- under the site s own content policy  
+  The page is the site's, so it is sent the site's policy and not the PDF's: a text file is never a document of its own.
+- its headings lists tables quotes code and rules are set as the site sets them
+- the file s name heads the page and its own headings sit under it  
+  One heading for the page, which is the file; the file's sections are in it.
+- a link to a heading further down goes there
+- a table says which way it runs and aligns without a style  
+  Every `<th>` the register draws carries scope (accessibility-standards), and the content policy refuses a style attribute (ADR-0022), which is how the parser would have aligned a column.
+- view comes before download on its page and on its row
+- the page offers the download and the file s own page
+- a plain text file is shown as it was typed  
+  Line for line and space for space, in the fixed-width face, in a box that scrolls rather than wraps: a table of jumpers is laid out by its spaces.
+- these are read as text
+- a driver ending sys is not  
+  CONFIG.SYS is text by its whole name; HIMEM.SYS is a driver.
+- addresses in a plain text file can be followed
+- a file that is not utf8 is read as dos text  
+  Code page 437: the box drawing and the accents of a readme off a driver disk come out as they did on its screen.
+- a file that draws boxes is set in a face that has them  
+  The register's fixed-width face has no box drawing, so a box drawn in it would take its lines from whatever face the browser finds and its letters from this one -- Consolas is narrower, and the corners miss.
+- and so is a block of code in markdown that draws them
+- utf8 is read as utf8 and its mark is dropped
+- the end of file mark and other controls are not shown
+- html in markdown is shown and not obeyed
+- nor is html in a plain text file
+- a picture is shown as its description  
+  Nothing is fetched from anywhere else, and a picture in the file's folder is not in the register.
+- a link to a file beside it is shown as its words
+- a link to another site opens in a new tab
+- a link that would run script is not a link
+- a heading cannot take an id the page already has  
+  A README with a section called Main: the skip link lands on `main`.
+- a file over 1 mib is downloaded rather than shown
+- but 1 mib itself is shown
+- a file named as text that is not is downloaded instead  
+  The zero bytes a program has: a name is what the uploader chose.
+- a visitor is told an unpublished text file is not there
+- a visitor reads a published one
+- an unpublished one is not kept  
+  As its download is not.
 
 **New files are public**
 

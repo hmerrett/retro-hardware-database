@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import filekinds, filesdb
+from .. import filekinds, filesdb, textfiles
 from ..common import to_dict
 from ..db import get_db
 from ..forms import posted
@@ -130,20 +130,27 @@ PDF_POLICY = "; ".join(
 @router.get("/files/{fid}/view/{name}", include_in_schema=False, response_model=None)
 def view_file(
     fid: int, name: str, request: Request, db: Session = Depends(get_db)
-) -> FileResponse | RedirectResponse:
-    """Show a PDF in the browser rather than hand it over to be saved.
+) -> FileResponse | RedirectResponse | HTMLResponse:
+    """Show a file in the browser rather than hand it over to be saved: a PDF in the
+    browser's own viewer, and a text file as a page of the register.
 
-    Only a file that is a PDF by its name and by its bytes, and served as one by
-    the server's say-so -- the type is never the upload's, and `nosniff` stops the
-    browser second-guessing it. Anything else is sent to its download, so a page
-    called invoice.pdf is saved rather than shown whatever is in it. Who may see
-    it, and how long it may be kept, are the download's rules exactly."""
+    A PDF only if it is one by its name and by its bytes, and served as one by the
+    server's say-so -- the type is never the upload's, and `nosniff` stops the
+    browser second-guessing it (ADR-0030). A text file only if it is named as one
+    and is text by its bytes, and then never as itself: what it says is put into a
+    page, which is the site's page under the site's policy (ADR-0035). Anything else
+    is sent to its download, so a page called invoice.pdf or notes.txt is saved
+    rather than shown whatever is in it. Who may see it, and how long it may be
+    kept, are the download's rules exactly."""
     row = _seen_or_404(db, fid, request)
     path = filesdb.path_of(row)
     if not path.is_file():
         raise HTTPException(404)
     if not filesdb.is_pdf(row):
-        return RedirectResponse(f"/files/{row.id}/{quote(row.filename)}", status_code=303)
+        text = filesdb.text_of(row)
+        if text is None:
+            return RedirectResponse(f"/files/{row.id}/{quote(row.filename)}", status_code=303)
+        return _text_page(request, row, text)
     return FileResponse(
         path,
         media_type="application/pdf",
@@ -154,6 +161,29 @@ def view_file(
             "Content-Security-Policy": PDF_POLICY,
         },
     )
+
+
+def _text_page(request: Request, row: StoredFile, text: str) -> HTMLResponse:
+    """A text file as a page of the register. Markdown is set as markup the renderer
+    wrote (textfiles.markdown); anything else goes to the template as a string, so it
+    is escaped there and shown as typed. An unpublished file is the owner's alone,
+    and is not kept by anything that sees it, as its download is not."""
+    markdown = filekinds.reading(row.filename) == "markdown"
+    response = templates.TemplateResponse(
+        request,
+        "file_view.html",
+        {
+            "f": row,
+            "what": filekinds.of(row.filename, row.size),
+            "doc": textfiles.markdown(text) if markdown else None,
+            "text": None if markdown else text,
+            "drawn": not markdown and textfiles.drawn(text),
+            "og": _og(request, row.filename, row.note or "A file kept with the hardware it is for"),
+        },
+    )
+    if not row.public:
+        response.headers["Cache-Control"] = "private, no-store"
+    return response
 
 
 @router.post("/files", include_in_schema=False)

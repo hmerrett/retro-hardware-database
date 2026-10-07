@@ -64,7 +64,7 @@ for _drawing, _names in (
     ("cd", "iso cue ccd mdf mds nrg cdi gdi chd toast"),
     ("tape", "tap tzx tsx cas uef cdt t64 csw"),
     ("rom", "rom hex jed srec s19 ihx"),
-    ("document", "pdf djvu djv txt doc docx rtf odt wri htm html md nfo diz ps"),
+    ("document", "pdf djvu djv txt doc docx rtf odt wri htm html md markdown nfo diz me 1st ps"),
     ("picture", "jpg jpeg png gif tif tiff bmp pcx iff lbm heic webp svg"),
     ("archive", "zip 7z rar lha lzh arj arc zoo tar gz tgz bz2 xz sit sea hqx cab cpt lzx dms"),
     ("program", "exe com bat cmd sys prg bas app sh"),
@@ -72,6 +72,20 @@ for _drawing, _names in (
 ):
     for _name in _names.split():
         _EXTENSIONS[_name] = _drawing
+
+# The files read as a page of the register rather than saved (ADR-0035), by the end
+# of their names. Markdown is set as the site's own markup; the rest are shown as
+# they were typed. READ.ME and README.1ST are how a DOS disk said "read this first",
+# and the .bat, .ini and .cfg files are where a machine's setup is kept.
+MARKDOWN = frozenset({"md", "markdown"})
+PLAIN = frozenset({"txt", "nfo", "diz", "me", "1st", "bat", "ini", "cfg"})
+# And by the whole name, where the end of it says nothing: most files ending .sys are
+# drivers, and CONFIG.SYS is the one that is a page of text.
+PLAIN_NAMES = frozenset({"config.sys"})
+# The largest text file shown as a page. A readme is a few KiB; a megabyte of text is
+# a book, and work for the server on a route a visitor may ask for as often as they
+# like. Over it, a text file is a download like anything else.
+TEXT_LIMIT = 1024 * 1024
 
 # A raw image of a PC floppy, under any of the names one goes by. What it is is
 # decided by how big it is.
@@ -124,8 +138,8 @@ class What(NamedTuple):
     """What a file is, for drawing it: the picture, the list it is found under, its
     size as it would be said, the extension to print under the picture, what to
     call it in a sentence, and whether the page offers to show it rather than save
-    it -- which only its name decides here, and its bytes decide when it is asked
-    for (filesdb.is_pdf, ADR-0030)."""
+    it -- which its name and its size decide here, and its bytes decide when it is
+    asked for (filesdb.is_pdf, filesdb.text_of; ADR-0030, ADR-0035)."""
 
     drawing: str
     group: str
@@ -152,6 +166,19 @@ def extension(filename: str | None) -> str:
     return PurePosixPath(filename or "").suffix.lower().lstrip(".")
 
 
+def reading(filename: str | None) -> str:
+    """How a file is shown when it is viewed, by its name alone: "pdf", "markdown",
+    "text", or "" for a file that is only ever downloaded."""
+    ext = extension(filename)
+    if ext == "pdf":
+        return "pdf"
+    if ext in MARKDOWN:
+        return "markdown"
+    if ext in PLAIN or PurePosixPath(filename or "").name.lower() in PLAIN_NAMES:
+        return "text"
+    return ""
+
+
 def of(filename: str | None, size: int | None) -> What:
     """What this file is, from its name and how big it is."""
     ext = extension(filename)
@@ -168,4 +195,6 @@ def of(filename: str | None, size: int | None) -> What:
         drawing = "rom" if n < _LARGEST_ROM else "cd"
     else:
         drawing = _EXTENSIONS.get(ext, "other")
-    return What(drawing, DRAWINGS[drawing], said, ext, NOUNS[drawing], ext == "pdf")
+    shown = reading(filename)
+    viewable = shown == "pdf" or (bool(shown) and n <= TEXT_LIMIT)
+    return What(drawing, DRAWINGS[drawing], said, ext, NOUNS[drawing], viewable)

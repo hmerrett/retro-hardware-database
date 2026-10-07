@@ -178,6 +178,7 @@ READING = {
     "part.html",
     "project.html",
     "file.html",
+    "file_view.html",  # a text file read as a page: prose, at the measure (ADR-0035)
     "location.html",
     "locations.html",
     # The audit is used on a phone and read at a glance, and its report is a page

@@ -39,7 +39,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
-from . import entry, filekinds, machines, settings
+from . import entry, filekinds, machines, settings, textfiles
 from .entry import MIB
 from .models import AssetVariant, Computer, FileAsset, Part, Project, StoredFile
 
@@ -459,6 +459,24 @@ def is_pdf(stored: StoredFile) -> bool:
     except OSError:
         return False
     return b"%PDF-" in head
+
+
+def text_of(stored: StoredFile) -> str | None:
+    """What a text file says, if it may be read as a page: named as Markdown or as
+    plain text, no bigger than filekinds.TEXT_LIMIT on disk, and text by its own
+    bytes (textfiles.decode). None for anything else, which is downloaded instead --
+    a file called notes.txt that is a program is not shown, whatever it is called
+    (ADR-0035)."""
+    if filekinds.reading(stored.filename) not in ("markdown", "text"):
+        return None
+    try:
+        with path_of(stored).open("rb") as fh:
+            data = fh.read(filekinds.TEXT_LIMIT + 1)
+    except OSError:
+        return None
+    if len(data) > filekinds.TEXT_LIMIT:
+        return None
+    return textfiles.decode(data)
 
 
 def remove(db: Session, stored: StoredFile) -> None:
