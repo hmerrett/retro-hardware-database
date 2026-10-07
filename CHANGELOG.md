@@ -22,6 +22,12 @@ site sets its own, and a plain text file exactly as it was typed, its DOS box
 drawing and accents included. Nothing in a file runs or is fetched: HTML in it is
 shown as text, and a picture as its description. See [Reading a text
 file](MANUAL.md#reading-a-text-file).
+**Scan is in the side rail.** With the rail showing, **Scan** sits under the
+sections, as it sits among the buttons in a phone's bar, and the banner beside the
+rail holds the search box alone. A tablet, a narrower window and the *Top* layout
+keep it beside the search box. It now appears only where the browser lists a
+camera, so a desktop with none is no longer offered a button that could only say
+so. See [Scanning a label](MANUAL.md#scanning-a-label).
 
 **Locations are records, with labels you can scan.** Where a thing is kept is now a
 location -- a building, a room, a rack, a shelf, a box, a bag -- with an asset tag

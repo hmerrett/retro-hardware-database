@@ -297,6 +297,32 @@ class TestWhereYouAre:
         assert marked(client.get("/for-sale").text, **where) == ["/for-sale"]
 
 
+APP_JS = CSS.parent / "app.js"
+
+
+def the_scan_script() -> str:
+    """The block of app.js that sets the Scan buttons up."""
+    js = APP_JS.read_text(encoding="utf-8")
+    start = js.index("// The scan button.")
+    return js[start : js.index("})();", start)]
+
+
+class TestScanIsOfferedOnlyWhereThereIsACamera:
+    """MANUAL, "The header": the Scan button appears only where there is a camera to
+    use, so a computer with none is not offered it. No browser runs in the suite,
+    so this is read off the script, as the reduced-motion promise is."""
+
+    def test_the_browser_is_asked_for_a_camera_and_not_only_for_the_means_to_open_one(self):
+        """getUserMedia is there in every desktop browser on an https page, camera or
+        not, so asking only for that offered Scan to a desk with no camera at all, and
+        pressing it opened a box that could only say so."""
+        js = the_scan_script()
+        assert "enumerateDevices" in js and "'videoinput'" in js
+
+    def test_and_asked_again_when_one_is_plugged_in_or_taken_away(self):
+        assert "devicechange" in the_scan_script()
+
+
 class TestHowItFoldsWithTheWidth:
     def test_on_a_tablet_the_sections_leave_the_banner(self):
         """At 1000px rather than 900: a sixth section is about 80px more banner, and
@@ -350,6 +376,39 @@ class TestHowItFoldsWithTheWidth:
                     side = hiding if display[1].strip() == "none" else showing
                     side.append((specificity(sel), sel))
         assert hiding, "app.css no longer hides the banner's Scan on a phone"
+        assert showing, "nothing in app.css shows a .btn: the hiding rule can go"
+        assert max(hiding)[0] > max(showing)[0], (max(hiding), max(showing))
+
+    def test_beside_the_rail_the_banner_puts_its_scan_away(self):
+        """Scan is in the rail there, under the sections (MANUAL, "Where the sections
+        sit"), and nothing is in both."""
+        wide = media("(min-width: 1100px)", stylesheet())
+        assert "display: none" in rule(".shell.side .site-header .hdr-scan", wide)
+
+    def test_and_nothing_older_puts_it_back_beside_the_rail_either(self):
+        """The phone's fault again, at the other end: app.css's `.btn` outranks the
+        layer whatever the specificity, so beside the rail app.css has to put Scan
+        away itself, and more specifically than everything it says that could show
+        it -- or the rail and the banner would both offer it."""
+        if not LEGACY.exists():
+            return
+        css = re.sub(r"/\*.*?\*/", "", LEGACY.read_text(encoding="utf-8"), flags=re.S)
+
+        def displays(sheet):
+            for head, body in re.findall(r"([^{}@;]+)\{([^{}]*)\}", sheet):
+                display = re.search(r"(?:^|;)\s*display\s*:\s*([^;!]+)", body)
+                if display:
+                    for sel in (s.strip() for s in head.split(",")):
+                        if could_be_the_banners_scan(sel):
+                            yield display[1].strip(), specificity(sel), sel
+
+        hiding = [
+            (spec, sel)
+            for shown, spec, sel in displays(media("(min-width: 1100px)", css))
+            if shown == "none" and ".shell.side" in sel
+        ]
+        showing = [(spec, sel) for shown, spec, sel in displays(css) if shown != "none"]
+        assert hiding, "app.css does not put the banner's Scan away beside the rail"
         assert showing, "nothing in app.css shows a .btn: the hiding rule can go"
         assert max(hiding)[0] > max(showing)[0], (max(hiding), max(showing))
 

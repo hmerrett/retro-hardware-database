@@ -195,7 +195,8 @@ the edges of the wide pages (see [On a wide screen](#on-a-wide-screen)).
   kept ([every location](#every-location)). A visitor is offered it only while
   [**Show locations**](#where-things-are-kept) is on.
 - **Search anything…** and **Scan** — see [Finding things](#3-searching).
-  The Scan button appears only where there is a camera to use.
+  The Scan button appears only where there is a camera to use, so a computer
+  with none is not offered it. Beside the side rail, Scan is in the rail.
 - **+ New** — offers Computer, Part, Project or Location. Logged in only.
 - **☰** — the theme, **Audit**, **Might sell**, **Traffic**, **Settings**, **Account** and
   **Log out**, each where your account reaches it, and (in the installed app, where
@@ -266,11 +267,11 @@ seventy characters: a summary, a model's paragraph, the sentence on **Numbers**,
 line of help under a box, the words of a notice. A box you type into is never wider
 than that either, so a summary is written at the width it will be read at.
 
-The search box and **Scan** stand on the edges of the wide pages, on every page, so
-they stay where they were whichever page you go to. A list or a form lines up
-beneath them, and a page you read sits in the middle between them. On a screen
-narrower than a page's width the difference goes: every page is as wide as the
-window, less a margin either side.
+The banner's two ends stand on the edges of the wide pages, on every page, so what
+is in it stays where it was whichever page you go to: beside the side rail, that is
+the search box, on the left. A list or a form lines up beneath them, and a page you
+read sits in the middle between them. On a screen narrower than a page's width the
+difference goes: every page is as wide as the window, less a margin either side.
 
 ### Using it from the keyboard
 
@@ -487,10 +488,12 @@ all-must-match.
 
 ### Scanning a label
 
-Beside the search box, on a device with a camera, is a **scan** button. It reads
-the QR code or the Code 128 barcode on a printed label and opens that item or
-location. Labels printed against an older URL still work, because only the asset
-tag is taken from the code.
+On a device with a camera there is a **Scan** button: beside the search box, in
+the side rail under the sections, or in the bar across the foot of a phone's
+screen. A computer with no camera is not offered one. It reads the QR code or the
+Code 128 barcode on a printed label and opens that item or location. Labels
+printed against an older URL still work, because only the asset tag is taken from
+the code.
 
 A handheld barcode scanner needs no button: scan a label into the search box and
 it opens, as above. For putting things away and checking shelves, use [the
@@ -3296,7 +3299,8 @@ spends only margin: a page you read has its whole 1000px beside it from a 1216px
 window, and a list or a form its whole 1440px from 1656px. In a narrower window the
 page gives the rail the room it needs rather than sliding under it. The
 rail carries the name and mark, then the sections, each with the number of things
-in it beside its name — for **Locations**, the number of locations. For an
+in it beside its name — for **Locations**, the number of locations — and **Scan**
+under them, where there is a camera to use. For an
 administrator it also carries everything **+ New** offers — **Computer**, **Part**,
 **Project** and **Location** — as one press each, and **Recent**: the last three
 things you edited, tag first, which is the rail's best argument at a bench where
@@ -3312,10 +3316,12 @@ The rail wears the look like the rest of the page. Whichever preset is chosen, i
 light and in dark, it stands on one of that look's own colours, with a rule between
 it and the page.
 
-The banner above the page keeps the search box and **Scan** in both layouts, so
-the two things wanted from every page are in the same place whichever is chosen.
-With the rail showing, the banner holds those two and nothing else: the sections,
-the **+ New** menu and the ⋯ menu are in the rail, and nothing is in both.
+With the rail showing, the banner above the page holds the search box and nothing
+else: the sections, **Scan**, the **+ New** menu and the ⋯ menu are in the rail,
+and nothing is in both. Scan sits with the places for the reason it sits with
+**Browse**, **Find** and **More** in a phone's bar: it is somewhere you go, and the
+rail is that bar laid down the side. Where there is no rail — *Top*, or a window
+narrower than 1100px — Scan stays in the banner beside the search box.
 
 **Collapse** narrows the rail to a strip of icons, each still carrying its name
 for a screen reader and in a tooltip. The choice is the browser's rather than the
