@@ -51,6 +51,10 @@ The theme is **defence in depth**: several cheap layers, none relied on alone.
   one exception is a PDF, which may be shown inline (ADR-0030): named `.pdf`,
   beginning `%PDF-`, served as `application/pdf` by the server's say-so with
   `nosniff` and a policy of its own. Anything failing either check is a download.
+  A text file is not an exception, because it is never served at all (ADR-0035):
+  named as Markdown or plain text, with no zero byte and no more than 1 MiB, what it
+  says is escaped into a page of the register -- Markdown parsed with HTML off, its
+  links held to the schemes `entry.linked` allows and its pictures shown as words.
 - **A public endpoint that generates and keeps a file is keyed by content, not by
   what was typed.** The share-card montage (ADR-0017) hashes the photographs it is
   made of, so `/og/{name}` opens a file by hash rather than searching on a query a

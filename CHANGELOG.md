@@ -13,6 +13,15 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Read a README without saving it.** A Markdown file and a plain text file have a
+**View** button, as a PDF does: `.md`, `.txt`, `.nfo`, `.diz`, `READ.ME`,
+`README.1ST`, the `.bat`, `.ini` and `.cfg` files a machine is set up with, and
+`CONFIG.SYS`. It opens the file as a page of the register, in the look you have
+chosen, light or dark: Markdown's headings, lists, tables and code set the way the
+site sets its own, and a plain text file exactly as it was typed, its DOS box
+drawing and accents included. Nothing in a file runs or is fetched: HTML in it is
+shown as text, and a picture as its description. See [Reading a text
+file](MANUAL.md#reading-a-text-file).
 **Scan is in the side rail.** With the rail showing, **Scan** sits under the
 sections, as it sits among the buttons in a phone's bar, and the banner beside the
 rail holds the search box alone. A tablet, a narrower window and the *Top* layout

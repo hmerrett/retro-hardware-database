@@ -1452,13 +1452,17 @@ are picked, so what sits above the picker is asked first.
 and otherwise the same maker and the same model as written. Case and spacing make
 no difference, so `Trident TVGA8900` and `trident  tvga8900` are one model.
 
+Uploads are limited to 64 MiB each. The stored filename is generated, never taken
+from the upload; the name you uploaded is kept as data, and used for the download.
+
 ### A file's page
 
 Every file has a page of its own, which is where selecting it in any list takes
 you. It says what kind of file it is, how big, when it was added and what it is
-linked to, with a **Download** button — and, for a PDF, a **View** button before
-it, which opens the PDF in your browser to read rather than saving it. Everything you can do to a file is done
-there, and nowhere else:
+linked to, with a **Download** button — and, for a PDF or a text file, a **View**
+button before it, which opens the file in your browser to read rather than saving
+it ([Reading a PDF](#reading-a-pdf), [Reading a text file](#reading-a-text-file)).
+Everything you can do to a file is done there, and nowhere else:
 
 - **Note** — change it, and **Save**.
 - **Public** — the tick that publishes the file. It takes effect the moment you
@@ -1486,7 +1490,8 @@ link it, so a driver never lands on a card nobody has looked at.
 
 `/files` lists every file, newest first: its name, what it is linked to, its size
 and when it was added. Selecting a row opens the file's page; the button at the
-end of the row downloads the file, or, for a PDF, opens it in your browser. Five links to units of one model are shown as one —
+end of the row downloads the file, or, for a PDF or a text file, opens it in your
+browser. Five links to units of one model are shown as one —
 **5 × Polpo PicoGUS** — and the file's page lists all five.
 
 The row above the list narrows it, and **All** puts it back. **Documents**, **Disk
@@ -1534,7 +1539,7 @@ is chosen.
 
 Until it is ticked, a visitor is not shown the file on any item page, does not see
 it in the file list, and gets "not found" at its page, at its download link and,
-for a PDF, at the link that views it.
+for a PDF or a text file, at the link that views it.
 You see all of your files, ticked or not, whenever you are logged in, and the lists
 mark the ones that are private.
 
@@ -1569,8 +1574,50 @@ a file whose name ends `.pdf` and which really is a PDF is shown: one that is
 called a PDF and is something else is downloaded instead, whatever it is called.
 Some phones' browsers have no viewer of their own and save a PDF all the same.
 
-Uploads are limited to 64 MiB each. The stored filename is generated, never taken
-from the upload; the name you uploaded is kept as data, and used for the download.
+### Reading a text file
+
+A Markdown file and a plain text file have a **View** button too. It opens the
+file as a page of the register rather than in a viewer of the browser's own: under
+the banner, in the type and colours of the look you have chosen, light or dark,
+with **Download** at the top and the file's own page a link above it.
+
+- **Markdown** — a file ending `.md` or `.markdown`. Its headings, paragraphs,
+  lists, tables, quotes, code and rules are set the way the register sets its own
+  pages, and a link to a heading further down the file goes there.
+- **Plain text** — a file ending `.txt`, `.nfo`, `.diz`, `.me` (a `READ.ME`) or
+  `.1st` (a `README.1ST`); the `.bat`, `.ini` and `.cfg` files a machine's setup is
+  kept in; and `CONFIG.SYS`, by its whole name, since most files ending `.sys` are
+  drivers. It is shown in the register's fixed-width face exactly as it was typed,
+  line for line and space for space, because the layout of a readme off a driver
+  disk is often what it is saying: a table of jumper settings, a drawing of a DIP
+  switch. A line longer than the screen is wide scrolls sideways inside its box
+  rather than being wrapped. Web and email addresses in it can be followed, as in
+  a note.
+
+Either kind:
+
+- **Old files read right.** A file that is not UTF-8 is read as a DOS text file
+  (code page 437), which is what most readmes of the time were written in, so its
+  accented letters and box drawing come out as they did on the screen they were
+  written for.
+- **A box joins up.** A file that draws boxes or lines with box-drawing
+  characters, and a block of code in Markdown that does (a folder tree, say), is
+  set in your own computer's fixed-width face rather than the register's: the
+  register's has no box drawing, and a box drawn half in one face and half in
+  another does not meet at the corners.
+- **Nothing in it runs, and nothing is fetched.** HTML written into a Markdown file
+  is shown as the text it is, not obeyed. A picture it names is shown as its
+  description, because a page of the register loads nothing from anywhere else.
+  A link to another file in the folder it came from is shown as its words, since
+  that file is not here. Web and email links work, and one to another site opens
+  in a new tab, as a link in a note does.
+- **Only text is shown.** A file of up to 1 MiB is shown; a larger one has
+  **Download** alone. One that is named as text and turns out not to be — it has
+  the zero bytes a program or a disk image has — is downloaded instead, as a PDF
+  that is not a PDF is.
+
+Who may read one is the download's rule: a visitor gets "not found" at the **View**
+link of a file that is not published.
 
 ---
 

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_ui.html" as U with context %}
+{% block title %}{{ f.filename }} — {{ site_name() }}{% endblock %}
+{% block main_class %} v2{% endblock %}
+{% block content %}
+{# A text file read as a page of the register (ADR-0035): a page you read, so it
+   keeps the reading column, in the look the rest of the site is in.
+
+   The file's name is the page's heading, in the data face as it is on the file's own
+   page, and the file's sections are inside it -- which is why the Markdown's headings
+   arrive a level down (textfiles). What the file says is only ever words here:
+   `doc` is markup the renderer wrote with HTML switched off, and `text` is a string
+   the template escapes. Nothing in either is the file's own markup. #}
+{{ U.itemnav('/files/' ~ f.id, f.filename) }}
+<div class="docbar">
+  <h1 class="heading">{{ f.filename }}</h1>
+  <span class="muted">{{ what.size }}</span>
+  {{ U.button('Download', href='/files/' ~ f.id ~ '/' ~ (f.filename | urlencode)) }}
+</div>
+{% if doc is not none %}
+<article class="doc">{{ doc }}</article>
+{% else %}
+{#- As typed, line for line: the layout of a readme off a driver disk is often what
+    it says. A line wider than the screen scrolls inside the box, so the box is
+    reached by the Tab key and named for the file, as a scrolling region is. A file
+    that draws boxes is set in a face that has the characters to draw them. -#}
+<pre class="textfile{{ ' drawn' if drawn else '' }}" tabindex="0" role="region" aria-label="{{ f.filename }}">{{ text | linked }}</pre>
+{% endif %}
+{% endblock %}
