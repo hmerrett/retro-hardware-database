@@ -460,13 +460,15 @@
     html:has(#cookienote) .shell.side > .rail {
       padding-bottom: calc(var(--notice-clear) + var(--space-5));
       scroll-padding-bottom: var(--notice-clear); }
-    /* With the rail beside it the banner holds only what is one gesture away on every page:
-       search, leading, and Scan. Brand, sections, + New and the menu live in the rail. */
+    /* With the rail beside it the banner holds only the search, leading: the one thing
+       wanted from every page in the same place whichever layout is chosen. Brand,
+       sections, Scan, + New and the menu live in the rail. Scan stands with the places
+       there, as it does in the phone's bar, rather than alone at the banner's far end. */
     .shell.side .site-header nav, .shell.side .site-header .brand, .shell.side .site-header .grow,
+    .shell.side .site-header .hdr-scan,
     .shell.side .site-header .hdr-new, .shell.side .site-header .hdr-more { display: none; }
     .shell.side .site-header .searchwrap { flex: 0 1 520px; }
     .shell.side .site-header .search { width: 100%; }
-    .shell.side .site-header .hdr-scan { margin-left: auto; }
   }
   .rail .brand { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); font-weight: 600;
     color: var(--text); text-decoration: none; }
