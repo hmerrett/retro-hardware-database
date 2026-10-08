@@ -180,7 +180,7 @@ class TestNothingGoesInsideItself:
     def test_or_on_anything_mounted_on_it_however_far_down(self, client, rig):
         r = client.patch(f"/api/parts/{rig['card']}", json={"parent_id": rig["drive"]})
         assert r.status_code == 422
-        assert "inside itself" in r.text
+        assert "mounted on itself" in r.text
 
     def test_a_location_cannot_go_inside_one_inside_it(self, client, rig):
         r = client.patch(f"/api/locations/{rig['shelf']}", json={"parent": rig["box"]})

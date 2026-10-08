@@ -358,7 +358,7 @@ def undo(db: Session, check: StockCheck, scan_id: int, who: str) -> Said | None:
     try:
         tree.put(db, obj, back, tree.UNDO, who, r)
     except tree.Refused as err:
-        return Said("refused", "Not undone", str(err), opened, row.id)
+        return Said("refused", "Not undone", f"Not put back in {back}: {err}", opened, row.id)
     row.undone = True
     return Said(
         "ok",

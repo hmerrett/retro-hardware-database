@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2636 behaviours, from 76 files.*
+*2645 behaviours, from 76 files.*
 
 
 ## A file where text was expected
@@ -339,7 +339,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 555 behaviours*
+*test_api.py — 563 behaviours*
 
 
 **Typed columns**
@@ -459,6 +459,19 @@ Regenerate with:
   Deleting takes what is inside, so the API asks what the page asks: dispose of it first (ADR-0036).
 - deleting a disposed host part deletes what was mounted on it
 - deleting a disposed computer deletes its parts
+
+**A part is never mounted on itself**
+
+- the api refuses a part mounted on itself
+- or on anything mounted on it however far down
+- a part can still go further up its own stack
+- a save that leaves the mounting alone is not refused  
+  Only a change is checked, so a pair an older version let mount each on the other can still be saved, and taken apart, rather than being stuck.
+- mount refuses the card it is pressed on
+- mount refuses what the card is mounted on and the page says why
+- the menu beside mount leaves out what the card is on
+- an edit cannot mount a card on its own drive  
+  A part's form does not say what it is mounted on (ADR-0036), so a post naming a host -- a page left open while things were moved, or one made by hand -- saves the rest and moves nothing.
 
 **Installed ram**
 
@@ -4375,7 +4388,7 @@ Regenerate with:
 
 ## Storage mode
 
-*test_storage_mode.py — 57 behaviours*
+*test_storage_mode.py — 58 behaviours*
 
 
 **Scanning A location**
@@ -4424,6 +4437,8 @@ Regenerate with:
 - undo puts it back in its machine as well
 - undo is refused when its machine has since been deleted  
   There is nothing to put it back in, and saying so beats a server error (ADR-0036): the part stays where the scan put it.
+- undo is refused where it would mount a part on its own host  
+  Taken off its card by a scan, and the card mounted on it since: putting it back would mount each on the other (MANUAL §1, "Two tables"), so nothing moves and the panel says why.
 - scanned where its machine is it is found and stays fitted
 
 **What is refused**

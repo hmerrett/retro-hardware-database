@@ -15,7 +15,7 @@ from typing import ClassVar
 import pytest
 
 from app import main, schemas
-from app.models import Computer, Part
+from app.models import Computer, Part, Thing
 from conftest import content, log_out, served, sign_in
 
 
@@ -696,6 +696,90 @@ class TestLinks:
         client.patch(f"/api/computers/{cid}", json={"disposed": True})
         assert client.delete(f"/api/computers/{cid}").status_code == 200
         assert client.get(f"/api/parts/{aid}").status_code == 404
+
+
+class TestAPartIsNeverMountedOnItself:
+    """MANUAL §1, "Two tables": a part cannot be mounted on itself, or on anything
+    mounted on it however far down, and nothing that asks for one is obeyed."""
+
+    @pytest.fixture
+    def stack(self, part):
+        """A card with a drive on it and a part on the drive: three deep, so that
+        "however far down" has somewhere to go."""
+        card = part(type="io")["asset_id"]
+        drive = part(type="storage", parent_id=card)["asset_id"]
+        top = part(type="other", parent_id=drive)["asset_id"]
+        return card, drive, top
+
+    @staticmethod
+    def _mount_menu(page):
+        menu = re.search(r'<select name="part_id"[^>]*storage to mount.*?</select>', page, re.S)
+        return re.findall(r'<option value="(RH-[^"]+)"', menu.group(0)) if menu else []
+
+    def test_the_api_refuses_a_part_mounted_on_itself(self, client, part):
+        aid = part(type="io")["asset_id"]
+        r = client.patch(f"/api/parts/{aid}", json={"parent_id": aid})
+        assert r.status_code == 422
+        assert "cannot be mounted on itself" in r.json()["detail"]
+        assert client.get(f"/api/parts/{aid}").json()["parent_id"] is None
+
+    def test_or_on_anything_mounted_on_it_however_far_down(self, client, stack):
+        card, drive, top = stack
+        for host in (drive, top):
+            r = client.patch(f"/api/parts/{card}", json={"parent_id": host})
+            assert r.status_code == 422, host
+        assert client.get(f"/api/parts/{card}").json()["parent_id"] is None
+
+    def test_a_part_can_still_go_further_up_its_own_stack(self, client, stack):
+        card, _drive, top = stack
+        r = client.patch(f"/api/parts/{top}", json={"parent_id": card})
+        assert r.status_code == 200
+        assert r.json()["parent_id"] == card
+
+    def test_a_save_that_leaves_the_mounting_alone_is_not_refused(self, client, db, part):
+        """Only a change is checked, so a pair an older version let mount each on the
+        other can still be saved, and taken apart, rather than being stuck."""
+        a = part(type="io")["asset_id"]
+        b = part(type="storage", parent_id=a)["asset_id"]
+        db.get(Thing, a).inside_id = b
+        db.commit()
+        assert client.patch(f"/api/parts/{a}", json={"parent_id": b}).status_code == 200
+        assert client.patch(f"/api/parts/{a}", json={"parent_id": None}).status_code == 200
+
+    def test_mount_refuses_the_card_it_is_pressed_on(self, client, part):
+        card = part(type="io")["asset_id"]
+        r = client.post(f"/parts/{card}/attach", data={"part_id": card}, follow_redirects=False)
+        assert r.status_code == 303
+        assert client.get(f"/api/parts/{card}").json()["parent_id"] is None
+
+    def test_mount_refuses_what_the_card_is_mounted_on_and_the_page_says_why(self, client, part):
+        drive = part(type="storage")["asset_id"]
+        card = part(type="io", parent_id=drive)["asset_id"]
+        r = client.post(f"/parts/{card}/attach", data={"part_id": drive}, follow_redirects=False)
+        assert r.status_code == 303
+        assert client.get(f"/api/parts/{drive}").json()["parent_id"] is None
+        page = client.get(r.headers["location"]).text
+        assert "cannot be mounted on itself, or on anything mounted on it" in page
+
+    def test_the_menu_beside_mount_leaves_out_what_the_card_is_on(self, client, part):
+        bottom = part(type="storage")["asset_id"]
+        middle = part(type="io", parent_id=bottom)["asset_id"]
+        card = part(type="io", parent_id=middle)["asset_id"]
+        spare = part(type="storage")["asset_id"]
+        offered = self._mount_menu(client.get(f"/parts/{card}").text)
+        assert spare in offered
+        assert bottom not in offered
+
+    def test_an_edit_cannot_mount_a_card_on_its_own_drive(self, client, stack):
+        """A part's form does not say what it is mounted on (ADR-0036), so a post
+        naming a host -- a page left open while things were moved, or one made by
+        hand -- saves the rest and moves nothing."""
+        card, drive, _top = stack
+        r = client.post(
+            f"/parts/{card}/edit", data={"type": "io", "parent_id": drive}, follow_redirects=False
+        )
+        assert r.status_code == 303
+        assert client.get(f"/api/parts/{card}").json()["parent_id"] is None
 
 
 class TestInstalledRam:

@@ -328,6 +328,24 @@ class TestAFittedPart:
         assert r.json()["tone"] == "refused"
         assert where(db, pid) == drawer
 
+    def test_undo_is_refused_where_it_would_mount_a_part_on_its_own_host(
+        self, client, db, scan, location, part
+    ):
+        """Taken off its card by a scan, and the card mounted on it since: putting it
+        back would mount each on the other (MANUAL §1, "Two tables"), so nothing
+        moves and the panel says why."""
+        drawer = location("Spares drawer", "other")
+        card = part(type="io")["asset_id"]
+        drive = part(type="storage", parent_id=card)["asset_id"]
+        scan(drawer)
+        moved = scan(drive)
+        assert client.patch(f"/api/parts/{card}", json={"parent_id": drive}).status_code == 200
+        said = client.post("/audit/undo", data={"scan": moved["scan"]}, headers=JSON).json()
+        assert said["tone"] == "refused"
+        assert card in said["words"]
+        assert where(db, drive) == drawer
+        assert where(db, card) == drive
+
     def test_scanned_where_its_machine_is_it_is_found_and_stays_fitted(
         self, client, db, scan, location, computer, part
     ):

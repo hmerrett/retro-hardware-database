@@ -235,6 +235,8 @@ def refusal(db: Session, t: Tree, tag: str, what: str, into: str | None) -> str 
             return f"{into} is a project, which is work and holds nothing."
         return f"{CALLED[what].capitalize()} cannot go inside {CALLED[holder]}."
     if t.would_loop(tag, into):
+        if holder == PART:
+            return f"{tag} cannot be mounted on itself, or on anything mounted on it."
         return f"{tag} cannot go inside itself, or inside anything inside it."
     found = item(db, into)
     if found is not None and found.disposed:
