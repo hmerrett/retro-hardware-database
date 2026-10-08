@@ -101,8 +101,10 @@
     {% endcall %}
 
     {% set build_host = request.state.authed and p.type in ('io', 'other') %}
-    {% if children or build_host %}
+    {% if children or build_host or mounterr %}
     {% call PN.panel('Mounted parts', children | length, flush=true) %}
+      {#- A refused mount, said where the mount button is (MANUAL §1, "Two tables"). -#}
+      {% if mounterr %}<div class="pbody">{{ U.banner('danger', 'Not mounted.', 'A part cannot be mounted on itself, or on anything mounted on it.') }}</div>{% endif %}
       {% if children %}
       {{ P.cards(children, 'detach', '/parts/' + p.asset_id,
                  request.state.authed, thumbs) }}

@@ -384,6 +384,18 @@ def undo(db: Session, check: StockCheck, scan_id: int, who: str) -> Said | None:
         obj = db.get(Computer, row.asset_id) or db.get(Part, row.asset_id)
     if obj is None:
         return None
+    # Its card may have been mounted on it since the scan took it off, and putting
+    # it back would mount each on the other (MANUAL §1, "Two tables"). Refused
+    # whole, before anything moves: an undo that half happens is a third state to
+    # explain.
+    if isinstance(obj, Part) and locations.mount_refusal(db, obj, row.was_parent) is not None:
+        return Said(
+            "refused",
+            "Not undone",
+            f"{_name(obj)} cannot go back on {row.was_parent}, which is mounted on it now.",
+            open_location(scans(db, check)),
+            row.id,
+        )
     locations.move(db, obj, back, locations.UNDO, who, t)
     if isinstance(obj, Part) and (row.was_computer or row.was_parent):
         obj.computer_id, obj.parent_id = row.was_computer, row.was_parent

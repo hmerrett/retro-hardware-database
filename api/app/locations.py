@@ -13,6 +13,10 @@ millions, so reading all of them is cheaper than being clever about which.
 The same reasoning, one level down, is why a part fitted in a machine has no
 location of its own unless it is given one: it is wherever the machine is, worked
 out at the moment it is shown (`inherited`).
+
+And the rule a tree of anything has to keep, kept here for the parts mounted on
+parts as `Tree.would_loop` keeps it for locations: nothing goes on itself, or on
+anything on it (`mount_refusal`).
 """
 
 import re
@@ -424,6 +428,40 @@ def effective(obj: Thing, placed: Mapping[str, Placed]) -> str | None:
         return obj.location_id
     found = placed.get(obj.asset_id) if isinstance(obj, Part) else None
     return found.where if found else None
+
+
+def mounted_on(db: Session, aid: str) -> list[str]:
+    """What a part is mounted on, nearest first: the card it is on, what that card
+    is on, and so on up. Read upwards, which is the short way -- a part is on one
+    thing and may carry many -- and safe against a loop an older version let in,
+    for the reason `Tree.up` is. Uppercased, as every tag is compared: the table
+    finds a tag in either case, and a link written in lower case is still a link."""
+    out: list[str] = []
+    at = db.query(Part.parent_id).filter(Part.asset_id == aid).scalar()
+    while at and at.upper() != aid.upper() and at.upper() not in out:
+        out.append(at.upper())
+        at = db.query(Part.parent_id).filter(Part.asset_id == at).scalar()
+    return out
+
+
+def mount_refusal(db: Session, part: Part, host: str | None) -> str | None:
+    """Why `part` cannot be mounted on `host`, in words, or None when it can.
+
+    A part on itself, or on anything mounted on it however far down, would be its
+    own host: a controller card on the drive that is on it, and two pages each
+    saying the other is what it is on. Asked by everything that mounts one -- the
+    mount button, the edit form, the API, an undo in the audit -- so that the rule
+    is written once (MANUAL §1, "Two tables").
+
+    Only a change is judged. Leaving a part where it is asks nothing new, so a pair
+    an older version let mount each on the other can still be saved, and taken
+    apart, rather than refusing every save until somebody edits the database."""
+    if not host or host.upper() == (part.parent_id or "").upper():
+        return None
+    tag = part.asset_id.upper()
+    if tag in (host.upper(), *mounted_on(db, host)):
+        return f"{tag} cannot be mounted on itself, or on anything mounted on it."
+    return None
 
 
 class Where(NamedTuple):

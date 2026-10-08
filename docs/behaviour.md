@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2578 behaviours, from 75 files.*
+*2587 behaviours, from 75 files.*
 
 
 ## A file where text was expected
@@ -339,7 +339,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 558 behaviours*
+*test_api.py — 566 behaviours*
 
 
 **Typed columns**
@@ -461,6 +461,19 @@ Regenerate with:
 - deleting a computer unlinks its parts
 - deleting a host part unlinks what was mounted on it
 - deleting a computer does not delete its parts
+
+**A part is never mounted on itself**
+
+- the api refuses a part mounted on itself
+- or on anything mounted on it however far down
+- a part can still go further up its own stack
+- a save that leaves the mounting alone is not refused  
+  Only a change is checked, so a pair an older version let mount each on the other can still be saved, and taken apart, rather than being stuck.
+- mount refuses the card it is pressed on
+- mount refuses what the card is mounted on and the page says why
+- the menu beside mount leaves out what the card is on
+- an edit cannot mount a card on its own drive  
+  The form carries the mounting in a hidden box, so only a page left open while things were moved, or a post made by hand, can ask this.
 
 **Installed ram**
 
@@ -4363,7 +4376,7 @@ Regenerate with:
 
 ## Storage mode
 
-*test_storage_mode.py — 54 behaviours*
+*test_storage_mode.py — 55 behaviours*
 
 
 **Scanning A location**
@@ -4402,6 +4415,8 @@ Regenerate with:
 
 - scanned into a location it is taken out of its machine
 - undo puts it back in its machine as well
+- undo is refused where it would mount a part on its own host  
+  Taken off its card by a scan, and the card mounted on it since: putting it back would mount each on the other (MANUAL §1, "Two tables"), so nothing moves and the panel says why.
 - scanned where its machine is it is found and stays fitted
 
 **What is refused**
