@@ -122,11 +122,11 @@ class TestALocation:
         shelf = location("Shelf 2", "shelf")
         r = make_location(client, parent="Shelf 2")
         tag = r.headers["location"].rsplit("/", 1)[-1]
-        assert db.get(Location, tag).parent_id == shelf
+        assert db.get(Location, tag).inside_id == shelf
 
     def test_inside_left_blank_is_the_top_of_a_tree(self, client, db):
         tag = make_location(client, name="Workshop", kind="room").headers["location"][-7:]
-        assert db.get(Location, tag).parent_id is None
+        assert db.get(Location, tag).inside_id is None
 
     def test_a_location_cannot_be_put_inside_itself(self, client, db, workshop):
         room, *_ = workshop
@@ -137,7 +137,7 @@ class TestALocation:
         )
         assert r.status_code == 400
         assert "inside itself" in r.text
-        assert db.get(Location, room).parent_id is None
+        assert db.get(Location, room).inside_id is None
 
     def test_or_inside_anything_that_is_inside_it(self, client, db, workshop):
         room, _rack, _shelf, box = workshop
@@ -147,7 +147,7 @@ class TestALocation:
             follow_redirects=False,
         )
         assert r.status_code == 400
-        assert db.get(Location, room).parent_id is None
+        assert db.get(Location, room).inside_id is None
 
     def test_an_empty_box_stays_on_the_register(self, client, db, location, computer):
         """An empty crate keeps its name and its label for the next time it is filled."""
@@ -158,18 +158,24 @@ class TestALocation:
 
 
 class TestDeletingALocation:
-    def test_deleting_is_refused_while_a_thing_is_in_it(self, client, db, location, computer):
-        tag = location()
-        computer(location=tag)
-        r = client.post(f"/locations/{tag}/delete", follow_redirects=False)
-        assert r.status_code == 400
-        assert db.get(Location, tag) is not None
+    """A box is where things are, not what they are made of: deleting one deletes
+    nothing in it (ADR-0036)."""
 
-    def test_or_while_a_location_is_in_it(self, client, db, workshop):
-        room, *_ = workshop
+    def test_a_thing_in_it_is_kept_and_left_nowhere(self, client, db, location, computer):
+        tag = location()
+        aid = computer(location=tag)["asset_id"]
+        r = client.post(f"/locations/{tag}/delete", follow_redirects=False)
+        assert r.status_code == 303
+        db.expire_all()
+        assert db.get(Location, tag) is None
+        assert db.get(Computer, aid).inside_id is None
+
+    def test_so_is_a_location_in_it_with_its_contents(self, client, db, workshop):
+        room, rack, *_ = workshop
         r = client.post(f"/locations/{room}/delete", follow_redirects=False)
-        assert r.status_code == 400
-        assert db.get(Location, room) is not None
+        assert r.status_code == 303
+        db.expire_all()
+        assert db.get(Location, rack).inside_id is None
 
     def test_an_empty_one_is_deleted(self, client, db, location):
         tag = location()
@@ -187,9 +193,9 @@ class TestDeletingALocation:
         r = client.post(f"/locations/{box}/empty", follow_redirects=False)
         assert r.status_code == 303
         db.expire_all()
-        assert db.get(Computer, cid).location_id == shelf
-        assert db.get(Part, pid).location_id == shelf
-        assert db.get(Location, bag).parent_id == shelf
+        assert db.get(Computer, cid).inside_id == shelf
+        assert db.get(Part, pid).inside_id == shelf
+        assert db.get(Location, bag).inside_id == shelf
         assert client.post(f"/locations/{box}/delete", follow_redirects=False).status_code == 303
 
     def test_merge_into_puts_one_spelling_of_a_crate_into_the_other(
@@ -206,8 +212,8 @@ class TestDeletingALocation:
         assert r.headers["location"] == f"/locations/{keep}"
         db.expire_all()
         assert db.get(Location, twin) is None
-        assert db.get(Computer, aid).location_id == keep
-        assert db.get(Location, inside).parent_id == keep
+        assert db.get(Computer, aid).inside_id == keep
+        assert db.get(Location, inside).inside_id == keep
 
     def test_merging_a_location_into_its_own_contents_is_refused(self, client, db, workshop):
         room, _rack, _shelf, box = workshop
@@ -437,7 +443,7 @@ class TestTheLocationBox:
             follow_redirects=False,
         )
         db.expire_all()
-        assert db.get(Computer, aid).location_id == box
+        assert db.get(Computer, aid).inside_id == box
 
     def test_a_tag_will_do(self, client, db, location, part):
         tag = location()
@@ -448,7 +454,7 @@ class TestTheLocationBox:
             follow_redirects=False,
         )
         db.expire_all()
-        assert db.get(Part, aid).location_id == tag
+        assert db.get(Part, aid).inside_id == tag
 
     def test_a_name_that_matches_no_location_makes_one_at_the_top(self, client, db, computer):
         aid = computer()["asset_id"]
@@ -458,8 +464,8 @@ class TestTheLocationBox:
             follow_redirects=False,
         )
         db.expire_all()
-        made = db.get(Location, db.get(Computer, aid).location_id)
-        assert (made.name, made.kind, made.parent_id) == ("Under the bench", "other", None)
+        made = db.get(Location, db.get(Computer, aid).inside_id)
+        assert (made.name, made.kind, made.inside_id) == ("Under the bench", "other", None)
 
     def test_a_name_two_locations_share_is_refused_rather_than_guessed(
         self, client, db, location, computer
@@ -475,7 +481,7 @@ class TestTheLocationBox:
         assert r.status_code == 400
         assert "More than one location is called Box 14" in r.text
         db.expire_all()
-        assert db.get(Computer, aid).location_id is None
+        assert db.get(Computer, aid).inside_id is None
 
     def test_the_tag_of_something_that_is_not_a_location_is_refused(self, client, computer):
         other = computer()["asset_id"]
@@ -496,7 +502,7 @@ class TestTheLocationBox:
             follow_redirects=False,
         )
         db.expire_all()
-        assert db.get(Computer, aid).location_id is None
+        assert db.get(Computer, aid).inside_id is None
 
     def test_the_form_shows_the_path_it_holds(self, client, workshop, computer):
         *_, box = workshop
@@ -512,7 +518,7 @@ class TestTheLocationBox:
             follow_redirects=False,
         )
         aid = r.headers["location"].split("/")[2].split("?")[0]
-        assert db.get(Computer, aid).location_id == tag
+        assert db.get(Computer, aid).inside_id == tag
 
 
 class TestSearchingByWhereThingsAre:
@@ -615,7 +621,7 @@ class TestTheApi:
     def test_a_name_matching_none_makes_one_at_the_top(self, client, db, part):
         got = part(location="Spares drawer")
         made = db.get(Location, got["location"])
-        assert (made.name, made.kind, made.parent_id) == ("Spares drawer", "other", None)
+        assert (made.name, made.kind, made.inside_id) == ("Spares drawer", "other", None)
 
     def test_a_name_matching_several_is_refused_with_the_tags(self, client, location):
         a = location("Box 14", "box", location("Workshop", "room"))
@@ -659,10 +665,12 @@ class TestTheApi:
         r = client.post("/api/locations", json={"name": "Drawer", "kind": "drawer"})
         assert r.status_code == 422
 
-    def test_delete_is_refused_while_anything_is_in_it(self, client, location, computer):
+    def test_delete_leaves_what_was_in_it_nowhere(self, client, location, computer):
+        """A box is where things are, not what they are made of (ADR-0036)."""
         tag = location()
-        computer(location=tag)
-        assert client.delete(f"/api/locations/{tag}").status_code == 422
+        aid = computer(location=tag)["asset_id"]
+        assert client.delete(f"/api/locations/{tag}").status_code == 200
+        assert client.get(f"/api/computers/{aid}").json()["location"] == ""
 
     def test_delete_of_an_empty_one_goes_through(self, client, db, location):
         tag = location()

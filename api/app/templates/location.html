@@ -90,9 +90,11 @@
         <button class="btn sm" type="submit">{{ 'Merge into' | ui }}</button>
       </form>
       {% endif %}
+      {# Deleting a location deletes nothing in it (ADR-0036): what is in it is left
+         nowhere, which the question says before anything goes. #}
       <form method="post" action="/locations/{{ loc.asset_id }}/delete"
-            data-confirm="Delete {{ loc.name }}? This cannot be undone.">
-        <button class="btn sm danger" type="submit"{% if things or inside %} disabled title="Move what is in it first."{% endif %}>{{ 'Delete' | ui }}</button>
+            data-confirm="Delete {{ loc.name }}?{% if things or inside %} What is in it is kept, and left nowhere.{% endif %} This cannot be undone.">
+        <button class="btn sm danger" type="submit">{{ 'Delete' | ui }}</button>
       </form>
     </div>
   {% endcall %}

@@ -3,7 +3,9 @@ a POST can omit them; PATCH handlers use model_dump(exclude_unset=True) so only
 supplied fields change. year is a plain integer, acquired_date and disposed_at
 are ISO dates (all three take null for "not recorded"), and disposed is a
 boolean flag whose optional detail lives in disposed_note. A part's
-computer_id / parent_id accept "" or null for "standalone"; both store NULL.
+computer_id is the machine it is fitted in and parent_id the part it is mounted on;
+"" or null is neither. A thing is in one place (ADR-0036), so at most one of those
+two and `location` is ever set, and sending one is a move.
 
 A computer's installed_ram is rendered from its fitted modules and chips, so it
 is read-only in that sense: sending one sets the total (or a note when it is not
@@ -25,7 +27,9 @@ what it is instead of as free text. It answers a little less than a machine does
 tag or as a name -- a name matching exactly one location means that one, a name
 matching none makes a new location at the top, as the form does -- and it reads
 back as the tag, with `location_path` beside it as words. A location has shapes of
-its own below, at /api/locations.
+its own below, at /api/locations. `location_public` is the Visible tick beside it:
+whether a visitor is told where this one is kept, starting as Show locations says
+when it is left out of a create.
 """
 
 from datetime import date
@@ -132,6 +136,9 @@ class ComputerIn(BaseModel):
     # the object that a tool holding a shelf full of them needs to be able to write
     # (ADR-0027, ADR-0034).
     location: str = ""
+    # The Visible tick: whether a visitor is told where it is kept (ADR-0036). Null,
+    # or left out, on a create starts it as Show locations says.
+    location_public: bool | None = None
     image: str = ""
     url: str = ""
     summary: str = ""
@@ -237,8 +244,9 @@ class PartIn(BaseModel):
     condition: str = ""
     source: str = ""
     acquired_date: date | None = None
-    # See ComputerIn.location.
+    # See ComputerIn.location and location_public.
     location: str = ""
+    location_public: bool | None = None
     image: str = ""
     url: str = ""
     summary: str = ""
@@ -252,7 +260,7 @@ class PartIn(BaseModel):
     @field_validator("computer_id", "parent_id", mode="before")
     @classmethod
     def _blank_link_is_none(cls, v: object) -> object:
-        """A blank link means standalone, which the column stores as NULL."""
+        """A blank link means in neither: not fitted in a machine, not on a part."""
         return v or None
 
     _serial_null_is_blank = field_validator("serial", mode="before")(_null_is_blank)

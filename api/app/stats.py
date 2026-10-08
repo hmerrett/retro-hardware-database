@@ -14,7 +14,7 @@ from sqlalchemy import Row, false, func
 from sqlalchemy.orm import InstrumentedAttribute, Query, Session
 from sqlalchemy.sql.elements import ColumnElement
 
-from . import entry, projects
+from . import entry, projects, tree
 from .common import (
     REGISTER,
     RELIABILITY_MIN,
@@ -26,7 +26,6 @@ from .common import (
     folder_images,
     to_dict,
 )
-from .db import Base
 from .models import (
     AssetVariant,
     Computer,
@@ -47,6 +46,7 @@ from .models import (
     ProjectTask,
     SoundSpec,
     StorageSpec,
+    Thing,
     VideoSpec,
 )
 
@@ -119,12 +119,26 @@ class Stats(TypedDict):
     reliability_min: NotRequired[int]
 
 
-def _either(query: Query[Base], model: type[Computer] | type[Part]) -> Query[Computer | Part]:
+def _machine_of_each(db: Session) -> dict[str, str]:
+    """{part: the machine it is in, however far down} for every part still held that
+    is in one: a drive on a controller card in a machine is in the machine (ADR-0036).
+    One read of the tree for the whole register, which every figure about fitted
+    parts is counted from, so no two of them can disagree about what "in" means."""
+    r = tree.load(db)
+    out: dict[str, str] = {}
+    for (aid,) in _held(db.query(Part.asset_id), Part):
+        if (machine := r.machine(aid.upper())) is not None:
+            out[aid.upper()] = machine
+    return out
+
+
+def _either(query: Query[Thing], model: type[Computer] | type[Part]) -> Query[Computer | Part]:
     """_held, for a query built from whichever of the two registers is in hand.
 
-    A query over a model picked out of the two widens its rows to the base they
-    share, which is not where a year or an acquisition date is declared, so the
-    pair is named again here (as resync does for the same reason)."""
+    A query over a model picked out of the two widens its rows to the kind they
+    share -- a row of the register (ADR-0036) -- which is not where a year or an
+    acquisition date is declared, so the pair is named again here (as resync does
+    for the same reason)."""
     return cast("Query[Computer | Part]", _held(query, model))
 
 
@@ -1465,9 +1479,7 @@ def _facts_machines(db: Session, st: Stats) -> list[Fact]:
             )
         )
 
-    fitted_in = {
-        c for (c,) in _held(db.query(Part.computer_id).filter(Part.computer_id.isnot(None)), Part)
-    }
+    fitted_in = set(_machine_of_each(db).values())
     all_machines = {a for (a,) in _held(db.query(Computer.asset_id), Computer)}
     empty = all_machines - fitted_in
     if empty and all_machines:
@@ -1583,14 +1595,18 @@ def _facts_ages(db: Session, st: Stats, this_year: int) -> list[Fact]:
 
     # The gap between a part's year and its machine's. Both dates in one row,
     # because the figure is the difference and a difference needs both ends.
-    pairs = _held(
-        db.query(Part, Computer)
-        .join(Computer, Computer.asset_id == Part.computer_id)
-        .filter(Part.year.isnot(None), Computer.year.isnot(None), Computer.disposed.is_(False)),
-        Part,
-    ).all()
+    inside = _machine_of_each(db)
+    machines_by_tag = {
+        c.asset_id.upper(): c
+        for c in db.query(Computer).filter(Computer.year.isnot(None), Computer.disposed.is_(False))
+    }
+    pairs: list[tuple[Part, Computer, int, int]] = []
+    for p in _held(db.query(Part).filter(Part.year.isnot(None)), Part):
+        c = machines_by_tag.get(inside.get(p.asset_id.upper(), ""))
+        if c is not None and p.year is not None and c.year is not None:
+            pairs.append((p, c, p.year, c.year))
     if pairs:
-        ahead = [(p.year - c.year, p, c) for p, c in pairs if p.year > c.year]
+        ahead = [(py - cy, p, c) for p, c, py, cy in pairs if py > cy]
         if ahead:
             gap, p, c = max(ahead, key=lambda r: r[0])
             out.append(
@@ -1601,7 +1617,7 @@ def _facts_ages(db: Session, st: Stats, this_year: int) -> list[Fact]:
                     f"/computers/{c.asset_id}",
                 )
             )
-        together = sum(1 for p, c in pairs if p.year == c.year)
+        together = sum(1 for _p, _c, py, cy in pairs if py == cy)
         if together:
             out.append(
                 _fact(
@@ -1612,7 +1628,7 @@ def _facts_ages(db: Session, st: Stats, this_year: int) -> list[Fact]:
                     "/browse?f=born",
                 )
             )
-        before = sum(1 for p, c in pairs if p.year < c.year)
+        before = sum(1 for _p, _c, py, cy in pairs if py < cy)
         if before:
             out.append(
                 _fact(
@@ -1874,9 +1890,11 @@ def _facts_register(db: Session, st: Stats) -> list[Fact]:
                 "/browse?f=diskimages",
             )
         )
-    nested = (
-        _held(db.query(func.count(Part.asset_id)).filter(Part.parent_id.isnot(None)), Part).scalar()
-        or 0
+    whole = tree.load(db)
+    nested = sum(
+        1
+        for (aid,) in _held(db.query(Part.asset_id), Part)
+        if whole.what(whole.holder(aid.upper())) == tree.PART
     )
     if nested:
         out.append(
@@ -2061,14 +2079,13 @@ def _facts_condition(db: Session, st: Stats) -> list[Fact]:
         if n:
             out.append(_fact(label, str(n), blurb, f"/browse?f=condition&v={quote(key)}"))
 
-    spare_types = sorted(
-        _held(
-            db.query(Part.type, func.count(Part.asset_id)).filter(Part.computer_id.is_(None)), Part
-        )
-        .group_by(Part.type)
-        .all(),
-        key=lambda r: (-r[1], r[0]),
+    inside = _machine_of_each(db)
+    spare_counts = Counter(
+        kind
+        for aid, kind in _held(db.query(Part.asset_id, Part.type), Part)
+        if aid.upper() not in inside
     )
+    spare_types = sorted(spare_counts.items(), key=lambda r: (-r[1], r[0] or ""))
     if spare_types and st["spares"]:
         out.append(
             _fact(
@@ -2209,17 +2226,10 @@ def _collection_stats(db: Session) -> Stats:
         db.query(func.count(Computer.asset_id)).filter(Computer.disposed).scalar() or 0
     )
 
-    fullest = (
-        _held(
-            db.query(Part.computer_id, func.count(Part.asset_id)).filter(
-                Part.computer_id.isnot(None)
-            ),
-            Part,
-        )
-        .group_by(Part.computer_id)
-        .order_by(func.count(Part.asset_id).desc())
-        .first()
-    )
+    # The machine with the most in it, however far down: a drive on its controller
+    # is in the machine (ADR-0036).
+    inside = _machine_of_each(db)
+    fullest = Counter(inside.values()).most_common(1)[0] if inside else None
     fullest_machine = db.get(Computer, fullest[0]) if fullest else None
     if fullest_machine and fullest_machine.disposed:
         fullest, fullest_machine = None, None
@@ -2242,12 +2252,7 @@ def _collection_stats(db: Session) -> Stats:
     share = 100 * len(unphotographed) / ((n_computers + n_parts) or 1)
     # Most parts are spares on a shelf, so "parts per machine" over the whole
     # register would say 19 and mean nothing. Only the fitted ones divide.
-    fitted = (
-        _held(
-            db.query(func.count(Part.asset_id)).filter(Part.computer_id.isnot(None)), Part
-        ).scalar()
-        or 0
-    )
+    fitted = len(inside)
 
     return {
         "n_computers": n_computers,

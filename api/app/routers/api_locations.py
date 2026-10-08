@@ -9,7 +9,7 @@ of the token to keep a shelf from.
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from .. import locations
+from .. import locations, tree
 from ..db import get_db
 from ..history import add_log
 from ..ids import next_asset_id
@@ -26,7 +26,7 @@ def _out(loc: Location, tree: locations.Tree) -> dict[str, object]:
         "asset_id": loc.asset_id,
         "name": loc.name,
         "kind": loc.kind,
-        "parent": loc.parent_id,
+        "parent": loc.inside_id.upper() if loc.inside_id else None,
         "path": tree.text(loc.asset_id),
         "notes": loc.notes,
     }
@@ -79,7 +79,7 @@ def api_create_location(
     add_log(db, loc.asset_id, "created", "created")
     parent = _parent(db, data.parent)
     if parent is not None:
-        locations.move(db, loc, parent, locations.API, request.state.principal.username)
+        tree.put(db, loc, parent, tree.API, request.state.principal.username)
     db.commit()
     return _out(loc, locations.tree(db))
 
@@ -120,10 +120,8 @@ def api_update_location(
         add_log(db, loc.asset_id, "; ".join(changed))
     if "parent" in sent:
         try:
-            locations.move(
-                db, loc, _parent(db, data.parent), locations.API, request.state.principal.username
-            )
-        except locations.Refused as err:
+            tree.put(db, loc, _parent(db, data.parent), tree.API, request.state.principal.username)
+        except tree.Refused as err:
             raise HTTPException(422, str(err)) from err
     db.commit()
     return _out(loc, locations.tree(db))
@@ -133,15 +131,16 @@ def api_update_location(
 # otherwise publish it as the response's shape, which the pinned contract
 # (ADR-0010) leaves open.
 @router.delete("/api/locations/{aid}", tags=["locations"], response_model=None)
-def api_delete_location(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
-    """Delete a location, which is refused while anything is still in it: a thing,
-    or a location inside it. Its history goes with it; the moves of the things
-    that were once in it stay on their own histories."""
+def api_delete_location(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> dict[str, object]:
+    """Delete a location and nothing in it (ADR-0036): what was directly inside it --
+    things, and smaller locations with their contents still in them -- is left
+    nowhere, each with a move made through the API saying so. Its own history goes
+    with it; the moves of the things that were once in it stay on their histories."""
     loc = get_or_404(db, Location, aid)
-    if not locations.empty(db, loc.asset_id, locations.tree(db)):
-        raise HTTPException(422, f"{loc.name} is not empty: move what is in it first")
     tag = loc.asset_id
-    rels = locations.forget(db, loc)
+    rels = locations.forget(db, loc, request.state.principal.username, tree.load(db), tree.API)
     db.commit()  # the rows first: a file cannot be rolled back
     _purge_photos(rels)
     return {"deleted": tag}

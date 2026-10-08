@@ -565,6 +565,13 @@
   .panel > .itemcards { gap: 0; }
   .panel > .itemcards > .itemcard { border: 0; border-radius: 0; box-shadow: none; }
   .panel > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
+  /* What is mounted on a card, under the card and set in (ADR-0036): a drive on its
+     controller is in the machine's list, and visibly on the card it is on. */
+  .itemcards > .mounted { margin-left: var(--space-6); border-left: var(--border-w) solid var(--line); }
+  .panel > .itemcards > .mounted { border-top: 1px solid var(--line); }
+  .mounted > .itemcards { gap: 0; }
+  .mounted > .itemcards > .itemcard { border: 0; border-radius: 0; box-shadow: none; }
+  .mounted > .itemcards > .itemcard + .itemcard { border-top: 1px solid var(--line); }
 
   /* ---- 13b. Search results, scan, confirm -------------------------------- */
   .results { display: flex; flex-direction: column; }

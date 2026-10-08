@@ -102,7 +102,10 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0021](0021-the-content-security-policy-is-the-apps-and-the-suite-holds-it.md))
 - [0034](0034-a-location-is-a-record-in-the-register.md) — A location is a record
   in the register — *Accepted* (supersedes
-  [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md))
+  [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md); amended
+  by [0036](0036-where-a-thing-is-is-one-tree.md))
 - [0035](0035-a-text-file-is-read-as-a-page-of-the-register.md) — A text file is
   read as a page of the register — *Accepted* (amends
   [0030](0030-a-pdf-is-read-in-the-browser.md))
+- [0036](0036-where-a-thing-is-is-one-tree.md) — Where a thing is, is one tree —
+  *Accepted* (amends [0034](0034-a-location-is-a-record-in-the-register.md))

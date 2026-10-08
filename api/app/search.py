@@ -17,7 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import RowReturningQuery
 
-from . import entry, locations, machines, projects, settings, specdb
+from . import entry, locations, machines, projects, specdb, tree
 from .common import (
     LEGACY_DISK_BUSES,
     OWNER_ONLY,
@@ -119,30 +119,33 @@ def search_terms(query: str | None) -> list[str]:
     return terms
 
 
+# Columns that say nothing about the thing, and so are searched by nobody: the
+# Visible tick is who may be told where it is kept, and a search for `true` that
+# handed back every ticked machine would be answering a question nobody asked.
+UNSEARCHED = frozenset({"location_public"})
+
+
 def _hidden_columns(authed: bool) -> frozenset[str]:
     """The columns this reader is not shown, and so must not be able to search on.
 
     OWNER_ONLY is the part of the answer settled once and for all (ADR-0018). Where
-    a thing is kept is the part the owner settles per installation, so the question
-    the haystack asks is "which columns are hidden from this reader", and that set
-    is one answer to it rather than the whole of it -- a frozenset cannot be
-    conditional, and making it so would be a set that means something different
-    depending on when it is read.
-
-    Asked afresh for every item matched, which costs nothing: the settings are read
-    once per process and kept (ADR-0023), so this is a dictionary lookup and a set
-    union rather than a query."""
-    if authed:
-        return frozenset()
-    if settings.on("public_locations"):
-        return OWNER_ONLY
-    return OWNER_ONLY | {"location_id"}
+    a thing is kept is not a column any more: it is settled thing by thing, by each
+    one's tick, and asked of each row in _haystack (ADR-0036)."""
+    return UNSEARCHED if authed else OWNER_ONLY | UNSEARCHED
 
 
-# What a caller with nothing to place hands in: the projects search, because a
-# project is not fitted in anything. Named rather than defaulted inline so that a
-# call site leaving it out is saying that and not forgetting it.
-NOTHING_PLACED: Mapping[str, locations.Placed] = {}
+class Places(NamedTuple):
+    """Where everything is, read once for a whole search rather than per row: the
+    register's tree, the locations' names along a path, and every thing's Visible
+    tick."""
+
+    r: tree.Tree
+    names: locations.Tree
+    marks: Mapping[str, bool]
+
+
+def places(db: Session) -> Places:
+    return Places(tree.load(db), locations.tree(db), locations.ticks(db))
 
 
 def _haystack(
@@ -150,8 +153,7 @@ def _haystack(
     obj: Asset,
     history: Mapping[str, list[str]],
     authed: bool = False,
-    placed: Mapping[str, locations.Placed] = NOTHING_PLACED,
-    tree: locations.Tree | None = None,
+    at: Places | None = None,
 ) -> str:
     """Everything written about one item, as one lowercase string: every text
     column, its rendered specs or memory and drives, and its history. This is what
@@ -166,14 +168,13 @@ def _haystack(
     same way, via _visible on the queries that reach one.
 
     Where a thing is kept is searched by the names along its whole path, so a
-    search for the loft finds what is three boxes down in it (MANUAL §3). `placed`
-    is where each part is because of what it is fitted in (locations.inherited), and
-    `tree` the locations, both worked out once by the caller for the whole register
-    rather than per row. A part shown its machine's location has to be findable by
-    it -- the page says the loft, and a search for the loft that did not hand it
-    back would be the page and the search disagreeing about the same word -- and
-    all of it goes behind the same gate the column does, so a reader who is not
-    shown where things are cannot search on it either."""
+    search for the loft finds what is three boxes down in it (MANUAL §3). `at` is
+    where everything is, worked out once by the caller for the whole register rather
+    than per row. A part fitted in a machine has to be findable by the machine's
+    location -- the page says the loft, and a search for the loft that did not hand
+    it back would be the page and the search disagreeing about the same word -- and
+    all of it goes behind the same tick the page's row does, so a visitor who is not
+    told where a thing is cannot search for it there either (ADR-0036)."""
     # Blanked rather than dropped, so who is asking changes what the haystack says
     # and never how many fields it has: an item nobody has flagged then reads
     # identically for both, and the seams a quoted phrase must not match across stay
@@ -189,9 +190,11 @@ def _haystack(
         # Blank rather than absent when there is nothing to add, for the reason the
         # hidden columns above are blanked: the field count is the same for both
         # readers and for a thing kept nowhere, so the seams stay put.
-        where = locations.effective(obj, placed)
-        shown = where is not None and "location_id" not in hidden
-        fields.append(locations.path_words(tree or locations.tree(db), [where]) if shown else "")
+        at = at or places(db)
+        tag = obj.asset_id.upper()
+        here = at.r.place(tag)
+        told = here is not None and (authed or bool(at.marks.get(at.r.outermost(tag))))
+        fields.append(locations.path_words(at.names, [here]) if told else "")
     if isinstance(obj, Project):
         # The status as it is written on screen as well as the slug it is stored
         # as: "in progress" is what somebody would type, and 'active' is what the
@@ -232,11 +235,10 @@ def _search(db: Session, rows: list[Card], query: str | None, authed: bool = Fal
     if not terms:
         return rows
     history = _history_by_asset(db)
-    placed = locations.inherited(db)
-    tree = locations.tree(db)
+    at = places(db)
     kept = []
     for r in rows:
-        hay = _haystack(db, r["obj"], history, authed, placed, tree)
+        hay = _haystack(db, r["obj"], history, authed, at)
         if all(t in hay for t in terms):
             kept.append(r)
     return kept
@@ -328,8 +330,7 @@ def _suggest(
     if not terms:
         return [], 0
     history = _history_by_asset(db)
-    placed = locations.inherited(db)
-    tree = locations.tree(db)
+    at = places(db)
     latest = dict(
         db.query(LogEntry.asset_id, func.max(LogEntry.created_at))
         .group_by(LogEntry.asset_id)
@@ -349,7 +350,7 @@ def _suggest(
         + [(p, "part") for p in db.query(Part).all()]
         + [(pr, "project") for pr in _visible(db.query(Project), authed).all()]
     ):
-        if not all(t in _haystack(db, obj, history, authed, placed, tree) for t in terms):
+        if not all(t in _haystack(db, obj, history, authed, at) for t in terms):
             continue
         name = entry.display_name(to_dict(obj))
         hits.append({"obj": obj, "kind": kind, "name": name, "tier": _suggest_tier(obj, name, raw)})
@@ -423,7 +424,7 @@ def _suggest(
     # the page of results is a wall of the things themselves, and a location is
     # where they are rather than one of them (MANUAL §3).
     if locations.shown(authed) and len(out) < limit:
-        out += _suggest_locations(db, terms, raw, tree, limit - len(out))
+        out += _suggest_locations(db, terms, raw, at.names, limit - len(out))
     return out, len(hits)
 
 
@@ -444,7 +445,7 @@ def _suggest_locations(
     found.sort(key=lambda f: (f[0], f[1]))
     out: list[dict[str, object]] = []
     for _tier, _path, loc in found[:room]:
-        above = tree.text(loc.parent_id)
+        above = tree.text(loc.inside_id)
         out.append(
             {
                 "url": f"/locations/{loc.asset_id}",
@@ -547,6 +548,12 @@ def _tagged(query: RowReturningQuery[tuple[str]]) -> CardTest:
     return lambda r: r["obj"].asset_id in ids
 
 
+def _machine_of(r: Card, held: tree.Tree) -> str | None:
+    """The machine a part on a page is in, however far down: a drive on a controller
+    card is in the machine the card is in (ADR-0036)."""
+    return held.machine(r["obj"].asset_id.upper())
+
+
 def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
     """What /browse?f=<key> means: a heading, a line saying what is on the page, an
     optional link back to the thing it is about, and a test each catalogue row
@@ -557,6 +564,7 @@ def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
     up quantities rather than counting assets -- slots, chips, drives -- the note
     says whose they are, because the count on this page is of items, not of slots.
     Returns None for an unknown view, which the caller turns into a 404."""
+    held = tree.load(db)
     if key == "all":
         return BrowseView(
             "Everything in the register", "computers and parts together", None, lambda r: True
@@ -712,14 +720,14 @@ def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
             "Parts fitted in a machine",
             "installed rather than sitting on a shelf",
             None,
-            lambda r: r["kind"] == "part" and bool(r["obj"].computer_id),
+            lambda r: r["kind"] == "part" and _machine_of(r, held) is not None,
         )
     if key == "spares":
         return BrowseView(
             "Spares on the shelf",
             "parts not fitted in anything",
             None,
-            lambda r: r["kind"] == "part" and not r["obj"].computer_id,
+            lambda r: r["kind"] == "part" and _machine_of(r, held) is None,
         )
     if key == "disposed":
         return BrowseView(
@@ -758,7 +766,7 @@ def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
             f"Parts fitted in {name}",
             "everything installed in this machine",
             (f"/computers/{machine.asset_id}", name),
-            lambda r: r["kind"] == "part" and r["obj"].computer_id == machine.asset_id,
+            lambda r: r["kind"] == "part" and _machine_of(r, held) == machine.asset_id.upper(),
         )
     # --- the views behind the themed figures ------------------------------
     # One per group in the pool, in the same order. Most are a set of asset ids
@@ -1020,10 +1028,7 @@ def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
             _tagged(db.query(AssetVariant.asset_id)),
         )
     if key == "emptymachines":
-        fitted = {
-            c
-            for (c,) in _held(db.query(Part.computer_id).filter(Part.computer_id.isnot(None)), Part)
-        }
+        fitted = {held.machine(aid.upper()) for (aid,) in _held(db.query(Part.asset_id), Part)}
         return BrowseView(
             "Machines with nothing fitted",
             "no part in the register is installed in these",
@@ -1048,12 +1053,16 @@ def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
     if key in ("born", "older"):
         # Both compare a fitted part's year against its machine's, so both are the
         # same join with one operator changed.
-        gaps = (
-            db.query(Part.asset_id, Part.year - Computer.year)
-            .join(Computer, Computer.asset_id == Part.computer_id)
-            .filter(Part.year.isnot(None), Computer.year.isnot(None))
-            .all()
-        )
+        made: dict[str, int] = {
+            aid.upper(): year
+            for aid, year in db.query(Computer.asset_id, Computer.year)
+            if year is not None
+        }
+        gaps = []
+        for aid, year in db.query(Part.asset_id, Part.year):
+            home = held.machine(aid.upper())
+            if year is not None and home is not None and home in made:
+                gaps.append((aid, year - made[home]))
         if key == "born":
             ids = {a for a, gap in gaps if gap == 0}
             return BrowseView(
@@ -1104,7 +1113,10 @@ def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
             "Parts fitted to another part",
             "a daughterboard, a riser, or a chip on a carrier",
             None,
-            lambda r: r["kind"] == "part" and bool(r["obj"].parent_id),
+            lambda r: (
+                r["kind"] == "part"
+                and held.what(held.holder(r["obj"].asset_id.upper())) == tree.PART
+            ),
         )
     if key == "sourcelike":
         # A prefix, not the whole field: "eBay order no. 19-14922-72542" is one
@@ -1124,7 +1136,7 @@ def _browse_view(db: Session, key: str, val: str) -> BrowseView | None:
             f"{entry.type_label(val)} on the shelf",
             "not fitted to anything",
             None,
-            lambda r: r["kind"] == "part" and r["cat"] == val and not r["obj"].computer_id,
+            lambda r: r["kind"] == "part" and r["cat"] == val and _machine_of(r, held) is None,
         )
     if key == "dupes":
         # Every maker-and-model held more than once, which is the set the figure
@@ -1171,6 +1183,6 @@ def _projects_matching(
     if not terms:
         return rows
     history = _history_by_asset(db)
-    # No `placed`: a project is not fitted in anything, so there is nothing to work
-    # out and nothing to read off the register to work it out from.
+    # No `at`: a project is not inside anything, so there is nothing to work out and
+    # nothing to read off the register to work it out from.
     return [r for r in rows if all(t in _haystack(db, r["p"], history, authed) for t in terms)]

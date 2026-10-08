@@ -13,6 +13,34 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**A machine is a place things are in, as a box is.** Where everything is, is now
+one tree: a part is fitted in a machine, mounted on another part, or kept in a
+location — never two at once — and moving anything moves what is inside it. Fitting
+a card and taking it out are moves, recorded like any other, so a card's history
+says which machines it has been in. A drive on a controller card counts as in the
+machine everywhere: its page, the gallery, the search and the figures.
+
+- **Deleting** a machine or a part deletes everything inside it, all the way down,
+  and the confirmation page lists it all. Deleting a location deletes nothing in
+  it: what was there is left nowhere. A deleted thing's tag is never issued again.
+- **Disposing of** a part disposes of what is mounted on it, as a machine always
+  has. Nothing can be put inside something disposed of.
+- **Visible**, a tick beside each item's Location, decides whether a visitor is
+  told where that one is kept. **Show locations** now decides how a new item's tick
+  starts, and still whether visitors can open location pages. The upgrade ticks
+  every item as the switch is set today, so nothing a visitor sees changes.
+- **The audit is simpler.** Scan a location or a machine, then everything in it,
+  and press **next** before the next place. Scanning a box onto a shelf moves it, so
+  the moving-boxes switch has gone, and so has holding a thing until a location is
+  scanned. Scanning parts into a machine fits them.
+
+**Upgrading** settles anything the register held two answers for. A part that was
+fitted in a machine and also given a location of its own stays in the machine, and
+its history says the location was dropped. A part still in the collection inside a
+machine that has been disposed of is disposed of with it, on the same date and for
+the same reason, so restoring the machine brings it back. See [Where it is
+kept](MANUAL.md#where-it-is-kept) and [Audit](MANUAL.md#audit).
+
 **A part can no longer be mounted on itself.** The API, and the **mount** menu on
 a card sitting on a loose drive, would mount a part on itself or on something
 mounted on it, and the two pages then each said the other was what it was on. That
@@ -28,6 +56,7 @@ site sets its own, and a plain text file exactly as it was typed, its DOS box
 drawing and accents included. Nothing in a file runs or is fetched: HTML in it is
 shown as text, and a picture as its description. See [Reading a text
 file](MANUAL.md#reading-a-text-file).
+
 **Scan is in the side rail.** With the rail showing, **Scan** sits under the
 sections, as it sits among the buttons in a phone's bar, and the banner beside the
 rail holds the search box alone. A tablet, a narrower window and the *Top* layout

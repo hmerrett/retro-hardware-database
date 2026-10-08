@@ -24,10 +24,10 @@
   </div>
   {# What to do next. The script redraws it from each scan's answer, which carries
      the same three things. #}
-  {% set idle_where, idle_path = 'Scan a location', 'or a thing, to see where it is' %}
+  {% set idle_where, idle_path = 'Scan a location or a machine', 'or a part, to see where it is' %}
   <div class="storageprompt" id="storage-prompt" data-idle-where="{{ idle_where }}" data-idle-path="{{ idle_path }}">
     <p class="step" id="storage-step"{% if not opened %} hidden{% endif %}>Scan things into</p>
-    <p class="prompt" id="storage-where">{% if opened %}<a href="/locations/{{ opened }}">{{ open_name }}</a>{% else %}{{ idle_where }}{% endif %}</p>
+    <p class="prompt" id="storage-where">{% if opened %}<a href="/items/{{ opened }}">{{ open_name }}</a>{% else %}{{ idle_where }}{% endif %}</p>
     <p class="hint" id="storage-path">{% if opened %}{{ open_path }}{% else %}{{ idle_path }}{% endif %}</p>
     {# Whether a scan would land anywhere: with the box put away, nothing else on
        the screen says the focus has gone. Pressed, it gets it back. Both words are
@@ -51,9 +51,12 @@
     {{ U.button('Scan it', kind='primary', type='submit') }}
   </form>
   <div class="storagecontrols">
+    {# Until it is pressed, everything scanned goes into what is open, a location
+       included: it is how a box goes onto a shelf, and why it is the button pressed
+       between one shelf and the next (ADR-0036). #}
     <form method="post" action="/audit/close" class="inline-form" id="storage-change"{% if not opened %} hidden{% endif %}
-          title="Close this location without opening another. A thing scanned next is held until a location is scanned.">
-      <button class="btn" type="submit">{{ 'Change location' | ui }}</button>
+          title="Close this one, so the next scan opens whatever it is. Until then, everything scanned goes into what is open, a location included.">
+      <button class="btn" type="submit">{{ 'Next' | ui }}</button>
     </form>
     <form method="post" action="/audit/finish" class="inline-form">
       <button class="btn" type="submit" id="storage-finish" title="End the round and see what was found, moved and missed">{{ 'Finish' | ui }}</button>
@@ -61,8 +64,6 @@
     <button type="button" class="btn scan-open" hidden title="Read a label with the camera">{{ 'Camera' | ui }}</button>
     <button type="button" class="btn" id="storage-type" aria-pressed="false" title="Bring up the keyboard to key a tag in by hand">{{ 'Type a tag' | ui }}</button>
     <button type="button" class="btn" id="storage-sound" aria-pressed="true" title="Beep for each scan. This browser remembers it.">{{ 'Sound' | ui }}</button>
-    <label class="check" title="With it on, a location scanned while another is open goes inside the open one, with everything in it. Off whenever the audit opens.">
-      <input type="checkbox" id="storage-boxes" name="boxes" value="1" form="storage-form"> {{ 'Moving boxes' | ui }}</label>
   </div>
   <ol class="scanlist" id="scan-list" aria-label="This round's scans, newest first">
     {%- for line in lines %}{% include "_storage_line.html" %}{% endfor -%}

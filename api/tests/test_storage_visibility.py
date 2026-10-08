@@ -153,14 +153,15 @@ class TestWithShowLocationsOn:
         assert client.get(f"/images/locations/{src}").status_code == 200
 
     def test_and_the_moves_on_an_items_history(self, client, location, computer):
-        aid = computer(location=location("Loft", "room"))["asset_id"]
+        # Made after the switch, so it starts ticked (ADR-0036).
         show_locations(client)
+        aid = computer(location=location("Loft", "room"))["asset_id"]
         log_out(client)
         assert 'data-kind="move"' in client.get(f"/computers/{aid}").text
 
     def test_and_a_visitors_search_finds_by_them(self, client, location, computer):
-        aid = computer(location=location("Loft", "room"))["asset_id"]
         show_locations(client)
+        aid = computer(location=location("Loft", "room"))["asset_id"]
         log_out(client)
         assert aid in content(client.get("/?q=loft").text)
 

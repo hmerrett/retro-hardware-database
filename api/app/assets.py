@@ -7,7 +7,7 @@ are here, so that the two page modules hold what differs and not what does not -
 and so that the JSON API, which deletes and edits the same rows, is not a third copy.
 """
 
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from typing import Literal, TypedDict
 from urllib.parse import urlparse
 
@@ -44,9 +44,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
-from . import entry, filesdb, locations, machinedb, machines, projects, specdb
+from . import entry, filesdb, locations, machinedb, machines, projects, specdb, tree
 from .common import folder_images, to_dict
-from .disposal import _parts_in_computer
+from .disposal import inside as _inside
 from .forms import Posted, Refusal, posted
 from .history import add_log
 from .models import (
@@ -150,23 +150,15 @@ def _machine_pick(form: Posted, field: str) -> str:
     return picked
 
 
-def _clear_computer_rows(db: Session, c: Computer, with_parts: Iterable[Part] = ()) -> list[str]:
-    """The same for a computer: its drive and memory rows, its history, and either
-    the parts inside it or the link they hold to it. `with_parts` is the parts to
-    delete along with it; the rest are unlinked and kept."""
+def _clear_computer_rows(db: Session, c: Computer) -> list[str]:
+    """The same for a computer: its drive and memory rows, its history, and
+    everything inside it, all the way down (ADR-0036). The same walk disposal uses,
+    so that what a delete calls "in the machine" is what disposal called it -- the
+    drive on the controller card as much as the card -- and the deepest go first."""
     aid = c.asset_id
-    going = {p.asset_id for p in with_parts}
     photos: list[str] = []
-    # The same walk disposal uses, so that what a delete calls "in the machine" is
-    # what disposal called it: a disk on a controller card carries the card's id,
-    # not the machine's. A kept part only needs the link it holds to the machine
-    # cleared here -- one held to a part that is going is cleared by that part.
-    for p in _parts_in_computer(db, aid):
-        if p.asset_id in going:
-            photos += _clear_part_rows(db, p, also_going=going)
-        elif p.computer_id == aid:
-            p.computer_id = None
-            add_log(db, p.asset_id, f"came out of {aid}, which was deleted")
+    for p in reversed(_inside(db, aid)):
+        photos += _clear_part_rows(db, p)
     for model in (ComputerDrive, ComputerRamModule, ComputerRamChip):
         db.query(model).filter(model.computer_id == aid).delete(synchronize_session=False)
     photos += _drop_log_photos(db, aid)
@@ -175,21 +167,15 @@ def _clear_computer_rows(db: Session, c: Computer, with_parts: Iterable[Part] = 
     for table in (AssetChip, AssetVariant, LogEntry):
         db.query(table).filter(table.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("computers", aid)
-    db.delete(c)
+    tree.bury(db, c)
     return photos
 
 
-def _clear_part_rows(db: Session, part: Part, also_going: Collection[str] = ()) -> list[str]:
-    """Everything in the database belonging to one part, and the links other parts
-    hold to it. Returns its photos, for the caller to delete once the transaction
-    is safe. `also_going` names assets being deleted in the same breath, which are
-    not told they have lost a link they are about to stop having."""
+def _clear_part_rows(db: Session, part: Part) -> list[str]:
+    """Everything in the database belonging to one part. Returns its photos, for the
+    caller to delete once the transaction is safe. What is mounted on it is the
+    caller's to have taken first (`delete_part`, `_clear_computer_rows`)."""
     aid = part.asset_id
-    for child in db.query(Part).filter(Part.parent_id == aid).all():
-        if child.asset_id in also_going:
-            continue
-        child.parent_id = None
-        add_log(db, child.asset_id, f"came off {aid}, which was deleted")
     for model in specdb.SPEC_TABLES:
         db.query(model).filter(model.part_id == aid).delete(synchronize_session=False)
     # By hand rather than by cascade, for the reason log_entry is: these are keyed
@@ -206,7 +192,7 @@ def _clear_part_rows(db: Session, part: Part, also_going: Collection[str] = ()) 
     for table in (AssetChip, AssetVariant, LogEntry):
         db.query(table).filter(table.asset_id == aid).delete(synchronize_session=False)
     photos += detect_images("parts", aid)
-    db.delete(part)
+    tree.bury(db, part)
     return photos
 
 
@@ -219,14 +205,18 @@ def _log_count(db: Session, asset_ids: Sequence[str]) -> int:
     return counted or 0
 
 
-COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name != "asset_id"]
+# The columns a form writes as it finds them. Not the Visible tick: it belongs to
+# the Location box and is read with it (`place_from_form`), because a box that
+# could be absent from a form would otherwise untick a thing that was never asked.
+PLACE_FIELDS = ("asset_id", "location_public")
+
+COMPUTER_FIELDS = [c.name for c in Computer.__table__.columns if c.name not in PLACE_FIELDS]
 
 
-# The change log need not repeat the derived memory total, nor where the thing is
-# kept: a change of location is a move, written as one with both ends linked
-# (locations.move), and a line saying "location_id: RH-K7Q2 → RH-9J2X" beside it
-# would be the same event told worse.
-COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f not in ("installed_ram_kb", "location_id")]
+# The change log need not repeat the derived memory total. Where the thing is kept
+# is not a column at all: a change of it is a move, written as one with both ends
+# linked (tree.put).
+COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f != "installed_ram_kb"]
 
 
 # These are rendered from the memory, drive and catalogue child tables, so the form
@@ -234,7 +224,7 @@ COMPUTER_DIFF_FIELDS = [f for f in COMPUTER_FIELDS if f not in ("installed_ram_k
 DERIVED_FIELDS = {"installed_ram", "installed_ram_kb", "drives", "drives_note", "variant"}
 
 
-PART_FIELDS = [c.name for c in Part.__table__.columns if c.name != "asset_id"]
+PART_FIELDS = [c.name for c in Part.__table__.columns if c.name not in PLACE_FIELDS]
 
 
 # The same for a part: its variant line is rendered from the catalogue rows, so
@@ -248,7 +238,8 @@ PART_DERIVED_FIELDS = {"variant"}
 # (source / acquired date / notes), its serial number, where it sits and where it is
 # kept. A second card is a second card, not another card in the same slot or in the
 # same crate, so the copy starts unplaced -- and no two objects ever wore the same
-# serial.
+# serial. Where it is is not a column here, so there is nothing to leave out; the
+# Visible tick starts as a new thing's does.
 #
 # A plan used to be on that list too, when one was a column here. It is a project of
 # its own now, and a project is attached to an asset rather than copied with one --
@@ -262,28 +253,36 @@ DUP_EXCLUDE = {
     "acquired_date",
     "notes",
     "serial",
-    "location_id",
-    "computer_id",
-    "parent_id",
 }
 
 
 def place_from_form(db: Session, obj: Computer | Part, form: Posted, who: str) -> Refusal | None:
-    """The Location box, read off a form and acted on: the location it names --
-    made at the top, of kind other, when it names none -- and the move written
-    down as made by edit (MANUAL §5, "Where it is kept").
+    """The Location box and its Visible tick, read off a form and acted on: the
+    location it names -- made at the top, of kind other, when it names none -- and
+    the move written down as made by edit (MANUAL §5, "Where it is kept").
 
     A refusal rather than an exception for text that names more than one location
     or something that is not one, so the form comes back with the message by the
-    box and the rest of what was typed still in it. A form without the box at all
-    -- a route that posts only some fields -- leaves where the thing is alone."""
+    box and the rest of what was typed still in it. A form without the box -- a part
+    fitted in something has none, and a route may post only some fields -- leaves
+    where the thing is, and its tick, alone."""
     if "location" not in form:
         return None
-    tree = locations.tree(db)
+    shown = bool(form.get("location_public"))
+    if shown != bool(obj.location_public):
+        obj.location_public = shown
+        add_log(
+            db,
+            obj.asset_id,
+            "where it is kept is shown to visitors"
+            if shown
+            else "where it is kept is kept from visitors",
+        )
+    places = locations.tree(db)
     try:
-        found = locations.choose(db, form.get("location", ""), tree)
-        locations.move(db, obj, found.asset_id if found else None, locations.EDIT, who, tree)
-    except locations.Refused as err:
+        found = locations.choose(db, form.get("location", ""), places)
+        tree.put(db, obj, found.asset_id if found else None, tree.EDIT, who)
+    except tree.Refused as err:
         return ("location", "Location", str(err))
     return None
 
@@ -324,27 +323,16 @@ def _delete_ctx(
     kind: str,
     obj: Computer | Part,
     error: str = "",
-    with_parts: bool = False,
 ) -> dict[str, object]:
     """What deleting this would take with it, for the confirmation page. Read with
-    the same queries the deletion itself runs, so the page cannot promise one
-    thing and the button do another.
+    the same walk the deletion itself runs, so the page cannot promise one thing and
+    the button do another: everything inside it, all the way down (ADR-0036), each
+    listed, since a thing deleted unseen is a thing nobody chose to delete.
 
-    The item's own figures and the contents' are kept apart rather than summed
-    against the tick, so both are on the page whichever way the tick is set and
-    neither needs a script to keep them honest."""
+    The item's own figures and its contents' are kept apart rather than summed, so
+    the page says what is the thing's and what came with it."""
     aid = obj.asset_id
-    inside: list[Part]
-    children: list[Part]
-    inside = children = []
-    if kind == "computers":
-        inside = _parts_in_computer(db, aid)
-    else:
-        children = db.query(Part).filter(Part.parent_id == aid).order_by(Part.asset_id).all()
-    # A part inside the machine that is not itself disposed is not deleted even
-    # when the box is ticked: it is still in the collection, and the rule here is
-    # that only what has already been marked as gone can go.
-    deletable = [p for p in inside if p.disposed]
+    inside = _inside(db, aid)
     # The photographs hung on the history count here too. They are not shown in the
     # gallery and are not the portrait, but they are files, they go when the record
     # goes, and the page's promise is "deleted from disk" -- so leaving them out
@@ -358,15 +346,11 @@ def _delete_ctx(
         "photos": detect_images(kind, aid) + _asset_log_photos(db, aid),
         "logs": _log_count(db, [aid]),
         "inside": inside,
-        "deletable": deletable,
-        "kept": [p for p in inside if not p.disposed],
         "parts_photos": sum(
             len(detect_images("parts", p.asset_id)) + len(_asset_log_photos(db, p.asset_id))
-            for p in deletable
+            for p in inside
         ),
-        "parts_logs": _log_count(db, [p.asset_id for p in deletable]),
-        "children": children,
-        "with_parts": with_parts,
+        "parts_logs": _log_count(db, [p.asset_id for p in inside]),
         "error": error,
         "noindex": True,
     }
@@ -675,16 +659,22 @@ def part_thumbs(db: Session, parts: Iterable[Part]) -> dict[str, dict[str, objec
     return thumbs
 
 
-def delete_computer(db: Session, c: Computer, with_parts: Iterable[Part] = ()) -> list[str]:
-    photos = _clear_computer_rows(db, c, with_parts)
+def delete_computer(db: Session, c: Computer) -> list[str]:
+    """Delete a machine and everything inside it, and commit. Returns the photos
+    that went with them."""
+    photos = _clear_computer_rows(db, c)
     db.commit()
     _purge_photos(photos)
     return photos
 
 
 def delete_part(db: Session, part: Part) -> list[str]:
-    """Delete a part and commit. Returns the photos that went with it."""
-    photos = _clear_part_rows(db, part)
+    """Delete a part and everything mounted on it, all the way down, and commit.
+    Returns the photos that went with them."""
+    photos: list[str] = []
+    for p in reversed(_inside(db, part.asset_id)):
+        photos += _clear_part_rows(db, p)
+    photos += _clear_part_rows(db, part)
     db.commit()  # the rows first: if this raises, the photos are still there
     _purge_photos(photos)
     return photos

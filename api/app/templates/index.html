@@ -121,8 +121,9 @@
 {%- set tag %}<a class="aid" href="{{ href }}">{{ o.asset_id }}</a>{% endset -%}
 {%- set name %}<a href="{{ href }}">{{ r.name }}</a>{% if o.disposed %} {{ U.chip('Disposed', 'quiet') }}{% endif %}{% endset -%}
 {%- set where -%}
-{%- if o.location_id %}<a href="/locations/{{ o.location_id }}">{{ tree.text(o.location_id) }}</a>
-{%- elif placed.get(o.asset_id) %}{% set pl = placed[o.asset_id] %}<a href="/locations/{{ pl.where }}">{{ tree.text(pl.where) }}</a> <span class="meta">— where <a href="/{{ pl.kind }}/{{ pl.whose }}">{{ pl.whose }}</a> is</span>
+{%- set w = wheres.get(o.asset_id) -%}
+{%- if w %}{% if where_links %}<a href="/locations/{{ w.tag }}">{{ w.path }}</a>{% else %}{{ w.path }}{% endif %}
+{%- if w.whose %} <span class="meta">— where <a href="/{{ w.kind }}/{{ w.whose }}">{{ w.whose }}</a> is</span>{% endif %}
 {%- endif -%}
 {%- endset -%}
 {%- if trows.append([pic, tag, name, r.cat_label, r.year or '', where] if show_location else [pic, tag, name, r.cat_label, r.year or '']) %}{% endif -%}

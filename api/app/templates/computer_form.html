@@ -164,6 +164,12 @@
                  value=TYPED.location if 'location' in TYPED else location_text,
                  hint="where it is kept — a location, or a new name", error=ERR.get('location'),
                  list='dl_locations', autocomplete='off') }}
+      {# Its Visible tick, beside it because it is about it: whether a visitor is told
+         where this one is kept (ADR-0036). A refused save draws it as it was posted,
+         which for a box left unticked is its absence. #}
+      {{ U.field('location_public', 'Visible', kind='switch',
+                 value=('location_public' in TYPED) if 'location' in TYPED else location_tick,
+                 note="Whether a visitor is told where this is kept. A new item starts as Show locations on the settings page says.") }}
       {{ fld('url', 'Reference URL', "Wikipedia, The Retro Web, …") }}
     </div>
   </fieldset>

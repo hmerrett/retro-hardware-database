@@ -10,7 +10,7 @@ import hashlib
 import random
 from collections.abc import Callable, Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -18,7 +18,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, locations, projects, settings, specdb
+from .. import cards, entry, locations, projects, settings, specdb, tree
 from ..auth import LAYOUT_COOKIE, SORT_COOKIE
 from ..common import folder_images, to_dict
 from ..db import get_db
@@ -55,11 +55,15 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
     that are all equal."""
     computers = db.query(Computer).order_by(Computer.asset_id).all()
     parts = db.query(Part).order_by(Part.asset_id).all()
+    # The machine each part is in, however far down: a drive on its controller card
+    # counts as in the machine the card is in (ADR-0036).
+    whole = tree.load(db)
+    machine_of = {p.asset_id: whole.machine(p.asset_id.upper()) for p in parts}
     counts: dict[str, int] = {}
-    for p in parts:
-        if p.computer_id:
-            counts[p.computer_id] = counts.get(p.computer_id, 0) + 1
-    comp_ids = {c.asset_id for c in computers}
+    for m in machine_of.values():
+        if m:
+            counts[m] = counts.get(m, 0) + 1
+    comp_ids = {c.asset_id.upper() for c in computers}
 
     # Newest/oldest log timestamp per asset, for the updated / added sorts.
     ts: dict[str | None, tuple[datetime | None, datetime | None]] = {}
@@ -114,6 +118,7 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
         )
     for p in parts:
         ptype = p.type or "other"
+        home = machine_of[p.asset_id] or ""
         rows.append(
             {
                 "obj": p,
@@ -121,7 +126,7 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                 "cat": ptype,
                 "cat_label": entry.type_label(ptype),
                 "year": p.year or "",
-                "parent": p.computer_id if p.computer_id in comp_ids else "",
+                "parent": home if home in comp_ids else "",
                 "name": entry.display_name(to_dict(p)),
                 "image": (ppi := primary_image("parts", p.asset_id)),
                 "ref_photo": is_reference(ppi),
@@ -136,7 +141,7 @@ def _catalogue_rows(db: Session, authed: bool = False) -> list[Card]:
                 "maker": (p.manufacturer or "").lower(),
                 "acquired": str(p.acquired_date or ""),
                 "catsort": entry.type_sort_key(ptype) + 1,
-                "sub": (p.computer_id if p.computer_id else "standalone"),
+                "sub": home or "standalone",
             }
         )
 
@@ -308,13 +313,15 @@ def _grid_page(
     n_computers = sum(1 for r in rows if r["kind"] == "computer")
     on_page = shown[(page - 1) * size : page * size]
     # Where it is, in the table, under the item pages' rule: the owner always, a
-    # visitor only while Show locations is on; a fitted part with no answer of its own
-    # shows the one it inherits, and whose it is.
-    show_location = layout == "table" and (
-        request.state.sees_private or settings.on("public_locations")
+    # visitor for a thing whose tick says so (ADR-0036); a fitted part shows where
+    # its machine is, and whose answer that is. The column is there for a visitor
+    # only when something on the page has an answer to show.
+    wheres = (
+        _wheres(db, on_page, request.state.sees_private)
+        if layout == "table" and db is not None
+        else {}
     )
-    placed = locations.inherited(db) if show_location and db is not None else {}
-    tree = locations.tree(db) if show_location and db is not None else locations.Tree()
+    show_location = layout == "table" and (request.state.sees_private or bool(wheres))
     response = templates.TemplateResponse(
         request,
         "index.html",
@@ -325,8 +332,8 @@ def _grid_page(
                 k: f"{request.url.path}?{urlencode({**view, 'layout': k})}" for k in LAYOUTS
             },
             "show_location": show_location,
-            "placed": placed,
-            "tree": tree,
+            "wheres": wheres,
+            "where_links": locations.shown(request.state.sees_private),
             "cats": cats,
             "n_computers": n_computers,
             "n_parts": len(rows) - n_computers,
@@ -363,6 +370,32 @@ def _grid_page(
             secure=request.headers.get("x-forwarded-proto") == "https",
         )
     return response
+
+
+class WhereCell(NamedTuple):
+    """One row's Where it is: the location, its path as words, and when a part is
+    borrowing its machine's answer, whose it is."""
+
+    tag: str
+    path: str
+    whose: str
+    kind: str
+
+
+def _wheres(db: Session, rows: list[Card], sees_private: bool) -> dict[str, WhereCell]:
+    """Where it is, for each row on the page this reader is told it for."""
+    r, names, marks = tree.load(db), locations.tree(db), locations.ticks(db)
+    out: dict[str, WhereCell] = {}
+    for row in rows:
+        tag = row["obj"].asset_id.upper()
+        here = r.place(tag)
+        if here is None or not locations.told(r, marks, tag, sees_private):
+            continue
+        outer = r.outermost(tag)
+        whose = outer if outer != tag else ""
+        kind = ("computers" if r.what(whose) == tree.COMPUTER else "parts") if whose else ""
+        out[row["obj"].asset_id] = WhereCell(here, names.text(here), whose, kind)
+    return out
 
 
 @router.get("/suggest", include_in_schema=False)

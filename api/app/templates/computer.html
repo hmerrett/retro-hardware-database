@@ -28,7 +28,7 @@
     {% endfor %}
     {# Where it is kept: the owner's by default and everybody's by setting (ADR-0027),
        and none at all when the route says this reader is not told. #}
-    {{ W.row(where) }}
+    {{ W.row(where, where_links) }}
     {# Out of the list above, and last in it as it was, because this is the one value
        that is written in more than one line and has to be shown in them. #}
     {% if c.notes %}<div><dt>Notes</dt><dd class="lines">{{ c.notes | linked }}</dd></div>{% endif %}

@@ -1145,6 +1145,7 @@ class TestDeletingAnItem:
         aid = card(part)
         upload(client, "receipt.pdf", aid=aid)
         fid = newest(client)
+        client.patch(f"/api/parts/{aid}", json={"disposed": True})
         client.delete(f"/api/parts/{aid}")
         assert file_ids(client) == [fid]
         assert linked_to(client, fid) == set()

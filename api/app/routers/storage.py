@@ -18,11 +18,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
-from .. import entry, locations, storage
+from .. import entry, storage, tree
 from ..common import to_dict
 from ..db import get_db
 from ..forms import posted
-from ..models import Computer, Location, Part, StockCheck, StockCheckScan
+from ..models import Location, StockCheck, StockCheckScan, Thing
 from ..web import templates
 
 router = APIRouter()
@@ -49,7 +49,7 @@ def _names(db: Session, tags: Iterable[str | None]) -> dict[str, str]:
         if loc is not None:
             out[tag] = loc.name
             continue
-        thing = db.get(Computer, tag) or db.get(Part, tag)
+        thing = tree.item(db, tag)
         out[tag] = entry.display_name(to_dict(thing)) if thing is not None else tag
     return out
 
@@ -62,21 +62,23 @@ HEADS = {
     storage.FOUND: "Found",
     storage.MOVED: "Moved in",
     storage.NESTED: "Moved in",
+    storage.WHERE: "Where it is",
     storage.HELD: "Where it is",
     storage.AGAIN: "Already scanned",
     storage.REFUSED: "Not recognised",
-    storage.CLOSED: "Closed",
+    storage.CLOSED: "Next",
 }
 
 
 def _prompt(db: Session, opened: str | None) -> dict[str, str]:
-    """What the prompt says of the open location: its name, and the path to it --
-    the locations it is inside, since the name is said in larger type above."""
-    t = locations.tree(db)
-    if opened is None or opened not in t:
+    """What the prompt says of what is open, a location or a machine: its name, and
+    where it is -- what it is inside, since the name is said in larger type above."""
+    r = tree.load(db)
+    found = db.get(Thing, opened) if opened else None
+    if found is None or opened is None or opened.upper() not in r:
         return {"open_name": "", "open_path": ""}
-    name, _kind, parent = t.rows[opened]
-    return {"open_name": name, "open_path": t.text(parent)}
+    name = found.name if isinstance(found, Location) else storage.name_of(found)
+    return {"open_name": name, "open_path": tree.words(db, r, r.holder(opened.upper()))}
 
 
 def _answer(db: Session, said: storage.Said) -> JSONResponse:
@@ -139,13 +141,7 @@ def gui_storage(request: Request, db: Session = Depends(get_db)) -> HTMLResponse
 async def gui_storage_scan(request: Request, db: Session = Depends(get_db)) -> Response:
     form = await posted(request)
     check = storage.round_for(db, _user(request))
-    said = storage.scan(
-        db,
-        check,
-        form.get("code", "") or "",
-        form.get("boxes", "") == "1",
-        request.state.principal.username,
-    )
+    said = storage.scan(db, check, form.get("code", "") or "", request.state.principal.username)
     db.commit()
     if not _wants_json(request):
         return RedirectResponse("/audit", status_code=303)
@@ -154,11 +150,12 @@ async def gui_storage_scan(request: Request, db: Session = Depends(get_db)) -> R
 
 @router.post("/audit/close", include_in_schema=False)
 def gui_storage_close(request: Request, db: Session = Depends(get_db)) -> Response:
-    """Change location (MANUAL §14): the open location shut, and none opened."""
+    """**next** (MANUAL §14): what is open shut, and nothing opened, so the next scan
+    opens whatever it is."""
     check = storage.current(db, _user(request))
     if check is None:
         raise HTTPException(404, "no location is open")
-    said = storage.close(db, check, locations.tree(db))
+    said = storage.close(db, check)
     db.commit()
     if not _wants_json(request):
         return RedirectResponse("/audit", status_code=303)

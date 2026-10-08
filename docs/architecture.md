@@ -105,7 +105,9 @@ The single most load-bearing rule in the system.
 Computers, parts, projects and locations **share one id namespace**, allocated by
 `api/app/ids.py`. Two things sharing an id would put one's history on the other's
 page, because `/items/<id>` resolves to whichever kind of thing holds it and the
-log is keyed by id alone.
+log is keyed by id alone. The namespace is a table, `register`, with the tag as
+its primary key, so the database itself refuses a second thing with a tag already
+taken (ADR-0036).
 
 - Historic ids are sequential (`RH-0001`); new ones are `RH-` plus four random
   characters (`RH-K7Q2`).
@@ -115,6 +117,8 @@ log is keyed by id alone.
 - `GET /items/<id>` is the public redirect every printed QR code points at. It is
   the reason ids may never be reused or reassigned: labels already exist on
   shelves, and some of them point at a GitHub Pages site that predates this app.
+  A deleted thing's row stays in `register`, its `what` saying `deleted`, for that
+  reason, so its tag is never issued again.
 - A label's Code 128 barcode carries the id and nothing else (ADR-0034), so the id
   is the whole of what a scanner hands the app, in the audit as in the search
   box. There is no `L:`/`I:` prefix: which table holds the id is the answer to
@@ -125,13 +129,21 @@ log is keyed by id alone.
 `api/app/models.py` holds the ORM tables; `api/migrations/` holds the Alembic
 migrations that build them. Nothing else may construct an engine.
 
+**The register and its tree.** `register` holds every tag in the pool, one row
+for each computer, part, location and project with `what` it is, and the one link
+that says where everything is: `inside_id`, the thing it is directly inside, a
+real foreign key back into `register` (ADR-0036). A location is inside a location;
+a machine is inside a location; a part is inside a location, a machine or another
+part; a project is inside nothing. What a link means is read off what holds it:
+inside a location is *kept*, inside a machine is *fitted*, inside a part is
+*mounted*. The four kinds' own tables hang off `register` by `asset_id`.
+
 **The two item tables.** `computers` and `parts` carry the columns every item has
 — identity, manufacturer, model, year, serial, condition, source, acquisition
-date, location, disposal. A part's `computer_id` links it to the computer it is fitted in
-and `parent_id` to the part it is mounted on; both are real foreign keys and
-`NULL` when the part stands alone. Deleting a computer or a host part **unlinks**
-what pointed at it rather than deleting it — a card outlives the machine it came
-out of.
+date, disposal, and `location_public`, whether a visitor is told where it is kept.
+Where an item is lives in `register.inside_id` and not here. Deleting a computer or
+a part deletes everything inside it; deleting a location deletes nothing inside it,
+and leaves what was there inside nothing (ADR-0036).
 
 **Typed detail hangs off a part by kind.** `motherboard_spec`, `cpu_spec`,
 `ram_spec`, `video_spec`, `sound_spec`, `network_spec`, `io_spec`, `storage_spec`
@@ -159,9 +171,10 @@ and re-render; never edit the string and hope.
 | `log_entry`, `log_photo` | the dated history of an asset, and photographs attached to a line of it |
 | `files`, `file_tag` | files kept beside the register — drivers, manuals, ROM dumps — and the tags that say what each one is |
 | `file_asset`, `file_model` | what a file is for: one unit by asset id, or every item of a model by catalogue key or by maker and model |
-| `locations` | where things are kept: a building, a room, a rack, a box, a bag, each with an id from the pool, a kind, notes and photographs, and the location it is inside. The path is read up `parent_id` when shown, never stored (ADR-0034) |
-| `moves` | each change in where a thing or a location is kept: from, to, when, the user, and whether by edit, scan or API |
-| `stock_checks`, `stock_check_scans` | a storage-mode round: the locations it opened, what each was expected to hold, and every scan with what it did |
+| `register` | every tag in the pool, its kind, and `inside_id`, what it is directly inside: the one tree that says where everything is (ADR-0036) |
+| `locations` | where things are kept: a building, a room, a rack, a box, a bag, each with an id from the pool, a kind, notes and photographs. What it is inside is its `register.inside_id`, and its path is read up the tree when shown, never stored (ADR-0034, ADR-0036) |
+| `moves` | each change in what a thing or a location is inside, whether kept, fitted or mounted: from, to, when, the user, and whether by edit, scan, API or undo |
+| `stock_checks`, `stock_check_scans` | an audit round: the locations and machines it opened, what each was expected to hold, and every scan with what it did |
 | `users`, `memberships` | who may sign in, and the role each has on a site — one site today, and the row a second collection would hang from (ADR-0032) |
 | `sessions`, `api_tokens` | a signed-in browser and a program's token, each kept as a digest of the key it was handed, so either ends the moment its row goes |
 | `projects`, `project_asset`, `project_task`, `project_order` | a piece of work, the things it is about (one project to a thing), its job list — each job optionally naming one of those things — and what is on order for it |
@@ -201,7 +214,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/storage.py` | the audit (`/audit`; its first name, storage, is still the code's): the screen, a scan, an undo, finishing a round, and the report |
 | `routers/projects.py` | the project pages: jobs, orders, and the things a project is about |
 | `register.py` | the register as one id space: which table an asset id is in, what sits either side, whether a page has gone stale |
-| `disposal.py` | disposing of a thing and bringing it back, including what was fitted inside it |
+| `disposal.py` | disposing of a thing and bringing it back, including everything inside it, read off the tree |
 | `forms.py` | what was typed turned into what a column holds, and what changed |
 | `history.py` | the change log: writing a line, reading them back, and folding a burst into one |
 | `web.py` | the templates object and what a page needs around one: the globals, the share card, the schema.org data |
@@ -218,7 +231,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `models.py` | the ORM tables and their relationships |
 | `db.py` | the engine and the per-request session — the only place either is made |
 | `schemas.py` | the request and response shapes for `/api/*` |
-| `ids.py` | allocating an asset id, unique across the whole register |
+| `ids.py` | allocating an asset id from `register`, which never gives one out twice |
 | `common.py` | the "still held" filter, small query helpers, the image folder, collection constants |
 | `settings.py` | what is kept because somebody prefers it: the definitions, where each one's answer comes from, and the writing of it |
 | `presets.py` | the looks the register ships with, read from the design data — so the page cannot offer one no stylesheet was written for |
@@ -227,8 +240,9 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, the size it is given as, and whether it is read in the browser |
 | `textfiles.py` | a text file read as a page of the register: the words in one, and Markdown set as the site's own markup, with nothing in it that runs or is fetched (ADR-0035) |
 | `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
-| `locations.py` | where things are kept: the tree of locations and the path up it, what the Location box offers, moving a thing or a location and writing the move, where a part is when it does not say for itself, and that no part is mounted on itself |
-| `storage.py` | the audit's rounds: what a scan does -- open, found, moved in, held, refused -- undoing one, and the report a round ends with |
+| `locations.py` | what belongs to a location alone: its kinds, finding one by tag, path or name, what the Location box offers, a path as words, emptying, merging and forgetting one, and its label |
+| `tree.py` | the one tree everything is in (ADR-0036): what a thing is inside, what is inside it, the chain up, which kinds may hold which, the loop check, and moving something and writing the move |
+| `storage.py` | the audit's rounds: what a scan does -- open, found, moved in, refused -- undoing one, and the report a round ends with |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
 | `machinedb.py` | mapping an asset's catalogue identity between its rows and plain values |
@@ -315,31 +329,32 @@ breaking one turns CI red rather than merely being wrong.
   every column off the model, so a new one joins the anonymous search by merely
   existing. Owner-only columns are the named set `OWNER_ONLY` in `common.py`, not
   a habit of remembering. *(ADR-0018, enforced: `test_for_sale.py`)*
-- **What a setting hides, it hides from the search as well.** Where a thing is
-  kept is shown to a visitor only while `public_locations` says so, so
-  `_hidden_columns` asks which columns *this* reader is denied rather than reading
-  one fixed set — `OWNER_ONLY` is one answer to that question and not the whole of
-  it. *(ADR-0027, enforced: `test_locations.py`)*
-- **A location's path is worked out and never written down.** A thing points at
-  one location and a location at the one it is inside, so moving a box is one
-  write and its contents follow. Nothing may be inside itself, however far down.
-  *(ADR-0034, enforced: `test_storage_locations.py`)*
-- **Every change of where something is kept writes a move.** By edit, by scan, by
-  API, by undo: each a `moves` row with its user. A box moving writes one row, on
-  the box. *(ADR-0034, enforced: `test_moves.py`)*
+- **What is kept back, it keeps out of the search as well.** Where a thing is
+  kept is shown to a visitor only when that thing's `location_public` tick says so,
+  so a visitor's haystack carries the names along a path only for a thing whose
+  tick is on — `OWNER_ONLY` is one answer to what *this* reader is denied, and not
+  the whole of it. *(ADR-0027, ADR-0036, enforced: `test_locations.py`)*
+- **Where a thing is, is worked out and never written down.** Everything points at
+  the one thing it is directly inside, so moving a box, a machine or a card is one
+  write and what is in it follows. Nothing may be inside itself, however far down,
+  and only the pairs `tree.py` lists may hold one another. *(ADR-0034, ADR-0036,
+  enforced: `test_tree.py`)*
+- **A thing is in one place.** A part is fitted, mounted or kept, never two at
+  once; where one request names a machine and a location, the machine wins.
+  *(ADR-0036, enforced: `test_tree.py`)*
+- **Every change of what something is inside writes a move.** Fitting and taking
+  out included, by edit, by scan, by API, by undo: each a `moves` row with its
+  user. A box moving writes one row, on the box. *(ADR-0034, ADR-0036, enforced:
+  `test_moves.py`)*
+- **What is inside an item shares its fate; what is inside a location does not.**
+  Disposing of or deleting a machine or a part does the same to everything inside
+  it, all the way down; deleting a location leaves what was in it inside nothing.
+  *(ADR-0036, enforced: `test_tree.py`)*
 - **`public_locations` gates the location routes, not only the row.** A location's
   page, photographs, labels and API answer a visitor with the login while the
-  switch is off. *(ADR-0034, enforced: `test_storage_visibility.py`)*
-- **Where a fitted part is, is worked out and never written down.** A part with a
-  blank `location` is shown the location of what it is mounted on, else what it is
-  installed in, as far up the chain as it takes (`locations.inherited`). Nothing
-  writes that answer back, so moving a machine moves what is in it and no row goes
-  stale — and nothing may read the column alone as the whole answer.
-  *(enforced: `test_locations.py`)*
-- **No part is mounted on itself.** Nor on anything mounted on it, however far
-  down. Every way of mounting one — the mount button and its menu, the edit form,
-  the API, an undo in the audit — asks `locations.mount_refusal`, which reads up
-  from the host, as `Tree.would_loop` does for a location. *(enforced: `test_api.py`)*
+  switch is off, and a location's page shows a visitor only the things whose tick
+  is on. An item's own Location row answers to its tick. *(ADR-0034, ADR-0036,
+  enforced: `test_storage_visibility.py`)*
 - **The API's published shape is pinned.** `api/openapi.json` is committed and a
   change a caller could see fails the suite. *(ADR-0010, enforced)*
 - **Configuration comes from the environment; a preference comes from the page.**
@@ -467,6 +482,7 @@ it was weighed against, and what it costs.
 | 0033 | The traffic report runs in a sandbox of its own |
 | 0034 | A location is a record in the register |
 | 0035 | A text file is read as a page of the register |
+| 0036 | Where a thing is, is one tree |
 
 A significant decision becomes an ADR rather than a commit message. A finding is
 decided when it is found — fixed, raised as an issue, written up, or consciously

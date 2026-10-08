@@ -77,8 +77,8 @@ class TestAMoveIsWrittenDown:
         client.patch(f"/api/computers/{aid}", json={"location": bench})
         page = content(client.get(f"/computers/{aid}").text)
         line = page.split('data-kind="move"', 1)[1].split("</dd>", 1)[0]
-        assert f'<a href="/locations/{loft}">Loft</a>' in line
-        assert f'<a href="/locations/{bench}">Bench</a>' in line
+        assert f'<a href="/items/{loft}">Loft</a>' in line
+        assert f'<a href="/items/{bench}">Bench</a>' in line
         assert "through the API" in line and "owner" in line
 
 
@@ -97,7 +97,7 @@ class TestAMovingBox:
         box = location("Box 14")
         client.patch(f"/api/locations/{box}", json={"parent": loft})
         page = content(client.get(f"/locations/{box}").text)
-        assert f'<a href="/locations/{loft}">Loft</a>' in page.split('data-kind="move"', 1)[1]
+        assert f'<a href="/items/{loft}">Loft</a>' in page.split('data-kind="move"', 1)[1]
 
 
 class TestTheApiReadsThemBack:

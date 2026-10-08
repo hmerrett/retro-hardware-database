@@ -967,6 +967,7 @@ class TestWhenTheThingGoesAway:
         unmake it; it loses the link, which is all that was ever true about it."""
         pt = client.post("/api/parts", json={"model": "TM262"}).json()["asset_id"]
         pid = quick(client, "recap", aid=pt)
+        client.patch(f"/api/parts/{pt}", json={"disposed": True})
         assert client.delete(f"/api/parts/{pt}").status_code in (200, 204)
         db.expire_all()
         assert tasks_of(db, pid) == ["recap"]

@@ -14,6 +14,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
+from ..tree import load as load_tree
+from ..tree import put as put_inside
 from .. import entry, labels, locations
 from ..assets import (
     _do_photo_crop,
@@ -88,7 +90,7 @@ def _form_ctx(
         # inside -- and every location it could be put inside, by path. Not itself
         # nor anything in it: a box cannot go in a bag that is in the box, and a list
         # that offered one would be offering a refusal.
-        "inside_text": tree.text(loc.parent_id) if loc is not None else "",
+        "inside_text": tree.text(loc.inside_id) if loc is not None else "",
         "inside_choices": [
             tree.text(tag)
             for tag in sorted(tree.rows, key=lambda t: tree.text(t).casefold())
@@ -174,7 +176,7 @@ async def gui_create_location(request: Request, db: Session = Depends(get_db)) -
     db.flush()
     add_log(db, loc.asset_id, "created", "created")
     if parent is not None:
-        locations.move(db, loc, parent.asset_id, locations.EDIT, who, tree)
+        put_inside(db, loc, parent.asset_id, locations.EDIT, who)
     db.commit()
     return RedirectResponse(f"/locations/{loc.asset_id}", status_code=303)
 
@@ -184,16 +186,20 @@ def _page_ctx(request: Request, db: Session, loc: Location) -> dict[str, object]
     parts it shares with an item page -- photographs, history, label."""
     tag = loc.asset_id
     tree = locations.tree(db)
-    held = locations.counts(db, tree)
+    # A visitor, on a site whose locations are public, is shown and counted only the
+    # things whose own tick says where they are kept may be told (ADR-0036): a public
+    # location's page is not a way round the tick.
+    marks = None if request.state.sees_private else locations.ticks(db)
+    held = locations.counts(db, tree, marks)
     images = detect_images(KIND, tag)
-    blurb = tree.text(loc.parent_id) or locations.KIND_NAMES.get(loc.kind, "")
+    blurb = tree.text(loc.inside_id) or locations.KIND_NAMES.get(loc.kind, "")
     return {
         "loc": loc,
         "obj": loc,
         "kind": KIND,
         "one": labels.LOCATION,
         "item": to_dict(loc),
-        "steps": tree.steps(loc.parent_id),
+        "steps": tree.steps(loc.inside_id),
         "kind_name": locations.KIND_NAMES.get(loc.kind, loc.kind),
         # The locations inside it, each with how many things it holds all the way
         # down, so a shelf of boxes says which box to open.
@@ -201,7 +207,7 @@ def _page_ctx(request: Request, db: Session, loc: Location) -> dict[str, object]
             (child, tree.rows[child][0], tree.rows[child][1], held.get(child, 0))
             for child in tree.children(tag)
         ],
-        "things": [_card(t) for t in locations.kept_in(db, tag)],
+        "things": [_card(t) for t in locations.kept_in(db, tag, marks)],
         "images": images,
         "placeholder": "placeholders/location.svg",
         "ref_marks": reference_marks(KIND, tag),
@@ -261,10 +267,10 @@ async def gui_save_location(aid: str, request: Request, db: Session = Depends(ge
         changed.append("notes changed")
     for key, value in fields.items():
         setattr(loc, key, value)
-    tree.rows[loc.asset_id] = (loc.name, loc.kind, loc.parent_id)
+    tree.rows[loc.asset_id] = (loc.name, loc.kind, loc.inside_id)
     if changed:
         add_log(db, loc.asset_id, "; ".join(changed))
-    locations.move(db, loc, parent.asset_id if parent else None, locations.EDIT, who, tree)
+    put_inside(db, loc, parent.asset_id if parent else None, locations.EDIT, who)
     db.commit()
     return RedirectResponse(f"/locations/{loc.asset_id}", status_code=303)
 
@@ -278,15 +284,12 @@ def _refused_here(request: Request, db: Session, loc: Location, message: str) ->
 
 @router.post("/locations/{aid}/delete", include_in_schema=False)
 def gui_delete_location(aid: str, request: Request, db: Session = Depends(get_db)) -> Response:
-    """Refused while anything is in it, a thing or a location, which is the rule
-    the page states: move what is in it first, or empty it into the location above."""
+    """Delete a location and nothing in it (ADR-0036): what was directly inside it is
+    left nowhere, each with a move saying so. A box is where things are, not what
+    they are made of. Empty it into the location above first to keep them put."""
     loc = get_or_404(db, Location, aid)
-    if not locations.empty(db, loc.asset_id, locations.tree(db)):
-        return _refused_here(
-            request, db, loc, f"{loc.name} is not empty. Move what is in it first."
-        )
-    up = loc.parent_id
-    rels = locations.forget(db, loc)
+    up = loc.inside_id
+    rels = locations.forget(db, loc, request.state.principal.username, load_tree(db))
     db.commit()  # the rows first: a file cannot be rolled back
     _purge_photos(rels)
     return RedirectResponse(f"/locations/{up}" if up else "/", status_code=303)
@@ -295,7 +298,7 @@ def gui_delete_location(aid: str, request: Request, db: Session = Depends(get_db
 @router.post("/locations/{aid}/empty", include_in_schema=False)
 def gui_empty_location(aid: str, request: Request, db: Session = Depends(get_db)) -> Response:
     loc = get_or_404(db, Location, aid)
-    locations.empty_into_parent(db, loc, request.state.principal.username, locations.tree(db))
+    locations.empty_into_parent(db, loc, request.state.principal.username, load_tree(db))
     db.commit()
     return RedirectResponse(f"/locations/{loc.asset_id}", status_code=303)
 
@@ -309,7 +312,7 @@ async def gui_merge_location(aid: str, request: Request, db: Session = Depends(g
         into = locations.find(db, form.get("into", ""), tree)
         if into is None:
             raise locations.Refused("Choose the location to merge it into.")
-        rels = locations.merge(db, loc, into, request.state.principal.username, tree)
+        rels = locations.merge(db, loc, into, request.state.principal.username, load_tree(db))
     except locations.Refused as err:
         db.rollback()
         return _refused_here(request, db, get_or_404(db, Location, aid), str(err))

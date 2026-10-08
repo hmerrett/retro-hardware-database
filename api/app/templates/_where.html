@@ -6,11 +6,16 @@
    room. A part borrowing its machine's answer says whose it is, so a wrong one is
    corrected where it can be. Then what the location says about finding it: its
    notes and its photograph, which are what somebody sent to fetch the thing needs,
-   and a way to the rest of what is in the box. #}
-{% macro row(where) -%}
+   and a way to the rest of what is in the box.
+
+   `links` is whether this reader may open the locations themselves (Show
+   locations): a visitor told where one thing is, on a site whose location pages are
+   kept back, reads the path as names, since a link to a page that answers Nothing
+   here would be a link to nothing (ADR-0036). #}
+{% macro row(where, links=true) -%}
 {%- if where %}
 <div><dt>Location</dt><dd>
-  <span class="path">{% for tag, name in where.steps %}<a href="/locations/{{ tag }}">{{ name }}</a>{% if not loop.last %}<span class="sep" aria-hidden="true"> → </span>{% endif %}{% endfor %}</span>
+  <span class="path">{% for tag, name in where.steps %}{% if links %}<a href="/locations/{{ tag }}">{{ name }}</a>{% else %}{{ name }}{% endif %}{% if not loop.last %}<span class="sep" aria-hidden="true"> → </span>{% endif %}{% endfor %}</span>
   {%- if where.whose %} <span class="meta">— where <a href="/{{ where.kind }}/{{ where.whose }}">{{ where.whose }}</a> is</span>{% endif %}
   {%- if where.notes or where.photo %}
   <span class="wherenote">
@@ -18,7 +23,7 @@
     {%- if where.notes %}<span class="lines">{{ where.notes | linked }}</span>{% endif -%}
   </span>
   {%- endif %}
-  {%- if where.others %} <a class="meta" href="/locations/{{ where.tag }}">Also here: {{ where.others }} more</a>{% endif %}
+  {%- if where.others and links %} <a class="meta" href="/locations/{{ where.tag }}">Also here: {{ where.others }} more</a>{% endif %}
 </dd></div>
 {%- endif %}
 {%- endmacro %}

@@ -49,15 +49,16 @@ encodes, what the URL uses, and what a file or a photograph is pinned to.
 
 ### Two tables
 
-**Computers** are whole machines. **Parts** are components. A part records which
-computer it is installed in, and optionally which other part it is mounted on —
-so a hard disk can be mounted on a controller card which is fitted in a machine.
-Both are NULL for a spare sitting on a shelf.
+**Computers** are whole machines. **Parts** are components. Everything is inside
+at most one thing: a part is fitted in a machine, mounted on another part, or kept
+in a [location](#14-storage), and a machine is kept in a location. So a hard disk
+can be mounted on a controller card, fitted in a machine, kept in a box on a
+shelf — and moving the box moves all of them.
 
 Pull a card out of a machine and **Take out** on its page, and its record stays
-exactly as it was; it is now a spare. Put it in another machine and **Fit in** it
-there. The card's
-history records both moves.
+exactly as it was; it is now a spare, and nowhere until you put it somewhere. Put
+it in another machine and **Fit in** it there. The card's history records both
+moves.
 
 A part cannot be mounted on itself, or on anything mounted on it, however far
 down: a controller card cannot go on the drive that is on it. The menu beside
@@ -139,8 +140,8 @@ same order as the cards, and the category, the sort and the disposed box work th
 same way; the sort stays in the toolbar rather than on the table's headings. The
 tag and the name lead to the item's page, and a disposed item says so in its row.
 **Where it is** is shown to whoever is shown a location on an item's page — you
-always, a visitor only while **Show locations** is on — and a part with no
-location of its own shows where the machine it is fitted in is kept, and says
+always, a visitor only for a thing whose [**Visible**](#where-it-is-kept) tick is
+on — and a part fitted in a machine shows where the machine is kept, and says
 whose answer that is. The choice is part of the link like the rest of the view, so
 a table can be bookmarked or sent, and opens as a table. A search's results, the
 lists behind the figures on **Numbers** and **Might sell** are the same page and
@@ -530,14 +531,19 @@ Down the main column:
   style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
 - **Specification** — on a part's page: its spec pairs, a label and a value each.
 - **Fitted in** — on a part's page: the machine it is installed in, or the card
-  it is mounted on, with **Take out** to make it a spare again. A spare says it is
-  not fitted in anything and, when logged in, offers **Fit in** with a list of
-  machines.
-- **Motherboard** and **Parts** — what is fitted in this machine, each as a card
-  showing its tag, kind, name and specs, with **Take out** on each when logged in.
-  A part with nothing recorded gets no spec pairs at all, so the list also shows at
-  a glance which parts have been written up.
-- **Mounted parts** — on a part's page: what is mounted on this card.
+  it is mounted on, with **Take out** to make it a spare again. A part taken out
+  is nowhere until you put it somewhere: the register does not assume it is on the
+  shelf its machine is on. A spare says it is not fitted in anything and, when
+  logged in, offers **Fit in** with a list of machines. Fitting a spare takes it
+  out of the location it was kept in, because it is in the machine now.
+- **Motherboard** and **Parts** — everything fitted in this machine, each as a
+  card showing its tag, kind, name and specs, with **Take out** on each when
+  logged in. What is mounted on a card is listed under that card, so a drive on
+  its controller is in the machine's list too. A part with nothing recorded gets no
+  spec pairs at all, so the list also shows at a glance which parts have been
+  written up.
+- **Mounted parts** — on a part's page: what is mounted on this card, and what is
+  mounted on those in turn.
 - **Files** — [drivers, manuals, ROM dumps](#11-files) covering this item.
 - **History** — [everything that has happened to it](#15-history).
 
@@ -688,21 +694,21 @@ Pick one, and the item page shows the whole path to it.
 Type a name that matches no location and the box offers **new location "…"**.
 Saving then makes it, at the top level and of kind *other*, and puts the item in
 it. That keeps putting something away from becoming an errand to another page.
-Give the new location its proper place later, on its own page or by scanning
-([moving boxes](#moving-boxes)).
+Give the new location its proper place later, on its own page or by scanning it
+into another in the [audit](#audit).
 
-A part has the same box and usually does not need it filled in. A card fitted in
-a machine is wherever that machine is, so a part left blank is shown the location
-of whatever it is fitted in: the board it is mounted on if it is on one, and the
-machine it is installed in otherwise. Its page says whose answer it is showing.
-The chain runs as far as it has to: a chip on a board in a machine in Box 14 is
-in Box 14, and in whatever Box 14 is in. Move the machine, or the box, and
-everything in it moves with it, in one edit. A search for the loft finds all of
-them.
+**A thing is in one place.** A part is fitted in a machine, mounted on another
+part, or kept in a location — never two of those at once. So a part fitted in
+something has no Location box on its form: it is wherever that thing is, the
+board it is mounted on and then the machine the board is in, as far up as it
+goes. A chip on a board in a machine in Box 14 is in Box 14, and in whatever Box
+14 is in. Its page says whose answer it is showing. Move the machine, or the box,
+and everything in it moves with it, in one edit. A search for the loft finds all
+of them.
 
-Fill the box in when that is not true. A card in a drawer is in the drawer, and a
-part's own answer always wins over the one it would have been given. Clear the
-box again and it goes back to following what it is fitted in.
+A card in a drawer is in the drawer, and not in its machine. **Take out** on its
+page and give it a location, or scan it into the drawer in the [audit](#audit),
+which does both at once.
 
 Changing it is a move, and the history records it: where the item was, where it
 went, who moved it and that it was done by editing ([moves](#moves)).
@@ -711,9 +717,14 @@ went, who moved it and that it was done by editing ([moves](#moves)).
 and a second card is not in the same slot or the same crate. It is wherever you
 have just put it.
 
-Who else sees it is yours to decide, and out of the box nobody does: a visitor's
-page shows no Location row until you say otherwise. See [where things are
-kept](#where-things-are-kept) on the settings page.
+**Visible**, the tick beside Location, says whether a visitor is told where this
+one is kept. Who else sees it is yours to decide, one thing at a time. A new item
+starts ticked or not as [**Show locations**](#where-things-are-kept) on the
+settings page says, which out of the box is unticked, so a visitor's page shows no
+Location row until you say otherwise. A part fitted in something has no tick of
+its own: it follows the outermost thing it is in, since the machine's tick is the
+one that says whether anybody may know which shelf it is on. What a part is fitted
+in is not where it is kept, and is shown to everybody, as it always has been.
 
 ### About TopBench
 
@@ -1139,9 +1150,11 @@ so a drive on the shelf and one fitted in a machine are described alike.
 
 Every part, whatever its type, has: **Type**, **Manufacturer**, **Model**,
 **Name** (optional; defaults to maker + model), **Year**, **Serial number**,
-**Condition**, **Source**, **Acquired date**, **Location**, **Reference URL**,
-**Summary**, **Notes**, **Installed in** and **Mounted on** — and, at the foot of the form,
+**Condition**, **Source**, **Acquired date**, **Location** with its **Visible**
+tick, **Reference URL**, **Summary** and **Notes** — and, at the foot of the form,
 **Work needed** and **Project** ([checking something in](#checking-something-in)).
+A part added from a machine's page goes in that machine, and one added from a
+card's page goes on that card, so neither has a Location of its own.
 The form's sections are listed at its top, as a machine's are, each name taking you
 to its section; the section of questions for the kind of part is named for it
 (**Storage**, **Motherboard**, **Sound card** and so on).
@@ -1153,10 +1166,10 @@ typing where nothing else tells two things apart: which of two identical SIMMs
 came out of which machine, or whether the drive back from a repair is the drive
 that went. It is searchable like every other field.
 
-**Location** is where the part is kept. Left blank on a part that is fitted in
-something, it shows where that thing is kept — the board it is mounted on, or the
-machine it is installed in — so only a part that lives somewhere of its own needs
-a location chosen for it. See [where it is kept](#where-it-is-kept).
+**Location** is where the part is kept, with its **Visible** tick beside it. A
+part fitted in something has neither: it is wherever that thing is — the board it
+is mounted on, or the machine it is installed in — and the form says so in their
+place. See [where it is kept](#where-it-is-kept).
 
 The form is laid out like the machine's — sections, a line under a field that
 needs one, **Save** and **Cancel** at the foot of the screen. **Cancel** goes back
@@ -2297,6 +2310,12 @@ only knows it is on Shelf 2. So **moving a box moves everything in it**: carry
 Box 14 up to the loft, tell the register that once, and the thirty things inside
 are in the loft from that moment, without thirty edits.
 
+The same holds further in. A card fitted in a machine is wherever the machine is,
+and a drive mounted on the card is wherever the card is, so carrying the machine
+to another shelf carries its cards. Everything in the register is inside at most
+one thing — a location, a machine or a part — and where it is kept is the first
+location above it.
+
 ### A location
 
 **+ New → Location**, or by naming a new one in an item's **Location** box ([where
@@ -2318,9 +2337,12 @@ save is refused and says why. Anything else is allowed, including an empty box,
 which stays on the register until you delete it. An empty crate keeps its name
 and its label for the next time you fill it.
 
-Deleting a location is refused while anything is still in it. Move its contents
-first, or move them up a level with **empty into the location above**, which
-puts them where the location itself was.
+Deleting a location deletes the location and nothing in it. A box is where
+things are, not what they are made of, so what was directly inside it — things,
+and smaller locations with their contents still in them — is left nowhere, each
+with a move in its history saying so, and the question **Delete** asks says so
+first. To keep them where they are, move them up a level first with **empty into
+the location above**, which puts them where the location itself was.
 
 ### A location's page
 
@@ -2333,6 +2355,9 @@ its name, tag, kind and notes, and its photographs beside them. Below that is
 - **Things kept here**: the machines and parts recorded in this location itself,
   each as a card. A part fitted in one of those machines is not listed again
   under the machine. It goes where the machine goes.
+
+A visitor, on a site whose location pages are public, is shown only the things
+whose **Visible** tick is on, and the counts count only those.
 
 A location with nothing in it says **Empty** in place of the list, so scanning a
 shelf's label tells you at once whether it should be bare.
@@ -2361,8 +2386,12 @@ the thing is in, if it has them. That is the one telling you *third rack on the
 left*. **Also here** links to the location's page, for the rest of what is in the
 box.
 
-A part fitted in a machine shows the machine's location unless it has one of its
-own, and says it is the machine's ([where it is kept](#where-it-is-kept)).
+A part fitted in a machine shows the machine's location, and says it is the
+machine's ([where it is kept](#where-it-is-kept)).
+
+A visitor sees the row only on a thing whose **Visible** tick is on. Each step is
+a link while location pages are public, and a plain name while they are not: a
+link to a page that answers **Nothing here** would be a link to nothing.
 
 ### Audit
 
@@ -2378,12 +2407,13 @@ opens it again.
 
 After that the screen says, in large type, what to do next:
 
-- **Scan a location**, while none is open;
-- **Scan things into Shelf 2**, with the path to Shelf 2 under it, once one is.
+- **Scan a location or a machine**, while nothing is open;
+- **Scan things into Shelf 2**, with the path to Shelf 2 under it, once it is
+  open.
 
 Under the prompt are a panel saying what the last scan did and the list of this
-round's scans. The controls are the site's ordinary buttons: **change location**,
-**finish**, **camera**, **type a tag**, the sound switch and **moving boxes**.
+round's scans. The controls are the site's ordinary buttons: **next**,
+**finish**, **camera**, **type a tag** and the sound switch.
 
 There is no box to type into. A scan is taken as it arrives and goes the moment
 it is whole: the seven characters `RH-K7Q2` a barcode holds, or the whole web
@@ -2397,67 +2427,51 @@ hand. With scripting turned off the box is always there, with **scan it**.
 The audit moves things, so it is for administrators. Anybody signed in can
 open a location's page to see what is in it.
 
-**Scan a location, then scan what goes in it.** Every scan is acted on the moment
-it arrives:
+**Scan where, then scan what is in it.** Every scan is acted on the moment it
+arrives:
 
-1. **Scan a location's label.** It becomes the open location. The panel shows its
-   name and path and how many things the register expects to find there, or
+1. **Scan a location's label, or a machine's.** It is open. The panel shows its
+   name, where it is, and how many things the register expects to find in it, or
    **Empty**.
-2. **Scan a thing.** If the register already has it here, the panel says **✓ Found**.
-   If it was recorded somewhere else, or nowhere, it is moved here there and then.
-   The panel says **→ Moved in**, and where it was. Each moved line in the list has
-   **undo**, which puts it back where it was, back in its machine too if it was
-   taken out of one (below).
-3. **Scan the next location** when you get to it. That location becomes the open
-   one, and the one before is kept for the report. Scanning a location already
-   opened in this round goes back to it. **change location** closes the open one
-   without opening another, and the prompt goes back to *Scan a location*: a thing
-   scanned before the next location is held rather than moved into the last one.
+2. **Scan what is in it.** Anything the register already has inside it, however
+   far down, is **✓ Found**. Anything recorded somewhere else, or nowhere, is moved
+   in there and then, and the panel says **→ Moved in** and where it was. That goes
+   for a box scanned onto a shelf and a machine scanned into a box as much as for a
+   card scanned into a machine, and whatever is inside the thing scanned comes with
+   it: the panel says how many. Each moved line in the list has **undo**, which
+   puts it back where it was.
+3. **next**, when you have finished there. Nothing is open, and the next scan
+   opens whatever it is. Until you press it, everything scanned goes into the open
+   one, a location included: scanning Shelf 3 while Shelf 2 is open puts Shelf 3
+   on Shelf 2.
 4. **finish** when you are done (below).
 
-That one rule covers putting away, moving and checking:
+That one rule covers putting away, moving, building and checking:
 
-- **Put one thing away**: scan the thing, then the location. A thing scanned when
-  no location is open is held. The panel shows where it is now and says *scan a
-  location to move it there*. The next location scanned takes it, and opens. Scan
-  another thing instead and the first is left where it was.
-- **Put away a pile**: scan the location once, then each thing in the pile.
-- **Find out what is somewhere**: scan the location and read the panel.
-- **Find where a thing is**: scan it with no location open. Clear the open
-  location with **change location**.
-
-**A location inside the open one is found there too.** Scan Box 14 while Shelf 2
-is open, and if the register has the box on that shelf it is ticked off on the
-shelf's list, then opened for its own contents. A box recorded somewhere else is
-simply opened, and stays where the register has it: moving a box is a [switch
-of its own](#moving-boxes).
-
-**A fitted part scanned into a location is taken out of what it was fitted in.**
-A card in a box is not in the machine any more, whatever the register said. The
-panel says so, and its history and the machine's both record it. A part scanned
-where its machine is kept is found rather than moved: the card is still in the
-machine, and the machine is on the shelf.
+- **Put things away**: scan the location, then each thing.
+- **Move a box**: scan where it is going, then the box. Everything in it comes too.
+- **Fit parts in a machine**: scan the machine, then each card, drive and board
+  going into it. A part scanned into a machine is taken out of wherever it was — a
+  box, a shelf, another machine — and its history records both ends.
+- **Check a shelf**: scan the location, then everything on it, then **finish** and
+  read the report.
+- **Find where a part is**: with nothing open, scan it. The panel says where it is,
+  and nothing moves. A location or a machine scanned with nothing open opens
+  instead, and its panel says where it is too.
 
 **What is refused.** These scans move nothing. They sound the error and are listed
 under *not recognised* in the report:
 
 - a code that is not a tag in this register, with the text that was scanned;
 - a project, which is work and is not kept anywhere;
-- something disposed of, with the date it went.
+- something disposed of, with the date it went;
+- something that cannot go into what is open: a location or a machine into a
+  machine, or anything into something inside itself, such as a shelf into a box
+  that sits on it.
 
-A thing scanned twice in a round is shown again and changes nothing.
-
-#### Moving boxes
-
-Scanning one location after another normally switches between them. To move a
-location itself, such as a box onto a new shelf, turn on **moving boxes**. It is a
-switch among the controls and is off whenever the audit opens.
-With it on, a location scanned while another is open goes *inside* the open one,
-exactly as a thing would. It moves with all its contents, and the panel says
-**→ Moved in** with how many things came with it. Undo puts it back.
-
-Moving a location into itself, or into something inside it, is refused, as it is
-on the form.
+A thing scanned twice in a round is shown again and changes nothing, and so is the
+open location or machine scanned again. A location opened twice in a round is one
+entry in the report.
 
 #### Seeing and hearing what happened
 
@@ -2466,7 +2480,7 @@ understood with the sound off:
 
 | | Panel | Sound |
 |---|---|---|
-| Found, or a location opened | green, **✓** | one short high beep |
+| Found, or a location or a machine opened | green, **✓** | one short high beep |
 | Moved in | green, **→** | two rising beeps |
 | Refused | red, **✕**, and the reason | one low buzz |
 
@@ -2477,7 +2491,7 @@ system is set to reduce motion, the panel changes without the flash.
 
 #### The report
 
-**finish** ends the round and shows, for each location it opened:
+**finish** ends the round and shows, for each location and machine it opened:
 
 - **Found**: expected and scanned.
 - **Moved in**: scanned here and recorded somewhere else before, with where. Each
@@ -2530,9 +2544,8 @@ already treated them.
 Nothing is lost, and nothing is guessed. The upgrade cannot know that `loft
 crate3` is inside `Loft`, so they sit side by side, at the top of
 [**Locations**](#every-location), until you tell it. Do that on
-each location's page with **Inside**, or in the audit by printing the new
-locations' labels and scanning them into each other with [moving
-boxes](#moving-boxes) on. Two spellings of one crate can be put together with
+each location's page with **Inside**, or in the [audit](#audit) by printing the
+new locations' labels and scanning each into the one it is in. Two spellings of one crate can be put together with
 **merge into** on a location's page. Everything in the one moves into the other,
 which keeps its tag, and the first is deleted.
 
@@ -2618,17 +2631,21 @@ History is searchable, which is often the point of writing it. Searching
 
 ### Moves
 
-Every time a thing or a location changes where it is kept, its history records a
-move. A move says where it was and where it went, each as a link, along with when
-and who moved it. It also says how: **by edit** on a form, **by scan** in storage
-mode, or **through the API**. That is how *where was this before it went to the
-workshop?* gets an answer, and how something that cannot be found leaves a trail
-of the last places it was.
+Every time a thing or a location changes what it is in, its history records a
+move: put on a shelf, fitted in a machine, mounted on a card, taken out of one. A
+move says where it was and where it went, each as a link, along with when and who
+moved it. It also says how: **by edit** on a page or a form, **by scan** in the
+audit, or **through the API**. That is how *where was this before it went to the
+workshop?* gets an answer, and *which machines has this card been in?*, and how
+something that cannot be found leaves a trail of the last places it was. A card
+fitted or taken out before the register kept moves has a line of history saying
+so, rather than a move.
 
-A location that moves records the move on its own history, and only there. The
-thirty things in Box 14 have not been moved by anybody: they are where they were,
-in Box 14. Their pages show the new path at once, and the box's history says
-when it changed.
+A thing that moves records the move on its own history, and only there. The
+thirty things in Box 14 have not been moved by anybody when the box goes to the
+workshop: they are where they were, in Box 14. Their pages show the new path at
+once, and the box's history says when it changed. A machine carried to another
+shelf is the same: the cards in it have not moved.
 
 A move undone in the audit is recorded as a move back, rather than wiped out.
 The history says what happened, and that happened.
@@ -2670,12 +2687,15 @@ tag. It is hidden from the gallery unless you tick **show disposed**, and left
 out of every figure on the statistics page except the count of disposals itself,
 because a disposed item is a record of something gone.
 
-**Disposing a machine disposes what is in it** — the parts installed in it, and
-anything mounted on those in turn — on the same date and for the same reason. A
-part already disposed keeps its own record.
+**Disposing of a machine disposes of what is in it** — the parts installed in
+it, and anything mounted on those in turn — on the same date and for the same
+reason. So does disposing of a part with others mounted on it: a controller card
+goes with its drive. A part already disposed of keeps its own record.
 
 **Restore** puts it back. Restoring a machine brings back only the parts that
-went out with it.
+went out with it. A part restored on its own, out of a machine that is still
+disposed of, comes out of it and is nowhere until you put it somewhere. Nothing can
+be fitted in, mounted on or kept in something that has been disposed of.
 
 ### Deletion
 
@@ -2695,11 +2715,20 @@ already know the answer to; the point is that deleting the wrong thing takes a
 deliberate act, so a delete cannot be a stray click on a page you landed on by
 accident.
 
-Whatever pointed at the deleted item is unlinked first, and keeps a line in its
-own history saying why it is suddenly standing alone.
+**Deleting a machine deletes everything in it**, all the way down: the cards in
+it, the drives on those cards, their photographs and their histories. The
+confirmation page lists each of them, and to keep one, take it out first.
+Deleting a part does the same for whatever is mounted on it. Everything in a
+disposed thing was disposed of with it, so nothing still in the collection can go
+this way. A location is different, and deleting one deletes nothing in it ([a
+location](#a-location)).
 
-A machine's **disposed** parts can be deleted along with it by ticking a box. Any
-part still in the collection is kept whatever the box says.
+Whatever else pointed at the deleted item, such as a file linked to it or a project
+about it, is unlinked from it.
+
+**A deleted thing's tag is never given to anything else.** Its label may still be
+on a shelf somewhere, and scanning it should find nothing, rather than something
+that was given the tag later.
 
 ---
 
@@ -3119,25 +3148,34 @@ to publish. A public page saying which loft the rare machine is in is an address
 as much as a description, and a location's page, with a photograph of the room
 and a note on how to find the rack, is the address with directions.
 
-With it off, a visitor sees none of it:
+It decides two things:
 
-- an item's page has no Location row;
-- there is no **Locations** section, and the list's address answers **Nothing
-  here**;
-- a location's page, its photographs and its labels answer **Nothing here**, as a
+- **The [Visible](#where-it-is-kept) tick a new item starts with.** Each machine
+  and loose part has its own tick beside its Location, and only a ticked one tells
+  a visitor where it is kept: its page has a Location row, the list shows where it
+  is, and a visitor's search matches on the names along its path. Changing the
+  switch later changes no item already in the register, just as **New files are
+  public** only decides how the upload box starts. The items that were in the
+  register when the tick arrived were given whatever the switch said that day, so
+  nothing a visitor could see changed.
+- **Whether a visitor can open the locations themselves.** With it off, there is
+  no **Locations** section, and the list's address answers **Nothing here**. A
+  location's page, its photographs and its labels answer **Nothing here**, as a
   private project's page does, rather than asking for a login. A visitor who scans
   the label on a box learns nothing about the box, not even that the tag is a
-  location;
-- a visitor's search does not match on a location, and the suggestions do not
-  offer one, so searching the site for `loft` hands a stranger nothing.
+  location. The suggestions under the search offer no location, and a ticked
+  item's path is shown as names, with no links.
 
-Signed in, you always see them, whichever way the switch is set. So sign in the
-phone you scan with: scanning your own box while signed out gets you the same
-**Nothing here** a stranger gets.
+With it on, a location's page is as public as an item's, but it shows a visitor
+only the things whose tick is on, and counts only those.
+
+Signed in, you always see everything, whichever way the switch and the ticks are
+set. So sign in the phone you scan with: scanning your own box while signed out
+gets you the same **Nothing here** a stranger gets.
 
 Turn it on for a collection kept somewhere public, such as a museum shelf, a club
 room or a shared workshop, where where a thing lives is half of what a reader
-wants to know. Location pages are then as public as item pages.
+wants to know.
 
 **Audit** is for administrators, whichever way the switch is set
 ([audit](#audit)).
@@ -3400,10 +3438,10 @@ Interactive documentation and a console are at `/docs`, linked from
 | Method | Path | |
 |---|---|---|
 | `GET`, `POST` | `/api/computers`, `/api/parts` | list, or create — the server assigns the asset tag |
-| `GET`, `PATCH`, `DELETE` | `/api/computers/{id}`, `/api/parts/{id}` | fetch, partial update, delete |
+| `GET`, `PATCH`, `DELETE` | `/api/computers/{id}`, `/api/parts/{id}` | fetch, partial update, delete — with everything inside it, once it has been disposed of |
 | `GET` | `/api/items/{id}/log` | an item's history, with any photographs on each entry |
 | `GET`, `POST` | `/api/locations` | list (each with its path), or make one — the server assigns the tag |
-| `GET`, `PATCH`, `DELETE` | `/api/locations/{id}` | fetch (with what is kept in it, and the locations inside it), rename, re-file, move inside another, delete when empty |
+| `GET`, `PATCH`, `DELETE` | `/api/locations/{id}` | fetch (with what is kept in it, and the locations inside it), rename, re-file, move inside another, delete — leaving what was in it nowhere |
 | `GET` | `/api/items/{id}/moves` | where a thing or a location has been, newest first |
 | `GET` | `/api/machines` | the catalogue of machines known as models — home computers, consoles, documented branded PCs — and the variations each was built in. Public, like [/machines](#the-list-of-what-it-knows), because none of it is about this register |
 | `GET` | `/api/files` | the files kept beside the register, and the asset tags each is linked to |
@@ -3427,10 +3465,28 @@ top-level location, as the form does. A name that matches several is refused wit
 `422` and the tags it could have meant, rather than guessed. A move made here is
 recorded as made **through the API**, with the token's account as who made it.
 
+**What a part is fitted in** is `computer_id`, the machine it is installed in, or
+`parent_id`, the part it is mounted on. A thing is in one place, so at most one of
+`computer_id`, `parent_id` and `location` is ever set: sending one puts the part
+there, clears the others, and is recorded as a move. A request that sends a
+machine or a part and a location fits the part, and the location is not used; one
+that sends both a machine and a part mounts it on the part. Sending `""` or
+`null` for either takes the part out of whatever machine or card it is in, and it
+is then nowhere. A part sent inside itself, or inside anything mounted on it, is
+refused with `422`, and so is anything sent into something that has been disposed
+of.
+
+`location_public` is the [**Visible**](#where-it-is-kept) tick, `true` or
+`false`. Left out when something is made, it starts as **Show locations** says.
+
+`DELETE` on a computer or a part that is still in the collection is refused with
+`409`: dispose of it first, as on its page. Deleting one deletes everything inside
+it.
+
 A location takes `name`, `kind` (`building`, `room`, `rack`, `shelf`, `box`,
 `bag`, `other`), `parent` (the tag of the location it is in, or `null` for the
 top) and `notes`. A `parent` that would put it inside itself is refused with
-`422`, and so is a `DELETE` while anything is still in it.
+`422`. A `DELETE` leaves whatever was in it nowhere.
 
 `PATCH` changes only the fields you send.
 
@@ -3499,7 +3555,8 @@ The tools are:
 - `list_locations`, `get_location` (with what is in it), `create_location`,
   `update_location`, `delete_location` — where things are kept. The `location`
   argument of `create_computer`, `update_computer`, `create_part` and
-  `update_part` takes a location's tag or its name, as the API does
+  `update_part` takes a location's tag or its name, as the API does, and
+  `location_public` the [**Visible**](#where-it-is-kept) tick beside it
 
 `create_computer` and `create_part` also take `work_needed` and `work_project`, so
 a machine dictated as it comes out of the box arrives with its faults written down

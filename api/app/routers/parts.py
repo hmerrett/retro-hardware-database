@@ -18,7 +18,18 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import drivedb, entry, filesdb, labels, locations, machinedb, projects, specdb
+from .. import (
+    drivedb,
+    entry,
+    filesdb,
+    labels,
+    locations,
+    machinedb,
+    projects,
+    settings,
+    specdb,
+    tree,
+)
 from ..assets import (
     DUP_EXCLUDE,
     PART_DERIVED_FIELDS,
@@ -42,7 +53,14 @@ from ..assets import (
 )
 from ..common import to_dict
 from ..db import get_db
-from ..disposal import _disposal_log
+from ..disposal import (
+    _and_parts,
+    _disposal_log,
+    _dispose_contents,
+    _restore_contents,
+    inside,
+    out_of_the_disposed,
+)
 from ..forms import (
     Posted,
     Refusal,
@@ -165,6 +183,16 @@ def _part_form_ctx(
     # a quarter of a megabyte of JSON, which is not shipped to a form that cannot
     # use it.
     catalogue = _machine_ctx(obj, db, board=True) if ptype == "motherboard" else {}
+    # A part is in one place (ADR-0036). One being made goes where the page it was
+    # asked for from says -- the machine's, the card's -- and one on file is where the
+    # tree has it: fitted in something, it has no Location box, only the line saying
+    # what it is in; kept somewhere, the box holds that path.
+    new = obj is None or action == "/parts/new"
+    r = tree.load(db)
+    fitted_in = (computer_id or parent_id or "").upper()
+    if obj is not None and not new:
+        holder = r.holder(obj.asset_id.upper())
+        fitted_in = holder if holder and r.what(holder) in (tree.COMPUTER, tree.PART) else ""
     return {
         **catalogue,
         "p": obj,
@@ -179,9 +207,18 @@ def _part_form_ctx(
         "conditions": entry.CONDITIONS,
         "work_projects": projects.open_projects(db),
         "dl": _datalists(db),
-        # What the Location box holds: the path to where the part itself is kept, or
-        # nothing for a part that follows what it is fitted in.
-        "location_text": locations.tree(db).text(obj.location_id) if obj is not None else "",
+        "fitted_in": fitted_in,
+        # What the Location box holds, for a part kept somewhere of its own: the path
+        # to where it is kept. And its Visible tick, or for a new part, what Show
+        # locations says a new thing starts with.
+        "location_text": (
+            locations.tree(db).text(obj.inside_id)
+            if obj is not None and not new and not fitted_in
+            else ""
+        ),
+        "location_tick": (
+            obj.location_public if obj is not None and not new else settings.on("public_locations")
+        ),
         "vocab": {
             "form_factors": entry.MOBO_FORM_FACTORS,
             "cpu_families": cpu_families,
@@ -217,14 +254,22 @@ def _part_form_ctx(
     }
 
 
+def _holders(db: Session, p: Part) -> tuple[str, str]:
+    """(the machine it is fitted in, the card it is mounted on), each "" if not: what
+    the form says the part is for, and where Cancel goes back to."""
+    r = tree.load(db)
+    holder = r.holder(p.asset_id.upper()) or ""
+    what = r.what(holder)
+    return (holder if what == tree.COMPUTER else "", holder if what == tree.PART else "")
+
+
 async def _part_from_form(
     form: Posted, ptype: str, extra: Iterable[tuple[str, str]] = ()
 ) -> dict[str, object]:
-    data: dict[str, object] = {
-        "type": ptype,
-        "computer_id": form.get("computer_id", "") or None,
-        "parent_id": form.get("parent_id", "") or None,
-    }
+    # Not what it is fitted in: a part is put in a machine or on a card by a move, on
+    # its page or by a scan, and a form post that left the hidden fields off must not
+    # take it out of one (ADR-0036).
+    data: dict[str, object] = {"type": ptype}
     for f in (
         "manufacturer",
         "model",
@@ -713,11 +758,22 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
     if ptype == "motherboard" and (mach := _machine_from_form(form, board=True)) is not None:
         machinedb.write(db, obj, **mach)
     add_log(db, obj.asset_id, "created", "created")
-    if (no := place_from_form(db, obj, form, request.state.principal.username)) is not None:
+    who = request.state.principal.username
+    host = (computer_id or form.get("parent_id", "") or "").strip()
+    if host:
+        # Asked for from a machine's page or a card's: born in it, as a move, so its
+        # history says where it went in.
+        try:
+            tree.put(db, obj, host, tree.EDIT, who)
+        except tree.Refused as err:
+            errors.append(("location", "Location", str(err)))
+    elif (no := place_from_form(db, obj, form, who)) is not None:
         errors.append(no)
     _work_from_form(db, obj, form)
     if errors:
-        ctx = _part_form_ctx(db, obj, ptype, computer_id, obj.parent_id or "", action="/parts/new")
+        ctx = _part_form_ctx(
+            db, obj, ptype, computer_id, form.get("parent_id", "") or "", action="/parts/new"
+        )
         ctx["title"] = f"New {entry.type_label(ptype)}"
         return refused(request, db, "part_form.html", ctx, form, errors)
     db.commit()
@@ -741,36 +797,51 @@ def gui_part(
     request: Request,
     imgerr: int = 0,
     fileerr: int = 0,
+    fiterr: int = 0,
     mounterr: int = 0,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     p = get_or_404(db, Part, aid)
-    parent = db.get(Computer, p.computer_id) if p.computer_id else None
-    host = db.get(Part, p.parent_id) if p.parent_id else None
-    children = db.query(Part).filter(Part.parent_id == aid).order_by(Part.asset_id).all()
-    candidates, computers = [], []
+    aid = p.asset_id.upper()
+    r = tree.load(db)
+    holder = r.holder(aid)
+    parent = db.get(Computer, holder) if r.what(holder) == tree.COMPUTER else None
+    host = db.get(Part, holder) if r.what(holder) == tree.PART else None
+    # What is mounted on it, however far down: the cards on it in the panel, and what
+    # is on those drawn under each.
+    below = inside(db, aid, r)
+    children = sorted(
+        (x for x in below if r.holder(x.asset_id.upper()) == aid), key=lambda x: x.asset_id
+    )
+    candidates: list[Part] = []
+    computers: list[Computer] = []
     if request.state.authed:
-        # Not this card, and not what it is on however far up, which mount would
-        # refuse anyway: a menu offering what its own button turns down is a trap.
-        # Only the top of that chain could be here at all, since everything else
-        # in it is mounted on something already.
-        above = [p.asset_id, *locations.mounted_on(db, p.asset_id)]
-        candidates = (
-            db.query(Part)
-            .filter(Part.type == "storage", Part.asset_id.notin_(above), Part.parent_id.is_(None))
+        # What could be mounted on it: a drive on no card, still in the collection, and
+        # not anything this part is itself on -- which would put it on itself.
+        above = set(r.up(aid))
+        candidates = [
+            x
+            for x in db.query(Part)
+            .filter(Part.type == "storage", Part.disposed.is_(False))
             .order_by(Part.asset_id)
-            .all()
-        )
-        if not p.computer_id and not p.parent_id:
-            computers = db.query(Computer).order_by(Computer.asset_id).all()
+            if x.asset_id.upper() != aid
+            and x.asset_id.upper() not in above
+            and r.what(r.holder(x.asset_id.upper())) != tree.PART
+        ]
+        if parent is None and host is None:
+            computers = (
+                db.query(Computer)
+                .filter(Computer.disposed.is_(False))
+                .order_by(Computer.asset_id)
+                .all()
+            )
     images = detect_images("parts", aid)
-    # Where it is kept: its own location, or the one it is in because of what it is
-    # fitted in. Worked out only for a reader who is shown locations, because a row
-    # that cannot be rendered is queries spent on nothing (ADR-0027, ADR-0034).
-    where = None
-    if locations.shown(request.state.sees_private):
-        placed = {} if p.location_id else locations.inherited(db)
-        where = locations.where_row(db, p, placed, locations.tree(db))
+    # Where it is kept: where it is, or where what it is fitted in is. Worked out only
+    # for a reader who is told -- anybody signed in, or a visitor when the tick of the
+    # outermost thing it is in says so (ADR-0036) -- because a row that cannot be
+    # rendered is queries spent on nothing.
+    told = locations.told(r, locations.ticks(db), aid, request.state.sees_private)
+    where = locations.where_row(db, p, r, locations.tree(db)) if told else None
     spec_pairs = specdb.pairs(db, p, display=True)
     # The preview text and the structured data are read rather than parsed, so they
     # say the figures the page says -- not the stored string's exact-to-the-KiB ones.
@@ -788,7 +859,8 @@ def gui_part(
             "parent": parent,
             "host": host,
             "children": children,
-            "thumbs": part_thumbs(db, children),
+            "mounted": tree.mounted_on(r, aid, below),
+            "thumbs": part_thumbs(db, below),
             "item": (pdict := to_dict(p)),
             "kind": "parts",
             **filesdb.panel(db, pdict, request.state.authed, request.state.sees_private),
@@ -803,8 +875,10 @@ def gui_part(
             # visitor's page does not ask the question at all.
             "work_projects": (projects.open_projects(db) if request.state.authed else []),
             "candidates": candidates,
-            # The Location row, or None for no row (above).
+            # The Location row, or None for no row (above), and whether its steps are
+            # links: they are while the locations themselves are open to this reader.
             "where": where,
+            "where_links": locations.shown(request.state.sees_private),
             "computers": computers,
             "images": images,
             "placeholder": _part_placeholder(db, p),
@@ -812,8 +886,9 @@ def gui_part(
             "tuned": tuned_photos("parts", aid),
             "spec_pairs": spec_pairs,
             "imgerr": bool(imgerr),
+            "fiterr": bool(fiterr),
             "mounterr": bool(mounterr),
-            "log": _history(db, aid, kept=locations.shown(request.state.sees_private)),
+            "log": _history(db, aid, kept=told),
             "nav": _item_nav(db, aid),
             "live_aid": aid,
             "live_v": _change_token(db, aid),
@@ -844,7 +919,7 @@ def gui_edit_part(
     SIMM as a "gizmo" by editing a URL."""
     p = get_or_404(db, Part, aid)
     ptype = type if type in entry.TYPE_ORDER else (p.type or "other")
-    ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")
+    ctx = _part_form_ctx(db, p, ptype, *_holders(db, p))
     ctx["title"] = f"Edit {aid}"
     ctx["year_hint"] = year_hint(p.year)
     return templates.TemplateResponse(request, "part_form.html", ctx)
@@ -874,13 +949,6 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     old_type = p.type or "other"
     carried = specdb.pairs(db, p) if ptype != old_type else specdb.read(db, p).attributes
     data = await _part_from_form(form, ptype, carried)
-    # The form carries what a part is mounted on in a hidden box, so a mounting it
-    # refuses was never typed by anybody: a page left open while things were moved,
-    # or a post made by hand. Refused outright, as the API refuses it, rather than
-    # as a box to correct, since there is no box (MANUAL §1, "Two tables").
-    mount = data.get("parent_id")
-    if isinstance(mount, str) and (loop := locations.mount_refusal(db, p, mount)) is not None:
-        raise HTTPException(422, loop)
     if ptype == "storage" and (form.get("kind", "") or ""):
         data["specs"] = entry.merge_spec(str(data["specs"]), "Kind", form.get("kind", ""))
     old = {k: getattr(p, k) for k in data}
@@ -902,7 +970,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
         errors.append(no)
     _work_from_form(db, p, form)
     if errors:
-        ctx = _part_form_ctx(db, p, ptype, p.computer_id or "", p.parent_id or "")
+        ctx = _part_form_ctx(db, p, ptype, *_holders(db, p))
         ctx["title"] = f"Edit {aid}"
         ctx["year_hint"] = year_hint(on_file["year"])
         return refused(request, db, "part_form.html", ctx, form, errors)
@@ -949,18 +1017,25 @@ async def gui_dispose_part(
     p.disposed = True
     p.disposed_at = _parse_date(form.get("date", "")) or date.today()
     p.disposed_note = form.get("note", "") or ""
-    add_log(db, aid, _disposal_log(p))
+    # What is mounted on it goes with it, as a machine's parts go with the machine
+    # (ADR-0036): a controller card goes to the tip with its drive still on it.
+    n = _dispose_contents(db, p)
+    add_log(db, aid, _disposal_log(p) + _and_parts(n))
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
 
 @router.post("/parts/{aid}/restore", include_in_schema=False)
-def gui_restore_part(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
+def gui_restore_part(aid: str, request: Request, db: Session = Depends(get_db)) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
+    was_at, was_note = p.disposed_at, p.disposed_note
     p.disposed = False
     p.disposed_at = None
     p.disposed_note = ""
-    add_log(db, aid, "restored")
+    n = _restore_contents(db, p, was_at, was_note)
+    add_log(db, aid, "restored" + _and_parts(n, "came back too"))
+    # Back on its own, out of something still gone: it comes out of it (ADR-0036).
+    out_of_the_disposed(db, p, request.state.principal.username)
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
@@ -986,7 +1061,8 @@ async def gui_delete_part(aid: str, request: Request, db: Session = Depends(get_
         )
     # Back to the machine it was in if it was in one, since that page is now a
     # part short and is the thing worth looking at; otherwise to the gallery.
-    where = f"/computers/{p.computer_id}" if p.computer_id else "/"
+    machine = tree.load(db).machine(p.asset_id.upper())
+    where = f"/computers/{machine}" if machine else "/"
     delete_part(db, p)
     return RedirectResponse(where, status_code=303)
 
@@ -1037,31 +1113,40 @@ def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)) -> RedirectRes
 async def gui_unlink_part(
     aid: str, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
+    """Take a part out of the machine it is fitted in. It is left nowhere: it is not
+    assumed to be on the shelf the machine is on (ADR-0036)."""
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     nxt = form.get("next", "") or f"/parts/{aid}"
-    old_cid = p.computer_id
-    p.computer_id = None
-    if old_cid:
-        add_log(db, aid, f"unlinked from computer {old_cid}")
+    _take_out(db, p, request.state.principal.username)
     db.commit()
     return RedirectResponse(_safe_next(nxt), status_code=303)
+
+
+def _take_out(db: Session, p: Part, who: str) -> None:
+    """Out of whatever machine or card it is in, and nowhere; nothing for a part
+    that is in neither."""
+    r = tree.load(db)
+    if r.what(r.holder(p.asset_id.upper())) in (tree.COMPUTER, tree.PART):
+        tree.put(db, p, None, tree.EDIT, who, r)
 
 
 @router.post("/parts/{aid}/link", include_in_schema=False)
 async def gui_link_part_to_computer(
     aid: str, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    """Install this part into an existing computer (chosen from the part page)."""
+    """Fit this part in a machine (chosen from the part page): a move, out of
+    wherever it was kept (ADR-0036)."""
     p = get_or_404(db, Part, aid)
     form = await posted(request)
     cid = form.get("computer_id", "") or ""
     if cid:
         get_or_404(db, Computer, cid)
-        p.computer_id = cid
-        p.parent_id = None
-        add_log(db, aid, f"installed in {cid}")
-        add_log(db, cid, f"linked part {aid}")
+        try:
+            tree.put(db, p, cid, tree.EDIT, request.state.principal.username)
+        except tree.Refused:
+            db.rollback()
+            return RedirectResponse(f"/parts/{aid}?fiterr=1", status_code=303)
         db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
@@ -1070,22 +1155,20 @@ async def gui_link_part_to_computer(
 async def gui_attach_part(
     aid: str, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    """Mount another part onto this one (e.g. a hard disk on a controller card)."""
-    host = get_or_404(db, Part, aid)
+    """Mount another part onto this one (e.g. a hard disk on a controller card).
+    Refused, and said so on the page, for one that would end up on itself -- this
+    card, or anything it is on -- or on a card that has been disposed of."""
+    get_or_404(db, Part, aid)
     form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
         return RedirectResponse(f"/parts/{aid}", status_code=303)
     child = get_or_404(db, Part, pid)
-    # The menu does not offer these, so only a page left open while things were
-    # moved, or a post made by hand, gets here -- and is told on the page, as a
-    # photograph not found at its reference is.
-    if locations.mount_refusal(db, child, host.asset_id) is not None:
+    try:
+        tree.put(db, child, aid, tree.EDIT, request.state.principal.username)
+    except tree.Refused:
+        db.rollback()
         return RedirectResponse(f"/parts/{aid}?mounterr=1", status_code=303)
-    child.parent_id = aid
-    child.computer_id = None
-    add_log(db, aid, f"mounted {child.asset_id}")
-    add_log(db, child.asset_id, f"mounted on {aid}")
     db.commit()
     return RedirectResponse(f"/parts/{aid}", status_code=303)
 
@@ -1096,10 +1179,7 @@ async def gui_detach_part(
 ) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     form = await posted(request)
-    old_host = p.parent_id
-    p.parent_id = None
-    if old_host:
-        add_log(db, aid, f"unmounted from {old_host}")
+    _take_out(db, p, request.state.principal.username)
     db.commit()
     return RedirectResponse(_safe_next(form.get("next", "") or f"/parts/{aid}"), status_code=303)
 
@@ -1195,15 +1275,25 @@ def gui_part_label_png(
 ) -> Response:
     p = get_or_404(db, Part, aid)
     return png_label(
-        to_dict(p), labels.PART, media, dpi, spec_pairs=specdb.pairs(db, p, display=True)
+        _label_row(db, p), labels.PART, media, dpi, spec_pairs=specdb.pairs(db, p, display=True)
     )
+
+
+def _label_row(db: Session, p: Part) -> dict[str, object]:
+    """A part as its label reads it, with the machine it is in however far down: a
+    drive on a controller card is installed in the machine the card is in."""
+    return to_dict(p) | {"computer_id": tree.load(db).machine(p.asset_id.upper()) or ""}
 
 
 @router.get("/parts/{aid}/label.pdf", include_in_schema=False)
 def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)) -> Response:
     p = get_or_404(db, Part, aid)
     pdf = labels.render_pdf(
-        to_dict(p), [], labels.PART, small=bool(small), spec_pairs=specdb.pairs(db, p, display=True)
+        _label_row(db, p),
+        [],
+        labels.PART,
+        small=bool(small),
+        spec_pairs=specdb.pairs(db, p, display=True),
     )
     return Response(
         pdf,
