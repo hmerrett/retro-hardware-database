@@ -12,7 +12,7 @@ version = "0.1.0"
 description = "A self-hosted catalogue for a retro-computer collection"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi==0.141.1",
+    "fastapi==0.142.2",
     "uvicorn[standard]==0.54.0",
     "SQLAlchemy==2.0.52",
     "PyMySQL==1.2.0",
@@ -36,9 +36,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest==9.1.1",
-    "ruff==0.16.9",
+    "ruff==0.16.10",
     "pip-audit",
-    "mypy==2.3.1",
+    "mypy==2.4.0",
     "types-PyYAML==6.0.12.20260906",
     "types-reportlab==5.0.0.20260911",
 ]
