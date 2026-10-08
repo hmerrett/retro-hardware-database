@@ -180,6 +180,17 @@
             "title": "Location",
             "type": "string"
           },
+          "location_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Public"
+          },
           "machine": {
             "anyOf": [
               {
@@ -345,6 +356,17 @@
             "default": "",
             "title": "Location",
             "type": "string"
+          },
+          "location_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Public"
           },
           "machine": {
             "anyOf": [
@@ -531,6 +553,17 @@
             "default": "",
             "title": "Location Path",
             "type": "string"
+          },
+          "location_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Public"
           },
           "machine": {
             "anyOf": [
@@ -1063,6 +1096,17 @@
             "title": "Location",
             "type": "string"
           },
+          "location_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Public"
+          },
           "machine": {
             "anyOf": [
               {
@@ -1228,6 +1272,17 @@
             "title": "Location",
             "type": "string"
           },
+          "location_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Public"
+          },
           "machine": {
             "anyOf": [
               {
@@ -1391,6 +1446,17 @@
             "default": "",
             "title": "Location Path",
             "type": "string"
+          },
+          "location_public": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Public"
           },
           "machine": {
             "anyOf": [
@@ -2138,7 +2204,7 @@
     },
     "/api/computers/{aid}": {
       "delete": {
-        "description": "Delete a computer. The parts inside it are unlinked, not deleted; its\nphotos, drive/memory rows and history go with it (see delete_computer). The\nAPI deletes any computer -- the disposed-only rule and the confirmation are\nthe GUI's, where a delete is a click rather than a deliberate request.",
+        "description": "Delete a computer that has been disposed of, and everything inside it, all the\nway down: its parts, their photos, drive/memory rows and history (see\ndelete_computer). One still in the collection is refused with 409, as the page\nrefuses it (ADR-0036).",
         "operationId": "api_delete_computer_api_computers__aid__delete",
         "parameters": [
           {
@@ -2441,7 +2507,7 @@
     },
     "/api/locations/{aid}": {
       "delete": {
-        "description": "Delete a location, which is refused while anything is still in it: a thing,\nor a location inside it. Its history goes with it; the moves of the things\nthat were once in it stay on their own histories.",
+        "description": "Delete a location and nothing in it (ADR-0036): what was directly inside it --\nthings, and smaller locations with their contents still in them -- is left\nnowhere, each with a move made through the API saying so. Its own history goes\nwith it; the moves of the things that were once in it stay on their histories.",
         "operationId": "api_delete_location_api_locations__aid__delete",
         "parameters": [
           {
@@ -2700,7 +2766,7 @@
     },
     "/api/parts/{aid}": {
       "delete": {
-        "description": "Delete a part, with its typed spec rows, photos and history. Anything\nmounted on it is unlinked, not deleted.",
+        "description": "Delete a part that has been disposed of, with its typed spec rows, photos and\nhistory, and everything mounted on it, all the way down. One still in the\ncollection is refused with 409, as for a machine (ADR-0036).",
         "operationId": "api_delete_part_api_parts__aid__delete",
         "parameters": [
           {

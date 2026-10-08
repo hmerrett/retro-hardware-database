@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2578 behaviours, from 75 files.*
+*2636 behaviours, from 76 files.*
 
 
 ## A file where text was expected
@@ -339,7 +339,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 558 behaviours*
+*test_api.py — 555 behaviours*
 
 
 **Typed columns**
@@ -420,18 +420,13 @@ Regenerate with:
 - the json api cleans up the same way  
   The MCP server and the command-line tools delete through here, and used to leave the photos behind on disk.
 
-**What A linked item is told when its host goes**
+**What is inside goes with it**
 
-- a part in a deleted machine is kept and unlinked
-- a part mounted on a deleted part is kept and unlinked
-- the tick deletes the parts that went with it
-- without the tick they stay
-- the tick follows the whole tree  
-  A disk on a controller carries the card's id, not the machine's.
-- a held part deep in the tree is unlinked not deleted  
-  The disk was restored on its own, so it stays -- and must not be left pointing at the controller card that went.
-- a part still held survives the tick  
-  A part restored on its own, or fitted after the machine went, is still in the collection.
+- a part in a deleted machine goes with it
+- a part mounted on a deleted part goes with it
+- it follows the whole tree  
+  A disk on a controller is in the machine the controller is in, and the page counts it with the rest before anything goes.
+- a part restored on its own came out first and stays
 - a deleted part leaves no history behind it  
   The parts deleted alongside the machine take their own history with them, and are not told they came out of something on the way out.
 
@@ -441,9 +436,11 @@ Regenerate with:
 - it counts one of a thing without the s
 - it leaves out a line it has no number for  
   A part with no photograph does not get told that no photographs will be deleted; the list is what is going, not a form with blanks.
-- it offers the tick only when there is something to tick
-- it says which parts it will not touch
-- a failed confirmation keeps the tick
+- it names everything inside that will go  
+  Each one, all the way down, and no tick: what is inside goes with it (ADR-0036), and a thing to keep is taken out first.
+- a machine with nothing in it lists no parts
+- a part restored on its own is not listed  
+  It came out of the machine when it came back (ADR-0036), so it is not inside it to go with it.
 
 **The delete confirmation is not public**
 
@@ -458,9 +455,10 @@ Regenerate with:
 - blank means standalone on the wire
 - the standalone filter finds unlinked parts
 - a link to something that does not exist is refused
-- deleting a computer unlinks its parts
-- deleting a host part unlinks what was mounted on it
-- deleting a computer does not delete its parts
+- deleting a computer still in the collection is refused  
+  Deleting takes what is inside, so the API asks what the page asks: dispose of it first (ADR-0036).
+- deleting a disposed host part deletes what was mounted on it
+- deleting a disposed computer deletes its parts
 
 **Installed ram**
 
@@ -2473,8 +2471,8 @@ Regenerate with:
   Things move out of a crate as well as into one, and a place that is no longer true is worse than none.
 - a duplicate does not carry it across  
   A duplicate copies what describes the model, not where this one sits.
-- a parts own answer stands beside where it is installed  
-  The card-in-a-drawer case.
+- a part fitted in a machine is in one place  
+  A thing is in one place (ADR-0036): a request naming a machine and a location fits the part, and its page reads where the machine is.
 
 **A part is where what it is fitted in is**
 
@@ -2483,11 +2481,10 @@ Regenerate with:
   Otherwise it reads as something somebody chose for this part, and the first thing anybody would do about a wrong one is edit the part -- which is the one record that cannot fix it.
 - a chip on a board in a machine is in the machine  
   The chain runs as far as it has to.
-- what it is mounted on answers before what it is installed in  
-  A chip on a board is where the board is, even when the machine the board is in says something else: the nearer answer is the more specific one, and a board out on the bench has its own parts on the bench with it.
-- a part that says for itself is not given an answer
-- clearing the box hands the part back to its machine  
-  The way round the manual promises: choose an answer and it wins, take it out and the part follows what it is fitted in again.
+- a chip on a board on the bench is on the bench  
+  A board out on the bench has its own parts on the bench with it.
+- giving a fitted part a location takes it out of its machine  
+  A card in a drawer is in the drawer, and not in its machine (ADR-0036).
 - a standalone part is shown nothing
 - a part in a machine nobody has placed is shown nothing  
   A chain that runs out yields nothing rather than an empty row.
@@ -2508,12 +2505,15 @@ Regenerate with:
   The other direction, so what is private is a rule about who is asking rather than a column quietly dropped from the search for everybody.
 - the gallery carries it to nobody  
   A card says where nothing is kept, owner included: the tiles are a wall of photographs, and the table is where the owner looks for that.
-- turning it on shows a visitor the row
-- turning it on lets a visitor search on it
+- a thing made while it is on shows a visitor the row  
+  It is the tick a new thing starts with (ADR-0036).
+- and lets a visitor search on it
+- turning it on shows a visitor nothing already there  
+  Changing the switch changes no item already in the register: it is how a new thing starts, and nothing more.
 - a visitor is shown no inherited location either  
   The gate is on the answer and not on the column, or a part would publish what its machine keeps back.
 - a visitors search does not match on an inherited one
-- turning it on shows and finds an inherited one
+- a ticked machine shows and finds its parts too
 - the owner is shown it either way
 - the pick list is never offered to a visitor  
   Whichever way the switch is set.
@@ -2524,15 +2524,15 @@ Regenerate with:
 - the suggestion list agrees with the search  
   The two are meant to be one answer seen twice, so a part findable in one and not the other is the pair disagreeing.
 - a chip deep in a machine is found too
-- a part kept somewhere else is not found by its machines location  
-  It is not there, and the page does not say it is.
+- a part taken out of its machine is not found by its location  
+  It is not there any more: taken out, it is nowhere until it is put somewhere (ADR-0036).
 - no card carries the inherited answer either  
   The inherited answer is findable by searching for it, which the tests above hold; what it is not is written into the gallery's markup.
 
 **The hidden columns are asked for rather than assumed**
 
-- a setting gated column joins the owner only ones for a visitor
-- turning the setting on takes it back out
+- the tick itself is searched by nobody
+- the switch does not change what is hidden
 - an item with nowhere recorded reads identically for both  
   Hidden columns are blanked and not dropped, so who is asking changes what the haystack says and never how many fields it has -- otherwise the seams a quoted phrase must not match across move depending on the reader.
 
@@ -2912,7 +2912,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 20 behaviours*
+*test_migrations.py — 28 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -2950,6 +2950,17 @@ Regenerate with:
 - 0046 on a register with no locations makes none
 - 0046 can be downgraded and upgraded again  
   Down, each thing gets back the words of where it is -- the path, which for a location the upgrade made is the name it was typed as -- and the remembered list gets every location's name.
+- 0047 puts every thing in the register
+- 0047 gives each thing the one link it had  
+  Mounted on before installed in before kept in: the order the old columns were read in.
+- 0047 says which location a fitted part no longer claims
+- 0047 disposes of what was left inside a disposed machine  
+  On the machine's date and for its reason, so restoring it brings both back.
+- 0047 points a scans move at the machine it took a part out of
+- 0047 ticks every thing as the switch says that day
+- 0047 refuses a tag held twice before it writes anything
+- 0047 can be downgraded and upgraded again  
+  Down, each thing gets back the column that says what it is in, by what holds it; up again, the same tree.
 
 
 ## Model pages
@@ -4270,8 +4281,8 @@ Regenerate with:
 
 **Deleting A location**
 
-- deleting is refused while a thing is in it
-- or while a location is in it
+- a thing in it is kept and left nowhere
+- so is a location in it with its contents
 - an empty one is deleted
 - empty into the location above puts its contents where it was
 - merge into puts one spelling of a crate into the other  
@@ -4357,13 +4368,14 @@ Regenerate with:
 - a patch renames and refiles
 - a parent inside itself is refused
 - an unknown kind is refused
-- delete is refused while anything is in it
+- delete leaves what was in it nowhere  
+  A box is where things are, not what they are made of (ADR-0036).
 - delete of an empty one goes through
 
 
 ## Storage mode
 
-*test_storage_mode.py — 54 behaviours*
+*test_storage_mode.py — 57 behaviours*
 
 
 **Scanning A location**
@@ -4382,26 +4394,36 @@ Regenerate with:
 - undo puts it back and says so in the history
 - scanned twice it changes nothing
 
-**Putting one thing away**
+**A part scanned with nothing open**
 
-- a thing scanned with nothing open is held and shows where it is
-- the next location scanned takes it and opens
-- scanning another thing instead leaves the first where it was
+- says where it is and moves nothing
+- and a location scanned after it takes nothing with it
 
-**Moving between locations**
+**Next**
 
-- the next location becomes the open one
-- a location recorded elsewhere is opened and not moved
-- a location inside the open one is found there then opened
-- change location closes the open one without opening another
-- a thing scanned after it is held not moved into the last one
-- without a script change location comes back to the page
+- until then a location scanned goes inside the open one
+- a location already inside the open one is found
+- undo puts the box back
+- a box into its own contents is refused
+- next closes what is open so the next scan opens
+- without a script next comes back to the page
 - a location closed is still in the report
+
+**Fitting parts in A machine**
+
+- a machine scanned with nothing open opens
+- a part scanned into it is fitted and taken off its shelf
+- one already in it however far down is found
+- a machine or a location scanned into it is refused
+- a machine scanned onto a shelf is put there with what is in it
+- the report says what was fitted
 
 **A fitted part**
 
 - scanned into a location it is taken out of its machine
 - undo puts it back in its machine as well
+- undo is refused when its machine has since been deleted  
+  There is nothing to put it back in, and saying so beats a server error (ADR-0036): the part stays where the scan put it.
 - scanned where its machine is it is found and stays fitted
 
 **What is refused**
@@ -4410,12 +4432,6 @@ Regenerate with:
 - a tag nothing has
 - a project
 - something disposed of
-
-**Moving boxes**
-
-- with it on a location scanned goes inside the open one
-- undo puts the box back
-- a box into its own contents is refused
 
 **A round is kept**
 
@@ -4437,11 +4453,11 @@ Regenerate with:
 
 - a round starts by asking how you are scanning
 - a round already going is not asked again
-- with nothing open it says scan a location
+- with nothing open it says scan a location or a machine
 - with a location open it says what to scan into and where that is
 - each answer carries what the prompt says  
   The script redraws the prompt from the answer, as a reload would draw it.
-- change location is offered only while one is open
+- next is offered only while something is open
 - the scan box listens without an on screen keyboard
 - without a script it is a box and scan it  
   The box is put away by the script, so with none running it is there.
@@ -4452,7 +4468,8 @@ Regenerate with:
 - its buttons are the sites own size  
   A size of its own made the audit look like another site, for thumbs that a scanner's trigger had already taken the work from.
 - the camera scan is offered
-- moving boxes is off whenever it opens
+- there is no switch for moving boxes  
+  A box scanned while a shelf is open goes onto it, so moving one needs no switch -- and a switch was a special case nobody could predict mid-loft.
 
 
 ## Storage visibility
@@ -4673,6 +4690,92 @@ Regenerate with:
   Two different states that both draw no cards.
 - the steps are the front page and not every empty grid  
   /for-sale draws the same grid from a narrowed list, and an empty one of those is a filter that matched nothing rather than a new installation.
+
+
+## Tree
+
+*test_tree.py — 50 behaviours*
+
+
+**A thing is in one place**
+
+- fitting a part takes it off its shelf
+- putting a fitted part on a shelf takes it out of its machine
+- a request naming a machine and a location fits the part
+- one naming a machine and a part mounts it on the part
+- a blank link takes it out and leaves it nowhere
+- a fitted parts form has no location box
+- saving that form leaves it in its machine
+
+**Moving something moves what is in it**
+
+- a drive on a card in a machine is where the machine is
+- moving the box moves everything in it
+- and writes one move on the box only
+
+**Fitting is A move**
+
+- fitting a card writes a move from its shelf to the machine
+- taking it out writes one and leaves it nowhere
+- the machine says what went in and what came out
+- a cards moves say which machines it has been in
+
+**Nothing goes inside itself**
+
+- a part cannot be mounted on itself
+- or on anything mounted on it however far down
+- a location cannot go inside one inside it
+- the mount button refuses and the page says why
+
+**Nothing goes inside something disposed of**
+
+- the api refuses to fit a part in a disposed machine
+- and so does the page
+
+**What is inside share its fate**
+
+- disposing of a card disposes of the drive on it
+- restoring the card brings the drive back
+- a part restored on its own comes out of a disposed machine
+- the delete page lists everything inside all the way down
+- deleting a machine deletes everything in it
+- the api refuses to delete a machine still in the collection
+- or a part
+- once disposed the api deletes it and everything in it
+
+**Deleting A location deletes nothing in it**
+
+- what was in it is left nowhere
+- each says so with a move
+- a location inside it keeps what is in it
+- the api does the same
+
+**A tag is never issued twice**
+
+- a deleted things tag is kept
+- and is never handed out again
+- its label finds nothing
+- the database refuses a second thing with a tag taken
+
+**In A machine means anywhere in it**
+
+- its page lists the drive under its card
+- browsing what is in it includes the drive
+- its label says which machine the drive is in
+
+**Who is told where A thing is kept**
+
+- a new item starts unticked out of the box
+- with show locations on a new item starts ticked
+- turning the switch changes no item already there
+- a visitor sees the row only when the tick is on
+- a fitted part follows its machines tick
+- and is told when the machine is
+- while location pages are private the path is names
+- a visitors search finds a ticked thing by where it is
+- a public location page shows a visitor only ticked things
+- the form saves the tick
+- the tick is not something a search matches
 
 
 ## Type checking

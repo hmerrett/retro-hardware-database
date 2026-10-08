@@ -378,6 +378,7 @@ class TestStorage:
     def test_deleting_a_machine_takes_its_catalogue_rows_with_it(self, client, computer, db):
         c = db.get(Computer, computer()["asset_id"])
         machinedb.write(db, c, model_key="c64", chips={"sid": "MOS 6581"})
+        c.disposed = True
         db.commit()
         assert client.delete(f"/api/computers/{c.asset_id}").status_code == 200
         assert db.query(AssetChip).count() == 0
@@ -1047,7 +1048,7 @@ class TestABoardIsFiledLikeTheMachineItCameOutOf:
         assert v["model_key"] == "amiga-500" and v["issue"] == "Rev 6A"
         assert v["chips"] == {"agnus": "8372A (ECS, 1MB)"}
         assert v["sockets"] == {"agnus": True}
-        assert p.computer_id is None
+        assert p.inside_id is None
 
     def test_the_form_offers_the_catalogue_to_a_board_and_to_nothing_else(self, client):
         board = client.get("/parts/new?type=motherboard").text
@@ -1390,7 +1391,7 @@ class TestDetachingTheBoard:
         the case and still fitted to that machine."""
         c = self.machine(client, db)
         board = db.get(Part, self.detach(client, c.asset_id))
-        assert board.computer_id == c.asset_id
+        assert board.inside_id == c.asset_id
         assert f"/parts/{board.asset_id}" in client.get(f"/computers/{c.asset_id}").text
 
     def test_both_histories_name_the_other(self, client, db):
@@ -1495,7 +1496,7 @@ class TestDetachingTheBoard:
         assert r.status_code == 303
         board = db.get(Part, aid)
         db.refresh(board)
-        assert board.computer_id == c.asset_id
+        assert board.inside_id == c.asset_id
         assert machinedb.read(db, board)["issue"] == "Issue 4B"
         # And the machine did not get the board issue back by having the board put
         # back in it. The board is where that is written down now.

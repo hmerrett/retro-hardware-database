@@ -18,7 +18,6 @@
   const path = document.getElementById('storage-path');
   const ready = document.getElementById('storage-ready');
   const change = document.getElementById('storage-change');
-  const boxes = document.getElementById('storage-boxes');
   const typing = document.getElementById('storage-type');
   const sound = document.getElementById('storage-sound');
   if (!page || !form || !box || !panel || !list) return;
@@ -102,7 +101,7 @@
 
   // --- the focus, which stays in the box -----------------------------------------
   // After every scan, after every button here, and when a tap lands on nothing in
-  // particular. Only then -- a keyboard user tabbing to Moving boxes or Finish has put
+  // particular. Only then -- a keyboard user tabbing to Next or Finish has put
   // the focus somewhere on purpose, and a box that snatched it back would make every
   // control after it unreachable from the keyboard. With the box out of sight the
   // ready button says which it is, and pressing it puts the focus back.
@@ -125,7 +124,6 @@
     }, 250);
   });
   if (ready) ready.addEventListener('click', keep);
-  if (boxes) boxes.addEventListener('change', keep);
 
   // --- the question a round starts with ---------------------------------------------
   // Asked only before the round's first scan, with last time's answer picked out.
@@ -155,7 +153,7 @@
       where.textContent = '';
       if (open) {
         const a = document.createElement('a');
-        a.href = '/locations/' + open;
+        a.href = '/items/' + open;
         a.textContent = said.open_name || open;
         where.appendChild(a);
       } else {

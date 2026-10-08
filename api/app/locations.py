@@ -1,32 +1,28 @@
-"""Where things are kept: the tree of locations, the path up it, what a Location box
-was given, moving something and writing that down, and where a part is when it does
-not say for itself (ADR-0034).
+"""What belongs to a location alone (ADR-0034): its kinds, the tree of locations and
+the path up it as names, what a Location box offers and finding the location it
+names, and emptying, merging and forgetting one -- plus where a thing is, as a
+page and a search read it.
 
-A location is a row with a tag from the register's pool and the location it is
-inside, and nothing else about where it is. The path -- Workshop, Rack 3, Shelf 2,
-Box 14 -- is read up the parents when it is wanted, from one query of the whole
-table (`tree`), and never stored: a stored path is a row to rewrite every time
-something upstream moves, and getting that wrong is a register that says a card is
-in a loft the box left two years ago. There are hundreds of locations, not
-millions, so reading all of them is cheaper than being clever about which.
-
-The same reasoning, one level down, is why a part fitted in a machine has no
-location of its own unless it is given one: it is wherever the machine is, worked
-out at the moment it is shown (`inherited`).
+Where anything is, a location included, is one link on the register, and moving
+anything is tree.py's (ADR-0036). What is here is the part only a location has: a
+name somebody reads, a kind, notes on how to find it, and a path made of those
+names -- Workshop, Rack 3, Shelf 2, Box 14 -- read up the links when it is wanted
+and never stored. There are hundreds of locations, not millions, so reading all of
+them is cheaper than being clever about which.
 """
 
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import NamedTuple
 
 from sqlalchemy.orm import Session
 
 from . import settings
-from .history import MOVE_ENTRY, add_log
+from . import tree as _tree
+from .history import add_log
 from .ids import exact_tag, next_asset_id
-from .models import Computer, Location, Move, Part, Project
+from .models import Computer, Gone, Location, Move, Part, Thing
 from .web import templates
 
 # What a location can be, in the order the form offers them. The kind describes a
@@ -46,34 +42,25 @@ OTHER = "other"
 
 # How a path is written where it has to be typed or read as text -- a form's box,
 # the API, a label. A page draws it as links instead (see `Tree.steps`).
-SEP = " / "
+SEP = _tree.SEP
 
-# How a move was made, as the history says it.
-EDIT, SCAN, API, UNDO = "edit", "scan", "api", "undo"
-HOW_WORDS = {
-    EDIT: "by edit",
-    SCAN: "by scan",
-    API: "through the API",
-    UNDO: "undone in the audit",
-}
+# How a move was made, and why one was refused: tree.py's, named here too because
+# this is where a caller putting something away already looks.
+EDIT, SCAN, API, UNDO = _tree.EDIT, _tree.SCAN, _tree.API, _tree.UNDO
+Refused = _tree.Refused
 
-# For the history panel, which draws a move from its row, and for a location's page,
-# which says what sort of place each location inside it is.
-templates.env.globals["move_how"] = HOW_WORDS
+# For a location's page, which says what sort of place each location inside it is.
 templates.env.globals["kind_names"] = KIND_NAMES
 
 # What a location holds, and what can be moved into one.
-type Thing = Computer | Part
-type Movable = Computer | Part | Location
-
-
-def _now() -> datetime:
-    return datetime.now(UTC).replace(tzinfo=None)
+type Held = Computer | Part
 
 
 def shown(sees_private: bool) -> bool:
-    """Whether this reader is told where things are kept: anybody signed in, and a
-    visitor only while the owner has said so (ADR-0027, ADR-0034)."""
+    """Whether this reader may open the locations themselves -- a location's page,
+    its photographs, its labels, the list of them: anybody signed in, and a visitor
+    only while the owner has said so (ADR-0027, ADR-0034). Where a particular thing
+    is kept is that thing's own tick (`told`)."""
     return sees_private or settings.on("public_locations")
 
 
@@ -83,13 +70,32 @@ def shown(sees_private: bool) -> bool:
 templates.env.globals["locations_shown"] = shown
 
 
+def ticks(db: Session) -> dict[str, bool]:
+    """Every machine's and part's Visible tick, by tag: two lean queries, for a page
+    that asks it of many."""
+    out: dict[str, bool] = {}
+    for model in (Computer, Part):
+        out.update(dict(db.query(model.asset_id, model.location_public).tuples().all()))
+    return out
+
+
+def told(t: _tree.Tree, marks: Mapping[str, bool], tag: str, sees_private: bool) -> bool:
+    """Whether this reader is told where the thing `tag` is kept (ADR-0036): anybody
+    signed in, and a visitor when the tick of the outermost thing it is in says so --
+    a card's machine's, since the machine's is the one that says whether anybody may
+    know which shelf it is on."""
+    return sees_private or bool(marks.get(t.outermost(tag)))
+
+
 @dataclass
 class Tree:
-    """Every location, read once: {tag: (name, kind, parent)}.
+    """Every location, read once: {tag: (name, kind, inside)}.
 
     Asked by a page for paths, by the search for the names along them, and by a
-    move for whether it would put a box inside itself. All of it is one dict, so a
-    page that wants forty paths asks the database once."""
+    location's form for whether a new place would put a box inside itself. All of it
+    is one dict, so a page that wants forty paths asks the database once. A location
+    is only ever inside a location, so this is a closed part of the register's tree
+    (tree.py), with the names that make a path readable."""
 
     rows: dict[str, tuple[str, str, str | None]] = field(default_factory=dict)
 
@@ -97,11 +103,8 @@ class Tree:
         return tag in self.rows
 
     def up(self, tag: str | None) -> list[str]:
-        """The tags from the top of the tree down to `tag`, inclusive.
-
-        Safe against a loop nothing in the app can build: a walk that trusts that is
-        a page that never finishes loading if one ever exists, and the cost of not
-        trusting it is a set."""
+        """The tags from the top of the tree down to `tag`, inclusive. Safe against a
+        loop nothing in the app can build, for the reason _tree.Tree.up is."""
         out: list[str] = []
         seen: set[str] = set()
         at = tag
@@ -144,9 +147,9 @@ class Tree:
 def tree(db: Session) -> Tree:
     return Tree(
         {
-            aid: (name, kind, parent)
-            for aid, name, kind, parent in db.query(
-                Location.asset_id, Location.name, Location.kind, Location.parent_id
+            aid: (name, kind, inside.upper() if inside else None)
+            for aid, name, kind, inside in db.query(
+                Location.asset_id, Location.name, Location.kind, Location.inside_id
             )
         }
     )
@@ -202,10 +205,8 @@ def outline(t: Tree, held: Mapping[str, int]) -> list[Node]:
     return branch(None)
 
 
-class Refused(ValueError):
-    """What was asked of a location cannot be done, and why, in words for a form.
-    Raised rather than returned, so a caller that forgets to check cannot store the
-    wrong answer."""
+# What the Location box calls a tag that names something that is not a location.
+_THING_WORDS = {"computer": "a computer", "part": "a part", "project": "a project"}
 
 
 def find(db: Session, text: str | None, t: Tree) -> Location | None:
@@ -222,9 +223,11 @@ def find(db: Session, text: str | None, t: Tree) -> Location | None:
     if (tag := exact_tag(typed)) is not None:
         if tag in t:
             return db.get(Location, tag)
-        for kind, model in (("a computer", Computer), ("a part", Part), ("a project", Project)):
-            if db.get(model, tag) is not None:
-                raise Refused(f"{tag} is {kind}, not a location.")
+        found = db.get(Thing, tag)
+        if found is not None and not isinstance(found, Gone):
+            raise Refused(
+                f"{tag} is {_THING_WORDS.get(found.what, 'something else')}, not a location."
+            )
         raise Refused(f"No location has the tag {tag}.")
     folded = typed.casefold()
     hits = [tag for tag in t.rows if t.text(tag).casefold() == folded] or [
@@ -252,89 +255,38 @@ def choose(db: Session, text: str | None, t: Tree) -> Location | None:
     return made
 
 
-def where_of(obj: Movable) -> str | None:
-    """The location a thing or a location is kept in, by tag."""
-    return obj.parent_id if isinstance(obj, Location) else obj.location_id
-
-
-def sentence(from_path: str, to_path: str, how: str) -> str:
-    """A move as words, for the API's log and anywhere a move is read without its
-    row. The page draws the row instead, with a link at each end."""
-    was = from_path or "nowhere recorded"
-    now = to_path or "nowhere recorded"
-    return f"moved from {was} to {now}, {HOW_WORDS[how]}"
-
-
-def move(
-    db: Session, obj: Movable, to: str | None, how: str, who: str, t: Tree | None = None
-) -> Move | None:
-    """Put a thing, or a location, in the location `to` (None for nowhere), and
-    write it down. Nothing when it is already there: the history is of things
-    that happened.
-
-    A location moved into itself, or into anything inside it, raises Refused. A
-    location moved takes everything in it along by not being asked to: what is in
-    Box 14 points at Box 14, so the one write here is the whole of the move, and it
-    is recorded once, on the box (ADR-0034)."""
-    t = t or tree(db)
-    was = where_of(obj)
-    if was == to:
-        return None
-    if isinstance(obj, Location):
-        if t.would_loop(obj.asset_id, to):
-            raise Refused(f"{obj.name} cannot go inside itself, or inside anything in it.")
-        obj.parent_id = to
-    else:
-        obj.location_id = to
-    from_path, to_path = t.text(was), t.text(to)
-    if isinstance(obj, Location):
-        t.rows[obj.asset_id] = (obj.name, obj.kind, to)
-    line = add_log(db, obj.asset_id, sentence(from_path, to_path, how), MOVE_ENTRY)
-    db.flush()
-    row = Move(
-        asset_id=obj.asset_id,
-        from_id=was,
-        from_path=from_path[:1024],
-        to_id=to,
-        to_path=to_path[:1024],
-        moved_at=_now(),
-        who=(who or "")[:64],
-        how=how,
-        log_id=line.id if line is not None else None,
-    )
-    db.add(row)
-    db.flush()
-    return row
-
-
-def kept_in(db: Session, tag: str) -> list[Thing]:
+def kept_in(db: Session, tag: str, marks: Mapping[str, bool] | None = None) -> list[Held]:
     """The machines and parts recorded in this location itself -- not in the
     locations inside it, and not the parts fitted in what is here, which go where
-    their machine goes. Disposed things are not kept anywhere."""
-    computers = (
-        db.query(Computer)
-        .filter(Computer.location_id == tag, Computer.disposed.is_(False))
-        .order_by(Computer.asset_id)
-        .all()
-    )
-    parts = (
-        db.query(Part)
-        .filter(Part.location_id == tag, Part.disposed.is_(False))
-        .order_by(Part.asset_id)
-        .all()
-    )
-    return [*computers, *parts]
+    their machine goes. Disposed things are not kept anywhere.
+
+    `marks`, for a visitor, is every thing's Visible tick: what is here and not
+    ticked is not listed, because a public location's page is not a way round the
+    tick (ADR-0036)."""
+    found: list[Held] = [
+        *db.query(Computer)
+        .filter(Computer.inside_id == tag, Computer.disposed.is_(False))
+        .order_by(Computer.asset_id),
+        *db.query(Part)
+        .filter(Part.inside_id == tag, Part.disposed.is_(False))
+        .order_by(Part.asset_id),
+    ]
+    if marks is not None:
+        found = [x for x in found if marks.get(x.asset_id)]
+    return found
 
 
-def counts(db: Session, t: Tree) -> dict[str, int]:
+def counts(db: Session, t: Tree, marks: Mapping[str, bool] | None = None) -> dict[str, int]:
     """How many things each location holds, all the way down: its own, and those
-    of every location inside it. Two queries for the whole tree."""
+    of every location inside it -- not the cards in its machines, which are the
+    machines' business. Two queries for the whole tree. `marks` as `kept_in`."""
     own: dict[str, int] = {}
     for model in (Computer, Part):
-        for (tag,) in db.query(model.location_id).filter(
-            model.location_id.isnot(None), model.disposed.is_(False)
+        for tag, aid in db.query(model.inside_id, model.asset_id).filter(
+            model.inside_id.isnot(None), model.disposed.is_(False)
         ):
-            own[tag] = own.get(tag, 0) + 1
+            if tag.upper() in t and (marks is None or marks.get(aid)):
+                own[tag.upper()] = own.get(tag.upper(), 0) + 1
     return {tag: own.get(tag, 0) + sum(own.get(c, 0) for c in t.within(tag)) for tag in t.rows}
 
 
@@ -347,83 +299,37 @@ class Placed(NamedTuple):
     """Where a part is because of what it is fitted in, and whose answer that is.
 
     `whose` and `kind` are carried with the location because the page has to say
-    where the answer came from. A location shown against a part that does not hold
-    one would otherwise read as something somebody chose for it, and the first
-    thing anybody would do about a wrong one is edit the part -- which is the one
-    record that cannot fix it."""
+    where the answer came from: a location shown against a part without saying it is
+    the machine's would read as something somebody chose for the part, and the
+    first thing anybody would do about a wrong one is edit the part -- which is the
+    one record that cannot fix it."""
 
     where: str
     whose: str
     kind: str
 
 
-def inherited(db: Session) -> dict[str, Placed]:
-    """Where each part is because of what it is fitted in, for the parts that do
-    not say for themselves. Keyed by the part's asset id; `where` is a location's
-    tag.
-
-    A part's own answer is not in here: it is already in the column, and every
-    reader of this map has that to hand. What is here is only the answer the part
-    would have no way of giving -- which is why this is worked out and never
-    written down. Storing it would mean rewriting a row of the parts table every
-    time a machine was carried upstairs.
-
-    Mounted on before installed in: a chip on a board is wherever the board is,
-    and the board is the nearer answer even when the machine it is in has one of
-    its own. The first location up the chain wins, and a chain that runs out yields
-    nothing -- a part in a machine nobody has placed is a part nobody has placed.
-
-    Two lean queries for the whole register rather than a walk per part, because
-    every caller wants many at once: the gallery is building a card for each of
-    them and the search is matching against each of them."""
-    parts = {
-        aid: (parent, computer, where)
-        for aid, parent, computer, where in db.query(
-            Part.asset_id, Part.parent_id, Part.computer_id, Part.location_id
-        )
-    }
-    computers = dict(db.query(Computer.asset_id, Computer.location_id).tuples().all())
-
-    def answer(aid: str, seen: frozenset[str]) -> Placed | None:
-        # Nothing in the register should be able to build a part mounted on itself
-        # -- the forms do not offer it -- but a walk that trusts that is a page that
-        # never finishes loading if one ever exists, and the cost of not trusting it
-        # is a set.
-        if aid in seen:
-            return None
-        # One pool of asset ids across the whole register (ADR-0007), so an id is a
-        # machine or a part and never both, and asking the two maps in turn cannot
-        # land on the wrong thing.
-        if aid in computers:
-            where = computers[aid]
-            return Placed(where, aid, "computers") if where else None
-        row = parts.get(aid)
-        if row is None:
-            return None
-        parent, computer, own = row
-        if own:
-            return Placed(own, aid, "parts")
-        for up in (parent, computer):
-            if up and (found := answer(up, seen | {aid})) is not None:
-                return found
-        return None
-
+def inherited(r: _tree.Tree) -> dict[str, Placed]:
+    """Where each part fitted in something is kept, because of what it is in: the
+    first location up its chain, and the outermost machine or part it is in, whose
+    answer that is. Keyed by the part's tag. A part in a machine nobody has placed
+    is a part nobody has placed, and is not in here."""
     out: dict[str, Placed] = {}
-    for aid, (parent, computer, own) in parts.items():
-        if own or not (parent or computer):
+    for tag, (what, holder) in r.rows.items():
+        if what != _tree.PART or r.what(holder) not in (_tree.COMPUTER, _tree.PART):
             continue
-        if (found := answer(aid, frozenset())) is not None:
-            out[aid] = found
+        if (where := r.place(tag)) is not None:
+            whose = r.outermost(tag)
+            out[tag] = Placed(
+                where, whose, "computers" if r.what(whose) == _tree.COMPUTER else "parts"
+            )
     return out
 
 
-def effective(obj: Thing, placed: Mapping[str, Placed]) -> str | None:
-    """The location a thing is in: its own, or for a part with none, the one it
-    inherits from what it is fitted in."""
-    if obj.location_id:
-        return obj.location_id
-    found = placed.get(obj.asset_id) if isinstance(obj, Part) else None
-    return found.where if found else None
+def effective(r: _tree.Tree, tag: str) -> str | None:
+    """The location a thing is in: where it is kept, or for a part fitted in
+    something, where that is kept."""
+    return r.place(tag)
 
 
 class Where(NamedTuple):
@@ -439,21 +345,22 @@ class Where(NamedTuple):
     others: int
 
 
-def where_row(db: Session, obj: Thing, placed: Mapping[str, Placed], t: Tree) -> Where | None:
+def where_row(db: Session, obj: Held, r: _tree.Tree, t: Tree) -> Where | None:
     """What the Location row on this item's page says, or None for no row."""
-    borrowed = placed.get(obj.asset_id) if isinstance(obj, Part) and not obj.location_id else None
-    tag = obj.location_id or (borrowed.where if borrowed else None)
+    tag = r.place(obj.asset_id)
     loc = db.get(Location, tag) if tag and tag in t else None
     if tag is None or loc is None:
         return None
+    outer = r.outermost(obj.asset_id)
+    whose = outer if outer != obj.asset_id else ""
     return Where(
         tag=tag,
         steps=t.steps(tag),
-        whose=borrowed.whose if borrowed else "",
-        kind=borrowed.kind if borrowed else "",
+        whose=whose,
+        kind=("computers" if r.what(whose) == _tree.COMPUTER else "parts") if whose else "",
         notes=loc.notes or "",
         photo=loc.image or "",
-        others=len([x for x in kept_in(db, tag) if x.asset_id != obj.asset_id]),
+        others=len([x for x in kept_in(db, tag) if x.asset_id != outer]),
     )
 
 
@@ -463,53 +370,49 @@ def path_words(t: Tree, tags: Iterable[str | None]) -> str:
     return " ".join(" ".join(t.names(tag)) for tag in tags)
 
 
-def empty_into_parent(db: Session, loc: Location, who: str, t: Tree) -> int:
+def empty_into_parent(db: Session, loc: Location, who: str, r: _tree.Tree) -> int:
     """Put everything in this location where the location itself is: its things and
     the locations inside it, one level up. Each is a move by edit, because each
     has changed where it is kept. Returns how many went."""
-    up = loc.parent_id
+    up = r.holder(loc.asset_id)
     moved = 0
-    for thing in kept_in(db, loc.asset_id):
-        moved += move(db, thing, up, EDIT, who, t) is not None
-    for tag in t.children(loc.asset_id):
-        child = db.get(Location, tag)
-        if child is not None:
-            moved += move(db, child, up, EDIT, who, t) is not None
+    for thing in list(_tree.contents(db, r, loc.asset_id)):
+        moved += _tree.put(db, thing, up, EDIT, who, r) is not None
     return moved
 
 
-def merge(db: Session, loc: Location, into: Location, who: str, t: Tree) -> list[str]:
+def merge(db: Session, loc: Location, into: Location, who: str, r: _tree.Tree) -> list[str]:
     """Put one location's contents into another, which keeps its tag, and delete the
     first: two spellings of one crate made one (MANUAL §14). Refused for a location
     merged into itself or into anything inside it, which would put its own contents
     nowhere. Returns the photographs to delete once the rows are committed."""
-    if into.asset_id == loc.asset_id or into.asset_id in t.within(loc.asset_id):
+    if into.asset_id == loc.asset_id or r.would_loop(loc.asset_id, into.asset_id):
         raise Refused(f"{loc.name} cannot be merged into itself, or into anything in it.")
-    for thing in kept_in(db, loc.asset_id):
-        move(db, thing, into.asset_id, EDIT, who, t)
-    for tag in t.children(loc.asset_id):
-        child = db.get(Location, tag)
-        if child is not None:
-            move(db, child, into.asset_id, EDIT, who, t)
+    for thing in list(_tree.contents(db, r, loc.asset_id)):
+        _tree.put(db, thing, into.asset_id, EDIT, who, r)
     add_log(db, into.asset_id, f"merged {loc.name} ({loc.asset_id}) into this")
-    return forget(db, loc)
+    return forget(db, loc, who, r)
 
 
-def forget(db: Session, loc: Location) -> list[str]:
-    """Delete a location that holds nothing, with its own history and photographs.
+def forget(db: Session, loc: Location, who: str, r: _tree.Tree, how: str = EDIT) -> list[str]:
+    """Delete a location, with its own history and photographs, and nothing that is
+    in it (ADR-0036): a box is where things are, not what they are made of. What was
+    directly inside it is left nowhere, each with a move saying so, and the locations
+    inside it go with their contents still in them.
 
     Not the moves of things that were once in it: those are on the things'
-    histories, and stay there with the path as it read at the time. The photograph
-    files are handed back rather than deleted here, because a file cannot be rolled
-    back and the caller commits first."""
+    histories, and stay there with the path as it read at the time. The tag stays
+    taken (_tree.bury). The photograph files are handed back rather than deleted
+    here, because a file cannot be rolled back and the caller commits first."""
     from .models import LogEntry
     from .photos import _drop_log_photos, detect_images
 
+    for thing in list(_tree.contents(db, r, loc.asset_id)):
+        _tree.put(db, thing, None, how, who, r)
     rels = detect_images("locations", loc.asset_id) + _drop_log_photos(db, loc.asset_id)
     db.query(LogEntry).filter(LogEntry.asset_id == loc.asset_id).delete(synchronize_session=False)
     db.query(Move).filter(Move.asset_id == loc.asset_id).delete(synchronize_session=False)
-    db.delete(loc)
-    db.flush()
+    _tree.bury(db, loc)
     return rels
 
 
@@ -519,7 +422,7 @@ def label_row(loc: Location, t: Tree) -> dict[str, object]:
     return {
         "asset_id": loc.asset_id,
         "name": loc.name,
-        "path": t.text(loc.parent_id),
+        "path": t.text(loc.inside_id.upper() if loc.inside_id else None),
         "kind": KIND_NAMES.get(loc.kind, loc.kind),
         "notes": loc.notes,
     }

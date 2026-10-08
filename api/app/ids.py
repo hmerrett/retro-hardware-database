@@ -1,8 +1,9 @@
 """Allocate an asset id, unique across every table in the register, and read one
 back out of what somebody typed or scanned.
 
-The register is computers, parts, projects and locations. The last two are not
-objects anybody owns, but they draw from the same pool because an id is what
+The register is computers, parts, projects and locations, and since ADR-0036 it is
+a table of its own, every tag a primary key in it. The last two are not objects
+anybody owns, but they draw from the same pool because an id is what
 /items/<id> resolves and what the history is keyed by: two things sharing one
 would put one's notes on the other's page. A location's label is scanned like a
 machine's for the same reason (ADR-0034).
@@ -22,7 +23,7 @@ import string
 
 from sqlalchemy.orm import Session
 
-from .models import Computer, Location, Part, Project
+from .models import Thing
 
 PREFIX = "RH-"
 _CONFUSABLE = set("ILO")
@@ -59,10 +60,12 @@ def tag_in(text: str | None) -> str | None:
 
 
 def next_asset_id(db: Session) -> str:
-    taken: set[str] = set()
-    for model in (Computer, Part, Project, Location):
-        for (aid,) in db.query(model.asset_id).all():
-            taken.add(aid)
+    """A tag nothing in the register has ever had (ADR-0036). The register is one
+    table now, so this asks it once, and it holds the tags of deleted things too,
+    so a label still on a shelf somewhere never comes to open something new. Two
+    allocations racing for one tag cannot both win: the tag is the register's
+    primary key, so the second save fails rather than giving two things one tag."""
+    taken = {aid.upper() for (aid,) in db.query(Thing.asset_id).all()}
     for _ in range(10000):
         candidate = _random_id()
         if candidate not in taken:

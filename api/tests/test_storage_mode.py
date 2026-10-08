@@ -1,9 +1,10 @@
-"""The audit (MANUAL §14, "Audit", "Moving boxes", "The report").
+"""The audit (MANUAL §14, "Audit", "The report"; ADR-0036).
 
-Scan a location, then scan what goes in it. Every scan is acted on the moment it
-arrives, so putting things away, moving them and checking a shelf are one rule; a
-round is kept on the server until it is finished, and the report says what was
-found, what moved in, what was not scanned and what was not recognised.
+Scan a location or a machine, then everything in it, and **next** before the next
+place. Every scan is acted on the moment it arrives, so putting things away, moving
+boxes, fitting parts and checking a shelf are one rule; a round is kept on the
+server until it is finished, and the report says what was found, what moved in,
+what was not scanned and what was not recognised.
 """
 
 import re
@@ -12,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from app import labels
-from app.models import Computer, LogEntry, Move, Part
+from app.models import LogEntry, Move, Thing
 from conftest import content
 from test_stylesheet_lint import COMPONENTS, declarations
 
@@ -34,9 +35,8 @@ def location(client):
 def scan(client):
     """One scan, as the page's script sends it, answered as the script reads it."""
 
-    def send(code, boxes=False):
-        data = {"code": code} | ({"boxes": "1"} if boxes else {})
-        r = client.post("/audit/scan", data=data, headers=JSON)
+    def send(code):
+        r = client.post("/audit/scan", data={"code": code}, headers=JSON)
         assert r.status_code == 200, r.text
         return r.json()
 
@@ -44,9 +44,9 @@ def scan(client):
 
 
 def where(db, aid):
+    """What a thing or a location is directly inside: a location, a machine, a card."""
     db.expire_all()
-    thing = db.get(Computer, aid) or db.get(Part, aid)
-    return thing.location_id
+    return db.get(Thing, aid).inside_id
 
 
 class TestScanningALocation:
@@ -137,93 +137,78 @@ class TestScanningAThing:
         assert db.query(Move).filter(Move.asset_id == aid).count() == 1
 
 
-class TestPuttingOneThingAway:
-    """Scan the thing, then the location."""
-
-    def test_a_thing_scanned_with_nothing_open_is_held_and_shows_where_it_is(
-        self, client, scan, location, computer
-    ):
+class TestAPartScannedWithNothingOpen:
+    def test_says_where_it_is_and_moves_nothing(self, client, db, scan, location, part):
         loft = location("Loft", "room")
-        aid = computer(location=loft)["asset_id"]
+        aid = part(location=loft)["asset_id"]
         said = scan(aid)
-        assert said["open"] is None
+        assert (said["open"], said["head"]) == (None, "Where it is")
         assert "Loft" in said["words"]
-        assert "scan a location to move it there" in said["words"]
+        assert where(db, aid) == loft
 
-    def test_the_next_location_scanned_takes_it_and_opens(
-        self, client, db, scan, location, computer
+    def test_and_a_location_scanned_after_it_takes_nothing_with_it(
+        self, client, db, scan, location, part
     ):
         loft = location("Loft", "room")
         shelf = location("Shelf 2", "shelf")
-        aid = computer(location=loft)["asset_id"]
+        aid = part(location=loft)["asset_id"]
         scan(aid)
-        said = scan(shelf)
-        assert said["open"] == shelf
-        assert where(db, aid) == shelf
+        assert scan(shelf)["open"] == shelf
+        assert where(db, aid) == loft
 
-    def test_scanning_another_thing_instead_leaves_the_first_where_it_was(
+
+class TestNext:
+    """Until next is pressed, everything scanned goes into what is open -- a location
+    included, which is how a box goes onto a shelf."""
+
+    def test_until_then_a_location_scanned_goes_inside_the_open_one(
         self, client, db, scan, location, computer
     ):
-        loft = location("Loft", "room")
         shelf = location("Shelf 2", "shelf")
-        first = computer(location=loft)["asset_id"]
-        second = computer(location=loft)["asset_id"]
-        scan(first)
-        scan(second)
+        box = location("Box 14")
+        computer(location=box)
+        computer(location=box)
         scan(shelf)
-        assert where(db, first) == loft
-        assert where(db, second) == shelf
+        said = scan(box)
+        assert (said["tone"], said["head"]) == ("moved", "Moved in")
+        assert "2 things came with it" in said["words"]
+        assert said["open"] == shelf, "the shelf stays open"
+        assert where(db, box) == shelf
 
-
-class TestMovingBetweenLocations:
-    def test_the_next_location_becomes_the_open_one(self, client, scan, location):
-        a, b = location("Shelf 1", "shelf"), location("Shelf 2", "shelf")
-        scan(a)
-        assert scan(b)["open"] == b
-
-    def test_a_location_recorded_elsewhere_is_opened_and_not_moved(
-        self, client, db, scan, location
-    ):
-        from app.models import Location
-
-        room = location("Workshop", "room")
-        box = location("Box 14", "box", room)
-        shelf = location("Shelf 2", "shelf")
-        scan(shelf)
-        assert scan(box)["open"] == box
-        db.expire_all()
-        assert db.get(Location, box).parent_id == room
-
-    def test_a_location_inside_the_open_one_is_found_there_then_opened(
-        self, client, scan, location
-    ):
+    def test_a_location_already_inside_the_open_one_is_found(self, client, scan, location):
         shelf = location("Shelf 2", "shelf")
         box = location("Box 14", "box", shelf)
         scan(shelf)
         said = scan(box)
-        assert said["open"] == box
-        assert "Found on Shelf 2" in said["words"]
+        assert (said["head"], said["open"]) == ("Found", shelf)
 
-    def test_change_location_closes_the_open_one_without_opening_another(
-        self, client, scan, location
-    ):
-        scan(location("Shelf 2", "shelf"))
+    def test_undo_puts_the_box_back(self, client, db, scan, location):
+        loft = location("Loft", "room")
+        shelf = location("Shelf 2", "shelf")
+        box = location("Box 14", "box", loft)
+        scan(shelf)
+        moved = scan(box)
+        client.post("/audit/undo", data={"scan": moved["scan"]}, headers=JSON)
+        assert where(db, box) == loft
+
+    def test_a_box_into_its_own_contents_is_refused(self, client, db, scan, location):
+        box = location("Box 14")
+        bag = location("Bag 6", "bag", box)
+        scan(bag)
+        said = scan(box)
+        assert said["tone"] == "refused"
+        assert where(db, box) is None
+
+    def test_next_closes_what_is_open_so_the_next_scan_opens(self, client, scan, location):
+        a, b = location("Shelf 1", "shelf"), location("Shelf 2", "shelf")
+        scan(a)
         r = client.post("/audit/close", headers=JSON)
         assert r.status_code == 200, r.text
         assert r.json()["open"] is None
-        assert "Scan a location" in content(client.get("/audit").text)
+        assert "Scan a location or a machine" in content(client.get("/audit").text)
+        assert scan(b)["open"] == b
 
-    def test_a_thing_scanned_after_it_is_held_not_moved_into_the_last_one(
-        self, client, db, scan, location, computer
-    ):
-        loft = location("Loft", "room")
-        aid = computer(location=loft)["asset_id"]
-        scan(location("Shelf 2", "shelf"))
-        client.post("/audit/close", headers=JSON)
-        assert scan(aid)["head"] == "Where it is"
-        assert where(db, aid) == loft
-
-    def test_without_a_script_change_location_comes_back_to_the_page(self, client, scan, location):
+    def test_without_a_script_next_comes_back_to_the_page(self, client, scan, location):
         scan(location("Shelf 2", "shelf"))
         r = client.post("/audit/close", follow_redirects=False)
         assert (r.status_code, r.headers["location"]) == (303, "/audit")
@@ -238,6 +223,68 @@ class TestMovingBetweenLocations:
         assert "Shelf 2" in report and aid in report
 
 
+class TestFittingPartsInAMachine:
+    """Scan the machine, then each card, drive and board going into it."""
+
+    def test_a_machine_scanned_with_nothing_open_opens(self, client, scan, location, computer):
+        machine = computer(model="Amiga 500", location=location("Shelf 2", "shelf"))["asset_id"]
+        said = scan(machine)
+        assert said["open"] == machine
+        assert "Shelf 2" in said["open_path"]
+
+    def test_a_part_scanned_into_it_is_fitted_and_taken_off_its_shelf(
+        self, client, db, scan, location, computer, part
+    ):
+        drawer = location("Spares drawer", "other")
+        machine = computer()["asset_id"]
+        card = part(location=drawer)["asset_id"]
+        scan(machine)
+        said = scan(card)
+        assert said["tone"] == "moved"
+        assert where(db, card) == machine
+        last = db.query(Move).filter(Move.asset_id == card).order_by(Move.id.desc()).first()
+        assert (last.from_id, last.to_id, last.how) == (drawer, machine, "scan")
+
+    def test_one_already_in_it_however_far_down_is_found(self, client, db, scan, computer, part):
+        machine = computer()["asset_id"]
+        card = part(computer_id=machine)["asset_id"]
+        drive = part(type="storage", parent_id=card)["asset_id"]
+        scan(machine)
+        assert scan(drive)["head"] == "Found"
+        assert where(db, drive) == card
+
+    @pytest.mark.parametrize("what", ["machine", "location"])
+    def test_a_machine_or_a_location_scanned_into_it_is_refused(
+        self, client, db, scan, location, computer, what
+    ):
+        machine = computer()["asset_id"]
+        other = computer()["asset_id"] if what == "machine" else location("Box 14")
+        scan(machine)
+        said = scan(other)
+        assert said["tone"] == "refused"
+        assert where(db, other) is None
+
+    def test_a_machine_scanned_onto_a_shelf_is_put_there_with_what_is_in_it(
+        self, client, db, scan, location, computer, part
+    ):
+        shelf = location("Shelf 2", "shelf")
+        machine = computer()["asset_id"]
+        card = part(computer_id=machine)["asset_id"]
+        scan(shelf)
+        said = scan(machine)
+        assert "1 thing came with it" in said["words"]
+        assert where(db, machine) == shelf
+        assert where(db, card) == machine
+
+    def test_the_report_says_what_was_fitted(self, client, scan, computer, part):
+        machine = computer(model="Amiga 500")["asset_id"]
+        card = part()["asset_id"]
+        scan(machine)
+        scan(card)
+        report = client.post("/audit/finish", follow_redirects=True).text
+        assert "Amiga 500" in report and card in report
+
+
 class TestAFittedPart:
     def test_scanned_into_a_location_it_is_taken_out_of_its_machine(
         self, client, db, scan, location, computer, part
@@ -249,12 +296,9 @@ class TestAFittedPart:
         scan(drawer)
         said = scan(pid)
         assert f"taken out of {cid}" in said["words"]
-        db.expire_all()
-        got = db.get(Part, pid)
-        assert (got.computer_id, got.location_id) == (None, drawer)
-        for aid in (pid, cid):
-            lines = [e.message for e in db.query(LogEntry).filter(LogEntry.asset_id == aid)]
-            assert any("taken out" in (m or "") for m in lines), aid
+        assert where(db, pid) == drawer
+        lines = [e.message for e in db.query(LogEntry).filter(LogEntry.asset_id == cid)]
+        assert f"{pid} taken out" in lines
 
     def test_undo_puts_it_back_in_its_machine_as_well(
         self, client, db, scan, location, computer, part
@@ -266,9 +310,23 @@ class TestAFittedPart:
         scan(drawer)
         moved = scan(pid)
         client.post("/audit/undo", data={"scan": moved["scan"]}, headers=JSON)
-        db.expire_all()
-        got = db.get(Part, pid)
-        assert (got.computer_id, got.location_id) == (cid, None)
+        assert where(db, pid) == cid
+
+    def test_undo_is_refused_when_its_machine_has_since_been_deleted(
+        self, client, db, scan, location, computer, part
+    ):
+        """There is nothing to put it back in, and saying so beats a server error
+        (ADR-0036): the part stays where the scan put it."""
+        drawer = location("Spares drawer", "other")
+        cid = computer()["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        scan(drawer)
+        moved = scan(pid)
+        client.patch(f"/api/computers/{cid}", json={"disposed": True})
+        assert client.delete(f"/api/computers/{cid}").status_code == 200
+        r = client.post("/audit/undo", data={"scan": moved["scan"]}, headers=JSON)
+        assert r.json()["tone"] == "refused"
+        assert where(db, pid) == drawer
 
     def test_scanned_where_its_machine_is_it_is_found_and_stays_fitted(
         self, client, db, scan, location, computer, part
@@ -278,8 +336,7 @@ class TestAFittedPart:
         pid = part(computer_id=cid)["asset_id"]
         scan(shelf)
         assert scan(pid)["head"] == "Found"
-        db.expire_all()
-        assert db.get(Part, pid).computer_id == cid
+        assert where(db, pid) == cid
 
 
 class TestWhatIsRefused:
@@ -310,48 +367,6 @@ class TestWhatIsRefused:
         assert said["tone"] == "refused"
         assert "2026-09-01" in said["words"]
         assert where(db, aid) is None
-
-
-class TestMovingBoxes:
-    def test_with_it_on_a_location_scanned_goes_inside_the_open_one(
-        self, client, db, scan, location, computer
-    ):
-        from app.models import Location
-
-        shelf = location("Shelf 2", "shelf")
-        box = location("Box 14")
-        computer(location=box)
-        computer(location=box)
-        scan(shelf, boxes=True)
-        said = scan(box, boxes=True)
-        assert (said["tone"], said["head"]) == ("moved", "Moved in")
-        assert "2 things came with it" in said["words"]
-        assert said["open"] == shelf, "the shelf stays open"
-        db.expire_all()
-        assert db.get(Location, box).parent_id == shelf
-
-    def test_undo_puts_the_box_back(self, client, db, scan, location):
-        from app.models import Location
-
-        loft = location("Loft", "room")
-        shelf = location("Shelf 2", "shelf")
-        box = location("Box 14", "box", loft)
-        scan(shelf, boxes=True)
-        moved = scan(box, boxes=True)
-        client.post("/audit/undo", data={"scan": moved["scan"]}, headers=JSON)
-        db.expire_all()
-        assert db.get(Location, box).parent_id == loft
-
-    def test_a_box_into_its_own_contents_is_refused(self, client, db, scan, location):
-        from app.models import Location
-
-        box = location("Box 14")
-        bag = location("Bag 6", "bag", box)
-        scan(bag, boxes=True)
-        said = scan(box, boxes=True)
-        assert said["tone"] == "refused"
-        db.expire_all()
-        assert db.get(Location, box).parent_id is None
 
 
 class TestARoundIsKept:
@@ -469,8 +484,8 @@ class TestThePage:
         scan(location("Shelf 2", "shelf"))
         assert 'data-started="1"' in client.get("/audit").text
 
-    def test_with_nothing_open_it_says_scan_a_location(self, client):
-        assert "Scan a location" in content(client.get("/audit").text)
+    def test_with_nothing_open_it_says_scan_a_location_or_a_machine(self, client):
+        assert "Scan a location or a machine" in content(client.get("/audit").text)
 
     def test_with_a_location_open_it_says_what_to_scan_into_and_where_that_is(
         self, client, scan, location
@@ -487,7 +502,7 @@ class TestThePage:
         said = scan(location("Shelf 2", "shelf", location("Rack 3", "rack")))
         assert (said["open_name"], said["open_path"]) == ("Shelf 2", "Rack 3")
 
-    def test_change_location_is_offered_only_while_one_is_open(self, client, scan, location):
+    def test_next_is_offered_only_while_something_is_open(self, client, scan, location):
         def change():
             return client.get("/audit").text.split('id="storage-change"', 1)[1].split(">", 1)[0]
 
@@ -531,7 +546,6 @@ class TestThePage:
         "control",
         [
             'id="storage-finish"',
-            'id="storage-boxes"',
             'id="storage-type"',
             'id="storage-sound"',
             'id="storage-change"',
@@ -554,7 +568,7 @@ class TestThePage:
     def test_the_camera_scan_is_offered(self, client):
         assert re.search(r'class="[^"]*\bscan-open\b', content(client.get("/audit").text))
 
-    def test_moving_boxes_is_off_whenever_it_opens(self, client):
-        page = client.get("/audit").text
-        switch = page.split('id="storage-boxes"', 1)[1].split(">", 1)[0]
-        assert "checked" not in switch
+    def test_there_is_no_switch_for_moving_boxes(self, client):
+        """A box scanned while a shelf is open goes onto it, so moving one needs no
+        switch -- and a switch was a special case nobody could predict mid-loft."""
+        assert "storage-boxes" not in client.get("/audit").text

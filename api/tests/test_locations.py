@@ -5,9 +5,9 @@ it is now. A machine or a part is kept in a location -- a record of its own sinc
 ADR-0034, with tests of its own in test_storage_locations.py -- and the switch Show
 locations decides whether a visitor is told.
 
-What is held here is the half that is easy to get wrong: a part with no location of
-its own is wherever what it is fitted in is, and a location kept off the page is
-still kept out of the search.
+What is held here is the half that is easy to get wrong: a part fitted in something
+is wherever that is (ADR-0036), and where a thing is kept, kept off a visitor's page
+by its tick, is still kept out of their search.
 """
 
 from pathlib import Path
@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from app import settings
-from app.models import Computer, Part
+from app.models import Computer, Part, Thing
 from conftest import content, log_out
 
 CRATE = "Loft, blue crate 3"
@@ -52,8 +52,8 @@ class TestRecordingWhereSomethingIs:
     def test_an_item_starts_with_nowhere_recorded(self, client, db, computer, part):
         """Nothing is inferred. A register that has never been told where anything
         is says so rather than guessing."""
-        assert db.get(Computer, computer()["asset_id"]).location_id is None
-        assert db.get(Part, part()["asset_id"]).location_id is None
+        assert db.get(Computer, computer()["asset_id"]).inside_id is None
+        assert db.get(Part, part()["asset_id"]).inside_id is None
 
     def test_the_machine_form_saves_one(self, client, computer):
         aid = computer()["asset_id"]
@@ -97,16 +97,13 @@ class TestRecordingWhereSomethingIs:
         )
         assert client.get(f"/api/{kind}/{copy}").json()["location"] == ""
 
-    def test_a_parts_own_answer_stands_beside_where_it_is_installed(self, client, computer, part):
-        """The card-in-a-drawer case. Two rows, because a part can be fitted in a
-        machine and still be kept somewhere else -- a board out on the bench is
-        still the board out of that machine."""
+    def test_a_part_fitted_in_a_machine_is_in_one_place(self, client, computer, part):
+        """A thing is in one place (ADR-0036): a request naming a machine and a
+        location fits the part, and its page reads where the machine is."""
         cid = computer(location="Loft")["asset_id"]
         pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
         page = content(client.get(f"/parts/{pid}").text)
-        assert "<dt>Location</dt>" in page
-        assert "Spares drawer" in page
-        assert "Loft" not in page, "its own answer wins over the one it is offered"
+        assert "Loft" in page and "Spares drawer" not in page
         assert "Fitted in" in page and cid in page
 
 
@@ -138,33 +135,21 @@ class TestAPartIsWhereWhatItIsFittedInIs:
         chip = part(type="cpu", parent_id=board)["asset_id"]
         assert CRATE in client.get(f"/parts/{chip}").text
 
-    def test_what_it_is_mounted_on_answers_before_what_it_is_installed_in(
+    def test_a_chip_on_a_board_on_the_bench_is_on_the_bench(self, client, part):
+        """A board out on the bench has its own parts on the bench with it."""
+        board = part(type="motherboard", location="On the bench")["asset_id"]
+        chip = part(type="cpu", parent_id=board)["asset_id"]
+        assert "On the bench" in content(client.get(f"/parts/{chip}").text)
+
+    def test_giving_a_fitted_part_a_location_takes_it_out_of_its_machine(
         self, client, computer, part
     ):
-        """A chip on a board is where the board is, even when the machine the board
-        is in says something else: the nearer answer is the more specific one, and
-        a board out on the bench has its own parts on the bench with it."""
-        cid = computer(location="Loft")["asset_id"]
-        board = part(type="motherboard", location="On the bench")["asset_id"]
-        chip = part(type="cpu", parent_id=board, computer_id=cid)["asset_id"]
-        page = content(client.get(f"/parts/{chip}").text)
-        assert "On the bench" in page
-        assert "Loft" not in page
-
-    def test_a_part_that_says_for_itself_is_not_given_an_answer(self, client, computer, part):
+        """A card in a drawer is in the drawer, and not in its machine (ADR-0036)."""
         cid = computer(location=CRATE)["asset_id"]
-        pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
-        page = content(client.get(f"/parts/{pid}").text)
-        assert "Spares drawer" in page
-        assert "blue crate 3" not in page
-
-    def test_clearing_the_box_hands_the_part_back_to_its_machine(self, client, computer, part):
-        """The way round the manual promises: choose an answer and it wins, take it
-        out and the part follows what it is fitted in again."""
-        cid = computer(location=CRATE)["asset_id"]
-        pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
-        client.patch(f"/api/parts/{pid}", json={"location": ""})
-        assert CRATE in client.get(f"/parts/{pid}").text
+        pid = part(computer_id=cid)["asset_id"]
+        client.patch(f"/api/parts/{pid}", json={"location": "Spares drawer"})
+        out = client.get(f"/api/parts/{pid}").json()
+        assert (out["computer_id"], out["location_path"]) == (None, "Spares drawer")
 
     def test_a_standalone_part_is_shown_nothing(self, client, part):
         page = client.get(f"/parts/{part()['asset_id']}").text
@@ -198,7 +183,7 @@ class TestAPartIsWhereWhatItIsFittedInIs:
         exists."""
         a = part(type="other")["asset_id"]
         b = part(type="other", parent_id=a)["asset_id"]
-        db.get(Part, a).parent_id = b
+        db.get(Thing, a).inside_id = b
         db.commit()
         assert client.get(f"/parts/{a}").status_code == 200
         assert client.get(f"/parts/{b}").status_code == 200
@@ -249,19 +234,30 @@ class TestWhoIsToldWhereThingsAre:
         assert "blue crate 3" not in client.get("/").text
 
     @pytest.mark.parametrize("kind", ["computers", "parts"])
-    def test_turning_it_on_shows_a_visitor_the_row(self, client, computer, part, kind):
+    def test_a_thing_made_while_it_is_on_shows_a_visitor_the_row(
+        self, client, computer, part, kind
+    ):
+        """It is the tick a new thing starts with (ADR-0036)."""
+        save(client, public_locations="1")
         aid = (computer(location=CRATE) if kind == "computers" else part(location=CRATE))[
             "asset_id"
         ]
-        save(client, public_locations="1")
         visitor(client)
         assert CRATE in client.get(f"/{kind}/{aid}").text
 
-    def test_turning_it_on_lets_a_visitor_search_on_it(self, client, computer):
+    def test_and_lets_a_visitor_search_on_it(self, client, computer):
+        save(client, public_locations="1")
+        aid = computer(location=CRATE)["asset_id"]
+        visitor(client)
+        assert aid in client.get("/?q=loft").text
+
+    def test_turning_it_on_shows_a_visitor_nothing_already_there(self, client, computer):
+        """Changing the switch changes no item already in the register: it is how a
+        new thing starts, and nothing more."""
         aid = computer(location=CRATE)["asset_id"]
         save(client, public_locations="1")
         visitor(client)
-        assert aid in client.get("/?q=loft").text
+        assert CRATE not in client.get(f"/computers/{aid}").text
 
     def test_a_visitor_is_shown_no_inherited_location_either(self, client, computer, part):
         """The gate is on the answer and not on the column, or a part would publish
@@ -281,10 +277,10 @@ class TestWhoIsToldWhereThingsAre:
         assert pid not in content(client.get("/?q=loft").text)
         assert pid not in client.get("/suggest?q=loft").text
 
-    def test_turning_it_on_shows_and_finds_an_inherited_one(self, client, computer, part):
+    def test_a_ticked_machine_shows_and_finds_its_parts_too(self, client, computer, part):
+        save(client, public_locations="1")
         cid = computer(location=CRATE)["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
-        save(client, public_locations="1")
         visitor(client)
         assert CRATE in client.get(f"/parts/{pid}").text
         assert pid in client.get("/?q=loft").text
@@ -329,12 +325,14 @@ class TestFindingWhatIsInThere:
         chip = part(type="cpu", parent_id=board)["asset_id"]
         assert chip in client.get("/?q=loft").text
 
-    def test_a_part_kept_somewhere_else_is_not_found_by_its_machines_location(
+    def test_a_part_taken_out_of_its_machine_is_not_found_by_its_location(
         self, client, computer, part
     ):
-        """It is not there, and the page does not say it is."""
+        """It is not there any more: taken out, it is nowhere until it is put
+        somewhere (ADR-0036)."""
         cid = computer(location=CRATE)["asset_id"]
-        pid = part(computer_id=cid, location="Spares drawer")["asset_id"]
+        pid = part(computer_id=cid)["asset_id"]
+        client.post(f"/parts/{pid}/unlink", data={})
         assert pid not in content(client.get("/?q=loft").text)
 
     @pytest.mark.parametrize("who", ["owner", "visitor"])
@@ -350,22 +348,23 @@ class TestFindingWhatIsInThere:
 
 class TestTheHiddenColumnsAreAskedForRatherThanAssumed:
     """The mechanism, held to directly: OWNER_ONLY is one answer to "what may this
-    reader not search on", and no longer the whole of it."""
+    reader not search on", and not the whole of it. Where a thing is kept is not a
+    column any more, but each row's tick, asked of each row (ADR-0036)."""
 
-    def test_a_setting_gated_column_joins_the_owner_only_ones_for_a_visitor(self, client):
+    def test_the_tick_itself_is_searched_by_nobody(self, client):
         from app.common import OWNER_ONLY
-        from app.search import _hidden_columns
+        from app.search import UNSEARCHED, _hidden_columns
 
-        assert _hidden_columns(authed=True) == frozenset()
-        assert "location_id" in _hidden_columns(authed=False)
-        assert _hidden_columns(authed=False) >= OWNER_ONLY
+        assert "location_public" in UNSEARCHED
+        assert _hidden_columns(authed=True) == UNSEARCHED
+        assert _hidden_columns(authed=False) == OWNER_ONLY | UNSEARCHED
 
-    def test_turning_the_setting_on_takes_it_back_out(self, client):
+    def test_the_switch_does_not_change_what_is_hidden(self, client):
         from app.common import OWNER_ONLY
-        from app.search import _hidden_columns
+        from app.search import UNSEARCHED, _hidden_columns
 
         save(client, public_locations="1")
-        assert _hidden_columns(authed=False) == OWNER_ONLY
+        assert _hidden_columns(authed=False) == OWNER_ONLY | UNSEARCHED
 
     def test_an_item_with_nowhere_recorded_reads_identically_for_both(self, db, part):
         """Hidden columns are blanked and not dropped, so who is asking changes what
@@ -382,7 +381,10 @@ class TestThePageSaysWhatThisIs:
         """A control says what it is and the reason is behind it (interface-text)."""
         page = client.get("/settings/server").text
         assert 'name="public_locations"' in page and "> Show locations</label>" in page
-        assert 'class="field" title="Whether somebody who is not signed in is told' in page
+        assert (
+            'class="field" title="Whether a new machine or part starts with its Visible tick'
+            in page
+        )
 
     def test_it_is_a_server_option(self, client):
         assert settings.BY_KEY["public_locations"].section == settings.SERVER

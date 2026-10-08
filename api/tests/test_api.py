@@ -474,7 +474,7 @@ class TestADeleteTakesEverythingWithIt:
         to leave the photos behind on disk."""
         from app.models import StorageSpec
 
-        aid = part(type="storage", specs="Capacity: 40 MB")["asset_id"]
+        aid = part(type="storage", specs="Capacity: 40 MB", disposed=True)["asset_id"]
         photo = photo_for("parts", aid)
         assert client.delete(f"/api/parts/{aid}").json()["photos"] == 1
         db.expire_all()
@@ -482,12 +482,13 @@ class TestADeleteTakesEverythingWithIt:
         assert db.query(StorageSpec).filter_by(part_id=aid).count() == 0
 
 
-class TestWhatALinkedItemIsToldWhenItsHostGoes:
-    """Removing the references first is the point: nothing is left pointing at an
-    asset id that has stopped existing, and what survives says in its own history
-    why it is suddenly standing on its own."""
+class TestWhatIsInsideGoesWithIt:
+    """Deleting a machine or a part deletes everything inside it, all the way down
+    (ADR-0036). Only something already disposed of can be deleted, and everything
+    inside a disposed thing went with it, so nothing still in the collection goes
+    this way: a part brought back on its own came out of the machine first."""
 
-    def test_a_part_in_a_deleted_machine_is_kept_and_unlinked(self, client, computer, part):
+    def test_a_part_in_a_deleted_machine_goes_with_it(self, client, computer, part):
         cid = computer()["asset_id"]
         pid = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)
@@ -496,45 +497,20 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
             data={"confirm": f"/computers/{cid}"},
             follow_redirects=False,
         )
-        p = client.get(f"/api/parts/{pid}").json()
-        assert p["computer_id"] is None
-        assert any(cid in e["message"] for e in client.get(f"/api/items/{pid}/log").json())
+        assert client.get(f"/api/parts/{pid}").status_code == 404
 
-    def test_a_part_mounted_on_a_deleted_part_is_kept_and_unlinked(self, client, part):
+    def test_a_part_mounted_on_a_deleted_part_goes_with_it(self, client, part):
         card = part(type="io")["asset_id"]
         disk = part(type="storage", parent_id=card)["asset_id"]
         dispose(client, "parts", card)
         client.post(
             f"/parts/{card}/delete", data={"confirm": f"/parts/{card}"}, follow_redirects=False
         )
-        assert client.get(f"/api/parts/{disk}").json()["parent_id"] is None
+        assert client.get(f"/api/parts/{disk}").status_code == 404
 
-    def test_the_tick_deletes_the_parts_that_went_with_it(self, client, computer, part):
-        cid = computer()["asset_id"]
-        pid = part(computer_id=cid)["asset_id"]
-        dispose(client, "computers", cid)  # takes the part with it
-        client.post(
-            f"/computers/{cid}/delete",
-            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
-            follow_redirects=False,
-        )
-        assert client.get(f"/api/parts/{pid}").status_code == 404
-
-    def test_without_the_tick_they_stay(self, client, computer, part):
-        cid = computer()["asset_id"]
-        pid = part(computer_id=cid)["asset_id"]
-        dispose(client, "computers", cid)
-        client.post(
-            f"/computers/{cid}/delete",
-            data={"confirm": f"/computers/{cid}"},
-            follow_redirects=False,
-        )
-        assert client.get(f"/api/parts/{pid}").status_code == 200
-
-    def test_the_tick_follows_the_whole_tree(self, client, computer, part):
-        """A disk on a controller carries the card's id, not the machine's. It went
-        to the tip when the machine was disposed, so it goes when the machine is
-        deleted -- following computer_id alone would leave it behind."""
+    def test_it_follows_the_whole_tree(self, client, computer, part):
+        """A disk on a controller is in the machine the controller is in, and the
+        page counts it with the rest before anything goes."""
         cid = computer()["asset_id"]
         card = part(type="io", computer_id=cid)["asset_id"]
         disk = part(type="storage", parent_id=card)["asset_id"]
@@ -543,15 +519,13 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
         assert "<strong>2</strong> parts in it" in " ".join(page.split())
         client.post(
             f"/computers/{cid}/delete",
-            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            data={"confirm": f"/computers/{cid}"},
             follow_redirects=False,
         )
         assert client.get(f"/api/parts/{card}").status_code == 404
         assert client.get(f"/api/parts/{disk}").status_code == 404
 
-    def test_a_held_part_deep_in_the_tree_is_unlinked_not_deleted(self, client, computer, part):
-        """The disk was restored on its own, so it stays -- and must not be left
-        pointing at the controller card that went."""
+    def test_a_part_restored_on_its_own_came_out_first_and_stays(self, client, computer, part):
         cid = computer()["asset_id"]
         card = part(type="io", computer_id=cid)["asset_id"]
         disk = part(type="storage", parent_id=card)["asset_id"]
@@ -559,29 +533,12 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
         client.post(f"/parts/{disk}/restore", follow_redirects=False)
         client.post(
             f"/computers/{cid}/delete",
-            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            data={"confirm": f"/computers/{cid}"},
             follow_redirects=False,
         )
         assert client.get(f"/api/parts/{card}").status_code == 404
         d = client.get(f"/api/parts/{disk}").json()
         assert d["parent_id"] is None and d["computer_id"] is None
-        assert any(card in e["message"] for e in client.get(f"/api/items/{disk}/log").json())
-
-    def test_a_part_still_held_survives_the_tick(self, client, computer, part):
-        """A part restored on its own, or fitted after the machine went, is still in
-        the collection. The tick deletes what went to the tip, not the shelf."""
-        cid = computer()["asset_id"]
-        gone = part(computer_id=cid)["asset_id"]
-        kept = part(computer_id=cid)["asset_id"]
-        dispose(client, "computers", cid)
-        client.post(f"/parts/{kept}/restore", follow_redirects=False)
-        client.post(
-            f"/computers/{cid}/delete",
-            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
-            follow_redirects=False,
-        )
-        assert client.get(f"/api/parts/{gone}").status_code == 404
-        assert client.get(f"/api/parts/{kept}").json()["computer_id"] is None
 
     def test_a_deleted_part_leaves_no_history_behind_it(self, client, computer, part, db):
         """The parts deleted alongside the machine take their own history with
@@ -593,7 +550,7 @@ class TestWhatALinkedItemIsToldWhenItsHostGoes:
         dispose(client, "computers", cid)
         client.post(
             f"/computers/{cid}/delete",
-            data={"confirm": f"/computers/{cid}", "with_parts": "1"},
+            data={"confirm": f"/computers/{cid}"},
             follow_redirects=False,
         )
         db.expire_all()
@@ -640,34 +597,33 @@ class TestTheConfirmationPageSaysWhatWillGo:
         assert "photo" not in going
         assert "own record" in going, "the list should not be empty either"
 
-    def test_it_offers_the_tick_only_when_there_is_something_to_tick(self, client, computer, part):
+    def test_it_names_everything_inside_that_will_go(self, client, computer, part):
+        """Each one, all the way down, and no tick: what is inside goes with it
+        (ADR-0036), and a thing to keep is taken out first."""
+        cid = computer()["asset_id"]
+        card = part(type="io", computer_id=cid)["asset_id"]
+        disk = part(type="storage", parent_id=card)["asset_id"]
+        dispose(client, "computers", cid)
+        page = client.get(f"/computers/{cid}/delete").text
+        assert card in page and disk in page
+        assert 'name="with_parts"' not in page
+        assert "take it out on its own page" in page
+
+    def test_a_machine_with_nothing_in_it_lists_no_parts(self, client, computer):
         bare = computer()["asset_id"]
         dispose(client, "computers", bare)
-        assert 'name="with_parts"' not in client.get(f"/computers/{bare}/delete").text
-        full = computer()["asset_id"]
-        part(computer_id=full)
-        dispose(client, "computers", full)
-        assert 'name="with_parts"' in client.get(f"/computers/{full}/delete").text
+        assert "parts in it" not in client.get(f"/computers/{bare}/delete").text
 
-    def test_it_says_which_parts_it_will_not_touch(self, client, computer, part):
+    def test_a_part_restored_on_its_own_is_not_listed(self, client, computer, part):
+        """It came out of the machine when it came back (ADR-0036), so it is not
+        inside it to go with it."""
         cid = computer()["asset_id"]
         kept = part(computer_id=cid)["asset_id"]
         dispose(client, "computers", cid)
         client.post(f"/parts/{kept}/restore", follow_redirects=False)
         page = client.get(f"/computers/{cid}/delete").text
-        assert "still in the collection and will be kept" in page
-        assert kept in page
-
-    def test_a_failed_confirmation_keeps_the_tick(self, client, computer, part):
-        cid = computer()["asset_id"]
-        part(computer_id=cid)
-        dispose(client, "computers", cid)
-        r = client.post(
-            f"/computers/{cid}/delete",
-            data={"confirm": "no", "with_parts": "1"},
-            follow_redirects=False,
-        )
-        assert 'name="with_parts" value="1" checked' in r.text
+        going = page.split('<ul class="going">', 1)[1].split("</ul>", 1)[0]
+        assert kept not in going
 
 
 class TestTheDeleteConfirmationIsNotPublic:
@@ -719,23 +675,27 @@ class TestLinks:
         assert client.patch(f"/api/parts/{aid}", json={"computer_id": "RH-NOPE"}).status_code == 404
         assert client.patch(f"/api/parts/{aid}", json={"parent_id": "RH-NOPE"}).status_code == 404
 
-    def test_deleting_a_computer_unlinks_its_parts(self, client, part, computer):
+    def test_deleting_a_computer_still_in_the_collection_is_refused(self, client, part, computer):
+        """Deleting takes what is inside, so the API asks what the page asks: dispose
+        of it first (ADR-0036)."""
         cid = computer()["asset_id"]
         aid = part(computer_id=cid)["asset_id"]
-        client.delete(f"/api/computers/{cid}")
-        assert client.get(f"/api/parts/{aid}").json()["computer_id"] is None
+        assert client.delete(f"/api/computers/{cid}").status_code == 409
+        assert client.get(f"/api/parts/{aid}").json()["computer_id"] == cid
 
-    def test_deleting_a_host_part_unlinks_what_was_mounted_on_it(self, client, part):
+    def test_deleting_a_disposed_host_part_deletes_what_was_mounted_on_it(self, client, part):
         host = part(type="io")["asset_id"]
         child = part(type="storage", parent_id=host)["asset_id"]
-        client.delete(f"/api/parts/{host}")
-        assert client.get(f"/api/parts/{child}").json()["parent_id"] is None
+        client.patch(f"/api/parts/{host}", json={"disposed": True})
+        assert client.delete(f"/api/parts/{host}").status_code == 200
+        assert client.get(f"/api/parts/{child}").status_code == 404
 
-    def test_deleting_a_computer_does_not_delete_its_parts(self, client, part, computer):
+    def test_deleting_a_disposed_computer_deletes_its_parts(self, client, part, computer):
         cid = computer()["asset_id"]
         aid = part(computer_id=cid)["asset_id"]
-        client.delete(f"/api/computers/{cid}")
-        assert client.get(f"/api/parts/{aid}").status_code == 200
+        client.patch(f"/api/computers/{cid}", json={"disposed": True})
+        assert client.delete(f"/api/computers/{cid}").status_code == 200
+        assert client.get(f"/api/parts/{aid}").status_code == 404
 
 
 class TestInstalledRam:
@@ -3584,7 +3544,7 @@ class TestHistory:
         assert any("model: Before → After" in m for m in messages)
 
     def test_deleting_an_item_takes_its_history_with_it(self, client, part):
-        aid = part()["asset_id"]
+        aid = part(disposed=True)["asset_id"]
         client.delete(f"/api/parts/{aid}")
         assert client.get(f"/api/items/{aid}/log").json() == []
 

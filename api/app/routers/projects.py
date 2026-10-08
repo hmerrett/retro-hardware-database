@@ -41,7 +41,7 @@ from sqlalchemy import func
 
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, filesdb, labels, projects
+from .. import cards, entry, filesdb, labels, projects, tree
 from ..common import _visible, folder_images, to_dict
 from ..db import get_db
 from ..forms import Posted, Refusal, _coerce, _field_diffs, _parse_date, posted, refusals
@@ -582,6 +582,8 @@ async def gui_create_project(request: Request, db: Session = Depends(get_db)) ->
         )
     obj = Project(asset_id=next_asset_id(db), **data)
     db.add(obj)
+    # Its rows first, before the things it is about point at it (see work.py).
+    db.flush()
     add_log(db, obj.asset_id, "created", "created")
     for aid in chosen.ids:
         _take_on(db, obj, aid)
@@ -807,7 +809,8 @@ async def gui_delete_project(aid: str, db: Session = Depends(get_db)) -> Redirec
     # The links to its files, and never the files: one uploaded here may be linked
     # to a machine too, and one that is not is left unlinked rather than binned.
     filesdb.forget_asset(db, p.asset_id)
-    db.delete(p)
+    # Its tag stays taken, as any deleted thing's does (ADR-0036).
+    tree.bury(db, p)
     db.commit()  # the rows first: if this raises, the photographs are still there
     _purge_photos(photos)
     return RedirectResponse("/projects", status_code=303)

@@ -25,7 +25,7 @@
     {# Where it is kept: its own location, or the one it is in because of what it is
        fitted in -- and then the row says whose answer it is showing, since correcting
        it means editing the thing named (ADR-0027, ADR-0034). #}
-    {{ W.row(where) }}
+    {{ W.row(where, where_links) }}
     {% if p.disk_image %}<div><dt>Disk image</dt><dd>{{ p.disk_image }}</dd></div>{% endif %}
     {% if p.url %}<div><dt>Reference</dt><dd><a href="{{ p.url }}" target="_blank">{{ p.url }}</a></dd></div>{% endif %}
     {% if p.notes %}<div><dt>Notes</dt><dd class="lines">{{ p.notes | linked }}</dd></div>{% endif %}
@@ -77,6 +77,7 @@
        statement about where this part is. #}
     {% set holder = parent or host %}
     {% call PN.panel('Fitted in') %}
+      {% if fiterr %}{{ U.banner('danger', 'Not fitted.', 'Nothing can be fitted in a machine that has been disposed of.') }}{% endif %}
       {% if holder %}
       <div class="row">
         <a href="/{{ 'computers' if parent else 'parts' }}/{{ holder.asset_id }}">{{ display_name({'name': holder.name, 'manufacturer': holder.manufacturer, 'model': holder.model, 'asset_id': holder.asset_id}) }}</a>
@@ -101,11 +102,12 @@
     {% endcall %}
 
     {% set build_host = request.state.authed and p.type in ('io', 'other') %}
-    {% if children or build_host %}
+    {% if children or build_host or mounterr %}
     {% call PN.panel('Mounted parts', children | length, flush=true) %}
+      {% if mounterr %}<div class="pbody">{{ U.banner('danger', 'Not mounted.', 'A part cannot go on itself, on anything mounted on it, or on a part that has been disposed of.') }}</div>{% endif %}
       {% if children %}
       {{ P.cards(children, 'detach', '/parts/' + p.asset_id,
-                 request.state.authed, thumbs) }}
+                 request.state.authed, thumbs, mounted) }}
       {% else %}<div class="pbody"><p class="muted flush">Nothing mounted.</p></div>{% endif %}
       {% if build_host %}
       <div class="pbody">

@@ -20,7 +20,8 @@ from typing import NamedTuple
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import labels, locations, specdb
+from .disposal import inside
+from . import labels, locations, specdb, tree
 from .common import to_dict
 from .models import Computer, Location, Part, PrintJob, Project
 
@@ -232,16 +233,21 @@ def label_bytes(
         if isinstance(item, Location)
         else to_dict(item)
     )
+    if isinstance(item, Part):
+        # The machine it is in, however far down, for the label's Installed in line.
+        row["computer_id"] = tree.load(db).machine(item.asset_id.upper()) or ""
     parts: list[dict[str, object]] = []
     pairs = None
     form_factor = ""
     if isinstance(item, Part):
         pairs = specdb.pairs(db, item, display=True)
     elif isinstance(item, Computer):
-        installed = db.query(Part).filter(Part.computer_id == asset_id).all()
+        # Everything in it, however far down: a drive on its controller is in it.
+        installed = inside(db, asset_id)
         board = next((p for p in installed if p.type == "motherboard"), None)
         for p in installed:
             d = to_dict(p)
+            d["computer_id"] = asset_id.upper()
             d["spec_pairs"] = specdb.pairs(db, p, display=True)
             parts.append(d)
         raw = specdb.scalars(db, board).get("form_factor", "") if board else ""

@@ -538,6 +538,8 @@ def test_0045_can_be_downgraded_and_upgraded_again(scratch_db_url):
 # --- 0046: a location is a record (ADR-0034) ----------------------------------
 
 BEFORE_LOCATION_RECORDS = "0045_accounts"
+# Upgraded to 0046 and no further: 0047 folds these columns into the register.
+LOCATION_RECORDS = "0046_a_location_is_a_record"
 
 
 def _typed_locations(url):
@@ -580,7 +582,7 @@ def test_0046_makes_a_location_of_every_spelling_typed(scratch_db_url):
     """Each one named as it was typed, of kind other, at the top level: the upgrade
     cannot know that one crate is inside another, so it does not guess."""
     engine = _typed_locations(scratch_db_url)
-    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    assert _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS).returncode == 0
     with engine.begin() as conn:
         places = _places(conn)
     assert set(places) == {"Loft", "Garage shelf B", "Old shed"}
@@ -593,7 +595,7 @@ def test_0046_folds_spellings_that_differ_only_in_capitals(scratch_db_url):
     folded case and trimmed, so they are one location here -- under the spelling
     most things were filed with."""
     engine = _typed_locations(scratch_db_url)
-    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    assert _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS).returncode == 0
     with engine.begin() as conn:
         lofts = conn.execute(
             text("SELECT asset_id, name FROM locations WHERE LOWER(name) = 'loft'")
@@ -604,7 +606,7 @@ def test_0046_folds_spellings_that_differ_only_in_capitals(scratch_db_url):
 
 def test_0046_puts_each_thing_in_the_location_it_named(scratch_db_url):
     engine = _typed_locations(scratch_db_url)
-    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    assert _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS).returncode == 0
     with engine.begin() as conn:
         tag = dict(conn.execute(text("SELECT name, asset_id FROM locations")).all())
         where = dict(
@@ -629,7 +631,7 @@ def test_0046_draws_the_new_tags_from_the_registers_pool(scratch_db_url):
     """A location is in the register, so its tag is one nothing else holds, in the
     form every other new tag takes (ADR-0007, ADR-0034)."""
     engine = _typed_locations(scratch_db_url)
-    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    assert _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS).returncode == 0
     with engine.begin() as conn:
         tags = [t for (t,) in conn.execute(text("SELECT asset_id FROM locations")).all()]
         items = {
@@ -653,7 +655,7 @@ def test_0046_takes_the_text_and_the_remembered_list_away(scratch_db_url):
     """Nothing is kept twice: the text is now the location, and an emptied crate is
     a location that stays, so the list that remembered it has nothing left to do."""
     engine = _typed_locations(scratch_db_url)
-    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    assert _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS).returncode == 0
     with engine.begin() as conn:
         assert "location" not in _tables(conn)
         assert {"locations", "moves", "stock_checks", "stock_check_scans"} <= _tables(conn)
@@ -673,7 +675,7 @@ def test_0046_takes_the_text_and_the_remembered_list_away(scratch_db_url):
 
 
 def test_0046_on_a_register_with_no_locations_makes_none(scratch_db_url):
-    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    assert _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS).returncode == 0
     engine = create_engine(scratch_db_url, future=True)
     with engine.begin() as conn:
         assert conn.execute(text("SELECT COUNT(*) FROM locations")).scalar_one() == 0
@@ -685,7 +687,7 @@ def test_0046_can_be_downgraded_and_upgraded_again(scratch_db_url):
     location the upgrade made is the name it was typed as -- and the remembered
     list gets every location's name. Up again, the same locations come back."""
     engine = _typed_locations(scratch_db_url)
-    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    assert _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS).returncode == 0
     down = _alembic(scratch_db_url, "downgrade", BEFORE_LOCATION_RECORDS)
     assert down.returncode == 0, f"downgrade from 0046 failed:\n{down.stderr}"
     with engine.begin() as conn:
@@ -707,8 +709,245 @@ def test_0046_can_be_downgraded_and_upgraded_again(scratch_db_url):
         "RH-0005": "",
     }
     assert remembered == {"Loft", "Garage shelf B", "Old shed"}
-    again = _alembic(scratch_db_url, "upgrade", "head")
+    again = _alembic(scratch_db_url, "upgrade", LOCATION_RECORDS)
     assert again.returncode == 0, f"upgrade after downgrade failed:\n{again.stderr}"
     with engine.begin() as conn:
         assert set(_places(conn)) == {"Loft", "Garage shelf B", "Old shed"}
+    engine.dispose()
+
+
+# --- 0047: where a thing is, is one tree (ADR-0036) ----------------------------
+
+BEFORE_ONE_TREE = "0046_a_location_is_a_record"
+
+
+def _two_answers(url, shown="0"):
+    """A register at 0046 holding everything 0047 has to settle: a box on a shelf, a
+    machine in the box, a card fitted in it with a drive mounted on the card, a card
+    fitted in that machine that was also given a shelf of its own, a part still in
+    the collection inside a machine that has been disposed of, a scan that took a
+    part out of the machine and put it on the shelf, and a project."""
+    up = _alembic(url, "upgrade", BEFORE_ONE_TREE)
+    assert up.returncode == 0, f"upgrade to 0046 failed:\n{up.stderr}"
+    engine = create_engine(url, future=True)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO locations (asset_id, name, kind, parent_id, notes, image) VALUES "
+                "('RH-SHLF', 'Shelf 2', 'shelf', NULL, '', ''), "
+                "('RH-BOXX', 'Box 14', 'box', 'RH-SHLF', '', '')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO computers (asset_id, location_id, disposed, disposed_at, disposed_note) "
+                "VALUES ('RH-0001', 'RH-BOXX', 0, NULL, ''), "
+                "('RH-0002', NULL, 1, '2025-01-02', 'scrapped')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO parts (asset_id, computer_id, parent_id, location_id, disposed) VALUES "
+                "('RH-0003', 'RH-0001', NULL, NULL, 0), "
+                "('RH-0004', NULL, 'RH-0003', NULL, 0), "
+                "('RH-0005', 'RH-0001', NULL, 'RH-SHLF', 0), "
+                "('RH-0006', 'RH-0002', NULL, NULL, 0), "
+                "('RH-0007', NULL, NULL, 'RH-SHLF', 0)"
+            )
+        )
+        conn.execute(text("INSERT INTO projects (asset_id, name) VALUES ('RH-0008', 'A plan')"))
+        conn.execute(
+            text(
+                "INSERT INTO users (id, username, password_hash, active, created_at) "
+                "VALUES (1, 'owner', 'x', 1, '2026-10-01 10:00:00')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO stock_checks (id, user_id, started_at) "
+                "VALUES (1, 1, '2026-10-01 10:00:00')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO moves (id, asset_id, from_id, from_path, to_id, to_path, moved_at, "
+                "who, how) VALUES (1, 'RH-0007', NULL, '', 'RH-SHLF', 'Shelf 2', "
+                "'2026-10-01 10:01:00', 'owner', 'scan')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO stock_check_scans (check_id, scanned_at, code, asset_id, at_id, "
+                "result, said, move_id, was_computer, was_parent, undone) VALUES "
+                "(1, '2026-10-01 10:01:00', 'RH-0007', 'RH-0007', 'RH-SHLF', 'moved', '', 1, "
+                "'RH-0001', NULL, 0)"
+            )
+        )
+        conn.execute(
+            text("INSERT INTO setting (name, value) VALUES ('public_locations', :v)"), {"v": shown}
+        )
+    return engine
+
+
+def _tree(conn):
+    """{tag: (what, inside)} for every row of the register."""
+    return {
+        aid: (what, inside)
+        for aid, what, inside in conn.execute(
+            text("SELECT asset_id, what, inside_id FROM register")
+        ).all()
+    }
+
+
+def test_0047_puts_every_thing_in_the_register(scratch_db_url):
+    engine = _two_answers(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        what = {aid: w for aid, (w, _in) in _tree(conn).items()}
+    assert what == {
+        "RH-SHLF": "location",
+        "RH-BOXX": "location",
+        "RH-0001": "computer",
+        "RH-0002": "computer",
+        "RH-0003": "part",
+        "RH-0004": "part",
+        "RH-0005": "part",
+        "RH-0006": "part",
+        "RH-0007": "part",
+        "RH-0008": "project",
+    }
+    engine.dispose()
+
+
+def test_0047_gives_each_thing_the_one_link_it_had(scratch_db_url):
+    """Mounted on before installed in before kept in: the order the old columns were
+    read in. A card with a machine and a shelf keeps the machine."""
+    engine = _two_answers(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        inside = {aid: i for aid, (_w, i) in _tree(conn).items()}
+    assert inside == {
+        "RH-SHLF": None,
+        "RH-BOXX": "RH-SHLF",
+        "RH-0001": "RH-BOXX",
+        "RH-0002": None,
+        "RH-0003": "RH-0001",
+        "RH-0004": "RH-0003",
+        "RH-0005": "RH-0001",
+        "RH-0006": "RH-0002",
+        "RH-0007": "RH-SHLF",
+        "RH-0008": None,
+    }
+    engine.dispose()
+
+
+def test_0047_says_which_location_a_fitted_part_no_longer_claims(scratch_db_url):
+    engine = _two_answers(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        said = [
+            m
+            for (m,) in conn.execute(
+                text("SELECT message FROM log_entry WHERE asset_id = 'RH-0005'")
+            ).all()
+        ]
+    assert said == ["stays fitted in RH-0001, and no longer also says it is kept in Shelf 2"]
+    engine.dispose()
+
+
+def test_0047_disposes_of_what_was_left_inside_a_disposed_machine(scratch_db_url):
+    """On the machine's date and for its reason, so restoring it brings both back."""
+    engine = _two_answers(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        row = conn.execute(
+            text(
+                "SELECT disposed, disposed_at, disposed_note FROM parts WHERE asset_id = 'RH-0006'"
+            )
+        ).one()
+        said = conn.execute(
+            text("SELECT message FROM log_entry WHERE asset_id = 'RH-0006'")
+        ).scalar()
+    assert (bool(row[0]), str(row[1]), row[2]) == (True, "2025-01-02", "scrapped")
+    assert said == "marked disposed with RH-0002 (2025-01-02): scrapped"
+    engine.dispose()
+
+
+def test_0047_points_a_scans_move_at_the_machine_it_took_a_part_out_of(scratch_db_url):
+    engine = _two_answers(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert conn.execute(text("SELECT from_id FROM moves WHERE id = 1")).scalar() == "RH-0001"
+        columns = {row[0] for row in conn.execute(text("SHOW COLUMNS FROM stock_check_scans"))}
+    assert not {"was_computer", "was_parent"} & columns
+    engine.dispose()
+
+
+@pytest.mark.parametrize("shown", ["0", "1"])
+def test_0047_ticks_every_thing_as_the_switch_says_that_day(scratch_db_url, shown):
+    engine = _two_answers(scratch_db_url, shown)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        ticks = {
+            v
+            for (v,) in conn.execute(
+                text(
+                    "SELECT location_public FROM computers UNION SELECT location_public FROM parts"
+                )
+            ).all()
+        }
+    assert ticks == {int(shown)}
+    engine.dispose()
+
+
+def test_0047_refuses_a_tag_held_twice_before_it_writes_anything(scratch_db_url):
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_ONE_TREE)
+    assert up.returncode == 0, up.stderr
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO computers (asset_id) VALUES ('RH-0001')"))
+        conn.execute(
+            text(
+                "INSERT INTO parts (asset_id, computer_id, parent_id, location_id) "
+                "VALUES ('RH-0001', NULL, NULL, NULL)"
+            )
+        )
+    refused = _alembic(scratch_db_url, "upgrade", "head")
+    assert refused.returncode != 0
+    assert "RH-0001 (computers, parts)" in refused.stderr
+    with engine.begin() as conn:
+        assert "register" not in _tables(conn)
+    engine.dispose()
+
+
+def test_0047_can_be_downgraded_and_upgraded_again(scratch_db_url):
+    """Down, each thing gets back the column that says what it is in, by what holds
+    it; up again, the same tree."""
+    engine = _two_answers(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_ONE_TREE)
+    assert down.returncode == 0, f"downgrade from 0047 failed:\n{down.stderr}"
+    with engine.begin() as conn:
+        assert "register" not in _tables(conn)
+        parts = {
+            aid: (computer, parent, where)
+            for aid, computer, parent, where in conn.execute(
+                text("SELECT asset_id, computer_id, parent_id, location_id FROM parts")
+            ).all()
+        }
+        boxes = dict(conn.execute(text("SELECT asset_id, parent_id FROM locations")).all())
+        machines = dict(conn.execute(text("SELECT asset_id, location_id FROM computers")).all())
+    assert parts == {
+        "RH-0003": ("RH-0001", None, None),
+        "RH-0004": (None, "RH-0003", None),
+        "RH-0005": ("RH-0001", None, None),
+        "RH-0006": ("RH-0002", None, None),
+        "RH-0007": (None, None, "RH-SHLF"),
+    }
+    assert boxes == {"RH-SHLF": None, "RH-BOXX": "RH-SHLF"}
+    assert machines == {"RH-0001": "RH-BOXX", "RH-0002": None}
+    again = _alembic(scratch_db_url, "upgrade", "head")
+    assert again.returncode == 0, f"upgrade after downgrade failed:\n{again.stderr}"
+    with engine.begin() as conn:
+        assert _tree(conn)["RH-0004"] == ("part", "RH-0003")
     engine.dispose()

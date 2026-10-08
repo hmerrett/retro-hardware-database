@@ -12,11 +12,11 @@ from sqlalchemy.orm import Session
 
 # --- JSON API: parts -------------------------------------------------------
 
-from .. import drivedb, entry, locations, machinedb, machines, projects, ramdb, specdb
+from .. import drivedb, entry, locations, machinedb, machines, projects, ramdb, specdb, tree
 from ..assets import delete_computer, delete_part
 from ..common import to_dict
 from ..db import get_db
-from ..disposal import _and_parts, _dispose_contents, _restore_contents
+from ..disposal import _and_parts, _dispose_contents, _restore_contents, out_of_the_disposed
 from ..forms import _field_diffs
 from ..history import add_log
 from ..ids import next_asset_id
@@ -135,11 +135,22 @@ def _project_id(
     return found.asset_id if found is not None else None
 
 
-def _where_out(thing: Computer | Part, tree: locations.Tree) -> dict[str, object]:
-    """Where a thing is kept, for the wire: the location's tag, and its path as
-    words. Its own location and not one it inherits -- the API is the record, and
-    a part fitted in a machine has none of its own (ADR-0034)."""
-    return {"location": thing.location_id or "", "location_path": tree.text(thing.location_id)}
+def _where_out(thing: Computer | Part, places: locations.Tree, r: tree.Tree) -> dict[str, object]:
+    """Where a thing is, for the wire, read off the one link it has (ADR-0036): the
+    location it is kept in, with its path as words, and for a part the machine it
+    is fitted in or the part it is mounted on. At most one of the three is set,
+    because a thing is in one place. A part fitted in a machine has no location of
+    its own -- the API is the record, and the record is that it is in the machine."""
+    holder = r.holder(thing.asset_id.upper())
+    what = r.what(holder)
+    out: dict[str, object] = {
+        "location": holder if what == tree.LOCATION else "",
+        "location_path": places.text(holder) if what == tree.LOCATION else "",
+    }
+    if isinstance(thing, Part):
+        out["computer_id"] = holder if what == tree.COMPUTER else None
+        out["parent_id"] = holder if what == tree.PART else None
+    return out
 
 
 def _computer_out(
@@ -147,7 +158,8 @@ def _computer_out(
     computer: Computer,
     identity: machinedb.Identity | None = None,
     in_projects: dict[str, Project] | None = None,
-    tree: locations.Tree | None = None,
+    places: locations.Tree | None = None,
+    r: tree.Tree | None = None,
 ) -> dict[str, object]:
     """One computer as the API returns it: its own columns, the catalogue identity
     read from its rows rather than from the line rendered off them, the project it
@@ -158,7 +170,7 @@ def _computer_out(
             "machine": _machine_out(db, computer, identity),
             "project": _project_id(db, computer.asset_id, in_projects),
         }
-        | _where_out(computer, tree or locations.tree(db))
+        | _where_out(computer, places or locations.tree(db), r or tree.load(db))
     )
 
 
@@ -167,7 +179,8 @@ def _part_out(
     part: Part,
     identity: machinedb.Identity | None = None,
     in_projects: dict[str, Project] | None = None,
-    tree: locations.Tree | None = None,
+    places: locations.Tree | None = None,
+    r: tree.Tree | None = None,
 ) -> dict[str, object]:
     """One part as the API returns it. The same pieces as a computer's, and for a
     part that is not a board `machine` is simply null."""
@@ -177,7 +190,7 @@ def _part_out(
             "machine": _machine_out(db, part, identity),
             "project": _project_id(db, part.asset_id, in_projects),
         }
-        | _where_out(part, tree or locations.tree(db))
+        | _where_out(part, places or locations.tree(db), r or tree.load(db))
     )
 
 
@@ -188,12 +201,61 @@ def _locate(db: Session, thing: Computer | Part, sent: object, who: str) -> None
     A name that names more than one location is refused with the tags it could have
     meant, rather than guessed at: a caller that typed `Box 14` meant a box, and
     the register cannot tell which."""
-    tree = locations.tree(db)
+    places = locations.tree(db)
     try:
-        found = locations.choose(db, sent if isinstance(sent, str) else "", tree)
-        locations.move(db, thing, found.asset_id if found else None, locations.API, who, tree)
-    except locations.Refused as err:
+        found = locations.choose(db, sent if isinstance(sent, str) else "", places)
+        tree.put(db, thing, found.asset_id if found else None, tree.API, who)
+    except tree.Refused as err:
         raise HTTPException(422, str(err)) from err
+
+
+def _fit(db: Session, part: Part, fields: dict[str, object], who: str) -> bool:
+    """`computer_id` and `parent_id` off a body, acted on: the part moved into the
+    machine or onto the part named, as a move made through the API, or -- for an
+    explicit blank -- taken out of whatever machine or card it is in (ADR-0036).
+    Mounted on wins over fitted in when both are sent, as the upgrade read them.
+    Whether either was sent, which is what decides that a `location` beside them is
+    not used: the machine wins."""
+    if "computer_id" not in fields and "parent_id" not in fields:
+        return False
+    sent = fields.get("parent_id") or fields.get("computer_id")
+    into = sent.upper() if isinstance(sent, str) and sent else None
+    r = tree.load(db)
+    try:
+        if into is not None:
+            tree.put(db, part, into, tree.API, who, r)
+        elif r.what(r.holder(part.asset_id.upper())) in (tree.COMPUTER, tree.PART):
+            tree.put(db, part, None, tree.API, who, r)
+    except tree.Refused as err:
+        raise HTTPException(422, str(err)) from err
+    return into is not None
+
+
+def _tick(obj: Computer | Part, fields: dict[str, object]) -> None:
+    """`location_public` off a body: set when sent, and when it is null or left out of
+    a create, the default -- what Show locations says a new thing starts with."""
+    sent = fields.pop("location_public", None)
+    if isinstance(sent, bool):
+        obj.location_public = sent
+
+
+def _fitted_in(r: tree.Tree, part: Part) -> str:
+    """The machine a part is directly fitted in, or "": its `computer_id` on the wire."""
+    holder = r.holder(part.asset_id.upper())
+    return holder if holder and r.what(holder) == tree.COMPUTER else ""
+
+
+def _require_gone(obj: Computer | Part, noun: str) -> None:
+    """The page's rule, at the API's door too (ADR-0036): something still in the
+    collection is disposed of before it is deleted, because deleting it now takes
+    everything inside it, and one call from a script should not be able to empty a
+    working machine of its cards."""
+    if not obj.disposed:
+        raise HTTPException(
+            409,
+            f"{obj.asset_id} is still in the collection. Dispose of the {noun} first: "
+            "deleting it deletes everything inside it.",
+        )
 
 
 def _check_links(db: Session, fields: dict[str, object]) -> None:
@@ -238,9 +300,11 @@ def api_list_computers(db: Session = Depends(get_db)) -> list[dict[str, object]]
     # memberships in one more for the same reason.
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [c.asset_id for c in rows])
-    tree = locations.tree(db)
+    places, r = locations.tree(db), tree.load(db)
     return [
-        _computer_out(db, c, identities.get(c.asset_id, machinedb.BLANK.copy()), in_projects, tree)
+        _computer_out(
+            db, c, identities.get(c.asset_id, machinedb.BLANK.copy()), in_projects, places, r
+        )
         for c in rows
     ]
 
@@ -258,7 +322,9 @@ def api_create_computer(
     drives = fields.pop("drives", "")
     machine = data.machine
     fields.pop("machine", None)
+    tick = fields.pop("location_public", None)
     obj = Computer(asset_id=next_asset_id(db), **fields)
+    _tick(obj, {"location_public": tick})
     db.add(obj)
     db.flush()
     _ram_from_api(db, obj, ram)
@@ -294,6 +360,7 @@ def api_update_computer(
     # request set rather than from the value.
     sent_machine = "machine" in fields
     fields.pop("machine", None)
+    _tick(obj, fields)
     derived = ("installed_ram", "drives", "variant")
     old = {k: getattr(obj, k) for k in fields} | {k: getattr(obj, k) for k in derived}
     for k, v in fields.items():
@@ -340,11 +407,12 @@ def api_update_computer(
 # (ADR-0010) leaves open.
 @router.delete("/api/computers/{aid}", tags=["computers"], response_model=None)
 def api_delete_computer(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
-    """Delete a computer. The parts inside it are unlinked, not deleted; its
-    photos, drive/memory rows and history go with it (see delete_computer). The
-    API deletes any computer -- the disposed-only rule and the confirmation are
-    the GUI's, where a delete is a click rather than a deliberate request."""
+    """Delete a computer that has been disposed of, and everything inside it, all the
+    way down: its parts, their photos, drive/memory rows and history (see
+    delete_computer). One still in the collection is refused with 409, as the page
+    refuses it (ADR-0036)."""
     obj = get_or_404(db, Computer, aid)
+    _require_gone(obj, "machine")
     return {"deleted": aid, "photos": len(delete_computer(db, obj))}
 
 
@@ -353,18 +421,17 @@ def api_list_parts(
     computer_id: str | None = None, type: str | None = None, db: Session = Depends(get_db)
 ) -> list[dict[str, object]]:
     q = db.query(Part)
-    if computer_id is not None:
-        q = q.filter(
-            Part.computer_id.is_(None) if computer_id == "" else Part.computer_id == computer_id
-        )
     if type is not None:
         q = q.filter(Part.type == type)
     rows = q.order_by(Part.asset_id).all()
+    places, r = locations.tree(db), tree.load(db)
+    if computer_id is not None:
+        # As the field reads: the machine a part is fitted in, "" for none.
+        rows = [p for p in rows if _fitted_in(r, p) == computer_id.upper()]
     identities = machinedb.read_many(db, rows)
     in_projects = projects.project_by_asset(db, [p.asset_id for p in rows])
-    tree = locations.tree(db)
     return [
-        _part_out(db, p, identities.get(p.asset_id, machinedb.BLANK.copy()), in_projects, tree)
+        _part_out(db, p, identities.get(p.asset_id, machinedb.BLANK.copy()), in_projects, places, r)
         for p in rows
     ]
 
@@ -378,14 +445,21 @@ def api_create_part(
     jobs, work = _work_from_api(db, fields)
     machine = fields.pop("machine")
     _check_links(db, fields)
+    links: dict[str, object] = {k: fields.pop(k) for k in ("computer_id", "parent_id")}
+    tick = fields.pop("location_public", None)
     obj = Part(asset_id=next_asset_id(db), **fields)
+    _tick(obj, {"location_public": tick})
     db.add(obj)
     db.flush()
     specdb.write(db, obj)
     if machine is not None:
         _board_from_api(db, obj, data.machine)
     add_log(db, obj.asset_id, "created", "created")
-    _locate(db, obj, where, request.state.principal.username)
+    who = request.state.principal.username
+    # A thing is in one place: one sent into a machine or onto a part goes there, and
+    # a location sent beside that is not used -- the machine wins (ADR-0036).
+    if not _fit(db, obj, {k: v for k, v in links.items() if v}, who):
+        _locate(db, obj, where, who)
     if jobs or work is not None:
         _take_on_work(db, obj.asset_id, jobs, work)
     db.commit()
@@ -407,6 +481,10 @@ def api_update_part(
     where = fields.pop("location", None)
     machine = fields.pop("machine", ...)
     _check_links(db, fields)
+    links: dict[str, object] = {
+        k: fields.pop(k) for k in ("computer_id", "parent_id") if k in fields
+    }
+    _tick(obj, fields)
     old = {k: getattr(obj, k) for k in fields}
     for k, v in fields.items():
         setattr(obj, k, v)
@@ -421,10 +499,30 @@ def api_update_part(
         machinedb.clear(db, obj)
     new = {k: getattr(obj, k) for k in fields}
     diff = _field_diffs(old, new, list(fields), semantic_specs=True)
-    if diff:
-        add_log(db, aid, diff)
-    if where is not None:
-        _locate(db, obj, where, request.state.principal.username)
+    # What is mounted on it follows it out and back, as a machine's parts do.
+    n = 0
+    if "disposed" in fields and bool(old["disposed"]) != bool(obj.disposed):
+        if obj.disposed:
+            n = _dispose_contents(db, obj)
+        else:
+            n = _restore_contents(
+                db,
+                obj,
+                old["disposed_at"] if "disposed_at" in fields else obj.disposed_at,
+                old["disposed_note"] if "disposed_note" in fields else obj.disposed_note,
+            )
+    if diff or n:
+        add_log(
+            db,
+            aid,
+            (diff + _and_parts(n, "went with it" if obj.disposed else "came back too")).strip(),
+        )
+    who = request.state.principal.username
+    if "disposed" in fields and not obj.disposed:
+        out_of_the_disposed(db, obj, who)
+    fitted = _fit(db, obj, links, who)
+    if where is not None and not fitted:
+        _locate(db, obj, where, who)
     db.commit()
     db.refresh(obj)
     return _part_out(db, obj)
@@ -433,7 +531,9 @@ def api_update_part(
 # response_model=None, as above: the annotation is for the type checker.
 @router.delete("/api/parts/{aid}", tags=["parts"], response_model=None)
 def api_delete_part(aid: str, db: Session = Depends(get_db)) -> dict[str, object]:
-    """Delete a part, with its typed spec rows, photos and history. Anything
-    mounted on it is unlinked, not deleted."""
+    """Delete a part that has been disposed of, with its typed spec rows, photos and
+    history, and everything mounted on it, all the way down. One still in the
+    collection is refused with 409, as for a machine (ADR-0036)."""
     obj = get_or_404(db, Part, aid)
+    _require_gone(obj, "part")
     return {"deleted": aid, "photos": len(delete_part(db, obj))}

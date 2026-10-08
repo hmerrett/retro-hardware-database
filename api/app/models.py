@@ -1,7 +1,8 @@
-"""ORM tables. One shared asset register across computers + parts. A part's
-computer_id links it to a computer's asset_id, and parent_id to the part it is
-mounted on; both are real foreign keys, NULL when the part stands alone. Deleting
-a computer or a host part unlinks what pointed at it rather than orphaning it.
+"""ORM tables. One register of tags across computers, parts, locations and
+projects (`register`, mapped as `Thing`), each kind's own table hanging off it, and
+in it the one link that says where everything is: `inside_id`, what a thing is
+directly inside (ADR-0036). Deleting a machine or a part deletes what is inside it;
+deleting a location leaves what was in it inside nothing.
 
 The column set began as a mirror of the flat-file system's CSV schema, where
 everything was a string; quantities and dates are being given real types as the
@@ -32,6 +33,78 @@ if TYPE_CHECKING:
     from .filesdb import Chip, Linked
 
 
+def _starting_tick() -> bool:
+    """The Visible tick a new machine or part starts with: what Show locations says
+    on the day it is made (ADR-0036). A default rather than something each form
+    remembers to set, because a thing is made in half a dozen places -- the forms,
+    the API, a duplicate, a board detached from its machine, an import -- and one
+    that forgot would publish nothing, which is safe, but would be wrong about what
+    the settings page promised. Imported when called, since settings reads this
+    module."""
+    from . import settings
+
+    return settings.on("public_locations")
+
+
+def _mapped(**args: str) -> dict[str, str]:
+    """A kind's mapper arguments: which column says what a register row is, or which
+    `what` a kind's rows carry. A call rather than a literal, so each class gets a
+    dict of its own and nothing is shared between them to be changed by accident."""
+    return dict(args)
+
+
+class Thing(Base):
+    """A tag in the register's one pool, and the one thing it is inside (ADR-0036).
+
+    Every machine, part, location and project has a row here, and its own table
+    hangs off it by `asset_id`: they are mapped as kinds of this, so a `Computer` is
+    a row here and a row in `computers`, written and read together, and asking this
+    table for a tag says what it is. The tag is the primary key, so the database
+    refuses a second thing with a tag already taken -- the rule ids.py used to keep
+    by asking four tables in turn -- and a deleted thing leaves its row behind as
+    `Gone`, so no tag is ever issued twice: a label outlives the record it was
+    printed for, and must never open somebody else's.
+
+    `inside_id` is where everything is. The location a machine is kept in, the one a
+    loose part is kept in, the machine a card is fitted in, the card a drive is
+    mounted on, the location a box is in: one column, because they are one
+    relation, and carrying the box carries everything in it by not touching any of
+    it. Which kinds may hold which, and what a link means, is tree.py's; a path is
+    read up these links when it is shown and never written down. SET NULL on delete
+    is the belt to tree.py's brace: deleting a location leaves what was in it
+    nowhere, and each of those things' histories says so before the row goes.
+
+    `what` is which kind of thing a row is. Not `kind`, which a location already
+    uses for building, box or bag.
+
+    One trap. A flush inserts rows for classes that nothing relates to each other
+    in the order of their names, and every kind is inserted under this class's
+    name -- after ProjectTask, say, whose foreign key wants the project already
+    there. So code that makes a thing and rows pointing at it in one go flushes the
+    thing first, as making a part or a project does."""
+
+    __tablename__ = "register"
+    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    what: Mapped[str] = mapped_column(String(16), nullable=False)
+    inside_id: Mapped[str | None] = mapped_column(
+        String(16), ForeignKey("register.asset_id", ondelete="SET NULL"), index=True
+    )
+
+    __mapper_args__ = _mapped(polymorphic_on="what")
+
+
+class Gone(Thing):
+    """A tag whose thing was deleted, kept so that it is never issued again. It
+    answers nothing: /items/<tag> finds no page, and nothing is inside it."""
+
+    __mapper_args__ = _mapped(polymorphic_identity="deleted")
+
+
+def _register_fk() -> MappedColumn[str]:
+    """A kind's own `asset_id`: its primary key, and its row in the register."""
+    return mapped_column(String(16), ForeignKey("register.asset_id"), primary_key=True)
+
+
 def _part_fk() -> MappedColumn[str]:
     """part_id column referencing a part, cascading on delete."""
     return mapped_column(
@@ -45,9 +118,9 @@ def _part_fk_indexed() -> MappedColumn[str]:
     )
 
 
-class Computer(Base):
+class Computer(Thing):
     __tablename__ = "computers"
-    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    asset_id: Mapped[str] = _register_fk()
     name: Mapped[str | None] = mapped_column(String(255), default="")
     manufacturer: Mapped[str | None] = mapped_column(String(255), default="")
     model: Mapped[str | None] = mapped_column(String(255), default="")
@@ -93,18 +166,14 @@ class Computer(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
-    # The location it is kept in, or NULL for nowhere recorded (ADR-0034). A link and
-    # not the words, so a crate is one thing however many machines are in it, and
-    # carrying the crate to the workshop moves all of them. Not `computer_id`'s
-    # business either way: that says what a part is fitted in, which is a different
-    # question from where the machine has been put.
-    #
-    # Shown to a visitor only while `public_locations` says so, which is why this is
-    # the one column search asks a setting about rather than reading off a fixed set.
-    # SET NULL on delete for the reason a part's links are: a location is refused
-    # deletion while anything is in it, and the key is the belt to that brace.
-    location_id: Mapped[str | None] = mapped_column(
-        String(16), ForeignKey("locations.asset_id", ondelete="SET NULL"), index=True
+    # Whether a visitor is told where this one is kept: the Visible tick beside its
+    # Location (ADR-0036). Where it is kept is `inside_id`, on the register. The tick
+    # starts as Show locations says and is this machine's own answer after that, so
+    # turning the switch later publishes nothing already in the register. A part
+    # fitted in it reads this tick rather than its own (tree.governor), because the
+    # machine's is the one that says whether anybody may know which shelf it is on.
+    location_public: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=_starting_tick, server_default="0"
     )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
@@ -121,16 +190,12 @@ class Computer(Base):
         Boolean, nullable=False, default=False, server_default="0"
     )
 
+    __mapper_args__ = _mapped(polymorphic_identity="computer")
 
-class Part(Base):
+
+class Part(Thing):
     __tablename__ = "parts"
-    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
-    computer_id: Mapped[str | None] = mapped_column(
-        String(16), ForeignKey("computers.asset_id", ondelete="SET NULL"), index=True
-    )
-    parent_id: Mapped[str | None] = mapped_column(
-        String(16), ForeignKey("parts.asset_id", ondelete="SET NULL"), index=True
-    )
+    asset_id: Mapped[str] = _register_fk()
     type: Mapped[str | None] = mapped_column(String(32), default="")
     manufacturer: Mapped[str | None] = mapped_column(String(255), default="")
     model: Mapped[str | None] = mapped_column(String(255), default="")
@@ -150,14 +215,11 @@ class Part(Base):
     condition: Mapped[str | None] = mapped_column(String(64), default="")
     source: Mapped[str | None] = mapped_column(String(255), default="")
     acquired_date: Mapped[date | None] = mapped_column(Date)
-    # See Computer.location_id. NULL is not "nowhere" on a part that is fitted in
-    # something: a card in a machine is wherever that machine is, so an empty link is
-    # read off the parent (locations.inherited) at the moment it is shown. Worked out
-    # and never written back, so carrying the machine upstairs is one edit and not
-    # one per card -- which is also why nothing may treat this column as the whole
-    # answer to where a part is.
-    location_id: Mapped[str | None] = mapped_column(
-        String(16), ForeignKey("locations.asset_id", ondelete="SET NULL"), index=True
+    # See Computer.location_public. Read only while the part is kept somewhere of its
+    # own: fitted in something, it is wherever that is, and told or not as the
+    # outermost thing it is in says.
+    location_public: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=_starting_tick, server_default="0"
     )
     image: Mapped[str | None] = mapped_column(String(255), default="")
     url: Mapped[str | None] = mapped_column(Text, default="")
@@ -173,6 +235,8 @@ class Part(Base):
     for_sale: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
+
+    __mapper_args__ = _mapped(polymorphic_identity="part")
     disk_image: Mapped[str | None] = mapped_column(String(255), default="")
 
 
@@ -623,7 +687,7 @@ class LogPhoto(Base):
 # id can mean.
 
 
-class Project(Base):
+class Project(Thing):
     """A piece of work: a repair, a build, a machine wanted and not yet found.
 
     It need own nothing. A project with no computers and no parts attached is the
@@ -645,7 +709,7 @@ class Project(Base):
     and none of the three is inferred from another."""
 
     __tablename__ = "projects"
-    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    asset_id: Mapped[str] = _register_fk()
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="planned", server_default="planned"
@@ -678,6 +742,8 @@ class Project(Base):
     private: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
+
+    __mapper_args__ = _mapped(polymorphic_identity="project")
 
 
 class ProjectAsset(Base):
@@ -860,7 +926,7 @@ class Setting(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
-class Location(Base):
+class Location(Thing):
     """Somewhere things are kept: a building, a room, a rack, a shelf, a box, a bag
     (ADR-0034).
 
@@ -869,33 +935,31 @@ class Location(Base):
     stick on it, and a history. The register's fourth table, and the second that is
     not something owned -- a project was the first.
 
-    `parent_id` is the location it is inside, and that is all it knows about where it
-    is. The path -- Workshop, Rack 3, Shelf 2, Box 14 -- is read up the parents when
-    it is shown (locations.Tree) and never written down, so moving the box is one
-    write and its contents are somewhere new at that moment. SET NULL rather than
-    a refusal on delete: the app refuses to delete a location with anything in it,
-    and a self-referring key that refused as well would refuse to empty the table
-    in one statement, which is how a test clears it.
+    What it is inside is its `inside_id` in the register, as for anything else, and
+    that is all it knows about where it is. The path -- Workshop, Rack 3, Shelf 2,
+    Box 14 -- is read up those links when it is shown (tree.Tree) and never written
+    down, so moving the box is one write and its contents are somewhere new at that
+    moment.
 
     `kind` is a slug from locations.KINDS and describes the location without ruling
     on it: a bag may hold a box if that is how somebody's loft is. `image` is the
     default photograph, as a computer's is."""
 
     __tablename__ = "locations"
-    asset_id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    asset_id: Mapped[str] = _register_fk()
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
     kind: Mapped[str] = mapped_column(
         String(16), nullable=False, default="other", server_default="other"
     )
-    parent_id: Mapped[str | None] = mapped_column(
-        String(16), ForeignKey("locations.asset_id", ondelete="SET NULL"), index=True
-    )
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     image: Mapped[str] = mapped_column(String(255), nullable=False, default="", server_default="")
 
+    __mapper_args__ = _mapped(polymorphic_identity="location")
+
 
 class Move(Base):
-    """One change in where a thing or a location is kept.
+    """One change in what a thing or a location is inside: kept in a location,
+    fitted in a machine, mounted on a part, or taken out of one (ADR-0036).
 
     A row and not only a line of history, because "where was this before it went to
     the workshop?" is a question a sentence cannot be asked. Both ends are kept as a
@@ -947,15 +1011,15 @@ class StockCheck(Base):
 class StockCheckScan(Base):
     """One scan in a round, and what it did.
 
-    The round's state is read off these rather than kept beside them: the open
-    location is the one the latest `opened` row names, and a thing waiting for a
-    location is a last row that says `held`. `code` is what the scanner typed, kept
-    as typed so a scan nobody recognised can be read back. `at_id` is the location
-    that was open when it arrived. `said` is what the panel said about it, so a page
-    reloaded -- or drawn by a browser running no script -- says the same.
+    The round's state is read off these rather than kept beside them: what is open
+    is the location or machine the latest `opened` row names, unless a `closed` row
+    came after it. `code` is what the scanner typed, kept as typed so a scan nobody
+    recognised can be read back. `at_id` is what was open when it arrived. `said` is
+    what the panel said about it, so a page reloaded -- or drawn by a browser running
+    no script -- says the same.
 
-    `was_computer` and `was_parent` are what a fitted part was taken out of, so that
-    undo can put it back in its machine as well as back where it was kept."""
+    What a moved thing was taken out of is the `from_id` of its move, so an undo
+    reads it there and puts a card back in its machine as readily as on its shelf."""
 
     __tablename__ = "stock_check_scans"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -971,8 +1035,6 @@ class StockCheckScan(Base):
     move_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("moves.id", ondelete="SET NULL"), index=True
     )
-    was_computer: Mapped[str | None] = mapped_column(String(16))
-    was_parent: Mapped[str | None] = mapped_column(String(16))
     undone: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
 
 

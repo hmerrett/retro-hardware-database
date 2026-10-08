@@ -294,9 +294,10 @@ DEFINITIONS: tuple[Definition, ...] = (
         section=SERVER,
         label="Show locations",
         note=(
-            "Whether somebody who is not signed in is told where a thing is kept. Off, "
-            "the row is not on their page and their search does not match on it. You "
-            "always see it."
+            "Whether a new machine or part starts with its Visible tick on, so that "
+            "somebody who is not signed in is told where it is kept, and whether they "
+            "can open the locations themselves. Changing it changes no item already in "
+            "the register. You always see everything."
         ),
         kind=SWITCH,
         default="0",

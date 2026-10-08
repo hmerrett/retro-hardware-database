@@ -173,6 +173,9 @@ def _take_on_work(
             private=False,
         )
         db.add(project)
+        # Its rows first, before anything that points at it: the register's kinds
+        # are flushed in an order the jobs and the links do not follow (ADR-0036).
+        db.flush()
         add_log(db, project.asset_id, "created", "created")
     if asset_id and projects.add_asset(db, project.asset_id, asset_id):
         if held is not None:

@@ -54,7 +54,18 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from .. import drivedb, entry, filesdb, labels, locations, machinedb, projects, specdb
+from .. import (
+    drivedb,
+    entry,
+    filesdb,
+    labels,
+    locations,
+    machinedb,
+    projects,
+    settings,
+    specdb,
+    tree,
+)
 from ..assets import (
     COMPUTER_DIFF_FIELDS,
     COMPUTER_FIELDS,
@@ -79,7 +90,7 @@ from ..assets import (
 )
 from ..common import to_dict
 from ..db import get_db
-from ..disposal import _and_parts, _disposal_log, _dispose_contents, _restore_contents
+from ..disposal import _and_parts, _disposal_log, _dispose_contents, _restore_contents, inside
 from ..forms import Posted, _coerce, _field_diffs, _parse_date, posted, refusals, year_hint
 from ..history import _history, add_log
 from ..ids import next_asset_id
@@ -123,9 +134,7 @@ def _board_out_of(db: Session, c: Computer) -> machinedb.Identity:
             f"issue and no chips to move onto one. A PC's board is entered as "
             f"a part in the ordinary way.",
         )
-    fitted = (
-        db.query(Part).filter(Part.computer_id == c.asset_id, Part.type == "motherboard").first()
-    )
+    fitted = db.query(Part).filter(Part.inside_id == c.asset_id, Part.type == "motherboard").first()
     if fitted is not None:
         raise HTTPException(
             400,
@@ -170,8 +179,11 @@ def _computer_form_ctx(
         # What the Location box holds: the path to where the machine is kept, which
         # is what it offers too, so the box reads as one of its own suggestions.
         "location_text": (
-            locations.tree(db).text(c.location_id) if c is not None and db is not None else ""
+            locations.tree(db).text(c.inside_id) if c is not None and db is not None else ""
         ),
+        # And its Visible tick: this machine's, or for a new one, what Show locations
+        # says a new thing starts with (ADR-0036).
+        "location_tick": c.location_public if c is not None else settings.on("public_locations"),
         **_boardparts_ctx(db, c),
     }
 
@@ -273,29 +285,31 @@ def _boardparts_ctx(db: Session | None, c: Computer | None) -> dict[str, object]
     them."""
     if c is None or db is None or not machinedb.read(db, c)["model_key"]:
         return {}
-    parts = db.query(Part).filter(Part.computer_id == c.asset_id).all()
-    if parts:
+    if db.query(Part).filter(Part.inside_id == c.asset_id).first() is not None:
         return {}
+    boards, others = _spares(db)
     return {
         "boardparts": True,
         "motherboard": None,
         "parts": [],
         "card_steps": entry.CARD_STEPS,
-        "free_boards": (
-            db.query(Part)
-            .filter(Part.type == "motherboard", Part.computer_id.is_(None))
-            .order_by(Part.asset_id)
-            .all()
-        ),
-        "link_candidates": (
-            db.query(Part)
-            .filter(
-                Part.type != "motherboard", Part.computer_id.is_(None), Part.parent_id.is_(None)
-            )
-            .order_by(Part.type, Part.asset_id)
-            .all()
-        ),
+        "free_boards": boards,
+        "link_candidates": others,
     }
+
+
+def _spares(db: Session) -> tuple[list[Part], list[Part]]:
+    """What could be fitted in a machine: the boards, and the other parts, that are
+    in no machine and on no card and still in the collection -- kept somewhere, or
+    nowhere recorded. One read of the tree for both lists."""
+    r = tree.load(db)
+    loose = [
+        p
+        for p in db.query(Part).filter(Part.disposed.is_(False)).order_by(Part.type, Part.asset_id)
+        if r.what(r.holder(p.asset_id.upper())) not in (tree.COMPUTER, tree.PART)
+    ]
+    boards = sorted((p for p in loose if p.type == "motherboard"), key=lambda p: p.asset_id)
+    return boards, [p for p in loose if p.type != "motherboard"]
 
 
 def _grid_counts(
@@ -373,29 +387,20 @@ def gui_computer(
     build: int = 0,
     imgerr: int = 0,
     fileerr: int = 0,
+    fiterr: int = 0,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
     c = get_or_404(db, Computer, aid)
-    parts = db.query(Part).filter(Part.computer_id == aid).all()
+    aid = c.asset_id
+    r = tree.load(db)
+    # Everything in the machine, however far down (ADR-0036): what is fitted in it
+    # is the list, and what is mounted on those is drawn under its card.
+    below = inside(db, aid, r)
+    parts = [p for p in below if r.holder(p.asset_id.upper()) == aid.upper()]
     parts.sort(key=lambda p: (entry.type_sort_key(p.type or ""), entry.display_name(to_dict(p))))
     motherboard = next((p for p in parts if p.type == "motherboard"), None)
-    # Unlinked boards that could be linked to this machine.
-    free_boards, link_candidates = [], []
-    if request.state.authed:
-        free_boards = (
-            db.query(Part)
-            .filter(Part.type == "motherboard", Part.computer_id.is_(None))
-            .order_by(Part.asset_id)
-            .all()
-        )
-        link_candidates = (
-            db.query(Part)
-            .filter(
-                Part.type != "motherboard", Part.computer_id.is_(None), Part.parent_id.is_(None)
-            )
-            .order_by(Part.type, Part.asset_id)
-            .all()
-        )
+    # Spare boards and parts that could be fitted in this machine.
+    free_boards, link_candidates = _spares(db) if request.state.authed else ([], [])
     images = detect_images("computers", aid)
     blurb = c.summary or _dot(
         " ".join(x for x in (c.manufacturer, c.model, str(c.year or "")) if x), c.cpu, c.condition
@@ -410,13 +415,10 @@ def gui_computer(
     # at the door, so the button and the route cannot disagree.
     machine = _machine_page(db, c)
     detachable = bool(request.state.authed and machine and machine["key"] and motherboard is None)
-    # Where it is kept, for whoever is told (ADR-0027, ADR-0034): worked out only for
-    # a reader the row will be drawn for.
-    where = (
-        locations.where_row(db, c, {}, locations.tree(db))
-        if locations.shown(request.state.sees_private)
-        else None
-    )
+    # Where it is kept, for whoever is told -- this machine's own tick, for a visitor
+    # (ADR-0036): worked out only for a reader the row will be drawn for.
+    told = bool(request.state.sees_private or c.location_public)
+    where = locations.where_row(db, c, r, locations.tree(db)) if told else None
     return templates.TemplateResponse(
         request,
         "computer.html",
@@ -424,6 +426,9 @@ def gui_computer(
             "machine": machine,
             "detachable": detachable,
             "where": where,
+            # Each step of the path is a link while the locations themselves are open
+            # to this reader, and a name while they are not.
+            "where_links": locations.shown(request.state.sees_private),
             "item": (cdict := to_dict(c)),
             "kind": "computers",
             **filesdb.panel(db, cdict, request.state.authed, request.state.sees_private),
@@ -440,9 +445,10 @@ def gui_computer(
             "c": c,
             "parts": [p for p in parts if p is not motherboard],
             "motherboard": motherboard,
+            "mounted": tree.mounted_on(r, aid, below),
             "form_factor": form_factor,
             # A picture for each of them, read once for the page rather than per card.
-            "thumbs": part_thumbs(db, parts),
+            "thumbs": part_thumbs(db, below),
             "free_boards": free_boards,
             "link_candidates": link_candidates,
             "images": images,
@@ -455,7 +461,8 @@ def gui_computer(
             "card_steps": entry.CARD_STEPS,
             "build": bool(build),
             "imgerr": bool(imgerr),
-            "log": _history(db, aid, kept=locations.shown(request.state.sees_private)),
+            "fiterr": bool(fiterr),
+            "log": _history(db, aid, kept=told),
             "nav": _item_nav(db, aid),
             "live_aid": aid,
             "live_v": _change_token(db, aid),
@@ -523,9 +530,11 @@ async def gui_link_motherboard(
     board = get_or_404(db, Part, pid)
     if board.type != "motherboard":
         raise HTTPException(400, f"{pid} is not a motherboard")
-    board.computer_id = aid
-    add_log(db, aid, f"linked motherboard {board.asset_id}")
-    add_log(db, board.asset_id, f"linked to computer {aid}")
+    try:
+        tree.put(db, board, aid, tree.EDIT, request.state.principal.username)
+    except tree.Refused:
+        db.rollback()
+        return RedirectResponse(f"/computers/{aid}?fiterr=1", status_code=303)
     db.commit()
     return RedirectResponse(f"/computers/{aid}?build=1", status_code=303)
 
@@ -534,17 +543,19 @@ async def gui_link_motherboard(
 async def gui_link_part(
     aid: str, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
-    """Install an existing standalone part into this computer."""
+    """Fit a part already in the register into this machine: a move, out of
+    wherever it was kept or fitted before (ADR-0036)."""
     get_or_404(db, Computer, aid)
     form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
         return RedirectResponse(f"/computers/{aid}", status_code=303)
     part = get_or_404(db, Part, pid)
-    part.computer_id = aid
-    part.parent_id = None
-    add_log(db, aid, f"linked part {part.asset_id}")
-    add_log(db, part.asset_id, f"installed in {aid}")
+    try:
+        tree.put(db, part, aid, tree.EDIT, request.state.principal.username)
+    except tree.Refused:
+        db.rollback()
+        return RedirectResponse(f"/computers/{aid}?fiterr=1", status_code=303)
     db.commit()
     return RedirectResponse(f"/computers/{aid}", status_code=303)
 
@@ -588,10 +599,11 @@ async def gui_detach_board(
     # Nothing else does: the condition of a board out of a working machine, where it
     # came from and what it cost are its own answers now, and the machine's history
     # is where it came from.
+    # Born inside the machine it came out of, so it is wherever the machine is.
     board = Part(
         asset_id=next_asset_id(db),
         type="motherboard",
-        computer_id=aid,
+        inside_id=c.asset_id,
         manufacturer=c.manufacturer,
         model=c.model,
     )
@@ -677,30 +689,17 @@ async def gui_delete_computer(
     c = get_or_404(db, Computer, aid)
     _require_disposed(c, "computer")
     form = await posted(request)
-    with_parts = bool(form.get("with_parts"))
     if not _confirms_url(form.get("confirm", ""), "computers", c.asset_id):
         # Back to the page rather than an error: a paste that went wrong is the
-        # ordinary way to arrive here, and the tick keeps whatever it was set to.
+        # ordinary way to arrive here.
         return templates.TemplateResponse(
             request,
             "delete.html",
-            _delete_ctx(
-                request,
-                db,
-                "computers",
-                c,
-                with_parts=with_parts,
-                error="That is not this item's URL.",
-            ),
+            _delete_ctx(request, db, "computers", c, error="That is not this item's URL."),
             status_code=400,
         )
-    ctx = _delete_ctx(request, db, "computers", c, with_parts=with_parts)
-    # The list the confirmation page showed, and not one worked out again here: a
-    # template's context is typed as loosely as a template needs, so what comes
-    # back out of it is checked for being the parts it was put in as.
-    listed = ctx["deletable"]
-    going = [p for p in listed if isinstance(p, Part)] if isinstance(listed, list) else []
-    delete_computer(db, c, with_parts=going if with_parts else ())
+    # Everything inside it goes too, all the way down: the page listed it (ADR-0036).
+    delete_computer(db, c)
     return RedirectResponse("/", status_code=303)
 
 
@@ -835,11 +834,13 @@ def _label_build(db: Session, aid: str) -> tuple[list[dict[str, object]], str]:
     """A machine's installed parts as a label reads them, and its board's form
     factor. Both labels ask the same question of the database, so they ask it in
     the same place."""
-    installed = db.query(Part).filter(Part.computer_id == aid).all()
+    # Everything in it, however far down: a drive on its controller is in the machine.
+    installed = inside(db, aid)
     board = next((p for p in installed if p.type == "motherboard"), None)
     rows = []
     for p in installed:
         d = to_dict(p)
+        d["computer_id"] = aid.upper()
         d["spec_pairs"] = specdb.pairs(db, p, display=True)
         rows.append(d)
     # Form factor is a text column; the check is for the type checker, which sees

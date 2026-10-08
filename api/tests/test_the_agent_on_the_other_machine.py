@@ -264,6 +264,8 @@ def test_an_item_deleted_before_it_prints_is_let_go(agent, served, queue, fake_l
     """The register has already failed the job by the time it answers, so there is
     nothing for the agent to print and nothing for it to report."""
     _, card = queue()
+    # Disposed of first: only something that has left the collection is deleted.
+    client.patch(f"/api/parts/{card['asset_id']}", json={"disposed": True})
     assert client.delete(f"/api/parts/{card['asset_id']}").status_code == 200
     assert agent.main(["--api", served, "--key", "key-one", "--once"]) == 0
     assert not fake_lp.exists()

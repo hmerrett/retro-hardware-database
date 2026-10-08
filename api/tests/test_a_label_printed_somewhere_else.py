@@ -231,6 +231,8 @@ def test_an_item_deleted_before_it_prints_fails_the_job_rather_than_the_agent(
     traceback to decide about."""
     job, card = queued()
     assert claim(client).status_code == 200
+    # Disposed of first: only something that has left the collection is deleted.
+    client.patch(f"/api/parts/{card['asset_id']}", json={"disposed": True})
     assert client.delete(f"/api/parts/{card['asset_id']}").status_code == 200
     got = client.get(
         f"/api/print/agent/jobs/{job['id']}/label.pdf", headers={"Authorization": "Bearer key-one"}

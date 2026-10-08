@@ -126,6 +126,7 @@ def create_computer(
     source: str | None = None,
     acquired_date: str | None = None,
     location: str | None = None,
+    location_public: bool | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,
@@ -161,7 +162,8 @@ def create_computer(
     matches several is refused with their tags, so ask list_locations and send the
     tag. Only ever what somebody has said: where a thing is cannot be worked out
     from anything else in the record. It reads back as the tag, with location_path
-    beside it in words.
+    beside it in words. location_public is whether a visitor is told where it is
+    kept; left out of a create, it starts as the site's Show locations setting says.
 
     For a home computer or a console -- a Spectrum, a C64, an Apple IIe, an MSX --
     the machine_* arguments file it against the catalogue that list_machine_models
@@ -202,6 +204,7 @@ def update_computer(
     source: str | None = None,
     acquired_date: str | None = None,
     location: str | None = None,
+    location_public: bool | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,
@@ -231,10 +234,12 @@ def update_computer(
 
 @mcp.tool()
 def delete_computer(asset_id: str) -> dict:
-    """Delete a computer by asset id. Its parts are not deleted -- they are
-    unlinked and become standalone. Its photos, drive and memory rows and history
-    go with it, and none of it comes back; to take a machine out of the
-    collection reversibly, set disposed instead."""
+    """Delete a computer by asset id, with everything inside it: every part fitted
+    in it, and anything mounted on those, goes too, with its photos, drive and memory
+    rows and history, and none of it comes back. Only a machine already disposed of
+    can be deleted -- one still in the collection is refused -- so set disposed first
+    (which takes its parts out of the collection with it). To keep a part, take it
+    out of the machine before deleting."""
     return _request("DELETE", f"/api/computers/{asset_id}")
 
 
@@ -276,6 +281,7 @@ def create_part(
     source: str | None = None,
     acquired_date: str | None = None,
     location: str | None = None,
+    location_public: bool | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,
@@ -292,12 +298,12 @@ def create_part(
 ) -> dict:
     """Create a part. The server assigns the asset id. computer_id installs it in a
     computer and parent_id mounts it on another part (a disk on a controller card,
-    say); both blank means standalone. specs is free text formatted
-    'Key: value | Key: value'. serial is the number marked on this particular one,
-    read off the object and never inferred. location is the location the part
-    itself is kept in, by tag or by name as for a computer, and is only worth sending
-    for a part that lives somewhere of its own: left empty on a part that is fitted
-    in something, the register shows it wherever that thing is kept. Storage parts
+    say); both blank means standalone. A part is in one place: fitted in a machine,
+    mounted on a part, or kept in a location -- so location, the location it is kept
+    in by tag or by name as for a computer, is not used when computer_id or
+    parent_id is sent, and a part fitted in something is wherever that thing is.
+    specs is free text formatted 'Key: value | Key: value'. serial is the number
+    marked on this particular one, read off the object and never inferred. Storage parts
     are mechanical
     hard disks
     and tape (type 'storage', with a 'Kind' spec); the motherboard carries Chipset, CPU
@@ -346,6 +352,7 @@ def update_part(
     source: str | None = None,
     acquired_date: str | None = None,
     location: str | None = None,
+    location_public: bool | None = None,
     image: str | None = None,
     url: str | None = None,
     summary: str | None = None,
@@ -360,7 +367,9 @@ def update_part(
 ) -> dict:
     """Partial-update a part: only the fields you pass are changed. To move a part
     to another machine set computer_id, to mount it on another part set parent_id,
-    and to make it standalone set either to ''.
+    and to take it out of whatever it is in set either to ''. Setting location
+    instead puts it on a shelf, which takes it out of its machine: a part is in one
+    place.
 
     The machine_* arguments file a motherboard against the catalogue and work as
     they do on a computer (see create_part and list_machine_models): passing one
@@ -373,9 +382,10 @@ def update_part(
 
 @mcp.tool()
 def delete_part(asset_id: str) -> dict:
-    """Delete a part by asset id, with its specs, photos and history. Anything
-    mounted on it is unlinked, not deleted. Irreversible; set disposed instead to
-    record that it has left the collection."""
+    """Delete a part by asset id, with its specs, photos and history, and anything
+    mounted on it. Only a part already disposed of can be deleted -- one still in the
+    collection is refused -- so set disposed first. Irreversible; disposed alone
+    records that it has left the collection."""
     return _request("DELETE", f"/api/parts/{asset_id}")
 
 

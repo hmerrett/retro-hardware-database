@@ -14,6 +14,7 @@
    outside the form that saves the machine: nesting one form in another is not
    something a browser will do. #}
 {% import "_partlist.html" as P %}
+{% import "_ui.html" as U with context %}
 {% import "_panel.html" as PN %}
 <!-- Motherboard: link an existing unlinked board, or create one now. -->
 {% call PN.panel('Motherboard', flush=true) %}
@@ -23,7 +24,7 @@
      designs for one thing. #}
   {% if motherboard %}
     {{ P.cards([motherboard], 'unlink', '/computers/' + c.asset_id,
-               request.state.authed, thumbs | default({}, true)) }}
+               request.state.authed, thumbs | default({}, true), mounted | default({}, true)) }}
   {% else %}
     <div class="pbody">
     <p class="muted">None linked.</p>
@@ -47,6 +48,7 @@
 
 <!-- Parts fitted, with one way to add a new one and one to link an existing one. -->
 {% call PN.panel('Parts', parts | length, flush=true) %}
+  {% if fiterr %}<div class="pbody">{{ U.banner('danger', 'Not fitted.', 'Nothing can be fitted in a machine that has been disposed of.') }}</div>{% endif %}
   {# One button rather than one per type: the form it opens asks the type first
      anyway, so a row of them was the same menu said twice. #}
   {% if request.state.authed %}
@@ -69,7 +71,7 @@
   {% endif %}
   {% if parts %}
   {{ P.cards(parts, 'unlink', '/computers/' + c.asset_id, request.state.authed,
-             thumbs | default({}, true)) }}
+             thumbs | default({}, true), mounted | default({}, true)) }}
   {% else %}
   <div class="pbody"><p class="muted flush">Nothing fitted.</p></div>
   {% endif %}
