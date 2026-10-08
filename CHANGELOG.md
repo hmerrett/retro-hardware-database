@@ -13,6 +13,12 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**A part can no longer be mounted on itself.** The API, and the **mount** menu on
+a card sitting on a loose drive, would mount a part on itself or on something
+mounted on it, and the two pages then each said the other was what it was on. That
+is refused now wherever it is asked for, with the reason, and the menu leaves such
+parts out. See [Two tables](MANUAL.md#two-tables).
+
 **Read a README without saving it.** A Markdown file and a plain text file have a
 **View** button, as a PDF does: `.md`, `.txt`, `.nfo`, `.diz`, `READ.ME`,
 `README.1ST`, the `.bat`, `.ini` and `.cfg` files a machine is set up with, and

@@ -407,6 +407,12 @@ def api_update_part(
     where = fields.pop("location", None)
     machine = fields.pop("machine", ...)
     _check_links(db, fields)
+    # Of a part's two links only this one can close on itself: no machine is ever
+    # fitted in a part, but a card can be asked to go on its own drive (MANUAL §1,
+    # "Two tables").
+    host = fields.get("parent_id")
+    if isinstance(host, str) and (no := locations.mount_refusal(db, obj, host)) is not None:
+        raise HTTPException(422, no)
     old = {k: getattr(obj, k) for k in fields}
     for k, v in fields.items():
         setattr(obj, k, v)

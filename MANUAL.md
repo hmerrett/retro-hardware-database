@@ -59,6 +59,11 @@ exactly as it was; it is now a spare. Put it in another machine and **Fit in** i
 there. The card's
 history records both moves.
 
+A part cannot be mounted on itself, or on anything mounted on it, however far
+down: a controller card cannot go on the drive that is on it. The menu beside
+**mount** on a card's page leaves those out, and anything else that asks for one
+— a change through the API, an undo in the audit — is refused and says why.
+
 ### Two ways of describing a machine
 
 This is the one idea worth understanding before you start typing.

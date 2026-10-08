@@ -227,7 +227,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `filekinds.py` | what a file is, read from its name and size: the drawing it gets, the list that finds it, the size it is given as, and whether it is read in the browser |
 | `textfiles.py` | a text file read as a page of the register: the words in one, and Markdown set as the site's own markup, with nothing in it that runs or is fetched (ADR-0035) |
 | `rail.py` | what the side rail holds besides links: each section's count for this reader, and the owner's last three |
-| `locations.py` | where things are kept: the tree of locations and the path up it, what the Location box offers, moving a thing or a location and writing the move, and where a part is when it does not say for itself |
+| `locations.py` | where things are kept: the tree of locations and the path up it, what the Location box offers, moving a thing or a location and writing the move, where a part is when it does not say for itself, and that no part is mounted on itself |
 | `storage.py` | the audit's rounds: what a scan does -- open, found, moved in, held, refused -- undoing one, and the report a round ends with |
 | `entry.py` | guided-entry vocabularies and quick-entry shorthands, ported from the flat-file system |
 | `machines.py` | the catalogue of known machine models and the variations each was built in |
@@ -336,6 +336,10 @@ breaking one turns CI red rather than merely being wrong.
   writes that answer back, so moving a machine moves what is in it and no row goes
   stale — and nothing may read the column alone as the whole answer.
   *(enforced: `test_locations.py`)*
+- **No part is mounted on itself.** Nor on anything mounted on it, however far
+  down. Every way of mounting one — the mount button and its menu, the edit form,
+  the API, an undo in the audit — asks `locations.mount_refusal`, which reads up
+  from the host, as `Tree.would_loop` does for a location. *(enforced: `test_api.py`)*
 - **The API's published shape is pinned.** `api/openapi.json` is committed and a
   change a caller could see fails the suite. *(ADR-0010, enforced)*
 - **Configuration comes from the environment; a preference comes from the page.**

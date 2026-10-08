@@ -737,7 +737,12 @@ async def gui_create_part(request: Request, db: Session = Depends(get_db)) -> Re
 
 @router.get("/parts/{aid}", response_class=HTMLResponse, include_in_schema=False)
 def gui_part(
-    aid: str, request: Request, imgerr: int = 0, fileerr: int = 0, db: Session = Depends(get_db)
+    aid: str,
+    request: Request,
+    imgerr: int = 0,
+    fileerr: int = 0,
+    mounterr: int = 0,
+    db: Session = Depends(get_db),
 ) -> HTMLResponse:
     p = get_or_404(db, Part, aid)
     parent = db.get(Computer, p.computer_id) if p.computer_id else None
@@ -745,9 +750,14 @@ def gui_part(
     children = db.query(Part).filter(Part.parent_id == aid).order_by(Part.asset_id).all()
     candidates, computers = [], []
     if request.state.authed:
+        # Not this card, and not what it is on however far up, which mount would
+        # refuse anyway: a menu offering what its own button turns down is a trap.
+        # Only the top of that chain could be here at all, since everything else
+        # in it is mounted on something already.
+        above = [p.asset_id, *locations.mounted_on(db, p.asset_id)]
         candidates = (
             db.query(Part)
-            .filter(Part.type == "storage", Part.asset_id != aid, Part.parent_id.is_(None))
+            .filter(Part.type == "storage", Part.asset_id.notin_(above), Part.parent_id.is_(None))
             .order_by(Part.asset_id)
             .all()
         )
@@ -802,6 +812,7 @@ def gui_part(
             "tuned": tuned_photos("parts", aid),
             "spec_pairs": spec_pairs,
             "imgerr": bool(imgerr),
+            "mounterr": bool(mounterr),
             "log": _history(db, aid, kept=locations.shown(request.state.sees_private)),
             "nav": _item_nav(db, aid),
             "live_aid": aid,
@@ -863,6 +874,13 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
     old_type = p.type or "other"
     carried = specdb.pairs(db, p) if ptype != old_type else specdb.read(db, p).attributes
     data = await _part_from_form(form, ptype, carried)
+    # The form carries what a part is mounted on in a hidden box, so a mounting it
+    # refuses was never typed by anybody: a page left open while things were moved,
+    # or a post made by hand. Refused outright, as the API refuses it, rather than
+    # as a box to correct, since there is no box (MANUAL §1, "Two tables").
+    mount = data.get("parent_id")
+    if isinstance(mount, str) and (loop := locations.mount_refusal(db, p, mount)) is not None:
+        raise HTTPException(422, loop)
     if ptype == "storage" and (form.get("kind", "") or ""):
         data["specs"] = entry.merge_spec(str(data["specs"]), "Kind", form.get("kind", ""))
     old = {k: getattr(p, k) for k in data}
@@ -1053,12 +1071,17 @@ async def gui_attach_part(
     aid: str, request: Request, db: Session = Depends(get_db)
 ) -> RedirectResponse:
     """Mount another part onto this one (e.g. a hard disk on a controller card)."""
-    get_or_404(db, Part, aid)
+    host = get_or_404(db, Part, aid)
     form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
         return RedirectResponse(f"/parts/{aid}", status_code=303)
     child = get_or_404(db, Part, pid)
+    # The menu does not offer these, so only a page left open while things were
+    # moved, or a post made by hand, gets here -- and is told on the page, as a
+    # photograph not found at its reference is.
+    if locations.mount_refusal(db, child, host.asset_id) is not None:
+        return RedirectResponse(f"/parts/{aid}?mounterr=1", status_code=303)
     child.parent_id = aid
     child.computer_id = None
     add_log(db, aid, f"mounted {child.asset_id}")
