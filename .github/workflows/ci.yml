@@ -19,7 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mariadb:
-        image: mariadb:11
+        # The tag docker-compose.yml runs: the engine production uses (ADR-0008).
+        image: mariadb:11.8
         env:
           MARIADB_DATABASE: retro
           MARIADB_ROOT_PASSWORD: rootpw

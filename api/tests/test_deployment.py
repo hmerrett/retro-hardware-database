@@ -166,3 +166,24 @@ class TestTheTrafficReportIsWrittenByOneRelease:
         name, _, tag = image.partition(":")
         assert name == "allinurl/goaccess"
         assert re.fullmatch(r"\d+(?:\.\d+)+", tag), f"{image} is not pinned to a release"
+
+
+class TestTheDatabaseIsOneMinorRelease:
+    """`mariadb:11` is whichever 11 is newest, and it became 11.8, which turned on
+    snapshot isolation: a write to a row that another request changed after this one
+    began reading is refused, where before it was written over. That reached
+    production with nothing in the repository changed. So the engine is a release
+    named here and moved on deliberately, and CI runs the suite on the same one, the
+    engine production uses (ADR-0008)."""
+
+    def test_the_image_is_pinned_to_a_minor_release(self):
+        import re
+
+        image = _compose("docker-compose.yml")["services"]["db"]["image"]
+        name, _, tag = image.partition(":")
+        assert name == "mariadb"
+        assert re.fullmatch(r"\d+\.\d+(?:\.\d+)?", tag), f"{image} is not one minor release"
+
+    def test_ci_runs_the_suite_on_the_same_one(self):
+        ci = _compose(".github/workflows/ci.yml")["jobs"]["test"]["services"]["mariadb"]
+        assert ci["image"] == _compose("docker-compose.yml")["services"]["db"]["image"]

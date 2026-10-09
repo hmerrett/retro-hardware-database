@@ -96,7 +96,7 @@ upgrade to it needs doing by hand.
 ```
 docker compose
 ├── caddy     reverse proxy, automatic HTTPS      (ports 80 and 443)
-├── db        MariaDB 11                          (volume: dbdata)
+├── db        MariaDB 11.8                        (volume: dbdata)
 ├── api       FastAPI + uvicorn                   (127.0.0.1:8000)
 │             the web GUI, the JSON API and the photos
 ├── mcp       tool server over the REST API       (127.0.0.1:8001)
@@ -121,7 +121,7 @@ container is the simplest:
 
 ```sh
 docker run -d --name rhdb-test -p 3306:3306 \
-  -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=rhdb_test mariadb:11
+  -e MARIADB_ROOT_PASSWORD=test -e MARIADB_DATABASE=rhdb_test mariadb:11.8
 
 uv sync --project api --all-groups
 

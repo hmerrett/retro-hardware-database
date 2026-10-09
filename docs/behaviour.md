@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2645 behaviours, from 76 files.*
+*2650 behaviours, from 76 files.*
 
 
 ## A file where text was expected
@@ -239,7 +239,7 @@ Regenerate with:
 
 ## Accounts
 
-*test_accounts.py — 62 behaviours*
+*test_accounts.py — 65 behaviours*
 
 
 **Roles are lists of permissions**
@@ -295,6 +295,13 @@ Regenerate with:
 - switching it back on restores it
 - a new password signs the account out everywhere else
 - http basic does not open a browser page
+
+**Two requests on one session at once**
+
+- both are signed in when the other notes the time first
+- a note refused as changed since read still says who they are
+- any other database error is still raised  
+  A lock wait timeout and a deadlock say to try again too, and are no sign that somebody else has done the work.
 
 **Api tokens**
 
@@ -1578,7 +1585,7 @@ Regenerate with:
 
 ## Deployment
 
-*test_deployment.py — 12 behaviours*
+*test_deployment.py — 14 behaviours*
 
 
 **The api trusts its proxy**
@@ -1614,6 +1621,11 @@ Regenerate with:
 **The traffic report is written by one release**
 
 - the image is pinned to a release
+
+**The database is one minor release**
+
+- the image is pinned to a minor release
+- ci runs the suite on the same one
 
 
 ## Drivedb
