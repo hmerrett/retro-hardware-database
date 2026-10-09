@@ -2605,9 +2605,11 @@ photographs, and an item whose whole history is photographed still counts as
 never photographed on the statistics page. A picture of a repair is not a picture
 of the machine. They are kept apart on disk for the same reason, so nothing can
 mistake one for the other. Click one to open the original full size, as with any
-other photograph here; the big view's toolbar — rotate, crop, delete — is not
-offered, because those act on a picture *of* something rather than on a picture of
-a moment. The way one of these goes is with the line it belongs to: there is one
+other photograph here. The arrows walk that entry's photographs and no others: the
+gallery's are not reached from a repair, nor a repair's from the gallery or from
+another entry. The big view's toolbar — rotate, crop, delete — is not offered,
+because those act on a picture *of* something rather than on a picture of a
+moment. The way one of these goes is with the line it belongs to: there is one
 trash button a line, at the right, and on a photograph entry that button is the
 photographs.
 
