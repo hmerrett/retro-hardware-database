@@ -13,6 +13,34 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**A signed-in browser no longer meets an occasional server error.** When a browser
+was last seen is written at most every five minutes, by whichever request finds it
+out of date. After a quiet spell, requests that arrive together — an item page
+checking whether its record has changed asks as its tab comes back into view and
+again as the window takes focus — each found it out of date, and on MariaDB 11.8
+all but the first to write it were refused and failed with a server error. Writing
+the time is bookkeeping, and the first request has done it, so the refusal is now
+let go and the request carries on signed in. Any other database error is still an
+error.
+
+**The database is pinned to MariaDB 11.8.** `docker-compose.yml` asked for
+`mariadb:11`, which is whichever 11 is newest. That became 11.8, which refuses a
+write to a record that another request has changed since this one began reading
+it, and that refusal is what the error above was. It stays on: when two requests
+change one record at the same moment, the second failing is better than its
+quietly undoing the first. A newer engine is now taken by changing the tag in
+`docker-compose.yml`, once you have read what it changes.
+
+**Upgrading** recreates the database container on the pinned image. Before you
+deploy, `docker compose exec db mariadb --version` says which you have. On 11.8
+already, nothing else changes. On an older 11, this release moves the database to
+11.8: take a backup first (`tools/backup.sh`), and once it is up, bring MariaDB's
+own tables up to the new version, once. The register's data needs nothing.
+
+```sh
+docker compose exec -e MYSQL_PWD="$DB_ROOT_PASSWORD" db mariadb-upgrade -uroot
+```
+
 **A machine is a place things are in, as a box is.** Where everything is, is now
 one tree: a part is fitted in a machine, mounted on another part, or kept in a
 location — never two at once — and moving anything moves what is inside it. Fitting

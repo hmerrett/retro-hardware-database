@@ -6,8 +6,13 @@ entries, and each test one thing it promises.
 """
 
 import io
+from contextlib import contextmanager
 
+import pymysql
 import pytest
+from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
 from app import main
 from app.accounts import __main__ as command
@@ -23,7 +28,7 @@ from app.accounts.roles import (
     Principal,
     can,
 )
-from app.db import SessionLocal
+from app.db import SessionLocal, engine
 from app.models import ApiToken, Part, UserSession
 from conftest import PASSWORD, account, as_viewer, log_out, sign_in
 
@@ -62,6 +67,42 @@ def login(client, username, password=PASSWORD):
     return client.post(
         "/login", data={"username": username, "password": password}, follow_redirects=False
     )
+
+
+def quiet_session(username="owner"):
+    """A session for an account that already exists, last seen long enough ago that
+    the next request made with it writes the time again."""
+    with SessionLocal() as db:
+        key = store.open_session(db, store.find(db, username))
+        db.query(UserSession).filter(UserSession.digest == store.digest(key)).update(
+            {UserSession.last_seen_at: store._now() - 2 * store.SEEN_EVERY}
+        )
+        db.commit()
+    return key
+
+
+def the_owner_by_session():
+    """Who a request made with the owner's session cookie is, as the gate is told."""
+    with SessionLocal() as db:
+        owner = store.find(db, "owner").id
+    return Principal(user_id=owner, username="owner", role=ADMIN, site=SITE, via="session")
+
+
+@contextmanager
+def the_database_refuses_the_note(errno, message):
+    """MariaDB's answer to the write that notes when a session was last seen, without
+    the race that would earn it. Raised where the driver raises it, so the commit
+    fails in the session as a real refusal would."""
+
+    def refuse(cursor, statement, parameters, context):
+        if statement.startswith("UPDATE sessions SET last_seen_at"):
+            raise pymysql.err.OperationalError(errno, message)
+
+    event.listen(engine, "do_execute", refuse)
+    try:
+        yield
+    finally:
+        event.remove(engine, "do_execute", refuse)
 
 
 class TestRolesAreListsOfPermissions:
@@ -291,6 +332,79 @@ class TestSigningInAndOut:
         log_out(client)
         r = client.get("/computers/new", auth=("owner", PASSWORD), follow_redirects=False)
         assert r.status_code == 303
+
+
+class TestTwoRequestsOnOneSessionAtOnce:
+    """When a browser was last seen is written at most every five minutes, by
+    whichever request finds it stale (MANUAL section 18, where you are signed in).
+    After a quiet spell, requests that arrive together -- an item page asking whether
+    its record has changed, as its tab is shown and again as the window takes focus --
+    each find it stale, and MariaDB 11.8 refuses all but the first to write it: error
+    1020, the record has changed since it was read. The first has written the time,
+    so that refusal is let go and the request carries on signed in. Nothing else is
+    let go."""
+
+    def test_both_are_signed_in_when_the_other_notes_the_time_first(self):
+        account("owner", ADMIN)
+        key = quiet_session()
+
+        def the_other_request(session, flush_context, instances):
+            with SessionLocal() as other:
+                assert store.from_session(other, key) is not None
+
+        with engine.connect() as conn:
+            # Production's isolation and MariaDB 11.8's default, neither of which the
+            # suite's own connections have (conftest): under READ COMMITTED a write is
+            # never refused for this.
+            if not conn.exec_driver_sql("SHOW VARIABLES LIKE 'innodb_snapshot_isolation'").first():
+                pytest.skip("this MariaDB predates snapshot isolation, so cannot refuse the note")
+            conn.exec_driver_sql("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            conn.exec_driver_sql("SET SESSION innodb_snapshot_isolation = ON")
+            conn.commit()
+            try:
+                db = Session(bind=conn)
+                # After this request has read the session, before it writes the time.
+                event.listen(db, "before_flush", the_other_request, once=True)
+                who = store.from_session(db, key)
+                # The session is still usable, and reads the time the other one wrote.
+                seen = db.query(UserSession).one().last_seen_at
+            finally:
+                # Its settings are not the suite's, so it is closed, not pooled.
+                conn.invalidate()
+        assert who == the_owner_by_session()
+        assert store._now() - seen < store.SEEN_EVERY
+
+    def test_a_note_refused_as_changed_since_read_still_says_who_they_are(self):
+        account("owner", ADMIN)
+        key = quiet_session()
+        changed = (
+            "Record has changed since last read in table 'sessions'; try restarting transaction"
+        )
+        with the_database_refuses_the_note(1020, changed), SessionLocal() as db:
+            who = store.from_session(db, key)
+            # Rolled back, rather than left failed for whoever uses the session next.
+            assert db.query(UserSession).count() == 1
+        assert who == the_owner_by_session()
+
+    @pytest.mark.parametrize(
+        ("errno", "message"),
+        [
+            (1205, "Lock wait timeout exceeded; try restarting transaction"),
+            (1213, "Deadlock found when trying to get lock; try restarting transaction"),
+        ],
+    )
+    def test_any_other_database_error_is_still_raised(self, errno, message):
+        """A lock wait timeout and a deadlock say to try again too, and are no sign
+        that somebody else has done the work."""
+        account("owner", ADMIN)
+        key = quiet_session()
+        with (
+            the_database_refuses_the_note(errno, message),
+            SessionLocal() as db,
+            pytest.raises(OperationalError) as raised,
+        ):
+            store.from_session(db, key)
+        assert raised.value.orig.args[0] == errno
 
 
 class TestApiTokens:

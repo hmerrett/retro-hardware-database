@@ -12,7 +12,11 @@ name: retro-hardware-database
 
 services:
   db:
-    image: mariadb:11
+    # A minor release, not whichever 11 is newest: that became 11.8, which turned on
+    # snapshot isolation and so changed what happens when two requests write one row.
+    # A newer engine is a change made here, once its notes have been read, and CI's
+    # service container names the same tag, so the suite runs on this engine.
+    image: mariadb:11.8
     restart: unless-stopped
     environment:
       MARIADB_DATABASE: ${DB_NAME:-retro}

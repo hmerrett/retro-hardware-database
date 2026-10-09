@@ -20,6 +20,7 @@ from datetime import UTC, datetime, timedelta
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from ..models import ApiToken, Membership, User, UserSession
@@ -43,6 +44,12 @@ SEEN_EVERY = timedelta(minutes=5)
 # Every token starts with this, so one pasted into the wrong file is recognisable
 # for what it is -- by a person and by a secret scanner alike.
 TOKEN_PREFIX = "rhdb_"
+
+# MariaDB's "Record has changed since last read" (ER_CHECKREAD). With snapshot
+# isolation, which 11.8 has on by default, a transaction that writes a row another
+# has changed since it began reading is refused with this and rolled back, where
+# before it would have quietly written over the other.
+_CHANGED_SINCE_READ = 1020
 
 
 class AccountError(ValueError):
@@ -241,6 +248,10 @@ def open_session(db: Session, user: User) -> str:
     return key
 
 
+def _changed_since_read(e: OperationalError) -> bool:
+    return e.orig is not None and e.orig.args[:1] == (_CHANGED_SINCE_READ,)
+
+
 def from_session(db: Session, key: str) -> Principal | None:
     row = db.query(UserSession).filter(UserSession.digest == digest(key)).one_or_none()
     now = _now()
@@ -249,10 +260,24 @@ def from_session(db: Session, key: str) -> Principal | None:
     user = db.get(User, row.user_id)
     if user is None or not user.active:
         return None
+    # Settled before the write, because a rollback expires every object the session
+    # holds: who this is must not depend on reading them again.
+    who = principal(db, user, "session")
     if row.last_seen_at is None or now - row.last_seen_at > SEEN_EVERY:
         row.last_seen_at = now
-        db.commit()
-    return principal(db, user, "session")
+        try:
+            db.commit()
+        except OperationalError as e:
+            # After a quiet spell, requests that arrive together each find the time
+            # stale -- an item page checking for changes asks when its tab is shown and
+            # again when the window takes focus, which is one moment -- and all but the
+            # first to write it are refused as changed since read. The first has
+            # written it, which is all this was for. Anything else is a real failure,
+            # and is raised.
+            if not _changed_since_read(e):
+                raise
+            db.rollback()
+    return who
 
 
 def end_session(db: Session, key: str) -> None:
