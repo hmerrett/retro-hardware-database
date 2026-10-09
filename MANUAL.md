@@ -556,13 +556,19 @@ and disposal come last, after everything else. The Tab key goes through the page
 in the order you see it, at every width.
 
 A URL written into any of that — a summary, a note, a spec value, where the item
-came from, a history entry — is a link you can follow. Anything with a scheme in
-front of it (`http://`, `https://`, `ftp://`, `mailto:`), anything beginning
-`www.`, and anything with the shape of an email address. Off-site links open in a
+came from, a history entry, the Reference URL — is a link you can follow.
+Anything with a scheme in front of it (`http://`, `https://`, `ftp://`,
+`mailto:`), anything beginning `www.`, and anything with the shape of an email
+address. Off-site links open in a
 tab of their own, so following one out of the register does not lose your place in
 it. Nothing else is touched, and that is deliberate: `config.sys` and `1.44MB`
 have a hostname's shape and neither is one, so a bare hostname stays text. Put the
 `www.` or the scheme in front of it and it is a link.
+
+The same list is the whole list, wherever a link is made out of something typed.
+A Reference URL or an order's link written any other way — `javascript:`, `data:`,
+a bare hostname — is shown as the words it is and never becomes a link, so a page
+cannot be made to run anything by what was typed into a box.
 
 ### When it changes while you are looking at it
 
@@ -1782,7 +1788,9 @@ thing is also listed on that thing's own page, under **Work**.
 What has been bought for the project, and whether it has turned up.
 
 Each line records what it is, who from, when it was ordered, when it is due, and
-what it cost. What is still coming sorts first, soonest first; a line with no
+what it cost. Give it a link to where it was bought and what it is becomes that
+link, opening in a tab of its own; a link of a kind the register does not follow
+(see [an item page](#4-an-item-page)) leaves it as words. What is still coming sorts first, soonest first; a line with no
 expected date sorts last among them, because it is not due sooner than one that is
 due — it is simply not known.
 

@@ -465,6 +465,17 @@ class TestLinksInWhatPeopleWrote:
         assert "<script>" not in out and "<b>" not in out
         assert "&lt;" in out
 
+    def test_an_address_under_other_words_follows_the_same_list(self):
+        assert str(entry.link_to("Gotek", "bob@shop.test")) == (
+            '<a href="mailto:bob@shop.test">Gotek</a>'
+        )
+        assert str(entry.link_to("Gotek", "javascript:alert(1)")) == "Gotek"
+        assert str(entry.link_to("Gotek", "")) == "Gotek"
+
+    def test_the_words_an_address_sits_under_are_escaped(self):
+        for url in ("http://x.test/a", "nope"):
+            assert "<b>" not in str(entry.link_to("<b>Gotek</b>", url))
+
     def test_a_url_cannot_break_out_of_its_own_href(self):
         # The quote ends the URL rather than the attribute: the charset a URL is
         # read with has no room for one.

@@ -85,6 +85,7 @@ templates.env.globals.update(
 # prose, notes, spec values, history entries -- and never for an attribute, which
 # cannot hold an anchor and would only get the escaping.
 templates.env.filters["linked"] = entry.linked
+templates.env.filters["link_to"] = entry.link_to
 
 # The first word of a button, a menu item, a tab or a status chip, as the Button
 # text setting wants it.

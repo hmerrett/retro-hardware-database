@@ -10,6 +10,8 @@ Auth is off in these tests, so the client is the owner; `visitor` turns it on.
 
 import re
 
+import pytest
+
 from app.models import ProjectTask
 from conftest import log_out
 
@@ -240,3 +242,31 @@ class TestWhatAJobIsAbout:
         tasks = panel(client.get(f"/projects/{pid}").text, "Tasks")
         assert f'<a class="tag" href="/items/{pt}">{pt}</a>' in tasks
         assert "<select" not in tasks
+
+
+class TestAnOrdersLink:
+    """An order's link was written into its href as typed, as the Reference was; it
+    goes through the same list as every other link made out of something typed
+    (MANUAL §12, "On order")."""
+
+    @staticmethod
+    def line(client, pid, url):
+        client.post(f"/api/projects/{pid}/orders", json={"description": "Gotek", "url": url})
+        page = client.get(f"/projects/{pid}").text
+        return re.search(r'<td class="wide">(.*?)</td>', page, re.S)[1]
+
+    def test_a_web_address_makes_what_it_is_a_link(self, client):
+        line = self.line(client, make(client), "https://shop.example/gotek")
+        assert '<a href="https://shop.example/gotek" target="_blank" rel="noopener' in line
+        assert ">Gotek</a>" in line
+
+    def test_the_www_shorthand_is_given_its_scheme(self, client):
+        line = self.line(client, make(client), "www.shop.example/gotek")
+        assert 'href="http://www.shop.example/gotek"' in line
+
+    @pytest.mark.parametrize(
+        "url", ["javascript:alert(1)", "data:text/html,hello", "shop.example/gotek"]
+    )
+    def test_anything_else_leaves_it_as_words(self, client, url):
+        line = self.line(client, make(client), url)
+        assert "<a " not in line and "href" not in line and "Gotek" in line

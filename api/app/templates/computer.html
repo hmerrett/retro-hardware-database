@@ -32,7 +32,7 @@
     {# Out of the list above, and last in it as it was, because this is the one value
        that is written in more than one line and has to be shown in them. #}
     {% if c.notes %}<div><dt>Notes</dt><dd class="lines">{{ c.notes | linked }}</dd></div>{% endif %}
-    {% if c.url %}<div><dt>Reference</dt><dd><a href="{{ c.url }}" target="_blank">{{ c.url }}</a></dd></div>{% endif %}
+    {% if c.url %}<div><dt>Reference</dt><dd>{{ c.url | linked }}</dd></div>{% endif %}
     </dl>
     {% endcall %}
 

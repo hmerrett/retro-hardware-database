@@ -27,7 +27,7 @@
        it means editing the thing named (ADR-0027, ADR-0034). #}
     {{ W.row(where, where_links) }}
     {% if p.disk_image %}<div><dt>Disk image</dt><dd>{{ p.disk_image }}</dd></div>{% endif %}
-    {% if p.url %}<div><dt>Reference</dt><dd><a href="{{ p.url }}" target="_blank">{{ p.url }}</a></dd></div>{% endif %}
+    {% if p.url %}<div><dt>Reference</dt><dd>{{ p.url | linked }}</dd></div>{% endif %}
     {% if p.notes %}<div><dt>Notes</dt><dd class="lines">{{ p.notes | linked }}</dd></div>{% endif %}
     </dl>
     {% endcall %}

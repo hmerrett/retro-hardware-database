@@ -1325,6 +1325,42 @@ def _link_end(url: str) -> str:
     return url
 
 
+def _href(url: str) -> tuple[str, bool]:
+    """Where a link `_LINK_RE` found goes, and whether it opens in a tab of its own."""
+    low = url.lower()
+    if low.startswith("www."):
+        # http, not https: a host that has TLS redirects to it, and one that
+        # never got round to it is simply unreachable the other way about --
+        # and the hosts written down in here are museum pieces as often as not.
+        return "http://" + url, True
+    if low.startswith("mailto:"):
+        return url, False
+    if "://" in url:
+        return url, True
+    return "mailto:" + url, False
+
+
+def link_to(words: object, url: object) -> Markup:
+    """`words` as a link to `url`, or the words alone when `url` is not one link of a
+    kind `linked` would make.
+
+    For a field that holds an address and nothing else, shown under other words --
+    an order's link is its description. The address goes through the same list as
+    every link in a note, because it came out of the same kind of box: an href
+    written as typed is a `javascript:` link waiting for somebody to type one.
+    """
+    shown = "" if words is None else str(words)
+    s = "" if url is None else str(url).strip()
+    if not _LINK_RE.fullmatch(s):
+        return escape(shown)
+    href, tab = _href(s)
+    return Markup(
+        '<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
+        if tab
+        else '<a href="{}">{}</a>'
+    ).format(href, shown)
+
+
 def linked(text: object) -> Markup:
     """What was written, with every link in it clickable and nothing else changed.
 
@@ -1344,18 +1380,7 @@ def linked(text: object) -> Markup:
         if not url:
             continue
         out.append(escape(s[at : m.start()]))
-        low = url.lower()
-        if low.startswith("www."):
-            # http, not https: a host that has TLS redirects to it, and one that
-            # never got round to it is simply unreachable the other way about --
-            # and the hosts written down in here are museum pieces as often as not.
-            href, tab = "http://" + url, True
-        elif low.startswith("mailto:"):
-            href, tab = url, False
-        elif "://" in url:
-            href, tab = url, True
-        else:
-            href, tab = "mailto:" + url, False
+        href, tab = _href(url)
         out.append(
             Markup(
                 '<a class="url" href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
