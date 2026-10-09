@@ -139,7 +139,7 @@
     {% for o in orders %}
     <tr>
       <td class="wide">{% if o.qty > 1 %}<span class="muted">{{ o.qty }}×</span> {% endif %}
-        {% if o.url %}<a href="{{ o.url }}" target="_blank" rel="noopener">{{ o.description }}</a>{% else %}{{ o.description }}{% endif %}
+        {{ o.description | link_to(o.url) }}
         {% if o.note %}<br><span class="hint">{{ o.note | linked }}</span>{% endif %}</td>
       <td class="tight" data-label="From">{{ o.supplier }}</td>
       <td class="tight muted" data-label="Ordered">{{ o.ordered_at or '' }}</td>

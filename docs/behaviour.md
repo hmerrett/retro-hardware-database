@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2650 behaviours, from 76 files.*
+*2660 behaviours, from 76 files.*
 
 
 ## A file where text was expected
@@ -1763,7 +1763,7 @@ Regenerate with:
 
 ## Entry
 
-*test_entry.py — 70 behaviours*
+*test_entry.py — 72 behaviours*
 
 
 **Amounts**
@@ -1877,6 +1877,8 @@ Regenerate with:
 - a link opens in a tab of its own and an address does not
 - the lines a note was typed in are left alone
 - nothing out of a text box arrives as markup
+- an address under other words follows the same list
+- the words an address sits under are escaped
 - a url cannot break out of its own href
 - what is not a string at all  
   The details tables hand this whole rows at a time -- a year, a date, the None of a column nobody filled in.
@@ -2336,7 +2338,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 43 behaviours*
+*test_item_pages.py — 47 behaviours*
 
 
 **The head**
@@ -2420,6 +2422,13 @@ Regenerate with:
 - the entry takes the rest of its row
 - the buttons sit beside the middle of a wrapped entry
 - the words come first and the buttons last
+
+**The reference is A link only when it is one**
+
+- a web address is a link in a tab of its own
+- the www shorthand is given its scheme
+- an apostrophe in the address is part of it
+- anything else is shown as words
 
 
 ## Keyboard and motion
@@ -3346,7 +3355,7 @@ Regenerate with:
 
 ## Project pages
 
-*test_project_pages.py — 18 behaviours*
+*test_project_pages.py — 22 behaviours*
 
 
 **The list**
@@ -3384,6 +3393,13 @@ Regenerate with:
 
 - the owner chooses it from a menu that sends itself
 - a visitor reads the tag of the thing
+
+**An orders link**
+
+- a web address makes what it is a link
+- the www shorthand is given its scheme
+- an apostrophe in the address is part of it
+- anything else leaves it as words
 
 
 ## Projects

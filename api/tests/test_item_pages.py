@@ -469,3 +469,47 @@ class TestTheHistoryLinesUpItsButtons:
         )[1]
         at = [line.index(m) for m in ('class="logmsg"', 'class="logadd"', "/log/delete")]
         assert at == sorted(at)
+
+
+class TestTheReferenceIsALinkOnlyWhenItIsOne:
+    """The Reference URL was written into its href as typed, so `javascript:` became
+    a link the content policy alone stood between a reader and. It goes through the
+    same list as every other link made out of something typed now (MANUAL §4)."""
+
+    @staticmethod
+    def reference(page: str) -> str:
+        return re.search(r"<dt>Reference</dt>\s*<dd>(.*?)</dd>", page, re.S)[1]
+
+    @KINDS
+    def test_a_web_address_is_a_link_in_a_tab_of_its_own(self, client, computer, part, kind):
+        aid = item(kind, computer, part, url="https://example.com/a-machine")
+        ref = self.reference(client.get(f"/{kind}/{aid}").text)
+        assert 'href="https://example.com/a-machine"' in ref
+        assert 'target="_blank" rel="noopener noreferrer"' in ref
+
+    @KINDS
+    def test_the_www_shorthand_is_given_its_scheme(self, client, computer, part, kind):
+        aid = item(kind, computer, part, url="www.example.org")
+        ref = self.reference(client.get(f"/{kind}/{aid}").text)
+        assert 'href="http://www.example.org"' in ref
+
+    @KINDS
+    def test_an_apostrophe_in_the_address_is_part_of_it(self, client, computer, part, kind):
+        # Found on real data: a manual's filename with "User's" in it. In a sentence
+        # a quote ends a URL; a field holding nothing but the address has no
+        # sentence for it to end.
+        url = "https://example.com/manuals/Tandon%20TM65%20User's%20Manual.pdf"
+        aid = item(kind, computer, part, url=url)
+        ref = self.reference(client.get(f"/{kind}/{aid}").text)
+        assert ref.count("<a ") == 1 and ref.strip().endswith("Manual.pdf</a>")
+        assert 'href="https://example.com/manuals/Tandon%20TM65%20User&#39;s%20Manual.pdf"' in ref
+
+    @KINDS
+    @pytest.mark.parametrize(
+        "url", ["javascript:alert(1)", "data:text/html,hello", "example.org/a-machine"]
+    )
+    def test_anything_else_is_shown_as_words(self, client, computer, part, kind, url):
+        aid = item(kind, computer, part, url=url)
+        ref = self.reference(client.get(f"/{kind}/{aid}").text)
+        assert "<a " not in ref and "href" not in ref
+        assert ref.strip() == url
