@@ -96,11 +96,13 @@
           {% for img in e.photos %}
           {# No data-kind or data-aid: the lightbox's rotate and crop tools act on
              one of an item's own photographs, and this is not one. It opens the
-             original all the same, which is what a photograph of a board is for. #}
+             original all the same, which is what a photograph of a board is for.
+             The group is the entry's, so the arrows walk this moment's photographs
+             and not the gallery's or another entry's. #}
           <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
                srcset="{{ img_srcset(img, [300, 500]) }}" sizes="120px"
                data-full="{{ img_url(img) }}" alt="{{ e.message or display_name(item) }}"
-               loading="lazy" decoding="async"
+               data-group="log-{{ e.id }}" loading="lazy" decoding="async"
                tabindex="0" role="button" aria-label="View this photo full size">
           {% endfor %}
         </div>

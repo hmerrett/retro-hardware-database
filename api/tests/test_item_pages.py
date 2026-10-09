@@ -315,33 +315,34 @@ class TestTheTopOfThePage:
         assert line and "Mark done" in line[1] and "/edit" in line[1] and "/delete" in line[1]
 
 
+@pytest.fixture
+def shoot():
+    """Photographs on disk for an item. The register is emptied between tests
+    and the image folders are not, so what is written here is taken away again."""
+    from PIL import Image
+
+    from app import main
+
+    written = []
+
+    def make(kind, aid, n=2):
+        for stem in [aid] + [f"{aid}-{i}" for i in range(2, n + 1)]:
+            path = main.IMAGES_DIR / kind / f"{stem}.jpg"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            Image.new("RGB", (60, 40), (90, 110, 130)).save(path, "JPEG")
+            written.append(path)
+
+    yield make
+    for path in written:
+        path.unlink(missing_ok=True)
+
+
 class TestThePhotographsSitInsideThePanel:
     """The Photographs panel was drawn flush, which is a panel's way with a list whose
     rows run edge to edge: the photograph ran to the panel's border on three sides
     and the thumbnails started hard against its left, while the buttons under them
     had the panel's margin. The photographs now sit inside that margin, on the same
     edge as the buttons (MANUAL §10)."""
-
-    @pytest.fixture
-    def shoot(self):
-        """Photographs on disk for an item. The register is emptied between tests
-        and the image folders are not, so what is written here is taken away again."""
-        from PIL import Image
-
-        from app import main
-
-        written = []
-
-        def make(kind, aid, n=2):
-            for stem in [aid] + [f"{aid}-{i}" for i in range(2, n + 1)]:
-                path = main.IMAGES_DIR / kind / f"{stem}.jpg"
-                path.parent.mkdir(parents=True, exist_ok=True)
-                Image.new("RGB", (60, 40), (90, 110, 130)).save(path, "JPEG")
-                written.append(path)
-
-        yield make
-        for path in written:
-            path.unlink(missing_ok=True)
 
     @staticmethod
     def body(page):
@@ -469,6 +470,70 @@ class TestTheHistoryLinesUpItsButtons:
         )[1]
         at = [line.index(m) for m in ('class="logmsg"', 'class="logadd"', "/log/delete")]
         assert at == sorted(at)
+
+
+def photograph(name="shot.jpg"):
+    """An upload's worth of JPEG, for a history entry to carry."""
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (60, 40), (90, 110, 130)).save(buf, "JPEG")
+    buf.seek(0)
+    return ("photos", (name, buf, "image/jpeg"))
+
+
+def groups(page: str) -> list[str | None]:
+    """The group each photograph the big view opens says it belongs to, in page
+    order. None for one that does not say."""
+    tags = re.findall(r'<img class="[^"]*\bzoomable\b[^>]*>', page)
+    assert tags, "no photograph the big view opens"
+    return [m[1] if (m := re.search(r'data-group="([^"]*)"', t)) else None for t in tags]
+
+
+def the_lightbox_script() -> str:
+    """The block of app.js that is the big view: from the top to the end of its
+    first function."""
+    js = (ITEM_CSS.parents[1] / "app.js").read_text(encoding="utf-8")
+    return js[: js.index("})();")]
+
+
+class TestTheArrowsStayInTheGroupTheyWereOpenedFrom:
+    """The big view's arrows walked every photograph on the page, so stepping on
+    from the gallery's last went into the history's photographs, and the count said
+    "3 of 7" over a machine with three. The arrows go to the other photographs of
+    this item (MANUAL §2), and a history entry's are not the item's (§14): they walk
+    the group the photograph was opened from. No browser runs in the suite, so the
+    groups are read off the page and the walk off the script."""
+
+    @KINDS
+    def test_the_gallery_is_one_group_and_each_entry_is_one_of_its_own(
+        self, client, computer, part, kind, shoot
+    ):
+        aid = item(kind, computer, part)
+        shoot(kind, aid, n=3)
+        for words in ("recapped it", "found a crack"):
+            client.post(
+                f"/{kind}/{aid}/note",
+                data={"message": words},
+                files=[photograph("a.jpg"), photograph("b.jpg")],
+                follow_redirects=False,
+            )
+        found = groups(client.get(f"/{kind}/{aid}").text)
+        assert None not in found, "a photograph that says no group"
+        gallery, history = found[:3], found[3:]
+        assert len(history) == 4, found
+        first, second = history[:2], history[2:]
+        assert len(set(gallery)) == len(set(first)) == len(set(second)) == 1
+        assert len({gallery[0], first[0], second[0]}) == 3
+
+    def test_the_walk_and_the_count_are_of_the_group(self):
+        """Nothing in the big view walks or counts the whole page any more: the page's
+        photographs are read once, to find the ones the opened one goes with."""
+        js = the_lightbox_script()
+        assert "dataset.group" in js
+        assert js.count("shots.length") == 1 and "if (!shots.length) return;" in js
 
 
 class TestTheReferenceIsALinkOnlyWhenItIsOne:
