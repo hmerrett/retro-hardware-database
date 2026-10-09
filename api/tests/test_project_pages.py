@@ -264,6 +264,10 @@ class TestAnOrdersLink:
         line = self.line(client, make(client), "www.shop.example/gotek")
         assert 'href="http://www.shop.example/gotek"' in line
 
+    def test_an_apostrophe_in_the_address_is_part_of_it(self, client):
+        line = self.line(client, make(client), "https://shop.example/bob's-gotek")
+        assert 'href="https://shop.example/bob&#39;s-gotek"' in line
+
     @pytest.mark.parametrize(
         "url", ["javascript:alert(1)", "data:text/html,hello", "shop.example/gotek"]
     )

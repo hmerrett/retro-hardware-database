@@ -494,6 +494,17 @@ class TestTheReferenceIsALinkOnlyWhenItIsOne:
         assert 'href="http://www.example.org"' in ref
 
     @KINDS
+    def test_an_apostrophe_in_the_address_is_part_of_it(self, client, computer, part, kind):
+        # Found on real data: a manual's filename with "User's" in it. In a sentence
+        # a quote ends a URL; a field holding nothing but the address has no
+        # sentence for it to end.
+        url = "https://example.com/manuals/Tandon%20TM65%20User's%20Manual.pdf"
+        aid = item(kind, computer, part, url=url)
+        ref = self.reference(client.get(f"/{kind}/{aid}").text)
+        assert ref.count("<a ") == 1 and ref.strip().endswith("Manual.pdf</a>")
+        assert 'href="https://example.com/manuals/Tandon%20TM65%20User&#39;s%20Manual.pdf"' in ref
+
+    @KINDS
     @pytest.mark.parametrize(
         "url", ["javascript:alert(1)", "data:text/html,hello", "example.org/a-machine"]
     )

@@ -1310,6 +1310,20 @@ _LINK_RE = re.compile(
     re.VERBOSE | re.IGNORECASE,
 )
 
+# The same list for a field that holds an address and nothing else. A quote may sit
+# inside it: in a sentence a quote is what a URL was written between, but a field
+# has no sentence round it, and a manual's filename with "User's" in it is a real
+# address (escaping keeps the quote inside the href).
+_WHOLE_LINK_RE = re.compile(
+    r"""
+    (?:https?|ftps?|sftp)://[^\s<>"]+
+  | mailto:[^\s<>"]+
+  | www\.[^\s<>"]+
+  | [\w.+%-]+@[\w-]+(?:\.[\w-]+)+
+""",
+    re.VERBOSE | re.IGNORECASE,
+)
+
 # Punctuation that ends the sentence rather than the URL. A closing bracket is the
 # URL's own as long as one opened inside it, which is what tells
 # "http://x/Amiga_(computer)" from "(see http://x/p)" -- and, a bracket at a time,
@@ -1340,25 +1354,27 @@ def _href(url: str) -> tuple[str, bool]:
     return "mailto:" + url, False
 
 
-def link_to(words: object, url: object) -> Markup:
+def link_to(words: object, url: object, cls: str = "") -> Markup:
     """`words` as a link to `url`, or the words alone when `url` is not one link of a
     kind `linked` would make.
 
-    For a field that holds an address and nothing else, shown under other words --
-    an order's link is its description. The address goes through the same list as
-    every link in a note, because it came out of the same kind of box: an href
-    written as typed is a `javascript:` link waiting for somebody to type one.
+    For a field that holds an address and nothing else -- a Reference, shown as
+    itself, or an order's link, shown as its description. The address goes through
+    the same list as every link in a note, because it came out of the same kind of
+    box: an href written as typed is a `javascript:` link waiting for somebody to
+    type one.
     """
     shown = "" if words is None else str(words)
     s = "" if url is None else str(url).strip()
-    if not _LINK_RE.fullmatch(s):
+    if not _WHOLE_LINK_RE.fullmatch(s):
         return escape(shown)
     href, tab = _href(s)
+    attrs = Markup(' class="{}"').format(cls) if cls else Markup("")
     return Markup(
-        '<a href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
+        '<a{} href="{}" target="_blank" rel="noopener noreferrer">{}</a>'
         if tab
-        else '<a href="{}">{}</a>'
-    ).format(href, shown)
+        else '<a{} href="{}">{}</a>'
+    ).format(attrs, href, shown)
 
 
 def linked(text: object) -> Markup:

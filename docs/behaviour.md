@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2658 behaviours, from 76 files.*
+*2660 behaviours, from 76 files.*
 
 
 ## A file where text was expected
@@ -2338,7 +2338,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 46 behaviours*
+*test_item_pages.py — 47 behaviours*
 
 
 **The head**
@@ -2427,6 +2427,7 @@ Regenerate with:
 
 - a web address is a link in a tab of its own
 - the www shorthand is given its scheme
+- an apostrophe in the address is part of it
 - anything else is shown as words
 
 
@@ -3354,7 +3355,7 @@ Regenerate with:
 
 ## Project pages
 
-*test_project_pages.py — 21 behaviours*
+*test_project_pages.py — 22 behaviours*
 
 
 **The list**
@@ -3397,6 +3398,7 @@ Regenerate with:
 
 - a web address makes what it is a link
 - the www shorthand is given its scheme
+- an apostrophe in the address is part of it
 - anything else leaves it as words
 
 
