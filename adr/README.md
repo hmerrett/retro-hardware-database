@@ -115,3 +115,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   label is set up for its job, and the stock decides its shape — *Accepted* (amends
   [0024](0024-a-label-is-laid-out-once-and-drawn-twice.md) and
   [0026](0026-the-print-button-is-a-link-until-a-device-says-otherwise.md))
+- [0038](0038-a-label-is-pictured-from-the-page-before-it-is-saved.md) — A label is
+  pictured from the page before it is saved — *Accepted*

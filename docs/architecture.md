@@ -222,7 +222,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `routers/seo.py` | robots.txt, the sitemap, and the icons asked for at the domain root |
 | `routers/gallery.py` | the wall of cards, the /browse slice of it, the owner's /for-sale shortlist, and the suggestions under the search bar |
 | `routers/stats.py` | the two pages of figures: /stats and the GoAccess report at /traffic, with the sandbox it runs in |
-| `routers/settings.py` | /settings: the two routes behind the page of preferences |
+| `routers/settings.py` | /settings: the routes behind the page of preferences, and the picture of each label as the page sets it up |
 | `routers/catalogue.py` | the catalogue as a page and as JSON: /machines, a model's own page at /machines/<key>, and /api/machines |
 | `routers/images.py` | serving a photograph: the watermark, the narrower copy, the refusals |
 | `routers/styles.py` | /style/data.css: the generated stylesheet, served the way a static one is |
@@ -261,6 +261,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `enrich.py` | fetching a photo for an item from its reference URL |
 | `labels.py` | what a label says and where on it that goes, for either surface: the two labels as Settings → Labels sets them up, and the stock deciding a label's shape (ADR-0037) |
 | `printing.py` | the queue of labels waiting for a printer on somebody else's machine, and what any item's label is read from, for the queue and the label routes alike |
+| `labelpreview.py` | each label's picture on Settings → Labels: the example it is drawn for, the stock where it goes, drawn from the page's settings before they are saved |
 | `surfaces.py` | the two things a label is drawn on: a PDF page, and a printer's own dots |
 | `barcode.py` | Code 128: a tag as the bars a label carries, set B only, and the table the browser's reader in static/code128.js is held to |
 | `audit_storage.py` | checking every storage part against the questions its kind is actually asked |

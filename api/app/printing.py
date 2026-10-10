@@ -21,7 +21,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .disposal import inside
-from . import labels, locations, specdb, tree
+from . import labels, locations, settings, specdb, tree
 from .common import to_dict
 from .models import Computer, Location, Part, PrintJob, Project, Thing
 
@@ -89,6 +89,16 @@ def agents() -> dict[str, Agent]:
             continue
         out[name] = Agent(name=name, key=key, media=media, fmt=fmt)
     return out
+
+
+def stocks(own: str, bluetooth: str) -> dict[str, str]:
+    """The stock a label is printed on at each place it can be sent: its own Stock for
+    a PDF, the roll the Bluetooth printer is loaded with, and each agent's own
+    (ADR-0037). One answer for the Label panel's picture and the settings page's, so
+    the two cannot come to draw one label on two stocks."""
+    return {settings.PDF: own, settings.BLUETOOTH: bluetooth} | {
+        settings.AGENT + a.name: a.media for a in agents().values()
+    }
 
 
 def agent_for(key: str) -> Agent | None:

@@ -547,6 +547,21 @@
      shape while the picture is on its way. */
   .lblpic { display: block; max-width: 100%; height: auto; margin-bottom: var(--space-3);
     border: var(--border-w) solid var(--line); border-radius: var(--radius-xs); }
+  /* Each label's picture beside the settings that make it (MANUAL §13, "Seeing it as
+     you set it up"). First in the group's own order, so a phone has it at the top
+     with nothing moved; where there is room, a column of its own to the right of the
+     settings, held in view while the list under them is worked down. Half the
+     width: the settings ask for no more than a measure, and a 6x4 label shown
+     narrower than that cannot be read. */
+  .lblset { display: grid; gap: var(--space-4); }
+  .lblprev > figure { margin: 0; }
+  .lblprev figcaption { font-size: 12px; color: var(--text-muted); }
+  @media (min-width: 900px) {
+    .lblset { grid-template-columns: minmax(0, 1fr) minmax(18rem, 1fr); gap: var(--space-6);
+      align-items: start; }
+    .lblset > .lblprev { grid-column: 2; grid-row: 1; position: sticky; top: var(--space-4); }
+    .lblset > .lblrows { grid-column: 1; grid-row: 1; }
+  }
   .cell { padding: var(--space-3) var(--space-4); background: var(--surface-raised);
     border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
   .cell .k { font-size: 12px; color: var(--text-muted); }
