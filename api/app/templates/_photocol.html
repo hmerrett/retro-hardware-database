@@ -85,6 +85,7 @@
            data-full="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
            tabindex="0" role="button" aria-label="View this photo full size"
            data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}"
+           data-group="photos"
            {% if images[0] in tuned %}data-tuned="1"{% endif %}>
       {{ badge(images[0]) }}
       {{ ctrls(images[0], True) }}
@@ -99,6 +100,7 @@
              decoding="async"
              tabindex="0" role="button" aria-label="View this photo full size"
              data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ img }}"
+             data-group="photos"
              {% if img in tuned %}data-tuned="1"{% endif %}>
         {{ badge(img) }}
         {{ ctrls(img, False) }}

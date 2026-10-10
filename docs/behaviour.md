@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2671 behaviours, from 77 files.*
+*2674 behaviours, from 77 files.*
 
 
 ## A file where text was expected
@@ -2338,7 +2338,7 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 47 behaviours*
+*test_item_pages.py — 49 behaviours*
 
 
 **The head**
@@ -2422,6 +2422,12 @@ Regenerate with:
 - the entry takes the rest of its row
 - the buttons sit beside the middle of a wrapped entry
 - the words come first and the buttons last
+
+**The arrows stay in the group they were opened from**
+
+- the gallery is one group and each entry is one of its own
+- the walk and the count are of the group  
+  Nothing in the big view walks or counts the whole page any more: the page's photographs are read once, to find the ones the opened one goes with.
 
 **The reference is A link only when it is one**
 
@@ -3404,7 +3410,7 @@ Regenerate with:
 
 ## Projects
 
-*test_projects.py — 131 behaviours*
+*test_projects.py — 132 behaviours*
 
 
 **A register asset**
@@ -3420,6 +3426,8 @@ Regenerate with:
 - a note lands on it
 - a photograph alone is an entry  
   The note bar's other half, which a project gets for the same free.
+- each entry s photographs are a group of their own  
+  The big view's arrows walk the group the photograph was opened from, and a project has no gallery: each entry's photographs are the whole walk (MANUAL §14).
 - an edit is recorded as a diff
 
 **What it is about**
