@@ -10,6 +10,7 @@ with what it is sent. That the picture follows the page and not the browser's ow
 choice of printer is a fact about the script, and was checked in a browser.
 """
 
+import html
 import io
 import json
 import re
@@ -202,9 +203,13 @@ def test_the_example_s_tag_is_one_the_register_never_issues(client):
 
 
 # What each sort of example has nothing to print for, on each label: a machine's
-# specifications are its build, which a small label has no room for, and a project
-# has no make and model, no serial number and nowhere it is kept (MANUAL §13).
+# specifications are its build, which a small label has no room for; a project has
+# no make and model, no serial number and nowhere it is kept; and a location has no
+# make and model or serial number, and its specifications only on a full label
+# (MANUAL §13).
 LACKS = {
+    (labels.LOCATION, "small"): {"make", "serial", "specs"},
+    (labels.LOCATION, "full"): {"make", "serial"},
     (labels.COMPUTER, "small"): {"specs"},
     (labels.COMPUTER, "full"): set(),
     (labels.PART, "small"): set(),
@@ -225,17 +230,12 @@ def test_the_example_has_every_detail_its_sort_of_thing_can_have(client, kind, k
 
 
 @pytest.mark.parametrize("key", labels.LABELS)
-def test_a_location_s_label_reads_none_of_the_list(client, key):
+def test_a_location_s_label_follows_the_list_and_its_word_tick(client, key):
     shown = picture(client, key, labels.LOCATION)
-    for listed in (
-        details(key),
-        details(key, "serial", "kept", "make"),
-        details(key, "tag", word=False),
-    ):
-        assert picture(client, key, labels.LOCATION, **sent(key, **listed)) == shown
-    # Its code is the label's, like anything else's.
-    no_code = sent(key, **{f"label_{key}_codes": "none"})
-    assert picture(client, key, labels.LOCATION, **no_code) != shown
+    unworded = details(key, *labels.setup(key).details, word=False)
+    assert picture(client, key, labels.LOCATION, **sent(key, **unworded)) != shown
+    moved = details(key, "name", "kept", "tag")
+    assert picture(client, key, labels.LOCATION, **sent(key, **moved)) != shown
 
 
 @pytest.mark.parametrize("key", labels.LABELS)
@@ -418,3 +418,65 @@ def test_a_setting_the_page_could_not_have_sent_is_drawn_as_saved(client):
         label_small_details=["colour"],
     )
     assert picture(client, "small", **nonsense) == shown
+
+
+# --- saying what there is no room for -------------------------------------------
+
+# The first label on the 51x19 mm tape with every detail ticked and a barcode under
+# the words: room for the tag and a line or two, whatever the type is brought to.
+CROWDED = {"label_small_codes": "code128"}
+
+
+def crowded(key="small"):
+    return CROWDED | details(key, "tag", "name", "make", "specs", "serial", "kept")
+
+
+def room_line(text, key):
+    return html.unescape(inside(text, "p", f"preview_{key}_room").strip())
+
+
+def test_a_line_under_the_picture_says_what_the_label_has_no_room_for(client):
+    save(client, **crowded())
+    text = page(client)
+    said = room_line(text, "small")
+    assert said.startswith("No room for ")
+    named = dict(labels.DETAILS)
+    assert named["kept"] in said, "the last details are the ones that go"
+    assert "hidden" not in Tags(text).by_id["preview_small_room"]
+    at = Tags(text).order.index
+    assert at("preview_small") < at("preview_small_room") < at("preview_small_kind")
+
+
+def test_with_room_for_everything_the_line_says_nothing(client):
+    text = page(client)
+    for key in labels.LABELS:
+        assert room_line(text, key) == ""
+        assert "hidden" in Tags(text).by_id[f"preview_{key}_room"]
+        assert Tags(text).by_id[f"preview_{key}_room"]["aria-live"] == "polite"
+
+
+def test_the_line_is_asked_again_with_the_picture_from_the_settings_on_the_page(client):
+    """Before anything is saved, as the picture is."""
+    r = client.get(
+        "/settings/labels/preview.json",
+        params={"label": "small", "kind": "part", **sent("small", **crowded())},
+    )
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == "no-store"
+    assert r.json()["room"].startswith("No room for ")
+    settings.forget()
+    assert settings.value("label_small_codes") == "qr", "and nothing is kept"
+    plain = client.get("/settings/labels/preview.json", params={"label": "small", "kind": "part"})
+    assert plain.json() == {"room": ""}
+
+
+def test_the_line_is_behind_the_login_and_asks_only_of_a_label_and_an_example_there_are(client):
+    for query in ({"label": "middle", "kind": "part"}, {"label": "small", "kind": "drawer"}):
+        assert client.get("/settings/labels/preview.json", params=query).status_code == 404
+    log_out(client)
+    r = client.get(
+        "/settings/labels/preview.json",
+        params={"label": "small", "kind": "part"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 303 and r.headers["location"].startswith("/login")

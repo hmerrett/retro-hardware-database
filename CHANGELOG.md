@@ -13,6 +13,24 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**A location's label follows its list.** What's on it now decides a location's label
+as it does a machine's. Tag is its tag, Name its name, and Where it's kept the path
+of the locations it is inside. On a full label, Specifications are its kind and
+notes. Nothing ticked prints the code alone, and the word up the end prints only
+when ticked.
+
+**Upgrading:** a location's label used to print its name largest, its path above
+and its tag below, whatever the list said. With the starting ticks it now prints its
+tag largest, then its name, and no path. To keep the old look, set up a label for
+locations with Name first, then Where it's kept, then Tag.
+
+**A crowded label makes room before it leaves anything off.** When the ticked
+details need more lines than a small label has room for, its type comes down until
+they fit, as far as the 51×19 mm tape's own size. Only past that are the last ones
+left off. Under each label's picture in Settings → Labels, a line now names
+anything still left off: *No room for Serial number, and only part of
+Specifications*. Labels with room to spare print exactly as before.
+
 **Words no longer run into a label's barcode.** On a small label carrying a
 barcode, the tail of a p or a g in the line just over the bars reached into them.
 The words now keep clear of the bars, which can cost a crowded label a little type

@@ -3320,7 +3320,7 @@ class TestTheCapacityGetsALineOfItsOwn:
 
         page = surfaces.PdfSurface(canvas.Canvas("/dev/null"))
         # The body column on a 51x19mm label, and the height under the asset id.
-        return labels._small_body_lines(page, title, tags, 69.4, avail_mm * mm)
+        return labels._small_body_lines(page, title, tags, 69.4, avail_mm * mm)[:2]
 
     def test_the_capacity_is_the_last_line(self):
         _, lines = self.laid_out("Seagate ST-225", ["20 MB"])

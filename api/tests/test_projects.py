@@ -1261,7 +1261,9 @@ class TestASmallLabelStaysOnTheLabel:
         tape = labels.MEDIA[labels.SMALL]
         W, H = labels.layout_size(tape)
         column = labels.small_text_column(W, H, tape["safe_mm"])
-        size, lines = labels._small_body_lines(page, title, tags, column.tw, H - 2 * column.my - 11)
+        size, lines, *_ = labels._small_body_lines(
+            page, title, tags, column.tw, H - 2 * column.my - 11
+        )
         return size, lines, column.tw, surfaces.BODY, page
 
     def test_a_monitors_specs_all_fit_inside_the_label(self):

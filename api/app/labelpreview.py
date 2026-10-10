@@ -38,7 +38,7 @@ STARTS = {labels.LABELS[0]: labels.PART, labels.LABELS[1]: labels.COMPUTER}
 # The examples, as an item's label reads it (printing.source_of). A machine and a
 # part with a name of their own, so Make and model has something to add; a serial
 # number, and somewhere each is kept. A project has none of those three, and a
-# location reads none of the list.
+# location has a name, where it is kept, and its kind and notes.
 EXAMPLES: dict[str, printing.Source] = {
     labels.COMPUTER: printing.Source(
         {
@@ -98,7 +98,7 @@ EXAMPLES: dict[str, printing.Source] = {
         {
             "asset_id": TAG,
             "name": "Shelf 2",
-            "path": "Workshop / Rack 3",
+            "kept": "Workshop / Rack 3",
             "kind": "Shelf",
             "notes": "Boxed floppy drives",
         },
@@ -136,6 +136,43 @@ def picture(key: str, kind: str, over: Mapping[str, str] | None = None) -> bytes
     )
 
 
+def room(key: str, kind: str, over: Mapping[str, str] | None = None) -> str:
+    """What the line under a label's picture says about room: the details ticked that
+    the example's label has no room for, even with its type brought down as far as
+    it goes -- or nothing, when everything fits (MANUAL §13, "Seeing it as you set it
+    up")."""
+    example = EXAMPLES[kind]
+    found = labels.fit(
+        example.row,
+        example.parts,
+        kind,
+        labels.MEDIA[stock_for(key, over)],
+        labels.setup(key, over),
+        form_factor=example.form_factor,
+        spec_pairs=example.spec_pairs,
+    )
+    return said_of(found)
+
+
+def said_of(found: labels.Fit) -> str:
+    """A label's room as a sentence: "No room for Serial number, and only part of
+    Specifications." """
+    named = dict(labels.DETAILS)
+    left = [named[d] for d in found.left]
+    part = [named[d] for d in found.part]
+    if left and part:
+        return f"No room for {_listed(left)}, and only part of {_listed(part)}."
+    if left:
+        return f"No room for {_listed(left)}."
+    if part:
+        return f"Room for only part of {_listed(part)}."
+    return ""
+
+
+def _listed(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
 def shown(key: str) -> dict[str, object]:
     """One label's picture as the page draws it before anything is changed: where to
     fetch it, how many dots it is across and down, the stock it is on and the example
@@ -149,6 +186,7 @@ def shown(key: str) -> dict[str, object]:
         "h": down,
         "what": labels.MEDIA[stock]["what"],
         "kind": STARTS[key],
+        "room": room(key, STARTS[key]),
     }
 
 
