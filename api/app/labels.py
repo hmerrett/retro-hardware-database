@@ -202,6 +202,30 @@ MEDIA: dict[str, Media] = {
         "dpi": 300,
         "dots": 0,
     },
+    # The LabelWriter's larger labels, named by their DYMO numbers as the tape is, and
+    # fed as it is: short side first, across the head and then along the roll.
+    "dymo-99012": {
+        "what": "89×36 mm large address label (DYMO LabelWriter)",
+        "short": "89×36 mm",
+        "w_mm": 89,
+        "h_mm": 36,
+        "qr": "M",
+        "rotate": 90,
+        "safe_mm": 3,
+        "dpi": 300,
+        "dots": 0,
+    },
+    "dymo-99015": {
+        "what": "70×54 mm multipurpose label (DYMO LabelWriter)",
+        "short": "70×54 mm",
+        "w_mm": 70,
+        "h_mm": 54,
+        "qr": "M",
+        "rotate": 90,
+        "safe_mm": 3,
+        "dpi": 300,
+        "dots": 0,
+    },
     "niimbot-50x30": {
         "what": "50×30 mm label (Niimbot B1, B21, B18)",
         "short": "50×30 mm",
@@ -960,6 +984,10 @@ BAR_SHARE, BAR_MIN = 0.36, 4.5 * mm
 # the two that tape should keep.
 QR_MIN = 12 * mm
 
+# How far below its baseline a line's tails reach -- the p, the g, the y -- as a share
+# of its size: 0.23 in the label face and 0.21 in Plex, measured, and a little over.
+DESCENDER = 0.25
+
 
 def _bars_of(data: str) -> float:
     """How much of a barcode's width is bars, the white either side being the rest."""
@@ -1078,8 +1106,10 @@ def _render_small(
         edge = mx + 1.0 * mm
         middle = (H + (band if across else 0.0)) / 2
         s.vertical(W - edge - strip, W - edge, middle, word, HEAD, 5.0)
-    # The words stand above the bars, wherever the bars are.
-    floor = my + band
+    # The words stand above the bars, wherever the bars are -- the whole of each line,
+    # tails and all. Measured from the baselines, the last line over the bars put the
+    # tail of a p or a g through the top of them.
+    floor = my + band + (DESCENDER * BODY_PT * grow if bars else 0.0)
     aid_size = _fit(s, asset_id, HEAD, TAG_PT * grow, 5, tw)
     heads = [asset_id]
     # A head that can break, and that one line would shrink to the size of the words

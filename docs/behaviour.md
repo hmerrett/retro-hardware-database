@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2742 behaviours, from 79 files.*
+*2751 behaviours, from 80 files.*
 
 
 ## A file where text was expected
@@ -1468,7 +1468,7 @@ Regenerate with:
 
 ## Barcode labels
 
-*test_barcode_labels.py — 28 behaviours*
+*test_barcode_labels.py — 29 behaviours*
 
 
 **The table**
@@ -1500,6 +1500,8 @@ Regenerate with:
 - the bars themselves keep out of the tapes end margin
 - nothing is printed under the bars  
   The tag is already the largest line on an item's label, so under the bars it was the same seven characters again, in room the bars could use.
+- no word reaches down into the bars  
+  The words stand above the bars: the whole of each line, not its baseline.
 
 **A locations label**
 
@@ -4706,6 +4708,24 @@ Regenerate with:
 - refuses to start without one
 - says how to set it rather than only that it is missing
 - the message carries no password anybody could paste
+
+
+## The dymo labelwriter s larger labels
+
+*test_the_dymo_labelwriter_s_larger_labels.py — 8 behaviours*
+
+- each is a stock the register knows at its own size
+- either label can be set up on it
+- neither is offered as the bluetooth printer s size  
+  Bluetooth is a Niimbot's, and a LabelWriter is not one.
+- a print agent can be loaded with either
+- each is laid out as a small label  
+  Smaller than a 6x4 sheet, so the small label's shape: the code at one end and the words beside it (MANUAL §13, "The stock decides the shape").
+- its picture is the label in the labelwriter s dots
+- its pdf is turned the way the labelwriter feeds it  
+  Short side first, as the tape's is: the label goes through the printer across the head and then along the roll.
+- the manual names every stock an agent can be loaded with  
+  The list an agent's stock is chosen from, which every new stock has to join.
 
 
 ## The label panel shows the label

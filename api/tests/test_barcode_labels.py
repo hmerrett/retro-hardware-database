@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageOps
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
@@ -299,6 +299,62 @@ class TestTheCodesSetting:
         surface = Listening(surfaces.blank(*labels.size_dots(stock)), stock["dpi"])
         labels._draw(surface, stock, PART, [], labels.PART, small, codes=codes)
         assert said.count(TAG) == 1
+
+
+# Labels whose words fill their column down to the bars, with tails on the lines
+# that get there: a project whose name takes two lines and whose state is "in
+# progress", the same project's name alone, and a drive with three lines of
+# specification -- each with the details it prints.
+RECAP = {"asset_id": "RH-J0Y7", "name": "Recap the PC1512", "status": "active"}
+CROWDED = [
+    (labels.PROJECT, RECAP, ("tag", "name", "specs")),
+    (labels.PROJECT, RECAP, ("name",)),
+    (
+        labels.PART,
+        {
+            "asset_id": TAG,
+            "manufacturer": "Seagate",
+            "model": "ST-225",
+            "type": "storage",
+            "specs": 'Capacity: 20MB | CHS: 615/4/17 | Form factor: 5.25"',
+        },
+        ("tag", "name", "specs"),
+    ),
+]
+
+
+@pytest.mark.parametrize("face", sorted(surfaces.FACES))
+@pytest.mark.parametrize("codes", [labels.BARCODE, labels.BOTH])
+@pytest.mark.parametrize("media", sorted(m for m in labels.MEDIA if m != labels.FULL))
+def test_no_word_reaches_down_into_the_bars(media, codes, face):
+    """The words stand above the bars: the whole of each line, not its baseline. A p
+    or a g in the last line over the bars put its tail through the top of them."""
+    stock = labels.MEDIA[media]
+    bars = []
+
+    class Barless(surfaces.RasterSurface):
+        """Draws everything but the bars, and says where they would have gone."""
+
+        def barcode(self, x, y, w, h, data):
+            bars.append((x, y, w, h))
+
+    for kind, row, listed in CROWDED:
+        bars.clear()
+        image = surfaces.blank(*labels.size_dots(stock))
+        surface = Barless(image, stock["dpi"], face)
+        label = labels.Setup("small", "Small label", codes, media, listed, True, labels.LABEL_FACE)
+        labels._draw(surface, stock, row, [], kind, True, label=label)
+        assert bars, f"{kind}: no bars"
+        x, y, w, h = bars[0]
+        scale = stock["dpi"] / 72
+        box = (
+            round(x * scale),
+            image.height - round((y + h) * scale),
+            round((x + w) * scale),
+            image.height - round(y * scale),
+        )
+        inked = ImageOps.invert(image.crop(box).convert("L")).getbbox()
+        assert inked is None, f"{kind} {listed}: words where the bars go, at {inked} of {box}"
 
 
 class TestALocationsLabel:

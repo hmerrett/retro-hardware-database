@@ -2083,12 +2083,13 @@ Each label has:
   or none](#qr-code-barcode-both-or-none)).
 - **Goes to** — where its print button sends it: a PDF, a Niimbot over Bluetooth,
   or a print agent's queue ([where a label goes](#where-a-label-goes)).
-- **Stock** — what its PDF is drawn on: a 6×4 inch sheet, 51×19 mm tape, or a
-  50×30 or 40×30 mm label. The PDF's only: a label sent over Bluetooth is printed
-  on the roll **Bluetooth label size** says is in the printer, and one sent to a
-  print agent on the stock that agent has loaded. The same label goes to different
-  printers from different places — the phone at the shelf to the Niimbot, the
-  computer in the workshop to the DYMO — and the stock belongs to the printer.
+- **Stock** — what its PDF is drawn on: a 6×4 inch sheet; a DYMO LabelWriter's 51×19
+  mm tape, 89×36 mm large address labels or 70×54 mm multipurpose labels; or a
+  Niimbot's 50×30 or 40×30 mm label. The PDF's only: a label sent over Bluetooth is
+  printed on the roll **Bluetooth label size** says is in the printer, and one sent
+  to a print agent on the stock that agent has loaded. The same label goes to
+  different printers from different places — the phone at the shelf to the Niimbot,
+  the computer in the workshop to the DYMO — and the stock belongs to the printer.
 - **What's on it** — which details are printed, and in what order ([what's on
   it](#whats-on-it)).
 - **Type** — the face its words are set in ([the type on a
@@ -2391,11 +2392,14 @@ register, and it never learns your password.
 RHDB_PRINT_AGENTS=workshop-pi:9f3c…:dymo-11355:pdf,bench:1a7d…:niimbot-50x30:png
 ```
 
-Each entry is `name:key:stock:format`. The name is what you send a label to; the
-stock is what is loaded in that printer; the format is what the printer would
-rather be handed — `pdf` for anything going through CUPS, which is a Dymo, a
-Brother or a sheet printer, and `png` for a printer that takes dots. Generate a key
-with `openssl rand -hex 32`, one each, and never reuse one.
+Each entry is `name:key:stock:format`. The name is what you send a label to. The
+stock is what is loaded in that printer: `full-6x4` (a 6×4 inch sheet), `dymo-11355`
+(51×19 mm tape), `dymo-99012` (89×36 mm large address labels), `dymo-99015` (70×54
+mm multipurpose labels), `niimbot-50x30` or `niimbot-40x30`; an entry naming any
+other stock is left out rather than guessed at. The format is what the printer would
+rather be handed — `pdf` for anything going through CUPS, which is a Dymo, a Brother
+or a sheet printer, and `png` for a printer that takes dots. Generate a key with
+`openssl rand -hex 32`, one each, and never reuse one.
 
 With nothing set there is no queue and no way in: the feature is off until an
 agent is named.

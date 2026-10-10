@@ -13,6 +13,15 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Words no longer run into a label's barcode.** On a small label carrying a
+barcode, the tail of a p or a g in the line just over the bars reached into them.
+The words now keep clear of the bars, which can cost a crowded label a little type
+size or its last line.
+
+**Two more DYMO LabelWriter labels.** A label's Stock, and a print agent's, can
+now be the 89×36 mm large address labels (99012) or the 70×54 mm multipurpose labels
+(99015), named `dymo-99012` and `dymo-99015`. Both are laid out as small labels.
+
 **Each label is pictured as it is set up.** Beside each label's settings on
 Settings → Labels is a picture of it as it prints. It is redrawn as the settings
 change, before they are saved: tick a detail, move one, change the code, the stock
