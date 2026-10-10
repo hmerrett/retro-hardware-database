@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2722 behaviours, from 78 files.*
+*2742 behaviours, from 79 files.*
 
 
 ## A file where text was expected
@@ -3871,6 +3871,36 @@ Regenerate with:
 - the list spans the width under the banner  
   On a phone the list hangs from the banner rather than from the box, and runs from one side of the screen to the other.
 - every row is tall enough for a thumb
+
+
+## Seeing a label as it is set up
+
+*test_seeing_a_label_as_it_is_set_up.py — 20 behaviours*
+
+- each label has a picture of it among its settings
+- the picture says what it is a picture of
+- it is the label itself drawn for an example with nothing in the collection  
+  Drawn by the code that draws the label, so it is the label and not a likeness of it; for an example, so a register with nothing in it yet has a picture.
+- it is drawn from the settings on the page and drawing it keeps nothing
+- before it is saved the picture is the label save keeps
+- the example s tag is one the register never issues
+- the example has every detail its sort of thing can have  
+  Each detail alone, against none at all: a detail the example carries puts something on the label, whatever room the others would have left it.
+- a location s label reads none of the list
+- each sort of example is drawn as that sort of thing
+- a menu under the picture says what sort of thing the example is
+- the first label starts on a part and the second on a machine
+- it is drawn on the stock the label goes to
+- a line under the picture names the stock
+- the page hands the script every stock and where each agent prints  
+  So the line under the picture can name the stock as the settings change, and the picture be given its size before it arrives.
+- on a phone it is at the top and on a wide screen it stays in view beside  
+  At the top of the group in the page's own order, so a phone has it there with nothing moved; beside the settings on a wide screen, and held in view while the list under them is worked down.
+- with no script it is the label as saved and save draws it again
+- the picture is behind the login like the page it is on
+- a viewer is not shown it either
+- a label or an example there is not is not found
+- a setting the page could not have sent is drawn as saved
 
 
 ## Settings

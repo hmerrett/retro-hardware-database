@@ -13,6 +13,14 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Each label is pictured as it is set up.** Beside each label's settings on
+Settings → Labels is a picture of it as it prints. It is redrawn as the settings
+change, before they are saved: tick a detail, move one, change the code, the stock
+or the face, and the picture shows what that does. It is drawn for an example
+rather than anything in the collection. A menu under it makes the example a
+machine, a part, a project or a location, and the picture is on the stock the
+label goes to.
+
 **Each of the two labels is set up for its own job.** Settings → Labels has a
 group for each label: its name, which is what its print button says; its code,
 now including **None** for a label of words alone; where it goes; the stock its

@@ -23,8 +23,39 @@
 
 <form class="editform" id="settings-form" method="post" action="{{ action }}">
   {% for section, rows in sections %}
+  {% set key = rows[0].group %}
+  {% set shown = previews.get(key) %}
   <fieldset class="fieldset">
     <legend>{{ section }}</legend>
+    {% if shown %}
+    {# The label as it prints, for an example, beside the settings that make it
+       (MANUAL §13, "Seeing it as you set it up"). The markup's picture is the label
+       as saved; settings.js asks for it again as the settings change, sending the
+       page's own fields, and says under it which stock it is on.
+
+       First in the group's own order, so a phone has it at the top with nothing
+       moved; where there is room the stylesheet stands it to the right of the
+       settings, level with the first of them. The menu has no name, so Save posts
+       nothing of it, and is hidden until the script that makes it do anything is
+       running. #}
+    <div class="lblset">
+    <div class="lblprev" title="The label as it prints, for an example rather than anything in the collection, on the stock it goes to. It changes as these settings do, before they are saved.">
+      <figure>
+        <img class="lblpic" id="preview_{{ key }}" src="{{ shown.src }}" width="{{ shown.w }}" height="{{ shown.h }}"
+             alt="{{ label_name(key) }} for an example {{ dict(preview_kinds)[shown.kind] | lower }}" data-label="{{ key }}" data-called="{{ label_name(key) }}">
+        <figcaption id="preview_{{ key }}_stock" aria-live="polite">{{ shown.what }}</figcaption>
+      </figure>
+      <div class="field" id="preview_{{ key }}_example" hidden>
+        <label for="preview_{{ key }}_kind">Example</label>
+        <select class="select" id="preview_{{ key }}_kind">
+          {%- for kind, words in preview_kinds %}
+          <option value="{{ kind }}"{% if kind == shown.kind %} selected{% endif %}>{{ words | ui }}</option>
+          {%- endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="lblrows">
+    {% endif %}
     {% for d in rows %}
     {% set fixed = pinned(d) is not none %}
     {# A run of rows that asked for the grid opens one and the row after it closes
@@ -107,6 +138,7 @@
     {%- if d.grid and (loop.last or not loop.nextitem.grid) %}</div>{% endif %}
 
     {% endfor %}
+    {% if shown %}</div></div>{% endif %}
   </fieldset>
   {% endfor %}
 </form>
@@ -150,5 +182,6 @@
 <p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
 {% endif %}
 {% if device_box %}{{ LS.script() }}
+{% if preview_data %}<script type="application/json" id="label-preview-data">{{ preview_data | tojson }}</script>{% endif %}
 <script defer src="/static/settings.js?v={{ js_ver['settings.js'] }}"></script>{% endif %}
 {% endblock %}

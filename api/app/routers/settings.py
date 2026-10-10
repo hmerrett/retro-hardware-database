@@ -11,13 +11,14 @@ anything it does not name, so a path that is not on its list is behind the login
 by default, and this one is not on its list.
 """
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
+from starlette.datastructures import FormData
 
-from .. import settings
+from .. import labelpreview, labels, settings
 from ..db import get_db
-from ..forms import posted
+from ..forms import Posted, posted
 from ..web import templates
 
 router = APIRouter()
@@ -49,6 +50,16 @@ def _page(request: Request, path: str, saved: int) -> Response:
             "action": path,
             # The browser's own label destination belongs with the site's.
             "device_box": section == settings.LABELS,
+            # A picture of each label beside its settings, drawn again as they change
+            # (MANUAL §13, "Seeing it as you set it up"), and what the script needs to
+            # say what each picture is without asking.
+            "previews": (
+                {key: labelpreview.shown(key) for key in labels.LABELS}
+                if section == settings.LABELS
+                else {}
+            ),
+            "preview_kinds": labelpreview.KINDS,
+            "preview_data": labelpreview.script_data() if section == settings.LABELS else None,
             "choices_for": settings.choices_for,
             "value": settings.value,
             "on": settings.on,
@@ -114,3 +125,21 @@ async def gui_move_in_a_list(request: Request, db: Session = Depends(get_db)) ->
     return RedirectResponse(
         "/settings/labels?saved=1" + (f"#{key}" if key else ""), status_code=303
     )
+
+
+@router.get("/settings/labels/preview.png", include_in_schema=False)
+def gui_label_preview(request: Request, label: str = "", kind: str = "") -> Response:
+    """One label's picture, for the example of one sort of thing, drawn from the
+    settings the page sends rather than the ones saved -- read the way Save reads
+    them, and kept nowhere (MANUAL §13, "Seeing it as you set it up").
+
+    A GET with the page's form in its query, so that it can be a picture's address:
+    the content policy takes a picture from this site and from nowhere else, and one
+    made in the page would come from `blob:` (ADR-0021). Never kept by the browser,
+    because its address with nothing sent is the label as saved, and that changes
+    whenever Save is pressed."""
+    if label not in labels.LABELS or kind not in dict(labelpreview.KINDS):
+        raise HTTPException(status_code=404, detail="No such label")
+    form = Posted(FormData(request.query_params))
+    png = labelpreview.picture(label, kind, settings.unsaved(form, settings.LABELS))
+    return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
