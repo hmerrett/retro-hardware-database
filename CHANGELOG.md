@@ -13,6 +13,10 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Two more DYMO LabelWriter labels.** A label's Stock, and a print agent's, can
+now be the 89×36 mm large address labels (99012) or the 70×54 mm multipurpose labels
+(99015), named `dymo-99012` and `dymo-99015`. Both are laid out as small labels.
+
 **Each label is pictured as it is set up.** Beside each label's settings on
 Settings → Labels is a picture of it as it prints. It is redrawn as the settings
 change, before they are saved: tick a detail, move one, change the code, the stock

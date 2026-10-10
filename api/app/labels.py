@@ -202,6 +202,30 @@ MEDIA: dict[str, Media] = {
         "dpi": 300,
         "dots": 0,
     },
+    # The LabelWriter's larger labels, named by their DYMO numbers as the tape is, and
+    # fed as it is: short side first, across the head and then along the roll.
+    "dymo-99012": {
+        "what": "89×36 mm large address label (DYMO LabelWriter)",
+        "short": "89×36 mm",
+        "w_mm": 89,
+        "h_mm": 36,
+        "qr": "M",
+        "rotate": 90,
+        "safe_mm": 3,
+        "dpi": 300,
+        "dots": 0,
+    },
+    "dymo-99015": {
+        "what": "70×54 mm multipurpose label (DYMO LabelWriter)",
+        "short": "70×54 mm",
+        "w_mm": 70,
+        "h_mm": 54,
+        "qr": "M",
+        "rotate": 90,
+        "safe_mm": 3,
+        "dpi": 300,
+        "dots": 0,
+    },
     "niimbot-50x30": {
         "what": "50×30 mm label (Niimbot B1, B21, B18)",
         "short": "50×30 mm",
