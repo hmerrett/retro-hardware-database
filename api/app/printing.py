@@ -211,6 +211,17 @@ def finish(db: Session, job: PrintJob, ok: bool, error: str = "") -> PrintJob:
     return job
 
 
+def small_layout(kind: str, media_name: str) -> bool:
+    """Whether a label sent to a printer loaded with this stock is the small one.
+
+    A machine's full label is the one that is read across a room; everything else
+    is a sticker on the thing itself. The same defaults the buttons take -- and the
+    rule the Label panel's picture is drawn by, so the picture of a machine's label
+    going to a 6x4 printer is the full label that printer is sent (MANUAL §13).
+    """
+    return kind != labels.COMPUTER or media_name != labels.FULL
+
+
 def label_bytes(
     db: Session, kind: str, asset_id: str, media_name: str, fmt: str, dpi: int = 0
 ) -> bytes | None:
@@ -252,9 +263,7 @@ def label_bytes(
             parts.append(d)
         raw = specdb.scalars(db, board).get("form_factor", "") if board else ""
         form_factor = raw if isinstance(raw, str) else ""
-    # A machine's full label is the one that is read across a room; everything else
-    # is a sticker on the thing itself. The same defaults the buttons take.
-    small = kind != labels.COMPUTER or media_name != labels.FULL
+    small = small_layout(kind, media_name)
     if fmt == PNG:
         return labels.render_png(
             row,

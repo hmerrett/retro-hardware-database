@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2663 behaviours, from 76 files.*
+*2674 behaviours, from 77 files.*
 
 
 ## A file where text was expected
@@ -4670,6 +4670,32 @@ Regenerate with:
 - refuses to start without one
 - says how to set it rather than only that it is missing
 - the message carries no password anybody could paste
+
+
+## The label panel shows the label
+
+*test_the_label_panel_shows_the_label.py — 11 behaviours*
+
+- every label panel shows the small label above its buttons
+- the picture is named for what it shows  
+  It is content, not decoration: a screen reader is told what it is a picture of rather than reading out a filename.
+- a visitor is shown no picture  
+  The panel is the owner's, and so is the picture.
+- without a script the picture is of the pdf  
+  The markup's button is a link to the PDF, so the markup's picture is the PDF's label -- on the 51x19mm tape -- whatever the site sends a label to.
+- the picture is the size its markup says  
+  So the panel keeps its shape while the picture is on its way, rather than jumping when it lands.
+- the picture for a pdf is the small label the pdf carries  
+  The same label drawn as the printer's dots rather than as a page: same stock, same layout, the small one.
+- there is a picture for every place the small button can send it  
+  The same list the button and the settings page are given, from the same place: a printer with no picture would be a printer the panel cannot show.
+- over bluetooth the picture is drawn on the roll the printer has  
+  The size Settings → Labels says the Bluetooth printer is loaded with, and the very file the script fetches to send it: the picture is not a likeness of the label but the label.
+- sent to a print agent the picture is what the agent prints dot for dot  
+  Compared with the bytes the agent is handed for the same label, so a line the printer will cut short is cut short on the screen first.
+- a machine going to a 6x4 printer is pictured as the full label it gets  
+  A machine's label on a 6x4 printer is the full one, read across a room -- the rule the queue has always printed by -- so the picture is that, not the small layout stretched over a sheet.
+- a part going to a 6x4 printer is pictured as the small label it gets
 
 
 ## The niimbot packets

@@ -179,6 +179,29 @@
     }
   }
 
+  /* --- the picture over the buttons --------------------------------------- */
+
+  /* The markup's picture is the PDF's, because the markup's button is a link to
+     the PDF. Where this browser is going to send the label somewhere else, the
+     picture becomes that printer's -- drawn on its stock, in the layout it is
+     sent -- from the map the tag carries, so what is on the screen is what comes
+     out (MANUAL §13). A destination with no picture keeps the one there is. */
+  var picture = document.querySelector("img.lblpic[data-pictures]");
+  if (picture) {
+    var pictures = {};
+    try {
+      pictures = JSON.parse(picture.getAttribute("data-pictures")) || {};
+    } catch (e) {
+      pictures = {};
+    }
+    var drawn = pictures[destination()];
+    if (drawn && drawn.src !== picture.getAttribute("src")) {
+      picture.width = drawn.w;
+      picture.height = drawn.h;
+      picture.src = drawn.src;
+    }
+  }
+
   /* --- the menu on the settings page -------------------------------------- */
 
   var menu = document.getElementById("device_destination");

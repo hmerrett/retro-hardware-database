@@ -5,11 +5,13 @@
 {% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
 {% import "_ui.html" as U with context %}
+{% import "_labelsend.html" as LS %}
 <div class="itemside">
   {% if request.state.authed %}
   {# The label for the shelf. Two sizes, each a PDF in a tab of its own, since what
      happens next is the browser's print dialog. #}
   {% call PN.panel('Label') %}
+    {{ LS.picture(kind, obj.asset_id, one) }}
     <div class="row">
       {# The small label is what labelsend.js hooks: without lbl-s and the two data
          attributes it can only ever hand over the PDF (ADR-0025, ADR-0026). `one`
