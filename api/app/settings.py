@@ -17,6 +17,7 @@ empty table a working site (ADR-0002).
 from __future__ import annotations
 
 import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -451,9 +452,10 @@ def fieldsets(rows: list[Definition]) -> list[tuple[str, list[Definition]]]:
     return [(legend(group[0]), group) for group in out.values()]
 
 
-def order(key: str) -> list[tuple[str, bool]]:
+def order(key: str, over: Mapping[str, str] | None = None) -> list[tuple[str, bool]]:
     """A list's items as they stand: every one it offers, in the order it is kept
     in, each ticked or not -- and its own tick last, ticked unless it was unticked.
+    `over` is answers not saved yet, as `value` takes them.
 
     Read against what the list offers rather than trusted: a name it does not offer
     is dropped, and one it offers that the stored value never mentioned -- a detail
@@ -463,7 +465,7 @@ def order(key: str) -> list[tuple[str, bool]]:
     out: list[tuple[str, bool]] = []
     own = d.tick[0]
     ticked = True
-    for token in value(key).split(","):
+    for token in value(key, over).split(","):
         name = token.strip().lstrip("-")
         on = not token.strip().startswith("-")
         if own and name == own:
@@ -587,9 +589,15 @@ def pinned(d: Definition) -> str | None:
     return raw if raw.strip() else None
 
 
-def value(key: str) -> str:
-    """What a setting is, from whichever of the three places has an answer."""
+def value(key: str, over: Mapping[str, str] | None = None) -> str:
+    """What a setting is, from whichever of the three places has an answer.
+
+    `over` is answers that have not been saved -- a page's form, read the way Save
+    would read it (`unsaved`) -- and is taken before what is stored, though never
+    before the environment, which nothing on a page can change."""
     d = BY_KEY[key]
+    if over is not None and key in over:
+        return pinned(d) or over[key] or d.default
     return pinned(d) or _stored().get(key) or d.default
 
 
@@ -679,6 +687,30 @@ def clean(d: Definition, raw: str | None) -> str | None:
     if d.kind in (CHOICE, SWATCH):
         return text if text in dict(choices_for(d)) else None
     return text[:200]
+
+
+def unsaved(form: Posted, section: str) -> dict[str, str]:
+    """What one tab's form says, read the way Save reads it and kept nowhere: the
+    answers to hand `value` and `order` as `over`, for a picture of what saving would
+    do (MANUAL §13, "Seeing it as you set it up").
+
+    Only what the form carries. A list it does not post, or a menu or a box it does
+    not mention, is left as it is saved -- and so is a switch, whose silence Save
+    reads as off: a form that says nothing about a setting is not asking for it to
+    change. The Labels tab, the one this is asked about, has no switch on it."""
+    out: dict[str, str] = {}
+    for d in DEFINITIONS:
+        if d.section != section or pinned(d) is not None:
+            continue
+        if d.kind == ORDER:
+            fresh = clean_order(d, form)
+        elif d.key in form:
+            fresh = clean(d, form.get(d.key))
+        else:
+            continue
+        if fresh is not None:
+            out[d.key] = fresh
+    return out
 
 
 def save(db: Session, form: Posted, section: str | None = None) -> None:

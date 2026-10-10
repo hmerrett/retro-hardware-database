@@ -2141,6 +2141,40 @@ shape**: its name largest, the path above it and its tag under it, because those
 three are what a box on a shelf has to say. Its code, stock, face and where it goes
 are the label's, like anything else's.
 
+#### Seeing it as you set it up
+
+**Beside each label's settings is a picture of it**, drawn by the code that draws
+the label itself, and it is drawn again whenever one of them changes, before
+anything is saved. Tick a detail or move one, choose another code, another stock or
+another face, and the picture shows what that does to the label. **Save** keeps
+it; leaving the page without saving keeps nothing.
+
+It is **a label for an example**, not for anything in the collection: a thing with
+every detail a label can carry — a name of its own, a make and model, a serial
+number and a place it is kept — so that every tick has something to print. Its tag
+is `RH-DEMO`, a tag the register never issues, so its code opens nothing if it is
+scanned. A menu under the picture says what sort of thing the example is — a
+machine, a part, a project or a location — because each carries the list
+differently: a machine's specifications are its build, which a small label has no
+room for; a project has no make and model or serial number, and is kept nowhere; and
+a location's label is its own shape and reads none of the list. The first label
+starts on a part and the second on a machine, which are what each is printed for as
+the two start out.
+
+It is drawn on **the stock the label goes to**, as the Label panel's picture is
+([the label as a picture](#the-label-as-a-picture)): its own **Stock** when **Goes
+to** is a PDF, the size the Bluetooth printer is loaded with when it goes over
+Bluetooth, and the agent's stock when it goes on a print agent's queue. A line
+under the picture names the stock. It follows the settings on this page and not the
+menus under *This browser*, which say where one browser sends a label rather than
+what the label is.
+
+On a wide screen the picture stands beside the label's settings and stays in view
+while the list is worked down; on a phone it is at the top of the label's group.
+With no script it is the label as it was saved, for the example each label starts
+on, and **Save** draws it again; the menu needs a script, and is not offered
+without one.
+
 ### QR code, barcode, both or none
 
 Each label's **Code** decides what kind of code it carries, on items, projects and
@@ -3174,9 +3208,10 @@ watermarked, and which theme it opens in.
 
 **Labels** — the two labels, each with its name, its code, where it goes, the
 stock its PDF is drawn on, what is on it and its face ([two labels, each set up for
-its job](#two-labels-each-set-up-for-its-job)); the size a Bluetooth printer is
-loaded with; and, for this browser alone, where it sends each label whatever the
-site says.
+its job](#two-labels-each-set-up-for-its-job)), and a picture of it that changes as
+they do ([seeing it as you set it up](#seeing-it-as-you-set-it-up)); the size a
+Bluetooth printer is loaded with; and, for this browser alone, where it sends each
+label whatever the site says.
 
 **Server** — what this installation shows the outside world: whether visitors must log in to read anything, whether it
 asks to be kept out of search engines,

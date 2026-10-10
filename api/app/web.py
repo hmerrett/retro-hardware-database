@@ -318,10 +318,9 @@ def label_pictures(path: str, aid: str) -> dict[str, dict[str, object]]:
     """
     from . import printing
 
-    stocks = {
-        settings.PDF: labels.setup(labels.LABELS[0]).stock,
-        settings.BLUETOOTH: settings.value("label_bluetooth_media"),
-    } | {settings.AGENT + a.name: a.media for a in printing.agents().values()}
+    stocks = printing.stocks(
+        labels.setup(labels.LABELS[0]).stock, settings.value("label_bluetooth_media")
+    )
     out: dict[str, dict[str, object]] = {}
     for dest, _ in settings.choices_for(settings.BY_KEY["label_small_destination"]):
         stock = stocks.get(dest, "")

@@ -84,18 +84,19 @@ def order_of(key: str) -> list[str]:
     return [k for k, _ in settings.order(f"label_{key}_details") if k != WORD[0]]
 
 
-def setup(key: str) -> Setup:
+def setup(key: str, over: Mapping[str, str] | None = None) -> Setup:
     """One of the two labels, read from the settings and checked on the way out: a
     value this version does not know is read as the label started out, rather than
-    drawn as a guess somebody discovers by peeling it off something."""
+    drawn as a guess somebody discovers by peeling it off something. `over` is
+    settings not saved yet, which the settings page pictures (`settings.value`)."""
     first = key == LABELS[0]
-    ticks = settings.order(f"label_{key}_details")
-    codes = settings.value(f"label_{key}_codes")
-    stock = settings.value(f"label_{key}_stock")
-    face = settings.value(f"label_{key}_type")
+    ticks = settings.order(f"label_{key}_details", over)
+    codes = settings.value(f"label_{key}_codes", over)
+    stock = settings.value(f"label_{key}_stock", over)
+    face = settings.value(f"label_{key}_type", over)
     return Setup(
         key=key,
-        name=settings.value(f"label_{key}_name"),
+        name=settings.value(f"label_{key}_name", over),
         codes=codes if codes in CODES else QR,
         stock=stock if stock in MEDIA else (SMALL if first else FULL),
         details=tuple(k for k, on in ticks if on and k != WORD[0]),
@@ -1284,6 +1285,7 @@ def render_png(
     small: bool = True,
     form_factor: str = "",
     spec_pairs: list[tuple[str, str]] | None = None,
+    label: Setup | None = None,
 ) -> bytes:
     """The same label as a bitmap of the printer's own dots, one bit deep.
 
@@ -1296,8 +1298,11 @@ def render_png(
     bitmap and every one of those is a small-label printer -- but a 6x4 stock
     rasterises the same way, for a print server that would rather be handed dots
     than a page. Either label is drawn on the stock it is given: the printer's.
+
+    `label` is the label's settings where the caller has read them itself: the
+    settings page pictures a label set up as its form says, before it is saved.
     """
-    label = setup(LABELS[0] if small else LABELS[1])
+    label = label or setup(LABELS[0] if small else LABELS[1])
     image = blank(*size_dots(media, dpi))
     surface = RasterSurface(image, dpi or media["dpi"], face_of(label))
     _draw(surface, media, asset, parts, kind, small, form_factor, spec_pairs, label=label)
