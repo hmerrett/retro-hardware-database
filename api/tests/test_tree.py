@@ -334,9 +334,10 @@ class TestInAMachineMeansAnywhereInIt:
         assert rig["drive"] in page
 
     def test_its_label_says_which_machine_the_drive_is_in(self, db, rig):
-        from app.routers.parts import _label_row
+        from app import printing
 
-        assert _label_row(db, db.get(Part, rig["drive"]))["computer_id"] == rig["machine"]
+        source = printing.source_of(db, db.get(Part, rig["drive"]))
+        assert source.row["computer_id"] == rig["machine"]
 
 
 class TestWhoIsToldWhereAThingIsKept:

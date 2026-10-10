@@ -42,6 +42,11 @@ SWITCH, TEXT, CHOICE, SWATCH = "switch", "text", "choice", "swatch"
 # the value is spent on a colour in a stylesheet, and `clean` is where that is
 # settled once rather than at every place the setting is read.
 COLOUR = "colour"
+# A list of things, each ticked or not, in an order the owner sets: what is on a
+# label (MANUAL §13, "What's on it"). Kept as one value, the names in order with the
+# unticked ones marked, `tag,name,specs,-serial` -- still a key and a value, so the
+# list needed no table of its own.
+ORDER = "order"
 
 # The fieldsets, in the order they are shown. Named here so a definition names one
 # rather than repeating the words.
@@ -94,10 +99,19 @@ class Definition:
     # share one grid; a row that says no ends it.
     grid: bool = False
     # Whether the answers to this one are worked out when the page is drawn rather
-    # than written here. Only the label destination is: its list holds one entry per
+    # than written here. The label destinations are: their lists hold one entry per
     # print agent, and those are named in the environment (ADR-0025), so a static
-    # tuple could only ever be out of date. See `choices_for`.
+    # tuple could only ever be out of date. So are the stocks and the details a
+    # label offers, which the label module keeps. See `choices_for`.
     live: bool = False
+    # Which fieldset of its section it stands in, where a section has more than one:
+    # each label's settings are a group of their own on the Labels tab, under the
+    # label's own name (`legend`).
+    group: str = ""
+    # For a list, a tick of its own beside it rather than a place in it, as
+    # (name, words): the word up the end of a label, which is not a line and has no
+    # order to be in.
+    tick: tuple[str, str] = ("", "")
 
 
 DEFINITIONS: tuple[Definition, ...] = (
@@ -214,52 +228,114 @@ DEFINITIONS: tuple[Definition, ...] = (
         default="1",
         env="RHDB_WATERMARK",
     ),
-    Definition(
-        key="label_destination",
-        section=LABELS,
-        label="Small label goes to",
-        note=(
-            "What the small printer button does. A device that has chosen for itself "
-            "keeps its choice; this is what everything else does."
-        ),
-        kind=CHOICE,
-        default=PDF,
-        live=True,
-    ),
-    Definition(
-        key="label_codes",
-        section=LABELS,
-        label="Codes",
-        note=(
-            "What kind of code every label carries. A QR code holds the item's address, "
-            "so a phone's camera opens its page; a Code 128 barcode holds the tag and "
-            "nothing else, which any handheld scanner reads. Labels already printed are "
-            "unaffected."
-        ),
-        kind=CHOICE,
-        default="qr",
-        choices=(("qr", "QR code"), ("code128", "Code 128"), ("both", "Both")),
-    ),
-    Definition(
-        key="label_type",
-        section=LABELS,
-        label="Type",
-        note=(
-            "The face a label's words are set in: Audiowide, which labels have always "
-            "been printed in, or the interface face of the look the site wears. The "
-            "code, and the tag printed under a barcode, are never changed."
-        ),
-        kind=CHOICE,
-        default="label",
-        choices=(("label", "Label face"), ("look", "As the look")),
+    *(
+        definition
+        for key, called, stock in (
+            ("small", "Small label", "dymo-11355"),
+            ("full", "Full label", "full-6x4"),
+        )
+        for definition in (
+            Definition(
+                key=f"label_{key}_name",
+                section=LABELS,
+                group=key,
+                label="Name",
+                note=(
+                    "What its print button says, and what this page calls it. A label set "
+                    "up for one job is better called after it."
+                ),
+                kind=TEXT,
+                default=called,
+            ),
+            Definition(
+                key=f"label_{key}_codes",
+                section=LABELS,
+                group=key,
+                label="Code",
+                note=(
+                    "A QR code holds the item's address, so a phone's camera opens its "
+                    "page; a Code 128 barcode holds the tag and nothing else, which any "
+                    "handheld scanner reads. None is words alone, with nothing to scan: an "
+                    "audit cannot open a location from it. Labels already printed are "
+                    "unaffected."
+                ),
+                kind=CHOICE,
+                default="qr",
+                choices=(
+                    ("qr", "QR code"),
+                    ("code128", "Code 128"),
+                    ("both", "Both"),
+                    ("none", "None"),
+                ),
+            ),
+            Definition(
+                key=f"label_{key}_destination",
+                section=LABELS,
+                group=key,
+                label="Goes to",
+                note=(
+                    "What its print button does. A device that has chosen for itself "
+                    "keeps its choice; this is what everything else does."
+                ),
+                kind=CHOICE,
+                default=PDF,
+                live=True,
+            ),
+            Definition(
+                key=f"label_{key}_stock",
+                section=LABELS,
+                group=key,
+                label="Stock",
+                note=(
+                    "What its PDF is drawn on. Over Bluetooth it is printed on the roll "
+                    "Bluetooth label size names, and on a print agent's queue on the stock "
+                    "the agent has loaded: the stock belongs to the printer. A 6x4 sheet "
+                    "is laid out as a full label, anything smaller as a small one."
+                ),
+                kind=CHOICE,
+                default=stock,
+                live=True,
+            ),
+            Definition(
+                key=f"label_{key}_details",
+                section=LABELS,
+                group=key,
+                label="What's on it",
+                note=(
+                    "The details it prints, in this order. The first is printed largest, "
+                    "and where there is no room the last ones go. A location's label is "
+                    "always its name, its path and its tag."
+                ),
+                kind=ORDER,
+                default="tag,name,specs,-make,-serial,-kept,word",
+                live=True,
+                tick=("word", "Word up the end"),
+            ),
+            Definition(
+                key=f"label_{key}_type",
+                section=LABELS,
+                group=key,
+                label="Type",
+                note=(
+                    "The face its words are set in: Audiowide, which labels have always "
+                    "been printed in, or the interface face of the look the site wears. "
+                    "The code is never changed."
+                ),
+                kind=CHOICE,
+                default="label",
+                choices=(("label", "Label face"), ("look", "As the look")),
+            ),
+        )
     ),
     Definition(
         key="label_bluetooth_media",
         section=LABELS,
+        group="bluetooth",
         label="Bluetooth label size",
         note=(
-            "The stock loaded in the Bluetooth printer. A label printed at the wrong "
-            "size is discovered by peeling it off something."
+            "The stock loaded in the Bluetooth printer, which either label sent over "
+            "Bluetooth is printed on. A label printed at the wrong size is discovered "
+            "by peeling it off something."
         ),
         kind=CHOICE,
         default="niimbot-50x30",
@@ -322,11 +398,12 @@ BY_KEY = {d.key: d for d in DEFINITIONS}
 def choices_for(d: Definition) -> tuple[tuple[str, str], ...]:
     """The answers a setting offers, now.
 
-    Written out on the definition for every setting but the two about labels. What
+    Written out on the definition for every setting but the ones about labels. What
     a label may be sent to depends on what printers this installation has -- the
-    print agents come from the environment and the Niimbot stocks from the label
-    module -- so writing them here would be keeping a third copy of a list that
-    already exists twice, and the copy would be the one that went stale.
+    print agents come from the environment and the stocks from the label module --
+    and so do the details a label can carry, so writing them here would be keeping a
+    third copy of a list that already exists twice, and the copy would be the one
+    that went stale.
 
     Imported inside the function: `printing` reaches the models and `labels` the
     renderer, and both of those are read while a page is being drawn, which is
@@ -340,6 +417,10 @@ def choices_for(d: Definition) -> tuple[tuple[str, str], ...]:
         return tuple(
             (name, media["what"]) for name, media in labels.MEDIA.items() if "niimbot" in name
         )
+    if d.key.endswith("_stock"):
+        return tuple((name, media["what"]) for name, media in labels.MEDIA.items())
+    if d.kind == ORDER:
+        return labels.DETAILS
     return (
         (PDF, "a PDF to download"),
         (BLUETOOTH, "a Niimbot over Bluetooth"),
@@ -348,6 +429,113 @@ def choices_for(d: Definition) -> tuple[tuple[str, str], ...]:
             for a in printing.agents().values()
         ),
     )
+
+
+def legend(d: Definition) -> str:
+    """What a definition's fieldset is headed: its section's name, or for one of the
+    two labels the name the owner has given it, which is what the label is now."""
+    if d.group in ("small", "full"):
+        return value(f"label_{d.group}_name")
+    if d.group == "bluetooth":
+        return "Bluetooth printer"
+    return d.section
+
+
+def fieldsets(rows: list[Definition]) -> list[tuple[str, list[Definition]]]:
+    """Rows as the page lays them out: a fieldset to each group, in the order the
+    groups first appear, each under its legend. Grouped by group rather than by
+    legend, since two labels the owner has named alike are still two labels."""
+    out: dict[tuple[str, str], list[Definition]] = {}
+    for d in rows:
+        out.setdefault((d.section, d.group), []).append(d)
+    return [(legend(group[0]), group) for group in out.values()]
+
+
+def order(key: str) -> list[tuple[str, bool]]:
+    """A list's items as they stand: every one it offers, in the order it is kept
+    in, each ticked or not -- and its own tick last, ticked unless it was unticked.
+
+    Read against what the list offers rather than trusted: a name it does not offer
+    is dropped, and one it offers that the stored value never mentioned -- a detail
+    added since it was saved -- is there, unticked, at the end."""
+    d = BY_KEY[key]
+    offered = [name for name, _ in choices_for(d)]
+    out: list[tuple[str, bool]] = []
+    own = d.tick[0]
+    ticked = True
+    for token in value(key).split(","):
+        name = token.strip().lstrip("-")
+        on = not token.strip().startswith("-")
+        if own and name == own:
+            ticked = on
+        elif name in offered and name not in dict(out):
+            out.append((name, on))
+    out += [(name, False) for name in offered if name not in dict(out)]
+    return out + ([(own, ticked)] if own else [])
+
+
+def _kept(items: list[tuple[str, bool]]) -> str:
+    """A list as one value: the names in order, the unticked ones marked."""
+    return ",".join(name if on else f"-{name}" for name, on in items)
+
+
+def clean_order(d: Definition, form: Posted) -> str | None:
+    """A list as the page posted it: its names in the order they came, the ticked
+    ones ticked, and its own tick. None when the list was not posted at all, which
+    leaves it as it is -- a form that did not carry the list said nothing about it,
+    and silence is not unticking everything."""
+    offered = [name for name, _ in choices_for(d)]
+    # A form handed in as a plain mapping -- a script's, the suite's -- holds one
+    # value to a name and so no list, which is the same as not posting one.
+    if not hasattr(form, "getlist"):
+        return None
+    posted: list[str] = []
+    for name in form.getlist(d.key):
+        if name in offered and name not in posted:
+            posted.append(name)
+    if not posted:
+        return None
+    on = set(form.getlist(f"{d.key}_on"))
+    items = [(name, name in on) for name in posted]
+    items += [(name, False) for name in offered if name not in posted]
+    own = d.tick[0]
+    if own:
+        items.append((own, form.get(f"{d.key}_{own}") is not None))
+    return _kept(items)
+
+
+def move(db: Session, how: str) -> str:
+    """Move one item of a list one place up or down, and keep it: `how` is
+    `key:item:up` or `key:item:down`, as the button that asks for it says. Returns
+    the list's key, so the page can come back to it, or "" when there was nothing to
+    move -- an item already at that end, or a list or an item there is not."""
+    key, _, rest = how.partition(":")
+    item, _, way = rest.partition(":")
+    d = BY_KEY.get(key)
+    if d is None or d.kind != ORDER or way not in ("up", "down") or pinned(d) is not None:
+        return ""
+    items = order(key)
+    own = [pair for pair in items if pair[0] == d.tick[0]] if d.tick[0] else []
+    listed = [pair for pair in items if pair not in own]
+    at = next((i for i, (name, _) in enumerate(listed) if name == item), None)
+    to = None if at is None else at + (-1 if way == "up" else 1)
+    if at is None or to is None or not 0 <= to < len(listed):
+        return ""
+    listed[at], listed[to] = listed[to], listed[at]
+    _write(db, d, _kept(listed + own))
+    db.commit()
+    forget()
+    return key
+
+
+def _write(db: Session, d: Definition, fresh: str) -> None:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    row = db.get(Setting, d.key)
+    if row is None:
+        db.add(Setting(name=d.key, value=fresh, updated_at=now))
+    else:
+        row.value = fresh
+        row.updated_at = now
 
 
 def grouped() -> list[tuple[str, list[Definition]]]:
@@ -505,20 +693,14 @@ def save(db: Session, form: Posted, section: str | None = None) -> None:
     that is off posts nothing, and silence is read as off, so a tab saving the
     whole list would switch off every tick on the tabs it does not show.
     """
-    now = datetime.now(UTC).replace(tzinfo=None)
     for d in DEFINITIONS:
         if section is not None and d.section != section:
             continue
         if pinned(d) is not None:
             continue
-        fresh = clean(d, form.get(d.key))
+        fresh = clean_order(d, form) if d.kind == ORDER else clean(d, form.get(d.key))
         if fresh is None:
             continue
-        row = db.get(Setting, d.key)
-        if row is None:
-            db.add(Setting(name=d.key, value=fresh, updated_at=now))
-        else:
-            row.value = fresh
-            row.updated_at = now
+        _write(db, d, fresh)
     db.commit()
     forget()

@@ -198,12 +198,8 @@
    project it was bought for, orders and all. Small first, because that is the one
    that fits a parcel. #}
 {% call PN.panel('Label') %}
-  {{ LS.picture('projects', p.asset_id, 'project') }}
-  <div class="row">
-    <a class="btn sm lbl-s" href="/projects/{{ p.asset_id }}/label.pdf?small=1"
-       data-kind="project" data-asset="{{ p.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
-    <a class="btn sm" href="/projects/{{ p.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
-  </div>
+  {{ LS.picture('projects', p.asset_id) }}
+  <div class="row">{{ LS.buttons('projects', p.asset_id, 'project') }}</div>
 {% endcall %}
 {% endif %}
 {{ LS.script() }}

@@ -8,20 +8,32 @@
    Included by the four pages with a Label panel and by the settings page -- the
    last needs the same list of destinations to offer, and getting it from the same
    place is what stops the menu and the button disagreeing about what exists. #}
+{% import "_icons.html" as I %}
 {% macro script() %}
 <script type="application/json" id="label-data">{{ label_send() | tojson }}</script>
 <script defer src="/static/labelsend.js?v={{ js_ver['labelsend.js'] }}"></script>
 {% endmacro %}
 
-{# The small label as it will print, over the buttons that print it (MANUAL §13,
+{# The first label as it will print, over the buttons that print it (MANUAL §13,
    "The label as a picture"). The markup's picture is the PDF's, because the
    markup's button is a link to the PDF; where this browser is going to send the
    label somewhere else, labelsend.js swaps in that printer's picture from the map
    the tag carries. Single quotes round the map, because JSON is made of double
    ones and `tojson` escapes the single. `path` is the section the item's label
-   routes hang off, and `kind` what the label is drawn for. #}
-{% macro picture(path, aid, kind) %}
-{%- set pics = label_pictures(path, aid, kind) %}
+   routes hang off. #}
+{% macro picture(path, aid) %}
+{%- set pics = label_pictures(path, aid) %}
 <img class="lblpic" src="{{ pics.pdf.src }}" width="{{ pics.pdf.w }}" height="{{ pics.pdf.h }}"
-     alt="Small label for {{ aid }}" data-pictures='{{ pics | tojson }}'>
+     alt="{{ label_name('small') }} for {{ aid }}" data-pictures='{{ pics | tojson }}'>
+{%- endmacro %}
+
+{# The two labels' print buttons, each named as the owner named the label. Each is a
+   link to its label's PDF and stays one with no script; data-label says which of
+   the two it is, which is what labelsend.js and a print job are keyed by
+   (ADR-0026, ADR-0037). `kind` is the singular, as a print job names it. #}
+{% macro buttons(path, aid, kind) %}
+{%- for key in ('small', 'full') %}
+<a class="btn sm lbl" href="/{{ path }}/{{ aid }}/label.pdf?small={{ 1 if loop.first else 0 }}"
+   data-label="{{ key }}" data-kind="{{ kind }}" data-asset="{{ aid }}" target="_blank">{{ I.ico('printer') }} {{ label_name(key) | ui }}</a>
+{%- endfor %}
 {%- endmacro %}

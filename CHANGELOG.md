@@ -13,6 +13,22 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**Each of the two labels is set up for its own job.** Settings → Labels has a
+group for each label: its name, which is what its print button says; its code,
+now including **None** for a label of words alone; where it goes; the stock its
+PDF is drawn on; what is printed on it and in what order; and its face. The full
+label can go to a print agent or a Niimbot as the small one could, and *This
+browser* chooses for each. The stock decides a label's shape: on a 6×4 sheet it is
+laid out as a full label, and on anything smaller as a small one, whichever label
+it is. An installation that changes nothing prints exactly the labels it always
+has, with one exception: a part, project or location sent to a print agent loaded
+with 6×4 sheets now gets the full layout rather than the small one enlarged. The
+print queue's API takes an optional `label`, `small` or `full`.
+
+**Upgrading** carries your label settings across: the codes and the face you had
+go to both labels, and where the small label went goes to the first. Nothing else
+needs doing.
+
 **The Label panel shows the label.** Above an item's two print buttons is a
 picture of the small label as it will print, on every machine, part, project and
 location. It is drawn for the printer the small button sends to: the 51×19 mm

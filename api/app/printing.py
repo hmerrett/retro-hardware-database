@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from .disposal import inside
 from . import labels, locations, specdb, tree
 from .common import to_dict
-from .models import Computer, Location, Part, PrintJob, Project
+from .models import Computer, Location, Part, PrintJob, Project, Thing
 
 # How long an agent holds a job before it goes back on the queue. Long enough that
 # a label which is simply slow to print is not printed twice, short enough that a
@@ -135,15 +135,18 @@ def add(
     fmt: str = "",
     dpi: int = 0,
     copies: int = 1,
+    label: str = labels.LABELS[0],
 ) -> PrintJob:
     """Put a label on an agent's queue. The caller has already established that
     the item exists -- a job for something that is not there belongs to be refused
-    at the door rather than discovered by a Pi in another room."""
+    at the door rather than discovered by a Pi in another room. `label` is which of
+    the two labels it is."""
     sweep(db)
     job = PrintJob(
         agent=agent.name,
         kind=kind,
         asset_id=asset_id,
+        label=label,
         media=media or agent.media,
         fmt=fmt or agent.fmt,
         dpi=max(0, dpi),
@@ -211,72 +214,104 @@ def finish(db: Session, job: PrintJob, ok: bool, error: str = "") -> PrintJob:
     return job
 
 
-def small_layout(kind: str, media_name: str) -> bool:
-    """Whether a label sent to a printer loaded with this stock is the small one.
+class Source(NamedTuple):
+    """An item as its label reads it: its own row, with where it is kept and, for a
+    part, the machine it is in; a machine's parts, however far down; its board's
+    form factor; and a part's typed specs."""
 
-    A machine's full label is the one that is read across a room; everything else
-    is a sticker on the thing itself. The same defaults the buttons take -- and the
-    rule the Label panel's picture is drawn by, so the picture of a machine's label
-    going to a 6x4 printer is the full label that printer is sent (MANUAL §13).
-    """
-    return kind != labels.COMPUTER or media_name != labels.FULL
+    row: dict[str, object]
+    parts: list[dict[str, object]]
+    form_factor: str
+    spec_pairs: list[tuple[str, str]] | None
 
 
-def label_bytes(
-    db: Session, kind: str, asset_id: str, media_name: str, fmt: str, dpi: int = 0
-) -> bytes | None:
-    """One item's label, rendered now. None if the item has since gone.
+def label_source(db: Session, kind: str, asset_id: str) -> Source | None:
+    """What an item's label is drawn from, read now. None if there is no such item.
 
-    Rendered at this moment and not when the job was made, so a correction in the
-    minutes before an agent picks the job up is on the label that comes out.
+    One place for every label there is -- the page's buttons, its picture and the
+    queue's -- so the label an agent prints and the label the page shows cannot be
+    read from the register two ways and come to disagree.
     """
     model = KINDS.get(kind)
     if model is None:
         return None
     item = db.get(model, asset_id)
-    if item is None:
-        return None
-    media = labels.MEDIA.get(media_name)
-    if media is None:
-        return None
-    row = (
-        locations.label_row(item, locations.tree(db))
-        if isinstance(item, Location)
-        else to_dict(item)
-    )
-    if isinstance(item, Part):
-        # The machine it is in, however far down, for the label's Installed in line.
-        row["computer_id"] = tree.load(db).machine(item.asset_id.upper()) or ""
+    return None if item is None else source_of(db, item)
+
+
+def source_of(db: Session, item: Thing) -> Source:
+    """What an item the caller already holds is labelled from (see `label_source`)."""
+    if isinstance(item, Location):
+        return Source(locations.label_row(item, locations.tree(db)), [], "", None)
+    row = to_dict(item)
+    tag = item.asset_id.upper()
+    held = tree.load(db)
+    # Where it is kept, as the path a location's label carries: the first location
+    # up its chain, so a part fitted in a machine is kept where the machine is
+    # (MANUAL §13, "What's on it"). Read whatever its Visible tick says: the tick is
+    # about who reads its page, and the owner is the one printing.
+    row["kept"] = locations.tree(db).text(held.place(tag))
     parts: list[dict[str, object]] = []
     pairs = None
     form_factor = ""
     if isinstance(item, Part):
+        # The machine it is in, however far down, for the label's Installed in line.
+        row["computer_id"] = held.machine(tag) or ""
         pairs = specdb.pairs(db, item, display=True)
     elif isinstance(item, Computer):
         # Everything in it, however far down: a drive on its controller is in it.
-        installed = inside(db, asset_id)
+        installed = inside(db, item.asset_id)
         board = next((p for p in installed if p.type == "motherboard"), None)
         for p in installed:
             d = to_dict(p)
-            d["computer_id"] = asset_id.upper()
+            d["computer_id"] = tag
             d["spec_pairs"] = specdb.pairs(db, p, display=True)
             parts.append(d)
         raw = specdb.scalars(db, board).get("form_factor", "") if board else ""
         form_factor = raw if isinstance(raw, str) else ""
-    small = small_layout(kind, media_name)
+    return Source(row, parts, form_factor, pairs)
+
+
+def label_bytes(
+    db: Session,
+    kind: str,
+    asset_id: str,
+    media_name: str,
+    fmt: str,
+    dpi: int = 0,
+    label: str = labels.LABELS[0],
+) -> bytes | None:
+    """One item's label, rendered now. None if the item has since gone.
+
+    Rendered at this moment and not when the job was made, so a correction in the
+    minutes before an agent picks the job up is on the label that comes out. `label`
+    is which of the two, whose code, details and face it carries; it is drawn on the
+    agent's stock, which decides its shape (ADR-0037).
+    """
+    source = label_source(db, kind, asset_id)
+    media = labels.MEDIA.get(media_name)
+    if source is None or media is None:
+        return None
+    small = label != labels.LABELS[1]
     if fmt == PNG:
         return labels.render_png(
-            row,
-            parts,
+            source.row,
+            source.parts,
             kind,
             media,
             dpi,
             small=small,
-            form_factor=form_factor,
-            spec_pairs=pairs,
+            form_factor=source.form_factor,
+            spec_pairs=source.spec_pairs,
         )
     return labels.render_pdf(
-        row, parts, kind, small=small, media=media, form_factor=form_factor, spec_pairs=pairs
+        source.row,
+        source.parts,
+        kind,
+        small=small,
+        media=media,
+        form_factor=source.form_factor,
+        spec_pairs=source.spec_pairs,
     )
 
 
@@ -289,6 +324,7 @@ def as_dict(job: PrintJob) -> dict[str, object]:
         "agent": job.agent,
         "kind": job.kind,
         "asset_id": job.asset_id,
+        "label": job.label,
         "media": job.media,
         "format": job.fmt,
         "dpi": job.dpi,

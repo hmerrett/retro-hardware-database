@@ -72,9 +72,15 @@ def test_each_section_is_a_page_of_its_own(client):
     def legends(path):
         return re.findall(r"<legend>([^<]+)</legend>", client.get(path, headers=HTML).text)
 
-    sections = {"Appearance", "Labels", "Server options"}
+    # The Labels tab is a fieldset to each label, under the label's name, and one
+    # for the Bluetooth printer (MANUAL §13, "Two labels, each set up for its job").
+    sections = {"Appearance", "Small label", "Full label", "Bluetooth printer", "Server options"}
     assert sections & set(legends("/settings")) == {"Appearance"}
-    assert sections & set(legends("/settings/labels")) == {"Labels"}
+    assert sections & set(legends("/settings/labels")) == {
+        "Small label",
+        "Full label",
+        "Bluetooth printer",
+    }
     assert sections & set(legends("/settings/server")) == {"Server options"}
     assert 'id="device-box"' in client.get("/settings/labels", headers=HTML).text
     assert 'id="device-box"' not in client.get("/settings", headers=HTML).text
@@ -90,7 +96,7 @@ def test_each_page_saves_to_itself(client, path):
 
 def test_saving_one_section_leaves_the_others_alone(client):
     client.post("/settings/server", data={"block_search_engines": "on"})
-    client.post("/settings/labels", data={"label_destination": "print"})
+    client.post("/settings/labels", data={"label_small_destination": "print"})
     # Appearance's form carries no server tick; silence on its page is not "off".
     client.post("/settings", data={"site_name": "Henry's shelf"})
     server = client.get("/settings/server", headers=HTML).text

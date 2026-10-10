@@ -25,6 +25,7 @@ from .. import (
     labels,
     locations,
     machinedb,
+    printing,
     projects,
     settings,
     specdb,
@@ -1271,29 +1272,19 @@ async def gui_part_photo_crop(
 
 @router.get("/parts/{aid}/label.png", include_in_schema=False)
 def gui_part_label_png(
-    aid: str, media: str = "", dpi: int = 0, db: Session = Depends(get_db)
+    aid: str, media: str = "", dpi: int = 0, small: int = 1, db: Session = Depends(get_db)
 ) -> Response:
-    p = get_or_404(db, Part, aid)
+    source = printing.source_of(db, get_or_404(db, Part, aid))
     return png_label(
-        _label_row(db, p), labels.PART, media, dpi, spec_pairs=specdb.pairs(db, p, display=True)
+        source.row, labels.PART, media, dpi, spec_pairs=source.spec_pairs, small=bool(small)
     )
-
-
-def _label_row(db: Session, p: Part) -> dict[str, object]:
-    """A part as its label reads it, with the machine it is in however far down: a
-    drive on a controller card is installed in the machine the card is in."""
-    return to_dict(p) | {"computer_id": tree.load(db).machine(p.asset_id.upper()) or ""}
 
 
 @router.get("/parts/{aid}/label.pdf", include_in_schema=False)
 def gui_part_label(aid: str, small: int = 1, db: Session = Depends(get_db)) -> Response:
-    p = get_or_404(db, Part, aid)
+    source = printing.source_of(db, get_or_404(db, Part, aid))
     pdf = labels.render_pdf(
-        _label_row(db, p),
-        [],
-        labels.PART,
-        small=bool(small),
-        spec_pairs=specdb.pairs(db, p, display=True),
+        source.row, [], labels.PART, small=bool(small), spec_pairs=source.spec_pairs
     )
     return Response(
         pdf,

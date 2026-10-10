@@ -1,8 +1,10 @@
-"""The print button's destination: a PDF, a printer on the queue, or Bluetooth.
+"""Where each label's print button sends it: a PDF, a printer on the queue, or
+Bluetooth (MANUAL §13, "Where a label goes").
 
 A label is only useful where there is a printer, and which printer is within reach
 is a fact about the thing you are holding rather than about the collection -- so
-the site sets a default and a device may overrule it (ADR-0023, ADR-0026).
+the site sets a default for each label and a device may overrule it (ADR-0023,
+ADR-0026, ADR-0037).
 
 The overruling itself is in the browser and is not tested here; what is tested is
 everything the browser is given to do it with, because a menu offering a printer
@@ -45,7 +47,7 @@ def save(client, **fields):
 def test_the_destinations_are_a_pdf_bluetooth_and_every_printer_configured(client, agents):
     """The list is worked out rather than written down: the printers come from the
     environment, so a list in the template could only ever be out of date."""
-    said = dict(settings.choices_for(settings.BY_KEY["label_destination"]))
+    said = dict(settings.choices_for(settings.BY_KEY["label_small_destination"]))
     assert "pdf" in said
     assert "bluetooth" in said
     assert "agent:workshop-pi" in said
@@ -53,7 +55,7 @@ def test_the_destinations_are_a_pdf_bluetooth_and_every_printer_configured(clien
 
 
 def test_a_printer_that_is_not_configured_is_not_offered(client):
-    said = dict(settings.choices_for(settings.BY_KEY["label_destination"]))
+    said = dict(settings.choices_for(settings.BY_KEY["label_small_destination"]))
     assert [k for k in said if k.startswith("agent:")] == []
 
 
@@ -64,7 +66,7 @@ def test_a_printer_says_what_stock_is_in_it(client, agents):
     In as few words as will do: a list of printers is read to find one, and the
     sentence that describes a stock belongs where a stock is being described rather
     than in every line of a menu."""
-    said = dict(settings.choices_for(settings.BY_KEY["label_destination"]))
+    said = dict(settings.choices_for(settings.BY_KEY["label_small_destination"]))
     assert said["agent:workshop-pi"] == "workshop-pi 51×19 mm"
     assert said["agent:bench"] == "bench 50×30 mm"
 
@@ -79,22 +81,24 @@ def test_the_bluetooth_stock_is_offered_from_the_stocks_that_exist(client):
 # --- saving it ---------------------------------------------------------------
 
 
-def test_the_default_can_be_set_to_a_configured_printer(client, agents):
-    save(client, label_destination="agent:workshop-pi")
-    assert settings.value("label_destination") == "agent:workshop-pi"
+@pytest.mark.parametrize("key", ["small", "full"])
+def test_each_labels_default_can_be_set_to_a_configured_printer(client, agents, key):
+    save(client, **{f"label_{key}_destination": "agent:workshop-pi"})
+    assert settings.value(f"label_{key}_destination") == "agent:workshop-pi"
 
 
 def test_a_destination_that_is_not_on_offer_is_refused(client, agents):
     """The same reading `clean` takes of every other menu: an answer that was not
     offered did not come from this page."""
-    save(client, label_destination="agent:nonesuch")
-    assert settings.value("label_destination") == "pdf"
+    save(client, label_small_destination="agent:nonesuch")
+    assert settings.value("label_small_destination") == "pdf"
 
 
 def test_a_fresh_install_hands_out_a_pdf(client):
-    """Which is what the button did before there was anywhere else for it to go, so
-    an installation that upgrades and changes nothing notices nothing."""
-    assert settings.value("label_destination") == "pdf"
+    """Which is what the buttons did before there was anywhere else for them to go,
+    so an installation that upgrades and changes nothing notices nothing."""
+    assert settings.value("label_small_destination") == "pdf"
+    assert settings.value("label_full_destination") == "pdf"
 
 
 # --- what a page is given ----------------------------------------------------
@@ -121,7 +125,7 @@ def test_every_item_page_says_what_its_button_is_for(client, computer, part, kin
 def test_the_page_is_told_where_labels_go(client, part, agents):
     page = client.get(f"/parts/{part()['asset_id']}").text
     data = island(page)
-    assert data["default"] == "pdf"
+    assert data["defaults"] == {"small": "pdf", "full": "pdf"}
     assert ["agent:workshop-pi", "workshop-pi 51×19 mm"] in data["destinations"]
     assert data["bluetoothMedia"] == "niimbot-50x30"
 

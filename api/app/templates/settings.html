@@ -66,6 +66,35 @@
        look above is the exception, and is the reason the exception exists. #}
     {{ U.field(d.key, d.label, kind='choice', choices=choices_for(d), value=value(d.key), note=d.note, pinned=fixed) }}
 
+    {% elif d.kind == 'order' %}
+    {# A list in an order, each ticked or not: what is on a label. Each row's name
+       goes with it in a hidden box, so the order posts as the order the rows are in,
+       and the ticks post beside it. Up and down belong to a form of their own, at
+       the foot, and not to this one: the first button of a form is what Enter in any
+       of its boxes presses, and that would be a detail's up. settings.js moves the
+       rows in the page instead, and Save keeps the order with everything else. #}
+    {% set named = dict(choices_for(d)) %}
+    {% set own = d.tick[0] %}
+    <div class="field" title="{{ d.note }}">
+      <span class="lbl" id="{{ d.key }}-lbl">{{ d.label }}</span>
+      <ol class="orderlist" id="{{ d.key }}" aria-labelledby="{{ d.key }}-lbl">
+      {%- set items = order(d.key) | rejectattr(0, 'equalto', own) | list %}
+      {%- for name, on in items %}
+        <li>
+          <input type="hidden" name="{{ d.key }}" value="{{ name }}">
+          <label class="check"><input type="checkbox" id="{{ d.key }}-{{ name }}" name="{{ d.key }}_on" value="{{ name }}"{% if on %} checked{% endif %}> {{ named[name] }}</label>
+          <button class="btn sm" type="submit" form="label-moves" name="move" value="{{ d.key }}:{{ name }}:up" aria-label="move {{ named[name] }} up"{% if loop.first %} disabled{% endif %}>{{ 'up' | ui }}</button>
+          <button class="btn sm" type="submit" form="label-moves" name="move" value="{{ d.key }}:{{ name }}:down" aria-label="move {{ named[name] }} down"{% if loop.last %} disabled{% endif %}>{{ 'down' | ui }}</button>
+        </li>
+      {%- endfor %}
+      </ol>
+      <p class="sr-only" id="{{ d.key }}-said" aria-live="polite"></p>
+      {% if own %}
+      {% set ticked = (order(d.key) | selectattr(0, 'equalto', own) | first)[1] %}
+      <label class="check"><input type="checkbox" id="{{ d.key }}-{{ own }}" name="{{ d.key }}_{{ own }}" value="1"{% if ticked %} checked{% endif %}> {{ d.tick[1] }}</label>
+      {% endif %}
+    </div>
+
     {% elif d.kind == 'switch' %}
     {# A tick posts nothing when it is off, which is the reading settings.clean
        takes of its silence -- the same one the for-sale flag and a file's public
@@ -91,14 +120,19 @@
    which is the honest state for a control that is nothing but script: an empty
    menu that forgets what you tell it is worse than no menu. #}
 {% if device_box %}
+{# The moves' own form: empty, and reached by the up and down buttons through their
+   form attribute, so that they are not buttons of the settings form above. #}
+<form id="label-moves" method="post" action="/settings/labels/move"></form>
 <fieldset class="fieldset" id="device-box" hidden>
   <legend>This browser</legend>
-  <div class="field" title="Where this browser sends a small label, whatever the site default says. It is remembered here and goes nowhere else: the phone by the shelf and the machine in the workshop answer differently.">
-    <label for="device_destination">Small label goes to</label>
-    <select class="select" id="device_destination">
+  {% for key in ('small', 'full') %}
+  <div class="field" title="Where this browser sends this label, whatever the site default says. It is remembered here and goes nowhere else: the phone by the shelf and the machine in the workshop answer differently.">
+    <label for="device_destination_{{ key }}">{{ value('label_' ~ key ~ '_name') }} goes to</label>
+    <select class="select" id="device_destination_{{ key }}" data-label="{{ key }}">
       <option value="">whatever the site says</option>
     </select>
   </div>
+  {% endfor %}
 </fieldset>
 {% endif %}
 
@@ -115,5 +149,6 @@
 {% if pinned_any %}
 <p class="hint">Greyed options are set in <code>.env</code> and cannot be changed here.</p>
 {% endif %}
-{% if device_box %}{{ LS.script() }}{% endif %}
+{% if device_box %}{{ LS.script() }}
+<script defer src="/static/settings.js?v={{ js_ver['settings.js'] }}"></script>{% endif %}
 {% endblock %}

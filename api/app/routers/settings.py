@@ -42,7 +42,10 @@ def _page(request: Request, path: str, saved: int) -> Response:
         request,
         "settings.html",
         {
-            "sections": [(section, rows)],
+            # A fieldset to each group: the Labels tab has one for each of the two
+            # labels, headed by the name the owner gave it.
+            "sections": settings.fieldsets(rows),
+            "order": settings.order,
             "action": path,
             # The browser's own label destination belongs with the site's.
             "device_box": section == settings.LABELS,
@@ -98,3 +101,16 @@ async def gui_save_settings_labels(request: Request, db: Session = Depends(get_d
 @router.post("/settings/server", include_in_schema=False)
 async def gui_save_settings_server(request: Request, db: Session = Depends(get_db)) -> Response:
     return await _save(request, "/settings/server", db)
+
+
+@router.post("/settings/labels/move", include_in_schema=False)
+async def gui_move_in_a_list(request: Request, db: Session = Depends(get_db)) -> Response:
+    """One detail up or down a label's list, kept as it is pressed, then back to the
+    list it moved in. Its own form and its own route, and not a button of the tab's
+    form: the first button of a form is the one Enter in any of its boxes presses,
+    and that would be a detail's up. With a script the row moves in the page and is
+    kept by Save like any other change, and this is never asked (settings.js)."""
+    key = settings.move(db, (await posted(request)).get("move") or "")
+    return RedirectResponse(
+        "/settings/labels?saved=1" + (f"#{key}" if key else ""), status_code=303
+    )

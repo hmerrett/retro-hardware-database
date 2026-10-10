@@ -256,7 +256,7 @@ def png_label(
     name the register does not know is a 404 and not a guess, because a guess is
     discovered by peeling a label off something (ADR-0024).
     """
-    name = media or (labels.SMALL if small else labels.FULL)
+    name = media or labels.setup(labels.LABELS[0] if small else labels.LABELS[1]).stock
     stock = labels.MEDIA.get(name)
     if stock is None:
         raise HTTPException(status_code=404, detail="No such label stock")
@@ -279,16 +279,17 @@ def png_label(
 
 
 def label_send() -> dict[str, object]:
-    """What the label button needs to know: where a label may go, where it goes
-    here, and what stock the Bluetooth printer has.
+    """What the label buttons need to know: where a label may go, where each of the
+    two goes here, and what stock the Bluetooth printer has.
 
     Worked out once per page rather than written into each template, and read from
     `settings` rather than kept beside it, so the menu on the settings page and the
-    button on an item page cannot come to disagree about what exists (ADR-0026)."""
-    destination = settings.BY_KEY["label_destination"]
+    buttons on an item page cannot come to disagree about what exists (ADR-0026,
+    ADR-0037)."""
+    destination = settings.BY_KEY["label_small_destination"]
     return {
         "destinations": [list(pair) for pair in settings.choices_for(destination)],
-        "default": settings.value("label_destination"),
+        "defaults": {key: settings.value(f"label_{key}_destination") for key in labels.LABELS},
         "bluetoothMedia": settings.value("label_bluetooth_media"),
         # Versioned like every other script on the site, and for the same reason:
         # static files are served with an hour's cache, so a bare path is a file
@@ -301,16 +302,16 @@ def label_send() -> dict[str, object]:
     }
 
 
-def label_pictures(path: str, aid: str, kind: str) -> dict[str, dict[str, object]]:
-    """The small label's picture for every place the small button can send it, by
+def label_pictures(path: str, aid: str) -> dict[str, dict[str, object]]:
+    """The first label's picture for every place its button can send it, by
     destination: where to fetch it, and how many dots it is across and down.
 
     The destinations are the ones the button is offered, from the same place
     (ADR-0026), and each picture is drawn on the stock that destination prints on --
-    the tape for a PDF, the roll in the Bluetooth printer, an agent's own -- in the
-    layout that printer is sent. So the picture over the buttons is the label and
-    not a likeness of it (MANUAL §13, "The label as a picture"). `path` is the
-    section the item's label routes hang off and `kind` what a label is drawn for.
+    the label's own stock for a PDF, the roll in the Bluetooth printer, an agent's
+    own -- and so in the shape that stock gives it (ADR-0037). So the picture over
+    the buttons is the label and not a likeness of it (MANUAL §13, "The label as a
+    picture"). `path` is the section the item's label routes hang off.
 
     `printing` is imported here for the reason `settings.choices_for` gives: it
     reaches the locations and the tree, and both of those read this module.
@@ -318,23 +319,30 @@ def label_pictures(path: str, aid: str, kind: str) -> dict[str, dict[str, object
     from . import printing
 
     stocks = {
-        settings.PDF: labels.SMALL,
+        settings.PDF: labels.setup(labels.LABELS[0]).stock,
         settings.BLUETOOTH: settings.value("label_bluetooth_media"),
     } | {settings.AGENT + a.name: a.media for a in printing.agents().values()}
     out: dict[str, dict[str, object]] = {}
-    for dest, _ in settings.choices_for(settings.BY_KEY["label_destination"]):
+    for dest, _ in settings.choices_for(settings.BY_KEY["label_small_destination"]):
         stock = stocks.get(dest, "")
         # A stock this version does not know draws nothing, and the script keeps the
         # PDF's picture rather than asking for a label that would only be a 404.
         if stock not in labels.MEDIA:
             continue
         across, down = labels.size_dots(labels.MEDIA[stock])
-        query = f"media={stock}" + ("" if printing.small_layout(kind, stock) else "&small=0")
-        out[dest] = {"src": f"/{path}/{aid}/label.png?{query}", "w": across, "h": down}
+        out[dest] = {"src": f"/{path}/{aid}/label.png?media={stock}", "w": across, "h": down}
     return out
 
 
+def label_name(key: str) -> str:
+    """What one of the two labels is called: the name the owner has given it, which
+    is what its print button says (MANUAL §13, "Two labels, each set up for its
+    job")."""
+    return settings.value(f"label_{key}_name")
+
+
 templates.env.globals["label_send"] = label_send
+templates.env.globals["label_name"] = label_name
 templates.env.globals["label_pictures"] = label_pictures
 templates.env.globals["img_url"] = img_url
 templates.env.globals["img_srcset"] = img_srcset

@@ -35,22 +35,79 @@ from .surfaces import BODY, HEAD, LABEL, PdfSurface, RasterSurface, Surface, bla
 # the fourth (ADR-0034): the label on a box, scanned to see what is in it.
 COMPUTER, PART, PROJECT, LOCATION = "computer", "part", "project", "location"
 
-# Which codes a label carries (MANUAL §13, "QR code, barcode or both"): the
-# installation's choice, Settings → Labels → Codes, read when a label is drawn.
-QR, BARCODE, BOTH = "qr", "code128", "both"
-CODES = (QR, BARCODE, BOTH)
+# Which codes a label carries (MANUAL §13, "QR code, barcode, both or none"): each
+# label's own choice, read when it is drawn. None is a label of words alone, for a
+# shelf edge, and the words have the room the code would have had.
+QR, BARCODE, BOTH, NONE = "qr", "code128", "both", "none"
+CODES = (QR, BARCODE, BOTH, NONE)
+
+# The two labels (MANUAL §13, "Two labels, each set up for its job"). These say which
+# of the two, not what each is called: the owner names them, in free text, so a print
+# job and a URL say `small` or `full` and mean the first and the second.
+LABELS = ("small", "full")
+
+# What "what's on it" offers, in the words the settings page uses. A location's label
+# is its own shape and reads none of them (ADR-0037).
+DETAILS: tuple[tuple[str, str], ...] = (
+    ("tag", "Tag"),
+    ("name", "Name"),
+    ("make", "Make and model"),
+    ("specs", "Specifications"),
+    ("serial", "Serial number"),
+    ("kept", "Where it's kept"),
+)
+# The word up the end has a tick of its own beside the list rather than a place in
+# it: it is not a line of the label, so there is no order for it to be in.
+WORD = ("word", "Word up the end")
+
+# The two faces a label can be set in (MANUAL §13, "The type on a label"): the label
+# face, or the interface face of the look the site wears.
+LABEL_FACE, LOOK_FACE = "label", "look"
 
 
-def house_codes() -> str:
-    """The codes every label carries here, and always one this module draws."""
-    chosen = settings.value("label_codes")
-    return chosen if chosen in CODES else QR
+class Setup(NamedTuple):
+    """One of the two labels as Settings → Labels has it: what it is called, the code
+    it carries, the stock its PDF is drawn on, the details it prints in the order it
+    prints them, whether the word runs up the end, and the face it is set in."""
+
+    key: str
+    name: str
+    codes: str
+    stock: str
+    details: tuple[str, ...]
+    word: bool
+    face: str
 
 
-def house_face() -> str:
-    """The face a label's words are set in: the label face, or the interface face
-    of the look the site wears (MANUAL §13, "The type on a label")."""
-    if settings.value("label_type") != "look":
+def order_of(key: str) -> list[str]:
+    """Every detail one label offers, in the order its list is in, ticked or not."""
+    return [k for k, _ in settings.order(f"label_{key}_details") if k != WORD[0]]
+
+
+def setup(key: str) -> Setup:
+    """One of the two labels, read from the settings and checked on the way out: a
+    value this version does not know is read as the label started out, rather than
+    drawn as a guess somebody discovers by peeling it off something."""
+    first = key == LABELS[0]
+    ticks = settings.order(f"label_{key}_details")
+    codes = settings.value(f"label_{key}_codes")
+    stock = settings.value(f"label_{key}_stock")
+    face = settings.value(f"label_{key}_type")
+    return Setup(
+        key=key,
+        name=settings.value(f"label_{key}_name"),
+        codes=codes if codes in CODES else QR,
+        stock=stock if stock in MEDIA else (SMALL if first else FULL),
+        details=tuple(k for k, on in ticks if on and k != WORD[0]),
+        word=dict(ticks).get(WORD[0], True),
+        face=face if face in (LABEL_FACE, LOOK_FACE) else LABEL_FACE,
+    )
+
+
+def face_of(label: Setup) -> str:
+    """The face a label's words are set in: the label face, or the interface face of
+    the look the site wears (MANUAL §13, "The type on a label")."""
+    if label.face != LOOK_FACE:
         return LABEL
     return typefaces.interface_face(settings.preset(), settings.typeface())
 
@@ -169,8 +226,22 @@ MEDIA: dict[str, Media] = {
 }
 
 # What `small=True` and `small=False` have always meant. Every caller and every URL
-# printed against keeps working by being these two names.
+# printed against keeps working by being these two names, and they are where the two
+# labels' PDFs start out.
 FULL, SMALL = "full-6x4", "dymo-11355"
+
+# The least a stock has to measure both ways to be laid out as a full label: the
+# full layout's own measures -- a code of up to 2.1in beside a column of words, in a
+# frame -- want about four inches of it. The 6x4 sheet has that and nothing else the
+# register knows comes near.
+FULL_ROOM_MM = 100.0
+
+
+def full_layout(media: Media) -> bool:
+    """Whether a label on this stock is laid out as a full one. The stock decides the
+    shape, whichever of the two labels is drawn on it (ADR-0037): the full label sent
+    to a Niimbot comes out the size of the roll, not a 6x4 layout crushed onto 50mm."""
+    return min(media["w_mm"], media["h_mm"]) >= FULL_ROOM_MM
 
 
 def printable_mm(media: Media) -> float:
@@ -515,6 +586,89 @@ def project_lines(project: Row) -> list[str]:
     return lines
 
 
+def _make(asset: Row) -> list[str]:
+    """Its make and model, for a thing with a name of its own to say them beside. A
+    thing without one is already called by its make and model, and saying it twice
+    would be the label repeating itself in the room it has least of."""
+    made = " ".join(x for x in (_txt(asset, "manufacturer"), _txt(asset, "model")) if x)
+    named = _txt(asset, "name").strip()
+    return [made.strip()] if made.strip() and named and made.strip() != named else []
+
+
+def _kept(asset: Row) -> str:
+    """Where it is kept, as the path a location's label carries over its name."""
+    return _txt(asset, "kept").upper()
+
+
+def small_details(
+    asset: Row, kind: str, label: Setup, spec_pairs: list[tuple[str, str]] | None = None
+) -> list[str]:
+    """A small label's lines: each of the label's details the thing has, in the
+    label's order (MANUAL §13, "What's on it"). The first is the one printed largest.
+
+    A detail the thing does not have is not there at all, rather than a blank line:
+    a project has no serial number and is kept nowhere."""
+    out: list[str] = []
+    for detail in label.details:
+        if detail == "tag":
+            out.append(_txt(asset, "asset_id"))
+        elif detail == "name":
+            out.append(display_name(asset))
+        elif detail == "make":
+            out += _make(asset)
+        elif detail == "specs":
+            out += small_body(asset, kind, spec_pairs)[1]
+        elif detail == "serial" and (serial := _txt(asset, "serial").strip()):
+            out.append(f"S/N {serial}")
+        elif detail == "kept" and (kept := _kept(asset)):
+            out.append(kept)
+    return [line for line in out if line.strip()]
+
+
+# How a full label sets a line under its head: a name as a title, in bold, the way the
+# name has always been set under the tag, and everything else listed under a bullet.
+TITLE, LISTED = "title", "listed"
+
+
+def full_details(
+    asset: Row,
+    kind: str,
+    label: Setup,
+    parts: Sequence[Row] = (),
+    form_factor: str = "",
+    spec_pairs: list[tuple[str, str]] | None = None,
+) -> tuple[str, list[tuple[str, str]]]:
+    """(head, body) for a full label: the first of the label's details the thing has,
+    printed largest, then the rest in order, each a title or a listed line. A detail
+    leading the label is set as itself; listed further down it says what it is."""
+    entries: list[tuple[str, str, str]] = []
+    for detail in label.details:
+        if detail == "tag":
+            tag = _txt(asset, "asset_id")
+            entries.append((LISTED, tag, f"Tag: {tag}"))
+        elif detail == "name":
+            name = display_name(asset)
+            entries.append((TITLE, name, name))
+        elif detail == "make":
+            entries += [(TITLE, made, made) for made in _make(asset)]
+        elif detail == "specs":
+            if kind == COMPUTER:
+                lines = computer_lines(asset, parts, form_factor)
+            elif kind == PROJECT:
+                lines = project_lines(asset)
+            else:
+                lines = part_lines(asset, spec_pairs)
+            entries += [(LISTED, line, line) for line in lines]
+        elif detail == "serial" and (serial := _txt(asset, "serial").strip()):
+            entries.append((LISTED, f"S/N {serial}", f"Serial number: {serial}"))
+        elif detail == "kept" and (kept := _kept(asset)):
+            entries.append((LISTED, kept, f"Kept in: {kept}"))
+    entries = [e for e in entries if e[1].strip()]
+    if not entries:
+        return "", []
+    return entries[0][1], [(style, listed) for style, _, listed in entries[1:]]
+
+
 # --- drawing ---------------------------------------------------------------
 
 # The word that says which of the three things a label is for, printed up one end
@@ -591,28 +745,50 @@ def small_text_column(W: float, H: float, safe: float, worded: bool = True) -> S
     return SmallGeometry(mx=mx, my=my, qr=qr, tx=tx, tw=tw)
 
 
+def _two_lines(
+    s: Surface, text: str, start: float, floor: float, width: float
+) -> tuple[float, list[str]]:
+    """A head too long for one line: two lines of it, as large as two will hold and
+    never below `floor`, with the second cut short where even two will not do.
+
+    For a name put first (MANUAL §13, "What's on it"). The tag has always been short
+    enough to shrink until it fits; a name shrunk the same way ends up no larger
+    than the words under it, and the first detail is the one printed largest."""
+    size = start
+    while size > floor and len(_wrap(s, text, HEAD, size, width)) > 2:
+        size -= 1
+    size = max(size, floor)
+    lines = _wrap(s, text, HEAD, size, width)
+    if len(lines) > 2:
+        lines = [lines[0], _clip(s, " ".join(lines[1:]), HEAD, size, width)]
+    return size, lines
+
+
 def _render_full(
     s: Surface,
     W: float,
     H: float,
-    asset_id: str,
-    title: str,
-    lines: Sequence[str],
+    head: str,
+    body: Sequence[tuple[str, str]],
     url: str,
     error: str = "M",
     kind: str | None = None,
     over: str = "",
     codes: str = "qr",
     tag: str = "",
+    breaks: bool = False,
 ) -> None:
-    """A full label. `asset_id` is what is printed largest -- the tag, on everything
-    but a location, whose name is -- and `over` a line of small type above it: the
+    """A full label. `head` is what is printed largest -- the first of the label's
+    details, or a location's name -- and `over` a line of small type above it: the
     path a location's label carries, which says where the box was when the label
-    was printed. `codes` is which codes it carries and `tag` what a barcode holds.
+    was printed. `body` is the rest, in order, each a title or a listed line.
+    `codes` is which codes it carries and `tag` what a barcode holds. `breaks` lets
+    a head that is a name take two lines rather than shrink (see `_two_lines`): a
+    location's label keeps the shape it has always had, and does not.
 
     A barcode alone stands where the QR code would; with both, it runs under the
-    words, which stop above it."""
-    data = tag or asset_id
+    words, which stop above it; with none, the words have the width."""
+    data = tag or head
     margin = 0.22 * inch
     qr_size = min(H - 2 * margin, 2.1 * inch)
     qr_x = W - margin - qr_size
@@ -623,6 +799,9 @@ def _render_full(
     strip = 0.30 * inch if word else 0.0
     text_x = margin + strip
     text_w = qr_x - text_x - 0.10 * inch
+    if codes == NONE:
+        # Nothing stands at the right-hand end, so the words run to the margin there.
+        text_w = W - margin - text_x
     bottom = margin + 0.16 * inch
     if codes == BOTH:
         # The bars have the band's whole height. The tag that stood under them said
@@ -634,24 +813,46 @@ def _render_full(
     s.frame(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8)
     if word:
         s.vertical(margin, margin + strip, H / 2, word, HEAD, 13)
-    aid_size = _fit(s, asset_id, HEAD, 24, 12, text_w)
+    aid_size = _fit(s, head, HEAD, 24, 12, text_w)
+    heads = [head]
+    # A head that can break, and that one line would shrink to the size of the bold
+    # title under it, takes two lines instead and stays the largest thing there.
+    if breaks and " " in head.strip() and aid_size < 14:
+        aid_size, heads = _two_lines(s, head, 24, 14, text_w)
     y = H - margin - aid_size + 4
     if over:
         s.text(text_x, H - margin - 6, _tail(s, over, 9, text_w), BODY, 9)
         y -= 12
-    s.text(text_x, y, _clip(s, asset_id, HEAD, aid_size, text_w), HEAD, aid_size)
-    for line in _wrap(s, title, HEAD, 12, text_w)[:2]:
-        y -= 16
-        s.text(text_x, y, line, HEAD, 12)
-    y -= 5
-    for raw in lines:
-        for i, line in enumerate(_wrap(s, "• " + raw, BODY, 9, text_w)[:2]):
+    for i, line in enumerate(heads):
+        if i:
+            y -= aid_size + 2
+        s.text(text_x, y, _clip(s, line, HEAD, aid_size, text_w), HEAD, aid_size)
+    # A title under the line before it, and a gap before the first of a run of
+    # listed lines -- the shape the full label has always had, tag, name, list. Room
+    # runs out from the bottom: the last of the label's details are the ones it loses.
+    last = ""
+    for style, raw in body:
+        if style == TITLE:
+            if y - 16 < bottom:
+                break
+            for line in _wrap(s, raw, HEAD, 12, text_w)[:2]:
+                y -= 16
+                s.text(text_x, y, line, HEAD, 12)
+        else:
+            if last != LISTED:
+                y -= 5
+            for i, line in enumerate(_wrap(s, "• " + raw, BODY, 9, text_w)[:2]):
+                if y - 12 < bottom:
+                    break
+                y -= 12
+                s.text(
+                    text_x if i == 0 else text_x + 8, y, line if i == 0 else "  " + line, BODY, 9
+                )
             if y - 12 < bottom:
                 break
-            y -= 12
-            s.text(text_x if i == 0 else text_x + 8, y, line if i == 0 else "  " + line, BODY, 9)
-        if y - 12 < bottom:
-            break
+        last = style
+    if codes == NONE:
+        return
     if codes == BARCODE:
         bars_h = 0.9 * inch
         used = s.barcode_width(qr_size, data)
@@ -779,11 +980,14 @@ def _render_small(
     over: str = "",
     codes: str = "qr",
     tag: str = "",
+    breaks: bool = False,
 ) -> None:
     # `asset_id` is the line printed largest and `over` a line of small type above
     # it, as on the full label: a location's label is its name, with its path over.
     # `tag` is what a barcode holds, which is the asset tag however the label is
-    # headed; `codes` which codes the label carries (MANUAL §13).
+    # headed; `codes` which codes the label carries (MANUAL §13); and `breaks` lets
+    # a head that is a name take two lines rather than shrink, which a location's
+    # label, keeping the shape it has always had, does not.
     #
     # The code is as tall as the label allows, but never so wide that the words
     # have nowhere to go. On a 51x19mm tape the height is what binds and this
@@ -798,7 +1002,7 @@ def _render_small(
     word = KIND_WORDS.get(kind, "")
     mx, my, qr, tx, tw = small_text_column(W, H, safe, bool(word))
     grow = H / TAPE_H
-    bars = max(BAR_MIN, (H - 2 * my) * BAR_SHARE) if codes != QR else 0.0
+    bars = max(BAR_MIN, (H - 2 * my) * BAR_SHARE) if codes in (BARCODE, BOTH) else 0.0
     band = bars + 1.0 if bars else 0.0
     strip_w = (WORD_STRIP + 1.0 * mm) if word else 0.0
     across = False
@@ -824,6 +1028,11 @@ def _render_small(
     # the text column alone gives each bar one dot, which is a barcode in name only.
     if codes == BARCODE:
         across = True
+        tw += tx - mx
+        tx = mx
+        qr = 0.0
+    # And with no code at all, the words have the room the code would have had.
+    if codes == NONE:
         tw += tx - mx
         tx = mx
         qr = 0.0
@@ -871,23 +1080,35 @@ def _render_small(
     # The words stand above the bars, wherever the bars are.
     floor = my + band
     aid_size = _fit(s, asset_id, HEAD, TAG_PT * grow, 5, tw)
+    heads = [asset_id]
+    # A head that can break, and that one line would shrink to the size of the words
+    # under it, takes two lines instead and stays the largest thing on the label.
+    least = BODY_PT * grow + 1.0
+    if breaks and " " in asset_id.strip() and aid_size < least:
+        aid_size, heads = _two_lines(s, asset_id, TAG_PT * grow, least, tw)
+    head_h = aid_size * len(heads) + 1.0 * (len(heads) - 1)
     top = H - my
     over_size = BODY_PT * grow * 0.85 if over else 0.0
     above = over_size + 1.0 if over else 0.0
-    bsize, lines = _small_body_lines(
-        s, title, tags, tw, top - above - aid_size - floor, BODY_PT * grow
-    )
+    if title or tags:
+        bsize, lines = _small_body_lines(
+            s, title, tags, tw, top - above - head_h - floor, BODY_PT * grow
+        )
+    else:
+        bsize, lines = BODY_PT * grow, []
     # Centred down the label rather than hung from the top. What is written is as
     # tall as it is; where the label is taller than that, the difference is a margin
     # and belongs at both ends. Hung from the top it reads as a label somebody
     # started and left, which is what a 50x30mm one looked like.
-    written = above + aid_size + len(lines) * (bsize + 1.5)
+    written = above + head_h + len(lines) * (bsize + 1.5)
     top -= max(0.0, (H - my - floor - written) / 2)
     if over:
         s.text(tx, top - over_size, _tail(s, over, over_size, tw), BODY, over_size)
         top -= above
-    y = top - aid_size
-    s.text(tx, y, _clip(s, asset_id, HEAD, aid_size, tw), HEAD, aid_size)
+    y = top
+    for i, line in enumerate(heads):
+        y -= aid_size + (1.0 if i else 0.0)
+        s.text(tx, y, _clip(s, line, HEAD, aid_size, tw), HEAD, aid_size)
     for line in lines:
         if y - (bsize + 1.5) < floor:
             break
@@ -905,12 +1126,20 @@ def _draw(
     form_factor: str = "",
     spec_pairs: list[tuple[str, str]] | None = None,
     codes: str | None = None,
+    label: Setup | None = None,
 ) -> None:
     """One label, on whichever surface it was given.
+
+    `small` says which of the two labels it is, the first or the second, and the
+    stock decides its shape (ADR-0037). `label` is that label's settings where the
+    caller has already read them, and `codes` overrides its codes.
 
     The only thing either renderer does that the other does not is get the surface
     ready -- a page to draw on, or a bitmap of the right number of dots. What goes
     on it is decided once, here."""
+    label = label or setup(LABELS[0] if small else LABELS[1])
+    if codes:
+        label = label._replace(codes=codes)
     W, H = layout_size(media)
     _draw_at(
         surface,
@@ -921,10 +1150,10 @@ def _draw(
         asset,
         parts,
         kind,
-        small,
+        label,
+        full_layout(media),
         form_factor,
         spec_pairs,
-        codes,
     )
 
 
@@ -937,22 +1166,23 @@ def _draw_at(
     asset: Row,
     parts: Sequence[Row],
     kind: str,
-    small: bool,
+    label: Setup,
+    full: bool,
     form_factor: str = "",
     spec_pairs: list[tuple[str, str]] | None = None,
-    codes: str | None = None,
 ) -> None:
     """One label at a size, rather than on a stock: what a sheet of them draws
-    into each of its cells, and what `_draw` draws onto a stock. `codes` is which
-    codes it carries, the installation's choice when the caller does not say."""
-    codes = codes or house_codes()
+    into each of its cells, and what `_draw` draws onto a stock. `full` is whether
+    it is laid out as a full label, which the stock decides."""
+    codes = label.codes
     asset_id = _txt(asset, "asset_id")
     url = item_url(asset_id)
     if kind == LOCATION:
         # The name largest, the path over it, and the tag under: what is on the
-        # shelf, where the shelf was when this was printed, and what to type.
+        # shelf, where the shelf was when this was printed, and what to type. Its own
+        # shape whatever the label's list says (MANUAL §13); its code is the label's.
         name, path = _txt(asset, "name") or asset_id, _txt(asset, "path").upper()
-        if small:
+        if not full:
             _render_small(
                 surface,
                 W,
@@ -974,8 +1204,7 @@ def _draw_at(
             W,
             H,
             name,
-            asset_id,
-            lines,
+            [(TITLE, asset_id), *((LISTED, line) for line in lines)],
             url,
             error,
             kind=kind,
@@ -984,20 +1213,29 @@ def _draw_at(
             tag=asset_id,
         )
         return
-    if small:
-        name, tags = small_body(asset, kind, spec_pairs)
+    # The word up the end has a tick of its own (MANUAL §13, "What's on it").
+    worded = kind if label.word else None
+    if not full:
+        said = small_details(asset, kind, label, spec_pairs)
         _render_small(
-            surface, W, H, asset_id, name, url, safe, error, tags=tags, kind=kind, codes=codes
+            surface,
+            W,
+            H,
+            said[0] if said else "",
+            said[1] if len(said) > 1 else "",
+            url,
+            safe,
+            error,
+            tags=said[2:],
+            kind=worded,
+            codes=codes,
+            tag=asset_id,
+            breaks=True,
         )
         return
-    if kind == COMPUTER:
-        lines = computer_lines(asset, parts, form_factor)
-    elif kind == PROJECT:
-        lines = project_lines(asset)
-    else:
-        lines = part_lines(asset, spec_pairs)
+    head, body = full_details(asset, kind, label, parts, form_factor, spec_pairs)
     _render_full(
-        surface, W, H, asset_id, display_name(asset), lines, url, error, kind=kind, codes=codes
+        surface, W, H, head, body, url, error, kind=worded, codes=codes, tag=asset_id, breaks=True
     )
 
 
@@ -1019,14 +1257,18 @@ def render_pdf(
     A project's label is made here beside the other two rather than somewhere of
     its own, because the whole of what a label is -- an asset id, a name, and a QR
     code back to /items/<id> -- is true of a project exactly as it is of a machine.
-    What differs is the few lines of body text, which is what `kind` picks."""
-    spec = media or MEDIA[SMALL if small else FULL]
+    What differs is the few lines of body text, which is what `kind` picks.
+
+    `small` says which of the two labels it is. Its PDF is drawn on the label's own
+    stock, unless the caller names one."""
+    label = setup(LABELS[0] if small else LABELS[1])
+    spec = media or MEDIA[label.stock]
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=rotated_page(spec))
     c.saveState()
     _apply_rotation(c, *layout_size(spec), spec["rotate"])
-    surface = PdfSurface(c, house_face(), spec["dpi"])
-    _draw(surface, spec, asset, parts, kind, small, form_factor, spec_pairs)
+    surface = PdfSurface(c, face_of(label), spec["dpi"])
+    _draw(surface, spec, asset, parts, kind, small, form_factor, spec_pairs, label=label)
     c.restoreState()
     c.showPage()
     c.save()
@@ -1050,14 +1292,15 @@ def render_png(
     as it will be read, and the printer is the thing that knows which way the tape
     goes through it.
 
-    The default is the small layout, because this exists for the printers that take
-    a bitmap and every one of those is a small-label printer -- but a 6x4 stock
+    The default is the first label, because this exists for the printers that take a
+    bitmap and every one of those is a small-label printer -- but a 6x4 stock
     rasterises the same way, for a print server that would rather be handed dots
-    than a page.
+    than a page. Either label is drawn on the stock it is given: the printer's.
     """
+    label = setup(LABELS[0] if small else LABELS[1])
     image = blank(*size_dots(media, dpi))
-    surface = RasterSurface(image, dpi or media["dpi"], house_face())
-    _draw(surface, media, asset, parts, kind, small, form_factor, spec_pairs)
+    surface = RasterSurface(image, dpi or media["dpi"], face_of(label))
+    _draw(surface, media, asset, parts, kind, small, form_factor, spec_pairs, label=label)
     buf = io.BytesIO()
     image.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
@@ -1074,11 +1317,12 @@ PITCH_X, PITCH_Y = 66.04 * mm, 38.1 * mm
 
 
 def render_many(rows: Sequence[tuple[Row, str]], sheet: bool = False) -> bytes:
-    """Many small labels in one PDF: one to a page on the small label stock, for a
-    label printer, or laid out on A4 sheets for a printer with a tray. `rows` are
-    (row, kind) as `render_pdf` takes them one at a time."""
+    """Many of the first label in one PDF: one to a page on its stock, for a label
+    printer, or laid out on A4 sheets for a printer with a tray, each set up as the
+    first label is. `rows` are (row, kind) as `render_pdf` takes them one at a time."""
     buf = io.BytesIO()
-    face = house_face()
+    label = setup(LABELS[0])
+    face = face_of(label)
     if sheet:
         c = canvas.Canvas(buf, pagesize=(SHEET_W, SHEET_H))
         per = SHEET_COLS * SHEET_ROWS
@@ -1093,16 +1337,16 @@ def render_many(rows: Sequence[tuple[Row, str]], sheet: bool = False) -> bytes:
             # An office printer's, whatever it is: 600 and 1200 dpi both lay their dots
             # on a 300 dpi grid, so a bar of whole 300 dpi dots is whole in theirs too.
             sheet_surface = PdfSurface(c, face, 300)
-            _draw_at(sheet_surface, CELL_W, CELL_H, 1.5, "M", row, [], kind, True)
+            _draw_at(sheet_surface, CELL_W, CELL_H, 1.5, "M", row, [], kind, label, False)
             c.restoreState()
         c.showPage()
     else:
-        spec = MEDIA[SMALL]
+        spec = MEDIA[label.stock]
         c = canvas.Canvas(buf, pagesize=rotated_page(spec))
         for row, kind in rows:
             c.saveState()
             _apply_rotation(c, *layout_size(spec), spec["rotate"])
-            _draw(PdfSurface(c, face, spec["dpi"]), spec, row, [], kind, True)
+            _draw(PdfSurface(c, face, spec["dpi"]), spec, row, [], kind, True, label=label)
             c.restoreState()
             c.showPage()
     c.save()

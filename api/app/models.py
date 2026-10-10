@@ -889,6 +889,12 @@ class PrintJob(Base):
     agent: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     kind: Mapped[str] = mapped_column(String(16), nullable=False)
     asset_id: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
+    # Which of the two labels it is, whose code, details and face it carries; the
+    # agent's stock decides its shape (ADR-0037). The first, for a job from before
+    # there were two to choose between.
+    label: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="small", server_default="small"
+    )
     media: Mapped[str] = mapped_column(String(32), nullable=False)
     fmt: Mapped[str] = mapped_column(String(8), nullable=False)
     dpi: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")

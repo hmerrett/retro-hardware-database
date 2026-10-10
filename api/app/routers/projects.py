@@ -41,7 +41,7 @@ from sqlalchemy import func
 
 from sqlalchemy.orm import Session
 
-from .. import cards, entry, filesdb, labels, projects, tree
+from .. import cards, entry, filesdb, labels, printing, projects, tree
 from ..common import _visible, folder_images, to_dict
 from ..db import get_db
 from ..forms import Posted, Refusal, _coerce, _field_diffs, _parse_date, posted, refusals
@@ -751,10 +751,10 @@ def gui_complete_project(aid: str, db: Session = Depends(get_db)) -> RedirectRes
 
 @router.get("/projects/{aid}/label.png", include_in_schema=False)
 def gui_project_label_png(
-    aid: str, media: str = "", dpi: int = 0, db: Session = Depends(get_db)
+    aid: str, media: str = "", dpi: int = 0, small: int = 1, db: Session = Depends(get_db)
 ) -> Response:
-    p = get_or_404(db, Project, aid)
-    return png_label(to_dict(p), labels.PROJECT, media, dpi)
+    source = printing.source_of(db, get_or_404(db, Project, aid))
+    return png_label(source.row, labels.PROJECT, media, dpi, small=bool(small))
 
 
 @router.get("/projects/{aid}/label.pdf", include_in_schema=False)
@@ -769,8 +769,8 @@ def gui_project_label(aid: str, small: int = 1, db: Session = Depends(get_db)) -
 
     Small by default, as a part's is. A machine gets the 6x4 by default because it
     is filed on a shelf and read across a room; this is going on a jiffy bag."""
-    p = get_or_404(db, Project, aid)
-    pdf = labels.render_pdf(to_dict(p), [], labels.PROJECT, small=bool(small))
+    source = printing.source_of(db, get_or_404(db, Project, aid))
+    pdf = labels.render_pdf(source.row, [], labels.PROJECT, small=bool(small))
     return Response(
         pdf,
         media_type="application/pdf",
