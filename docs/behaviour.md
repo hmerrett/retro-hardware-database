@@ -16,7 +16,25 @@ Regenerate with:
 
 
 
-*2751 behaviours, from 80 files.*
+*2763 behaviours, from 81 files.*
+
+
+## A crowded label makes room
+
+*test_a_crowded_label_makes_room.py — 9 behaviours*
+
+- a crowded label brings its type down until every detail fits  
+  Code 128 on the 89x36 mm label: at the size it grows its type to, the bars leave room for three lines; with four details ticked -- six lines under the tag -- the type comes down and all of them are printed.
+- a label with room to spare keeps the type it grows to
+- it comes no further down than the tape and then the last ones go
+- on the tape nothing comes down that was not already there  
+  The tape's type is the size every other label's grows from, so it has nothing to give back: a crowded tape is set as it always was.
+- it says exactly which details it had no room for  
+  Left off is nothing of it on the label; part is some of its lines and not others; anything else ticked is there whole.
+- a detail a thing does not have is not said to be left off
+- nothing ticked is the code alone
+- a location follows the list like anything else
+- a location has no make or serial and its specifications are on a full label
 
 
 ## A file where text was expected
@@ -1468,7 +1486,7 @@ Regenerate with:
 
 ## Barcode labels
 
-*test_barcode_labels.py — 29 behaviours*
+*test_barcode_labels.py — 28 behaviours*
 
 
 **The table**
@@ -1505,10 +1523,8 @@ Regenerate with:
 
 **A locations label**
 
-- it carries the name large the path over it and the tag  
+- set up for boxes it carries the name large its path and its tag  
   With every code: under the bars was the one place a location's label had its tag in words when there was a barcode, and nothing is printed there now.
-- a path too long for the tape loses its far end first  
-  The near end says where the box is; the far end only which building.
 - the word up the end says location
 - the small one is the default
 
@@ -3877,7 +3893,7 @@ Regenerate with:
 
 ## Seeing a label as it is set up
 
-*test_seeing_a_label_as_it_is_set_up.py — 20 behaviours*
+*test_seeing_a_label_as_it_is_set_up.py — 24 behaviours*
 
 - each label has a picture of it among its settings
 - the picture says what it is a picture of
@@ -3888,7 +3904,7 @@ Regenerate with:
 - the example s tag is one the register never issues
 - the example has every detail its sort of thing can have  
   Each detail alone, against none at all: a detail the example carries puts something on the label, whatever room the others would have left it.
-- a location s label reads none of the list
+- a location s label follows the list and its word tick
 - each sort of example is drawn as that sort of thing
 - a menu under the picture says what sort of thing the example is
 - the first label starts on a part and the second on a machine
@@ -3903,6 +3919,11 @@ Regenerate with:
 - a viewer is not shown it either
 - a label or an example there is not is not found
 - a setting the page could not have sent is drawn as saved
+- a line under the picture says what the label has no room for
+- with room for everything the line says nothing
+- the line is asked again with the picture from the settings on the page  
+  Before anything is saved, as the picture is.
+- the line is behind the login and asks only of a label and an example there are
 
 
 ## Settings
@@ -4949,8 +4970,8 @@ Regenerate with:
 - the word up the end has a tick of its own
 - where there is no room the last details go
 - on a full label a name is set in bold and the rest listed
-- a locations label keeps its own shape  
-  Name largest, the path above it, the tag under it, and LOCATION up the end, whatever the list says: those three are what a box on a shelf has to say.
+- a locations label follows the list  
+  Its tag, its name and where it is kept are details like any other's: what is ticked is printed, the first largest, and the word up the end only if it is ticked.
 - the list is kept in the order it was posted
 - up moves a detail up one and down moves it down  
   Without a script each press is a post of its own, kept as it is made; with one, the row moves in the page and Save keeps it, as any other change is kept.

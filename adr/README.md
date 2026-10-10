@@ -117,3 +117,6 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0026](0026-the-print-button-is-a-link-until-a-device-says-otherwise.md))
 - [0038](0038-a-label-is-pictured-from-the-page-before-it-is-saved.md) — A label is
   pictured from the page before it is saved — *Accepted*
+- [0039](0039-every-label-follows-its-list-and-makes-room-before-it-leaves-anything-off.md) —
+  Every label follows its list, and makes room before it leaves anything off —
+  *Accepted* (amends [0037](0037-each-label-is-set-up-for-its-job-and-the-stock-decides-its-shape.md))
