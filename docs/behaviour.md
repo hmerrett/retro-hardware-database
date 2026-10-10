@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2750 behaviours, from 80 files.*
+*2751 behaviours, from 80 files.*
 
 
 ## A file where text was expected
@@ -1468,7 +1468,7 @@ Regenerate with:
 
 ## Barcode labels
 
-*test_barcode_labels.py — 28 behaviours*
+*test_barcode_labels.py — 29 behaviours*
 
 
 **The table**
@@ -1500,6 +1500,8 @@ Regenerate with:
 - the bars themselves keep out of the tapes end margin
 - nothing is printed under the bars  
   The tag is already the largest line on an item's label, so under the bars it was the same seven characters again, in room the bars could use.
+- no word reaches down into the bars  
+  The words stand above the bars: the whole of each line, not its baseline.
 
 **A locations label**
 

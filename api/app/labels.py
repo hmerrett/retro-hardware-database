@@ -984,6 +984,10 @@ BAR_SHARE, BAR_MIN = 0.36, 4.5 * mm
 # the two that tape should keep.
 QR_MIN = 12 * mm
 
+# How far below its baseline a line's tails reach -- the p, the g, the y -- as a share
+# of its size: 0.23 in the label face and 0.21 in Plex, measured, and a little over.
+DESCENDER = 0.25
+
 
 def _bars_of(data: str) -> float:
     """How much of a barcode's width is bars, the white either side being the rest."""
@@ -1102,8 +1106,10 @@ def _render_small(
         edge = mx + 1.0 * mm
         middle = (H + (band if across else 0.0)) / 2
         s.vertical(W - edge - strip, W - edge, middle, word, HEAD, 5.0)
-    # The words stand above the bars, wherever the bars are.
-    floor = my + band
+    # The words stand above the bars, wherever the bars are -- the whole of each line,
+    # tails and all. Measured from the baselines, the last line over the bars put the
+    # tail of a p or a g through the top of them.
+    floor = my + band + (DESCENDER * BODY_PT * grow if bars else 0.0)
     aid_size = _fit(s, asset_id, HEAD, TAG_PT * grow, 5, tw)
     heads = [asset_id]
     # A head that can break, and that one line would shrink to the size of the words
