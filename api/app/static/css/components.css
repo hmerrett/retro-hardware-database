@@ -533,6 +533,13 @@
   .titleline > .title { flex: 1 1 auto; min-width: 0; margin: 0; }
   .itemacts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
   @media (max-width: 560px) { .itemacts { flex-basis: 100%; } }
+  /* The small label as it will print, over the buttons that print it (MANUAL §13).
+     A picture of a sticker, so it keeps the sticker's own white in either theme,
+     with a hairline round it to say where the sticker ends. No wider than its own
+     dots or the column, and the height its markup states, so the panel keeps its
+     shape while the picture is on its way. */
+  .lblpic { display: block; max-width: 100%; height: auto; margin-bottom: var(--space-3);
+    border: var(--border-w) solid var(--line); border-radius: var(--radius-xs); }
   .cell { padding: var(--space-3) var(--space-4); background: var(--surface-raised);
     border: var(--border-w) solid var(--line); border-radius: var(--radius-md); }
   .cell .k { font-size: 12px; color: var(--text-muted); }

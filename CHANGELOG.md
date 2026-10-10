@@ -13,6 +13,14 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**The Label panel shows the label.** Above an item's two print buttons is a
+picture of the small label as it will print, on every machine, part, project and
+location. It is drawn for the printer the small button sends to: the 51×19 mm
+tape for a PDF, the size the Bluetooth printer is loaded with, or a print agent's
+own stock, and a browser that has chosen a printer of its own sees that one's. It
+is the label the printer is sent, dot for dot, so a name cut short to fit is seen
+on the screen rather than on the sticker.
+
 **A signed-in browser no longer meets an occasional server error.** When a browser
 was last seen is written at most every five minutes, by whichever request finds it
 out of date. After a quiet spell, requests that arrive together — an item page

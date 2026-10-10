@@ -1989,8 +1989,9 @@ own for sifting without leaving it.
 
 ## 13. Labels and QR codes
 
-Every item page, when logged in, has a **Label** panel with two print buttons:
-**Small label** and **Full label**, each a PDF.
+Every item page, when logged in, has a **Label** panel: a picture of the small
+label as it will print, and under it two print buttons, **Small label** and
+**Full label**, each a PDF.
 
 - **The full label** (6×4 inches by default) carries the asset tag, the name, the
   specifications and a QR code.
@@ -2160,6 +2161,17 @@ different shape, and a code as tall as that one takes over half its width — wh
 came out as *Seagate ST-225* clipped to *Seaga…* on a label two thirds empty. So
 the code takes at most its share of the width and sits centred in the height, and
 the words get the rest. The tape is unaffected.
+
+**The Label panel shows it.** The picture above an item's two print buttons is
+this one, drawn for the printer the small button sends to ([where the small label
+goes](#where-the-small-label-goes)): the 51×19 mm tape when the button hands over a
+PDF, the size **Settings → Labels** says the Bluetooth printer is loaded with when
+it prints over Bluetooth, and the stock in a print agent's printer when it goes on
+that agent's queue. A browser that has chosen a printer of its own is shown that
+printer's label, and a browser running no script is shown the PDF's, which is what
+its button then hands over. It is the label the printer is sent, dot for dot, so a
+name too long for the label is cut short in the picture exactly as it will be on
+the label — seen before it is printed rather than after it is stuck on something.
 
 Nothing about the existing buttons changes: they are still PDFs, and a PDF is
 still the right thing for a sheet, for a Dymo through the print dialogue, and for

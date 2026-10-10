@@ -301,7 +301,41 @@ def label_send() -> dict[str, object]:
     }
 
 
+def label_pictures(path: str, aid: str, kind: str) -> dict[str, dict[str, object]]:
+    """The small label's picture for every place the small button can send it, by
+    destination: where to fetch it, and how many dots it is across and down.
+
+    The destinations are the ones the button is offered, from the same place
+    (ADR-0026), and each picture is drawn on the stock that destination prints on --
+    the tape for a PDF, the roll in the Bluetooth printer, an agent's own -- in the
+    layout that printer is sent. So the picture over the buttons is the label and
+    not a likeness of it (MANUAL §13, "The label as a picture"). `path` is the
+    section the item's label routes hang off and `kind` what a label is drawn for.
+
+    `printing` is imported here for the reason `settings.choices_for` gives: it
+    reaches the locations and the tree, and both of those read this module.
+    """
+    from . import printing
+
+    stocks = {
+        settings.PDF: labels.SMALL,
+        settings.BLUETOOTH: settings.value("label_bluetooth_media"),
+    } | {settings.AGENT + a.name: a.media for a in printing.agents().values()}
+    out: dict[str, dict[str, object]] = {}
+    for dest, _ in settings.choices_for(settings.BY_KEY["label_destination"]):
+        stock = stocks.get(dest, "")
+        # A stock this version does not know draws nothing, and the script keeps the
+        # PDF's picture rather than asking for a label that would only be a 404.
+        if stock not in labels.MEDIA:
+            continue
+        across, down = labels.size_dots(labels.MEDIA[stock])
+        query = f"media={stock}" + ("" if printing.small_layout(kind, stock) else "&small=0")
+        out[dest] = {"src": f"/{path}/{aid}/label.png?{query}", "w": across, "h": down}
+    return out
+
+
 templates.env.globals["label_send"] = label_send
+templates.env.globals["label_pictures"] = label_pictures
 templates.env.globals["img_url"] = img_url
 templates.env.globals["img_srcset"] = img_srcset
 templates.env.globals["THUMB_CARD"] = 300

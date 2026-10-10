@@ -5,10 +5,23 @@
    the file it always got. Everything else is this script deciding to do something
    else instead (ADR-0023, ADR-0026).
 
-   Included by the three item pages and by the settings page -- the second needs
-   the same list of destinations to offer, and getting it from the same place is
-   what stops the menu and the button disagreeing about what exists. #}
+   Included by the four pages with a Label panel and by the settings page -- the
+   last needs the same list of destinations to offer, and getting it from the same
+   place is what stops the menu and the button disagreeing about what exists. #}
 {% macro script() %}
 <script type="application/json" id="label-data">{{ label_send() | tojson }}</script>
 <script defer src="/static/labelsend.js?v={{ js_ver['labelsend.js'] }}"></script>
 {% endmacro %}
+
+{# The small label as it will print, over the buttons that print it (MANUAL §13,
+   "The label as a picture"). The markup's picture is the PDF's, because the
+   markup's button is a link to the PDF; where this browser is going to send the
+   label somewhere else, labelsend.js swaps in that printer's picture from the map
+   the tag carries. Single quotes round the map, because JSON is made of double
+   ones and `tojson` escapes the single. `path` is the section the item's label
+   routes hang off, and `kind` what the label is drawn for. #}
+{% macro picture(path, aid, kind) %}
+{%- set pics = label_pictures(path, aid, kind) %}
+<img class="lblpic" src="{{ pics.pdf.src }}" width="{{ pics.pdf.w }}" height="{{ pics.pdf.h }}"
+     alt="Small label for {{ aid }}" data-pictures='{{ pics | tojson }}'>
+{%- endmacro %}

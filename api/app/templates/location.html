@@ -60,6 +60,7 @@
 <div class="itemside">
   {% if request.state.sees_private %}
   {% call PN.panel('Label') %}
+    {{ LS.picture('locations', loc.asset_id, one) }}
     <div class="row">
       <a class="btn sm lbl-s" href="/locations/{{ loc.asset_id }}/label.pdf?small=1"
          data-kind="{{ one }}" data-asset="{{ loc.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
