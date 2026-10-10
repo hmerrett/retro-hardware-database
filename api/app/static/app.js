@@ -25,15 +25,20 @@
   const shots = Array.from(document.querySelectorAll('img.zoomable'));
   if (!shots.length) return;
 
+  // What the arrows walk: the photographs of the group the open one came from --
+  // the item's gallery, or one history entry's. A picture of a repair is not a
+  // picture of the machine, so the gallery's last comes round to its first rather
+  // than stepping on into the history.
+  let group = shots;
   let idx = 0, sel = null, mode = null, startPt = null, startSel = null;
 
-  function current() { return shots[idx]; }
+  function current() { return group[idx]; }
 
   function show() {
     const el = current();
     stand(el);                  // something to look at until the original lands
     img.src = el.dataset.full || el.src;
-    const multi = shots.length > 1;
+    const multi = group.length > 1;
     prev.style.display = next.style.display = multi ? '' : 'none';
     cropMode(false);
     resetZoom();
@@ -55,14 +60,15 @@
       if (tune) tune.hidden = kept;
       if (untune) untune.hidden = !kept;
     }
-    if (hint) hint.textContent = multi ? `${idx + 1} of ${shots.length}` : '';
+    if (hint) hint.textContent = multi ? `${idx + 1} of ${group.length}` : '';
   }
   // Opened by hand, from a thumbnail: the photo grows out of the one that was
   // clicked. Opened by the page itself -- coming back from a rotate with the same
   // photograph still open -- there was no gesture and there is nothing to grow out
   // of, so it is simply already there, as it was before the reload.
-  function open(i, from) {
-    idx = i;
+  function open(el, from) {
+    group = shots.filter(s => s.dataset.group === el.dataset.group);
+    idx = group.indexOf(el);
     // A trip home caught still running is abandoned rather than finished: what it
     // promised was to put the overlay away, and the overlay is wanted open.
     if (tween) tween.then = null;
@@ -89,7 +95,7 @@
   }
   function step(d) {
     if (mode || going) return;
-    idx = (idx + d + shots.length) % shots.length;
+    idx = (idx + d + group.length) % group.length;
     show();
   }
 
@@ -815,10 +821,10 @@
   // --- getting about ------------------------------------------------------
   // The photo itself is the way in -- there is no separate button for it, so it
   // answers to the keyboard as well as to a click or a tap.
-  shots.forEach((el, i) => {
-    el.addEventListener('click', () => open(i, el));
+  shots.forEach(el => {
+    el.addEventListener('click', () => open(el, el));
     el.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(i, el); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(el, el); }
     });
   });
   prev.addEventListener('click', e => { e.stopPropagation(); step(-1); });
@@ -874,8 +880,8 @@
   // than climbing out of its thumbnail again.
   const want = new URLSearchParams(location.search).get('photo');
   if (want) {
-    const at = shots.findIndex(el => (el.dataset.rel || '') === want);
-    if (at >= 0) open(at);
+    const at = shots.find(el => (el.dataset.rel || '') === want);
+    if (at) open(at);
   }
 })();
 

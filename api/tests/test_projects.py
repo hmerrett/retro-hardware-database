@@ -11,6 +11,7 @@ about, a list of jobs, and a pile of things on order with what they cost.
 """
 
 import io
+import re
 from datetime import date
 
 from conftest import content, log_out
@@ -100,6 +101,31 @@ class TestItsHistory:
             follow_redirects=False,
         )
         assert "logshots" in page(client, aid)
+
+    def test_each_entry_s_photographs_are_a_group_of_their_own(self, client):
+        """The big view's arrows walk the group the photograph was opened from, and
+        a project has no gallery: each entry's photographs are the whole walk
+        (MANUAL §14)."""
+        from PIL import Image
+
+        aid = make(client)
+        for words in ("before", "after"):
+            shots = []
+            for name in ("a.jpg", "b.jpg"):
+                buf = io.BytesIO()
+                Image.new("RGB", (200, 150), (80, 80, 80)).save(buf, "JPEG")
+                buf.seek(0)
+                shots.append(("photos", (name, buf, "image/jpeg")))
+            client.post(
+                f"/projects/{aid}/note",
+                data={"message": words},
+                files=shots,
+                follow_redirects=False,
+            )
+        tags = re.findall(r'<img class="zoomable"[^>]*>', page(client, aid))
+        found = [m[1] if (m := re.search(r'data-group="([^"]*)"', t)) else None for t in tags]
+        assert len(found) == 4 and None not in found
+        assert found[0] == found[1] != found[2] == found[3]
 
     def test_an_edit_is_recorded_as_a_diff(self, client):
         aid = make(client, name="Recap the +2A")
