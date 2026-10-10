@@ -451,10 +451,21 @@ def gui_location_label(
 
 @router.get("/locations/{aid}/label.png", include_in_schema=False)
 def gui_location_label_png(
-    aid: str, request: Request, media: str = "", dpi: int = 0, db: Session = Depends(get_db)
+    aid: str,
+    request: Request,
+    media: str = "",
+    dpi: int = 0,
+    small: int = 1,
+    db: Session = Depends(get_db),
 ) -> Response:
     loc = _labelled(request, db, aid)
-    return png_label(locations.label_row(loc, locations.tree(db)), labels.LOCATION, media, dpi)
+    return png_label(
+        locations.label_row(loc, locations.tree(db)),
+        labels.LOCATION,
+        media,
+        dpi,
+        small=bool(small),
+    )
 
 
 @router.get("/locations/{aid}/labels.pdf", include_in_schema=False)

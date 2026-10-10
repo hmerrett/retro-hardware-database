@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2674 behaviours, from 77 files.*
+*2722 behaviours, from 78 files.*
 
 
 ## A file where text was expected
@@ -1481,7 +1481,7 @@ Regenerate with:
 
 **The codes setting**
 
-- it is on the labels tab with three answers
+- each label has it on the labels tab with four answers
 - qr is the default
 - the default label has a qr code and no barcode
 - code 128 puts the tag in bars and no qr code
@@ -2952,7 +2952,7 @@ Regenerate with:
 
 ## Migrations
 
-*test_migrations.py — 28 behaviours*
+*test_migrations.py — 32 behaviours*
 
 - upgrade head on empty database  
   A fresh database migrates cleanly to head.
@@ -3001,6 +3001,12 @@ Regenerate with:
 - 0047 refuses a tag held twice before it writes anything
 - 0047 can be downgraded and upgraded again  
   Down, each thing gets back the column that says what it is in, by what holds it; up again, the same tree.
+- 0048 gives each label what the two shared and the first its destination
+- 0048 writes nothing where nothing was chosen  
+  A key never saved is the default, and the defaults are the labels as they always were, so there is nothing to copy.
+- 0048 makes every job already queued the first labels
+- 0048 can be downgraded and upgraded again  
+  Down, both labels share the first one's code and face again, and the first's destination is the destination; a code the older version never had goes back to its default.
 
 
 ## Model pages
@@ -4674,7 +4680,7 @@ Regenerate with:
 
 ## The label panel shows the label
 
-*test_the_label_panel_shows_the_label.py — 11 behaviours*
+*test_the_label_panel_shows_the_label.py — 10 behaviours*
 
 - every label panel shows the small label above its buttons
 - the picture is named for what it shows  
@@ -4693,9 +4699,8 @@ Regenerate with:
   The size Settings → Labels says the Bluetooth printer is loaded with, and the very file the script fetches to send it: the picture is not a likeness of the label but the label.
 - sent to a print agent the picture is what the agent prints dot for dot  
   Compared with the bytes the agent is handed for the same label, so a line the printer will cut short is cut short on the screen first.
-- a machine going to a 6x4 printer is pictured as the full label it gets  
-  A machine's label on a 6x4 printer is the full one, read across a room -- the rule the queue has always printed by -- so the picture is that, not the small layout stretched over a sheet.
-- a part going to a 6x4 printer is pictured as the small label it gets
+- anything going to a 6x4 printer is pictured as the full layout it gets  
+  The stock decides the shape (ADR-0037): a 6x4 sheet has room for the full layout, so a label sent to one is laid out as a full label -- a part's as well as a machine's, which is the one change the rule makes -- and the picture is that, not the small layout stretched over a sheet.
 
 
 ## The niimbot packets
@@ -4853,6 +4858,69 @@ Regenerate with:
 - a public location page shows a visitor only ticked things
 - the form saves the tick
 - the tick is not something a search matches
+
+
+## Two labels each set up for its job
+
+*test_two_labels_each_set_up_for_its_job.py — 45 behaviours*
+
+- the labels tab has a group for each label
+- an installation that changes nothing has the labels it always had  
+  QR codes, the tag, the name and the specifications with the word up the end, the label face, a PDF -- on the tape for the first and a 6x4 sheet for the second.
+- a labels print button says its name
+- a name left empty is the name it started with
+- each label carries its own code
+- none is a label of words alone
+- none gives the words the room the code had  
+  With no code at the end of the label, the words start where the code was.
+- none is offered last
+- each label is set in its own face
+- a labels stock is what its pdf is drawn on
+- the stock menu offers every stock there is
+- over bluetooth either label is drawn on the roll the printer has  
+  Not on the label's own stock: the size Bluetooth label size gives, which is the picture the script fetches and sends, for either label.
+- sent to an agent a label is drawn on the agents stock  
+  The full label's own stock is the 6x4 sheet; the bench printer has a 50x30 roll in it, and that is what comes out.
+- the stock decides the shape  
+  A 6x4 sheet has room for the full layout, framed with the details listed down it; anything smaller is laid out as a small label, whichever label it is.
+- the full label sent to a niimbot carries the full labels settings
+- the first detail is printed largest  
+  A name put first that will not fit on one line at more than the size of the words under it takes two, and stays the largest thing on the label.
+- the details follow in the order given
+- a detail not ticked is not printed
+- the serial number is printed when it is ticked
+- make and model is for a thing with a name of its own
+- where its kept is the path it is in on the day
+- where its kept is printed whatever the visible tick says  
+  The tick is about who reads the item's page; a label is read by whoever is holding the thing, and the owner chose to print it.
+- a thing kept nowhere has no line for it
+- a detail a thing does not have is not there  
+  A project has no serial number and is kept nowhere: no blank lines for them.
+- the word up the end has a tick of its own
+- where there is no room the last details go
+- on a full label a name is set in bold and the rest listed
+- a locations label keeps its own shape  
+  Name largest, the path above it, the tag under it, and LOCATION up the end, whatever the list says: those three are what a box on a shelf has to say.
+- the list is kept in the order it was posted
+- up moves a detail up one and down moves it down  
+  Without a script each press is a post of its own, kept as it is made; with one, the row moves in the page and Save keeps it, as any other change is kept.
+- moving comes back to the list it moved in
+- a move off either end or of nothing changes nothing
+- the moves are not buttons of the settings form  
+  Enter in a box presses the form's first button.
+- a detail that was not offered is dropped
+- a form without the list leaves it alone  
+  A tab posted without the list -- a script, a form from an older page -- has said nothing about it, and silence is not unticking everything.
+- every control in the list is named
+- labels for everything inside are the first labels
+- each print button says which label it is
+- each label has its own destination
+- this browser has a menu for each label
+- a print job says which label it is
+- a label that is not one of the two is refused
+- the agent is handed the label the job is for
+- the panels picture is the first labels pdf on its own stock
+- a visitor sees none of it
 
 
 ## Type checking
@@ -5264,9 +5332,9 @@ Regenerate with:
   The first thing with a real photo, not the first thing.
 
 
-## Where a small label goes
+## Where a label goes
 
-*test_where_a_small_label_goes.py — 13 behaviours*
+*test_where_a_label_goes.py — 13 behaviours*
 
 - the destinations are a pdf bluetooth and every printer configured  
   The list is worked out rather than written down: the printers come from the environment, so a list in the template could only ever be out of date.
@@ -5275,11 +5343,11 @@ Regenerate with:
   So a menu of printers is a menu of what will actually come out, rather than a list of names somebody has to remember the tape sizes for.
 - the bluetooth stock is offered from the stocks that exist  
   And only the Niimbot ones: a Bluetooth printer is not going to be handed a 6x4 inch sheet.
-- the default can be set to a configured printer
+- each labels default can be set to a configured printer
 - a destination that is not on offer is refused  
   The same reading `clean` takes of every other menu: an answer that was not offered did not come from this page.
 - a fresh install hands out a pdf  
-  Which is what the button did before there was anywhere else for it to go, so an installation that upgrades and changes nothing notices nothing.
+  Which is what the buttons did before there was anywhere else for them to go, so an installation that upgrades and changes nothing notices nothing.
 - every item page says what its button is for  
   The button is a link to a PDF in the markup.
 - the page is told where labels go

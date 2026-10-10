@@ -80,6 +80,7 @@ def queue_label(body: PrintJobIn, db: Session = Depends(get_db)) -> dict[str, ob
         fmt=body.format,
         dpi=body.dpi,
         copies=body.copies,
+        label=body.label,
     )
     return printing.as_dict(job)
 
@@ -149,7 +150,9 @@ def agent_label(
     job = printing.held_by(db, agent, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="No such print job")
-    body = printing.label_bytes(db, job.kind, job.asset_id, job.media, fmt, job.dpi)
+    body = printing.label_bytes(
+        db, job.kind, job.asset_id, job.media, fmt, job.dpi, label=job.label
+    )
     if body is None:
         printing.finish(db, job, ok=False, error="the item is no longer in the register")
         raise HTTPException(status_code=410, detail="The item is no longer in the register")

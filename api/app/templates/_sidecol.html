@@ -11,15 +11,11 @@
   {# The label for the shelf. Two sizes, each a PDF in a tab of its own, since what
      happens next is the browser's print dialog. #}
   {% call PN.panel('Label') %}
-    {{ LS.picture(kind, obj.asset_id, one) }}
-    <div class="row">
-      {# The small label is what labelsend.js hooks: without lbl-s and the two data
-         attributes it can only ever hand over the PDF (ADR-0025, ADR-0026). `one`
-         is the kind in the singular, which is what a print job is keyed by. #}
-      <a class="btn sm lbl-s" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=1"
-         data-kind="{{ one }}" data-asset="{{ obj.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
-      <a class="btn sm" href="/{{ kind }}/{{ obj.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
-    </div>
+    {{ LS.picture(kind, obj.asset_id) }}
+    {# What labelsend.js hooks: without the data attributes a button can only ever
+       hand over its PDF (ADR-0025, ADR-0026). `one` is the kind in the singular,
+       which is what a print job is keyed by. #}
+    <div class="row">{{ LS.buttons(kind, obj.asset_id, one) }}</div>
   {% endcall %}
   {% if not obj.disposed %}
   {% call PN.panel('Disposal') %}

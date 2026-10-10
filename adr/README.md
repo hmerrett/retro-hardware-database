@@ -73,11 +73,13 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0023](0023-a-preference-is-not-configuration.md) — A preference is not
   configuration, and the environment still wins — *Accepted*
 - [0024](0024-a-label-is-laid-out-once-and-drawn-twice.md) — A label is laid out
-  once and drawn twice — *Accepted*
+  once and drawn twice — *Accepted* (amended by
+  [0037](0037-each-label-is-set-up-for-its-job-and-the-stock-decides-its-shape.md))
 - [0025](0025-a-print-agent-asks-and-is-never-called.md) — A print agent asks, and
   is never called — *Accepted*
 - [0026](0026-the-print-button-is-a-link-until-a-device-says-otherwise.md) — The
-  print button is a link until a device says otherwise — *Accepted*
+  print button is a link until a device says otherwise — *Accepted* (amended by
+  [0037](0037-each-label-is-set-up-for-its-job-and-the-stock-decides-its-shape.md))
 - [0027](0027-a-remembered-vocabulary-is-deleted-when-it-is-turned-off.md) — A
   remembered vocabulary is deleted when it is turned off — *Superseded* by
   [0034](0034-a-location-is-a-record-in-the-register.md)
@@ -109,3 +111,7 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
   [0030](0030-a-pdf-is-read-in-the-browser.md))
 - [0036](0036-where-a-thing-is-is-one-tree.md) — Where a thing is, is one tree —
   *Accepted* (amends [0034](0034-a-location-is-a-record-in-the-register.md))
+- [0037](0037-each-label-is-set-up-for-its-job-and-the-stock-decides-its-shape.md) — Each
+  label is set up for its job, and the stock decides its shape — *Accepted* (amends
+  [0024](0024-a-label-is-laid-out-once-and-drawn-twice.md) and
+  [0026](0026-the-print-button-is-a-link-until-a-device-says-otherwise.md))

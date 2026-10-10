@@ -1,19 +1,21 @@
-/* Where a small label goes when the print button is pressed.
+/* Where each of the two labels goes when its print button is pressed.
  *
- * The button is a link to a PDF in the markup, and if none of this runs that is
- * exactly what it stays -- a browser with no JavaScript gets the file it always
- * got. What follows is this deciding to do something else instead: put the label
- * on a print agent's queue, or send it to a printer over Bluetooth.
+ * Each button is a link to its label's PDF in the markup, and if none of this runs
+ * that is exactly what it stays -- a browser with no JavaScript gets the file it
+ * always got. What follows is this deciding to do something else instead: put the
+ * label on a print agent's queue, or send it to a printer over Bluetooth.
  *
- * The choice is the device's, kept in localStorage and never sent anywhere. The
- * site's own default comes down in the data island; the device's answer overrules
- * it, because which printer is within reach is a fact about the thing you are
- * holding (ADR-0023).
+ * The choice is the device's, one for each label, kept in localStorage and never
+ * sent anywhere. The site's own defaults come down in the data island; the device's
+ * answer overrules them, because which printer is within reach is a fact about the
+ * thing you are holding (ADR-0023, ADR-0037).
  */
 (function () {
   "use strict";
 
-  var KEY = "rhdb.labelDestination";
+  /* The first label keeps the key there was when there was only one, so a choice a
+     device made before there were two still means what it meant. */
+  var KEYS = { small: "rhdb.labelDestination", full: "rhdb.labelDestination.full" };
   var node = document.getElementById("label-data");
   if (!node) return;
 
@@ -28,18 +30,19 @@
      data, and the register has to work in both -- so every read and write of it is
      wrapped, and the answer when it fails is the site's default rather than an
      error. */
-  function remembered() {
+  function remembered(label) {
     try {
-      return window.localStorage.getItem(KEY) || "";
+      return window.localStorage.getItem(KEYS[label] || KEYS.small) || "";
     } catch (e) {
       return "";
     }
   }
 
-  function remember(value) {
+  function remember(label, value) {
+    var key = KEYS[label] || KEYS.small;
     try {
-      if (value) window.localStorage.setItem(KEY, value);
-      else window.localStorage.removeItem(KEY);
+      if (value) window.localStorage.setItem(key, value);
+      else window.localStorage.removeItem(key);
     } catch (e) {
       /* Nothing to do about it, and nothing worth saying: the choice simply does
          not outlive the page, which is the browser's decision and not a fault. */
@@ -53,8 +56,8 @@
     return data.driver || "/static/niimbot.js";
   }
 
-  function destination() {
-    var chosen = remembered();
+  function destination(label) {
+    var chosen = remembered(label);
     var known = data.destinations || [];
     for (var i = 0; i < known.length; i++) {
       if (known[i][0] === chosen) return chosen;
@@ -62,7 +65,7 @@
     /* A device remembering a printer that has since been taken out of the settings
        falls back to the site's answer rather than failing at the moment somebody
        presses print. */
-    return data.default || "pdf";
+    return (data.defaults || {})[label] || "pdf";
   }
 
   /* --- saying what happened ---------------------------------------------- */
@@ -96,12 +99,12 @@
 
   /* --- the destinations --------------------------------------------------- */
 
-  function toQueue(agent, kind, assetId, say) {
+  function toQueue(agent, kind, assetId, label, say) {
     say("sending to " + agent + "…");
     return fetch("/api/print/jobs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ agent: agent, kind: kind, asset_id: assetId }),
+      body: JSON.stringify({ agent: agent, kind: kind, asset_id: assetId, label: label }),
     })
       .then(function (r) {
         if (r.ok) return r.json();
@@ -115,7 +118,7 @@
       });
   }
 
-  function toBluetooth(kind, assetId, say, showEverything) {
+  function toBluetooth(kind, assetId, label, say, showEverything) {
     if (!navigator.bluetooth) {
       /* The one case worth naming a browser for: no browser on iOS exposes this,
          and somebody standing there with an iPhone needs to be told what to do
@@ -130,7 +133,10 @@
     }
     var media = data.bluetoothMedia || "niimbot-50x30";
     say("fetching the label…");
-    return fetch("/" + kind + "s/" + assetId + "/label.png?media=" + encodeURIComponent(media))
+    var which = label === "full" ? "0" : "1";
+    return fetch(
+      "/" + kind + "s/" + assetId + "/label.png?media=" + encodeURIComponent(media) + "&small=" + which
+    )
       .then(function (r) {
         if (!r.ok) throw new Error("the register said " + r.status);
         return r.blob();
@@ -148,36 +154,41 @@
              filter as the printer -- see niimbot.js -- so the wide one is offered
              rather than left to be discovered by somebody reading the source. */
           say.offer("show every Bluetooth device", function () {
-            toBluetooth(kind, assetId, say, true);
+            toBluetooth(kind, assetId, label, say, true);
           });
         }
       });
   }
 
-  /* --- the button on an item page ----------------------------------------- */
+  /* --- the buttons on an item page ---------------------------------------- */
 
-  var button = document.querySelector("a.lbl-s[data-asset]");
-  if (button) {
-    var say = sayer(button.parentNode);
+  var buttons = document.querySelectorAll("a.lbl[data-asset]");
+  var say = null;
+  Array.prototype.forEach.call(buttons, function (button) {
+    var label = button.getAttribute("data-label") || "small";
+    var called = button.textContent.trim();
+    /* One line under the row for both, saying what the last press did. */
+    say = say || sayer(button.parentNode);
+    var speak = say;
     button.addEventListener("click", function (event) {
-      var where = destination();
+      var where = destination(label);
       if (where === "pdf") return; /* the link does what it says it does */
       event.preventDefault();
       var kind = button.getAttribute("data-kind");
       var assetId = button.getAttribute("data-asset");
-      if (where === "bluetooth") toBluetooth(kind, assetId, say);
-      else if (where.indexOf("agent:") === 0) toQueue(where.slice(6), kind, assetId, say);
+      if (where === "bluetooth") toBluetooth(kind, assetId, label, speak);
+      else if (where.indexOf("agent:") === 0) toQueue(where.slice(6), kind, assetId, label, speak);
     });
     /* So the button says where it is about to send, on hover and to a screen
        reader, rather than promising a PDF it is not going to hand over. */
-    var where = destination();
+    var where = destination(label);
     for (var i = 0; i < (data.destinations || []).length; i++) {
       if (data.destinations[i][0] === where && where !== "pdf") {
-        button.title = "Small label → " + data.destinations[i][1];
-        button.setAttribute("aria-label", "Small label to " + data.destinations[i][1]);
+        button.title = called + " → " + data.destinations[i][1];
+        button.setAttribute("aria-label", called + " to " + data.destinations[i][1]);
       }
     }
-  }
+  });
 
   /* --- the picture over the buttons --------------------------------------- */
 
@@ -194,7 +205,7 @@
     } catch (e) {
       pictures = {};
     }
-    var drawn = pictures[destination()];
+    var drawn = pictures[destination("small")];
     if (drawn && drawn.src !== picture.getAttribute("src")) {
       picture.width = drawn.w;
       picture.height = drawn.h;
@@ -204,18 +215,21 @@
 
   /* --- the menu on the settings page -------------------------------------- */
 
-  var menu = document.getElementById("device_destination");
-  if (menu) {
+  var menus = document.querySelectorAll("select[id^='device_destination_'][data-label]");
+  Array.prototype.forEach.call(menus, function (menu) {
+    var label = menu.getAttribute("data-label");
     (data.destinations || []).forEach(function (pair) {
       var option = document.createElement("option");
       option.value = pair[0];
       option.textContent = pair[1];
       menu.appendChild(option);
     });
-    menu.value = remembered();
+    menu.value = remembered(label);
     menu.addEventListener("change", function () {
-      remember(menu.value);
+      remember(label, menu.value);
     });
+  });
+  if (menus.length) {
     var box = document.getElementById("device-box");
     if (box) box.hidden = false;
   }

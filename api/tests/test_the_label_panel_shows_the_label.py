@@ -126,7 +126,7 @@ def test_every_label_panel_shows_the_small_label_above_its_buttons(client, thing
     aid = thing(path)
     panel = label_panel(client.get(f"/{path}/{aid}").text)
     assert 'class="lblpic"' in panel
-    assert panel.index('class="lblpic"') < panel.index("lbl-s")
+    assert panel.index('class="lblpic"') < panel.index('data-label="small"')
     assert f'src="/{path}/{aid}/label.png?media={labels.SMALL}"' in panel
 
 
@@ -160,7 +160,7 @@ def test_without_a_script_the_picture_is_of_the_pdf(client, thing, path, kind):
     PDF's label -- on the 51x19mm tape -- whatever the site sends a label to. It is
     the script that knows better, and only the script that says so (ADR-0026)."""
     aid = thing(path)
-    save(client, label_destination="bluetooth")
+    save(client, label_small_destination="bluetooth")
     shown = picture(client.get(f"/{path}/{aid}").text)
     assert shown["src"] == f"/{path}/{aid}/label.png?media={labels.SMALL}"
     assert (int(shown["width"]), int(shown["height"])) == labels.size_dots(
@@ -194,7 +194,7 @@ def test_there_is_a_picture_for_every_place_the_small_button_can_send_it(client,
     """The same list the button and the settings page are given, from the same
     place: a printer with no picture would be a printer the panel cannot show."""
     aid = thing("parts")
-    offered = {k for k, _ in settings.choices_for(settings.BY_KEY["label_destination"])}
+    offered = {k for k, _ in settings.choices_for(settings.BY_KEY["label_small_destination"])}
     assert set(pictures(client.get(f"/parts/{aid}").text)) == offered
     assert offered == {"pdf", "bluetooth", "agent:workshop-pi", "agent:bench", "agent:shipping"}
 
@@ -223,26 +223,17 @@ def test_sent_to_a_print_agent_the_picture_is_what_the_agent_prints_dot_for_dot(
     assert png(client, drawn["src"]) == printing.label_bytes(db, kind, aid, stock, printing.PNG)
 
 
-def test_a_machine_going_to_a_6x4_printer_is_pictured_as_the_full_label_it_gets(
-    client, db, thing, agents
+@pytest.mark.parametrize("path,kind", [("computers", labels.COMPUTER), ("parts", labels.PART)])
+def test_anything_going_to_a_6x4_printer_is_pictured_as_the_full_layout_it_gets(
+    client, db, thing, agents, path, kind
 ):
-    """A machine's label on a 6x4 printer is the full one, read across a room -- the
-    rule the queue has always printed by -- so the picture is that, not the small
-    layout stretched over a sheet."""
-    aid = thing("computers")
-    drawn = pictures(client.get(f"/computers/{aid}").text)["agent:shipping"]
-    assert drawn["src"] == f"/computers/{aid}/label.png?media=full-6x4&small=0"
+    """The stock decides the shape (ADR-0037): a 6x4 sheet has room for the full
+    layout, so a label sent to one is laid out as a full label -- a part's as well as
+    a machine's, which is the one change the rule makes -- and the picture is that,
+    not the small layout stretched over a sheet."""
+    aid = thing(path)
+    drawn = pictures(client.get(f"/{path}/{aid}").text)["agent:shipping"]
+    assert drawn["src"] == f"/{path}/{aid}/label.png?media=full-6x4"
     assert png(client, drawn["src"]) == printing.label_bytes(
-        db, labels.COMPUTER, aid, "full-6x4", printing.PNG
-    )
-
-
-def test_a_part_going_to_a_6x4_printer_is_pictured_as_the_small_label_it_gets(
-    client, db, thing, agents
-):
-    aid = thing("parts")
-    drawn = pictures(client.get(f"/parts/{aid}").text)["agent:shipping"]
-    assert drawn["src"] == f"/parts/{aid}/label.png?media=full-6x4"
-    assert png(client, drawn["src"]) == printing.label_bytes(
-        db, labels.PART, aid, "full-6x4", printing.PNG
+        db, kind, aid, "full-6x4", printing.PNG
     )

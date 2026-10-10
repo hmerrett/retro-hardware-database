@@ -41,6 +41,12 @@ def save_labels(client, **fields):
     assert r.status_code == 303, r.text
 
 
+def every(field, value):
+    """The same answer for both labels: what one setting used to say for all of them
+    before each label had its own (ADR-0037)."""
+    return {f"label_{key}_{field}": value for key in labels.LABELS}
+
+
 # --- reading a barcode back off a label's dots ---------------------------------
 
 
@@ -131,13 +137,19 @@ class TestTheTable:
 
 
 class TestTheCodesSetting:
-    def test_it_is_on_the_labels_tab_with_three_answers(self, client):
+    def test_each_label_has_it_on_the_labels_tab_with_four_answers(self, client):
         page = client.get("/settings/labels").text
-        box = page.split('name="label_codes"', 1)[1].split("</select>", 1)[0]
-        assert re.findall(r'<option value="([a-z0-9]+)"', box) == ["qr", "code128", "both"]
+        for key in labels.LABELS:
+            box = page.split(f'name="label_{key}_codes"', 1)[1].split("</select>", 1)[0]
+            assert re.findall(r'<option value="([a-z0-9]+)"', box) == [
+                "qr",
+                "code128",
+                "both",
+                "none",
+            ]
 
     def test_qr_is_the_default(self, client):
-        assert settings.value("label_codes") == "qr"
+        assert settings.value("label_small_codes") == settings.value("label_full_codes") == "qr"
 
     @pytest.mark.parametrize("kind", ["computers", "parts", "projects"])
     def test_the_default_label_has_a_qr_code_and_no_barcode(self, client, computer, part, kind):
@@ -149,7 +161,7 @@ class TestTheCodesSetting:
     @pytest.mark.parametrize("kind", ["computers", "parts", "projects", "locations"])
     def test_code_128_puts_the_tag_in_bars_and_no_qr_code(self, client, computer, part, kind):
         aid = _item(client, computer, part, kind)
-        save_labels(client, label_codes="code128")
+        save_labels(client, **every("codes", "code128"))
         pdf = client.get(f"/{kind}/{aid}/label.pdf?small=1").content
         assert not has_image(pdf)
         text, _ = read_barcode(picture(client, f"/{kind}/{aid}/label.png"))
@@ -158,7 +170,7 @@ class TestTheCodesSetting:
     @pytest.mark.parametrize("kind", ["computers", "parts", "projects", "locations"])
     def test_both_puts_both_on_the_label(self, client, computer, part, kind):
         aid = _item(client, computer, part, kind)
-        save_labels(client, label_codes="both")
+        save_labels(client, **every("codes", "both"))
         assert has_image(client.get(f"/{kind}/{aid}/label.pdf?small=0").content)
         bitmap = picture(client, f"/{kind}/{aid}/label.png?media=niimbot-50x30")
         assert read_barcode(bitmap)[0] == aid
@@ -168,7 +180,7 @@ class TestTheCodesSetting:
         """The 51x19mm tape is too short for both at sizes worth scanning: with the
         bars as wide as they need, a QR code would be under 12mm beside them."""
         aid = _item(client, computer, part, kind)
-        save_labels(client, label_codes="both")
+        save_labels(client, **every("codes", "both"))
         assert not has_image(client.get(f"/{kind}/{aid}/label.pdf?small=1").content)
         assert read_barcode(picture(client, f"/{kind}/{aid}/label.png"))[0] == aid
 
@@ -190,7 +202,7 @@ class TestTheCodesSetting:
 
     def test_the_full_label_follows_it_too(self, client, computer):
         aid = computer()["asset_id"]
-        save_labels(client, label_codes="code128")
+        save_labels(client, **every("codes", "code128"))
         assert not has_image(client.get(f"/computers/{aid}/label.pdf?small=0").content)
         full = picture(client, f"/computers/{aid}/label.png?media=full-6x4&small=0")
         assert read_barcode(full)[0] == aid
@@ -365,9 +377,10 @@ class TestLabelsForEverythingInside:
 class TestTheTypeSetting:
     def test_it_is_on_the_labels_tab_with_the_label_face_first(self, client):
         page = client.get("/settings/labels").text
-        box = page.split('name="label_type"', 1)[1].split("</select>", 1)[0]
-        assert re.findall(r'<option value="([a-z]+)"', box) == ["label", "look"]
-        assert settings.value("label_type") == "label"
+        for key in labels.LABELS:
+            box = page.split(f'name="label_{key}_type"', 1)[1].split("</select>", 1)[0]
+            assert re.findall(r'<option value="([a-z]+)"', box) == ["label", "look"]
+            assert settings.value(f"label_{key}_type") == "label"
 
     def test_the_label_face_is_audiowide(self, client, part):
         aid = part()["asset_id"]
@@ -376,13 +389,13 @@ class TestTheTypeSetting:
 
     def test_as_the_look_is_the_looks_interface_face(self, client, part):
         aid = part()["asset_id"]
-        save_labels(client, label_type="look")
+        save_labels(client, **every("type", "look"))
         assert b"IBMPlexSans" in client.get(f"/parts/{aid}/label.pdf").content
 
     @pytest.mark.parametrize("appearance", [{"type": "ledger"}, {"preset": "phosphor"}])
     def test_a_monospaced_look_sets_the_label_monospaced(self, client, part, appearance):
         aid = part()["asset_id"]
-        save_labels(client, label_type="look")
+        save_labels(client, **every("type", "look"))
         client.post(
             "/settings", data={"site_name": "", "theme": "system", "watermark": "1"} | appearance
         )

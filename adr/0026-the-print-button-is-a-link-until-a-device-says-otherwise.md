@@ -1,6 +1,6 @@
 # 0026 — The print button is a link until a device says otherwise
 
-**Status:** Accepted
+**Status:** Accepted — amended by [ADR-0037](0037-each-label-is-set-up-for-its-job-and-the-stock-decides-its-shape.md)
 **Date:** 2026-09-19
 
 ## Context

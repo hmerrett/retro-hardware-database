@@ -951,3 +951,111 @@ def test_0047_can_be_downgraded_and_upgraded_again(scratch_db_url):
     with engine.begin() as conn:
         assert _tree(conn)["RH-0004"] == ("part", "RH-0003")
     engine.dispose()
+
+
+# The revision 0048 builds on.
+BEFORE_EACH_LABEL = "0047_where_a_thing_is"
+
+
+def _settings(conn):
+    return dict(conn.execute(text("SELECT name, value FROM setting")).all())
+
+
+def _choose(scratch_db_url, **chosen):
+    """A register at 0047 with these label settings saved, as the old page saved them."""
+    up = _alembic(scratch_db_url, "upgrade", BEFORE_EACH_LABEL)
+    assert up.returncode == 0, up.stderr
+    engine = create_engine(scratch_db_url, future=True)
+    with engine.begin() as conn:
+        for name, value in chosen.items():
+            conn.execute(
+                text("INSERT INTO setting (name, value, updated_at) VALUES (:n, :v, NOW())"),
+                {"n": name, "v": value},
+            )
+    return engine
+
+
+def test_0048_gives_each_label_what_the_two_shared_and_the_first_its_destination(
+    scratch_db_url,
+):
+    engine = _choose(
+        scratch_db_url,
+        label_codes="code128",
+        label_type="look",
+        label_destination="agent:workshop-pi",
+    )
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        kept = _settings(conn)
+        columns = {row[0] for row in conn.execute(text("SHOW COLUMNS FROM print_job"))}
+    assert kept == {
+        "label_small_codes": "code128",
+        "label_full_codes": "code128",
+        "label_small_type": "look",
+        "label_full_type": "look",
+        "label_small_destination": "agent:workshop-pi",
+    }
+    assert "label" in columns
+    engine.dispose()
+
+
+def test_0048_writes_nothing_where_nothing_was_chosen(scratch_db_url):
+    """A key never saved is the default, and the defaults are the labels as they
+    always were, so there is nothing to copy."""
+    engine = _choose(scratch_db_url)
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert _settings(conn) == {}
+    engine.dispose()
+
+
+def test_0048_makes_every_job_already_queued_the_first_labels(scratch_db_url):
+    engine = _choose(scratch_db_url)
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO print_job (agent, kind, asset_id, media, fmt, dpi, copies, state, "
+                "created_at) VALUES ('bench', 'part', 'RH-0001', 'niimbot-50x30', 'png', 0, 1, "
+                "'queued', NOW())"
+            )
+        )
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert conn.execute(text("SELECT label FROM print_job")).scalar() == "small"
+    engine.dispose()
+
+
+def test_0048_can_be_downgraded_and_upgraded_again(scratch_db_url):
+    """Down, both labels share the first one's code and face again, and the first's
+    destination is the destination; a code the older version never had goes back to
+    its default. Up again, each label has them."""
+    engine = _choose(scratch_db_url, label_codes="both", label_destination="bluetooth")
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO setting (name, value, updated_at) VALUES "
+                "('label_small_type', 'look', NOW()), ('label_full_name', 'Shelf card', NOW())"
+            )
+        )
+        conn.execute(text("UPDATE setting SET value = 'none' WHERE name = 'label_full_codes'"))
+    down = _alembic(scratch_db_url, "downgrade", BEFORE_EACH_LABEL)
+    assert down.returncode == 0, f"downgrade from 0048 failed:\n{down.stderr}"
+    with engine.begin() as conn:
+        assert _settings(conn) == {
+            "label_codes": "both",
+            "label_type": "look",
+            "label_destination": "bluetooth",
+        }
+        columns = {row[0] for row in conn.execute(text("SHOW COLUMNS FROM print_job"))}
+    assert "label" not in columns
+    assert _alembic(scratch_db_url, "upgrade", "head").returncode == 0
+    with engine.begin() as conn:
+        assert _settings(conn) == {
+            "label_small_codes": "both",
+            "label_full_codes": "both",
+            "label_small_type": "look",
+            "label_full_type": "look",
+            "label_small_destination": "bluetooth",
+        }
+    engine.dispose()

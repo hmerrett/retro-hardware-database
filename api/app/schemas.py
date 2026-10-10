@@ -33,7 +33,7 @@ when it is left out of a create.
 """
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -468,6 +468,9 @@ class PrintJobIn(BaseModel):
     agent: str
     kind: str
     asset_id: str
+    # Which of the two labels, the first or the second whatever they are called: whose
+    # code, details and face it carries (ADR-0037). Left out, the first.
+    label: Literal["small", "full"] = "small"
     media: str = ""
     format: str = ""
     dpi: int = 0

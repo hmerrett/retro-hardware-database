@@ -60,12 +60,8 @@
 <div class="itemside">
   {% if request.state.sees_private %}
   {% call PN.panel('Label') %}
-    {{ LS.picture('locations', loc.asset_id, one) }}
-    <div class="row">
-      <a class="btn sm lbl-s" href="/locations/{{ loc.asset_id }}/label.pdf?small=1"
-         data-kind="{{ one }}" data-asset="{{ loc.asset_id }}" target="_blank">{{ I.ico('printer') }} {{ 'Small label' | ui }}</a>
-      <a class="btn sm" href="/locations/{{ loc.asset_id }}/label.pdf?small=0" target="_blank">{{ I.ico('printer') }} {{ 'Full label' | ui }}</a>
-    </div>
+    {{ LS.picture('locations', loc.asset_id) }}
+    <div class="row">{{ LS.buttons('locations', loc.asset_id, one) }}</div>
     {# Everything inside, all the way down: the location's own, then each location
        and each thing in it. One to a page for a label printer, or on an A4 sheet. #}
     <div class="row" title="This location's label, then one for each location inside it and each thing kept in it, all the way down.">

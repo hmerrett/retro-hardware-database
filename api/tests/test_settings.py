@@ -568,7 +568,11 @@ class TestHowThePageReads:
         setting names its section and lands in it."""
         # Each section a tab of its own (MANUAL §19).
         assert "<legend>Appearance</legend>" in client.get("/settings").text
-        assert "<legend>Labels</legend>" in client.get("/settings/labels").text
+        # The Labels tab is a fieldset to each label, headed by its name, and one
+        # for the Bluetooth printer (MANUAL §13, "Two labels, each set up for its job").
+        labels_tab = client.get("/settings/labels").text
+        for legend in ("Small label", "Full label", "Bluetooth printer"):
+            assert f"<legend>{legend}</legend>" in labels_tab
         assert "<legend>Server options</legend>" in client.get("/settings/server").text
         assert [s for s, _ in settings.grouped()] == ["Appearance", "Labels", "Server options"]
 
@@ -609,14 +613,14 @@ class TestHowThePageReads:
         page = "".join(
             client.get(t).text for t in ("/settings", "/settings/labels", "/settings/server")
         )
-        # One per setting, and one more: what the browser remembers for itself,
-        # which is a row on this page without being a setting -- it is kept in the
-        # browser and never posted (ADR-0023). The look's is on the group of faces
-        # rather than on a row, since the row is the group.
+        # One per setting, and two more: what the browser remembers for itself, one
+        # for each label, which are rows on this page without being settings -- they
+        # are kept in the browser and never posted (ADR-0023, ADR-0037). The look's is
+        # on the group of faces rather than on a row, since the row is the group.
         rows = page.count('class="field" title="') + len(
             re.findall(r'class="swatches[^"]*" title="', page)
         )
-        assert rows == len(settings.DEFINITIONS) + 1
+        assert rows == len(settings.DEFINITIONS) + 2
 
 
 class TestSaving:

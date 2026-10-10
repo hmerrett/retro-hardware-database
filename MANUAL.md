@@ -1989,13 +1989,15 @@ own for sifting without leaving it.
 
 ## 13. Labels and QR codes
 
-Every item page, when logged in, has a **Label** panel: a picture of the small
-label as it will print, and under it two print buttons, **Small label** and
-**Full label**, each a PDF.
+Every item page, when logged in, has a **Label** panel: a picture of the first
+label as it will print, and under it a print button for each of the two labels.
+They start out as the **Small label** and the **Full label**, each a PDF, and each
+can be set up for the printer and the job it is actually used for ([two labels,
+each set up for its job](#two-labels-each-set-up-for-its-job)). As they start out:
 
-- **The full label** (6×4 inches by default) carries the asset tag, the name, the
+- **The full label** (6×4 inches) carries the asset tag, the name, the
   specifications and a QR code.
-- **The small label** (51×19 mm by default, sized for a DYMO LabelWriter) carries
+- **The small label** (51×19 mm, sized for a DYMO LabelWriter) carries
   the QR code, the asset tag and the make and model. A drive's bay size and
   capacity go on one line the way a drive is spoken of — `3.5" 1.44MB`; a hard
   disk's capacity and CHS geometry keep a line each; a screen's resolution and the
@@ -2058,16 +2060,91 @@ is what is true on the day it is printed, which is why the code never holds it:
 move the box and the label still scans to the right page, which shows where it is
 now. Reprint it when the path on the label has gone stale enough to mislead.
 
-**labels for everything inside**, on a location's page, makes one PDF of small
-labels: the location's own, then one for each location inside it and each thing
-kept in it, all the way down. Choose **sheet** to have them laid out on A4, three
-across and seven down on 63.5×38.1 mm sheet labels, rather than one to a page for
-a label printer.
+**labels for everything inside**, on a location's page, makes one PDF of the
+first label: the location's own, then one for each location inside it and each
+thing kept in it, all the way down, one to a page on the first label's stock and
+set up as it is. Choose **sheet** to have them laid out on A4, three across and
+seven down on 63.5×38.1 mm sheet labels, rather than one to a page for a label
+printer.
 
-### QR code, barcode or both
+### Two labels, each set up for its job
 
-**Settings → Labels → Codes** decides what kind of code goes on every label: items,
-projects and locations alike.
+**Settings → Labels** has a group for each of the two labels, so each can be set
+up for the printer and the job it is used for: a sticker for the parts drawers on
+a Niimbot, say, and a card for the shelf edge on a sheet printer. An installation
+that changes nothing prints exactly the labels it always has.
+
+Each label has:
+
+- **Name** — what its print button says, and what this page calls it. *Small
+  label* and *Full label* describe the two as they start; a label set up for one
+  job is better called after it.
+- **Code** — a QR code, a Code 128 barcode, both, or none ([QR code, barcode, both
+  or none](#qr-code-barcode-both-or-none)).
+- **Goes to** — where its print button sends it: a PDF, a Niimbot over Bluetooth,
+  or a print agent's queue ([where a label goes](#where-a-label-goes)).
+- **Stock** — what its PDF is drawn on: a 6×4 inch sheet, 51×19 mm tape, or a
+  50×30 or 40×30 mm label. The PDF's only: a label sent over Bluetooth is printed
+  on the roll **Bluetooth label size** says is in the printer, and one sent to a
+  print agent on the stock that agent has loaded. The same label goes to different
+  printers from different places — the phone at the shelf to the Niimbot, the
+  computer in the workshop to the DYMO — and the stock belongs to the printer.
+- **What's on it** — which details are printed, and in what order ([what's on
+  it](#whats-on-it)).
+- **Type** — the face its words are set in ([the type on a
+  label](#the-type-on-a-label)).
+
+**The stock decides the shape.** On a 6×4 inch sheet a label is laid out as a full
+one: the tag large, the name under it, the details listed down the page and the
+code beside them. On anything smaller it is laid out as a small one: the code at
+one end and the words beside it, sized to the height of the label. So the full
+label sent to a Niimbot comes out the size of the roll, carrying the full label's
+code, details and face, rather than a 6×4 layout crushed onto 50 mm.
+
+#### What's on it
+
+A list of details, each with a tick to print it and **up** and **down** to move it:
+
+- **Tag** — the asset tag.
+- **Name** — what it is called: its own name, or its make and model where it has
+  none.
+- **Make and model** — the make and model as well, for a thing with a name of its
+  own.
+- **Specifications** — what a label has always carried for that kind of thing, as
+  much as its shape has room for. On a small label: a drive's capacity and
+  geometry, a screen's size and resolution, a project's state, and nothing for a
+  machine, whose build does not fit on a sticker. On a full one: a machine's build,
+  a part's specification, a project's status, dates and summary.
+- **Serial number**.
+- **Where it's kept** — the path of the locations it is in (`WORKSHOP / RACK 3 /
+  SHELF 2`) on the day it is printed. A part fitted in a machine is kept where the
+  machine is. It is printed whatever the item's **Visible** tick says: the tick is
+  about who reads the item's page, and a label is read by whoever is holding the
+  thing.
+
+And a tick of its own for **the word up the end**.
+
+**The first detail is printed largest**, and the rest follow it in order. On a
+full label a name is set in bold, as it always has been, and the other details are
+listed under it. Each label starts out as **Tag**, **Name** and
+**Specifications**, with the word up the end: the labels the register has always
+printed.
+
+A detail a thing does not have is simply not there: a project has no serial number
+and is kept nowhere. Everything is measured against the room there is — a line too
+long wraps, or is cut short with an ellipsis where it cannot break — and where
+there are more lines than room, the last ones go. So the details put first are the
+ones a crowded label keeps.
+
+The list is for machines, parts and projects. **A location's label is its own
+shape**: its name largest, the path above it and its tag under it, because those
+three are what a box on a shelf has to say. Its code, stock, face and where it goes
+are the label's, like anything else's.
+
+### QR code, barcode, both or none
+
+Each label's **Code** decides what kind of code it carries, on items, projects and
+locations alike.
 
 - **QR code**, the default and what every label had before. A phone's camera
   reads it, and it holds the item's URL, so a phone with no app at all opens the
@@ -2081,6 +2158,11 @@ projects and locations alike.
   label too short to hold both at sizes worth scanning carries the barcode alone,
   as **Code 128** would: that is the 51×19 mm tape, where a QR code would have to
   shrink below 12 mm to make room for the bars.
+- **None**. Words alone, for a shelf edge or a box read from across the room, and
+  the words have the room the code would have had. A label with no code cannot be
+  scanned: a phone has nothing to open, and an [audit](#audit) cannot open a
+  location from it. It suits a label that sits beside a coded one, not one that
+  stands alone.
 
 A barcode never holds the URL. A URL is forty-odd characters, which makes a
 barcode too long for a small label to hold. It is also the part that changes
@@ -2104,7 +2186,7 @@ third of a millimetre.
 
 ### The type on a label
 
-**Settings → Labels → Type** chooses the face the words on a label are set in.
+Each label's **Type** chooses the face its words are set in.
 *Label face*, the default, is Audiowide, which every label has been printed in so
 far. *As the look* uses the interface face of the look the site wears ([the
 type](#the-type)), IBM Plex Sans or IBM Plex Mono, so the labels match the site. The
@@ -2162,12 +2244,12 @@ came out as *Seagate ST-225* clipped to *Seaga…* on a label two thirds empty. 
 the code takes at most its share of the width and sits centred in the height, and
 the words get the rest. The tape is unaffected.
 
-**The Label panel shows it.** The picture above an item's two print buttons is
-this one, drawn for the printer the small button sends to ([where the small label
-goes](#where-the-small-label-goes)): the 51×19 mm tape when the button hands over a
-PDF, the size **Settings → Labels** says the Bluetooth printer is loaded with when
-it prints over Bluetooth, and the stock in a print agent's printer when it goes on
-that agent's queue. A browser that has chosen a printer of its own is shown that
+**The Label panel shows it.** The picture above an item's print buttons is the
+first label's, drawn for the printer its button sends to ([where a label
+goes](#where-a-label-goes)): its own stock when the button hands over a PDF, the
+size **Settings → Labels** says the Bluetooth printer is loaded with when it prints
+over Bluetooth, and the stock in a print agent's printer when it goes on that
+agent's queue. A browser that has chosen a printer of its own is shown that
 printer's label, and a browser running no script is shown the PDF's, which is what
 its button then hands over. It is the label the printer is sent, dot for dot, so a
 name too long for the label is cut short in the picture exactly as it will be on
@@ -2181,15 +2263,15 @@ printing from a phone through AirPrint.
 site, and from `base_url` in `tools/config.yml` for the command-line tool. **Set
 it correctly before you print anything.**
 
-### Where the small label goes
+### Where a label goes
 
-The small printer button used to do one thing: hand you a PDF. It now does
+A print button used to do one thing: hand you a PDF. Each label's now does
 **whatever this installation, or this device, says it should** — because a label
 is only useful where there is a printer, and which printer is within reach is a
 fact about the thing in your hand rather than about the collection.
 
-**⋯ → Settings → Labels** sets it. The choices are worked out from what you
-actually have:
+Each label's **Goes to**, under **⋯ → Settings → Labels**, sets it. The choices are
+worked out from what you actually have:
 
 - **a PDF to download** — what it always did, and still the answer for a sheet
   printer, for a Dymo through the print dialogue, and for AirPrint from a phone.
@@ -2202,19 +2284,19 @@ actually have:
   and the agent prints it within a few seconds.
 
 **A browser may overrule the site.** At the foot of the same page, *This browser*
-sets where that browser sends a label, and it is remembered here and nowhere
-else — the phone by the shelf and the machine in the workshop answer differently,
-and neither needs to know about the other. It is the same shape as the theme
-button: the site says what a browser that has not chosen gets, and a browser that
-has chosen keeps its choice.
+sets where that browser sends each label, a menu for each, and it is remembered
+here and nowhere else — the phone by the shelf and the machine in the workshop
+answer differently, and neither needs to know about the other. It is the same shape
+as the theme button: the site says what a browser that has not chosen gets, and a
+browser that has chosen keeps its choice.
 
 **Nothing changes for an installation that changes nothing.** The default is the
-PDF, so the button behaves exactly as it did.
+PDF for both labels, so the buttons behave exactly as they did.
 
-**With no script, it is a PDF.** The button is a link to a PDF in the markup, and
-that is what it stays in a browser running no JavaScript. Everything above is the
-page deciding to do something else instead, never a promise the markup made and
-could not keep.
+**With no script, it is a PDF.** Each button is a link to its label's PDF in the
+markup, and that is what it stays in a browser running no JavaScript. Everything
+above is the page deciding to do something else instead, never a promise the
+markup made and could not keep.
 
 #### Bluetooth, and the iPhone
 
@@ -2293,8 +2375,11 @@ curl -H "Authorization: Bearer rhdb_…" -X POST https://db.example.com/api/prin
 ```
 
 `media`, `dpi`, `format` and `copies` may be given and otherwise come from the
-agent's own settings. `GET /api/print/jobs` says what is queued, what has printed
-and what went wrong.
+agent's own settings. `label` is `small` or `full`, the first label or the second
+whatever they are called, and says whose code, details and face the label carries;
+left out, it is the first. Either is laid out for the agent's stock, as any label
+is. `GET /api/print/jobs` says what is queued, what has printed and what went
+wrong.
 
 **A job that is picked up and not finished comes back.** If the agent is unplugged
 mid-print, or its Pi reboots, the job returns to the queue after a few minutes
@@ -3087,11 +3172,11 @@ touched by saving this one.
 in, where its sections sit, how its buttons are written, whether photographs are
 watermarked, and which theme it opens in.
 
-**Labels** — whether labels carry a QR code, a barcode or both ([QR code, barcode
-or both](#qr-code-barcode-or-both)), the face their words are set in ([the type on
-a label](#the-type-on-a-label)), where a small label goes when it is printed, and
-the size a Bluetooth printer is loaded with; and, for this browser alone, where it
-sends a small label whatever the site says.
+**Labels** — the two labels, each with its name, its code, where it goes, the
+stock its PDF is drawn on, what is on it and its face ([two labels, each set up for
+its job](#two-labels-each-set-up-for-its-job)); the size a Bluetooth printer is
+loaded with; and, for this browser alone, where it sends each label whatever the
+site says.
 
 **Server** — what this installation shows the outside world: whether visitors must log in to read anything, whether it
 asks to be kept out of search engines,
