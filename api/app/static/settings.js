@@ -155,6 +155,25 @@
       }
     };
     img.src = src;
+    /* And what the picture cannot say: the details ticked that the label has no room
+       for, asked of the same settings. An answer overtaken by a later change is
+       dropped, as a picture is. */
+    var room = document.getElementById("preview_" + key + "_room");
+    if (room && window.fetch) {
+      window
+        .fetch(src.replace("/preview.png?", "/preview.json?"), { credentials: "same-origin" })
+        .then(function (r) {
+          return r.ok ? r.json() : null;
+        })
+        .then(function (said) {
+          if (!said || asked[key] !== src) return;
+          room.textContent = said.room || "";
+          room.hidden = !said.room;
+        })
+        .catch(function () {
+          /* The line keeps what it said; the picture is still right. */
+        });
+    }
   }
 
   var timer = null;

@@ -446,22 +446,26 @@ def test_on_a_full_label_a_name_is_set_in_bold_and_the_rest_listed(client):
     assert texts.index(serial) < texts.index("Seagate ST-225"), "in the order given"
 
 
-def test_a_locations_label_keeps_its_own_shape(client):
-    """Name largest, the path above it, the tag under it, and LOCATION up the end,
-    whatever the list says: those three are what a box on a shelf has to say."""
+def test_a_locations_label_follows_the_list(client):
+    """Its tag, its name and where it is kept are details like any other's: what is
+    ticked is printed, the first largest, and the word up the end only if it is
+    ticked. A location has no serial number, so a list of that alone prints nothing."""
     place = {
         "asset_id": "RH-9J2X",
         "name": "Box 14",
-        "path": "Workshop / Shelf 2",
+        "kept": "Workshop / Shelf 2",
         "kind": "Box",
         "notes": "",
     }
     save(client, **details("small", "serial", word=False), label_small_codes="none")
+    nothing = drawn(place, labels.LOCATION, labels.SMALL)
+    assert words(nothing) == ""
+    assert "qr" not in nothing.calls, "its code is the label's"
+    save(client, **details("small", "name", "kept", "tag"), label_small_codes="none")
     surface = drawn(place, labels.LOCATION, labels.SMALL)
     said = words(surface)
     assert largest(surface) == "Box 14"
     assert "WORKSHOP / SHELF 2" in said and "RH-9J2X" in said and "LOCATION" in said
-    assert "qr" not in surface.calls, "its code is the label's"
 
 
 # --- saving the list -----------------------------------------------------------------------

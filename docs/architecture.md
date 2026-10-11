@@ -259,9 +259,9 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `thumbs.py` | smaller copies of the photographs, made once and kept |
 | `enhance.py` | the one-touch tuneup: the automatic levels-and-colour fix a phone does |
 | `enrich.py` | fetching a photo for an item from its reference URL |
-| `labels.py` | what a label says and where on it that goes, for either surface: the two labels as Settings → Labels sets them up, and the stock deciding a label's shape (ADR-0037) |
+| `labels.py` | what a label says and where on it that goes, for either surface: the two labels as Settings → Labels sets them up, every kind following its label's list, the stock deciding a label's shape, and a crowded label making room before it leaves anything off (ADR-0037, ADR-0039) |
 | `printing.py` | the queue of labels waiting for a printer on somebody else's machine, and what any item's label is read from, for the queue and the label routes alike |
-| `labelpreview.py` | each label's picture on Settings → Labels: the example it is drawn for, the stock where it goes, drawn from the page's settings before they are saved |
+| `labelpreview.py` | each label's picture on Settings → Labels: the example it is drawn for, the stock where it goes, and what it has no room for, from the page's settings before they are saved |
 | `surfaces.py` | the two things a label is drawn on: a PDF page, and a printer's own dots |
 | `barcode.py` | Code 128: a tag as the bars a label carries, set B only, and the table the browser's reader in static/code128.js is held to |
 | `audit_storage.py` | checking every storage part against the questions its kind is actually asked |

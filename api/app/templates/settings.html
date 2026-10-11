@@ -45,6 +45,7 @@
              alt="{{ label_name(key) }} for an example {{ dict(preview_kinds)[shown.kind] | lower }}" data-label="{{ key }}" data-called="{{ label_name(key) }}">
         <figcaption id="preview_{{ key }}_stock" aria-live="polite">{{ shown.what }}</figcaption>
       </figure>
+      <p class="hint" id="preview_{{ key }}_room" aria-live="polite"{% if not shown.room %} hidden{% endif %}>{{ shown.room }}</p>
       <div class="field" id="preview_{{ key }}_example" hidden>
         <label for="preview_{{ key }}_kind">Example</label>
         <select class="select" id="preview_{{ key }}_kind">

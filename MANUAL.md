@@ -2053,12 +2053,15 @@ that moves.
 
 ### A location has one too
 
-A location's page has the same **Label** panel. Its label carries the location's
-name large, the path above it in small type (`WORKSHOP / RACK 3 / SHELF 2`), and
-the tag and the code. The small one is the default, as it is for a part. The path
-is what is true on the day it is printed, which is why the code never holds it:
-move the box and the label still scans to the right page, which shows where it is
-now. Reprint it when the path on the label has gone stale enough to mislead.
+A location's page has the same **Label** panel, and its label is made from the
+label's list like anything else's ([what's on it](#whats-on-it)): **Tag** is its
+tag, **Name** its name, and **Where it's kept** the path of the locations it is in
+(`WORKSHOP / RACK 3`). A label set up for boxes on shelves is better with Name
+first, then Where it's kept and Tag. The small one is the default, as it is for a
+part. The path is what is true on the day it is printed, which is why the code never
+holds it: move the box and the label still scans to the right page, which shows
+where it is now. Reprint it when the path on the label has gone stale enough to
+mislead.
 
 **labels for everything inside**, on a location's page, makes one PDF of the
 first label: the location's own, then one for each location inside it and each
@@ -2112,16 +2115,17 @@ A list of details, each with a tick to print it and **up** and **down** to move 
 - **Make and model** — the make and model as well, for a thing with a name of its
   own.
 - **Specifications** — what a label has always carried for that kind of thing, as
-  much as its shape has room for. On a small label: a drive's capacity and
-  geometry, a screen's size and resolution, a project's state, and nothing for a
-  machine, whose build does not fit on a sticker. On a full one: a machine's build,
-  a part's specification, a project's status, dates and summary.
+  much as its shape has room for. On a small label: a drive's capacity and geometry,
+  a screen's size and resolution, a project's state, and nothing for a machine,
+  whose build does not fit on a sticker, or for a location. On a full one: a
+  machine's build, a part's specification, a project's status, dates and summary,
+  and a location's kind and notes.
 - **Serial number**.
 - **Where it's kept** — the path of the locations it is in (`WORKSHOP / RACK 3 /
-  SHELF 2`) on the day it is printed. A part fitted in a machine is kept where the
-  machine is. It is printed whatever the item's **Visible** tick says: the tick is
-  about who reads the item's page, and a label is read by whoever is holding the
-  thing.
+  SHELF 2`) on the day it is printed: for a location, the locations it is inside. A
+  part fitted in a machine is kept where the machine is. It is printed whatever the
+  item's **Visible** tick says: the tick is about who reads the item's page, and a
+  label is read by whoever is holding the thing.
 
 And a tick of its own for **the word up the end**.
 
@@ -2132,15 +2136,22 @@ listed under it. Each label starts out as **Tag**, **Name** and
 printed.
 
 A detail a thing does not have is simply not there: a project has no serial number
-and is kept nowhere. Everything is measured against the room there is — a line too
-long wraps, or is cut short with an ellipsis where it cannot break — and where
-there are more lines than room, the last ones go. So the details put first are the
-ones a crowded label keeps.
+and is kept nowhere, and a location has no make and model and no serial number.
+Nothing ticked leaves the label its code alone, and the word up the end if that is
+ticked.
 
-The list is for machines, parts and projects. **A location's label is its own
-shape**: its name largest, the path above it and its tag under it, because those
-three are what a box on a shelf has to say. Its code, stock, face and where it goes
-are the label's, like anything else's.
+**A crowded label makes room before it leaves anything off.** Everything is measured
+against the room there is — a line too long wraps, or is cut short with an ellipsis
+where it cannot break — and where the details ticked need more lines than there is
+room for, the type comes down until they fit: the growth a larger label's type is
+given ([the label as a picture](#the-label-as-a-picture)) is handed back, as far as
+the size the 51×19 mm tape prints at and no further. Past that, the last ones go, so
+the details put first are the ones a crowded label keeps.
+
+**A location follows the list too**, as a machine or a part does — its tag, its
+name, where it is kept, and on a full label its kind and notes — so a label set up
+for the boxes on the shelves says what a box on a shelf has to say, in the order its
+list gives.
 
 #### Seeing it as you set it up
 
@@ -2158,7 +2169,8 @@ scanned. A menu under the picture says what sort of thing the example is — a
 machine, a part, a project or a location — because each carries the list
 differently: a machine's specifications are its build, which a small label has no
 room for; a project has no make and model or serial number, and is kept nowhere; and
-a location's label is its own shape and reads none of the list. The first label
+a location has its tag, its name and where it is kept, and on a full label its kind
+and notes. The first label
 starts on a part and the second on a machine, which are what each is printed for as
 the two start out.
 
@@ -2169,6 +2181,11 @@ Bluetooth, and the agent's stock when it goes on a print agent's queue. A line
 under the picture names the stock. It follows the settings on this page and not the
 menus under *This browser*, which say where one browser sends a label rather than
 what the label is.
+
+**When something ticked does not fit**, another line says so — *No room for Serial
+number, and only part of Specifications* — so a tick that changes nothing in the
+picture says why. It is what is left off once the type has come down as far as it
+goes ([what's on it](#whats-on-it)).
 
 On a wide screen the picture stands beside the label's settings and stays in view
 while the list is worked down; on a phone it is at the top of the label's group.
@@ -2187,8 +2204,7 @@ locations alike.
 - **Code 128**. A barcode holding the tag and nothing else, the seven characters
   `RH-K7Q2`. Any handheld barcode scanner reads one, quickly and from a distance,
   and the cheapest ones read nothing else. Nothing is printed under the bars: the
-  tag is already the largest line on an item's label, and the line under the name
-  on a location's.
+  tag goes on the label as a detail, where its list puts it.
 - **Both**. The QR code where it always was, and the barcode under the words. A
   label too short to hold both at sizes worth scanning carries the barcode alone,
   as **Code 128** would: that is the 51×19 mm tape, where a QR code would have to
@@ -2259,7 +2275,9 @@ the small label are the tape's, because they are what fits on a tape; printed
 unchanged on a 50×30 mm label they left a third of it empty. So they are held as a
 proportion of the height and a taller label gets larger type — bounded by the
 width, since a 40×30 mm label is as tall as a 50×30 and a third narrower, and type
-sized by the height alone put *PC1512* in a column that could not hold it.
+sized by the height alone put *PC1512* in a column that could not hold it. It is
+growth the label gives back when its details need the room: a crowded label's type
+comes down until they fit, as far as the tape's own size.
 
 **What the code does not use, the words get.** A code is printed at a whole number
 of dots to the square, so a box sized to anything else leaves a fraction of a

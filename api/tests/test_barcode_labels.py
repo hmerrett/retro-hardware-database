@@ -30,7 +30,7 @@ PART = {
 PLACE = {
     "asset_id": "RH-9J2X",
     "name": "Box 14",
-    "path": "Workshop / Rack 3 / Shelf 2",
+    "kept": "Workshop / Rack 3 / Shelf 2",
     "kind": "Box",
     "notes": "",
 }
@@ -358,7 +358,9 @@ def test_no_word_reaches_down_into_the_bars(media, codes, face):
 
 
 class TestALocationsLabel:
-    def recorded(self, small=True, codes=labels.QR):
+    def recorded(self, small=True, codes=labels.QR, listed=("name", "kept", "tag")):
+        """What a label set up for boxes on shelves -- name first, then where it is
+        kept and its tag -- says on a location, and how large."""
         said, sizes = [], []
 
         class Listening(surfaces.RasterSurface):
@@ -367,28 +369,24 @@ class TestALocationsLabel:
                 sizes.append(size)
                 super().text(x, y, text, font, size)
 
-        stock = labels.MEDIA[labels.SMALL if small else labels.FULL]
+        name = labels.SMALL if small else labels.FULL
+        stock = labels.MEDIA[name]
+        label = labels.Setup("small", "Small label", codes, name, listed, True, labels.LABEL_FACE)
         surface = Listening(surfaces.blank(*labels.size_dots(stock)), stock["dpi"])
-        labels._draw(surface, stock, PLACE, [], labels.LOCATION, small, codes=codes)
+        labels._draw(surface, stock, PLACE, [], labels.LOCATION, small, label=label)
         return dict(zip(said, sizes, strict=False))
 
     @pytest.mark.parametrize("codes", labels.CODES)
     @pytest.mark.parametrize("small", [True, False])
-    def test_it_carries_the_name_large_the_path_over_it_and_the_tag(self, small, codes):
+    def test_set_up_for_boxes_it_carries_the_name_large_its_path_and_its_tag(self, small, codes):
         """With every code: under the bars was the one place a location's label had
         its tag in words when there was a barcode, and nothing is printed there now."""
         said = self.recorded(small, codes)
-        assert "Box 14" in said and "RH-9J2X" in said
+        assert "Box 14" in said and any("RH-9J2X" in line for line in said)
         path = next(line for line in said if "SHELF 2" in line)
         assert said["Box 14"] > said[path]
         if not small:
-            assert path == "WORKSHOP / RACK 3 / SHELF 2"
-
-    def test_a_path_too_long_for_the_tape_loses_its_far_end_first(self):
-        """The near end says where the box is; the far end only which building."""
-        path = next(line for line in self.recorded(True) if "SHELF 2" in line)
-        assert path.startswith("…") or path == "WORKSHOP / RACK 3 / SHELF 2"
-        assert path.endswith("SHELF 2")
+            assert "WORKSHOP / RACK 3 / SHELF 2" in path
 
     def test_the_word_up_the_end_says_location(self):
         assert labels.KIND_WORDS[labels.LOCATION] == "LOCATION"

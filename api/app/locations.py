@@ -417,12 +417,13 @@ def forget(db: Session, loc: Location, who: str, r: _tree.Tree, how: str = EDIT)
 
 
 def label_row(loc: Location, t: Tree) -> dict[str, object]:
-    """A location as its label reads it: the name, the path above it -- where the
-    box was when the label was printed -- its kind and its notes."""
+    """A location as its label reads it: its tag, its name, where it is kept -- the
+    path of the locations it is inside, where the box was when the label was printed
+    -- its kind and its notes (MANUAL §13, "What's on it")."""
     return {
         "asset_id": loc.asset_id,
         "name": loc.name,
-        "path": t.text(loc.inside_id.upper() if loc.inside_id else None),
+        "kept": t.text(loc.inside_id.upper() if loc.inside_id else None),
         "kind": KIND_NAMES.get(loc.kind, loc.kind),
         "notes": loc.notes,
     }

@@ -1,6 +1,6 @@
 # 0037 — Each label is set up for its job, and the stock decides its shape
 
-**Status:** Accepted
+**Status:** Accepted — amended by [ADR-0039](0039-every-label-follows-its-list-and-makes-room-before-it-leaves-anything-off.md)
 **Date:** 2026-10-10
 
 ## Context

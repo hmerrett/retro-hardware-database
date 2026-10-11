@@ -12,7 +12,7 @@ by default, and this one is not on its list.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 from starlette.datastructures import FormData
 
@@ -143,3 +143,16 @@ def gui_label_preview(request: Request, label: str = "", kind: str = "") -> Resp
     form = Posted(FormData(request.query_params))
     png = labelpreview.picture(label, kind, settings.unsaved(form, settings.LABELS))
     return Response(png, media_type="image/png", headers={"Cache-Control": "no-store"})
+
+
+@router.get("/settings/labels/preview.json", include_in_schema=False)
+def gui_label_room(request: Request, label: str = "", kind: str = "") -> Response:
+    """What the line under a label's picture says about room, for the settings the page
+    sends: the details ticked that the label has no room for (MANUAL §13, "Seeing it
+    as you set it up"). Asked beside the picture, since a picture cannot say it, and
+    read the same way and kept nowhere, like it."""
+    if label not in labels.LABELS or kind not in dict(labelpreview.KINDS):
+        raise HTTPException(status_code=404, detail="No such label")
+    form = Posted(FormData(request.query_params))
+    said = labelpreview.room(label, kind, settings.unsaved(form, settings.LABELS))
+    return JSONResponse({"room": said}, headers={"Cache-Control": "no-store"})
