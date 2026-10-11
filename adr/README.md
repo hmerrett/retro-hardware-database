@@ -120,3 +120,5 @@ future reader (or a returning maintainer) doesn't have to reverse-engineer it.
 - [0039](0039-every-label-follows-its-list-and-makes-room-before-it-leaves-anything-off.md) —
   Every label follows its list, and makes room before it leaves anything off —
   *Accepted* (amends [0037](0037-each-label-is-set-up-for-its-job-and-the-stock-decides-its-shape.md))
+- [0040](0040-a-barcode-takes-the-room-the-words-leave.md) — A barcode takes the room
+  the words leave — *Accepted*
