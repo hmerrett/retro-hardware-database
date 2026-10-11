@@ -16,7 +16,29 @@ Regenerate with:
 
 
 
-*2763 behaviours, from 81 files.*
+*2771 behaviours, from 82 files.*
+
+
+## A barcode takes the room the words leave
+
+*test_a_barcode_takes_the_room_the_words_leave.py — 8 behaviours*
+
+- with nothing on it a barcode runs the labels whole height  
+  Nothing ticked, the word up the end included: the code alone, from the foot of the label to its top, inside its margins.
+- beside a qr code the bars run the whole height too  
+  With both codes, on a label wide enough for the bars to stand beside the QR code rather than under it, nothing ticked leaves them the whole height beside it.
+- the bars rise to just under the last line  
+  Between the last line's baseline and the top of the bars there is less than that line is tall: no room for another line, and none the bars could have had.
+- nothing written reaches into bars that rise to meet it  
+  The whole of the last line stands above them, tails and all, and so does the word up the end, which on a label the bars run across stands above them too.
+- however much is written the bars keep the height they always had  
+  A little over a third of a small label's height, and on a 6x4 sheet 0.9 inches for a barcode alone and as high up the label as they always reached with both codes.
+- with both codes the qr code keeps its size  
+  The bars have only the height the QR code leaves them: the code is the same size with nothing written as with every detail, and bars running under it stay under it.
+- on a 6x4 sheet a barcode alone runs across under the words  
+  As wide as the sheet allows inside its margins, under every line written on it, and no QR code.
+- a 6x4 label that fills the sheet gives its last lines to a barcode alone  
+  Beside a QR code the whole of it fits; with the bars running across under it, the last of its specification goes and so do the details after it -- and the label says so, which is what the settings page puts under its picture.
 
 
 ## A crowded label makes room

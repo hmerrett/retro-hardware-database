@@ -2100,7 +2100,8 @@ Each label has:
 
 **The stock decides the shape.** On a 6×4 inch sheet a label is laid out as a full
 one: the tag large, the name under it, the details listed down the page and the
-code beside them. On anything smaller it is laid out as a small one: the code at
+QR code beside them, or a barcode alone across the foot of the page under them. On
+anything smaller it is laid out as a small one: the code at
 one end and the words beside it, sized to the height of the label. So the full
 label sent to a Niimbot comes out the size of the roll, carrying the full label's
 code, details and face, rather than a 6×4 layout crushed onto 50 mm.
@@ -2203,7 +2204,8 @@ locations alike.
   page.
 - **Code 128**. A barcode holding the tag and nothing else, the seven characters
   `RH-K7Q2`. Any handheld barcode scanner reads one, quickly and from a distance,
-  and the cheapest ones read nothing else. Nothing is printed under the bars: the
+  and the cheapest ones read nothing else. It runs across the label under the
+  words, on a 6×4 sheet as on a small label. Nothing is printed under the bars: the
   tag goes on the label as a detail, where its list puts it.
 - **Both**. The QR code where it always was, and the barcode under the words. A
   label too short to hold both at sizes worth scanning carries the barcode alone,
@@ -2234,6 +2236,24 @@ label is as wide as the label allows. The white either side of the bars, which a
 scanner needs, may stand in the margin at the ends of the tape, since it prints
 nothing there. On the 51×19 mm tape that is four of the DYMO's dots to a bar, a
 third of a millimetre.
+
+**The bars are as tall as the words let them be.** The words are set as they would
+be with no bars there, at the top of the label and as large as it gives them, and
+the bars rise from its foot to just under the last line, so the white a label with
+little written on it would have had is barcode instead. With nothing ticked, the
+word up the end included, they run the label's whole height; the word, where it is
+ticked, stands clear above any bars that run under it.
+
+They are never shorter than they have always been: a little over a third of a small
+label's height, and on a 6×4 sheet 0.9 inches for a barcode alone and about
+two-thirds of an inch under the words with both codes. A label whose words need
+more than the rest keeps those bars and makes room the way any crowded label does
+([what's on it](#whats-on-it)). On a 6×4 sheet, where the type does not come down,
+that means its last lines go: a machine whose build fills the sheet gives the bottom
+of it to a barcode running across, and the picture on **Settings → Labels** says
+what was left off ([seeing it as you set it up](#seeing-it-as-you-set-it-up)).
+With both codes the QR code keeps its size, and the bars have only the height that
+it and the words leave.
 
 ### The type on a label
 
@@ -2288,7 +2308,9 @@ whole.
 
 **The writing sits down the middle of the label**, not hung from the top. What is
 written is as tall as it is; where the label is taller than that, the difference
-is a margin and belongs at both ends.
+is a margin and belongs at both ends. Where a barcode runs under the words, the bars
+have that difference instead ([QR code, barcode, both or
+none](#qr-code-barcode-both-or-none)).
 
 **On a taller label the code stops growing.** It is sized by the height on a
 51×19 mm tape, where the height is what there is least of. A 50×30 mm label is a

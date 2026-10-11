@@ -810,9 +810,10 @@ TAPE_H = 19 * mm
 TAG_PT, BODY_PT = 11.0, 6.5
 
 # The small label's own margins: the same at top and bottom on every stock, and the
-# width of the strip the kind word stands in.
+# width of the strip the kind word stands in and the size it is set at.
 SMALL_MARGIN = 1.2 * mm
 WORD_STRIP = 3.2 * mm
+WORD_PT = 5.0
 
 
 def small_text_column(W: float, H: float, safe: float, worded: bool = True) -> SmallGeometry:
@@ -856,6 +857,18 @@ def _two_lines(
     return size, lines
 
 
+# A full label's margin, inside the frame drawn round it.
+FULL_MARGIN = 0.22 * inch
+
+# The least height a full label's bars have, by the codes it carries: what the words
+# are fitted above, and the bars rise from it to meet them, as a small label's do. A
+# barcode alone runs across the foot of the label, and keeps the 0.9 inches it had
+# when it stood where the QR code would (ADR-0040). With both, the bars under the words
+# keep reaching as high as they always have: they used to stand a sixth of an inch
+# off the margin, and now stand on it.
+FULL_BARS = {BARCODE: 0.9 * inch, BOTH: 0.66 * inch + 10}
+
+
 def _render_full(
     s: Surface,
     W: float,
@@ -873,13 +886,13 @@ def _render_full(
     is which codes it carries and `tag` what a barcode holds. A head that is a name
     takes two lines rather than shrink (see `_two_lines`).
 
-    A barcode alone stands where the QR code would; with both, it runs under the
-    words, which stop above it; with none, the words have the width. Returns how
-    much of the head and of each of the body's lines it printed: room runs out from
-    the bottom, and what it could not print is what the label says it had no room
-    for."""
+    A barcode alone runs across the foot of the label under the words; with both, it
+    runs under the words beside the QR code; either way the words stop above it and
+    the bars rise to meet them. With none, the words have the width. Returns how much
+    of the head and of each of the body's lines it printed: room runs out from the
+    bottom, and what it could not print is what the label says it had no room for."""
     data = tag or head
-    margin = 0.22 * inch
+    margin = FULL_MARGIN
     qr_size = min(H - 2 * margin, 2.1 * inch)
     qr_x = W - margin - qr_size
     # The strip the word stands in, taken off the left of the text rather than out
@@ -889,19 +902,18 @@ def _render_full(
     strip = 0.30 * inch if word else 0.0
     text_x = margin + strip
     text_w = qr_x - text_x - 0.10 * inch
-    if codes == NONE:
-        # Nothing stands at the right-hand end, so the words run to the margin there.
+    if codes in (NONE, BARCODE):
+        # Nothing stands at the right-hand end, so the words run to the margin there:
+        # a barcode alone is under them.
         text_w = W - margin - text_x
-    bottom = margin + 0.16 * inch
-    if codes == BOTH:
-        # The bars have the band's whole height. The tag that stood under them said
-        # again what the largest line on the label says already (MANUAL §13).
-        band_h = 0.5 * inch + 10
-        used = s.barcode_width(text_w, data)
-        s.barcode(text_x, bottom, used, band_h, data)
-        bottom += band_h + 8
+    # The words' last baseline. Above the least the bars have, where there are bars,
+    # and the bars then rise to meet it.
+    bars = FULL_BARS.get(codes, 0.0)
+    bottom = margin + (bars + 8 if bars else 0.16 * inch)
     s.frame(0.10 * inch, 0.10 * inch, W - 0.20 * inch, H - 0.20 * inch, 8)
-    if word:
+    # Up the end, beside everything else -- but for bars running across, which it
+    # stands above, so it goes in once they have.
+    if word and codes != BARCODE:
         s.vertical(margin, margin + strip, H / 2, word, HEAD, 13)
     aid_size = _fit(s, head, HEAD, 24, 12, text_w) if head else 12.0
     heads = [head] if head else []
@@ -914,11 +926,13 @@ def _render_full(
         if i:
             y -= aid_size + 2
         s.text(text_x, y, _clip(s, line, HEAD, aid_size, text_w), HEAD, aid_size)
+    # The last baseline drawn, which the bars rise to meet.
+    last = y if heads else H - margin + 8
     printed = [WHOLE] if heads else []
     # A title under the line before it, and a gap before the first of a run of
     # listed lines -- the shape the full label has always had, tag, name, list. Room
     # runs out from the bottom: the last of the label's details are the ones it loses.
-    last = ""
+    style_was = ""
     for style, raw in body:
         if style == TITLE:
             if y - 16 < bottom:
@@ -926,9 +940,10 @@ def _render_full(
             for line in _wrap(s, raw, HEAD, 12, text_w)[:2]:
                 y -= 16
                 s.text(text_x, y, line, HEAD, 12)
+                last = y
             printed.append(WHOLE)
         else:
-            if last != LISTED:
+            if style_was != LISTED:
                 y -= 5
             wrapped = _wrap(s, "• " + raw, BODY, 9, text_w)[:2]
             drew = 0
@@ -939,19 +954,30 @@ def _render_full(
                 s.text(
                     text_x if i == 0 else text_x + 8, y, line if i == 0 else "  " + line, BODY, 9
                 )
+                last = y
                 drew += 1
             printed.append(_share(drew, len(wrapped)))
             if y - 12 < bottom:
                 break
-        last = style
+        style_was = style
     printed += [NOTHING] * (1 + len(body) - len(printed)) if heads else []
+    if bars:
+        # The bars have whatever height the words leave them, from the margin to just
+        # under the last line: with nothing written they run the label's height
+        # (MANUAL §13, "QR code, barcode, both or none"). Running across, they stop
+        # under the word up the end as well, which stands in the height above them.
+        top = last - 8
+        if codes == BARCODE and word:
+            top = min(top, H - margin - s.width_of(word, HEAD, 13) - 8)
+        bars = max(bars, top - margin)
+        if codes == BARCODE:
+            used = s.barcode_width(W - 2 * margin, data)
+            s.barcode((W - used) / 2, margin, used, bars, data)
+            if word:
+                s.vertical(margin, margin + strip, (bars + 8 + H) / 2, word, HEAD, 13)
+            return printed
+        s.barcode(text_x, margin, s.barcode_width(text_w, data), bars, data)
     if codes == NONE:
-        return printed
-    if codes == BARCODE:
-        bars_h = 0.9 * inch
-        used = s.barcode_width(qr_size, data)
-        bars_x = qr_x + (qr_size - used) / 2
-        s.barcode(bars_x, (H - bars_h) / 2, used, bars_h, data)
         return printed
     qr_y = (H - qr_size) / 2 + 0.10 * inch
     s.qr(qr_x, qr_y, qr_size, url, error)
@@ -1086,11 +1112,12 @@ def _small_words(
     return _Words(aid_size, heads, bsize, lines, owners, wanted, floor)
 
 
-# The barcode's band on a small label: a share of the height, with a floor below
-# which a scanner's line misses the bars. The bars have all of it. Nothing is
-# printed under them (MANUAL §13): the tag is already the largest line on an item's
-# label and the line under the name on a location's, and the seven characters again
-# under the bars were room the bars could use.
+# The least of a small label's height the bars have: a share of it, with a floor
+# below which a scanner's line misses them. It is what the words are fitted above,
+# and the bars rise from it to meet them (see `_render_small`). Nothing is printed
+# under them (MANUAL §13): the tag is already the largest line on an item's label
+# and the line under the name on a location's, and the seven characters again under
+# the bars were room the bars could use.
 BAR_SHARE, BAR_MIN = 0.36, 4.5 * mm
 
 # A QR code smaller than this is one a phone has to be argued with. With both codes
@@ -1144,6 +1171,8 @@ def _render_small(
     word = KIND_WORDS.get(kind, "")
     mx, my, qr, tx, tw = small_text_column(W, H, safe, bool(word))
     grow = H / TAPE_H
+    # The least the bars have, which is what the words are fitted above: the bars
+    # take more once it is known how much the words leave them.
     bars = max(BAR_MIN, (H - 2 * my) * BAR_SHARE) if codes in (BARCODE, BOTH) else 0.0
     band = bars + 1.0 if bars else 0.0
     strip_w = (WORD_STRIP + 1.0 * mm) if word else 0.0
@@ -1189,6 +1218,38 @@ def _render_small(
         tx -= qr - drawn
         tw += qr - drawn
         qr = drawn
+    # The type grows with the label: its sizes are the tape's, held as a share of the
+    # height. It is growth the label gives back when its details need the room -- a
+    # crowded label's type comes down until every line fits, as far as the tape's
+    # own size and no further, and past that the last ones go (MANUAL §13, "What's
+    # on it"). A label with room to spare keeps the size it grows to.
+    least = min(grow, 1.0)
+    scale = grow
+    while True:
+        words = _small_words(s, asset_id, title, tags, tw, H - my, my + band, bool(bars), scale)
+        if words.whole or scale <= least:
+            break
+        scale = max(least, scale - 0.05)
+    head_h = words.aid_size * len(words.heads) + 1.0 * max(0, len(words.heads) - 1)
+    written = head_h + len(words.lines) * (words.bsize + 1.5)
+    floor = words.floor
+    if bars:
+        # And the bars have whatever height the words leave them, rising from the
+        # foot of the label to just under the tails of the last line: the white a
+        # label with little on it would have had is barcode instead, and with nothing
+        # written they run its whole height (MANUAL §13, "QR code, barcode, both or
+        # none"). What else stands above bars running across has its height kept --
+        # the QR code at the size it was given, the word up the end at its length.
+        tails = DESCENDER * (words.bsize if words.lines else words.aid_size)
+        over = [written + tails] if written else []
+        if across and qr:
+            over.append(qr)
+        if across and word:
+            over.append(s.width_of(word, HEAD, WORD_PT))
+        bars = max(bars, H - 2 * my - (max(over) + 1.0 if over else 0.0))
+        band = bars + 1.0
+        floor = max(floor, my + band + tails)
+    if qr:
         # Centred in what height there is: on a squarer label a code sitting on the
         # bottom margin leaves a hole above it that reads as a mistake rather than
         # as a margin. On a tape there is no spare height and this is exactly that
@@ -1218,26 +1279,13 @@ def _render_small(
         # Centred in the height above the bars when they run under it.
         edge = mx + 1.0 * mm
         middle = (H + (band if across else 0.0)) / 2
-        s.vertical(W - edge - strip, W - edge, middle, word, HEAD, 5.0)
-    # The type grows with the label: its sizes are the tape's, held as a share of the
-    # height. It is growth the label gives back when its details need the room -- a
-    # crowded label's type comes down until every line fits, as far as the tape's
-    # own size and no further, and past that the last ones go (MANUAL §13, "What's
-    # on it"). A label with room to spare keeps the size it grows to.
-    least = min(grow, 1.0)
-    scale = grow
-    while True:
-        words = _small_words(s, asset_id, title, tags, tw, H - my, my + band, bool(bars), scale)
-        if words.whole or scale <= least:
-            break
-        scale = max(least, scale - 0.05)
+        s.vertical(W - edge - strip, W - edge, middle, word, HEAD, WORD_PT)
     # Centred down the label rather than hung from the top. What is written is as
     # tall as it is; where the label is taller than that, the difference is a margin
     # and belongs at both ends. Hung from the top it reads as a label somebody
-    # started and left, which is what a 50x30mm one looked like.
-    head_h = words.aid_size * len(words.heads) + 1.0 * max(0, len(words.heads) - 1)
-    written = head_h + len(words.lines) * (words.bsize + 1.5)
-    y = H - my - max(0.0, (H - my - words.floor - written) / 2)
+    # started and left, which is what a 50x30mm one looked like. Over bars that have
+    # risen to meet it there is no difference left, and it is at the top.
+    y = H - my - max(0.0, (H - my - floor - written) / 2)
     for i, line in enumerate(words.heads):
         y -= words.aid_size + (1.0 if i else 0.0)
         s.text(tx, y, _clip(s, line, HEAD, words.aid_size, tw), HEAD, words.aid_size)

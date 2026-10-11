@@ -13,6 +13,18 @@ hand is written under the release that needs it.
 
 ## Unreleased
 
+**A barcode takes the room the words leave.** The bars on a label used to be a
+fixed band across the bottom, whatever was written above them. Now the words print
+at their usual size and the bars rise to just under them. With nothing ticked, they
+fill the label's whole height. A crowded label keeps its type and its lines, and
+the bars are never shorter than they were. Labels with a QR code alone, or no code,
+are unchanged.
+
+**Upgrading:** on a 6×4 sheet, a barcode alone now runs across the bottom of the
+label, under the words, rather than sitting where the QR code would. That makes it
+much wider and easier to scan. A 6×4 label whose words filled the sheet loses its
+last few lines to the bars, and the picture on Settings → Labels names them.
+
 **A location's label follows its list.** What's on it now decides a location's label
 as it does a machine's. Tag is its tag, Name its name, and Where it's kept the path
 of the locations it is inside. On a full label, Specifications are its kind and
