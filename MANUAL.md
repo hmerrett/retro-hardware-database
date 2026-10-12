@@ -550,14 +550,15 @@ Down the main column:
   style and region, and a card per chip socket. ([Section 6](#6-machines-the-catalogue-names).)
 - **Specification** — on a part's page: its spec pairs, a label and a value each.
 - **Fitted in** — on a part's page: the machine it is installed in, or the card
-  it is mounted on, with **Take out** to make it a spare again. A part taken out
+  it is mounted on, with a bin button, **Take out**, to make it a spare again. A part taken out
   is nowhere until you put it somewhere: the register does not assume it is on the
   shelf its machine is on. A spare says it is not fitted in anything and, when
   logged in, offers **Fit in** with a list of machines. Fitting a spare takes it
   out of the location it was kept in, because it is in the machine now.
 - **Motherboard** and **Parts** — everything fitted in this machine, each as a
-  card showing its tag, kind, name and specs, with **Take out** on each when
-  logged in. What is mounted on a card is listed under that card, so a drive on
+  card showing its tag, kind, name and specs, with a bin button at the right of
+  each when logged in: **Take out**, which makes the part a spare and deletes
+  nothing. What is mounted on a card is listed under that card, so a drive on
   its controller is in the machine's list too. A part with nothing recorded gets no
   spec pairs at all, so the list also shows at a glance which parts have been
   written up.
@@ -588,6 +589,32 @@ The same list is the whole list, wherever a link is made out of something typed.
 A Reference URL or an order's link written any other way — `javascript:`, `data:`,
 a bare hostname — is shown as the words it is and never becomes a link, so a page
 cannot be made to run anything by what was typed into a box.
+
+### Its boxes and buttons
+
+Logged in, most of the work on an item is done from its page, and every box on it
+says what it is for above it: **Why** and **When** in the disposal box, **Note**
+in History and in Files, **Link a board** and **Link a part** under Motherboard
+and Parts, **Machine** under Fitted in, **Mount storage** under Mounted parts, and
+**Jobs** and **Project** in Work. Each box has an edge you can see against the
+panel it sits in. What a box does with what you type — which project the jobs go
+on, what happens to the parts in a machine you dispose of — is in its tooltip.
+
+The words on its buttons follow [Button text](#button-text), and so do the marks
+at the start of a line — *Note*, *Photo* and *Moved* in the history, *Private* on
+a file.
+
+On a touchscreen nothing you press is smaller than 36 pixels a side. The small
+buttons on a photograph, a history line and a part's card grow to 36, and a button
+standing on its own — beside a box, or the one that opens a file — grows to 44.
+
+A panel with nothing in it says so in a sentence rather than standing empty: *No
+board linked yet.*, *Nothing fitted in it yet.*, *Nothing mounted on it yet.*, *No
+files for this one yet.*, *No jobs on it yet.* — and in **Details**, when nothing
+about the item has been written down, *Nothing recorded yet.*
+
+**Notes** in Details are set in the type of the summary, because they are what
+somebody wrote rather than something recorded about the item.
 
 ### When it changes while you are looking at it
 
@@ -663,7 +690,7 @@ Field by field:
 | **Source** | Where or how you got it. |
 | **Acquired date** | |
 | **Location** | The location the machine is kept in — a shelf, a box, a room. Chosen from your locations, or a new one named here. See [where it is kept](#where-it-is-kept). |
-| **Reference URL** | Wikipedia, The Retro Web, a forum thread. Also what the "fetch from reference" button reads. |
+| **Reference URL** | Wikipedia, The Retro Web, a forum thread. Also what the **Fetch from reference** button reads. |
 | **Summary** | The prose shown at the top of the page. |
 | **Notes** | Anything else. |
 | **Work needed** | What it needs doing, one job to a line — `recap`, `new belt`, `keyboard sticks`. Leave it empty if there is nothing to do. See [checking something in](#checking-something-in). |
@@ -765,11 +792,11 @@ whole value of the field.
 
 Save the machine and its page offers, under **Motherboard** and **Parts**:
 
-- **add motherboard**, or pick an unlinked board from the menu beside it and
-  **link**.
-- **add part** — one button for every kind; the form it opens asks the type
+- **Add motherboard**, or pick an unlinked board under **Link a board** and press
+  **Link**.
+- **Add part** — one button for every kind; the form it opens asks the type
   first.
-- **link existing** — type an asset tag or a name.
+- **Link a part** — type an asset tag or a name, and press **Link**.
 
 Creating a part from here links it to the machine automatically and returns you
 to the machine, so building out a PC is a straight run down the list.
@@ -937,7 +964,7 @@ The two sections above describe the same board twice over — once as an answer 
 sealed machine gives about itself, once as an object on a shelf. **Detach the
 board** is the moment one becomes the other.
 
-The link is in the Machine panel on the machine's page, which is the panel whose
+The button is in the Machine panel on the machine's page, which is the panel whose
 contents move. It offers itself on a machine the catalogue names that has no
 motherboard linked to it yet, and it opens a page that says what will happen
 before anything does.
@@ -1390,8 +1417,8 @@ details, and more across where the panel has the width of the page to itself. Th
 sit inside the panel's margin, so the photographs and the buttons under them start
 from the same edge.
 
-**Upload** by choosing the files — that is the whole gesture, the upload goes as
-soon as they are picked. Several at once is fine.
+**Add photos** and choose the files — that is the whole gesture, the upload goes
+as soon as they are picked. Several at once is fine.
 
 **From a phone.** Under an item's photographs is a QR code of its own URL, in a
 panel of its own, **From your phone**, shown only when you are logged in (a visitor
@@ -1415,7 +1442,7 @@ another; deleting cannot, so it asks first and puts you back on the item page.
 The delete steps out of the row while you are cropping, where it would otherwise
 be sitting next to **apply crop**.
 
-**fetch from reference** appears beside **choose files** when the item has a
+**Fetch from reference** appears beside **Add photos** when the item has a
 reference URL. It
 takes the lead image from a Wikipedia page, or the preview image any other site
 advertises, downscales it and files it as a reference image. It bypasses nothing,
@@ -2773,8 +2800,8 @@ their own, or both together.
 
 ### Photographs on an entry
 
-**A photograph is an entry in its own right.** Choose one with the **photos**
-button in the note box and press **add note** with the box empty: the log gets a
+**A photograph is an entry in its own right.** Choose one with the **Photos**
+button in the note box and press **Add note** with the box empty: the log gets a
 line of its own, marked *photo*, with its own time on it and the pictures in a row
 across it. A photograph of the board with the capacitor missing is a thing said
 about the board, and it used to need a sentence typing beside it before the
@@ -2787,12 +2814,16 @@ the caption — writing one would be writing the sentence twice.
 
 **An entry already written takes one too**, from the small camera button at the
 right of its line — the swap the register logged last week, photographed when the
-lid next came off. An entry's camera and delete buttons stand together at the right
-of its line, in the same column on every entry, and beside the middle of an entry
-that runs to more than one line. That upload goes the moment the photograph is
+lid next came off. That upload goes the moment the photograph is
 picked, the way the gallery's do. Nothing is written into the history about it, because an entry
 gaining or losing a photograph is an edit to the record rather than something that
 happened to the machine.
+
+An entry's camera and delete buttons stand together at the right of its line, in
+the same column on every entry, and beside the middle of an entry that runs to more
+than one line. On a phone the date sits above each entry rather than beside it, so
+the words have the width of the screen, and the buttons keep their column at the
+right.
 
 **These are not the item's photographs.** They are not in the gallery, one is
 never the item's default picture, they are not counted among the collection's

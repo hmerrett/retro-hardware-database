@@ -87,18 +87,20 @@
         <span class="tag muted">{{ holder.asset_id }}</span>
         {% if request.state.authed %}
         <span class="push"></span>
-        <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/{{ 'unlink' if parent else 'detach' }}"><input type="hidden" name="next" value="/parts/{{ p.asset_id }}">{{ U.button('Take out', size='sm', type='submit') }}</form>
+        {{ P.takeout(p.asset_id, 'unlink' if parent else 'detach', '/parts/' ~ p.asset_id) }}
         {% endif %}
       </div>
       {% else %}
       <p class="muted">Not fitted in anything.</p>
       {% if request.state.authed and computers %}
-      <form class="row mt-3" method="post" action="/parts/{{ p.asset_id }}/link">
-        <select class="select" name="computer_id" required aria-label="machine to fit this in">
-          <option value="">install in…</option>
+      <form class="addrow labelled" method="post" action="/parts/{{ p.asset_id }}/link"
+            title="Fitting it takes it out of the place it was kept: it is in the machine now.">
+        <div class="field"><label for="fit-machine">Machine</label>
+        <select class="select" id="fit-machine" name="computer_id" required>
+          <option value="">Choose a machine…</option>
           {% for comp in computers %}<option value="{{ comp.asset_id }}">{{ comp.asset_id }} · {{ display_name({'name': comp.name, 'manufacturer': comp.manufacturer, 'model': comp.model, 'asset_id': comp.asset_id}) }}</option>{% endfor %}
-        </select>
-        {{ U.button('Fit in', size='sm', type='submit') }}
+        </select></div>
+        {{ U.button('Fit in', type='submit') }}
       </form>
       {% endif %}
       {% endif %}
@@ -111,21 +113,23 @@
       {% if children %}
       {{ P.cards(children, 'detach', '/parts/' + p.asset_id,
                  request.state.authed, thumbs, mounted) }}
-      {% else %}<div class="pbody"><p class="muted flush">Nothing mounted.</p></div>{% endif %}
+      {% else %}<div class="pbody"><p class="muted flush">Nothing mounted on it yet.</p></div>{% endif %}
       {% if build_host %}
       <div class="pbody">
       <div class="toolbar flush">
-        <a class="btn sm" href="/parts/new?type=storage&parent_id={{ p.asset_id }}">add storage</a>
-        {% if candidates %}
-        <form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/attach">
-          <select name="part_id" required aria-label="storage to mount">
-            <option value="">existing storage…</option>
-            {% for c in candidates %}<option value="{{ c.asset_id }}">{{ c.asset_id }} — {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</option>{% endfor %}
-          </select>
-          <button class="btn sm" type="submit">mount</button>
-        </form>
-        {% endif %}
+        {{ U.button('Add storage', href='/parts/new?type=storage&parent_id=' ~ p.asset_id) }}
       </div>
+      {% if candidates %}
+      <form class="addrow labelled" method="post" action="/parts/{{ p.asset_id }}/attach"
+            title="A drive already in the register and on nothing">
+        <div class="field"><label for="mount-storage">Mount storage</label>
+        <select class="select" id="mount-storage" name="part_id" required>
+          <option value="">Choose a drive…</option>
+          {% for c in candidates %}<option value="{{ c.asset_id }}">{{ c.asset_id }} — {{ display_name({'name': c.name, 'manufacturer': c.manufacturer, 'model': c.model, 'asset_id': c.asset_id}) }}</option>{% endfor %}
+        </select></div>
+        {{ U.button('Mount', type='submit') }}
+      </form>
+      {% endif %}
       </div>
       {% endif %}
     {% endcall %}

@@ -13,25 +13,26 @@
    same gesture, the way it happened. #}
 {% import "_icons.html" as I %}
 {% import "_panel.html" as PN %}
+{% import "_ui.html" as U with context %}
 {% call PN.panel('History') %}
   {% if request.state.authed %}
-  <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note" class="notebar"
+  <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note" class="addrow labelled mt-0"
         enctype="multipart/form-data" title="A note, photographs, or both — photographs on their own are an entry too.">
     {# Not required any more: photographs on their own are an entry, so the way
        to file one is to choose it and press the button. #}
-    <input name="message" placeholder="add a note"
-           aria-label="a note for the history">
+    <div class="field wide"><label for="log-message">Note</label>
+      <input class="input" id="log-message" name="message" placeholder="tested, cleaned, recapped…"></div>
     {# Not sent the moment they are picked, as the gallery's are: there may be a
        caption still to be typed, and the words have to travel with the photographs
        to land on the same entry. Nothing waits on anything else, though -- press
        the button with only photographs chosen and the photographs are the entry. #}
     <span class="newphotos">
-      <label class="btn sm filebtn">photos
+      <label class="btn filebtn">{{ 'Photos' | ui }}
         <input type="file" name="photos" accept="image/*" multiple>
       </label>
       <span class="hint" data-photo-count></span>
     </span>
-    <button class="btn sm" type="submit">{{ 'Add note' | ui }}</button>
+    {{ U.button('Add note', type='submit') }}
   </form>
   {% endif %}
   {% if log %}
@@ -47,12 +48,12 @@
              since an end may be a location, a machine or a card (ADR-0036); who made
              it is for whoever is signed in, as the time of day is. #}
           {% if e.kind == 'move' and e.move %}{% set m = e.move %}
-          <div class="logmsg"><span class="chip">moved</span> from
+          <div class="logmsg">{{ U.chip('Moved') }} from
             {%- if m.from_id %} <a href="/items/{{ m.from_id }}">{{ m.from_path or m.from_id }}</a>{% else %} nowhere recorded{% endif %} to
             {%- if m.to_id %} <a href="/items/{{ m.to_id }}">{{ m.to_path or m.to_id }}</a>{% else %} nowhere recorded{% endif -%}
             , {{ move_how[m.how] | default(m.how) }}{% if request.state.sees_private and m.who %}, by {{ m.who }}{% endif %}</div>
           {% else %}
-          <div class="logmsg">{% if e.kind == 'note' %}<span class="chip">note</span> {% elif e.kind == 'photo' %}<span class="chip">photo</span>{% endif %}{{ e.message | linked }}</div>
+          <div class="logmsg">{% if e.kind == 'note' %}{{ U.chip('Note') }} {% elif e.kind == 'photo' %}{{ U.chip('Photo') }}{% endif %}{{ e.message | linked }}</div>
           {% endif %}
           {# Offered on a single entry only. A folded line is several entries read
              out as one sentence, and there is no one of them a photograph would
@@ -60,13 +61,13 @@
           {% if request.state.authed and e.count == 1 %}
           <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo"
                 enctype="multipart/form-data" class="logadd" data-autosend>
-            <label class="iconbtn filebtn" title="Attach a photograph to this entry">
+            <label class="btn sm icon filebtn" title="Attach a photograph to this entry">
               {{ I.ico('camera') }}
               <input type="file" name="photos" accept="image/*" multiple required
                      aria-label="Attach a photograph to this entry">
             </label>
-            <button class="btn sm" type="submit" data-send-go>attach</button>
-            <span class="hint" data-send-busy hidden>uploading…</span>
+            <button class="btn sm" type="submit" data-send-go>{{ 'Attach' | ui }}</button>
+            <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
           </form>
           {% endif %}
           {# Offered on a folded line as well as a single entry, and it takes every
@@ -81,9 +82,8 @@
                    quotes alone, which inside a double-quoted attribute ends it. #}
                 data-confirm="{{ 'Delete this history entry?' if e.count == 1 else 'Delete all ' ~ e.count ~ ' of these history entries?' }} This cannot be undone.">
             {% for i in e.ids %}<input type="hidden" name="id" value="{{ i }}">{% endfor %}
-            <button class="iconbtn danger" type="submit"
-                    title="{{ 'Delete this history entry' if e.count == 1 else 'Delete these ' ~ e.count ~ ' history entries' }}"
-                    aria-label="Delete history entry">{{ I.ico('trash') }}</button>
+            {{ U.button('Delete history entry', kind='danger', size='sm', icon='trash', icon_only=true, type='submit',
+                        title='Delete this history entry' if e.count == 1 else 'Delete these ' ~ e.count ~ ' history entries') }}
           </form>
           {% endif %}
         </div>

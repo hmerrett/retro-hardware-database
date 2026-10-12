@@ -713,7 +713,7 @@ class TestAPartIsNeverMountedOnItself:
 
     @staticmethod
     def _mount_menu(page):
-        menu = re.search(r'<select name="part_id"[^>]*storage to mount.*?</select>', page, re.S)
+        menu = re.search(r'<select class="select" id="mount-storage".*?</select>', page, re.S)
         return re.findall(r'<option value="(RH-[^"]+)"', menu.group(0)) if menu else []
 
     def test_the_api_refuses_a_part_mounted_on_itself(self, client, part):
@@ -3816,13 +3816,13 @@ class TestChoosingPhotos:
     button says so in the site's own words rather than the browser's.
     """
 
-    def test_the_button_is_the_site_s_own_lower_case_one(self, client, part):
+    def test_the_button_is_the_site_s_own(self, client, part):
         page = client.get(f"/parts/{part()['asset_id']}").text
-        assert '<label class="btn sm filebtn">choose files' in page
+        assert '<label class="btn sm filebtn">Add photos' in page
         # The native input lives inside that label, which is the only way the
         # browser's own "Choose Files" button and "no file chosen" never appear.
         assert re.search(
-            r'<label class="btn sm filebtn">choose files\s*'
+            r'<label class="btn sm filebtn">Add photos\s*'
             r'<input type="file"',
             page,
         )
@@ -6083,7 +6083,7 @@ class TestAHistoryThatReadsAsOneSitting:
                 f"/computers/{aid}/note", data={"message": "tested"}, follow_redirects=False
             )
         page = client.get(f"/computers/{aid}").text
-        assert page.count("note</span> tested") == 3
+        assert page.count("Note</span> tested") == 3
 
     def test_the_record_behind_it_is_untouched(self, client, computer, db):
         """The page reads the history this way; it does not rewrite it. The rows
@@ -6319,7 +6319,7 @@ class TestPhotographsOnTheHistory:
         [row] = self.entries(db, aid, "photo")
         page = client.get(f"/computers/{aid}").text
         assert f"/log/{row.id}/photo-delete" not in page
-        assert '<span class="chip">photo</span>' in page
+        assert '<span class="chip">Photo</span>' in page
         assert page.count("/log/delete") >= 1
 
     def test_one_can_be_hung_on_an_entry_already_written(self, client, computer, db):
@@ -6493,9 +6493,12 @@ class TestPhotographsOnTheHistory:
         assert main._is_own_photo("log/1.jpg") == main._is_own_photo("computers/A.jpg")
 
     def test_the_note_bar_offers_the_picker(self, client, computer):
-        page = client.get(f"/computers/{computer()['asset_id']}").text
-        assert 'class="notebar"' in page and 'enctype="multipart/form-data"' in page
-        assert 'name="photos"' in page
+        aid = computer()["asset_id"]
+        page = client.get(f"/computers/{aid}").text
+        bar = page[page.index(f'action="/computers/{aid}/note"') :]
+        bar = bar[: bar.index("</form>")]
+        assert 'enctype="multipart/form-data"' in bar
+        assert 'name="photos"' in bar
 
 
 class TestWhereTheFilesSit:

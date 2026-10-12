@@ -188,7 +188,7 @@ class TestFittedIn:
         fitted = panel(client.get(f"/parts/{aid}").text, "Fitted in")
         assert f'href="/computers/{cid}"' in fitted
         assert f'action="/parts/{aid}/unlink"' in fitted
-        assert ">Take out</button>" in fitted
+        assert f'aria-label="Take out {aid}"' in fitted
 
     def test_a_part_on_a_card_names_the_card_and_offers_take_out(self, client, part):
         host = part(type="io", model="Controller")["asset_id"]
@@ -196,7 +196,7 @@ class TestFittedIn:
         fitted = panel(client.get(f"/parts/{aid}").text, "Fitted in")
         assert f'href="/parts/{host}"' in fitted
         assert f'action="/parts/{aid}/detach"' in fitted
-        assert ">Take out</button>" in fitted
+        assert f'aria-label="Take out {aid}"' in fitted
 
     def test_taking_it_out_makes_it_a_spare(self, client, computer, part):
         cid = computer()["asset_id"]
@@ -230,14 +230,14 @@ class TestTakeOutOnTheLists:
         aid = part(computer_id=cid)["asset_id"]
         parts = panel(client.get(f"/computers/{cid}").text, "Parts")
         assert f'action="/parts/{aid}/unlink"' in parts
-        assert ">Take out</button>" in parts
+        assert f'aria-label="Take out {aid}"' in parts
 
     def test_a_cards_mounted_parts_each_offer_take_out(self, client, part):
         host = part(type="io")["asset_id"]
         aid = part(type="storage", parent_id=host)["asset_id"]
         mounted = panel(client.get(f"/parts/{host}").text, "Mounted parts")
         assert f'action="/parts/{aid}/detach"' in mounted
-        assert ">Take out</button>" in mounted
+        assert f'aria-label="Take out {aid}"' in mounted
 
     def test_a_visitor_is_offered_neither(self, client, computer, part, monkeypatch):
         cid = computer()["asset_id"]
@@ -643,19 +643,17 @@ class TestTheThumbnailsSitTwoToARow:
 
 
 class TestTheTwoWaysToAddAPhotoStandSideBySide:
-    """Choose files and fetch from reference are the two ways a photograph arrives,
+    """Add photos and Fetch from reference are the two ways a photograph arrives,
     and they stood one above the other, so the second read as an afterthought of the
     first (MANUAL §10)."""
 
     @KINDS
-    def test_fetch_from_reference_is_in_the_row_with_choose_files(
-        self, client, computer, part, kind
-    ):
+    def test_fetch_from_reference_is_in_the_row_with_add_photos(self, client, computer, part, kind):
         aid = item(kind, computer, part, url="https://example.com/a-machine")
         page = client.get(f"/{kind}/{aid}").text
         row = page[page.index('<div class="photo-actions across">') :]
         row = row[: row.index("</div>")]
-        assert row.index("choose files") < row.index("fetch from reference")
+        assert row.index("Add photos") < row.index("Fetch from reference")
 
     def test_the_row_runs_across_and_wraps_only_when_it_must(self):
         rule = TestTheThumbnailsSitTwoToARow().rule(".photo-actions.across")

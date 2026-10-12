@@ -37,11 +37,20 @@
    under that card, set in, so a drive on its controller is in the machine's list and
    visibly on the card it is on (ADR-0036). Taking one of those out takes it off the
    card, so its button detaches rather than unlinks. #}
+{# Take out, as a bin: it deletes nothing -- the part becomes a spare -- so it is
+   drawn plain rather than in the danger tone, and the tooltip says so. Named by the
+   tag, because a list of them is a list of buttons all called the same thing
+   otherwise. #}
+{% macro takeout(aid, endpoint, back) -%}
+<form class="inline-form" method="post" action="/parts/{{ aid }}/{{ endpoint }}"><input type="hidden" name="next" value="{{ back }}">
+{{- U.button('Take out ' ~ aid, icon='trash', icon_only=true, size='sm', type='submit', title='Take it out: it becomes a spare. Nothing is deleted.') }}</form>
+{%- endmacro %}
+
 {% macro cards(parts, endpoint, back, authed, thumbs={}, mounted={}) %}
 <div class="itemcards">
   {% for p in parts %}
   {% call U.itemcard(p, thumbs.get(p.asset_id) if thumbs else none) %}
-    {%- if authed %}<form class="inline-form" method="post" action="/parts/{{ p.asset_id }}/{{ endpoint }}"><input type="hidden" name="next" value="{{ back }}">{{ U.button('Take out', size='sm', type='submit') }}</form>{% endif -%}
+    {%- if authed %}{{ takeout(p.asset_id, endpoint, back) }}{% endif -%}
   {% endcall %}
   {% if mounted and mounted.get(p.asset_id | upper) %}
   <div class="mounted">{{ cards(mounted[p.asset_id | upper], 'detach', back, authed, thumbs, mounted) }}</div>
