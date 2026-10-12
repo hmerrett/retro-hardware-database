@@ -22,8 +22,11 @@
    makes it a toggle: true draws it on, and either value tells a screen reader it
    is one, which the drawing alone does not. A disabled link keeps its place and
    loses its href, since a link cannot be disabled any other way. `form` names the
-   form a submit button belongs to when it does not stand inside it. #}
-{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none, title='', form='') -%}
+   form a submit button belongs to when it does not stand inside it. `labelledby`
+   names it by other words on the page as well as its own -- a list of ids, its own
+   `id` among them -- for a button repeated down a list, which its label alone
+   would name the same on every line. #}
+{% macro button(label, kind='', size='', icon='', icon_only=false, href='', type='button', name='', value='', disabled=false, pressed=none, title='', form='', id='', labelledby='') -%}
 {%- set cls = ['btn', kind, size, 'icon' if icon_only else '', 'on' if pressed else ''] | select | join(' ') -%}
 {%- set text = label | ui -%}
 {%- set named %}{% if icon_only %} aria-label="{{ text }}"{% endif %}{% if title %} title="{{ title }}"{% endif %}{% endset -%}
@@ -34,12 +37,28 @@
 <a class="{{ cls }}" aria-disabled="true"{{ named }}>{{ inner }}</a>
 {%- else -%}
 <button class="{{ cls }}" type="{{ type }}"
+{%- if id %} id="{{ id }}"{% endif %}
+{%- if labelledby %} aria-labelledby="{{ labelledby }}"{% endif %}
 {%- if form %} form="{{ form }}"{% endif %}
 {%- if name %} name="{{ name }}"{% endif %}
 {%- if value != '' %} value="{{ value }}"{% endif %}{{ named }}
 {%- if pressed is not none %} aria-pressed="{{ 'true' if pressed else 'false' }}"{% endif %}
 {%- if disabled %} disabled{% endif %}>{{ inner }}</button>
 {%- endif -%}
+{%- endmacro %}
+
+{# The mark on a reference image: a picture of the model rather than of this unit.
+   Drawn as Ref, or as the icon of the site it came from, and said in words as well,
+   because a badge that is a drawing means nothing read out and its tooltip never
+   showed -- it takes no pointer, so a click falls through to the photograph. The
+   words are one string, with what is drawn hidden from the ear: split between a
+   word on show and a hidden one, a browser reads the two as separate runs and
+   puts a gap before the punctuation. #}
+{% macro refbadge(icon='') -%}
+<span class="ref-badge{{ ' icon' if icon }}">
+{%- if icon %}<img src="/images/{{ icon }}" alt="">
+{%- else %}<span aria-hidden="true">{{ 'Ref' | ui }}</span>{% endif -%}
+<span class="sr-only">Ref: reference image, not this unit</span></span>
 {%- endmacro %}
 
 {# A labelled control. `kind` is text, area (a textarea), choice (a select, from
@@ -173,11 +192,13 @@
 {# A message about the page rather than in it. `tone` is warning, danger, success or
    nothing; add toast for the notice that floats. The lead word says what kind of
    message it is, so the colour is never the only telling. Danger interrupts a
-   screen reader; the rest wait their turn. #}
+   screen reader; the rest wait their turn. Called with a block, what the block
+   holds -- the buttons that answer it -- stands at the banner's right. #}
 {% macro banner(tone, lead, text='') -%}
 <div class="{{ ['banner', tone] | select | join(' ') }}"
 {%- if tone %} role="{{ 'alert' if 'danger' in tone.split() else 'status' }}"{% endif %}><b>{{ lead }}</b>
-{%- if text %}<span>{{ text }}</span>{% endif %}</div>
+{%- if text %}<span>{{ text }}</span>{% endif %}
+{%- if caller is defined %}<span class="push"></span>{{ caller() }}{% endif %}</div>
 {%- endmacro %}
 
 {# One figure on the numbers page, with what it is and what it is out of. #}
@@ -256,7 +277,7 @@
     screen on the 500px copy. #}
 {%- if item.image %}<img src="{{ img_url(item.image, THUMB_CARD) }}" srcset="{{ img_srcset(item.image, [300, 500, 800]) }}" sizes="(max-width: 460px) 100vw, 250px" alt="{{ item.name }}" loading="lazy" decoding="async">
 {%- else %}<img class="ph" src="/static/{{ item.placeholder }}" alt="{{ item.cat_label }}" loading="lazy">{% endif %}
-{%- if item.ref_photo %}<span class="ref-badge{{ ' icon' if item.ref_icon }}" title="Illustrative image, not this exact unit">{% if item.ref_icon %}<img src="/images/{{ item.ref_icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
+{%- if item.ref_photo %}{{ refbadge(item.ref_icon) }}{% endif -%}
 </span>
 <span class="body"><span class="aid">{{ o.asset_id }}</span><span class="nm">{{ item.name }}</span>
 <span class="chips"><span class="chip">{{ item.cat_label }}</span>
@@ -284,7 +305,7 @@
 <a class="cardthumb" href="/parts/{{ p.asset_id }}" aria-label="{{ p.asset_id }} — its own page and its photographs">
 {%- if thumb.img %}<img src="{{ img_url(thumb.img, THUMB_CARD) }}" alt="" loading="lazy" decoding="async">
 {%- else %}<img class="ph" src="/static/{{ thumb.ph }}" alt="" loading="lazy">{% endif %}
-{%- if thumb.ref %}<span class="ref-badge{{ ' icon' if thumb.icon }}" title="Illustrative image, not this exact unit">{% if thumb.icon %}<img src="/images/{{ thumb.icon }}" alt="source site">{% else %}ref{% endif %}</span>{% endif -%}
+{%- if thumb.ref %}{{ refbadge(thumb.icon) }}{% endif -%}
 </a>
 {%- endif -%}
 <div class="grow"><h4><a href="/parts/{{ p.asset_id }}">{{ name }}</a></h4>

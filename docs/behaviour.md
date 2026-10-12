@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2804 behaviours, from 83 files.*
+*2825 behaviours, from 84 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2408,6 +2408,57 @@ Regenerate with:
   The line inside the entry is still a row, buttons at its right end.
 
 
+## Item page names
+
+*test_item_page_names.py — 22 behaviours*
+
+
+**A photograph is named for what it shows**
+
+- each says the item and where it falls among them
+- one on a history entry is named by the entry
+- or by the item where the entry is only photographs
+- pressing one still opens it  
+  The name is what it shows; that it opens is its role.
+
+**A button on A line says which line**
+
+- no two things an owner presses share a name  
+  The buttons on each photograph are left out: they move into the full-size view, where they act on the one photograph open (#129).
+- a history entrys delete says its date and its words
+- and so does its attach
+- a parts bin says which part
+
+**The reference badge says what it means**
+
+- on the item page
+- on its card in the gallery
+- the words are for the ear alone
+- a site icon is decoration beside the same words  
+  The source site's favicon is the badge's look, not its meaning.
+
+**The code under the photographs**
+
+- is a picture named for what it is for
+
+**What happens without you is read out**
+
+- an item page has somewhere to say it
+- uploading is said as the upload goes
+- a changed record is said when the bar appears
+
+**The banners are different kinds of news**
+
+- disposed is a warning
+- with restore and delete at its right
+- build walk is plain
+- a plain banner is drawn plain  
+  The rule that drew every banner without a tone in the danger colours was 0.1's, from before a plain one existed.
+- every banner is one of the design systems  
+  A tone the stylesheet does not draw is drawn as plain, which is how `warn` came to be a refusal with nothing to mark it as one.
+- a fetch that found nothing is a warning at the top of the panel
+
+
 ## Item pages
 
 *test_item_pages.py — 72 behaviours*
@@ -4748,7 +4799,7 @@ Regenerate with:
 
 ## Stylesheet lint
 
-*test_stylesheet_lint.py — 8 behaviours*
+*test_stylesheet_lint.py — 7 behaviours*
 
 - no colour is stated outside the token files  
   A colour written into a component is one no preset can change and no contrast test reads.
@@ -4764,8 +4815,6 @@ Regenerate with:
   An exception nothing needs any more is a hole left open for the next one.
 - while app css is here it outranks the new stylesheets  
   The templates move over a group at a time, and until a group has moved its 0.1 rules have to win wherever a class name is shared -- .btn, .panel and fifty more.
-- a bare 0 1 rule lets every tone past it  
-  0.1's `.banner` is kept for the one template still writing the class bare, and is written as a `:not()` list so a migrated page's toned banner falls through to components.css.
 
 
 ## The agent on the other machine

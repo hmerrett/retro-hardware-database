@@ -44,7 +44,18 @@
     } catch (e) { return; }        // offline, or the server restarting: try later
     if (!now || now === BUILT) return;
     stale = true;                  // stop asking; the answer will not change back
-    if (busy()) { if (bar) bar.hidden = false; } else { location.reload(); }
+    if (!busy()) { location.reload(); return; }
+    if (bar) {
+      bar.hidden = false;
+      say(bar.querySelector('span').textContent);
+    }
+  }
+
+  // Said as well as shown: the bar appears at the foot of the page, which is not
+  // where a screen reader is (base.html, #said).
+  function say(words) {
+    const said = document.getElementById('said');
+    if (said) said.textContent = words;
   }
 
   setInterval(look, EVERY);

@@ -6019,7 +6019,7 @@ class TestAHistoryThatReadsAsOneSitting:
     def log_rows(client, aid, kind="computers"):
         page = client.get(f"/{kind}/{aid}").text
         section = page.split("History", 1)[1]
-        return re.findall(r'<div class="logmsg">(.*?)</div>', section)
+        return re.findall(r'<div class="logmsg"[^>]*>(.*?)</div>', section)
 
     @staticmethod
     def repeat(db, aid, message, times, apart_minutes=1, day=1):
@@ -6297,7 +6297,7 @@ class TestPhotographsOnTheHistory:
         assert f"/images/{rel}" in page
         # The entry's message is the caption, and it is what a reader who cannot see
         # the photograph is told about it.
-        assert 'alt="the underside"' in page
+        assert 'alt="the underside, photograph 1 of 1"' in page
 
     def test_it_hangs_in_the_entry_s_own_column_and_not_the_date_s(self, client, computer, db):
         """A row across the entry, under whatever it says. The date column holds the
@@ -6307,7 +6307,7 @@ class TestPhotographsOnTheHistory:
         [row] = self.notes(db, aid)
         [rel] = self.shots(db, row.id)
         page = client.get(f"/computers/{aid}").text
-        stamp = page[page.index('<dt class="logwhen">') :]
+        stamp = page[page.index('<dt class="logwhen"') :]
         assert f"/images/{rel}" not in stamp[: stamp.index("</dt>")]
         assert page.index('class="logmsg"') < page.index(f"/images/{rel}")
 

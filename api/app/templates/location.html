@@ -19,7 +19,7 @@
   <a href="/locations">Locations</a>
   {%- for tag, name in steps %}<span class="sep" aria-hidden="true"> → </span><a href="/locations/{{ tag }}">{{ name }}</a>{% endfor %}
 </nav>
-{% if refusal %}{{ U.banner('warn', 'Not done.', refusal) }}{% endif %}
+{% if refusal %}{{ U.banner('warning', 'Not done.', refusal) }}{% endif %}
 
 <div class="itemcols">
 <div class="itemhead">

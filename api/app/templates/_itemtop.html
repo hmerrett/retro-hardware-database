@@ -33,17 +33,18 @@
   <h1 class="title">{{ name }}</h1>
   <div class="tag muted">{{ obj.asset_id }}</div>
   {% if obj.disposed %}
-  <div class="banner" role="status"><b>Disposed</b>
-    <span>{% if obj.disposed_at %}{{ obj.disposed_at }}{% endif %}{% if obj.disposed_note %} — {{ obj.disposed_note | linked }}{% endif %}</span>
-    {% if authed %}
-    <span class="push"></span>
+  {#- A warning, not danger: the record is all still here, and Restore is beside it.
+      What became of the thing is its own sentence: the date, then why. -#}
+  {% set when %}{% if obj.disposed_at %}{{ obj.disposed_at }}{% endif %}{% if obj.disposed_note %} — {{ obj.disposed_note | linked }}{% endif %}{% endset %}
+  {% if authed %}
+  {% call U.banner('warning', 'Disposed', when | trim) %}
     <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/restore">
       {{- U.button('Restore', size='sm', type='submit') -}}</form>
     {# Deleting the record for good, once it is already marked as gone. Behind a
        confirmation page, so this is a link rather than a button. #}
     {{ U.button('Delete…', kind='danger', size='sm', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/delete') }}
-    {% endif %}
-  </div>
+  {% endcall %}
+  {% else %}{{ U.banner('warning', 'Disposed', when | trim) }}{% endif %}
   {% endif %}
 
   {# Not on a machine the catalogue names. The walk's next step is a motherboard and
@@ -53,6 +54,8 @@
      Spectrum to give it a motherboard points them at the wrong machine, and at two
      sections they cannot see. #}
   {% if kind == 'computers' and build and authed and not machine %}
+  {#- Plain: building a machine out is not a problem, and a warning's colours would
+      say it was. -#}
   {{ U.banner('', 'Build walk.', 'Next: a motherboard, then its parts.') }}
   {% endif %}
   {# What the model is -- but only where the object has nothing said about it of

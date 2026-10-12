@@ -12,7 +12,7 @@
 {% macro thing(tag) -%}<a href="/items/{{ tag }}">{{ names.get(tag, tag) }}</a> <span class="tag muted">{{ tag }}</span>{%- endmacro %}
 <div class="pagehead"><h1 class="heading">Audit round</h1>
   <p class="hint">Started {{ check.started_at.strftime('%Y-%m-%d %H:%M') }}{% if check.finished_at %}, finished {{ check.finished_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}.</p></div>
-{% if recorded >= 0 %}{{ U.banner('', 'Recorded.', recorded ~ ' line' ~ ('' if recorded == 1 else 's') ~ ' written to the histories of what was not found.') }}{% endif %}
+{% if recorded >= 0 %}{{ U.banner('success', 'Recorded.', recorded ~ ' line' ~ ('' if recorded == 1 else 's') ~ ' written to the histories of what was not found.') }}{% endif %}
 {% for part in checked %}
 {% call PN.panel(part.path or part.tag) %}
   <section class="reportpart"><h4>Found</h4>
