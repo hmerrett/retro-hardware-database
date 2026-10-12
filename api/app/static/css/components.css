@@ -541,6 +541,16 @@
   .itemcols > .itembody { grid-area: body; }
   .itemcols > .itemside { grid-area: side; }
   @media (max-width: 860px) { .itemcols { display: block; } }
+  /* Tabbed, in one column, the photographs come with Details alone: the other tabs
+     open on what they are for, rather than under a screen of pictures already seen
+     where the label's scan landed (MANUAL §4, "One page or tabs"). */
+  @media (max-width: 860px) { .itemcols.tabbed:not(.on-details) > .itemphotos { display: none; } }
+  /* The tabs end the head and the panels start under them, as the Details band would. */
+  .itemhead > nav.itemtabs { margin-bottom: var(--space-4); }
+  /* The count stands apart from its word by a gap rather than a space: a touchscreen
+     draws each tab as a flex row (above), which drops the space between the two. */
+  nav.itemtabs a { display: inline-flex; align-items: baseline; gap: var(--space-2); }
+  nav.itemtabs .meta { color: var(--muted); font-weight: 400; }
   /* The paragraph at the top runs as wide as the Details under it, rather than the
      seventy-character measure, so the head and the body share an edge: the details
      column's share of the two, less the gap between them. One column, the panels'

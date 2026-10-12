@@ -330,4 +330,11 @@ def a_page_of_everything(client, computer, part):
         "/settings/users",
         f"/settings/users/{owner_id}",
         "/settings/account",
+        # The item pages a tab at a time, which choosing tabs keeps for the rest of
+        # this client's walk: last, so every page above is read as one page.
+        *[
+            f"/{kind}/{aid}?layout=tabs&tab={tab}"
+            for kind, aid in (("computers", made["asset_id"]), ("parts", card["asset_id"]))
+            for tab in ("details", "work", "files", "history")
+        ],
     ]

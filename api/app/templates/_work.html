@@ -34,7 +34,7 @@
   <p class="muted">Part of <a class="chip" href="/projects/{{ on_project.asset_id }}">{{ on_project.name or on_project.asset_id }}</a></p>
   {% endif %}
   {% if item_tasks %}
-  {{ T.tasklist(item_tasks, next=request.url.path, about=false) }}
+  {{ T.tasklist(item_tasks, next=request.url.path ~ tabq, about=false) }}
   {% elif not project_tasks %}
   <p class="muted">No jobs on it yet.</p>
   {% endif %}
@@ -44,7 +44,7 @@
      work said about this machine, the other is work about the piece it is part of.
      Run together they would attribute to a machine something nobody said about it. #}
   <p class="hint subhead-loose">Whole project</p>
-  {{ T.tasklist(project_tasks, next=request.url.path, about=false, quiet=true) }}
+  {{ T.tasklist(project_tasks, next=request.url.path ~ tabq, about=false, quiet=true) }}
   {% endif %}
   {% if request.state.authed %}
   {# A box and a menu, the same pair the entry forms carry at their foot: what needs

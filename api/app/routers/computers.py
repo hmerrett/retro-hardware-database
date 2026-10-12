@@ -84,10 +84,14 @@ from ..assets import (
     _require_disposed,
     _set_for_sale,
     _work_from_form,
+    back_to,
     delete_computer,
+    item_view,
+    keep_item_layout,
     part_thumbs,
     place_from_form,
     refused,
+    work_shown,
 )
 from ..common import to_dict
 from ..db import get_db
@@ -420,10 +424,18 @@ def gui_computer(
     # (ADR-0036): worked out only for a reader the row will be drawn for.
     told = bool(request.state.sees_private or c.location_public)
     where = locations.where_row(db, c, r, locations.tree(db)) if told else None
-    return templates.TemplateResponse(
+    on_project = projects.project_for(db, aid, request.state.sees_private)
+    item_tasks = projects.tasks_for_asset(db, aid, request.state.sees_private)
+    project_tasks = (
+        projects.project_wide_tasks(db, on_project.asset_id) if on_project is not None else []
+    )
+    work = work_shown(request.state.authed, item_tasks, project_tasks, on_project)
+    response = templates.TemplateResponse(
         request,
         "computer.html",
         {
+            **item_view(request, work),
+            "work": work,
             "machine": machine,
             "detachable": detachable,
             "where": where,
@@ -435,11 +447,9 @@ def gui_computer(
             **filesdb.panel(db, cdict, request.state.authed, request.state.sees_private),
             "fileerr": bool(fileerr),
             "dl_filenotes": _answers_given(db, StoredFile.note),
-            "on_project": (found := projects.project_for(db, aid, request.state.sees_private)),
-            "item_tasks": projects.tasks_for_asset(db, aid, request.state.sees_private),
-            "project_tasks": (
-                projects.project_wide_tasks(db, found.asset_id) if found is not None else []
-            ),
+            "on_project": on_project,
+            "item_tasks": item_tasks,
+            "project_tasks": project_tasks,
             # For the picker in that panel, which only an owner is shown -- so a
             # visitor's page does not ask the question at all.
             "work_projects": (projects.open_projects(db) if request.state.authed else []),
@@ -474,6 +484,8 @@ def gui_computer(
             "jsonld": _jsonld(og, c.asset_id, c.manufacturer, "Vintage computer"),
         },
     )
+    keep_item_layout(request, response)
+    return response
 
 
 @router.get("/computers/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
@@ -515,7 +527,7 @@ async def gui_save_computer(aid: str, request: Request, db: Session = Depends(ge
         ctx = _computer_form_ctx(c, f"Edit {aid}", db) | {"year_hint": year_hint(old["year"])}
         return refused(request, db, "computer_form.html", ctx, form, errors)
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.post("/computers/{aid}/link-motherboard", include_in_schema=False)
@@ -526,7 +538,7 @@ async def gui_link_motherboard(
     form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
-        return RedirectResponse(f"/computers/{aid}?build=1", status_code=303)
+        return back_to(request, f"/computers/{aid}", build=1)
     board = get_or_404(db, Part, pid)
     if board.type != "motherboard":
         raise HTTPException(400, f"{pid} is not a motherboard")
@@ -534,9 +546,9 @@ async def gui_link_motherboard(
         tree.put(db, board, aid, tree.EDIT, request.state.principal.username)
     except tree.Refused:
         db.rollback()
-        return RedirectResponse(f"/computers/{aid}?fiterr=1", status_code=303)
+        return back_to(request, f"/computers/{aid}", fiterr=1)
     db.commit()
-    return RedirectResponse(f"/computers/{aid}?build=1", status_code=303)
+    return back_to(request, f"/computers/{aid}", build=1)
 
 
 @router.post("/computers/{aid}/link-part", include_in_schema=False)
@@ -549,15 +561,15 @@ async def gui_link_part(
     form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
-        return RedirectResponse(f"/computers/{aid}", status_code=303)
+        return back_to(request, f"/computers/{aid}")
     part = get_or_404(db, Part, pid)
     try:
         tree.put(db, part, aid, tree.EDIT, request.state.principal.username)
     except tree.Refused:
         db.rollback()
-        return RedirectResponse(f"/computers/{aid}?fiterr=1", status_code=303)
+        return back_to(request, f"/computers/{aid}", fiterr=1)
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.get("/computers/{aid}/detach-board", response_class=HTMLResponse, include_in_schema=False)
@@ -648,7 +660,7 @@ async def gui_dispose_computer(
     n = _dispose_contents(db, c)
     add_log(db, aid, _disposal_log(c) + _and_parts(n))
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.post("/computers/{aid}/for-sale", include_in_schema=False)
@@ -659,7 +671,9 @@ async def gui_computer_for_sale(
 
 
 @router.post("/computers/{aid}/restore", include_in_schema=False)
-def gui_restore_computer(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
+def gui_restore_computer(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     c = get_or_404(db, Computer, aid)
     was_at, was_note = c.disposed_at, c.disposed_note
     c.disposed = False
@@ -668,7 +682,7 @@ def gui_restore_computer(aid: str, db: Session = Depends(get_db)) -> RedirectRes
     n = _restore_contents(db, c, was_at, was_note)
     add_log(db, aid, "restored" + _and_parts(n, "came back too"))
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.get("/computers/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)
@@ -709,12 +723,15 @@ async def gui_computer_note(
 ) -> RedirectResponse:
     get_or_404(db, Computer, aid)
     _note_with_photos(db, aid, await posted(request))
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.post("/computers/{aid}/photo", include_in_schema=False)
 async def gui_computer_photo(
-    aid: str, photos: list[UploadFile] = File(...), db: Session = Depends(get_db)
+    aid: str,
+    request: Request,
+    photos: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
 ) -> RedirectResponse:
     c = get_or_404(db, Computer, aid)
     first = None
@@ -730,11 +747,13 @@ async def gui_computer_photo(
     if n:
         add_log(db, aid, f"added {n} photo(s)")
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.post("/computers/{aid}/fetch-image", include_in_schema=False)
-def gui_computer_fetch_image(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
+def gui_computer_fetch_image(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     c = get_or_404(db, Computer, aid)
     rel = _fetch_reference_photo("computers", aid, c.url or "") if c.url else None
     if rel:
@@ -742,7 +761,7 @@ def gui_computer_fetch_image(aid: str, db: Session = Depends(get_db)) -> Redirec
             c.image = rel
         add_log(db, aid, "fetched a photo from the reference")
         db.commit()
-    return RedirectResponse(f"/computers/{aid}" + ("" if rel else "?imgerr=1"), status_code=303)
+    return back_to(request, f"/computers/{aid}", **({} if rel else {"imgerr": 1}))
 
 
 @router.post("/computers/{aid}/primary-photo", include_in_schema=False)
@@ -754,7 +773,7 @@ async def gui_computer_primary(
     c.image = _set_primary_photo("computers", aid, form.get("image", ""))
     add_log(db, aid, "changed the default photo")
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.post("/computers/{aid}/photo-delete", include_in_schema=False)
@@ -768,7 +787,7 @@ async def gui_computer_photo_delete(
         c.image = new_primary or ""
     add_log(db, aid, "deleted a photo")
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.post("/computers/{aid}/photo-reference", include_in_schema=False)
@@ -786,7 +805,7 @@ async def gui_computer_photo_reference(
         db, aid, "flagged a photo as a reference image" if on else "unflagged a reference photo"
     )
     db.commit()
-    return RedirectResponse(f"/computers/{aid}", status_code=303)
+    return back_to(request, f"/computers/{aid}")
 
 
 @router.get("/computers/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)

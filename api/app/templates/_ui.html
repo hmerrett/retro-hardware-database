@@ -357,6 +357,18 @@
 {%- endif -%}
 {%- endmacro %}
 
+{#- The tabs of an item page (MANUAL §4, "One page or tabs"): Settings' row, links to
+    addresses of their own the server answers, so they work with no script and a tab
+    can be sent. `tabs` is (key, words, count); a count of '' is left off. -#}
+{% macro itemtabs(tabs, current) -%}
+<nav class="tabs itemtabs" aria-label="Sections">
+{%- for key, words, count in tabs %}
+<a href="?tab={{ key }}"{% if key == current %} aria-current="page"{% endif %}>{{ words | ui }}
+{%- if count != '' %} <span class="meta">{{ count }}</span>{% endif %}</a>
+{%- endfor -%}
+</nav>
+{%- endmacro %}
+
 {# The sections, in the order both the banner and the menu give them. "Models"
    rather than "machines": the page is the catalogue's list of machine models, and
    beside Browse -- the machines actually held -- "machines" read as a second way

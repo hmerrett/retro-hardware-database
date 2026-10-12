@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2825 behaviours, from 84 files.*
+*2856 behaviours, from 85 files.*
 
 
 ## A barcode takes the room the words leave
@@ -2605,6 +2605,62 @@ Regenerate with:
 - the www shorthand is given its scheme
 - an apostrophe in the address is part of it
 - anything else is shown as words
+
+
+## Item tabs
+
+*test_item_tabs.py — 31 behaviours*
+
+
+**The switch**
+
+- one page or tabs sits in the top row before edit
+- a visitor has it too
+- one page is what anybody gets until they choose
+- choosing tabs is remembered in a cookie
+- and holds on every machine and part
+- until one page is chosen again
+- reading a page stores nothing
+- the cookie notice names the choice
+
+**One page**
+
+- every panel is down the page
+- a tab s address still shows it all  
+  A link to a tab sent to somebody reading one page is still a link to the item: they get the whole page.
+
+**Tabs**
+
+- a row of four tabs with the counts
+- each is a link with its own address
+- a page opens on details
+- the row ends the head
+- details on a machine
+- details on a part
+- each other tab holds its panel
+- the head and the side column stay put
+- an unknown tab opens details
+- work is not there for a visitor when there is none to see
+- the switch keeps the tab it leaves from  
+  Going back to one page from a tab is going back to the item.
+
+**On A phone**
+
+- the photographs come with details only
+- the stylesheet hides them on the others
+
+**Sending brings you back to the tab**
+
+- every form on a tab says which  
+  In the address it posts to, or in the `next` it carries back.
+- one page s forms say nothing of tabs
+- a note from history
+- a photograph from files
+- what else the answer says travels with it  
+  A fetch that finds nothing still says so, on the tab it was sent from.
+- a file from files
+- a job ticked on work
+- a tab that is not one is not carried
 
 
 ## Keyboard and motion

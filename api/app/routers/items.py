@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 # from. They are POSTs, so the auth gate has them whatever the prefix.
 
 from .. import locations
+from ..assets import back_to
 from ..db import get_db
 from ..forms import posted
 from ..history import PHOTO_ENTRY, item_log, log_photos
@@ -110,7 +111,7 @@ async def gui_log_photo(
     row, where = _log_entry_or_404(db, aid, log_id)
     _attach_log_photos(db, row, _chosen_photos(await posted(request)))
     db.commit()
-    return RedirectResponse(where, status_code=303)
+    return back_to(request, where)
 
 
 @router.post("/items/{aid}/log/{log_id}/photo-delete", include_in_schema=False)
@@ -142,7 +143,7 @@ async def gui_log_photo_delete(
     # grow a line for every line it already has.
     db.commit()  # the row first: a file cannot be rolled back
     _purge_photos([rel])
-    return RedirectResponse(where, status_code=303)
+    return back_to(request, where)
 
 
 @router.post("/items/{aid}/log/delete", include_in_schema=False)
@@ -190,4 +191,4 @@ async def gui_log_delete(
         db.delete(row)
     db.commit()  # the rows first, then the files
     _purge_photos(rels)
-    return RedirectResponse(where, status_code=303)
+    return back_to(request, where)

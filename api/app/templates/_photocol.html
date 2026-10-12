@@ -18,18 +18,18 @@
   {% set marked = img in ref_marks %}
   <div class="photo-ctrls">
     {% if not is_primary %}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/primary-photo">
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/primary-photo{{ tabq }}">
       <input type="hidden" name="image" value="{{ img }}">
       {{ U.button('Make default photo', size='sm', icon='star', icon_only=true, type='submit', title='Make default photo') }}
     </form>
     {% endif %}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference">
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference{{ tabq }}">
       <input type="hidden" name="image" value="{{ img }}">
       <input type="hidden" name="set" value="{{ '0' if marked else '1' }}">
       {{ U.button('Reference image', size='sm', icon='tag', icon_only=true, type='submit', pressed=marked,
                   title='Unmark reference image' if marked else 'Mark as reference image (not this unit)') }}
     </form>
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete" data-confirm="Delete this photo? This cannot be undone.">
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete{{ tabq }}" data-confirm="Delete this photo? This cannot be undone.">
       <input type="hidden" name="image" value="{{ img }}">
       {{ U.button('Delete photo', kind='danger', size='sm', icon='trash', icon_only=true, type='submit', title='Delete photo') }}
     </form>
@@ -50,7 +50,7 @@
      calls it. Fetching from the reference is the other way a photograph arrives,
      so it stands beside Add photos rather than under it. #}
   <div class="photo-actions across">
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo{{ tabq }}"
           enctype="multipart/form-data" id="photo-upload" data-autosend>
       <label class="btn sm filebtn">{{ 'Add photos' | ui }}
         <input type="file" name="photos" accept="image/*" multiple required>
@@ -59,7 +59,7 @@
       <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
     </form>
     {% if obj.url %}
-    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image">
+    <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image{{ tabq }}">
       {{ U.button('Fetch from reference', size='sm', type='submit', title='Fetch a photograph from the reference URL') }}
     </form>
     {% endif %}

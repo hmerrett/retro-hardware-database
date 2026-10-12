@@ -47,10 +47,14 @@ from ..assets import (
     _require_disposed,
     _set_for_sale,
     _work_from_form,
+    back_to,
     delete_part,
+    item_view,
+    keep_item_layout,
     part_thumbs,
     place_from_form,
     refused,
+    work_shown,
 )
 from ..common import to_dict
 from ..db import get_db
@@ -851,10 +855,18 @@ def gui_part(
         " ".join(x for x in (p.manufacturer, p.model, str(p.year or "")) if x),
         specstruct.join(spec_pairs),
     )
-    return templates.TemplateResponse(
+    on_project = projects.project_for(db, aid, request.state.sees_private)
+    item_tasks = projects.tasks_for_asset(db, aid, request.state.sees_private)
+    project_tasks = (
+        projects.project_wide_tasks(db, on_project.asset_id) if on_project is not None else []
+    )
+    work = work_shown(request.state.authed, item_tasks, project_tasks, on_project)
+    response = templates.TemplateResponse(
         request,
         "part.html",
         {
+            **item_view(request, work),
+            "work": work,
             "machine": _machine_page(db, p),
             "p": p,
             "parent": parent,
@@ -867,11 +879,9 @@ def gui_part(
             **filesdb.panel(db, pdict, request.state.authed, request.state.sees_private),
             "fileerr": bool(fileerr),
             "dl_filenotes": _answers_given(db, StoredFile.note),
-            "on_project": (found := projects.project_for(db, aid, request.state.sees_private)),
-            "item_tasks": projects.tasks_for_asset(db, aid, request.state.sees_private),
-            "project_tasks": (
-                projects.project_wide_tasks(db, found.asset_id) if found is not None else []
-            ),
+            "on_project": on_project,
+            "item_tasks": item_tasks,
+            "project_tasks": project_tasks,
             # For the picker in that panel, which only an owner is shown -- so a
             # visitor's page does not ask the question at all.
             "work_projects": (projects.open_projects(db) if request.state.authed else []),
@@ -902,6 +912,8 @@ def gui_part(
             ),
         },
     )
+    keep_item_layout(request, response)
+    return response
 
 
 @router.get("/parts/{aid}/edit", response_class=HTMLResponse, include_in_schema=False)
@@ -975,7 +987,7 @@ async def gui_save_part(aid: str, request: Request, db: Session = Depends(get_db
         ctx["year_hint"] = year_hint(on_file["year"])
         return refused(request, db, "part_form.html", ctx, form, errors)
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/duplicate", include_in_schema=False)
@@ -1022,7 +1034,7 @@ async def gui_dispose_part(
     n = _dispose_contents(db, p)
     add_log(db, aid, _disposal_log(p) + _and_parts(n))
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/restore", include_in_schema=False)
@@ -1037,7 +1049,7 @@ def gui_restore_part(aid: str, request: Request, db: Session = Depends(get_db)) 
     # Back on its own, out of something still gone: it comes out of it (ADR-0036).
     out_of_the_disposed(db, p, request.state.principal.username)
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.get("/parts/{aid}/delete", response_class=HTMLResponse, include_in_schema=False)
@@ -1073,12 +1085,15 @@ async def gui_part_note(
 ) -> RedirectResponse:
     get_or_404(db, Part, aid)
     _note_with_photos(db, aid, await posted(request))
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/photo", include_in_schema=False)
 async def gui_part_photo(
-    aid: str, photos: list[UploadFile] = File(...), db: Session = Depends(get_db)
+    aid: str,
+    request: Request,
+    photos: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
 ) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     first = None
@@ -1094,11 +1109,13 @@ async def gui_part_photo(
     if n:
         add_log(db, aid, f"added {n} photo(s)")
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/fetch-image", include_in_schema=False)
-def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)) -> RedirectResponse:
+def gui_part_fetch_image(
+    aid: str, request: Request, db: Session = Depends(get_db)
+) -> RedirectResponse:
     p = get_or_404(db, Part, aid)
     rel = _fetch_reference_photo("parts", aid, p.url or "") if p.url else None
     if rel:
@@ -1106,7 +1123,7 @@ def gui_part_fetch_image(aid: str, db: Session = Depends(get_db)) -> RedirectRes
             p.image = rel
         add_log(db, aid, "fetched a photo from the reference")
         db.commit()
-    return RedirectResponse(f"/parts/{aid}" + ("" if rel else "?imgerr=1"), status_code=303)
+    return back_to(request, f"/parts/{aid}", **({} if rel else {"imgerr": 1}))
 
 
 @router.post("/parts/{aid}/unlink", include_in_schema=False)
@@ -1146,9 +1163,9 @@ async def gui_link_part_to_computer(
             tree.put(db, p, cid, tree.EDIT, request.state.principal.username)
         except tree.Refused:
             db.rollback()
-            return RedirectResponse(f"/parts/{aid}?fiterr=1", status_code=303)
+            return back_to(request, f"/parts/{aid}", fiterr=1)
         db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/attach", include_in_schema=False)
@@ -1162,7 +1179,7 @@ async def gui_attach_part(
     form = await posted(request)
     pid = form.get("part_id", "") or ""
     if not pid:
-        return RedirectResponse(f"/parts/{aid}", status_code=303)
+        return back_to(request, f"/parts/{aid}")
     child = get_or_404(db, Part, pid)
     try:
         tree.put(db, child, aid, tree.EDIT, request.state.principal.username)
@@ -1170,7 +1187,7 @@ async def gui_attach_part(
         db.rollback()
         return RedirectResponse(f"/parts/{aid}?mounterr=1", status_code=303)
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/detach", include_in_schema=False)
@@ -1193,7 +1210,7 @@ async def gui_part_primary(
     p.image = _set_primary_photo("parts", aid, form.get("image", ""))
     add_log(db, aid, "changed the default photo")
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/photo-delete", include_in_schema=False)
@@ -1207,7 +1224,7 @@ async def gui_part_photo_delete(
         p.image = new_primary or ""
     add_log(db, aid, "deleted a photo")
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.post("/parts/{aid}/photo-reference", include_in_schema=False)
@@ -1225,7 +1242,7 @@ async def gui_part_photo_reference(
         db, aid, "flagged a photo as a reference image" if on else "unflagged a reference photo"
     )
     db.commit()
-    return RedirectResponse(f"/parts/{aid}", status_code=303)
+    return back_to(request, f"/parts/{aid}")
 
 
 @router.get("/parts/{aid}/edit-photo", response_class=HTMLResponse, include_in_schema=False)

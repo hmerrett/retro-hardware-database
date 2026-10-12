@@ -433,7 +433,7 @@ picture that has since been cropped or replaced.
 
 Nothing, until you choose something. The register remembers a choice you make, in
 your browser and for this site alone, and nothing else: the sort order and tiles
-or table on the gallery, that you folded the side rail, and that you have read the
+or table on the gallery, one page or tabs on an item page, that you folded the side rail, and that you have read the
 cookie notice — each a cookie — and the dark or light theme and whether storage
 mode beeps, kept in the browser's own storage. The one thing kept without being
 chosen lives in the tab and goes when it closes: which page you opened each thing
@@ -551,8 +551,8 @@ audit](#audit).
 ## 4. An item page
 
 At the top is one row of controls: [the way back](#the-way-back) on the left, and
-when logged in **Edit** and **Duplicate** on the right. On a phone the row wraps,
-the way back first.
+on the right **One page | Tabs** ([one page or tabs](#one-page-or-tabs)) and, when
+logged in, **Edit** and **Duplicate**. On a phone the row wraps, the way back first.
 
 Under it is the item's name on a line of its own, with its asset tag straight under
 it, so the two stay together at every width — the tag is what you check a scanned
@@ -616,6 +616,38 @@ The same list is the whole list, wherever a link is made out of something typed.
 A Reference URL or an order's link written any other way — `javascript:`, `data:`,
 a bare hostname — is shown as the words it is and never becomes a link, so a page
 cannot be made to run anything by what was typed into a box.
+
+### One page or tabs
+
+An item page comes two ways, and which is yours to choose: **One page** or
+**Tabs**, in the row at the top. Your choice is remembered in a cookie, like the
+gallery's tiles or table, and holds on every machine and part until you change it.
+One page is what you get until you choose, and it is what anybody arriving from a
+label or a search engine gets.
+
+**One page** is every panel down the page, as described above: everything at a
+glance.
+
+**Tabs** is a little at a time. A row of tabs ends the head of the page, across
+both columns, and under it the main column holds one tab's panels:
+
+- **Details** — Details and Machine, then Motherboard and Parts on a machine, or
+  Specification, Fitted in and Mounted parts on a part. A page opens on it.
+- **Work** — the projects it is part of and its jobs, with how many are done.
+  Not there for a visitor when the item is part of no project they may see.
+- **Files** — with how many.
+- **History** — with how many lines.
+
+The head of the page and the side column — the photographs, the code for a phone,
+the label and the disposal box — stay as they are whichever tab is open, so
+**Details** and **Photographs** still start level. Each tab is a link with an
+address of its own, `?tab=files`, so a tab can be bookmarked or sent, and the tabs
+work with JavaScript switched off. Sending anything from the page — a note, a file,
+a job, a photograph — brings you back to the tab you sent it from.
+
+On a phone, where the page is one column, the photographs come with **Details**
+only, and the other tabs open on what they are for. Details is where a scanned
+label lands, so a photograph is still the first thing seen there.
 
 ### Its boxes and buttons
 
