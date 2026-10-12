@@ -39,7 +39,10 @@
   <dl class="kv log{{ ' timed' if request.state.sees_private else '' }}">
     {% for e in log %}
     <div{% if e.kind == 'move' %} data-kind="move"{% endif %}>
-      <dt class="logwhen">{{ log_stamp(e.created_at, request.state.sees_private) }}</dt>
+      {#- Ids on the date and the words, so the line's buttons can be named by them:
+          a delete on every line called "Delete history entry" says which one it is
+          only to somebody who can see where it sits. -#}
+      <dt class="logwhen" id="log-{{ e.id }}-when">{{ log_stamp(e.created_at, request.state.sees_private) }}</dt>
       <dd>
         <div class="logline">
           {# A photograph entry has no words in it: the chip is the whole of the
@@ -48,12 +51,12 @@
              since an end may be a location, a machine or a card (ADR-0036); who made
              it is for whoever is signed in, as the time of day is. #}
           {% if e.kind == 'move' and e.move %}{% set m = e.move %}
-          <div class="logmsg">{{ U.chip('Moved') }} from
+          <div class="logmsg" id="log-{{ e.id }}-what">{{ U.chip('Moved') }} from
             {%- if m.from_id %} <a href="/items/{{ m.from_id }}">{{ m.from_path or m.from_id }}</a>{% else %} nowhere recorded{% endif %} to
             {%- if m.to_id %} <a href="/items/{{ m.to_id }}">{{ m.to_path or m.to_id }}</a>{% else %} nowhere recorded{% endif -%}
             , {{ move_how[m.how] | default(m.how) }}{% if request.state.sees_private and m.who %}, by {{ m.who }}{% endif %}</div>
           {% else %}
-          <div class="logmsg">{% if e.kind == 'note' %}{{ U.chip('Note') }} {% elif e.kind == 'photo' %}{{ U.chip('Photo') }}{% endif %}{{ e.message | linked }}</div>
+          <div class="logmsg" id="log-{{ e.id }}-what">{% if e.kind == 'note' %}{{ U.chip('Note') }} {% elif e.kind == 'photo' %}{{ U.chip('Photo') }}{% endif %}{{ e.message | linked }}</div>
           {% endif %}
           {# Offered on a single entry only. A folded line is several entries read
              out as one sentence, and there is no one of them a photograph would
@@ -64,9 +67,11 @@
             <label class="btn sm icon filebtn" title="Attach a photograph to this entry">
               {{ I.ico('camera') }}
               <input type="file" name="photos" accept="image/*" multiple required
-                     aria-label="Attach a photograph to this entry">
+                     id="log-{{ e.id }}-attach" aria-label="Attach a photograph to the entry"
+                     aria-labelledby="log-{{ e.id }}-attach log-{{ e.id }}-when log-{{ e.id }}-what">
             </label>
-            <button class="btn sm" type="submit" data-send-go>{{ 'Attach' | ui }}</button>
+            <button class="btn sm" type="submit" data-send-go id="log-{{ e.id }}-attachgo"
+                    aria-labelledby="log-{{ e.id }}-attachgo log-{{ e.id }}-when log-{{ e.id }}-what">{{ 'Attach' | ui }}</button>
             <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
           </form>
           {% endif %}
@@ -83,6 +88,8 @@
                 data-confirm="{{ 'Delete this history entry?' if e.count == 1 else 'Delete all ' ~ e.count ~ ' of these history entries?' }} This cannot be undone.">
             {% for i in e.ids %}<input type="hidden" name="id" value="{{ i }}">{% endfor %}
             {{ U.button('Delete history entry', kind='danger', size='sm', icon='trash', icon_only=true, type='submit',
+                        id='log-' ~ e.id ~ '-delete',
+                        labelledby='log-%s-delete log-%s-when log-%s-what' | format(e.id, e.id, e.id),
                         title='Delete this history entry' if e.count == 1 else 'Delete these ' ~ e.count ~ ' history entries') }}
           </form>
           {% endif %}
@@ -101,9 +108,9 @@
              and not the gallery's or another entry's. #}
           <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
                srcset="{{ img_srcset(img, [300, 500]) }}" sizes="120px"
-               data-full="{{ img_url(img) }}" alt="{{ e.message or display_name(item) }}"
+               data-full="{{ img_url(img) }}" alt="{{ e.message or display_name(item) }}, photograph {{ loop.index }} of {{ e.photos | length }}"
                data-group="log-{{ e.id }}" loading="lazy" decoding="async"
-               tabindex="0" role="button" aria-label="View this photo full size">
+               tabindex="0" role="button">
           {% endfor %}
         </div>
         {% endif %}

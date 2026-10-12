@@ -59,7 +59,7 @@
       <input type="file" name="uploads" multiple required>
     </label>
     <datalist id="dl_filenotes">{% for o in dl_filenotes | default([]) %}<option value="{{ o }}">{% endfor %}</datalist>
-    <button class="btn sm" type="submit" data-send-go>{{ 'Upload' | ui }}</button>
+    <button class="btn sm" type="submit" data-send-go>{{ 'Upload files' | ui }}</button>
     <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
   </form>
   </div>

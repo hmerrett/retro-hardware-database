@@ -11,11 +11,7 @@
 {% import "_panel.html" as PN %}
 {% import "_ui.html" as U with context %}
 {% macro badge(img) %}
-  {% if img in ref_marks %}
-  <span class="ref-badge{{ ' icon' if ref_marks[img].icon else '' }}" title="{{ ref_marks[img].note }}">
-    {% if ref_marks[img].icon %}<img src="/images/{{ ref_marks[img].icon }}" alt="source site">{% else %}ref{% endif %}
-  </span>
-  {% endif %}
+  {% if img in ref_marks %}{{ U.refbadge(ref_marks[img].icon) }}{% endif %}
 {% endmacro %}
 {% macro ctrls(img, is_primary) %}
   {% if request.state.authed %}
@@ -40,6 +36,11 @@
   </div>
   {% endif %}
 {% endmacro %}
+{# What the fetch from the reference found, when it was nothing: at the top of the
+   panel, where the eye arrives from the button, and saying what to do instead. #}
+{% macro fetcherr() %}
+  {% if imgerr %}{{ U.banner('warning', 'Nothing found at the reference.', 'Check the Reference URL, or add a photograph yourself.') }}{% endif %}
+{% endmacro %}
 {% macro upload() %}
   {% if request.state.authed %}
   {# In the panel it adds to. Choosing the photos is the whole gesture: the upload
@@ -54,7 +55,7 @@
       <label class="btn sm filebtn">{{ 'Add photos' | ui }}
         <input type="file" name="photos" accept="image/*" multiple required>
       </label>
-      <button class="btn sm" type="submit" data-send-go>{{ 'Upload' | ui }}</button>
+      <button class="btn sm" type="submit" data-send-go>{{ 'Upload photos' | ui }}</button>
       <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
     </form>
     {% if obj.url %}
@@ -62,10 +63,14 @@
       {{ U.button('Fetch from reference', size='sm', type='submit', title='Fetch a photograph from the reference URL') }}
     </form>
     {% endif %}
-    {% if imgerr %}<p class="hint">Nothing found at the reference.</p>{% endif %}
   </div>
   {% endif %}
 {% endmacro %}
+{#- Each photograph is named for what it shows -- the item, and where it falls among
+    the others -- and not for what pressing it does, which its role says already.
+    "View this photo full size" on every one of them told a screen reader nothing
+    about which was which. -#}
+{% set shown = obj.name if kind == 'locations' else display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) %}
 <aside class="itemphotos">
   {# Panels, as the column beside this one is: the photographs are a section of the
      page like the parts or the files, and disposal is a thing you do to the item
@@ -76,6 +81,7 @@
      and the buttons under them start from one edge. #}
   {% if images %}
   {% call PN.panel('Photographs', images | length) %}
+    {{ fetcherr() }}
     <div class="photo-primary">
       {# data-full is what the lightbox opens, and it is the original: the point of
          a photograph of a board is being able to read the chips on it. What sits
@@ -85,8 +91,8 @@
       <img class="photo-main zoomable" src="{{ img_url(images[0], THUMB_MAIN) }}"
            srcset="{{ img_srcset(images[0], [800, 1200]) }}"
            sizes="(max-width: 860px) 100vw, {{ '446px' if kind in ('computers', 'parts') else '294px' }}"
-           data-full="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
-           tabindex="0" role="button" aria-label="View this photo full size"
+           data-full="{{ img_url(images[0]) }}" alt="{{ shown }}, photograph 1 of {{ images | length }}"
+           tabindex="0" role="button"
            data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}"
            data-group="photos"
            {% if images[0] in tuned %}data-tuned="1"{% endif %}>
@@ -99,9 +105,9 @@
       <div class="thumb-item">
         <img class="zoomable" src="{{ img_url(img, THUMB_CARD) }}"
              srcset="{{ img_srcset(img, [300, 500]) }}" sizes="150px"
-             data-full="{{ img_url(img) }}" alt="{{ obj.asset_id }}" loading="lazy"
-             decoding="async"
-             tabindex="0" role="button" aria-label="View this photo full size"
+             data-full="{{ img_url(img) }}" alt="{{ shown }}, photograph {{ loop.index + 1 }} of {{ images | length }}"
+             loading="lazy" decoding="async"
+             tabindex="0" role="button"
              data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ img }}"
              data-group="photos"
              {% if img in tuned %}data-tuned="1"{% endif %}>
@@ -120,6 +126,7 @@
      photographed. The drawing is the one on the item's own gallery card, so
      arriving here from the card lands on the same picture it was clicked on. #}
   {% call PN.panel('Photographs') %}
+    {{ fetcherr() }}
     <div class="nophoto">
       <img class="ph" src="/static/{{ placeholder }}" alt="" aria-hidden="true">
       <p class="hint">No photograph yet.</p>

@@ -129,6 +129,13 @@
   </div>
 </div>
 
+{# Where the page says what happened without you -- an upload under way, this record
+   changed -- to a screen reader, without moving you from where you are. In the page
+   and empty from the start, and written into by the scripts: a region that was
+   hidden until the moment it spoke is not reliably heard, and the bar and the busy
+   words are both hidden until then. #}
+<p class="sr-only" id="said" role="status"></p>
+
 {# Something changed this record while you were looking at it -- most often you
    yourself, on a phone, photographing the thing the desktop is showing. The page
    asks a small endpoint what the record's history amounts to now and compares it

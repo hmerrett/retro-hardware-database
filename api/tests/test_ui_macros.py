@@ -443,7 +443,7 @@ class TestCard:
         html = render(
             "{{ U.card(r) }}", r=self.row(image="computers/RH-0042/ref-a.jpg", ref_photo=True)
         )
-        assert 'class="ref-badge"' in html and "Illustrative image" in html
+        assert 'class="ref-badge"' in html and "reference image, not this unit" in html
 
 
 class TestBezel:

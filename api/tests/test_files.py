@@ -1106,7 +1106,7 @@ class TestTheButtonText:
         later = card(part)
         speak(client, case)
         panel = files_panel(client.get(f"/parts/{later}").text)
-        words = ["Link", "Choose files", "Upload", "Uploading…"]
+        words = ["Link", "Choose files", "Upload files", "Uploading…"]
         other = "lower" if case == "cap" else "cap"
         assert controls_saying(panel, [in_case(w, case) for w in words]) == {
             in_case(w, case) for w in words

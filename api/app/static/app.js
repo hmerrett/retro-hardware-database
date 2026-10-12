@@ -1387,6 +1387,12 @@ function combobox(box, list, pick) {
 // it needs has been said. The note bar is deliberately not marked: its photographs
 // are waiting on a caption still being typed.
 (function () {
+  // The busy words are shown beside the button, where the eye already is; a screen
+  // reader hears them from the page's status region (base.html, #said).
+  function say(words) {
+    const said = document.getElementById('said');
+    if (said) said.textContent = words;
+  }
   for (const form of document.querySelectorAll('form[data-autosend]')) {
     const input = form.querySelector('input[type=file]');
     const go = form.querySelector('[data-send-go]');
@@ -1397,7 +1403,10 @@ function combobox(box, list, pick) {
       // A cancelled picker fires change too, with nothing chosen.
       if (sent || !input.files || !input.files.length) return;
       sent = true;
-      if (busy) busy.hidden = false;
+      if (busy) {
+        busy.hidden = false;
+        say(busy.textContent);
+      }
       // The label stops taking clicks rather than the input being disabled: a
       // disabled input is not submitted, which would send the upload empty.
       form.classList.add('sending');

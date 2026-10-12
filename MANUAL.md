@@ -309,6 +309,28 @@ Linux — the register honours it. The only movement it makes of its own accord 
 **Find** on a phone, which scrolls the page back to the top to reach the search
 box; with the setting on it arrives there without the travel.
 
+### With a screen reader
+
+What an item page says by how it looks, it also says in words.
+
+- **A photograph is named for what it shows** — the item, and where the
+  photograph falls among its others: *Lounge PC, photograph 2 of 3*. One on a
+  history entry is named by the entry it belongs to, *Recapped, photograph 1 of
+  2*, or by the item where the entry is only photographs. Pressing it opens it
+  full size.
+- **A button on a line says which line it acts on.** A part's bin is *Take out
+  RH-SNYP*. A history entry's delete and its attach say the entry, by its date
+  and its words: *Delete history entry 2026-10-12 14:05 Note Recapped*.
+- **The badge on a reference image** reads *Ref*, then *reference image, not this
+  unit*, which is what the badge means to anybody who can see it. A badge drawn as
+  the source site's icon says the same.
+- **The code under the photographs** is a picture named *Code for this page, to
+  add photographs from a phone*.
+- **What happens without you is read out**, without moving you from where you
+  are: *Uploading…* as soon as photographs or files have been chosen, and *This
+  record has changed* when the page is waiting for you to
+  [reload it](#when-it-changes-while-you-are-looking-at-it).
+
 ### The way back
 
 A machine's page, a part's, a project's, a file's and a model's each open with a
@@ -538,6 +560,11 @@ label against. Then a banner if it has been disposed of or is being built, and t
 summary — the prose description, if one is written, or else the model's paragraph
 in muted ink ([Section 6](#a-models-own-page)). It runs as wide as the **Details**
 under it.
+
+The two banners are different kinds of news and look it. **Disposed** is a
+warning: the date and the reason, and when logged in **Restore** and **Delete…**
+at its right ([disposal](#disposal)). **Build walk** is plain, because a machine
+being built is not a problem: it says what to add next.
 
 The rest is a stack of panels — each section in a box with its title on a band
 across the top.
@@ -1446,7 +1473,9 @@ be sitting next to **apply crop**.
 reference URL. It
 takes the lead image from a Wikipedia page, or the preview image any other site
 advertises, downscales it and files it as a reference image. It bypasses nothing,
-so a site behind bot protection simply returns nothing.
+so a site behind bot protection simply returns nothing. When it finds nothing, a
+warning at the top of the Photographs panel says so and what to try instead:
+check the Reference URL, or add a photograph yourself.
 
 **Taken on the phone, seen on the desktop.** An item page open elsewhere notices a
 photograph arriving and refreshes itself — see [when it changes while you are
