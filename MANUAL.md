@@ -261,16 +261,19 @@ across. **Browse**, and **Might sell** and a search's results, which are Browse 
 other names, put as many cards across as fit: four on a 1000px page, six at the
 widest. The tiles on **Numbers** and the chips on a model's page do the same, and
 **Models** runs to three columns. The forms for a computer, a part and a project,
-and **Settings**, stand their short questions side by side, up to five abreast.
+and **Settings**, stand their short questions side by side, up to five abreast. A
+machine's page and a part's use the width too: both columns widen with the window,
+the details and the photographs beside them.
 
-The pages you read keep to a column 1000px across: a machine, a part, a project, a
-file, and the **Projects** and **Files** lists, which are read a row at
-a time. The small pages (logging in, confirming a delete, a page that is not there)
+The pages you read keep to a column 1000px across: a project, a file, and the
+**Projects** and **Files** lists, which are read a row at a time. The small pages (logging in, confirming a delete, a page that is not there)
 stay small inside it.
 
 However wide the window, what somebody wrote stops at a comfortable line of about
 seventy characters: a summary, a model's paragraph, the sentence on **Numbers**, the
-line of help under a box, the words of a notice. A box you type into is never wider
+line of help under a box, the words of a notice. The one exception is the paragraph
+at the top of a machine's or a part's page, which runs as wide as the **Details**
+under it, so the top of the page and its body share an edge. A box you type into is never wider
 than that either, so a summary is written at the width it will be read at.
 
 The banner's two ends stand on the edges of the wide pages, on every page, so what
@@ -295,10 +298,10 @@ notice the same way: while it is up, **Log out** and **Collapse** sit above it,
 and the rail scrolls to reach them if the window is short.
 
 Tables say which of their cells are headings, so a screen reader can announce a
-figure with the heading it sits under. In a table of rows — the files list, the
-orders on a project — the headings run along the top; in an item's table of
-details they run down the left, and "Notes" is read as the heading of the note
-rather than as a cell of its own.
+figure with the heading it sits under. In a table of rows — the orders on a
+project, the drives — the headings run along the top. An item's **Details** are a
+list of names and values rather than a table, each value read with its name, so
+"Notes" is read as the name of the note rather than as a line of its own.
 
 If your system is set to reduce motion — **Reduce Motion** on iOS and macOS,
 **Show animations** turned off on Windows, the equivalent switch on a desktop
@@ -306,16 +309,29 @@ Linux — the register honours it. The only movement it makes of its own accord 
 **Find** on a phone, which scrolls the page back to the top to reach the search
 box; with the setting on it arrives there without the travel.
 
-### Moving between items
+### The way back
 
-An item page has **prev** and **next** buttons. They walk the list the gallery
-was last showing — that sort, that search, that category, and every page of it,
-so *next* on the last card of page 1 is the first card of page 2 — which the
-browser hands over as you leave the gallery. Arrive from a printed label instead, with no
-gallery visit behind you, and they walk the register in asset order.
+A machine's page, a part's, a project's, a file's and a model's each open with a
+small button at the top left that goes back the way you came, and is named for
+where it goes. Open a machine from **Browse** and it reads **← Browse**, and takes
+you back to the gallery as you left it: the same search, the same sort, the same
+page. Open a part from its machine and it reads **← RH-0NCN**, the machine's tag;
+from a project or a location, that one's tag; from **Might sell**, **Projects**,
+**Files**, a file's page or a model's page, by that name. Hover over a tag and the
+tooltip says what it is.
 
-The buttons are the whole gesture. A sideways swipe used to do this as well, but
-that is the phone's own back gesture, and taking it over left no way to go back.
+Climbing back up does not turn it round. Back on the machine, its button still
+leads to where you opened the machine from, not down to the part you have just
+left. And it holds while the page reloads itself — after a note, a photograph, an
+edit — for as long as the tab is open.
+
+Arrive with nothing behind you — a scanned label, a link somebody sent you, an
+address typed in — and it goes to the list the page belongs to: **Browse** for a
+machine or a part, and **Projects**, **Files** or **Models** for the others. That
+is also where it goes in a browser running no script.
+
+There is no previous or next. An item is reached from a list, a machine or a label,
+and the way on from it is back to where you were.
 
 ### Photographs, full size
 
@@ -397,7 +413,10 @@ Nothing, until you choose something. The register remembers a choice you make, i
 your browser and for this site alone, and nothing else: the sort order and tiles
 or table on the gallery, that you folded the side rail, and that you have read the
 cookie notice — each a cookie — and the dark or light theme and whether storage
-mode beeps, kept in the browser's own storage. Signing in adds a session cookie. All of them are first party: no
+mode beeps, kept in the browser's own storage. The one thing kept without being
+chosen lives in the tab and goes when it closes: which page you opened each thing
+from, so that [the way back](#the-way-back) goes there. It is not a cookie and is
+never sent to the server. Signing in adds a session cookie. All of them are first party: no
 analytics, no advertising, nothing shared with anyone. The notice at the foot of
 the page says so the first time, and goes once you press **Got it**.
 
@@ -509,16 +528,16 @@ audit](#audit).
 
 ## 4. An item page
 
-At the top is a row with a link back to the whole register on the left and the
-**Prev** and **Next** buttons on the right, in the same place on every item page.
-A part fitted in a machine has a second link beside the first, back to that
-machine by its tag; a part mounted on another part, a drive on its controller
-card, has one back to that part.
+At the top is one row of controls: [the way back](#the-way-back) on the left, and
+when logged in **Edit** and **Duplicate** on the right. On a phone the row wraps,
+the way back first.
 
-Under it is the item's name, and when logged in **Edit** and **Duplicate** on the
-same line, at its end — under the name on a phone. Then its asset tag, a banner if
-it has been disposed of or is being built, and the summary — the prose
-description, if one is written.
+Under it is the item's name on a line of its own, with its asset tag straight under
+it, so the two stay together at every width — the tag is what you check a scanned
+label against. Then a banner if it has been disposed of or is being built, and the
+summary — the prose description, if one is written, or else the model's paragraph
+in muted ink ([Section 6](#a-models-own-page)). It runs as wide as the **Details**
+under it.
 
 The rest is a stack of panels — each section in a box with its title on a band
 across the top.
@@ -1374,10 +1393,11 @@ from the same edge.
 **Upload** by choosing the files — that is the whole gesture, the upload goes as
 soon as they are picked. Several at once is fine.
 
-**From a phone.** Every item page ends in a QR code of its own URL, shown only
-when you are logged in (a visitor has nothing to upload with). Scan it and the
-phone is on that item, where choosing a photo shoots it or picks it from the
-camera roll. A phone that arrives not logged in is put back on the item after
+**From a phone.** Under an item's photographs is a QR code of its own URL, in a
+panel of its own, **From your phone**, shown only when you are logged in (a visitor
+has nothing to upload with) and not on a screen as narrow as a phone's, which is
+already where it leads. Scan it and the phone is on that item, where choosing a
+photo shoots it or picks it from the camera roll. A phone that arrives not logged in is put back on the item after
 logging in, rather than dumped on the gallery.
 
 **Per photo**, once logged in:

@@ -1,6 +1,7 @@
-{# The top of an item page, shared by computer.html and part.html: the way back and
-   through the register, the owner's Edit and Duplicate, what state the thing is in,
-   and the head of the page. Expects: obj, kind ("computers"/"parts"), nav, machine.
+{# The top of an item page, shared by computer.html and part.html: the row of
+   controls -- the way back and the owner's Edit and Duplicate -- then what state the
+   thing is in, and the head of the page. Expects: obj, kind ("computers"/"parts"),
+   machine.
 
    The head opens .itemcols and is the first of its four parts -- the head, the
    photographs (_photocol.html), the body and the rest of the side column
@@ -9,34 +10,27 @@
 {% import "_ui.html" as U with context %}
 {% set authed = request.state.authed %}
 {% set name = display_name({'name': obj.name, 'manufacturer': obj.manufacturer, 'model': obj.model, 'asset_id': obj.asset_id}) %}
-{#- A part's way back to what it is in: the machine it is fitted in, or else the part
-    it is mounted on (a drive on its controller). By tag, with the name in a title. -#}
-{% set up = (parent and ('/computers/' ~ parent.asset_id, parent))
-            or (host and ('/parts/' ~ host.asset_id, host)) if kind == 'parts' else none %}
-{{ U.itemnav('/', 'All', '', nav.prev.url if nav.prev else '', nav.next.url if nav.next else '',
-              nav.prev.name if nav.prev else '', nav.next.name if nav.next else '', keep=true,
-              up_href=up[0] if up else '', up_label=up[1].asset_id if up else '',
-              up_title=display_name({'name': up[1].name, 'manufacturer': up[1].manufacturer, 'model': up[1].model, 'asset_id': up[1].asset_id}) if up else '') }}
+{#- One row: the way back, then the owner's actions. They stood on the name's line,
+    which made the top two rows of controls and, on a phone, put the buttons between
+    the name and its tag. Small: the page is read far more often than it is changed. -#}
+{% call U.itemnav('/', 'Browse') %}
+  {%- if authed %}
+  <div class="itemacts">
+    {{ U.button('Edit', size='sm', icon='edit', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/edit') }}
+    {#- A machine is duplicated without its parts: a second machine of the model,
+        not a second copy of what is in this one. -#}
+    <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/duplicate">
+    {{- U.button('Duplicate', size='sm', icon='copy', type='submit') -}}
+    </form>
+  </div>
+  {%- endif %}
+{% endcall %}
 
 <div class="itemcols">
 <div class="itemhead">
-  {#- The owner's actions on the name's line, at its end -- with what they act on,
-      rather than over the photographs, and out of the navigation landmark, since
-      Duplicate is a form that posts. Small: the page is read far more often than it
-      is changed. On a phone they wrap under the name. -#}
-  <div class="titleline">
-    <h1 class="title">{{ name }}</h1>
-    {%- if authed %}
-    <div class="itemacts">
-      {{ U.button('Edit', size='sm', icon='edit', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/edit') }}
-      {#- A machine is duplicated without its parts: a second machine of the model,
-          not a second copy of what is in this one. -#}
-      <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/duplicate">
-      {{- U.button('Duplicate', size='sm', icon='copy', type='submit') -}}
-      </form>
-    </div>
-    {%- endif %}
-  </div>
+  {#- The tag straight under the name, at every width: it is what somebody checks a
+      scanned label against. -#}
+  <h1 class="title">{{ name }}</h1>
   <div class="tag muted">{{ obj.asset_id }}</div>
   {% if obj.disposed %}
   <div class="banner" role="status"><b>Disposed</b>
@@ -67,9 +61,10 @@
      in front of you, which reads as the page saying everything twice. The specific
      one wins; this fills the gap where there is no specific one yet. Read from the
      catalogue rather than the record, so correcting it corrects every item filed as
-     the model. #}
+     the model, and in muted ink: it is reference about the model rather than a fact
+     about the thing (MANUAL §6). #}
   {% if obj.summary %}<p class="prose">{{ obj.summary | linked }}</p>
-  {% elif machine and machine.summary %}<p class="prose">{{ machine.summary | linked }}</p>{% endif %}
+  {% elif machine and machine.summary %}<p class="prose muted">{{ machine.summary | linked }}</p>{% endif %}
   {% if authed %}
   {# Might sell (ADR-0018). Rendered for nobody else: not the tick, not the state it
      is in, and not the search that would find it -- an intention to sell is the

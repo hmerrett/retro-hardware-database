@@ -3,6 +3,7 @@
 {% block title %}{{ m.full_name }} — {{ site_name() }}{% endblock %}
 {% block width %} wide{% endblock %}
 {% block main_class %} v2{% endblock %}
+{% block backname %}{{ m.model }}{% endblock %}{% block backtitle %}{{ m.full_name }}{% endblock %}
 {% block content %}
 
 {#
@@ -13,7 +14,7 @@
   file is linked to items, not to models (ADR-0028).
 #}
 
-{% call U.itemnav('/machines', 'All models') %}{% endcall %}
+{{ U.itemnav('/machines', 'Models') }}
 <h1 class="title">{{ m.full_name }}</h1>
 <div class="tag muted">{{ m.family }} · {{ m.year }}</div>
 {% if m.summary %}<p class="prose">{{ m.summary | linked }}</p>{% endif %}

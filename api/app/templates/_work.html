@@ -12,8 +12,10 @@
    list. It has already had the private ones taken out of it for a visitor (see
    projects.project_for): an item page is public, and this is the one place a
    project kept out of the list, the search and the sitemap could still name itself.
-   The jobs are shown whatever the project's privacy, because a job says what is
-   wrong with the thing whose page this is and nothing about anything else.
+   The jobs on a private project are left out for a visitor too, as its name is
+   (projects.tasks_for_asset): what a private project keeps back *is* what is wrong
+   with the thing, in the owner's words and not finished being decided, so showing
+   the jobs and hiding the name would publish all of it but the label.
 
    The box below is what the item used to carry as a `project` flag and a
    `project_note` -- the same gesture, at the same moment, from the same place. What

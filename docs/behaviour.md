@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2771 behaviours, from 82 files.*
+*2786 behaviours, from 82 files.*
 
 
 ## A barcode takes the room the words leave
@@ -386,7 +386,7 @@ Regenerate with:
 
 ## Api
 
-*test_api.py — 563 behaviours*
+*test_api.py — 556 behaviours*
 
 
 **Typed columns**
@@ -924,20 +924,10 @@ Regenerate with:
 - a photographed item still shares its own photo  
   The card is the fallback, not a replacement: a photograph of the thing itself is a better preview than a logo.
 
-**Walking from item to item**
+**Leaving an item**
 
-- the middle item points both ways
-- the ends have nothing beyond them
-- it walks across computers and parts alike  
-  One register, so the walk is over both -- the next asset after a machine may well be a card that is not in it.
-- the buttons name where they go  
-  The title is the neighbour's name, so a walk is not blind.
-- a lone item offers neither
-- the gallery hands over the order it is showing  
-  Sorted and filtered as the visitor left it, which is the order their prev/next should follow -- not the register's.
-- the item page prefers that order
 - a swipe across the page is left to the browser  
-  Walking the register is the two buttons' job.
+  A sideways swipe is how a phone goes back, and the page taking it over left no way to leave an item.
 
 **Sorting the gallery**
 
@@ -2256,7 +2246,7 @@ Regenerate with:
 
 ## Gallery pages
 
-*test_gallery_pages.py — 41 behaviours*
+*test_gallery_pages.py — 39 behaviours*
 
 
 **Pages**
@@ -2316,11 +2306,6 @@ Regenerate with:
 - a link with no sort opens in the one last chosen
 - the link outranks the cookie
 
-**The hand off**
-
-- prev and next are handed every page of the list
-- each is handed over under the name on its card
-
 
 ## Gallery table
 
@@ -2378,17 +2363,24 @@ Regenerate with:
 
 ## Item pages
 
-*test_item_pages.py — 49 behaviours*
+*test_item_pages.py — 72 behaviours*
 
 
 **The head**
 
 - the page opens on the name the tag and the summary
 - there is one heading at the top
-- the owner has edit and duplicate on the name s line  
-  With what they act on, and out of the navigation landmark, since Duplicate is a form that posts (MANUAL §4).
+- the owner has edit and duplicate in the control row  
+  One row above the name, after the way back, and out of the navigation landmark, since Duplicate is a form that posts (MANUAL §4).
+- the name has its line to itself with the tag under it  
+  So the tag stays with the name at every width, rather than falling below the buttons on a phone -- it is what a scanned label is checked against.
 - a visitor has neither
-- the way back is to the whole register
+- the way back goes to browse until the browser knows better  
+  What the server draws is where somebody with nothing behind them goes -- a scanned label, a link sent to them, a browser running no script (MANUAL §2, "The way back").
+- the way back is a small button  
+  Level with the rest of the row, rather than a text link beside buttons.
+- there is no previous or next  
+  Nobody used them, and they cost a row; the position went with them.
 
 **The display face**
 
@@ -2421,21 +2413,61 @@ Regenerate with:
 - a cards mounted parts each offer take out
 - a visitor is offered neither
 
-**The way back to what A part is in**
+**One way back**
 
-- a part in a machine leads back to it
-- a part on another part leads back to that part
-- a part on its own and a machine have only the way back to the register
+- a part in a machine has the one way back
+- a part on another part has it too
+
+**Each page names itself for the way back**
+
+- the gallery is browse
+- might sell is might sell
+- a machine or a part is its tag with its name to hover over
+- a project and a location are their tags
+- the lists are their names
+- a model s page is the model
+- a file s page is the file
+- a form is not somewhere to go back to
+
+**The way back is the way you came**
+
+- it goes back to the page it was opened from
+- it is kept in the tab and not in a cookie  
+  Which page you opened something from is this tab's business: it goes when the tab closes and is never sent anywhere (MANUAL §2, "What is kept in your browser").
+- the page reloading itself keeps it  
+  After a note or an edit the page comes back with itself as the referrer; a page under its own address is not where it was opened from.
+- climbing back up does not turn it round  
+  Back on the machine from its part, the part's own way back leads here, and the machine keeps the way back it had.
+- the gallery no longer hands over its order  
+  It was for Previous and Next.
+
+**The wide page**
+
+- a machine s page and a part s are wide
+- a project s page is still read in a column
+- the paragraph at the top runs the details column s width  
+  Rather than the seventy-character measure, so the top of the page and the body under it share an edge: the details column is 1.9 parts of 2.9, less the gap between the columns.
+- and the panels width in one column
+- the main photograph asks for the wider column  
+  At its widest the side column is (1440 - 2 x 24 - 24) / 2.9 = 472px, and the photograph sits inside the panel's 12px padding and 1px border: 446px.
+
+**The models paragraph**
+
+- it is printed muted
+- the item s own summary is not
 
 **The top of the page**
 
-- the top row holds the ways back and prev and next alone
+- the navigation landmark holds the way back alone
+- the control row wraps in source order  
+  On a phone the way back comes first and the actions after it, never pushed onto a line of their own while there is room beside it.
 - a visitor sees no actions
 - the page reads head photographs details then the rest
 - nothing is moved out of its place in the source  
   The Tab key follows the source; an `order` would draw a panel somewhere the Tab key does not go.
 - the side column starts level with the details
-- on a phone the actions go under the name
+- on a phone a name s line puts its actions under the name  
+  A project and a location still keep their actions on the name's line.
 - a disposed item says so under its name
 - a project s actions are on its name s line too
 
@@ -3070,7 +3102,8 @@ Regenerate with:
 - it is public
 - a key the catalogue does not have is not found
 - it is named in the sitemap
-- the way back is to every model
+- the way back is to every model until the browser knows better  
+  Where somebody with nothing behind them goes (MANUAL §2, "The way back").
 - the name heads it with its family and year under
 - the paragraph is printed in ordinary ink
 - as catalogued says what the catalogue records
@@ -5057,7 +5090,7 @@ Regenerate with:
 
 ## Ui macros
 
-*test_ui_macros.py — 77 behaviours*
+*test_ui_macros.py — 78 behaviours*
 
 
 **The ui filter**
@@ -5142,9 +5175,11 @@ Regenerate with:
 
 **Navigation**
 
-- itemnav has back position and neighbours
-- a missing neighbour is left out not disabled
-- the arrows are not read out
+- itemnav is the way back in a row of controls
+- it has no previous next or position
+- what it is called with goes after the landmark  
+  The owner's actions: Duplicate is a form that posts, and a form is not navigation.
+- the arrow is not read out
 - pager links the pages either side
 - pager leaves out what is not there
 - one page needs no pager

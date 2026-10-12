@@ -1,14 +1,12 @@
 """The gallery's toolbar and pages, as MANUAL.md section 2 ("The gallery") promises
 them: a GET form whose every view is a link, 48 cards a page with a pager, the
-sorts done on the server, a shuffle that is dealt once and held, and the whole
-list handed to the item pages' prev/next rather than the page on screen.
+sorts done on the server, and a shuffle that is dealt once and held.
 
 The page size is patched down to two here, so a handful of items makes several
 pages; that the real size is 48 is its own test.
 """
 
 import html
-import json
 import re
 
 import pytest
@@ -24,13 +22,6 @@ def cards(page: str) -> list[str]:
 
 def links(page: str, rel: str) -> list[str]:
     return [html.unescape(h) for h in re.findall(rf'href="([^"]+)" rel="{rel}"', page)]
-
-
-def handed_over(page: str) -> list[list[str]]:
-    blob = re.search(r'<script type="application/json" id="index-data">(.*?)</script>', page, re.S)
-    assert blob
-    order: list[list[str]] = json.loads(blob.group(1))["order"]
-    return order
 
 
 @pytest.fixture
@@ -273,13 +264,3 @@ class TestTheSortCookie:
     def test_the_link_outranks_the_cookie(self, client, five):
         client.cookies.set("rhdb_sort", "name")
         assert cards(client.get("/?sort=aid").text) == sorted(five)[:2]
-
-
-class TestTheHandOff:
-    def test_prev_and_next_are_handed_every_page_of_the_list(self, client, five):
-        order = handed_over(client.get("/?sort=aid").text)
-        assert [p for p, _ in order] == [f"/computers/{a}" for a in sorted(five)]
-
-    def test_each_is_handed_over_under_the_name_on_its_card(self, client, computer):
-        computer(name="Big Box")
-        assert handed_over(client.get("/").text)[0][1] == "Big Box"

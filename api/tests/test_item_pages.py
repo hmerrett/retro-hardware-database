@@ -48,10 +48,9 @@ class TestTheHead:
         page = client.get(f"/{kind}/{aid}").text
         head = page[page.index('<div class="itemhead">') :]
         assert re.match(
-            r'<div class="itemhead">\s*<div class="titleline">\s*<h1 class="title">Lounge PC</h1>'
-            rf'.*?</div>\s*<div class="tag muted">{aid}</div>',
+            r'<div class="itemhead">\s*<h1 class="title">Lounge PC</h1>'
+            rf'\s*<div class="tag muted">{aid}</div>',
             head,
-            re.S,
         ), head[:300]
         assert '<p class="prose">Found in a loft.</p>' in head[: head.index('class="itembody"')]
 
@@ -61,19 +60,32 @@ class TestTheHead:
         assert page.count("<h1") == 1
 
     @KINDS
-    def test_the_owner_has_edit_and_duplicate_on_the_name_s_line(
+    def test_the_owner_has_edit_and_duplicate_in_the_control_row(
         self, client, computer, part, kind
     ):
-        """With what they act on, and out of the navigation landmark, since Duplicate
-        is a form that posts (MANUAL §4)."""
+        """One row above the name, after the way back, and out of the navigation
+        landmark, since Duplicate is a form that posts (MANUAL §4). They used to stand
+        on the name's line, which made the top two rows of controls."""
         aid = item(kind, computer, part)
         page = client.get(f"/{kind}/{aid}").text
-        line = re.search(r'<div class="titleline">(.*?)</div>\s*<div class="tag', page, re.S)[1]
-        assert "<h1" in line
-        assert f'href="/{kind}/{aid}/edit"' in line
-        assert f'action="/{kind}/{aid}/duplicate"' in line
+        row = control_row(page)
         nav = top_row(page)
+        acts = row.split("</nav>", 1)[1]
+        assert f'href="/{kind}/{aid}/edit"' in acts
+        assert f'action="/{kind}/{aid}/duplicate"' in acts
+        assert acts.index("/edit") < acts.index("/duplicate")
         assert "/edit" not in nav and "<form" not in nav
+        assert page.index('class="ctlrow"') < page.index("<h1")
+
+    @KINDS
+    def test_the_name_has_its_line_to_itself_with_the_tag_under_it(
+        self, client, computer, part, kind
+    ):
+        """So the tag stays with the name at every width, rather than falling below
+        the buttons on a phone -- it is what a scanned label is checked against."""
+        aid = item(kind, computer, part)
+        page = client.get(f"/{kind}/{aid}").text
+        assert re.search(rf'</h1>\s*<div class="tag muted">{aid}</div>', page)
 
     @KINDS
     def test_a_visitor_has_neither(self, client, computer, part, kind, monkeypatch):
@@ -84,9 +96,29 @@ class TestTheHead:
         assert f"/{kind}/{aid}/duplicate" not in page
 
     @KINDS
-    def test_the_way_back_is_to_the_whole_register(self, client, computer, part, kind):
+    def test_the_way_back_goes_to_browse_until_the_browser_knows_better(
+        self, client, computer, part, kind
+    ):
+        """What the server draws is where somebody with nothing behind them goes --
+        a scanned label, a link sent to them, a browser running no script (MANUAL §2,
+        "The way back")."""
         page = client.get(f"/{kind}/{item(kind, computer, part)}").text
-        assert re.search(r'<nav class="itemnav" [^>]*><a href="/">', page)
+        assert way_back(page) == ("/", "Browse")
+
+    @KINDS
+    def test_the_way_back_is_a_small_button(self, client, computer, part, kind):
+        """Level with the rest of the row, rather than a text link beside buttons."""
+        page = client.get(f"/{kind}/{item(kind, computer, part)}").text
+        assert re.search(r'<a class="btn sm" href="/" data-wayback>', top_row(page))
+
+    @KINDS
+    def test_there_is_no_previous_or_next(self, client, computer, part, kind):
+        """Nobody used them, and they cost a row; the position went with them."""
+        computer(), part()
+        page = client.get(f"/{kind}/{item(kind, computer, part)}").text
+        assert 'rel="prev"' not in page and 'rel="next"' not in page
+        assert "nav-prev" not in page and "nav-next" not in page
+        assert 'class="where"' not in top_row(page)
 
 
 class TestTheDisplayFace:
@@ -214,35 +246,208 @@ class TestTakeOutOnTheLists:
         assert "Take out" not in client.get(f"/computers/{cid}").text
 
 
-def ways_back(html):
-    """The links at the left of an item page's top row, before the spacer that pushes
-    the owner's actions and Prev and Next to the right: the ways back."""
-    nav = re.search(r'<nav class="itemnav".*?</nav>', html, re.S)[0]
-    return re.findall(r'href="([^"]*)"', nav.split('<span class="push">')[0])
+def way_back(html):
+    """Where the way back goes and what it says, as the server draws it."""
+    m = re.search(r'<a class="btn sm" href="([^"]*)" data-wayback>(.*?)</a>', html, re.S)
+    assert m, "no way back"
+    return m[1], re.sub(r"<[^>]+>|←", "", m[2]).strip()
 
 
-class TestTheWayBackToWhatAPartIsIn:
-    """v0.1's part page had "← all · ← RH-…" to the machine the part is in; v0.2's
-    shared item top kept only the first, and a part reached from its machine had no
-    way back to it but the browser's."""
+class TestOneWayBack:
+    """v0.1's part page had a second way back, to the machine it is in, and v0.2 kept
+    it. A part opened from its machine now goes back to the machine because that is
+    the way you came, and one opened from anywhere else goes back there; the machine
+    is still a link in Fitted in (MANUAL §2, "The way back")."""
 
-    def test_a_part_in_a_machine_leads_back_to_it(self, client, computer, part):
+    def test_a_part_in_a_machine_has_the_one_way_back(self, client, computer, part):
         cid = computer(model="PC1512")["asset_id"]
         pid = part(type="sound", computer_id=cid)["asset_id"]
-        assert ways_back(client.get(f"/parts/{pid}").text) == ["/", f"/computers/{cid}"]
+        nav = top_row(client.get(f"/parts/{pid}").text)
+        assert re.findall(r'href="([^"]*)"', nav) == ["/"]
 
-    def test_a_part_on_another_part_leads_back_to_that_part(self, client, part):
+    def test_a_part_on_another_part_has_it_too(self, client, part):
         host = part(type="io", model="Controller")["asset_id"]
         pid = part(type="storage", model="ST-225", parent_id=host)["asset_id"]
-        assert ways_back(client.get(f"/parts/{pid}").text) == ["/", f"/parts/{host}"]
+        nav = top_row(client.get(f"/parts/{pid}").text)
+        assert re.findall(r'href="([^"]*)"', nav) == ["/"]
 
-    def test_a_part_on_its_own_and_a_machine_have_only_the_way_back_to_the_register(
-        self, client, computer, part
+
+def backname(html):
+    """What a page calls itself for the way back of a page opened from it, or None."""
+    m = re.search(r'<main [^>]*data-backname="([^"]*)"', html)
+    return m[1] if m else None
+
+
+class TestEachPageNamesItselfForTheWayBack:
+    """The way back is named for where it goes (MANUAL §2, "The way back"), and the
+    page it goes to is the one that knows its own name: Browse, a tag, Might sell. A
+    page with no name -- a form, Settings -- is not somewhere a way back leads, so an
+    item opened from one goes back to its list."""
+
+    def test_the_gallery_is_browse(self, client, computer):
+        computer()
+        assert backname(client.get("/").text) == "Browse"
+        assert backname(client.get("/?q=acme").text) == "Browse"
+
+    def test_might_sell_is_might_sell(self, client, computer):
+        computer(for_sale=True)
+        assert backname(client.get("/for-sale").text) == "Might sell"
+
+    @KINDS
+    def test_a_machine_or_a_part_is_its_tag_with_its_name_to_hover_over(
+        self, client, computer, part, kind
     ):
-        pid = part(type="sound")["asset_id"]
-        cid = computer()["asset_id"]
-        assert ways_back(client.get(f"/parts/{pid}").text) == ["/"]
-        assert ways_back(client.get(f"/computers/{cid}").text) == ["/"]
+        aid = item(kind, computer, part, name="Lounge PC")
+        page = client.get(f"/{kind}/{aid}").text
+        assert backname(page) == aid
+        assert re.search(r'<main [^>]*data-backtitle="Lounge PC"', page)
+
+    def test_a_project_and_a_location_are_their_tags(self, client):
+        pid = client.post("/api/projects", json={"name": "Recap it"}).json()["asset_id"]
+        lid = client.post("/api/locations", json={"name": "Shelf 2", "kind": "shelf"}).json()[
+            "asset_id"
+        ]
+        assert backname(client.get(f"/projects/{pid}").text) == pid
+        assert backname(client.get(f"/locations/{lid}").text) == lid
+
+    def test_the_lists_are_their_names(self, client):
+        assert backname(client.get("/projects").text) == "Projects"
+        assert backname(client.get("/files").text) == "Files"
+        assert backname(client.get("/machines").text) == "Models"
+
+    def test_a_model_s_page_is_the_model(self, client):
+        assert backname(client.get("/machines/vic-20").text) == "VIC-20"
+
+    def test_a_file_s_page_is_the_file(self, client, part):
+        aid = part()["asset_id"]
+        client.post(
+            "/files",
+            files={"uploads": ("tvga.img", b"\0" * 64)},
+            data={"aid": aid},
+            follow_redirects=False,
+        )
+        fid = client.get("/api/files").json()[0]["id"]
+        assert backname(client.get(f"/files/{fid}").text) == "tvga.img"
+
+    @KINDS
+    def test_a_form_is_not_somewhere_to_go_back_to(self, client, computer, part, kind):
+        aid = item(kind, computer, part)
+        assert backname(client.get(f"/{kind}/{aid}/edit").text) is None
+        assert backname(client.get("/settings").text) is None
+
+
+def the_way_back_script() -> str:
+    """The block of app.js that points the way back where the reader came from."""
+    js = (ITEM_CSS.parents[1] / "app.js").read_text(encoding="utf-8")
+    start = js.index("// The way back.")
+    return js[start : js.index("})();", start)]
+
+
+class TestTheWayBackIsTheWayYouCame:
+    """No browser runs in the suite, so what the browser does with the names is read
+    off the script, as the scan button's camera check is (MANUAL §2, "The way
+    back")."""
+
+    def test_it_goes_back_to_the_page_it_was_opened_from(self):
+        js = the_way_back_script()
+        assert "document.referrer" in js and "dataset.backname" in js
+
+    def test_it_is_kept_in_the_tab_and_not_in_a_cookie(self):
+        """Which page you opened something from is this tab's business: it goes when
+        the tab closes and is never sent anywhere (MANUAL §2, "What is kept in your
+        browser")."""
+        js = the_way_back_script()
+        assert "sessionStorage" in js and "localStorage" not in js
+        assert "document.cookie" not in js and "rhdbCookie" not in js
+
+    def test_the_page_reloading_itself_keeps_it(self):
+        """After a note or an edit the page comes back with itself as the referrer;
+        a page under its own address is not where it was opened from."""
+        assert "startsWith(here + '/')" in the_way_back_script()
+
+    def test_climbing_back_up_does_not_turn_it_round(self):
+        """Back on the machine from its part, the part's own way back leads here, and
+        the machine keeps the way back it had."""
+        assert "climbing" in the_way_back_script()
+
+    def test_the_gallery_no_longer_hands_over_its_order(self, client, computer):
+        """It was for Previous and Next. The gallery's own address carries its search,
+        sort and page, which is all the way back needs."""
+        computer()
+        page = client.get("/").text
+        index_js = (ITEM_CSS.parents[1] / "index.js").read_text(encoding="utf-8")
+        assert "rhdb-order" not in index_js and "rhdb-order" not in the_way_back_script()
+        assert '"order"' not in re.search(r'id="index-data">(.*?)</script>', page, re.S)[1]
+
+
+class TestTheWidePage:
+    """An item page kept to the 1000px reading column left about 136px empty either
+    side at 1440 with the rail open. It goes wide, as a list does; both columns widen
+    (MANUAL §2, "On a wide screen")."""
+
+    @KINDS
+    def test_a_machine_s_page_and_a_part_s_are_wide(self, client, computer, part, kind):
+        page = client.get(f"/{kind}/{item(kind, computer, part)}").text
+        assert re.search(r'<main id="main" tabindex="-1" class="page wide[ "]', page)
+
+    def test_a_project_s_page_is_still_read_in_a_column(self, client):
+        pid = client.post("/api/projects", json={"name": "Recap it"}).json()["asset_id"]
+        page = client.get(f"/projects/{pid}").text
+        assert re.search(r'<main id="main" tabindex="-1" class="page[ "]', page)
+
+    def test_the_paragraph_at_the_top_runs_the_details_column_s_width(self):
+        """Rather than the seventy-character measure, so the top of the page and the
+        body under it share an edge: the details column is 1.9 parts of 2.9, less the
+        gap between the columns."""
+        css = item_css()
+        cols = re.search(
+            r"\.itemcols \{[^}]*grid-template-columns: minmax\(0, ([\d.]+)fr\) "
+            r"minmax\(0, ([\d.]+)fr\)",
+            css,
+        )
+        assert cols, "the columns' proportions"
+        wide = re.search(r"@media \(min-width: 861px\) \{\s*\.itemhead \.prose \{([^}]*)\}", css)
+        assert wide, "no rule for the paragraph beside the columns"
+        main, side = cols[1], cols[2]
+        total = f"{float(main) + float(side):g}"
+        assert f"max-width: calc((100% - var(--space-6)) * {main} / {total})" in wide[1]
+
+    def test_and_the_panels_width_in_one_column(self):
+        narrow = re.search(
+            r"@media \(max-width: 860px\) \{[^@]*?\.itemhead \.prose \{([^}]*)\}", item_css()
+        )
+        assert narrow and "max-width: none" in narrow[1]
+
+    @KINDS
+    def test_the_main_photograph_asks_for_the_wider_column(
+        self, client, computer, part, kind, shoot
+    ):
+        """At its widest the side column is (1440 - 2 x 24 - 24) / 2.9 = 472px, and the
+        photograph sits inside the panel's 12px padding and 1px border: 446px. The page
+        asked for 620px, which made a 2x screen fetch a copy it could not show."""
+        aid = item(kind, computer, part)
+        shoot(kind, aid, n=1)
+        page = client.get(f"/{kind}/{aid}").text
+        sizes = re.search(r'<img class="photo-main[^>]*sizes="([^"]*)"', page)[1]
+        m = re.fullmatch(r"\(max-width: (\d+)px\) 100vw, (\d+)px", sizes)
+        assert m and m[1] == "860" and abs(int(m[2]) - 446) <= 10, sizes
+
+
+class TestTheModelsParagraph:
+    """Where the item has no summary of its own, the model's paragraph fills the gap,
+    in muted ink: there it is reference about the model rather than a fact about the
+    thing in front of you (MANUAL §6)."""
+
+    def test_it_is_printed_muted(self, client, computer):
+        aid = computer()["asset_id"]
+        client.patch(f"/api/computers/{aid}", json={"machine": {"model_key": "vic-20"}})
+        head = client.get(f"/computers/{aid}").text.split('class="itembody"')[0]
+        assert re.search(r'<p class="prose muted">', head)
+
+    def test_the_item_s_own_summary_is_not(self, client, computer):
+        aid = computer(summary="Found in a loft.")["asset_id"]
+        head = client.get(f"/computers/{aid}").text.split('class="itembody"')[0]
+        assert '<p class="prose">Found in a loft.</p>' in head
 
 
 ITEM_CSS = Path(__file__).parents[1] / "app" / "static" / "css" / "components.css"
@@ -253,7 +458,14 @@ def item_css():
 
 
 def top_row(html):
+    """The navigation landmark at the top of the page."""
     return re.search(r'<nav class="itemnav".*?</nav>', html, re.S)[0]
+
+
+def control_row(html):
+    """The row of controls above the name: the landmark, then the owner's actions."""
+    start = html.index('<div class="ctlrow">')
+    return html[start : html.index('<div class="itemcols">', start)]
 
 
 class TestTheTopOfThePage:
@@ -262,10 +474,18 @@ class TestTheTopOfThePage:
     starting at different heights, and a phone's Tab key reaching the label before
     the details (MANUAL §4, "An item page")."""
 
-    def test_the_top_row_holds_the_ways_back_and_prev_and_next_alone(self, client, computer):
+    def test_the_navigation_landmark_holds_the_way_back_alone(self, client, computer):
         row = top_row(client.get(f"/computers/{computer()['asset_id']}").text)
-        assert 'id="nav-prev"' in row and 'id="nav-next"' in row and 'href="/"' in row
+        assert re.findall(r"<a ", row) == ["<a "] and 'href="/"' in row
         assert "/edit" not in row and "<form" not in row
+
+    def test_the_control_row_wraps_in_source_order(self):
+        """On a phone the way back comes first and the actions after it, never pushed
+        onto a line of their own while there is room beside it."""
+        rule = re.search(r"\.ctlrow\s*\{([^}]*)\}", item_css())
+        assert rule and "flex-wrap: wrap" in rule[1]
+        assert not re.search(r"\.ctlrow[^{]*\{[^}]*(?:^|[;\s])order\s*:", item_css())
+        assert not re.search(r"@media[^{]*\{[^@]*?\.ctlrow[^{]*\.itemacts", item_css())
 
     def test_a_visitor_sees_no_actions(self, client, computer):
         aid = computer()["asset_id"]
@@ -291,8 +511,11 @@ class TestTheTopOfThePage:
         areas = re.findall(r'"([^"]+)"', rule.split("grid-template-areas:")[1].split(";")[0])
         assert areas == ["head head", "body photos", "body side"]
 
-    def test_on_a_phone_the_actions_go_under_the_name(self):
-        phone = re.search(r"@media \(max-width: 560px\) \{([^@]*?\.itemacts[^}]*\})", item_css())
+    def test_on_a_phone_a_name_s_line_puts_its_actions_under_the_name(self):
+        """A project and a location still keep their actions on the name's line."""
+        phone = re.search(
+            r"@media \(max-width: 560px\) \{([^@]*?\.titleline > \.itemacts[^}]*\})", item_css()
+        )
         assert phone and "flex-basis: 100%" in phone[1]
 
     def test_a_disposed_item_says_so_under_its_name(self, client, db, computer):

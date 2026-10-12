@@ -4,13 +4,14 @@
 {% import "_ui.html" as U with context %}
 {% block title %}{{ f.filename }} — {{ site_name() }}{% endblock %}
 {% block main_class %} v2{% endblock %}
+{% block backname %}{{ f.filename }}{% endblock %}
 {% block content %}
 {# One file, and the only page that changes one (ADR-0028): its note, whether a
    visitor may see it, what it is linked to, and deleting it. A visitor is shown the
    same page without any of that -- what the file is, what it is for, and the
    download -- and is only ever shown it for a published file (ADR-0009). #}
 {% set owner = request.state.authed %}
-{{ U.itemnav('/files', 'All files') }}
+{{ U.itemnav('/files', 'Files') }}
 
 {# The name is the page's heading, in the data face: a filename is recorded rather
    than written, as an asset tag is. #}
