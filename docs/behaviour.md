@@ -16,7 +16,7 @@ Regenerate with:
 
 
 
-*2786 behaviours, from 82 files.*
+*2804 behaviours, from 83 files.*
 
 
 ## A barcode takes the room the words leave
@@ -978,7 +978,7 @@ Regenerate with:
 
 **Choosing photos**
 
-- the button is the site s own lower case one
+- the button is the site s own
 - it uploads without a button press
 - the button is still there for a browser without scripts  
   The submit hides itself from the script above rather than being absent, so the form still works where that script never runs.
@@ -2361,6 +2361,53 @@ Regenerate with:
   A photograph's URL carries a stamp so it can be kept for a year and still never be stale: editing it changes the stamp, so the browser asks again.
 
 
+## Item page controls
+
+*test_item_page_controls.py — 18 behaviours*
+
+
+**Every box is labelled above it**
+
+- every box is the design systems box with a label
+- each box is named for what it takes
+- a spare offers the machines under a label
+- files has a note box of its own
+- a box beside a button takes the room it is given  
+  The 34em measure is for prose; a box in a row of them is not prose.
+
+**The words follow button text**
+
+- every button and mark follows the setting
+- a history line is marked note photo or moved
+
+**Nothing pressed is small on A touchscreen**
+
+- a button sized under 36px is restated for a coarse pointer
+- an icon button is 44 or 36 a side
+- the photo history and card buttons are the design systems
+
+**An empty panel says so**
+
+- a bare machine
+- a card with nothing mounted
+- details with something in it says nothing of the sort
+
+**Notes are in the summarys type**
+
+- notes are set in the display face
+
+**Take out is A bin**
+
+- a fitted part has a bin at the cards right
+- the part page takes it out with the same bin
+
+**The history on A phone**
+
+- the date sits above the entry under 560px
+- the buttons keep their column  
+  The line inside the entry is still a row, buttons at its right end.
+
+
 ## Item pages
 
 *test_item_pages.py — 72 behaviours*
@@ -2485,7 +2532,7 @@ Regenerate with:
 
 **The two ways to add A photo stand side by side**
 
-- fetch from reference is in the row with choose files
+- fetch from reference is in the row with add photos
 - the row runs across and wraps only when it must
 - a message about either takes a line of its own
 
@@ -2837,7 +2884,7 @@ Regenerate with:
 - fitting something brings them back to the page
 - a pc keeps them on its page and off its form
 - parts are added from one button  
-  "add part -- one button for every kind; the form it opens asks the type first." A row of them was the same menu said twice.
+  "Add part -- one button for every kind; the form it opens asks the type first." A row of them was the same menu said twice.
 - the form it opens claims no type yet
 - how a chip is held rides on the socket  
   Six sockets each ending in "— soldered to the board" is a paragraph; a tick and a cross are read at a glance.

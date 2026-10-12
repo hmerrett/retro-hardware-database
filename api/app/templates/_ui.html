@@ -268,16 +268,17 @@
 {%- endmacro %}
 
 {# A part in a list of them -- fitted in a machine, mounted on a card. The strip is
-   what the eye lands on looking for a tag: the tag, what kind of thing it is, and
-   at the far end whatever the caller puts in the block (Take out). Under it the
-   name, which is the way to its page, and its spec pairs. `thumb` is its picture
-   (see part_thumbs): four near-identical drives are told apart by eye, not by
-   model number, and the drawing stands in where nobody has photographed one. #}
+   what the eye lands on looking for a tag: the tag and what kind of thing it is.
+   Under it the name, which is the way to its page, and its spec pairs, and at the
+   card's right, level with its middle, whatever the caller puts in the block (Take
+   out): a file's row and a history line end in their buttons the same way, and the
+   rows of one page should end alike. `thumb` is its picture (see part_thumbs): four
+   near-identical drives are told apart by eye, not by model number, and the drawing
+   stands in where nobody has photographed one. #}
 {% macro itemcard(p, thumb=none) -%}
 {%- set name = display_name({'name': p.name, 'manufacturer': p.manufacturer, 'model': p.model, 'asset_id': p.asset_id}) -%}
 <article class="itemcard"><header><a class="tag" href="/parts/{{ p.asset_id }}">{{ p.asset_id }}</a>{{ chip(type_label(p.type)) }}
-{%- if p.disposed %}{{ chip('Disposed', 'quiet') }}{% endif %}<span class="grow"></span>
-{%- if caller is defined %}{{ caller() }}{% endif %}</header>
+{%- if p.disposed %}{{ chip('Disposed', 'quiet') }}{% endif %}</header>
 <div class="cardmain">
 {%- if thumb -%}
 <a class="cardthumb" href="/parts/{{ p.asset_id }}" aria-label="{{ p.asset_id }} — its own page and its photographs">
@@ -291,7 +292,9 @@
 {%- if pairs %}<dl class="specs">
 {%- for k, v in pairs %}<div>{% if k %}<dt>{{ k }}</dt>{% endif %}<dd>{{ v | linked }}</dd></div>{% endfor -%}
 </dl>{% endif -%}
-</div></div></article>
+</div>
+{%- if caller is defined %}<div class="cardact">{{ caller() }}</div>{% endif -%}
+</div></article>
 {%- endmacro %}
 
 {# A drive bezel's shade as made and how far it has yellowed. The colour is a class

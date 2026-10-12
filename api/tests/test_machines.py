@@ -797,33 +797,33 @@ class TestWhereTheBoardAndPartsAreAskedFor:
 
     def test_a_bare_catalogue_machine_is_not_asked_about_either(self, client):
         page = client.get(f"/computers/{self._c64(client)}").text
-        assert "add motherboard" not in page
+        assert "Add motherboard" not in page
         assert ">Motherboard<" not in page and "Parts <span" not in page
 
     def test_its_edit_form_carries_them_instead(self, client):
         page = client.get(f"/computers/{self._c64(client)}/edit").text
-        assert "add motherboard" in page
+        assert "Add motherboard" in page
         assert "/parts/new?computer_id=" in page
 
     def test_fitting_something_brings_them_back_to_the_page(self, client, part):
         aid = self._c64(client)
         part(type="storage", model="1541", computer_id=aid)
         page = client.get(f"/computers/{aid}").text
-        assert "add motherboard" in page and "1541" in page
+        assert "Add motherboard" in page and "1541" in page
         # ...and the form stops offering what the page now has.
-        assert "add motherboard" not in client.get(f"/computers/{aid}/edit").text
+        assert "Add motherboard" not in client.get(f"/computers/{aid}/edit").text
 
     def test_a_pc_keeps_them_on_its_page_and_off_its_form(self, client, computer):
         aid = computer()["asset_id"]
-        assert "add motherboard" in client.get(f"/computers/{aid}").text
-        assert "add motherboard" not in client.get(f"/computers/{aid}/edit").text
+        assert "Add motherboard" in client.get(f"/computers/{aid}").text
+        assert "Add motherboard" not in client.get(f"/computers/{aid}/edit").text
 
     def test_parts_are_added_from_one_button(self, client, computer):
-        """ "add part -- one button for every kind; the form it opens asks the type
+        """ "Add part -- one button for every kind; the form it opens asks the type
         first." A row of them was the same menu said twice."""
         aid = computer()["asset_id"]
         page = client.get(f"/computers/{aid}").text
-        assert f'href="/parts/new?computer_id={aid}">add part</a>' in page
+        assert f'href="/parts/new?computer_id={aid}">Add part</a>' in page
         assert "type=video&computer_id=" not in page
 
     def test_the_form_it_opens_claims_no_type_yet(self, client, computer):

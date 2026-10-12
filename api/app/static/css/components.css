@@ -115,6 +115,10 @@
     .formsections a { display: inline-flex; align-items: center; min-height: var(--tap); }
     nav.tabs a { display: inline-flex; align-items: center; min-height: var(--tap); }
     .btn.sm { font-size: 16px; min-height: 36px; }
+    /* An icon button is square, so its width goes up with its height: 44px, and
+       36px for the small ones on a photograph, a history line and a part's card. */
+    .btn.icon { width: var(--tap); }
+    .btn.icon.sm { width: 36px; }
     .check input, .tickbox input[type=checkbox] { width: 22px; height: 22px; }
     .viewswitch a { font-size: 16px; min-height: calc(36px - 2 * var(--border-w)); }
     :is(.notebar, .fileform, .toolbar, .photo-actions form) .btn { min-height: var(--tap); }
@@ -167,8 +171,18 @@
      its words, as a flex item is, it put the buttons straight after them. */
   .kv.log dd { flex: 1 1 0%; }
   .kv.log.timed dt { flex-basis: 16.5ch; }
-  /* A note is written in lines, and a table cell or a list value does not show them. */
-  .kv dd.lines { white-space: pre-line; }
+  /* A note is written in lines, and a table cell or a list value does not show them.
+     It is what somebody wrote rather than something recorded, so it is in the
+     summary's face and not the data face of the values above it. */
+  .kv dd.lines { white-space: pre-line; font-family: var(--font-display); }
+  /* On a phone the stamp beside each entry left the words two to a line. Above it,
+     the entry has the width of the screen; its line is still a row, so the buttons
+     keep their column at its right-hand end. */
+  @media (max-width: 560px) {
+    .kv.log > div { flex-direction: column; gap: var(--space-1); }
+    .kv.log dt, .kv.log.timed dt { flex-basis: auto; }
+    .kv.log dd { flex: none; }
+  }
 
   /* Tiles or a table on the gallery: two links drawn as one control, the one in force
      pressed in -- a ground and weight, not colour alone. And the table's rows: a small
@@ -589,6 +603,9 @@
     padding: var(--space-2) var(--space-4); margin-bottom: var(--space-3); background: var(--surface-sunken); }
   .itemcard > header .tag { color: var(--text-muted); }
   .itemcard .cardmain { display: flex; align-items: flex-start; gap: var(--space-4); margin: 0 var(--space-4); }
+  /* What is done to the card -- Take out -- at its right, level with its middle, as a
+     file's row and a history line end in their buttons. */
+  .itemcard .cardact { flex: none; align-self: center; }
   .itemcard h4 { font-size: 14px; font-weight: 600; }
   .cardthumb { position: relative; overflow: hidden; flex: none; width: 92px; aspect-ratio: var(--thumb-ratio); display: flex; align-items: center; justify-content: center;
     background: var(--surface-sunken); border: 1px solid var(--line); border-radius: var(--radius-md); }
@@ -675,6 +692,16 @@
      looks like it belongs to. */
   .attached { display: inline-flex; align-items: center; gap: var(--space-2); margin: 0 var(--space-3) var(--space-1) 0; }
   .addrow > textarea.input { flex: 1 1 100%; }
+  /* The same row with each box's name written above it: the buttons sit on the line
+     the boxes do, and a box takes the room the row gives it -- the measure is for
+     prose, and a box cut to it left the panel's right half empty. */
+  .addrow.labelled { align-items: flex-end; }
+  .addrow > .field { flex: 1 1 200px; min-width: 0; margin: 0; }
+  .addrow > .field.wide { flex-basis: 100%; }
+  .addrow > .field.short { flex: 0 1 170px; }
+  .addrow > .field > :is(.input, .select) { max-width: none; }
+  /* The history's note row is above the entries it adds to, and apart from them. */
+  .addrow + .kv.log { margin-top: var(--space-5); }
   .models { columns: 3 320px; column-gap: var(--space-6); }
   .models section { break-inside: avoid; margin-bottom: var(--space-5); }
   .models h2 { font-size: 14px; font-weight: 600; margin-bottom: var(--space-2); }

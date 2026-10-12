@@ -24,17 +24,18 @@
     {% if not is_primary %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/primary-photo">
       <input type="hidden" name="image" value="{{ img }}">
-      <button class="iconbtn" type="submit" title="Make default photo" aria-label="Make default photo">{{ I.ico('star') }}</button>
+      {{ U.button('Make default photo', size='sm', icon='star', icon_only=true, type='submit', title='Make default photo') }}
     </form>
     {% endif %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-reference">
       <input type="hidden" name="image" value="{{ img }}">
       <input type="hidden" name="set" value="{{ '0' if marked else '1' }}">
-      <button class="iconbtn{{ ' on' if marked else '' }}" type="submit" title="{{ 'Unmark reference image' if marked else 'Mark as reference image (not this unit)' }}" aria-label="Toggle reference image">{{ I.ico('tag') }}</button>
+      {{ U.button('Reference image', size='sm', icon='tag', icon_only=true, type='submit', pressed=marked,
+                  title='Unmark reference image' if marked else 'Mark as reference image (not this unit)') }}
     </form>
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo-delete" data-confirm="Delete this photo? This cannot be undone.">
       <input type="hidden" name="image" value="{{ img }}">
-      <button class="iconbtn danger" type="submit" title="Delete photo" aria-label="Delete photo">{{ I.ico('trash') }}</button>
+      {{ U.button('Delete photo', kind='danger', size='sm', icon='trash', icon_only=true, type='submit', title='Delete photo') }}
     </form>
   </div>
   {% endif %}
@@ -44,21 +45,21 @@
   {# In the panel it adds to. Choosing the photos is the whole gesture: the upload
      goes as soon as they are picked, so the button below is only there for a
      browser with no JavaScript. The native file input is behind its own label,
-     which is how the button says "choose files" rather than whatever the browser
+     which is how the button says "Add photos" rather than whatever the browser
      calls it. Fetching from the reference is the other way a photograph arrives,
-     so it stands beside choose files rather than under it. #}
+     so it stands beside Add photos rather than under it. #}
   <div class="photo-actions across">
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/photo"
           enctype="multipart/form-data" id="photo-upload" data-autosend>
-      <label class="btn sm filebtn">choose files
+      <label class="btn sm filebtn">{{ 'Add photos' | ui }}
         <input type="file" name="photos" accept="image/*" multiple required>
       </label>
-      <button class="btn sm" type="submit" data-send-go>upload</button>
-      <span class="hint" data-send-busy hidden>uploading…</span>
+      <button class="btn sm" type="submit" data-send-go>{{ 'Upload' | ui }}</button>
+      <span class="hint" data-send-busy hidden>{{ 'Uploading…' | ui }}</span>
     </form>
     {% if obj.url %}
     <form method="post" action="/{{ kind }}/{{ obj.asset_id }}/fetch-image">
-      <button class="btn sm" type="submit" title="Fetch a photograph from the reference URL">fetch from reference</button>
+      {{ U.button('Fetch from reference', size='sm', type='submit', title='Fetch a photograph from the reference URL') }}
     </form>
     {% endif %}
     {% if imgerr %}<p class="hint">Nothing found at the reference.</p>{% endif %}
