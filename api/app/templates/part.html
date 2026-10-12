@@ -18,6 +18,9 @@
 {% include "_itemtop.html" %}
 {% include "_photocol.html" %}
 <div class="itembody">
+    {#- One page draws every panel; tabbed, the panels of the tab open (MANUAL §4).
+        The same panels either way, so there is one set of templates to keep. -#}
+    {% if not tabbed or tab == 'details' %}
     {# The part's own facts, in a panel like every other section. Where it is fitted
        is a panel of its own below: it is the one fact here that changes. #}
     {% call PN.panel('Details') %}
@@ -87,13 +90,13 @@
         <span class="tag muted">{{ holder.asset_id }}</span>
         {% if request.state.authed %}
         <span class="push"></span>
-        {{ P.takeout(p.asset_id, 'unlink' if parent else 'detach', '/parts/' ~ p.asset_id) }}
+        {{ P.takeout(p.asset_id, 'unlink' if parent else 'detach', '/parts/' ~ p.asset_id ~ tabq) }}
         {% endif %}
       </div>
       {% else %}
       <p class="muted">Not fitted in anything.</p>
       {% if request.state.authed and computers %}
-      <form class="addrow labelled" method="post" action="/parts/{{ p.asset_id }}/link"
+      <form class="addrow labelled" method="post" action="/parts/{{ p.asset_id }}/link{{ tabq }}"
             title="Fitting it takes it out of the place it was kept: it is in the machine now.">
         <div class="field"><label for="fit-machine">Machine</label>
         <select class="select" id="fit-machine" name="computer_id" required>
@@ -111,7 +114,7 @@
     {% call PN.panel('Mounted parts', children | length, flush=true) %}
       {% if mounterr %}<div class="pbody">{{ U.banner('danger', 'Not mounted.', 'A part cannot be mounted on itself, or on anything mounted on it, or on a part that has been disposed of.') }}</div>{% endif %}
       {% if children %}
-      {{ P.cards(children, 'detach', '/parts/' + p.asset_id,
+      {{ P.cards(children, 'detach', '/parts/' ~ p.asset_id ~ tabq,
                  request.state.authed, thumbs, mounted) }}
       {% else %}<div class="pbody"><p class="muted flush">Nothing mounted on it yet.</p></div>{% endif %}
       {% if build_host %}
@@ -120,7 +123,7 @@
         {{ U.button('Add storage', href='/parts/new?type=storage&parent_id=' ~ p.asset_id) }}
       </div>
       {% if candidates %}
-      <form class="addrow labelled" method="post" action="/parts/{{ p.asset_id }}/attach"
+      <form class="addrow labelled" method="post" action="/parts/{{ p.asset_id }}/attach{{ tabq }}"
             title="A drive already in the register and on nothing">
         <div class="field"><label for="mount-storage">Mount storage</label>
         <select class="select" id="mount-storage" name="part_id" required>
@@ -141,9 +144,10 @@
        fact about the thing now -- it changes what you may do with it -- while the
        files and the history are things to be consulted. Draws nothing at all when
        it is in no project, which is most of them. #}
-    {% include "_work.html" %}
-    {% include "_files.html" %}
-    {% include "_history.html" %}
+    {% endif %}
+    {% if not tabbed or tab == 'work' %}{% include "_work.html" %}{% endif %}
+    {% if not tabbed or tab == 'files' %}{% include "_files.html" %}{% endif %}
+    {% if not tabbed or tab == 'history' %}{% include "_history.html" %}{% endif %}
 </div>
 {% include "_sidecol.html" %}
 </div>

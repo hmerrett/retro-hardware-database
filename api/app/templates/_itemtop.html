@@ -14,19 +14,30 @@
     which made the top two rows of controls and, on a phone, put the buttons between
     the name and its tag. Small: the page is read far more often than it is changed. -#}
 {% call U.itemnav('/', 'Browse') %}
-  {%- if authed %}
   <div class="itemacts">
+    {#- Before Edit, and for everybody: how the page is laid out is the reader's
+        choice, not the owner's. Browse's two links drawn as one control, so it
+        works with no script; leaving a tab for one page is leaving it for the item,
+        and choosing tabs from a tab stays on it. -#}
+    <nav class="viewswitch" aria-label="Show as">
+      <a href="?layout=page"{% if not tabbed %} aria-current="page"{% endif %}>{{ 'One page' | ui }}</a>
+      {#- -#}<a href="?layout=tabs{{ '&tab=' ~ tab if tabbed else '' }}"{% if tabbed %} aria-current="page"{% endif %}>{{ 'Tabs' | ui }}</a>
+    </nav>
+    {%- if authed %}
     {{ U.button('Edit', size='sm', icon='edit', href='/' ~ kind ~ '/' ~ obj.asset_id ~ '/edit') }}
     {#- A machine is duplicated without its parts: a second machine of the model,
         not a second copy of what is in this one. -#}
     <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/duplicate">
     {{- U.button('Duplicate', size='sm', icon='copy', type='submit') -}}
     </form>
+    {%- endif %}
   </div>
-  {%- endif %}
 {% endcall %}
 
-<div class="itemcols">
+{#- Tabbed, the grid says which tab is open: on a phone, where it is one column, the
+    photographs come with Details only (components.css), and the lightbox reads the
+    tab to bring its tools back to it. -#}
+<div class="itemcols{{ ' tabbed on-' ~ tab if tabbed else '' }}"{% if tabbed %} data-tab="{{ tab }}"{% endif %}>
 <div class="itemhead">
   {#- The tag straight under the name, at every width: it is what somebody checks a
       scanned label against. -#}
@@ -38,7 +49,7 @@
   {% set when %}{% if obj.disposed_at %}{{ obj.disposed_at }}{% endif %}{% if obj.disposed_note %} — {{ obj.disposed_note | linked }}{% endif %}{% endset %}
   {% if authed %}
   {% call U.banner('warning', 'Disposed', when | trim) %}
-    <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/restore">
+    <form class="inline-form" method="post" action="/{{ kind }}/{{ obj.asset_id }}/restore{{ tabq }}">
       {{- U.button('Restore', size='sm', type='submit') -}}</form>
     {# Deleting the record for good, once it is already marked as gone. Behind a
        confirmation page, so this is a link rather than a button. #}
@@ -75,11 +86,20 @@
      same bargain files.public makes, with the button kept in the markup for a
      browser running no script, which is what a keyboard user without JavaScript
      presses. #}
-  <form class="row mt-3" method="post" action="/{{ kind }}/{{ obj.asset_id }}/for-sale" data-ticksend>
+  <form class="row mt-3" method="post" action="/{{ kind }}/{{ obj.asset_id }}/for-sale{{ tabq }}" data-ticksend>
     <label class="check"><input type="checkbox" name="for_sale" value="1"
       {{ 'checked' if obj.for_sale else '' }}
       aria-label="Might sell {{ obj.asset_id }}"> Might sell</label>
     <button class="btn sm" type="submit" data-send-go>{{ 'Save' | ui }}</button>
   </form>
+  {% endif %}
+  {#- The tabs end the head, across both columns, so Details and Photographs still
+      start level under them. Each carries the count its panel does; Work is not
+      offered where it would draw nothing. -#}
+  {% if tabbed %}
+  {% set done_n = item_tasks | selectattr('done') | list | length %}
+  {{ U.itemtabs([('details', 'Details', '')]
+                + ([('work', 'Work', (done_n ~ '/' ~ item_tasks | length) if item_tasks else '')] if work else [])
+                + [('files', 'Files', files | length), ('history', 'History', log | length)], tab) }}
   {% endif %}
 </div>

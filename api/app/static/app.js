@@ -46,9 +46,13 @@
       // Each photo carries where it lives, so one toolbar serves them all.
       const d = el.dataset;
       tools.style.display = d.rel ? '' : 'none';
-      const back = d.aid ? `/${d.kind}/${d.aid}?photo=${encodeURIComponent(d.rel)}` : '';
+      // Tabbed, back to the tab the photograph was opened from (MANUAL §4).
+      const cols = document.querySelector('.itemcols.tabbed');
+      const tab = cols ? cols.dataset.tab : '';
+      const back = d.aid ? `/${d.kind}/${d.aid}?photo=${encodeURIComponent(d.rel)}`
+                           + (tab ? `&tab=${tab}` : '') : '';
       tools.querySelectorAll('form.lb-act').forEach(f => {
-        f.action = `/${d.kind}/${d.aid}/${f.dataset.act}`;
+        f.action = `/${d.kind}/${d.aid}/${f.dataset.act}` + (tab ? `?tab=${tab}` : '');
         f.querySelector('[name=image]').value = d.rel || '';
         // Not every tool has somewhere to come back to: see the delete form.
         const nxt = f.querySelector('[name=next]');

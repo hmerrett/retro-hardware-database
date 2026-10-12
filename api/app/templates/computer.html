@@ -18,6 +18,9 @@
 {% include "_itemtop.html" %}
 {% include "_photocol.html" %}
 <div class="itembody">
+    {#- One page draws every panel; tabbed, the panels of the tab open (MANUAL §4).
+        The same panels either way, so there is one set of templates to keep. -#}
+    {% if not tabbed or tab == 'details' %}
     {# The machine's own facts. A panel like every other section of the page, so what
        the register knows about it and what is fitted in it are read the same way. #}
     {% call PN.panel('Details') %}
@@ -95,9 +98,10 @@
        fact about the thing now -- it changes what you may do with it -- while the
        files and the history are things to be consulted. Draws nothing at all when
        it is in no project, which is most of them. #}
-    {% include "_work.html" %}
-    {% include "_files.html" %}
-    {% include "_history.html" %}
+    {% endif %}
+    {% if not tabbed or tab == 'work' %}{% include "_work.html" %}{% endif %}
+    {% if not tabbed or tab == 'files' %}{% include "_files.html" %}{% endif %}
+    {% if not tabbed or tab == 'history' %}{% include "_history.html" %}{% endif %}
 </div>
 {% include "_sidecol.html" %}
 </div>

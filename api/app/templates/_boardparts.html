@@ -23,7 +23,7 @@
      cache size and a BIOS -- and a section that said them a second way would be two
      designs for one thing. #}
   {% if motherboard %}
-    {{ P.cards([motherboard], 'unlink', '/computers/' + c.asset_id,
+    {{ P.cards([motherboard], 'unlink', '/computers/' ~ c.asset_id ~ tabq,
                request.state.authed, thumbs | default({}, true), mounted | default({}, true)) }}
   {% else %}
     <div class="pbody">
@@ -33,7 +33,7 @@
       {{ U.button('Add motherboard', href='/parts/new?type=motherboard&computer_id=' ~ c.asset_id) }}
     </div>
     {% if free_boards %}
-    <form class="addrow labelled" method="post" action="/computers/{{ c.asset_id }}/link-motherboard"
+    <form class="addrow labelled" method="post" action="/computers/{{ c.asset_id }}/link-motherboard{{ tabq }}"
           title="A board already in the register and in no machine">
       <div class="field"><label for="link-board">Link a board</label>
         <select class="select" id="link-board" name="part_id" required>
@@ -59,7 +59,7 @@
     {{ U.button('Add part', href='/parts/new?computer_id=' ~ c.asset_id) }}
   </div>
   {% if link_candidates %}
-  <form class="addrow labelled" method="post" action="/computers/{{ c.asset_id }}/link-part"
+  <form class="addrow labelled" method="post" action="/computers/{{ c.asset_id }}/link-part{{ tabq }}"
         title="Fit a part that is already in the register">
     <div class="field"><label for="link-part">Link a part</label>
       <input class="input" id="link-part" name="part_id" list="linkparts" placeholder="tag or name" autocomplete="off"
@@ -73,7 +73,7 @@
   </div>
   {% endif %}
   {% if parts %}
-  {{ P.cards(parts, 'unlink', '/computers/' + c.asset_id, request.state.authed,
+  {{ P.cards(parts, 'unlink', '/computers/' ~ c.asset_id ~ tabq, request.state.authed,
              thumbs | default({}, true), mounted | default({}, true)) }}
   {% else %}
   <div class="pbody"><p class="muted flush">Nothing fitted in it yet.</p></div>

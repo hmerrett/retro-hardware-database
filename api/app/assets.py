@@ -9,7 +9,7 @@ and so that the JSON API, which deletes and edits the same rows, is not a third 
 
 from collections.abc import Iterable, Sequence
 from typing import Literal, TypedDict
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 
 # --- deleting a record for good ---------------------------------------------
@@ -38,7 +38,7 @@ from urllib.parse import urlparse
 # box again.
 
 from fastapi import HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -79,6 +79,7 @@ from .photos import (
     pick_images,
 )
 from .register import get_or_404
+from .auth import ITEM_LAYOUT_COOKIE
 from .web import _abs_url, templates
 from .work import _take_on_work, _work_lines
 
@@ -678,3 +679,87 @@ def delete_part(db: Session, part: Part) -> list[str]:
     db.commit()  # the rows first: if this raises, the photos are still there
     _purge_photos(photos)
     return photos
+
+
+# --- one page or tabs ---------------------------------------------------------
+# An item page comes two ways, and which is each reader's choice (MANUAL §4): every
+# panel down the page, or the main column a tab at a time. One page is the default,
+# because it is what a visitor from a label and a search engine get. The tabs are
+# links the server answers, `?tab=files`, so they work with no script and a tab is
+# an address that can be sent.
+
+ITEM_TABS = ("details", "work", "files", "history")
+ITEM_LAYOUTS = ("page", "tabs")
+# As long as the gallery's tiles or table is kept.
+ITEM_LAYOUT_KEEP = 60 * 60 * 24 * 365
+
+
+# What every page that is not a tabbed item page adds to a form's address: nothing.
+# The Files and History panels are drawn on projects and locations too.
+templates.env.globals["tabq"] = ""
+
+
+class ItemView(TypedDict):
+    tabbed: bool
+    # The tab open, or "" on one page.
+    tab: str
+    # What a form on the page adds to its address so the answer comes back to the
+    # same tab: "?tab=files", or "" on one page.
+    tabq: str
+
+
+def item_view(request: Request, work: bool) -> ItemView:
+    """How this reader is shown an item page. The link's word first, then the one
+    kept, then one page. `work` is whether the Work panel draws anything for this
+    reader: a tab with nothing under it is not offered, and its address opens
+    Details rather than an empty column."""
+    qp = request.query_params
+    layout = qp.get("layout") or request.cookies.get(ITEM_LAYOUT_COOKIE, "")
+    if layout != "tabs":
+        return {"tabbed": False, "tab": "", "tabq": ""}
+    tab = qp.get("tab", "")
+    if tab not in ITEM_TABS or (tab == "work" and not work):
+        tab = "details"
+    return {"tabbed": True, "tab": tab, "tabq": f"?tab={tab}"}
+
+
+def work_shown(
+    authed: bool, item_tasks: Sequence[object], project_tasks: Sequence[object], on_project: object
+) -> bool:
+    """Whether the Work panel draws anything (_work.html asks the same): an owner always
+    has its box, a visitor only something to read."""
+    return bool(item_tasks or project_tasks or on_project or authed)
+
+
+def keep_item_layout(request: Request, response: Response) -> None:
+    """Kept only when a link has just chosen, so arriving and reading stores nothing
+    -- the bargain the gallery's tiles or table makes."""
+    layout = request.query_params.get("layout", "")
+    if layout in ITEM_LAYOUTS:
+        response.set_cookie(
+            ITEM_LAYOUT_COOKIE,
+            layout,
+            max_age=ITEM_LAYOUT_KEEP,
+            httponly=True,
+            samesite="lax",
+            secure=request.headers.get("x-forwarded-proto") == "https",
+        )
+
+
+def with_tab(request: Request, page: str, **said: str | int) -> str:
+    """`page`, back on the tab the form was sent from and saying what the answer
+    says (`imgerr=1`). A form on a tabbed page posts to its address with `?tab=`, so
+    the tab is read from there rather than from a field every handler would have to
+    read; anything that is not one of the four is dropped, so the address cannot be
+    made to carry something else back."""
+    q: dict[str, str | int] = {}
+    tab = request.query_params.get("tab", "")
+    if tab in ITEM_TABS:
+        q["tab"] = tab
+    q.update(said)
+    return page + ("?" + urlencode(q) if q else "")
+
+
+def back_to(request: Request, page: str, **said: str | int) -> RedirectResponse:
+    """The answer to a form on an item page: back to it, on the tab it came from."""
+    return RedirectResponse(with_tab(request, page, **said), status_code=303)

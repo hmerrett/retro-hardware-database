@@ -16,7 +16,7 @@
 {% import "_ui.html" as U with context %}
 {% call PN.panel('History') %}
   {% if request.state.authed %}
-  <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note" class="addrow labelled mt-0"
+  <form method="post" action="/{{ kind }}/{{ item.asset_id }}/note{{ tabq }}" class="addrow labelled mt-0"
         enctype="multipart/form-data" title="A note, photographs, or both — photographs on their own are an entry too.">
     {# Not required any more: photographs on their own are an entry, so the way
        to file one is to choose it and press the button. #}
@@ -62,7 +62,7 @@
              out as one sentence, and there is no one of them a photograph would
              belong to. #}
           {% if request.state.authed and e.count == 1 %}
-          <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo"
+          <form method="post" action="/items/{{ item.asset_id }}/log/{{ e.id }}/photo{{ tabq }}"
                 enctype="multipart/form-data" class="logadd" data-autosend>
             <label class="btn sm icon filebtn" title="Attach a photograph to this entry">
               {{ I.ico('camera') }}
@@ -81,7 +81,7 @@
              written to the history about it -- the same rule an entry losing a
              photograph follows. #}
           {% if request.state.authed %}
-          <form method="post" action="/items/{{ item.asset_id }}/log/delete"
+          <form method="post" action="/items/{{ item.asset_id }}/log/delete{{ tabq }}"
                 {# A single-quoted string inside the attribute, as the photo
                    deletes do. `tojson` is for a script block: it leaves double
                    quotes alone, which inside a double-quoted attribute ends it. #}

@@ -26,7 +26,7 @@
       <li><a href="/files/{{ f.id }}">{{ f.filename }}</a>
         <form method="post" action="/files/{{ f.id }}/link">
           <input type="hidden" name="aid" value="{{ item.asset_id }}">
-          <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
+          <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}{{ tabq }}">
           <button class="btn sm" type="submit" aria-label="{{ ('Link ' ~ f.filename ~ ' to ' ~ item.asset_id) | ui }}">{{ 'Link' | ui }}</button>
         </form></li>
       {% endfor %}
@@ -42,7 +42,7 @@
   <form class="addrow labelled mt-0" method="post" action="/files" enctype="multipart/form-data"
         id="file-upload" data-autosend
         title="Linked to {{ item.asset_id }} as it arrives. Everything else about it is done on its own page.">
-    <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}">
+    <input type="hidden" name="next" value="/{{ kind }}/{{ item.asset_id }}{{ tabq }}">
     <input type="hidden" name="aid" value="{{ item.asset_id }}">
     {% if file_siblings %}
     <label class="check" title="{{ file_siblings | map(attribute='asset_id') | join(', ') }}"><input type="checkbox" name="siblings" value="1"> The other {{ (file_siblings | length ~ ' ') if file_siblings | length > 1 else '' }}{{ file_model }}</label>

@@ -68,6 +68,9 @@ SORT_COOKIE = "rhdb_sort"
 # Tiles or a table on the gallery, the same kind of choice as the sort. Written by the
 # server when a link picks one, so it works with no script, and not before.
 LAYOUT_COOKIE = "rhdb_layout"
+# One page or tabs on an item page: the same kind of choice again, kept apart because
+# somebody who reads the gallery as a table need not want an item a tab at a time.
+ITEM_LAYOUT_COOKIE = "rhdb_itemlayout"
 # That the notice has been read. Set only by dismissing it, and strictly necessary in
 # the plain sense: without it the notice cannot stay dismissed.
 NOTICE_COOKIE = "rhdb_noticed"

@@ -197,7 +197,7 @@ deliberately dependency-free, so the rest can import downward without a cycle.
 | `accounts/store.py` | users, memberships, sessions and API tokens: making them, checking them, ending them |
 | `accounts/firstrun.py` | an installation with no accounts: the setup code, seeding from the old login, and what the log says at startup |
 | `accounts/__main__.py` | the accounts command, run inside the container: people, roles, passwords and tokens |
-| `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion |
+| `assets.py` | what a machine's page and a part's page do the same way: photographs, notes, forms, disposal, deletion, one page or tabs |
 | `pages.py` | the small pieces an editable page needs: what has been typed before, and a note posted with photographs |
 | `work.py` | the jobs on a project and the things it is about, read from the project, the item and the API alike |
 | `routers/items.py` | /items/<id>: the address a label carries, and the history written under it |
