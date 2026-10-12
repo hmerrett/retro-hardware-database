@@ -347,15 +347,6 @@ def _grid_page(
             "page": page,
             "pages": pages,
             "pager_href": f"{request.url.path}?{urlencode(view)}&page=",
-            # Every page of the list, not the one on screen, so an item page's next
-            # walks off the end of this page into the first card of the next.
-            "handoff": [
-                [
-                    f"/{'computers' if r['kind'] == 'computer' else 'parts'}/{r['obj'].asset_id}",
-                    r["name"],
-                ]
-                for r in shown
-            ],
             **extra,
         },
     )

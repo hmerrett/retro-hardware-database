@@ -162,6 +162,10 @@ WIDE = {
     "index.html",  # Browse, and /browse, /for-sale and a search, which are Browse
     "machines.html",
     "model.html",
+    # A machine and a part: both columns widen, the details and the photographs
+    # beside them, rather than standing in the reading column with room to spare.
+    "computer.html",
+    "part.html",
     "stats.html",
     "computer_form.html",
     "part_form.html",
@@ -174,8 +178,6 @@ WIDE = {
     "settings_account.html",
 }
 READING = {
-    "computer.html",
-    "part.html",
     "project.html",
     "file.html",
     "file_view.html",  # a text file read as a page: prose, at the measure (ADR-0035)
@@ -227,7 +229,7 @@ def test_the_lists_and_forms_use_a_wide_screen(client, a_page_of_everything):
         p
         for p in a_page_of_everything
         if p in ("/", "/machines", "/stats", "/for-sale")
-        or p.startswith(("/machines/", "/settings"))
+        or p.startswith(("/machines/", "/settings", "/computers/RH", "/parts/RH"))
         or p.endswith(("/edit", "/new"))
     ]
     assert len(wide) >= 9, wide
@@ -239,10 +241,9 @@ def test_the_pages_you_read_keep_the_column(client, a_page_of_everything):
     reading = [
         p
         for p in a_page_of_everything
-        if p.startswith(("/computers/RH", "/parts/RH", "/files", "/projects", "/locations"))
-        and not p.endswith(("/edit", "/new"))
+        if p.startswith(("/files", "/projects", "/locations")) and not p.endswith(("/edit", "/new"))
     ]
-    assert len(reading) >= 5, reading
+    assert len(reading) >= 3, reading
     for path in reading:
         assert "wide" not in main_classes(client, path), path
 

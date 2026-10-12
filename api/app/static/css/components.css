@@ -527,12 +527,19 @@
   .itemcols > .itembody { grid-area: body; }
   .itemcols > .itemside { grid-area: side; }
   @media (max-width: 860px) { .itemcols { display: block; } }
-  /* The name and, for the owner, its actions: on one line, the actions at its end;
-     under the name on a phone, before the summary, rather than off the edge. */
+  /* The paragraph at the top runs as wide as the Details under it, rather than the
+     seventy-character measure, so the head and the body share an edge: the details
+     column's share of the two, less the gap between them. One column, the panels'
+     width. */
+  @media (min-width: 861px) { .itemhead .prose { max-width: calc((100% - var(--space-6)) * 1.9 / 2.9); } }
+  @media (max-width: 860px) { .itemhead .prose { max-width: none; } }
+  /* A project's and a location's name with, for the owner, its actions: on one line,
+     the actions at its end; under the name on a phone, before the summary, rather
+     than off the edge. A machine's and a part's are in the row above the name. */
   .titleline { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3) var(--space-5); }
   .titleline > .title { flex: 1 1 auto; min-width: 0; margin: 0; }
   .itemacts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
-  @media (max-width: 560px) { .itemacts { flex-basis: 100%; } }
+  @media (max-width: 560px) { .titleline > .itemacts { flex-basis: 100%; } }
   /* What is on a label, in order: a row to a detail, its tick and its name, then its
      up and down at the far end, where a thumb finds them in the same place on every
      row (MANUAL §13, "What's on it"). */
@@ -693,9 +700,15 @@
   .pager .where { font-family: var(--font-data); font-size: 13px; color: var(--text-muted); }
 
 
-  /* ---- 14b. Item nav (breadcrumb + previous / next) ----------------------- */
-  .itemnav { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
-  .itemnav .where { font-family: var(--font-data); font-size: 12px; color: var(--text-muted); }
+  /* ---- 14b. Item nav (the control row) ------------------------------------ */
+  /* The way back at the left, the owner's actions at the right; on a phone the row
+     wraps in source order, the way back first. Every control in it is a small button,
+     so the row is one height (36px under a coarse pointer). */
+  .ctlrow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-bottom: var(--space-4); }
+  .ctlrow > .itemnav { display: flex; align-items: center; margin-right: auto; min-width: 0; }
+  /* A file's name can be long, and a way back named for it is not worth a second line. */
+  .itemnav [data-wayback] { max-width: 100%; }
+  .itemnav [data-wayback-name] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ---- 14c. Bottom sheet -------------------------------------------------- */
   .sheet { background: var(--surface-raised); border: var(--border-w) solid var(--line-strong); border-bottom: 0;

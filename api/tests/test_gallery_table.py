@@ -7,7 +7,6 @@ link outranks the cookie. The table holds the same items in the same order, a
 hundred to a page, each row a small picture, the tag, the name, the kind, the year
 and -- for whoever is shown locations -- where it is."""
 
-import json
 import re
 
 import pytest
@@ -30,9 +29,11 @@ def table_rows(page):
     return re.findall(r"<tr>(.*?)</tr>", table[1], re.S)[1:] if table else []
 
 
-def order(page):
-    blob = re.search(r'<script type="application/json" id="index-data">(.*?)</script>', page, re.S)
-    return [href for href, _ in json.loads(blob[1])["order"]]
+def order(tiles):
+    """The items as the tiles show them, card by card."""
+    return re.findall(
+        r'class="card(?: is-disposed)?" href="(/(?:computers|parts)/RH-[^"]+)"', tiles
+    )
 
 
 def test_the_switch_offers_tiles_and_a_table_as_links_carrying_the_view(client, computer):
@@ -53,11 +54,10 @@ def test_the_table_holds_the_same_items_in_the_same_order(client, computer, part
         part(name=f"Card {n}")
     tiles = client.get("/?sort=name&layout=tiles", headers=HTML).text
     table = client.get("/?sort=name&layout=table", headers=HTML).text
-    assert order(tiles) == order(table)
     firsts = [
         re.search(r'href="(/(?:computers|parts)/RH-[^"]+)"', row)[1] for row in table_rows(table)
     ]
-    assert firsts == order(table)[: len(firsts)] and len(firsts) == 6
+    assert firsts == order(tiles) and len(firsts) == 6
 
 
 def test_a_table_page_holds_a_hundred_rows(client, computer, monkeypatch):

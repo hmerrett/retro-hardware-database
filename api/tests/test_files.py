@@ -890,7 +890,7 @@ class TestReadingATextFile:
         fid, r = viewed(client, part, "README.md", README)
         page = read(r)
         assert f'href="/files/{fid}/README.md">Download</a>' in page
-        assert re.search(rf'<nav class="itemnav"[^>]*><a href="/files/{fid}">', page)
+        assert re.search(rf'<nav class="itemnav"[^>]*><a class="btn sm" href="/files/{fid}" ', page)
 
     def test_a_plain_text_file_is_shown_as_it_was_typed(self, client, part):
         """Line for line and space for space, in the fixed-width face, in a box that

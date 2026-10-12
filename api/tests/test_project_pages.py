@@ -94,7 +94,8 @@ class TestThePageHead:
         pid = make(client)
         page = client.get(f"/projects/{pid}").text
         nav = page[page.index('<nav class="itemnav"') :].split("</nav>")[0]
-        assert 'href="/projects"' in nav and "/edit" not in nav and "<form" not in nav
+        assert 'href="/projects" data-wayback>' in nav and "Projects</span>" in nav
+        assert "/edit" not in nav and "<form" not in nav
         line = page[page.index('<div class="titleline">') :].split('<div class="row baseline">')[0]
         assert f'href="/projects/{pid}/edit"' in line
         delete = re.search(rf'<form[^>]*action="/projects/{pid}/delete"[^>]*>', line)

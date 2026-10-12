@@ -1315,30 +1315,63 @@ function combobox(box, list, pick) {
 })();
 
 
-// Prev/next on an item page. The buttons arrive filled in with register order; if
-// the gallery has been visited this session it left the order it was showing, and
-// that wins -- walking a search result or a category should follow that list, not
-// the register. The buttons are the whole gesture: a sideways swipe used to do
-// this too, but it is the phone's own back gesture, and taking it over left no
-// way to go back.
+// The way back. Every page that can be gone back to names itself on <main>
+// (data-backname: Browse, a tag, Might sell), and this notes the name against the
+// page's own address. A page with a way back (data-wayback) then looks up the page it
+// was opened from and, if that has a name, points the button there: the gallery as it
+// was left, with its search, sort and page in its address; the machine a part was
+// opened from; the project. What the server drew -- the page's own list -- stands for
+// anything else: a scanned label, a link sent, a form, or no referrer at all.
+//
+// Kept per page in the tab's own storage, because the referrer alone forgets: after a
+// note or an edit the page comes back with itself as the referrer, and coming back up
+// from a part to its machine arrives from the part. Neither is where the page was
+// opened from, so neither moves the way back. sessionStorage, not a cookie: it is this
+// tab's business, goes when the tab closes, and the server never needs it.
 (function () {
-  const nav = document.getElementById('itemnav');
-  if (!nav) return;
-  const prev = document.getElementById('nav-prev');
-  const next = document.getElementById('nav-next');
-
-  let order = [];
-  try { order = JSON.parse(sessionStorage.getItem('rhdb-order') || '[]'); } catch (e) {}
-  const here = location.pathname.replace(/\/+$/, '');
-  const at = order.findIndex(row => row[0].replace(/\/+$/, '') === here);
-  if (at >= 0) {
-    // Only the ends differ from the server's answer: the list the browser has may
-    // be a filtered one, so its first and last really are the first and last.
-    [[prev, order[at - 1]], [next, order[at + 1]]].forEach(([btn, row]) => {
-      btn.hidden = !row;
-      if (row) { btn.href = row[0]; btn.title = row[1] || ''; }
-    });
+  const KEY = 'rhdb-trail', KEEP = 100;
+  let trail;
+  try { trail = JSON.parse(sessionStorage.getItem(KEY) || '{}'); } catch (e) { return; }
+  const names = trail.names || {}, back = trail.back || {};
+  // One slash at the front and none at the end: `//host` would be a link to another
+  // site, and `/x/` is the page `/x` is.
+  const bare = path => '/' + path.replace(/^\/+|\/+$/g, '');
+  const here = bare(location.pathname);
+  const main = document.getElementById('main');
+  if (main && main.dataset.backname) {
+    // Deleted and set again, so the most recently seen is last and the oldest go first.
+    const at = here + location.search;
+    delete names[at];
+    names[at] = { name: main.dataset.backname, title: main.dataset.backtitle || '' };
   }
+
+  const btn = document.querySelector('[data-wayback]');
+  if (btn) {
+    let from = null;
+    try { from = document.referrer ? new URL(document.referrer) : null; } catch (e) {}
+    if (!from || from.origin !== location.origin) {
+      delete back[here];
+    } else {
+      const path = bare(from.pathname);
+      const own = path === here || path.startsWith(here + '/');
+      const climbing = back[path] && back[path].path === here;
+      if (!own && !climbing) {
+        const known = names[path + from.search];
+        if (known) back[here] = { href: path + from.search, path: path, name: known.name, title: known.title };
+        else delete back[here];
+      }
+    }
+    const to = back[here];
+    if (to) {
+      btn.href = to.href;
+      btn.querySelector('[data-wayback-name]').textContent = to.name;
+      if (to.title) btn.title = to.title; else btn.removeAttribute('title');
+    }
+  }
+
+  const trim = map => { const k = Object.keys(map); k.slice(0, Math.max(0, k.length - KEEP)).forEach(x => delete map[x]); };
+  trim(names); trim(back);
+  try { sessionStorage.setItem(KEY, JSON.stringify({ names: names, back: back })); } catch (e) {}
 })();
 
 

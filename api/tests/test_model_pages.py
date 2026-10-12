@@ -106,9 +106,15 @@ class TestAModelsPage:
     def test_it_is_named_in_the_sitemap(self, client):
         assert "/machines/vic-20</loc>" in client.get("/sitemap.xml").text
 
-    def test_the_way_back_is_to_every_model(self, client):
+    def test_the_way_back_is_to_every_model_until_the_browser_knows_better(self, client):
+        """Where somebody with nothing behind them goes (MANUAL §2, "The way back")."""
         page = client.get("/machines/vic-20").text
-        assert re.search(r'<nav class="itemnav"[^>]*>\s*<a href="/machines">', page)
+        assert re.search(
+            r'<nav class="itemnav"[^>]*><a class="btn sm" href="/machines" '
+            r"data-wayback>.*?Models</span>",
+            page,
+            re.S,
+        )
 
     def test_the_name_heads_it_with_its_family_and_year_under(self, client):
         page = client.get("/machines/vic-20").text

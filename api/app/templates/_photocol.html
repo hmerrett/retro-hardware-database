@@ -78,10 +78,12 @@
     <div class="photo-primary">
       {# data-full is what the lightbox opens, and it is the original: the point of
          a photograph of a board is being able to read the chips on it. What sits
-         on the page is a copy no wider than the column it sits in. #}
+         on the page is a copy no wider than the column it sits in. `sizes` is that
+         column at its widest, inside the panel's padding: 446px on a machine's or a
+         part's wide page, 294px on a location's, which is read in a column. #}
       <img class="photo-main zoomable" src="{{ img_url(images[0], THUMB_MAIN) }}"
            srcset="{{ img_srcset(images[0], [800, 1200]) }}"
-           sizes="(max-width: 900px) 100vw, 620px"
+           sizes="(max-width: 860px) 100vw, {{ '446px' if kind in ('computers', 'parts') else '294px' }}"
            data-full="{{ img_url(images[0]) }}" alt="{{ obj.asset_id }}"
            tabindex="0" role="button" aria-label="View this photo full size"
            data-kind="{{ kind }}" data-aid="{{ obj.asset_id }}" data-rel="{{ images[0] }}"

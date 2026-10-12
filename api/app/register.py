@@ -61,12 +61,11 @@ def _change_token(db: Session, aid: str) -> str:
 
 
 def _register_order(db: Session) -> list[tuple[str, str, str]]:
-    """Every asset in register order, as (asset_id, kind, display name).
+    """Every machine and part in register order, as (asset_id, kind, display name).
 
     Two small column queries: no photos are looked at, because this is only wanted
-    for the prev/next buttons on an item page. It is the fallback order -- arrive
-    from the gallery and the browser hands over the order it was actually showing,
-    filtered and sorted as you left it (see base.html)."""
+    for a list of names to pick from -- what a file can be linked to, what a project
+    can be about."""
     rows: list[tuple[str, str, str]] = []
     for kind, cls in (("computers", Computer), ("parts", Part)):
         for aid, name, maker, model in db.query(
@@ -83,22 +82,6 @@ def _register_order(db: Session) -> list[tuple[str, str, str]]:
             )
     rows.sort()
     return rows
-
-
-def _item_nav(db: Session, aid: str) -> dict[str, dict[str, str] | None]:
-    """{prev, next} for an item page: the assets either side of this one."""
-    order = _register_order(db)
-    here = next((n for n, row in enumerate(order) if row[0] == aid), None)
-    if here is None:
-        return {}
-
-    def at(n: int) -> dict[str, str] | None:
-        if not 0 <= n < len(order):
-            return None
-        a, kind, name = order[n]
-        return {"url": f"/{kind}/{a}", "name": name, "aid": a}
-
-    return {"prev": at(here - 1), "next": at(here + 1)}
 
 
 # The two of them that can be put on the list of things wanting work. A project is

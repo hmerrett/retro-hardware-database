@@ -3504,65 +3504,15 @@ class TestTheBrandOnThePage:
             photo.unlink()
 
 
-class TestWalkingFromItemToItem:
-    """Prev/next on an item page. The browser rewrites them to whatever order the
-    gallery was showing; what is reachable from here is the fallback the server
-    renders, which is register order -- what an item reached from a printed label
-    gets, with nothing in sessionStorage to go on.
-    """
-
-    @staticmethod
-    def links(page):
-        return {
-            rel: re.search(rf'id="nav-{rel}"[^>]*href="([^"]*)"', page).group(1)
-            for rel in ("prev", "next")
-        }
-
-    def test_the_middle_item_points_both_ways(self, client, computer, part):
-        first, middle, last = sorted(computer()["asset_id"] for _ in range(3))
-        page = client.get(f"/computers/{middle}").text
-        assert self.links(page) == {"prev": f"/computers/{first}", "next": f"/computers/{last}"}
-
-    def test_the_ends_have_nothing_beyond_them(self, client, computer):
-        first, last = sorted(computer()["asset_id"] for _ in range(2))
-        assert re.search(r'id="nav-prev"[^>]*hidden', client.get(f"/computers/{first}").text)
-        assert re.search(r'id="nav-next"[^>]*hidden', client.get(f"/computers/{last}").text)
-
-    def test_it_walks_across_computers_and_parts_alike(self, client, computer, part):
-        """One register, so the walk is over both -- the next asset after a machine
-        may well be a card that is not in it."""
-        kind = {computer()["asset_id"]: "computers", part()["asset_id"]: "parts"}
-        first, second = sorted(kind)  # ids are assigned, so either may come first
-        page = client.get(f"/{kind[first]}/{first}").text
-        assert self.links(page)["next"] == f"/{kind[second]}/{second}"
-
-    def test_the_buttons_name_where_they_go(self, client, computer):
-        """The title is the neighbour's name, so a walk is not blind."""
-        first = sorted([computer(model="Aaa")["asset_id"], computer(model="Zzz")["asset_id"]])[0]
-        page = client.get(f"/computers/{first}").text
-        assert re.search(r'id="nav-next"[^>]*title="Acme (Aaa|Zzz)"', page)
-
-    def test_a_lone_item_offers_neither(self, client, part):
-        page = client.get(f"/parts/{part()['asset_id']}").text
-        assert re.search(r'id="nav-prev"[^>]*hidden', page)
-        assert re.search(r'id="nav-next"[^>]*hidden', page)
-
-    def test_the_gallery_hands_over_the_order_it_is_showing(self, client, computer):
-        """Sorted and filtered as the visitor left it, which is the order their
-        prev/next should follow -- not the register's."""
-        computer()
-        page = served(client, client.get("/").text)
-        assert "sessionStorage.setItem('rhdb-order', JSON.stringify(PAGE.order))" in page
-
-    def test_the_item_page_prefers_that_order(self, client, part):
-        page = served(client, client.get(f"/parts/{part()['asset_id']}").text)
-        assert "sessionStorage.getItem('rhdb-order')" in page
-        assert "nav-next" in page
+class TestLeavingAnItem:
+    """There is no previous or next (MANUAL §2, "The way back"): an item is reached
+    from a list, a machine or a label, and the way on from it is back to where you
+    were."""
 
     def test_a_swipe_across_the_page_is_left_to_the_browser(self, client, part):
-        """Walking the register is the two buttons' job. A sideways swipe is how a
-        phone goes back, and the page taking it over left no way to leave an item.
-        The lightbox still binds touches, but only on itself."""
+        """A sideways swipe is how a phone goes back, and the page taking it over left
+        no way to leave an item. The lightbox still binds touches, but only on
+        itself."""
         page = client.get(f"/parts/{part()['asset_id']}").text
         assert not re.search(r"(?<![.\w])addEventListener\('touch", page)
 

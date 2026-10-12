@@ -340,22 +340,25 @@ class TestStats:
 
 
 class TestNavigation:
-    def test_itemnav_has_back_position_and_neighbours(self):
-        html = render(
-            "{{ U.itemnav('/', 'All', '12 of 439', '/computers/RH-1', '/computers/RH-3') }}"
-        )
-        assert html.startswith('<nav class="itemnav" aria-label="Item">')
-        assert '<span class="where">12 of 439</span>' in html
-        assert 'rel="prev"' in html and 'rel="next"' in html
+    def test_itemnav_is_the_way_back_in_a_row_of_controls(self):
+        html = render("{{ U.itemnav('/', 'Browse') }}")
+        assert html.startswith('<div class="ctlrow"><nav class="itemnav" aria-label="Item">')
+        assert '<a class="btn sm" href="/" data-wayback>' in html
+        assert "<span data-wayback-name>Browse</span>" in html
 
-    def test_a_missing_neighbour_is_left_out_not_disabled(self):
-        html = render("{{ U.itemnav('/', 'All', '1 of 439', '', '/computers/RH-2') }}")
-        assert 'rel="prev"' not in html and "disabled" not in html
-        assert 'rel="next"' in html
+    def test_it_has_no_previous_next_or_position(self):
+        html = render("{{ U.itemnav('/', 'Browse') }}")
+        assert "rel=" not in html and 'class="where"' not in html
 
-    def test_the_arrows_are_not_read_out(self):
-        html = render("{{ U.itemnav('/', 'All', '2 of 3', '/a', '/b') }}")
-        assert html.count('aria-hidden="true"') == 3
+    def test_what_it_is_called_with_goes_after_the_landmark(self):
+        """The owner's actions: Duplicate is a form that posts, and a form is not
+        navigation."""
+        html = render("{% call U.itemnav('/', 'Browse') %}<form></form>{% endcall %}")
+        assert html.index("</nav>") < html.index("<form>") < html.index("</div>")
+
+    def test_the_arrow_is_not_read_out(self):
+        html = render("{{ U.itemnav('/', 'Browse') }}")
+        assert html.count('aria-hidden="true"') == 1
 
     def test_pager_links_the_pages_either_side(self):
         html = render("{{ U.pager(2, 12, '/?page=') }}")

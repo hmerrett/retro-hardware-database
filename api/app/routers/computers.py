@@ -109,7 +109,7 @@ from ..photos import (
     reference_marks,
     tuned_photos,
 )
-from ..register import _change_token, _item_nav, get_or_404
+from ..register import _change_token, get_or_404
 from ..web import _dot, _jsonld, _og, _safe_next, png_label, templates
 
 from .. import ramdb
@@ -464,7 +464,6 @@ def gui_computer(
             "imgerr": bool(imgerr),
             "fiterr": bool(fiterr),
             "log": _history(db, aid, kept=told),
-            "nav": _item_nav(db, aid),
             "live_aid": aid,
             "live_v": _change_token(db, aid),
             "og": (

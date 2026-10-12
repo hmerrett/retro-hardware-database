@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title | default(site_name(), true) }}{% endblock %}
 {% block width %} wide{% endblock %}
+{# Browse by any other name -- Might sell, the items behind a figure -- is called
+   what its heading calls it. #}
+{% block backname %}{{ heading | default('Browse') }}{% endblock %}
 {% block content %}
 {% import "_ui.html" as U with context %}
 {# Doubles as /browse: same grid, a subset of the rows, and a line saying which
@@ -139,7 +142,7 @@
 {% if not rows %}<p id="empty" class="muted">No matching items.</p>{% endif %}
 {{ U.pager(page, pages, pager_href) }}
 
-<script type="application/json" id="index-data">{{ {'sortCookie': sort_cookie, 'order': handoff} | tojson }}</script>
+<script type="application/json" id="index-data">{{ {'sortCookie': sort_cookie} | tojson }}</script>
 <script defer src="/static/index.js?v={{ js_ver['index.js'] }}"></script>
 {% endif %}
 {% endblock %}

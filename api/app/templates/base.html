@@ -106,7 +106,15 @@
     rather than defaulted. A page on the v0.2 components adds v2 through main_class,
     which the 0.1 rules in app.css that share its class names stand back from. That
     half is transitional: it goes with app.css, and the width outlives it. #}
-<main id="main" tabindex="-1" class="page{% block width %}{% endblock %}{% block main_class %}{% endblock %}">{% block content %}{% endblock %}</main>
+{#- What this page is called by the way back of a page opened from it (MANUAL §2,
+    "The way back"): Browse, a tag, Might sell. A page that names nothing -- a form,
+    Settings -- is not somewhere a way back leads. backtitle is what a tag stands for,
+    for the button's tooltip. Defined here, out of the way, and read into <main>, so a
+    page states its name in a block of its own like its title. -#}
+{% if false %}{% block backname %}{% endblock %}{% block backtitle %}{% endblock %}{% endif -%}
+{% set _bn = self.backname() | trim %}{% set _bt = self.backtitle() | trim -%}
+<main id="main" tabindex="-1" class="page{% block width %}{% endblock %}{% block main_class %}{% endblock %}"
+  {%- if _bn %} data-backname="{{ _bn }}"{% endif %}{% if _bt %} data-backtitle="{{ _bt }}"{% endif %}>{% block content %}{% endblock %}</main>
 {% if _nav == 'side' %}</div></div>{% endif %}
 
 {{ U.tabbar(_p) }}

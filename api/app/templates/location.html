@@ -5,6 +5,8 @@
 {% import "_labelsend.html" as LS %}
 {% block title %}{{ loc.name }} · {{ loc.asset_id }} — {{ site_name() }}{% endblock %}
 {% block main_class %} v2{% endblock %}
+{# What the way back of a page opened from this one says, and its tooltip. #}
+{% block backname %}{{ loc.asset_id }}{% endblock %}{% block backtitle %}{{ loc.name }}{% endblock %}
 {% block content %}
 {# A location's own page (MANUAL §14, "A location's page"): where it is, what it
    is, and what is in it -- which is the body of the page, because "what's here?" is
