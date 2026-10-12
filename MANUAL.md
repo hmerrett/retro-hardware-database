@@ -295,10 +295,10 @@ notice the same way: while it is up, **Log out** and **Collapse** sit above it,
 and the rail scrolls to reach them if the window is short.
 
 Tables say which of their cells are headings, so a screen reader can announce a
-figure with the heading it sits under. In a table of rows — the files list, the
-orders on a project — the headings run along the top; in an item's table of
-details they run down the left, and "Notes" is read as the heading of the note
-rather than as a cell of its own.
+figure with the heading it sits under. In a table of rows — the orders on a
+project, the drives — the headings run along the top. An item's **Details** are a
+list of names and values rather than a table, each value read with its name, so
+"Notes" is read as the name of the note rather than as a line of its own.
 
 If your system is set to reduce motion — **Reduce Motion** on iOS and macOS,
 **Show animations** turned off on Windows, the equivalent switch on a desktop
@@ -1374,10 +1374,11 @@ from the same edge.
 **Upload** by choosing the files — that is the whole gesture, the upload goes as
 soon as they are picked. Several at once is fine.
 
-**From a phone.** Every item page ends in a QR code of its own URL, shown only
-when you are logged in (a visitor has nothing to upload with). Scan it and the
-phone is on that item, where choosing a photo shoots it or picks it from the
-camera roll. A phone that arrives not logged in is put back on the item after
+**From a phone.** Under an item's photographs is a QR code of its own URL, in a
+panel of its own, **From your phone**, shown only when you are logged in (a visitor
+has nothing to upload with) and not on a screen as narrow as a phone's, which is
+already where it leads. Scan it and the phone is on that item, where choosing a
+photo shoots it or picks it from the camera roll. A phone that arrives not logged in is put back on the item after
 logging in, rather than dumped on the gallery.
 
 **Per photo**, once logged in:
